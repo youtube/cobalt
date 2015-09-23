@@ -21,10 +21,10 @@
 #include "base/bind.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/computed_style.h"
+#include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
-#include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/text.h"
@@ -623,6 +623,7 @@ void BoxGenerator::Visit(dom::Text* text) {
       new cssom::ComputedStyleState();
   computed_style_state->set_style(
       GetComputedStyleOfAnonymousBox(parent_computed_style_));
+  computed_style_state->set_animations(new web_animations::AnimationSet());
 
   DCHECK(text);
   DCHECK(computed_style_state->style());

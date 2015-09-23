@@ -86,12 +86,13 @@ AnonymousBlockBox*
 BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
   AnonymousBlockBox* anonymous_block_box = GetLastChildAsAnonymousBlockBox();
   if (anonymous_block_box == NULL) {
-    // TODO(***REMOVED***): Determine which transitions to propagate to the
+    // TODO(***REMOVED***): Determine which animations to propagate to the
     //               anonymous block box, instead of none at all.
     scoped_refptr<cssom::ComputedStyleState> computed_style_state =
         new cssom::ComputedStyleState();
     computed_style_state->set_style(
         GetComputedStyleOfAnonymousBox(computed_style()));
+    computed_style_state->set_animations(new web_animations::AnimationSet());
     scoped_refptr<AnonymousBlockBox> new_anonymous_block_box(
         new AnonymousBlockBox(computed_style_state, used_style_provider()));
     anonymous_block_box = new_anonymous_block_box.get();

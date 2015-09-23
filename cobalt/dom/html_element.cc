@@ -28,6 +28,7 @@
 #include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_animatable.h"
 #include "cobalt/dom/dom_string_map.h"
 #include "cobalt/dom/focus_event.h"
 #include "cobalt/dom/html_anchor_element.h"
@@ -335,7 +336,7 @@ void HTMLElement::UpdateComputedStyle(
   scoped_refptr<cssom::CSSStyleDeclarationData> new_computed_style =
       PromoteMatchingRulesToComputedStyle(
           matching_rules(), &property_key_to_base_url_map, style_->data(),
-          parent_computed_style, style_change_event_time, transitions(),
+          parent_computed_style, style_change_event_time, &transitions_,
           computed_style());
 
   // If there is no previous computed style, there should also be no layout
@@ -431,7 +432,11 @@ HTMLElement::HTMLElement(Document* document)
           document->html_element_context()->css_parser())),
       computed_style_valid_(false),
       computed_style_state_(new cssom::ComputedStyleState()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          transitions_adapter_(new DOMAnimatable(this))),
+      transitions_(&transitions_adapter_),
       matching_rules_valid_(false) {
+  computed_style_state_->set_animations(animations());
   style_->set_mutation_observer(this);
 }
 
@@ -441,7 +446,11 @@ HTMLElement::HTMLElement(Document* document, const std::string& tag_name)
           document->html_element_context()->css_parser())),
       computed_style_valid_(false),
       computed_style_state_(new cssom::ComputedStyleState()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          transitions_adapter_(new DOMAnimatable(this))),
+      transitions_(&transitions_adapter_),
       matching_rules_valid_(false) {
+  computed_style_state_->set_animations(animations());
   style_->set_mutation_observer(this);
 }
 

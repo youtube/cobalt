@@ -222,7 +222,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
   }
 
   // Note that according to:
-  //     http://www.w3.org/TR/web-animations/#model-liveness,
+  //     http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#model-liveness,
   // "The time passed to a requestAnimationFrame callback will be equal to
   // document.timeline.currentTime".  In our case, document.timeline.currentTime
   // is derived from the latest sample time.
