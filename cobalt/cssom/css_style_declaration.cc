@@ -62,23 +62,6 @@ CSSStyleDeclaration::CSSStyleDeclaration(
 CSSStyleDeclaration::~CSSStyleDeclaration() {}
 
 
-std::string CSSStyleDeclaration::GetPropertyValue(
-    const std::string& property_name) {
-  return data_->GetPropertyValue(property_name)
-             ? data_->GetPropertyValue(property_name)->ToString()
-             : "";
-}
-
-void CSSStyleDeclaration::SetPropertyValue(const std::string& property_name,
-                                           const std::string& property_value) {
-  DCHECK(css_parser_);
-  css_parser_->ParsePropertyIntoStyle(property_name, property_value,
-                                      non_trivial_static_fields.Get().location,
-                                      data_.get());
-
-  RecordMutation();
-}
-
 std::string CSSStyleDeclaration::background() const {
   // In order to implement this properly we must either save the incoming string
   // values when they are being set, or combine the results of getting the
@@ -554,6 +537,391 @@ void CSSStyleDeclaration::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
   DCHECK(style_sheet);
   DCHECK(style_sheet->ParentStyleSheetList());
   mutation_observer_ = style_sheet->ParentStyleSheetList();
+}
+
+// Algorithm for length:
+//   http://www.w3.org/TR/cssom/#dom-cssstyledeclaration-length
+unsigned int CSSStyleDeclaration::length() const {
+  unsigned int length = 0;
+
+  if (data_->background_color()) {
+    ++length;
+  }
+  if (data_->background_image()) {
+    ++length;
+  }
+  if (data_->background_position()) {
+    ++length;
+  }
+  if (data_->background_repeat()) {
+    ++length;
+  }
+  if (data_->background_size()) {
+    ++length;
+  }
+  if (data_->border_radius()) {
+    ++length;
+  }
+  if (data_->bottom()) {
+    ++length;
+  }
+  if (data_->color()) {
+    ++length;
+  }
+  if (data_->content()) {
+    ++length;
+  }
+  if (data_->display()) {
+    ++length;
+  }
+  if (data_->font_family()) {
+    ++length;
+  }
+  if (data_->font_size()) {
+    ++length;
+  }
+  if (data_->font_style()) {
+    ++length;
+  }
+  if (data_->font_weight()) {
+    ++length;
+  }
+  if (data_->height()) {
+    ++length;
+  }
+  if (data_->left()) {
+    ++length;
+  }
+  if (data_->line_height()) {
+    ++length;
+  }
+  if (data_->margin_bottom()) {
+    ++length;
+  }
+  if (data_->margin_left()) {
+    ++length;
+  }
+  if (data_->margin_right()) {
+    ++length;
+  }
+  if (data_->margin_top()) {
+    ++length;
+  }
+  if (data_->opacity()) {
+    ++length;
+  }
+  if (data_->overflow()) {
+    ++length;
+  }
+  if (data_->padding_bottom()) {
+    ++length;
+  }
+  if (data_->padding_left()) {
+    ++length;
+  }
+  if (data_->padding_right()) {
+    ++length;
+  }
+  if (data_->padding_top()) {
+    ++length;
+  }
+  if (data_->position()) {
+    ++length;
+  }
+  if (data_->right()) {
+    ++length;
+  }
+  if (data_->text_align()) {
+    ++length;
+  }
+  if (data_->top()) {
+    ++length;
+  }
+  if (data_->transform()) {
+    ++length;
+  }
+  if (data_->transition_delay()) {
+    ++length;
+  }
+  if (data_->transition_duration()) {
+    ++length;
+  }
+  if (data_->transition_property()) {
+    ++length;
+  }
+  if (data_->transition_timing_function()) {
+    ++length;
+  }
+  if (data_->vertical_align()) {
+    ++length;
+  }
+  if (data_->width()) {
+    ++length;
+  }
+  if (data_->z_index()) {
+    ++length;
+  }
+  return length;
+}
+
+// Algorithm for Item:
+//   http://www.w3.org/TR/cssom/#dom-cssstyledeclaration-item
+base::optional<std::string> CSSStyleDeclaration::Item(
+    unsigned int index) const {
+  unsigned int length = 0;
+
+  if (data_->background_color()) {
+    if (length == index) {
+      return std::string(kBackgroundColorPropertyName);
+    }
+    ++length;
+  }
+  if (data_->background_image()) {
+    if (length == index) {
+      return std::string(kBackgroundImagePropertyName);
+    }
+    ++length;
+  }
+  if (data_->background_position()) {
+    if (length == index) {
+      return std::string(kBackgroundPositionPropertyName);
+    }
+    ++length;
+  }
+  if (data_->background_repeat()) {
+    if (length == index) {
+      return std::string(kBackgroundRepeatPropertyName);
+    }
+    ++length;
+  }
+  if (data_->background_size()) {
+    if (length == index) {
+      return std::string(kBackgroundSizePropertyName);
+    }
+    ++length;
+  }
+  if (data_->border_radius()) {
+    if (length == index) {
+      return std::string(kBorderRadiusPropertyName);
+    }
+    ++length;
+  }
+  if (data_->bottom()) {
+    if (length == index) {
+      return std::string(kBottomPropertyName);
+    }
+    ++length;
+  }
+  if (data_->color()) {
+    if (length == index) {
+      return std::string(kColorPropertyName);
+    }
+    ++length;
+  }
+  if (data_->content()) {
+    if (length == index) {
+      return std::string(kContentPropertyName);
+    }
+    ++length;
+  }
+  if (data_->display()) {
+    if (length == index) {
+      return std::string(kDisplayPropertyName);
+    }
+    ++length;
+  }
+  if (data_->font_family()) {
+    if (length == index) {
+      return std::string(kFontFamilyPropertyName);
+    }
+    ++length;
+  }
+  if (data_->font_size()) {
+    if (length == index) {
+      return std::string(kFontSizePropertyName);
+    }
+    ++length;
+  }
+  if (data_->font_style()) {
+    if (length == index) {
+      return std::string(kFontStylePropertyName);
+    }
+    ++length;
+  }
+  if (data_->font_weight()) {
+    if (length == index) {
+      return std::string(kFontWeightPropertyName);
+    }
+    ++length;
+  }
+  if (data_->height()) {
+    if (length == index) {
+      return std::string(kHeightPropertyName);
+    }
+    ++length;
+  }
+  if (data_->left()) {
+    if (length == index) {
+      return std::string(kLeftPropertyName);
+    }
+    ++length;
+  }
+  if (data_->line_height()) {
+    if (length == index) {
+      return std::string(kLineHeightPropertyName);
+    }
+    ++length;
+  }
+  if (data_->margin_bottom()) {
+    if (length == index) {
+      return std::string(kMarginBottomPropertyName);
+    }
+    ++length;
+  }
+  if (data_->margin_left()) {
+    if (length == index) {
+      return std::string(kMarginLeftPropertyName);
+    }
+    ++length;
+  }
+  if (data_->margin_right()) {
+    if (length == index) {
+      return std::string(kMarginRightPropertyName);
+    }
+    ++length;
+  }
+  if (data_->margin_top()) {
+    if (length == index) {
+      return std::string(kMarginTopPropertyName);
+    }
+    ++length;
+  }
+  if (data_->opacity()) {
+    if (length == index) {
+      return std::string(kOpacityPropertyName);
+    }
+    ++length;
+  }
+  if (data_->overflow()) {
+    if (length == index) {
+      return std::string(kOverflowPropertyName);
+    }
+    ++length;
+  }
+  if (data_->padding_bottom()) {
+    if (length == index) {
+      return std::string(kPaddingBottomPropertyName);
+    }
+    ++length;
+  }
+  if (data_->padding_left()) {
+    if (length == index) {
+      return std::string(kPaddingLeftPropertyName);
+    }
+    ++length;
+  }
+  if (data_->padding_right()) {
+    if (length == index) {
+      return std::string(kPaddingRightPropertyName);
+    }
+    ++length;
+  }
+  if (data_->padding_top()) {
+    if (length == index) {
+      return std::string(kPaddingTopPropertyName);
+    }
+    ++length;
+  }
+  if (data_->position()) {
+    if (length == index) {
+      return std::string(kPositionPropertyName);
+    }
+    ++length;
+  }
+  if (data_->right()) {
+    if (length == index) {
+      return std::string(kRightPropertyName);
+    }
+    ++length;
+  }
+  if (data_->text_align()) {
+    if (length == index) {
+      return std::string(kTextAlignPropertyName);
+    }
+    ++length;
+  }
+  if (data_->top()) {
+    if (length == index) {
+      return std::string(kTopPropertyName);
+    }
+    ++length;
+  }
+  if (data_->transform()) {
+    if (length == index) {
+      return std::string(kTransformPropertyName);
+    }
+    ++length;
+  }
+  if (data_->transition_delay()) {
+    if (length == index) {
+      return std::string(kTransitionDelayPropertyName);
+    }
+    ++length;
+  }
+  if (data_->transition_duration()) {
+    if (length == index) {
+      return std::string(kTransitionDurationPropertyName);
+    }
+    ++length;
+  }
+  if (data_->transition_property()) {
+    if (length == index) {
+      return std::string(kTransitionPropertyPropertyName);
+    }
+    ++length;
+  }
+  if (data_->transition_timing_function()) {
+    if (length == index) {
+      return std::string(kTransitionTimingFunctionPropertyName);
+    }
+    ++length;
+  }
+  if (data_->vertical_align()) {
+    if (length == index) {
+      return std::string(kVerticalAlignPropertyName);
+    }
+    ++length;
+  }
+  if (data_->width()) {
+    if (length == index) {
+      return std::string(kWidthPropertyName);
+    }
+    ++length;
+  }
+  if (data_->z_index()) {
+    if (length == index) {
+      return std::string(kZIndexPropertyName);
+    }
+  }
+
+  return base::nullopt;
+}
+
+std::string CSSStyleDeclaration::GetPropertyValue(
+    const std::string& property_name) {
+  return data_->GetPropertyValue(property_name)
+             ? data_->GetPropertyValue(property_name)->ToString()
+             : "";
+}
+
+void CSSStyleDeclaration::SetPropertyValue(const std::string& property_name,
+                                           const std::string& property_value) {
+  DCHECK(css_parser_);
+  css_parser_->ParsePropertyIntoStyle(property_name, property_value,
+                                      non_trivial_static_fields.Get().location,
+                                      data_.get());
+
+  RecordMutation();
 }
 
 void CSSStyleDeclaration::RecordMutation() {
