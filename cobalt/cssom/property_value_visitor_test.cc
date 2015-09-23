@@ -29,6 +29,7 @@
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
@@ -39,10 +40,9 @@
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
-#include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/unicode_range_value.h"
-#include "cobalt/cssom/url_value.h"
 #include "cobalt/cssom/url_src_value.h"
+#include "cobalt/cssom/url_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -69,6 +69,8 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
                void(MediaFeatureKeywordValue* media_feature_keyword_value));
   MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
   MOCK_METHOD1(VisitPercentage, void(PercentageValue* percentage_value));
+  MOCK_METHOD1(VisitPropertyKeyList,
+               void(PropertyKeyListValue* property_key_list_value));
   MOCK_METHOD1(VisitPropertyList, void(PropertyListValue* property_list_value));
   MOCK_METHOD1(VisitRatio, void(RatioValue* ratio_value));
   MOCK_METHOD1(VisitResolution, void(ResolutionValue* resolution_value));

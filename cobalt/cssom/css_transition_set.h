@@ -17,9 +17,10 @@
 #ifndef CSSOM_CSS_TRANSITION_SET_H_
 #define CSSOM_CSS_TRANSITION_SET_H_
 
-#include "base/hash_tables.h"
-#include "base/optional.h"
+#include <map>
+
 #include "base/time.h"
+#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_transition.h"
 
 namespace cobalt {
@@ -53,7 +54,7 @@ class TransitionSet {
   // Given the name of a property, returns the active transition corresponding
   // to it.  If no transition currently exists for this property, this method
   // returns NULL.
-  const Transition* GetTransitionForProperty(const char* property) const;
+  const Transition* GetTransitionForProperty(PropertyKey property) const;
 
   // Returns true if there are no animations in this animation set.
   bool empty() const { return transitions_.empty(); }
@@ -66,7 +67,7 @@ class TransitionSet {
 
  private:
   void UpdateTransitionForProperty(
-      const char* property_name, const base::TimeDelta& current_time,
+      PropertyKey property, const base::TimeDelta& current_time,
       const scoped_refptr<PropertyValue>& source_value,
       const scoped_refptr<PropertyValue>& destination_value,
       const CSSStyleDeclarationData& transition_style);
@@ -74,12 +75,10 @@ class TransitionSet {
   // Inserts or replaces an existing value in the internal map.  Essentially
   // this method behaves like InternalTransitionMap::operator[], but does not
   // require that the map value have a default constructor defined.
-  void InsertOrReplaceInInternalMap(
-      const char* property_name, const Transition& transition);
+  void InsertOrReplaceInInternalMap(PropertyKey property,
+                                    const Transition& transition);
 
-  // The value of our internal hash map is a base::optional type so that we
-  // do not need to specify a default constructor on it.
-  typedef base::hash_map<const char*, Transition> InternalTransitionMap;
+  typedef std::map<PropertyKey, Transition> InternalTransitionMap;
   InternalTransitionMap transitions_;
 };
 

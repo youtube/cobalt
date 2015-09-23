@@ -18,6 +18,7 @@
 
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
@@ -30,7 +31,6 @@
 #include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/property_list_value.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/style_sheet_list.h"
@@ -76,11 +76,11 @@ TEST_F(CSSFontFaceRuleTest, PropertyValueSetter) {
   EXPECT_CALL(
       css_parser_,
       ParsePropertyIntoDeclarationData(
-          kFontFamilyPropertyName, family, _,
+          GetPropertyName(kFontFamilyProperty), family, _,
           const_cast<CSSFontFaceDeclarationData*>(font_face->data().get())));
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
 
-  font_face->SetPropertyValue(kFontFamilyPropertyName, family);
+  font_face->SetPropertyValue(GetPropertyName(kFontFamilyProperty), family);
 }
 
 TEST_F(CSSFontFaceRuleTest, FamilySetter) {
@@ -92,7 +92,7 @@ TEST_F(CSSFontFaceRuleTest, FamilySetter) {
   EXPECT_CALL(
       css_parser_,
       ParsePropertyIntoDeclarationData(
-          kFontFamilyPropertyName, family, _,
+          GetPropertyName(kFontFamilyProperty), family, _,
           const_cast<CSSFontFaceDeclarationData*>(font_face->data().get())));
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
 
@@ -109,7 +109,7 @@ TEST_F(CSSFontFaceRuleTest, SrcSetter) {
   EXPECT_CALL(
       css_parser_,
       ParsePropertyIntoDeclarationData(
-          kSrcPropertyName, src, _,
+          GetPropertyName(kSrcProperty), src, _,
           const_cast<CSSFontFaceDeclarationData*>(font_face->data().get())));
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
 
@@ -125,7 +125,7 @@ TEST_F(CSSFontFaceRuleTest, StyleSetter) {
   EXPECT_CALL(
       css_parser_,
       ParsePropertyIntoDeclarationData(
-          kFontStylePropertyName, style, _,
+          GetPropertyName(kFontStyleProperty), style, _,
           const_cast<CSSFontFaceDeclarationData*>(font_face->data().get())));
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
 
@@ -141,7 +141,7 @@ TEST_F(CSSFontFaceRuleTest, WeightSetter) {
   EXPECT_CALL(
       css_parser_,
       ParsePropertyIntoDeclarationData(
-          kFontWeightPropertyName, weight, _,
+          GetPropertyName(kFontWeightProperty), weight, _,
           const_cast<CSSFontFaceDeclarationData*>(font_face->data().get())));
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
 
@@ -157,7 +157,7 @@ TEST_F(CSSFontFaceRuleTest, UnicodeRangeSetter) {
   EXPECT_CALL(
       css_parser_,
       ParsePropertyIntoDeclarationData(
-          kUnicodeRangePropertyName, unicode_range, _,
+          GetPropertyName(kUnicodeRangeProperty), unicode_range, _,
           const_cast<CSSFontFaceDeclarationData*>(font_face->data().get())));
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
 

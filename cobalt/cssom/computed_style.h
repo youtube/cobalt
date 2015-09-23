@@ -17,20 +17,13 @@
 #ifndef CSSOM_COMPUTED_STYLE_H_
 #define CSSOM_COMPUTED_STYLE_H_
 
-#include "base/containers/small_map.h"
-#include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "googleurl/src/gurl.h"
+#include "cobalt/cssom/css_property_definitions.h"
 
 namespace cobalt {
 namespace cssom {
 
 class CSSStyleDeclarationData;
-
-// NOTE: The array size of SmallMap and the decision to use std::map as the
-// underlying container type are based on extensive performance testing with
-// ***REMOVED***. Do not change these unless additional profiling data justifies it.
-typedef base::SmallMap<std::map<const char*, GURL>, 1> GURLMap;
 
 // The computed value is the result of resolving the specified value,
 // generally absolutizing it. The computed value is the value that is
@@ -42,7 +35,7 @@ typedef base::SmallMap<std::map<const char*, GURL>, 1> GURLMap;
 void PromoteToComputedStyle(
     const scoped_refptr<CSSStyleDeclarationData>& specified_style,
     const scoped_refptr<const CSSStyleDeclarationData>& parent_computed_style,
-    GURLMap* const property_name_to_base_url_map);
+    GURLMap* const property_key_to_base_url_map);
 
 // Creates the computed style of an anonymous box from the given parent style.
 // CSS 2.1 specification provides identical definitions for anonymous block and
