@@ -69,8 +69,11 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       html_element_context_(new HTMLElementContext(
           fetcher_factory, css_parser, dom_parser, web_media_player_factory,
           script_runner, image_cache)),
-      document_(
-          new Document(html_element_context_.get(), Document::Options(url))),
+      performance_(new Performance(new base::SystemMonotonicClock())),
+      document_(new Document(
+          html_element_context_.get(),
+          Document::Options(
+              url, performance_->timing()->GetNavigationStartClock()))),
       document_loader_(new loader::Loader(
           base::Bind(&loader::FetcherFactory::CreateFetcher,
                      base::Unretained(fetcher_factory), url),
@@ -78,7 +81,6 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
               document_, base::SourceLocation(url.spec(), 1, 1)),
           error_callback)),
       navigator_(new Navigator(user_agent)),
-      performance_(new Performance()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
@@ -170,7 +172,8 @@ void Window::RunAnimationFrameCallbacks() {
       new AnimationFrameRequestCallbackList());
 
   // Now, iterate through each of the callbacks and call them.
-  frame_request_list->RunCallbacks(performance()->Now());
+  frame_request_list->RunCallbacks(
+      document_->timeline_sample_time()->InMillisecondsF());
 }
 
 }  // namespace dom

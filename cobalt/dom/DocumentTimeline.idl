@@ -14,23 +14,12 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/performance.h"
+// http://www.w3.org/TR/web-animations/#the-documenttimeline-interface
 
-#include "base/time.h"
+[
+    Constructor (DOMHighResTimeStamp originTime),
+    ConstructorCallWith=EnvironmentSettings
+] interface DocumentTimeline : AnimationTimeline {
+};
 
-namespace cobalt {
-namespace dom {
-
-Performance::Performance(const scoped_refptr<base::Clock>& clock)
-    : timing_(new PerformanceTiming(clock)) {}
-
-double Performance::Now() const {
-  return timing_->GetNavigationStartClock()->Now().InMillisecondsF();
-}
-
-Performance::~Performance() {}
-
-scoped_refptr<PerformanceTiming> Performance::timing() const { return timing_; }
-
-}  // namespace dom
-}  // namespace cobalt
+typedef double DOMHighResTimeStamp;

@@ -54,8 +54,15 @@ Document::Document(HTMLElementContext* html_element_context,
       loading_counter_(0),
       should_dispatch_load_event_(true),
       rule_matches_dirty_(true),
-      computed_style_dirty_(true) {
+      computed_style_dirty_(true),
+      navigation_start_clock_(options.navigation_start_clock),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          default_timeline_(new DocumentTimeline(this, 0))) {
   DCHECK(url_.is_empty() || url_.is_valid());
+
+  // Sample the timeline upon initialization.
+  SampleTimelineTime();
+
   // Call OnInsertedIntoDocument() immediately to ensure that the Document
   // object itself is considered to be "in the document".
   OnInsertedIntoDocument();
@@ -332,14 +339,21 @@ void Document::UpdateComputedStyles(
     // all animations that may be triggered here must start at the exact same
     // time if they were triggered in the same style change event.
     //   http://www.w3.org/TR/css3-transitions/#starting
-    base::TimeDelta style_change_event_time =
-        base::Time::Now() - base::Time::UnixEpoch();
+    base::TimeDelta style_change_event_time = *timeline_sample_time();
 
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateComputedStyles);
     html()->UpdateComputedStyleRecursively(root_computed_style,
                                            style_change_event_time, true);
 
     computed_style_dirty_ = false;
+  }
+}
+
+void Document::SampleTimelineTime() {
+  if (navigation_start_clock_) {
+    timeline_sample_time_ = navigation_start_clock_->Now();
+  } else {
+    timeline_sample_time_ = base::nullopt;
   }
 }
 
