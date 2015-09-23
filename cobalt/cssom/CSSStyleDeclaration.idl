@@ -61,6 +61,9 @@ interface CSSStyleDeclaration {
 
   [TreatNullAs=EmptyString] attribute DOMString cssText;
 
+  readonly attribute unsigned long length;
+  getter DOMString? item(unsigned long index);
+
   DOMString getPropertyValue(DOMString property);
   void setPropertyValue(DOMString property, DOMString value);
 
