@@ -35,34 +35,33 @@ class RenderTreeCombiner {
 
   // Update the main web module render tree.
   void UpdateMainRenderTree(
-      const scoped_refptr<render_tree::Node>& render_tree,
-      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-          animations_map);
+      const renderer::Pipeline::Submission& render_tree_submission);
 
   // Update the debug console render tree.
   void UpdateDebugConsoleRenderTree(
-      const scoped_refptr<render_tree::Node>& render_tree,
-      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-          animations_map);
+      const renderer::Pipeline::Submission& render_tree_submission);
 
  private:
   // Combines the two cached render trees (main/debug) and renders the result.
   void SubmitToRenderer();
-
-  // Local references to the main and debug console render trees/animation maps
-  // so we can combine them.
-  scoped_refptr<render_tree::Node> main_render_tree_;
-  scoped_refptr<render_tree::animations::NodeAnimationsMap>
-      main_animations_map_;
-  scoped_refptr<render_tree::Node> debug_console_render_tree_;
-  scoped_refptr<render_tree::animations::NodeAnimationsMap>
-      debug_console_animations_map_;
 
   DebugConsole::DebugConsoleMode debug_console_mode_;
 
   // Local reference to the render pipeline, so we can submit the combined tree.
   // Reference counted pointer not necessary here.
   renderer::Pipeline* renderer_pipeline_;
+
+  // Local references to the main and debug console render trees/animation maps
+  // so we can combine them.
+  base::optional<renderer::Pipeline::Submission> main_render_tree_;
+
+  // This is the time that we received the last main render tree submission.
+  // used so that we know what time to forward the submission to the pipeline
+  // with.
+  base::optional<base::TimeTicks> main_render_tree_receipt_time_;
+
+  // The debug console render tree submission.
+  base::optional<renderer::Pipeline::Submission> debug_console_render_tree_;
 };
 
 }  // namespace browser

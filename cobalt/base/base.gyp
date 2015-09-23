@@ -20,6 +20,7 @@
       'sources': [
         'allocator.h',
         'allocator_decorator.h',
+        'clock.h',
         'cobalt_paths.h',
         'compiler.h',
         'console_values.cc',

@@ -19,17 +19,18 @@
 namespace cobalt {
 namespace dom {
 
-PerformanceTiming::PerformanceTiming() : navigation_start_(base::Time::Now()) {}
+PerformanceTiming::PerformanceTiming(const scoped_refptr<base::Clock>& clock)
+    : navigation_start_clock_(new base::OffsetClock(clock, clock->Now())) {}
 
 PerformanceTiming::~PerformanceTiming() {}
 
 uint64 PerformanceTiming::navigation_start() const {
   return static_cast<uint64>(
-      (navigation_start_ - base::Time::UnixEpoch()).InMilliseconds());
+      navigation_start_clock_->origin().InMilliseconds());
 }
 
-const base::Time& PerformanceTiming::navigation_start_time() const {
-  return navigation_start_;
+scoped_refptr<base::OffsetClock> PerformanceTiming::GetNavigationStartClock() {
+  return navigation_start_clock_;
 }
 
 }  // namespace dom

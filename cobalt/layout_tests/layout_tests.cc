@@ -92,7 +92,8 @@ void AcceptRenderTreeForTest(
     renderer::RenderTreePixelTester* pixel_tester, base::RunLoop* run_loop,
     bool* result, const scoped_refptr<render_tree::Node>& tree,
     const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-        node_animations_map) {
+        node_animations_map,
+    base::TimeDelta render_tree_time) {
   *result = pixel_tester->TestTree(tree, test_html_path);
   MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
 }
@@ -104,7 +105,8 @@ void AcceptRenderTreeForRebaseline(
     renderer::RenderTreePixelTester* pixel_tester, base::RunLoop* run_loop,
     const scoped_refptr<render_tree::Node>& tree,
     const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-        node_animations_map) {
+        node_animations_map,
+    base::TimeDelta render_tree_time) {
   pixel_tester->Rebaseline(tree, test_html_path);
   MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
 }

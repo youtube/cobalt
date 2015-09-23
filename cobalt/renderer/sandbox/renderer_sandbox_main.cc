@@ -60,8 +60,8 @@ int main(int argc, char** argv) {
 
   // Pass the render tree along with associated animations into the renderer
   // module to be displayed.
-  renderer_module.pipeline()->Submit(scene.render_tree, scene.animations,
-                                     start_time);
+  renderer_module.pipeline()->Submit(cobalt::renderer::Pipeline::Submission(
+      scene.render_tree, scene.animations, start_time));
 
   base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(30));
 

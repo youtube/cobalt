@@ -52,25 +52,60 @@ class Pipeline {
            const scoped_refptr<backend::RenderTarget>& render_target);
   ~Pipeline();
 
-  // Convenience function that assumes there are no animations and submits
-  // an empty animation map.
-  void Submit(const scoped_refptr<render_tree::Node>& render_tree);
+  // A package of all information associated with a render tree submission.
+  struct Submission {
+    // Convenience constructor that assumes there are no animations and sets up
+    // an empty animation map.
+    explicit Submission(scoped_refptr<render_tree::Node> render_tree)
+        : render_tree(render_tree),
+          animations(new render_tree::animations::NodeAnimationsMap(
+              render_tree::animations::NodeAnimationsMap::Builder().Pass())) {}
+
+    // Submit a render tree as well as associated animations.  The
+    // time_offset parameter indicates a time that will be used to offset all
+    // times passed into animation functions.
+    Submission(
+        scoped_refptr<render_tree::Node> render_tree,
+        scoped_refptr<render_tree::animations::NodeAnimationsMap> animations,
+        base::TimeDelta time_offset)
+        : render_tree(render_tree),
+          animations(animations),
+          time_offset(time_offset) {}
+
+    // Submit a render tree with animations as well as a callback function that
+    // will be called every time the submission is rasterized.
+    Submission(
+        scoped_refptr<render_tree::Node> render_tree,
+        scoped_refptr<render_tree::animations::NodeAnimationsMap> animations,
+        base::TimeDelta time_offset, base::Closure submit_complete_callback)
+        : render_tree(render_tree),
+          animations(animations),
+          time_offset(time_offset),
+          submit_complete_callback(submit_complete_callback) {}
+
+    // Maintains the current render tree that is to be rendered next frame.
+    scoped_refptr<render_tree::Node> render_tree;
+
+    // Maintains the current animations that are to be in effect (i.e. applied
+    // to current_tree_) for all rasterizations until specifically updated by a
+    // call to Submit().
+    scoped_refptr<render_tree::animations::NodeAnimationsMap> animations;
+
+    // The time from some origin that the associated render tree animations were
+    // created.  This permits the render thread to compute times relative
+    // to the same origin when updating the animations, as well as hinting
+    // at the latency between animation creation and submission to render
+    // thread.
+    base::TimeDelta time_offset;
+
+    // A callback to be run each time a frame submission completes.
+    base::Closure submit_complete_callback;
+  };
 
   // Submit a new render tree to the renderer pipeline.  After calling this
-  // method, the submitted render tree will eventually be the one rendered
-  // by the rasterizer at the refresh rate.
-  void Submit(const scoped_refptr<render_tree::Node>& render_tree,
-              const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-                  animations,
-              base::TimeDelta offset_from_origin);
-
-  // Submits a new render tree to the renderer pipeline, and sets up a callback
-  // function that will be called every time a frame submission completes.
-  void Submit(const scoped_refptr<render_tree::Node>& render_tree,
-              const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-                  animations,
-              base::TimeDelta offset_from_origin,
-              const base::Closure& submit_complete_callback);
+  // method, the submitted render tree will be the one rendered by the
+  // rasterizer at the refresh rate.
+  void Submit(const Submission& render_tree_submission);
 
   // Returns the rate, in hertz, at which the current render tree is rasterized
   // and submitted to the display.
@@ -88,12 +123,7 @@ class Pipeline {
 
   // Called by Submit() to do the work of actually setting the newly submitted
   // render tree.  This method will be called on the rasterizer thread.
-  void SetNewRenderTree(
-      const scoped_refptr<render_tree::Node>& render_tree,
-      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-          animations,
-      base::TimeDelta offset_from_origin,
-      const base::Closure& submit_complete_callback);
+  void SetNewRenderTree(const Submission& render_tree_submission);
 
   // Called at a specified refresh rate (e.g. 60hz) on the rasterizer thread and
   // results in the rasterization of the current tree and submission of it to
@@ -121,42 +151,15 @@ class Pipeline {
   // The render_target that all submitted render trees will be rasterized to.
   scoped_refptr<backend::RenderTarget> render_target_;
 
-  // A package of all information associated with a render tree submission.
-  struct RenderTreeSubmission {
-    RenderTreeSubmission(
-        scoped_refptr<render_tree::Node> render_tree,
-        scoped_refptr<render_tree::animations::NodeAnimationsMap> animations,
-        base::TimeDelta offset_from_origin,
-        base::Closure submit_complete_callback) :
-        render_tree(render_tree),
-        animations(animations),
-        offset_from_origin(offset_from_origin),
-        submit_complete_callback(submit_complete_callback) {}
+  // We hold a reference to the last submitted render tree (and auxiliary
+  // information) and use that as the target render tree that we will render
+  // each frame until a new tree is submitted.
+  base::optional<Submission> last_submission_;
 
-    // Maintains the current render tree that is to be rendered next frame.
-    scoped_refptr<render_tree::Node> render_tree;
-
-    // Maintains the current animations that are to be in effect (i.e. applied
-    // to current_tree_) for all rasterizations until specifically updated by a
-    // call to Submit().
-    scoped_refptr<render_tree::animations::NodeAnimationsMap> animations;
-
-    // The time from some origin that the associated render tree animations were
-    // created.  This permits the render thread to compute times relative
-    // to the same origin when updating the animations, as well as hinting
-    // at the latency between animation creation and submission to render
-    // thread.
-    base::TimeDelta offset_from_origin;
-
-    // The time at which we started animating this render tree.  This is used
-    // to compute the time delta passed to pass the animation functions each
-    // frame (and is also offset with offset_from_origin above).
-    base::optional<base::Time> processing_start_time;
-
-    // A callback to be run each time a frame submission completes.
-    base::Closure submit_complete_callback;
-  };
-  base::optional<RenderTreeSubmission> last_submission_;
+  // The time at which we started animating the last submitted render tree.
+  // This is used to compute the time delta passed to pass the animation
+  // functions each frame (and is also offset with time_offset above).
+  base::optional<base::TimeTicks> last_submission_render_start_time_;
 
   // A timer that signals to the rasterizer to rasterize the next frame.
   // It is common for this to be set to 60hz, the refresh rate of most displays.

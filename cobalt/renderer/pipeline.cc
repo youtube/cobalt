@@ -95,39 +95,18 @@ render_tree::ResourceProvider* Pipeline::GetResourceProvider() {
   return rasterizer_->GetResourceProvider();
 }
 
-void Pipeline::Submit(const scoped_refptr<Node>& render_tree) {
-  Submit(render_tree,
-         new NodeAnimationsMap(NodeAnimationsMap::Builder().Pass()),
-         base::TimeDelta());
-}
-
-void Pipeline::Submit(const scoped_refptr<Node>& render_tree,
-                      const scoped_refptr<NodeAnimationsMap>& animations,
-                      base::TimeDelta offset_from_origin) {
-  // Execute the actual set of the new render tree on the rasterizer tree.
-  Submit(render_tree, animations, offset_from_origin, base::Closure());
-}
-
-void Pipeline::Submit(const scoped_refptr<Node>& render_tree,
-                      const scoped_refptr<NodeAnimationsMap>& animations,
-                      base::TimeDelta offset_from_origin,
-                      const base::Closure& submit_complete_callback) {
+void Pipeline::Submit(const Submission& render_tree_submission) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
   // Execute the actual set of the new render tree on the rasterizer tree.
   rasterizer_thread_->message_loop()->PostTask(
       FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
-                            render_tree, animations, offset_from_origin,
-                            submit_complete_callback));
+                            render_tree_submission));
 }
 
 
-void Pipeline::SetNewRenderTree(
-    const scoped_refptr<Node>& render_tree,
-    const scoped_refptr<NodeAnimationsMap>& animations,
-    base::TimeDelta offset_from_origin,
-    const base::Closure& submit_complete_callback) {
+void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
-  DCHECK(render_tree.get());
+  DCHECK(render_tree_submission.render_tree.get());
 
   if (last_submission_) {
     TRACE_EVENT_FLOW_END0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
@@ -135,11 +114,11 @@ void Pipeline::SetNewRenderTree(
     last_submission_ = base::nullopt;
   }
   TRACE_EVENT_FLOW_BEGIN0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
-                          render_tree.get());
+                          render_tree_submission.render_tree.get());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
 
-  last_submission_.emplace(
-      render_tree, animations, offset_from_origin, submit_complete_callback);
+  last_submission_ = render_tree_submission;
+  last_submission_render_start_time_ = base::nullopt;
 
   // Start the rasterization timer if it is not yet started.
   if (!refresh_rate_timer_) {
@@ -178,12 +157,12 @@ void Pipeline::RasterizeCurrentTree() {
                          "Pipeline::RasterizeCurrentTree()");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
-  if (!last_submission_->processing_start_time) {
-    last_submission_->processing_start_time = base::Time::Now();
+  if (!last_submission_render_start_time_) {
+    last_submission_render_start_time_ = base::TimeTicks::HighResNow();
   }
   base::TimeDelta time_from_origin =
-      (base::Time::Now() - *last_submission_->processing_start_time) +
-      last_submission_->offset_from_origin;
+      (base::TimeTicks::HighResNow() - *last_submission_render_start_time_) +
+      last_submission_->time_offset;
 
   // Animate the last submitted render tree using the last submitted animations.
   scoped_refptr<Node> animated_render_tree =

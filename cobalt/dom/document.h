@@ -21,8 +21,10 @@
 
 #include "base/observer_list.h"
 #include "base/string_piece.h"
+#include "cobalt/base/clock.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/dom/document_timeline.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/dom/rule_matching.h"
@@ -69,8 +71,13 @@ class Document : public Node, public cssom::MutationObserver {
   struct Options {
     Options() {}
     explicit Options(const GURL& url_value) : url(url_value) {}
+    Options(const GURL& url_value,
+            const scoped_refptr<base::Clock>& navigation_start_clock_value)
+        : url(url_value),
+          navigation_start_clock(navigation_start_clock_value) {}
 
     GURL url;
+    scoped_refptr<base::Clock> navigation_start_clock;
   };
 
   Document(HTMLElementContext* html_element_context, const Options& options);
@@ -127,6 +134,10 @@ class Document : public Node, public cssom::MutationObserver {
   //
   scoped_refptr<Element> QuerySelector(const std::string& selectors);
 
+  // Web Animations API
+  // http://www.w3.org/TR/web-animations/#extensions-to-the-document-interface
+  scoped_refptr<DocumentTimeline> timeline() { return default_timeline_; }
+
   // Custom, not in any spec: Node.
   //
   bool IsDocument() const OVERRIDE { return true; }
@@ -137,7 +148,8 @@ class Document : public Node, public cssom::MutationObserver {
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
   scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new Document(html_element_context_, Options(url_));
+    return new Document(html_element_context_,
+                        Options(url_, navigation_start_clock_));
   }
 
   // Custom, not in any spec.
@@ -203,6 +215,15 @@ class Document : public Node, public cssom::MutationObserver {
       const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
+  // Manages the clock used by Web Animations.
+  //     http://www.w3.org/TR/web-animations
+  // This clock is also used for requestAnimationFrame() callbacks, according
+  // to the specification above.
+  void SampleTimelineTime();
+  base::optional<base::TimeDelta> timeline_sample_time() {
+    return timeline_sample_time_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
@@ -235,6 +256,12 @@ class Document : public Node, public cssom::MutationObserver {
   base::WeakPtr<Element> active_element_;
   // List of document observers.
   ObserverList<DocumentObserver> observers_;
+
+  // The document's latest sample from the global clock, used for updating
+  // animations.
+  const scoped_refptr<base::Clock> navigation_start_clock_;
+  base::optional<base::TimeDelta> timeline_sample_time_;
+  scoped_refptr<DocumentTimeline> default_timeline_;
 };
 
 }  // namespace dom
