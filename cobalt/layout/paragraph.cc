@@ -16,6 +16,7 @@
 
 #include "cobalt/layout/paragraph.h"
 #include "base/i18n/bidi_line_iterator.h"
+#include "base/i18n/char_iterator.h"
 #include "base/i18n/rtl.h"
 #include "base/string16.h"
 
@@ -61,11 +62,23 @@ Paragraph::Paragraph(icu::BreakIterator* line_break_iterator,
       BidiLevelRun(0, ConvertBaseDirectionToBidiLevel(base_direction)));
 }
 
-int32 Paragraph::AppendText(const std::string& text) {
+int32 Paragraph::AppendUtf8String(const std::string& utf8_string) {
+  return AppendUtf8String(utf8_string, kNoTextTransform);
+}
+
+int32 Paragraph::AppendUtf8String(const std::string& utf8_string,
+                                  TextTransform transform) {
   int32 start_position = GetTextEndPosition();
   DCHECK(!is_closed_);
   if (!is_closed_) {
-    text_ += icu::UnicodeString::fromUTF8(text);
+    icu::UnicodeString unicode_string =
+        icu::UnicodeString::fromUTF8(utf8_string);
+    if (transform == kUppercaseTextTransform) {
+      // TODO(***REMOVED***): Pass in locale
+      unicode_string.toUpper();
+    }
+
+    unicode_text_ += unicode_string;
   }
   return start_position;
 }
@@ -73,7 +86,7 @@ int32 Paragraph::AppendText(const std::string& text) {
 bool Paragraph::CalculateBreakPosition(
     const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
     int32 end_position, float available_width, bool allow_overflow,
-    int32* break_position, float* break_width) {
+    OverflowWrap overflow_wrap, int32* break_position, float* break_width) {
   DCHECK(is_closed_);
 
   if (!allow_overflow && available_width <= 0) {
@@ -84,33 +97,26 @@ bool Paragraph::CalculateBreakPosition(
     end_position = GetTextEndPosition();
   }
 
-  line_break_iterator_->setText(text_);
+  // Always initially try to find a soft wrap break position. However, only
+  // allow soft wrap overflow if overflow wrap is |kSoftWrapOverflowWrap|;
+  // otherwise, overflowing via soft wrap would be too greedy in what it
+  // included.
+  bool allow_soft_wrap_overflow =
+      allow_overflow && overflow_wrap == kSoftWrapOverflowWrap;
 
-  // Iterate through soft wrap locations, beginning from the passed in start
-  // position. Add the width of each segment encountered to the running total,
-  // until reaching one that causes it to exceed the available width. The
-  // previous break position is the last usable one. However, if overflow is
-  // allowed and no segment has been found, then the first overflowing
-  // segment is accepted.
-  for (int32 segment_end = line_break_iterator_->following(start_position);
-       segment_end != icu::BreakIterator::DONE && segment_end < end_position;
-       segment_end = line_break_iterator_->next()) {
-    float segment_width =
-        CalculateSubStringWidth(used_font, *break_position, segment_end);
+  CalculateSoftWrapBreakPosition(used_font, start_position, end_position,
+                                 available_width, allow_soft_wrap_overflow,
+                                 break_position, break_width);
 
-    if (!allow_overflow && *break_width + segment_width > available_width) {
-      break;
-    }
-
-    *break_position = segment_end;
-    *break_width += segment_width;
-
-    if (allow_overflow) {
-      allow_overflow = false;
-      if (*break_width >= available_width) {
-        break;
-      }
-    }
+  // Check to see if an acceptable soft wrap break position was found. If not,
+  // |kBreakWordOverflowWrap| allows for breaking an unbreakable "word" at an
+  // arbitrary point when there are no otherwise-acceptable break points in the
+  // line. (http://www.w3.org/TR/css3-text/#overflow-wrap)
+  if (*break_position == start_position && allow_overflow &&
+      overflow_wrap == kBreakWordOverflowWrap) {
+    CalculateCharacterBreakPosition(used_font, start_position, end_position,
+                                    available_width, allow_overflow,
+                                    break_position, break_width);
   }
 
   // Verify that a usable break position was found between the start and end
@@ -121,21 +127,22 @@ bool Paragraph::CalculateBreakPosition(
 float Paragraph::CalculateSubStringWidth(
     const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
     int32 end_position) const {
-  std::string sub_string = RetrieveSubString(start_position, end_position);
-  return used_font->GetBounds(sub_string).width();
+  std::string utf8_sub_string =
+      RetrieveUtf8SubString(start_position, end_position);
+  return used_font->GetBounds(utf8_sub_string).width();
 }
 
-std::string Paragraph::RetrieveSubString(int32 start_position,
-                                         int32 end_position) const {
-  std::string sub_string;
+std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
+                                             int32 end_position) const {
+  std::string utf8_sub_string;
 
   if (start_position < end_position) {
     icu::UnicodeString unicode_sub_string =
-        text_.tempSubStringBetween(start_position, end_position);
-    unicode_sub_string.toUTF8String(sub_string);
+        unicode_text_.tempSubStringBetween(start_position, end_position);
+    unicode_sub_string.toUTF8String(utf8_sub_string);
   }
 
-  return sub_string;
+  return utf8_sub_string;
 }
 
 Paragraph::BaseDirection Paragraph::GetBaseDirection() const {
@@ -146,8 +153,8 @@ int Paragraph::GetBidiLevel(int32 position) const {
   return level_runs_[GetRunIndex(position)].level_;
 }
 
-bool Paragraph::IsWhiteSpace(int32 position) const {
-  return u_isUWhiteSpace(text_[position]) != 0;
+bool Paragraph::IsSpace(int32 position) const {
+  return unicode_text_[position] == ' ';
 }
 
 bool Paragraph::GetNextRunPosition(int32 position,
@@ -161,7 +168,7 @@ bool Paragraph::GetNextRunPosition(int32 position,
   }
 }
 
-int32 Paragraph::GetTextEndPosition() const { return text_.length(); }
+int32 Paragraph::GetTextEndPosition() const { return unicode_text_.length(); }
 
 void Paragraph::Close() {
   DCHECK(!is_closed_);
@@ -173,13 +180,85 @@ void Paragraph::Close() {
 
 bool Paragraph::IsClosed() const { return is_closed_; }
 
+void Paragraph::CalculateCharacterBreakPosition(
+    const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+    int32 end_position, float available_width, bool allow_overflow,
+    int32* break_position, float* break_width) {
+  // Iterate through characters, beginning from the passed in start position.
+  // Continue until TryIncludeSegmentWithinAvailableWidth() returns false,
+  // indicating that no more segments can be included.
+  base::i18n::UTF16CharIterator iter(unicode_text_.getBuffer() + start_position,
+                                     size_t(end_position - start_position));
+  int32 segment_start = start_position;
+  while (iter.Advance()) {
+    int32 segment_end = start_position + iter.array_pos();
+
+    if (!TryIncludeSegmentWithinAvailableWidth(
+            used_font, segment_start, segment_end, available_width,
+            &allow_overflow, break_position, break_width)) {
+      break;
+    }
+
+    segment_start = segment_end;
+  }
+}
+
+void Paragraph::CalculateSoftWrapBreakPosition(
+    const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+    int32 end_position, float available_width, bool allow_overflow,
+    int32* break_position, float* break_width) {
+  // Iterate through soft wrap locations, beginning from the passed in start
+  // position. Continue until TryIncludeSegmentWithinAvailableWidth() returns
+  // false, indicating that no more segments can be included.
+  line_break_iterator_->setText(unicode_text_);
+  for (int32 segment_end = line_break_iterator_->following(start_position);
+       segment_end != icu::BreakIterator::DONE && segment_end < end_position;
+       segment_end = line_break_iterator_->next()) {
+    if (!TryIncludeSegmentWithinAvailableWidth(
+            used_font, *break_position, segment_end, available_width,
+            &allow_overflow, break_position, break_width)) {
+      break;
+    }
+  }
+}
+
+bool Paragraph::TryIncludeSegmentWithinAvailableWidth(
+    const scoped_refptr<render_tree::Font>& used_font, int32 segment_start,
+    int32 segment_end, float available_width, bool* allow_overflow,
+    int32* break_position, float* break_width) {
+  // Add the width of the segment encountered to the total, until reaching one
+  // that causes the available width to be exceeded. The previous break position
+  // is the last usable one. However, if overflow is allowed and no segment has
+  // been found, then the first overflowing segment is accepted.
+  std::string utf8_sub_string =
+      RetrieveUtf8SubString(segment_start, segment_end);
+  float segment_width = used_font->GetBounds(utf8_sub_string).width();
+
+  if (!*allow_overflow && *break_width + segment_width > available_width) {
+    return false;
+  }
+
+  *break_position = segment_end;
+  *break_width += segment_width;
+
+  if (*allow_overflow) {
+    *allow_overflow = false;
+    if (*break_width >= available_width) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Should only be called by Close().
 void Paragraph::GenerateBidiLevelRuns() {
   DCHECK(is_closed_);
 
-  // TODO(***REMOVED***): Change |text_| to being a string16 so that the extra copy of
-  // the data isn't required.
-  string16 bidi_string(text_.getBuffer(), static_cast<size_t>(text_.length()));
+  // TODO(***REMOVED***): Change logic so that the extra copy of the data isn't
+  // required.
+  string16 bidi_string(unicode_text_.getBuffer(),
+                       static_cast<size_t>(unicode_text_.length()));
 
   base::i18n::BiDiLineIterator bidi_iterator;
   if (bidi_iterator.Open(

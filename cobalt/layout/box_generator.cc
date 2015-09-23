@@ -192,7 +192,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // represent it in the paragraph.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
   //   http://www.w3.org/TR/CSS21/visuren.html#direction
-  int32 text_position = (*paragraph_)->AppendText(" ");
+  int32 text_position = (*paragraph_)->AppendUtf8String(" ");
 
   // Unlike in Chromium, we do not set the intrinsic width, height, or ratio
   // based on the video frame. This allows to avoid relayout while playing
@@ -315,7 +315,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       // to represent it in the paragraph.
       //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
       //   http://www.w3.org/TR/CSS21/visuren.html#direction
-      int32 text_position = (*paragraph_)->AppendText(" ");
+      int32 text_position = (*paragraph_)->AppendUtf8String(" ");
 
       container_box_ = make_scoped_ptr(new InlineLevelBlockContainerBox(
           computed_style_, transitions_, used_style_provider_, *paragraph_,
@@ -527,31 +527,63 @@ void BoxGenerator::Visit(dom::Text* text) {
 
   DCHECK(text);
   DCHECK(computed_style);
-  // Phase I: Collapsing and Transformation
-  //   http://www.w3.org/TR/css3-text/#white-space-phase-1
-  // TODO(***REMOVED***): Implement "white-space: pre".
-  //               http://www.w3.org/TR/css3-text/#white-space
-  std::string collapsed_text = text->text();
-  CollapseWhiteSpace(&collapsed_text);
 
-  // TODO(***REMOVED***): Implement "white-space: nowrap".
+  const std::string& original_text = text->text();
 
-  // TODO(***REMOVED***): Transform the letter case:
-  //               http://www.w3.org/TR/css-text-3/#text-transform-property
+  // Loop until the entire text is consumed. If the white-space property does
+  // not have a value of "pre" then the entire text will be processed the first
+  // time through the loop; otherwise, the text will be split at newline
+  // sequences.
+  size_t start_index = 0;
+  while (start_index < original_text.size()) {
+    size_t end_index;
+    size_t newline_sequence_length;
 
-  // TODO(***REMOVED***): Determine which transitions to propagate to the text box,
-  //               instead of none at all.
+    // Phase I: Segment Break Transformation Rules
+    // http://www.w3.org/TR/css3-text/#line-break-transform
+    bool generates_newline = false;
+    if (computed_style->white_space() == cssom::KeywordValue::GetPre()) {
+      generates_newline = FindNextNewlineSequence(
+          original_text, start_index, &end_index, &newline_sequence_length);
+    } else {
+      end_index = original_text.size();
+      newline_sequence_length = 0;
+    }
 
-  // TODO(***REMOVED***):  Include bidi markup in appended text.
+    std::string modifiable_text =
+        original_text.substr(start_index, end_index - start_index);
 
-  DCHECK(*paragraph_);
-  int32 text_start_position = (*paragraph_)->AppendText(collapsed_text);
-  int32 text_end_position = (*paragraph_)->GetTextEndPosition();
+    // Phase I: Collapsing and Transformation
+    //   http://www.w3.org/TR/css3-text/#white-space-phase-1
+    if (computed_style->white_space() != cssom::KeywordValue::GetPre()) {
+      CollapseWhiteSpace(&modifiable_text);
+    }
 
-  boxes_.push_back(new TextBox(computed_style,
-                               cssom::TransitionSet::EmptyTransitionSet(),
-                               used_style_provider_, *paragraph_,
-                               text_start_position, text_end_position));
+    // TODO(***REMOVED***): Determine which transitions to propagate to the text box,
+    //               instead of none at all.
+
+    // TODO(***REMOVED***):  Include bidi markup in appended text.
+
+    Paragraph::TextTransform transform;
+    if (computed_style->text_transform() ==
+        cssom::KeywordValue::GetUppercase()) {
+      transform = Paragraph::kUppercaseTextTransform;
+    } else {
+      transform = Paragraph::kNoTextTransform;
+    }
+
+    DCHECK(*paragraph_);
+    int32 text_start_position =
+        (*paragraph_)->AppendUtf8String(modifiable_text, transform);
+    int32 text_end_position = (*paragraph_)->GetTextEndPosition();
+
+    boxes_.push_back(
+        new TextBox(computed_style, cssom::TransitionSet::EmptyTransitionSet(),
+                    used_style_provider_, *paragraph_, text_start_position,
+                    text_end_position, generates_newline));
+
+    start_index = end_index + newline_sequence_length;
+  }
 }
 
 BoxGenerator::Boxes BoxGenerator::PassBoxes() { return boxes_.Pass(); }

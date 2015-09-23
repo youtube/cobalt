@@ -18,6 +18,9 @@
 #define LAYOUT_WHITE_SPACE_PROCESSING_H_
 
 #include <string>
+#include <vector>
+
+#include "base/basictypes.h"
 
 namespace cobalt {
 namespace layout {
@@ -26,6 +29,9 @@ namespace layout {
 // the phase I of the white space processing.
 //   http://www.w3.org/TR/css3-text/#white-space-phase-1
 void CollapseWhiteSpace(std::string* text);
+
+bool FindNextNewlineSequence(const std::string& utf8_text, size_t index,
+                             size_t* sequence_start, size_t* sequence_length);
 
 }  // namespace layout
 }  // namespace cobalt

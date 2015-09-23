@@ -183,6 +183,11 @@ bool BlockContainerBox::JustifiesLineExistence() const {
   return true;
 }
 
+bool BlockContainerBox::DoesTriggerLineBreak() const {
+  DCHECK_EQ(kInlineLevel, GetLevel());
+  return false;
+}
+
 bool BlockContainerBox::AffectsBaselineInBlockFormattingContext() const {
   return static_cast<bool>(maybe_baseline_offset_from_top_margin_edge_);
 }
