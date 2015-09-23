@@ -82,11 +82,11 @@ typedef SB_UINTPTR uintptr_t;
 #endif
 
 #if defined(_MSC_VER)
-#  define SB_LONGLONG(x) x##I64
-#  define SB_ULONGLONG(x) x##UI64
+#  define SB_INT64_C(x) x##I64
+#  define SB_UINT64_C(x) x##UI64
 #else  // defined(_MSC_VER)
-#  define SB_LONGLONG(x) x##LL
-#  define SB_ULONGLONG(x) x##ULL
+#  define SB_INT64_C(x) x##LL
+#  define SB_UINT64_C(x) x##ULL
 #endif  // defined(_MSC_VER)
 
 #if defined(_MSC_VER)
@@ -106,9 +106,9 @@ static const  int32_t kSbInt32Min =(( int32_t)0x80000000);
 static const  int32_t kSbInt32Max =(( int32_t)0x7FFFFFFF);
 static const uint32_t kSbUInt32Max=((uint32_t)0xFFFFFFFF);
 
-static const  int64_t kSbInt64Min =(( int64_t)SB_LONGLONG(0x8000000000000000));
-static const  int64_t kSbInt64Max =(( int64_t)SB_LONGLONG(0x7FFFFFFFFFFFFFFF));
-static const uint64_t kSbUInt64Max=((uint64_t)SB_LONGLONG(0xFFFFFFFFFFFFFFFF));
+static const  int64_t kSbInt64Min =(( int64_t)SB_INT64_C(0x8000000000000000));
+static const  int64_t kSbInt64Max =(( int64_t)SB_INT64_C(0x7FFFFFFFFFFFFFFF));
+static const uint64_t kSbUInt64Max=((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
 
 #if defined(_MSC_VER)
 #  pragma warning(pop)
