@@ -40,6 +40,7 @@ var inputText = '';
 var messageBuffer = null;
 var allCVals = [];
 var activeCVals = [];
+var mode = window.debugHub.DEBUG_CONSOLE_HUD;
 
 function createMessageBuffer(visible) {
   var messageBox = document.getElementById('messageBox');
@@ -195,23 +196,41 @@ function updateHud(time) {
   printToHud(cvalString);
 }
 
+function updateMode() {
+  var mode = window.debugHub.getDebugConsoleMode();
+  messageBuffer.show(mode >= window.debugHub.DEBUG_CONSOLE_ON);
+  var input = document.getElementById('in');
+  var display = (mode >= window.debugHub.DEBUG_CONSOLE_ON) ? 'block' : 'none';
+  input.style.display = display;
+  var hud = document.getElementById('hud');
+  var display = (mode >= window.debugHub.DEBUG_CONSOLE_HUD) ? 'block' : 'none';
+  hud.style.display = display;
+}
+
 function animate(time) {
   updateHud(time);
+  updateMode();
   window.requestAnimationFrame(animate);
 }
 
-var onKeyDown = function(event) {
-  console.log('Got key press!');
-  event.preventDefault();
-  event.stopPropagation();
-  var i = document.querySelector('#in');
-  var k = event.keyCode;
-  if (k == 8) {
-    inputText = inputText.substring(0, inputText.length - 1);
-  } else if (k >= 0x20 && k < 0x7e) {
-    inputText += String.fromCharCode(k);
+function onKeydown(event) {}
+
+function onKeyup(event) {}
+
+function onKeypress(event) {
+  var mode = window.debugHub.getDebugConsoleMode();
+  if (mode >= window.debugHub.DEBUG_CONSOLE_ON) {
+    event.preventDefault();
+    event.stopPropagation();
+    var i = document.querySelector('#in');
+    var k = event.keyCode;
+    if (k == 8) {
+      inputText = inputText.substring(0, inputText.length - 1);
+    } else if (k >= 0x20 && k < 0x7e) {
+      inputText += String.fromCharCode(k);
+    }
+    i.textContent = '> ' + inputText;
   }
-  i.textContent = inputText;
 }
 
 function onLogMessage(severity, file, line, messageStart, str) {
@@ -228,8 +247,12 @@ function addLogMessageCallback() {
 function start() {
   createMessageBuffer(false);
   addLogMessageCallback();
+  document.addEventListener('keypress', onKeypress);
+  document.addEventListener('keydown', onKeydown);
+  document.addEventListener('keyup', onKeyup);
   curr = window.performance.now();
   window.requestAnimationFrame(animate);
 }
 
 window.addEventListener('load', start);
+

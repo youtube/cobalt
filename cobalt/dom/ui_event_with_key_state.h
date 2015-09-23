@@ -34,6 +34,9 @@ class UIEventWithKeyState : public UIEvent {
   static const unsigned int kMetaKey = 1 << 2;
   static const unsigned int kShiftKey = 1 << 3;
 
+  unsigned int modifiers() const { return modifiers_; }
+  void set_modifiers(unsigned int modifiers) { modifiers_ = modifiers; }
+
   bool alt_key() const { return (modifiers_ & kAltKey) != 0; }
   bool ctrl_key() const { return (modifiers_ & kCtrlKey) != 0; }
   bool meta_key() const { return (modifiers_ & kMetaKey) != 0; }

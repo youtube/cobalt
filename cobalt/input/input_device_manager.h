@@ -17,9 +17,7 @@
 #ifndef INPUT_INPUT_DEVICE_MANAGER_H_
 #define INPUT_INPUT_DEVICE_MANAGER_H_
 
-#include "base/callback.h"
-#include "base/memory/scoped_ptr.h"
-#include "cobalt/dom/keyboard_event.h"
+#include "cobalt/input/key_event_handler.h"
 
 namespace cobalt {
 
@@ -31,12 +29,8 @@ class SystemWindow;
 
 namespace input {
 
-typedef base::Callback<void(const scoped_refptr<dom::KeyboardEvent>&)>
-    KeyboardEventCallback;
-
-// InputDeviceManager listens to events from platform-specific input devices,
-// maps them to platform-independent keyboard key events and sends them to the
-// client via a callback provided upon construction.
+// InputDeviceManager listens to events from platform-specific input devices
+// and maps them to platform-independent keyboard key events.
 class InputDeviceManager {
  public:
   // Creates an instance using a SystemWindow parameter.
@@ -48,10 +42,7 @@ class InputDeviceManager {
   virtual ~InputDeviceManager() {}
 
  protected:
-  explicit InputDeviceManager(const KeyboardEventCallback& callback)
-      : keyboard_event_callback_(callback) {}
-
-  KeyboardEventCallback keyboard_event_callback_;
+  InputDeviceManager() {}
 };
 
 }  // namespace input
