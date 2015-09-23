@@ -26,8 +26,11 @@ namespace cobalt {
 namespace cssom {
 
 // CSSDeclarationData which has PropertyValue type properties only used
-// internally and it is not exposed to JavaScript.
-class CSSDeclarationData : public base::RefCounted<CSSDeclarationData> {
+// internally and it is not exposed to JavaScript.  It derives from
+// RefCountedThreadSafe instead of RefCounted so that it can be passed forward
+// to another thread for animating before rendering a scene.
+class CSSDeclarationData
+    : public base::RefCountedThreadSafe<CSSDeclarationData> {
  public:
   virtual scoped_refptr<const PropertyValue> GetPropertyValue(
       const std::string& property_name) = 0;
@@ -39,7 +42,7 @@ class CSSDeclarationData : public base::RefCounted<CSSDeclarationData> {
   virtual ~CSSDeclarationData() {}
 
  private:
-  friend class base::RefCounted<CSSDeclarationData>;
+  friend class base::RefCountedThreadSafe<CSSDeclarationData>;
 };
 
 }  // namespace cssom

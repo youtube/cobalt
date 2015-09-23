@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-documenttimeline-interface
+// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#dictdef-keyframe
 
-[
-    Constructor (DOMHighResTimeStamp originTime),
-    ConstructorCallWith=EnvironmentSettings
-] interface DocumentTimeline : AnimationTimeline {
+// TODO(***REMOVED***): This should actually be a dictionary, so we may be able to
+//               remove it when we support dictionaries.
+interface Keyframe {
+  attribute double? offset;
+  attribute DOMString easing;
 };
-
-typedef double DOMHighResTimeStamp;
