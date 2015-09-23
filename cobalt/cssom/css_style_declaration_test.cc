@@ -17,7 +17,6 @@
 #include "cobalt/cssom/css_style_declaration.h"
 
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
@@ -63,27 +62,6 @@ class MockMutationObserver : public MutationObserver {
  public:
   MOCK_METHOD0(OnCSSMutation, void());
 };
-
-// TODO(***REMOVED***): Add GetPropertyValue tests, property getter tests and tests
-// that checking if the attributes' setter and the getter are consistent when
-// fully support converting PropertyValue to std::string.
-TEST(CSSStyleDeclarationTest, PropertyValueSetter) {
-  MockCSSParser css_parser;
-  scoped_refptr<CSSStyleDeclaration> style =
-      new CSSStyleDeclaration(&css_parser);
-
-  const std::string background = "rgba(0, 0, 0, .8)";
-  MockMutationObserver observer;
-  style->set_mutation_observer(&observer);
-
-  EXPECT_CALL(css_parser,
-              ParsePropertyIntoStyle(
-                  kBackgroundPropertyName, background, _,
-                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
-  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
-  style->SetPropertyValue(kBackgroundPropertyName, background);
-}
 
 TEST(CSSStyleDeclarationTest, BackgroundSetter) {
   MockCSSParser css_parser;
@@ -633,6 +611,86 @@ TEST(CSSStyleDeclarationTest, CssTextGetter) {
   EXPECT_EQ(style->css_text(), "background-size: 50%; bottom: 16px;");
 }
 
+// TODO(***REMOVED***): Add GetPropertyValue tests, property getter tests and tests
+// that checking if the attributes' setter and the getter are consistent when
+// fully support converting PropertyValue to std::string.
+TEST(CSSStyleDeclarationTest, PropertyValueSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string background = "rgba(0, 0, 0, .8)";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kBackgroundPropertyName, background, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->SetPropertyValue(kBackgroundPropertyName, background);
+}
+
+TEST(CSSStyleDeclarationTest, PropertyValueGetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclarationData> initial_style =
+      new CSSStyleDeclarationData();
+  initial_style->set_text_align(KeywordValue::GetCenter());
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(initial_style, &css_parser);
+
+  EXPECT_EQ(style->GetPropertyValue(kTextAlignPropertyName), "center");
+}
+
+TEST(CSSStyleDeclarationTest, LengthAttributeGetterEmpty) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  EXPECT_EQ(style->length(), 0);
+}
+
+TEST(CSSStyleDeclarationTest, LengthAttributeGetterNotEmpty) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclarationData> initial_style =
+      new CSSStyleDeclarationData();
+  initial_style->set_display(KeywordValue::GetInline());
+  initial_style->set_text_align(KeywordValue::GetCenter());
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(initial_style, &css_parser);
+
+  EXPECT_EQ(style->length(), 2);
+}
+
+TEST(CSSStyleDeclarationTest, ItemGetterEmpty) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  EXPECT_FALSE(style->Item(0));
+}
+
+TEST(CSSStyleDeclarationTest, ItemGetterNotEmpty) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclarationData> initial_style =
+      new CSSStyleDeclarationData();
+  initial_style->set_display(KeywordValue::GetInline());
+  initial_style->set_text_align(KeywordValue::GetCenter());
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(initial_style, &css_parser);
+
+  EXPECT_TRUE(style->Item(0));
+  EXPECT_TRUE(style->Item(1));
+  EXPECT_FALSE(style->Item(2));
+
+  // The order is not important, as long as with properties are represented.
+  if (style->Item(0).value() == kDisplayPropertyName) {
+    EXPECT_EQ(style->Item(1).value(), kTextAlignPropertyName);
+  } else {
+    EXPECT_EQ(style->Item(0).value(), kTextAlignPropertyName);
+    EXPECT_EQ(style->Item(1).value(), kDisplayPropertyName);
+  }
+}
 
 }  // namespace cssom
 }  // namespace cobalt
