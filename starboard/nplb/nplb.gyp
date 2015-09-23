@@ -36,6 +36,13 @@
         'mutex_destroy_test.cc',
         'mutex_release_test.cc',
         'system_get_path_test.cc',
+        'time_explode_test.cc',
+        'time_get_monotonic_now_test.cc',
+        'time_get_now_test.cc',
+        'time_implode_test.cc',
+        'time_zone_get_current_test.cc',
+        'time_zone_get_dst_name_test.cc',
+        'time_zone_get_name_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/testing/gmock.gyp:gmock',
