@@ -155,6 +155,9 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     return;
   }
 
+  // Update the document's sample time, used for updating animations.
+  document_->SampleTimelineTime();
+
   bool was_dirty = layout_dirty_;
   if (layout_dirty_) {
     TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
@@ -166,6 +169,11 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
         user_agent_style_sheet_);
   }
 
+  // Note that according to:
+  //     http://www.w3.org/TR/web-animations/#model-liveness,
+  // "The time passed to a requestAnimationFrame callback will be equal to
+  // document.timeline.currentTime".  In our case, document.timeline.currentTime
+  // is derived from the latest sample time.
   window_->RunAnimationFrameCallbacks();
 
   if (layout_dirty_) {
@@ -181,7 +189,8 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
                        line_break_iterator_.get());
     on_render_tree_produced_callback_.Run(
         render_tree_with_animations.render_tree,
-        render_tree_with_animations.animations);
+        render_tree_with_animations.animations,
+        *document_->timeline_sample_time());
 
     layout_dirty_ = false;
 

@@ -160,8 +160,9 @@ TEST(ResourceProviderTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
 
     // Submit the render tree and animation to the rendering pipeline for
     // rasterization (and the execution of our animation callback).
-    pipeline.Submit(test_node, new NodeAnimationsMap(animations.Pass()),
-                    base::Time::Now() - base::Time::UnixEpoch());
+    pipeline.Submit(Pipeline::Submission(
+        test_node, new NodeAnimationsMap(animations.Pass()),
+        base::Time::Now() - base::Time::UnixEpoch()));
 
     // Wait for all events that we have planned to occur.
     animate_has_started.Wait();

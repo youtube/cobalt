@@ -21,22 +21,26 @@ namespace cobalt {
 namespace dom {
 
 TEST(PerformanceTest, Now) {
-  scoped_refptr<Performance> performance(new Performance());
+  scoped_refptr<base::SystemMonotonicClock> clock(
+      new base::SystemMonotonicClock());
+
+  scoped_refptr<Performance> performance(new Performance(clock));
 
   // Test that now returns a result that is within a correct range for the
   // current time.
-  base::Time lower_limit = base::Time::Now();
+  base::TimeDelta lower_limit = clock->Now();
 
   double current_time_in_milliseconds = performance->Now();
 
-  base::Time upper_limit = base::Time::Now();
+  base::TimeDelta upper_limit = clock->Now();
+
+  scoped_refptr<base::OffsetClock> navigation_start_clock =
+      performance->timing()->GetNavigationStartClock();
 
   DCHECK_GE(current_time_in_milliseconds,
-            (lower_limit - performance->timing()->navigation_start_time())
-                .InMillisecondsF());
+            (lower_limit - navigation_start_clock->origin()).InMillisecondsF());
   DCHECK_LE(current_time_in_milliseconds,
-            (upper_limit - performance->timing()->navigation_start_time())
-                .InMillisecondsF());
+            (upper_limit - navigation_start_clock->origin()).InMillisecondsF());
 }
 
 TEST(PerformanceTest, NavigationStart) {
@@ -48,18 +52,19 @@ TEST(PerformanceTest, NavigationStart) {
   // not yet clear how things will be setup to support navigating to new
   // web pages, and it is immediately useful to have the current functionality
   // in place.
-  base::Time lower_limit = base::Time::Now();
+  scoped_refptr<base::SystemMonotonicClock> clock(
+      new base::SystemMonotonicClock());
+  base::TimeDelta lower_limit = clock->Now();
 
-  scoped_refptr<PerformanceTiming> performance_timing(new PerformanceTiming());
+  scoped_refptr<PerformanceTiming> performance_timing(
+      new PerformanceTiming(clock));
 
-  base::Time upper_limit = base::Time::Now();
+  base::TimeDelta upper_limit = clock->Now();
 
   DCHECK_GE(performance_timing->navigation_start(),
-            static_cast<uint64>(
-                (lower_limit - base::Time::UnixEpoch()).InMilliseconds()));
+            static_cast<uint64>(lower_limit.InMilliseconds()));
   DCHECK_LE(performance_timing->navigation_start(),
-            static_cast<uint64>(
-                (upper_limit - base::Time::UnixEpoch()).InMilliseconds()));
+            static_cast<uint64>(upper_limit.InMilliseconds()));
 }
 
 }  // namespace dom

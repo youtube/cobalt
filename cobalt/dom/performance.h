@@ -18,6 +18,7 @@
 #define DOM_PERFORMANCE_H_
 
 #include "cobalt/script/wrappable.h"
+#include "cobalt/base/clock.h"
 #include "cobalt/dom/performance_timing.h"
 
 namespace cobalt {
@@ -28,7 +29,7 @@ namespace dom {
 //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-window.performance-attribute
 class Performance : public script::Wrappable {
  public:
-  Performance();
+  explicit Performance(const scoped_refptr<base::Clock>& clock);
 
   // Returns the time since timing()->navigation_start(), in milliseconds.
   double Now() const;
