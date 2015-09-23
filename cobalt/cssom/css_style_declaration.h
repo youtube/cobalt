@@ -21,6 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/optional.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/script/wrappable.h"
@@ -53,10 +54,6 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   // Web API: CSSStyleDeclaration
   //
-
-  std::string GetPropertyValue(const std::string& property_name);
-  void SetPropertyValue(const std::string& property_name,
-                        const std::string& property_value);
 
   std::string background() const;
   void set_background(const std::string& background);
@@ -181,6 +178,14 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   std::string css_text() const;
   void set_css_text(const std::string& css_text);
+
+  unsigned int length() const;
+
+  base::optional<std::string> Item(unsigned int index) const;
+
+  std::string GetPropertyValue(const std::string& property_name);
+  void SetPropertyValue(const std::string& property_name,
+                        const std::string& property_value);
 
   scoped_refptr<CSSRule> parent_rule() const { return parent_rule_.get(); }
 
