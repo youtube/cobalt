@@ -16,6 +16,7 @@
 
 #include "cobalt/layout/text_box.h"
 
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/text_node.h"
@@ -28,7 +29,7 @@ TextBox::TextBox(
     const cssom::TransitionSet* transitions,
     const UsedStyleProvider* used_style_provider,
     const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
-    int32 text_end_position)
+    int32 text_end_position, bool triggers_line_break)
     : Box(computed_style, transitions, used_style_provider),
       paragraph_(paragraph),
       text_start_position_(text_start_position),
@@ -39,7 +40,8 @@ TextBox::TextBox(
       text_has_leading_white_space_(false),
       text_has_trailing_white_space_(false),
       should_collapse_leading_white_space_(false),
-      should_collapse_trailing_white_space_(false) {
+      should_collapse_trailing_white_space_(false),
+      triggers_line_break_(triggers_line_break) {
   DCHECK(text_start_position_ <= text_end_position_);
 
 #ifdef _DEBUG
@@ -87,6 +89,10 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
 
 scoped_ptr<Box> TextBox::TrySplitAt(float available_width,
                                     bool allow_overflow) {
+  if (!WhiteSpaceStyleAllowsWrapping()) {
+    return scoped_ptr<Box>();
+  }
+
   // Start from the text position when searching for the split position. We do
   // not want to split on leading whitespace. Additionally, as a result of
   // skipping over it, the width of the leading whitespace will need to be
@@ -96,9 +102,17 @@ scoped_ptr<Box> TextBox::TrySplitAt(float available_width,
   int32 split_position = start_position;
   float split_width = 0;
 
+  Paragraph::OverflowWrap overflow_wrap;
+  if (computed_style()->overflow_wrap() ==
+      cssom::KeywordValue::GetBreakWord()) {
+    overflow_wrap = Paragraph::kBreakWordOverflowWrap;
+  } else {
+    overflow_wrap = Paragraph::kSoftWrapOverflowWrap;
+  }
+
   if (paragraph_->CalculateBreakPosition(
           used_font_, start_position, text_end_position_, available_width,
-          allow_overflow, &split_position, &split_width)) {
+          allow_overflow, overflow_wrap, &split_position, &split_width)) {
     return SplitAtPosition(split_position);
   }
 
@@ -148,7 +162,11 @@ bool TextBox::HasTrailingWhiteSpace() const {
          (HasNonCollapsibleText() || !should_collapse_leading_white_space_);
 }
 
-bool TextBox::JustifiesLineExistence() const { return HasNonCollapsibleText(); }
+bool TextBox::JustifiesLineExistence() const {
+  return HasNonCollapsibleText() || triggers_line_break_;
+}
+
+bool TextBox::DoesTriggerLineBreak() const { return triggers_line_break_; }
 
 bool TextBox::AffectsBaselineInBlockFormattingContext() const {
   NOTREACHED() << "Should only be called in a block formatting context.";
@@ -218,16 +236,29 @@ void TextBox::DumpChildrenWithIndent(std::ostream* stream, int indent) const {
 
 #endif  // COBALT_BOX_DUMP_ENABLED
 
+bool TextBox::WhiteSpaceStyleAllowsCollapsing() {
+  return computed_style()->white_space() != cssom::KeywordValue::GetPre();
+}
+
+bool TextBox::WhiteSpaceStyleAllowsWrapping() {
+  return computed_style()->white_space() != cssom::KeywordValue::GetPre() &&
+         computed_style()->white_space() != cssom::KeywordValue::GetNoWrap();
+}
+
 void TextBox::UpdateTextHasLeadingWhiteSpace() {
-  text_has_leading_white_space_ =
-      text_start_position_ != text_end_position_ &&
-      paragraph_->IsWhiteSpace(text_start_position_);
+  if (WhiteSpaceStyleAllowsCollapsing()) {
+    text_has_leading_white_space_ =
+        text_start_position_ != text_end_position_ &&
+        paragraph_->IsSpace(text_start_position_);
+  }
 }
 
 void TextBox::UpdateTextHasTrailingWhiteSpace() {
-  text_has_trailing_white_space_ =
-      text_start_position_ != text_end_position_ &&
-      paragraph_->IsWhiteSpace(text_end_position_ - 1);
+  if (WhiteSpaceStyleAllowsCollapsing()) {
+    text_has_trailing_white_space_ =
+        text_start_position_ != text_end_position_ &&
+        paragraph_->IsSpace(text_end_position_ - 1);
+  }
 }
 
 scoped_ptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
@@ -241,12 +272,18 @@ scoped_ptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   // updated as it has not changed.
   UpdateTextHasTrailingWhiteSpace();
 
-  scoped_ptr<Box> box_after_split(
-      new TextBox(computed_style(), transitions(), used_style_provider(),
-                  paragraph_, split_start_position, split_end_position));
+  scoped_ptr<Box> box_after_split(new TextBox(
+      computed_style(), transitions(), used_style_provider(), paragraph_,
+      split_start_position, split_end_position, triggers_line_break_));
+
   // TODO(***REMOVED***): Set the text width of the box after split to
   //               |text_width_ - pre_split_width| to save a call
   //               to Skia/HarfBuzz.
+
+  // Pass the line break trigger on to the sibling that retains the trailing
+  // portion of the text and reset the value for this text box.
+  triggers_line_break_ = false;
+
   return box_after_split.Pass();
 }
 
@@ -274,8 +311,8 @@ bool TextBox::HasNonCollapsibleText() const {
 }
 
 std::string TextBox::GetNonCollapsibleText() const {
-  return paragraph_->RetrieveSubString(GetNonCollapsibleTextStartPosition(),
-                                       GetNonCollapsibleTextEndPosition());
+  return paragraph_->RetrieveUtf8SubString(GetNonCollapsibleTextStartPosition(),
+                                           GetNonCollapsibleTextEndPosition());
 }
 
 }  // namespace layout

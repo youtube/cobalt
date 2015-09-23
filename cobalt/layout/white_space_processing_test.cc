@@ -69,5 +69,186 @@ TEST(CollapseWhiteSpaceTest, TwoWordsSurroundedAndSeparatedByDoubleSpaces) {
   EXPECT_EQ(" Hello, world! ", text);
 }
 
+TEST(FindNextNewlineSequenceTest, NoNewlineSequences) {
+  std::string text = "Hello, world!";
+  size_t start_index = 0;
+  size_t sequence_index;
+  size_t sequence_length;
+
+  bool foundSequence = FindNextNewlineSequence(
+      text, start_index, &sequence_index, &sequence_length);
+  EXPECT_FALSE(foundSequence);
+  EXPECT_EQ(sequence_index, text.size());
+  EXPECT_EQ(sequence_length, 0);
+}
+
+TEST(FindNextNewlineSequenceTest, CarriageReturnSequence) {
+  std::string text = "Hello,\r world!";
+  size_t start_index = 0;
+  size_t sequence_index;
+  size_t sequence_length;
+
+  bool foundSequence = FindNextNewlineSequence(
+      text, start_index, &sequence_index, &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 6);
+  EXPECT_EQ(sequence_length, 1);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_FALSE(foundSequence);
+  EXPECT_EQ(sequence_index, text.size());
+  EXPECT_EQ(sequence_length, 0);
+}
+
+TEST(FindNextNewlineSequenceTest, CRLFSequence) {
+  std::string text = "Hello,\r\n world!";
+  size_t start_index = 0;
+  size_t sequence_index;
+  size_t sequence_length;
+
+  bool foundSequence = FindNextNewlineSequence(
+      text, start_index, &sequence_index, &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 6);
+  EXPECT_EQ(sequence_length, 2);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_FALSE(foundSequence);
+  EXPECT_EQ(sequence_index, text.size());
+  EXPECT_EQ(sequence_length, 0);
+}
+
+TEST(FindNextNewlineSequenceTest, LineFeedSequence) {
+  std::string text = "Hello,\n world!";
+  size_t start_index = 0;
+  size_t sequence_index;
+  size_t sequence_length;
+
+  bool foundSequence = FindNextNewlineSequence(
+      text, start_index, &sequence_index, &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 6);
+  EXPECT_EQ(sequence_length, 1);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_FALSE(foundSequence);
+  EXPECT_EQ(sequence_index, text.size());
+  EXPECT_EQ(sequence_length, 0);
+}
+
+TEST(FindNextNewlineSequenceTest, NewLineSequenceAtStart) {
+  std::string text = "\nHello, world!";
+  size_t start_index = 0;
+  size_t sequence_index;
+  size_t sequence_length;
+
+  bool foundSequence = FindNextNewlineSequence(
+      text, start_index, &sequence_index, &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 0);
+  EXPECT_EQ(sequence_length, 1);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_FALSE(foundSequence);
+  EXPECT_EQ(sequence_index, text.size());
+  EXPECT_EQ(sequence_length, 0);
+}
+
+TEST(FindNextNewlineSequenceTest, ConsecutiveNewLineSequences) {
+  std::string text = "Hello,\n\n world!";
+  size_t start_index = 0;
+  size_t sequence_index;
+  size_t sequence_length;
+
+  bool foundSequence = FindNextNewlineSequence(
+      text, start_index, &sequence_index, &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 6);
+  EXPECT_EQ(sequence_length, 1);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 7);
+  EXPECT_EQ(sequence_length, 1);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_FALSE(foundSequence);
+  EXPECT_EQ(sequence_index, text.size());
+  EXPECT_EQ(sequence_length, 0);
+}
+
+TEST(FindNextNewlineSequenceTest, NewLineAtEnd) {
+  std::string text = "Hello, world!\n";
+  size_t start_index = 0;
+  size_t sequence_index;
+  size_t sequence_length;
+
+  bool foundSequence = FindNextNewlineSequence(
+      text, start_index, &sequence_index, &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 13);
+  EXPECT_EQ(sequence_length, 1);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_FALSE(foundSequence);
+  EXPECT_EQ(sequence_index, text.size());
+  EXPECT_EQ(sequence_length, 0);
+}
+
+TEST(FindNextNewlineSequenceTest, MultipleNewLineSequences) {
+  std::string text = "\nHello,\r\n \nworld!\r";
+  size_t start_index = 0;
+  size_t sequence_index;
+  size_t sequence_length;
+
+  bool foundSequence = FindNextNewlineSequence(
+      text, start_index, &sequence_index, &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 0);
+  EXPECT_EQ(sequence_length, 1);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 7);
+  EXPECT_EQ(sequence_length, 2);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 10);
+  EXPECT_EQ(sequence_length, 1);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_TRUE(foundSequence);
+  EXPECT_EQ(sequence_index, 17);
+  EXPECT_EQ(sequence_length, 1);
+
+  start_index = sequence_index + sequence_length;
+  foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
+                                          &sequence_length);
+  EXPECT_FALSE(foundSequence);
+  EXPECT_EQ(sequence_index, text.size());
+  EXPECT_EQ(sequence_length, 0);
+}
+
 }  // namespace layout
 }  // namespace cobalt
