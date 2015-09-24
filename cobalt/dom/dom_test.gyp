@@ -46,11 +46,13 @@
         'node_test.cc',
         'performance_test.cc',
         'rule_matching_test.cc',
+        'screen_test.cc',
         'serializer_test.cc',
         'storage_area_test.cc',
         'text_test.cc',
         'time_ranges_test.cc',
         'typed_array_test.cc',
+        'window_test.cc',
         'xml_document_test.cc',
       ],
       'dependencies': [

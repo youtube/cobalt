@@ -151,6 +151,7 @@
         'pseudo_element.h',
         'rule_matching.cc',
         'rule_matching.h',
+        'screen.h',
         'script_event_listener.cc',
         'script_event_listener.h',
         'serializer.cc',
