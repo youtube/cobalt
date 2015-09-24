@@ -46,7 +46,7 @@ class CSSMediaRule : public CSSConditionRule {
   //
 
   // Returns a read-only, live object representing the CSS rules.
-  scoped_refptr<MediaList> media();
+  const scoped_refptr<MediaList>& media();
 
   // Web API: CSSRule
   //
