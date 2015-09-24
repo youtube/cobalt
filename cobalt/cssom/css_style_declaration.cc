@@ -215,6 +215,38 @@ void CSSStyleDeclaration::set_line_height(const std::string& line_height) {
   SetPropertyValue(kLineHeightPropertyName, line_height);
 }
 
+std::string CSSStyleDeclaration::max_height() const {
+  return data_->max_height() ? data_->max_height()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_max_height(const std::string& max_height) {
+  SetPropertyValue(kMaxHeightPropertyName, max_height);
+}
+
+std::string CSSStyleDeclaration::max_width() const {
+  return data_->max_width() ? data_->max_width()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_max_width(const std::string& max_width) {
+  SetPropertyValue(kMaxWidthPropertyName, max_width);
+}
+
+std::string CSSStyleDeclaration::min_height() const {
+  return data_->min_height() ? data_->min_height()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_min_height(const std::string& min_height) {
+  SetPropertyValue(kMinHeightPropertyName, min_height);
+}
+
+std::string CSSStyleDeclaration::min_width() const {
+  return data_->min_width() ? data_->min_width()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_min_width(const std::string& min_width) {
+  SetPropertyValue(kMinWidthPropertyName, min_width);
+}
+
 std::string CSSStyleDeclaration::opacity() const {
   return data_->opacity() ? data_->opacity()->ToString() : "";
 }
