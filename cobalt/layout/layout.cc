@@ -25,6 +25,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/rule_matching.h"
+#include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/initial_containing_block.h"
@@ -61,7 +62,7 @@ RenderTreeWithAnimations Layout(
 
   // Generate boxes.
   {
-    TRACE_EVENT0("cobalt::layout", "BoxGeneration");
+    TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
     scoped_refptr<Paragraph> paragraph;
     BoxGenerator root_box_generator(initial_containing_block->computed_style(),
                                     &used_style_provider, line_break_iterator,
@@ -93,13 +94,13 @@ RenderTreeWithAnimations Layout(
   // box tree.  For example, stacking contexts and container boxes are setup
   // for each node in this pass.
   {
-    TRACE_EVENT0("cobalt::layout", "UpdateCrossReferences");
+    TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateCrossReferences);
     initial_containing_block->UpdateCrossReferences();
   }
 
   // Layout.
   {
-    TRACE_EVENT0("cobalt::layout", "UpdateUsedSizes");
+    TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateUsedSizes);
     initial_containing_block->set_left(0);
     initial_containing_block->set_top(0);
     initial_containing_block->UpdateSize(LayoutParams());
@@ -110,7 +111,7 @@ RenderTreeWithAnimations Layout(
       node_animations_map_builder;
   render_tree::CompositionNode::Builder render_tree_root_builder;
   {
-    TRACE_EVENT0("cobalt::layout", "RenderAndAnimate");
+    TRACE_EVENT0("cobalt::layout", kBenchmarkStatRenderAndAnimate);
     initial_containing_block->RenderAndAnimate(&render_tree_root_builder,
                                                &node_animations_map_builder);
   }

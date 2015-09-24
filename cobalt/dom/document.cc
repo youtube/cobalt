@@ -22,6 +22,7 @@
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "cobalt/dom/attr.h"
+#include "cobalt/dom/benchmark_stat_names.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
@@ -307,10 +308,7 @@ void Document::UpdateMatchingRules(
   TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
 
   if (rule_matches_dirty_) {
-    // The following TRACE_EVENT is tracked by the benchmarking system, if
-    // you change it, please also update the appspot database that watches this:
-    //   ***REMOVED***steel-build-stats-doc
-    TRACE_EVENT0("cobalt::dom", "UpdateMatchingRules()");
+    TRACE_EVENT0("cobalt::dom", kBenchmarkStatUpdateMatchingRules);
     EvaluateStyleSheetMediaRules(root_computed_style, user_agent_style_sheet,
                                  style_sheets());
     UpdateStyleSheetRuleIndexes(user_agent_style_sheet, style_sheets());
@@ -337,10 +335,7 @@ void Document::UpdateComputedStyles(
     base::TimeDelta style_change_event_time =
         base::Time::Now() - base::Time::UnixEpoch();
 
-    // The following TRACE_EVENT is tracked by the benchmarking system, if
-    // you change it, please also update the appspot database that watches this:
-    //   ***REMOVED***steel-build-stats-doc
-    TRACE_EVENT0("cobalt::layout", "UpdateComputedStyle");
+    TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateComputedStyles);
     html()->UpdateComputedStyleRecursively(root_computed_style,
                                            style_change_event_time, true);
 

@@ -23,6 +23,7 @@
 #include "base/timer.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout/embedded_resources.h"  // Generated file.
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout.h"
@@ -156,7 +157,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 
   bool was_dirty = layout_dirty_;
   if (layout_dirty_) {
-    TRACE_EVENT_BEGIN0("cobalt::layout", "Layout");
+    TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
     // Update our computed style before running animation callbacks, so that
     // any transitioning elements adjusted during the animation callback will
     // transition from their previously set value.
@@ -172,7 +173,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       // We want to catch the beginning of all layout processing.  If we weren't
       // dirty before the call to RunAnimationFrameCallbacks(), then the flow
       // starts here instead of there.
-      TRACE_EVENT_BEGIN0("cobalt::layout", "Layout");
+      TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
     }
 
     RenderTreeWithAnimations render_tree_with_animations =
@@ -184,7 +185,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 
     layout_dirty_ = false;
 
-    TRACE_EVENT_END0("cobalt::layout", "Layout");
+    TRACE_EVENT_END0("cobalt::layout", kBenchmarkStatLayout);
   }
 }
 
