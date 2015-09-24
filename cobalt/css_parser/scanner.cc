@@ -1238,6 +1238,14 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kFontSizeToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMaxWidthPropertyName)) {
+        *property_name_token = kMaxWidthToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMinWidthPropertyName)) {
+        *property_name_token = kMinWidthToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kTransformPropertyName)) {
         *property_name_token = kTransformToken;
         return true;
@@ -1260,6 +1268,14 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kMarginTopPropertyName)) {
         *property_name_token = kMarginTopToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMaxHeightPropertyName)) {
+        *property_name_token = kMaxHeightToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMinHeightPropertyName)) {
+        *property_name_token = kMinHeightToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kTextAlignPropertyName)) {
@@ -1437,7 +1453,7 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
   }
 
   return false;
-}
+}  // NOLINT(readability/fn_size)
 
 // WARNING: every time a new value token is introduced, it should be added
 //          to |identifier_token| rule in grammar.y.

@@ -1765,6 +1765,74 @@ TEST_F(ParserTest, ParsesMarginTop) {
   EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->margin_top());
 }
 
+TEST_F(ParserTest, ParsesMaxHeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("max-height: 100px;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> max_height =
+      dynamic_cast<cssom::LengthValue*>(style->max_height().get());
+  ASSERT_TRUE(max_height);
+  EXPECT_FLOAT_EQ(100, max_height->value());
+  EXPECT_EQ(cssom::kPixelsUnit, max_height->unit());
+}
+
+TEST_F(ParserTest, ParsesMaxHeightNone) {
+  // 'none' is also the initial value for max-height. It is set to a length
+  // value first, to ensure that the property does not have the initial value
+  // for the test.
+  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("max-height: 100px; max-height: none;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), style->max_height());
+}
+
+TEST_F(ParserTest, ParsesMaxWidth) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("max-width: 100px;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> max_width =
+      dynamic_cast<cssom::LengthValue*>(style->max_width().get());
+  ASSERT_TRUE(max_width);
+  EXPECT_FLOAT_EQ(100, max_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, max_width->unit());
+}
+
+TEST_F(ParserTest, ParsesMaxWidthNone) {
+  // 'none' is also the initial value for max-width. It is set to a length value
+  // first, to ensure that the property does not have the initial value for the
+  // test.
+  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("max-width: 100px; max-width: none;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), style->max_width());
+}
+
+TEST_F(ParserTest, ParsesMinHeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("min-height: 100px;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> min_height =
+      dynamic_cast<cssom::LengthValue*>(style->min_height().get());
+  ASSERT_TRUE(min_height);
+  EXPECT_FLOAT_EQ(100, min_height->value());
+  EXPECT_EQ(cssom::kPixelsUnit, min_height->unit());
+}
+
+TEST_F(ParserTest, ParsesMinWidth) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("min-width: 100px;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> min_width =
+      dynamic_cast<cssom::LengthValue*>(style->min_width().get());
+  ASSERT_TRUE(min_width);
+  EXPECT_FLOAT_EQ(100, min_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, min_width->unit());
+}
+
 TEST_F(ParserTest, ParsesOpacity) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("opacity: 0.5;", source_location_);
