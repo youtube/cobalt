@@ -106,7 +106,9 @@ void BrowserModule::OnRenderTreeProduced(
 #if defined(ENABLE_DEBUG_CONSOLE)
   render_tree_combiner_.UpdateMainRenderTree(render_tree, node_animations_map);
 #else
-  renderer_module_.pipeline()->Submit(render_tree, node_animations_map);
+  renderer_module_.pipeline()->Submit(
+      render_tree, node_animations_map,
+      base::Time::Now() - base::Time::UnixEpoch());
 #endif  // ENABLE_DEBUG_CONSOLE
 }
 
