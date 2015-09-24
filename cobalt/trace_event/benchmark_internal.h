@@ -6,6 +6,8 @@
 
 #include "base/compiler_specific.h"
 
+// clang-format off
+
 #define TRACE_EVENT_BENCHMARK1(benchmark, event_name_1, measurement_type_1)\
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
@@ -46,17 +48,18 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " flow duration in seconds",\
+            Result(std::string(event_name_1) + " flow duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " in-scope duration in seconds",\
+            Result(std::string(event_name_1) + " in-scope duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_1 " time between event starts in seconds",\
+            Result(std::string(event_name_1) + " time between event starts in \
+                seconds",\
                    event_1_samples_));\
       } break;\
     }\
@@ -138,34 +141,36 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " flow duration in seconds",\
+            Result(std::string(event_name_1) + " flow duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " in-scope duration in seconds",\
+            Result(std::string(event_name_1) + " in-scope duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_1 " time between event starts in seconds",\
+            Result(std::string(event_name_1) + " time between event starts in \
+                seconds",\
                    event_1_samples_));\
       } break;\
     }\
     switch (measurement_type_2) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " flow duration in seconds",\
+            Result(std::string(event_name_2) + " flow duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " in-scope duration in seconds",\
+            Result(std::string(event_name_2) + " in-scope duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_2 " time between event starts in seconds",\
+            Result(std::string(event_name_2) + " time between event starts in \
+                seconds",\
                    event_2_samples_));\
       } break;\
     }\
@@ -274,51 +279,54 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " flow duration in seconds",\
+            Result(std::string(event_name_1) + " flow duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " in-scope duration in seconds",\
+            Result(std::string(event_name_1) + " in-scope duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_1 " time between event starts in seconds",\
+            Result(std::string(event_name_1) + " time between event starts in \
+                seconds",\
                    event_1_samples_));\
       } break;\
     }\
     switch (measurement_type_2) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " flow duration in seconds",\
+            Result(std::string(event_name_2) + " flow duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " in-scope duration in seconds",\
+            Result(std::string(event_name_2) + " in-scope duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_2 " time between event starts in seconds",\
+            Result(std::string(event_name_2) + " time between event starts in \
+                seconds",\
                    event_2_samples_));\
       } break;\
     }\
     switch (measurement_type_3) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " flow duration in seconds",\
+            Result(std::string(event_name_3) + " flow duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " in-scope duration in seconds",\
+            Result(std::string(event_name_3) + " in-scope duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_3 " time between event starts in seconds",\
+            Result(std::string(event_name_3) + " time between event starts in \
+                seconds",\
                    event_3_samples_));\
       } break;\
     }\
@@ -455,68 +463,72 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " flow duration in seconds",\
+            Result(std::string(event_name_1) + " flow duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " in-scope duration in seconds",\
+            Result(std::string(event_name_1) + " in-scope duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_1 " time between event starts in seconds",\
+            Result(std::string(event_name_1) + " time between event starts in \
+                seconds",\
                    event_1_samples_));\
       } break;\
     }\
     switch (measurement_type_2) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " flow duration in seconds",\
+            Result(std::string(event_name_2) + " flow duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " in-scope duration in seconds",\
+            Result(std::string(event_name_2) + " in-scope duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_2 " time between event starts in seconds",\
+            Result(std::string(event_name_2) + " time between event starts in \
+                seconds",\
                    event_2_samples_));\
       } break;\
     }\
     switch (measurement_type_3) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " flow duration in seconds",\
+            Result(std::string(event_name_3) + " flow duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " in-scope duration in seconds",\
+            Result(std::string(event_name_3) + " in-scope duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_3 " time between event starts in seconds",\
+            Result(std::string(event_name_3) + " time between event starts in \
+                seconds",\
                    event_3_samples_));\
       } break;\
     }\
     switch (measurement_type_4) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " flow duration in seconds",\
+            Result(std::string(event_name_4) + " flow duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " in-scope duration in seconds",\
+            Result(std::string(event_name_4) + " in-scope duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_4 " time between event starts in seconds",\
+            Result(std::string(event_name_4) + " time between event starts in \
+                seconds",\
                    event_4_samples_));\
       } break;\
     }\
@@ -680,85 +692,90 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " flow duration in seconds",\
+            Result(std::string(event_name_1) + " flow duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " in-scope duration in seconds",\
+            Result(std::string(event_name_1) + " in-scope duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_1 " time between event starts in seconds",\
+            Result(std::string(event_name_1) + " time between event starts in \
+                seconds",\
                    event_1_samples_));\
       } break;\
     }\
     switch (measurement_type_2) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " flow duration in seconds",\
+            Result(std::string(event_name_2) + " flow duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " in-scope duration in seconds",\
+            Result(std::string(event_name_2) + " in-scope duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_2 " time between event starts in seconds",\
+            Result(std::string(event_name_2) + " time between event starts in \
+                seconds",\
                    event_2_samples_));\
       } break;\
     }\
     switch (measurement_type_3) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " flow duration in seconds",\
+            Result(std::string(event_name_3) + " flow duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " in-scope duration in seconds",\
+            Result(std::string(event_name_3) + " in-scope duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_3 " time between event starts in seconds",\
+            Result(std::string(event_name_3) + " time between event starts in \
+                seconds",\
                    event_3_samples_));\
       } break;\
     }\
     switch (measurement_type_4) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " flow duration in seconds",\
+            Result(std::string(event_name_4) + " flow duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " in-scope duration in seconds",\
+            Result(std::string(event_name_4) + " in-scope duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_4 " time between event starts in seconds",\
+            Result(std::string(event_name_4) + " time between event starts in \
+                seconds",\
                    event_4_samples_));\
       } break;\
     }\
     switch (measurement_type_5) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " flow duration in seconds",\
+            Result(std::string(event_name_5) + " flow duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " in-scope duration in seconds",\
+            Result(std::string(event_name_5) + " in-scope duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_5 " time between event starts in seconds",\
+            Result(std::string(event_name_5) + " time between event starts in \
+                seconds",\
                    event_5_samples_));\
       } break;\
     }\
@@ -950,102 +967,108 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " flow duration in seconds",\
+            Result(std::string(event_name_1) + " flow duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " in-scope duration in seconds",\
+            Result(std::string(event_name_1) + " in-scope duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_1 " time between event starts in seconds",\
+            Result(std::string(event_name_1) + " time between event starts in \
+                seconds",\
                    event_1_samples_));\
       } break;\
     }\
     switch (measurement_type_2) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " flow duration in seconds",\
+            Result(std::string(event_name_2) + " flow duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " in-scope duration in seconds",\
+            Result(std::string(event_name_2) + " in-scope duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_2 " time between event starts in seconds",\
+            Result(std::string(event_name_2) + " time between event starts in \
+                seconds",\
                    event_2_samples_));\
       } break;\
     }\
     switch (measurement_type_3) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " flow duration in seconds",\
+            Result(std::string(event_name_3) + " flow duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " in-scope duration in seconds",\
+            Result(std::string(event_name_3) + " in-scope duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_3 " time between event starts in seconds",\
+            Result(std::string(event_name_3) + " time between event starts in \
+                seconds",\
                    event_3_samples_));\
       } break;\
     }\
     switch (measurement_type_4) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " flow duration in seconds",\
+            Result(std::string(event_name_4) + " flow duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " in-scope duration in seconds",\
+            Result(std::string(event_name_4) + " in-scope duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_4 " time between event starts in seconds",\
+            Result(std::string(event_name_4) + " time between event starts in \
+                seconds",\
                    event_4_samples_));\
       } break;\
     }\
     switch (measurement_type_5) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " flow duration in seconds",\
+            Result(std::string(event_name_5) + " flow duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " in-scope duration in seconds",\
+            Result(std::string(event_name_5) + " in-scope duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_5 " time between event starts in seconds",\
+            Result(std::string(event_name_5) + " time between event starts in \
+                seconds",\
                    event_5_samples_));\
       } break;\
     }\
     switch (measurement_type_6) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_6 " flow duration in seconds",\
+            Result(std::string(event_name_6) + " flow duration in seconds",\
                    event_6_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_6 " in-scope duration in seconds",\
+            Result(std::string(event_name_6) + " in-scope duration in seconds",\
                    event_6_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_6 " time between event starts in seconds",\
+            Result(std::string(event_name_6) + " time between event starts in \
+                seconds",\
                    event_6_samples_));\
       } break;\
     }\
@@ -1264,119 +1287,126 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " flow duration in seconds",\
+            Result(std::string(event_name_1) + " flow duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " in-scope duration in seconds",\
+            Result(std::string(event_name_1) + " in-scope duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_1 " time between event starts in seconds",\
+            Result(std::string(event_name_1) + " time between event starts in \
+                seconds",\
                    event_1_samples_));\
       } break;\
     }\
     switch (measurement_type_2) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " flow duration in seconds",\
+            Result(std::string(event_name_2) + " flow duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " in-scope duration in seconds",\
+            Result(std::string(event_name_2) + " in-scope duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_2 " time between event starts in seconds",\
+            Result(std::string(event_name_2) + " time between event starts in \
+                seconds",\
                    event_2_samples_));\
       } break;\
     }\
     switch (measurement_type_3) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " flow duration in seconds",\
+            Result(std::string(event_name_3) + " flow duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " in-scope duration in seconds",\
+            Result(std::string(event_name_3) + " in-scope duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_3 " time between event starts in seconds",\
+            Result(std::string(event_name_3) + " time between event starts in \
+                seconds",\
                    event_3_samples_));\
       } break;\
     }\
     switch (measurement_type_4) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " flow duration in seconds",\
+            Result(std::string(event_name_4) + " flow duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " in-scope duration in seconds",\
+            Result(std::string(event_name_4) + " in-scope duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_4 " time between event starts in seconds",\
+            Result(std::string(event_name_4) + " time between event starts in \
+                seconds",\
                    event_4_samples_));\
       } break;\
     }\
     switch (measurement_type_5) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " flow duration in seconds",\
+            Result(std::string(event_name_5) + " flow duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " in-scope duration in seconds",\
+            Result(std::string(event_name_5) + " in-scope duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_5 " time between event starts in seconds",\
+            Result(std::string(event_name_5) + " time between event starts in \
+                seconds",\
                    event_5_samples_));\
       } break;\
     }\
     switch (measurement_type_6) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_6 " flow duration in seconds",\
+            Result(std::string(event_name_6) + " flow duration in seconds",\
                    event_6_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_6 " in-scope duration in seconds",\
+            Result(std::string(event_name_6) + " in-scope duration in seconds",\
                    event_6_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_6 " time between event starts in seconds",\
+            Result(std::string(event_name_6) + " time between event starts in \
+                seconds",\
                    event_6_samples_));\
       } break;\
     }\
     switch (measurement_type_7) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_7 " flow duration in seconds",\
+            Result(std::string(event_name_7) + " flow duration in seconds",\
                    event_7_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_7 " in-scope duration in seconds",\
+            Result(std::string(event_name_7) + " in-scope duration in seconds",\
                    event_7_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_7 " time between event starts in seconds",\
+            Result(std::string(event_name_7) + " time between event starts in \
+                seconds",\
                    event_7_samples_));\
       } break;\
     }\
@@ -1623,136 +1653,144 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " flow duration in seconds",\
+            Result(std::string(event_name_1) + " flow duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " in-scope duration in seconds",\
+            Result(std::string(event_name_1) + " in-scope duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_1 " time between event starts in seconds",\
+            Result(std::string(event_name_1) + " time between event starts in \
+                seconds",\
                    event_1_samples_));\
       } break;\
     }\
     switch (measurement_type_2) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " flow duration in seconds",\
+            Result(std::string(event_name_2) + " flow duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " in-scope duration in seconds",\
+            Result(std::string(event_name_2) + " in-scope duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_2 " time between event starts in seconds",\
+            Result(std::string(event_name_2) + " time between event starts in \
+                seconds",\
                    event_2_samples_));\
       } break;\
     }\
     switch (measurement_type_3) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " flow duration in seconds",\
+            Result(std::string(event_name_3) + " flow duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " in-scope duration in seconds",\
+            Result(std::string(event_name_3) + " in-scope duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_3 " time between event starts in seconds",\
+            Result(std::string(event_name_3) + " time between event starts in \
+                seconds",\
                    event_3_samples_));\
       } break;\
     }\
     switch (measurement_type_4) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " flow duration in seconds",\
+            Result(std::string(event_name_4) + " flow duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " in-scope duration in seconds",\
+            Result(std::string(event_name_4) + " in-scope duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_4 " time between event starts in seconds",\
+            Result(std::string(event_name_4) + " time between event starts in \
+                seconds",\
                    event_4_samples_));\
       } break;\
     }\
     switch (measurement_type_5) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " flow duration in seconds",\
+            Result(std::string(event_name_5) + " flow duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " in-scope duration in seconds",\
+            Result(std::string(event_name_5) + " in-scope duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_5 " time between event starts in seconds",\
+            Result(std::string(event_name_5) + " time between event starts in \
+                seconds",\
                    event_5_samples_));\
       } break;\
     }\
     switch (measurement_type_6) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_6 " flow duration in seconds",\
+            Result(std::string(event_name_6) + " flow duration in seconds",\
                    event_6_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_6 " in-scope duration in seconds",\
+            Result(std::string(event_name_6) + " in-scope duration in seconds",\
                    event_6_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_6 " time between event starts in seconds",\
+            Result(std::string(event_name_6) + " time between event starts in \
+                seconds",\
                    event_6_samples_));\
       } break;\
     }\
     switch (measurement_type_7) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_7 " flow duration in seconds",\
+            Result(std::string(event_name_7) + " flow duration in seconds",\
                    event_7_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_7 " in-scope duration in seconds",\
+            Result(std::string(event_name_7) + " in-scope duration in seconds",\
                    event_7_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_7 " time between event starts in seconds",\
+            Result(std::string(event_name_7) + " time between event starts in \
+                seconds",\
                    event_7_samples_));\
       } break;\
     }\
     switch (measurement_type_8) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_8 " flow duration in seconds",\
+            Result(std::string(event_name_8) + " flow duration in seconds",\
                    event_8_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_8 " in-scope duration in seconds",\
+            Result(std::string(event_name_8) + " in-scope duration in seconds",\
                    event_8_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_8 " time between event starts in seconds",\
+            Result(std::string(event_name_8) + " time between event starts in \
+                seconds",\
                    event_8_samples_));\
       } break;\
     }\
@@ -2026,153 +2064,162 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " flow duration in seconds",\
+            Result(std::string(event_name_1) + " flow duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " in-scope duration in seconds",\
+            Result(std::string(event_name_1) + " in-scope duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_1 " time between event starts in seconds",\
+            Result(std::string(event_name_1) + " time between event starts in \
+                seconds",\
                    event_1_samples_));\
       } break;\
     }\
     switch (measurement_type_2) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " flow duration in seconds",\
+            Result(std::string(event_name_2) + " flow duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " in-scope duration in seconds",\
+            Result(std::string(event_name_2) + " in-scope duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_2 " time between event starts in seconds",\
+            Result(std::string(event_name_2) + " time between event starts in \
+                seconds",\
                    event_2_samples_));\
       } break;\
     }\
     switch (measurement_type_3) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " flow duration in seconds",\
+            Result(std::string(event_name_3) + " flow duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " in-scope duration in seconds",\
+            Result(std::string(event_name_3) + " in-scope duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_3 " time between event starts in seconds",\
+            Result(std::string(event_name_3) + " time between event starts in \
+                seconds",\
                    event_3_samples_));\
       } break;\
     }\
     switch (measurement_type_4) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " flow duration in seconds",\
+            Result(std::string(event_name_4) + " flow duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " in-scope duration in seconds",\
+            Result(std::string(event_name_4) + " in-scope duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_4 " time between event starts in seconds",\
+            Result(std::string(event_name_4) + " time between event starts in \
+                seconds",\
                    event_4_samples_));\
       } break;\
     }\
     switch (measurement_type_5) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " flow duration in seconds",\
+            Result(std::string(event_name_5) + " flow duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " in-scope duration in seconds",\
+            Result(std::string(event_name_5) + " in-scope duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_5 " time between event starts in seconds",\
+            Result(std::string(event_name_5) + " time between event starts in \
+                seconds",\
                    event_5_samples_));\
       } break;\
     }\
     switch (measurement_type_6) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_6 " flow duration in seconds",\
+            Result(std::string(event_name_6) + " flow duration in seconds",\
                    event_6_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_6 " in-scope duration in seconds",\
+            Result(std::string(event_name_6) + " in-scope duration in seconds",\
                    event_6_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_6 " time between event starts in seconds",\
+            Result(std::string(event_name_6) + " time between event starts in \
+                seconds",\
                    event_6_samples_));\
       } break;\
     }\
     switch (measurement_type_7) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_7 " flow duration in seconds",\
+            Result(std::string(event_name_7) + " flow duration in seconds",\
                    event_7_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_7 " in-scope duration in seconds",\
+            Result(std::string(event_name_7) + " in-scope duration in seconds",\
                    event_7_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_7 " time between event starts in seconds",\
+            Result(std::string(event_name_7) + " time between event starts in \
+                seconds",\
                    event_7_samples_));\
       } break;\
     }\
     switch (measurement_type_8) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_8 " flow duration in seconds",\
+            Result(std::string(event_name_8) + " flow duration in seconds",\
                    event_8_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_8 " in-scope duration in seconds",\
+            Result(std::string(event_name_8) + " in-scope duration in seconds",\
                    event_8_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_8 " time between event starts in seconds",\
+            Result(std::string(event_name_8) + " time between event starts in \
+                seconds",\
                    event_8_samples_));\
       } break;\
     }\
     switch (measurement_type_9) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_9 " flow duration in seconds",\
+            Result(std::string(event_name_9) + " flow duration in seconds",\
                    event_9_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_9 " in-scope duration in seconds",\
+            Result(std::string(event_name_9) + " in-scope duration in seconds",\
                    event_9_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_9 " time between event starts in seconds",\
+            Result(std::string(event_name_9) + " time between event starts in \
+                seconds",\
                    event_9_samples_));\
       } break;\
     }\
@@ -2474,170 +2521,181 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " flow duration in seconds",\
+            Result(std::string(event_name_1) + " flow duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_1 " in-scope duration in seconds",\
+            Result(std::string(event_name_1) + " in-scope duration in seconds",\
                    event_1_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_1 " time between event starts in seconds",\
+            Result(std::string(event_name_1) + " time between event starts in \
+                seconds",\
                    event_1_samples_));\
       } break;\
     }\
     switch (measurement_type_2) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " flow duration in seconds",\
+            Result(std::string(event_name_2) + " flow duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_2 " in-scope duration in seconds",\
+            Result(std::string(event_name_2) + " in-scope duration in seconds",\
                    event_2_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_2 " time between event starts in seconds",\
+            Result(std::string(event_name_2) + " time between event starts in \
+                seconds",\
                    event_2_samples_));\
       } break;\
     }\
     switch (measurement_type_3) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " flow duration in seconds",\
+            Result(std::string(event_name_3) + " flow duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_3 " in-scope duration in seconds",\
+            Result(std::string(event_name_3) + " in-scope duration in seconds",\
                    event_3_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_3 " time between event starts in seconds",\
+            Result(std::string(event_name_3) + " time between event starts in \
+                seconds",\
                    event_3_samples_));\
       } break;\
     }\
     switch (measurement_type_4) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " flow duration in seconds",\
+            Result(std::string(event_name_4) + " flow duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_4 " in-scope duration in seconds",\
+            Result(std::string(event_name_4) + " in-scope duration in seconds",\
                    event_4_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_4 " time between event starts in seconds",\
+            Result(std::string(event_name_4) + " time between event starts in \
+                seconds",\
                    event_4_samples_));\
       } break;\
     }\
     switch (measurement_type_5) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " flow duration in seconds",\
+            Result(std::string(event_name_5) + " flow duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_5 " in-scope duration in seconds",\
+            Result(std::string(event_name_5) + " in-scope duration in seconds",\
                    event_5_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_5 " time between event starts in seconds",\
+            Result(std::string(event_name_5) + " time between event starts in \
+                seconds",\
                    event_5_samples_));\
       } break;\
     }\
     switch (measurement_type_6) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_6 " flow duration in seconds",\
+            Result(std::string(event_name_6) + " flow duration in seconds",\
                    event_6_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_6 " in-scope duration in seconds",\
+            Result(std::string(event_name_6) + " in-scope duration in seconds",\
                    event_6_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_6 " time between event starts in seconds",\
+            Result(std::string(event_name_6) + " time between event starts in \
+                seconds",\
                    event_6_samples_));\
       } break;\
     }\
     switch (measurement_type_7) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_7 " flow duration in seconds",\
+            Result(std::string(event_name_7) + " flow duration in seconds",\
                    event_7_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_7 " in-scope duration in seconds",\
+            Result(std::string(event_name_7) + " in-scope duration in seconds",\
                    event_7_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_7 " time between event starts in seconds",\
+            Result(std::string(event_name_7) + " time between event starts in \
+                seconds",\
                    event_7_samples_));\
       } break;\
     }\
     switch (measurement_type_8) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_8 " flow duration in seconds",\
+            Result(std::string(event_name_8) + " flow duration in seconds",\
                    event_8_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_8 " in-scope duration in seconds",\
+            Result(std::string(event_name_8) + " in-scope duration in seconds",\
                    event_8_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_8 " time between event starts in seconds",\
+            Result(std::string(event_name_8) + " time between event starts in \
+                seconds",\
                    event_8_samples_));\
       } break;\
     }\
     switch (measurement_type_9) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_9 " flow duration in seconds",\
+            Result(std::string(event_name_9) + " flow duration in seconds",\
                    event_9_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_9 " in-scope duration in seconds",\
+            Result(std::string(event_name_9) + " in-scope duration in seconds",\
                    event_9_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_9 " time between event starts in seconds",\
+            Result(std::string(event_name_9) + " time between event starts in \
+                seconds",\
                    event_9_samples_));\
       } break;\
     }\
     switch (measurement_type_10) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(event_name_10 " flow duration in seconds",\
+            Result(std::string(event_name_10) + " flow duration in seconds",\
                    event_10_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(event_name_10 " in-scope duration in seconds",\
+            Result(std::string(event_name_10) + " in-scope duration in \
+                seconds",\
                    event_10_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(event_name_10 " time between event starts in seconds",\
+            Result(std::string(event_name_10) + " time between event starts \
+                in seconds",\
                    event_10_samples_));\
       } break;\
     }\
@@ -2670,3 +2728,5 @@ TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
 \
 void benchmark::Experiment()\
 MSVC_POP_WARNING()
+
+// clang-format on
