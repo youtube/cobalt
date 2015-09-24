@@ -187,12 +187,15 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
 void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // For video elements, create a replaced box.
 
-  // A replaced box is treated as an atomic inline element, which means that
-  // for bidi analysis it is treated as a neutral type. Append a space to
-  // represent it in the paragraph.
+  // A replaced box is formatted as an atomic inline element. It is treated
+  // directionally as a neutral character and its line breaking behavior is
+  // equivalent to that of the Object Replacement Character.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
-  //   http://www.w3.org/TR/CSS21/visuren.html#direction
-  int32 text_position = (*paragraph_)->AppendUtf8String(" ");
+  //   http://www.w3.org/TR/CSS21/visuren.html#propdef-unicode-bidi
+  //   http://www.w3.org/TR/css3-text/#line-break-details
+  int32 text_position =
+      (*paragraph_)->AppendCodePoint(
+          Paragraph::kObjectReplacementCharacterCodePoint);
 
   // Unlike in Chromium, we do not set the intrinsic width, height, or ratio
   // based on the video frame. This allows to avoid relayout while playing
@@ -310,12 +313,14 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     // is formatted as an atomic inline-level box.
     //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
     case cssom::KeywordValue::kInlineBlock: {
-      // An inline block is treated as an atomic inline element, which means
-      // that for bidi analysis it is treated as a neutral type. Append a space
-      // to represent it in the paragraph.
-      //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
-      //   http://www.w3.org/TR/CSS21/visuren.html#direction
-      int32 text_position = (*paragraph_)->AppendUtf8String(" ");
+      // An inline block is is treated directionally as a neutral character and
+      // its line breaking behavior is equivalent to that of the Object
+      // Replacement Character.
+      //   http://www.w3.org/TR/CSS21/visuren.html#propdef-unicode-bidi
+      //   http://www.w3.org/TR/css3-text/#line-break-details
+      int32 text_position =
+          (*paragraph_)->AppendCodePoint(
+              Paragraph::kObjectReplacementCharacterCodePoint);
 
       container_box_ = make_scoped_ptr(new InlineLevelBlockContainerBox(
           computed_style_, transitions_, used_style_provider_, *paragraph_,
@@ -581,6 +586,12 @@ void BoxGenerator::Visit(dom::Text* text) {
         new TextBox(computed_style, cssom::TransitionSet::EmptyTransitionSet(),
                     used_style_provider_, *paragraph_, text_start_position,
                     text_end_position, generates_newline));
+
+    // Newline sequences should be transformed into a preserved line feed.
+    //   http://www.w3.org/TR/css3-text/#line-break-transform
+    if (generates_newline) {
+      (*paragraph_)->AppendCodePoint(Paragraph::kLineFeedCodePoint);
+    }
 
     start_index = end_index + newline_sequence_length;
   }

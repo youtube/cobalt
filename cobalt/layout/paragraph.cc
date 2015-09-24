@@ -83,6 +83,22 @@ int32 Paragraph::AppendUtf8String(const std::string& utf8_string,
   return start_position;
 }
 
+int32 Paragraph::AppendCodePoint(CodePoint code_point) {
+  int32 start_position = GetTextEndPosition();
+  DCHECK(!is_closed_);
+  if (!is_closed_) {
+    switch (code_point) {
+      case kLineFeedCodePoint:
+        unicode_text_ += UChar(0x0a);
+        break;
+      case kObjectReplacementCharacterCodePoint:
+        unicode_text_ += UChar(0xfffc);
+        break;
+    }
+  }
+  return start_position;
+}
+
 bool Paragraph::CalculateBreakPosition(
     const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
     int32 end_position, float available_width, bool allow_overflow,

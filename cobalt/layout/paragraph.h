@@ -53,14 +53,19 @@ class Paragraph : public base::RefCounted<Paragraph> {
     kLeftToRightBaseDirection,
   };
 
-  enum TextTransform {
-    kNoTextTransform,
-    kUppercaseTextTransform,
+  enum CodePoint {
+    kLineFeedCodePoint,
+    kObjectReplacementCharacterCodePoint,
   };
 
   enum OverflowWrap {
     kBreakWordOverflowWrap,
     kSoftWrapOverflowWrap,
+  };
+
+  enum TextTransform {
+    kNoTextTransform,
+    kUppercaseTextTransform,
   };
 
   Paragraph(icu::BreakIterator* line_break_iterator,
@@ -70,6 +75,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
   int32 AppendUtf8String(const std::string& utf8_string);
   int32 AppendUtf8String(const std::string& utf8_string,
                          TextTransform text_transform);
+  int32 AppendCodePoint(CodePoint code_point);
 
   // Iterate over breakable segments in the text from the starting position,
   // adding up the width of each segment and determining the last one that fits
