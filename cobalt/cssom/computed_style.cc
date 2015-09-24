@@ -466,6 +466,197 @@ void ComputedHeightProvider::VisitPercentage(PercentageValue* percentage) {
                          : percentage;
 }
 
+// Computed value: the percentage or "auto" or the absolute length.
+//   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+class ComputedMaxHeightProvider : public NotReachedPropertyValueVisitor {
+ public:
+  ComputedMaxHeightProvider(const PropertyValue* parent_computed_max_height,
+                            const LengthValue* computed_font_size,
+                            bool out_of_flow);
+
+  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
+  void VisitLength(LengthValue* length) OVERRIDE;
+  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+
+  const scoped_refptr<PropertyValue>& computed_max_height() const {
+    return computed_max_height_;
+  }
+
+ private:
+  const PropertyValue* parent_computed_max_height_;
+  const LengthValue* computed_font_size_;
+  bool out_of_flow_;
+
+  scoped_refptr<PropertyValue> computed_max_height_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedMaxHeightProvider);
+};
+
+ComputedMaxHeightProvider::ComputedMaxHeightProvider(
+    const PropertyValue* parent_computed_max_height,
+    const LengthValue* computed_font_size, bool out_of_flow)
+    : parent_computed_max_height_(parent_computed_max_height),
+      computed_font_size_(computed_font_size),
+      out_of_flow_(out_of_flow) {}
+
+void ComputedMaxHeightProvider::VisitLength(LengthValue* specified_length) {
+  computed_max_height_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_);
+}
+
+void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case KeywordValue::kAuto:
+    case KeywordValue::kNone:
+      computed_max_height_ = keyword;
+      break;
+
+    case KeywordValue::kAbsolute:
+    case KeywordValue::kBaseline:
+    case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
+    case KeywordValue::kCenter:
+    case KeywordValue::kClip:
+    case KeywordValue::kContain:
+    case KeywordValue::kCover:
+    case KeywordValue::kCursive:
+    case KeywordValue::kEllipsis:
+    case KeywordValue::kFantasy:
+    case KeywordValue::kHidden:
+    case KeywordValue::kInherit:
+    case KeywordValue::kInitial:
+    case KeywordValue::kInline:
+    case KeywordValue::kInlineBlock:
+    case KeywordValue::kLeft:
+    case KeywordValue::kMiddle:
+    case KeywordValue::kMonospace:
+    case KeywordValue::kNoRepeat:
+    case KeywordValue::kNormal:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
+    case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
+    case KeywordValue::kRight:
+    case KeywordValue::kSansSerif:
+    case KeywordValue::kSerif:
+    case KeywordValue::kStatic:
+    case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
+    case KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
+
+void ComputedMaxHeightProvider::VisitPercentage(PercentageValue* percentage) {
+  const scoped_refptr<PropertyValue>& auto_value = KeywordValue::GetAuto();
+  const scoped_refptr<PropertyValue>& none_value = KeywordValue::GetNone();
+
+  // If the max_height of the containing block is not specified explicitly
+  // (i.e., it depends on content max_height), and this element is not
+  // absolutely positioned, the percentage value is treated as 'none'.
+  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+  computed_max_height_ =
+      (parent_computed_max_height_ == auto_value && !out_of_flow_) ? none_value
+                                                                   : percentage;
+}
+
+// Computed value: the percentage or "auto" or the absolute length.
+//   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
+class ComputedMinHeightProvider : public NotReachedPropertyValueVisitor {
+ public:
+  ComputedMinHeightProvider(const PropertyValue* parent_computed_min_max_height,
+                            const LengthValue* computed_font_size,
+                            bool out_of_flow);
+
+  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
+  void VisitLength(LengthValue* length) OVERRIDE;
+  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+
+  const scoped_refptr<PropertyValue>& computed_min_height() const {
+    return computed_min_height_;
+  }
+
+ private:
+  const PropertyValue* parent_computed_min_max_height_;
+  const LengthValue* computed_font_size_;
+  bool out_of_flow_;
+
+  scoped_refptr<PropertyValue> computed_min_height_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedMinHeightProvider);
+};
+
+ComputedMinHeightProvider::ComputedMinHeightProvider(
+    const PropertyValue* parent_computed_min_max_height,
+    const LengthValue* computed_font_size, bool out_of_flow)
+    : parent_computed_min_max_height_(parent_computed_min_max_height),
+      computed_font_size_(computed_font_size),
+      out_of_flow_(out_of_flow) {}
+
+void ComputedMinHeightProvider::VisitLength(LengthValue* specified_length) {
+  computed_min_height_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_);
+}
+
+void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case KeywordValue::kAuto:
+      computed_min_height_ = keyword;
+      break;
+
+    case KeywordValue::kAbsolute:
+    case KeywordValue::kBaseline:
+    case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
+    case KeywordValue::kCenter:
+    case KeywordValue::kClip:
+    case KeywordValue::kContain:
+    case KeywordValue::kCover:
+    case KeywordValue::kCursive:
+    case KeywordValue::kEllipsis:
+    case KeywordValue::kFantasy:
+    case KeywordValue::kHidden:
+    case KeywordValue::kInherit:
+    case KeywordValue::kInitial:
+    case KeywordValue::kInline:
+    case KeywordValue::kInlineBlock:
+    case KeywordValue::kLeft:
+    case KeywordValue::kMiddle:
+    case KeywordValue::kMonospace:
+    case KeywordValue::kNone:
+    case KeywordValue::kNoRepeat:
+    case KeywordValue::kNormal:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
+    case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
+    case KeywordValue::kRight:
+    case KeywordValue::kSansSerif:
+    case KeywordValue::kSerif:
+    case KeywordValue::kStatic:
+    case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
+    case KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
+
+void ComputedMinHeightProvider::VisitPercentage(PercentageValue* percentage) {
+  const scoped_refptr<PropertyValue>& auto_value = KeywordValue::GetAuto();
+
+  // If the min_height of the containing block is not specified explicitly
+  // (i.e., it depends on content min_height), and this element is not
+  // absolutely positioned, the percentage value is treated as '0'.
+  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
+  if (parent_computed_min_max_height_ == auto_value && !out_of_flow_) {
+    computed_min_height_ = new LengthValue(0, kPixelsUnit);
+  } else {
+    computed_min_height_ = percentage;
+  }
+}
+
 // Computed value: the percentage or "auto" as specified or the absolute length.
 //   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
 class ComputedWidthProvider : public NotReachedPropertyValueVisitor {
@@ -544,6 +735,123 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
 
 void ComputedWidthProvider::VisitPercentage(PercentageValue* percentage) {
   computed_width_ = percentage;
+}
+
+// Computed value: the percentage or "auto" as specified or the absolute length.
+//   http://www.w3.org/TR/CSS2/visudet.html#min-max-widths
+class ComputedMinMaxWidthProvider : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedMinMaxWidthProvider(
+      PropertyValue* parent_computed_min_max_height,
+      const LengthValue* computed_font_size);
+
+  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
+  void VisitLength(LengthValue* length) OVERRIDE;
+  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+
+  const scoped_refptr<PropertyValue>& computed_min_max_width() const {
+    return computed_min_max_width_;
+  }
+
+ private:
+  PropertyValue* parent_computed_min_max_width_;
+  const LengthValue* computed_font_size_;
+
+  scoped_refptr<PropertyValue> computed_min_max_width_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedMinMaxWidthProvider);
+};
+
+ComputedMinMaxWidthProvider::ComputedMinMaxWidthProvider(
+    PropertyValue* parent_computed_min_max_width,
+    const LengthValue* computed_font_size)
+    : parent_computed_min_max_width_(parent_computed_min_max_width),
+      computed_font_size_(computed_font_size) {}
+
+void ComputedMinMaxWidthProvider::VisitLength(LengthValue* specified_length) {
+  computed_min_max_width_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_);
+}
+
+void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case KeywordValue::kAuto:
+    case KeywordValue::kNone:
+      computed_min_max_width_ = keyword;
+      break;
+
+    case KeywordValue::kAbsolute:
+    case KeywordValue::kBaseline:
+    case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
+    case KeywordValue::kCenter:
+    case KeywordValue::kClip:
+    case KeywordValue::kContain:
+    case KeywordValue::kCover:
+    case KeywordValue::kCursive:
+    case KeywordValue::kEllipsis:
+    case KeywordValue::kFantasy:
+    case KeywordValue::kHidden:
+    case KeywordValue::kInherit:
+    case KeywordValue::kInitial:
+    case KeywordValue::kInline:
+    case KeywordValue::kInlineBlock:
+    case KeywordValue::kLeft:
+    case KeywordValue::kMiddle:
+    case KeywordValue::kMonospace:
+    case KeywordValue::kNoRepeat:
+    case KeywordValue::kNormal:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
+    case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
+    case KeywordValue::kRight:
+    case KeywordValue::kSansSerif:
+    case KeywordValue::kSerif:
+    case KeywordValue::kStatic:
+    case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
+    case KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
+
+class ComputedLengthIsNegativeProvider : public DefaultingPropertyValueVisitor {
+ public:
+  ComputedLengthIsNegativeProvider() : computed_length_is_negative_(false) {}
+
+  void VisitLength(LengthValue* length_value) OVERRIDE {
+    switch (length_value->unit()) {
+      case kPixelsUnit:
+      case kFontSizesAkaEmUnit:
+        computed_length_is_negative_ = length_value->value() < 0;
+        break;
+      default:
+        NOTREACHED();
+    }
+  }
+
+  void VisitDefault(PropertyValue* property_value) OVERRIDE {
+    UNREFERENCED_PARAMETER(property_value);
+  }
+
+  bool computed_length_is_negative() { return computed_length_is_negative_; }
+
+ private:
+  bool computed_length_is_negative_;
+};
+
+void ComputedMinMaxWidthProvider::VisitPercentage(PercentageValue* percentage) {
+  ComputedLengthIsNegativeProvider computed_length_is_negative_provider;
+  parent_computed_min_max_width_->Accept(&computed_length_is_negative_provider);
+  // If the containing block's width is negative, the used value is zero.
+  //   http://www.w3.org/TR/CSS2/visudet.html#min-max-widths
+  if (computed_length_is_negative_provider.computed_length_is_negative()) {
+    computed_min_max_width_ = new LengthValue(0, kPixelsUnit);
+  } else {
+    computed_min_max_width_ = percentage;
+  }
 }
 
 // Absolutizes the value of "background-image" property.
@@ -1124,6 +1432,32 @@ void PromoteToComputedStyle(
   specified_style->padding_top()->Accept(&padding_top_provider);
   specified_style->set_padding_top(
       padding_top_provider.computed_margin_or_padding_edge());
+
+  ComputedMaxHeightProvider max_height_provider(
+      parent_computed_style->height().get(),
+      font_size_provider.computed_font_size().get(),
+      specified_style->position() == KeywordValue::GetAbsolute());
+  specified_style->max_height()->Accept(&max_height_provider);
+  specified_style->set_max_height(max_height_provider.computed_max_height());
+
+  ComputedMinMaxWidthProvider max_width_provider(
+      parent_computed_style->width().get(),
+      font_size_provider.computed_font_size().get());
+  specified_style->max_width()->Accept(&max_width_provider);
+  specified_style->set_max_width(max_width_provider.computed_min_max_width());
+
+  ComputedMinHeightProvider min_height_provider(
+      parent_computed_style->height().get(),
+      font_size_provider.computed_font_size().get(),
+      specified_style->position() == KeywordValue::GetAbsolute());
+  specified_style->min_height()->Accept(&min_height_provider);
+  specified_style->set_min_height(min_height_provider.computed_min_height());
+
+  ComputedMinMaxWidthProvider min_width_provider(
+      parent_computed_style->width().get(),
+      font_size_provider.computed_font_size().get());
+  specified_style->min_width()->Accept(&min_width_provider);
+  specified_style->set_min_width(min_width_provider.computed_min_max_width());
 
   ComputedWidthProvider width_provider(
       font_size_provider.computed_font_size().get());

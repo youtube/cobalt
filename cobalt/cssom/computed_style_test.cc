@@ -294,5 +294,120 @@ TEST(PromoteToComputedStyle, BackgroundSizeKeywordNotChanged) {
   EXPECT_EQ(cssom::KeywordValue::GetContain(),
             computed_style->background_size());
 }
+
+TEST(PromoteToComputedStyle, HeightPercentageInUnspecifiedHeightBlockIsAuto) {
+  // If the height is specified as a percentage and the height of the containing
+  // block is not specified explicitly, and this element is not absolutely
+  // positioned, the value computes to 'auto'.
+  //   http://www.w3.org/TR/CSS2/visudet.html#the-height-property
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+  computed_style->AssignFrom(*cssom::GetInitialStyle());
+  computed_style->set_height(new PercentageValue(0.50f));
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style =
+      cssom::GetInitialStyle();
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), parent_computed_style->height());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), computed_style->height());
+}
+
+TEST(PromoteToComputedStyle,
+     MaxHeightPercentageInUnspecifiedHeightBlockIsNone) {
+  // If the max-height is specified as a percentage and the height of the
+  // containing block is not specified explicitly, and this element is not
+  // absolutely positioned, the percentage value is treated as '0'.
+  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+  computed_style->AssignFrom(*cssom::GetInitialStyle());
+  computed_style->set_max_height(new PercentageValue(0.50f));
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style =
+      cssom::GetInitialStyle();
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), parent_computed_style->height());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), computed_style->max_height());
+}
+
+TEST(PromoteToComputedStyle,
+     MinHeightPercentageInUnspecifiedHeightBlockIsZero) {
+  // If the min-height is specified as a percentage and the height of the
+  // containing block is not specified explicitly, and this element is not
+  // absolutely positioned, the percentage value is treated as 'none'.
+  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+  computed_style->AssignFrom(*cssom::GetInitialStyle());
+  computed_style->set_min_height(new PercentageValue(0.50f));
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style =
+      cssom::GetInitialStyle();
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), parent_computed_style->height());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  cssom::LengthValue* computed_min_height =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          computed_style->min_height().get());
+  EXPECT_EQ(0, computed_min_height->value());
+  EXPECT_EQ(cssom::kPixelsUnit, computed_min_height->unit());
+}
+
+TEST(PromoteToComputedStyle, MaxWidthPercentageInNegativeWidthBlockIsZero) {
+  // If the max-width is specified as a percentage and the containing block's
+  // width is negative, the used value is zero.
+  //  http://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+  computed_style->AssignFrom(*cssom::GetInitialStyle());
+  computed_style->set_max_width(new PercentageValue(0.50f));
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData>
+      grandparent_computed_style = cssom::GetInitialStyle();
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  parent_computed_style->AssignFrom(*cssom::GetInitialStyle());
+  parent_computed_style->set_width(new LengthValue(-16, kPixelsUnit));
+  PromoteToComputedStyle(parent_computed_style, grandparent_computed_style,
+                         NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  cssom::LengthValue* computed_max_width =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          computed_style->max_width().get());
+  EXPECT_EQ(0, computed_max_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, computed_max_width->unit());
+}
+
+TEST(PromoteToComputedStyle, MinWidthPercentageInNegativeWidthBlockIsZero) {
+  // If the min-width is specified as a percentage and the containing block's
+  // width is negative, the used value is zero.
+  //  http://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+  computed_style->AssignFrom(*cssom::GetInitialStyle());
+  computed_style->set_min_width(new PercentageValue(0.50f));
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData>
+      grandparent_computed_style = cssom::GetInitialStyle();
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  parent_computed_style->AssignFrom(*cssom::GetInitialStyle());
+  parent_computed_style->set_width(new LengthValue(-16, kPixelsUnit));
+  PromoteToComputedStyle(parent_computed_style, grandparent_computed_style,
+                         NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  cssom::LengthValue* computed_min_width =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          computed_style->min_width().get());
+  EXPECT_EQ(0, computed_min_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, computed_min_width->unit());
+}
+
 }  // namespace cssom
 }  // namespace cobalt
