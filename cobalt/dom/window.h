@@ -51,6 +51,7 @@ class LocalStorageDatabase;
 class Location;
 class Navigator;
 class Performance;
+class Screen;
 class Storage;
 class WindowTimers;
 
@@ -91,10 +92,43 @@ class Window : public EventTarget {
   int32 RequestAnimationFrame(const scoped_refptr<FrameRequestCallback>&);
   void CancelAnimationFrame(int32 handle);
 
-  // Web API: CSSOM View Module (partial interface)
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
-  int inner_width() const { return width_; }
-  int inner_height() const { return height_; }
+  // Web API: CSSOM View Module: Extensions to the window interface
+  //
+
+  // As its name suggests, the Screen interface represents information about the
+  // screen of the output device.
+  //   http://www.w3.org/TR/cssom-view/#the-screen-interface
+  const scoped_refptr<Screen>& screen();
+
+  // The innerWidth attribute must return the viewport width including the size
+  // of a rendered scroll bar (if any), or zero if there is no viewport.
+  //   http://www.w3.org/TR/cssom-view/#dom-window-innerwidth
+  float inner_width() const { return static_cast<float>(width_); }
+  // The innerHeight attribute must return the viewport height including the
+  // size of a rendered scroll bar (if any), or zero if there is no viewport.
+  //   http://www.w3.org/TR/cssom-view/#dom-window-innerheight
+  float inner_height() const { return static_cast<float>(height_); }
+
+  // The screenX attribute must return the x-coordinate, relative to the origin
+  // of the screen of the output device, of the left of the client window as
+  // number of pixels, or zero if there is no such thing.
+  //   http://www.w3.org/TR/cssom-view/#dom-window-screenx
+  float screen_x() const { return 0.0f; }
+  // The screenY attribute must return the y-coordinate, relative to the origin
+  // of the screen of the output device, of the top of the client window as
+  // number of pixels, or zero if there is no such thing.
+  //   http://www.w3.org/TR/cssom-view/#dom-window-screeny
+  float screen_y() const { return 0.0f; }
+  // The outerWidth attribute must return the width of the client window.
+  //   http://www.w3.org/TR/cssom-view/#dom-window-outerwidth
+  float outer_width() const { return static_cast<float>(width_); }
+  // The outerHeight attribute must return the height of the client window.
+  //   http://www.w3.org/TR/cssom-view/#dom-window-outerheight
+  float outer_height() const { return static_cast<float>(height_); }
+  // The devicePixelRatio attribute returns the ratio of CSS pixels per device
+  // pixel.
+  //   http://www.w3.org/TR/cssom-view/#dom-window-devicepixelratio
+  float device_pixel_ratio() const { return 1.0f; }
 
   // Web API: GlobalCrypto (implements)
   //   http://www.w3.org/TR/WebCryptoAPI/#crypto-interface
@@ -167,7 +201,10 @@ class Window : public EventTarget {
   scoped_refptr<Storage> local_storage_;
   scoped_refptr<Storage> session_storage_;
 
+  scoped_refptr<Screen> screen_;
+
   scoped_refptr<debug::DebugHub> debug_hub_;
+
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
