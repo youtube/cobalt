@@ -113,6 +113,18 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
     if (!style->margin_top() && declared_style->margin_top()) {
       style->set_margin_top(declared_style->margin_top());
     }
+    if (!style->max_height() && declared_style->max_height()) {
+      style->set_max_height(declared_style->max_height());
+    }
+    if (!style->max_width() && declared_style->max_width()) {
+      style->set_max_width(declared_style->max_width());
+    }
+    if (!style->min_height() && declared_style->min_height()) {
+      style->set_min_height(declared_style->min_height());
+    }
+    if (!style->min_width() && declared_style->min_width()) {
+      style->set_min_width(declared_style->min_width());
+    }
     if (!style->opacity() && declared_style->opacity()) {
       style->set_opacity(declared_style->opacity());
     }

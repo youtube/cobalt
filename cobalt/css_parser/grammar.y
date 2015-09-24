@@ -96,6 +96,10 @@
 %token kMarginRightToken                      // margin-right
 %token kMarginToken                           // margin
 %token kMarginTopToken                        // margin-top
+%token kMaxHeightToken                        // max-height
+%token kMaxWidthToken                         // max-width
+%token kMinHeightToken                        // min-height
+%token kMinWidthToken                         // min-width
 %token kOpacityToken                          // opacity
 %token kOverflowToken                         // overflow
 %token kOverflowWrapToken                     // overflow-wrap
@@ -439,6 +443,8 @@
                        linear_gradient_params
                        margin_side_property_value
                        margin_width
+                       max_height_property_value
+                       max_width_property_value
                        offset_property_value
                        opacity_property_value
                        orientation_media_feature_keyword_value
@@ -1002,6 +1008,18 @@ identifier_token:
   }
   | kMarginToken {
     $$ = TrivialStringPiece::FromCString(cssom::kMarginPropertyName);
+  }
+  | kMaxHeightToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMaxHeightPropertyName);
+  }
+  | kMaxWidthToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMaxWidthPropertyName);
+  }
+  | kMinHeightToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMinHeightPropertyName);
+  }
+  | kMinWidthToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMinWidthPropertyName);
   }
   | kOpacityToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
@@ -2394,6 +2412,7 @@ font_weight_property_value:
 
 // Specifies the content height of boxes.
 //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
+//   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
 height_property_value:
     length {
     scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
@@ -2408,6 +2427,16 @@ height_property_value:
   | auto
   | common_values
   ;
+
+// 'max-height' value can be height_property_value or 'none'.
+//   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+max_height_property_value:
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | height_property_value
+  ;
+
 
 // Specifies the minimal height of line boxes within the element.
 //   http://www.w3.org/TR/CSS21/visudet.html#line-height
@@ -3169,6 +3198,7 @@ white_space_property_value:
 
 // Specifies the content width of boxes.
 //   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
+//   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
 width_property_value:
     length {
     scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
@@ -3182,6 +3212,15 @@ width_property_value:
   | positive_percentage { $$ = $1; }
   | auto
   | common_values
+  ;
+
+// 'max-width' value can be width property_value or 'none'.
+//   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
+max_width_property_value:
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | width_property_value
   ;
 
 maybe_important:
@@ -3262,7 +3301,6 @@ maybe_declaration:
         PropertyDeclaration::NameValuePair(
             cssom::kBackgroundSizePropertyName,
             background->background_size));
-
 
     $$ = property_declaration.release();
   }
@@ -3415,6 +3453,30 @@ maybe_declaration:
     } else {
       $$ = NULL;
     }
+  }
+  | kMaxHeightToken maybe_whitespace colon max_height_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kMaxHeightPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kMaxWidthToken maybe_whitespace colon max_width_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kMaxWidthPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kMinHeightToken maybe_whitespace colon height_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kMinHeightPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kMinWidthToken maybe_whitespace colon width_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kMinWidthPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
   }
   | kOpacityToken maybe_whitespace colon opacity_property_value
       maybe_important {
@@ -3794,14 +3856,14 @@ entry_point:
     parser_impl->set_style_rule(style_rule);
   }
   // Parses the contents of a HTMLElement.style attribute.
-  | kStyleDeclarationListEntryPointToken maybe_whitespace 
+  | kStyleDeclarationListEntryPointToken maybe_whitespace
         style_declaration_list {
     scoped_refptr<cssom::CSSStyleDeclarationData> declaration_data =
         MakeScopedRefPtrAndRelease($3);
     parser_impl->set_style_declaration_data(declaration_data);
   }
   // Parses the contents of an @font-face rule.
-  | kFontFaceDeclarationListEntryPointToken maybe_whitespace 
+  | kFontFaceDeclarationListEntryPointToken maybe_whitespace
         font_face_declaration_list {
     scoped_refptr<cssom::CSSFontFaceDeclarationData> declaration_data =
         MakeScopedRefPtrAndRelease($3);
