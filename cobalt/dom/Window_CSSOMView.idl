@@ -14,11 +14,35 @@
  * limitations under the License.
  */
 
-// From the spec CSSOM View Module
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
+  // Web API: CSSOM View Module: Extensions to the window interface
+  //   http://www.w3.org/TR/cssom-view/#extensions-to-the-window-interface
 
 partial interface Window {
-  // The following two types are changed from double to long.
-  readonly attribute long innerWidth;
-  readonly attribute long innerHeight;
+  // As its name suggests, the Screen interface represents information about the
+  // screen of the output device.
+  //   http://www.w3.org/TR/cssom-view/#screen
+  [SameObject] readonly attribute Screen screen;
+
+  // viewport
+  readonly attribute double innerWidth;
+  readonly attribute double innerHeight;
+
+  // client
+  // The screenX attribute must return the x-coordinate, relative to the origin
+  // of the screen of the output device, of the left of the client window as
+  // number of pixels, or zero if there is no such thing.
+  //   http://www.w3.org/TR/cssom-view/#dom-window-screenx
+  readonly attribute double screenX;
+  // The screenY attribute must return the y-coordinate, relative to the origin
+  // of the screen of the output device, of the top of the client window as
+  // number of pixels, or zero if there is no such thing.
+  //   http://www.w3.org/TR/cssom-view/#dom-window-screeny
+  readonly attribute double screenY;
+  //   http://www.w3.org/TR/cssom-view/#dom-window-outerwidth
+  readonly attribute double outerWidth;
+  //   http://www.w3.org/TR/cssom-view/#dom-window-outerheight
+  readonly attribute double outerHeight;
+  //   http://www.w3.org/TR/cssom-view/#dom-window-devicepixelratio
+  readonly attribute double devicePixelRatio;
+
 };

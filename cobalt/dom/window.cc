@@ -24,6 +24,7 @@
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
 #include "cobalt/dom/performance.h"
+#include "cobalt/dom/screen.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/window_timers.h"
 
@@ -88,7 +89,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       ALLOW_THIS_IN_INITIALIZER_LIST(local_storage_(
           new Storage(this, Storage::kLocalStorage, local_storage_database))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          session_storage_(new Storage(this, Storage::kSessionStorage, NULL))) {
+          session_storage_(new Storage(this, Storage::kSessionStorage, NULL))),
+      screen_(new Screen(width, height)) {
   document_->AddObserver(relay_on_load_event_.get());
 }
 
@@ -103,6 +105,8 @@ scoped_refptr<Location> Window::location() const {
 }
 
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
+
+const scoped_refptr<Screen>& Window::screen() { return screen_; }
 
 const scoped_refptr<Performance>& Window::performance() const {
   return performance_;
