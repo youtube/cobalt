@@ -18,6 +18,6 @@
 
 [OverrideBuiltins]
 interface DOMStringMap {
-  getter DOMString (DOMString name);
-  setter creator void (DOMString name, DOMString value);
+  [RaisesException] getter DOMString? (DOMString name);
+  [RaisesException] setter creator void (DOMString name, DOMString value);
 };
