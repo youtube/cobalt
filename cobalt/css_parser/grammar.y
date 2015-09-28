@@ -426,7 +426,6 @@
                        font_face_src_list_element
                        font_face_src_property_value
                        font_family_generic_name
-                       font_family_disallowed_name
                        font_family_name_list_element
                        font_family_property_value
                        font_size_property_value
@@ -2252,26 +2251,12 @@ font_family_generic_name:
   }
   ;
 
-// "inherit" and "initial" are reserved values and not allowed as font family
-// names.
-//   http://www.w3.org/TR/css3-fonts/#propdef-font-family
-font_family_disallowed_name:
-  // Check for disallowed identifiers
-    kInheritToken maybe_whitespace {
-    $$ = NULL;
-  }
-  | kInitialToken maybe_whitespace {
-    $$ = NULL;
-  }
-  ;
-
 // There are two types of font family names:
 //   -- The name of a specific font family
 //   -- A generic font family which can be used as a general fallback mechanism
 //   http://www.w3.org/TR/css3-fonts/#family-name-value
 font_family_name_list_element:
-    font_family_disallowed_name
-  | font_family_generic_name
+    font_family_generic_name
   | font_family_specific_name { $$ = $1; }
   ;
 
