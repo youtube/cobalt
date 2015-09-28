@@ -175,7 +175,7 @@ TEST_P(LayoutTest, LayoutTest) {
   // Setup the WebModule options.  In particular, we specify here the URL of
   // the test that we wish to run.
   browser::WebModule::Options web_module_options;
-  web_module_options.layout_trigger = layout::LayoutManager::kOnDocumentLoad;
+  web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
 
   // Setup the function that should be called whenever the WebModule produces
   // a new render tree.  Essentially, we decide here if we are rebaselining or
