@@ -22,9 +22,12 @@
   readonly attribute Navigator navigator;
   readonly attribute Console console;
 
-  // Custom interfaces to access debugging functionality (e.g. log messages).
+  // Custom interface to access debugging functionality (e.g. log messages).
   // TODO(***REMOVED***) - provide link to design doc.
   readonly attribute DebugHub debugHub;
+
+  // Custom interface to communicate with layout tests (e.g. notify done).
+  [Conditional=ENABLE_TEST_RUNNER] readonly attribute TestRunner testRunner;
 };
 Window implements GlobalCrypto;
 Window implements GlobalEventHandlers;

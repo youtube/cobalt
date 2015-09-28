@@ -93,6 +93,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           session_storage_(new Storage(this, Storage::kSessionStorage, NULL))),
       screen_(new Screen(width, height)) {
+#if defined(ENABLE_TEST_RUNNER)
+  test_runner_ = new TestRunner();
+#endif  // ENABLE_TEST_RUNNER
   document_->AddObserver(relay_on_load_event_.get());
 }
 
@@ -145,6 +148,12 @@ const scoped_refptr<debug::DebugHub>& Window::debug_hub() const {
 void Window::set_debug_hub(const scoped_refptr<debug::DebugHub>& debug_hub) {
   debug_hub_ = debug_hub;
 }
+
+#if defined(ENABLE_TEST_RUNNER)
+const scoped_refptr<TestRunner>& Window::test_runner() const {
+  return test_runner_;
+}
+#endif  // ENABLE_TEST_RUNNER
 
 const scoped_refptr<Console>& Window::console() const { return console_; }
 
