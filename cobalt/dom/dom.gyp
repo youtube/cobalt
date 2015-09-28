@@ -171,6 +171,8 @@
         'storage_area.h',
         'storage_event.cc',
         'storage_event.h',
+        'test_runner.cc',
+        'test_runner.h',
         'text.cc',
         'text.h',
         'time_ranges.cc',

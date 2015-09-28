@@ -43,7 +43,9 @@ class LayoutManager {
   // on_render_tree_produced_callback_.
   enum LayoutTrigger {
     kOnDocumentMutation,
-    kOnDocumentLoad,
+#if defined(ENABLE_TEST_RUNNER)
+    kTestRunnerMode,
+#endif  // ENABLE_TEST_RUNNER
   };
 
   LayoutManager(const scoped_refptr<dom::Window>& window,
