@@ -170,6 +170,7 @@
           '__LB_SHELL__ENABLE_SCREENSHOT__',
           'SK_DEVELOPER',
           'ENABLE_DEBUG_CONSOLE',
+          'ENABLE_TEST_RUNNER',
         ],
       }, # end of debug_base
       'devel_base': {
@@ -185,6 +186,7 @@
           '__LB_SHELL__ENABLE_SCREENSHOT__',
           'SK_DEVELOPER',
           'ENABLE_DEBUG_CONSOLE',
+          'ENABLE_TEST_RUNNER',
         ],
       }, # end of devel_base
       'qa_base': {
@@ -199,6 +201,7 @@
           '__LB_SHELL__FOR_QA__',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
           'ENABLE_DEBUG_CONSOLE',
+          'ENABLE_TEST_RUNNER',
         ],
       }, # end of devel_base
       'gold_base': {
@@ -211,6 +214,11 @@
           'COBALT_BUILD_TYPE_GOLD',
           '__LB_SHELL__FOR_RELEASE__',
           'TRACING_DISABLED',
+          # TODO(***REMOVED***): Disable the test runner for Gold build when the
+          # [Conditional] extended attribute is supported
+          # (tracked in b/24171481).
+          # Currently enabling it just to make binding happy.
+          'ENABLE_TEST_RUNNER',
         ],
       }, # end of gold_base
     }, # end of configurations

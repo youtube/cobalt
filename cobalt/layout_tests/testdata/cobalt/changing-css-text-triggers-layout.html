@@ -13,8 +13,16 @@
 </head>
 <body>
   <script>
+  if (window.testRunner) {
+    window.testRunner.waitUntilDone();
+  }
+
   window.onload = function () {
     document.getElementById('box').style.cssText = "height: 20px;";
+
+    if (window.testRunner) {
+      window.testRunner.notifyDone();
+    }
   };
   </script>
 <div id="box"></div>
