@@ -34,6 +34,9 @@ class CSSDeclarationData : public base::RefCounted<CSSDeclarationData> {
   void SetPropertyValue(const std::string& property_name,
                         const scoped_refptr<PropertyValue>& property_value);
 
+ protected:
+  virtual ~CSSDeclarationData() {}
+
  private:
   virtual scoped_refptr<PropertyValue>* GetPropertyValueReference(
       const std::string& property_name) = 0;
