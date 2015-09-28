@@ -30,6 +30,9 @@
 #include "cobalt/dom/crypto.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/parser.h"
+#if defined(ENABLE_TEST_RUNNER)
+#include "cobalt/dom/test_runner.h"
+#endif  // ENABLE_TEST_RUNNER
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -175,6 +178,10 @@ class Window : public EventTarget {
   const scoped_refptr<debug::DebugHub>& debug_hub() const;
   void set_debug_hub(const scoped_refptr<debug::DebugHub>& debug_hub);
 
+#if defined(ENABLE_TEST_RUNNER)
+  const scoped_refptr<TestRunner>& test_runner() const;
+#endif  // ENABLE_TEST_RUNNER
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
@@ -205,6 +212,9 @@ class Window : public EventTarget {
 
   scoped_refptr<debug::DebugHub> debug_hub_;
 
+#if defined(ENABLE_TEST_RUNNER)
+  scoped_refptr<TestRunner> test_runner_;
+#endif  // ENABLE_TEST_RUNNER
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
