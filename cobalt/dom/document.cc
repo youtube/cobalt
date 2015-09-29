@@ -54,8 +54,9 @@ Document::Document(HTMLElementContext* html_element_context,
           style_sheets_(new cssom::StyleSheetList(this))),
       loading_counter_(0),
       should_dispatch_load_event_(true),
-      rule_matches_dirty_(true),
-      computed_style_dirty_(true),
+      is_selector_tree_dirty_(true),
+      is_rule_matching_result_dirty_(true),
+      is_computed_style_dirty_(true),
       navigation_start_clock_(options.navigation_start_clock),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           default_timeline_(new DocumentTimeline(this, 0))) {
@@ -302,8 +303,9 @@ void Document::RecordMutation() {
 void Document::OnCSSMutation() {
   // Something in the document's CSS rules has been modified, but we don't know
   // what, so set the flag indicating that rule matching needs to be done.
-  rule_matches_dirty_ = true;
-  computed_style_dirty_ = true;
+  is_selector_tree_dirty_ = true;
+  is_rule_matching_result_dirty_ = true;
+  is_computed_style_dirty_ = true;
 
   RecordMutation();
 }
@@ -311,14 +313,14 @@ void Document::OnCSSMutation() {
 void Document::OnDOMMutation() {
   // Something in the document's DOM has been modified, but we don't know what,
   // so set the flag indicating that rule matching needs to be done.
-  rule_matches_dirty_ = true;
-  computed_style_dirty_ = true;
+  is_rule_matching_result_dirty_ = true;
+  is_computed_style_dirty_ = true;
 
   RecordMutation();
 }
 
 void Document::OnElementInlineStyleMutation() {
-  computed_style_dirty_ = true;
+  is_computed_style_dirty_ = true;
 
   RecordMutation();
 }
@@ -328,7 +330,11 @@ void Document::UpdateMatchingRules(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
 
-  if (rule_matches_dirty_) {
+  if (is_selector_tree_dirty_) {
+    // TODO(***REMOVED***): Update selector tree.
+  }
+
+  if (is_rule_matching_result_dirty_) {
     TRACE_EVENT0("cobalt::dom", kBenchmarkStatUpdateMatchingRules);
     EvaluateStyleSheetMediaRules(root_computed_style, user_agent_style_sheet,
                                  style_sheets());
@@ -336,7 +342,7 @@ void Document::UpdateMatchingRules(
     html()->UpdateMatchingRulesRecursively(user_agent_style_sheet,
                                            style_sheets());
 
-    rule_matches_dirty_ = false;
+    is_rule_matching_result_dirty_ = false;
   }
 }
 
@@ -347,7 +353,7 @@ void Document::UpdateComputedStyles(
 
   UpdateMatchingRules(root_computed_style, user_agent_style_sheet);
 
-  if (computed_style_dirty_) {
+  if (is_computed_style_dirty_) {
     // Determine the official time that this style change event took place. This
     // is needed (as opposed to repeatedly calling base::Time::Now()) because
     // all animations that may be triggered here must start at the exact same
@@ -359,7 +365,7 @@ void Document::UpdateComputedStyles(
     html()->UpdateComputedStyleRecursively(root_computed_style,
                                            style_change_event_time, true);
 
-    computed_style_dirty_ = false;
+    is_computed_style_dirty_ = false;
   }
 }
 

@@ -20,34 +20,36 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace cssom {
 
+class CSSStyleSheet;
 class StyleSheetList;
 
 // The StyleSheet interface represents an abstract, base style sheet.
-//   http://dev.w3.org/csswg/cssom/#the-stylesheet-interface
+//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-stylesheet-interface
 class StyleSheet : public script::Wrappable,
                    public base::SupportsWeakPtr<StyleSheet> {
  public:
-  virtual ~StyleSheet() {}
+  // Custom, not in any spec.
+  //
+  int index() { return index_; }
+  void set_index(int index) { index_ = index; }
 
   virtual void AttachToStyleSheetList(StyleSheetList* style_sheet_list) = 0;
   virtual void SetLocationUrl(const GURL& url) = 0;
   virtual GURL& LocationUrl() = 0;
   virtual StyleSheetList* ParentStyleSheetList() = 0;
-
-  int index() { return index_; }
-  void set_index(int index) { index_ = index; }
+  virtual scoped_refptr<CSSStyleSheet> AsCSSStyleSheet() = 0;
 
   DEFINE_WRAPPABLE_TYPE(StyleSheet);
 
  protected:
-  StyleSheet() : index_(Appearance::kUnattached) {}
+  StyleSheet();
+  virtual ~StyleSheet() {}
 
  private:
   int index_;

@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-// The CSSFontFaceRule interface represents a @font-face rule.
-//   http://www.w3.org/TR/css3-fonts/#om-fontface
-interface CSSFontFaceRule : CSSRule {
-  [TreatNullAs=EmptyString] attribute DOMString family;
-  [TreatNullAs=EmptyString] attribute DOMString src;
-  [TreatNullAs=EmptyString] attribute DOMString style;
-  [TreatNullAs=EmptyString] attribute DOMString weight;
-  [TreatNullAs=EmptyString] attribute DOMString unicodeRange;
-};
+#include "cobalt/cssom/style_sheet.h"
+
+#include "cobalt/cssom/cascade_priority.h"
+
+namespace cobalt {
+namespace cssom {
+
+StyleSheet::StyleSheet() : index_(Appearance::kUnattached) {}
+
+}  // namespace cssom
+}  // namespace cobalt

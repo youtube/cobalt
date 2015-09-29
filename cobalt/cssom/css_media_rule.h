@@ -19,20 +19,20 @@
 
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_condition_rule.h"
-#include "cobalt/cssom/css_rule.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
-class MediaList;
-class PropertyValue;
 class CSSRuleList;
 class CSSRuleVisitor;
 class CSSStyleSheet;
+class MediaList;
+class PropertyValue;
 
 // The CSSMediaRule interface represents an @media at-rule.
 //   http://www.w3.org/TR/cssom/#the-cssmediarule-interface
@@ -42,27 +42,24 @@ class CSSMediaRule : public CSSConditionRule {
   CSSMediaRule(const scoped_refptr<MediaList>& media_list,
                const scoped_refptr<CSSRuleList>& css_rule_list);
 
-  // Web API: CSSMediaRule
-  //
-
-  // Returns a read-only, live object representing the CSS rules.
-  const scoped_refptr<MediaList>& media() const;
-
   // Web API: CSSRule
-  //
-
   Type type() const OVERRIDE { return kMediaRule; }
   std::string css_text() const OVERRIDE;
   void set_css_text(const std::string& css_text) OVERRIDE;
 
   // Web API: CSSConditionRule
-  //
-
   std::string condition_text() OVERRIDE;
   void set_condition_text(const std::string& condition) OVERRIDE;
 
+  // Web API: CSSMediaRule
+  //
+  // Returns a read-only, live object representing the CSS rules.
+  const scoped_refptr<MediaList>& media() const;
+
   // Custom, not in any spec.
   //
+  // From CSSRule.
+  void Accept(CSSRuleVisitor* visitor) OVERRIDE;
 
   // Evaluates the condition expression and caches the resulting condition
   // value. Returns true if the cached condition value has changed.
@@ -70,18 +67,17 @@ class CSSMediaRule : public CSSConditionRule {
       const scoped_refptr<PropertyValue>& width,
       const scoped_refptr<PropertyValue>& height);
 
-  // From CSSRule.
-  void Accept(CSSRuleVisitor* visitor) OVERRIDE;
-
   // This method can be used to setup the parent style sheet.
   void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(CSSMediaRule);
 
  private:
+  ~CSSMediaRule() OVERRIDE;
+
   scoped_refptr<MediaList> media_list_;
 
-  ~CSSMediaRule() OVERRIDE;
+  DISALLOW_COPY_AND_ASSIGN(CSSMediaRule);
 };
 
 }  // namespace cssom

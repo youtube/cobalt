@@ -358,7 +358,7 @@ void EvaluateStyleSheetMediaRules(
   for (unsigned int style_sheet_index = 0;
        style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-        author_style_sheets->Item(style_sheet_index);
+        author_style_sheets->Item(style_sheet_index)->AsCSSStyleSheet();
     style_sheet->EvaluateMediaRules(width, height);
   }
 }
@@ -372,12 +372,12 @@ void UpdateStyleSheetRuleIndexes(
   for (unsigned int style_sheet_index = 0;
        style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-        author_style_sheets->Item(style_sheet_index);
+        author_style_sheets->Item(style_sheet_index)->AsCSSStyleSheet();
     style_sheet->MaybeUpdateRuleIndexes();
   }
 }
 
-void GetMatchingRulesFromStyleSheet(
+void UpdateMatchingRulesFromStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
     HTMLElement* element, cssom::Origin origin) {
   cssom::CSSRuleSet candidate_rules;

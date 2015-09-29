@@ -14,4 +14,6 @@
  * limitations under the License.
  */
 
+// http://www.w3.org/TR/2013/WD-cssom-20131205/#the-stylesheet-interface
+
 interface StyleSheet {};

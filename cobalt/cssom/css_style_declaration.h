@@ -22,7 +22,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
-#include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/script/wrappable.h"
 
@@ -36,24 +35,15 @@ class MutationObserver;
 // The CSSStyleDeclaration interface represents a CSS declaration block,
 // including its underlying state, where this underlying state depends
 // upon the source of the CSSStyleDeclaration instance.
-//   http://dev.w3.org/csswg/cssom/#the-cssstyledeclaration-interface
+//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstyledeclaration-interface
 class CSSStyleDeclaration : public script::Wrappable {
  public:
-  // String type properties are used in JavaScript according to spec,
-  // but PropertyValue type is used inside Cobalt for easy manipulation.
-  // Introducing |css_parser| helps for parsing JavaScript strings to
-  // PropertyValue and CSSStyleDeclaration.
-  // |css_parser| can be null if only dealing with |data_|.
   explicit CSSStyleDeclaration(CSSParser* css_parser);
   CSSStyleDeclaration(const scoped_refptr<CSSStyleDeclarationData>& style,
                       CSSParser* css_parser);
 
-  // Intentionally allowing compiler to generate copy constructor
-  // and assignment operator.
-
   // Web API: CSSStyleDeclaration
   //
-
   std::string background() const;
   void set_background(const std::string& background);
 
@@ -201,14 +191,11 @@ class CSSStyleDeclaration : public script::Wrappable {
   void SetPropertyValue(const std::string& property_name,
                         const std::string& property_value);
 
-  scoped_refptr<CSSRule> parent_rule() const { return parent_rule_.get(); }
+  scoped_refptr<CSSRule> parent_rule() const;
 
   // Custom, not in any spec.
   //
-
-  void set_parent_rule(CSSRule* parent_rule) {
-    parent_rule_ = base::AsWeakPtr(parent_rule);
-  }
+  void set_parent_rule(CSSRule* parent_rule);
 
   scoped_refptr<const CSSStyleDeclarationData> data() { return data_; }
 
@@ -228,6 +215,8 @@ class CSSStyleDeclaration : public script::Wrappable {
   base::WeakPtr<CSSRule> parent_rule_;
   CSSParser* const css_parser_;
   MutationObserver* mutation_observer_;
+
+  DISALLOW_COPY_AND_ASSIGN(CSSStyleDeclaration);
 };
 
 }  // namespace cssom
