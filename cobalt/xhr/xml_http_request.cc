@@ -61,6 +61,17 @@ bool MethodNameToRequestType(const std::string& method,
   return true;
 }
 
+void ConfigureSendRequest(const net::HttpRequestHeaders& request_headers,
+                          scoped_ptr<std::string> request_body,
+                          net::URLFetcher* url_fetcher) {
+  url_fetcher->SetExtraRequestHeaders(request_headers.ToString());
+  if (request_body->size()) {
+    // If applicable, the request body Content-Type is already set in
+    // request_headers.
+    url_fetcher->SetUploadData("", *request_body);
+  }
+}
+
 }  // namespace
 
 XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
@@ -201,17 +212,14 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body) {
   AddExtraRef();
   FireProgressEvent(dom::EventNames::GetInstance()->loadstart());
 
-  network::NetworkModule* network_module =
-      settings_->fetcher_factory()->network_module();
-  loader::NetFetcher::Options net_options;
-  net_options.request_method = method_;
+  scoped_ptr<std::string> request_body_text(new std::string());
 
   // Add request body, if appropriate.
   if (method_ == net::URLFetcher::POST || method_ == net::URLFetcher::PUT) {
     bool has_content_type =
         request_headers_.HasHeader(net::HttpRequestHeaders::kContentType);
     if (request_body->IsType<std::string>()) {
-      net_options.request_body = request_body->AsType<std::string>();
+      request_body_text->assign(request_body->AsType<std::string>());
       if (!has_content_type) {
         // We're assuming that request_body is UTF-8 encoded.
         request_headers_.SetHeader(net::HttpRequestHeaders::kContentType,
@@ -222,13 +230,19 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body) {
           request_body->AsType<scoped_refptr<dom::ArrayBufferView> >();
       if (view->byte_length()) {
         const char* start = reinterpret_cast<const char*>(view->base_address());
-        net_options.request_body.assign(start + view->byte_offset(),
-                                        view->byte_length());
+        request_body_text->assign(start + view->byte_offset(),
+                                  view->byte_length());
       }
     }
   }
-  net_options.request_headers = request_headers_.ToString();
 
+  network::NetworkModule* network_module =
+      settings_->fetcher_factory()->network_module();
+  loader::NetFetcher::Options net_options;
+  net_options.request_method = method_;
+  net_options.setup_callback =
+      base::Bind(&ConfigureSendRequest, request_headers_,
+                 base::Passed(&request_body_text));
   net_fetcher_.reset(
       new loader::NetFetcher(request_url_, this, network_module, net_options));
 
