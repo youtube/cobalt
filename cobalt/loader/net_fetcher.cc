@@ -32,12 +32,11 @@ NetFetcher::NetFetcher(const GURL& url, Handler* handler,
   url_fetcher_.reset(
       net::URLFetcher::Create(url, options.request_method, this));
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
-  url_fetcher_->SetExtraRequestHeaders(options.request_headers);
   url_fetcher_->DiscardResponse();
-  if (options.request_body.size()) {
-    // If applicable, the request body Content-Type is already set in
-    // options.request_headers.
-    url_fetcher_->SetUploadData("", options.request_body);
+
+  // Let the caller configure the url fetcher as desired.
+  if (!options.setup_callback.is_null()) {
+    options.setup_callback.Run(url_fetcher_.get());
   }
   url_fetcher_->Start();
 }
