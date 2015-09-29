@@ -383,8 +383,10 @@
 %destructor { $$->Release(); } <resolution>
 
 %union { cssom::StringValue* string_value; }
-%type <string_value> font_family_name_identifier
+%type <string_value> font_family_name_identifier_list
+                     font_family_string_name
                      font_family_specific_name
+                     font_family_specific_name_no_single_identifier
 %destructor { $$->Release(); } <string_value>
 
 // base::TimeDelta's internal value.  One can construct a base::TimeDelta from
@@ -425,8 +427,7 @@
                        font_face_local_src
                        font_face_src_list_element
                        font_face_src_property_value
-                       font_family_generic_name
-                       font_family_name_list_element
+                       font_family_name
                        font_family_property_value
                        font_size_property_value
                        font_style_property_value
@@ -2210,14 +2211,19 @@ font_face_src_property_value:
 // which is converted to a string by joining the identifiers together separated
 // by a single space.
 //   http://www.w3.org/TR/css3-fonts/#descdef-src
-font_family_name_identifier:
-    kIdentifierToken maybe_whitespace {
+font_family_name_identifier_list:
+    identifier_token maybe_whitespace {
     $$ = AddRef(new cssom::StringValue($1.ToString()));
   }
-  | kIdentifierToken maybe_whitespace
-    font_family_name_identifier {
-    $$ = AddRef(
-        new cssom::StringValue($1.ToString() + " " + $3->value()));
+  | font_family_name_identifier_list identifier_token maybe_whitespace {
+    $$ = AddRef(new cssom::StringValue($1->value() + " " + $2.ToString()));
+    $1->Release();
+  }
+  ;
+
+font_family_string_name:
+    kStringToken maybe_whitespace {
+    $$ = AddRef(new cssom::StringValue($1.ToString()));
   }
   ;
 
@@ -2225,48 +2231,52 @@ font_family_name_identifier:
 // as strings or unquoted as a sequence of one or more identifiers.
 //   http://www.w3.org/TR/css3-fonts/#family-name-value
 font_family_specific_name:
-    kStringToken maybe_whitespace {
-    $$ = AddRef(new cssom::StringValue($1.ToString()));
-  }
-  | font_family_name_identifier
+    font_family_name_identifier_list
+  | font_family_string_name
   ;
 
-// Generic families are defined in all CSS implementations.
-//   http://www.w3.org/TR/css3-fonts/#generic-font-families
-font_family_generic_name:
-    kCursiveToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetCursive().get());
+// Specific font name that does not accept a single identifier. This is needed
+// in certain cases to avoid ambiguous states, since single identifier names
+// require special rules for keywords.
+font_family_specific_name_no_single_identifier:
+    font_family_name_identifier_list identifier_token maybe_whitespace {
+    $$ = AddRef(new cssom::StringValue($1->value() + " " + $2.ToString()));
+    $1->Release();
   }
-  | kFantasyToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetFantasy().get());
-  }
-  | kMonospaceToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetMonospace().get());
-  }
-  | kSansSerifToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetSansSerif().get());
-  }
-  | kSerifToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetSerif().get());
-  }
+  | font_family_string_name
   ;
 
 // There are two types of font family names:
 //   -- The name of a specific font family
 //   -- A generic font family which can be used as a general fallback mechanism
 //   http://www.w3.org/TR/css3-fonts/#family-name-value
-font_family_name_list_element:
-    font_family_generic_name
-  | font_family_specific_name { $$ = $1; }
+font_family_name:
+    identifier_token maybe_whitespace {
+    // Generic families are defined in all CSS implementations.
+    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    if ($1 == cssom::kCursiveKeywordName) {
+      $$ = AddRef(cssom::KeywordValue::GetCursive().get());
+    } else if ($1 == cssom::kFantasyKeywordName) {
+      $$ = AddRef(cssom::KeywordValue::GetFantasy().get());
+    } else if ($1 == cssom::kMonospaceKeywordName) {
+      $$ = AddRef(cssom::KeywordValue::GetMonospace().get());
+    } else if ($1 == cssom::kSansSerifKeywordName) {
+      $$ = AddRef(cssom::KeywordValue::GetSansSerif().get());
+    } else if ($1 == cssom::kSerifKeywordName) {
+      $$ = AddRef(cssom::KeywordValue::GetSerif().get());
+    } else {
+      $$ = AddRef(new cssom::StringValue($1.ToString()));
+    }
+  }
+  | font_family_specific_name_no_single_identifier { $$ = $1; }
   ;
 
 comma_separated_font_family_name_list:
-    font_family_name_list_element {
+    font_family_name {
     $$ = new cssom::PropertyListValue::Builder();
     $$->push_back(MakeScopedRefPtrAndRelease($1));
   }
-  | comma_separated_font_family_name_list comma
-    font_family_name_list_element {
+  | comma_separated_font_family_name_list comma font_family_name {
     $$ = $1;
     $$->push_back(MakeScopedRefPtrAndRelease($3));
   }
@@ -2275,13 +2285,54 @@ comma_separated_font_family_name_list:
 // Prioritized list of font family names.
 //   http://www.w3.org/TR/css3-fonts/#font-family-prop
 font_family_property_value:
-    comma_separated_font_family_name_list {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
-    $$ = property_value
-         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
-         : NULL;
+  // Special case for a single identifier, which can be a reserved keyword or
+  // a generic font name.
+    identifier_token maybe_whitespace {
+    // "inherit" and "initial" are reserved values and not allowed as font
+    // family names.
+    //   http://www.w3.org/TR/css3-fonts/#propdef-font-family
+    if ($1 == cssom::kInheritKeywordName) {
+      $$ = AddRef(cssom::KeywordValue::GetInherit().get());
+    } else if ($1 == cssom::kInitialKeywordName) {
+      $$ = AddRef(cssom::KeywordValue::GetInitial().get());
+    } else {
+      scoped_ptr<cssom::PropertyListValue::Builder>
+          builder(new cssom::PropertyListValue::Builder());
+
+      // Generic families are defined in all CSS implementations.
+      //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+      if ($1 == cssom::kCursiveKeywordName) {
+        builder->push_back(cssom::KeywordValue::GetCursive().get());
+      } else if ($1 == cssom::kFantasyKeywordName) {
+        builder->push_back(cssom::KeywordValue::GetFantasy().get());
+      } else if ($1 == cssom::kMonospaceKeywordName) {
+        builder->push_back(cssom::KeywordValue::GetMonospace().get());
+      } else if ($1 == cssom::kSansSerifKeywordName) {
+        builder->push_back(cssom::KeywordValue::GetSansSerif().get());
+      } else if ($1 == cssom::kSerifKeywordName) {
+        builder->push_back(cssom::KeywordValue::GetSerif().get());
+      } else {
+        builder->push_back(new cssom::StringValue($1.ToString()));
+      }
+
+      $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
+    }
   }
-  | common_values
+  | font_family_specific_name_no_single_identifier {
+    scoped_ptr<cssom::PropertyListValue::Builder>
+        builder(new cssom::PropertyListValue::Builder());
+    builder->push_back(MakeScopedRefPtrAndRelease($1));
+    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
+  }
+  | comma_separated_font_family_name_list comma font_family_name {
+    scoped_ptr<cssom::PropertyListValue::Builder> builder($1);
+    builder->push_back(MakeScopedRefPtrAndRelease($3));
+    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
+  }
+  | errors {
+    parser_impl->LogError(@1, "unsupported property value for font-family");
+    $$ = NULL;
+  }
   ;
 
 // Desired height of glyphs from the font.
