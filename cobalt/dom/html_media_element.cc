@@ -93,7 +93,8 @@ HTMLMediaElement::HTMLMediaElement(Document* document)
       last_time_update_event_wall_time_(0),
       last_time_update_event_movie_time_(std::numeric_limits<float>::max()),
       processing_media_player_callback_(0),
-      media_source_url_(kMediaSourceUrlProtocol + ':' + base::GenerateGUID()),
+      media_source_url_(std::string(kMediaSourceUrlProtocol) + ':' +
+                        base::GenerateGUID()),
       pending_load_(false),
       sent_stalled_event_(false),
       sent_end_event_(false) {}
