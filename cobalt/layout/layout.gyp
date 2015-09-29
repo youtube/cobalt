@@ -39,6 +39,8 @@
         'box_generator.h',
         'container_box.cc',
         'container_box.h',
+        'create_letterboxed_image.cc',
+        'create_letterboxed_image.h',
         'formatting_context.h',
         'initial_containing_block.cc',
         'initial_containing_block.h',
@@ -116,15 +118,25 @@
     },
 
     {
+      'target_name': 'layout_testing',
+      'type': 'static_library',
+      'sources': [
+        'testing/mock_image.h',
+      ],
+    },
+
+    {
       'target_name': 'layout_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'create_letterboxed_image_test.cc',
         'used_style_test.cc',
         'white_space_processing_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
+        '<(DEPTH)/cobalt/layout/layout.gyp:layout_testing',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'layout',
