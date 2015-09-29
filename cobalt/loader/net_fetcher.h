@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -41,8 +42,9 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
    public:
     Options() : request_method(net::URLFetcher::GET) {}
     net::URLFetcher::RequestType request_method;
-    std::string request_headers;
-    std::string request_body;
+    // If provided, this callback will be called before Start() is called on the
+    // url_fetcher_.
+    base::Callback<void(net::URLFetcher* url_fetcher)> setup_callback;
   };
 
   NetFetcher(const GURL& url, Handler* handler,
