@@ -34,6 +34,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:*',
         '<(DEPTH)/cobalt/bindings/testing/testing.gyp:*',
         '<(DEPTH)/cobalt/browser/browser.gyp:*',
+	'<(DEPTH)/cobalt/csp/csp.gyp:*',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:*',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:*',
         '<(DEPTH)/cobalt/debug/debug.gyp:*',
