@@ -76,9 +76,14 @@
 #include "base/os_compat_android.h"  // For timegm()
 #elif defined(OS_NACL)
 #include "base/os_compat_nacl.h"  // For timegm()
+#elif defined(OS_STARBOARD)
+#include "starboard/time.h"
 #endif
+
+#if !defined(OS_STARBOARD)
 #include <errno.h>  /* for EINVAL */
 #include <time.h>
+#endif
 
 /* Implements the Unix localtime_r() function for windows */
 #if defined(OS_WIN)
@@ -187,6 +192,23 @@ PR_ImplodeTime(const PRExplodedTime *exploded)
     result *= kSecondsToMicroseconds;
     result += exploded->tm_usec;
     return result;
+#elif defined(OS_STARBOARD)
+  SbTimeExploded sb_exploded;
+  sb_exploded.year         = exploded->tm_year;
+  sb_exploded.month        = exploded->tm_month + 1;
+  sb_exploded.day_of_week  = exploded->tm_wday;
+  sb_exploded.day_of_month = exploded->tm_mday;
+  sb_exploded.hour         = exploded->tm_hour;
+  sb_exploded.minute       = exploded->tm_min;
+  sb_exploded.second       = exploded->tm_sec;
+  sb_exploded.millisecond  = 0;
+
+  SbTime absolute_time = SbTimeImplode(&sb_exploded);
+  PRTime result = static_cast<PRTime>(SbTimeToPosix(absolute_time));
+  result -= (exploded->tm_params.tp_gmt_offset +
+             exploded->tm_params.tp_dst_offset) * kSecondsToMicroseconds;
+  result += exploded->tm_usec;
+  return result;
 #else
 #error No PR_ImplodeTime implemented on your platform.
 #endif
