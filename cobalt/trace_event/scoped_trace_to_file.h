@@ -43,7 +43,7 @@ class ScopedTraceToFile {
 // if the scope is hard to define (for example if it is difficult to quit
 // from the application).
 // This function will start a trace when it is called, and after the specified
-// amount of time has passed, it wills top tracing and output the results to
+// amount of time has passed, it will stop tracing and output the results to
 // the specified file.
 void TraceToFileForDuration(const FilePath& output_path_relative_to_logs,
                             const base::TimeDelta& duration);
