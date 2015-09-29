@@ -28,14 +28,11 @@
 namespace cobalt {
 namespace cssom {
 
-class CSSStyleSheet;
+class StyleSheet;
 
 // The StyleSheetList interface represents an ordered collection of CSS
 // style sheets.
-//   http://dev.w3.org/csswg/cssom/#the-stylesheetlist-interface
-//
-// While the specification theoretically allows style sheets of type other
-// than CSS, Cobalt is hard-coded to support CSS only.
+//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-stylesheetlist-interface
 class StyleSheetList : public script::Wrappable, public MutationObserver {
  public:
   // If no layout mutation reporting needed, |observer| can be null.
@@ -46,17 +43,17 @@ class StyleSheetList : public script::Wrappable, public MutationObserver {
 
   // Returns the index-th CSS style sheet in the collection.
   // Returns null if there is no index-th object in the collection.
-  scoped_refptr<CSSStyleSheet> Item(unsigned int index) const;
+  scoped_refptr<StyleSheet> Item(unsigned int index) const;
 
   // Returns the number of CSS style sheets represented by the collection.
   unsigned int length() const;
 
+  // Custom, not in any spec.
+  //
   // From MutationObserver.
   void OnCSSMutation() OVERRIDE;
 
-  // Custom, not in any spec.
-  //
-  void Append(const scoped_refptr<CSSStyleSheet>& style_sheet);
+  void Append(const scoped_refptr<StyleSheet>& style_sheet);
 
   MutationObserver* mutation_observer() const { return mutation_observer_; }
 
@@ -65,7 +62,7 @@ class StyleSheetList : public script::Wrappable, public MutationObserver {
  private:
   ~StyleSheetList();
 
-  std::vector<scoped_refptr<CSSStyleSheet> > style_sheets_;
+  std::vector<scoped_refptr<StyleSheet> > style_sheets_;
   MutationObserver* const mutation_observer_;
 
   DISALLOW_COPY_AND_ASSIGN(StyleSheetList);

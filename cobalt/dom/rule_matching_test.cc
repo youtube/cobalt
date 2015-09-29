@@ -47,8 +47,8 @@ class RuleMatchingTest : public ::testing::Test {
     html_element->ClearMatchingRules();
 
     style_sheet_->MaybeUpdateRuleIndexes();
-    GetMatchingRulesFromStyleSheet(style_sheet_, html_element,
-                                   cssom::kNormalAuthor);
+    UpdateMatchingRulesFromStyleSheet(style_sheet_, html_element,
+                                      cssom::kNormalAuthor);
     matching_rules_ = html_element->matching_rules();
     for (int i = 0; i < kMaxPseudoElementType; ++i) {
       PseudoElementType pseudo_element_type = static_cast<PseudoElementType>(i);

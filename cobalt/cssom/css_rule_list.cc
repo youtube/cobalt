@@ -19,9 +19,8 @@
 #include <limits>
 
 #include "base/logging.h"
-#include "cobalt/cssom/css_font_face_rule.h"
-#include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
@@ -29,22 +28,25 @@
 namespace cobalt {
 namespace cssom {
 
-CSSRuleList::CSSRuleList() : parent_style_sheet_(NULL) {}
-
-scoped_refptr<CSSRule> CSSRuleList::Item(unsigned int index) const {
-  return index < css_rules_.size() ? css_rules_[index] : NULL;
-}
+CSSRuleList::CSSRuleList() : parent_css_style_sheet_(NULL) {}
 
 unsigned int CSSRuleList::length() const {
   CHECK_LE(css_rules_.size(), std::numeric_limits<unsigned int>::max());
   return static_cast<unsigned int>(css_rules_.size());
 }
 
+scoped_refptr<CSSRule> CSSRuleList::Item(unsigned int index) const {
+  return index < css_rules_.size() ? css_rules_[index] : NULL;
+}
+
 unsigned int CSSRuleList::InsertRule(const std::string& rule,
                                      unsigned int index) {
-  DCHECK(parent_style_sheet_);
+  // TODO(***REMOVED***): Currently we only support appending rule to the end of the
+  // rule list, which is the use case in performance spike and ***REMOVED***. Properly
+  // implement insertion if necessary.
+  DCHECK(parent_css_style_sheet_);
   scoped_refptr<CSSRule> css_rule =
-      parent_style_sheet_->css_parser()->ParseRule(
+      parent_css_style_sheet_->css_parser()->ParseRule(
           rule, base::SourceLocation("[object CSSStyleSheet]", 1, 1));
 
   if (css_rule == NULL) {
@@ -59,9 +61,6 @@ unsigned int CSSRuleList::InsertRule(const std::string& rule,
     return 0;
   }
 
-  // TODO(***REMOVED***): Currently we only support appending rule to the end of the
-  // rule list, which is the use case in performance spike and ***REMOVED***. Properly
-  // implement insertion if necessary.
   if (index != css_rules_.size()) {
     LOG(WARNING) << "InsertRule will always append the rule to the end of the "
                     "rule list.";
@@ -73,7 +72,7 @@ unsigned int CSSRuleList::InsertRule(const std::string& rule,
 
 void CSSRuleList::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
   DCHECK(style_sheet);
-  parent_style_sheet_ = style_sheet;
+  parent_css_style_sheet_ = style_sheet;
   for (CSSRules::iterator it = css_rules_.begin(); it != css_rules_.end();
        ++it) {
     DCHECK(*it);
@@ -82,9 +81,9 @@ void CSSRuleList::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
 }
 
 void CSSRuleList::AppendCSSRule(const scoped_refptr<CSSRule>& css_rule) {
-  if (parent_style_sheet_) {
-    css_rule->AttachToCSSStyleSheet(parent_style_sheet_);
-    parent_style_sheet_->OnCSSMutation();
+  if (parent_css_style_sheet_) {
+    css_rule->AttachToCSSStyleSheet(parent_css_style_sheet_);
+    parent_css_style_sheet_->OnCSSMutation();
   }
   css_rules_.push_back(css_rule);
 }

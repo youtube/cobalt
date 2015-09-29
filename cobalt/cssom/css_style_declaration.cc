@@ -27,7 +27,6 @@
 
 namespace cobalt {
 namespace cssom {
-
 namespace {
 
 struct NonTrivialStaticFields {
@@ -57,8 +56,6 @@ CSSStyleDeclaration::CSSStyleDeclaration(
     : data_(style), css_parser_(css_parser), mutation_observer_(NULL) {
   DCHECK(data_.get());
 }
-
-CSSStyleDeclaration::~CSSStyleDeclaration() {}
 
 std::string CSSStyleDeclaration::background() const {
   // In order to implement this properly we must either save the incoming string
@@ -988,6 +985,16 @@ void CSSStyleDeclaration::SetPropertyValue(const std::string& property_name,
 
   RecordMutation();
 }
+
+scoped_refptr<CSSRule> CSSStyleDeclaration::parent_rule() const {
+  return parent_rule_.get();
+}
+
+void CSSStyleDeclaration::set_parent_rule(CSSRule* parent_rule) {
+  parent_rule_ = base::AsWeakPtr(parent_rule);
+}
+
+CSSStyleDeclaration::~CSSStyleDeclaration() {}
 
 void CSSStyleDeclaration::RecordMutation() {
   if (mutation_observer_) {

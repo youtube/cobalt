@@ -135,7 +135,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return computed_style_;
   }
 
-  // Used by layout engine to cache the rule matching results.
+  // Returns pointer to cached rule matching results.
   cssom::RulesWithCascadePriority* matching_rules() const {
     return matching_rules_.get();
   }
@@ -196,6 +196,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // The inline style specified via attribute's in the element's HTML tag, or
   // through JavaScript (accessed via style() defined above).
   scoped_refptr<cssom::CSSStyleDeclaration> style_;
+  // Keeps track of whether the HTML element's current computed style is out
+  // of date or not.
+  bool computed_style_valid_;
 
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
   scoped_ptr<cssom::RulesWithCascadePriority> matching_rules_;
@@ -209,10 +212,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // We maintain it here to indicate to the resource caching system
   // that the images are currently in-use, and should not be purged.
   CachedImageReferenceVector cached_background_images_;
-
-  // Keeps track of whether the HTML element's current computed style is out
-  // of date or not.
-  bool computed_style_valid_;
 };
 
 }  // namespace dom
