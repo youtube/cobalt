@@ -14,24 +14,30 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/css_condition_rule.h"
+#include "cobalt/cssom/css_rule.h"
+
+#include "cobalt/cssom/cascade_priority.h"
+#include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
 namespace cssom {
 
-bool CSSConditionRule::SetConditionValueAndTestIfChanged(
-    bool cached_condition_value) {
-  bool cached_condition_value_changed =
-      cached_condition_value != cached_condition_value_;
-  cached_condition_value_ = cached_condition_value;
-  return cached_condition_value_changed;
+scoped_refptr<CSSRule> CSSRule::parent_rule() const {
+  return parent_rule_.get();
 }
 
-CSSConditionRule::CSSConditionRule() : cached_condition_value_(false) {}
+scoped_refptr<CSSStyleSheet> CSSRule::parent_style_sheet() const {
+  return parent_style_sheet_.get();
+}
 
-CSSConditionRule::CSSConditionRule(
-    const scoped_refptr<CSSRuleList>& css_rule_list)
-    : CSSGroupingRule(css_rule_list), cached_condition_value_(false) {}
+void CSSRule::set_parent_rule(CSSRule* parent_rule) {
+  parent_rule_ = base::AsWeakPtr(parent_rule);
+}
+void CSSRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet) {
+  parent_style_sheet_ = base::AsWeakPtr(parent_style_sheet);
+}
+
+CSSRule::CSSRule() : index_(Appearance::kUnattached) {}
 
 }  // namespace cssom
 }  // namespace cobalt

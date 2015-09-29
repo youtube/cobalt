@@ -32,17 +32,16 @@ class CSSRuleList;
 class CSSRuleVisitor;
 
 // The CSSGroupingRule interface represents an at-rule that contains other rules
-//  nested inside itself.
-//   http://www.w3.org/TR/cssom/#cssgroupingrule
+// nested inside itself.
+//   http://www.w3.org/TR/cssom/#the-cssgroupingrule-interface
 //   http://www.w3.org/TR/css3-conditional/#cssgroupingrule
 class CSSGroupingRule : public CSSRule {
  public:
   CSSGroupingRule();
   explicit CSSGroupingRule(const scoped_refptr<CSSRuleList>& css_rule_list);
 
-  // Set the css rules for the style sheet.
-  void set_css_rules(const scoped_refptr<CSSRuleList>& css_rule_list);
-
+  // Web API: CSSGroupingRule
+  //
   // Returns a read-only, live object representing the CSS rules.
   const scoped_refptr<CSSRuleList>& css_rules();
 
@@ -52,12 +51,14 @@ class CSSGroupingRule : public CSSRule {
 
   // Custom, not in any spec.
   //
-
   // From CSSRule.
   void Accept(CSSRuleVisitor* visitor) OVERRIDE {
     UNREFERENCED_PARAMETER(visitor);
     NOTREACHED();
   }
+
+  // Sets the CSS rule list for the grouping rule.
+  void set_css_rules(const scoped_refptr<CSSRuleList>& css_rule_list);
 
   DEFINE_WRAPPABLE_TYPE(CSSGroupingRule);
 

@@ -18,26 +18,25 @@
 #define CSSOM_CSS_RULE_LIST_H_
 
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/cssom/css_rule.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
-class CSSFontFaceRule;
-class CSSMediaRule;
-class CSSParser;
+class CSSRule;
 class CSSRuleVisitor;
-class CSSStyleRule;
 class CSSStyleSheet;
+
+typedef std::vector<scoped_refptr<CSSRule> > CSSRules;
 
 // The CSSRuleList interface represents an ordered collection of CSS
 // style rules.
-//   http://dev.w3.org/csswg/cssom/#the-cssrulelist-interface
+//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssrulelist-interface
 class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
                     public script::Wrappable {
  public:
@@ -45,33 +44,27 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
 
   // Web API: CSSRuleList
   //
-
-  // Returns the index-th CSSRule object in the collection.
-  // Returns null if there is no index-th object in the collection.
-  scoped_refptr<CSSRule> Item(unsigned int index) const;
-
   // Returns the number of CSSRule objects represented by the collection.
   unsigned int length() const;
 
+  // The item(index) method must return the indexth CSSRule object in the
+  // collection. If there is no indexth object in the collection, then the
+  // method must return null.
+  scoped_refptr<CSSRule> Item(unsigned int index) const;
+
   // Custom, not in any spec.
   //
-
-  // The are common methods for the CSSRuleList member in CSSGroupingRule and
-  // CSSStyleSheet.
-
-  CSSStyleSheet* ParentCSSStyleSheet() { return parent_style_sheet_; }
-
   // Returns a read-only, live object representing the CSS rules.
-  CSSRules const* css_rules() const { return &css_rules_; }
+  const CSSRules* css_rules() const { return &css_rules_; }
 
-  // Inserts a new rule into the list. This is a Web API in CSSGroupingRule and
+  CSSStyleSheet* parent_css_style_sheet() { return parent_css_style_sheet_; }
+
+  // Inserts a new rule into the list. This is used by CSSGroupingRule and
   // CSSStyleSheet. It takes a string as input and parses it into a rule.
   unsigned int InsertRule(const std::string& rule, unsigned int index);
 
-  // From StyleSheet.
   void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet);
 
-  // Appends a CSSRule to the rule list.
   void AppendCSSRule(const scoped_refptr<CSSRule>& css_rule);
 
   void Accept(CSSRuleVisitor* visitor);
@@ -82,7 +75,7 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
   ~CSSRuleList();
 
   CSSRules css_rules_;
-  CSSStyleSheet* parent_style_sheet_;
+  CSSStyleSheet* parent_css_style_sheet_;
 
   DISALLOW_COPY_AND_ASSIGN(CSSRuleList);
 };

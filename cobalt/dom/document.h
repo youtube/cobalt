@@ -259,8 +259,9 @@ class Document : public Node, public cssom::MutationObserver {
   bool should_dispatch_load_event_;
   // Indicates if rule matching/computed style is dirty and needs to be
   // recomputed before the next layout.
-  bool rule_matches_dirty_;
-  bool computed_style_dirty_;
+  bool is_selector_tree_dirty_;
+  bool is_rule_matching_result_dirty_;
+  bool is_computed_style_dirty_;
 
   // Weak references to the certain elements in the document.
   base::WeakPtr<HTMLBodyElement> body_;

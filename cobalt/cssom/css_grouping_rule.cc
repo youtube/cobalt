@@ -17,6 +17,7 @@
 #include "cobalt/cssom/css_grouping_rule.h"
 
 #include "cobalt/cssom/css_rule_list.h"
+#include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
 namespace cssom {
@@ -26,6 +27,18 @@ CSSGroupingRule::CSSGroupingRule() {}
 CSSGroupingRule::CSSGroupingRule(
     const scoped_refptr<CSSRuleList>& css_rule_list)
     : css_rule_list_(css_rule_list) {}
+
+const scoped_refptr<CSSRuleList>& CSSGroupingRule::css_rules() {
+  if (!css_rule_list_) {
+    set_css_rules(new CSSRuleList());
+  }
+  return css_rule_list_;
+}
+
+unsigned int CSSGroupingRule::InsertRule(const std::string& rule,
+                                         unsigned int index) {
+  return css_rules()->InsertRule(rule, index);
+}
 
 void CSSGroupingRule::set_css_rules(
     const scoped_refptr<CSSRuleList>& css_rule_list) {
@@ -43,18 +56,6 @@ void CSSGroupingRule::set_css_rules(
     }
   }
   css_rule_list_ = css_rule_list;
-}
-
-const scoped_refptr<CSSRuleList>& CSSGroupingRule::css_rules() {
-  if (!css_rule_list_) {
-    set_css_rules(new CSSRuleList());
-  }
-  return css_rule_list_;
-}
-
-unsigned int CSSGroupingRule::InsertRule(const std::string& rule,
-                                         unsigned int index) {
-  return css_rules()->InsertRule(rule, index);
 }
 
 CSSGroupingRule::~CSSGroupingRule() {}
