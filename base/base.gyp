@@ -257,6 +257,9 @@
                ],
             }],  # _toolset == "target"
           ],
+          'dependencies!': [
+            '../third_party/libevent/libevent.gyp:libevent'
+          ],
           'sources': [
             'base_paths_starboard.cc',
           ],
@@ -805,7 +808,7 @@
             'win/win_util_unittest.cc',
           ],
         }],
-        ['OS == "lb_shell"', {
+        ['OS == "lb_shell" or OS == "starboard"', {
           'sources!': [
             'environment_unittest.cc',
             # We don't use field trials (an experiments framework) in Cobalt,
@@ -822,7 +825,7 @@
             'state_machine_shell_unittest.cc',
           ],
           'conditions': [
-            ['target_arch != "android"', {
+            ['target_arch != "android" or OS == "starboard"', {
               'dependencies!': [
                 '../third_party/libevent/libevent.gyp:libevent'
               ],

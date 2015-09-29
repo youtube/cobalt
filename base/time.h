@@ -40,6 +40,10 @@
 #include <sys/time.h>
 #endif
 
+#if defined(OS_STARBOARD)
+#include "starboard/time.h"
+#endif
+
 #if defined(OS_WIN)
 // For FILETIME in FromFileTime, until it moves to a new converter class.
 // See TODO(iyengar) below.
@@ -98,6 +102,10 @@ class BASE_EXPORT TimeDelta {
   bool is_max() const {
     return delta_ == std::numeric_limits<int64>::max();
   }
+
+#if defined(OS_STARBOARD)
+  SbTime ToSbTime() const;
+#endif
 
 #if defined(OS_POSIX)
   struct timespec ToTimeSpec() const;
@@ -303,6 +311,11 @@ class BASE_EXPORT Time {
   // https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date/getTime.
   static Time FromJsTime(double ms_since_epoch);
   double ToJsTime() const;
+
+#if defined(OS_STARBOARD)
+  static Time FromSbTime(SbTime t);
+  SbTime ToSbTime() const;
+#endif
 
 #if defined(OS_POSIX)
   static Time FromTimeVal(struct timeval t);

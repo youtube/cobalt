@@ -129,7 +129,7 @@ class PickleIterator;
 // pathnames on different platforms.
 class BASE_EXPORT FilePath {
  public:
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_STARBOARD)
   // On most platforms, native pathnames are char arrays, and the encoding
   // may or may not be specified.  On Mac OS X, native pathnames are encoded
   // in UTF-8.
