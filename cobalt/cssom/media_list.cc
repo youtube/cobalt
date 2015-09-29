@@ -90,5 +90,7 @@ bool MediaList::EvaluateConditionValue(
   return false;
 }
 
+MediaList::~MediaList() {}
+
 }  // namespace cssom
 }  // namespace cobalt

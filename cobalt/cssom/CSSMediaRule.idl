@@ -18,5 +18,4 @@
 //   http://www.w3.org/TR/css3-conditional/#cssmediarule
 interface CSSMediaRule : CSSConditionRule {
   [SameObject] readonly attribute MediaList media;
-
 };

@@ -23,9 +23,6 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/cssom/cascade_priority.h"
-#include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -38,12 +35,14 @@ class CSSStyleSheet;
 // The CSSRule interface represents an abstract, base CSS style rule.
 // Each distinct CSS style rule type is represented by a distinct interface
 // that inherits from this interface.
-//   http://dev.w3.org/csswg/cssom/#the-cssrule-interface
+//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssrule-interface
 class CSSRule : public script::Wrappable,
                 public base::SupportsWeakPtr<CSSRule> {
  public:
   // Web API: CSSRule
-  enum Type {
+  //
+  typedef uint16 Type;
+  enum TypeInternal {
     kStyleRule = 1,
     kCharsetRule = 2,
     kImportRule = 3,
@@ -58,21 +57,15 @@ class CSSRule : public script::Wrappable,
   virtual std::string css_text() const = 0;
   virtual void set_css_text(const std::string &css_text) = 0;
 
-  scoped_refptr<CSSRule> parent_rule() const { return parent_rule_.get(); }
+  scoped_refptr<CSSRule> parent_rule() const;
 
-  scoped_refptr<CSSStyleSheet> parent_style_sheet() const {
-    return parent_style_sheet_.get();
-  }
+  scoped_refptr<CSSStyleSheet> parent_style_sheet() const;
 
   // Custom, not in any spec.
   //
+  void set_parent_rule(CSSRule *parent_rule);
 
-  void set_parent_rule(CSSRule *parent_rule) {
-    parent_rule_ = base::AsWeakPtr(parent_rule);
-  }
-  void set_parent_style_sheet(CSSStyleSheet *parent_style_sheet) {
-    parent_style_sheet_ = base::AsWeakPtr(parent_style_sheet);
-  }
+  void set_parent_style_sheet(CSSStyleSheet *parent_style_sheet);
 
   int index() { return index_; }
   void set_index(int index) { index_ = index; }
@@ -84,9 +77,8 @@ class CSSRule : public script::Wrappable,
   DEFINE_WRAPPABLE_TYPE(CSSRule);
 
  protected:
-  CSSRule() : index_(Appearance::kUnattached) {}
+  CSSRule();
   virtual ~CSSRule() {}
-
 
  private:
   int index_;

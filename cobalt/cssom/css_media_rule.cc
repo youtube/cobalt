@@ -16,7 +16,6 @@
 
 #include "cobalt/cssom/css_media_rule.h"
 
-#include "cobalt/cssom/css_grouping_rule.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_sheet.h"
@@ -50,10 +49,6 @@ void CSSMediaRule::set_css_text(const std::string& /* css_text */) {
   NOTIMPLEMENTED() << "CSSMediaRule css_text setting not implemented yet.";
 }
 
-void CSSMediaRule::Accept(CSSRuleVisitor* visitor) {
-  visitor->VisitCSSMediaRule(this);
-}
-
 std::string CSSMediaRule::condition_text() {
   return media_list_ ? media_list_->media_text() : "";
 }
@@ -66,6 +61,10 @@ void CSSMediaRule::set_condition_text(const std::string& condition) {
   media_list_->set_media_text(condition);
 }
 
+void CSSMediaRule::Accept(CSSRuleVisitor* visitor) {
+  visitor->VisitCSSMediaRule(this);
+}
+
 bool CSSMediaRule::EvaluateConditionValueAndReturnIfChanged(
     const scoped_refptr<PropertyValue>& width,
     const scoped_refptr<PropertyValue>& height) {
@@ -73,7 +72,7 @@ bool CSSMediaRule::EvaluateConditionValueAndReturnIfChanged(
   if (media_list_) {
     condition_value = media_list_->EvaluateConditionValue(width, height);
   }
-  return SetConditionValueAndReturnIfChanged(condition_value);
+  return SetConditionValueAndTestIfChanged(condition_value);
 }
 
 void CSSMediaRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {

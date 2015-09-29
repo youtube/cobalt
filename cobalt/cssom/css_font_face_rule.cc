@@ -23,13 +23,12 @@
 #include "cobalt/cssom/css_declaration_util.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_rule_visitor.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/style_sheet_list.h"
 
 namespace cobalt {
 namespace cssom {
-
 namespace {
 
 struct NonTrivialStaticFields {
@@ -56,8 +55,6 @@ CSSFontFaceRule::CSSFontFaceRule(
     : data_(data) {
   DCHECK(data_.get());
 }
-
-CSSFontFaceRule::~CSSFontFaceRule() {}
 
 std::string CSSFontFaceRule::css_text() const {
   std::string css_text;
@@ -125,6 +122,14 @@ void CSSFontFaceRule::set_unicode_range(const std::string& unicode_range) {
   SetPropertyValue(kUnicodeRangePropertyName, unicode_range);
 }
 
+void CSSFontFaceRule::Accept(CSSRuleVisitor* visitor) {
+  visitor->VisitCSSFontFaceRule(this);
+}
+
+void CSSFontFaceRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
+  set_parent_style_sheet(style_sheet);
+}
+
 std::string CSSFontFaceRule::GetPropertyValue(
     const std::string& property_name) {
   return data_->GetPropertyValue(property_name)
@@ -143,20 +148,14 @@ void CSSFontFaceRule::SetPropertyValue(const std::string& property_name,
   RecordMutation();
 }
 
-void CSSFontFaceRule::Accept(CSSRuleVisitor* visitor) {
-  visitor->VisitCSSFontFaceRule(this);
-}
-
-void CSSFontFaceRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
-  set_parent_style_sheet(style_sheet);
-}
-
 // font-family and src are required for an @font-face rule to be valid:
 //   http://www.w3.org/TR/css3-fonts/#descdef-font-family
 //   http://www.w3.org/TR/css3-fonts/#descdef-src
 bool CSSFontFaceRule::IsValid() const {
   return !family().empty() && !src().empty();
 }
+
+CSSFontFaceRule::~CSSFontFaceRule() {}
 
 void CSSFontFaceRule::RecordMutation() {
   DCHECK(parent_style_sheet());
