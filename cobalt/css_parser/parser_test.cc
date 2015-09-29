@@ -1421,9 +1421,55 @@ TEST_F(ParserTest, ParsesNoneDisplay) {
   EXPECT_EQ(cssom::KeywordValue::GetNone(), style->display());
 }
 
-TEST_F(ParserTest, ParsesFontFamilyStringName) {
+TEST_F(ParserTest, ParsesFontFamilyInherit) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
-      parser_.ParseStyleDeclarationList("font-family: \"Droid Sans\";",
+      parser_.ParseStyleDeclarationList("font-family: inherit;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->font_family());
+}
+
+TEST_F(ParserTest, ParsesFontFamilyInitial) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-family: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->font_family());
+}
+
+TEST_F(ParserTest, ParsesFontFamilyGenericName) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-family: serif;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 1);
+
+  EXPECT_EQ(cssom::KeywordValue::GetSerif(),
+            font_family_list->get_item_modulo_size(0));
+}
+
+TEST_F(ParserTest, ParsesFontFamilySingleIdentifierName) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-family: Noto;", source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 1);
+
+  scoped_refptr<cssom::StringValue> font_family_string =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(0).get());
+  ASSERT_TRUE(font_family_string);
+  EXPECT_EQ("Noto", font_family_string->value());
+}
+
+TEST_F(ParserTest, ParsesFontFamilySingleIdentifierPropertyName) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-family: content;",
                                         source_location_);
 
   scoped_refptr<cssom::PropertyListValue> font_family_list =
@@ -1435,10 +1481,10 @@ TEST_F(ParserTest, ParsesFontFamilyStringName) {
       dynamic_cast<cssom::StringValue*>(
           font_family_list->get_item_modulo_size(0).get());
   ASSERT_TRUE(font_family_string);
-  EXPECT_EQ("Droid Sans", font_family_string->value());
+  EXPECT_EQ("content", font_family_string->value());
 }
 
-TEST_F(ParserTest, ParsesFontFamilyIdentifierName) {
+TEST_F(ParserTest, ParsesFontFamilyMultipleIdentifierName) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("font-family: Droid Sans;",
                                         source_location_);
@@ -1455,9 +1501,9 @@ TEST_F(ParserTest, ParsesFontFamilyIdentifierName) {
   EXPECT_EQ("Droid Sans", font_family_string->value());
 }
 
-TEST_F(ParserTest, ParsesFontFamilyGenericName) {
+TEST_F(ParserTest, ParsesFontFamilyIdentifierNameContainingInheritKeyword) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
-      parser_.ParseStyleDeclarationList("font-family: serif;",
+      parser_.ParseStyleDeclarationList("font-family: Droid inherit droid;",
                                         source_location_);
 
   scoped_refptr<cssom::PropertyListValue> font_family_list =
@@ -1465,8 +1511,45 @@ TEST_F(ParserTest, ParsesFontFamilyGenericName) {
   ASSERT_TRUE(font_family_list);
   EXPECT_EQ(font_family_list->value().size(), 1);
 
-  EXPECT_EQ(cssom::KeywordValue::GetSerif(),
-            font_family_list->get_item_modulo_size(0));
+  scoped_refptr<cssom::StringValue> font_family_string =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(0).get());
+  ASSERT_TRUE(font_family_string);
+  EXPECT_EQ("Droid inherit droid", font_family_string->value());
+}
+
+TEST_F(ParserTest, ParsesFontFamilyIdentifierNameContainingGenericFont) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-family: Droid serif droid;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 1);
+
+  scoped_refptr<cssom::StringValue> font_family_string =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(0).get());
+  ASSERT_TRUE(font_family_string);
+  EXPECT_EQ("Droid serif droid", font_family_string->value());
+}
+
+TEST_F(ParserTest, ParsesFontFamilyStringName) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-family: \"Droid Sans\";",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 1);
+
+  scoped_refptr<cssom::StringValue> font_family_string =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(0).get());
+  ASSERT_TRUE(font_family_string);
+  EXPECT_EQ("Droid Sans", font_family_string->value());
 }
 
 TEST_F(ParserTest, ParsesFontFamilyList) {
