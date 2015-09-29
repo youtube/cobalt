@@ -90,9 +90,14 @@ class CompositionNode : public Node {
     void AddChild(const scoped_refptr<Node>& node,
                   const math::Matrix3F& transform);
 
+    // Remove all existing children.
+    void Clear() { composed_children_->clear(); }
+
     // Returns the specified child as a pointer so that it can be modified.
     ComposedChild* GetChild(int child_index) {
       DCHECK_GE(child_index, 0);
+      DCHECK_LT(static_cast<std::size_t>(child_index),
+                composed_children_->size());
       return &((*composed_children_)[static_cast<std::size_t>(child_index)]);
     }
 

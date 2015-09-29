@@ -18,14 +18,15 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
-#include "cobalt/math/matrix3_f.h"
+#include "cobalt/layout/create_letterboxed_image.h"
 #include "cobalt/math/transform_2d.h"
-#include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/color_rgba.h"
 
 namespace cobalt {
 namespace layout {
 
-using render_tree::ImageNode;
+using render_tree::animations::NodeAnimationsMap;
+using render_tree::CompositionNode;
 
 namespace {
 
@@ -104,31 +105,44 @@ float ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
 namespace {
 
 void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
-               ImageNode::Builder* image_node, base::TimeDelta /*time*/) {
+               math::SizeF destination_size,
+               CompositionNode::Builder* composition_node_builder,
+               base::TimeDelta time) {
+  UNREFERENCED_PARAMETER(time);
+
+  const render_tree::ColorRGBA kSolidBlack(0, 0, 0, 1);
+
   DCHECK(!replace_image_cb.is_null());
-  DCHECK(image_node);
-  image_node->source = replace_image_cb.Run();
+  DCHECK(composition_node_builder);
+
+  scoped_refptr<render_tree::Image> image = replace_image_cb.Run();
+
   // TODO(***REMOVED***): Detect better when the intrinsic video size is used for the
   //   node size, and trigger a re-layout from the media element when the size
   //   changes.
-  if (image_node->source && 0 == image_node->destination_size.height()) {
-    image_node->destination_size = image_node->source->GetSize();
+  if (image && 0 == destination_size.height()) {
+    destination_size = image->GetSize();
   }
+
+  CreateLetterboxedImage(image, destination_size, kSolidBlack,
+                         composition_node_builder);
 }
 
 }  // namespace
-
 void ReplacedBox::RenderAndAnimateContent(
-    render_tree::CompositionNode::Builder* border_node_builder,
-    render_tree::animations::NodeAnimationsMap::Builder*
-        node_animations_map_builder) const {
-  scoped_refptr<ImageNode> image_node =
-      new render_tree::ImageNode(NULL, content_box_size());
-  node_animations_map_builder->Add(image_node,
-                                   base::Bind(AnimateCB, replace_image_cb_));
+    CompositionNode::Builder* border_node_builder,
+    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+  CompositionNode::Builder composition_node_builder;
+
+  scoped_refptr<CompositionNode> composition_node =
+      new CompositionNode(composition_node_builder);
+  node_animations_map_builder->Add(
+      composition_node,
+      base::Bind(AnimateCB, replace_image_cb_, content_box_size()));
   border_node_builder->AddChild(
-      image_node, math::TranslateMatrix(border_left_width() + padding_left(),
-                                        border_top_width() + padding_top()));
+      composition_node,
+      math::TranslateMatrix(border_left_width() + padding_left(),
+                            border_top_width() + padding_top()));
 }
 
 #ifdef COBALT_BOX_DUMP_ENABLED
