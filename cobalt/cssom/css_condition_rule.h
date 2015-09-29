@@ -36,35 +36,36 @@ class CSSRuleVisitor;
 //   http://www.w3.org/TR/css3-conditional/#cssconditionrule
 class CSSConditionRule : public CSSGroupingRule {
  public:
-  CSSConditionRule();
-  explicit CSSConditionRule(const scoped_refptr<CSSRuleList>& css_rule_list);
-
+  // Web API: CSSConditionRule
   virtual std::string condition_text() = 0;
   virtual void set_condition_text(const std::string& condition) = 0;
 
   // Custom, not in any spec.
   //
-
-  // Returns the cached result of evaluating the condition.
-  bool GetCachedConditionValue() { return cached_condition_value_; }
-
-  // Sets the cached condition value, returns true if the value has changed.
-  bool SetConditionValueAndReturnIfChanged(bool cached_condition_value);
-
   // From CSSRule.
   void Accept(CSSRuleVisitor* visitor) OVERRIDE {
     UNREFERENCED_PARAMETER(visitor);
     NOTREACHED();
   }
 
+  // Returns the cached result of evaluating the condition.
+  bool condition_value() { return cached_condition_value_; }
+
+  // Sets the cached condition value, returns true if the value has changed,
+  // false if not.
+  bool SetConditionValueAndTestIfChanged(bool cached_condition_value);
+
   DEFINE_WRAPPABLE_TYPE(CSSConditionRule);
 
  protected:
-  bool cached_condition_value_;
+  CSSConditionRule();
+  explicit CSSConditionRule(const scoped_refptr<CSSRuleList>& css_rule_list);
 
   virtual ~CSSConditionRule() OVERRIDE {}
 
  private:
+  bool cached_condition_value_;
+
   DISALLOW_COPY_AND_ASSIGN(CSSConditionRule);
 };
 

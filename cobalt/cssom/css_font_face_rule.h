@@ -20,9 +20,9 @@
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "cobalt/script/wrappable.h"
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_rule.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
@@ -39,12 +39,12 @@ class CSSFontFaceRule : public CSSRule {
       const scoped_refptr<CSSFontFaceDeclarationData>& data);
 
   // Web API: CSSRule
-  // From CSSRule
   Type type() const OVERRIDE { return kFontFaceRule; }
   std::string css_text() const OVERRIDE;
   void set_css_text(const std::string& css_text) OVERRIDE;
 
   // Web API: CSSFontFaceRule
+  //
   std::string family() const;
   void set_family(const std::string& family);
 
@@ -62,15 +62,18 @@ class CSSFontFaceRule : public CSSRule {
 
   // Custom, not in any spec.
   //
+
+  // From CSSRule.
+  void Accept(CSSRuleVisitor* visitor) OVERRIDE;
+  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
+
+  // Rest of public methods.
+
+  scoped_refptr<const CSSFontFaceDeclarationData> data() const { return data_; }
+
   std::string GetPropertyValue(const std::string& property_name);
   void SetPropertyValue(const std::string& property_name,
                         const std::string& property_value);
-
-  scoped_refptr<const CSSFontFaceDeclarationData> data() { return data_; }
-
-  // From CSSRule
-  void Accept(CSSRuleVisitor* visitor) OVERRIDE;
-  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
 
   bool IsValid() const;
 

@@ -314,16 +314,16 @@ void HTMLElement::UpdateMatchingRules(
 
   // Match with user agent style sheet.
   if (user_agent_style_sheet) {
-    GetMatchingRulesFromStyleSheet(user_agent_style_sheet, this,
-                                   cssom::kNormalUserAgent);
+    UpdateMatchingRulesFromStyleSheet(user_agent_style_sheet, this,
+                                      cssom::kNormalUserAgent);
   }
   // Match with all author style sheets.
   DCHECK(author_style_sheets);
   for (unsigned int style_sheet_index = 0;
        style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-        author_style_sheets->Item(style_sheet_index);
-    GetMatchingRulesFromStyleSheet(style_sheet, this, cssom::kNormalAuthor);
+        author_style_sheets->Item(style_sheet_index)->AsCSSStyleSheet();
+    UpdateMatchingRulesFromStyleSheet(style_sheet, this, cssom::kNormalAuthor);
   }
 
   computed_style_valid_ = false;
@@ -332,9 +332,10 @@ void HTMLElement::UpdateMatchingRules(
 void HTMLElement::UpdateMatchingRulesRecursively(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
+  // Update matching rules for this element.
   UpdateMatchingRules(user_agent_style_sheet, author_style_sheets);
+
   // Update matching rules for this element's descendants.
-  //
   for (Element* element = first_element_child(); element;
        element = element->next_element_sibling()) {
     HTMLElement* html_element = element->AsHTMLElement();

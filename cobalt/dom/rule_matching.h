@@ -39,21 +39,23 @@ class HTMLElement;
 // Returns whether a rule matches an element.
 bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element);
 
-// Evaluate the @media rules for the given width and height of the viewport.
+// Evaluates the @media rules for the given width and height of the viewport.
 void EvaluateStyleSheetMediaRules(
     const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
 
-// This updates the rule indexes used in GetMatchingRulesFromStyleSheet().
+// Updates the rule indexes used in UpdateMatchingRulesFromStyleSheet().
 void UpdateStyleSheetRuleIndexes(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
 
-// Scans one style sheet for rules that match the given element and appends the
-// matching rules to |matching_rules|. UpdateStyleSheetRuleIndexes() must be
-// called before this function.
-void GetMatchingRulesFromStyleSheet(
+void UpdateSelectorTree();
+
+// Scans one style sheet for rules that match the given HTMLElement and appends
+// the matching rules to the element's |matching_rules_| field.
+// UpdateStyleSheetRuleIndexes() must be called before this function.
+void UpdateMatchingRulesFromStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
     HTMLElement* element, cssom::Origin origin);
 

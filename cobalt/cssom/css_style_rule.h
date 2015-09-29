@@ -33,10 +33,10 @@ namespace cssom {
 
 class CSSRuleVisitor;
 class CSSStyleDeclaration;
-class StyleSheet;
+class CSSStyleSheet;
 
 // The CSSStyleRule interface represents a style rule.
-//   http://dev.w3.org/csswg/cssom/#the-cssstylerule-interface
+//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylerule-interface
 class CSSStyleRule : public CSSRule {
  public:
   CSSStyleRule();
@@ -48,14 +48,12 @@ class CSSStyleRule : public CSSRule {
 
   // Web API: CSSRule
   //
-
   Type type() const OVERRIDE { return kStyleRule; }
   std::string css_text() const OVERRIDE;
   void set_css_text(const std::string& css_text) OVERRIDE;
 
   // Custom, not in any spec.
   //
-
   // From CSSRule.
   void Accept(CSSRuleVisitor* visitor) OVERRIDE;
   void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;

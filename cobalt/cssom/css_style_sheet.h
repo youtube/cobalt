@@ -41,9 +41,7 @@ typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;
 typedef base::hash_map<std::string, CSSRuleSet> StringToCSSRuleSetMap;
 
 // The CSSStyleSheet interface represents a CSS style sheet.
-//   http://dev.w3.org/csswg/cssom/#the-cssstylesheet-interface
-// TODO(***REMOVED***): This interface currently assumes all rules are style rules.
-// Handle other kinds of rules properly.
+//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylesheet-interface
 class CSSStyleSheet : public StyleSheet, public MutationObserver {
  public:
   CSSStyleSheet();
@@ -51,10 +49,6 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
 
   // Web API: CSSStyleSheet
   //
-
-  // Set the css rules for the style sheet.
-  void set_css_rules(const scoped_refptr<CSSRuleList>& css_rule_list);
-
   // Returns a read-only, live object representing the CSS rules.
   const scoped_refptr<CSSRuleList>& css_rules();
 
@@ -62,31 +56,23 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   // string as input and parses it into a rule.
   unsigned int InsertRule(const std::string& rule, unsigned int index);
 
+  // Custom, not in any spec.
+  //
+  // From StyleSheet.
+  void AttachToStyleSheetList(StyleSheetList* style_sheet_list) OVERRIDE;
+  void SetLocationUrl(const GURL& url) OVERRIDE { location_url_ = url; }
+  GURL& LocationUrl() OVERRIDE { return location_url_; }
+  StyleSheetList* ParentStyleSheetList() OVERRIDE {
+    return parent_style_sheet_list_;
+  }
+  scoped_refptr<CSSStyleSheet> AsCSSStyleSheet() OVERRIDE { return this; }
+
   // From MutationObserver.
   void OnCSSMutation() OVERRIDE;
 
-  // Custom, not in any spec.
-  //
+  CSSParser* css_parser() const { return css_parser_; }
 
-  // From StyleSheet.
-  void AttachToStyleSheetList(StyleSheetList* style_sheet_list) OVERRIDE;
-
-  void SetLocationUrl(const GURL& url) OVERRIDE;
-  GURL& LocationUrl() OVERRIDE;
-  StyleSheetList* ParentStyleSheetList() OVERRIDE;
-
-  // If the rule indexes are dirty, as indicated by the rule_indexes_dirty flag,
-  // assign the priority index to each rule in the rule list, and index the
-  // rules by selectors.
-  void MaybeUpdateRuleIndexes();
-
-  // This performs a recalculation of the media rule expressions, if needed.
-  void EvaluateMediaRules(const scoped_refptr<PropertyValue>& width,
-                          const scoped_refptr<PropertyValue>& height);
-
-  // Should be called when a media rule is added or modified. It sets a flag
-  // that is reset in EvaluateMediaRules().
-  void OnMediaRuleMutation() { media_rules_changed_ = true; }
+  void set_css_rules(const scoped_refptr<CSSRuleList>& css_rule_list);
 
   const StringToCSSRuleSetMap& class_selector_rules_map() const {
     return class_selector_rules_map_;
@@ -101,7 +87,18 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
     return empty_pseudo_class_rules_;
   }
 
-  CSSParser* css_parser() const { return css_parser_; }
+  // If the rule indexes are dirty, as indicated by the rule_indexes_dirty flag,
+  // assign the priority index to each rule in the rule list, and index the
+  // rules by selectors.
+  void MaybeUpdateRuleIndexes();
+
+  // This performs a recalculation of the media rule expressions, if needed.
+  void EvaluateMediaRules(const scoped_refptr<PropertyValue>& width,
+                          const scoped_refptr<PropertyValue>& height);
+
+  // Should be called when a media rule is added or modified. It sets a flag
+  // that is reset in EvaluateMediaRules().
+  void OnMediaRuleMutation() { media_rules_changed_ = true; }
 
   DEFINE_WRAPPABLE_TYPE(CSSStyleSheet);
 

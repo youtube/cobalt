@@ -16,10 +16,11 @@
 
 // An object that implements the MediaList interface has an associated
 // collection of media queries.
-//   http://www.w3.org/TR/cssom/#medialist
+//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-medialist-interface
 [ArrayClass]
 interface MediaList {
   attribute DOMString mediaText;
   readonly attribute unsigned long length;
   getter DOMString? item(unsigned long index);
+  void appendMedium(DOMString medium);
 };

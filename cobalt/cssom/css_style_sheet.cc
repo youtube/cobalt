@@ -37,6 +37,7 @@
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/selector_visitor.h"
+#include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/cssom/type_selector.h"
 
 namespace cobalt {
@@ -177,7 +178,7 @@ class CSSStyleSheet::CSSRuleIndexer : public CSSRuleVisitor {
 
   void VisitCSSMediaRule(CSSMediaRule* css_media_rule) OVERRIDE {
     css_media_rule->set_index(next_css_rule_priority_index_++);
-    if (css_media_rule->GetCachedConditionValue()) {
+    if (css_media_rule->condition_value()) {
       css_media_rule->css_rules()->Accept(this);
     }
   }
@@ -210,24 +211,6 @@ CSSStyleSheet::CSSStyleSheet(CSSParser* css_parser)
       rule_indexes_dirty_(false),
       media_rules_changed_(false) {}
 
-void CSSStyleSheet::set_css_rules(
-    const scoped_refptr<CSSRuleList>& css_rule_list) {
-  DCHECK(css_rule_list);
-  if (css_rule_list == css_rule_list_) {
-    return;
-  }
-  if (parent_style_sheet_list_) {
-    css_rule_list->AttachToCSSStyleSheet(this);
-  }
-  bool rules_possibly_added_or_changed_or_removed =
-      (css_rule_list->length() > 0) ||
-      (css_rule_list_ && css_rule_list_->length() > 0);
-  css_rule_list_ = css_rule_list;
-  if (rules_possibly_added_or_changed_or_removed) {
-    OnCSSMutation();
-  }
-}
-
 const scoped_refptr<CSSRuleList>& CSSStyleSheet::css_rules() {
   if (!css_rule_list_) {
     set_css_rules(new CSSRuleList());
@@ -255,12 +238,22 @@ void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
   }
 }
 
-void CSSStyleSheet::SetLocationUrl(const GURL& url) { location_url_ = url; }
-
-GURL& CSSStyleSheet::LocationUrl() { return location_url_; }
-
-StyleSheetList* CSSStyleSheet::ParentStyleSheetList() {
-  return parent_style_sheet_list_;
+void CSSStyleSheet::set_css_rules(
+    const scoped_refptr<CSSRuleList>& css_rule_list) {
+  DCHECK(css_rule_list);
+  if (css_rule_list == css_rule_list_) {
+    return;
+  }
+  if (parent_style_sheet_list_) {
+    css_rule_list->AttachToCSSStyleSheet(this);
+  }
+  bool rules_possibly_added_or_changed_or_removed =
+      (css_rule_list->length() > 0) ||
+      (css_rule_list_ && css_rule_list_->length() > 0);
+  css_rule_list_ = css_rule_list;
+  if (rules_possibly_added_or_changed_or_removed) {
+    OnCSSMutation();
+  }
 }
 
 void CSSStyleSheet::MaybeUpdateRuleIndexes() {
