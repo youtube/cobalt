@@ -900,6 +900,8 @@ class LogMessageVoidify {
 typedef unsigned long SystemErrorCode;
 #elif defined(OS_POSIX)
 typedef int SystemErrorCode;
+#elif defined(OS_STARBOARD)
+typedef int SystemErrorCode;
 #endif
 
 // Alias for ::GetLastError() on Windows and errno on POSIX. Avoids having to
