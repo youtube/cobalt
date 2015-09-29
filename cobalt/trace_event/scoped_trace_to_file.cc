@@ -57,6 +57,7 @@ ScopedTraceToFile::~ScopedTraceToFile() {
 
 namespace {
 void EndTimedTrace(scoped_ptr<ScopedTraceToFile> trace) {
+  LOG(INFO) << "Timed trace ended.";
   trace.reset();
 }
 }  // namespace
