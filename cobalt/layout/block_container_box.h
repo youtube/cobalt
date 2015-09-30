@@ -84,6 +84,23 @@ class BlockContainerBox : public ContainerBox {
       const LayoutParams& child_layout_params) = 0;
 
  private:
+  void UpdateContentWidthAndMargins(
+      float containing_block_width, bool shrink_to_fit_width_forced,
+      bool width_depends_on_containing_block,
+      const base::optional<float>& maybe_left,
+      const base::optional<float>& maybe_right,
+      const base::optional<float>& maybe_margin_left,
+      const base::optional<float>& maybe_margin_right,
+      const base::optional<float>& maybe_width,
+      const base::optional<float>& maybe_height);
+  void UpdateContentHeightAndMargins(
+      const math::SizeF& containing_block_size,
+      const base::optional<float>& maybe_top,
+      const base::optional<float>& maybe_bottom,
+      const base::optional<float>& maybe_margin_top,
+      const base::optional<float>& maybe_margin_bottom,
+      const base::optional<float>& maybe_height);
+
   void UpdateWidthAssumingAbsolutelyPositionedBox(
       float containing_block_width, const base::optional<float>& maybe_left,
       const base::optional<float>& maybe_right,
