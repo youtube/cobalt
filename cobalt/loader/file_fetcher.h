@@ -17,6 +17,8 @@
 #ifndef LOADER_FILE_FETCHER_H_
 #define LOADER_FILE_FETCHER_H_
 
+#include <limits>
+
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/memory/ref_counted.h"
@@ -39,9 +41,13 @@ class FileFetcher : public Fetcher {
    public:
     Options()
         : buffer_size(kDefaultBufferSize),
+          start_offset(0),
+          bytes_to_read(std::numeric_limits<int64>::max()),
           message_loop_proxy(base::MessageLoopProxy::current()) {}
 
-    int buffer_size;
+    int32 buffer_size;
+    int64 start_offset;
+    int64 bytes_to_read;
     scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
   };
 
@@ -57,7 +63,7 @@ class FileFetcher : public Fetcher {
 
  private:
   // Default size of the buffer that FileFetcher will use to load data.
-  static const int kDefaultBufferSize = 64 * 1024;
+  static const int32 kDefaultBufferSize = 64 * 1024;
 
   void ReadNextChunk();
   void CloseFile();
@@ -73,11 +79,13 @@ class FileFetcher : public Fetcher {
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
   // Size of the buffer that FileFetcher will use to load data.
-  int buffer_size_;
+  int32 buffer_size_;
   // Handle of the input file.
   base::PlatformFile file_;
   // Current offset in the input file.
   int64 file_offset_;
+  // How many bytes we are going to read.
+  int64 bytes_left_to_read_;
   // Message loop that is used for actual IO operations in FileUtilProxy.
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
   // Used internally to support callbacks with weak references to self.
