@@ -169,5 +169,77 @@ TEST_F(FileFetcherTest, ValidFile) {
   EXPECT_EQ(expected_text, loaded_text);
 }
 
+// Use FileFetcher with an offset.
+TEST_F(FileFetcherTest, ReadWithOffset) {
+  const uint32 kStartOffset = 15;
+  InSequence dummy;
+
+  // Create a RunLoop that controls the current message loop.
+  base::RunLoop run_loop;
+  MockFetcherHandler fetcher_handler_mock(&run_loop);
+  EXPECT_CALL(fetcher_handler_mock, OnError(_)).Times(0);
+  EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _)).Times(AtLeast(1));
+  EXPECT_CALL(fetcher_handler_mock, OnDone());
+  EXPECT_CALL(fetcher_handler_mock, data());
+
+  // Create a File Fetcher.
+  const FilePath file_path =
+      data_dir_.Append(FILE_PATH_LITERAL("performance-spike.html"));
+  FileFetcher::Options options;
+  options.buffer_size = 128;
+  options.start_offset = kStartOffset;
+  file_fetcher_ = make_scoped_ptr(
+      new FileFetcher(file_path, &fetcher_handler_mock, options));
+
+  // Start the message loop, hence the fetching.
+  run_loop.Run();
+
+  // Get result.
+  std::string loaded_text = fetcher_handler_mock.data();
+
+  std::string expected_text;
+  EXPECT_TRUE(file_util::ReadFileToString(dir_source_root_.Append(file_path),
+                                          &expected_text));
+  expected_text = expected_text.substr(kStartOffset);
+  EXPECT_EQ(expected_text, loaded_text);
+}
+
+// Use FileFetcher with an offset and explicit bytes to read.
+TEST_F(FileFetcherTest, ReadWithOffsetAndSize) {
+  const uint32 kStartOffset = 15;
+  const uint32 kBytesToRead = 147;
+  InSequence dummy;
+
+  // Create a RunLoop that controls the current message loop.
+  base::RunLoop run_loop;
+  MockFetcherHandler fetcher_handler_mock(&run_loop);
+  EXPECT_CALL(fetcher_handler_mock, OnError(_)).Times(0);
+  EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _)).Times(2);
+  EXPECT_CALL(fetcher_handler_mock, OnDone());
+  EXPECT_CALL(fetcher_handler_mock, data());
+
+  // Create a File Fetcher.
+  const FilePath file_path =
+      data_dir_.Append(FILE_PATH_LITERAL("performance-spike.html"));
+  FileFetcher::Options options;
+  options.buffer_size = 128;
+  options.start_offset = kStartOffset;
+  options.bytes_to_read = kBytesToRead;
+  file_fetcher_ = make_scoped_ptr(
+      new FileFetcher(file_path, &fetcher_handler_mock, options));
+
+  // Start the message loop, hence the fetching.
+  run_loop.Run();
+
+  // Get result.
+  std::string loaded_text = fetcher_handler_mock.data();
+
+  std::string expected_text;
+  EXPECT_TRUE(file_util::ReadFileToString(dir_source_root_.Append(file_path),
+                                          &expected_text));
+  expected_text = expected_text.substr(kStartOffset, kBytesToRead);
+  EXPECT_EQ(expected_text, loaded_text);
+}
+
 }  // namespace loader
 }  // namespace cobalt

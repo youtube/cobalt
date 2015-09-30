@@ -29,7 +29,8 @@ FileFetcher::FileFetcher(const FilePath& file_path, Handler* handler,
     : Fetcher(handler),
       buffer_size_(options.buffer_size),
       file_(base::kInvalidPlatformFileValue),
-      file_offset_(0),
+      file_offset_(options.start_offset),
+      bytes_left_to_read_(options.bytes_to_read),
       message_loop_proxy_(options.message_loop_proxy),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
   DCHECK_GT(buffer_size_, 0);
@@ -53,8 +54,12 @@ FileFetcher::~FileFetcher() {
 }
 
 void FileFetcher::ReadNextChunk() {
+  int32 bytes_to_read = buffer_size_;
+  if (bytes_to_read > bytes_left_to_read_) {
+    bytes_to_read = static_cast<int32>(bytes_left_to_read_);
+  }
   base::FileUtilProxy::Read(
-      message_loop_proxy_, file_, file_offset_, buffer_size_,
+      message_loop_proxy_, file_, file_offset_, bytes_to_read,
       base::Bind(&FileFetcher::DidRead, weak_ptr_factory_.GetWeakPtr()));
 }
 
@@ -125,7 +130,6 @@ void FileFetcher::DidCreateOrOpen(base::PlatformFileError error,
   }
 
   file_ = file.ReleaseValue();
-  file_offset_ = 0;
   ReadNextChunk();
 }
 
@@ -138,12 +142,21 @@ void FileFetcher::DidRead(base::PlatformFileError error, const char* data,
     return;
   }
 
+  DCHECK_LE(num_bytes_read, bytes_left_to_read_);
+
   if (!num_bytes_read) {
     handler()->OnDone();
     return;
   }
 
   handler()->OnReceived(data, static_cast<size_t>(num_bytes_read));
+
+  bytes_left_to_read_ -= num_bytes_read;
+
+  if (!bytes_left_to_read_) {
+    handler()->OnDone();
+    return;
+  }
 
   file_offset_ += num_bytes_read;
   ReadNextChunk();
