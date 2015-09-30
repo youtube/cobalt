@@ -26,4 +26,5 @@ partial /*sealed*/ interface Document {
   // HTMLBodyElement.
   attribute HTMLBodyElement? body;
   readonly attribute HTMLHeadElement? head;
+  readonly attribute Element? activeElement;
 };
