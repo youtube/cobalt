@@ -65,7 +65,6 @@ SavegameFile::~SavegameFile() {
 
 bool SavegameFile::PlatformRead(ByteVector* bytes_ptr) {
   if (!file_util::PathExists(savegame_path_)) {
-    DLOG(INFO) << savegame_path_.value() << " does not exist.";
     return false;
   }
 

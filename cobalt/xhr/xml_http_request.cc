@@ -121,7 +121,6 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url) {
     return;
   }
 
-  DLOG(INFO) << "Resolving " << url << " against base " << base_url_;
   request_url_ = base_url_.Resolve(url);
   if (!request_url_.is_valid()) {
     DLOG(ERROR) << "SyntaxError: Invalid request URL " << url;
@@ -444,7 +443,6 @@ void XMLHttpRequest::OnError(const std::string& error) {
 
 XMLHttpRequest::~XMLHttpRequest() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DLOG(INFO) << "Xml http request going away.";
 }
 
 void XMLHttpRequest::FireProgressEvent(const std::string& event_name) {
