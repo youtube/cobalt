@@ -65,7 +65,7 @@ unsigned int CSSRuleList::InsertRule(const std::string& rule,
                     "rule list.";
   }
 
-  AppendCSSStyleRule(css_rule);
+  AppendCSSRule(css_rule);
   return index;
 }
 
@@ -79,29 +79,12 @@ void CSSRuleList::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
   }
 }
 
-void CSSRuleList::AppendCSSStyleRule(
-    const scoped_refptr<CSSStyleRule>& css_style_rule) {
+void CSSRuleList::AppendCSSRule(const scoped_refptr<CSSRule>& css_rule) {
   if (parent_style_sheet_) {
-    css_style_rule->AttachToCSSStyleSheet(parent_style_sheet_);
+    css_rule->AttachToCSSStyleSheet(parent_style_sheet_);
     parent_style_sheet_->OnCSSMutation();
   }
-  css_rules_.push_back(css_style_rule);
-}
-
-// Appends a CSSFontFaceRule to the current style sheet.
-void CSSRuleList::AppendCSSFontFaceRule(
-    const scoped_refptr<CSSFontFaceRule>& css_font_face_rule) {
-  css_rules_.push_back(css_font_face_rule);
-}
-
-// Appends a CSSMediaRule to the current style sheet.
-void CSSRuleList::AppendCSSMediaRule(
-    const scoped_refptr<CSSMediaRule>& css_media_rule) {
-  if (parent_style_sheet_) {
-    css_media_rule->AttachToCSSStyleSheet(parent_style_sheet_);
-    parent_style_sheet_->OnCSSMutation();
-  }
-  css_rules_.push_back(css_media_rule);
+  css_rules_.push_back(css_rule);
 }
 
 void CSSRuleList::Accept(CSSRuleVisitor* visitor) {
