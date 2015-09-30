@@ -560,8 +560,12 @@
 %type <media_feature_operator> media_feature_operator
 
 %union { cssom::CSSStyleRule* style_rule; }
-%type <style_rule> qualified_rule rule style_rule
+%type <style_rule> qualified_rule style_rule
 %destructor { $$->Release(); } <style_rule>
+
+%union { cssom::CSSRule* css_rule; }
+%type <css_rule> rule
+%destructor { $$->Release(); } <css_rule>
 
 %union { cssom::PropertyListValue::Builder* property_list; }
 %type <property_list> comma_separated_background_image_list
@@ -652,10 +656,23 @@ errors:
 at_font_face_rule:
     kFontFaceToken maybe_whitespace '{' maybe_whitespace
         font_face_declaration_list '}' maybe_whitespace {
-    $$ = AddRef(new cssom::CSSFontFaceRule(MakeScopedRefPtrAndRelease($5)));
+    scoped_refptr<cssom::CSSFontFaceRule>
+        font_face_rule(
+            new cssom::CSSFontFaceRule(MakeScopedRefPtrAndRelease($5)));
+    if (font_face_rule->IsValid()) {
+      $$ = AddRef(font_face_rule.get());
+    } else {
+      parser_impl->LogWarning(@1, "invalid font-face");
+      $$ = NULL;
+    }
   }
   ;
 
+// The @media rule is a conditional group rule whose condition is a media query.
+// It consists of the at-keyword ‘@media’ followed by a (possibly empty) media
+// query list, followed by a group rule body. The condition of the rule is the
+// result of the media query.
+//   http://www.w3.org/TR/css3-conditional/#at-media
 at_media_rule:
   // @media expr {}
     kMediaToken maybe_whitespace media_list rule_list_block {
@@ -3716,7 +3733,9 @@ invalid_rule:
 //   http://www.w3.org/TR/css3-syntax/#consume-a-list-of-rules
 rule:
     kSgmlCommentDelimiterToken maybe_whitespace { $$ = NULL; }
-  | qualified_rule
+  | qualified_rule { $$ = $1; }
+  | at_font_face_rule { $$ = $1; }
+  | at_media_rule { $$ = $1; }
   | invalid_rule { $$ = NULL; }
   ;
 
@@ -3726,30 +3745,10 @@ rule_list:
   }
   | rule_list rule {
     $$ = $1;
-    scoped_refptr<cssom::CSSStyleRule> style_rule =
+    scoped_refptr<cssom::CSSRule> css_rule =
         MakeScopedRefPtrAndRelease($2);
-    if (style_rule) {
-      $$->AppendCSSStyleRule(style_rule);
-    }
-  }
-  | rule_list at_font_face_rule {
-    $$ = $1;
-    scoped_refptr<cssom::CSSFontFaceRule> font_face_rule =
-        MakeScopedRefPtrAndRelease($2);
-    if (font_face_rule && font_face_rule->IsValid()) {
-      $$->AppendCSSFontFaceRule(font_face_rule);
-    } else {
-      parser_impl->LogWarning(@2, "invalid font-face");
-    }
-  }
-  // Conditional group rules can be nested.
-  //   http://www.w3.org/TR/css3-conditional/#contents-of
-  | rule_list at_media_rule {
-    $$ = $1;
-    scoped_refptr<cssom::CSSMediaRule> media_rule =
-        MakeScopedRefPtrAndRelease($2);
-    if (media_rule) {
-      $$->AppendCSSMediaRule(media_rule);
+    if (css_rule) {
+      $$->AppendCSSRule(css_rule);
     }
   }
   ;

@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/css_rule_list.h"
 
+#include "cobalt/cssom/css_font_face_rule.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -31,16 +32,16 @@ TEST(CSSRuleListTest, ItemAccess) {
 
   scoped_refptr<CSSStyleRule> rule =
       new CSSStyleRule(Selectors(), new CSSStyleDeclaration(NULL));
-  rule_list->AppendCSSStyleRule(rule);
+  rule_list->AppendCSSRule(rule);
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));
   ASSERT_FALSE(rule_list->Item(1));
 }
 
-TEST(CSSRuleListTest, AppendCSSStyleRule) {
+TEST(CSSRuleListTest, AppendCSSRuleShouldTakeCSSStyleRule) {
   scoped_refptr<CSSRuleList> rule_list = new CSSRuleList();
   scoped_refptr<CSSStyleRule> rule = new CSSStyleRule();
-  rule_list->AppendCSSStyleRule(rule);
+  rule_list->AppendCSSRule(rule);
 
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(CSSRule::kStyleRule, rule_list->Item(0)->type());
@@ -48,10 +49,21 @@ TEST(CSSRuleListTest, AppendCSSStyleRule) {
   ASSERT_FALSE(rule_list->Item(1).get());
 }
 
-TEST(CSSRuleListTest, AppendCSSMediaRule) {
+TEST(CSSRuleListTest, AppendCSSRuleShouldTakeCSSFontFaceRule) {
+  scoped_refptr<CSSRuleList> rule_list = new CSSRuleList();
+  scoped_refptr<CSSFontFaceRule> rule = new CSSFontFaceRule();
+  rule_list->AppendCSSRule(rule);
+
+  ASSERT_EQ(1, rule_list->length());
+  ASSERT_EQ(CSSRule::kFontFaceRule, rule_list->Item(0)->type());
+  ASSERT_EQ(rule, rule_list->Item(0));
+  ASSERT_FALSE(rule_list->Item(1).get());
+}
+
+TEST(CSSRuleListTest, AppendCSSRuleShouldTakeCSSMediaRule) {
   scoped_refptr<CSSRuleList> rule_list = new CSSRuleList();
   scoped_refptr<CSSMediaRule> rule = new CSSMediaRule();
-  rule_list->AppendCSSMediaRule(rule);
+  rule_list->AppendCSSRule(rule);
 
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(CSSRule::kMediaRule, rule_list->Item(0)->type());
