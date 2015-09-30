@@ -109,7 +109,7 @@ TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
       new CSSStyleRule(Selectors(), new CSSStyleDeclaration(NULL));
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  rule_list->AppendCSSStyleRule(rule);
+  rule_list->AppendCSSRule(rule);
   css_style_sheet_->set_css_rules(rule_list);
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));
@@ -143,7 +143,7 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaRuleAddition) {
   css_style_sheet_->EvaluateMediaRules(width, height);
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  rule_list->AppendCSSMediaRule(rule);
+  rule_list->AppendCSSRule(rule);
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
   css_style_sheet_->EvaluateMediaRules(width, height);
@@ -161,7 +161,7 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedForAddingFalseMediaRule) {
   scoped_refptr<CSSRuleList> rule_list = css_style_sheet_->css_rules();
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  rule_list->AppendCSSMediaRule(rule);
+  rule_list->AppendCSSRule(rule);
 
   scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
   scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
@@ -194,7 +194,7 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaValueChanges) {
   // added to the style sheet.
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  css_style_sheet_->css_rules()->AppendCSSMediaRule(rule);
+  css_style_sheet_->css_rules()->AppendCSSRule(rule);
 
   scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
   scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
