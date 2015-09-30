@@ -30,68 +30,66 @@ BlockContainerBox::BlockContainerBox(
 
 BlockContainerBox::~BlockContainerBox() {}
 
-void BlockContainerBox::UpdateContentSizeAndMargins(
-    const LayoutParams& layout_params) {
-  bool width_depends_on_containing_block;
-  base::optional<float> maybe_width = GetUsedWidthIfNotAuto(
-      computed_style(), layout_params.containing_block_size,
-      &width_depends_on_containing_block);
-  base::optional<float> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-  base::optional<float> maybe_margin_right = GetUsedMarginRightIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-
-  base::optional<float> maybe_height = GetUsedHeightIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-  base::optional<float> maybe_margin_top = GetUsedMarginTopIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-  base::optional<float> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-
+// Updates used values of "width" and "margin" properties based on
+// http://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins.
+void BlockContainerBox::UpdateContentWidthAndMargins(
+    float containing_block_width, bool shrink_to_fit_width_forced,
+    bool width_depends_on_containing_block,
+    const base::optional<float>& maybe_left,
+    const base::optional<float>& maybe_right,
+    const base::optional<float>& maybe_margin_left,
+    const base::optional<float>& maybe_margin_right,
+    const base::optional<float>& maybe_width,
+    const base::optional<float>& maybe_height) {
   if (IsAbsolutelyPositioned()) {
-    base::optional<float> maybe_left = GetUsedLeftIfNotAuto(
-        computed_style(), layout_params.containing_block_size);
-    base::optional<float> maybe_right = GetUsedRightIfNotAuto(
-        computed_style(), layout_params.containing_block_size);
-
     UpdateWidthAssumingAbsolutelyPositionedBox(
-        layout_params.containing_block_size.width(), maybe_left, maybe_right,
-        maybe_width, maybe_margin_left, maybe_margin_right, maybe_height);
+        containing_block_width, maybe_left, maybe_right, maybe_width,
+        maybe_margin_left, maybe_margin_right, maybe_height);
   } else {
+    base::optional<float> maybe_nulled_width = maybe_width;
     Level forced_level = GetLevel();
-    if (layout_params.shrink_to_fit_width_forced) {
+    if (shrink_to_fit_width_forced) {
       forced_level = kInlineLevel;
       // Break circular dependency if needed.
       if (width_depends_on_containing_block) {
-        maybe_width = base::nullopt;
+        maybe_nulled_width = base::nullopt;
       }
     }
 
     switch (forced_level) {
       case kBlockLevel:
         UpdateWidthAssumingBlockLevelInFlowBox(
-            layout_params.containing_block_size.width(), maybe_width,
-            maybe_margin_left, maybe_margin_right);
+            containing_block_width, maybe_nulled_width, maybe_margin_left,
+            maybe_margin_right);
         break;
       case kInlineLevel:
         UpdateWidthAssumingInlineLevelInFlowBox(
-            layout_params.containing_block_size.width(), maybe_width,
-            maybe_margin_left, maybe_margin_right, maybe_height);
+            containing_block_width, maybe_nulled_width, maybe_margin_left,
+            maybe_margin_right, maybe_height);
         break;
       default:
         NOTREACHED();
         break;
     }
   }
+}
 
+// Updates used values of "height" and "margin" properties based on
+// http://www.w3.org/TR/CSS21/visudet.html#Computing_heights_and_margins.
+void BlockContainerBox::UpdateContentHeightAndMargins(
+    const math::SizeF& containing_block_size,
+    const base::optional<float>& maybe_top,
+    const base::optional<float>& maybe_bottom,
+    const base::optional<float>& maybe_margin_top,
+    const base::optional<float>& maybe_margin_bottom,
+    const base::optional<float>& maybe_height) {
   LayoutParams child_layout_params;
   if (AsAnonymousBlockBox()) {
     // Anonymous block boxes are ignored when resolving percentage values
     // that would refer to it: the closest non-anonymous ancestor box is used
     // instead.
     //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
-    child_layout_params.containing_block_size =
-        layout_params.containing_block_size;
+    child_layout_params.containing_block_size = containing_block_size;
   } else {
     // If the element's position is "relative" or "static", the containing block
     // is formed by the content edge of the nearest block container ancestor
@@ -112,15 +110,9 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
       UpdateRectOfInFlowChildBoxes(child_layout_params);
 
   if (IsAbsolutelyPositioned()) {
-    base::optional<float> maybe_top = GetUsedTopIfNotAuto(
-        computed_style(), layout_params.containing_block_size);
-    base::optional<float> maybe_bottom = GetUsedBottomIfNotAuto(
-        computed_style(), layout_params.containing_block_size);
-
     UpdateHeightAssumingAbsolutelyPositionedBox(
-        layout_params.containing_block_size.height(), maybe_top, maybe_bottom,
-        maybe_height, maybe_margin_top, maybe_margin_bottom,
-        *formatting_context);
+        containing_block_size.height(), maybe_top, maybe_bottom, maybe_height,
+        maybe_margin_top, maybe_margin_bottom, *formatting_context);
   } else {
     UpdateHeightAssumingInFlowBox(maybe_height, maybe_margin_top,
                                   maybe_margin_bottom, *formatting_context);
@@ -136,6 +128,102 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
     maybe_baseline_offset_from_top_margin_edge_ =
         margin_top() + border_top_width() + padding_top() +
         *formatting_context->maybe_baseline_offset_from_top_content_edge();
+  }
+}
+
+void BlockContainerBox::UpdateContentSizeAndMargins(
+    const LayoutParams& layout_params) {
+  base::optional<float> maybe_height = GetUsedHeightIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  bool width_depends_on_containing_block;
+  base::optional<float> maybe_width = GetUsedWidthIfNotAuto(
+      computed_style(), layout_params.containing_block_size,
+      &width_depends_on_containing_block);
+  base::optional<float> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::optional<float> maybe_margin_right = GetUsedMarginRightIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::optional<float> maybe_left = GetUsedLeftIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::optional<float> maybe_right = GetUsedRightIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::optional<float> maybe_top = GetUsedTopIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::optional<float> maybe_bottom = GetUsedBottomIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::optional<float> maybe_margin_top = GetUsedMarginTopIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::optional<float> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+
+  UpdateContentWidthAndMargins(layout_params.containing_block_size.width(),
+                               layout_params.shrink_to_fit_width_forced,
+                               width_depends_on_containing_block, maybe_left,
+                               maybe_right, maybe_margin_left,
+                               maybe_margin_right, maybe_width, maybe_height);
+
+  // If the tentative used width is greater than 'max-width', the rules above
+  // are applied again, but this time using the computed value of 'max-width' as
+  // the computed value for 'width'.
+  //   http://www.w3.org/TR/CSS21/visudet.html#min-max-widths
+  bool max_width_depends_on_containing_block;
+  base::optional<float> maybe_max_width = GetUsedMaxWidthIfNotNone(
+      computed_style(), layout_params.containing_block_size,
+      &max_width_depends_on_containing_block);
+  if (maybe_max_width && width() > maybe_max_width.value()) {
+    UpdateContentWidthAndMargins(
+        layout_params.containing_block_size.width(),
+        layout_params.shrink_to_fit_width_forced,
+        max_width_depends_on_containing_block, maybe_left, maybe_right,
+        maybe_margin_left, maybe_margin_right, maybe_max_width, maybe_height);
+  }
+
+  // If the resulting width is smaller than 'min-width', the rules above are
+  // applied again, but this time using the value of 'min-width' as the computed
+  // value for 'width'.
+  //   http://www.w3.org/TR/CSS21/visudet.html#min-max-widths
+  bool min_width_depends_on_containing_block;
+  base::optional<float> min_width =
+      GetUsedMinWidth(computed_style(), layout_params.containing_block_size,
+                      &min_width_depends_on_containing_block);
+  if (width() < min_width.value()) {
+    UpdateContentWidthAndMargins(layout_params.containing_block_size.width(),
+                                 layout_params.shrink_to_fit_width_forced,
+                                 min_width_depends_on_containing_block,
+                                 maybe_left, maybe_right, maybe_margin_left,
+                                 maybe_margin_right, min_width, maybe_height);
+  }
+
+  UpdateContentHeightAndMargins(layout_params.containing_block_size, maybe_top,
+                                maybe_bottom, maybe_margin_top,
+                                maybe_margin_bottom, maybe_height);
+
+  // If the tentative height is greater than 'max-height', the rules above are
+  // applied again, but this time using the value of 'max-height' as the
+  // computed value for 'height'.
+  //   http://www.w3.org/TR/CSS21/visudet.html#min-max-heights
+  bool max_height_depends_on_containing_block;
+  base::optional<float> maybe_max_height = GetUsedMaxHeightIfNotNone(
+      computed_style(), layout_params.containing_block_size,
+      &max_height_depends_on_containing_block);
+  if (maybe_max_height && height() > maybe_max_height.value()) {
+    UpdateContentHeightAndMargins(layout_params.containing_block_size,
+                                  maybe_top, maybe_bottom, maybe_margin_top,
+                                  maybe_margin_bottom, maybe_max_height);
+  }
+
+  // If the resulting height is smaller than 'min-height', the rules above are
+  // applied again, but this time using the value of 'min-height' as the
+  // computed value for 'height'.
+  //   http://www.w3.org/TR/CSS21/visudet.html#min-max-heights
+  bool min_height_depends_on_containing_block;
+  base::optional<float> min_height =
+      GetUsedMinHeight(computed_style(), layout_params.containing_block_size,
+                       &min_height_depends_on_containing_block);
+  if (height() < min_height.value()) {
+    UpdateContentHeightAndMargins(layout_params.containing_block_size,
+                                  maybe_top, maybe_bottom, maybe_margin_top,
+                                  maybe_margin_bottom, min_height);
   }
 }
 

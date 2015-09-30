@@ -27,7 +27,11 @@
 10-3-9-child-width-should-be-calculated-after-width-of-inline-block-parent
 10-3-9-inline-block-non-replaced-elements-with-auto-width-should-shrink-to-fit
 10-3-9-shrink-to-fit-width-should-not-depend-on-text-align
+10-4-min-height-and-max-height-limit-box-size
+10-4-min-height-and-max-height-percentage-should-refer-containing-block-with
 10-4-min-width-and-max-width-constraints-for-replaced_elements:350x1080
+10-4-min-width-and-max-width-limit-box-size
+10-4-min-width-and-max-width-percentage-should-refer-containing-block-with
 10-5-percentage-of-auto-height-on-absolute-element-should-compute-to-percentage
 10-5-percentage-of-auto-height-should-compute-to-auto
 10-6-2-replaced-box-height
