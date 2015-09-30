@@ -49,6 +49,7 @@ v8.log
 /build/util/LASTCHANGE
 /build/util/support
 /build/x64/
+/buildbot
 /buildtools/
 # The Chrome OS build creates a /c symlink due to http://crbug.com/54866.
 /c
