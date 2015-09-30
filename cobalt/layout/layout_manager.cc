@@ -155,7 +155,11 @@ void LayoutManager::Impl::OnLoad() {
   if (layout_trigger_ == kTestRunnerMode &&
       !window_->test_runner()->should_wait()) {
     layout_dirty_ = true;
-    DoLayoutAndProduceRenderTree();
+    // Run the |DoLayoutAndProduceRenderTree| task after onload event finished.
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(&LayoutManager::Impl::DoLayoutAndProduceRenderTree,
+                   base::Unretained(this)));
   }
 #endif  // ENABLE_TEST_RUNNER
 }
