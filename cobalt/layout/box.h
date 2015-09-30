@@ -295,6 +295,8 @@ class Box {
   // Updates used values of "width", "height", and "margin" properties based on
   // http://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins and
   // http://www.w3.org/TR/CSS21/visudet.html#Computing_heights_and_margins.
+  // Limits set by "min-width" and "max-width" are honored for non-replaced
+  // boxes, based on http://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
   virtual void UpdateContentSizeAndMargins(
       const LayoutParams& layout_params) = 0;
 
