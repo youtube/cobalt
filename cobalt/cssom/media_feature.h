@@ -55,8 +55,8 @@ class MediaFeature : public script::Wrappable {
       const scoped_refptr<PropertyValue>& height_refptr);
 
  private:
-  // The ‘aspect-ratio’ media feature is defined as the ratio of the value of
-  // the ‘width’ media feature to the value of the ‘height’ media feature.
+  // The 'aspect-ratio' media feature is defined as the ratio of the value of
+  // the 'width' media feature to the value of the 'height' media feature.
   //   http://www.w3.org/TR/css3-mediaqueries/#aspect-ratio
   // Returns true if the media query expression for aspect ratio is true for the
   // given media values.
@@ -71,20 +71,20 @@ class MediaFeature : public script::Wrappable {
   // the given media value.
   bool CompareLengthValue(const scoped_refptr<PropertyValue>& value_refptr);
 
-  // The ‘orientation’ media feature is ‘portrait’ when the value of the
-  // ‘height’ media feature is greater than or equal to the value of the ‘width’
-  // media feature. Otherwise ‘orientation’ is ‘landscape’.
+  // The 'orientation' media feature is 'portrait' when the value of the
+  // 'height' media feature is greater than or equal to the value of the 'width'
+  // media feature. Otherwise 'orientation' is 'landscape'.
   //   http://www.w3.org/TR/css3-mediaqueries/#orientation
   bool CompareOrientation(const scoped_refptr<PropertyValue>& width_refptr,
                           const scoped_refptr<PropertyValue>& height_refptr);
 
-  // The ‘resolution’ media feature describes the resolution of the output
+  // The 'resolution' media feature describes the resolution of the output
   // device, i.e. the density of the pixels.
   //   http://www.w3.org/TR/css3-mediaqueries/#resolution
   bool CompareResolution(const scoped_refptr<PropertyValue>& width_refptr,
                          const scoped_refptr<PropertyValue>& height_refptr);
 
-  // The ‘scan’ media feature describes the scanning process of "tv" output
+  // The 'scan' media feature describes the scanning process of "tv" output
   // devices.
   //   http://www.w3.org/TR/css3-mediaqueries/#scan
   bool CompareScan();
