@@ -139,18 +139,18 @@ void LibxmlParserWrapper::OnEndDocument() {
 void LibxmlParserWrapper::OnStartElement(
     const std::string& name, const ParserAttributeVector& attributes) {
   scoped_refptr<dom::Element> element = document_->CreateElement(name);
-  element->SetOpeningTagLocation(GetSourceLocation());
   for (size_t i = 0; i < attributes.size(); ++i) {
     element->SetAttribute(attributes[i].name.as_string(),
                           attributes[i].value.as_string());
   }
-  element->SetParserInserted();
+  element->OnParserStartTag(GetSourceLocation());
   node_stack_.top()->InsertBefore(element, reference_node_);
   node_stack_.push(element);
 }
 
 void LibxmlParserWrapper::OnEndElement(const std::string& name) {
   DCHECK_EQ(node_stack_.top()->node_name(), name);
+  node_stack_.top()->AsElement()->OnParserEndTag();
   node_stack_.pop();
 }
 
