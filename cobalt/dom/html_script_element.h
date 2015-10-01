@@ -54,25 +54,24 @@ class HTMLScriptElement : public HTMLElement {
 
   // Custom, not in any spec.
   //
-  // From HTMLElement.
-  scoped_refptr<HTMLScriptElement> AsHTMLScriptElement() OVERRIDE;
-
-  void SetOpeningTagLocation(
-      const base::SourceLocation& opening_tag_location) OVERRIDE;
-
   // From Node.
   void OnInsertedIntoDocument() OVERRIDE;
 
   // From Element.
-  void SetParserInserted() OVERRIDE { is_parser_inserted_ = true; }
+  void OnParserStartTag(
+      const base::SourceLocation& opening_tag_location) OVERRIDE;
+  void OnParserEndTag() OVERRIDE;
 
-  // From the spec: HTMLScriptElement.
-  void Prepare();
+  // From HTMLElement.
+  scoped_refptr<HTMLScriptElement> AsHTMLScriptElement() OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(HTMLScriptElement);
 
  private:
   ~HTMLScriptElement() OVERRIDE;
+
+  // From the spec: HTMLScriptElement.
+  void Prepare();
 
   void OnSyncLoadingDone(const std::string& content);
   void OnSyncLoadingError(const std::string& error);

@@ -60,18 +60,24 @@ void HTMLLinkElement::Obtain() {
 
   // 1. If the href attribute's value is the empty string, then abort these
   // steps.
-  if (href().empty()) return;
+  if (href().empty()) {
+    return;
+  }
 
   // 2. Resolve the URL given by the href attribute, relative to the element.
   ResolveAndSetAbsoluteURL();
 
   // 3. If the previous step fails, then abort these steps.
-  if (!absolute_url_.is_valid()) return;
+  if (!absolute_url_.is_valid()) {
+    return;
+  }
 
   // 4. Do a potentially CORS-enabled fetch of the resulting absolute URL, with
   // the mode being the current state of the element's crossorigin content
   // attribute, the origin being the origin of the link element's Document, and
   // the default origin behaviour set to taint.
+  owner_document()->IncreaseLoadingCounter();
+
   loader_ = make_scoped_ptr(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
                  base::Unretained(html_element_context()->fetcher_factory()),
@@ -83,25 +89,23 @@ void HTMLLinkElement::Obtain() {
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (rel() == "stylesheet") {
-    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-        html_element_context()->css_parser()->ParseStyleSheet(
-            content, base::SourceLocation(href(), 1, 1));
-    style_sheet->SetLocationUrl(absolute_url_);
-    owner_document()->style_sheets()->Append(style_sheet);
-  } else {
-    NOTREACHED();
-  }
-  StopLoading();
+  DCHECK_EQ(rel(), "stylesheet");
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      html_element_context()->css_parser()->ParseStyleSheet(
+          content, base::SourceLocation(href(), 1, 1));
+  style_sheet->SetLocationUrl(absolute_url_);
+  owner_document()->style_sheets()->Append(style_sheet);
+  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+  DCHECK(loader_);
+  loader_.reset();
 }
 
 void HTMLLinkElement::OnLoadingError(const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  LOG(ERROR) << error;
-  StopLoading();
-}
 
-void HTMLLinkElement::StopLoading() {
+  LOG(ERROR) << error;
+  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
   DCHECK(loader_);
   loader_.reset();
 }
