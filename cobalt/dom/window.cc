@@ -20,6 +20,9 @@
 #include "base/bind_helpers.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/element.h"
+#include "cobalt/dom/event.h"
+#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
@@ -183,6 +186,26 @@ void Window::RunAnimationFrameCallbacks() {
   // Now, iterate through each of the callbacks and call them.
   frame_request_list->RunCallbacks(
       document_->timeline_sample_time()->InMillisecondsF());
+}
+
+void Window::InjectEvent(const scoped_refptr<Event>& event) {
+  // Forward the event on to the correct object in DOM.
+  if (event->type() == EventNames::GetInstance()->keydown() ||
+      event->type() == EventNames::GetInstance()->keypress() ||
+      event->type() == EventNames::GetInstance()->keyup()) {
+    // Event.target:focused element processing the key event or if no element
+    // focused, then the body element if available, otherwise the root element.
+    //   http://www.w3.org/TR/DOM-Level-3-Events/#event-type-keydown
+    //   http://www.w3.org/TR/DOM-Level-3-Events/#event-type-keypress
+    //   http://www.w3.org/TR/DOM-Level-3-Events/#event-type-keyup
+    if (document_->active_element()) {
+      document_->active_element()->DispatchEvent(event);
+    } else {
+      document_->DispatchEvent(event);
+    }
+  } else {
+    NOTREACHED();
+  }
 }
 
 }  // namespace dom
