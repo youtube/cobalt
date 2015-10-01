@@ -148,11 +148,13 @@ std::string DebugHub::GetConsoleValue(const std::string& name) const {
   return "";
 }
 
-void DebugHub::SetDebugConsoleMode(int debug_console_mode) {}
+void DebugHub::SetDebugConsoleMode(int debug_console_mode) {
+  UNREFERENCED_PARAMETER(debug_console_mode);
+}
 
 int DebugHub::CycleDebugConsoleMode() { return kDebugConsoleOff; }
 
-int DebugHub::debug_console_mode() const { return kDebugConsoleOff; }
+int DebugHub::GetDebugConsoleMode() const { return kDebugConsoleOff; }
 #endif  // ENABLE_DEBUG_CONSOLE
 
 }  // namespace debug
