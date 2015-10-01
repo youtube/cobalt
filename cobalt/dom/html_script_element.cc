@@ -46,20 +46,29 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
 
 std::string HTMLScriptElement::tag_name() const { return kTagName; }
 
-scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
-  return this;
-}
-
-void HTMLScriptElement::SetOpeningTagLocation(
-    const base::SourceLocation& opening_tag_location) {
-  inline_script_location_ = opening_tag_location;
-  ++inline_script_location_.column_number;  // JavaScript code starts after ">".
-}
-
 void HTMLScriptElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
   if (!is_parser_inserted_) {
     Prepare();
+  }
+}
+
+void HTMLScriptElement::OnParserStartTag(
+    const base::SourceLocation& opening_tag_location) {
+  inline_script_location_ = opening_tag_location;
+  ++inline_script_location_.column_number;  // JavaScript code starts after ">".
+  is_parser_inserted_ = true;
+}
+
+void HTMLScriptElement::OnParserEndTag() { Prepare(); }
+
+scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
+  return this;
+}
+
+HTMLScriptElement::~HTMLScriptElement() {
+  if (loader_) {
+    StopLoading();
   }
 }
 
@@ -244,12 +253,6 @@ void HTMLScriptElement::Prepare() {
   }
 }
 
-HTMLScriptElement::~HTMLScriptElement() {
-  if (load_option_) {
-    StopLoading();
-  }
-}
-
 void HTMLScriptElement::OnSyncLoadingDone(const std::string& content) {
   content_ = content;
   is_sync_load_successful_ = true;
@@ -355,17 +358,14 @@ void HTMLScriptElement::StopLoading() {
       if (it != scripts_to_be_executed->end()) {
         scripts_to_be_executed->erase(it);
       }
-
-      DCHECK(loader_);
-      loader_.reset();
     } break;
     case 5: {
       // If the element has a src attribute.
-      DCHECK(loader_);
-      loader_.reset();
     } break;
     default: { NOTREACHED(); }
   }
+  DCHECK(loader_);
+  loader_.reset();
 }
 
 }  // namespace dom

@@ -73,7 +73,6 @@ class HTMLLinkElement : public HTMLElement {
 
   void OnLoadingDone(const std::string& content);
   void OnLoadingError(const std::string& error);
-  void StopLoading();
 
   // Thread checker ensures all calls to DOM element are made from the same
   // thread that it is created in.
