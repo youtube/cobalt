@@ -17,8 +17,10 @@
 #ifndef LAYOUT_REPLACED_BOX_H_
 #define LAYOUT_REPLACED_BOX_H_
 
+#include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "base/time.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"
@@ -69,9 +71,9 @@ class ReplacedBox : public Box {
   float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
  protected:
-  typedef render_tree::CompositionNode::Builder NodeBuilder;
-
   // From |Box|.
+  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
+
   void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
@@ -82,6 +84,16 @@ class ReplacedBox : public Box {
 #ifdef COBALT_BOX_DUMP_ENABLED
   void DumpProperties(std::ostream* stream) const OVERRIDE;
 #endif  // COBALT_BOX_DUMP_ENABLED
+
+  // Rest of the protected methods.
+
+  // Updates used values of "margin-left" and "margin-right" properties based on
+  // http://www.w3.org/TR/CSS21/visudet.html#block-replaced-width and
+  // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
+  virtual void UpdateHorizontalMargins(
+      float containing_block_width, float border_box_width,
+      const base::optional<float>& maybe_margin_left,
+      const base::optional<float>& maybe_margin_right) = 0;
 
   // TODO(***REMOVED***): Make private.
   const base::optional<float> maybe_intrinsic_width_;

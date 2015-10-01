@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
- | This test is to show that 'replaced boxes' have the correct width.
- | Ref http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
+ | Used value of 'width' is determined as for inline replaced elements.
+     http://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
  -->
 <html>
 <head>
@@ -15,6 +15,9 @@
       height: 360px;
     }
     div.block {
+      display: block;
+    }
+    video {
       display: block;
     }
     div.block40 {
@@ -38,9 +41,6 @@
       background: #009000;
     }
     video.test4 {
-      background: #00D000;
-    }
-    video.test5 {
       width: 20%;
       background: #00FF00;
     }
@@ -53,17 +53,15 @@
       <video class='test2'>Do not show this</video>
       <video class='test3'>Do not show this</video>
       <video class='test4'>Do not show this</video>
-      <video class='test5'>Do not show this</video>
     </div>
     <div class='block40'>
-      <video class='test5'>Do not show this</video>
+      <video class='test4'>Do not show this</video>
     </div>
     <div class='inline'>
       <video class='test1'>Do not show this</video>
       <video class='test2'>Do not show this</video>
       <video class='test3'>Do not show this</video>
       <video class='test4'>Do not show this</video>
-      <video class='test5'>Do not show this</video>
     </div>
   </div>
 </body>
