@@ -62,6 +62,11 @@ namespace internal {
 template <typename F1, typename F2>
 class ActionAdaptor;
 
+# ifdef _MSC_VER
+#  pragma warning(push)          // Saves the current warning state.
+#  pragma warning(disable:4702)  // Temporarily disables warning 4702.
+# endif
+
 // BuiltInDefaultValue<T>::Get() returns the "built-in" default
 // value for type T, which is NULL when T is a pointer type, 0 when T
 // is a numeric type, false when T is bool, or "" when T is string or
@@ -72,6 +77,7 @@ class BuiltInDefaultValue {
  public:
   // This function returns true iff type T has a built-in default value.
   static bool Exists() { return false; }
+
   static T Get() {
     Assert(false, __FILE__, __LINE__,
            "Default action undefined for the function return type.");
@@ -80,6 +86,10 @@ class BuiltInDefaultValue {
     // order for this function to compile.
   }
 };
+
+# ifdef _MSC_VER
+#  pragma warning(pop)           // Restores the warning state.
+# endif
 
 // This partial specialization says that we use the same built-in
 // default value for T and const T.
