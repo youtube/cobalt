@@ -3761,7 +3761,7 @@ rule_list:
 //   http://www.w3.org/TR/css3-syntax/#parse-a-stylesheet
 style_sheet: rule_list {
     $$ = AddRef(new cssom::CSSStyleSheet(parser_impl->css_parser()));
-    $$->set_css_rules($1);
+    $$->set_css_rules(MakeScopedRefPtrAndRelease($1));
 }
 
 // Parser entry points.
