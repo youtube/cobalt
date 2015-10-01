@@ -45,7 +45,7 @@ void CSSGroupingRule::set_css_rules(
   css_rule_list_ = css_rule_list;
 }
 
-scoped_refptr<CSSRuleList> CSSGroupingRule::css_rules() {
+const scoped_refptr<CSSRuleList>& CSSGroupingRule::css_rules() {
   if (!css_rule_list_) {
     set_css_rules(new CSSRuleList());
   }

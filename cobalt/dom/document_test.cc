@@ -245,20 +245,19 @@ TEST_F(DocumentTest, StyleSheets) {
   scoped_refptr<HTMLElement> element1 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
           document, HTMLStyleElement::kTagName);
-  element1->set_text_content(
-      std::string("body { background-color: lightgray }"));
+  element1->set_text_content(std::string("body { background-color: #D3D3D3 }"));
   document->AppendChild(element1);
 
   scoped_refptr<HTMLElement> element2 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
           document, HTMLStyleElement::kTagName);
-  element2->set_text_content(std::string("h1 { color: blue }"));
+  element2->set_text_content(std::string("h1 { color: #00F }"));
   document->AppendChild(element2);
 
   scoped_refptr<HTMLElement> element3 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
           document, HTMLStyleElement::kTagName);
-  element3->set_text_content(std::string("p { color: green }"));
+  element3->set_text_content(std::string("p { color: #008000 }"));
   document->AppendChild(element3);
 
   EXPECT_TRUE(document->style_sheets());
@@ -266,6 +265,23 @@ TEST_F(DocumentTest, StyleSheets) {
   EXPECT_TRUE(document->style_sheets()->Item(0));
   EXPECT_TRUE(document->style_sheets()->Item(1));
   EXPECT_TRUE(document->style_sheets()->Item(2));
+
+  // Each style sheet shoult represent the one from the corresponding style
+  // element.
+  EXPECT_EQ(document->style_sheets()->Item(0),
+            element1->AsHTMLStyleElement()->sheet());
+  EXPECT_EQ(document->style_sheets()->Item(1),
+            element2->AsHTMLStyleElement()->sheet());
+  EXPECT_EQ(document->style_sheets()->Item(2),
+            element3->AsHTMLStyleElement()->sheet());
+
+  // Each style sheet should be unique.
+  EXPECT_NE(document->style_sheets()->Item(0),
+            document->style_sheets()->Item(1));
+  EXPECT_NE(document->style_sheets()->Item(0),
+            document->style_sheets()->Item(2));
+  EXPECT_NE(document->style_sheets()->Item(1),
+            document->style_sheets()->Item(2));
 }
 
 TEST_F(DocumentTest, QuerySelector) {
