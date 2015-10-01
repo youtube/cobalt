@@ -479,46 +479,9 @@ void BlockContainerBox::UpdateWidthAssumingBlockLevelInFlowBox(
 
   if (maybe_width) {
     set_width(*maybe_width);
-
-    float border_box_width = GetBorderBoxWidth();
-
-    // If "width" is not "auto" and "border-left-width" + "padding-left" +
-    // "width" + "padding-right" + "border-right-width" (plus any of
-    // "margin-left" or "margin-right" that are not "auto") is larger than
-    // the width of the containing block, then any "auto" values for
-    // "margin-left" or "margin-right" are, for the following rules, treated
-    // as zero.
-    if (maybe_margin_left.value_or(0.0f) + border_box_width +
-            maybe_margin_right.value_or(0.0f) >
-        containing_block_width) {
-      maybe_margin_left = maybe_margin_left.value_or(0.0f);
-      maybe_margin_right = maybe_margin_right.value_or(0.0f);
-    }
-
-    if (maybe_margin_left) {
-      // If all of the above have a computed value other than "auto", the values
-      // are said to be "over-constrained" and the specified value of
-      // "margin-right" is ignored and the value is calculated so as to make
-      // the equality true.
-      //
-      // If there is exactly one value specified as "auto", its used value
-      // follows from the equality.
-      set_margin_left(*maybe_margin_left);
-      set_margin_right(containing_block_width - *maybe_margin_left -
-                       border_box_width);
-    } else if (maybe_margin_right) {
-      // If there is exactly one value specified as "auto", its used value
-      // follows from the equality.
-      set_margin_left(containing_block_width - border_box_width -
-                      *maybe_margin_right);
-      set_margin_right(*maybe_margin_right);
-    } else {
-      // If both "margin-left" and "margin-right" are "auto", their used values
-      // are equal.
-      float horizontal_margin = (containing_block_width - border_box_width) / 2;
-      set_margin_left(horizontal_margin);
-      set_margin_right(horizontal_margin);
-    }
+    UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
+        containing_block_width, GetBorderBoxWidth(), maybe_margin_left,
+        maybe_margin_right);
   } else {
     // If "width" is set to "auto", any other "auto" values become "0" and
     // "width" follows from the resulting equality.
