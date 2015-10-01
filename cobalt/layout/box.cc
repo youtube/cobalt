@@ -16,6 +16,8 @@
 
 #include "cobalt/layout/box.h"
 
+#include <limits>
+
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/integer_value.h"
@@ -534,6 +536,55 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
   }
   return border_node;
 }
+
+// Based on http://www.w3.org/TR/CSS21/visudet.html#blockwidth.
+void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
+    float containing_block_width, float border_box_width,
+    const base::optional<float>& possibly_overconstrained_margin_left,
+    const base::optional<float>& possibly_overconstrained_margin_right) {
+  base::optional<float> maybe_margin_left =
+      possibly_overconstrained_margin_left;
+  base::optional<float> maybe_margin_right =
+      possibly_overconstrained_margin_right;
+
+  // If "border-left-width" + "padding-left" + "width" + "padding-right" +
+  // "border-right-width" (plus any of "margin-left" or "margin-right" that are
+  // not "auto") is larger than the width of the containing block, then any
+  // "auto" values for "margin-left" or "margin-right" are, for the following
+  // rules, treated as zero.
+  if (maybe_margin_left.value_or(0.0f) + border_box_width +
+          maybe_margin_right.value_or(0.0f) >
+      containing_block_width) {
+    maybe_margin_left = maybe_margin_left.value_or(0.0f);
+    maybe_margin_right = maybe_margin_right.value_or(0.0f);
+  }
+
+  if (maybe_margin_left) {
+    // If all of the above have a computed value other than "auto", the values
+    // are said to be "over-constrained" and the specified value of
+    // "margin-right" is ignored and the value is calculated so as to make
+    // the equality true.
+    //
+    // If there is exactly one value specified as "auto", its used value
+    // follows from the equality.
+    set_margin_left(*maybe_margin_left);
+    set_margin_right(containing_block_width - *maybe_margin_left -
+                     border_box_width);
+  } else if (maybe_margin_right) {
+    // If there is exactly one value specified as "auto", its used value
+    // follows from the equality.
+    set_margin_left(containing_block_width - border_box_width -
+                    *maybe_margin_right);
+    set_margin_right(*maybe_margin_right);
+  } else {
+    // If both "margin-left" and "margin-right" are "auto", their used values
+    // are equal.
+    float horizontal_margin = (containing_block_width - border_box_width) / 2;
+    set_margin_left(horizontal_margin);
+    set_margin_right(horizontal_margin);
+  }
+}
+
 
 }  // namespace layout
 }  // namespace cobalt

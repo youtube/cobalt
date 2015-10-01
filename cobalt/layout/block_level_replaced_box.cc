@@ -16,6 +16,8 @@
 
 #include "cobalt/layout/block_level_replaced_box.h"
 
+#include "cobalt/layout/used_style.h"
+
 namespace cobalt {
 namespace layout {
 
@@ -35,10 +37,16 @@ BlockLevelReplacedBox::BlockLevelReplacedBox(
 
 Box::Level BlockLevelReplacedBox::GetLevel() const { return kBlockLevel; }
 
-void BlockLevelReplacedBox::UpdateContentSizeAndMargins(
-    const LayoutParams& /*layout_params*/) {
-  // TODO(***REMOVED***): Implement.
-  NOTIMPLEMENTED();
+void BlockLevelReplacedBox::UpdateHorizontalMargins(
+    float containing_block_width, float border_box_width,
+    const base::optional<float>& maybe_margin_left,
+    const base::optional<float>& maybe_margin_right) {
+  // Calculate the horizonal margins for block-level, replaced elements in
+  // normal flow.
+  //   http://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
+  UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
+      containing_block_width, border_box_width, maybe_margin_left,
+      maybe_margin_right);
 }
 
 #ifdef COBALT_BOX_DUMP_ENABLED

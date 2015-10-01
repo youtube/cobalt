@@ -17,6 +17,13 @@
 #ifndef LAYOUT_BLOCK_LEVEL_REPLACED_BOX_H_
 #define LAYOUT_BLOCK_LEVEL_REPLACED_BOX_H_
 
+#include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
+#include "base/optional.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_transition_set.h"
+#include "cobalt/layout/box.h"
+#include "cobalt/layout/paragraph.h"
 #include "cobalt/layout/replaced_box.h"
 
 namespace cobalt {
@@ -39,11 +46,15 @@ class BlockLevelReplacedBox : public ReplacedBox {
 
  protected:
   // From |Box|.
-  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-
 #ifdef COBALT_BOX_DUMP_ENABLED
   void DumpClassName(std::ostream* stream) const OVERRIDE;
 #endif  // COBALT_BOX_DUMP_ENABLED
+
+  // From |ReplacedBox|.
+  void UpdateHorizontalMargins(
+      float containing_block_width, float border_box_width,
+      const base::optional<float>& maybe_margin_left,
+      const base::optional<float>& maybe_margin_right) OVERRIDE;
 };
 
 }  // namespace layout

@@ -18,7 +18,9 @@
 #define LAYOUT_BOX_H_
 
 #include <iosfwd>
+#include <string>
 
+#include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_transition_set.h"
@@ -369,6 +371,15 @@ class Box {
   // for absolute elements.
   virtual void UpdateCrossReferencesWithContext(
       ContainerBox* absolute_containing_block, ContainerBox* stacking_context);
+
+  // Updates the horizontal margins for block level in-flow boxes. This is used
+  // for both non-replaced and replaced elements. See
+  // http://www.w3.org/TR/CSS21/visudet.html#blockwidth and
+  // http://www.w3.org/TR/CSS21/visudet.html#block-replaced-width.
+  void UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
+      float containing_block_width, float border_box_width,
+      const base::optional<float>& possibly_overconstrained_margin_left,
+      const base::optional<float>& possibly_overconstrained_margin_right);
 
  private:
   // Updates used values of "border" properties.
