@@ -49,6 +49,7 @@ namespace dom {
 
 class Console;
 class Document;
+class Event;
 class HTMLElementContext;
 class LocalStorageDatabase;
 class Location;
@@ -173,6 +174,10 @@ class Window : public EventTarget {
   // Will fire the animation frame callbacks and reset the animation frame
   // request callback list.
   void RunAnimationFrameCallbacks();
+
+  // Call this to inject an event into the window which will ultimately make
+  // its way to the appropriate object in DOM.
+  void InjectEvent(const scoped_refptr<Event>& event);
 
   // Handles debug communication with the main and debug console windows.
   const scoped_refptr<debug::DebugHub>& debug_hub() const;
