@@ -45,21 +45,28 @@ class HTMLStyleElement : public HTMLElement {
 
   // Custom, not in any spec.
   //
-  // From HTMLElement.
-  scoped_refptr<HTMLStyleElement> AsHTMLStyleElement() OVERRIDE;
-
-  void SetOpeningTagLocation(
-      const base::SourceLocation& opening_tag_location) OVERRIDE;
-
   // From Node.
   void OnInsertedIntoDocument() OVERRIDE;
+
+  // From Element.
+  void OnParserStartTag(
+      const base::SourceLocation& opening_tag_location) OVERRIDE;
+  void OnParserEndTag() OVERRIDE;
+
+  // From HTMLElement.
+  scoped_refptr<HTMLStyleElement> AsHTMLStyleElement() OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(HTMLStyleElement);
 
  private:
   ~HTMLStyleElement() OVERRIDE {}
 
-  base::SourceLocation style_sheet_location_;
+  void Process();
+
+  // Whether the style element is inserted by parser.
+  bool is_parser_inserted_;
+  // SourceLocation for inline style.
+  base::SourceLocation inline_style_location_;
 };
 
 }  // namespace dom
