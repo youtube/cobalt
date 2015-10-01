@@ -86,6 +86,10 @@ class Element : public Node {
   scoped_refptr<dom::EventListener> onerror() const;
   void set_onerror(const scoped_refptr<dom::EventListener>& listener);
 
+  // TODO(***REMOVED***, b/24212587): Support clientWidth and clientHeight properly.
+  float client_width() const { return 0; }
+  float client_height() const { return 0; }
+
   // Web API: DOM Parsing and Serialization (partial interface)
   // This interface is extended in the spec DOM Parsing and Serialization.
   //   http://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface

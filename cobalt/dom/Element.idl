@@ -31,4 +31,9 @@ interface Element : Node {
 
   // http://www.w3.org/TR/DOM-Level-3-Events/#event-type-error
   attribute EventListener? onerror;
+
+  // http://www.w3.org/TR/cssom-view/#dom-element-clientwidth
+  readonly attribute double clientWidth;
+  // http://www.w3.org/TR/cssom-view/#dom-element-clientheight
+  readonly attribute double clientHeight;
 };
