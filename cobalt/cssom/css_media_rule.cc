@@ -31,7 +31,9 @@ CSSMediaRule::CSSMediaRule(const scoped_refptr<MediaList>& media_list,
                            const scoped_refptr<CSSRuleList>& css_rule_list)
     : CSSConditionRule(css_rule_list), media_list_(media_list) {}
 
-const scoped_refptr<MediaList>& CSSMediaRule::media() { return media_list_; }
+const scoped_refptr<MediaList>& CSSMediaRule::media() const {
+  return media_list_;
+}
 
 std::string CSSMediaRule::css_text() const {
   // TODO(***REMOVED***): Serialize the media rule to implement css_text.
