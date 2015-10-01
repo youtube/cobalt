@@ -31,6 +31,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/media_module.h"
+#include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
@@ -38,14 +39,6 @@
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
-namespace network {
-class NetworkModule;
-}
-
-namespace storage {
-class StorageManager;
-}
-
 namespace browser {
 
 // WebModule hosts all components of Cobalt that deal with or implement the
@@ -92,8 +85,8 @@ class WebModule {
             float layout_refresh_rate, const Options& options);
   ~WebModule();
 
-  // Call this to inject a key event into the web module which will ultimately
-  // make its way to the DOM's Document object and handled appropriately.
+  // Call this to inject an event into the web module which will ultimately make
+  // its way to the appropriate object in DOM.
   void InjectEvent(const scoped_refptr<dom::Event>& event);
 
   std::string GetUserAgent() const;

@@ -20,11 +20,58 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
-
-#include "cobalt/network/network_module.h"
+#include "cobalt/storage/storage_manager.h"
 
 namespace cobalt {
 namespace browser {
+
+WebModule::WebModule(
+    const GURL& initial_url,
+    const OnRenderTreeProducedCallback& render_tree_produced_callback,
+    const base::Callback<void(const std::string&)>& error_callback,
+    media::MediaModule* media_module, network::NetworkModule* network_module,
+    const math::Size& window_dimensions,
+    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
+    const Options& options)
+    : name_(options.name),
+      css_parser_(css_parser::Parser::Create()),
+      dom_parser_(new dom_parser::Parser(error_callback)),
+      fetcher_factory_(new loader::FetcherFactory(network_module)),
+      image_cache_(new loader::ImageCache(
+          base::StringPrintf("%s.ImageCache", name_.c_str()), resource_provider,
+          fetcher_factory_.get())),
+      local_storage_database_(network_module->storage_manager()),
+      javascript_engine_(script::JavaScriptEngine::CreateEngine()),
+      global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
+      execution_state_(
+          script::ExecutionState::CreateExecutionState(global_object_proxy_)),
+      script_runner_(
+          script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
+      window_(new dom::Window(
+          window_dimensions.width(), window_dimensions.height(),
+          css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
+          image_cache_.get(), &local_storage_database_, media_module,
+          execution_state_.get(), script_runner_.get(), initial_url,
+          GetUserAgent(), error_callback)),
+      environment_settings_(new dom::DOMSettings(
+          fetcher_factory_.get(), window_, javascript_engine_.get(),
+          global_object_proxy_.get())),
+      layout_manager_(window_.get(), resource_provider,
+                      render_tree_produced_callback, css_parser_.get(),
+                      options.layout_trigger, layout_refresh_rate) {
+  global_object_proxy_->CreateGlobalObject(window_,
+                                           environment_settings_.get());
+  window_->set_debug_hub(options.debug_hub);
+}
+
+WebModule::~WebModule() {}
+
+void WebModule::InjectEvent(const scoped_refptr<dom::Event>& event) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  TRACE_EVENT1("cobalt::browser", "WebModule::InjectEvent()",
+               "type", event->type());
+  window_->InjectEvent(event);
+}
 
 std::string WebModule::GetUserAgent() const {
 #if defined(__LB_LINUX__)
@@ -77,55 +124,6 @@ std::string WebModule::GetUserAgent() const {
       language_code.c_str(), country_code.c_str()));
 
   return user_agent;
-}
-
-WebModule::WebModule(
-    const GURL& initial_url,
-    const OnRenderTreeProducedCallback& render_tree_produced_callback,
-    const base::Callback<void(const std::string&)>& error_callback,
-    media::MediaModule* media_module, network::NetworkModule* network_module,
-    const math::Size& window_dimensions,
-    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const Options& options)
-    : name_(options.name),
-      css_parser_(css_parser::Parser::Create()),
-      dom_parser_(new dom_parser::Parser(error_callback)),
-      fetcher_factory_(new loader::FetcherFactory(network_module)),
-      image_cache_(new loader::ImageCache(
-          base::StringPrintf("%s.ImageCache", name_.c_str()), resource_provider,
-          fetcher_factory_.get())),
-      local_storage_database_(network_module->storage_manager()),
-      javascript_engine_(script::JavaScriptEngine::CreateEngine()),
-      global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
-      execution_state_(
-          script::ExecutionState::CreateExecutionState(global_object_proxy_)),
-      script_runner_(
-          script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
-      window_(new dom::Window(
-          window_dimensions.width(), window_dimensions.height(),
-          css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-          image_cache_.get(), &local_storage_database_, media_module,
-          execution_state_.get(), script_runner_.get(), initial_url,
-          GetUserAgent(), error_callback)),
-      environment_settings_(new dom::DOMSettings(
-          fetcher_factory_.get(), window_, javascript_engine_.get(),
-          global_object_proxy_.get())),
-      layout_manager_(window_.get(), resource_provider,
-                      render_tree_produced_callback, css_parser_.get(),
-                      options.layout_trigger, layout_refresh_rate) {
-  global_object_proxy_->CreateGlobalObject(window_,
-                                           environment_settings_.get());
-  window_->set_debug_hub(options.debug_hub);
-}
-
-WebModule::~WebModule() {}
-
-void WebModule::InjectEvent(const scoped_refptr<dom::Event>& event) {
-  TRACE_EVENT1("cobalt::browser", "WebModule::InjectEvent()",
-               "type", event->type());
-  // Forward the input event on to the DOM document.
-  thread_checker_.CalledOnValidThread();
-  window_->document()->DispatchEvent(event);
 }
 
 }  // namespace browser
