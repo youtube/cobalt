@@ -68,6 +68,11 @@ SB_EXPORT bool SbSystemGetPath(
     char *out_path,
     int path_length);
 
+// Gets a psuedorandom number uniformly distributed between the minimum and
+// maximum limits of uint64_t. This is expected to be a cryptographically secure
+// random number generator, and doesn't require manual seeding.
+SB_EXPORT uint64_t SbSystemGetRandomUInt64();
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
