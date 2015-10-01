@@ -228,7 +228,7 @@ void CSSStyleSheet::set_css_rules(
   }
 }
 
-scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
+const scoped_refptr<CSSRuleList>& CSSStyleSheet::css_rules() {
   if (!css_rule_list_) {
     set_css_rules(new CSSRuleList());
   }
