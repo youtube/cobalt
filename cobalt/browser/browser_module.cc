@@ -178,6 +178,8 @@ bool BrowserModule::FilterKeyEventForHotkeys(
     debug_hub_->CycleDebugConsoleMode();
     return false;
   }
+#else
+  UNREFERENCED_PARAMETER(event);
 #endif  // ENABLE_DEBUG_CONSOLE
 
   return true;
