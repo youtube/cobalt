@@ -85,6 +85,8 @@ class HTMLScriptElement : public HTMLElement {
   bool is_already_started_;
   // Whether the script element is inserted by parser.
   bool is_parser_inserted_;
+  // Whether the script is ready to be executed.
+  bool is_ready_;
   // The option that defines how the script should be loaded and executed.
   int load_option_;
   // SourceLocation for inline script.
@@ -95,8 +97,6 @@ class HTMLScriptElement : public HTMLElement {
   base::ThreadChecker thread_checker_;
   // The loader that is used for asynchronous loads.
   scoped_ptr<loader::Loader> loader_;
-  // Whether the script is ready to be executed.
-  bool is_ready_;
   // Whether the sync load is successful.
   bool is_sync_load_successful_;
   // Resolved URL of the script.
