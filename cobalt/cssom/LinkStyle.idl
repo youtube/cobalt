@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/html5/document-metadata.html#the-style-element
+// http://www.w3.org/TR/cssom/#the-linkstyle-interface
 
-interface HTMLStyleElement : HTMLElement {
-  attribute DOMString type;
+[NoInterfaceObject]
+interface LinkStyle {
+ readonly attribute StyleSheet? sheet;
 };
-HTMLStyleElement implements LinkStyle;

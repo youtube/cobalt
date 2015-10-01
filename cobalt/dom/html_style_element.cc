@@ -19,7 +19,6 @@
 #include <string>
 
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 
@@ -62,6 +61,7 @@ void HTMLStyleElement::Process() {
           text_content().value(), inline_style_location_);
   style_sheet->SetLocationUrl(GURL(inline_style_location_.file_path));
   owner_document()->style_sheets()->Append(style_sheet);
+  style_sheet_ = style_sheet;
 }
 
 }  // namespace dom

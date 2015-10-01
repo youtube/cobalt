@@ -56,7 +56,7 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   void set_css_rules(const scoped_refptr<CSSRuleList>& css_rule_list);
 
   // Returns a read-only, live object representing the CSS rules.
-  scoped_refptr<CSSRuleList> css_rules();
+  const scoped_refptr<CSSRuleList>& css_rules();
 
   // Inserts a new rule into the current style sheet. This Web API takes a
   // string as input and parses it into a rule.
