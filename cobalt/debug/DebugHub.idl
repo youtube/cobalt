@@ -32,6 +32,8 @@ interface DebugHub {
   DOMString getConsoleValue(DOMString name);
 
   long getDebugConsoleMode();
+
+  void executeCommand(DOMString command);
 };
 
 callback LogMessageCallback = void(long severity, DOMString file, long line,

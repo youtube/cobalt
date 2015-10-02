@@ -17,14 +17,17 @@
 #include "cobalt/debug/debug_hub.h"
 
 #include "cobalt/base/console_values.h"
+#include "cobalt/base/source_location.h"
 
 namespace cobalt {
 namespace debug {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
-DebugHub::DebugHub()
-    : next_log_message_callback_id_(0), debug_console_mode_(kDebugConsoleHud) {
+DebugHub::DebugHub(const ExecuteJavascriptCallback& execute_javascript_callback)
+    : execute_javascript_callback_(execute_javascript_callback),
+      next_log_message_callback_id_(0),
+      debug_console_mode_(kDebugConsoleHud) {
   // Get log output while still making it available elsewhere.
   const base::LogMessageHandler::OnLogMessageCallback on_log_message_callback =
       base::Bind(&DebugHub::OnLogMessage, base::Unretained(this));
@@ -123,11 +126,22 @@ int DebugHub::CycleDebugConsoleMode() {
   return debug_console_mode_;
 }
 
+void DebugHub::ExecuteCommand(const std::string& command) {
+  // TODO(***REMOVED***) The command string should first be checked to see if it
+  // matches any of a set of known commands to be executed locally, and only
+  // interpreted as Javascript if it is not a known command.
+  execute_javascript_callback_.Run(
+      command, base::SourceLocation("[object DebugHub]", 1, 1));
+}
+
 #else   // ENABLE_DEBUG_CONSOLE
 
 // Stub implementation when debug not enabled (release builds)
 
-DebugHub::DebugHub() {}
+DebugHub::DebugHub(
+    const ExecuteJavascriptCallback& execute_javascript_callback) {
+  UNREFERENCED_PARAMETER(execute_javascript_callback);
+}
 
 DebugHub::~DebugHub() {}
 
@@ -155,6 +169,10 @@ void DebugHub::SetDebugConsoleMode(int debug_console_mode) {
 int DebugHub::CycleDebugConsoleMode() { return kDebugConsoleOff; }
 
 int DebugHub::GetDebugConsoleMode() const { return kDebugConsoleOff; }
+
+void DebugHub::ExecuteCommand(const std::string& command) {
+  UNREFERENCED_PARAMETER(command);
+}
 #endif  // ENABLE_DEBUG_CONSOLE
 
 }  // namespace debug

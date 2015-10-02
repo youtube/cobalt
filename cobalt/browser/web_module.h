@@ -21,6 +21,7 @@
 
 #include "base/callback.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/base/source_location.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/dom_settings.h"
@@ -88,6 +89,10 @@ class WebModule {
   // Call this to inject an event into the web module which will ultimately make
   // its way to the appropriate object in DOM.
   void InjectEvent(const scoped_refptr<dom::Event>& event);
+
+  // Call this to execute Javascript code in this web module.
+  void ExecuteJavascript(const std::string& script_utf8,
+                         const base::SourceLocation& script_location);
 
   std::string GetUserAgent() const;
 
