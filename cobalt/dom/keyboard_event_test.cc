@@ -14,28 +14,21 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/ui_event.h"
+#include "cobalt/dom/keyboard_event.h"
 
-#include "base/compiler_specific.h"
+#include "cobalt/dom/event_names.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace dom {
 
-UIEvent::UIEvent(UninitializedFlag uninitialized_flag)
-    : Event(uninitialized_flag) {}
-
-UIEvent::UIEvent(const std::string& type) : Event(type) {}
-
-UIEvent::UIEvent(const std::string& type, Bubbles bubbles,
-                 Cancelable cancelable)
-    : Event(type, bubbles, cancelable) {}
-
-void UIEvent::InitUIEvent(const std::string& type, bool bubbles,
-                          bool cancelable, const scoped_refptr<Window>& view,
-                          int32 detail) {
-  UNREFERENCED_PARAMETER(detail);
-  InitEvent(type, bubbles, cancelable);
-  view_ = view;
+TEST(KeyboardEventTest, ShouldHaveBubblesAndCancelableSet) {
+  scoped_refptr<KeyboardEvent> keyboard_event =
+      new KeyboardEvent(EventNames::GetInstance()->keydown(),
+                        KeyboardEvent::kDomKeyLocationStandard,
+                        KeyboardEvent::kNoModifier, 0, 0, false);
+  EXPECT_TRUE(keyboard_event->bubbles());
+  EXPECT_TRUE(keyboard_event->cancelable());
 }
 
 }  // namespace dom

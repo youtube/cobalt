@@ -34,8 +34,8 @@
 namespace cobalt {
 namespace dom {
 
-// Implements the dispatching of event according to
-// http://www.w3.org/TR/dom/#dispatching-events
+// Algorithm for DispatchEvent:
+//   http://www.w3.org/TR/dom/#dispatching-events
 bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event);
   DCHECK(!event->IsBeingDispatched());
