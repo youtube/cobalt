@@ -50,6 +50,8 @@ class UIEvent : public Event {
 
  protected:
   explicit UIEvent(const std::string& type);
+  UIEvent(const std::string& type, Bubbles bubbles, Cancelable cancelable);
+
   ~UIEvent() OVERRIDE {}
 
   scoped_refptr<Window> view_;
