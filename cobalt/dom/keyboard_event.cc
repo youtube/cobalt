@@ -25,7 +25,7 @@ namespace dom {
 KeyboardEvent::KeyboardEvent(const std::string& type, KeyLocationCode location,
                              unsigned int modifiers, int key_code,
                              int char_code, bool is_repeat)
-    : UIEventWithKeyState(type, modifiers),
+    : UIEventWithKeyState(type, kBubbles, kCancelable, modifiers),
       location_(location),
       key_code_(key_code),
       char_code_(char_code),

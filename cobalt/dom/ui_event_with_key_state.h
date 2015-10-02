@@ -43,8 +43,9 @@ class UIEventWithKeyState : public UIEvent {
   bool shift_key() const { return (modifiers_ & kShiftKey) != 0; }
 
  protected:
-  UIEventWithKeyState(const std::string& type, unsigned int modifiers)
-      : UIEvent(type), modifiers_(modifiers) {}
+  UIEventWithKeyState(const std::string& type, Bubbles bubbles,
+                      Cancelable cancelable, unsigned int modifiers)
+      : UIEvent(type, bubbles, cancelable), modifiers_(modifiers) {}
 
   ~UIEventWithKeyState() OVERRIDE {}
 
