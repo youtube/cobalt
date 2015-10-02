@@ -20,9 +20,11 @@
 #include <map>
 #include <string>
 
+#include "base/callback.h"
 #include "base/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/log_message_handler.h"
+#include "cobalt/base/source_location.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/debug/system_stats_tracker.h"
 #endif  // ENABLE_DEBUG_CONSOLE
@@ -37,10 +39,15 @@ namespace debug {
 // A stub implementation is used if ENABLE_DEBUG_CONSOLE is not defined.
 class DebugHub : public script::Wrappable {
  public:
-  // Type for log message callback on JS side
+  // Type for log message callback on JS side.
   typedef script::CallbackFunction<
       void(int severity, const std::string& file, int line,
            size_t message_start, const std::string& msg)> LogMessageCallback;
+
+  // Javascript command execution callback type.
+  typedef base::Callback<void(const std::string& script_utf8,
+                              const base::SourceLocation& script_location)>
+      ExecuteJavascriptCallback;
 
   // Type for stored callback info.
   // We store the message loop from which the callback was registered,
@@ -63,7 +70,8 @@ class DebugHub : public script::Wrappable {
   static const int kLogErrorReport = logging::LOG_ERROR_REPORT;
   static const int kLogFatal = logging::LOG_FATAL;
 
-  DebugHub();
+  explicit DebugHub(
+      const ExecuteJavascriptCallback& execute_javascript_callback);
   ~DebugHub();
 
   // Called from JS to register a log message callback.
@@ -85,6 +93,12 @@ class DebugHub : public script::Wrappable {
   void SetDebugConsoleMode(int debug_console_mode);
   int CycleDebugConsoleMode();
 
+  // Executes a command.
+  // This could either be a command to be executed locally, or Javascript to be
+  // passed into the main web module for execution (via the callback stored in
+  // this object). Currently only Javascript execution is supported.
+  void ExecuteCommand(const std::string& command);
+
   DEFINE_WRAPPABLE_TYPE(DebugHub);
 
  private:
@@ -94,6 +108,9 @@ class DebugHub : public script::Wrappable {
                     size_t message_start, const std::string& str);
 
   typedef std::map<int, LogMessageCallbackInfo> LogMessageCallbacks;
+
+  // The callback to run to execute some JS.
+  const ExecuteJavascriptCallback execute_javascript_callback_;
 
   int next_log_message_callback_id_;
   LogMessageCallbacks log_message_callbacks_;

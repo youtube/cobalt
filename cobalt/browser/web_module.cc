@@ -73,6 +73,14 @@ void WebModule::InjectEvent(const scoped_refptr<dom::Event>& event) {
   window_->InjectEvent(event);
 }
 
+void WebModule::ExecuteJavascript(const std::string& script_utf8,
+                                  const base::SourceLocation& script_location) {
+  // TODO(***REMOVED***) When each web module has its own message loop, we will
+  // need to check the current message loop here and repost the task to that
+  // loop if necessary.
+  script_runner_->Execute(script_utf8, script_location);
+}
+
 std::string WebModule::GetUserAgent() const {
 #if defined(__LB_LINUX__)
   const char kVendor[] = "NoVendor";

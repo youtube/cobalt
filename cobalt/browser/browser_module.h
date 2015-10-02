@@ -107,12 +107,6 @@ class BrowserModule {
   // Sets up the network component for requesting internet resources.
   network::NetworkModule network_module_;
 
-  // Manages debug communication with the web modules.
-  scoped_refptr<debug::DebugHub> debug_hub_;
-
-  // Manages a second web module to implement the debug console.
-  DebugConsole debug_console_;
-
   // Manages the two render trees, combines and renders them.
   RenderTreeCombiner render_tree_combiner_;
 
@@ -121,6 +115,12 @@ class BrowserModule {
   // web module will ultimately produce a render tree that can be passed
   // into the renderer module.
   WebModule web_module_;
+
+  // Manages debug communication with the web modules.
+  scoped_refptr<debug::DebugHub> debug_hub_;
+
+  // Manages a second web module to implement the debug console.
+  DebugConsole debug_console_;
 
   // The browser module runs on this message loop.
   MessageLoop* const self_message_loop_;
