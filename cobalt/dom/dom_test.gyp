@@ -18,9 +18,9 @@
   },
   'targets': [
     {
-      # For the convenince of the tests, some test targets depend on
-      # dom_parser.gyp:dom_parser. To avoid the dependency cycle between the two
-      # gyp files, this target is separated into its own gyp file.
+      # For the convenince, some tests depend on dom_parser.gyp:dom_parser. To
+      # avoid the dependency cycle between the two gyp files, dom_test is
+      # separated into its own gyp file.
       'target_name': 'dom_test',
       'type': '<(gtest_target_type)',
       'sources': [
@@ -40,6 +40,7 @@
         'float64_array_test.cc',
         'html_element_factory_test.cc',
         'html_element_test.cc',
+        'keyboard_event_test.cc',
         'local_storage_database_test.cc',
         'location_test.cc',
         'node_dispatch_event_test.cc',
