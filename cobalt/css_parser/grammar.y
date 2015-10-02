@@ -748,7 +748,7 @@ media_feature_with_value:
 // Media feature: 'feature:value' for features that allow min/max prefixes.
 media_feature_allowing_operator_with_value:
     kLengthMediaFeatureTypeToken maybe_whitespace colon length {
-    $$ = AddRef(new cssom::MediaFeature($1, $4));
+    $$ = AddRef(new cssom::MediaFeature($1, MakeScopedRefPtrAndRelease($4)));
   }
   | kNonNegativeIntegerMediaFeatureTypeToken maybe_whitespace colon
     non_negative_integer {
@@ -756,10 +756,10 @@ media_feature_allowing_operator_with_value:
                                         AddRef(new cssom::NumberValue($4))));
   }
   | kRatioMediaFeatureTypeToken maybe_whitespace colon ratio {
-    $$ = AddRef(new cssom::MediaFeature($1, $4));
+    $$ = AddRef(new cssom::MediaFeature($1, MakeScopedRefPtrAndRelease($4)));
   }
   | kResolutionMediaFeatureTypeToken maybe_whitespace colon resolution {
-    $$ = AddRef(new cssom::MediaFeature($1, $4));
+    $$ = AddRef(new cssom::MediaFeature($1, MakeScopedRefPtrAndRelease($4)));
   }
   ;
 
@@ -767,9 +767,9 @@ media_feature_allowing_operator_with_value:
 // 'max-feature:value'
 //   http://www.w3.org/TR/css3-mediaqueries/#media1
 media_feature:
-    media_feature_without_value { $$ = $1; }
-  | media_feature_with_value { $$ = $1; }
-  | media_feature_allowing_operator_with_value { $$ = $1; }
+    media_feature_without_value
+  | media_feature_with_value
+  | media_feature_allowing_operator_with_value
   | media_feature_operator media_feature_allowing_operator_with_value {
     $$ = $2;
     $$->set_operator($1);
@@ -788,12 +788,12 @@ media_feature_list:
   // (name:value)
     media_feature_block {
     $$ = new cssom::MediaFeatures();
-    $$->push_back($1);
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
   }
   // ... and (name:value)
   | media_feature_list kMediaAndToken maybe_whitespace media_feature_block {
     $$ = $1;
-    $$->push_back($4);
+    $$->push_back(MakeScopedRefPtrAndRelease($4));
   }
   ;
 
@@ -896,11 +896,11 @@ media_query:
 media_list:
     media_query {
     $$ = AddRef(new cssom::MediaList(parser_impl->css_parser()));
-    $$->Append($1);
+    $$->Append(MakeScopedRefPtrAndRelease($1));
   }
   | media_list comma media_query {
     $$ = $1;
-    $$->Append($3);
+    $$->Append(MakeScopedRefPtrAndRelease($3));
   }
   ;
 
@@ -1732,7 +1732,8 @@ length_percent_property_value:
 background_property_element:
     color {
     if (!$<background_shorthand_layer>0->background_color) {
-      $<background_shorthand_layer>0->background_color = $1;
+      $<background_shorthand_layer>0->background_color =
+          MakeScopedRefPtrAndRelease($1);
     } else {
       parser_impl->LogError(
           @1, "background-color value declared twice in background.");
@@ -1740,7 +1741,8 @@ background_property_element:
   }
   | url {
     if (!$<background_shorthand_layer>0->background_image) {
-      $<background_shorthand_layer>0->background_image = $1;
+      $<background_shorthand_layer>0->background_image =
+          MakeScopedRefPtrAndRelease($1);
     } else {
       parser_impl->LogError(
           @1, "background-image value declared twice in background.");
