@@ -48,17 +48,6 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
       media_module_(media::MediaModule::Create(
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_),
-      debug_hub_(new debug::DebugHub()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
-          GURL(kInitialDebugConsoleUrl),
-          base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
-                     base::Unretained(this)),
-          base::Bind(&BrowserModule::OnError, base::Unretained(this)),
-          media_module_.get(), &network_module_,
-          math::Size(kInitialWidth, kInitialHeight),
-          renderer_module_.pipeline()->GetResourceProvider(),
-          renderer_module_.pipeline()->refresh_rate(),
-          WebModule::Options("DebugConsoleWebModule", debug_hub_))),
       render_tree_combiner_(renderer_module_.pipeline()),
       ALLOW_THIS_IN_INITIALIZER_LIST(web_module_(
           url, base::Bind(&BrowserModule::OnRenderTreeProduced,
@@ -69,6 +58,18 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           renderer_module_.pipeline()->GetResourceProvider(),
           renderer_module_.pipeline()->refresh_rate(),
           options.web_module_options)),
+      debug_hub_(new debug::DebugHub(base::Bind(
+          &WebModule::ExecuteJavascript, base::Unretained(&web_module_)))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
+          GURL(kInitialDebugConsoleUrl),
+          base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
+                     base::Unretained(this)),
+          base::Bind(&BrowserModule::OnError, base::Unretained(this)),
+          media_module_.get(), &network_module_,
+          math::Size(kInitialWidth, kInitialHeight),
+          renderer_module_.pipeline()->GetResourceProvider(),
+          renderer_module_.pipeline()->refresh_rate(),
+          WebModule::Options("DebugConsoleWebModule", debug_hub_))),
       self_message_loop_(MessageLoop::current()) {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
 
