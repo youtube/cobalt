@@ -35,10 +35,8 @@ const int kInitialWidth = 1920;
 const int kInitialHeight = 1080;
 
 // Files for the debug console web page are bundled with the executable.
-#if defined(ENABLE_DEBUG_CONSOLE)
 const char kInitialDebugConsoleUrl[] =
     "file:///cobalt/browser/debug_console/debug_console.html";
-#endif  // ENABLE_DEBUG_CONSOLE
 
 }  // namespace
 
@@ -51,7 +49,6 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_),
       debug_hub_(new debug::DebugHub()),
-#if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
           GURL(kInitialDebugConsoleUrl),
           base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
@@ -63,7 +60,6 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           renderer_module_.pipeline()->refresh_rate(),
           WebModule::Options("DebugConsoleWebModule", debug_hub_))),
       render_tree_combiner_(renderer_module_.pipeline()),
-#endif  // ENABLE_DEBUG_CONSOLE
       ALLOW_THIS_IN_INITIALIZER_LIST(web_module_(
           url, base::Bind(&BrowserModule::OnRenderTreeProduced,
                           base::Unretained(this)),
@@ -91,13 +87,12 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
   }
 
   // Set the initial debug console mode according to the command-line args
-#if defined(ENABLE_DEBUG_CONSOLE)
   debug_hub_->SetDebugConsoleMode(GetDebugConsoleModeFromCommandLine());
 
   // Always render the debug console. It will draw nothing if disabled.
+  // This setting is ignored if ENABLE_DEBUG_CONSOLE is not defined.
   // TODO(***REMOVED***) Render tree combiner should probably be refactored.
   render_tree_combiner_.set_render_debug_console(true);
-#endif  // ENABLE_DEBUG_CONSOLE
 }
 
 BrowserModule::~BrowserModule() {}
@@ -108,16 +103,10 @@ void BrowserModule::OnRenderTreeProduced(
         node_animations_map,
     base::TimeDelta time_produced) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
-#if defined(ENABLE_DEBUG_CONSOLE)
   render_tree_combiner_.UpdateMainRenderTree(renderer::Pipeline::Submission(
       render_tree, node_animations_map, time_produced));
-#else
-  renderer_module_.pipeline()->Submit(renderer::Pipeline::Submission(
-      render_tree, node_animations_map, time_produced));
-#endif  // ENABLE_DEBUG_CONSOLE
 }
 
-#if defined(ENABLE_DEBUG_CONSOLE)
 void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
@@ -129,7 +118,6 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
       renderer::Pipeline::Submission(render_tree, node_animations_map,
                                      time_produced));
 }
-#endif  // ENABLE_DEBUG_CONSOLE
 
 void BrowserModule::OnKeyEventProduced(
     const scoped_refptr<dom::KeyboardEvent>& event) {
@@ -156,7 +144,6 @@ bool BrowserModule::FilterKeyEvent(
     return false;
   }
 
-#if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // key events.
   if (debug_hub_->GetDebugConsoleMode() >= debug::DebugHub::kDebugConsoleOn) {
@@ -164,23 +151,18 @@ bool BrowserModule::FilterKeyEvent(
       return false;
     }
   }
-#endif  // ENABLE_DEBUG_CONSOLE
 
   return true;
 }
 
 bool BrowserModule::FilterKeyEventForHotkeys(
     const scoped_refptr<dom::KeyboardEvent>& event) {
-#if defined(ENABLE_DEBUG_CONSOLE)
   if (event->type() == dom::EventNames::GetInstance()->keydown() &&
       event->ctrl_key() && event->key_code() == input::kO) {
     // Ctrl+O toggles the debug console display.
     debug_hub_->CycleDebugConsoleMode();
     return false;
   }
-#else
-  UNREFERENCED_PARAMETER(event);
-#endif  // ENABLE_DEBUG_CONSOLE
 
   return true;
 }
