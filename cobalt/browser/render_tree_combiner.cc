@@ -21,6 +21,7 @@
 namespace cobalt {
 namespace browser {
 
+#if defined(ENABLE_DEBUG_CONSOLE)
 RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline)
     : render_debug_console_(true), renderer_pipeline_(renderer_pipeline) {}
 
@@ -65,6 +66,22 @@ void RenderTreeCombiner::SubmitToRenderer() {
     renderer_pipeline_->Submit(*main_render_tree_);
   }
 }
+#else   // ENABLE_DEBUG_CONSOLE
+RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline)
+    : renderer_pipeline_(renderer_pipeline) {}
+
+RenderTreeCombiner::~RenderTreeCombiner() {}
+
+void RenderTreeCombiner::UpdateMainRenderTree(
+    const renderer::Pipeline::Submission& render_tree_submission) {
+  renderer_pipeline_->Submit(render_tree_submission);
+}
+
+void RenderTreeCombiner::UpdateDebugConsoleRenderTree(
+    const renderer::Pipeline::Submission& render_tree_submission) {
+  UNREFERENCED_PARAMETER(render_tree_submission);
+}
+#endif  // ENABLE_DEBUG_CONSOLE
 
 }  // namespace browser
 }  // namespace cobalt

@@ -22,6 +22,7 @@
 namespace cobalt {
 namespace browser {
 
+#if defined(ENABLE_DEBUG_CONSOLE)
 DebugConsole::DebugConsole(
     const GURL& url, const WebModule::OnRenderTreeProducedCallback&
                          render_tree_produced_callback,
@@ -43,6 +44,34 @@ bool DebugConsole::FilterKeyEvent(
   web_module_.InjectEvent(event);
   return false;
 }
+#else   // ENABLE_DEBUG_CONSOLE
+DebugConsole::DebugConsole(
+    const GURL& url, const WebModule::OnRenderTreeProducedCallback&
+                         render_tree_produced_callback,
+    const base::Callback<void(const std::string&)>& error_callback,
+    media::MediaModule* media_module, network::NetworkModule* network_module,
+    const math::Size& window_dimensions,
+    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
+    const WebModule::Options& options) {
+  UNREFERENCED_PARAMETER(url);
+  UNREFERENCED_PARAMETER(render_tree_produced_callback);
+  UNREFERENCED_PARAMETER(error_callback);
+  UNREFERENCED_PARAMETER(media_module);
+  UNREFERENCED_PARAMETER(network_module);
+  UNREFERENCED_PARAMETER(window_dimensions);
+  UNREFERENCED_PARAMETER(resource_provider);
+  UNREFERENCED_PARAMETER(layout_refresh_rate);
+  UNREFERENCED_PARAMETER(options);
+}
+
+DebugConsole::~DebugConsole() {}
+
+bool DebugConsole::FilterKeyEvent(
+    const scoped_refptr<dom::KeyboardEvent>& event) {
+  UNREFERENCED_PARAMETER(event);
+  return true;
+}
+#endif  // ENABLE_DEBUG_CONSOLE
 
 }  // namespace browser
 }  // namespace cobalt

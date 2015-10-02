@@ -22,9 +22,10 @@
 namespace cobalt {
 namespace browser {
 
-// Combines the main and debug console render trees
-// Caches the individual trees as they are produced.
-// Re-renders when either tree changes.
+// Combines the main and debug console render trees. Caches the individual
+// trees as they are produced. Re-renders when either tree changes.
+// This class is only fully implemented when ENABLE_DEBUG_CONSOLE is defined,
+// otherwise (e.g. in release builds) a stub implementation is used.
 class RenderTreeCombiner {
  public:
   explicit RenderTreeCombiner(renderer::Pipeline* renderer_pipeline);
@@ -38,12 +39,20 @@ class RenderTreeCombiner {
   void UpdateDebugConsoleRenderTree(
       const renderer::Pipeline::Submission& render_tree_submission);
 
+#if defined(ENABLE_DEBUG_CONSOLE)
   bool render_debug_console() const { return render_debug_console_; }
   void set_render_debug_console(bool render_debug_console) {
     render_debug_console_ = render_debug_console;
   }
+#else   // ENABLE_DEBUG_CONSOLE
+  bool render_debug_console() const { return false; }
+  void set_render_debug_console(bool render_debug_console) {
+    UNREFERENCED_PARAMETER(render_debug_console);
+  }
+#endif  // ENABLE_DEBUG_CONSOLE
 
  private:
+#if defined(ENABLE_DEBUG_CONSOLE)
   // Combines the two cached render trees (main/debug) and renders the result.
   void SubmitToRenderer();
 
@@ -64,6 +73,10 @@ class RenderTreeCombiner {
 
   // The debug console render tree submission.
   base::optional<renderer::Pipeline::Submission> debug_console_render_tree_;
+#else   // ENABLE_DEBUG_CONSOLE
+  // Use this local reference even in release builds to submit the main tree.
+  renderer::Pipeline* renderer_pipeline_;
+#endif  // ENABLE_DEBUG_CONSOLE
 };
 
 }  // namespace browser
