@@ -63,6 +63,8 @@
 8-3-margin-percentage-should-refer-containing-block-width
 8-3-negative-margins-should-be-allowed
 8-3-vertical-margins-should-not-apply-to-non-replaced-inline-elements
+8-4-padding-color-should-be-specified-by-background
+8-4-padding-image-should-be-specified-by-background
 8-4-padding-percentage-should-refer-containing-block-width
 9-2-1-1-anonymous-block-boxes-should-be-ignored-when-resolving-percentages
 9-2-1-1-inline-level-boxes-should-be-broken-around-block-level-box
