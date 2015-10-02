@@ -64,6 +64,7 @@ function onKeypress(event) {
     if (k == 8) {
       inputText = inputText.substring(0, inputText.length - 1);
     } else if (k == 13) {
+      window.debugHub.executeCommand(inputText);
       inputText = "";
     } else if (k >= 0x20 && k < 0x7e) {
       inputText += String.fromCharCode(k);
