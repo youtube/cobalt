@@ -19,10 +19,8 @@
 
 #include <string>
 
-#if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/render_tree_combiner.h"
-#endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/browser/web_module.h"
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -65,13 +63,11 @@ class BrowserModule {
 
   // Glue function to deal with the production of the debug console render tree,
   // and will manage handing it off to the renderer.
-#if defined(ENABLE_DEBUG_CONSOLE)
   void OnDebugConsoleRenderTreeProduced(
       const scoped_refptr<render_tree::Node>& render_tree,
       const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
           node_animations_map,
       base::TimeDelta time_produced);
-#endif  // ENABLE_DEBUG_CONSOLE
 
   // Gets the user-specified debug console mode from the command-line.
   static int GetDebugConsoleModeFromCommandLine();
@@ -115,12 +111,10 @@ class BrowserModule {
   scoped_refptr<debug::DebugHub> debug_hub_;
 
   // Manages a second web module to implement the debug console.
-#if defined(ENABLE_DEBUG_CONSOLE)
   DebugConsole debug_console_;
 
   // Manages the two render trees, combines and renders them.
   RenderTreeCombiner render_tree_combiner_;
-#endif  // ENABLE_DEBUG_CONSOLE
 
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The

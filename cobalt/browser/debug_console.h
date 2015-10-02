@@ -27,6 +27,9 @@ namespace cobalt {
 namespace browser {
 
 // DebugConsole wraps the web module used to implement the debug console.
+// DebugConsole is only fully implemented in non-release builds. When
+// ENABLE_DEBUG_CONSOLE is not defined (Gold builds), all methods are stubbed
+// out.
 class DebugConsole {
  public:
   DebugConsole(const GURL& url, const WebModule::OnRenderTreeProducedCallback&
@@ -45,11 +48,13 @@ class DebugConsole {
   bool FilterKeyEvent(const scoped_refptr<dom::KeyboardEvent>& event);
 
  private:
+#if defined(ENABLE_DEBUG_CONSOLE)
   // Sets up everything to do with the management of the web page that
   // implements the debug console.
   // This web module will produce a second render tree to combine with the main
   // one.
   WebModule web_module_;
+#endif  // ENABLE_DEBUG_CONSOLE
 };
 
 }  // namespace browser
