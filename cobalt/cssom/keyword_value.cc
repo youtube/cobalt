@@ -37,6 +37,7 @@ struct KeywordValue::NonTrivialStaticFields {
         cursive_value(new KeywordValue(KeywordValue::kCursive)),
         ellipsis_value(new KeywordValue(KeywordValue::kEllipsis)),
         fantasy_value(new KeywordValue(KeywordValue::kFantasy)),
+        fixed_value(new KeywordValue(KeywordValue::kFixed)),
         hidden_value(new KeywordValue(KeywordValue::kHidden)),
         inherit_value(new KeywordValue(KeywordValue::kInherit)),
         initial_value(new KeywordValue(KeywordValue::kInitial)),
@@ -72,6 +73,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> cursive_value;
   const scoped_refptr<KeywordValue> ellipsis_value;
   const scoped_refptr<KeywordValue> fantasy_value;
+  const scoped_refptr<KeywordValue> fixed_value;
   const scoped_refptr<KeywordValue> hidden_value;
   const scoped_refptr<KeywordValue> inherit_value;
   const scoped_refptr<KeywordValue> initial_value;
@@ -153,6 +155,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetEllipsis() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetFantasy() {
   return non_trivial_static_fields.Get().fantasy_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetFixed() {
+  return non_trivial_static_fields.Get().fixed_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetHidden() {
@@ -273,6 +279,8 @@ std::string KeywordValue::ToString() const {
       return kEllipsisKeywordName;
     case kFantasy:
       return kFantasyKeywordName;
+    case kFixed:
+      return kFixedKeywordName;
     case kHidden:
       return kHiddenKeywordName;
     case kInherit:

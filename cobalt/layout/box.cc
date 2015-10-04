@@ -84,14 +84,16 @@ Box::Box(
 Box::~Box() {}
 
 bool Box::IsPositioned() const {
-  return computed_style()->position() != cssom::KeywordValue::GetStatic() ||
-         computed_style()->transform() != cssom::KeywordValue::GetNone();
+  return computed_style()->position() != cssom::KeywordValue::GetStatic();
+}
+
+bool Box::IsTransformed() const {
+  return computed_style()->transform() != cssom::KeywordValue::GetNone();
 }
 
 bool Box::IsAbsolutelyPositioned() const {
-  // TODO(***REMOVED***): A position of "fixed" is also out-of-flow and should not
-  //               affect the block formatting context's state.
-  return computed_style()->position() == cssom::KeywordValue::GetAbsolute();
+  return computed_style()->position() == cssom::KeywordValue::GetAbsolute() ||
+         computed_style()->position() == cssom::KeywordValue::GetFixed();
 }
 
 void Box::UpdateSize(const LayoutParams& layout_params) {
@@ -267,22 +269,26 @@ int Box::GetZIndex() const {
   }
 }
 
-void Box::UpdateCrossReferences() {
+void Box::UpdateCrossReferences(ContainerBox* fixed_containing_block) {
   // TODO(***REMOVED***): While passing NULL into the following parameters works fine
   //               for the initial containing block, if we wish to support
   //               partial layouts, we will need to search up our ancestor
   //               chain for the correct values to pass in here as context.
-  UpdateCrossReferencesWithContext(NULL, NULL);
+  UpdateCrossReferencesWithContext(fixed_containing_block, NULL, NULL);
 }
 
 void Box::UpdateCrossReferencesWithContext(
+    ContainerBox* fixed_containing_block,
     ContainerBox* absolute_containing_block, ContainerBox* stacking_context) {
-  if (IsPositioned()) {
+  if (IsPositioned() || IsTransformed()) {
     // Stacking context and containing blocks only matter for positioned
     // boxes.
     ContainerBox* containing_block;
-    if (IsAbsolutelyPositioned()) {
+    if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
       containing_block = absolute_containing_block;
+    } else if (computed_style()->position() ==
+               cssom::KeywordValue::GetFixed()) {
+      containing_block = fixed_containing_block;
     } else {
       containing_block = parent_;
     }
@@ -312,7 +318,7 @@ void Box::UpdatePaddings(const LayoutParams& layout_params) {
 
 void Box::SetupAsPositionedChild(ContainerBox* containing_block,
                                  ContainerBox* stacking_context) {
-  DCHECK(IsPositioned());
+  DCHECK(IsPositioned() || IsTransformed());
 
   DCHECK_EQ(parent_, containing_block_);
   DCHECK(!stacking_context_);
