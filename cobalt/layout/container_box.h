@@ -66,7 +66,13 @@ class ContainerBox : public Box {
   // Returns true if the given style allows a container box to act as a
   // containing block for absolutely positioned elements.  For example it will
   // be true if this box's style is itself 'absolute'.
-  bool IsContainingBlockForAbsoluteElements() const;
+  bool IsContainingBlockForPositionAbsoluteElements() const;
+
+  // Returns true if the given style allows a container box to act as a
+  // containing block for fixed positioned elements.  For example it will
+  // be true if this box is transformed, as indicated at the bottom of this
+  // section: http://www.w3.org/TR/css3-transforms/#transform-rendering.
+  bool IsContainingBlockForPositionFixedElements() const;
 
   // Returns true if this container box serves as a stacking context for
   // descendant elements.
@@ -104,6 +110,7 @@ class ContainerBox : public Box {
   const ChildBoxes& child_boxes() const { return child_boxes_; }
 
   void UpdateCrossReferencesWithContext(
+      ContainerBox* fixed_containing_block,
       ContainerBox* absolute_containing_block,
       ContainerBox* stacking_context) OVERRIDE;
 

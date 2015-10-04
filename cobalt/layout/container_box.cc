@@ -101,22 +101,32 @@ void ContainerBox::OnChildAdded(Box* child_box) {
 // Returns true if the given style allows a container box to act as a containing
 // block for absolutely positioned elements.  For example it will be true if
 // this box's style is itself 'absolute'.
-bool ContainerBox::IsContainingBlockForAbsoluteElements() const {
-  return parent() == NULL ||
-         computed_style()->position() == cssom::KeywordValue::GetAbsolute() ||
-         computed_style()->position() == cssom::KeywordValue::GetRelative() ||
-         computed_style()->transform() != cssom::KeywordValue::GetNone();
+bool ContainerBox::IsContainingBlockForPositionAbsoluteElements() const {
+  return parent() == NULL || IsPositioned() || IsTransformed();
+}
+
+bool ContainerBox::IsContainingBlockForPositionFixedElements() const {
+  return parent() == NULL || IsTransformed();
 }
 
 // Returns true if this container box serves as a stacking context for
-// descendant elements.
+// descendant elements.  The core stacking context creation criteria is given
+// here (http://www.w3.org/TR/CSS21/visuren.html#z-index) however it is
+// extended by various other specification documents such as those describing
+// opacity (http://www.w3.org/TR/css3-color/#transparency) and transforms
+// (http://www.w3.org/TR/css3-transforms/#transform-rendering).
 bool ContainerBox::IsStackingContext() const {
+  bool has_opacity =
+      base::polymorphic_downcast<const cssom::NumberValue*>(
+          computed_style()->opacity().get())->value() < 1.0f;
+  bool is_positioned_with_non_auto_z_index =
+      IsPositioned() &&
+      computed_style()->z_index() != cssom::KeywordValue::GetAuto();
+
   return parent() == NULL ||
-         base::polymorphic_downcast<const cssom::NumberValue*>(
-             computed_style()->opacity().get())->value() < 1.0f ||
-         computed_style()->transform() != cssom::KeywordValue::GetNone() ||
-         (IsPositioned() &&
-          computed_style()->z_index() != cssom::KeywordValue::GetAuto());
+         has_opacity ||
+         IsTransformed() ||
+         is_positioned_with_non_auto_z_index;
 }
 
 void ContainerBox::AddContainingBlockChild(Box* child_box) {
@@ -140,7 +150,7 @@ void ContainerBox::AddStackingContextChild(Box* child_box) {
 
 namespace {
 
-math::Vector2dF GetOffsetFromContainingBlock(Box* child_box) {
+math::Vector2dF GetOffsetFromContainingBlockToParent(Box* child_box) {
   math::Vector2dF relative_position;
   for (Box* ancestor_box = child_box->parent(),
             *containing_block = child_box->containing_block();
@@ -173,7 +183,7 @@ void ContainerBox::UpdateRectOfPositionedChildBoxes(
 
     DCHECK_EQ(this, child_box->containing_block());
     math::Vector2dF static_position_offset =
-        GetOffsetFromContainingBlock(child_box);
+        GetOffsetFromContainingBlockToParent(child_box);
     child_box->set_left(child_box->left() + static_position_offset.x());
     child_box->set_top(child_box->top() + static_position_offset.y());
 
@@ -183,23 +193,53 @@ void ContainerBox::UpdateRectOfPositionedChildBoxes(
 
 namespace {
 
-math::Vector2dF GetOffsetFromStackingContext(Box* child_box) {
+math::Vector2dF GetOffsetFromContainingBlockToStackingContext(Box* child_box) {
+  DCHECK_EQ(child_box->computed_style()->position(),
+            cssom::KeywordValue::GetFixed());
+
   math::Vector2dF relative_position;
-  for (Box* containing_block = child_box->containing_block(),
-            *stacking_context = child_box->stacking_context();
-       containing_block != stacking_context;
-       containing_block = containing_block->containing_block()) {
-    DCHECK(containing_block) << "Unable to find stacking context while "
-                                "traversing containing blocks.";
+  for (Box *containing_block = child_box->containing_block(),
+           *current_box = child_box->stacking_context();
+       current_box != containing_block;
+       current_box = current_box->containing_block()) {
+    DCHECK(current_box) << "Unable to find stacking context while "
+                           "traversing containing blocks.";
     // We should not determine a used position through a transform, as
     // rectangles may not remain rectangles past it, and thus obtaining
     // a position may be misleading.
     DCHECK_EQ(cssom::KeywordValue::GetNone(),
-              containing_block->computed_style()->transform());
+              current_box->computed_style()->transform());
 
-    relative_position += containing_block->GetContentBoxOffsetFromMarginBox();
-    relative_position +=
-        containing_block->margin_box_offset_from_containing_block();
+    relative_position += current_box->GetContentBoxOffsetFromMarginBox();
+    relative_position += current_box->margin_box_offset_from_containing_block();
+  }
+  return relative_position;
+}
+
+math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
+  if (child_box->computed_style()->position() ==
+      cssom::KeywordValue::GetFixed()) {
+    // Elements with fixed position will have their containing block farther
+    // up the hierarchy than the stacking context, so handle this case
+    // specially.
+    return -GetOffsetFromContainingBlockToStackingContext(child_box);
+  }
+
+  math::Vector2dF relative_position;
+  for (Box *current_box = child_box->containing_block(),
+           *stacking_context = child_box->stacking_context();
+       current_box != stacking_context;
+       current_box = current_box->containing_block()) {
+    DCHECK(current_box) << "Unable to find stacking context while "
+                           "traversing containing blocks.";
+    // We should not determine a used position through a transform, as
+    // rectangles may not remain rectangles past it, and thus obtaining
+    // a position may be misleading.
+    DCHECK_EQ(cssom::KeywordValue::GetNone(),
+              current_box->computed_style()->transform());
+
+    relative_position += current_box->GetContentBoxOffsetFromMarginBox();
+    relative_position += current_box->margin_box_offset_from_containing_block();
   }
   return relative_position;
 }
@@ -218,7 +258,8 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
     Box* child_box = *iter;
 
     DCHECK_EQ(this, child_box->stacking_context());
-    math::Vector2dF position_offset = GetOffsetFromStackingContext(child_box);
+    math::Vector2dF position_offset =
+        GetOffsetFromStackingContextToContainingBlock(child_box);
 
     if (position_offset.x() == 0.0f && position_offset.y() == 0.0f) {
       // If there is no offset between the child box's containing block
@@ -250,15 +291,22 @@ void ContainerBox::SplitBidiLevelRuns() {
 }
 
 void ContainerBox::UpdateCrossReferencesWithContext(
+    ContainerBox* fixed_containing_block,
     ContainerBox* absolute_containing_block, ContainerBox* stacking_context) {
   // First setup this box with cross-references as necessary.
-  Box::UpdateCrossReferencesWithContext(absolute_containing_block,
-                                        stacking_context);
+  Box::UpdateCrossReferencesWithContext(
+      fixed_containing_block, absolute_containing_block, stacking_context);
 
   // In addition to updating our cross references like a normal Box, we
   // also recursively update the cross-references of our children.
+  ContainerBox* fixed_containing_block_of_children =
+      IsContainingBlockForPositionFixedElements() ? this
+                                                  : fixed_containing_block;
+
   ContainerBox* absolute_containing_block_of_children =
-      IsContainingBlockForAbsoluteElements() ? this : absolute_containing_block;
+      IsContainingBlockForPositionAbsoluteElements()
+          ? this
+          : absolute_containing_block;
 
   ContainerBox* stacking_context_of_children =
       IsStackingContext() ? this : stacking_context;
@@ -267,6 +315,7 @@ void ContainerBox::UpdateCrossReferencesWithContext(
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     child_box->UpdateCrossReferencesWithContext(
+        fixed_containing_block_of_children,
         absolute_containing_block_of_children, stacking_context_of_children);
   }
 }
@@ -293,7 +342,7 @@ void ContainerBox::RenderAndAnimateContent(
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    if (!child_box->IsPositioned()) {
+    if (!child_box->IsPositioned() && !child_box->IsTransformed()) {
       child_box->RenderAndAnimate(content_node_builder,
                                   node_animations_map_builder);
     }

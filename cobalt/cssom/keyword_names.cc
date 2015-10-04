@@ -38,6 +38,7 @@ const char kEaseOutKeywordName[] = "ease-out";
 const char kEllipsisKeywordName[] = "ellipsis";
 const char kEndKeywordName[] = "end";
 const char kFantasyKeywordName[] = "fantasy";
+const char kFixedKeywordName[] = "fixed";
 const char kHiddenKeywordName[] = "hidden";
 const char kInheritKeywordName[] = "inherit";
 const char kInitialKeywordName[] = "initial";

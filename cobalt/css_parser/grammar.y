@@ -146,6 +146,7 @@
 %token kEllipsisToken                   // ellipsis
 %token kEndToken                        // end
 %token kFantasyToken                    // fantasy
+%token kFixedToken                      // fixed
 %token kHiddenToken                     // hidden
 %token kInheritToken                    // inherit
 %token kInitialToken                    // initial
@@ -1139,6 +1140,9 @@ identifier_token:
   }
   | kFantasyToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFantasyKeywordName);
+  }
+  | kFixedToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFixedKeywordName);
   }
   | kHiddenToken {
     $$ = TrivialStringPiece::FromCString(cssom::kHiddenKeywordName);
@@ -2629,6 +2633,9 @@ padding_property_value:
 position_property_value:
     kAbsoluteToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetAbsolute().get());
+  }
+  | kFixedToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetFixed().get());
   }
   | kRelativeToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetRelative().get());
