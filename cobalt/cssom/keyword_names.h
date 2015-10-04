@@ -40,6 +40,7 @@ extern const char kEaseOutKeywordName[];
 extern const char kEllipsisKeywordName[];
 extern const char kEndKeywordName[];
 extern const char kFantasyKeywordName[];
+extern const char kFixedKeywordName[];
 extern const char kHiddenKeywordName[];
 extern const char kInheritKeywordName[];
 extern const char kInitialKeywordName[];

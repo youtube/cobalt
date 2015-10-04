@@ -115,17 +115,16 @@ class Box {
   // Returns true if the box is positioned (e.g. position is non-static or
   // transform is not None).  Intuitively, this is true if the element does
   // not follow standard layout flow rules for determining its position.
-  //
-  // TODO(***REMOVED***): Fix the semantics of the method to correspond to
-  //               the "positioned box" definition given by
-  //               http://www.w3.org/TR/CSS21/visuren.html#positioned-element.
+  //   http://www.w3.org/TR/CSS21/visuren.html#positioned-element.
   bool IsPositioned() const;
+
+  // Returns true if the box has a non-"none" value for its transform property.
+  //   http://www.w3.org/TR/css3-transforms/#transform-property
+  bool IsTransformed() const;
 
   // Absolutely positioned box implies that the element's "position" property
   // has the value "absolute" or "fixed".
   //   http://www.w3.org/TR/CSS21/visuren.html#absolutely-positioned
-  //
-  // TODO(***REMOVED***): Implemented "position: fixed".
   bool IsAbsolutelyPositioned() const;
 
   // Updates the size of margin, border, padding, and content boxes. Lays out
@@ -286,7 +285,7 @@ class Box {
   // Updates all cross-references to other boxes in the box tree (e.g. stacking
   // contexts and containing blocks).  Calling this function will recursively
   // resolve these links for all elements in the box tree.
-  void UpdateCrossReferences();
+  void UpdateCrossReferences(ContainerBox* fixed_containing_block);
 
  protected:
   const UsedStyleProvider* used_style_provider() const {
@@ -370,6 +369,7 @@ class Box {
   // has already computed what the stacking context is and containing block
   // for absolute elements.
   virtual void UpdateCrossReferencesWithContext(
+      ContainerBox* fixed_containing_block,
       ContainerBox* absolute_containing_block, ContainerBox* stacking_context);
 
   // Updates the horizontal margins for block level in-flow boxes. This is used

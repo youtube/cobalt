@@ -1503,6 +1503,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kCoverToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFixedKeywordName)) {
+        *property_value_token = kFixedToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kRightKeywordName)) {
         *property_value_token = kRightToken;
         return true;

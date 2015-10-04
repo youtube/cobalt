@@ -98,6 +98,12 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/css3-fonts/#generic-font-families
     kFantasy,
 
+    // "fixed" is a value of the "position" property which indicates that
+    // the element is positioned and the element's containing block should be
+    // set to the viewport.
+    //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
+    kFixed,
+
     // "hidden" is a value of "overflow" property which indicates that
     // the content is clipped.
     //   http://www.w3.org/TR/CSS21/visufx.html#overflow
@@ -233,6 +239,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetCursive();
   static const scoped_refptr<KeywordValue>& GetEllipsis();
   static const scoped_refptr<KeywordValue>& GetFantasy();
+  static const scoped_refptr<KeywordValue>& GetFixed();
   static const scoped_refptr<KeywordValue>& GetHidden();
   static const scoped_refptr<KeywordValue>& GetInherit();
   static const scoped_refptr<KeywordValue>& GetInitial();
