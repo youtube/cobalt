@@ -74,6 +74,12 @@
 9-2-2-inline-level-boxes-should-participate-in-inline-formatting-context
 9-2-4-display-none-should-not-be-overridable
 9-2-4-display-none-should-not-generate-box
+9-3-1-fixed-position-elements-are-contained-by-transformed-elements
+9-3-1-fixed-position-elements-are-contained-by-viewport-despite-absolute-containing-block
+9-3-1-fixed-position-elements-compute-em-units-from-parent
+9-3-1-fixed-position-elements-follow-normal-stacking-context-rules
+9-3-1-fixed-position-elements-resolve-percentages-relative-to-viewport
+9-3-1-fixed-position-elements-right-and-bottom-position-relative-to-viewport
 9-3-2-absolute-position-elements-can-be-positioned-with-bottom-length
 9-3-2-absolute-position-elements-can-be-positioned-with-bottom-percentage
 9-3-2-absolute-position-elements-can-be-positioned-with-left-length

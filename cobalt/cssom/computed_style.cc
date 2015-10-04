@@ -178,6 +178,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -250,6 +251,7 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -332,6 +334,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -423,6 +426,7 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -510,6 +514,7 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -622,6 +627,7 @@ void ComputedBackgroundImageProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -724,6 +730,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -1001,6 +1008,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -1038,10 +1046,9 @@ void PromoteToComputedStyle(
 
   // According to http://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
   // "inline" and "inline-block" values of "display" become "block" if
-  // "position" is "absolute".
-  //
-  // TODO(***REMOVED***): Support "position: fixed".
-  if (specified_style->position() == KeywordValue::GetAbsolute() &&
+  // "position" is "absolute" or "fixed".
+  if ((specified_style->position() == KeywordValue::GetAbsolute() ||
+       specified_style->position() == KeywordValue::GetFixed()) &&
       (specified_style->display() == KeywordValue::GetInline() ||
        specified_style->display() == KeywordValue::GetInlineBlock())) {
     specified_style->set_display(KeywordValue::GetBlock());
@@ -1060,7 +1067,8 @@ void PromoteToComputedStyle(
   ComputedHeightProvider height_provider(
       parent_computed_style->height().get(),
       font_size_provider.computed_font_size().get(),
-      specified_style->position() == KeywordValue::GetAbsolute());
+      specified_style->position() == KeywordValue::GetAbsolute() ||
+          specified_style->position() == KeywordValue::GetFixed());
   specified_style->height()->Accept(&height_provider);
   specified_style->set_height(height_provider.computed_height());
 
