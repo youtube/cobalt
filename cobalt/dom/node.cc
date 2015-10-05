@@ -27,6 +27,7 @@
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/dom/node_list_live.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/text.h"
@@ -99,7 +100,7 @@ scoped_refptr<Element> Node::parent_element() const {
 bool Node::HasChildNodes() const { return first_child_ != NULL; }
 
 scoped_refptr<NodeList> Node::child_nodes() const {
-  return NodeList::CreateWithChildren(this);
+  return NodeListLive::CreateWithChildren(this);
 }
 
 // Algorithm for CloneNode:
@@ -439,6 +440,30 @@ scoped_refptr<Element> Node::QuerySelectorInternal(
     child = iterator.Next();
   }
   return NULL;
+}
+
+scoped_refptr<NodeList> Node::QuerySelectorAllInternal(
+    const std::string& selectors, cssom::CSSParser* css_parser) {
+  DCHECK(css_parser);
+
+  // Generate a rule with the given selectors and no style.
+  scoped_refptr<cssom::CSSStyleRule> rule = css_parser->ParseStyleRule(
+      selectors + " {}", base::SourceLocation("[object Element]", 1, 1));
+
+  // Iterate through the descendants of the node and find the matching elements.
+  scoped_refptr<NodeList> node_list = new NodeList();
+  NodeDescendantsIterator iterator(this);
+  Node* child = iterator.First();
+  while (child) {
+    if (child->IsElement()) {
+      scoped_refptr<Element> element = child->AsElement();
+      if (MatchRuleAndElement(rule, element)) {
+        node_list->AppendNode(element);
+      }
+    }
+    child = iterator.Next();
+  }
+  return node_list;
 }
 
 }  // namespace dom

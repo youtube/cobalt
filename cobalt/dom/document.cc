@@ -36,6 +36,7 @@
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
+#include "cobalt/dom/node_list.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
 
@@ -193,6 +194,12 @@ scoped_refptr<Element> Document::active_element() const {
 
 scoped_refptr<Element> Document::QuerySelector(const std::string& selectors) {
   return QuerySelectorInternal(selectors, html_element_context_->css_parser());
+}
+
+scoped_refptr<NodeList> Document::QuerySelectorAll(
+    const std::string& selectors) {
+  return QuerySelectorAllInternal(selectors,
+                                  html_element_context()->css_parser());
 }
 
 void Document::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
