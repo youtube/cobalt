@@ -189,9 +189,7 @@ TEST_P(LayoutTest, LayoutTest) {
                        &pixel_tester, &run_loop, &result));
 
   // Setup external modules needed by the WebModule.
-  storage::StorageManager::Options storage_manager_options;
-  storage::StorageManager storage_manager(storage_manager_options);
-  network::NetworkModule network_module(&storage_manager);
+  network::NetworkModule network_module;
   scoped_ptr<media::MediaModule> stub_media_module(
       new media::MediaModuleStub());
 
