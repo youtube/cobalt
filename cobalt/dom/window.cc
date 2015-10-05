@@ -102,10 +102,6 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
   document_->AddObserver(relay_on_load_event_.get());
 }
 
-HTMLElementContext* Window::html_element_context() const {
-  return html_element_context_.get();
-}
-
 const scoped_refptr<Document>& Window::document() const { return document_; }
 
 scoped_refptr<Location> Window::location() const {
@@ -114,11 +110,17 @@ scoped_refptr<Location> Window::location() const {
 
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
 
-const scoped_refptr<Screen>& Window::screen() { return screen_; }
-
-const scoped_refptr<Performance>& Window::performance() const {
-  return performance_;
+int32 Window::RequestAnimationFrame(
+    const scoped_refptr<FrameRequestCallback>& callback) {
+  return animation_frame_request_callback_list_->RequestAnimationFrame(
+      callback);
 }
+
+void Window::CancelAnimationFrame(int32 handle) {
+  animation_frame_request_callback_list_->CancelAnimationFrame(handle);
+}
+
+const scoped_refptr<Screen>& Window::screen() { return screen_; }
 
 scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 
@@ -144,6 +146,12 @@ scoped_refptr<Storage> Window::session_storage() const {
   return session_storage_;
 }
 
+const scoped_refptr<Performance>& Window::performance() const {
+  return performance_;
+}
+
+const scoped_refptr<Console>& Window::console() const { return console_; }
+
 const scoped_refptr<debug::DebugHub>& Window::debug_hub() const {
   return debug_hub_;
 }
@@ -158,18 +166,8 @@ const scoped_refptr<TestRunner>& Window::test_runner() const {
 }
 #endif  // ENABLE_TEST_RUNNER
 
-const scoped_refptr<Console>& Window::console() const { return console_; }
-
-Window::~Window() {}
-
-int32 Window::RequestAnimationFrame(
-    const scoped_refptr<FrameRequestCallback>& callback) {
-  return animation_frame_request_callback_list_->RequestAnimationFrame(
-      callback);
-}
-
-void Window::CancelAnimationFrame(int32 handle) {
-  animation_frame_request_callback_list_->CancelAnimationFrame(handle);
+HTMLElementContext* Window::html_element_context() const {
+  return html_element_context_.get();
 }
 
 void Window::RunAnimationFrameCallbacks() {
@@ -207,6 +205,8 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
     NOTREACHED();
   }
 }
+
+Window::~Window() {}
 
 }  // namespace dom
 }  // namespace cobalt
