@@ -212,6 +212,7 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kFantasy:
+    case cssom::KeywordValue::kFixed:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
@@ -288,6 +289,7 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kEllipsis:
+    case cssom::KeywordValue::kFixed:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
@@ -542,6 +544,7 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kFantasy:
+    case cssom::KeywordValue::kFixed:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
@@ -792,6 +795,7 @@ class UsedLengthProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kCursive:
       case cssom::KeywordValue::kEllipsis:
       case cssom::KeywordValue::kFantasy:
+      case cssom::KeywordValue::kFixed:
       case cssom::KeywordValue::kHidden:
       case cssom::KeywordValue::kInherit:
       case cssom::KeywordValue::kInitial:

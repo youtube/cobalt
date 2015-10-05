@@ -522,6 +522,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -616,6 +617,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -791,6 +793,7 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kFixed:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
