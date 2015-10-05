@@ -34,6 +34,8 @@
         'url_request_context.h',
         'url_request_context_getter.cc',
         'url_request_context_getter.h',
+        'user_agent.cc',
+        'user_agent.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -54,6 +56,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'persistent_cookie_store_test.cc',
+        'user_agent_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',

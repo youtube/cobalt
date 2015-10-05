@@ -17,12 +17,15 @@
 #ifndef NETWORK_NETWORK_MODULE_H_
 #define NETWORK_NETWORK_MODULE_H_
 
+#include <string>
+
 #include "base/message_loop_proxy.h"
 #include "base/object_watcher_shell.h"
 #include "base/threading/thread.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/url_request_context.h"
 #include "cobalt/network/url_request_context_getter.h"
+#include "cobalt/network/user_agent.h"
 #include "googleurl/src/gurl.h"
 
 namespace base {
@@ -38,11 +41,14 @@ class StorageManager;
 namespace network {
 
 // NetworkModule wraps various networking-related components such as
-// a URL request context.
-// This is owned by BrowserModule.
+// a URL request context. This is owned by BrowserModule.
 class NetworkModule {
  public:
-  explicit NetworkModule(storage::StorageManager* storage_manager);
+  // Default constructor, for use by unit tests.
+  NetworkModule();
+  // Constructor for production use.
+  NetworkModule(storage::StorageManager* storage_manager,
+                const std::string& preferred_language);
   ~NetworkModule();
 
   URLRequestContext* url_request_context() const {
@@ -51,6 +57,7 @@ class NetworkModule {
   NetworkDelegate* network_delegate() const {
     return network_delegate_.get();
   }
+  const std::string& user_agent() const { return user_agent_->user_agent(); }
   scoped_refptr<URLRequestContextGetter> url_request_context_getter() const {
     return url_request_context_getter_;
   }
@@ -60,6 +67,7 @@ class NetworkModule {
   storage::StorageManager* storage_manager() const { return storage_manager_; }
 
  private:
+  void Initialize();
   void OnCreate(base::WaitableEvent* creation_event);
 
   storage::StorageManager* storage_manager_;
@@ -68,6 +76,8 @@ class NetworkModule {
   scoped_ptr<URLRequestContext> url_request_context_;
   scoped_refptr<URLRequestContextGetter> url_request_context_getter_;
   scoped_ptr<NetworkDelegate> network_delegate_;
+  scoped_ptr<UserAgent> user_agent_;
+  std::string preferred_language_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);
 };
