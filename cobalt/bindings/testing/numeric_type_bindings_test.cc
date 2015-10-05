@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
+#include <cmath>
+
 #include "base/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/numeric_types_test_interface.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::Eq;
 using ::testing::InSequence;
+using ::testing::ResultOf;
 using ::testing::Return;
 
 namespace cobalt {
@@ -38,14 +42,20 @@ class NumericTypeBindingsTest
 template <typename T>
 class IntegerTypeBindingsTest : public NumericTypeBindingsTest<T> {};
 
+template <typename T>
+class FloatingPointTypeBindingsTest : public NumericTypeBindingsTest<T> {};
+
 typedef ::testing::Types<ByteTypeTest, OctetTypeTest, ShortTypeTest,
                          UnsignedShortTypeTest, LongTypeTest,
                          UnsignedLongTypeTest, DoubleTypeTest> NumericTypes;
 typedef ::testing::Types<ByteTypeTest, OctetTypeTest, ShortTypeTest,
                          UnsignedShortTypeTest, LongTypeTest,
                          UnsignedLongTypeTest> IntegerTypes;
+typedef ::testing::Types<DoubleTypeTest, UnrestrictedDoubleTypeTest>
+    FloatingPointTypes;
 TYPED_TEST_CASE(NumericTypeBindingsTest, NumericTypes);
 TYPED_TEST_CASE(IntegerTypeBindingsTest, IntegerTypes);
+TYPED_TEST_CASE(FloatingPointTypeBindingsTest, FloatingPointTypes);
 
 }  // namespace
 
@@ -184,6 +194,39 @@ TYPED_TEST(IntegerTypeBindingsTest, OutOfRangeBehaviour) {
       StringPrintf("test.%sProperty = (%s-2);", TypeParam::type_string(),
                    TypeParam::min_value_string()),
       NULL));
+}
+
+TYPED_TEST(FloatingPointTypeBindingsTest, NonFiniteValues) {
+  InSequence in_sequence_dummy;
+  if (TypeParam::is_restricted()) {
+    EXPECT_FALSE(this->EvaluateScript(
+        StringPrintf("test.%sProperty = Infinity;", TypeParam::type_string()),
+        NULL));
+    EXPECT_FALSE(this->EvaluateScript(
+        StringPrintf("test.%sProperty = -Infinity;", TypeParam::type_string()),
+        NULL));
+    EXPECT_FALSE(this->EvaluateScript(
+        StringPrintf("test.%sProperty = NaN;", TypeParam::type_string()),
+        NULL));
+  } else {
+    EXPECT_CALL(this->test_mock(),
+                mock_set_property(TypeParam::positive_infinity()));
+    EXPECT_TRUE(this->EvaluateScript(
+        StringPrintf("test.%sProperty = Infinity;", TypeParam::type_string()),
+        NULL));
+
+    EXPECT_CALL(this->test_mock(),
+                mock_set_property(TypeParam::negative_infinity()));
+    EXPECT_TRUE(this->EvaluateScript(
+        StringPrintf("test.%sProperty = -Infinity;", TypeParam::type_string()),
+        NULL));
+
+    EXPECT_CALL(this->test_mock(),
+                mock_set_property(ResultOf(&isnan, Eq(true))));
+    EXPECT_TRUE(this->EvaluateScript(
+        StringPrintf("test.%sProperty = NaN;", TypeParam::type_string()),
+        NULL));
+  }
 }
 
 }  // namespace testing
