@@ -61,6 +61,11 @@ class NumericTypesTestInterface : public script::Wrappable {
   virtual double double_property() { return 0; }
   virtual void set_double_property(double value) {}
 
+  virtual double UnrestrictedDoubleReturnOperation() { return 0; }
+  virtual void UnrestrictedDoubleArgumentOperation(double value) {}
+  virtual double unrestricted_double_property() { return 0; }
+  virtual void set_unrestricted_double_property(double value) {}
+
   DEFINE_WRAPPABLE_TYPE(NumericTypesTestInterface);
 };
 
@@ -198,6 +203,32 @@ class DoubleTypeTest : public NumericTypesTestInterfaceT<double> {
   void set_double_property(double value) OVERRIDE { mock_set_property(value); }
 
   static const char* type_string() { return "double"; }
+  static bool is_restricted() { return true; }
+  static double positive_infinity() {
+    return std::numeric_limits<double>::infinity();
+  }
+  static double negative_infinity() { return -positive_infinity(); }
+};
+
+class UnrestrictedDoubleTypeTest : public NumericTypesTestInterfaceT<double> {
+ public:
+  double UnrestrictedDoubleReturnOperation() OVERRIDE {
+    return MockReturnValueOperation();
+  }
+  void UnrestrictedDoubleArgumentOperation(double value) OVERRIDE {
+    MockArgumentOperation(value);
+  }
+  double unrestricted_double_property() OVERRIDE { return mock_get_property(); }
+  void set_unrestricted_double_property(double value) OVERRIDE {
+    mock_set_property(value);
+  }
+
+  static const char* type_string() { return "unrestrictedDouble"; }
+  static bool is_restricted() { return false; }
+  static double positive_infinity() {
+    return std::numeric_limits<double>::infinity();
+  }
+  static double negative_infinity() { return -positive_infinity(); }
 };
 
 }  // namespace testing

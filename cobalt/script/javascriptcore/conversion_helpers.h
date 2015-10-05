@@ -29,6 +29,7 @@
 #include "cobalt/dom/script_event_listener.h"
 #include "cobalt/script/javascriptcore/jsc_callback_function.h"
 #include "cobalt/script/javascriptcore/jsc_event_listener_callable.h"
+#include "cobalt/script/javascriptcore/jsc_exception_state.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/union_type_conversion_forward.h"
 #include "cobalt/script/javascriptcore/wrapper_base.h"
@@ -41,6 +42,13 @@
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
+
+// Flags that can be used as a bitmask for special conversion behaviour.
+enum ConversionFlags {
+  kNoConversionFlags = 0,
+  kConversionFlagRestricted = 1 << 0,
+  kConversionFlagsNumeric = kConversionFlagRestricted,
+};
 
 // Convert std::string in utf8 encoding to WTFString.
 WTF::String ToWTFString(const std::string& utf8_string);
@@ -153,19 +161,25 @@ inline JSC::JSValue ToJSValue(
 //
 // JSValue -> bool
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        int conversion_flags, ExceptionState* out_exception,
                         bool* out_bool) {
+  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+      << "No conversion flags supported.";
   *out_bool = jsvalue.toBoolean(exec_state);
 }
 
 // JSValue -> signed integers <= 4 bytes
 template <class T>
 inline void FromJSValue(
-    JSC::ExecState* exec_state, JSC::JSValue jsvalue, T* out_number,
-    typename base::enable_if<
-        std::numeric_limits<T>::is_specialized &&
-            std::numeric_limits<T>::is_integer &&
-            std::numeric_limits<T>::is_signed && (sizeof(T) <= 4),
-        T>::type* = NULL) {
+    JSC::ExecState* exec_state, JSC::JSValue jsvalue, int conversion_flags,
+    ExceptionState* out_exception, T* out_number,
+    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
+                                 std::numeric_limits<T>::is_integer &&
+                                 std::numeric_limits<T>::is_signed &&
+                                 (sizeof(T) <= 4),
+                             T>::type* = NULL) {
+  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+      << "No conversion flags supported.";
   int32_t int32_value = jsvalue.toInt32(exec_state);
   *out_number = static_cast<T>(int32_value);
 }
@@ -173,12 +187,15 @@ inline void FromJSValue(
 // JSValue -> unsigned integers <= 4 bytes
 template <class T>
 inline void FromJSValue(
-    JSC::ExecState* exec_state, JSC::JSValue jsvalue, T* out_number,
+    JSC::ExecState* exec_state, JSC::JSValue jsvalue, int conversion_flags,
+    ExceptionState* out_exception, T* out_number,
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  std::numeric_limits<T>::is_integer &&
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
+  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+      << "No conversion flags supported.";
   uint32_t uint32_value = jsvalue.toUInt32(exec_state);
   *out_number = static_cast<T>(uint32_value);
 }
@@ -186,28 +203,39 @@ inline void FromJSValue(
 // JSValue -> double
 template <class T>
 inline void FromJSValue(
-    JSC::ExecState* exec_state, JSC::JSValue jsvalue, T* out_number,
+    JSC::ExecState* exec_state, JSC::JSValue jsvalue, int conversion_flags,
+    ExceptionState* out_exception, T* out_number,
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  !std::numeric_limits<T>::is_integer,
                              T>::type* = NULL) {
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsNumeric, 0)
+      << "Unexpected conversion flags found.";
   double double_value = jsvalue.toNumber(exec_state);
-  // For non-unrestricted doubles/floats, NaN and +/-Infinity should throw a
-  // TypeError
-  DCHECK(isfinite(double_value))
-      << "unrestricted doubles/floats are not yet supported.";
+  if (!isfinite(double_value) &&
+      (conversion_flags & kConversionFlagRestricted)) {
+    out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                      "Non-finite floating-point value.");
+    return;
+  }
   *out_number = double_value;
 }
 
 // JSValue -> std::string
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        int conversion_flags, ExceptionState* out_exception,
                         std::string* out_string) {
+  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+      << "No conversion flags supported.";
   JSValueToString(exec_state, jsvalue, out_string);
 }
 
 // JSValue -> object
 template <class T>
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        int conversion_flags, ExceptionState* out_exception,
                         scoped_refptr<T>* out_object) {
+  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+      << "No conversion flags supported.";
   if (jsvalue.isNull()) {
     *out_object = NULL;
     return;
@@ -219,19 +247,26 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
 // JSValue -> optional<T>
 template <class T>
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        int conversion_flags, ExceptionState* out_exception,
                         base::optional<T>* out_optional) {
+  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+      << "No conversion flags supported.";
   if (jsvalue.isNull()) {
     *out_optional = base::nullopt;
   } else {
     *out_optional = T();
-    FromJSValue(exec_state, jsvalue, &(out_optional->value()));
+    FromJSValue(exec_state, jsvalue, conversion_flags, out_exception,
+                &(out_optional->value()));
   }
 }
 
 // JSValue -> CallbackFunction
 template <class T>
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        int conversion_flags, ExceptionState* out_exception,
                         scoped_refptr<CallbackFunction<T> >* out_callback) {
+  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+      << "No conversion flags supported.";
   if (jsvalue.isNull()) {
     // TODO(***REMOVED***): Throw TypeError if callback is not nullable.
     *out_callback = NULL;
