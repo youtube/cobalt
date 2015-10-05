@@ -123,6 +123,19 @@ class ContainerBox : public Box {
   void AddContainingBlockChild(Box* child_box);
   void AddStackingContextChild(Box* child_box);
 
+  // Updates used values of left/top/right/bottom given the child_box's
+  // 'position' property is set to 'relative'.
+  //    http://www.w3.org/TR/CSS21/visuren.html#relative-positioning
+  void UpdateOffsetOfRelativelyPositionedChildBox(
+      Box* child_box, const LayoutParams& child_layout_params);
+
+  // Updates the sizes of absolutely (and fixed) position of the child box.
+  // This is meant to be called by UpdateRectOfPositionedChildBoxes(), after the
+  // child has gone through the in-flow layout.
+  //    http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
+  void UpdateRectOfAbsolutelyPositionedChildBox(
+      Box* child_box, const LayoutParams& child_layout_params);
+
   // Add children (sorted by z-index) that belong to our stacking context to the
   // render tree.  The specific list of children to be rendered must be passed
   // in also, though it will likely only ever be either negative_z_index_child_

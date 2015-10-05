@@ -180,15 +180,90 @@ void ContainerBox::UpdateRectOfPositionedChildBoxes(
        child_box_iterator != positioned_child_boxes_.end();
        ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-
     DCHECK_EQ(this, child_box->containing_block());
-    math::Vector2dF static_position_offset =
-        GetOffsetFromContainingBlockToParent(child_box);
-    child_box->set_left(child_box->left() + static_position_offset.x());
-    child_box->set_top(child_box->top() + static_position_offset.y());
 
-    child_box->UpdateSize(child_layout_params);
+    if (child_box->computed_style()->position() ==
+        cssom::KeywordValue::GetRelative()) {
+      UpdateOffsetOfRelativelyPositionedChildBox(child_box,
+                                                 child_layout_params);
+    } else {
+      UpdateRectOfAbsolutelyPositionedChildBox(child_box, child_layout_params);
+    }
   }
+}
+
+void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
+    Box* child_box, const LayoutParams& child_layout_params) {
+  DCHECK_EQ(child_box->computed_style()->position(),
+            cssom::KeywordValue::GetRelative());
+
+  base::optional<float> maybe_left = GetUsedLeftIfNotAuto(
+      child_box->computed_style(), child_layout_params.containing_block_size);
+  base::optional<float> maybe_right = GetUsedRightIfNotAuto(
+      child_box->computed_style(), child_layout_params.containing_block_size);
+  base::optional<float> maybe_top = GetUsedTopIfNotAuto(
+      child_box->computed_style(), child_layout_params.containing_block_size);
+  base::optional<float> maybe_bottom = GetUsedBottomIfNotAuto(
+      child_box->computed_style(), child_layout_params.containing_block_size);
+
+  math::Vector2dF offset;
+
+  // The following steps are performed according to the procedure described
+  // here: http://www.w3.org/TR/CSS21/visuren.html#relative-positioning
+
+  // For relatively positioned elements, 'left' and 'right' move the box(es)
+  // horizontally, without changing their size.
+  if (!maybe_left && !maybe_right) {
+    // If both 'left' and 'right' are 'auto' (their initial values), the used
+    // values are '0' (i.e., the boxes stay in their original position).
+    offset.set_x(0);
+  } else if (maybe_left && !maybe_right) {
+    // If 'right' is 'auto', its used value is minus the value of 'left'.
+    offset.set_x(*maybe_left);
+  } else if (!maybe_left && maybe_right) {
+    // If 'left' is 'auto', its used value is minus the value of 'right'
+    offset.set_x(-*maybe_right);
+  } else {
+    // If neither 'left' nor 'right' is 'auto', the position is
+    // over-constrained, and one of them has to be ignored. If the 'direction'
+    // property of the containing block is 'ltr', the value of 'left' wins and
+    // 'right' becomes -'left'. If 'direction' of the containing block is 'rtl',
+    // 'right' wins and 'left' is ignored.
+
+    // TODO(***REMOVED***): Take into account the value of the 'direction' property,
+    //               which doesn't exist at the time of this writing.
+    offset.set_x(*maybe_left);
+  }
+
+  // The 'top' and 'bottom' properties move relatively positioned element(s) up
+  // or down without changing their size.
+  if (!maybe_top && !maybe_bottom) {
+    // If both are 'auto', their used values are both '0'.
+    offset.set_y(0);
+  } else if (maybe_top && !maybe_bottom) {
+    // If one of them is 'auto', it becomes the negative of the other.
+    offset.set_y(*maybe_top);
+  } else if (!maybe_top && maybe_bottom) {
+    // If one of them is 'auto', it becomes the negative of the other.
+    offset.set_y(-*maybe_bottom);
+  } else {
+    // If neither is 'auto', 'bottom' is ignored (i.e., the used value of
+    // 'bottom' will be minus the value of 'top').
+    offset.set_y(*maybe_top);
+  }
+
+  child_box->set_left(child_box->left() + offset.x());
+  child_box->set_top(child_box->top() + offset.y());
+}
+
+void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
+    Box* child_box, const LayoutParams& child_layout_params) {
+  math::Vector2dF static_position_offset =
+      GetOffsetFromContainingBlockToParent(child_box);
+  child_box->set_left(child_box->left() + static_position_offset.x());
+  child_box->set_top(child_box->top() + static_position_offset.y());
+
+  child_box->UpdateSize(child_layout_params);
 }
 
 namespace {
