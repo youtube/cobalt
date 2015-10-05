@@ -127,7 +127,8 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   }
 
   // Positioned children are laid out at the end as their position and size
-  // depends on the size of the containing block.
+  // depends on the size of the containing block as well as possibly their
+  // previously calculated in-flow position.
   child_layout_params.containing_block_size.set_height(height());
   UpdateRectOfPositionedChildBoxes(child_layout_params);
 
