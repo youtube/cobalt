@@ -35,38 +35,55 @@ class MockErrorCallback : public base::Callback<void(const std::string&)> {
   MOCK_METHOD1(Run, void(const std::string&));
 };
 
-TEST(WindowTest, ViewportSize) {
-  GURL url("about:blank");
-  std::string user_agent;
-  MockErrorCallback mock_error_callback;
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
-  network::NetworkModule network_module(NULL);
-  scoped_ptr<media::MediaModule> stub_media_module(
-      new media::MediaModuleStub());
-  scoped_ptr<css_parser::Parser> css_parser(css_parser::Parser::Create());
-  scoped_ptr<dom_parser::Parser> dom_parser(
-      new dom_parser::Parser(mock_error_callback));
-  scoped_ptr<loader::FetcherFactory> fetcher_factory(
-      new loader::FetcherFactory(&network_module));
-  dom::LocalStorageDatabase local_storage_database(NULL);
+class WindowTest : public ::testing::Test {
+ protected:
+  WindowTest()
+      : message_loop_(MessageLoop::TYPE_DEFAULT),
+        css_parser_(css_parser::Parser::Create()),
+        dom_parser_(new dom_parser::Parser(mock_error_callback_)),
+        network_module_(NULL),
+        fetcher_factory_(new loader::FetcherFactory(&network_module_)),
+        local_storage_database_(NULL),
+        stub_media_module_(new media::MediaModuleStub()),
+        url_("about:blank"),
+        window_(
+            new Window(1920, 1080, css_parser_.get(), dom_parser_.get(),
+                       fetcher_factory_.get(), NULL, &local_storage_database_,
+                       stub_media_module_.get(), NULL, NULL, url_, "",
+                       base::Bind(&MockErrorCallback::Run,
+                                  base::Unretained(&mock_error_callback_)))) {}
 
-  scoped_refptr<Window> window = new Window(
-      1920, 1080, css_parser.get(), dom_parser.get(), fetcher_factory.get(),
-      NULL, &local_storage_database, stub_media_module.get(), NULL, NULL, url,
-      user_agent, base::Bind(&MockErrorCallback::Run,
-                             base::Unretained(&mock_error_callback)));
+  ~WindowTest() OVERRIDE {}
 
-  EXPECT_FLOAT_EQ(window->inner_width(), 1920.0f);
-  EXPECT_FLOAT_EQ(window->inner_height(), 1080.0f);
-  EXPECT_FLOAT_EQ(window->screen_x(), 0.0f);
-  EXPECT_FLOAT_EQ(window->screen_y(), 0.0f);
-  EXPECT_FLOAT_EQ(window->outer_width(), 1920.0f);
-  EXPECT_FLOAT_EQ(window->outer_height(), 1080.0f);
-  EXPECT_FLOAT_EQ(window->device_pixel_ratio(), 1.0f);
-  EXPECT_FLOAT_EQ(window->screen()->width(), 1920.0f);
-  EXPECT_FLOAT_EQ(window->screen()->height(), 1080.0f);
-  EXPECT_FLOAT_EQ(window->screen()->avail_width(), 1920.0f);
-  EXPECT_FLOAT_EQ(window->screen()->avail_height(), 1080.0f);
+  MessageLoop message_loop_;
+  MockErrorCallback mock_error_callback_;
+  scoped_ptr<css_parser::Parser> css_parser_;
+  scoped_ptr<dom_parser::Parser> dom_parser_;
+  network::NetworkModule network_module_;
+  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
+  dom::LocalStorageDatabase local_storage_database_;
+  scoped_ptr<media::MediaModule> stub_media_module_;
+  GURL url_;
+  scoped_refptr<Window> window_;
+};
+
+TEST_F(WindowTest, WindowAndTopShouldReturnSelf) {
+  EXPECT_EQ(window_, window_->window());
+  EXPECT_EQ(window_, window_->top());
+}
+
+TEST_F(WindowTest, ViewportSize) {
+  EXPECT_FLOAT_EQ(window_->inner_width(), 1920.0f);
+  EXPECT_FLOAT_EQ(window_->inner_height(), 1080.0f);
+  EXPECT_FLOAT_EQ(window_->screen_x(), 0.0f);
+  EXPECT_FLOAT_EQ(window_->screen_y(), 0.0f);
+  EXPECT_FLOAT_EQ(window_->outer_width(), 1920.0f);
+  EXPECT_FLOAT_EQ(window_->outer_height(), 1080.0f);
+  EXPECT_FLOAT_EQ(window_->device_pixel_ratio(), 1.0f);
+  EXPECT_FLOAT_EQ(window_->screen()->width(), 1920.0f);
+  EXPECT_FLOAT_EQ(window_->screen()->height(), 1080.0f);
+  EXPECT_FLOAT_EQ(window_->screen()->avail_width(), 1920.0f);
+  EXPECT_FLOAT_EQ(window_->screen()->avail_height(), 1080.0f);
 }
 
 }  // namespace dom
