@@ -25,11 +25,14 @@
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
+#include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSString.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSValue.h"
 #include "third_party/WebKit/Source/WTF/wtf/text/WTFString.h"
+
+using testing::_;
 
 namespace cobalt {
 namespace script {
@@ -70,6 +73,7 @@ class NumericConversionTest : public ::testing::Test {
   const scoped_refptr<GlobalObjectProxy> global_object_proxy_;
   JSCGlobalObject* jsc_global_object_;
   JSC::ExecState* exec_state_;
+  testing::MockExceptionState exception_state_;
 };
 
 template <typename T>
@@ -83,9 +87,10 @@ TYPED_TEST_CASE(NumericConversionTest, NumericTypes);
 TYPED_TEST_CASE(IntegerConversionTest, IntegerTypes);
 
 template <class T>
-T JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue js_value) {
+T JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue js_value,
+                  int conversion_flags, ExceptionState* exception_state) {
   T value;
-  FromJSValue(exec_state, js_value, &value);
+  FromJSValue(exec_state, js_value, conversion_flags, exception_state, &value);
   return value;
 }
 
@@ -107,38 +112,44 @@ T JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue js_value) {
 
 // ToNumber: http://es5.github.io/#x9.3
 TYPED_TEST(NumericConversionTest, BooleanConversion) {
-  EXPECT_EQ(
-      1, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsBoolean(true)));
-  EXPECT_EQ(
-      0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsBoolean(false)));
+  EXPECT_EQ(1, JSValueToNumber<TypeParam>(
+                   this->exec_state_, JSC::jsBoolean(true), kNoConversionFlags,
+                   &this->exception_state_));
+  EXPECT_EQ(0, JSValueToNumber<TypeParam>(
+                   this->exec_state_, JSC::jsBoolean(false), kNoConversionFlags,
+                   &this->exception_state_));
 }
 
 // ToNumber applied to the String Type: http://es5.github.io/#x9.3.1
 TYPED_TEST(NumericConversionTest, StringConversion) {
   JSC::ExecState* exec = this->jsc_global_object_->globalExec();
   EXPECT_EQ(0, JSValueToNumber<TypeParam>(
-                   this->exec_state_, JSC::jsString(this->exec_state_, "")));
-  EXPECT_EQ(
-      0, JSValueToNumber<TypeParam>(this->exec_state_,
-                                    JSC::jsString(this->exec_state_, "    ")));
+                   this->exec_state_, JSC::jsString(this->exec_state_, ""),
+                   kNoConversionFlags, &this->exception_state_));
+  EXPECT_EQ(0, JSValueToNumber<TypeParam>(
+                   this->exec_state_, JSC::jsString(this->exec_state_, "    "),
+                   kNoConversionFlags, &this->exception_state_));
 
   // Integer types convert NaN to 0, and float types throw a TypeError.
   if (std::numeric_limits<TypeParam>::is_integer) {
     EXPECT_EQ(0, JSValueToNumber<TypeParam>(
                      this->exec_state_,
-                     JSC::jsString(this->exec_state_, "not_a_number")));
+                     JSC::jsString(this->exec_state_, "not_a_number"),
+                     kNoConversionFlags, &this->exception_state_));
   }
 
   EXPECT_EQ(32, JSValueToNumber<TypeParam>(
-                    this->exec_state_, JSC::jsString(this->exec_state_, "32")));
-  EXPECT_EQ(
-      32, JSValueToNumber<TypeParam>(this->exec_state_,
-                                     JSC::jsString(this->exec_state_, "0x20")));
+                    this->exec_state_, JSC::jsString(this->exec_state_, "32"),
+                    kNoConversionFlags, &this->exception_state_));
+  EXPECT_EQ(32, JSValueToNumber<TypeParam>(
+                    this->exec_state_, JSC::jsString(this->exec_state_, "0x20"),
+                    kNoConversionFlags, &this->exception_state_));
 
   if (!std::numeric_limits<TypeParam>::is_integer) {
-    EXPECT_EQ(54.34, JSValueToNumber<TypeParam>(
-                         this->exec_state_,
-                         JSC::jsString(this->exec_state_, "54.34")));
+    EXPECT_EQ(54.34,
+              JSValueToNumber<TypeParam>(
+                  this->exec_state_, JSC::jsString(this->exec_state_, "54.34"),
+                  kNoConversionFlags, &this->exception_state_));
   }
 }
 
@@ -147,30 +158,67 @@ TYPED_TEST(NumericConversionTest, StringConversion) {
 // Also in ToUint16, ToInt32, and ToUInt64:
 //     3. Let posInt be sign(number) * floor(abs(number))
 TYPED_TEST(IntegerConversionTest, FloatingPointToIntegerConversion) {
-  EXPECT_EQ(5,
-            JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNumber(5.1)));
+  EXPECT_EQ(5, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNumber(5.1),
+                                          kNoConversionFlags,
+                                          &this->exception_state_));
   if (std::numeric_limits<TypeParam>::is_signed) {
-    EXPECT_EQ(
-        -5, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNumber(-5.1)));
+    EXPECT_EQ(-5, JSValueToNumber<TypeParam>(
+                      this->exec_state_, JSC::jsNumber(-5.1),
+                      kNoConversionFlags, &this->exception_state_));
   }
 }
 
 // http://es5.github.io/#x9.3
 TYPED_TEST(NumericConversionTest, OtherConversions) {
-  EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNull()));
+  EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNull(),
+                                          kNoConversionFlags,
+                                          &this->exception_state_));
+
+  // Check that unrestricted types convert back as expected
+  const double kInfinity = std::numeric_limits<double>::infinity();
+  const double kNegativeInfinity = -std::numeric_limits<double>::infinity();
 
   // The following convert to non-finite numbers, which should throw a TypeError
   // for floating point types.
   if (std::numeric_limits<TypeParam>::is_integer) {
-    EXPECT_EQ(
-        0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsUndefined()));
     EXPECT_EQ(0, JSValueToNumber<TypeParam>(
-                     this->exec_state_,
-                     JSC::jsNumber(std::numeric_limits<double>::infinity())));
+                     this->exec_state_, JSC::jsUndefined(), kNoConversionFlags,
+                     &this->exception_state_));
     EXPECT_EQ(0, JSValueToNumber<TypeParam>(
-                     this->exec_state_,
-                     JSC::jsNumber(-std::numeric_limits<double>::infinity())));
-    EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNaN()));
+                     this->exec_state_, JSC::jsNumber(kInfinity),
+                     kNoConversionFlags, &this->exception_state_));
+    EXPECT_EQ(0, JSValueToNumber<TypeParam>(
+                     this->exec_state_, JSC::jsNumber(kNegativeInfinity),
+                     kNoConversionFlags, &this->exception_state_));
+    EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNaN(),
+                                            kNoConversionFlags,
+                                            &this->exception_state_));
+  } else {
+    // Unrestricted non-finite floating point conversions
+    EXPECT_EQ(kInfinity, JSValueToNumber<TypeParam>(
+                             this->exec_state_, JSC::jsNumber(kInfinity),
+                             kNoConversionFlags, &this->exception_state_));
+    EXPECT_EQ(kNegativeInfinity,
+              JSValueToNumber<TypeParam>(
+                  this->exec_state_, JSC::jsNumber(kNegativeInfinity),
+                  kNoConversionFlags, &this->exception_state_));
+    EXPECT_TRUE(isnan(JSValueToNumber<TypeParam>(
+        this->exec_state_, JSC::jsNaN(), kNoConversionFlags,
+        &this->exception_state_)));
+
+    // Restricted non-finite floating point conversions
+    EXPECT_CALL(this->exception_state_,
+                SetSimpleException(ExceptionState::kTypeError, _))
+        .Times(3);
+    JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNumber(kInfinity),
+                               kConversionFlagRestricted,
+                               &this->exception_state_);
+    JSValueToNumber<TypeParam>(
+        this->exec_state_, JSC::jsNumber(kNegativeInfinity),
+        kConversionFlagRestricted, &this->exception_state_);
+    JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNaN(),
+                               kConversionFlagRestricted,
+                               &this->exception_state_);
   }
 }
 
@@ -188,9 +236,10 @@ TYPED_TEST(NumericConversionTest, ObjectConversion) {
     JSC::JSObject* object =
         JSC::constructEmptyObject(this->exec_state_, structure);
     this->AddFunction(object, "valueOf", &(returnNumberFunction<5>));
-    EXPECT_EQ(5,
-              JSValueToNumber<TypeParam>(this->jsc_global_object_->globalExec(),
-                                         JSC::JSValue(object)));
+    EXPECT_EQ(
+        5, JSValueToNumber<TypeParam>(this->jsc_global_object_->globalExec(),
+                                      JSC::JSValue(object), kNoConversionFlags,
+                                      &this->exception_state_));
   }
   {
     JSC::JSObject* object =
@@ -198,14 +247,16 @@ TYPED_TEST(NumericConversionTest, ObjectConversion) {
     // The conversion algorithm uses the value of toString() if it is
     // a primitive value, which is not necessarily a string.
     this->AddFunction(object, "toString", &(returnNumberFunction<5>));
-    EXPECT_EQ(
-        5, JSValueToNumber<TypeParam>(this->exec_state_, JSC::JSValue(object)));
+    EXPECT_EQ(5, JSValueToNumber<TypeParam>(
+                     this->exec_state_, JSC::JSValue(object),
+                     kNoConversionFlags, &this->exception_state_));
   }
   {
     JSC::JSObject* object =
         JSC::constructEmptyObject(this->exec_state_, structure);
-    EXPECT_EQ(
-        0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::JSValue(object)));
+    EXPECT_EQ(0, JSValueToNumber<TypeParam>(
+                     this->exec_state_, JSC::JSValue(object),
+                     kNoConversionFlags, &this->exception_state_));
   }
 }
 

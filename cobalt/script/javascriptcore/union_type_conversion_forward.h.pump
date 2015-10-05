@@ -27,6 +27,7 @@ $var MAX_MEMBERS = 4
 #ifndef SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_FORWARD_H_
 #define SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_FORWARD_H_
 
+#include "cobalt/script/javascriptcore/jsc_exception_state.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/union_type.h"
 
@@ -45,6 +46,7 @@ JSC::JSValue ToJSValue(JSCGlobalObject* global_object, const script::UnionType$(
 
 template <$for TYPE , [[typename T$(TYPE)]]>
 void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                 int conversion_flags, ExceptionState* exception_state,
                  script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>* out_union);
 
 ]]  $$ for NUM_MEMBERS
