@@ -17,51 +17,28 @@
 #include "cobalt/dom/node_list.h"
 
 #include "cobalt/dom/node.h"
-#include "cobalt/dom/node_children_iterator.h"
 #include "cobalt/dom/stats.h"
 
 namespace cobalt {
 namespace dom {
 
-// static
-scoped_refptr<NodeList> NodeList::CreateWithChildren(
-    const scoped_refptr<const Node>& base) {
-  if (!base) {
-    return NULL;
-  }
-  return new NodeList(base);
-}
+NodeList::NodeList() { Stats::GetInstance()->Add(this); }
 
 unsigned int NodeList::length() {
-  MaybeRefreshCollection();
-  return static_cast<unsigned int>(cached_collection_.size());
+  return static_cast<unsigned int>(collection_.size());
 }
 
 scoped_refptr<Node> NodeList::Item(unsigned int item) {
-  MaybeRefreshCollection();
-  if (item < cached_collection_.size()) {
-    return cached_collection_[item];
+  if (item < collection_.size()) {
+    return collection_[item];
   }
   return NULL;
 }
 
-void NodeList::MaybeRefreshCollection() {
-  if (base_node_generation_ != base_->node_generation()) {
-    NodeChildrenIterator iterator(base_);
+void NodeList::Clear() { collection_.clear(); }
 
-    cached_collection_.clear();
-    Node* child = iterator.First();
-    while (child) {
-      cached_collection_.push_back(child);
-      child = iterator.Next();
-    }
-    base_node_generation_ = base_->node_generation();
-  }
-}
-
-NodeList::NodeList(const scoped_refptr<const Node>& base)
-    : base_(base), base_node_generation_(Node::kInvalidNodeGeneration) {
-  Stats::GetInstance()->Add(this);
+void NodeList::AppendNode(const scoped_refptr<Node>& node) {
+  collection_.push_back(node);
 }
 
 NodeList::~NodeList() { Stats::GetInstance()->Remove(this); }
