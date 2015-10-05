@@ -22,6 +22,7 @@
 #ifndef SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_FORWARD_H_
 #define SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_FORWARD_H_
 
+#include "cobalt/script/javascriptcore/jsc_exception_state.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/union_type.h"
 
@@ -37,6 +38,7 @@ JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
 
 template <typename T1, typename T2>
 void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                 int conversion_flags, ExceptionState* exception_state,
                  script::UnionType2<T1, T2>* out_union);
 
 template <typename T1, typename T2, typename T3>
@@ -45,6 +47,7 @@ JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
 
 template <typename T1, typename T2, typename T3>
 void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                 int conversion_flags, ExceptionState* exception_state,
                  script::UnionType3<T1, T2, T3>* out_union);
 
 template <typename T1, typename T2, typename T3, typename T4>
@@ -53,6 +56,7 @@ JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
 
 template <typename T1, typename T2, typename T3, typename T4>
 void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                 int conversion_flags, ExceptionState* exception_state,
                  script::UnionType4<T1, T2, T3, T4>* out_union);
 
 }  // namespace javascriptcore

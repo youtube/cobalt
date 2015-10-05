@@ -42,4 +42,8 @@ interface NumericTypesTestInterface {
   double doubleReturnOperation();
   void doubleArgumentOperation(double arg1);
   attribute double doubleProperty;
+
+  unrestricted double unrestrictedDoubleReturnOperation();
+  void unrestrictedDoubleArgumentOperation(unrestricted double arg1);
+  attribute unrestricted double unrestrictedDoubleProperty;
 };

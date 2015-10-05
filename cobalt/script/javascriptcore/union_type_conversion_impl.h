@@ -46,7 +46,9 @@ JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
 
 template <typename T1, typename T2>
 void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                 int conversion_flags, ExceptionState* exception_state,
                  script::UnionType2<T1, T2>* out_union) {
+  DCHECK_EQ(0, conversion_flags);
   // JS -> IDL type conversion procedure described here:
   // http://heycam.github.io/webidl/#es-union
 
@@ -83,7 +85,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
                 internal::UnionTypeTraits<T1>::GetTypeID()))) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType2<T1, T2>(t1);
       return;
     }
@@ -91,7 +93,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
                 internal::UnionTypeTraits<T2>::GetTypeID()))) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType2<T1, T2>(t2);
       return;
     }
@@ -106,13 +108,13 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   //      to boolean.
   if (jsvalue.isBoolean()) {
     if (internal::UnionTypeTraits<T1>::is_boolean_type) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType2<T1, T2>(t1);
       return;
     }
 
     if (internal::UnionTypeTraits<T2>::is_boolean_type) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType2<T1, T2>(t2);
       return;
     }
@@ -123,13 +125,13 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   //      V to that numeric type.
   if (jsvalue.isNumber()) {
     if (internal::UnionTypeTraits<T1>::is_numeric_type) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType2<T1, T2>(t1);
       return;
     }
 
     if (internal::UnionTypeTraits<T2>::is_numeric_type) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType2<T1, T2>(t2);
       return;
     }
@@ -139,13 +141,13 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // to that type.
   if (jsvalue.isString()) {
     if (internal::UnionTypeTraits<T1>::is_string_type) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType2<T1, T2>(t1);
       return;
     }
 
     if (internal::UnionTypeTraits<T2>::is_string_type) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType2<T1, T2>(t2);
       return;
     }
@@ -154,12 +156,12 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // 17. If types includes a numeric type, then return the result of converting
   // V to that numeric type.
   if (internal::UnionTypeTraits<T1>::is_numeric_type) {
-    FromJSValue(exec_state, jsvalue, &t1);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
     *out_union = script::UnionType2<T1, T2>(t1);
     return;
   }
   if (internal::UnionTypeTraits<T2>::is_numeric_type) {
-    FromJSValue(exec_state, jsvalue, &t2);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
     *out_union = script::UnionType2<T1, T2>(t2);
     return;
   }
@@ -167,19 +169,19 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // 18. If types includes a boolean, then return the result of converting V to
   // boolean.
   if (internal::UnionTypeTraits<T1>::is_boolean_type) {
-    FromJSValue(exec_state, jsvalue, &t1);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
     *out_union = script::UnionType2<T1, T2>(t1);
     return;
   }
   if (internal::UnionTypeTraits<T2>::is_boolean_type) {
-    FromJSValue(exec_state, jsvalue, &t2);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
     *out_union = script::UnionType2<T1, T2>(t2);
     return;
   }
 
   // 19. Throw a TypeError.
-  // TODO(***REMOVED***): Throw TypeError
-  NOTREACHED();
+  exception_state->SetSimpleException(
+      ExceptionState::kTypeError, "Value is not a member of the union type.");
 }
 
 template <typename T1, typename T2, typename T3>
@@ -200,7 +202,9 @@ JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
 
 template <typename T1, typename T2, typename T3>
 void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                 int conversion_flags, ExceptionState* exception_state,
                  script::UnionType3<T1, T2, T3>* out_union) {
+  DCHECK_EQ(0, conversion_flags);
   // JS -> IDL type conversion procedure described here:
   // http://heycam.github.io/webidl/#es-union
 
@@ -238,7 +242,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
                 internal::UnionTypeTraits<T1>::GetTypeID()))) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType3<T1, T2, T3>(t1);
       return;
     }
@@ -246,7 +250,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
                 internal::UnionTypeTraits<T2>::GetTypeID()))) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType3<T1, T2, T3>(t2);
       return;
     }
@@ -254,7 +258,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
                 internal::UnionTypeTraits<T3>::GetTypeID()))) {
-      FromJSValue(exec_state, jsvalue, &t3);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
       *out_union = script::UnionType3<T1, T2, T3>(t3);
       return;
     }
@@ -269,19 +273,19 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   //      to boolean.
   if (jsvalue.isBoolean()) {
     if (internal::UnionTypeTraits<T1>::is_boolean_type) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType3<T1, T2, T3>(t1);
       return;
     }
 
     if (internal::UnionTypeTraits<T2>::is_boolean_type) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType3<T1, T2, T3>(t2);
       return;
     }
 
     if (internal::UnionTypeTraits<T3>::is_boolean_type) {
-      FromJSValue(exec_state, jsvalue, &t3);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
       *out_union = script::UnionType3<T1, T2, T3>(t3);
       return;
     }
@@ -292,19 +296,19 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   //      V to that numeric type.
   if (jsvalue.isNumber()) {
     if (internal::UnionTypeTraits<T1>::is_numeric_type) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType3<T1, T2, T3>(t1);
       return;
     }
 
     if (internal::UnionTypeTraits<T2>::is_numeric_type) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType3<T1, T2, T3>(t2);
       return;
     }
 
     if (internal::UnionTypeTraits<T3>::is_numeric_type) {
-      FromJSValue(exec_state, jsvalue, &t3);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
       *out_union = script::UnionType3<T1, T2, T3>(t3);
       return;
     }
@@ -314,19 +318,19 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // to that type.
   if (jsvalue.isString()) {
     if (internal::UnionTypeTraits<T1>::is_string_type) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType3<T1, T2, T3>(t1);
       return;
     }
 
     if (internal::UnionTypeTraits<T2>::is_string_type) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType3<T1, T2, T3>(t2);
       return;
     }
 
     if (internal::UnionTypeTraits<T3>::is_string_type) {
-      FromJSValue(exec_state, jsvalue, &t3);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
       *out_union = script::UnionType3<T1, T2, T3>(t3);
       return;
     }
@@ -335,17 +339,17 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // 17. If types includes a numeric type, then return the result of converting
   // V to that numeric type.
   if (internal::UnionTypeTraits<T1>::is_numeric_type) {
-    FromJSValue(exec_state, jsvalue, &t1);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
     *out_union = script::UnionType3<T1, T2, T3>(t1);
     return;
   }
   if (internal::UnionTypeTraits<T2>::is_numeric_type) {
-    FromJSValue(exec_state, jsvalue, &t2);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
     *out_union = script::UnionType3<T1, T2, T3>(t2);
     return;
   }
   if (internal::UnionTypeTraits<T3>::is_numeric_type) {
-    FromJSValue(exec_state, jsvalue, &t3);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
     *out_union = script::UnionType3<T1, T2, T3>(t3);
     return;
   }
@@ -353,24 +357,24 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // 18. If types includes a boolean, then return the result of converting V to
   // boolean.
   if (internal::UnionTypeTraits<T1>::is_boolean_type) {
-    FromJSValue(exec_state, jsvalue, &t1);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
     *out_union = script::UnionType3<T1, T2, T3>(t1);
     return;
   }
   if (internal::UnionTypeTraits<T2>::is_boolean_type) {
-    FromJSValue(exec_state, jsvalue, &t2);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
     *out_union = script::UnionType3<T1, T2, T3>(t2);
     return;
   }
   if (internal::UnionTypeTraits<T3>::is_boolean_type) {
-    FromJSValue(exec_state, jsvalue, &t3);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
     *out_union = script::UnionType3<T1, T2, T3>(t3);
     return;
   }
 
   // 19. Throw a TypeError.
-  // TODO(***REMOVED***): Throw TypeError
-  NOTREACHED();
+  exception_state->SetSimpleException(
+      ExceptionState::kTypeError, "Value is not a member of the union type.");
 }
 
 template <typename T1, typename T2, typename T3, typename T4>
@@ -394,7 +398,9 @@ JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
 
 template <typename T1, typename T2, typename T3, typename T4>
 void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                 int conversion_flags, ExceptionState* exception_state,
                  script::UnionType4<T1, T2, T3, T4>* out_union) {
+  DCHECK_EQ(0, conversion_flags);
   // JS -> IDL type conversion procedure described here:
   // http://heycam.github.io/webidl/#es-union
 
@@ -433,7 +439,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
                 internal::UnionTypeTraits<T1>::GetTypeID()))) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
       return;
     }
@@ -441,7 +447,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
                 internal::UnionTypeTraits<T2>::GetTypeID()))) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
       return;
     }
@@ -449,7 +455,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
                 internal::UnionTypeTraits<T3>::GetTypeID()))) {
-      FromJSValue(exec_state, jsvalue, &t3);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
       return;
     }
@@ -457,7 +463,7 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
                 internal::UnionTypeTraits<T4>::GetTypeID()))) {
-      FromJSValue(exec_state, jsvalue, &t4);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t4);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
       return;
     }
@@ -472,25 +478,25 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   //      to boolean.
   if (jsvalue.isBoolean()) {
     if (internal::UnionTypeTraits<T1>::is_boolean_type) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
       return;
     }
 
     if (internal::UnionTypeTraits<T2>::is_boolean_type) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
       return;
     }
 
     if (internal::UnionTypeTraits<T3>::is_boolean_type) {
-      FromJSValue(exec_state, jsvalue, &t3);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
       return;
     }
 
     if (internal::UnionTypeTraits<T4>::is_boolean_type) {
-      FromJSValue(exec_state, jsvalue, &t4);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t4);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
       return;
     }
@@ -501,25 +507,25 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   //      V to that numeric type.
   if (jsvalue.isNumber()) {
     if (internal::UnionTypeTraits<T1>::is_numeric_type) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
       return;
     }
 
     if (internal::UnionTypeTraits<T2>::is_numeric_type) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
       return;
     }
 
     if (internal::UnionTypeTraits<T3>::is_numeric_type) {
-      FromJSValue(exec_state, jsvalue, &t3);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
       return;
     }
 
     if (internal::UnionTypeTraits<T4>::is_numeric_type) {
-      FromJSValue(exec_state, jsvalue, &t4);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t4);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
       return;
     }
@@ -529,25 +535,25 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // to that type.
   if (jsvalue.isString()) {
     if (internal::UnionTypeTraits<T1>::is_string_type) {
-      FromJSValue(exec_state, jsvalue, &t1);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
       return;
     }
 
     if (internal::UnionTypeTraits<T2>::is_string_type) {
-      FromJSValue(exec_state, jsvalue, &t2);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
       return;
     }
 
     if (internal::UnionTypeTraits<T3>::is_string_type) {
-      FromJSValue(exec_state, jsvalue, &t3);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
       return;
     }
 
     if (internal::UnionTypeTraits<T4>::is_string_type) {
-      FromJSValue(exec_state, jsvalue, &t4);
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t4);
       *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
       return;
     }
@@ -556,22 +562,22 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // 17. If types includes a numeric type, then return the result of converting
   // V to that numeric type.
   if (internal::UnionTypeTraits<T1>::is_numeric_type) {
-    FromJSValue(exec_state, jsvalue, &t1);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
     *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
     return;
   }
   if (internal::UnionTypeTraits<T2>::is_numeric_type) {
-    FromJSValue(exec_state, jsvalue, &t2);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
     *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
     return;
   }
   if (internal::UnionTypeTraits<T3>::is_numeric_type) {
-    FromJSValue(exec_state, jsvalue, &t3);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
     *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
     return;
   }
   if (internal::UnionTypeTraits<T4>::is_numeric_type) {
-    FromJSValue(exec_state, jsvalue, &t4);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t4);
     *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
     return;
   }
@@ -579,29 +585,29 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // 18. If types includes a boolean, then return the result of converting V to
   // boolean.
   if (internal::UnionTypeTraits<T1>::is_boolean_type) {
-    FromJSValue(exec_state, jsvalue, &t1);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t1);
     *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
     return;
   }
   if (internal::UnionTypeTraits<T2>::is_boolean_type) {
-    FromJSValue(exec_state, jsvalue, &t2);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t2);
     *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
     return;
   }
   if (internal::UnionTypeTraits<T3>::is_boolean_type) {
-    FromJSValue(exec_state, jsvalue, &t3);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t3);
     *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
     return;
   }
   if (internal::UnionTypeTraits<T4>::is_boolean_type) {
-    FromJSValue(exec_state, jsvalue, &t4);
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t4);
     *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
     return;
   }
 
   // 19. Throw a TypeError.
-  // TODO(***REMOVED***): Throw TypeError
-  NOTREACHED();
+  exception_state->SetSimpleException(
+      ExceptionState::kTypeError, "Value is not a member of the union type.");
 }
 
 }  // namespace javascriptcore
