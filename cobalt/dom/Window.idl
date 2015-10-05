@@ -14,19 +14,21 @@
  * limitations under the License.
  */
 
+// http://www.w3.org/TR/html5/browsers.html#the-window-object
+
 [PrimaryGlobal]
 /*sealed*/ interface Window : EventTarget {
-  // [Unforgeable] readonly attribute WindowProxy window;
+  // We do not have WindowProxy, window and top are of Window type.
+  [Unforgeable] readonly attribute Window window;
   [Unforgeable] readonly attribute Document document;
   [PutForwards=href, Unforgeable] readonly attribute Location location;
+  [Unforgeable] readonly attribute Window top;
   readonly attribute Navigator navigator;
+
+  // Custom, not in any spec.
+  //
   readonly attribute Console console;
-
-  // Custom interface to access debugging functionality (e.g. log messages).
-  // TODO(***REMOVED***) - provide link to design doc.
   readonly attribute DebugHub debugHub;
-
-  // Custom interface to communicate with layout tests (e.g. notify done).
   [Conditional=ENABLE_TEST_RUNNER] readonly attribute TestRunner testRunner;
 };
 Window implements GlobalCrypto;

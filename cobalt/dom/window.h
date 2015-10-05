@@ -89,6 +89,7 @@ class Window : public EventTarget {
   scoped_refptr<Window> window() { return this; }
   const scoped_refptr<Document>& document() const;
   scoped_refptr<Location> location() const;
+  scoped_refptr<Window> top() { return this; }
   const scoped_refptr<Navigator>& navigator() const;
 
   // Web API: Timing control for script-based animations (partial interface)
@@ -167,17 +168,7 @@ class Window : public EventTarget {
 
   // Custom, not in any spec.
   //
-  HTMLElementContext* html_element_context() const;
-
   const scoped_refptr<Console>& console() const;
-
-  // Will fire the animation frame callbacks and reset the animation frame
-  // request callback list.
-  void RunAnimationFrameCallbacks();
-
-  // Call this to inject an event into the window which will ultimately make
-  // its way to the appropriate object in DOM.
-  void InjectEvent(const scoped_refptr<Event>& event);
 
   // Handles debug communication with the main and debug console windows.
   const scoped_refptr<debug::DebugHub>& debug_hub() const;
@@ -186,6 +177,16 @@ class Window : public EventTarget {
 #if defined(ENABLE_TEST_RUNNER)
   const scoped_refptr<TestRunner>& test_runner() const;
 #endif  // ENABLE_TEST_RUNNER
+
+  HTMLElementContext* html_element_context() const;
+
+  // Will fire the animation frame callbacks and reset the animation frame
+  // request callback list.
+  void RunAnimationFrameCallbacks();
+
+  // Call this to inject an event into the window which will ultimately make
+  // its way to the appropriate object in DOM.
+  void InjectEvent(const scoped_refptr<Event>& event);
 
   DEFINE_WRAPPABLE_TYPE(Window);
 
