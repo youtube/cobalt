@@ -94,6 +94,13 @@
 9-4-2-long-inline-boxes-should-be-split
 9-4-2-margin-should-not-overflow-line-box
 9-4-2-unsplittable-inline-box-should-overflow
+9-4-3-relative-positioned-element-percentages-resolved-from-parent
+9-4-3-relative-positioned-elements-are-offset-from-normal-flow
+9-4-3-relative-positioned-elements-are-offset-from-normal-flow-via-right-and-bottom
+9-4-3-relative-positioned-elements-participate-in-stacking-context
+9-4-3-relative-positioned-elements-use-left-and-top-versus-right-and-bottom
+9-4-3-relative-positioned-elements-with-inline-block-display-are-offset-from-normal-flow
+9-4-3-relative-positioned-elements-with-inline-display-are-offset-from-normal-flow
 9-7-display-should-resolve-to-block-if-position-is-absolute
 9-9-1-absolute-positioned-elements-should-render-on-top-of-static-elements
 9-9-1-elements-with-transform-should-appear-over-normal-flow-elements
