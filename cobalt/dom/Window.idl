@@ -18,10 +18,10 @@
 
 [PrimaryGlobal]
 /*sealed*/ interface Window : EventTarget {
-  // We do not have WindowProxy, window and top are of Window type.
-  [Unforgeable] readonly attribute Window window;
   [Unforgeable] readonly attribute Document document;
   [PutForwards=href, Unforgeable] readonly attribute Location location;
+  // TODO(b/20952738): Currently we do not have WindowProxy, top is of Window
+  // type. Revert when supported.
   [Unforgeable] readonly attribute Window top;
   readonly attribute Navigator navigator;
 
