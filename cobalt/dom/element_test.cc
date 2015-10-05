@@ -522,16 +522,24 @@ TEST_F(ElementTest, OuterHTML) {
 
 TEST_F(ElementTest, QuerySelector) {
   scoped_refptr<Element> root = new Element(document_);
-  root->AppendChild(
-      html_element_context_.html_element_factory()->CreateHTMLElement(document_,
-                                                                      "div"));
-  root->AppendChild(
-      html_element_context_.html_element_factory()->CreateHTMLElement(document_,
-                                                                      "div"));
-  root->QuerySelector("div");
+  root->AppendChild(document_->CreateElement("div"));
+  root->AppendChild(document_->CreateElement("div"));
   EXPECT_FALSE(root->QuerySelector("span"));
   // QuerySelector should return first matching child.
   EXPECT_EQ(root->first_element_child(), root->QuerySelector("div"));
+}
+
+TEST_F(ElementTest, QuerySelectorAll) {
+  scoped_refptr<Element> root = new Element(document_);
+  root->AppendChild(document_->CreateElement("div"));
+  root->AppendChild(document_->CreateElement("div"));
+  scoped_refptr<NodeList> result = root->QuerySelectorAll("span");
+  EXPECT_EQ(0, result->length());
+
+  result = root->QuerySelectorAll("div");
+  EXPECT_EQ(2, result->length());
+  EXPECT_EQ(root->first_element_child(), result->Item(0));
+  EXPECT_EQ(root->last_element_child(), result->Item(1));
 }
 
 TEST_F(ElementTest, NodeValueAndTextContent) {

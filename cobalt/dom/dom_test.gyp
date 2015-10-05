@@ -44,6 +44,8 @@
         'local_storage_database_test.cc',
         'location_test.cc',
         'node_dispatch_event_test.cc',
+        'node_list_live_test.cc',
+        'node_list_test.cc',
         'node_test.cc',
         'performance_test.cc',
         'rule_matching_test.cc',

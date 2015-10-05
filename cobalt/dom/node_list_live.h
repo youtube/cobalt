@@ -14,49 +14,51 @@
  * limitations under the License.
  */
 
-#ifndef DOM_NODE_LIST_H_
-#define DOM_NODE_LIST_H_
+#ifndef DOM_NODE_LIST_LIVE_H_
+#define DOM_NODE_LIST_LIVE_H_
 
-#include <vector>
+#include "cobalt/dom/node_list.h"
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
 
 class Node;
 
-// A NodeList object is a collection of nodes.
+// A NodeListLive is a live NodeList, which is a collection of nodes.
 //    http://www.w3.org/TR/2015/WD-dom-20150428/#interface-nodelist
-class NodeList : public script::Wrappable {
+class NodeListLive : public NodeList {
  public:
-  NodeList();
+  // Create a live collection of all first-level child nodes.
+  static scoped_refptr<NodeListLive> CreateWithChildren(
+      const scoped_refptr<const Node>& base);
 
   // Web API: NodeList
   //
-  virtual unsigned int length();
+  unsigned int length() OVERRIDE;
 
-  virtual scoped_refptr<Node> Item(unsigned int item);
+  scoped_refptr<Node> Item(unsigned int item) OVERRIDE;
 
   // Custom, not in any spec.
   //
-  void Clear();
+  void MaybeRefreshCollection();
 
-  void AppendNode(const scoped_refptr<Node>& node);
-
-  DEFINE_WRAPPABLE_TYPE(NodeList);
-
- protected:
-  ~NodeList() OVERRIDE;
+  DEFINE_WRAPPABLE_TYPE(NodeListLive);
 
  private:
-  std::vector<scoped_refptr<Node> > collection_;
+  explicit NodeListLive(const scoped_refptr<const Node>& base);
+  ~NodeListLive() OVERRIDE {}
 
-  DISALLOW_COPY_AND_ASSIGN(NodeList);
+  // Base node that was used to generate the collection.
+  const scoped_refptr<const Node> base_;
+  // Generation of the base node that was used to create the cache.
+  uint32_t base_node_generation_;
+
+  DISALLOW_COPY_AND_ASSIGN(NodeListLive);
 };
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_NODE_LIST_H_
+#endif  // DOM_NODE_LIST_LIVE_H_
