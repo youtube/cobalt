@@ -45,12 +45,13 @@ class BrowserModule {
     renderer::RendererModule::Options renderer_module_options;
     storage::StorageManager::Options storage_manager_options;
     WebModule::Options web_module_options;
+    std::string language;
   };
 
   BrowserModule(const GURL& url, const Options& options);
   ~BrowserModule();
 
-  std::string GetUserAgent() { return web_module_.GetUserAgent(); }
+  const std::string& GetUserAgent() { return network_module_.user_agent(); }
 
  private:
   // Glue function to deal with the production of the main render tree,

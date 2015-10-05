@@ -32,10 +32,39 @@ void OnDestroy(scoped_ptr<URLRequestContext> /* url_request_context */,
                scoped_ptr<NetworkDelegate> /* network_delegate */) {}
 }  // namespace
 
-NetworkModule::NetworkModule(storage::StorageManager* storage_manager)
+NetworkModule::NetworkModule()
+    : storage_manager_(NULL), preferred_language_("en-US") {
+  Initialize();
+}
+
+NetworkModule::NetworkModule(storage::StorageManager* storage_manager,
+                             const std::string& preferred_language)
     : storage_manager_(storage_manager),
-      thread_(new base::Thread("NetworkModule")),
-      object_watch_multiplexer_(new base::ObjectWatchMultiplexer()) {
+      preferred_language_(preferred_language) {
+  Initialize();
+}
+
+NetworkModule::~NetworkModule() {
+  // Order of destruction is important here.
+  // URLRequestContext and NetworkDelegate must be destroyed on the IO thread.
+  // The ObjectWatchMultiplexer must be destroyed last.  (The sockets owned
+  // by URLRequestContext will destroy their ObjectWatchers, which need the
+  // multiplexer.)
+  url_request_context_getter_ = NULL;
+  message_loop_proxy()->PostTask(
+      FROM_HERE, base::Bind(&OnDestroy, base::Passed(&url_request_context_),
+                            base::Passed(&network_delegate_)));
+  // This will run the above task, and then stop the thread.
+  thread_.reset(NULL);
+  object_watch_multiplexer_.reset(NULL);
+  PlatformShutdown();
+}
+
+void NetworkModule::Initialize() {
+  thread_.reset(new base::Thread("NetworkModule"));
+  object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
+  user_agent_.reset(new UserAgent(preferred_language_));
+
   PlatformInit();
 
   // Launch the IO thread.
@@ -59,24 +88,6 @@ NetworkModule::NetworkModule(storage::StorageManager* storage_manager)
       url_request_context_.get(), thread_.get());
 }
 
-NetworkModule::~NetworkModule() {
-  // Order of destruction is important here.
-  // URLRequestContext and NetworkDelegate must be destroyed on the IO thread.
-  // The ObjectWatchMultiplexer must be destroyed last.  (The sockets owned
-  // by URLRequestContext will destroy their ObjectWatchers, which need the
-  // multiplexer.)
-  url_request_context_getter_ = NULL;
-  message_loop_proxy()->PostTask(
-      FROM_HERE, base::Bind(
-          &OnDestroy,
-          base::Passed(&url_request_context_),
-          base::Passed(&network_delegate_)));
-  // This will run the above task, and then stop the thread.
-  thread_.reset(NULL);
-  object_watch_multiplexer_.reset(NULL);
-  PlatformShutdown();
-}
-
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   DCHECK(message_loop_proxy()->BelongsToCurrentThread());
 
@@ -85,6 +96,7 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   // TODO(***REMOVED***): Specify any override to the cookie settings
   // in net_options.
   network_delegate_.reset(new NetworkDelegate(net_options));
+  url_request_context_->set_http_user_agent_settings(user_agent_.get());
   url_request_context_->set_network_delegate(network_delegate_.get());
   creation_event->Signal();
 }

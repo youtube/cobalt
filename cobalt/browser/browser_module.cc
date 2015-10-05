@@ -47,7 +47,7 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
                        options.renderer_module_options),
       media_module_(media::MediaModule::Create(
           renderer_module_.pipeline()->GetResourceProvider())),
-      network_module_(&storage_manager_),
+      network_module_(&storage_manager_, options.language),
       render_tree_combiner_(renderer_module_.pipeline()),
       ALLOW_THIS_IN_INITIALIZER_LIST(web_module_(
           url, base::Bind(&BrowserModule::OnRenderTreeProduced,

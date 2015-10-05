@@ -82,6 +82,8 @@ Application::Application()
   // Create the main components of our browser.
   BrowserModule::Options options;
   options.web_module_options.name = "MainWebModule";
+  // TODO(***REMOVED***): Retrieve the system language from the system.
+  options.language = "en-US";
   browser_module_.reset(new BrowserModule(url, options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 }
