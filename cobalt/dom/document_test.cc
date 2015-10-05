@@ -26,6 +26,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/location.h"
+#include "cobalt/dom/node_list.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
@@ -287,16 +288,25 @@ TEST_F(DocumentTest, StyleSheets) {
 TEST_F(DocumentTest, QuerySelector) {
   scoped_refptr<Document> document =
       new Document(&html_element_context_, Document::Options());
-  document->AppendChild(
-      html_element_context_.html_element_factory()->CreateHTMLElement(document,
-                                                                      "div"));
-  document->AppendChild(
-      html_element_context_.html_element_factory()->CreateHTMLElement(document,
-                                                                      "div"));
-  document->QuerySelector("div");
+  document->AppendChild(document->CreateElement("div"));
+  document->AppendChild(document->CreateElement("div"));
   EXPECT_FALSE(document->QuerySelector("span"));
   // QuerySelector should return first matching child.
   EXPECT_EQ(document->first_element_child(), document->QuerySelector("div"));
+}
+
+TEST_F(DocumentTest, QuerySelectorAll) {
+  scoped_refptr<Document> document =
+      new Document(&html_element_context_, Document::Options());
+  document->AppendChild(document->CreateElement("div"));
+  document->AppendChild(document->CreateElement("div"));
+  scoped_refptr<NodeList> result = document->QuerySelectorAll("span");
+  EXPECT_EQ(0, result->length());
+
+  result = document->QuerySelectorAll("div");
+  EXPECT_EQ(2, result->length());
+  EXPECT_EQ(document->first_element_child(), result->Item(0));
+  EXPECT_EQ(document->last_element_child(), result->Item(1));
 }
 
 }  // namespace

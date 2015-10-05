@@ -46,6 +46,7 @@ class HTMLHeadElement;
 class HTMLHtmlElement;
 class HTMLScriptElement;
 class Location;
+class NodeList;
 class Text;
 
 class DocumentObserver {
@@ -131,10 +132,10 @@ class Document : public Node, public cssom::MutationObserver {
   }
 
   // Web API: Selectors API (partial interface)
-  // This interface is extended in the spec Selectors API.
   //   http://www.w3.org/TR/selectors-api2/#interface-definitions
   //
   scoped_refptr<Element> QuerySelector(const std::string& selectors);
+  scoped_refptr<NodeList> QuerySelectorAll(const std::string& selectors);
 
   // Web Animations API
   // http://www.w3.org/TR/web-animations/#extensions-to-the-document-interface

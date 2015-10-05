@@ -219,20 +219,26 @@ class Node : public EventTarget {
   explicit Node(Document* document);
   virtual ~Node();
 
-  // Called to notify that the node and all its descendants has been inserted to
-  // its owner document.
+  // Called to notify that the node along with all its descendants has been
+  // inserted to its owner document.
   virtual void OnInsertedIntoDocument();
-  // Called to notify that the node and all its descendants has been removeed
-  // from its owner document.
+  // Called to notify that the node along with all its descendants has been
+  // removed from to its owner document.
   virtual void OnRemovedFromDocument();
+
   // Derived class can override this method to prevent certain children types
   // from being appended.
   virtual bool CheckAcceptAsChild(const scoped_refptr<Node>& child) const;
+
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateNodeGeneration();
-  // Implementation of QuerySelector on Document and Element;
+
+  // Implementations of QuerySelector and QuerySelectorAll on Document and
+  // Element.
   scoped_refptr<Element> QuerySelectorInternal(const std::string& selectors,
                                                cssom::CSSParser* css_parser);
+  scoped_refptr<NodeList> QuerySelectorAllInternal(
+      const std::string& selectors, cssom::CSSParser* css_parser);
 
  private:
   // Weak reference to the parent node.
