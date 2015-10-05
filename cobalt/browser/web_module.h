@@ -94,8 +94,6 @@ class WebModule {
   void ExecuteJavascript(const std::string& script_utf8,
                          const base::SourceLocation& script_location);
 
-  std::string GetUserAgent() const;
-
  private:
   std::string name_;
 

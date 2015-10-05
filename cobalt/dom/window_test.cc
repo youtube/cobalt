@@ -41,7 +41,6 @@ class WindowTest : public ::testing::Test {
       : message_loop_(MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
-        network_module_(NULL),
         fetcher_factory_(new loader::FetcherFactory(&network_module_)),
         local_storage_database_(NULL),
         stub_media_module_(new media::MediaModuleStub()),
