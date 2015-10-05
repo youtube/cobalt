@@ -26,6 +26,7 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/named_node_map.h"
+#include "cobalt/dom/node_list.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/dom/text.h"
@@ -167,6 +168,12 @@ void Element::set_outer_html(const std::string& outer_html) {
 
 scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {
   return QuerySelectorInternal(selectors, html_element_context()->css_parser());
+}
+
+scoped_refptr<NodeList> Element::QuerySelectorAll(
+    const std::string& selectors) {
+  return QuerySelectorAllInternal(selectors,
+                                  html_element_context()->css_parser());
 }
 
 // Algorithm for GetAttribute:

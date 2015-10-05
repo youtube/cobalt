@@ -145,6 +145,8 @@
         'node_descendants_iterator.h',
         'node_list.cc',
         'node_list.h',
+        'node_list_live.cc',
+        'node_list_live.h',
         'performance.cc',
         'performance.h',
         'performance_timing.cc',
