@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// Custom interface to access debugging functionalities.
+// TODO(***REMOVED***): provide link to design doc.
+
 interface DebugHub {
   const long LOG_INFO = 0;
   const long LOG_WARNING = 1;

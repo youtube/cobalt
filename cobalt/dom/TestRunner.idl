@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Custom, not in any spec.
+// Custom interface to communicate with layout tests.
 
 [
   Conditional=ENABLE_TEST_RUNNER

@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-// https://developer.mozilla.org/en-US/docs/Web/API/Console
+// The console object provides access to the browser's debugging console.
+//   https://developer.mozilla.org/en-US/docs/Web/API/Console
+
 interface Console {
   void log(DOMString text);
   void trace();
