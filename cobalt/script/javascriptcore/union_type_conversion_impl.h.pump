@@ -57,7 +57,9 @@ $for TYPE [[
 
 template <$for TYPE , [[typename T$(TYPE)]]>
 void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                 int conversion_flags, ExceptionState* exception_state,
                  script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>* out_union) {
+  DCHECK_EQ(0, conversion_flags);
   // JS -> IDL type conversion procedure described here:
   // http://heycam.github.io/webidl/#es-union
 
@@ -99,7 +101,7 @@ $for TYPE [[
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
                 internal::UnionTypeTraits<T$(TYPE)>::GetTypeID()))) {
-      FromJSValue(exec_state, jsvalue, &t$(TYPE));
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
       *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
       return;
     }
@@ -118,7 +120,7 @@ $for TYPE [[
 $for TYPE [[
 
     if (internal::UnionTypeTraits<T$(TYPE)>::is_boolean_type) {
-      FromJSValue(exec_state, jsvalue, &t$(TYPE));
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
       *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
       return;
     }
@@ -133,7 +135,7 @@ $for TYPE [[
 $for TYPE [[
 
     if (internal::UnionTypeTraits<T$(TYPE)>::is_numeric_type) {
-      FromJSValue(exec_state, jsvalue, &t$(TYPE));
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
       *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
       return;
     }
@@ -147,7 +149,7 @@ $for TYPE [[
 $for TYPE [[
 
     if (internal::UnionTypeTraits<T$(TYPE)>::is_string_type) {
-      FromJSValue(exec_state, jsvalue, &t$(TYPE));
+      FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
       *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
       return;
     }
@@ -160,7 +162,7 @@ $for TYPE [[
 $for TYPE [[
 
   if (internal::UnionTypeTraits<T$(TYPE)>::is_numeric_type) {
-    FromJSValue(exec_state, jsvalue, &t$(TYPE));
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
     *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
     return;
   }
@@ -172,7 +174,7 @@ $for TYPE [[
 $for TYPE [[
 
   if (internal::UnionTypeTraits<T$(TYPE)>::is_boolean_type) {
-    FromJSValue(exec_state, jsvalue, &t$(TYPE));
+    FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
     *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
     return;
   }
@@ -180,8 +182,8 @@ $for TYPE [[
 
 
   // 19. Throw a TypeError.
-  // TODO(***REMOVED***): Throw TypeError
-  NOTREACHED();
+  exception_state->SetSimpleException(
+      ExceptionState::kTypeError, "Value is not a member of the union type.");
 }
 
 ]]  $$ for NUM_MEMBERS
