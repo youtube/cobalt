@@ -228,6 +228,14 @@
                 '../third_party/libevent/libevent.gyp:libevent'
               ],
             }],
+            ['target_arch == "linux"', {
+              'defines': [
+                'USE_SYMBOLIZE',
+              ],
+              'dependencies': [
+                'symbolize',
+              ],
+            }],
             # toolset can be host or target.
             # (host in the case of e.g. protobuf compiler.)
             # We only want posix_emulation for target builds.
@@ -1081,7 +1089,7 @@
         },
       ],
     }],
-    ['os_posix==1 and OS!="mac" and OS!="ios" and (OS!="lb_shell" or target_arch=="android")', {
+    ['os_posix==1 and OS!="mac" and OS!="ios" and (OS!="lb_shell" or target_arch in ("android", "linux"))', {
       'targets': [
         {
           'target_name': 'symbolize',
