@@ -75,7 +75,7 @@ std::string ScopedRandomFile::MakeRandomFile(int length) {
 
   char data[length];
   for (int i = 0; i < length; ++i) {
-    data[i] = (char)(i & 0xFF);
+    data[i] = static_cast<char>(i & 0xFF);
   }
 
   int bytes = SbFileWrite(file, data, length);
