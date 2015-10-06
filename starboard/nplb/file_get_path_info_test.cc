@@ -43,21 +43,28 @@ TEST(SbFileGetInfoTest, InvalidFileErrors) {
 }
 
 TEST(SbFileGetInfoTest, WorksOnARegularFile) {
-  SbTime time = SbTimeGetNow() - kSbTimeSecond;
+  // This test is potentially flaky because it's comparing times. So, building
+  // in extra sensitivity to make flakiness more apparent.
+  const int kTrials = 100;
+  for (int i = 0; i < kTrials; ++i) {
+    // Assuming platforms have at least 1 second precision on filesystem
+    // timestamps, we need to go back two seconds to avoid rounding issues.
+    SbTime time = SbTimeGetNow() - (2 * kSbTimeSecond);
 
-  const int kFileSize = 123;
-  starboard::nplb::ScopedRandomFile random_file(kFileSize);
-  const std::string &filename = random_file.filename();
+    const int kFileSize = 12;
+    starboard::nplb::ScopedRandomFile random_file(kFileSize);
+    const std::string &filename = random_file.filename();
 
-  {
-    SbFileInfo info = { 0 };
-    bool result = SbFileGetPathInfo(filename.c_str(), &info);
-    EXPECT_EQ(kFileSize, info.size);
-    EXPECT_FALSE(info.is_directory);
-    EXPECT_FALSE(info.is_symbolic_link);
-    EXPECT_LE(time, info.last_modified);
-    EXPECT_LE(time, info.last_accessed);
-    EXPECT_LE(time, info.creation_time);
+    {
+      SbFileInfo info = { 0 };
+      bool result = SbFileGetPathInfo(filename.c_str(), &info);
+      EXPECT_EQ(kFileSize, info.size);
+      EXPECT_FALSE(info.is_directory);
+      EXPECT_FALSE(info.is_symbolic_link);
+      EXPECT_LE(time, info.last_modified);
+      EXPECT_LE(time, info.last_accessed);
+      EXPECT_LE(time, info.creation_time);
+    }
   }
 }
 
