@@ -230,6 +230,22 @@ base::optional<float> GetUsedWidthIfNotAuto(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* width_depends_on_containing_block);
+base::optional<float> GetUsedMaxHeightIfNotNone(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size,
+    bool* height_depends_on_containing_block);
+base::optional<float> GetUsedMaxWidthIfNotNone(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size,
+    bool* width_depends_on_containing_block);
+float GetUsedMinHeight(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size,
+    bool* height_depends_on_containing_block);
+float GetUsedMinWidth(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size,
+    bool* width_depends_on_containing_block);
 base::optional<float> GetUsedHeightIfNotAuto(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const math::SizeF& containing_block_size);
