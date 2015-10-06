@@ -57,6 +57,11 @@ TYPED_TEST_CASE(NumericTypeBindingsTest, NumericTypes);
 TYPED_TEST_CASE(IntegerTypeBindingsTest, IntegerTypes);
 TYPED_TEST_CASE(FloatingPointTypeBindingsTest, FloatingPointTypes);
 
+template <typename T>
+bool IsNan(T number) {
+  return isnan(number);
+}
+
 }  // namespace
 
 TYPED_TEST(NumericTypeBindingsTest, PropertyIsNumber) {
@@ -222,7 +227,8 @@ TYPED_TEST(FloatingPointTypeBindingsTest, NonFiniteValues) {
         NULL));
 
     EXPECT_CALL(this->test_mock(),
-                mock_set_property(ResultOf(&isnan, Eq(true))));
+                mock_set_property(
+                    ResultOf(IsNan<typename TypeParam::BaseType>, Eq(true))));
     EXPECT_TRUE(this->EvaluateScript(
         StringPrintf("test.%sProperty = NaN;", TypeParam::type_string()),
         NULL));
