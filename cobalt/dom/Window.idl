@@ -20,9 +20,6 @@
 /*sealed*/ interface Window : EventTarget {
   [Unforgeable] readonly attribute Document document;
   [PutForwards=href, Unforgeable] readonly attribute Location location;
-  // TODO(b/20952738): Currently we do not have WindowProxy, top is of Window
-  // type. Revert when supported.
-  [Unforgeable] readonly attribute Window top;
   readonly attribute Navigator navigator;
 
   // Custom, not in any spec.
