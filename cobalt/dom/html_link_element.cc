@@ -47,8 +47,8 @@ void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
   const GURL base_url = owner_document()->url_as_gurl();
   absolute_url_ = base_url.Resolve(href());
 
-  LOG_IF(INFO, !absolute_url_.is_valid())
-      << href() << " cannot be resolved based on " << base_url;
+  LOG_IF(WARNING, !absolute_url_.is_valid())
+      << href() << " cannot be resolved based on " << base_url << ".";
 }
 
 // Algorithm for Obtain:
@@ -56,6 +56,7 @@ void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
 void HTMLLinkElement::Obtain() {
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(MessageLoop::current());
   DCHECK(!loader_);
 
   // 1. If the href attribute's value is the empty string, then abort these
@@ -76,7 +77,6 @@ void HTMLLinkElement::Obtain() {
   // the mode being the current state of the element's crossorigin content
   // attribute, the origin being the origin of the link element's Document, and
   // the default origin behaviour set to taint.
-  owner_document()->IncreaseLoadingCounter();
 
   loader_ = make_scoped_ptr(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
@@ -85,6 +85,11 @@ void HTMLLinkElement::Obtain() {
       scoped_ptr<loader::Decoder>(new loader::TextDecoder(
           base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
+
+  // The element must delay the load event of the element's document until all
+  // the attempts to obtain the resource and its critical subresources are
+  // complete.
+  owner_document()->IncreaseLoadingCounter();
 }
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
@@ -96,7 +101,24 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
           content, base::SourceLocation(href(), 1, 1));
   style_sheet->SetLocationUrl(absolute_url_);
   owner_document()->style_sheets()->Append(style_sheet);
+
+  // Once the attempts to obtain the resource and its critical subresources are
+  // complete, the user agent must, if the loads were successful, queue a task
+  // to fire a simple event named load at the link element, or, if the resource
+  // or one of its critical subresources failed to completely load for any
+  // reason (e.g. DNS error, HTTP 404 response, a connection being prematurely
+  // closed, unsupported Content-Type), queue a task to fire a simple event
+  // named error at the link element.
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(base::IgnoreResult(&HTMLLinkElement::DispatchEvent),
+                            base::AsWeakPtr<HTMLLinkElement>(this),
+                            make_scoped_refptr(new Event("load"))));
+
+  // The element must delay the load event of the element's document until all
+  // the attempts to obtain the resource and its critical subresources are
+  // complete.
   owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+
   DCHECK(loader_);
   loader_.reset();
 }
@@ -105,7 +127,24 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   LOG(ERROR) << error;
+
+  // Once the attempts to obtain the resource and its critical subresources are
+  // complete, the user agent must, if the loads were successful, queue a task
+  // to fire a simple event named load at the link element, or, if the resource
+  // or one of its critical subresources failed to completely load for any
+  // reason (e.g. DNS error, HTTP 404 response, a connection being prematurely
+  // closed, unsupported Content-Type), queue a task to fire a simple event
+  // named error at the link element.
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(base::IgnoreResult(&HTMLLinkElement::DispatchEvent),
+                            base::AsWeakPtr<HTMLLinkElement>(this),
+                            make_scoped_refptr(new Event("error"))));
+
+  // The element must delay the load event of the element's document until all
+  // the attempts to obtain the resource and its critical subresources are
+  // complete.
   owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+
   DCHECK(loader_);
   loader_.reset();
 }
