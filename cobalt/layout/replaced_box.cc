@@ -16,6 +16,8 @@
 
 #include "cobalt/layout/replaced_box.h"
 
+#include <algorithm>
+
 #include "base/bind.h"
 #include "base/logging.h"
 #include "cobalt/layout/create_letterboxed_image.h"
@@ -191,6 +193,139 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     set_width(*maybe_width);
   }
 
+  if (!maybe_height) {
+    if (!maybe_width && maybe_intrinsic_height_) {
+      // If "height" and "width" both have computed values of "auto" and
+      // the element also has an intrinsic height, then that intrinsic height
+      // is the used value of "height".
+      //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
+      set_height(*maybe_intrinsic_height_);
+    } else {
+      // Otherwise, if "height" has a computed value of "auto", and the element
+      // has an intrinsic ratio then the used value of "height" is:
+      //     (used width) / (intrinsic ratio)
+      //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
+      set_height(width() / intrinsic_ratio_);
+    }
+  } else {
+    set_height(*maybe_height);
+  }
+
+  if (!maybe_width && !maybe_height) {
+    // For replaced elements with an intrinsic ratio and both 'width' and
+    // 'height' specified as 'auto', the algorithm is as described in
+    // http://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
+
+    base::optional<float> maybe_max_width = GetUsedMaxWidthIfNotNone(
+        computed_style(), layout_params.containing_block_size, NULL);
+    float min_width = GetUsedMinWidth(
+        computed_style(), layout_params.containing_block_size, NULL);
+    base::optional<float> maybe_max_height = GetUsedMaxHeightIfNotNone(
+        computed_style(), layout_params.containing_block_size, NULL);
+    float min_height = GetUsedMinHeight(
+        computed_style(), layout_params.containing_block_size, NULL);
+
+    // The values w and h stand for the results of the width and height
+    // computations ignoring the 'min-width', 'min-height', 'max-width' and
+    // 'max-height' properties. Normally these are the intrinsic width and
+    // height, but they may not be in the case of replaced elements with
+    // intrinsic ratios.
+    //   http://www.w3.org/TR/CSS21/visudet.html#min-max-widths
+    float w = width();
+    float h = height();
+
+    // Take the max-width and max-height as max(min, max) so that min ≤ max
+    // holds true.
+    //   http://www.w3.org/TR/CSS21/visudet.html#min-max-widths
+    base::optional<float> max_height;
+    bool h_greater_than_max_height = false;
+    if (maybe_max_height) {
+      max_height = std::max(min_height, *maybe_max_height);
+      h_greater_than_max_height = h > *max_height;
+    }
+
+    base::optional<float> max_width;
+    bool w_greater_than_max_width = false;
+    if (maybe_max_width) {
+      max_width = std::max(min_width, *maybe_max_width);
+      w_greater_than_max_width = w > *max_width;
+    }
+
+    // This block sets resolved width and resolved height values according to
+    // the table listing a number of different constraint violations in
+    // http://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
+    if (w_greater_than_max_width) {
+      if (h_greater_than_max_height) {
+        float max_width_ratio = *max_width / w;
+        float max_height_ratio = *max_height / h;
+        if (max_width_ratio > max_height_ratio) {
+          // Constraint: (w > max-width) and (h > max-height), where
+          // (max-width/w > max-height/h)
+          set_width(std::max(min_width, *max_height * w / h));
+          set_height(*max_height);
+        } else {
+          // Constraint: (w > max-width) and (h > max-height), where
+          // (max-width/w ≤ max-height/h)
+          set_width(*max_width);
+          set_height(std::max(min_height, *max_width * h / w));
+        }
+      } else {  // not h_greater_than_max_height
+        if (h < min_height) {
+          // Constraint: (w > max-width) and (h < min-height)
+          set_width(*max_width);
+          set_height(min_height);
+        } else {  // not h < min_height
+          // Constraint: w > max-width
+          set_width(*max_width);
+          set_height(std::max(*max_width * h / w, min_height));
+        }
+      }
+    } else {  // not w_greater_than_max_width
+      if (w < min_width) {
+        if (h_greater_than_max_height) {
+          // Constraint: (w < min-width) and (h > max-height)
+          set_width(min_width);
+          set_height(*max_height);
+        } else {  // not h_greater_than_max_height
+          if (h < min_height) {
+            float min_width_ratio = min_width / w;
+            float min_height_ratio = min_height / h;
+            if (min_width_ratio > min_height_ratio) {
+              // Constraint: (w < min-width) and (h < min-height), where
+              // (min-width/w > min-height/h)
+              set_width(min_width);
+              set_height(std::min(*max_height, min_width * h / w));
+            } else {
+              // Constraint: (w < min-width) and (h < min-height), where
+              // (min-width/w ≤ min-height/h)
+              set_width(std::min(*max_width, min_height * w / h));
+              set_height(min_height);
+            }
+          } else {  // not h < min-height
+            // Constraint: w < min-width
+            set_width(min_width);
+            set_height(std::min(min_width * h / w, *max_height));
+          }
+        }
+      } else {  // not w < min_width
+        if (h_greater_than_max_height) {
+          // Constraint: h > max-height
+          set_width(std::max(*max_height * w / h, min_width));
+          set_height(*max_height);
+        } else {  // not h_greater_than_max_height
+          if (h < min_height) {
+            // Constraint: h < min-height
+            set_width(std::min(min_height * w / h, *max_width));
+            set_height(min_height);
+          } else {  // not h < min_height
+            // Constraint: none
+            // Do nothing (keep w and h).
+          }
+        }
+      }
+    }
+  }
+
   // The horizontal margin rules are difference for block level replaced boxes
   // versus inline level replaced boxes.
   //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
@@ -213,24 +348,6 @@ void ReplacedBox::UpdateContentSizeAndMargins(
   //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
   set_margin_top(maybe_margin_top.value_or(0.0f));
   set_margin_bottom(maybe_margin_bottom.value_or(0.0f));
-
-  if (!maybe_height) {
-    if (!maybe_width && maybe_intrinsic_height_) {
-      // If "height" and "width" both have computed values of "auto" and
-      // the element also has an intrinsic height, then that intrinsic height
-      // is the used value of "height".
-      //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
-      set_height(*maybe_intrinsic_height_);
-    } else {
-      // Otherwise, if "height" has a computed value of "auto", and the element
-      // has an intrinsic ratio then the used value of "height" is:
-      //     (used width) / (intrinsic ratio)
-      //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
-      set_height(width() / intrinsic_ratio_);
-    }
-  } else {
-    set_height(*maybe_height);
-  }
 }
 
 #ifdef COBALT_BOX_DUMP_ENABLED
