@@ -27,8 +27,8 @@ interface Float64Array : ArrayBufferView {
 
     readonly attribute unsigned long length;
 
-    getter double get(unsigned long index);
-    setter void set(unsigned long index, double value);
+    getter unrestricted double get(unsigned long index);
+    setter void set(unsigned long index, unrestricted double value);
 
     // Return a new Float64Array that is a view on top of this one.
     // Contains this[start]..this[end]. end defaults to length if unspecified.
