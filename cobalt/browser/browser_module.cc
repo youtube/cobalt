@@ -22,8 +22,8 @@
 #include "base/logging.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/event_names.h"
+#include "cobalt/dom/keyboard_code.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
-#include "cobalt/input/keyboard_code.h"
 
 namespace cobalt {
 namespace browser {
@@ -159,7 +159,7 @@ bool BrowserModule::FilterKeyEvent(
 bool BrowserModule::FilterKeyEventForHotkeys(
     const scoped_refptr<dom::KeyboardEvent>& event) {
   if (event->type() == dom::EventNames::GetInstance()->keydown() &&
-      event->ctrl_key() && event->key_code() == input::kO) {
+      event->ctrl_key() && event->key_code() == dom::kO) {
     // Ctrl+O toggles the debug console display.
     debug_hub_->CycleDebugConsoleMode();
     return false;

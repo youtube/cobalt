@@ -42,6 +42,8 @@ class UIEventWithKeyState : public UIEvent {
   bool meta_key() const { return (modifiers_ & kMetaKey) != 0; }
   bool shift_key() const { return (modifiers_ & kShiftKey) != 0; }
 
+  bool GetModifierState(const std::string& keyArg) const;
+
  protected:
   UIEventWithKeyState(const std::string& type, Bubbles bubbles,
                       Cancelable cancelable, unsigned int modifiers)
