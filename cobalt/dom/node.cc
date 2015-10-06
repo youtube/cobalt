@@ -18,11 +18,12 @@
 
 #include <vector>
 
+#include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/dom/comment.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_type.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/node_descendants_iterator.h"
@@ -418,13 +419,41 @@ void Node::UpdateNodeGeneration() {
   }
 }
 
+// Downcasts CSS rule if it is a CSS style rule, returns NULL otherwise.
+class AsStyleRuleVisitor : public cssom::CSSRuleVisitor {
+ public:
+  void VisitCSSStyleRule(cssom::CSSStyleRule* style_rule) OVERRIDE {
+    maybe_style_rule_ = style_rule;
+  }
+  void VisitCSSFontFaceRule(
+      cssom::CSSFontFaceRule* /*font_face_rule*/) OVERRIDE {}
+  void VisitCSSMediaRule(cssom::CSSMediaRule* /*media_rule*/) OVERRIDE {}
+
+  const scoped_refptr<cssom::CSSStyleRule>& maybe_style_rule() const {
+    return maybe_style_rule_;
+  }
+
+ private:
+  scoped_refptr<cssom::CSSStyleRule> maybe_style_rule_;
+};
+
 scoped_refptr<Element> Node::QuerySelectorInternal(
     const std::string& selectors, cssom::CSSParser* css_parser) {
   DCHECK(css_parser);
 
   // Generate a rule with the given selectors and no style.
-  scoped_refptr<cssom::CSSStyleRule> rule = css_parser->ParseStyleRule(
+  scoped_refptr<cssom::CSSRule> rule = css_parser->ParseRule(
       selectors + " {}", base::SourceLocation("[object Element]", 1, 1));
+  if (rule == NULL) {
+    return NULL;
+  }
+  AsStyleRuleVisitor as_style_rule_visitor;
+  rule->Accept(&as_style_rule_visitor);
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      as_style_rule_visitor.maybe_style_rule();
+  if (style_rule == NULL) {
+    return NULL;
+  }
 
   // Iterate through the descendants of the node and find the first matching
   // element if any.
@@ -433,7 +462,7 @@ scoped_refptr<Element> Node::QuerySelectorInternal(
   while (child) {
     if (child->IsElement()) {
       scoped_refptr<Element> element = child->AsElement();
-      if (MatchRuleAndElement(rule, element)) {
+      if (MatchRuleAndElement(style_rule, element)) {
         return element;
       }
     }
@@ -446,18 +475,29 @@ scoped_refptr<NodeList> Node::QuerySelectorAllInternal(
     const std::string& selectors, cssom::CSSParser* css_parser) {
   DCHECK(css_parser);
 
+  scoped_refptr<NodeList> node_list = new NodeList();
+
   // Generate a rule with the given selectors and no style.
-  scoped_refptr<cssom::CSSStyleRule> rule = css_parser->ParseStyleRule(
+  scoped_refptr<cssom::CSSRule> rule = css_parser->ParseRule(
       selectors + " {}", base::SourceLocation("[object Element]", 1, 1));
+  if (rule == NULL) {
+    return node_list;
+  }
+  AsStyleRuleVisitor as_style_rule_visitor;
+  rule->Accept(&as_style_rule_visitor);
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      as_style_rule_visitor.maybe_style_rule();
+  if (style_rule == NULL) {
+    return node_list;
+  }
 
   // Iterate through the descendants of the node and find the matching elements.
-  scoped_refptr<NodeList> node_list = new NodeList();
   NodeDescendantsIterator iterator(this);
   Node* child = iterator.First();
   while (child) {
     if (child->IsElement()) {
       scoped_refptr<Element> element = child->AsElement();
-      if (MatchRuleAndElement(rule, element)) {
+      if (MatchRuleAndElement(style_rule, element)) {
         node_list->AppendNode(element);
       }
     }

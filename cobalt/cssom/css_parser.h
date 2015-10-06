@@ -27,8 +27,8 @@ namespace cssom {
 
 class CSSDeclarationData;
 class CSSFontFaceDeclarationData;
+class CSSRule;
 class CSSStyleDeclarationData;
-class CSSStyleRule;
 class CSSStyleSheet;
 class MediaQuery;
 class PropertyValue;
@@ -47,14 +47,21 @@ class CSSParser {
   // (see http://dev.w3.org/csswg/css-syntax/#parser-entry-points):
   //
 
+  // TODO(***REMOVED***): Revisit the return values of below methods in case of
+  //               an error and match the behavior with appropriate
+  //               specifications. Currently some methods return
+  //               a default-constructed value even if an error occurred,
+  //               others return NULL, and some call sites are known to make
+  //               incorrect assumptions.
+
   // Parses the entire stylesheet.
   // Always returns non-NULL style sheet, even if an error occurred.
   virtual scoped_refptr<CSSStyleSheet> ParseStyleSheet(
       const std::string& input, const base::SourceLocation& input_location) = 0;
 
   // Parses the style rule.
-  // Always returns non-NULL style rule, even if an error occurred.
-  virtual scoped_refptr<CSSStyleRule> ParseStyleRule(
+  // Returns NULL if an error occurred.
+  virtual scoped_refptr<CSSRule> ParseRule(
       const std::string& input, const base::SourceLocation& input_location) = 0;
 
   // Parses the contents of a HTMLElement.style attribute.

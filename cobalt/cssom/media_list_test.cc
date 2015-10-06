@@ -23,6 +23,7 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/property_value.h"
+#include "cobalt/cssom/testing/mock_css_parser.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -30,38 +31,12 @@ namespace cobalt {
 namespace cssom {
 
 using ::testing::_;
+using ::testing::Return;
 
 class PropertyValue;
 
-class MockCSSParser : public CSSParser {
- public:
-  MOCK_METHOD2(ParseStyleSheet,
-               scoped_refptr<CSSStyleSheet>(const std::string&,
-                                            const base::SourceLocation&));
-  MOCK_METHOD2(ParseStyleRule,
-               scoped_refptr<CSSStyleRule>(const std::string&,
-                                           const base::SourceLocation&));
-  MOCK_METHOD2(ParseStyleDeclarationList,
-               scoped_refptr<CSSStyleDeclarationData>(
-                   const std::string&, const base::SourceLocation&));
-  MOCK_METHOD2(ParseFontFaceDeclarationList,
-               scoped_refptr<CSSFontFaceDeclarationData>(
-                   const std::string&, const base::SourceLocation&));
-  MOCK_METHOD3(ParsePropertyValue,
-               scoped_refptr<PropertyValue>(const std::string&,
-                                            const std::string&,
-                                            const base::SourceLocation&));
-  MOCK_METHOD4(ParsePropertyIntoDeclarationData,
-               void(const std::string&, const std::string&,
-                    const base::SourceLocation&, CSSDeclarationData*));
-  MOCK_METHOD2(ParseMediaQuery,
-               scoped_refptr<MediaQuery>(const std::string&,
-                                         const base::SourceLocation&));
-};
-
-
 TEST(MediaListTest, ItemAccess) {
-  MockCSSParser css_parser;
+  testing::MockCSSParser css_parser;
   scoped_refptr<MediaList> media_list(new MediaList(&css_parser));
   ASSERT_EQ(0, media_list->length());
   ASSERT_TRUE(media_list->Item(0).empty());
@@ -76,12 +51,12 @@ TEST(MediaListTest, ItemAccess) {
 }
 
 TEST(MediaListTest, AppendMedium) {
-  MockCSSParser css_parser;
+  testing::MockCSSParser css_parser;
   scoped_refptr<MediaList> media_list(new MediaList(&css_parser));
   const std::string media_query = "screen";
 
   EXPECT_CALL(css_parser, ParseMediaQuery(media_query, _))
-      .WillOnce(testing::Return(scoped_refptr<MediaQuery>()));
+      .WillOnce(Return(scoped_refptr<MediaQuery>()));
   media_list->AppendMedium(media_query);
 }
 

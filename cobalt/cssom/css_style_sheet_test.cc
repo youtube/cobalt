@@ -17,8 +17,8 @@
 #include "cobalt/cssom/css_rule_list.h"
 
 #include "cobalt/cssom/css_font_face_declaration_data.h"
-#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_media_rule.h"
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -32,6 +32,7 @@
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/cssom/testing/mock_css_parser.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -39,32 +40,7 @@ namespace cobalt {
 namespace cssom {
 
 using ::testing::_;
-
-class MockCSSParser : public CSSParser {
- public:
-  MOCK_METHOD2(ParseStyleSheet,
-               scoped_refptr<CSSStyleSheet>(const std::string&,
-                                            const base::SourceLocation&));
-  MOCK_METHOD2(ParseStyleRule,
-               scoped_refptr<CSSStyleRule>(const std::string&,
-                                           const base::SourceLocation&));
-  MOCK_METHOD2(ParseStyleDeclarationList,
-               scoped_refptr<CSSStyleDeclarationData>(
-                   const std::string&, const base::SourceLocation&));
-  MOCK_METHOD2(ParseFontFaceDeclarationList,
-               scoped_refptr<CSSFontFaceDeclarationData>(
-                   const std::string&, const base::SourceLocation&));
-  MOCK_METHOD3(ParsePropertyValue,
-               scoped_refptr<PropertyValue>(const std::string&,
-                                            const std::string&,
-                                            const base::SourceLocation&));
-  MOCK_METHOD4(ParsePropertyIntoDeclarationData,
-               void(const std::string&, const std::string&,
-                    const base::SourceLocation&, CSSDeclarationData*));
-  MOCK_METHOD2(ParseMediaQuery,
-               scoped_refptr<MediaQuery>(const std::string&,
-                                         const base::SourceLocation&));
-};
+using ::testing::Return;
 
 class MockMutationObserver : public MutationObserver {
  public:
@@ -83,14 +59,14 @@ class CSSStyleSheetTest : public ::testing::Test {
   MockMutationObserver mutation_observer_;
   const scoped_refptr<StyleSheetList> style_sheet_list_;
   const scoped_refptr<CSSStyleSheet> css_style_sheet_;
-  MockCSSParser css_parser_;
+  testing::MockCSSParser css_parser_;
 };
 
 TEST_F(CSSStyleSheetTest, InsertRule) {
   const std::string css_text = "div { font-size: 100px; color: #0047ab; }";
 
-  EXPECT_CALL(css_parser_, ParseStyleRule(css_text, _))
-      .WillOnce(testing::Return(scoped_refptr<CSSStyleRule>()));
+  EXPECT_CALL(css_parser_, ParseRule(css_text, _))
+      .WillOnce(Return(scoped_refptr<CSSRule>()));
   css_style_sheet_->InsertRule(css_text, 0);
 }
 
