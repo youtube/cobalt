@@ -49,7 +49,7 @@ TEST(SbFileWriteTest, BasicWriting) {
 
   // Initialize to some arbitrary pattern so we can verify it later.
   for (int i = 0; i < kBufferLength; ++i) {
-    buffer[i] = (char)(i & 0xFF);
+    buffer[i] = static_cast<char>(i & 0xFF);
   }
 
   // Read and check the whole file.
