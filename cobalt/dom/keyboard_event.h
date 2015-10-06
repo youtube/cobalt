@@ -42,6 +42,10 @@ class KeyboardEvent : public UIEventWithKeyState {
                 unsigned int modifiers, int key_code, int char_code,
                 bool is_repeat);
 
+  // Returns a string describing the key event, as defined here:
+  //   http://www.w3.org/TR/DOM-Level-3-Events-key/
+  std::string key() const;
+
   KeyLocationCode location() const { return location_; }
   bool repeat() const { return repeat_; }
 
@@ -50,6 +54,19 @@ class KeyboardEvent : public UIEventWithKeyState {
   //   http://www.w3.org/TR/DOM-Level-3-Events/#legacy-key-models
   int key_code() const;
   int char_code() const;
+  KeyLocationCode key_location() const { return location_; }
+
+  // keyIdentifier is deprecated and non-standard.
+  // Here, we just map it to the standardized key() method, which matches some,
+  // but not all browser implementations.
+  std::string key_identifier() const { return key(); }
+
+  // Custom, not in any spec.
+  // Utility functions for keycode/charcode conversion.
+  int ComputeCharCode() const;
+  static int KeyCodeToCharCodeWithShift(int key_code);
+  static int KeyCodeToCharCodeNoShift(int key_code);
+  static KeyLocationCode KeyCodeToKeyLocation(int key_code);
 
   DEFINE_WRAPPABLE_TYPE(KeyboardEvent);
 

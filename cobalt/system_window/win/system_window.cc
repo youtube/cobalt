@@ -87,18 +87,20 @@ LRESULT CALLBACK SystemWindowWin::WndProc(HWND window_handle, UINT message,
     } break;
     case WM_KEYDOWN: {
       // The user has pressed a key on the keyboard.
+      dom::KeyboardEvent::KeyLocationCode location =
+          dom::KeyboardEvent::KeyCodeToKeyLocation(w_param);
       scoped_refptr<dom::KeyboardEvent> keyboard_event(
           new dom::KeyboardEvent(dom::EventNames::GetInstance()->keydown(),
-                                 dom::KeyboardEvent::kDomKeyLocationStandard,
-                                 dom::KeyboardEvent::kNoModifier, w_param,
-                                 w_param, IsKeyRepeat(l_param)));
+                                 location, dom::KeyboardEvent::kNoModifier,
+                                 w_param, w_param, IsKeyRepeat(l_param)));
       system_window->HandleKeyboardEvent(keyboard_event);
     } break;
     case WM_KEYUP: {
       // The user has released a key on the keyboard.
+      dom::KeyboardEvent::KeyLocationCode location =
+          dom::KeyboardEvent::KeyCodeToKeyLocation(w_param);
       scoped_refptr<dom::KeyboardEvent> keyboard_event(new dom::KeyboardEvent(
-          dom::EventNames::GetInstance()->keyup(),
-          dom::KeyboardEvent::kDomKeyLocationStandard,
+          dom::EventNames::GetInstance()->keyup(), location,
           dom::KeyboardEvent::kNoModifier, w_param, w_param, false));
       system_window->HandleKeyboardEvent(keyboard_event);
     } break;
