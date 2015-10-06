@@ -35,7 +35,7 @@ class DOMParserTest : public ::testing::Test {
 
   loader::FetcherFactory fetcher_factory_;
   testing::StubCSSParser stub_css_parser_;
-  dom_parser::Parser* dom_parser_parser_;
+  scoped_ptr<dom_parser::Parser> dom_parser_parser_;
   testing::StubScriptRunner stub_script_runner_;
   HTMLElementContext html_element_context_;
   scoped_refptr<DOMParser> dom_parser_;
@@ -45,7 +45,7 @@ DOMParserTest::DOMParserTest()
     : fetcher_factory_(NULL /* network_module */),
       dom_parser_parser_(new dom_parser::Parser()),
       html_element_context_(&fetcher_factory_, &stub_css_parser_,
-                            dom_parser_parser_,
+                            dom_parser_parser_.get(),
                             NULL /* web_media_player_factory */,
                             &stub_script_runner_, NULL /* image_cache */),
       dom_parser_(new DOMParser(&html_element_context_)) {}
