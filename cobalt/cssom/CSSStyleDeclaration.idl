@@ -54,6 +54,7 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString] attribute DOMString transitionProperty;
   [TreatNullAs=EmptyString] attribute DOMString transitionTimingFunction;
   [TreatNullAs=EmptyString] attribute DOMString verticalAlign;
+  [TreatNullAs=EmptyString] attribute DOMString visibility;
   [TreatNullAs=EmptyString] attribute DOMString whiteSpace;
   [TreatNullAs=EmptyString] attribute DOMString width;
   [TreatNullAs=EmptyString] attribute DOMString wordWrap;

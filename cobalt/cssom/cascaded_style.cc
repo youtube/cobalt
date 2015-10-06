@@ -192,6 +192,9 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
     if (!style->vertical_align() && declared_style->vertical_align()) {
       style->set_vertical_align(declared_style->vertical_align());
     }
+    if (!style->visibility() && declared_style->visibility()) {
+      style->set_visibility(declared_style->visibility());
+    }
     if (!style->white_space() && declared_style->white_space()) {
       style->set_white_space(declared_style->white_space());
     }

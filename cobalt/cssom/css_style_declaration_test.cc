@@ -514,6 +514,23 @@ TEST(CSSStyleDeclarationTest, VerticalAlignSetter) {
   style->set_vertical_align(vertical_align);
 }
 
+TEST(CSSStyleDeclarationTest, VisibilitySetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string visibility = "hidden";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  kVisibilityPropertyName, visibility, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_visibility(visibility);
+}
+
 TEST(CSSStyleDeclarationTest, WhiteSpaceSetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
