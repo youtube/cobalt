@@ -16,6 +16,9 @@
 
 #include "cobalt/layout/used_style.h"
 
+#include <string>
+#include <vector>
+
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/font_style_value.h"
@@ -770,10 +773,43 @@ scoped_refptr<cssom::TransformFunctionListValue> GetUsedTransformListValue(
 
 namespace {
 
-class UsedLengthProvider : public cssom::NotReachedPropertyValueVisitor {
+class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  explicit UsedLengthValueProvider(float percentage_base)
+      : percentage_base_(percentage_base) {}
+
+  void VisitLength(cssom::LengthValue* length) OVERRIDE {
+    depends_on_containing_block_ = false;
+
+    DCHECK_EQ(cssom::kPixelsUnit, length->unit());
+    used_length_ = length->value();
+  }
+
+  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE {
+    depends_on_containing_block_ = true;
+    used_length_ = percentage->value() * percentage_base_;
+  }
+
+  bool depends_on_containing_block() const {
+    return depends_on_containing_block_;
+  }
+  const base::optional<float>& used_length() const { return used_length_; }
+
+ protected:
+  bool depends_on_containing_block_;
+
+ private:
+  const float percentage_base_;
+
+  base::optional<float> used_length_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedLengthValueProvider);
+};
+
+class UsedLengthProvider : public UsedLengthValueProvider {
  public:
   explicit UsedLengthProvider(float percentage_base)
-      : percentage_base_(percentage_base) {}
+      : UsedLengthValueProvider(percentage_base) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
     switch (keyword->value()) {
@@ -822,31 +858,59 @@ class UsedLengthProvider : public cssom::NotReachedPropertyValueVisitor {
         NOTREACHED();
     }
   }
+};
 
-  void VisitLength(cssom::LengthValue* length) OVERRIDE {
-    depends_on_containing_block_ = false;
+class UsedMaxLengthProvider : public UsedLengthValueProvider {
+ public:
+  explicit UsedMaxLengthProvider(float percentage_base)
+      : UsedLengthValueProvider(percentage_base) {}
 
-    DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-    used_length_ = length->value();
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
+    switch (keyword->value()) {
+      case cssom::KeywordValue::kNone:
+        depends_on_containing_block_ = true;
+
+        // Leave |used_length_| in disengaged state to indicate that "none"
+        // was the value.
+        break;
+
+      case cssom::KeywordValue::kAuto:
+      case cssom::KeywordValue::kAbsolute:
+      case cssom::KeywordValue::kBaseline:
+      case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kBreakWord:
+      case cssom::KeywordValue::kCenter:
+      case cssom::KeywordValue::kClip:
+      case cssom::KeywordValue::kContain:
+      case cssom::KeywordValue::kCover:
+      case cssom::KeywordValue::kCursive:
+      case cssom::KeywordValue::kEllipsis:
+      case cssom::KeywordValue::kFantasy:
+      case cssom::KeywordValue::kHidden:
+      case cssom::KeywordValue::kInherit:
+      case cssom::KeywordValue::kInitial:
+      case cssom::KeywordValue::kInline:
+      case cssom::KeywordValue::kInlineBlock:
+      case cssom::KeywordValue::kLeft:
+      case cssom::KeywordValue::kMiddle:
+      case cssom::KeywordValue::kMonospace:
+      case cssom::KeywordValue::kNoRepeat:
+      case cssom::KeywordValue::kNormal:
+      case cssom::KeywordValue::kNoWrap:
+      case cssom::KeywordValue::kPre:
+      case cssom::KeywordValue::kRelative:
+      case cssom::KeywordValue::kRepeat:
+      case cssom::KeywordValue::kRight:
+      case cssom::KeywordValue::kSansSerif:
+      case cssom::KeywordValue::kSerif:
+      case cssom::KeywordValue::kStatic:
+      case cssom::KeywordValue::kTop:
+      case cssom::KeywordValue::kUppercase:
+      case cssom::KeywordValue::kVisible:
+      default:
+        NOTREACHED();
+    }
   }
-
-  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE {
-    depends_on_containing_block_ = true;
-    used_length_ = percentage->value() * percentage_base_;
-  }
-
-  bool depends_on_containing_block() const {
-    return depends_on_containing_block_;
-  }
-  const base::optional<float>& used_length() const { return used_length_; }
-
- private:
-  const float percentage_base_;
-
-  bool depends_on_containing_block_;
-  base::optional<float> used_length_;
-
-  DISALLOW_COPY_AND_ASSIGN(UsedLengthProvider);
 };
 
 }  // namespace
@@ -904,6 +968,66 @@ base::optional<float> GetUsedWidthIfNotAuto(
         used_length_provider.depends_on_containing_block();
   }
   return used_length_provider.used_length();
+}
+
+base::optional<float> GetUsedMaxHeightIfNotNone(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size,
+    bool* height_depends_on_containing_block) {
+  // Percentages: refer to height of containing block.
+  //   http://www.w3.org/TR/CSS21/visudet.html#propdef-max-height
+  UsedMaxLengthProvider used_length_provider(containing_block_size.height());
+  computed_style->max_height()->Accept(&used_length_provider);
+  if (height_depends_on_containing_block != NULL) {
+    *height_depends_on_containing_block =
+        used_length_provider.depends_on_containing_block();
+  }
+  return used_length_provider.used_length();
+}
+
+base::optional<float> GetUsedMaxWidthIfNotNone(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size,
+    bool* width_depends_on_containing_block) {
+  // Percentages: refer to width of containing block.
+  //   http://www.w3.org/TR/CSS21/visudet.html#propdef-max-width
+  UsedMaxLengthProvider used_length_provider(containing_block_size.width());
+  computed_style->max_width()->Accept(&used_length_provider);
+  if (width_depends_on_containing_block != NULL) {
+    *width_depends_on_containing_block =
+        used_length_provider.depends_on_containing_block();
+  }
+  return used_length_provider.used_length();
+}
+
+float GetUsedMinHeight(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size,
+    bool* height_depends_on_containing_block) {
+  // Percentages: refer to height of containing block.
+  //   http://www.w3.org/TR/CSS21/visudet.html#propdef-max-height
+  UsedLengthValueProvider used_length_provider(containing_block_size.height());
+  computed_style->min_height()->Accept(&used_length_provider);
+  if (height_depends_on_containing_block != NULL) {
+    *height_depends_on_containing_block =
+        used_length_provider.depends_on_containing_block();
+  }
+  return *used_length_provider.used_length();
+}
+
+float GetUsedMinWidth(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size,
+    bool* width_depends_on_containing_block) {
+  // Percentages: refer to width of containing block.
+  //   http://www.w3.org/TR/CSS21/visudet.html#propdef-min-width
+  UsedLengthValueProvider used_length_provider(containing_block_size.width());
+  computed_style->min_width()->Accept(&used_length_provider);
+  if (width_depends_on_containing_block != NULL) {
+    *width_depends_on_containing_block =
+        used_length_provider.depends_on_containing_block();
+  }
+  return *used_length_provider.used_length();
 }
 
 base::optional<float> GetUsedHeightIfNotAuto(
