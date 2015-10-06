@@ -406,6 +406,14 @@ void CSSStyleDeclaration::set_vertical_align(
   SetPropertyValue(kVerticalAlignPropertyName, vertical_align);
 }
 
+std::string CSSStyleDeclaration::visibility() const {
+  return data_->visibility() ? data_->visibility()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_visibility(const std::string& visibility) {
+  SetPropertyValue(kVisibilityPropertyName, visibility);
+}
+
 std::string CSSStyleDeclaration::white_space() const {
   return data_->white_space() ? data_->white_space()->ToString() : "";
 }

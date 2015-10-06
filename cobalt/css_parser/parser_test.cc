@@ -2469,6 +2469,22 @@ TEST_F(ParserTest, ParsesTopVerticalAlign) {
   EXPECT_EQ(cssom::KeywordValue::GetTop(), style->vertical_align());
 }
 
+TEST_F(ParserTest, ParsesHiddenVisibility) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("visibility: hidden;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetHidden(), style->visibility());
+}
+
+TEST_F(ParserTest, ParsesVisibleVisibility) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("visibility: visible;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetVisible(), style->visibility());
+}
+
 TEST_F(ParserTest, ParsesNormalWhiteSpace) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("white-space: normal;",
