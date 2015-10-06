@@ -56,7 +56,7 @@
 // within a grammar, never appear in the source code.
 %token kMediaQueryEntryPointToken
 %token kStyleSheetEntryPointToken
-%token kStyleRuleEntryPointToken
+%token kRuleEntryPointToken
 %token kStyleDeclarationListEntryPointToken
 %token kFontFaceDeclarationListEntryPointToken
 %token kPropertyValueEntryPointToken
@@ -3873,11 +3873,10 @@ entry_point:
         MakeScopedRefPtrAndRelease($3);
     parser_impl->set_media_query(media_query);
   }
-  // Parses the style rule.
-  | kStyleRuleEntryPointToken maybe_whitespace style_rule {
-    scoped_refptr<cssom::CSSStyleRule> style_rule =
-        MakeScopedRefPtrAndRelease($3);
-    parser_impl->set_style_rule(style_rule);
+  // Parses the rule.
+  | kRuleEntryPointToken maybe_whitespace rule {
+    scoped_refptr<cssom::CSSRule> rule = MakeScopedRefPtrAndRelease($3);
+    parser_impl->set_rule(rule);
   }
   // Parses the contents of a HTMLElement.style attribute.
   | kStyleDeclarationListEntryPointToken maybe_whitespace

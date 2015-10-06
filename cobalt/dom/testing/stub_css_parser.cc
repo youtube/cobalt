@@ -35,11 +35,11 @@ scoped_refptr<cssom::CSSStyleSheet> StubCSSParser::ParseStyleSheet(
   return new cssom::CSSStyleSheet();
 }
 
-scoped_refptr<cssom::CSSStyleRule> StubCSSParser::ParseStyleRule(
+scoped_refptr<cssom::CSSRule> StubCSSParser::ParseRule(
     const std::string& input, const base::SourceLocation& input_location) {
   UNREFERENCED_PARAMETER(input);
   UNREFERENCED_PARAMETER(input_location);
-  return new cssom::CSSStyleRule(cssom::Selectors(), NULL);
+  return NULL;
 }
 
 scoped_refptr<cssom::CSSStyleDeclarationData>

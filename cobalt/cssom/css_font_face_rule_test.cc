@@ -29,14 +29,15 @@
 #include "cobalt/cssom/local_src_value.h"
 #include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/mutation_observer.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_list_value.h"
+#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/cssom/testing/mock_css_parser.h"
 #include "cobalt/cssom/unicode_range_value.h"
-#include "cobalt/cssom/url_value.h"
 #include "cobalt/cssom/url_src_value.h"
+#include "cobalt/cssom/url_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -44,32 +45,7 @@ namespace cobalt {
 namespace cssom {
 
 using ::testing::_;
-
-class MockCSSParser : public CSSParser {
- public:
-  MOCK_METHOD2(ParseStyleSheet,
-               scoped_refptr<CSSStyleSheet>(const std::string&,
-                                            const base::SourceLocation&));
-  MOCK_METHOD2(ParseStyleRule,
-               scoped_refptr<CSSStyleRule>(const std::string&,
-                                           const base::SourceLocation&));
-  MOCK_METHOD2(ParseStyleDeclarationList,
-               scoped_refptr<CSSStyleDeclarationData>(
-                   const std::string&, const base::SourceLocation&));
-  MOCK_METHOD2(ParseFontFaceDeclarationList,
-               scoped_refptr<CSSFontFaceDeclarationData>(
-                   const std::string&, const base::SourceLocation&));
-  MOCK_METHOD3(ParsePropertyValue,
-               scoped_refptr<PropertyValue>(const std::string&,
-                                            const std::string&,
-                                            const base::SourceLocation&));
-  MOCK_METHOD4(ParsePropertyIntoDeclarationData,
-               void(const std::string&, const std::string&,
-                    const base::SourceLocation&, CSSDeclarationData*));
-  MOCK_METHOD2(ParseMediaQuery,
-               scoped_refptr<MediaQuery>(const std::string&,
-                                         const base::SourceLocation&));
-};
+using ::testing::Return;
 
 class MockMutationObserver : public MutationObserver {
  public:
@@ -87,7 +63,7 @@ class CSSFontFaceRuleTest : public ::testing::Test {
 
   const scoped_refptr<StyleSheetList> style_sheet_list_;
   const scoped_refptr<CSSStyleSheet> css_style_sheet_;
-  MockCSSParser css_parser_;
+  testing::MockCSSParser css_parser_;
   MockMutationObserver mutation_observer_;
 };
 
@@ -197,7 +173,7 @@ TEST_F(CSSFontFaceRuleTest, CSSTextSetter) {
       "src: url('../assets/icons.ttf') format('truetype')";
 
   EXPECT_CALL(css_parser_, ParseFontFaceDeclarationList(css_text, _))
-      .WillOnce(testing::Return(scoped_refptr<CSSFontFaceDeclarationData>()));
+      .WillOnce(Return(scoped_refptr<CSSFontFaceDeclarationData>()));
 
   font_face->set_css_text(css_text);
 }

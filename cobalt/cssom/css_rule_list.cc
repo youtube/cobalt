@@ -43,16 +43,18 @@ unsigned int CSSRuleList::length() const {
 unsigned int CSSRuleList::InsertRule(const std::string& rule,
                                      unsigned int index) {
   DCHECK(parent_style_sheet_);
-  scoped_refptr<CSSStyleRule> css_rule =
-      parent_style_sheet_->css_parser()->ParseStyleRule(
+  scoped_refptr<CSSRule> css_rule =
+      parent_style_sheet_->css_parser()->ParseRule(
           rule, base::SourceLocation("[object CSSStyleSheet]", 1, 1));
 
-  if (!css_rule) {
+  if (css_rule == NULL) {
+    // TODO(***REMOVED***): Throw a SyntaxError exception instead of logging.
+    LOG(ERROR) << "SyntaxError";
     return 0;
   }
 
   if (index > css_rules_.size()) {
-    // TODO(***REMOVED***): Throw JS IndexSizeError.
+    // TODO(***REMOVED***): Throw a IndexSizeError exception instead of logging.
     LOG(ERROR) << "IndexSizeError";
     return 0;
   }

@@ -26,6 +26,8 @@ namespace cobalt {
 namespace dom {
 namespace testing {
 
+using ::testing::Return;
+
 class MockEventListener : public EventListener {
  public:
   static scoped_refptr<MockEventListener> CreateAsAttribute() {
@@ -45,8 +47,7 @@ class MockEventListener : public EventListener {
     // We expect that EqualTo has its default behavior in most cases.
     ON_CALL(*this, EqualTo(::testing::_))
         .WillByDefault(::testing::Invoke(this, &MockEventListener::IsEqual));
-    ON_CALL(*this, IsAttribute())
-        .WillByDefault(::testing::Return(is_attribute));
+    ON_CALL(*this, IsAttribute()).WillByDefault(Return(is_attribute));
   }
 
  private:
