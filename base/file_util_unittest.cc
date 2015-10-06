@@ -37,6 +37,35 @@
 // This macro helps avoid wrapped lines in the test structs.
 #define FPL(x) FILE_PATH_LITERAL(x)
 
+#if defined(COBALT)
+#define MAYBE_CopyDirectoryRecursivelyNew DISABLED_CopyDirectoryRecursivelyNew
+#define MAYBE_CopyDirectoryRecursivelyExists \
+  DISABLED_CopyDirectoryRecursivelyExists
+#define MAYBE_CopyDirectoryNew DISABLED_CopyDirectoryNew
+#define MAYBE_CopyDirectoryExists DISABLED_CopyDirectoryExists
+#define MAYBE_CopyFileWithCopyDirectoryRecursiveToNew \
+  DISABLED_CopyFileWithCopyDirectoryRecursiveToNew
+#define MAYBE_CopyFileWithCopyDirectoryRecursiveToExisting \
+  DISABLED_CopyFileWithCopyDirectoryRecursiveToExisting
+#define MAYBE_CopyFileWithCopyDirectoryRecursiveToExistingDirectory \
+  DISABLED_CopyFileWithCopyDirectoryRecursiveToExistingDirectory
+#define MAYBE_CopyDirectoryWithTrailingSeparators \
+  DISABLED_CopyDirectoryWithTrailingSeparators
+#else
+#define MAYBE_CopyDirectoryRecursivelyNew CopyDirectoryRecursivelyNew
+#define MAYBE_CopyDirectoryRecursivelyExists CopyDirectoryRecursivelyExists
+#define MAYBE_CopyDirectoryNew CopyDirectoryNew
+#define MAYBE_CopyDirectoryExists CopyDirectoryExists
+#define MAYBE_CopyFileWithCopyDirectoryRecursiveToNew \
+  CopyFileWithCopyDirectoryRecursiveToNew
+#define MAYBE_CopyFileWithCopyDirectoryRecursiveToExisting \
+  CopyFileWithCopyDirectoryRecursiveToExisting
+#define MAYBE_CopyFileWithCopyDirectoryRecursiveToExistingDirectory \
+  CopyFileWithCopyDirectoryRecursiveToExistingDirectory
+#define MAYBE_CopyDirectoryWithTrailingSeparators \
+  CopyDirectoryWithTrailingSeparators
+#endif
+
 namespace {
 
 // To test that file_util::Normalize FilePath() deals with NTFS reparse points
@@ -1123,7 +1152,7 @@ TEST_F(FileUtilTest, MoveExist) {
   EXPECT_TRUE(file_util::PathExists(file_name_to));
 }
 
-TEST_F(FileUtilTest, CopyDirectoryRecursivelyNew) {
+TEST_F(FileUtilTest, MAYBE_CopyDirectoryRecursivelyNew) {
   // Create a directory.
   FilePath dir_name_from =
       temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir"));
@@ -1173,7 +1202,7 @@ TEST_F(FileUtilTest, CopyDirectoryRecursivelyNew) {
   EXPECT_TRUE(file_util::PathExists(file_name2_to));
 }
 
-TEST_F(FileUtilTest, CopyDirectoryRecursivelyExists) {
+TEST_F(FileUtilTest, MAYBE_CopyDirectoryRecursivelyExists) {
   // Create a directory.
   FilePath dir_name_from =
       temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir"));
@@ -1228,7 +1257,7 @@ TEST_F(FileUtilTest, CopyDirectoryRecursivelyExists) {
   EXPECT_TRUE(file_util::PathExists(file_name2_to));
 }
 
-TEST_F(FileUtilTest, CopyDirectoryNew) {
+TEST_F(FileUtilTest, MAYBE_CopyDirectoryNew) {
   // Create a directory.
   FilePath dir_name_from =
       temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir"));
@@ -1275,7 +1304,7 @@ TEST_F(FileUtilTest, CopyDirectoryNew) {
   EXPECT_FALSE(file_util::PathExists(subdir_name_to));
 }
 
-TEST_F(FileUtilTest, CopyDirectoryExists) {
+TEST_F(FileUtilTest, MAYBE_CopyDirectoryExists) {
   // Create a directory.
   FilePath dir_name_from =
       temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir"));
@@ -1324,7 +1353,7 @@ TEST_F(FileUtilTest, CopyDirectoryExists) {
   EXPECT_FALSE(file_util::PathExists(subdir_name_to));
 }
 
-TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToNew) {
+TEST_F(FileUtilTest, MAYBE_CopyFileWithCopyDirectoryRecursiveToNew) {
   // Create a file
   FilePath file_name_from =
       temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
@@ -1342,7 +1371,7 @@ TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToNew) {
   EXPECT_TRUE(file_util::PathExists(file_name_to));
 }
 
-TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToExisting) {
+TEST_F(FileUtilTest, MAYBE_CopyFileWithCopyDirectoryRecursiveToExisting) {
   // Create a file
   FilePath file_name_from =
       temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
@@ -1362,7 +1391,8 @@ TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToExisting) {
   EXPECT_TRUE(L"Gooooooooooooooooooooogle" == ReadTextFile(file_name_to));
 }
 
-TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToExistingDirectory) {
+TEST_F(FileUtilTest,
+       MAYBE_CopyFileWithCopyDirectoryRecursiveToExistingDirectory) {
   // Create a file
   FilePath file_name_from =
       temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
@@ -1383,7 +1413,7 @@ TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToExistingDirectory) {
   EXPECT_TRUE(file_util::PathExists(file_name_to));
 }
 
-TEST_F(FileUtilTest, CopyDirectoryWithTrailingSeparators) {
+TEST_F(FileUtilTest, MAYBE_CopyDirectoryWithTrailingSeparators) {
   // Create a directory.
   FilePath dir_name_from =
       temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir"));
