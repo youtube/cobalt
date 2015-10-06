@@ -34,7 +34,7 @@ class SerializerTest : public ::testing::Test {
   SerializerTest();
   ~SerializerTest() OVERRIDE {}
 
-  dom_parser::Parser* dom_parser_;
+  scoped_ptr<dom_parser::Parser> dom_parser_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
   scoped_refptr<Element> root_;

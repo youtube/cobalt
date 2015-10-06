@@ -50,14 +50,15 @@ class HTMLElementFactoryTest : public ::testing::Test {
   HTMLElementFactoryTest()
       : fetcher_factory_(NULL /* network_module */),
         dom_parser_(new dom_parser::Parser()),
-        html_element_context_(&fetcher_factory_, &stub_css_parser_, dom_parser_,
+        html_element_context_(&fetcher_factory_, &stub_css_parser_,
+                              dom_parser_.get(),
                               NULL /* web_media_player_factory */,
                               &stub_script_runner_, NULL /* image_cache */),
         document_(new Document(&html_element_context_, Document::Options())) {}
   ~HTMLElementFactoryTest() OVERRIDE {}
 
   loader::FetcherFactory fetcher_factory_;
-  Parser* dom_parser_;
+  scoped_ptr<Parser> dom_parser_;
   testing::StubCSSParser stub_css_parser_;
   testing::StubScriptRunner stub_script_runner_;
   HTMLElementContext html_element_context_;
