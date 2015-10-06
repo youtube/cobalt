@@ -34,6 +34,12 @@
 namespace cobalt {
 namespace dom {
 
+const Node::NodeType Node::kElementNode;
+const Node::NodeType Node::kTextNode;
+const Node::NodeType Node::kCommentNode;
+const Node::NodeType Node::kDocumentNode;
+const Node::NodeType Node::kDocumentTypeNode;
+
 // Algorithm for DispatchEvent:
 //   http://www.w3.org/TR/dom/#dispatching-events
 bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
