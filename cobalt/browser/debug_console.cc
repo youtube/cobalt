@@ -17,7 +17,6 @@
 #include "cobalt/browser/debug_console.h"
 
 #include "cobalt/dom/event_names.h"
-#include "cobalt/input/keyboard_code.h"
 
 namespace cobalt {
 namespace browser {

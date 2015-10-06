@@ -25,7 +25,6 @@
         'key_event_handler.h',
         'key_repeat_filter.cc',
         'key_repeat_filter.h',
-        'keyboard_code.h',
         'keypress_generator_filter.cc',
         'keypress_generator_filter.h',
         'modifier_key_filter.cc',

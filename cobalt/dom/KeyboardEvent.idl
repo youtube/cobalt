@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+//    http://www.w3.org/TR/DOM-Level-3-Events/#interface-KeyboardEvent
 interface KeyboardEvent : UIEvent {
   // enum KeyLocationCode
   const unsigned long DOM_KEY_LOCATION_STANDARD = 0x00;
@@ -21,6 +22,7 @@ interface KeyboardEvent : UIEvent {
   const unsigned long DOM_KEY_LOCATION_RIGHT = 0x02;
   const unsigned long DOM_KEY_LOCATION_NUMPAD = 0x03;
 
+  readonly attribute DOMString key;
   readonly attribute unsigned long location;
   readonly attribute boolean ctrlKey;
   readonly attribute boolean shiftKey;
@@ -28,8 +30,12 @@ interface KeyboardEvent : UIEvent {
   readonly attribute boolean metaKey;
   readonly attribute boolean repeat;
 
+  boolean getModifierState(DOMString text);
+
   // Deprecated. These features have been removed from the Web standards.
   //   http://www.w3.org/TR/DOM-Level-3-Events/#legacy-key-models
   readonly attribute long keyCode;
   readonly attribute long charCode;
+  readonly attribute unsigned long keyLocation;
+  readonly attribute DOMString keyIdentifier;
 };
