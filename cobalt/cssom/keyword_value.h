@@ -107,6 +107,9 @@ class KeywordValue : public PropertyValue {
     // "hidden" is a value of "overflow" property which indicates that
     // the content is clipped.
     //   http://www.w3.org/TR/CSS21/visufx.html#overflow
+    // "hidden" is a value of "visibility" property which indicates that
+    // the generated box is invisible.
+    //   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
     kHidden,
 
     // Applicable to any property, represents a cascaded value of "inherit",
@@ -220,6 +223,9 @@ class KeywordValue : public PropertyValue {
     // "visible" is a value of "overflow" property which indicates that
     // the content is not clipped.
     //   http://www.w3.org/TR/CSS21/visufx.html#overflow
+    // "visible" is a value of "visibility" property which indicates that
+    // the generated box is visible.
+    //   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
     kVisible,
   };
 

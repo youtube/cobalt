@@ -175,6 +175,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string vertical_align() const;
   void set_vertical_align(const std::string& vertical_align);
 
+  std::string visibility() const;
+  void set_visibility(const std::string& visibility);
+
   std::string white_space() const;
   void set_white_space(const std::string& width);
 
