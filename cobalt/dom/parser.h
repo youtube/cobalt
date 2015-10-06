@@ -42,6 +42,7 @@ class XMLDocument;
 // This class is not a part of any specification.
 class Parser {
  public:
+  virtual ~Parser() {}
   // Synchronous parsing interfaces.
   //
   // Parses an HTML document and returns the created Document.
@@ -82,9 +83,6 @@ class Parser {
   virtual scoped_ptr<loader::Decoder> ParseXMLDocumentAsync(
       const scoped_refptr<XMLDocument>& xml_document,
       const base::SourceLocation& input_location) = 0;
-
- protected:
-  virtual ~Parser() {}
 };
 
 }  // namespace dom
