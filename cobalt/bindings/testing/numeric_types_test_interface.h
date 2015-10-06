@@ -82,6 +82,8 @@ class NumericTypesTestInterfaceT : public NumericTypesTestInterface {
   MOCK_METHOD1_T(MockArgumentOperation, void(T));
   MOCK_METHOD0_T(mock_get_property, T());
   MOCK_METHOD1_T(mock_set_property, void(T));
+
+  typedef T BaseType;
 };
 
 class ByteTypeTest : public NumericTypesTestInterfaceT<int8_t> {
