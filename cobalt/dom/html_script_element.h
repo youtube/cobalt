@@ -43,14 +43,17 @@ class HTMLScriptElement : public HTMLElement {
 
   // Web API: HTMLScriptElement
   //
-  bool async() const { return GetBooleanAttribute("async"); }
-  void set_async(bool value) { SetBooleanAttribute("async", value); }
-
   std::string src() const { return GetAttribute("src").value_or(""); }
   void set_src(const std::string& value) { SetAttribute("src", value); }
 
   std::string type() const { return GetAttribute("type").value_or(""); }
   void set_type(const std::string& value) { SetAttribute("type", value); }
+
+  std::string charset() const { return GetAttribute("charset").value_or(""); }
+  void set_charset(const std::string& value) { SetAttribute("charset", value); }
+
+  bool async() const { return GetBooleanAttribute("async"); }
+  void set_async(bool value) { SetBooleanAttribute("async", value); }
 
   // Custom, not in any spec.
   //
@@ -71,6 +74,7 @@ class HTMLScriptElement : public HTMLElement {
   ~HTMLScriptElement() OVERRIDE;
 
   // From the spec: HTMLScriptElement.
+  //
   void Prepare();
 
   void OnSyncLoadingDone(const std::string& content);
@@ -79,6 +83,15 @@ class HTMLScriptElement : public HTMLElement {
   void OnLoadingDone(const std::string& content);
   void OnLoadingError(const std::string& error);
   void StopLoading();
+
+  void ExecuteExternal() {
+    Execute(content_, base::SourceLocation(url_.spec(), 1, 1), true);
+  }
+  void ExecuteInternal() {
+    Execute(text_content().value(), inline_script_location_, false);
+  }
+  void Execute(const std::string& content,
+               const base::SourceLocation& script_location, bool is_external);
 
   // Whether the script has been started.
   bool is_already_started_;
