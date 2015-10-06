@@ -161,6 +161,7 @@
         'style_sheet.h',
         'style_sheet_list.cc',
         'style_sheet_list.h',
+        'testing/mock_css_parser.h',
         'time_list_value.cc',
         'time_list_value.h',
         'timing_function.cc',

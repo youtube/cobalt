@@ -32,7 +32,7 @@ class Parser : public cssom::CSSParser {
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE;
 
-  scoped_refptr<cssom::CSSStyleRule> ParseStyleRule(
+  scoped_refptr<cssom::CSSRule> ParseRule(
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE;
 
