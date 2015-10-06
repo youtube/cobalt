@@ -105,13 +105,12 @@ class Node : public EventTarget {
  public:
   // Web API: Node
   // NodeType values as defined by Web API Node.nodeType.
-  enum NodeType {
-    kElementNode = 1,
-    kTextNode = 3,
-    kCommentNode = 8,
-    kDocumentNode = 9,
-    kDocumentTypeNode = 10,
-  };
+  typedef uint16 NodeType;
+  static const NodeType kElementNode = 1;
+  static const NodeType kTextNode = 3;
+  static const NodeType kCommentNode = 8;
+  static const NodeType kDocumentNode = 9;
+  static const NodeType kDocumentTypeNode = 10;
 
   // Custom, not in any spec.
   // Node generation constants.
