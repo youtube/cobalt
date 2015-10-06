@@ -32,6 +32,7 @@ TEST(RefCountedUtilTest, AddRefToNonNull) {
   RefCountedDummy* dummy_ptr = new RefCountedDummy();
   ASSERT_EQ(dummy_ptr, AddRef(dummy_ptr));
   EXPECT_TRUE(dummy_ptr->HasOneRef());
+  dummy_ptr->Release();
 }
 
 TEST(RefCountedUtilTest, MakesScopedRefPtrFromNull) {
