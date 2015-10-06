@@ -27,6 +27,7 @@
 #include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/cssom/testing/mock_css_parser.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -34,33 +35,7 @@ namespace cobalt {
 namespace cssom {
 
 using ::testing::_;
-
-class MockCSSParser : public CSSParser {
- public:
-  MOCK_METHOD2(ParseStyleSheet,
-               scoped_refptr<CSSStyleSheet>(const std::string&,
-                                            const base::SourceLocation&));
-  MOCK_METHOD2(ParseStyleRule,
-               scoped_refptr<CSSStyleRule>(const std::string&,
-                                           const base::SourceLocation&));
-  MOCK_METHOD2(ParseStyleDeclarationList,
-               scoped_refptr<CSSStyleDeclarationData>(
-                   const std::string&, const base::SourceLocation&));
-  MOCK_METHOD2(ParseFontFaceDeclarationList,
-               scoped_refptr<CSSFontFaceDeclarationData>(
-                   const std::string&, const base::SourceLocation&));
-  MOCK_METHOD3(ParsePropertyValue,
-               scoped_refptr<PropertyValue>(const std::string&,
-                                            const std::string&,
-                                            const base::SourceLocation&));
-  MOCK_METHOD4(ParsePropertyIntoDeclarationData,
-               void(const std::string&, const std::string&,
-                    const base::SourceLocation&,
-                    CSSDeclarationData* declaration_data));
-  MOCK_METHOD2(ParseMediaQuery,
-               scoped_refptr<MediaQuery>(const std::string&,
-                                         const base::SourceLocation&));
-};
+using ::testing::Return;
 
 class FakeCSSGroupingRule : public CSSGroupingRule {
  public:
@@ -88,15 +63,15 @@ class CSSGroupingRuleTest : public ::testing::Test {
   const scoped_refptr<StyleSheetList> style_sheet_list_;
   const scoped_refptr<CSSStyleSheet> css_style_sheet_;
   const scoped_refptr<FakeCSSGroupingRule> css_grouping_rule_;
-  MockCSSParser css_parser_;
+  testing::MockCSSParser css_parser_;
 };
 
 
 TEST_F(CSSGroupingRuleTest, InsertRule) {
   const std::string css_text = "div { font-size: 100px; color: #0047ab; }";
 
-  EXPECT_CALL(css_parser_, ParseStyleRule(css_text, _))
-      .WillOnce(testing::Return(scoped_refptr<CSSStyleRule>()));
+  EXPECT_CALL(css_parser_, ParseRule(css_text, _))
+      .WillOnce(Return(scoped_refptr<CSSRule>()));
   css_grouping_rule_->InsertRule(css_text, 0);
 }
 
