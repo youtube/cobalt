@@ -59,7 +59,16 @@ TYPED_TEST_CASE(FloatingPointTypeBindingsTest, FloatingPointTypes);
 
 template <typename T>
 bool IsNan(T number) {
+#if defined(_MSC_VER)
+#pragma warning(push)
+// On Windows isnan() returns an int.
+// warning C4800: 'int' : forcing value to bool 'true' or 'false'
+#pragma warning(disable:4800)
+#endif
   return isnan(number);
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 }
 
 }  // namespace
