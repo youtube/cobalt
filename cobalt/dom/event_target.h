@@ -68,6 +68,13 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener("blur", event_listener);
   }
 
+  scoped_refptr<EventListener> onerror() {
+    return GetAttributeEventListener("error");
+  }
+  void set_onerror(const scoped_refptr<EventListener>& event_listener) {
+    SetAttributeEventListener("error", event_listener);
+  }
+
   scoped_refptr<EventListener> onfocus() {
     return GetAttributeEventListener("focus");
   }
@@ -81,6 +88,15 @@ class EventTarget : public script::Wrappable,
   void set_onload(const scoped_refptr<EventListener>& event_listener) {
     SetAttributeEventListener("load", event_listener);
   }
+
+  scoped_refptr<EventListener> onreadystatechange() {
+    return GetAttributeEventListener("readystatechange");
+  }
+  void set_onreadystatechange(
+      const scoped_refptr<EventListener>& event_listener) {
+    SetAttributeEventListener("readystatechange", event_listener);
+  }
+
 
   // Set an event listener assigned as an attribute. Overwrite the existing one
   // if there is any.

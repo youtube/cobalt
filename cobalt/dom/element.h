@@ -83,9 +83,6 @@ class Element : public Node {
   scoped_refptr<HTMLCollection> GetElementsByClassName(
       const std::string& class_name) const;
 
-  scoped_refptr<dom::EventListener> onerror() const;
-  void set_onerror(const scoped_refptr<dom::EventListener>& listener);
-
   // TODO(***REMOVED***, b/24212587): Support clientWidth and clientHeight properly.
   float client_width() const { return 0; }
   float client_height() const { return 0; }
@@ -163,8 +160,6 @@ class Element : public Node {
   // A weak pointer to a DOMTokenList containing the the classes of the element.
   // This heavy weight object is kept in memory only when needed by the user.
   base::WeakPtr<DOMTokenList> class_list_;
-
-  scoped_refptr<EventListener> onerror_listener_;
 
   friend class HTMLElement;
 };

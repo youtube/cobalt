@@ -77,17 +77,22 @@ HTMLScriptElement::~HTMLScriptElement() {
 void HTMLScriptElement::Prepare() {
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(MessageLoop::current());
   DCHECK(!loader_);
 
   // If the script element is marked as having "already started", then the user
   // agent must abort these steps at this point. The script is not executed.
-  if (is_already_started_) return;
+  if (is_already_started_) {
+    return;
+  }
 
   // 2. 3. 4. Not needed by Cobalt.
 
   // 5. If the element is not in a Document, then the user agent must abort
   // these steps at this point. The script is not executed.
-  if (!owner_document()) return;
+  if (!owner_document()) {
+    return;
+  }
 
   // 6. If either:
   //    the script element has a type attribute and its value is the empty
@@ -129,8 +134,13 @@ void HTMLScriptElement::Prepare() {
   //   2. If src is the empty string, queue a task to fire a simple event
   // named error at the element, and abort these steps.
   if (HasAttribute("src") && src() == "") {
-    // TODO(***REMOVED***): Report src is empty.
-    LOG(ERROR) << "src attribute of script element is empty.";
+    LOG(WARNING) << "src attribute of script element is empty.";
+
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
+                   base::AsWeakPtr<HTMLScriptElement>(this),
+                   make_scoped_refptr(new Event("error"))));
     return;
   }
 
@@ -140,8 +150,13 @@ void HTMLScriptElement::Prepare() {
   const GURL base_url = owner_document()->url_as_gurl();
   url_ = base_url.Resolve(src());
   if (!url_.is_valid()) {
-    // TODO(***REMOVED***): Report URL cannot be resolved.
-    LOG(ERROR) << src() << " cannot be resolved based on " << base_url;
+    LOG(WARNING) << src() << " cannot be resolved based on " << base_url << ".";
+
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
+                   base::AsWeakPtr<HTMLScriptElement>(this),
+                   make_scoped_refptr(new Event("error"))));
     return;
   }
 
@@ -199,6 +214,14 @@ void HTMLScriptElement::Prepare() {
       if (is_sync_load_successful_) {
         html_element_context()->script_runner()->Execute(
             content_, base::SourceLocation(url_.spec(), 1, 1));
+
+        // If the script is from an external file, fire a simple event named
+        // load at the script element.
+        DispatchEvent(new Event("load"));
+      } else {
+        // Executing the script block must just consist of firing a simple event
+        // named error at the element.
+        DispatchEvent(new Event("error"));
       }
     } break;
     case 4: {
@@ -208,8 +231,6 @@ void HTMLScriptElement::Prepare() {
       // The element must be added to the end of the list of scripts that will
       // execute in order as soon as possible associated with the Document of
       // the script element at the time the prepare a script algorithm started.
-      owner_document()->IncreaseLoadingCounter();
-
       std::deque<HTMLScriptElement*>* scripts_to_be_executed =
           owner_document()->scripts_to_be_executed();
       scripts_to_be_executed->push_back(this);
@@ -222,6 +243,11 @@ void HTMLScriptElement::Prepare() {
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
           base::Bind(&HTMLScriptElement::OnLoadingError,
                      base::Unretained(this))));
+
+      // Fetching an external script must delay the load event of the element's
+      // document until the task that is queued by the networking task source
+      // once the resource has been fetched (defined above) has been run.
+      owner_document()->IncreaseLoadingCounter();
     } break;
     case 5: {
       // If the element has a src attribute.
@@ -229,8 +255,6 @@ void HTMLScriptElement::Prepare() {
       // The element must be added to the set of scripts that will execute as
       // soon as possible of the Document of the script element at the time the
       // prepare a script algorithm started.
-      owner_document()->IncreaseLoadingCounter();
-
       loader_.reset(new loader::Loader(
           base::Bind(
               &loader::FetcherFactory::CreateFetcher,
@@ -240,14 +264,18 @@ void HTMLScriptElement::Prepare() {
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
           base::Bind(&HTMLScriptElement::OnLoadingError,
                      base::Unretained(this))));
+
+      // Fetching an external script must delay the load event of the element's
+      // document until the task that is queued by the networking task source
+      // once the resource has been fetched (defined above) has been run.
+      owner_document()->IncreaseLoadingCounter();
     } break;
     case 6: {
       // Otherwise.
 
       // The user agent must immediately execute the script block, even if other
       // scripts are already executing.
-      html_element_context()->script_runner()->Execute(text_content().value(),
-                                                       inline_script_location_);
+      ExecuteInternal();
     } break;
     default: { NOTREACHED(); }
   }
@@ -262,7 +290,7 @@ void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
   LOG(ERROR) << error;
 }
 
-// Algorithm for Prepare:
+// Algorithm for OnLoadingDone:
 //   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -289,11 +317,12 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
         // script element in this list of scripts that will execute in order as
         // soon as possible.
         HTMLScriptElement* script = scripts_to_be_executed->front();
-        html_element_context()->script_runner()->Execute(
-            script->content_, base::SourceLocation(script->url_.spec(), 1, 1));
+        script->ExecuteExternal();
+
         // 3. Remove the first element from this list of scripts that will
         // execute in order as soon as possible.
         scripts_to_be_executed->pop_front();
+
         // 4. If this list of scripts that will execute in order as soon as
         // possible is still not empty and the first entry has already been
         // marked
@@ -304,6 +333,9 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
         }
       }
 
+      // Fetching an external script must delay the load event of the element's
+      // document until the task that is queued by the networking task source
+      // once the resource has been fetched (defined above) has been run.
       owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
     } break;
     case 5: {
@@ -313,9 +345,11 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
       // the fetching algorithm has completed must execute the script block and
       // then remove the element from the set of scripts that will execute as
       // soon as possible.
-      html_element_context()->script_runner()->Execute(
-          content, base::SourceLocation(url_.spec(), 1, 1));
+      ExecuteExternal();
 
+      // Fetching an external script must delay the load event of the element's
+      // document until the task that is queued by the networking task source
+      // once the resource has been fetched (defined above) has been run.
       owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
     } break;
     default: { NOTREACHED(); }
@@ -323,27 +357,27 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
   StopLoading();
 }
 
-// Algorithm for Prepare:
+// Algorithm for OnLoadingError:
 //   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingError(const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(load_option_ == 4 || load_option_ == 5);
+
   LOG(ERROR) << error;
-  switch (load_option_) {
-    case 4: {
-      // If the element has a src attribute, does not have an async attribute,
-      // and does not have the "force-async" flag set.
-      owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
-    } break;
-    case 5: {
-      // If the element has a src attribute.
-      owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
-    } break;
-    default: { NOTREACHED(); }
-  }
+
+  // Executing the script block must just consist of firing a simple event
+  // named error at the element.
+  DispatchEvent(new Event("error"));
+
+  // Fetching an external script must delay the load event of the element's
+  // document until the task that is queued by the networking task source
+  // once the resource has been fetched (defined above) has been run.
+  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+
   StopLoading();
 }
 
-// Algorithm for Prepare:
+// Algorithm for StopLoading:
 //   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::StopLoading() {
   switch (load_option_) {
@@ -366,6 +400,38 @@ void HTMLScriptElement::StopLoading() {
   }
   DCHECK(loader_);
   loader_.reset();
+}
+
+// Algorithm for Execute:
+//   http://www.w3.org/TR/html5/scripting-1.html#execute-the-script-block
+void HTMLScriptElement::Execute(const std::string& content,
+                                const base::SourceLocation& script_location,
+                                bool is_external) {
+  // Since error is already handled, it is guaranteed the load is successful.
+
+  // 1. 2. 3. Not needed by Cobalt.
+
+  // 4. Create a script, using the script block's source, the URL from which the
+  // script was obtained, the script block's type as the scripting language, and
+  // the script settings object of the script element's Document's Window
+  // object.
+  html_element_context()->script_runner()->Execute(content, script_location);
+
+  // 5. 6. Not needed by Cobalt.
+
+  // 7. If the script is from an external file, fire a simple event named load
+  // at the script element.
+  // Otherwise, the script is internal; queue a task to fire a simple event
+  // named load at the script element.
+  if (is_external) {
+    DispatchEvent(new Event("load"));
+  } else {
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
+                   base::AsWeakPtr<HTMLScriptElement>(this),
+                   make_scoped_refptr(new Event("load"))));
+  }
 }
 
 }  // namespace dom
