@@ -23,6 +23,7 @@
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/browser/web_module.h"
@@ -125,8 +126,11 @@ GURL GetURLFromBaseFilePath(const FilePath& base_file_path) {
 }  // namespace
 
 struct TestInfo {
-  TestInfo(const FilePath& base_file_path, const GURL& url)
-      : base_file_path(base_file_path), url(url) {}
+  TestInfo(const FilePath& base_file_path, const GURL& url,
+           const math::Size& viewport_size)
+      : base_file_path(base_file_path),
+        url(url),
+        viewport_size(viewport_size) {}
 
   // The base_file_path gives a path (relative to the root layout_tests
   // directory) to the test base filename from which all related files (such
@@ -139,6 +143,9 @@ struct TestInfo {
   // GetURLFromBaseFilePath()), but it can also be stated explicitly in the case
   // that it is external from the layout_tests.
   GURL url;
+
+  // The viewport_size is the size of the viewport used during the test.
+  math::Size viewport_size;
 };
 
 // Define operator<< so that this test parameter can be printed by gtest if
@@ -169,7 +176,7 @@ TEST_P(LayoutTest, LayoutTest) {
       CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kOutputAllTestDetails);
   renderer::RenderTreePixelTester pixel_tester(
-      kTestViewportSize, GetTestInputRootDirectory(),
+      GetParam().viewport_size, GetTestInputRootDirectory(),
       GetTestOutputRootDirectory(), pixel_tester_options);
 
   // Setup the WebModule options.  In particular, we specify here the URL of
@@ -197,7 +204,8 @@ TEST_P(LayoutTest, LayoutTest) {
   browser::WebModule web_module(
       GetParam().url, callback_function,
       base::Bind(&AcceptDocumentError, &run_loop), stub_media_module.get(),
-      &network_module, kTestViewportSize, pixel_tester.GetResourceProvider(),
+      &network_module, GetParam().viewport_size,
+      pixel_tester.GetResourceProvider(),
       60.0f,  // Layout refresh rate. Doesn't matter much for layout tests.
       web_module_options);
 
@@ -225,9 +233,29 @@ base::optional<TestInfo> ParseTestCaseLine(const FilePath& top_level,
   }
 
   // Extract the test case file path as the first element before a comma, if
-  // there is one.
+  // there is one. The test case file path can optionally be postfixed by a
+  // colon and a viewport resolution.
+  std::vector<std::string> file_path_tokens;
+  Tokenize(test_case_tokens[0], ":", &file_path_tokens);
+  DCHECK(!file_path_tokens.empty());
+
+  math::Size viewport_size(kTestViewportSize);
+  if (file_path_tokens.size() > 1) {
+    DCHECK_EQ(2, file_path_tokens.size());
+    // If there is a colon, the string that comes after the colon contains the
+    // explicitly specified resolution in pixels, formatted as 'width x height'.
+    std::vector<std::string> resolution_tokens;
+    Tokenize(file_path_tokens[1], "x", &resolution_tokens);
+    if (resolution_tokens.size() == 2) {
+      int width, height;
+      base::StringToInt(resolution_tokens[0], &width);
+      base::StringToInt(resolution_tokens[1], &height);
+      viewport_size.SetSize(width, height);
+    }
+  }
+
   std::string base_file_path_string;
-  TrimWhitespaceASCII(test_case_tokens[0], TRIM_ALL, &base_file_path_string);
+  TrimWhitespaceASCII(file_path_tokens[0], TRIM_ALL, &base_file_path_string);
   if (base_file_path_string.empty()) {
     return base::nullopt;
   }
@@ -235,7 +263,8 @@ base::optional<TestInfo> ParseTestCaseLine(const FilePath& top_level,
 
   if (test_case_tokens.size() == 1) {
     // If there is no comma, determine the URL from the file path.
-    return TestInfo(base_file_path, GetURLFromBaseFilePath(base_file_path));
+    return TestInfo(base_file_path, GetURLFromBaseFilePath(base_file_path),
+                    viewport_size);
   } else {
     // If there is a comma, the string that comes after it contains the
     // explicitly specified URL.  Extract that and use it as the test URL.
@@ -245,7 +274,7 @@ base::optional<TestInfo> ParseTestCaseLine(const FilePath& top_level,
     if (url_string.empty()) {
       return base::nullopt;
     }
-    return TestInfo(base_file_path, GURL(url_string));
+    return TestInfo(base_file_path, GURL(url_string), viewport_size);
   }
 }
 
