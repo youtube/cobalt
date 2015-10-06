@@ -20,7 +20,7 @@
 #include "base/bind.h"
 #include "base/rand_util.h"
 #include "cobalt/dom/event_names.h"
-#include "cobalt/input/keyboard_code.h"
+#include "cobalt/dom/keyboard_code.h"
 
 namespace cobalt {
 namespace input {
@@ -30,8 +30,9 @@ InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
     : keyboard_event_callback_(keyboard_event_callback),
       next_event_timer_(true, true) {
   // Initialize the set of key events we are able to produce.
-  const WindowsKeyCode kKeyCodes[] = {kUp,    kDown,   kLeft,
-                                      kRight, kReturn, kEscape};
+  const dom::WindowsKeyCode kKeyCodes[] = {dom::kUp,     dom::kDown,
+                                           dom::kLeft,   dom::kRight,
+                                           dom::kReturn, dom::kEscape};
   for (int i = 0; i < arraysize(kKeyCodes); ++i) {
     sample_events_.push_back(new dom::KeyboardEvent(
         dom::EventNames::GetInstance()->keydown(),
