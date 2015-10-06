@@ -79,12 +79,17 @@ class NumericConversionTest : public ::testing::Test {
 template <typename T>
 class IntegerConversionTest : public NumericConversionTest<T> {};
 
+template <typename T>
+class FloatingPointConversionTest : public NumericConversionTest<T> {};
+
 typedef ::testing::Types<int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t,
                          double> NumericTypes;
 typedef ::testing::Types<int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t>
     IntegerTypes;
+typedef ::testing::Types<double> FloatingPointTypes;
 TYPED_TEST_CASE(NumericConversionTest, NumericTypes);
 TYPED_TEST_CASE(IntegerConversionTest, IntegerTypes);
+TYPED_TEST_CASE(FloatingPointConversionTest, FloatingPointTypes);
 
 template <class T>
 T JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue js_value,
@@ -169,7 +174,29 @@ TYPED_TEST(IntegerConversionTest, FloatingPointToIntegerConversion) {
 }
 
 // http://es5.github.io/#x9.3
-TYPED_TEST(NumericConversionTest, OtherConversions) {
+TYPED_TEST(IntegerConversionTest, OtherConversions) {
+  EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNull(),
+                                          kNoConversionFlags,
+                                          &this->exception_state_));
+
+  const double kInfinity = std::numeric_limits<double>::infinity();
+  const double kNegativeInfinity = -std::numeric_limits<double>::infinity();
+  EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsUndefined(),
+                                          kNoConversionFlags,
+                                          &this->exception_state_));
+  EXPECT_EQ(0, JSValueToNumber<TypeParam>(
+                   this->exec_state_, JSC::jsNumber(kInfinity),
+                   kNoConversionFlags, &this->exception_state_));
+  EXPECT_EQ(0, JSValueToNumber<TypeParam>(
+                   this->exec_state_, JSC::jsNumber(kNegativeInfinity),
+                   kNoConversionFlags, &this->exception_state_));
+  EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNaN(),
+                                          kNoConversionFlags,
+                                          &this->exception_state_));
+}
+
+// http://es5.github.io/#x9.3
+TYPED_TEST(FloatingPointConversionTest, OtherConversions) {
   EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNull(),
                                           kNoConversionFlags,
                                           &this->exception_state_));
@@ -178,48 +205,33 @@ TYPED_TEST(NumericConversionTest, OtherConversions) {
   const double kInfinity = std::numeric_limits<double>::infinity();
   const double kNegativeInfinity = -std::numeric_limits<double>::infinity();
 
-  // The following convert to non-finite numbers, which should throw a TypeError
-  // for floating point types.
-  if (std::numeric_limits<TypeParam>::is_integer) {
-    EXPECT_EQ(0, JSValueToNumber<TypeParam>(
-                     this->exec_state_, JSC::jsUndefined(), kNoConversionFlags,
-                     &this->exception_state_));
-    EXPECT_EQ(0, JSValueToNumber<TypeParam>(
-                     this->exec_state_, JSC::jsNumber(kInfinity),
-                     kNoConversionFlags, &this->exception_state_));
-    EXPECT_EQ(0, JSValueToNumber<TypeParam>(
-                     this->exec_state_, JSC::jsNumber(kNegativeInfinity),
-                     kNoConversionFlags, &this->exception_state_));
-    EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNaN(),
-                                            kNoConversionFlags,
-                                            &this->exception_state_));
-  } else {
-    // Unrestricted non-finite floating point conversions
-    EXPECT_EQ(kInfinity, JSValueToNumber<TypeParam>(
-                             this->exec_state_, JSC::jsNumber(kInfinity),
-                             kNoConversionFlags, &this->exception_state_));
-    EXPECT_EQ(kNegativeInfinity,
-              JSValueToNumber<TypeParam>(
-                  this->exec_state_, JSC::jsNumber(kNegativeInfinity),
-                  kNoConversionFlags, &this->exception_state_));
-    EXPECT_TRUE(isnan(JSValueToNumber<TypeParam>(
-        this->exec_state_, JSC::jsNaN(), kNoConversionFlags,
-        &this->exception_state_)));
 
-    // Restricted non-finite floating point conversions
-    EXPECT_CALL(this->exception_state_,
-                SetSimpleException(ExceptionState::kTypeError, _))
-        .Times(3);
-    JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNumber(kInfinity),
-                               kConversionFlagRestricted,
-                               &this->exception_state_);
-    JSValueToNumber<TypeParam>(
-        this->exec_state_, JSC::jsNumber(kNegativeInfinity),
-        kConversionFlagRestricted, &this->exception_state_);
-    JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNaN(),
-                               kConversionFlagRestricted,
-                               &this->exception_state_);
-  }
+  // Unrestricted non-finite floating point conversions
+  EXPECT_EQ(kInfinity, JSValueToNumber<TypeParam>(
+                           this->exec_state_, JSC::jsNumber(kInfinity),
+                           kNoConversionFlags, &this->exception_state_));
+  EXPECT_EQ(kNegativeInfinity,
+            JSValueToNumber<TypeParam>(
+                this->exec_state_, JSC::jsNumber(kNegativeInfinity),
+                kNoConversionFlags, &this->exception_state_));
+  EXPECT_TRUE(isnan(JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNaN(),
+                                               kNoConversionFlags,
+                                               &this->exception_state_)));
+
+  // Restricted non-finite floating point conversions. These should throw a
+  // TypeError.
+  EXPECT_CALL(this->exception_state_,
+              SetSimpleException(ExceptionState::kTypeError, _))
+      .Times(3);
+  JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNumber(kInfinity),
+                             kConversionFlagRestricted,
+                             &this->exception_state_);
+  JSValueToNumber<TypeParam>(
+      this->exec_state_, JSC::jsNumber(kNegativeInfinity),
+      kConversionFlagRestricted, &this->exception_state_);
+  JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNaN(),
+                             kConversionFlagRestricted,
+                             &this->exception_state_);
 }
 
 
