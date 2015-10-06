@@ -278,15 +278,6 @@ scoped_refptr<HTMLCollection> Element::GetElementsByClassName(
   return HTMLCollection::CreateWithElementsByClassName(this, class_name);
 }
 
-scoped_refptr<EventListener> Element::onerror() const {
-  return onerror_listener_;
-}
-
-void Element::set_onerror(const scoped_refptr<EventListener>& listener) {
-  onerror_listener_ = listener;
-  SetAttributeEventListener(EventNames::GetInstance()->error(), listener);
-}
-
 bool Element::GetBooleanAttribute(const std::string& name) const {
   return HasAttribute(name);
 }

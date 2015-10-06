@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
+// http://www.w3.org/TR/html5/scripting-1.html#the-script-element
+
 interface HTMLScriptElement : HTMLElement {
   attribute DOMString src;
   attribute DOMString type;
+  attribute DOMString charset;
   attribute boolean async;
 };

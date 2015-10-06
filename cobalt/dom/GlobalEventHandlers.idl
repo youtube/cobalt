@@ -19,8 +19,10 @@
 [NoInterfaceObject]
 interface GlobalEventHandlers {
   attribute EventHandler onblur;
+  attribute EventHandler onerror;
   attribute EventHandler onfocus;
   attribute EventHandler onload;
+  attribute EventHandler onreadystatechange;
 };
 
 // TODO(b/21154386): The IDL defines EventHandler as a nullable callback
