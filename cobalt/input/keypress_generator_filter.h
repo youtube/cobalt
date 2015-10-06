@@ -17,6 +17,7 @@
 #ifndef INPUT_KEYPRESS_GENERATOR_FILTER_H_
 #define INPUT_KEYPRESS_GENERATOR_FILTER_H_
 
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/input/key_event_handler.h"
 
 namespace cobalt {
@@ -41,20 +42,6 @@ class KeypressGeneratorFilter : public KeyEventHandler {
   // 2. The keycode corresponds to a printable character, or BS/Enter.
   bool ConditionallyGenerateKeypressEvent(
       const scoped_refptr<dom::KeyboardEvent>& orig_event);
-
-  // Returns the character code corresponding to a keyboard event, or 0.
-  // The character code is calculated using the keycode and modifier keys.
-  // Returns 0 if the keycode doesn't correspond to a printable character.
-  static int KeyboardEventToCharCode(
-      const scoped_refptr<dom::KeyboardEvent>& keyboard_event);
-
-  // Returns the character code corresponding to a Windows Virtual Key Code
-  // with no shift modifier.
-  static int KeyCodeToCharCodeNoShift(int key_code);
-
-  // Returns the character code corresponding to a Windows Virtual Key Code
-  // with a shift modifier.
-  static int KeyCodeToCharCodeWithShift(int key_code);
 };
 
 }  // namespace input
