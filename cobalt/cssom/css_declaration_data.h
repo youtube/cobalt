@@ -34,6 +34,19 @@ class CSSDeclarationData : public base::RefCounted<CSSDeclarationData> {
   void SetPropertyValue(const std::string& property_name,
                         const scoped_refptr<PropertyValue>& property_value);
 
+  // Sets and gets property's importance. Default behaviour is not to record
+  // importance.
+  // Note that the const char* name passed in here should point to one of the
+  // string constants in property_names.h, rather than pointing to a copy of the
+  // string somewhere else, so they they can be property indexed and looked up.
+  virtual bool IsPropertyImportant(const char* property_name) const {
+    UNREFERENCED_PARAMETER(property_name);
+    return false;
+  }
+  virtual void SetPropertyImportant(const char* property_name) {
+    UNREFERENCED_PARAMETER(property_name);
+  }
+
  protected:
   virtual ~CSSDeclarationData() {}
 
