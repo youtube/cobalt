@@ -85,8 +85,8 @@ class Element : public Node {
       const std::string& class_name) const;
 
   // TODO(***REMOVED***, b/24212587): Support clientWidth and clientHeight properly.
-  float client_width() const { return 0; }
-  float client_height() const { return 0; }
+  float client_width() const { return 1920; }
+  float client_height() const { return 1080; }
 
   // Web API: DOM Parsing and Serialization (partial interface)
   //   http://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface
