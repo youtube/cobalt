@@ -17,6 +17,8 @@
 #ifndef LAYOUT_TEXT_BOX_H_
 #define LAYOUT_TEXT_BOX_H_
 
+#include <string>
+
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"
 #include "cobalt/render_tree/font.h"
