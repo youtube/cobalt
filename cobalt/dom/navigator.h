@@ -19,6 +19,9 @@
 
 #include <string>
 
+#include "base/memory/ref_counted.h"
+#include "cobalt/dom/mime_type_array.h"
+#include "cobalt/dom/plugin_array.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -27,13 +30,24 @@ namespace dom {
 // The Navigator object represents the identity and state of the user agent (the
 // client), and allows Web pages to register themselves as potential protocol
 // and content handlers.
-//   http://www.w3.org/TR/html5/webappapis.html#navigator
+// http://www.w3.org/TR/html5/webappapis.html#navigator
 class Navigator : public script::Wrappable {
  public:
-  explicit Navigator(const std::string& user_agent);
+  Navigator(const std::string& user_agent, const std::string& language);
 
-  // Web API: Navigator
+  // Web API: NavigatorID
   const std::string& user_agent() const;
+
+  // Web API: NavigatorLanguage
+  const std::string& language() const;
+
+  // Web API: NavigatorStorageUtils
+  bool java_enabled() const;
+
+  // Web API: NavigatorPlugins
+  bool cookie_enabled() const;
+  const scoped_refptr<MimeTypeArray>& mime_types() const;
+  const scoped_refptr<PluginArray>& plugins() const;
 
   DEFINE_WRAPPABLE_TYPE(Navigator);
 
@@ -41,6 +55,9 @@ class Navigator : public script::Wrappable {
   ~Navigator() OVERRIDE {}
 
   std::string user_agent_;
+  std::string language_;
+  scoped_refptr<MimeTypeArray> mime_types_;
+  scoped_refptr<PluginArray> plugins_;
 
   DISALLOW_COPY_AND_ASSIGN(Navigator);
 };
