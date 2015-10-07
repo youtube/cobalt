@@ -21,6 +21,10 @@
       'target_name': 'nplb',
       'type': '<(gtest_target_type)',
       'sources': [
+        'directory_can_open_test.cc',
+        'directory_close_test.cc',
+        'directory_get_next_test.cc',
+        'directory_open_test.cc',
         'file_can_open_test.cc',
         'file_close_test.cc',
         'file_get_info_test.cc',

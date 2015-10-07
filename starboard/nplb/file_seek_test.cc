@@ -35,7 +35,7 @@ TEST(SbFileSeekTest, InvalidFileErrors) {
 }
 
 TEST(SbFileSeekTest, FromEndWorks) {
-  starboard::nplb::ScopedRandomFile random_file(128);
+  starboard::nplb::ScopedRandomFile random_file;
   const std::string &filename = random_file.filename();
   SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
                            NULL, NULL);
@@ -48,8 +48,9 @@ TEST(SbFileSeekTest, FromEndWorks) {
   int64_t position = SbFileSeek(file, kSbFileFromEnd, 0);
   EXPECT_EQ(info.size, position);
 
-  position = SbFileSeek(file, kSbFileFromEnd, -10);
-  EXPECT_EQ(info.size - 10, position);
+  int64_t target = -(random_file.size() / 6);
+  position = SbFileSeek(file, kSbFileFromEnd, target);
+  EXPECT_EQ(info.size + target, position);
 
   position = SbFileSeek(file, kSbFileFromEnd, -info.size);
   EXPECT_EQ(0, position);
@@ -59,7 +60,7 @@ TEST(SbFileSeekTest, FromEndWorks) {
 }
 
 TEST(SbFileSeekTest, FromCurrentWorks) {
-  starboard::nplb::ScopedRandomFile random_file(128);
+  starboard::nplb::ScopedRandomFile random_file;
   const std::string &filename = random_file.filename();
   SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
                            NULL, NULL);
@@ -72,14 +73,15 @@ TEST(SbFileSeekTest, FromCurrentWorks) {
   int64_t position = SbFileSeek(file, kSbFileFromCurrent, 0);
   EXPECT_EQ(0, position);
 
-  position = SbFileSeek(file, kSbFileFromCurrent, 10);
-  EXPECT_EQ(10, position);
+  int64_t target = random_file.size() / 6;
+  position = SbFileSeek(file, kSbFileFromCurrent, target);
+  EXPECT_EQ(target, position);
 
-  position = SbFileSeek(file, kSbFileFromCurrent, 10);
-  EXPECT_EQ(20, position);
+  position = SbFileSeek(file, kSbFileFromCurrent, target);
+  EXPECT_EQ(target * 2, position);
 
   position = SbFileSeek(file, kSbFileFromCurrent, 0);
-  EXPECT_EQ(20, position);
+  EXPECT_EQ(target * 2, position);
 
   position = SbFileSeek(file, kSbFileFromCurrent, info.size - position);
   EXPECT_EQ(info.size, position);
@@ -92,7 +94,7 @@ TEST(SbFileSeekTest, FromCurrentWorks) {
 }
 
 TEST(SbFileSeekTest, FromBeginWorks) {
-  starboard::nplb::ScopedRandomFile random_file(128);
+  starboard::nplb::ScopedRandomFile random_file;
   const std::string &filename = random_file.filename();
   SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
                            NULL, NULL);
@@ -105,14 +107,17 @@ TEST(SbFileSeekTest, FromBeginWorks) {
   int64_t position = SbFileSeek(file, kSbFileFromBegin, 0);
   EXPECT_EQ(0, position);
 
-  position = SbFileSeek(file, kSbFileFromBegin, 10);
-  EXPECT_EQ(10, position);
+  int64_t target = random_file.size() / 6;
+  position = SbFileSeek(file, kSbFileFromBegin, target);
+  EXPECT_EQ(target, position);
 
-  position = SbFileSeek(file, kSbFileFromBegin, 20);
-  EXPECT_EQ(20, position);
+  target = random_file.size() / 3;
+  position = SbFileSeek(file, kSbFileFromBegin, target);
+  EXPECT_EQ(target, position);
 
-  position = SbFileSeek(file, kSbFileFromBegin, info.size - 10);
-  EXPECT_EQ(info.size - 10, position);
+  target = info.size - random_file.size() / 6;
+  position = SbFileSeek(file, kSbFileFromBegin, target);
+  EXPECT_EQ(target, position);
 
   position = SbFileSeek(file, kSbFileFromBegin, info.size);
   EXPECT_EQ(info.size, position);
