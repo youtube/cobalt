@@ -30,6 +30,7 @@
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/create_system_window.h"
+#include "cobalt/trace_event/scoped_trace_to_file.h"
 
 namespace cobalt {
 namespace browser {
@@ -129,6 +130,10 @@ class BrowserModule {
   // Wraps input device and produces input events that can be passed into
   // the web module.
   scoped_ptr<input::InputDeviceManager> input_device_manager_;
+
+  // This object can be set to start a trace if a hotkey (like F3) is pressed.
+  // While initialized, it means that a trace is on-going.
+  scoped_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
 };
 
 }  // namespace browser
