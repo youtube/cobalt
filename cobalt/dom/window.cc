@@ -23,6 +23,7 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_names.h"
+#include "cobalt/dom/history.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
@@ -65,7 +66,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                media::WebMediaPlayerFactory* web_media_player_factory,
                script::ExecutionState* execution_state,
                script::ScriptRunner* script_runner, const GURL& url,
-               const std::string& user_agent,
+               const std::string& user_agent, const std::string& language,
                const base::Callback<void(const std::string&)>& error_callback)
     : width_(width),
       height_(height),
@@ -83,7 +84,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           dom_parser->ParseDocumentAsync(
               document_, base::SourceLocation(url.spec(), 1, 1)),
           error_callback)),
-      navigator_(new Navigator(user_agent)),
+      history_(new History()),
+      navigator_(new Navigator(user_agent, language)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
@@ -103,6 +105,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
 }
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
+
+const scoped_refptr<History>& Window::history() const { return history_; }
 
 scoped_refptr<Location> Window::location() const {
   return document_->location();
