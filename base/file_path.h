@@ -403,7 +403,7 @@ BASE_EXPORT extern void PrintTo(const FilePath& path, std::ostream* out);
 
 // Macros for string literal initialization of FilePath::CharType[], and for
 // using a FilePath::CharType[] in a printf-style format string.
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_STARBOARD)
 #define FILE_PATH_LITERAL(x) x
 #define PRFilePath "s"
 #define PRFilePathLiteral "%s"
