@@ -438,8 +438,6 @@ void GetMatchingRulesFromStyleSheet(
     }
 
     if (matches[kNotPseudoElementType]) {
-      // TODO(***REMOVED***): When importance is implemented, change origin according
-      // to the importance of the declaration.
       cssom::CascadePriority cascade_priority(
           origin, specificity[kNotPseudoElementType],
           cssom::Appearance(style_sheet->index(), rule->index()));
@@ -450,8 +448,6 @@ void GetMatchingRulesFromStyleSheet(
     for (int pseudo_element_type = 0;
          pseudo_element_type < kMaxPseudoElementType; ++pseudo_element_type) {
       if (matches[pseudo_element_type]) {
-        // TODO(***REMOVED***): When importance is implemented, change origin according
-        // to the importance of the declaration.
         cssom::CascadePriority cascade_priority(
             origin, specificity[pseudo_element_type],
             cssom::Appearance(style_sheet->index(), rule->index()));
