@@ -21,6 +21,8 @@
   [Unforgeable] readonly attribute Document document;
   [PutForwards=href, Unforgeable] readonly attribute Location location;
   readonly attribute Navigator navigator;
+  // TODO(***REMOVED***): Should be WindowProxy
+  readonly attribute Window opener;
 
   // Custom, not in any spec.
   //

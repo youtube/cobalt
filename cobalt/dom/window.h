@@ -188,6 +188,7 @@ class Window : public EventTarget {
   // its way to the appropriate object in DOM.
   void InjectEvent(const scoped_refptr<Event>& event);
 
+  scoped_refptr<Window> opener() const { return NULL; }
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:

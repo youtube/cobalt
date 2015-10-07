@@ -25,6 +25,8 @@ interface Document : Node {
   HTMLCollection getElementsByTagName(DOMString localName);
   HTMLCollection getElementsByClassName(DOMString classNames);
   [NewObject] Element createElement(DOMString localName);
+  [NewObject] Element createElementNS(DOMString namespaceURI, DOMString localName);
+
   [NewObject] Text createTextNode(DOMString data);
   [NewObject, RaisesException] Event createEvent(DOMString interfaceName);
 };
