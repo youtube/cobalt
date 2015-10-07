@@ -24,6 +24,7 @@
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/keyboard_code.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
+#include "cobalt/trace_event/scoped_trace_to_file.h"
 
 namespace cobalt {
 namespace browser {
@@ -158,12 +159,38 @@ bool BrowserModule::FilterKeyEvent(
 
 bool BrowserModule::FilterKeyEventForHotkeys(
     const scoped_refptr<dom::KeyboardEvent>& event) {
-  if (event->type() == dom::EventNames::GetInstance()->keydown() &&
-      event->ctrl_key() && event->key_code() == dom::kO) {
-    // Ctrl+O toggles the debug console display.
-    debug_hub_->CycleDebugConsoleMode();
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (event->ctrl_key() && event->key_code() == dom::kO) {
+    if (event->type() == dom::EventNames::GetInstance()->keydown()) {
+      // Ctrl+O toggles the debug console display.
+      debug_hub_->CycleDebugConsoleMode();
+    }
     return false;
   }
+
+  if (event->key_code() == dom::kF3) {
+    if (event->type() == dom::EventNames::GetInstance()->keydown()) {
+      CommandLine* command_line = CommandLine::ForCurrentProcess();
+      if (command_line->HasSwitch(switches::kTimedTrace)) {
+        DLOG(WARNING)
+            << "Cannot manually trigger a trace when timed_trace is active.";
+      } else {
+        static const char* kOutputTraceFilename = "triggered_trace.json";
+        if (trace_to_file_) {
+          DLOG(INFO) << "Ending trace.";
+          DLOG(INFO) << "Trace results in file \"" << kOutputTraceFilename
+                     << "\"";
+          trace_to_file_.reset();
+        } else {
+          DLOG(INFO) << "Starting trace...";
+          trace_to_file_.reset(new trace_event::ScopedTraceToFile(
+              FilePath(kOutputTraceFilename)));
+        }
+      }
+    }
+    return false;
+  }
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   return true;
 }
