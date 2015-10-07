@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/html/wg/drafts/html/master/webappapis.html#navigatorid
+// http://www.w3.org/html/wg/drafts/html/master/webappapis.html#navigatorplugins
 [NoInterfaceObject]
-interface NavigatorID {
-  readonly attribute DOMString userAgent;
+interface NavigatorPlugins {
+  readonly attribute PluginArray plugins;
+  readonly attribute MimeTypeArray mimeTypes;
+  readonly attribute boolean javaEnabled;
 };

@@ -14,32 +14,34 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/navigator.h"
+#ifndef DOM_PLUGIN_ARRAY_H_
+#define DOM_PLUGIN_ARRAY_H_
+
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
 
-Navigator::Navigator(const std::string& user_agent, const std::string& language)
-    : user_agent_(user_agent),
-      language_(language),
-      mime_types_(new MimeTypeArray()),
-      plugins_(new PluginArray()) {}
+// A PluginArray object represents none, some, or all of the plugins supported
+// by the user agent, each of which is represented by a Plugin object.
+// ***REMOVED*** does not use this interface, but stub support is required for ads.
+// http://www.w3.org/html/wg/drafts/html/master/webappapis.html#pluginarray
+class PluginArray : public script::Wrappable {
+ public:
+  PluginArray();
 
-const std::string& Navigator::language() const { return language_; }
+  // Web API: PluginArray
+  int length() const;
 
-const std::string& Navigator::user_agent() const { return user_agent_; }
+  DEFINE_WRAPPABLE_TYPE(PluginArray);
 
-bool Navigator::java_enabled() const { return false; }
+ private:
+  ~PluginArray() OVERRIDE {}
 
-bool Navigator::cookie_enabled() const { return false; }
-
-const scoped_refptr<MimeTypeArray>& Navigator::mime_types() const {
-  return mime_types_;
-}
-
-const scoped_refptr<PluginArray>& Navigator::plugins() const {
-  return plugins_;
-}
+  DISALLOW_COPY_AND_ASSIGN(PluginArray);
+};
 
 }  // namespace dom
 }  // namespace cobalt
+
+#endif  // DOM_PLUGIN_ARRAY_H_
