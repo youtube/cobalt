@@ -2547,10 +2547,10 @@ TEST_F(ParserTest, ParsesValidPropertyValue) {
 }
 
 TEST_F(ParserTest, WarnsAboutImportantInPropertyValue) {
-  EXPECT_CALL(parser_observer_,
-              OnWarning(
-                  "[object ParserTest]:1:1: warning: !important is not allowed "
-                  "in property value"));
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:1: warning: !important is not allowed "
+                "when setting single property values."));
 
   scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
       "color", "#f0000d !important", source_location_);

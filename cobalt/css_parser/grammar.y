@@ -3898,9 +3898,9 @@ entry_point:
     if (property_declaration != NULL) {
       DCHECK_EQ(1, property_declaration->property_values.size()) <<
           "Cannot parse shorthand properties as single property values.";
-      if (property_declaration->important) {
-        parser_impl->LogWarning(@1,
-                                "!important is not allowed in property value");
+      if (property_declaration->is_important) {
+        parser_impl->LogWarning(
+          @1, "!important is not allowed when setting single property values.");
       } else {
         parser_impl->set_property_value(
             property_declaration->property_values[0].value);
@@ -3914,7 +3914,7 @@ entry_point:
         maybe_declaration {
     scoped_ptr<PropertyDeclaration> property_declaration($3);
     if (property_declaration != NULL) {
-      if (property_declaration->important) {
+      if (property_declaration->is_important) {
         parser_impl->LogError(
             @1, "!important is not allowed when setting single property value");
       } else {
