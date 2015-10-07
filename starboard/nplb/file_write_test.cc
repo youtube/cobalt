@@ -21,6 +21,8 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using starboard::nplb::ScopedRandomFile;
+
 namespace {
 
 const int kBufferLength = 16 * 1024;
@@ -35,7 +37,7 @@ TEST(SbFileWriteTest, BasicWriting) {
   // Choose a file size that is not an even multiple of the buffer size, but is
   // over several times the size of the buffer.
   const int kFileSize = kBufferLength * 16 / 3;
-  starboard::nplb::ScopedRandomFile random_file(0, false);
+  ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
   const std::string &filename = random_file.filename();
 
   SbFile file = SbFileOpen(filename.c_str(),
@@ -98,7 +100,7 @@ TEST(SbFileWriteTest, BasicWriting) {
     previous_total = total;
     total += bytes_read;
 
-    starboard::nplb::ScopedRandomFile::ExpectPattern(
+    ScopedRandomFile::ExpectPattern(
         previous_total,
         buffer,
         bytes_read,
@@ -113,7 +115,7 @@ TEST(SbFileWriteTest, BasicWriting) {
 }
 
 TEST(SbFileWriteTest, WriteZeroBytes) {
-  starboard::nplb::ScopedRandomFile random_file(0, false);
+  ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
   const std::string &filename = random_file.filename();
 
   SbFile file = SbFileOpen(filename.c_str(), kSbFileCreateOnly | kSbFileWrite,

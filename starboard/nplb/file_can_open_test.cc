@@ -18,10 +18,12 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using starboard::nplb::ScopedRandomFile;
+
 namespace {
 
 TEST(SbFileCanOpenTest, NonExistingFileFails) {
-  starboard::nplb::ScopedRandomFile random_file(0, false);
+  ScopedRandomFile random_file(ScopedRandomFile::kDontCreate);
   const std::string &filename = random_file.filename();
 
   bool result = SbFileCanOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead);
@@ -36,7 +38,7 @@ TEST(SbFileCanOpenTest, NonExistingFileFails) {
 }
 
 TEST(SbFileCanOpenTest, ExistingFileSucceeds) {
-  starboard::nplb::ScopedRandomFile random_file(0);
+  ScopedRandomFile random_file;
   const std::string &filename = random_file.filename();
 
   bool result = SbFileCanOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead);
