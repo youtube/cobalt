@@ -59,6 +59,9 @@
 11-1-absolutely-positioned-children-of-overflow-hidden
 11-1-absolutely-positioned-children-of-overflow-hidden-to-left
 11-1-absolutely-positioned-children-of-overflow-hidden-to-right
+11-2-visibility-hidden-renders-generated-box-invisible
+11-2-visibility-hidden-should-be-overridable
+11-2-visibility-hidden-still-affects-layout
 12-1-after-pseudoelement
 12-1-after-pseudoelement-simple
 12-1-before-pseudoelement
