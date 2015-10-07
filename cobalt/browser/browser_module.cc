@@ -159,7 +159,9 @@ bool BrowserModule::FilterKeyEvent(
 
 bool BrowserModule::FilterKeyEventForHotkeys(
     const scoped_refptr<dom::KeyboardEvent>& event) {
-#if defined(ENABLE_DEBUG_CONSOLE)
+#if !defined(ENABLE_DEBUG_CONSOLE)
+  UNREFERENCED_PARAMETER(event);
+#else
   if (event->ctrl_key() && event->key_code() == dom::kO) {
     if (event->type() == dom::EventNames::GetInstance()->keydown()) {
       // Ctrl+O toggles the debug console display.
