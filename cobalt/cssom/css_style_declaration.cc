@@ -544,7 +544,7 @@ void CSSStyleDeclaration::set_css_text(const std::string& css_text) {
   if (declaration) {
     data_ = declaration;
   } else {
-    data_ = new CSSStyleDeclarationData;
+    data_ = new CSSStyleDeclarationData();
   }
 
   RecordMutation();

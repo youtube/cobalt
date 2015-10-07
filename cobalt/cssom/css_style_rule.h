@@ -59,6 +59,7 @@ class CSSStyleRule : public CSSRule {
   // From CSSRule.
   void Accept(CSSRuleVisitor* visitor) OVERRIDE;
   void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
+  CSSStyleRule* AsCSSStyleRule() OVERRIDE { return this; }
 
   const Selectors& selectors() const { return selectors_; }
 
