@@ -28,6 +28,9 @@ enum {
                 // *not* where the browser cache lives, but the
                 // browser cache can be a subdirectory.
 
+  DIR_HOME,     // The root of the primary directory for a user (and their
+                // programs) to place their personal files.
+
   PATH_STARBOARD_END
 };
 
