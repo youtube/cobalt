@@ -234,7 +234,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     float w = width();
     float h = height();
 
-    // Take the max-width and max-height as max(min, max) so that min ≤ max
+    // Take the max-width and max-height as max(min, max) so that min <= max
     // holds true.
     //   http://www.w3.org/TR/CSS21/visudet.html#min-max-widths
     base::optional<float> max_height;
@@ -265,7 +265,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
           set_height(*max_height);
         } else {
           // Constraint: (w > max-width) and (h > max-height), where
-          // (max-width/w ≤ max-height/h)
+          // (max-width/w <= max-height/h)
           set_width(*max_width);
           set_height(std::max(min_height, *max_width * h / w));
         }
@@ -297,7 +297,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
               set_height(std::min(*max_height, min_width * h / w));
             } else {
               // Constraint: (w < min-width) and (h < min-height), where
-              // (min-width/w ≤ min-height/h)
+              // (min-width/w <= min-height/h)
               set_width(std::min(*max_width, min_height * w / h));
               set_height(min_height);
             }
