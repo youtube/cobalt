@@ -26,7 +26,8 @@ bool PathProviderStarboard(int key, FilePath *result) {
   switch (key) {
     case base::DIR_EXE:
     case base::DIR_MODULE:
-      SbSystemGetPath(kSbSystemPathContentDirectory, path, SB_ARRAY_SIZE(path));
+      SbSystemGetPath(kSbSystemPathContentDirectory, path,
+                      SB_ARRAY_SIZE_INT(path));
       *result = FilePath(path);
       return true;
 
@@ -35,14 +36,21 @@ bool PathProviderStarboard(int key, FilePath *result) {
       //               web-pages locally, we should add a check here to ensure
       //               that release builds do not try to access DIR_SOURCE_ROOT.
       //               b/22359828
-      SbSystemGetPath(kSbSystemPathSourceDirectory, path, SB_ARRAY_SIZE(path));
+      SbSystemGetPath(kSbSystemPathSourceDirectory, path,
+                      SB_ARRAY_SIZE_INT(path));
       *result = FilePath(path);
       return true;
 
     case base::DIR_CACHE:
-      SbSystemGetPath(kSbSystemPathCacheDirectory, path, SB_ARRAY_SIZE(path));
+      SbSystemGetPath(kSbSystemPathCacheDirectory, path,
+                      SB_ARRAY_SIZE_INT(path));
       *result = FilePath(path);
       return true;
+
+    case base::DIR_HOME:
+      // TODO(iffy): Add a home directory to SbSystemPathId and get it from
+      // there.
+      return PathProviderStarboard(base::DIR_CACHE, result);
   }
 
   NOTIMPLEMENTED() << "key = " << key;

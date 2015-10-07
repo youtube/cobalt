@@ -10,6 +10,10 @@
 #include <windows.h>
 #endif
 
+#if defined(OS_STARBOARD)
+#include "starboard/file.h"
+#endif
+
 #include <string>
 
 #include "base/base_export.h"
@@ -25,6 +29,9 @@ const PlatformFile kInvalidPlatformFileValue = INVALID_HANDLE_VALUE;
 #elif defined(OS_POSIX)
 typedef int PlatformFile;
 const PlatformFile kInvalidPlatformFileValue = -1;
+#elif defined(OS_STARBOARD)
+typedef SbFile PlatformFile;
+const PlatformFile kInvalidPlatformFileValue = kSbFileInvalid;
 #endif
 
 // PLATFORM_FILE_(OPEN|CREATE).* are mutually exclusive. You should specify

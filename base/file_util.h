@@ -15,6 +15,8 @@
 #elif defined(OS_POSIX)
 #include <sys/stat.h>
 #include <unistd.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/file.h"
 #endif
 
 #include <stdio.h>
@@ -66,6 +68,7 @@ BASE_EXPORT bool ContainsPath(const FilePath& parent, const FilePath& child);
 //-----------------------------------------------------------------------------
 // Functions that involve filesystem access or modification:
 
+#if !defined(OS_STARBOARD)
 // Returns the number of files matching the current path that were
 // created on or after the given |file_time|.  Doesn't count ".." or ".".
 //
@@ -76,6 +79,7 @@ BASE_EXPORT bool ContainsPath(const FilePath& parent, const FilePath& child);
 // obtaining |file_time|.
 BASE_EXPORT int CountFilesCreatedAfter(const FilePath& path,
                                        const base::Time& file_time);
+#endif
 
 // Returns the total number of bytes used by all the files under |root_path|.
 // If the path does not exist the function returns 0.
@@ -115,6 +119,11 @@ BASE_EXPORT bool Delete(const FilePath& path, bool recursive);
 BASE_EXPORT bool DeleteAfterReboot(const FilePath& path);
 #endif
 
+#if !defined(OS_STARBOARD)
+// NOTE(iffy): file_util::Move is used in a small number of places. We won't
+// implement it in Starboard for the time being, but we may bring it back if it
+// is is deemed necessary.
+
 // Moves the given path, whether it's a file or a directory.
 // If a simple rename is not possible, such as in the case where the paths are
 // on different volumes, this will attempt to copy and delete. Returns
@@ -128,9 +137,13 @@ BASE_EXPORT bool Move(const FilePath& from_path, const FilePath& to_path);
 // Returns true on success.
 BASE_EXPORT bool ReplaceFile(const FilePath& from_path,
                              const FilePath& to_path);
+#endif
 
 // Copies a single file. Use CopyDirectory to copy directories.
 BASE_EXPORT bool CopyFile(const FilePath& from_path, const FilePath& to_path);
+
+#if !defined(OS_STARBOARD)
+// NOTE(iffy): file_util::CopyDirectory is only referenced by disabled tests.
 
 // Copies the given path, and optionally all subdirectories and their contents
 // as well.
@@ -142,6 +155,7 @@ BASE_EXPORT bool CopyFile(const FilePath& from_path, const FilePath& to_path);
 BASE_EXPORT bool CopyDirectory(const FilePath& from_path,
                                const FilePath& to_path,
                                bool recursive);
+#endif
 
 // Returns true if the given path exists on the local filesystem,
 // false otherwise.
@@ -170,7 +184,7 @@ BASE_EXPORT bool GetFileCreationLocalTimeFromHandle(HANDLE file_handle,
 BASE_EXPORT bool ContentsEqual(const FilePath& filename1,
                                const FilePath& filename2);
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
 // Returns true if the contents of the two text files given are equal, false
 // otherwise.  This routine treats "\r\n" and "\n" as equivalent.
 BASE_EXPORT bool TextContentsEqual(const FilePath& filename1,
@@ -261,6 +275,7 @@ BASE_EXPORT bool CreateTemporaryFile(FilePath* path);
 BASE_EXPORT bool CreateTemporaryFileInDir(const FilePath& dir,
                                           FilePath* temp_file);
 
+#if !defined(OS_STARBOARD)
 // Create and open a temporary file.  File is opened for read/write.
 // The full path is placed in |path|.
 // Returns a handle to the opened file or NULL if an error occured.
@@ -273,6 +288,7 @@ BASE_EXPORT FILE* CreateAndOpenTemporaryShmemFile(FilePath* path,
 // Similar to CreateAndOpenTemporaryFile, but the file is created in |dir|.
 BASE_EXPORT FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir,
                                                   FilePath* path);
+#endif
 
 // Create a new directory. If prefix is provided, the new directory name is in
 // the format of prefixyyyy.
@@ -302,6 +318,7 @@ BASE_EXPORT bool IsDot(const FilePath& path);
 // Returns true if the given path's base name is "..".
 BASE_EXPORT bool IsDotDot(const FilePath& path);
 
+#if !defined(OS_STARBOARD)
 // Sets |real_path| to |path| with symbolic links and junctions expanded.
 // On windows, make sure the path starts with a lettered drive.
 // |path| must reference a file.  Function will fail if |path| points to
@@ -309,6 +326,7 @@ BASE_EXPORT bool IsDotDot(const FilePath& path);
 // fail if |path| is a junction or symlink that points to an empty file,
 // or if |real_path| would be longer than MAX_PATH characters.
 BASE_EXPORT bool NormalizeFilePath(const FilePath& path, FilePath* real_path);
+#endif
 
 #if defined(OS_WIN)
 
@@ -333,6 +351,7 @@ BASE_EXPORT bool IsLink(const FilePath& file_path);
 BASE_EXPORT bool GetFileInfo(const FilePath& file_path,
                              base::PlatformFileInfo* info);
 
+#if !defined(OS_STARBOARD)
 // Sets the time of the last access and the time of the last modification.
 BASE_EXPORT bool TouchFile(const FilePath& path,
                            const base::Time& last_accessed,
@@ -356,6 +375,7 @@ BASE_EXPORT bool CloseFile(FILE* file);
 // Truncates an open file to end at the location of the current file pointer.
 // This is a cross-platform analog to Windows' SetEndOfFile() function.
 BASE_EXPORT bool TruncateFile(FILE* file);
+#endif
 
 // Reads the given number of bytes from the file into the buffer.  Returns
 // the number of read bytes, or -1 on error.
@@ -364,20 +384,24 @@ BASE_EXPORT int ReadFile(const FilePath& filename, char* data, int size);
 // Writes the given buffer into the file, overwriting any data that was
 // previously there.  Returns the number of bytes written, or -1 on error.
 BASE_EXPORT int WriteFile(const FilePath& filename, const char* data, int size);
+
 #if defined(OS_POSIX)
 // Append the data to |fd|. Does not close |fd| when done.
 BASE_EXPORT int WriteFileDescriptor(const int fd, const char* data, int size);
 #endif
+
 // Append the given buffer into the file. Returns the number of bytes written,
 // or -1 on error.
 BASE_EXPORT int AppendToFile(const FilePath& filename,
                              const char* data, int size);
 
+#if !defined(OS_STARBOARD)
 // Gets the current working directory for the process.
 BASE_EXPORT bool GetCurrentDirectory(FilePath* path);
 
 // Sets the current working directory for the process.
 BASE_EXPORT bool SetCurrentDirectory(const FilePath& path);
+#endif
 
 // Attempts to find a number that can be appended to the |path| to make it
 // unique. If |path| does not exist, 0 is returned.  If it fails to find such
@@ -415,6 +439,7 @@ BASE_EXPORT bool VerifyPathControlledByUser(const FilePath& base,
 BASE_EXPORT bool VerifyPathControlledByAdmin(const FilePath& path);
 #endif  // defined(OS_MACOSX) && !defined(OS_IOS)
 
+#if !defined(OS_STARBOARD)
 // A class to handle auto-closing of FILE*'s.
 class ScopedFILEClose {
  public:
@@ -426,6 +451,7 @@ class ScopedFILEClose {
 };
 
 typedef scoped_ptr_malloc<FILE, ScopedFILEClose> ScopedFILE;
+#endif
 
 #if defined(OS_POSIX)
 // A class to handle auto-closing of FDs.
@@ -454,6 +480,11 @@ class BASE_EXPORT FileEnumerator {
 #elif defined(OS_POSIX)
   typedef struct {
     struct stat stat;
+    std::string filename;
+  } FindInfo;
+#elif defined(OS_STARBOARD)
+  typedef struct {
+    SbFileInfo sb_info;
     std::string filename;
   } FindInfo;
 #endif
@@ -534,6 +565,21 @@ class BASE_EXPORT FileEnumerator {
 
   // The next entry to use from the directory_entries_ vector
   size_t current_directory_entry_;
+#elif defined(OS_STARBOARD)
+  struct DirectoryEntryInfo {
+    FilePath filename;
+    SbFileInfo sb_info;
+  };
+
+  // Read the filenames in source into the vector of DirectoryEntryInfo's
+  static bool ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
+                            const FilePath& source);
+
+  // The files in the current directory
+  std::vector<DirectoryEntryInfo> directory_entries_;
+
+  // The next entry to use from the directory_entries_ vector
+  size_t current_directory_entry_;
 #endif
 
   FilePath root_path_;
@@ -548,7 +594,7 @@ class BASE_EXPORT FileEnumerator {
   DISALLOW_COPY_AND_ASSIGN(FileEnumerator);
 };
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
 class BASE_EXPORT MemoryMappedFile {
  public:
   // The default constructor sets all members to invalid/null values.
