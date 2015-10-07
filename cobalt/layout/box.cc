@@ -184,11 +184,19 @@ void Box::RenderAndAnimate(
   // TODO(***REMOVED***): Fully implement the stacking algorithm:
   //               http://www.w3.org/TR/CSS21/visuren.html#z-index and
   //               http://www.w3.org/TR/CSS21/zindex.html.
-  RenderAndAnimateBackgroundColor(&border_node_builder,
-                                  node_animations_map_builder);
-  RenderAndAnimateBackgroundImage(&border_node_builder,
-                                  node_animations_map_builder);
-  RenderAndAnimateBorder(&border_node_builder, node_animations_map_builder);
+
+  // When an element has visibility:hidden, the generated box is invisible
+  // (fully transparent, nothing is drawn), but still affects layout.
+  // Furthermore, descendants of the element will be visible if they have
+  // 'visibility: visible'.
+  //   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
+  if (computed_style_->visibility() == cssom::KeywordValue::GetVisible()) {
+    RenderAndAnimateBackgroundColor(&border_node_builder,
+                                    node_animations_map_builder);
+    RenderAndAnimateBackgroundImage(&border_node_builder,
+                                    node_animations_map_builder);
+    RenderAndAnimateBorder(&border_node_builder, node_animations_map_builder);
+  }
 
   RenderAndAnimateContent(&border_node_builder, node_animations_map_builder);
 

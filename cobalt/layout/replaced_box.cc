@@ -20,6 +20,7 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/create_letterboxed_image.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
@@ -139,6 +140,10 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
 void ReplacedBox::RenderAndAnimateContent(
     CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
+  if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
+    return;
+  }
+
   CompositionNode::Builder composition_node_builder;
 
   scoped_refptr<CompositionNode> composition_node =

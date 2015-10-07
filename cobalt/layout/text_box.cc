@@ -16,6 +16,8 @@
 
 #include "cobalt/layout/text_box.h"
 
+#include <limits>
+
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
@@ -203,6 +205,10 @@ void TextBox::RenderAndAnimateContent(
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
   UNREFERENCED_PARAMETER(node_animations_map_builder);
+
+  if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
+    return;
+  }
 
   DCHECK_EQ(0, border_left_width() + padding_left());
   DCHECK_EQ(0, border_top_width() + padding_top());
