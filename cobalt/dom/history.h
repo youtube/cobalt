@@ -14,32 +14,35 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/navigator.h"
+#ifndef DOM_HISTORY_H_
+#define DOM_HISTORY_H_
+
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
 
-Navigator::Navigator(const std::string& user_agent, const std::string& language)
-    : user_agent_(user_agent),
-      language_(language),
-      mime_types_(new MimeTypeArray()),
-      plugins_(new PluginArray()) {}
+// The History object can be used to maintain browser session history.
+// http://www.w3.org/TR/html5/browsers.html#the-history-interface
+// http://www.w3.org/TR/html5/browsers.html#history-1
+// ***REMOVED*** does not use the History object, and so this implementation is
+// extremely basic.
+class History : public script::Wrappable {
+ public:
+  History();
 
-const std::string& Navigator::language() const { return language_; }
+  // Web API: History
+  int length() const;
 
-const std::string& Navigator::user_agent() const { return user_agent_; }
+  DEFINE_WRAPPABLE_TYPE(History);
 
-bool Navigator::java_enabled() const { return false; }
+ private:
+  ~History() OVERRIDE {}
 
-bool Navigator::cookie_enabled() const { return false; }
-
-const scoped_refptr<MimeTypeArray>& Navigator::mime_types() const {
-  return mime_types_;
-}
-
-const scoped_refptr<PluginArray>& Navigator::plugins() const {
-  return plugins_;
-}
+  DISALLOW_COPY_AND_ASSIGN(History);
+};
 
 }  // namespace dom
 }  // namespace cobalt
+
+#endif  // DOM_HISTORY_H_

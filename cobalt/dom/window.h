@@ -50,6 +50,7 @@ namespace dom {
 class Console;
 class Document;
 class Event;
+class History;
 class HTMLElementContext;
 class LocalStorageDatabase;
 class Location;
@@ -81,13 +82,14 @@ class Window : public EventTarget {
          media::WebMediaPlayerFactory* web_media_player_factory,
          script::ExecutionState* execution_state,
          script::ScriptRunner* script_runner, const GURL& url,
-         const std::string& user_agent,
+         const std::string& user_agent, const std::string& language,
          const base::Callback<void(const std::string&)>& error_callback);
 
   // Web API: Window
   //
   scoped_refptr<Window> window() { return this; }
   const scoped_refptr<Document>& document() const;
+  const scoped_refptr<History>& history() const;
   scoped_refptr<Location> location() const;
   scoped_refptr<Window> top() { return this; }
   const scoped_refptr<Navigator>& navigator() const;
@@ -203,6 +205,7 @@ class Window : public EventTarget {
   scoped_refptr<Performance> performance_;
   scoped_refptr<Document> document_;
   scoped_ptr<loader::Loader> document_loader_;
+  scoped_refptr<History> history_;
   scoped_refptr<Navigator> navigator_;
   scoped_ptr<RelayLoadEvent> relay_on_load_event_;
   scoped_refptr<Console> console_;
