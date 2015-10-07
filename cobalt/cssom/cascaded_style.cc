@@ -16,30 +16,74 @@
 
 #include "cobalt/cssom/cascaded_style.h"
 
-#include <algorithm>
-
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
 namespace cssom {
-namespace {
-
-bool CompareRulesWithCascadePriority(const RuleWithCascadePriority& lhs,
-                                     const RuleWithCascadePriority& rhs) {
-  return lhs.second > rhs.second;
-}
-
-}  // namespace
 
 void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
                             RulesWithCascadePriority* matching_rules,
                             GURLMap* property_name_to_base_url_map) {
-  // Sort the matched rules in the order of descending specificity, in other
-  // words consider most specific rules first.
-  std::sort(matching_rules->begin(), matching_rules->end(),
-            CompareRulesWithCascadePriority);
+  const CascadePriority kPrecedenceNotSet;
+  const CascadePriority kPrecedenceImportantMin(kImportantAuthor);
+
+#define DEFINE_PROPERTY_PRECEDENCE(NAME) \
+  CascadePriority NAME##_precedence =    \
+      style->NAME() ? kPrecedenceImportantMin : kPrecedenceNotSet;
+
+  DEFINE_PROPERTY_PRECEDENCE(background_color)
+  DEFINE_PROPERTY_PRECEDENCE(background_image)
+  DEFINE_PROPERTY_PRECEDENCE(background_position)
+  DEFINE_PROPERTY_PRECEDENCE(background_repeat)
+  DEFINE_PROPERTY_PRECEDENCE(background_size)
+  DEFINE_PROPERTY_PRECEDENCE(border_radius)
+  DEFINE_PROPERTY_PRECEDENCE(bottom)
+  DEFINE_PROPERTY_PRECEDENCE(color)
+  DEFINE_PROPERTY_PRECEDENCE(content)
+  DEFINE_PROPERTY_PRECEDENCE(display)
+  DEFINE_PROPERTY_PRECEDENCE(font_family)
+  DEFINE_PROPERTY_PRECEDENCE(font_size)
+  DEFINE_PROPERTY_PRECEDENCE(font_style)
+  DEFINE_PROPERTY_PRECEDENCE(font_weight)
+  DEFINE_PROPERTY_PRECEDENCE(height)
+  DEFINE_PROPERTY_PRECEDENCE(left)
+  DEFINE_PROPERTY_PRECEDENCE(line_height)
+  DEFINE_PROPERTY_PRECEDENCE(margin_bottom)
+  DEFINE_PROPERTY_PRECEDENCE(margin_left)
+  DEFINE_PROPERTY_PRECEDENCE(margin_right)
+  DEFINE_PROPERTY_PRECEDENCE(margin_top)
+  DEFINE_PROPERTY_PRECEDENCE(max_height)
+  DEFINE_PROPERTY_PRECEDENCE(max_width)
+  DEFINE_PROPERTY_PRECEDENCE(min_height)
+  DEFINE_PROPERTY_PRECEDENCE(min_width)
+  DEFINE_PROPERTY_PRECEDENCE(opacity)
+  DEFINE_PROPERTY_PRECEDENCE(overflow)
+  DEFINE_PROPERTY_PRECEDENCE(overflow_wrap)
+  DEFINE_PROPERTY_PRECEDENCE(padding_bottom)
+  DEFINE_PROPERTY_PRECEDENCE(padding_left)
+  DEFINE_PROPERTY_PRECEDENCE(padding_right)
+  DEFINE_PROPERTY_PRECEDENCE(padding_top)
+  DEFINE_PROPERTY_PRECEDENCE(position)
+  DEFINE_PROPERTY_PRECEDENCE(right)
+  DEFINE_PROPERTY_PRECEDENCE(tab_size)
+  DEFINE_PROPERTY_PRECEDENCE(text_align)
+  DEFINE_PROPERTY_PRECEDENCE(text_indent)
+  DEFINE_PROPERTY_PRECEDENCE(text_overflow)
+  DEFINE_PROPERTY_PRECEDENCE(text_transform)
+  DEFINE_PROPERTY_PRECEDENCE(top)
+  DEFINE_PROPERTY_PRECEDENCE(transform)
+  DEFINE_PROPERTY_PRECEDENCE(transition_delay)
+  DEFINE_PROPERTY_PRECEDENCE(transition_duration)
+  DEFINE_PROPERTY_PRECEDENCE(transition_property)
+  DEFINE_PROPERTY_PRECEDENCE(transition_timing_function)
+  DEFINE_PROPERTY_PRECEDENCE(vertical_align)
+  DEFINE_PROPERTY_PRECEDENCE(visibility)
+  DEFINE_PROPERTY_PRECEDENCE(white_space)
+  DEFINE_PROPERTY_PRECEDENCE(width)
+  DEFINE_PROPERTY_PRECEDENCE(z_index)
+#undef DEFINE_PROPERTY_PRECEDENCE
 
   for (RulesWithCascadePriority::const_iterator rule_iterator =
            matching_rules->begin();
@@ -47,163 +91,91 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
     scoped_refptr<const CSSStyleDeclarationData> declared_style =
         rule_iterator->first->style()->data();
 
-    // TODO(***REMOVED***): Iterate only over non-null properties in the rule.
-    if (!style->background_color() && declared_style->background_color()) {
-      style->set_background_color(declared_style->background_color());
-    }
-    if (!style->background_image() && declared_style->background_image()) {
-      style->set_background_image(declared_style->background_image());
+    CascadePriority precedence_normal = rule_iterator->second;
+    CascadePriority precedence_important = rule_iterator->second;
+    precedence_important.SetImportant();
 
-      DCHECK(property_name_to_base_url_map);
-      (*property_name_to_base_url_map)[kBackgroundImagePropertyName] =
-          rule_iterator->first->parent_style_sheet()->LocationUrl();
+    // TODO(***REMOVED***): Iterate only over non-null properties in the rule.
+
+#define UPDATE_PROPERTY(NAME, DASHED_NAME)               \
+  if (declared_style->NAME()) {                          \
+    CascadePriority* precedence =                        \
+        declared_style->IsPropertyImportant(DASHED_NAME) \
+            ? &precedence_important                      \
+            : &precedence_normal;                        \
+    if (*precedence > NAME##_precedence) {               \
+      NAME##_precedence = *precedence;                   \
+      style->set_##NAME(declared_style->NAME());         \
+    }                                                    \
+  }
+
+    UPDATE_PROPERTY(background_color, kBackgroundColorPropertyName)
+
+    if (declared_style->background_image()) {
+      CascadePriority* precedence =
+          declared_style->IsPropertyImportant(kBackgroundImagePropertyName)
+              ? &precedence_important
+              : &precedence_normal;
+      if (*precedence > background_image_precedence) {
+        background_image_precedence = *precedence;
+        style->set_background_image(declared_style->background_image());
+
+        DCHECK(property_name_to_base_url_map);
+        (*property_name_to_base_url_map)[kBackgroundImagePropertyName] =
+            rule_iterator->first->parent_style_sheet()->LocationUrl();
+      }
     }
-    if (!style->background_position() &&
-        declared_style->background_position()) {
-      style->set_background_position(declared_style->background_position());
-    }
-    if (!style->background_repeat() && declared_style->background_repeat()) {
-      style->set_background_repeat(declared_style->background_repeat());
-    }
-    if (!style->background_size() && declared_style->background_size()) {
-      style->set_background_size(declared_style->background_size());
-    }
-    if (!style->bottom() && declared_style->bottom()) {
-      style->set_bottom(declared_style->bottom());
-    }
-    if (!style->color() && declared_style->color()) {
-      style->set_color(declared_style->color());
-    }
-    if (!style->content() && declared_style->content()) {
-      style->set_content(declared_style->content());
-    }
-    if (!style->display() && declared_style->display()) {
-      style->set_display(declared_style->display());
-    }
-    if (!style->font_family() && declared_style->font_family()) {
-      style->set_font_family(declared_style->font_family());
-    }
-    if (!style->font_size() && declared_style->font_size()) {
-      style->set_font_size(declared_style->font_size());
-    }
-    if (!style->font_style() && declared_style->font_style()) {
-      style->set_font_style(declared_style->font_style());
-    }
-    if (!style->font_weight() && declared_style->font_weight()) {
-      style->set_font_weight(declared_style->font_weight());
-    }
-    if (!style->height() && declared_style->height()) {
-      style->set_height(declared_style->height());
-    }
-    if (!style->left() && declared_style->left()) {
-      style->set_left(declared_style->left());
-    }
-    if (!style->line_height() && declared_style->line_height()) {
-      style->set_line_height(declared_style->line_height());
-    }
-    if (!style->margin_bottom() && declared_style->margin_bottom()) {
-      style->set_margin_bottom(declared_style->margin_bottom());
-    }
-    if (!style->margin_left() && declared_style->margin_left()) {
-      style->set_margin_left(declared_style->margin_left());
-    }
-    if (!style->margin_right() && declared_style->margin_right()) {
-      style->set_margin_right(declared_style->margin_right());
-    }
-    if (!style->margin_top() && declared_style->margin_top()) {
-      style->set_margin_top(declared_style->margin_top());
-    }
-    if (!style->max_height() && declared_style->max_height()) {
-      style->set_max_height(declared_style->max_height());
-    }
-    if (!style->max_width() && declared_style->max_width()) {
-      style->set_max_width(declared_style->max_width());
-    }
-    if (!style->min_height() && declared_style->min_height()) {
-      style->set_min_height(declared_style->min_height());
-    }
-    if (!style->min_width() && declared_style->min_width()) {
-      style->set_min_width(declared_style->min_width());
-    }
-    if (!style->opacity() && declared_style->opacity()) {
-      style->set_opacity(declared_style->opacity());
-    }
-    if (!style->overflow() && declared_style->overflow()) {
-      style->set_overflow(declared_style->overflow());
-    }
-    if (!style->overflow_wrap() && declared_style->overflow_wrap()) {
-      style->set_overflow_wrap(declared_style->overflow_wrap());
-    }
-    if (!style->padding_bottom() && declared_style->padding_bottom()) {
-      style->set_padding_bottom(declared_style->padding_bottom());
-    }
-    if (!style->padding_left() && declared_style->padding_left()) {
-      style->set_padding_left(declared_style->padding_left());
-    }
-    if (!style->padding_right() && declared_style->padding_right()) {
-      style->set_padding_right(declared_style->padding_right());
-    }
-    if (!style->padding_top() && declared_style->padding_top()) {
-      style->set_padding_top(declared_style->padding_top());
-    }
-    if (!style->position() && declared_style->position()) {
-      style->set_position(declared_style->position());
-    }
-    if (!style->right() && declared_style->right()) {
-      style->set_right(declared_style->right());
-    }
-    if (!style->tab_size() && declared_style->tab_size()) {
-      style->set_tab_size(declared_style->tab_size());
-    }
-    if (!style->text_align() && declared_style->text_align()) {
-      style->set_text_align(declared_style->text_align());
-    }
-    if (!style->text_indent() && declared_style->text_indent()) {
-      style->set_text_indent(declared_style->text_indent());
-    }
-    if (!style->text_overflow() && declared_style->text_overflow()) {
-      style->set_text_overflow(declared_style->text_overflow());
-    }
-    if (!style->text_transform() && declared_style->text_transform()) {
-      style->set_text_transform(declared_style->text_transform());
-    }
-    if (!style->top() && declared_style->top()) {
-      style->set_top(declared_style->top());
-    }
-    if (!style->transform() && declared_style->transform()) {
-      style->set_transform(declared_style->transform());
-    }
-    if (!style->transition_delay() && declared_style->transition_delay()) {
-      style->set_transition_delay(declared_style->transition_delay());
-    }
-    if (!style->transition_duration() &&
-        declared_style->transition_duration()) {
-      style->set_transition_duration(declared_style->transition_duration());
-    }
-    if (!style->transition_property() &&
-        declared_style->transition_property()) {
-      style->set_transition_property(declared_style->transition_property());
-    }
-    if (!style->transition_timing_function() &&
-        declared_style->transition_timing_function()) {
-      style->set_transition_timing_function(
-          declared_style->transition_timing_function());
-    }
-    if (!style->vertical_align() && declared_style->vertical_align()) {
-      style->set_vertical_align(declared_style->vertical_align());
-    }
-    if (!style->visibility() && declared_style->visibility()) {
-      style->set_visibility(declared_style->visibility());
-    }
-    if (!style->white_space() && declared_style->white_space()) {
-      style->set_white_space(declared_style->white_space());
-    }
-    if (!style->width() && declared_style->width()) {
-      style->set_width(declared_style->width());
-    }
-    if (!style->z_index() && declared_style->z_index()) {
-      style->set_z_index(declared_style->z_index());
-    }
+
+    UPDATE_PROPERTY(background_position, kBackgroundPositionPropertyName)
+    UPDATE_PROPERTY(background_repeat, kBackgroundRepeatPropertyName)
+    UPDATE_PROPERTY(background_size, kBackgroundSizePropertyName)
+    UPDATE_PROPERTY(border_radius, kBorderRadiusPropertyName)
+    UPDATE_PROPERTY(bottom, kBottomPropertyName)
+    UPDATE_PROPERTY(color, kColorPropertyName)
+    UPDATE_PROPERTY(content, kContentPropertyName)
+    UPDATE_PROPERTY(display, kDisplayPropertyName)
+    UPDATE_PROPERTY(font_family, kFontFamilyPropertyName)
+    UPDATE_PROPERTY(font_size, kFontSizePropertyName)
+    UPDATE_PROPERTY(font_style, kFontStylePropertyName)
+    UPDATE_PROPERTY(font_weight, kFontWeightPropertyName)
+    UPDATE_PROPERTY(height, kHeightPropertyName)
+    UPDATE_PROPERTY(left, kLeftPropertyName)
+    UPDATE_PROPERTY(line_height, kLineHeightPropertyName)
+    UPDATE_PROPERTY(margin_bottom, kMarginBottomPropertyName)
+    UPDATE_PROPERTY(margin_left, kMarginLeftPropertyName)
+    UPDATE_PROPERTY(margin_right, kMarginRightPropertyName)
+    UPDATE_PROPERTY(margin_top, kMarginTopPropertyName)
+    UPDATE_PROPERTY(max_height, kMaxHeightPropertyName)
+    UPDATE_PROPERTY(max_width, kMaxWidthPropertyName)
+    UPDATE_PROPERTY(min_height, kMinHeightPropertyName)
+    UPDATE_PROPERTY(min_width, kMinWidthPropertyName)
+    UPDATE_PROPERTY(opacity, kOpacityPropertyName)
+    UPDATE_PROPERTY(overflow, kOverflowPropertyName)
+    UPDATE_PROPERTY(overflow_wrap, kOverflowWrapPropertyName)
+    UPDATE_PROPERTY(padding_bottom, kPaddingBottomPropertyName)
+    UPDATE_PROPERTY(padding_left, kPaddingLeftPropertyName)
+    UPDATE_PROPERTY(padding_right, kPaddingRightPropertyName)
+    UPDATE_PROPERTY(padding_top, kPaddingTopPropertyName)
+    UPDATE_PROPERTY(position, kPositionPropertyName)
+    UPDATE_PROPERTY(right, kRightPropertyName)
+    UPDATE_PROPERTY(tab_size, kTabSizePropertyName)
+    UPDATE_PROPERTY(text_align, kTextAlignPropertyName)
+    UPDATE_PROPERTY(text_indent, kTextIndentPropertyName)
+    UPDATE_PROPERTY(text_overflow, kTextOverflowPropertyName)
+    UPDATE_PROPERTY(text_transform, kTextTransformPropertyName)
+    UPDATE_PROPERTY(top, kTopPropertyName)
+    UPDATE_PROPERTY(transform, kTransformPropertyName)
+    UPDATE_PROPERTY(transition_delay, kTransitionDelayPropertyName)
+    UPDATE_PROPERTY(transition_duration, kTransitionDurationPropertyName)
+    UPDATE_PROPERTY(transition_property, kTransitionPropertyPropertyName)
+    UPDATE_PROPERTY(transition_timing_function,
+                    kTransitionTimingFunctionPropertyName)
+    UPDATE_PROPERTY(vertical_align, kVerticalAlignPropertyName)
+    UPDATE_PROPERTY(visibility, kVisibilityPropertyName)
+    UPDATE_PROPERTY(white_space, kWhiteSpacePropertyName)
+    UPDATE_PROPERTY(width, kWidthPropertyName)
+    UPDATE_PROPERTY(z_index, kZIndexPropertyName)
+#undef UPDATE_PROPERTY
   }
 }
 

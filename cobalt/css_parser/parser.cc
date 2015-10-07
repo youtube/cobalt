@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 #include <sstream>
 #include <string>
 
@@ -240,10 +241,10 @@ ParserImpl::ParseFontFaceDeclarationList() {
 scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
     const std::string& property_name) {
   Token property_name_token;
-  bool known_property_name =
+  bool is_property_name_known =
       scanner_.DetectPropertyNameToken(property_name, &property_name_token);
 
-  if (!known_property_name) {
+  if (!is_property_name_known) {
     YYLTYPE source_location;
     source_location.first_line = 1;
     source_location.first_column = 1;
@@ -267,9 +268,10 @@ void ParserImpl::ParsePropertyIntoDeclarationData(
     const std::string& property_name,
     cssom::CSSDeclarationData* declaration_data) {
   Token property_name_token;
-  bool known_property_name =
+  bool is_property_name_known =
       scanner_.DetectPropertyNameToken(property_name, &property_name_token);
-  if (!known_property_name) {
+
+  if (!is_property_name_known) {
     YYLTYPE source_location;
     source_location.first_line = 1;
     source_location.first_column = 1;
