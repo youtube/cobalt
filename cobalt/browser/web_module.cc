@@ -52,7 +52,8 @@ WebModule::WebModule(
           css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
           image_cache_.get(), &local_storage_database_, media_module,
           execution_state_.get(), script_runner_.get(), initial_url,
-          network_module->user_agent(), error_callback)),
+          network_module->user_agent(), network_module->preferred_language(),
+          error_callback)),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, javascript_engine_.get(),
           global_object_proxy_.get())),

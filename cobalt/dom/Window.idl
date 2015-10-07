@@ -19,6 +19,7 @@
 [PrimaryGlobal]
 /*sealed*/ interface Window : EventTarget {
   [Unforgeable] readonly attribute Document document;
+  readonly attribute History history;
   [PutForwards=href, Unforgeable] readonly attribute Location location;
   readonly attribute Navigator navigator;
   // TODO(***REMOVED***): Should be WindowProxy

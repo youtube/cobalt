@@ -58,6 +58,7 @@ class NetworkModule {
     return network_delegate_.get();
   }
   const std::string& user_agent() const { return user_agent_->user_agent(); }
+  const std::string& preferred_language() const { return preferred_language_; }
   scoped_refptr<URLRequestContextGetter> url_request_context_getter() const {
     return url_request_context_getter_;
   }

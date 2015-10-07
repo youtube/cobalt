@@ -14,32 +14,14 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/navigator.h"
+#include "cobalt/dom/plugin_array.h"
 
 namespace cobalt {
 namespace dom {
 
-Navigator::Navigator(const std::string& user_agent, const std::string& language)
-    : user_agent_(user_agent),
-      language_(language),
-      mime_types_(new MimeTypeArray()),
-      plugins_(new PluginArray()) {}
+PluginArray::PluginArray() {}
 
-const std::string& Navigator::language() const { return language_; }
-
-const std::string& Navigator::user_agent() const { return user_agent_; }
-
-bool Navigator::java_enabled() const { return false; }
-
-bool Navigator::cookie_enabled() const { return false; }
-
-const scoped_refptr<MimeTypeArray>& Navigator::mime_types() const {
-  return mime_types_;
-}
-
-const scoped_refptr<PluginArray>& Navigator::plugins() const {
-  return plugins_;
-}
+int PluginArray::length() const { return 0; }
 
 }  // namespace dom
 }  // namespace cobalt

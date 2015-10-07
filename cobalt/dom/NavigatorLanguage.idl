@@ -14,17 +14,8 @@
  * limitations under the License.
  */
 
-// The navigator interface represents the identity and state of the user agent
-// (the client), and allows Web pages to register themselves as potential
-// protocol and content handlers.
-// http://www.w3.org/html/wg/drafts/html/master/webappapis.html#the-navigator-object
-interface Navigator {};
-
-// http://www.w3.org/html/wg/drafts/html/master/webappapis.html#navigatorid
-Navigator implements NavigatorID;
 // http://www.w3.org/html/wg/drafts/html/master/webappapis.html#dom-navigator-language
-Navigator implements NavigatorLanguage;
-// http://www.w3.org/html/wg/drafts/html/master/webappapis.html#navigatorplugins
-Navigator implements NavigatorPlugins;
-// http://www.w3.org/html/wg/drafts/html/master/webappapis.html#navigatorstorageutils
-Navigator implements NavigatorStorageUtils;
+[NoInterfaceObject]
+interface NavigatorLanguage {
+  readonly attribute DOMString language;
+};

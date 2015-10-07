@@ -48,7 +48,7 @@ class WindowTest : public ::testing::Test {
         window_(
             new Window(1920, 1080, css_parser_.get(), dom_parser_.get(),
                        fetcher_factory_.get(), NULL, &local_storage_database_,
-                       stub_media_module_.get(), NULL, NULL, url_, "",
+                       stub_media_module_.get(), NULL, NULL, url_, "", "en-US",
                        base::Bind(&MockErrorCallback::Run,
                                   base::Unretained(&mock_error_callback_)))) {}
 
