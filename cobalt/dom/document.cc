@@ -105,6 +105,13 @@ scoped_refptr<Element> Document::CreateElement(const std::string& local_name) {
   }
 }
 
+scoped_refptr<Element> Document::CreateElementNS(
+    const std::string& namespace_uri, const std::string& local_name) {
+  // TODO(***REMOVED***): Implement namespaces, if we actually need this.
+  NOTIMPLEMENTED() << namespace_uri;
+  return CreateElement(local_name);
+}
+
 scoped_refptr<Text> Document::CreateTextNode(const std::string& text) {
   return new Text(this, text);
 }

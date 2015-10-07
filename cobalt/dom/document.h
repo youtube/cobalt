@@ -104,6 +104,8 @@ class Document : public Node, public cssom::MutationObserver {
       const std::string& class_names) const;
 
   scoped_refptr<Element> CreateElement(const std::string& local_name);
+  scoped_refptr<Element> CreateElementNS(const std::string& namespace_uri,
+                                         const std::string& local_name);
   scoped_refptr<Text> CreateTextNode(const std::string& data);
   scoped_refptr<Event> CreateEvent(const std::string& interface_name,
                                    script::ExceptionState* exception_state);
