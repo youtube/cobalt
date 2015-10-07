@@ -44,8 +44,6 @@ class NodeListLive : public NodeList {
   //
   void MaybeRefreshCollection();
 
-  DEFINE_WRAPPABLE_TYPE(NodeListLive);
-
  private:
   explicit NodeListLive(const scoped_refptr<const Node>& base);
   ~NodeListLive() OVERRIDE {}
