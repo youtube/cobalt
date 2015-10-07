@@ -886,6 +886,7 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kCursive:
       case cssom::KeywordValue::kEllipsis:
       case cssom::KeywordValue::kFantasy:
+      case cssom::KeywordValue::kFixed:
       case cssom::KeywordValue::kHidden:
       case cssom::KeywordValue::kInherit:
       case cssom::KeywordValue::kInitial:
