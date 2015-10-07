@@ -22,22 +22,59 @@
 namespace starboard {
 namespace nplb {
 
+// Gets the temporary directory in which ScopedRandomFile places its files.
+std::string GetTempDir();
+
 // Creates a random file of the given length, and deletes it when the instance
 // falls out of scope.
 class ScopedRandomFile {
  public:
-  // |length| is the length of the file created.
-  // |create| is whether to create the file or not.
-  ScopedRandomFile(int length, bool create = true) {
-    filename_ = (create ? MakeRandomFile(length) : MakeRandomFilename());
+  enum {
+    kDefaultLength = 64,
+  };
+
+  enum Create {
+    kCreate,
+    kDontCreate,
+  };
+
+  // Will create a file of |kDefaultLength| bytes long.
+  ScopedRandomFile(): size_(kDefaultLength) {
+    filename_ = MakeRandomFile(size_);
+  }
+
+  // Will create a file |length| bytes long.
+  ScopedRandomFile(int length): size_(length) {
+    filename_ = MakeRandomFile(size_);
+  }
+
+  // Will either create a file |length| bytes long, or will just generate a
+  // filename.  |create| is whether to create the file or not.
+  ScopedRandomFile(int length, Create create): size_(length) {
+    filename_ =
+        (create == kCreate ? MakeRandomFile(size_) : MakeRandomFilename());
+  }
+
+  // Will either create a file of |kDefaultLength| bytes long, or will just
+  // generate a filename.  |create| is whether to create the file or not.
+  ScopedRandomFile(Create create): size_(kDefaultLength) {
+    filename_ =
+        (create == kCreate ? MakeRandomFile(size_) : MakeRandomFilename());
   }
 
   ~ScopedRandomFile() {
     SbFileDelete(filename_.c_str());
   }
 
+  // Returns the filename generated for this file.
   const std::string &filename() const {
     return filename_;
+  }
+
+  // Returns the SPECIFIED size of the file (not the size returned by the
+  // filesystem).
+  const int size() const {
+    return size_;
   }
 
   // Checks |buffer| of size |size| against this class's write pattern, offset
@@ -57,6 +94,7 @@ class ScopedRandomFile {
   static std::string MakeRandomFilename();
 
   std::string filename_;
+  int size_;
 };
 
 }  // namespace nplb
