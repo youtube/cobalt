@@ -437,6 +437,14 @@ const LogSeverity LOG_0 = LOG_ERROR;
 // PLOG_STREAM is used by PLOG, which is the usual error logging macro
 // for each platform.
 #define PLOG_STREAM(severity) LOG_ERRNO_STREAM(severity)
+#elif defined(OS_STARBOARD)
+// TODO(iffy): Replace with Starboard error codes when they exist.
+#define LOG_SB_ERROR_STREAM(severity) LOG_STREAM(severity)
+#define LOG_SB_ERROR(severity) \
+  LAZY_STREAM(LOG_SB_ERROR_STREAM(severity), LOG_IS_ON(severity))
+// PLOG_STREAM is used by PLOG, which is the usual error logging macro
+// for each platform.
+#define PLOG_STREAM(severity) LOG_SB_ERROR_STREAM(severity)
 #endif
 
 #define PLOG(severity)                                          \

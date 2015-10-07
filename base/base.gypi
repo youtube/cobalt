@@ -609,6 +609,8 @@
               'base_paths_starboard.cc',
               'circular_buffer_shell.h',
               'circular_buffer_shell.cc',
+              'file_util_starboard.cc',
+              'platform_file_starboard.cc',
               'time_starboard.cc',
             ],
             'sources/': [

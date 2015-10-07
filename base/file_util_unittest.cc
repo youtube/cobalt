@@ -37,7 +37,7 @@
 // This macro helps avoid wrapped lines in the test structs.
 #define FPL(x) FILE_PATH_LITERAL(x)
 
-#if defined(COBALT)
+#if defined(COBALT) || defined(OS_STARBOARD)
 #define MAYBE_CopyDirectoryRecursivelyNew DISABLED_CopyDirectoryRecursivelyNew
 #define MAYBE_CopyDirectoryRecursivelyExists \
   DISABLED_CopyDirectoryRecursivelyExists
@@ -1030,6 +1030,7 @@ TEST_F(FileUtilTest, DeleteDirRecursive) {
   EXPECT_FALSE(file_util::PathExists(test_subdir));
 }
 
+#if !defined(OS_STARBOARD)
 TEST_F(FileUtilTest, MoveFileNew) {
   // Create a file
   FilePath file_name_from =
@@ -1151,6 +1152,7 @@ TEST_F(FileUtilTest, MoveExist) {
   EXPECT_TRUE(file_util::PathExists(dir_name_to));
   EXPECT_TRUE(file_util::PathExists(file_name_to));
 }
+#endif
 
 TEST_F(FileUtilTest, MAYBE_CopyDirectoryRecursivelyNew) {
   // Create a directory.
@@ -1526,7 +1528,7 @@ TEST_F(FileUtilTest, GetFileCreationLocalTime) {
 // to be a PlatformTest.
 typedef PlatformTest ReadOnlyFileUtilTest;
 
-#if !defined(__LB_WIIU__)
+#if !defined(__LB_WIIU__) && !defined(OS_STARBOARD)
 TEST_F(ReadOnlyFileUtilTest, ContentsEqual) {
   FilePath data_dir;
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &data_dir));
@@ -1577,7 +1579,7 @@ TEST_F(ReadOnlyFileUtilTest, ContentsEqual) {
 }
 #endif
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 TEST_F(ReadOnlyFileUtilTest, TextContentsEqual) {
   FilePath data_dir;
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &data_dir));
@@ -1760,7 +1762,7 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
 #if defined(OS_WIN)
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("dir\\tree\\likely\\doesnt\\exist\\"));
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("dir/tree/likely/doesnt/exist/"));
 #endif
@@ -1782,7 +1784,7 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
   EXPECT_FALSE(file_util::PathExists(test_root));
   EXPECT_FALSE(file_util::PathExists(test_path));
 
-#if !defined(__LB_PS3__) && !defined(__LB_PS4__)
+#if !defined(__LB_PS3__) && !defined(__LB_PS4__) && !defined(OS_STARBOARD)
   // kCurrentDirectory is ".", and PS3&4 does NOT support relative paths.
 
   // Verify assumptions made by the Windows implementation:
@@ -1800,7 +1802,7 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
 
   // Given these assumptions hold, it should be safe to
   // test that "creating" these directories succeeds.
-#if !defined(__LB_PS4__)
+#if !defined(__LB_PS4__) && !defined(OS_STARBOARD)
   EXPECT_TRUE(file_util::CreateDirectory(
       FilePath(FilePath::kCurrentDirectory)));
 #endif
@@ -2024,6 +2026,7 @@ TEST_F(FileUtilTest, Contains) {
 #endif
 }
 
+#if !defined(OS_STARBOARD)
 TEST_F(FileUtilTest, TouchFile) {
   FilePath data_dir =
       temp_dir_.path().Append(FILE_PATH_LITERAL("FilePathTest"));
@@ -2065,6 +2068,7 @@ TEST_F(FileUtilTest, TouchFile) {
             modification_time.ToInternalValue());
 #endif
 }
+#endif
 
 TEST_F(FileUtilTest, IsDirectoryEmpty) {
   FilePath empty_dir = temp_dir_.path().Append(FILE_PATH_LITERAL("EmptyDir"));
