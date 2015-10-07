@@ -82,6 +82,14 @@ def StripPrefix(arg, prefix):
   return arg
 
 
+def Which(filename):
+  for path in os.environ['PATH'].split(os.pathsep):
+    full_name = os.path.join(path, filename)
+    if os.path.exists(full_name) and os.path.isfile(full_name):
+      return full_name
+  return None
+
+
 def QuoteShellArgument(arg, flavor):
   """Quote a string such that it will be interpreted as a single argument
   by the shell."""
@@ -1561,7 +1569,13 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     if key == 'LD.host':
       ld_host = os.path.join(build_to_root, value)
 
-  flock = 'flock'
+  sem_path = Which('sem')
+  if flavor == 'linux' and sem_path:
+    # Run N links in parallel, where N is # of CPUs.
+    flock = '%s --jobs +0 --id linker.lock' % sem_path
+  else:
+    flock = 'flock linker.lock'
+
   if flavor == 'mac':
     flock = './gyp-mac-tool flock'
   cc = GetEnvironFallback(['CC_target', 'CC'], cc)
@@ -1612,7 +1626,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     master_ninja.variable('arThinFlags', ar_flags + thin_flag_to_add)
 
   else:
-    master_ninja.variable('ld', 'flock linker.lock ' + ld)
+    master_ninja.variable('ld', '%s %s' % (flock, ld))
     master_ninja.variable('ar', GetEnvironFallback(['AR_target', 'AR'], 'ar'))
     ar_flags = os.environ.get('ARFLAGS', 'rcs')
     master_ninja.variable('arFlags', ar_flags)
@@ -1643,7 +1657,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   if flavor in ['win', 'ps3', 'ps4', 'xb1', 'xb360']:
     master_ninja.variable('ld_host', ld_host)
   else:
-    master_ninja.variable('ld_host', 'flock linker.lock ' + ld_host)
+    master_ninja.variable('ld_host', '%s %s' %(flock, ld_host))
 
   if sys.platform == 'cygwin':
     python_path = cygpath.to_nt('/cygdrive/c/python_27_amd64/files/python.exe')
