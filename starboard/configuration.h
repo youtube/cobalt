@@ -55,8 +55,17 @@
 // version number (or above).
 #define SB_VERSION(SB_API) (SB_API_VERSION >= SB_API)
 
-// A constant expression that evaluates to the size of a statically-sized array.
+// A constant expression that evaluates to the size_t size of a statically-sized
+// array.
 #define SB_ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+
+// A constant expression that evaluates to the int size of a statically-sized
+// array.
+#if defined(__cplusplus)
+#  define SB_ARRAY_SIZE_INT(array) static_cast<int>(SB_ARRAY_SIZE(array))
+#else
+#  define SB_ARRAY_SIZE_INT(array) ((int)(SB_ARRAY_SIZE(array)))
+#endif
 
 
 // --- Common Detected Features ----------------------------------------------

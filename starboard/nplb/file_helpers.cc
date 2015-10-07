@@ -31,6 +31,17 @@ const size_t kPathSize = SB_FILE_MAX_PATH + 1;
 namespace starboard {
 namespace nplb {
 
+std::string GetTempDir() {
+  // It seems there's absolutely no way to get to std::string without a copy.
+  char path[kPathSize] = { 0 };
+  if (!SbSystemGetPath(kSbSystemPathTempDirectory, path,
+                       SB_ARRAY_SIZE_INT(path))) {
+    return "";
+  }
+
+  return path;
+}
+
 // static
 void ScopedRandomFile::ExpectPattern(
     int pattern_offset,

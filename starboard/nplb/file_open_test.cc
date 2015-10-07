@@ -19,6 +19,8 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using starboard::nplb::ScopedRandomFile;
+
 namespace {
 
 void BasicTest(bool existing,
@@ -26,7 +28,8 @@ void BasicTest(bool existing,
                bool expected_created,
                bool expected_success,
                int original_line) {
-  starboard::nplb::ScopedRandomFile random_file(128, existing);
+  ScopedRandomFile random_file(
+      existing ? ScopedRandomFile::kCreate : ScopedRandomFile::kDontCreate);
   const std::string &filename = random_file.filename();
 #define SB_FILE_OPEN_TEST_CONTEXT \
   "existing=" << existing << ", flags=0x" << std::hex << open_flags \
@@ -108,7 +111,7 @@ TEST(SbFileOpenTest, OpenTruncatedDoesNotCreateNonExistingFile) {
 }
 
 TEST(SbFileOpenTest, WorksWithNullOutParams) {
-  starboard::nplb::ScopedRandomFile random_file(128);
+  ScopedRandomFile random_file;
   const std::string &filename = random_file.filename();
 
   // What error?
