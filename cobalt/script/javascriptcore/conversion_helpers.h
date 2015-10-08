@@ -28,6 +28,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/script_event_listener.h"
 #include "cobalt/script/javascriptcore/jsc_callback_function.h"
+#include "cobalt/script/javascriptcore/jsc_callback_function_holder.h"
 #include "cobalt/script/javascriptcore/jsc_event_listener_callable.h"
 #include "cobalt/script/javascriptcore/jsc_exception_state.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
@@ -141,20 +142,28 @@ inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
 template <class T>
 inline JSC::JSValue ToJSValue(
     JSCGlobalObject* global_object,
-    const scoped_refptr<CallbackFunction<T> >& callback_function) {
+    const ScriptObject<CallbackFunction<T> >* callback_function) {
   if (!callback_function) {
     return JSC::jsNull();
   }
-  // Downcast to JSCCallbackFunction<> concrete class.
-  JSCCallbackFunction<typename CallbackFunction<T>::Signature>*
-      jsc_callback_function = base::polymorphic_downcast<
-          JSCCallbackFunction<typename CallbackFunction<T>::Signature>*>(
-          callback_function.get());
-  // Retrieve the JSFunction* from the JSCObjectOwner.
-  JSCObjectOwner* callable = jsc_callback_function->callable();
-  JSC::WriteBarrier<JSC::JSObject> callable_object = callable->js_object();
-  ASSERT_GC_OBJECT_INHERITS(callable_object.get(), &JSC::JSFunction::s_info);
-  return JSC::JSValue(callable_object.get());
+
+  // Downcast to JSCCallbackFunctionHolder, which has public members that
+  // we can use to dig in to get the JS object.
+  const JSCCallbackFunctionHolder<CallbackFunction<T> >*
+      jsc_callback_function_holder = base::polymorphic_downcast<
+          const JSCCallbackFunctionHolder<CallbackFunction<T> >*>(
+          callback_function);
+  // Get the base CallbackFunction<T> class from the JSCCallbackFunctionHolder.
+  const CallbackFunction<T>* callback =
+      jsc_callback_function_holder->GetScriptObject();
+  // Shouldn't be NULL. If the callback was NULL then NULL should have been
+  // passed as an argument into this function.
+  DCHECK(callback);
+  // Downcast to the JSCCallbackFunction type, from which we can get the
+  // JSFunction.
+  const JSCCallbackFunction<T>* jsc_callback =
+      base::polymorphic_downcast<const JSCCallbackFunction<T>*>(callback);
+  return JSC::JSValue(jsc_callback->callable());
 }
 
 // Overloads of FromJSValue retrieve the Cobalt value from a JSValue.
@@ -264,12 +273,11 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
 template <class T>
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
                         int conversion_flags, ExceptionState* out_exception,
-                        scoped_refptr<CallbackFunction<T> >* out_callback) {
+                        JSCCallbackFunctionHolder<T>* out_callback) {
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   if (jsvalue.isNull()) {
     // TODO(***REMOVED***): Throw TypeError if callback is not nullable.
-    *out_callback = NULL;
     return;
   }
 
@@ -281,20 +289,15 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   if (!jsvalue.isFunction()) {
     // TODO(***REMOVED***): Throw TypeError.
     NOTREACHED();
-    *out_callback = NULL;
     return;
   }
+
   JSC::JSFunction* js_function =
       JSC::jsCast<JSC::JSFunction*>(jsvalue.asCell());
   DCHECK(js_function);
-  scoped_refptr<JSCObjectOwner> object_owner =
-      global_object->object_cache()->RegisterObjectOwner(js_function);
-
-  // JSCCallbackFunction keeps a handle to object_owner. As long as a reference
-  // to the JSCCallbackFunction exists, therefore there is a reference to the
-  // JSCObjectOwner, and thus the js_function will not be garbage collected.
-  *out_callback = new JSCCallbackFunction<
-      typename CallbackFunction<T>::Signature>(object_owner);
+  JSCCallbackFunction<typename T::Signature> callback_function(js_function);
+  *out_callback = JSCCallbackFunctionHolder<T>(
+      callback_function, global_object->script_object_registry());
 }
 
 }  // namespace javascriptcore
