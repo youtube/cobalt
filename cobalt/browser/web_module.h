@@ -76,8 +76,10 @@ class WebModule {
     scoped_refptr<debug::DebugHub> debug_hub;
   };
 
-  typedef layout::LayoutManager::OnRenderTreeProducedCallback
+  typedef layout::LayoutManager::LayoutResults LayoutResults;
+  typedef base::Callback<void(const LayoutResults&)>
       OnRenderTreeProducedCallback;
+
   WebModule(const GURL& initial_url,
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const base::Callback<void(const std::string&)>& error_callback,

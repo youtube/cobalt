@@ -33,10 +33,26 @@ namespace layout {
 // Produces the render tree each time when the document needs layout update.
 class LayoutManager {
  public:
-  typedef base::Callback<void(
-      const scoped_refptr<render_tree::Node>&,
-      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&,
-      base::TimeDelta)> OnRenderTreeProducedCallback;
+  struct LayoutResults {
+    LayoutResults(const scoped_refptr<render_tree::Node>& render_tree,
+                  const scoped_refptr<
+                      render_tree::animations::NodeAnimationsMap>& animations,
+                  const base::TimeDelta& layout_time)
+        : render_tree(render_tree),
+          animations(animations),
+          layout_time(layout_time) {}
+
+    // The render tree produced by a layout.
+    scoped_refptr<render_tree::Node> render_tree;
+    // Animations that are to be applied to the layout's render tree.
+    scoped_refptr<render_tree::animations::NodeAnimationsMap> animations;
+    // The time that the render tree was created, which will be used as a
+    // reference point for updating the animations specified above.
+    base::TimeDelta layout_time;
+  };
+
+  typedef base::Callback<void(const LayoutResults&)>
+      OnRenderTreeProducedCallback;
 
   // Specifies what event should trigger a layout, and hence what event
   // will result in a render tree being produced and passed in a call to
