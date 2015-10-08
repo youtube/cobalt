@@ -293,9 +293,13 @@ int KeyboardEvent::ComputeCharCode() const {
 
 // Static.
 int KeyboardEvent::KeyCodeToCharCodeWithShift(int key_code) {
+  // Space is unaffected (keycode is same as Unicode).
   // Characters are unaffected (keycode is uppercase by default).
   // Numbers map to the corresponding symbol.
   // Special symbols take on their shifted value.
+  if (key_code == keycode::kSpace) {
+    return key_code;
+  }
   if (key_code >= keycode::kA && key_code <= keycode::kZ) {
     return key_code;
   }
@@ -350,13 +354,16 @@ int KeyboardEvent::KeyCodeToCharCodeWithShift(int key_code) {
 
 // Static.
 int KeyboardEvent::KeyCodeToCharCodeNoShift(int key_code) {
+  // Space keycode corresponds to Unicode value.
   // Numbers are unaffected (keycode corresponds to correct Unicode value).
   // Characters are mapped from uppercase to lowercase.
   // Special symbols use their unshifted value.
+  if (key_code == keycode::kSpace) {
+    return key_code;
+  }
   if (key_code >= keycode::k0 && key_code <= keycode::k9) {
     return key_code;
   }
-
   if (key_code >= keycode::kA && key_code <= keycode::kZ) {
     return key_code + 32;
   }
