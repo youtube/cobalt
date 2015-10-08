@@ -22,6 +22,8 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/script_object.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
@@ -29,31 +31,33 @@ namespace dom {
 class WindowTimers {
  public:
   typedef script::CallbackFunction<void()> TimerCallback;
-  WindowTimers() : current_timer_index_(0) {}
+  typedef script::ScriptObject<TimerCallback> TimerCallbackArg;
+  explicit WindowTimers(const script::Wrappable* const owner)
+      : current_timer_index_(0), owner_(owner) {}
   ~WindowTimers() {}
 
-  int SetTimeout(const scoped_refptr<TimerCallback>& handler, int timeout);
+  int SetTimeout(const TimerCallbackArg& handler, int timeout);
 
   void ClearTimeout(int handle);
 
-  int SetInterval(const scoped_refptr<TimerCallback>& handler, int timeout);
+  int SetInterval(const TimerCallbackArg& handler, int timeout);
 
   void ClearInterval(int handle);
 
  private:
   class TimerInfo : public base::RefCounted<TimerInfo> {
    public:
-    TimerInfo(scoped_ptr<base::Timer> timer,
-              scoped_refptr<TimerCallback> callback)
-        : timer_(timer.release()), callback_(callback) {}
+    TimerInfo(const script::Wrappable* const owner,
+              scoped_ptr<base::Timer> timer, const TimerCallbackArg& callback)
+        : timer_(timer.release()), callback_(owner, callback) {}
 
     base::Timer* timer() { return timer_.get(); }
-    TimerCallback* callback() { return callback_; }
+    TimerCallbackArg::Reference& callback_reference() { return callback_; }
 
    private:
     ~TimerInfo() {}
     scoped_ptr<base::Timer> timer_;
-    scoped_refptr<TimerCallback> callback_;
+    TimerCallbackArg::Reference callback_;
 
     friend class base::RefCounted<TimerInfo>;
   };
@@ -69,6 +73,7 @@ class WindowTimers {
 
   Timers timers_;
   int current_timer_index_;
+  const script::Wrappable* const owner_;
 
   DISALLOW_COPY_AND_ASSIGN(WindowTimers);
 };

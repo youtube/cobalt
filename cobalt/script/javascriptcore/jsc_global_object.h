@@ -26,6 +26,7 @@
 #include "base/memory/weak_ptr.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/javascriptcore/js_object_cache.h"
+#include "cobalt/script/javascriptcore/script_object_registry.h"
 #include "cobalt/script/javascriptcore/wrapper_factory.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
@@ -35,8 +36,6 @@ namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
-class JSCObjectOwner;
-
 // JSCGlobalObject is JavaScriptCore's Global Object in Cobalt. It inherits from
 // JSC::GlobalObject so we can use this wherever a JSC::GlobalObject would be
 // used, allowing us to downcast to JSCGlobalObject.
@@ -44,13 +43,18 @@ class JSCObjectOwner;
 class JSCGlobalObject : public JSC::JSGlobalObject {
  public:
   // Create a new garbage-collected JSCGlobalObject instance.
-  static JSCGlobalObject* Create(JSC::JSGlobalData* global_data);
+  static JSCGlobalObject* Create(JSC::JSGlobalData* global_data,
+                                 ScriptObjectRegistry* script_object_registry);
 
   scoped_refptr<Wrappable> global_interface() { return global_interface_; }
 
   const WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
 
   JSObjectCache* object_cache() { return object_cache_.get(); }
+
+  ScriptObjectRegistry* script_object_registry() {
+    return script_object_registry_;
+  }
 
   // Getters for CallWith= arguments
   EnvironmentSettings* GetEnvironmentSettings() {
@@ -74,6 +78,8 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
     ASSERT_GC_OBJECT_INHERITS(cell, &s_info);
     JSCGlobalObject* this_object = JSC::jsCast<JSCGlobalObject*>(cell);
     this_object->object_cache_->VisitChildren(&visitor);
+    this_object->script_object_registry_->VisitOwnedObjects(
+        this_object->global_interface_.get(), &visitor);
   }
 
   // static override. This will be called when this object is garbage collected.
@@ -85,14 +91,17 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
 
  protected:
   JSCGlobalObject(JSC::JSGlobalData* global_data, JSC::Structure* structure,
+                  ScriptObjectRegistry* script_object_registry,
                   const scoped_refptr<Wrappable>& global_interface,
                   scoped_ptr<WrapperFactory> wrapper_factory,
                   EnvironmentSettings* environment_settings);
+
 
  private:
   scoped_refptr<Wrappable> global_interface_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
   scoped_ptr<JSObjectCache> object_cache_;
+  ScriptObjectRegistry* script_object_registry_;
   EnvironmentSettings* environment_settings_;
 };
 

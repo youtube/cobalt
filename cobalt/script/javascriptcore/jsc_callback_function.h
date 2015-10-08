@@ -25,7 +25,7 @@
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
-#include "cobalt/script/javascriptcore/jsc_object_owner.h"
+#include "cobalt/script/script_object.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 
 // The JSCCallbackFunction type is used to represent IDL callback functions.
@@ -36,7 +36,7 @@
 //     callable: A handle that keeps keeps alive the JSC::JSFunction that
 //         will be called when the callback is fired.
 //     callback: A base::Callback that will be executed when the Run(...)
-//         function is executed. It will take as parameters the object_owner
+//         function is executed. It will take as parameters a JSC::JSFunction
 //         followed by any arguments that are defined on the callback type.
 
 namespace cobalt {
@@ -55,17 +55,16 @@ template <typename R>
 class JSCCallbackFunction<R(void)>
     : public CallbackFunction<R(void)> {
  public:
-  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
-      : callable_(callable) {}
+  explicit JSCCallbackFunction(JSC::JSFunction* callable)
+      : callable_(callable) {
+    DCHECK(callable_);
+  }
 
   R Run()
       const OVERRIDE {
     DCHECK(callable_);
-    DCHECK(callable_->js_object());
-    JSC::JSFunction* js_function =
-        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
     JSCGlobalObject* global_object =
-        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+        JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
     // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
@@ -75,12 +74,11 @@ class JSCCallbackFunction<R(void)>
 
     JSC::CallData call_data;
     JSC::CallType call_type =
-        JSC::JSFunction::getCallData(js_function, call_data);
+        JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval =
-        JSC::call(exec_state, js_function, call_type, call_data, this_value,
-            args);
+    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
+                                    this_value, args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
@@ -90,30 +88,27 @@ class JSCCallbackFunction<R(void)>
     }
   }
 
-  JSCObjectOwner* callable() { return callable_.get(); }
+  JSC::JSFunction* callable() const { return callable_; }
 
  private:
-  ~JSCCallbackFunction() {}
-
-  scoped_refptr<JSCObjectOwner> callable_;
+  JSC::JSFunction* callable_;
 };
 
 template <typename R, typename A1>
 class JSCCallbackFunction<R(A1)>
     : public CallbackFunction<R(A1)> {
  public:
-  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
-      : callable_(callable) {}
+  explicit JSCCallbackFunction(JSC::JSFunction* callable)
+      : callable_(callable) {
+    DCHECK(callable_);
+  }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1)
       const OVERRIDE {
     DCHECK(callable_);
-    DCHECK(callable_->js_object());
-    JSC::JSFunction* js_function =
-        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
     JSCGlobalObject* global_object =
-        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+        JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
     // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
@@ -124,12 +119,11 @@ class JSCCallbackFunction<R(A1)>
 
     JSC::CallData call_data;
     JSC::CallType call_type =
-        JSC::JSFunction::getCallData(js_function, call_data);
+        JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval =
-        JSC::call(exec_state, js_function, call_type, call_data, this_value,
-            args);
+    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
+                                    this_value, args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
@@ -139,31 +133,28 @@ class JSCCallbackFunction<R(A1)>
     }
   }
 
-  JSCObjectOwner* callable() { return callable_.get(); }
+  JSC::JSFunction* callable() const { return callable_; }
 
  private:
-  ~JSCCallbackFunction() {}
-
-  scoped_refptr<JSCObjectOwner> callable_;
+  JSC::JSFunction* callable_;
 };
 
 template <typename R, typename A1, typename A2>
 class JSCCallbackFunction<R(A1, A2)>
     : public CallbackFunction<R(A1, A2)> {
  public:
-  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
-      : callable_(callable) {}
+  explicit JSCCallbackFunction(JSC::JSFunction* callable)
+      : callable_(callable) {
+    DCHECK(callable_);
+  }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2)
       const OVERRIDE {
     DCHECK(callable_);
-    DCHECK(callable_->js_object());
-    JSC::JSFunction* js_function =
-        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
     JSCGlobalObject* global_object =
-        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+        JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
     // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
@@ -175,12 +166,11 @@ class JSCCallbackFunction<R(A1, A2)>
 
     JSC::CallData call_data;
     JSC::CallType call_type =
-        JSC::JSFunction::getCallData(js_function, call_data);
+        JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval =
-        JSC::call(exec_state, js_function, call_type, call_data, this_value,
-            args);
+    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
+                                    this_value, args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
@@ -190,20 +180,20 @@ class JSCCallbackFunction<R(A1, A2)>
     }
   }
 
-  JSCObjectOwner* callable() { return callable_.get(); }
+  JSC::JSFunction* callable() const { return callable_; }
 
  private:
-  ~JSCCallbackFunction() {}
-
-  scoped_refptr<JSCObjectOwner> callable_;
+  JSC::JSFunction* callable_;
 };
 
 template <typename R, typename A1, typename A2, typename A3>
 class JSCCallbackFunction<R(A1, A2, A3)>
     : public CallbackFunction<R(A1, A2, A3)> {
  public:
-  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
-      : callable_(callable) {}
+  explicit JSCCallbackFunction(JSC::JSFunction* callable)
+      : callable_(callable) {
+    DCHECK(callable_);
+  }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -211,11 +201,8 @@ class JSCCallbackFunction<R(A1, A2, A3)>
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3)
       const OVERRIDE {
     DCHECK(callable_);
-    DCHECK(callable_->js_object());
-    JSC::JSFunction* js_function =
-        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
     JSCGlobalObject* global_object =
-        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+        JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
     // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
@@ -228,12 +215,11 @@ class JSCCallbackFunction<R(A1, A2, A3)>
 
     JSC::CallData call_data;
     JSC::CallType call_type =
-        JSC::JSFunction::getCallData(js_function, call_data);
+        JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval =
-        JSC::call(exec_state, js_function, call_type, call_data, this_value,
-            args);
+    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
+                                    this_value, args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
@@ -243,20 +229,20 @@ class JSCCallbackFunction<R(A1, A2, A3)>
     }
   }
 
-  JSCObjectOwner* callable() { return callable_.get(); }
+  JSC::JSFunction* callable() const { return callable_; }
 
  private:
-  ~JSCCallbackFunction() {}
-
-  scoped_refptr<JSCObjectOwner> callable_;
+  JSC::JSFunction* callable_;
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4>
 class JSCCallbackFunction<R(A1, A2, A3, A4)>
     : public CallbackFunction<R(A1, A2, A3, A4)> {
  public:
-  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
-      : callable_(callable) {}
+  explicit JSCCallbackFunction(JSC::JSFunction* callable)
+      : callable_(callable) {
+    DCHECK(callable_);
+  }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -265,11 +251,8 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4)
       const OVERRIDE {
     DCHECK(callable_);
-    DCHECK(callable_->js_object());
-    JSC::JSFunction* js_function =
-        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
     JSCGlobalObject* global_object =
-        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+        JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
     // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
@@ -283,12 +266,11 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
 
     JSC::CallData call_data;
     JSC::CallType call_type =
-        JSC::JSFunction::getCallData(js_function, call_data);
+        JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval =
-        JSC::call(exec_state, js_function, call_type, call_data, this_value,
-            args);
+    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
+                                    this_value, args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
@@ -298,12 +280,10 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
     }
   }
 
-  JSCObjectOwner* callable() { return callable_.get(); }
+  JSC::JSFunction* callable() const { return callable_; }
 
  private:
-  ~JSCCallbackFunction() {}
-
-  scoped_refptr<JSCObjectOwner> callable_;
+  JSC::JSFunction* callable_;
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4,
@@ -311,8 +291,10 @@ template <typename R, typename A1, typename A2, typename A3, typename A4,
 class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5)> {
  public:
-  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
-      : callable_(callable) {}
+  explicit JSCCallbackFunction(JSC::JSFunction* callable)
+      : callable_(callable) {
+    DCHECK(callable_);
+  }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -322,11 +304,8 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5)
       const OVERRIDE {
     DCHECK(callable_);
-    DCHECK(callable_->js_object());
-    JSC::JSFunction* js_function =
-        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
     JSCGlobalObject* global_object =
-        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+        JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
     // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
@@ -341,12 +320,11 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
 
     JSC::CallData call_data;
     JSC::CallType call_type =
-        JSC::JSFunction::getCallData(js_function, call_data);
+        JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval =
-        JSC::call(exec_state, js_function, call_type, call_data, this_value,
-            args);
+    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
+                                    this_value, args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
@@ -356,12 +334,10 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
     }
   }
 
-  JSCObjectOwner* callable() { return callable_.get(); }
+  JSC::JSFunction* callable() const { return callable_; }
 
  private:
-  ~JSCCallbackFunction() {}
-
-  scoped_refptr<JSCObjectOwner> callable_;
+  JSC::JSFunction* callable_;
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4,
@@ -369,8 +345,10 @@ template <typename R, typename A1, typename A2, typename A3, typename A4,
 class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5, A6)> {
  public:
-  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
-      : callable_(callable) {}
+  explicit JSCCallbackFunction(JSC::JSFunction* callable)
+      : callable_(callable) {
+    DCHECK(callable_);
+  }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -381,11 +359,8 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6)
       const OVERRIDE {
     DCHECK(callable_);
-    DCHECK(callable_->js_object());
-    JSC::JSFunction* js_function =
-        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
     JSCGlobalObject* global_object =
-        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+        JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
     // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
@@ -401,12 +376,11 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
 
     JSC::CallData call_data;
     JSC::CallType call_type =
-        JSC::JSFunction::getCallData(js_function, call_data);
+        JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval =
-        JSC::call(exec_state, js_function, call_type, call_data, this_value,
-            args);
+    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
+                                    this_value, args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
@@ -416,12 +390,10 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
     }
   }
 
-  JSCObjectOwner* callable() { return callable_.get(); }
+  JSC::JSFunction* callable() const { return callable_; }
 
  private:
-  ~JSCCallbackFunction() {}
-
-  scoped_refptr<JSCObjectOwner> callable_;
+  JSC::JSFunction* callable_;
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4,
@@ -429,8 +401,10 @@ template <typename R, typename A1, typename A2, typename A3, typename A4,
 class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> {
  public:
-  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
-      : callable_(callable) {}
+  explicit JSCCallbackFunction(JSC::JSFunction* callable)
+      : callable_(callable) {
+    DCHECK(callable_);
+  }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -442,11 +416,8 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
       typename base::internal::CallbackParamTraits<A7>::ForwardType a7)
       const OVERRIDE {
     DCHECK(callable_);
-    DCHECK(callable_->js_object());
-    JSC::JSFunction* js_function =
-        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
     JSCGlobalObject* global_object =
-        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+        JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
     // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
@@ -463,12 +434,11 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
 
     JSC::CallData call_data;
     JSC::CallType call_type =
-        JSC::JSFunction::getCallData(js_function, call_data);
+        JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval =
-        JSC::call(exec_state, js_function, call_type, call_data, this_value,
-            args);
+    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
+                                    this_value, args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
@@ -478,12 +448,10 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
     }
   }
 
-  JSCObjectOwner* callable() { return callable_.get(); }
+  JSC::JSFunction* callable() const { return callable_; }
 
  private:
-  ~JSCCallbackFunction() {}
-
-  scoped_refptr<JSCObjectOwner> callable_;
+  JSC::JSFunction* callable_;
 };
 
 }  // namespace javascriptcore

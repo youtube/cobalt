@@ -23,6 +23,7 @@
 
 #include "base/callback.h"
 #include "base/message_loop.h"
+#include "base/stl_util.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/log_message_handler.h"
 #include "cobalt/base/source_location.h"
@@ -30,6 +31,7 @@
 #include "cobalt/debug/system_stats_tracker.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -61,6 +63,7 @@ class DebugHub : public script::Wrappable {
   typedef script::CallbackFunction<
       void(int severity, const std::string& file, int line,
            size_t message_start, const std::string& msg)> LogMessageCallback;
+  typedef script::ScriptObject<LogMessageCallback> LogMessageCallbackArg;
 
   // Javascript command execution callback type.
   typedef base::Callback<std::string(
@@ -71,7 +74,11 @@ class DebugHub : public script::Wrappable {
   // We store the message loop from which the callback was registered,
   // so we can run the callback on the same loop.
   struct LogMessageCallbackInfo {
-    scoped_refptr<LogMessageCallback> callback;
+    LogMessageCallbackInfo(const DebugHub* const debug_hub,
+                           const LogMessageCallbackArg& cb,
+                           const scoped_refptr<base::MessageLoopProxy>& proxy)
+        : callback(debug_hub, cb), message_loop_proxy(proxy) {}
+    LogMessageCallbackArg::Reference callback;
     scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
   };
 
@@ -94,7 +101,7 @@ class DebugHub : public script::Wrappable {
 
   // Called from JS to register a log message callback.
   // Returns an id that can be used to remove the callback.
-  int AddLogMessageCallback(const scoped_refptr<LogMessageCallback>& callback);
+  int AddLogMessageCallback(const LogMessageCallbackArg& callback);
 
   // Called from JS to remove a callback using the id returned by
   // AddLogMessageCallback.
@@ -134,17 +141,22 @@ class DebugHub : public script::Wrappable {
 
  private:
 #if defined(ENABLE_DEBUG_CONSOLE)
-  typedef std::map<int, LogMessageCallbackInfo> LogMessageCallbacks;
-
   // Called by LogMessageHandler for each log message.
   void OnLogMessage(int severity, const char* file, int line,
                     size_t message_start, const std::string& str);
+  // Called by OnLogMessage. This shall be run on the same message loop as
+  // the one on which the LogMessageCallback was registered.
+  void LogMessageTo(int id, int severity, const char* file, int line,
+                    size_t message_start, const std::string& str);
+
+  typedef std::map<int, LogMessageCallbackInfo*> LogMessageCallbacks;
 
   // The callback to run to execute some JS.
   const ExecuteJavascriptCallback execute_javascript_callback_;
 
   int next_log_message_callback_id_;
   LogMessageCallbacks log_message_callbacks_;
+  STLValueDeleter<LogMessageCallbacks> log_message_callbacks_deleter_;
   base::Lock lock_;
   base::LogMessageHandler::CallbackId log_message_handler_callback_id_;
 

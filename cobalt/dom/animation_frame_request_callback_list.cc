@@ -22,16 +22,14 @@ namespace cobalt {
 namespace dom {
 
 int32 AnimationFrameRequestCallbackList::RequestAnimationFrame(
-    const scoped_refptr<FrameRequestCallback>& frame_request_callback) {
+    const FrameRequestCallbackArg& frame_request_callback) {
   // Wrap the frame request callback so that we can associate it with a
   // "cancelled" flag.
-  FrameRequestCallbackWithCancelledFlag internal_frame_request_callback;
-  internal_frame_request_callback.callback = frame_request_callback;
-
   // Push it into our vector of frame requests and return its 1-based position
   // ((to ensure a > 0 handle value, as required by the specification) in that
   // vector as the handle.
-  frame_request_callbacks_.push_back(internal_frame_request_callback);
+  frame_request_callbacks_.push_back(new FrameRequestCallbackWithCancelledFlag(
+      owner_, frame_request_callback));
   return static_cast<int32>(frame_request_callbacks_.size());
 }
 
@@ -40,7 +38,7 @@ void AnimationFrameRequestCallbackList::CancelAnimationFrame(int32 in_handle) {
   // frame request callback.
   const size_t handle = static_cast<size_t>(in_handle);
   if (handle > 0 && handle <= frame_request_callbacks_.size()) {
-    frame_request_callbacks_[handle - 1].cancelled = true;
+    frame_request_callbacks_[handle - 1]->cancelled = true;
   }
 }
 void AnimationFrameRequestCallbackList::RunCallbacks(double animation_time) {
@@ -49,8 +47,8 @@ void AnimationFrameRequestCallbackList::RunCallbacks(double animation_time) {
 
   for (InternalList::const_iterator iter = frame_request_callbacks_.begin();
        iter != frame_request_callbacks_.end(); ++iter) {
-    if (!iter->cancelled) {
-      iter->callback->Run(animation_time);
+    if (!(*iter)->cancelled) {
+      (*iter)->callback.value().Run(animation_time);
     }
   }
 }
