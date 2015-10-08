@@ -97,9 +97,22 @@ bool Box::IsAbsolutelyPositioned() const {
 }
 
 void Box::UpdateSize(const LayoutParams& layout_params) {
+  if (ValidateUpdateSizeInputs(layout_params)) {
+    return;
+  }
+
   UpdateBorders();
   UpdatePaddings(layout_params);
   UpdateContentSizeAndMargins(layout_params);
+}
+
+bool Box::ValidateUpdateSizeInputs(const LayoutParams& params) {
+  if (last_update_size_params_ && params == *last_update_size_params_) {
+    return true;
+  } else {
+    last_update_size_params_ = params;
+    return false;
+  }
 }
 
 float Box::GetMarginBoxWidth() const {

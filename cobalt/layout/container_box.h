@@ -114,6 +114,8 @@ class ContainerBox : public Box {
       ContainerBox* absolute_containing_block,
       ContainerBox* stacking_context) OVERRIDE;
 
+  bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
+
  private:
   static ChildBoxes::iterator RemoveConst(
       ChildBoxes* container, ChildBoxes::const_iterator const_iter);
@@ -167,6 +169,8 @@ class ContainerBox : public Box {
   // in the box tree.  These lists are only used to determine render order.
   ZIndexSortedList negative_z_index_child_;
   ZIndexSortedList non_negative_z_index_child_;
+
+  bool update_size_results_valid_;
 
   // Boxes and ContainerBoxes are closely related.  For example, when
   // Box::SetupAsPositionedChild() is called, it will internally call

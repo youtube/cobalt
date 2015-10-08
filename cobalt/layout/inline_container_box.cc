@@ -36,7 +36,8 @@ InlineContainerBox::InlineContainerBox(
       baseline_offset_from_margin_box_top_(0),
       used_font_(used_style_provider->GetUsedFont(
           computed_style->font_family(), computed_style->font_size(),
-          computed_style->font_style(), computed_style->font_weight())) {}
+          computed_style->font_style(), computed_style->font_weight())),
+      update_size_results_valid_(false) {}
 
 InlineContainerBox::~InlineContainerBox() {}
 
@@ -78,6 +79,19 @@ scoped_ptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
   // TODO(***REMOVED***): Implement the above comment.
 
   return box_after_split.Pass();
+}
+
+bool InlineContainerBox::ValidateUpdateSizeInputs(
+    const LayoutParams& params) {
+  // Also take into account mutable local state about (at least) whether white
+  // space should be collapsed or not.
+  if (ContainerBox::ValidateUpdateSizeInputs(params) &&
+      update_size_results_valid_) {
+    return true;
+  } else {
+    update_size_results_valid_ = true;
+    return false;
+  }
 }
 
 void InlineContainerBox::UpdateContentSizeAndMargins(
@@ -279,12 +293,21 @@ base::optional<int> InlineContainerBox::GetBidiLevel() const {
 
 void InlineContainerBox::SetShouldCollapseLeadingWhiteSpace(
     bool should_collapse_leading_white_space) {
-  should_collapse_leading_white_space_ = should_collapse_leading_white_space;
+  if (should_collapse_leading_white_space_ !=
+      should_collapse_leading_white_space) {
+    should_collapse_leading_white_space_ = should_collapse_leading_white_space;
+    update_size_results_valid_ = false;
+  }
 }
 
 void InlineContainerBox::SetShouldCollapseTrailingWhiteSpace(
     bool should_collapse_trailing_white_space) {
-  should_collapse_trailing_white_space_ = should_collapse_trailing_white_space;
+  if (should_collapse_trailing_white_space_ !=
+      should_collapse_trailing_white_space) {
+    should_collapse_trailing_white_space_ =
+        should_collapse_trailing_white_space;
+    update_size_results_valid_ = false;
+  }
 }
 
 bool InlineContainerBox::HasLeadingWhiteSpace() const {

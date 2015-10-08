@@ -61,6 +61,8 @@ class TextBox : public Box {
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
   float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
+  bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
+
  protected:
   // From |Box|.
   void RenderAndAnimateContent(
@@ -127,9 +129,11 @@ class TextBox : public Box {
   bool triggers_line_break_;
 
   // A width of the space character in the used font, measured during layout.
-  float space_width_;
+  base::optional<float> space_width_;
   // A vertical offset of the baseline relatively to the origin of the text box.
-  float baseline_offset_from_top_;
+  base::optional<float> baseline_offset_from_top_;
+
+  bool update_size_results_valid_;
 };
 
 }  // namespace layout

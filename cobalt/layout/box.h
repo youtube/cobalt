@@ -62,6 +62,11 @@ struct LayoutParams {
   // a rectangular box called a containing block.
   //   http://www.w3.org/TR/CSS21/visuren.html#containing-block
   math::SizeF containing_block_size;
+
+  bool operator==(const LayoutParams& rhs) const {
+    return shrink_to_fit_width_forced == rhs.shrink_to_fit_width_forced &&
+           containing_block_size == rhs.containing_block_size;
+  }
 };
 
 // A base class for all boxes.
@@ -247,6 +252,15 @@ class Box {
   // edge. If the box does not have a baseline, returns the bottom margin edge,
   // as per http://www.w3.org/TR/CSS21/visudet.html#line-height.
   virtual float GetBaselineOffsetFromTopMarginEdge() const = 0;
+
+  // Marks the current set of UpdateSize parameters (which includes the
+  // LayoutParams parameter as well as object member variable state) as valid.
+  // Returns true if previously calculated results from UpdateSize() are still
+  // valid.  This is used to avoid redundant recalculations, and is an extremely
+  // important optimization since it applies to all levels of the box hierarchy.
+  // Derived classes may override this method to check if local box state has
+  // changed as well.
+  virtual bool ValidateUpdateSizeInputs(const LayoutParams& params);
 
   // Converts a layout subtree into a render subtree.
   // This method defines the overall strategy of the conversion and relies
@@ -464,6 +478,10 @@ class Box {
   math::InsetsF padding_insets_;
   // Used values of "width" and "height" properties.
   math::SizeF content_size_;
+
+  // Referenced and updated by ValidateUpdateSizeInputs() to memoize the
+  // parameters we were passed during in last call to UpdateSizes().
+  base::optional<LayoutParams> last_update_size_params_;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;
