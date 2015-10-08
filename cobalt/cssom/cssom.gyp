@@ -29,6 +29,8 @@
         'after_pseudo_element.h',
         'before_pseudo_element.cc',
         'before_pseudo_element.h',
+        'calc_value.cc',
+        'calc_value.h',
         'cascade_priority.h',
         'cascaded_style.cc',
         'cascaded_style.h',

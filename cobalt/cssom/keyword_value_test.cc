@@ -26,6 +26,7 @@ TEST(KeywordValueTest, InstancesAndValuesAreConsistent) {
   EXPECT_EQ(KeywordValue::kAuto, KeywordValue::GetAuto()->value());
   EXPECT_EQ(KeywordValue::kBaseline, KeywordValue::GetBaseline()->value());
   EXPECT_EQ(KeywordValue::kBlock, KeywordValue::GetBlock()->value());
+  EXPECT_EQ(KeywordValue::kBottom, KeywordValue::GetBottom()->value());
   EXPECT_EQ(KeywordValue::kBreakWord, KeywordValue::GetBreakWord()->value());
   EXPECT_EQ(KeywordValue::kCenter, KeywordValue::GetCenter()->value());
   EXPECT_EQ(KeywordValue::kContain, KeywordValue::GetContain()->value());

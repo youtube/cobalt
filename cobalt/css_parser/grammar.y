@@ -446,6 +446,7 @@
                        margin_width
                        max_height_property_value
                        max_width_property_value
+                       maybe_background_size_property_value
                        offset_property_value
                        opacity_property_value
                        orientation_media_feature_keyword_value
@@ -578,12 +579,11 @@
 
 %union { cssom::PropertyListValue::Builder* property_list; }
 %type <property_list> comma_separated_background_image_list
-                      maybe_background_size
-                      background_position_property_list
                       background_size_property_list
                       comma_separated_font_family_name_list
                       comma_separated_font_face_src_list
                       comma_separated_unicode_range_list
+                      validated_background_position_property
 %destructor { delete $$; } <property_list>
 
 %union { cssom::TransformFunction* transform_function; }
@@ -633,6 +633,10 @@
                                    final_background_layer
                                    background_property_value
 %destructor { delete $$; } <background_shorthand_layer>
+
+%union { BackgroundPositionInfo* background_position_info; }
+%type <background_position_info> background_position_property_list
+%destructor { delete $$; } <background_position_info>
 
 %%
 
@@ -1794,11 +1798,11 @@ background_property_element:
   }
   ;
 
-maybe_background_size:
+maybe_background_size_property_value:
     /* empty */ {
     $$ = NULL;
   }
-  | '/' maybe_whitespace background_size_property_list {
+  | '/' maybe_whitespace background_size_property_value {
     $$ = $3;
   }
   ;
@@ -1806,20 +1810,12 @@ maybe_background_size:
 // 'background-size' property should follow with 'background-position' property
 //  and a '/'.
 background_position_and_size_element:
-    background_position_property_list maybe_background_size {
+    background_position_property_value maybe_background_size_property_value {
     if (!$<background_shorthand_layer>0->background_position) {
-      scoped_ptr<cssom::PropertyListValue::Builder>
-          background_position_builder($1);
-      $<background_shorthand_layer>0->background_position =
-          AddRef(new cssom::PropertyListValue(
-              background_position_builder.Pass()));
+      $<background_shorthand_layer>0->background_position = $1;
 
       if ($2) {
-        scoped_ptr<cssom::PropertyListValue::Builder>
-            background_size_builder($2);
-        $<background_shorthand_layer>0->background_size =
-            AddRef(new cssom::PropertyListValue(
-                background_size_builder.Pass()));
+        $<background_shorthand_layer>0->background_size = $2;
       }
     } else {
       parser_impl->LogError(
@@ -2017,28 +2013,67 @@ background_image_property_value:
   ;
 
 background_position_property_list_element:
-    length { $$ = $1; }
-  | percentage { $$ = $1; }
-  | kCenterToken maybe_whitespace {
-    $$ = AddRef(new cssom::PercentageValue(0.5f));
+    kBottomToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetBottom().get());;
   }
+  | kCenterToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetCenter().get());;
+  }
+  | kLeftToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetLeft().get());;
+  }
+  | kRightToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetRight().get());;
+  }
+  | kTopToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetTop().get());;
+  }
+  | length_percent_property_value
   ;
 
 background_position_property_list:
-    background_position_property_list_element
     background_position_property_list_element {
-    $$ = new cssom::PropertyListValue::Builder();
-    $$->reserve(2);
-    $$->push_back(MakeScopedRefPtrAndRelease($1));
-    $$->push_back(MakeScopedRefPtrAndRelease($2));
+    scoped_ptr<BackgroundPositionInfo> position_info(
+        new BackgroundPositionInfo());
+    position_info->PushBackElement(MakeScopedRefPtrAndRelease($1));
+    $$ = position_info.release();
   }
-  | background_position_property_list_element {
-    // If only one value is specified, the second value is assumed to be
-    // 'center'.
-    $$ = new cssom::PropertyListValue::Builder();
-    $$->reserve(2);
-    $$->push_back(MakeScopedRefPtrAndRelease($1));
-    $$->push_back(new cssom::PercentageValue(0.5f));
+  | background_position_property_list
+    background_position_property_list_element {
+    scoped_ptr<BackgroundPositionInfo> position_info($1);
+    if (position_info &&
+        !position_info->PushBackElement(MakeScopedRefPtrAndRelease($2))) {
+      parser_impl->LogWarning(@2, "invalid background position value");
+      $$ = NULL;
+    } else {
+      $$ = position_info.release();
+    }
+  }
+  ;
+
+validated_background_position_property:
+    background_position_property_list {
+    scoped_ptr<BackgroundPositionInfo> position_info($1);
+    if (!position_info) {
+      $$ = NULL;
+    } else if (position_info->background_position_builder()->size() == 1) {
+      // If only one value is specified, the second value is assumed to be
+      // 'center'.
+      position_info->PushBackElement(cssom::KeywordValue::GetCenter().get());
+      $$ = new cssom::PropertyListValue::Builder(
+          *position_info->background_position_builder());
+    } else if (position_info->background_position_builder()->size() == 2 &&
+               !position_info->IsBackgroundPositionValidOnSizeTwo()) {
+      parser_impl->LogWarning(@1, "invalid background position value");
+      $$ = NULL;
+    } else {
+      DCHECK_GE(position_info->background_position_builder()->size(),
+                static_cast<size_t>(2));
+      DCHECK_LE(position_info->background_position_builder()->size(),
+                static_cast<size_t>(4));
+      $$ = new cssom::PropertyListValue::Builder(
+          *position_info->background_position_builder());
+    }
   }
   ;
 
@@ -2047,7 +2082,7 @@ background_position_property_list:
 // positioning area.
 //   http://www.w3.org/TR/css3-background/#the-background-position
 background_position_property_value:
-    background_position_property_list {
+    validated_background_position_property {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
     $$ = property_value
          ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
