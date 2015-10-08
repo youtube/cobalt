@@ -30,7 +30,7 @@ JSCEngine::JSCEngine() {
 }
 
 scoped_refptr<GlobalObjectProxy> JSCEngine::CreateGlobalObjectProxy() {
-  return new JSCGlobalObjectProxy(global_data_.get());
+  return new JSCGlobalObjectProxy(global_data_.get(), &script_object_registry_);
 }
 
 void JSCEngine::CollectGarbage() {

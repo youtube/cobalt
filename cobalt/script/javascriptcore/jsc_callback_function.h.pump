@@ -30,7 +30,7 @@ $var MAX_ARITY = 7
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
-#include "cobalt/script/javascriptcore/jsc_object_owner.h"
+#include "cobalt/script/script_object.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 
 // The JSCCallbackFunction type is used to represent IDL callback functions.
@@ -41,7 +41,7 @@ $var MAX_ARITY = 7
 //     callable: A handle that keeps keeps alive the JSC::JSFunction that
 //         will be called when the callback is fired.
 //     callback: A base::Callback that will be executed when the Run(...)
-//         function is executed. It will take as parameters the object_owner
+//         function is executed. It will take as parameters a JSC::JSFunction
 //         followed by any arguments that are defined on the callback type.
 
 namespace cobalt {
@@ -72,19 +72,16 @@ class JSCCallbackFunction<R($for ARG , [[A$(ARG)]])>
 ]]
 
  public:
-  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
-      : callable_(callable) {}
+  explicit JSCCallbackFunction(JSC::JSFunction* callable)
+      : callable_(callable) { DCHECK(callable_); }
 
   R Run($for ARG , [[
 
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const OVERRIDE {
     DCHECK(callable_);
-    DCHECK(callable_->js_object());
-    JSC::JSFunction* js_function =
-        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
     JSCGlobalObject* global_object =
-        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+        JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
     // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
@@ -96,11 +93,11 @@ class JSCCallbackFunction<R($for ARG , [[A$(ARG)]])>
 
     JSC::CallData call_data;
     JSC::CallType call_type =
-        JSC::JSFunction::getCallData(js_function, call_data);
+        JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
     JSC::JSValue retval =
-        JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
+        JSC::call(exec_state, callable_, call_type, call_data, this_value, args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
@@ -110,12 +107,10 @@ class JSCCallbackFunction<R($for ARG , [[A$(ARG)]])>
     }
   }
 
-  JSCObjectOwner* callable() { return callable_.get(); }
+  JSC::JSFunction* callable() const { return callable_; }
 
  private:
-  ~JSCCallbackFunction() {}
-
-  scoped_refptr<JSCObjectOwner> callable_;
+  JSC::JSFunction* callable_;
 };
 
 ]]

@@ -90,9 +90,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
-      window_timers_(new WindowTimers()),
-      animation_frame_request_callback_list_(
-          new AnimationFrameRequestCallbackList()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(new WindowTimers(this))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
+          new AnimationFrameRequestCallbackList(this))),
       crypto_(new Crypto()),
       ALLOW_THIS_IN_INITIALIZER_LIST(local_storage_(
           new Storage(this, Storage::kLocalStorage, local_storage_database))),
@@ -116,7 +116,8 @@ scoped_refptr<Location> Window::location() const {
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
 
 int32 Window::RequestAnimationFrame(
-    const scoped_refptr<FrameRequestCallback>& callback) {
+    const AnimationFrameRequestCallbackList::FrameRequestCallbackArg&
+        callback) {
   return animation_frame_request_callback_list_->RequestAnimationFrame(
       callback);
 }
@@ -129,14 +130,14 @@ const scoped_refptr<Screen>& Window::screen() { return screen_; }
 
 scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 
-int Window::SetTimeout(const scoped_refptr<TimerCallback>& handler,
+int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
                        int timeout) {
   return window_timers_->SetTimeout(handler, timeout);
 }
 
 void Window::ClearTimeout(int handle) { window_timers_->ClearTimeout(handle); }
 
-int Window::SetInterval(const scoped_refptr<TimerCallback>& handler,
+int Window::SetInterval(const WindowTimers::TimerCallbackArg& handler,
                         int timeout) {
   return window_timers_->SetInterval(handler, timeout);
 }
@@ -184,7 +185,7 @@ void Window::RunAnimationFrameCallbacks() {
   // Then setup the Window's frame request callback list with a freshly created
   // and empty one.
   animation_frame_request_callback_list_.reset(
-      new AnimationFrameRequestCallbackList());
+      new AnimationFrameRequestCallbackList(this));
 
   // Now, iterate through each of the callbacks and call them.
   frame_request_list->RunCallbacks(

@@ -34,6 +34,7 @@ const char kDebugConsoleOnString[] = "on";
 DebugHub::DebugHub(const ExecuteJavascriptCallback& execute_javascript_callback)
     : execute_javascript_callback_(execute_javascript_callback),
       next_log_message_callback_id_(0),
+      log_message_callbacks_deleter_(&log_message_callbacks_),
       debug_console_mode_(kDebugConsoleOff) {
   // Get log output while still making it available elsewhere.
   const base::LogMessageHandler::OnLogMessageCallback on_log_message_callback =
@@ -57,31 +58,42 @@ void DebugHub::OnLogMessage(int severity, const char* file, int line,
 
   for (LogMessageCallbacks::const_iterator it = log_message_callbacks_.begin();
        it != log_message_callbacks_.end(); ++it) {
-    const LogMessageCallbackInfo& callbackInfo = it->second;
-    const scoped_refptr<LogMessageCallback>& callback = callbackInfo.callback;
+    const LogMessageCallbackInfo* callbackInfo = it->second;
     const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy =
-        callbackInfo.message_loop_proxy;
+        callbackInfo->message_loop_proxy;
 
     message_loop_proxy->PostTask(
-        FROM_HERE, base::Bind(&LogMessageCallback::Run, callback, severity,
-                              file, line, message_start, str));
+        FROM_HERE, base::Bind(&DebugHub::LogMessageTo, this, it->first,
+                              severity, file, line, message_start, str));
   }
 }
 
-int DebugHub::AddLogMessageCallback(
-    const scoped_refptr<LogMessageCallback>& callback) {
+void DebugHub::LogMessageTo(int id, int severity, const char* file, int line,
+                            size_t message_start, const std::string& str) {
+  base::AutoLock auto_lock(lock_);
+  LogMessageCallbacks::const_iterator it = log_message_callbacks_.find(id);
+  if (it != log_message_callbacks_.end()) {
+    DCHECK_EQ(base::MessageLoopProxy::current(),
+              it->second->message_loop_proxy);
+    it->second->callback.value().Run(severity, file, line, message_start, str);
+  }
+}
+
+int DebugHub::AddLogMessageCallback(const LogMessageCallbackArg& callback) {
   base::AutoLock auto_lock(lock_);
   const int callback_id = next_log_message_callback_id_++;
-  LogMessageCallbackInfo& callbackInfo = log_message_callbacks_[callback_id];
-  callbackInfo.callback = callback;
-  callbackInfo.message_loop_proxy =
-      MessageLoop::current()->message_loop_proxy();
+  log_message_callbacks_[callback_id] = new LogMessageCallbackInfo(
+      this, callback, base::MessageLoopProxy::current());
   return callback_id;
 }
 
 void DebugHub::RemoveLogMessageCallback(int callback_id) {
   base::AutoLock auto_lock(lock_);
-  log_message_callbacks_.erase(callback_id);
+  LogMessageCallbacks::iterator it = log_message_callbacks_.find(callback_id);
+  if (it != log_message_callbacks_.end()) {
+    delete it->second;
+    log_message_callbacks_.erase(it);
+  }
 }
 
 // TODO(***REMOVED***) - This function should be modified to return an array of
@@ -219,8 +231,7 @@ DebugHub::DebugHub(
 
 DebugHub::~DebugHub() {}
 
-int DebugHub::AddLogMessageCallback(
-    const scoped_refptr<LogMessageCallback>& callback) {
+int DebugHub::AddLogMessageCallback(const LogMessageCallbackArg& callback) {
   UNREFERENCED_PARAMETER(callback);
   return 0;
 }

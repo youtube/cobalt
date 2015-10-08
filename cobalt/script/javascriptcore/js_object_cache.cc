@@ -67,31 +67,16 @@ void JSObjectCache::CacheConstructor(const JSC::ClassInfo* class_info,
       << "Another Prototype was already registered for this ClassInfo";
 }
 
-scoped_refptr<JSCObjectOwner> JSObjectCache::RegisterObjectOwner(
-    JSC::JSObject* js_object) {
-  DCHECK(js_object);
-  scoped_refptr<JSCObjectOwner> object_owner =
-      new JSCObjectOwner(JSC::WriteBarrier<JSC::JSObject>(
-          global_object_->globalData(), global_object_, js_object));
-  owned_objects_.push_back(object_owner->AsWeakPtr());
-  return object_owner;
-}
-
 void JSObjectCache::CacheJSObject(JSC::JSObject* js_object) {
-  DCHECK(global_object_->globalData().apiLock().currentThreadIsHoldingLock());
-  cached_objects_.insert(JSC::WriteBarrier<JSC::JSObject>(
-      global_object_->globalData(), global_object_, js_object));
+  cached_objects_.insert(js_object);
 }
 
 void JSObjectCache::UncacheJSObject(JSC::JSObject* js_object) {
-  DCHECK(global_object_->globalData().apiLock().currentThreadIsHoldingLock());
-  JSC::WriteBarrier<JSC::JSObject> write_barrier(global_object_->globalData(),
-                                                 global_object_, js_object);
-  CachedObjectMultiset::iterator it = cached_objects_.find(write_barrier);
+  CachedObjectMultiset::iterator it = cached_objects_.find(js_object);
   if (it != cached_objects_.end()) {
     cached_objects_.erase(it);
   } else {
-    DLOG(WARNING) << "JSObject is not cached.";
+    NOTREACHED() << "Trying to uncache a JSObject that was not cached.";
   }
 }
 
@@ -106,28 +91,9 @@ void JSObjectCache::VisitChildren(JSC::SlotVisitor* visitor) {
   }
   for (CachedObjectMultiset::iterator it = cached_objects_.begin();
        it != cached_objects_.end(); ++it) {
-    JSC::WriteBarrier<JSC::JSObject> write_barrier(*it);
-    visitor->append(&write_barrier);
+    JSC::JSObject* js_object = *it;
+    visitor->appendUnbarrieredPointer(&js_object);
   }
-
-  // If the object being pointed to by the weak handle has been deleted, then
-  // there are no more references to the JavaScript object in Cobalt. It is
-  // safe to be garbage collected.
-  size_t num_owned_objects = owned_objects_.size();
-  for (size_t i = 0; i < num_owned_objects;) {
-    base::WeakPtr<JSCObjectOwner>& owner_weak = owned_objects_[i];
-    if (owner_weak) {
-      visitor->append(&(owner_weak->js_object()));
-      ++i;
-    } else {
-      // Erase this by overwriting the current element with the last element
-      // to avoid copying the other elements in the vector when deleting from
-      // the middle.
-      owned_objects_[i] = owned_objects_[num_owned_objects - 1];
-      --num_owned_objects;
-    }
-  }
-  owned_objects_.resize(num_owned_objects);
 }
 
 }  // namespace javascriptcore
