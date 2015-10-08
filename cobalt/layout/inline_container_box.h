@@ -71,6 +71,8 @@ class InlineContainerBox : public ContainerBox {
   bool TryAddChild(scoped_ptr<Box>* child_box) OVERRIDE;
   scoped_ptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
 
+  bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
+
  protected:
   // From |Box|.
   bool IsTransformable() const OVERRIDE;
@@ -94,6 +96,8 @@ class InlineContainerBox : public ContainerBox {
   float baseline_offset_from_margin_box_top_;
   // A font used for text width and line height calculations.
   const scoped_refptr<render_tree::Font> used_font_;
+
+  bool update_size_results_valid_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineContainerBox);
 };
