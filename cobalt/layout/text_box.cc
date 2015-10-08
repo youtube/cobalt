@@ -41,19 +41,26 @@ TextBox::TextBox(
       text_has_trailing_white_space_(false),
       should_collapse_leading_white_space_(false),
       should_collapse_trailing_white_space_(false),
-      triggers_line_break_(triggers_line_break) {
+      triggers_line_break_(triggers_line_break),
+      update_size_results_valid_(false) {
   DCHECK(text_start_position_ <= text_end_position_);
-
-#ifdef _DEBUG
-  space_width_ = std::numeric_limits<float>::quiet_NaN();
-  baseline_offset_from_top_ = std::numeric_limits<float>::quiet_NaN();
-#endif  // _DEBUG
 
   UpdateTextHasLeadingWhiteSpace();
   UpdateTextHasTrailingWhiteSpace();
 }
 
 Box::Level TextBox::GetLevel() const { return kInlineLevel; }
+
+bool TextBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
+  // Also take into account mutable local state about (at least) whether white
+  // space should be collapsed or not.
+  if (Box::ValidateUpdateSizeInputs(params) && update_size_results_valid_) {
+    return true;
+  } else {
+    update_size_results_valid_ = true;
+    return false;
+  }
+}
 
 void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   // Anonymous boxes do not have margins.
@@ -71,7 +78,10 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   set_margin_right(0);
   set_margin_bottom(0);
 
-  space_width_ = used_font_->GetBounds(" ").width();
+  if (!space_width_) {
+    space_width_ = used_font_->GetBounds(" ").width();
+  }
+
   float non_collapsible_text_width =
       HasNonCollapsibleText()
           ? used_font_->GetBounds(GetNonCollapsibleText()).width()
@@ -79,12 +89,14 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   set_width(GetLeadingWhiteSpaceWidth() + non_collapsible_text_width +
             GetTrailingWhiteSpaceWidth());
 
-  UsedLineHeightProvider used_line_height_provider(
-      used_font_->GetFontMetrics());
-  computed_style()->line_height()->Accept(&used_line_height_provider);
-  set_height(used_line_height_provider.used_line_height());
-  baseline_offset_from_top_ =
-      used_line_height_provider.baseline_offset_from_top();
+  if (!baseline_offset_from_top_) {
+    UsedLineHeightProvider used_line_height_provider(
+        used_font_->GetFontMetrics());
+    computed_style()->line_height()->Accept(&used_line_height_provider);
+    set_height(used_line_height_provider.used_line_height());
+    baseline_offset_from_top_ =
+        used_line_height_provider.baseline_offset_from_top();
+  }
 }
 
 scoped_ptr<Box> TextBox::TrySplitAt(float available_width,
@@ -137,12 +149,21 @@ base::optional<int> TextBox::GetBidiLevel() const {
 
 void TextBox::SetShouldCollapseLeadingWhiteSpace(
     bool should_collapse_leading_white_space) {
-  should_collapse_leading_white_space_ = should_collapse_leading_white_space;
+  if (should_collapse_leading_white_space_ !=
+      should_collapse_leading_white_space) {
+    should_collapse_leading_white_space_ = should_collapse_leading_white_space;
+    update_size_results_valid_ = false;
+  }
 }
 
 void TextBox::SetShouldCollapseTrailingWhiteSpace(
     bool should_collapse_trailing_white_space) {
-  should_collapse_trailing_white_space_ = should_collapse_trailing_white_space;
+  if (should_collapse_trailing_white_space_ !=
+      should_collapse_trailing_white_space) {
+    should_collapse_trailing_white_space_ =
+        should_collapse_trailing_white_space;
+    update_size_results_valid_ = false;
+  }
 }
 
 bool TextBox::IsCollapsed() const {
@@ -174,7 +195,7 @@ bool TextBox::AffectsBaselineInBlockFormattingContext() const {
 }
 
 float TextBox::GetBaselineOffsetFromTopMarginEdge() const {
-  return baseline_offset_from_top_;
+  return *baseline_offset_from_top_;
 }
 
 void TextBox::RenderAndAnimateContent(
@@ -198,7 +219,7 @@ void TextBox::RenderAndAnimateContent(
           new render_tree::TextNode(GetNonCollapsibleText(), used_font_,
                                     used_color),
           math::TranslateMatrix(GetLeadingWhiteSpaceWidth(),
-                                baseline_offset_from_top_));
+                                *baseline_offset_from_top_));
     }
   }
 }
@@ -288,11 +309,11 @@ scoped_ptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
 }
 
 float TextBox::GetLeadingWhiteSpaceWidth() const {
-  return HasLeadingWhiteSpace() ? space_width_ : 0;
+  return HasLeadingWhiteSpace() ? *space_width_ : 0;
 }
 
 float TextBox::GetTrailingWhiteSpaceWidth() const {
-  return HasTrailingWhiteSpace() && HasNonCollapsibleText() ? space_width_ : 0;
+  return HasTrailingWhiteSpace() && HasNonCollapsibleText() ? *space_width_ : 0;
 }
 
 int32 TextBox::GetNonCollapsibleTextStartPosition() const {
