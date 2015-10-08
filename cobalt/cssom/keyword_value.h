@@ -45,7 +45,7 @@ class KeywordValue : public PropertyValue {
     kAuto,
 
     // "middle" is the default value of "vertical-align" property that indicates
-    // that the content should be aligned at the baselines
+    // that the content should be aligned at the baselines.
     //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
     kBaseline,
 
@@ -53,6 +53,12 @@ class KeywordValue : public PropertyValue {
     // to generate a block box.
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     kBlock,
+
+    // "bottom" is a value of "background-position" property that computes to
+    // 100% for the vertical position if one or two values are given, otherwise
+    // specifies the bottom edge as the origin for the next offset.
+    //  http://www.w3.org/TR/css3-background/#the-background-position
+    kBottom,
 
     // "break-word" is a value of "overflow-wrap" property which specifies to
     // the user agent that an unbreakable word may be broken at an arbitrary
@@ -237,6 +243,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetAuto();
   static const scoped_refptr<KeywordValue>& GetBaseline();
   static const scoped_refptr<KeywordValue>& GetBlock();
+  static const scoped_refptr<KeywordValue>& GetBottom();
   static const scoped_refptr<KeywordValue>& GetBreakWord();
   static const scoped_refptr<KeywordValue>& GetCenter();
   static const scoped_refptr<KeywordValue>& GetClip();

@@ -18,6 +18,7 @@
 
 #include "base/logging.h"
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
@@ -47,6 +48,10 @@ namespace cssom {
 void DefaultingPropertyValueVisitor::VisitAbsoluteURL(
     AbsoluteURLValue* url_value) {
   VisitDefault(url_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitCalc(CalcValue* calc_value) {
+  VisitDefault(calc_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitConstStringList(
