@@ -21,6 +21,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -84,6 +85,7 @@ class AnimatorVisitor : public PropertyValueVisitor {
   }
 
   void VisitAbsoluteURL(AbsoluteURLValue* start_absolute_url_value) OVERRIDE;
+  void VisitCalc(CalcValue* start_calc_value) OVERRIDE;
   void VisitConstStringList(
       ConstStringListValue* start_const_string_list_value) OVERRIDE;
   void VisitFontStyle(FontStyleValue* start_font_style_value) OVERRIDE;
@@ -364,6 +366,11 @@ void AnimatorVisitor::VisitAbsoluteURL(
   animated_value_ = end_value_;
 }
 
+void AnimatorVisitor::VisitCalc(CalcValue* /*start_calc_value*/) {
+  NOTIMPLEMENTED();
+  animated_value_ = end_value_;
+}
+
 void AnimatorVisitor::VisitFontStyle(
     FontStyleValue* /*start_font_style_value*/) {
   NOTIMPLEMENTED();
@@ -400,6 +407,7 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
     case KeywordValue::kAuto:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:

@@ -16,6 +16,7 @@
 
 #include "cobalt/layout/used_style.h"
 
+#include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/percentage_value.h"
@@ -28,11 +29,15 @@ namespace layout {
 
 // TODO(***REMOVED***): Add more tests for other style provider.
 
-TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentageList) {
+TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentage) {
   scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
-  property_value_builder->push_back(new cssom::PercentageValue(0.6f));
-  property_value_builder->push_back(new cssom::PercentageValue(0.8f));
+  property_value_builder->push_back(
+      new cssom::CalcValue(new cssom::LengthValue(0.0f, cssom::kPixelsUnit),
+                           new cssom::PercentageValue(0.6f)));
+  property_value_builder->push_back(
+      new cssom::CalcValue(new cssom::LengthValue(0.0f, cssom::kPixelsUnit),
+                           new cssom::PercentageValue(0.8f)));
   scoped_refptr<cssom::PropertyListValue> property_value(
       new cssom::PropertyListValue(property_value_builder.Pass()));
 
@@ -53,9 +58,11 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
   scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
   property_value_builder->push_back(
-      new cssom::LengthValue(60, cssom::kPixelsUnit));
+      new cssom::CalcValue(new cssom::LengthValue(60, cssom::kPixelsUnit),
+                           new cssom::PercentageValue(0.0f)));
   property_value_builder->push_back(
-      new cssom::LengthValue(80, cssom::kPixelsUnit));
+      new cssom::CalcValue(new cssom::LengthValue(80, cssom::kPixelsUnit),
+                           new cssom::PercentageValue(0.0f)));
   scoped_refptr<cssom::PropertyListValue> property_value(
       new cssom::PropertyListValue(property_value_builder.Pass()));
 
@@ -75,9 +82,13 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
 TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthAndPercentageList) {
   scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
+
   property_value_builder->push_back(
-      new cssom::LengthValue(60, cssom::kPixelsUnit));
-  property_value_builder->push_back(new cssom::PercentageValue(0.8f));
+      new cssom::CalcValue(new cssom::LengthValue(60.0f, cssom::kPixelsUnit),
+                           new cssom::PercentageValue(0.0f)));
+  property_value_builder->push_back(
+      new cssom::CalcValue(new cssom::LengthValue(-80.0f, cssom::kPixelsUnit),
+                           new cssom::PercentageValue(1.0f)));
   scoped_refptr<cssom::PropertyListValue> property_value(
       new cssom::PropertyListValue(property_value_builder.Pass()));
 
@@ -87,11 +98,11 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthAndPercentageList) {
                                                                    image_size);
   property_value->Accept(&used_background_position_provider);
   EXPECT_FLOAT_EQ(used_background_position_provider.translate_x(), 60.0f);
-  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 120.0f);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 70.0f);
   EXPECT_FLOAT_EQ(
       used_background_position_provider.translate_x_relative_to_frame(), 0.6f);
   EXPECT_FLOAT_EQ(
-      used_background_position_provider.translate_y_relative_to_frame(), 0.6f);
+      used_background_position_provider.translate_y_relative_to_frame(), 0.35f);
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderContainWithWidthScale) {
