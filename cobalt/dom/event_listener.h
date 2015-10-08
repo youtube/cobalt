@@ -18,9 +18,7 @@
 #define DOM_EVENT_LISTENER_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/weak_ptr.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
@@ -28,21 +26,19 @@ namespace dom {
 // The EventListener interface represents a callable object that will be called
 // when an event is fired.
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#eventtarget
-class EventListener : public script::Wrappable {
+class EventListener {
  public:
   // Web API: EventListener
   //
-  virtual void HandleEvent(const scoped_refptr<Event>& event) = 0;
+  virtual void HandleEvent(const scoped_refptr<Event>& event) const = 0;
 
   // Custom, not in any spec.
   //
   // Used by addEventListener/removeEventListener to check if two event
   // listeners are the same.
-  virtual bool EqualTo(const EventListener& that) = 0;
+  virtual bool EqualTo(const EventListener& that) const = 0;
   // Whether this is an event listener set as an attribute.
   virtual bool IsAttribute() const = 0;
-
-  DEFINE_WRAPPABLE_TYPE(EventListener);
 };
 
 }  // namespace dom

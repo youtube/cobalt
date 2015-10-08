@@ -24,29 +24,27 @@
 namespace cobalt {
 namespace dom {
 
-int WindowTimers::SetTimeout(const scoped_refptr<TimerCallback>& handler,
-                             int timeout) {
+int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
   int handle = GetFreeTimerHandle();
   DCHECK(handle);
   scoped_ptr<base::Timer> timer(new base::OneShotTimer<TimerInfo>());
   timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
                base::Bind(&WindowTimers::RunTimerCallback,
                           base::Unretained(this), handle));
-  timers_[handle] = new TimerInfo(timer.Pass(), handler);
+  timers_[handle] = new TimerInfo(owner_, timer.Pass(), handler);
   return handle;
 }
 
 void WindowTimers::ClearTimeout(int handle) { timers_.erase(handle); }
 
-int WindowTimers::SetInterval(const scoped_refptr<TimerCallback>& handler,
-                              int timeout) {
+int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
   int handle = GetFreeTimerHandle();
   DCHECK(handle);
   scoped_ptr<base::Timer> timer(new base::RepeatingTimer<TimerInfo>());
   timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
                base::Bind(&WindowTimers::RunTimerCallback,
                           base::Unretained(this), handle));
-  timers_[handle] = new TimerInfo(timer.Pass(), handler);
+  timers_[handle] = new TimerInfo(owner_, timer.Pass(), handler);
   return handle;
 }
 
@@ -75,8 +73,7 @@ int WindowTimers::GetFreeTimerHandle() {
 void WindowTimers::RunTimerCallback(int handle) {
   Timers::iterator timer = timers_.find(handle);
   DCHECK(timer != timers_.end());
-  DCHECK(timer->second->callback());
-  timer->second->callback()->Run();
+  timer->second->callback_reference().value().Run();
   // After running the callback, double check whether the timer is still there
   // since it might be deleted inside the callback.
   timer = timers_.find(handle);

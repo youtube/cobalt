@@ -24,7 +24,6 @@
 
 #include "base/callback.h"
 #include "base/callback_internal.h"
-#include "base/memory/ref_counted.h"
 
 // Abstract template interface that represents an IDL callback function
 // http://heycam.github.io/webidl/#idl-callback-functions
@@ -45,8 +44,7 @@ template <typename Sig>
 class CallbackFunction;
 
 template <typename R>
-class CallbackFunction<R(void)>
-    : public base::RefCounted<CallbackFunction<R(void)> > {
+class CallbackFunction<R(void)> {
  public:
   typedef R Signature(void);
   virtual R Run()
@@ -54,12 +52,10 @@ class CallbackFunction<R(void)>
 
  protected:
   virtual ~CallbackFunction() {}
-  friend class base::RefCounted<CallbackFunction<Signature> >;
 };
 
 template <typename R, typename A1>
-class CallbackFunction<R(A1)>
-    : public base::RefCounted<CallbackFunction<R(A1)> > {
+class CallbackFunction<R(A1)> {
  public:
   typedef R Signature(A1);
   virtual R Run(
@@ -68,12 +64,10 @@ class CallbackFunction<R(A1)>
 
  protected:
   virtual ~CallbackFunction() {}
-  friend class base::RefCounted<CallbackFunction<Signature> >;
 };
 
 template <typename R, typename A1, typename A2>
-class CallbackFunction<R(A1, A2)>
-    : public base::RefCounted<CallbackFunction<R(A1, A2)> > {
+class CallbackFunction<R(A1, A2)> {
  public:
   typedef R Signature(A1, A2);
   virtual R Run(
@@ -83,12 +77,10 @@ class CallbackFunction<R(A1, A2)>
 
  protected:
   virtual ~CallbackFunction() {}
-  friend class base::RefCounted<CallbackFunction<Signature> >;
 };
 
 template <typename R, typename A1, typename A2, typename A3>
-class CallbackFunction<R(A1, A2, A3)>
-    : public base::RefCounted<CallbackFunction<R(A1, A2, A3)> > {
+class CallbackFunction<R(A1, A2, A3)> {
  public:
   typedef R Signature(A1, A2, A3);
   virtual R Run(
@@ -99,12 +91,10 @@ class CallbackFunction<R(A1, A2, A3)>
 
  protected:
   virtual ~CallbackFunction() {}
-  friend class base::RefCounted<CallbackFunction<Signature> >;
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4>
-class CallbackFunction<R(A1, A2, A3, A4)>
-    : public base::RefCounted<CallbackFunction<R(A1, A2, A3, A4)> > {
+class CallbackFunction<R(A1, A2, A3, A4)> {
  public:
   typedef R Signature(A1, A2, A3, A4);
   virtual R Run(
@@ -116,13 +106,11 @@ class CallbackFunction<R(A1, A2, A3, A4)>
 
  protected:
   virtual ~CallbackFunction() {}
-  friend class base::RefCounted<CallbackFunction<Signature> >;
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-    typename A5>
-class CallbackFunction<R(A1, A2, A3, A4, A5)>
-    : public base::RefCounted<CallbackFunction<R(A1, A2, A3, A4, A5)> > {
+          typename A5>
+class CallbackFunction<R(A1, A2, A3, A4, A5)> {
  public:
   typedef R Signature(A1, A2, A3, A4, A5);
   virtual R Run(
@@ -135,13 +123,11 @@ class CallbackFunction<R(A1, A2, A3, A4, A5)>
 
  protected:
   virtual ~CallbackFunction() {}
-  friend class base::RefCounted<CallbackFunction<Signature> >;
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-    typename A5, typename A6>
-class CallbackFunction<R(A1, A2, A3, A4, A5, A6)>
-    : public base::RefCounted<CallbackFunction<R(A1, A2, A3, A4, A5, A6)> > {
+          typename A5, typename A6>
+class CallbackFunction<R(A1, A2, A3, A4, A5, A6)> {
  public:
   typedef R Signature(A1, A2, A3, A4, A5, A6);
   virtual R Run(
@@ -155,14 +141,11 @@ class CallbackFunction<R(A1, A2, A3, A4, A5, A6)>
 
  protected:
   virtual ~CallbackFunction() {}
-  friend class base::RefCounted<CallbackFunction<Signature> >;
 };
 
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-    typename A5, typename A6, typename A7>
-class CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
-    : public base::RefCounted<CallbackFunction<R(A1, A2, A3, A4, A5, A6,
-        A7)> > {
+          typename A5, typename A6, typename A7>
+class CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> {
  public:
   typedef R Signature(A1, A2, A3, A4, A5, A6, A7);
   virtual R Run(
@@ -177,7 +160,6 @@ class CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
 
  protected:
   virtual ~CallbackFunction() {}
-  friend class base::RefCounted<CallbackFunction<Signature> >;
 };
 
 

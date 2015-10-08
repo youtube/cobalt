@@ -21,12 +21,14 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "base/string_piece.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_listener.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -40,13 +42,15 @@ namespace dom {
 class EventTarget : public script::Wrappable,
                     public base::SupportsWeakPtr<EventTarget> {
  public:
+  typedef script::ScriptObject<EventListener> EventListenerScriptObject;
+
   // Web API: EventTarget
   //
   void AddEventListener(const std::string& type,
-                        const scoped_refptr<EventListener>& listener,
+                        const EventListenerScriptObject& listener,
                         bool use_capture);
   void RemoveEventListener(const std::string& type,
-                           const scoped_refptr<EventListener>& listener,
+                           const EventListenerScriptObject& listener,
                            bool use_capture);
   bool DispatchEvent(const scoped_refptr<Event>& event,
                      script::ExceptionState* exception_state);
@@ -62,44 +66,43 @@ class EventTarget : public script::Wrappable,
   // event listeners for the object on which they are specified.
   //   http://www.w3.org/TR/html5/webappapis.html#globaleventhandlers
   //
-  scoped_refptr<EventListener> onblur() {
+  const EventListenerScriptObject* onblur() {
     return GetAttributeEventListener(EventNames::GetInstance()->blur());
   }
-  void set_onblur(const scoped_refptr<EventListener>& event_listener) {
+  void set_onblur(const EventListenerScriptObject& event_listener) {
     SetAttributeEventListener(EventNames::GetInstance()->blur(),
                               event_listener);
   }
 
-  scoped_refptr<EventListener> onerror() {
+  const EventListenerScriptObject* onerror() {
     return GetAttributeEventListener(EventNames::GetInstance()->error());
   }
-  void set_onerror(const scoped_refptr<EventListener>& event_listener) {
+  void set_onerror(const EventListenerScriptObject& event_listener) {
     SetAttributeEventListener(EventNames::GetInstance()->error(),
                               event_listener);
   }
 
-  scoped_refptr<EventListener> onfocus() {
+  const EventListenerScriptObject* onfocus() {
     return GetAttributeEventListener(EventNames::GetInstance()->focus());
   }
-  void set_onfocus(const scoped_refptr<EventListener>& event_listener) {
+  void set_onfocus(const EventListenerScriptObject& event_listener) {
     SetAttributeEventListener(EventNames::GetInstance()->focus(),
                               event_listener);
   }
 
-  scoped_refptr<EventListener> onload() {
+  const EventListenerScriptObject* onload() {
     return GetAttributeEventListener(EventNames::GetInstance()->load());
   }
-  void set_onload(const scoped_refptr<EventListener>& event_listener) {
+  void set_onload(const EventListenerScriptObject& event_listener) {
     SetAttributeEventListener(EventNames::GetInstance()->load(),
                               event_listener);
   }
 
-  scoped_refptr<EventListener> onreadystatechange() const {
+  const EventListenerScriptObject* onreadystatechange() const {
     return GetAttributeEventListener(
         EventNames::GetInstance()->readystatechange());
   }
-  void set_onreadystatechange(
-      const scoped_refptr<EventListener>& event_listener) {
+  void set_onreadystatechange(const EventListenerScriptObject& event_listener) {
     SetAttributeEventListener(EventNames::GetInstance()->readystatechange(),
                               event_listener);
   }
@@ -108,11 +111,11 @@ class EventTarget : public script::Wrappable,
   // Set an event listener assigned as an attribute. Overwrite the existing one
   // if there is any.
   void SetAttributeEventListener(const std::string& type,
-                                 const scoped_refptr<EventListener>& listener);
+                                 const EventListenerScriptObject& listener);
 
   // Get the event listener currently assigned to an attribute, or NULL if
   // there is none.
-  scoped_refptr<EventListener> GetAttributeEventListener(
+  const EventListenerScriptObject* GetAttributeEventListener(
       const std::string& type) const;
 
   // script::Wrappable
@@ -129,14 +132,18 @@ class EventTarget : public script::Wrappable,
 
  private:
   struct EventListenerInfo {
+    EventListenerInfo(const std::string& type,
+                      const EventTarget* const event_target,
+                      const EventListenerScriptObject& listener,
+                      bool use_capture);
     std::string type;
-    scoped_refptr<EventListener> listener;
+    script::ScriptObject<EventListener>::Reference listener;
     bool use_capture;
   };
-  typedef std::vector<EventListenerInfo> EventListenerInfos;
+  typedef ScopedVector<EventListenerInfo> EventListenerInfos;
 
   void AddEventListenerInternal(const std::string& type,
-                                const scoped_refptr<EventListener>& listener,
+                                const EventListenerScriptObject& listener,
                                 bool use_capture);
 
   EventListenerInfos event_listener_infos_;

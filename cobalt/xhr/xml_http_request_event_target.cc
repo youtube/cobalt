@@ -24,66 +24,80 @@ namespace xhr {
 XMLHttpRequestEventTarget::XMLHttpRequestEventTarget() {}
 XMLHttpRequestEventTarget::~XMLHttpRequestEventTarget() {}
 
-scoped_refptr<dom::EventListener> XMLHttpRequestEventTarget::onabort() const {
-  return onabort_listener_;
+const dom::EventTarget::EventListenerScriptObject*
+XMLHttpRequestEventTarget::onabort() const {
+  return onabort_listener_ ? &onabort_listener_.value().referenced_object()
+                           : NULL;
 }
-scoped_refptr<dom::EventListener> XMLHttpRequestEventTarget::onerror() const {
-  return onerror_listener_;
+const dom::EventTarget::EventListenerScriptObject*
+XMLHttpRequestEventTarget::onerror() const {
+  return onerror_listener_ ? &onerror_listener_.value().referenced_object()
+                           : NULL;
 }
-scoped_refptr<dom::EventListener> XMLHttpRequestEventTarget::onload() const {
-  return onload_listener_;
+const dom::EventTarget::EventListenerScriptObject*
+XMLHttpRequestEventTarget::onload() const {
+  return onload_listener_ ? &onload_listener_.value().referenced_object()
+                          : NULL;
 }
-scoped_refptr<dom::EventListener> XMLHttpRequestEventTarget::onloadend() const {
-  return onloadend_listener_;
+const dom::EventTarget::EventListenerScriptObject*
+XMLHttpRequestEventTarget::onloadend() const {
+  return onloadend_listener_ ? &onloadend_listener_.value().referenced_object()
+                             : NULL;
 }
-scoped_refptr<dom::EventListener> XMLHttpRequestEventTarget::onloadstart()
-    const {
-  return onloadstart_listener_;
+const dom::EventTarget::EventListenerScriptObject*
+XMLHttpRequestEventTarget::onloadstart() const {
+  return onloadstart_listener_
+             ? &onloadstart_listener_.value().referenced_object()
+             : NULL;
 }
-scoped_refptr<dom::EventListener> XMLHttpRequestEventTarget::onprogress()
-    const {
-  return onprogress_listener_;
+const dom::EventTarget::EventListenerScriptObject*
+XMLHttpRequestEventTarget::onprogress() const {
+  return onprogress_listener_
+             ? &onprogress_listener_.value().referenced_object()
+             : NULL;
 }
-scoped_refptr<dom::EventListener> XMLHttpRequestEventTarget::ontimeout() const {
-  return ontimeout_listener_;
+const dom::EventTarget::EventListenerScriptObject*
+XMLHttpRequestEventTarget::ontimeout() const {
+  return ontimeout_listener_ ? &ontimeout_listener_.value().referenced_object()
+                             : NULL;
 }
 
 void XMLHttpRequestEventTarget::set_onabort(
-    const scoped_refptr<dom::EventListener>& listener) {
-  onabort_listener_ = listener;
+    const EventListenerScriptObject& listener) {
+  onabort_listener_.emplace(this, listener);
   SetAttributeEventListener(dom::EventNames::GetInstance()->abort(), listener);
 }
 void XMLHttpRequestEventTarget::set_onerror(
-    const scoped_refptr<dom::EventListener>& listener) {
-  onerror_listener_ = listener;
+    const EventListenerScriptObject& listener) {
+  onerror_listener_.emplace(this, listener);
   SetAttributeEventListener(dom::EventNames::GetInstance()->error(), listener);
 }
 void XMLHttpRequestEventTarget::set_onload(
-    const scoped_refptr<dom::EventListener>& listener) {
-  onload_listener_ = listener;
+    const EventListenerScriptObject& listener) {
+  onload_listener_.emplace(this, listener);
   SetAttributeEventListener(dom::EventNames::GetInstance()->load(), listener);
 }
 void XMLHttpRequestEventTarget::set_onloadend(
-    const scoped_refptr<dom::EventListener>& listener) {
-  onloadend_listener_ = listener;
+    const EventListenerScriptObject& listener) {
+  onloadend_listener_.emplace(this, listener);
   SetAttributeEventListener(dom::EventNames::GetInstance()->loadend(),
                             listener);
 }
 void XMLHttpRequestEventTarget::set_onloadstart(
-    const scoped_refptr<dom::EventListener>& listener) {
-  onloadstart_listener_ = listener;
+    const EventListenerScriptObject& listener) {
+  onloadstart_listener_.emplace(this, listener);
   SetAttributeEventListener(dom::EventNames::GetInstance()->loadstart(),
                             listener);
 }
 void XMLHttpRequestEventTarget::set_onprogress(
-    const scoped_refptr<dom::EventListener>& listener) {
-  onprogress_listener_ = listener;
+    const EventListenerScriptObject& listener) {
+  onprogress_listener_.emplace(this, listener);
   SetAttributeEventListener(dom::EventNames::GetInstance()->progress(),
                             listener);
 }
 void XMLHttpRequestEventTarget::set_ontimeout(
-    const scoped_refptr<dom::EventListener>& listener) {
-  ontimeout_listener_ = listener;
+    const EventListenerScriptObject& listener) {
+  ontimeout_listener_.emplace(this, listener);
   SetAttributeEventListener(dom::EventNames::GetInstance()->timeout(),
                             listener);
 }

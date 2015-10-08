@@ -17,7 +17,7 @@
 #define SCRIPT_JAVASCRIPTCORE_WRAPPER_BASE_H_
 
 #include "base/memory/ref_counted.h"
-
+#include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/ErrorInstance.h"
@@ -45,8 +45,25 @@ class WrapperBase : public JSCBaseClass {
 
  protected:
   WrapperBase(JSC::JSGlobalData* global_data, JSC::Structure* structure,
+              ScriptObjectRegistry* script_object_registry,
               const scoped_refptr<WrappableBase>& impl)
-      : JSCBaseClass(*global_data, structure), wrappable_(impl) {}
+      : JSCBaseClass(*global_data, structure),
+        wrappable_(impl),
+        script_object_registry_(script_object_registry) {}
+
+  // static override. This function will be called during garbage collection
+  // to mark any garbage-collected objects that are referencable from this
+  // object.
+  static void visitChildren(JSC::JSCell* cell,
+      JSC::SlotVisitor& visitor) {  // NOLINT(runtime/references)
+    JSCBaseClass::visitChildren(cell, visitor);
+    WrapperBase* this_object = JSC::jsCast<WrapperBase*>(cell);
+    ASSERT_GC_OBJECT_INHERITS(this_object, &WrapperBase::s_info);
+    // In general most wrappers won't have any such owned objects, but
+    // this shouldn't be too expensive.
+    this_object->script_object_registry_->VisitOwnedObjects(
+        this_object->wrappable_.get(), &visitor);
+  }
 
   // static override. This will be called when this object is garbage collected.
   static void destroy(JSC::JSCell* cell) {
@@ -63,6 +80,7 @@ class WrapperBase : public JSCBaseClass {
 
  private:
   scoped_refptr<WrappableBase> wrappable_;
+  ScriptObjectRegistry* script_object_registry_;
 };
 
 // Base for regular interfaces.

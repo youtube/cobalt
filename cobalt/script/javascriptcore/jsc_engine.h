@@ -19,6 +19,7 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/script/javascriptcore/script_object_registry.h"
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
 
@@ -35,8 +36,9 @@ class JSCEngine : public JavaScriptEngine {
   JSC::JSGlobalData* global_data() { return global_data_.get(); }
 
  private:
-  RefPtr<JSC::JSGlobalData> global_data_;
   base::ThreadChecker thread_checker_;
+  ScriptObjectRegistry script_object_registry_;
+  RefPtr<JSC::JSGlobalData> global_data_;
 };
 
 }  // namespace javascriptcore
