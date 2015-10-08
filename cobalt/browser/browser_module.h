@@ -58,18 +58,12 @@ class BrowserModule {
   // Glue function to deal with the production of the main render tree,
   // and will manage handing it off to the renderer.
   void OnRenderTreeProduced(
-      const scoped_refptr<render_tree::Node>& render_tree,
-      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-          node_animations_map,
-      base::TimeDelta time_produced);
+      const browser::WebModule::LayoutResults& layout_results);
 
   // Glue function to deal with the production of the debug console render tree,
   // and will manage handing it off to the renderer.
   void OnDebugConsoleRenderTreeProduced(
-      const scoped_refptr<render_tree::Node>& render_tree,
-      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-          node_animations_map,
-      base::TimeDelta time_produced);
+      const browser::WebModule::LayoutResults& layout_results);
 
   // Gets the user-specified debug console mode from the command-line.
   static int GetDebugConsoleModeFromCommandLine();
