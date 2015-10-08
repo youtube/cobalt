@@ -28,7 +28,8 @@ ContainerBox::ContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions,
     const UsedStyleProvider* used_style_provider)
-    : Box(computed_style, transitions, used_style_provider) {}
+    : Box(computed_style, transitions, used_style_provider),
+      update_size_results_valid_(false) {}
 
 ContainerBox::~ContainerBox() {}
 
@@ -88,6 +89,9 @@ void ContainerBox::MoveChildrenFrom(
   // Erase the children from their previous container's list of children.
   source_box->child_boxes_.weak_erase(source_start_non_const,
                                       source_end_non_const);
+
+  // Invalidate the source box's size calculations.
+  source_box->update_size_results_valid_ = false;
 }
 
 void ContainerBox::OnChildAdded(Box* child_box) {
@@ -96,6 +100,10 @@ void ContainerBox::OnChildAdded(Box* child_box) {
 
   child_box->parent_ = this;
   child_box->containing_block_ = this;
+
+  // Invalidate our size calculations as a result of having our set of
+  // children modified.
+  update_size_results_valid_ = false;
 }
 
 // Returns true if the given style allows a container box to act as a containing
@@ -172,6 +180,17 @@ math::Vector2dF GetOffsetFromContainingBlockToParent(Box* child_box) {
 }
 
 }  // namespace
+
+bool ContainerBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
+  // Take into account whether our children have been modified to determine
+  // if our sizes are invalid and need to be recomputed.
+  if (Box::ValidateUpdateSizeInputs(params) && update_size_results_valid_) {
+    return true;
+  } else {
+    update_size_results_valid_ = true;
+    return false;
+  }
+}
 
 void ContainerBox::UpdateRectOfPositionedChildBoxes(
     const LayoutParams& child_layout_params) {
