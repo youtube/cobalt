@@ -23,6 +23,7 @@ namespace cobalt {
 namespace cssom {
 
 class AbsoluteURLValue;
+class CalcValue;
 class ConstStringListValue;
 class FontStyleValue;
 class FontWeightValue;
@@ -53,6 +54,7 @@ class UrlSrcValue;
 class PropertyValueVisitor {
  public:
   virtual void VisitAbsoluteURL(AbsoluteURLValue* url_value) = 0;
+  virtual void VisitCalc(CalcValue* calc_value) = 0;
   virtual void VisitConstStringList(
       ConstStringListValue* const_string_list_value) = 0;
   virtual void VisitFontStyle(FontStyleValue* font_style_value) = 0;
@@ -91,6 +93,7 @@ class PropertyValueVisitor {
 class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
  public:
   void VisitAbsoluteURL(AbsoluteURLValue* url_value) OVERRIDE;
+  void VisitCalc(CalcValue* calc_value) OVERRIDE;
   void VisitConstStringList(
       ConstStringListValue* const_string_list_value) OVERRIDE;
   void VisitFontStyle(FontStyleValue* font_style_value) OVERRIDE;

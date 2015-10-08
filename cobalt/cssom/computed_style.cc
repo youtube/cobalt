@@ -19,6 +19,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -170,6 +171,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAuto:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -243,6 +245,7 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -326,6 +329,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -418,6 +422,7 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -514,6 +519,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -609,6 +615,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -699,6 +706,7 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -785,6 +793,7 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -930,6 +939,7 @@ void ComputedBackgroundImageProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -1035,6 +1045,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -1066,6 +1077,261 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kVisible:
     default:
       NOTREACHED();
+  }
+}
+
+//   http://www.w3.org/TR/css3-background/#the-background-position
+class ComputedBackgroundPositionProvider
+    : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedBackgroundPositionProvider(
+      const LengthValue* computed_font_size);
+
+  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+
+  const scoped_refptr<PropertyValue>& computed_background_position() const {
+    return computed_background_position_;
+  }
+
+ private:
+  enum Direction {
+    kHorizontal,
+    kVertical,
+    kCenter,
+    kNone,
+  };
+
+  struct OriginInfo {
+    OriginInfo(float origin_as_percentage, int offset_multiplier,
+               Direction direction)
+        : origin_as_percentage(origin_as_percentage),
+          offset_multiplier(offset_multiplier),
+          direction(direction) {}
+
+    float origin_as_percentage;
+    int offset_multiplier;
+    Direction direction;
+  };
+
+  const OriginInfo ConvertToOriginInfo(
+      const scoped_refptr<PropertyValue>& keyword) const;
+
+  scoped_refptr<CalcValue> ProvideCalcValueFromOriginAndOffset(
+      OriginInfo* origin_info, const scoped_refptr<PropertyValue>& offset);
+
+  void FillPositionBuilderFromOriginAndOffset(
+      const scoped_refptr<PropertyValue>& origin,
+      const scoped_refptr<PropertyValue>& offset,
+      PropertyListValue::Builder* position_builder);
+
+  void BackgroundPositionBuilderProviderForSize2(
+      PropertyListValue* property_list_value,
+      PropertyListValue::Builder* position_builder);
+
+  void BackgroundPositionBuilderProviderForMoreThanSize2(
+      PropertyListValue* property_list_value,
+      PropertyListValue::Builder* position_builder);
+
+  const LengthValue* computed_font_size_;
+
+  scoped_refptr<PropertyValue> computed_background_position_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedBackgroundPositionProvider);
+};
+
+ComputedBackgroundPositionProvider::ComputedBackgroundPositionProvider(
+    const LengthValue* computed_font_size)
+    : computed_font_size_(computed_font_size) {}
+
+void ComputedBackgroundPositionProvider::VisitPropertyList(
+    PropertyListValue* property_list_value) {
+  size_t size = property_list_value->value().size();
+  // We have already filled the default value 'center' if only one value is
+  // specified when we parse the grammar.
+  DCHECK_GE(size, static_cast<size_t>(2));
+  DCHECK_LE(size, static_cast<size_t>(4));
+
+  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+      new cssom::PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
+
+  if (size == 2) {
+    BackgroundPositionBuilderProviderForSize2(
+        property_list_value, background_position_builder.get());
+  } else {
+    BackgroundPositionBuilderProviderForMoreThanSize2(
+        property_list_value, background_position_builder.get());
+  }
+
+  computed_background_position_ =
+      new cssom::PropertyListValue(background_position_builder.Pass());
+}
+
+// 1) 'top' computes to '0%' for the vertical position if one or two values are
+//     given, otherwise specifies the top edge as the origin for the next
+//     offset.
+// 2) 'right' computes to '100%' for the horizontal position if one or two
+//     values are given, otherwise specifies the right edge as the origin for
+//     the next offset.
+// 3) 'bottom' computes to '100%' for the vertical position if one or two values
+//     are given, otherwise specifies the bottom edge as the origin for the
+//     the next offset.
+// 4) 'left' computes to '0%' for the horizontal position if one or two values
+//     are given, otherwise specifies the left edge as the origin for the next
+//     offset.
+// 5) 'center' computes to '50%' (left 50%) for the horizontal position if
+//     horizontal position is not specified, or '50%' (right 50%) for the
+//     vertical position is not specified.
+//   http://www.w3.org/TR/css3-background/#the-background-position
+const ComputedBackgroundPositionProvider::OriginInfo
+ComputedBackgroundPositionProvider::ConvertToOriginInfo(
+    const scoped_refptr<PropertyValue>& keyword) const {
+  DCHECK(keyword->GetTypeId() == base::GetTypeId<KeywordValue>());
+
+  if (keyword == cssom::KeywordValue::GetLeft()) {
+    return OriginInfo(0.0f, 1, kHorizontal);
+  } else if (keyword == cssom::KeywordValue::GetRight()) {
+    return OriginInfo(1.0f, -1, kHorizontal);
+  } else if (keyword == cssom::KeywordValue::GetTop()) {
+    return OriginInfo(0.0f, 1, kVertical);
+  } else if (keyword == cssom::KeywordValue::GetBottom()) {
+    return OriginInfo(1.0f, -1, kVertical);
+  } else {
+    return OriginInfo(0.5f, 1, kCenter);
+  }
+}
+
+// If the |offset| is specified, the |origin| specifies from which edge
+// the offset is given. Otherwise, the |origin| indicates the corresponding
+// percentage value to the upper left corner for the horizontal/vertical
+// position. The horizontal and vertical values are stored as CalcValue in
+// computed style. eg: (background-position: bottom 20px left 40%;) would be
+// computed as Calc(0px, 40%), Calc(-20px, 100%)
+scoped_refptr<CalcValue>
+ComputedBackgroundPositionProvider::ProvideCalcValueFromOriginAndOffset(
+    OriginInfo* origin_info, const scoped_refptr<PropertyValue>& offset) {
+  if (!origin_info) {
+    OriginInfo info = OriginInfo(0.0f, 1, kNone);
+    origin_info = &info;
+  }
+
+  if (!offset) {
+    return new CalcValue(
+        new PercentageValue(origin_info->origin_as_percentage));
+  }
+
+  scoped_refptr<LengthValue> length_value;
+  scoped_refptr<PercentageValue> percentage_value;
+  if (offset->GetTypeId() == base::GetTypeId<LengthValue>()) {
+    scoped_refptr<LengthValue> length_provider = ProvideAbsoluteLength(
+        base::polymorphic_downcast<LengthValue*>(offset.get()),
+        computed_font_size_);
+    length_value = new LengthValue(
+        origin_info->offset_multiplier * length_provider->value(),
+        length_provider->unit());
+    percentage_value = new PercentageValue(origin_info->origin_as_percentage);
+
+    return new CalcValue(length_value, percentage_value);
+  } else {
+    DCHECK(offset->GetTypeId() == base::GetTypeId<PercentageValue>());
+    PercentageValue* percentage =
+        base::polymorphic_downcast<PercentageValue*>(offset.get());
+    percentage_value = new PercentageValue(origin_info->origin_as_percentage +
+                                           origin_info->offset_multiplier *
+                                               percentage->value());
+
+    return new CalcValue(percentage_value);
+  }
+}
+
+void ComputedBackgroundPositionProvider::FillPositionBuilderFromOriginAndOffset(
+    const scoped_refptr<PropertyValue>& origin,
+    const scoped_refptr<PropertyValue>& offset,
+    PropertyListValue::Builder* position_builder) {
+  DCHECK(origin->GetTypeId() == base::GetTypeId<KeywordValue>());
+
+  OriginInfo origin_info = ConvertToOriginInfo(origin);
+  switch (origin_info.direction) {
+    case kHorizontal: {
+      (*position_builder)[0] =
+          ProvideCalcValueFromOriginAndOffset(&origin_info, offset);
+      break;
+    }
+    case kVertical: {
+      (*position_builder)[1] =
+          ProvideCalcValueFromOriginAndOffset(&origin_info, offset);
+      break;
+    }
+    case kCenter: {
+      if (!(*position_builder)[0]) {
+        (*position_builder)[0] =
+            ProvideCalcValueFromOriginAndOffset(&origin_info, offset);
+      }
+      if (!(*position_builder)[1]) {
+        (*position_builder)[1] =
+            ProvideCalcValueFromOriginAndOffset(&origin_info, offset);
+      }
+      break;
+    }
+    case kNone:  // fall-through
+    default:
+      NOTREACHED();
+      break;
+  }
+}
+
+// If two background position values are given, a length or percentage as the
+// first value represents the horizontal position (or offset) and a length or
+// percentage as the second value represents the vertical position (or offset).
+// <percentage> and <length> values here represent an offset of the top left
+// corner of the background image from the top left corner of the background
+// positioning area.
+void ComputedBackgroundPositionProvider::
+    BackgroundPositionBuilderProviderForSize2(
+        PropertyListValue* property_list_value,
+        cssom::PropertyListValue::Builder* position_builder) {
+  DCHECK_EQ(2, property_list_value->value().size());
+
+  for (size_t i = 0; i < 2; ++i) {
+    scoped_refptr<PropertyValue> current_value =
+        property_list_value->value()[i];
+
+    if (current_value->GetTypeId() == base::GetTypeId<KeywordValue>()) {
+      FillPositionBuilderFromOriginAndOffset(current_value, NULL,
+                                             position_builder);
+    } else {
+      (*position_builder)[i] =
+          ProvideCalcValueFromOriginAndOffset(NULL, current_value);
+    }
+  }
+}
+
+// If three values are given, then there are two cases:
+// 1. <KeywordValue Length/Percentage KeywordValue>
+// 2. <KeywordValue KeywordValue Length/Percentage>
+// If four values are given, then each <percentage> or <length> represents
+// an offset and must be preceded by a keyword, which specifies from which
+// edge the offset is given. Keyword cannot be 'center'. The pattern is
+// <KeywordValue Length/Percentage KeywordValue Length/Percentage>
+void ComputedBackgroundPositionProvider::
+    BackgroundPositionBuilderProviderForMoreThanSize2(
+        PropertyListValue* property_list_value,
+        PropertyListValue::Builder* position_builder) {
+  for (size_t i = 0; i < property_list_value->value().size(); ++i) {
+    scoped_refptr<PropertyValue> previous_value =
+        (i == 0) ? NULL : property_list_value->value()[i - 1];
+
+    scoped_refptr<PropertyValue> current_value =
+        property_list_value->value()[i];
+
+    if (current_value->GetTypeId() == base::GetTypeId<KeywordValue>()) {
+      FillPositionBuilderFromOriginAndOffset(current_value, NULL,
+                                             position_builder);
+    } else {
+      DCHECK(previous_value);
+      DCHECK(previous_value->GetTypeId() == base::GetTypeId<KeywordValue>());
+      FillPositionBuilderFromOriginAndOffset(previous_value, current_value,
+                                             position_builder);
+    }
   }
 }
 
@@ -1311,6 +1577,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAuto:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
@@ -1474,6 +1741,12 @@ void PromoteToComputedStyle(
     specified_style->set_background_image(
         background_image_provider.computed_background_image());
   }
+
+  ComputedBackgroundPositionProvider background_position_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->background_position()->Accept(&background_position_provider);
+  specified_style->set_background_position(
+      background_position_provider.computed_background_position());
 
   ComputedBackgroundSizeProvider background_size_provider(
       font_size_provider.computed_font_size().get());

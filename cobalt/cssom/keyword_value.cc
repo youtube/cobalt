@@ -29,6 +29,7 @@ struct KeywordValue::NonTrivialStaticFields {
         auto_value(new KeywordValue(KeywordValue::kAuto)),
         baseline_value(new KeywordValue(KeywordValue::kBaseline)),
         block_value(new KeywordValue(KeywordValue::kBlock)),
+        bottom_value(new KeywordValue(KeywordValue::kBottom)),
         break_word_value(new KeywordValue(KeywordValue::kBreakWord)),
         center_value(new KeywordValue(KeywordValue::kCenter)),
         clip_value(new KeywordValue(KeywordValue::kClip)),
@@ -65,6 +66,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> auto_value;
   const scoped_refptr<KeywordValue> baseline_value;
   const scoped_refptr<KeywordValue> block_value;
+  const scoped_refptr<KeywordValue> bottom_value;
   const scoped_refptr<KeywordValue> break_word_value;
   const scoped_refptr<KeywordValue> center_value;
   const scoped_refptr<KeywordValue> clip_value;
@@ -123,6 +125,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetBaseline() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetBlock() {
   return non_trivial_static_fields.Get().block_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetBottom() {
+  return non_trivial_static_fields.Get().bottom_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetBreakWord() {
@@ -263,6 +269,8 @@ std::string KeywordValue::ToString() const {
       return kBaselineKeywordName;
     case kBlock:
       return kBlockKeywordName;
+    case kBottom:
+      return kBottomKeywordName;
     case kBreakWord:
       return kBreakWordKeywordName;
     case kCenter:

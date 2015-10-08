@@ -76,6 +76,8 @@
       'target_name': 'css_parser',
       'type': 'static_library',
       'sources': [
+        'background_position_property_parse_structures.cc',
+        'background_position_property_parse_structures.h',
         'background_shorthand_property_parse_structures.cc',
         'background_shorthand_property_parse_structures.h',
         'margin_or_padding_shorthand.cc',

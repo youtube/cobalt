@@ -21,6 +21,7 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -138,9 +139,9 @@ class UsedBackgroundTranslateProvider
   UsedBackgroundTranslateProvider(float frame_length, float image_length)
       : frame_length_(frame_length), image_length_(image_length) {}
 
-  void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
+  void VisitCalc(cssom::CalcValue* calc) OVERRIDE;
 
+  // Returns the value based on the left top.
   float translate() { return translate_; }
 
  private:
@@ -152,20 +153,18 @@ class UsedBackgroundTranslateProvider
   DISALLOW_COPY_AND_ASSIGN(UsedBackgroundTranslateProvider);
 };
 
-void UsedBackgroundTranslateProvider::VisitLength(cssom::LengthValue* length) {
-  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-  translate_ = length->value();
-}
-
 // A percentage for the horizontal offset is relative to (width of background
 // positioning area - width of background image). A percentage for the vertical
 // offset is relative to (height of background positioning area - height of
 // background image), where the size of the image is the size given by
 // 'background-size'.
 //   http://www.w3.org/TR/css3-background/#the-background-position
-void UsedBackgroundTranslateProvider::VisitPercentage(
-    cssom::PercentageValue* percentage) {
-  translate_ = percentage->value() * (frame_length_ - image_length_);
+void UsedBackgroundTranslateProvider::VisitCalc(cssom::CalcValue* calc) {
+  DCHECK_EQ(cssom::kPixelsUnit, calc->length_value()->unit());
+
+  translate_ =
+      calc->percentage_value()->value() * (frame_length_ - image_length_) +
+      calc->length_value()->value();
 }
 
 //   http://www.w3.org/TR/css3-background/#the-background-size
@@ -207,6 +206,7 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kBottom:
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kClip:
@@ -286,6 +286,7 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kBottom:
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kClip:
@@ -435,7 +436,6 @@ UsedBackgroundPositionProvider::UsedBackgroundPositionProvider(
 
 void UsedBackgroundPositionProvider::VisitPropertyList(
     cssom::PropertyListValue* property_list_value) {
-  // TODO(***REMOVED***): Support more background-position other than percentage.
   DCHECK_EQ(property_list_value->value().size(), 2);
   UsedBackgroundTranslateProvider width_translate_provider(
       frame_size_.width(), image_actual_size_.width());
@@ -540,6 +540,7 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBaseline:
+    case cssom::KeywordValue::kBottom:
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
@@ -823,6 +824,7 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kAbsolute:
       case cssom::KeywordValue::kBaseline:
       case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kBottom:
       case cssom::KeywordValue::kBreakWord:
       case cssom::KeywordValue::kCenter:
       case cssom::KeywordValue::kClip:
@@ -878,6 +880,7 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kAbsolute:
       case cssom::KeywordValue::kBaseline:
       case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kBottom:
       case cssom::KeywordValue::kBreakWord:
       case cssom::KeywordValue::kCenter:
       case cssom::KeywordValue::kClip:
