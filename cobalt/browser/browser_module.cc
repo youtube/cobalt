@@ -100,25 +100,21 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
 BrowserModule::~BrowserModule() {}
 
 void BrowserModule::OnRenderTreeProduced(
-    const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-        node_animations_map,
-    base::TimeDelta time_produced) {
+    const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
   render_tree_combiner_.UpdateMainRenderTree(renderer::Pipeline::Submission(
-      render_tree, node_animations_map, time_produced));
+      layout_results.render_tree, layout_results.animations,
+      layout_results.layout_time));
 }
 
 void BrowserModule::OnDebugConsoleRenderTreeProduced(
-    const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-        node_animations_map,
-    base::TimeDelta time_produced) {
+    const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   render_tree_combiner_.UpdateDebugConsoleRenderTree(
-      renderer::Pipeline::Submission(render_tree, node_animations_map,
-                                     time_produced));
+      renderer::Pipeline::Submission(layout_results.render_tree,
+                                     layout_results.animations,
+                                     layout_results.layout_time));
 }
 
 void BrowserModule::OnKeyEventProduced(

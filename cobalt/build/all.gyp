@@ -44,7 +44,6 @@
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:*',
         '<(DEPTH)/cobalt/input/input.gyp:*',
         '<(DEPTH)/cobalt/layout/layout.gyp:*',
-        '<(DEPTH)/cobalt/layout_benchmarks/layout_benchmarks.gyp:*',
         '<(DEPTH)/cobalt/layout_tests/layout_tests.gyp:*',
         '<(DEPTH)/cobalt/loader/loader.gyp:*',
         '<(DEPTH)/cobalt/math/math.gyp:*',
