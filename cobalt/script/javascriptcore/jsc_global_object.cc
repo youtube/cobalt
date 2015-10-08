@@ -17,7 +17,6 @@
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 
 #include "base/logging.h"
-#include "cobalt/script/javascriptcore/jsc_object_owner.h"
 
 namespace cobalt {
 namespace script {
@@ -27,7 +26,9 @@ const JSC::ClassInfo JSCGlobalObject::s_info = {
     "JSCGlobalObject", &JSC::JSGlobalObject::s_info, 0, 0,
     CREATE_METHOD_TABLE(JSCGlobalObject)};
 
-JSCGlobalObject* JSCGlobalObject::Create(JSC::JSGlobalData* global_data) {
+JSCGlobalObject* JSCGlobalObject::Create(
+    JSC::JSGlobalData* global_data,
+    ScriptObjectRegistry* script_object_registry) {
   JSC::Structure* structure = JSC::Structure::create(
       *global_data,
       NULL,           // JSC::JSGlobalObject*
@@ -36,8 +37,8 @@ JSCGlobalObject* JSCGlobalObject::Create(JSC::JSGlobalData* global_data) {
       &s_info);
   JSCGlobalObject* global_object =
       new (NotNull, JSC::allocateCell<JSCGlobalObject>(global_data->heap))
-      JSCGlobalObject(global_data, structure, NULL,
-                      scoped_ptr<WrapperFactory>(), NULL);
+          JSCGlobalObject(global_data, structure, script_object_registry, NULL,
+                          scoped_ptr<WrapperFactory>(), NULL);
   global_object->finishCreation(*global_data);
   global_data->heap.addFinalizer(global_object, destroy);
   return global_object;
@@ -45,13 +46,15 @@ JSCGlobalObject* JSCGlobalObject::Create(JSC::JSGlobalData* global_data) {
 
 JSCGlobalObject::JSCGlobalObject(JSC::JSGlobalData* global_data,
                                  JSC::Structure* structure,
+                                 ScriptObjectRegistry* script_object_registry,
                                  const scoped_refptr<Wrappable>& wrappable,
                                  scoped_ptr<WrapperFactory> wrapper_factory,
                                  EnvironmentSettings* environment_settings)
     : JSC::JSGlobalObject(*global_data, structure),
+      global_interface_(wrappable),
       wrapper_factory_(wrapper_factory.Pass()),
       object_cache_(new JSObjectCache(this)),
-      global_interface_(wrappable),
+      script_object_registry_(script_object_registry),
       environment_settings_(environment_settings) {}
 
 }  // namespace javascriptcore

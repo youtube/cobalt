@@ -30,6 +30,7 @@ using ::testing::Pointee;
 using ::testing::Property;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
+using cobalt::dom::testing::FakeScriptObject;
 using cobalt::dom::testing::MockEventListener;
 using cobalt::script::testing::MockExceptionState;
 
@@ -124,9 +125,10 @@ TEST_F(XhrTest, InvalidMethod) {
 }
 
 TEST_F(XhrTest, Open) {
-  scoped_refptr<MockEventListener> listener =
+  scoped_ptr<MockEventListener> listener =
       MockEventListener::CreateAsAttribute();
-  xhr_->set_onreadystatechange(listener);
+  FakeScriptObject script_object(listener.get());
+  xhr_->set_onreadystatechange(script_object);
   EXPECT_CALL(*listener, HandleEvent(Pointee(Property(
                              &dom::Event::type, "readystatechange")))).Times(1);
   xhr_->Open("GET", "https://www.google.com", &exception_state_);

@@ -99,7 +99,8 @@ class Window : public EventTarget {
 
   // Web API: Timing control for script-based animations (partial interface)
   //   http://www.w3.org/TR/animation-timing/#Window-interface-extensions
-  int32 RequestAnimationFrame(const scoped_refptr<FrameRequestCallback>&);
+  int32 RequestAnimationFrame(
+      const AnimationFrameRequestCallbackList::FrameRequestCallbackArg&);
   void CancelAnimationFrame(int32 handle);
 
   // Web API: CSSOM View Module: Extensions to the window interface
@@ -147,19 +148,19 @@ class Window : public EventTarget {
   // Web API: WindowTimers (implements)
   //   http://www.w3.org/TR/html5/webappapis.html#timers
   //
-  int SetTimeout(const scoped_refptr<TimerCallback>& handler) {
+  int SetTimeout(const WindowTimers::TimerCallbackArg& handler) {
     return SetTimeout(handler, 0);
   }
 
-  int SetTimeout(const scoped_refptr<TimerCallback>& handler, int timeout);
+  int SetTimeout(const WindowTimers::TimerCallbackArg& handler, int timeout);
 
   void ClearTimeout(int handle);
 
-  int SetInterval(const scoped_refptr<TimerCallback>& handler) {
+  int SetInterval(const WindowTimers::TimerCallbackArg& handler) {
     return SetInterval(handler, 0);
   }
 
-  int SetInterval(const scoped_refptr<TimerCallback>& handler, int timeout);
+  int SetInterval(const WindowTimers::TimerCallbackArg& handler, int timeout);
 
   void ClearInterval(int handle);
 

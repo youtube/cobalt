@@ -20,7 +20,10 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_vector.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/script_object.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
@@ -31,9 +34,14 @@ namespace dom {
 class AnimationFrameRequestCallbackList {
  public:
   typedef script::CallbackFunction<void(double)> FrameRequestCallback;
+  typedef script::ScriptObject<FrameRequestCallback> FrameRequestCallbackArg;
+
+  explicit AnimationFrameRequestCallbackList(
+      const script::Wrappable* const owner)
+      : owner_(owner) {}
 
   int32 RequestAnimationFrame(
-      const scoped_refptr<FrameRequestCallback>& frame_request_callback);
+      const FrameRequestCallbackArg& frame_request_callback);
 
   void CancelAnimationFrame(int32 handle);
 
@@ -44,13 +52,16 @@ class AnimationFrameRequestCallbackList {
   // We define a wrapper structure for the frame request so that we can
   // associate a "cancelled" flag with each callback.
   struct FrameRequestCallbackWithCancelledFlag {
-    FrameRequestCallbackWithCancelledFlag() : cancelled(false) {}
+    FrameRequestCallbackWithCancelledFlag(const script::Wrappable* const owner,
+                                          const FrameRequestCallbackArg& cb)
+        : callback(owner, cb), cancelled(false) {}
 
-    scoped_refptr<FrameRequestCallback> callback;
+    FrameRequestCallbackArg::Reference callback;
     bool cancelled;
   };
-  typedef std::vector<FrameRequestCallbackWithCancelledFlag> InternalList;
+  typedef ScopedVector<FrameRequestCallbackWithCancelledFlag> InternalList;
 
+  const script::Wrappable* const owner_;
   // Our list of frame request callbacks.
   InternalList frame_request_callbacks_;
 };
