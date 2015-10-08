@@ -34,14 +34,14 @@ KeyboardEvent::KeyboardEvent(const std::string& type, KeyLocationCode location,
 
 // How to determine keycode:
 //   http://www.w3.org/TR/DOM-Level-3-Events/#determine-keydown-keyup-keyCode
-// Virtual key code for keyup/keydown, character code for keypress
+// Virtual key code for keyup/keydown, 0 for keypress (split model)
 int KeyboardEvent::key_code() const {
   if (type() == EventNames::GetInstance()->keydown() ||
       type() == EventNames::GetInstance()->keyup()) {
     return key_code_;
   }
 
-  return char_code();
+  return 0;
 }
 
 int KeyboardEvent::char_code() const {
