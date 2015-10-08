@@ -55,15 +55,7 @@ bool KeypressGeneratorFilter::ConditionallyGenerateKeypressEvent(
   // Get the char_code corresponding to the key_code of the event.
   // Only generate the keypress event if there is a valid char_code.
   int key_code = orig_event->key_code();
-  int char_code = 0;
-
-  if (key_code == dom::keycode::kBack || key_code == dom::keycode::kReturn ||
-      key_code == dom::keycode::kSpace) {
-    // Treat these keys as special (mostly for debug console).
-    char_code = key_code;
-  } else {
-    char_code = orig_event->ComputeCharCode();
-  }
+  int char_code = orig_event->ComputeCharCode();
 
   if (char_code > 0) {
     scoped_refptr<dom::KeyboardEvent> keypress_event(new dom::KeyboardEvent(
