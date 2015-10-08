@@ -219,9 +219,9 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
         layout::Layout(window_, user_agent_style_sheet_, resource_provider_,
                        line_break_iterator_.get());
     on_render_tree_produced_callback_.Run(
-        render_tree_with_animations.render_tree,
-        render_tree_with_animations.animations,
-        *document_->timeline_sample_time());
+        LayoutResults(render_tree_with_animations.render_tree,
+                      render_tree_with_animations.animations,
+                      *document_->timeline_sample_time()));
 
     layout_dirty_ = false;
 

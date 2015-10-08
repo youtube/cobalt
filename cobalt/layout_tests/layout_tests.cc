@@ -27,6 +27,7 @@
 #include "base/string_util.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/layout_tests/layout_snapshot.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/media_module_stub.h"
 #include "cobalt/network/network_module.h"
@@ -83,42 +84,6 @@ FilePath GetTestInputRootDirectory() {
   return dir_source_root.Append(GetDirSourceRootRelativePath());
 }
 
-// Handles an incoming render tree by testing it against a pre-rendered
-// grount truth/expected image via the RenderTreePixelTester.  Places the
-// boolean result of the test in the result output parameter.  May generate
-// output files if pixel_tester is constructed with options specifying that it
-// do so upon tests.
-void AcceptRenderTreeForTest(
-    const FilePath& test_html_path,
-    renderer::RenderTreePixelTester* pixel_tester, base::RunLoop* run_loop,
-    bool* result, const scoped_refptr<render_tree::Node>& tree,
-    const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-        node_animations_map,
-    base::TimeDelta render_tree_time) {
-  *result = pixel_tester->TestTree(tree, test_html_path);
-  MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
-}
-
-// Handles an incoming render tree by rendering it to an expected output image
-// file in the output directory.
-void AcceptRenderTreeForRebaseline(
-    const FilePath& test_html_path,
-    renderer::RenderTreePixelTester* pixel_tester, base::RunLoop* run_loop,
-    const scoped_refptr<render_tree::Node>& tree,
-    const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-        node_animations_map,
-    base::TimeDelta render_tree_time) {
-  pixel_tester->Rebaseline(tree, test_html_path);
-  MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
-}
-
-void AcceptDocumentError(base::RunLoop* run_loop, const std::string& error) {
-  // If an error occurs while loading a document (i.e. this function is called)
-  // then the test has failed, and we will NOT set the result variable to true.
-  std::cout << "Error loading document: " << error.c_str() << std::endl;
-  MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
-}
-
 GURL GetURLFromBaseFilePath(const FilePath& base_file_path) {
   return GURL("file:///" + GetDirSourceRootRelativePath().value() + "/" +
               base_file_path.AddExtension("html").value());
@@ -164,7 +129,6 @@ TEST_P(LayoutTest, LayoutTest) {
   // a WebModule, which requires a message loop to exist for the current
   // thread.
   MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
-  base::RunLoop run_loop;
 
   // Setup the pixel tester we will use to perform pixel tests on the render
   // trees output by the web module.
@@ -179,46 +143,17 @@ TEST_P(LayoutTest, LayoutTest) {
       GetParam().viewport_size, GetTestInputRootDirectory(),
       GetTestOutputRootDirectory(), pixel_tester_options);
 
-  // Setup the WebModule options.  In particular, we specify here the URL of
-  // the test that we wish to run.
-  browser::WebModule::Options web_module_options;
-  web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
+  browser::WebModule::LayoutResults layout_results =
+      SnapshotURL(GetParam().url, GetParam().viewport_size,
+                  pixel_tester.GetResourceProvider());
 
-  // Setup the function that should be called whenever the WebModule produces
-  // a new render tree.  Essentially, we decide here if we are rebaselining or
-  // actually testing, and setup the appropriate callback.
-  bool result = false;
-  browser::WebModule::OnRenderTreeProducedCallback callback_function(
-      CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline)
-          ? base::Bind(&AcceptRenderTreeForRebaseline,
-                       GetParam().base_file_path, &pixel_tester, &run_loop)
-          : base::Bind(&AcceptRenderTreeForTest, GetParam().base_file_path,
-                       &pixel_tester, &run_loop, &result));
-
-  // Setup external modules needed by the WebModule.
-  network::NetworkModule network_module;
-  scoped_ptr<media::MediaModule> stub_media_module(
-      new media::MediaModuleStub());
-
-  // Create the web module.
-  browser::WebModule web_module(
-      GetParam().url, callback_function,
-      base::Bind(&AcceptDocumentError, &run_loop), stub_media_module.get(),
-      &network_module, GetParam().viewport_size,
-      pixel_tester.GetResourceProvider(),
-      60.0f,  // Layout refresh rate. Doesn't matter much for layout tests.
-      web_module_options);
-
-  // Start the WebModule wheels churning.  This will initiate the required loads
-  // as well as eventually any JavaScript execution that needs to take place.
-  // Ultimately, it should result in the passed in callback_function being
-  // run after the page has been layed out and a render tree produced.
-  run_loop.Run();
-
-  // If we are not rebaselining, we are testing, so in this case, verify that
-  // the result of the test is successful or not.
-  if (!CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline)) {
-    EXPECT_TRUE(result);
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline)) {
+    pixel_tester.Rebaseline(layout_results.render_tree,
+                            GetParam().base_file_path);
+  } else {
+    bool results = pixel_tester.TestTree(layout_results.render_tree,
+                                         GetParam().base_file_path);
+    EXPECT_TRUE(results);
   }
 }
 
