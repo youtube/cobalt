@@ -428,14 +428,14 @@ namespace {
 
 class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
-  ContentProvider() : element_is_generated_(false) {}
+  ContentProvider() : is_element_generated_(false) {}
 
   const std::string& content_string() const { return content_string_; }
-  bool element_is_generated() const { return element_is_generated_; }
+  bool is_element_generated() const { return is_element_generated_; }
 
   void VisitString(cssom::StringValue* string_value) OVERRIDE {
     content_string_ = string_value->value();
-    element_is_generated_ = true;
+    is_element_generated_ = true;
   }
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
@@ -444,7 +444,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kNormal:
         // The pseudo-element is not generated.
         //   http://www.w3.org/TR/CSS21/generate.html#propdef-content
-        element_is_generated_ = false;
+        is_element_generated_ = false;
         break;
       case cssom::KeywordValue::kAbsolute:
       case cssom::KeywordValue::kAuto:
@@ -486,7 +486,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
 
  private:
   std::string content_string_;
-  bool element_is_generated_;
+  bool is_element_generated_;
 };
 
 }  // namespace
@@ -517,7 +517,7 @@ void BoxGenerator::AppendPseudoElementToLine(
       // 'content' property.
       ContentProvider content_provider;
       pseudo_element->computed_style()->content()->Accept(&content_provider);
-      if (content_provider.element_is_generated()) {
+      if (content_provider.is_element_generated()) {
         scoped_refptr<dom::Text> child_node(new dom::Text(
             html_element->owner_document(), content_provider.content_string()));
 
