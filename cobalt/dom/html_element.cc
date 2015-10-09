@@ -52,14 +52,6 @@
 namespace cobalt {
 namespace dom {
 
-HTMLElement::CachedImageReferenceWithCallback::CachedImageReferenceWithCallback(
-    const scoped_refptr<loader::CachedImage>& cached_image,
-    const base::Closure& callback)
-    : cached_image(cached_image),
-      cached_image_loaded_callback_handler(
-          new loader::CachedImage::OnLoadedCallbackHandler(cached_image,
-                                                           callback)) {}
-
 scoped_refptr<DOMStringMap> HTMLElement::dataset() {
   if (!dataset_) {
     dataset_ = new DOMStringMap(this);
@@ -380,7 +372,7 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
         base::polymorphic_downcast<cssom::PropertyListValue*>(
             background_image.get());
 
-    CachedImageReferenceVector cached_images;
+    loader::image::CachedImageReferenceVector cached_images;
     cached_images.reserve(property_list_value->value().size());
 
     for (size_t i = 0; i < property_list_value->value().size(); ++i) {
@@ -392,12 +384,14 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
       // element is turned off.
       if (absolute_url->value().is_valid() &&
           computed_style_->display() != cssom::KeywordValue::GetNone()) {
-        scoped_refptr<loader::CachedImage> cached_image =
-            html_element_context()->image_cache()->CreateCachedImage(
+        scoped_refptr<loader::image::CachedImage> cached_image =
+            html_element_context()->image_cache()->CreateCachedResource(
                 absolute_url->value());
-        cached_images.push_back(new CachedImageReferenceWithCallback(
-            cached_image, base::Bind(&HTMLElement::OnBackgroundImageLoaded,
-                                     base::Unretained(this))));
+        base::Closure loaded_callback = base::Bind(
+            &HTMLElement::OnBackgroundImageLoaded, base::Unretained(this));
+        cached_images.push_back(
+            new loader::image::CachedImageReferenceWithCallbacks(
+                cached_image, loaded_callback, base::Closure()));
       }
     }
 

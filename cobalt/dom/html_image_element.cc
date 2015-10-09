@@ -85,15 +85,15 @@ void HTMLImageElement::UpdateImageData() {
     }
 
     // 7.2 Let key be a tuple consisting of the resulting absolute URL, the img
-    // element's crossorigin attribute's mode, and, if that mode is not No CORS,
-    // the Document object's origin.
+    // element's cross origin attribute's mode, and, if that mode is not No
+    // CORS, the Document object's origin.
     // 7.3 If the list of available images contains an entry for key, then set
     // the img element to the completely available state, update the
     // presentation of the image appropriately, queue a task to fire a simple
     // event named load at the img element, and abort these steps.
-    cached_image_ = html_element_context()->image_cache()->CreateCachedImage(
+    cached_image_ = html_element_context()->image_cache()->CreateCachedResource(
         selected_source);
-    if (cached_image_->TryGetImage()) {
+    if (cached_image_->TryGetResource()) {
       MessageLoop::current()->PostTask(
           FROM_HERE,
           base::Bind(base::IgnoreResult(&HTMLImageElement::DispatchEvent),
@@ -120,11 +120,11 @@ void HTMLImageElement::UpdateImageData() {
   // from the earlier step, with the mode being the current state of the
   // element's crossorigin content attribute, the origin being the origin of the
   // img element's Document, and the default origin behaviour set to taint.
-  base::Closure callback =
+  base::Closure loaded_callback =
       base::Bind(&HTMLImageElement::OnImageLoaded, base::Unretained(this));
   cached_image_loaded_callback_handler_.reset(
-      new loader::CachedImage::OnLoadedCallbackHandler(cached_image_,
-                                                       callback));
+      new loader::image::CachedImage::OnLoadedCallbackHandler(
+          cached_image_, loaded_callback, base::Closure()));
 
   // 13. Not needed by Cobalt.
 }

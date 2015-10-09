@@ -36,7 +36,7 @@
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/loader/image_cache.h"
+#include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/callback_function.h"
@@ -77,7 +77,7 @@ class Window : public EventTarget {
 
   Window(int width, int height, cssom::CSSParser* css_parser,
          Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
-         loader::ImageCache* image_cache,
+         loader::image::ImageCache* image_cache,
          LocalStorageDatabase* local_storage_database,
          media::WebMediaPlayerFactory* web_media_player_factory,
          script::ExecutionState* execution_state,
