@@ -28,7 +28,7 @@
 namespace cobalt {
 namespace loader {
 
-// TextDecoder converts chunks of data into std::string and concatinate the
+// TextDecoder converts chunks of data into std::string and concatenate the
 // results.
 class TextDecoder : public Decoder {
  public:
