@@ -17,7 +17,7 @@
 #include "cobalt/dom/keyboard_event.h"
 
 #include "cobalt/dom/event_names.h"
-#include "cobalt/dom/keyboard_code.h"
+#include "cobalt/dom/keycode.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -57,43 +57,43 @@ TEST(KeyboardEventTest, CanGetKeyIdentifier) {
   scoped_refptr<KeyboardEvent> keyboard_event_a =
       new KeyboardEvent(EventNames::GetInstance()->keydown(),
                         KeyboardEvent::kDomKeyLocationStandard,
-                        KeyboardEvent::kNoModifier, kA, 0, false);
+                        KeyboardEvent::kNoModifier, keycode::kA, 0, false);
   EXPECT_EQ(keyboard_event_a->key_identifier(), "a");
 
   scoped_refptr<KeyboardEvent> keyboard_event_ca =
       new KeyboardEvent(EventNames::GetInstance()->keydown(),
                         KeyboardEvent::kDomKeyLocationStandard,
-                        KeyboardEvent::kCtrlKey, kA, 0, false);
+                        KeyboardEvent::kCtrlKey, keycode::kA, 0, false);
   EXPECT_EQ(keyboard_event_ca->key_identifier(), "a");
 
   scoped_refptr<KeyboardEvent> keyboard_event_sa =
       new KeyboardEvent(EventNames::GetInstance()->keydown(),
                         KeyboardEvent::kDomKeyLocationStandard,
-                        KeyboardEvent::kShiftKey, kA, 0, false);
+                        KeyboardEvent::kShiftKey, keycode::kA, 0, false);
   EXPECT_EQ(keyboard_event_sa->key_identifier(), "A");
 
   scoped_refptr<KeyboardEvent> keyboard_event_1 =
       new KeyboardEvent(EventNames::GetInstance()->keydown(),
                         KeyboardEvent::kDomKeyLocationStandard,
-                        KeyboardEvent::kNoModifier, k1, 0, false);
+                        KeyboardEvent::kNoModifier, keycode::k1, 0, false);
   EXPECT_EQ(keyboard_event_1->key_identifier(), "1");
 
   scoped_refptr<KeyboardEvent> keyboard_event_s1 =
       new KeyboardEvent(EventNames::GetInstance()->keydown(),
                         KeyboardEvent::kDomKeyLocationStandard,
-                        KeyboardEvent::kShiftKey, k1, 0, false);
+                        KeyboardEvent::kShiftKey, keycode::k1, 0, false);
   EXPECT_EQ(keyboard_event_s1->key_identifier(), "!");
 
   scoped_refptr<KeyboardEvent> keyboard_event_left =
       new KeyboardEvent(EventNames::GetInstance()->keydown(),
                         KeyboardEvent::kDomKeyLocationStandard,
-                        KeyboardEvent::kNoModifier, kLeft, 0, false);
+                        KeyboardEvent::kNoModifier, keycode::kLeft, 0, false);
   EXPECT_EQ(keyboard_event_left->key_identifier(), "ArrowLeft");
 
   scoped_refptr<KeyboardEvent> keyboard_event_sleft =
       new KeyboardEvent(EventNames::GetInstance()->keydown(),
                         KeyboardEvent::kDomKeyLocationStandard,
-                        KeyboardEvent::kShiftKey, kLeft, 0, false);
+                        KeyboardEvent::kShiftKey, keycode::kLeft, 0, false);
   EXPECT_EQ(keyboard_event_sleft->key_identifier(), "ArrowLeft");
 }
 
