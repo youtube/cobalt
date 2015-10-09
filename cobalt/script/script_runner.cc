@@ -31,25 +31,28 @@ class ScriptRunnerImpl : public ScriptRunner {
       const scoped_refptr<GlobalObjectProxy> global_object_proxy)
       : global_object_proxy_(global_object_proxy) {}
 
-  void Execute(const std::string& script_utf8,
-               const base::SourceLocation& script_location) OVERRIDE;
+  std::string Execute(const std::string& script_utf8,
+                      const base::SourceLocation& script_location) OVERRIDE;
 
  private:
   scoped_refptr<GlobalObjectProxy> global_object_proxy_;
 };
 
-void ScriptRunnerImpl::Execute(const std::string& script_utf8,
-                               const base::SourceLocation& script_location) {
+std::string ScriptRunnerImpl::Execute(
+    const std::string& script_utf8,
+    const base::SourceLocation& script_location) {
   scoped_refptr<SourceCode> source_code =
       SourceCode::CreateSourceCode(script_utf8, script_location);
   if (source_code == NULL) {
     NOTREACHED() << "Failed to pre-process JavaScript source.";
-    return;
+    return "";
   }
   std::string result;
   if (!global_object_proxy_->EvaluateScript(source_code, &result)) {
     DLOG(WARNING) << "Failed to execute JavaScript: " << result;
+    return "";
   }
+  return result;
 }
 
 }  // namespace
