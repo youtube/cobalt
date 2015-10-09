@@ -20,7 +20,6 @@
 namespace cobalt {
 namespace cssom {
 
-class AdjacentSelector;
 class AfterPseudoElement;
 class BeforePseudoElement;
 class ClassSelector;
@@ -50,9 +49,6 @@ class SelectorVisitor {
 
   // Compound selector.
   virtual void VisitCompoundSelector(CompoundSelector* compound_selector) = 0;
-
-  // Adjacent selector.
-  virtual void VisitAdjacentSelector(AdjacentSelector* adjacent_selector) = 0;
 
   // Complex selector.
   virtual void VisitComplexSelector(ComplexSelector* complex_selector) = 0;

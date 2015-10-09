@@ -20,36 +20,44 @@
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
-#include "cobalt/cssom/selector.h"
 
 namespace cobalt {
 namespace cssom {
 
+class Selector;
+class ChildCombinator;
 class CombinatorVisitor;
+class DescendantCombinator;
+class FollowingSiblingCombinator;
+class NextSiblingCombinator;
+
+enum CombinatorType {
+  kChildCombinator,
+  kDescendantCombinator,
+  kNextSiblingCombinator,
+  kFollowingSiblingCombinator,
+  kCombinatorCount,
+};
 
 // A combinator is punctuation that represents a particular kind of relationship
 // between the selectors on either side.
 //   http://www.w3.org/TR/selectors4/#combinator
 class Combinator {
  public:
-  Combinator() {}
-  virtual ~Combinator() {}
+  Combinator();
+  virtual ~Combinator();
 
   virtual void Accept(CombinatorVisitor* visitor) = 0;
 
-  // The selector on the left of the combinator.
-  Selector* selector() { return selector_.get(); }
-  void set_selector(scoped_ptr<Selector> selector) {
-    selector_ = selector.Pass();
-  }
+  virtual CombinatorType GetCombinatorType() = 0;
 
-  // An adjacent combinator describes an immediate relationship. Child and
-  // next-sibling combinators are considered adjacent combinators, while
-  // descendant and following sibling combinators are not.
-  virtual bool IsAdjacentCombinator() = 0;
+  // The selector to the right of the combinator.
+  Selector* selector();
+  void set_selector(scoped_ptr<Selector> selector);
 
  private:
   scoped_ptr<Selector> selector_;
+
   DISALLOW_COPY_AND_ASSIGN(Combinator);
 };
 

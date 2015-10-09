@@ -36,7 +36,7 @@ namespace dom {
 // This class adds a container for the DOM state needed for pseudo elements.
 class PseudoElement {
  public:
-  PseudoElement() : matching_rules_(new cssom::RulesWithCascadePriority()) {}
+  PseudoElement() {}
   ~PseudoElement() {}
 
   // Used by layout engine to cache the computed values.
@@ -51,20 +51,15 @@ class PseudoElement {
     computed_style_ = computed_style;
   }
 
-  // Used by layout engine to cache the rule matching results.
-  cssom::RulesWithCascadePriority* matching_rules() const {
-    return matching_rules_.get();
-  }
-
-  void clear_matching_rules() {
-    matching_rules_.reset(new cssom::RulesWithCascadePriority());
-  }
+  cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
 
   cssom::TransitionSet* transitions() { return &transitions_; }
 
+  void ClearMatchingRules() { matching_rules_.clear(); }
+
  private:
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
-  scoped_ptr<cssom::RulesWithCascadePriority> matching_rules_;
+  cssom::RulesWithCascadePriority matching_rules_;
   cssom::TransitionSet transitions_;
 };
 

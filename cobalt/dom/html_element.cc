@@ -289,53 +289,17 @@ void HTMLElement::UpdateComputedStyleRecursively(
 }
 
 void HTMLElement::ClearMatchingRules() {
-  matching_rules_.reset(new cssom::RulesWithCascadePriority());
+  matching_rules_.clear();
+  rule_matching_state_.matching_nodes.clear();
+  rule_matching_state_.descendant_potential_nodes.clear();
+  rule_matching_state_.following_sibling_potential_nodes.clear();
   for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
        ++pseudo_element_type) {
     if (pseudo_elements_[pseudo_element_type]) {
-      pseudo_elements_[pseudo_element_type]->clear_matching_rules();
+      pseudo_elements_[pseudo_element_type]->ClearMatchingRules();
     }
   }
-}
-
-void HTMLElement::UpdateMatchingRules(
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
-  // Update matching rules for this element.
-  //
-  ClearMatchingRules();
-
-  // Match with user agent style sheet.
-  if (user_agent_style_sheet) {
-    UpdateMatchingRulesFromStyleSheet(user_agent_style_sheet, this,
-                                      cssom::kNormalUserAgent);
-  }
-  // Match with all author style sheets.
-  DCHECK(author_style_sheets);
-  for (unsigned int style_sheet_index = 0;
-       style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
-    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-        author_style_sheets->Item(style_sheet_index)->AsCSSStyleSheet();
-    UpdateMatchingRulesFromStyleSheet(style_sheet, this, cssom::kNormalAuthor);
-  }
-
   computed_style_valid_ = false;
-}
-
-void HTMLElement::UpdateMatchingRulesRecursively(
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
-  // Update matching rules for this element.
-  UpdateMatchingRules(user_agent_style_sheet, author_style_sheets);
-
-  // Update matching rules for this element's descendants.
-  for (Element* element = first_element_child(); element;
-       element = element->next_element_sibling()) {
-    HTMLElement* html_element = element->AsHTMLElement();
-    DCHECK(html_element);
-    html_element->UpdateMatchingRulesRecursively(user_agent_style_sheet,
-                                                 author_style_sheets);
-  }
 }
 
 HTMLElement::HTMLElement(Document* document)

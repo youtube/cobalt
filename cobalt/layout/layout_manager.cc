@@ -21,6 +21,7 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/timer.h"
+#include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/benchmark_stat_names.h"
@@ -82,7 +83,7 @@ scoped_refptr<cssom::CSSStyleSheet> ParseUserAgentStyleSheet(
     cssom::CSSParser* css_parser) {
   const char kUserAgentStyleSheetFileName[] = "user_agent_style_sheet.css";
 
-  // Parse the user agent style sheet from the html.css file that was compiled
+  // Parse the user agent style sheet from the given file that was compiled
   // into a header and included.  We embed it in the binary via C++ header file
   // so that we can avoid the time it would take to perform a disk read
   // when constructing the LayoutManager.  The cost of doing this is that
@@ -93,10 +94,14 @@ scoped_refptr<cssom::CSSStyleSheet> ParseUserAgentStyleSheet(
   FileContents html_css_file_contents =
       resource_map[kUserAgentStyleSheetFileName];
 
-  return css_parser->ParseStyleSheet(
-      std::string(reinterpret_cast<const char*>(html_css_file_contents.data),
-                  static_cast<size_t>(html_css_file_contents.size)),
-      base::SourceLocation(kUserAgentStyleSheetFileName, 1, 1));
+  scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet =
+      css_parser->ParseStyleSheet(
+          std::string(
+              reinterpret_cast<const char*>(html_css_file_contents.data),
+              static_cast<size_t>(html_css_file_contents.size)),
+          base::SourceLocation(kUserAgentStyleSheetFileName, 1, 1));
+  user_agent_style_sheet->set_origin(cssom::kNormalUserAgent);
+  return user_agent_style_sheet;
 }
 
 }  // namespace
