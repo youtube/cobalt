@@ -19,7 +19,7 @@
 
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/window.h"
-#include "cobalt/loader/image_cache.h"
+#include "cobalt/loader/image/image_cache.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"

@@ -25,6 +25,13 @@
 namespace cobalt {
 namespace browser {
 
+namespace {
+
+// TODO(***REMOVED***): These numbers should be adjusted by the size of client memory.
+const uint32 kImageCacheCapacity = 32U * 1024 * 1024;
+
+}  // namespace
+
 WebModule::WebModule(
     const GURL& initial_url,
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
@@ -40,9 +47,9 @@ WebModule::WebModule(
       css_parser_(css_parser::Parser::Create()),
       dom_parser_(new dom_parser::Parser(error_callback)),
       fetcher_factory_(new loader::FetcherFactory(network_module)),
-      image_cache_(new loader::ImageCache(
-          base::StringPrintf("%s.ImageCache", name_.c_str()), resource_provider,
-          fetcher_factory_.get())),
+      image_cache_(loader::image::CreateImageCache(
+          base::StringPrintf("%s.ImageCache", name_.c_str()),
+          kImageCacheCapacity, resource_provider, fetcher_factory_.get())),
       local_storage_database_(network_module->storage_manager()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
       global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),

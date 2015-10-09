@@ -29,7 +29,7 @@
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/pseudo_element.h"
-#include "cobalt/loader/image_cache.h"
+#include "cobalt/loader/image/image_cache.h"
 
 namespace cobalt {
 namespace dom {
@@ -67,21 +67,6 @@ enum PseudoElementType {
 //   http://www.w3.org/TR/html5/dom.html#htmlelement
 class HTMLElement : public Element, public cssom::MutationObserver {
  public:
-  struct CachedImageReferenceWithCallback {
-    CachedImageReferenceWithCallback(
-        const scoped_refptr<loader::CachedImage>& cached_image,
-        const base::Closure& callback);
-
-    // A single cached image.
-    scoped_refptr<loader::CachedImage> cached_image;
-    // This handles adding and removing the background image loaded callback.
-    scoped_ptr<loader::CachedImage::OnLoadedCallbackHandler>
-        cached_image_loaded_callback_handler;
-  };
-
-  typedef ScopedVector<CachedImageReferenceWithCallback>
-      CachedImageReferenceVector;
-
   // Web API: HTMLElement
   //
   scoped_refptr<DOMStringMap> dataset();
@@ -211,7 +196,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // property and a image loaded handle to add and remove image loaded callback.
   // We maintain it here to indicate to the resource caching system
   // that the images are currently in-use, and should not be purged.
-  CachedImageReferenceVector cached_background_images_;
+  loader::image::CachedImageReferenceVector cached_background_images_;
 };
 
 }  // namespace dom
