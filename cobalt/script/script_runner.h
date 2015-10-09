@@ -34,8 +34,8 @@ class ScriptRunner {
   static scoped_ptr<ScriptRunner> CreateScriptRunner(
       const scoped_refptr<GlobalObjectProxy>& global_object_proxy);
 
-  virtual void Execute(const std::string& script_utf8,
-                       const base::SourceLocation& script_location) = 0;
+  virtual std::string Execute(const std::string& script_utf8,
+                              const base::SourceLocation& script_location) = 0;
   virtual ~ScriptRunner() {}
 };
 
