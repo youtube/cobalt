@@ -22,7 +22,7 @@
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/window.h"
-#include "cobalt/loader/image_cache.h"
+#include "cobalt/loader/image/image_cache.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"

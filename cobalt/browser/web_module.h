@@ -128,7 +128,7 @@ class WebModule {
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
 
   // ImageCache that is used to manage image cache logic.
-  scoped_ptr<loader::ImageCache> image_cache_;
+  scoped_ptr<loader::image::ImageCache> image_cache_;
 
   // Interface between LocalStorage and the Storage Manager.
   dom::LocalStorageDatabase local_storage_database_;
