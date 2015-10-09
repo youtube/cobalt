@@ -56,6 +56,16 @@ function animate(time) {
   window.requestAnimationFrame(animate);
 }
 
+function executeCurrentCommand() {
+    var command = commandInput.getCurrentCommand();
+    printToMessageLog(window.debugHub.LOG_INFO, '> ' + command);
+    var result = window.debugHub.executeCommand(command);
+    if (command.indexOf('console') == -1) {
+      printToMessageLog(window.debugHub.LOG_INFO, result);
+    }
+    commandInput.clearAndStoreCurrentCommand();
+}
+
 function onKeydown(event) {
   var key = event.key;
   if (key == 'ArrowLeft') {
@@ -69,10 +79,7 @@ function onKeydown(event) {
   } else if (key == 'Backspace') {
     commandInput.deleteCharBehindCursor();
   } else if (key == 'Enter') {
-    var command = commandInput.getCurrentCommand();
-    printToMessageLog(window.debugHub.LOG_INFO, '> ' + command);
-    window.debugHub.executeCommand(command);
-    commandInput.clearAndStoreCurrentCommand();
+    executeCurrentCommand();
   }
 }
 

@@ -45,9 +45,9 @@ class DebugHub : public script::Wrappable {
            size_t message_start, const std::string& msg)> LogMessageCallback;
 
   // Javascript command execution callback type.
-  typedef base::Callback<void(const std::string& script_utf8,
-                              const base::SourceLocation& script_location)>
-      ExecuteJavascriptCallback;
+  typedef base::Callback<std::string(
+      const std::string& script_utf8,
+      const base::SourceLocation& script_location)> ExecuteJavascriptCallback;
 
   // Type for stored callback info.
   // We store the message loop from which the callback was registered,
@@ -97,7 +97,7 @@ class DebugHub : public script::Wrappable {
   // This could either be a command to be executed locally, or Javascript to be
   // passed into the main web module for execution (via the callback stored in
   // this object). Currently only Javascript execution is supported.
-  void ExecuteCommand(const std::string& command);
+  std::string ExecuteCommand(const std::string& command);
 
   DEFINE_WRAPPABLE_TYPE(DebugHub);
 

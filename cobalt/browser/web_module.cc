@@ -34,6 +34,9 @@ WebModule::WebModule(
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options)
     : name_(options.name),
+      // TODO(***REMOVED***) This assumes the web module runs in the message loop
+      // current when it was created. If that changes, we must change this.
+      self_message_loop_(MessageLoop::current()),
       css_parser_(css_parser::Parser::Create()),
       dom_parser_(new dom_parser::Parser(error_callback)),
       fetcher_factory_(new loader::FetcherFactory(network_module)),
@@ -68,18 +71,45 @@ WebModule::WebModule(
 WebModule::~WebModule() {}
 
 void WebModule::InjectEvent(const scoped_refptr<dom::Event>& event) {
+  // Repost to this web module's message loop if it was called on another.
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&WebModule::InjectEvent, base::Unretained(this), event));
+    return;
+  }
+
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectEvent()",
                "type", event->type());
   window_->InjectEvent(event);
 }
 
-void WebModule::ExecuteJavascript(const std::string& script_utf8,
-                                  const base::SourceLocation& script_location) {
-  // TODO(***REMOVED***) When each web module has its own message loop, we will
-  // need to check the current message loop here and repost the task to that
-  // loop if necessary.
-  script_runner_->Execute(script_utf8, script_location);
+std::string WebModule::ExecuteJavascript(
+    const std::string& script_utf8,
+    const base::SourceLocation& script_location) {
+  // If this method was called on a message loop different to this WebModule's,
+  // post the task to this WebModule's message loop and wait for the result.
+  if (MessageLoop::current() != self_message_loop_) {
+    base::WaitableEvent got_result(true, false);
+    std::string result;
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&WebModule::ExecuteJavascriptInternal,
+                              base::Unretained(this), script_utf8,
+                              script_location, &got_result, &result));
+    got_result.Wait();
+    return result;
+  }
+
+  return script_runner_->Execute(script_utf8, script_location);
+}
+
+void WebModule::ExecuteJavascriptInternal(
+    const std::string& script_utf8, const base::SourceLocation& script_location,
+    base::WaitableEvent* got_result, std::string* result) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  *result = script_runner_->Execute(script_utf8, script_location);
+  got_result->Signal();
 }
 
 }  // namespace browser
