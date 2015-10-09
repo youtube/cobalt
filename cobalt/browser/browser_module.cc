@@ -22,7 +22,7 @@
 #include "base/logging.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/event_names.h"
-#include "cobalt/dom/keyboard_code.h"
+#include "cobalt/dom/keycode.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 
@@ -162,7 +162,7 @@ bool BrowserModule::FilterKeyEventForHotkeys(
 #if !defined(ENABLE_DEBUG_CONSOLE)
   UNREFERENCED_PARAMETER(event);
 #else
-  if (event->ctrl_key() && event->key_code() == dom::kO) {
+  if (event->ctrl_key() && event->key_code() == dom::keycode::kO) {
     if (event->type() == dom::EventNames::GetInstance()->keydown()) {
       // Ctrl+O toggles the debug console display.
       debug_hub_->CycleDebugConsoleMode();
@@ -170,7 +170,7 @@ bool BrowserModule::FilterKeyEventForHotkeys(
     return false;
   }
 
-  if (event->key_code() == dom::kF3) {
+  if (event->key_code() == dom::keycode::kF3) {
     if (event->type() == dom::EventNames::GetInstance()->keydown()) {
       CommandLine* command_line = CommandLine::ForCurrentProcess();
       if (command_line->HasSwitch(switches::kTimedTrace)) {
