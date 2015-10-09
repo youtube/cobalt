@@ -30,6 +30,7 @@ namespace cssom {
 
 class CSSRuleVisitor;
 class CSSStyleRule;
+class CSSMediaRule;
 class CSSStyleSheet;
 
 // The CSSRule interface represents an abstract, base CSS style rule.
@@ -67,12 +68,13 @@ class CSSRule : public script::Wrappable,
 
   void set_parent_style_sheet(CSSStyleSheet *parent_style_sheet);
 
-  int index() { return index_; }
+  int index() const { return index_; }
   void set_index(int index) { index_ = index; }
 
   virtual void Accept(CSSRuleVisitor *visitor) = 0;
   virtual void AttachToCSSStyleSheet(CSSStyleSheet *style_sheet) = 0;
   virtual CSSStyleRule *AsCSSStyleRule() { return NULL; }
+  virtual CSSMediaRule *AsCSSMediaRule() { return NULL; }
 
   DEFINE_WRAPPABLE_TYPE(CSSRule);
 

@@ -20,7 +20,6 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/cssom/adjacent_selector.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/selector.h"
@@ -31,19 +30,21 @@ namespace cssom {
 
 class SelectorVisitor;
 
-// A complex selector is a chain of one or more adjacent selectors separated by
-// adjacent combinators.
+// A complex selector is a chain of one or more compound selectors separated by
+// combinators.
 //   http://www.w3.org/TR/selectors4/#complex
 class ComplexSelector : public Selector {
  public:
   ComplexSelector() {}
   ~ComplexSelector() OVERRIDE {}
 
-  Specificity GetSpecificity() const OVERRIDE { return specificity_; }
-
+  // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
+  Specificity GetSpecificity() const OVERRIDE { return specificity_; }
+  ComplexSelector* AsComplexSelector() OVERRIDE { return this; }
+  CompoundSelector* first_selector() { return first_selector_.get(); }
 
-  AdjacentSelector* last_selector() { return last_selector_.get(); }
+  // Rest of public methods.
 
   const Combinators& combinators() { return combinators_; }
 
@@ -55,7 +56,7 @@ class ComplexSelector : public Selector {
                                    scoped_ptr<CompoundSelector> selector);
 
  private:
-  scoped_ptr<AdjacentSelector> last_selector_;
+  scoped_ptr<CompoundSelector> first_selector_;
   Combinators combinators_;
   Specificity specificity_;
 

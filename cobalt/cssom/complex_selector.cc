@@ -26,25 +26,17 @@ void ComplexSelector::Accept(SelectorVisitor* visitor) {
 }
 
 void ComplexSelector::AppendSelector(scoped_ptr<CompoundSelector> selector) {
-  DCHECK(!last_selector_);
+  DCHECK(!first_selector_);
   specificity_.AddFrom(selector->GetSpecificity());
-  last_selector_.reset(new AdjacentSelector());
-  last_selector_->AppendSelector(selector.Pass());
+  first_selector_ = selector.Pass();
 }
 
 void ComplexSelector::AppendCombinatorAndSelector(
     scoped_ptr<Combinator> combinator, scoped_ptr<CompoundSelector> selector) {
-  DCHECK(last_selector_);
+  DCHECK(first_selector_);
   specificity_.AddFrom(selector->GetSpecificity());
-  if (combinator->IsAdjacentCombinator()) {
-    last_selector_->AppendCombinatorAndSelector(combinator.Pass(),
-                                                selector.Pass());
-  } else {
-    combinator->set_selector(last_selector_.PassAs<Selector>());
-    combinators_.push_back(combinator.release());
-    last_selector_.reset(new AdjacentSelector());
-    last_selector_->AppendSelector(selector.Pass());
-  }
+  combinator->set_selector(selector.PassAs<Selector>());
+  combinators_.push_back(combinator.release());
 }
 
 }  // namespace cssom

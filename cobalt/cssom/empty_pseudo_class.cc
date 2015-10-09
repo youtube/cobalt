@@ -25,5 +25,11 @@ void EmptyPseudoClass::Accept(SelectorVisitor* visitor) {
   visitor->VisitEmptyPseudoClass(this);
 }
 
+void EmptyPseudoClass::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
+                                             SelectorTree::Node* child_node,
+                                             CombinatorType combinator) {
+  parent_node->empty_pseudo_class_nodes[combinator].push_back(child_node);
+}
+
 }  // namespace cssom
 }  // namespace cobalt

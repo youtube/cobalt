@@ -61,6 +61,11 @@ class CSSStyleRule : public CSSRule {
 
   const Selectors& selectors() const { return selectors_; }
 
+  bool added_to_selector_tree() const { return added_to_selector_tree_; }
+  void set_added_to_selector_tree(bool added_to_selector_tree) {
+    added_to_selector_tree_ = added_to_selector_tree;
+  }
+
   DEFINE_WRAPPABLE_TYPE(CSSStyleRule);
 
  private:
@@ -68,6 +73,7 @@ class CSSStyleRule : public CSSRule {
 
   Selectors selectors_;
   scoped_refptr<CSSStyleDeclaration> style_;
+  bool added_to_selector_tree_;
 };
 
 typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;

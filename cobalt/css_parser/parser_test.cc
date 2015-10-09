@@ -20,7 +20,6 @@
 #include <string>
 
 #include "base/bind.h"
-#include "cobalt/cssom/adjacent_selector.h"
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/complex_selector.h"
@@ -195,11 +194,8 @@ TEST_F(ParserTest, ParsesClassSelector) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
-      adjacent_selector->last_selector();
+      complex_selector->first_selector();
   ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::ClassSelector* class_selector = dynamic_cast<cssom::ClassSelector*>(
@@ -222,11 +218,8 @@ TEST_F(ParserTest, ParsesAfterPseudoElementCSS2) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
-      adjacent_selector->last_selector();
+      complex_selector->first_selector();
   ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::AfterPseudoElement* after_pseudo_element =
@@ -249,11 +242,8 @@ TEST_F(ParserTest, ParsesAfterPseudoElementCSS3) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
-      adjacent_selector->last_selector();
+      complex_selector->first_selector();
   ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::AfterPseudoElement* after_pseudo_element =
@@ -276,11 +266,8 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS2) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
-      adjacent_selector->last_selector();
+      complex_selector->first_selector();
   ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::BeforePseudoElement* before_pseudo_element =
@@ -303,11 +290,8 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS3) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
-      adjacent_selector->last_selector();
+      complex_selector->first_selector();
   ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::BeforePseudoElement* before_pseudo_element =
@@ -330,11 +314,8 @@ TEST_F(ParserTest, ParsesEmptyPseudoClass) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
-      adjacent_selector->last_selector();
+      complex_selector->first_selector();
   ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::EmptyPseudoClass* empty_pseudo_class =
@@ -357,11 +338,8 @@ TEST_F(ParserTest, ParsesIdSelector) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
-      adjacent_selector->last_selector();
+      complex_selector->first_selector();
   ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::IdSelector* id_selector = dynamic_cast<cssom::IdSelector*>(
@@ -384,11 +362,8 @@ TEST_F(ParserTest, ParsesTypeSelector) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
-      adjacent_selector->last_selector();
+      complex_selector->first_selector();
   ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::TypeSelector* type_selector = dynamic_cast<cssom::TypeSelector*>(
@@ -411,11 +386,8 @@ TEST_F(ParserTest, ParsesCompoundSelector) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
-      adjacent_selector->last_selector();
+      complex_selector->first_selector();
   ASSERT_TRUE(compound_selector);
   ASSERT_EQ(2, compound_selector->selectors().size());
   cssom::TypeSelector* type_selector = dynamic_cast<cssom::TypeSelector*>(
@@ -484,14 +456,10 @@ TEST_F(ParserTest, ParsesComplexSelectorChildCombinator) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  ASSERT_EQ(0, complex_selector->combinators().size());
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
-  ASSERT_EQ(1, adjacent_selector->combinators().size());
+  ASSERT_EQ(1, complex_selector->combinators().size());
   cssom::ChildCombinator* child_combinator =
       dynamic_cast<cssom::ChildCombinator*>(
-          const_cast<cssom::Combinator*>(adjacent_selector->combinators()[0]));
+          const_cast<cssom::Combinator*>(complex_selector->combinators()[0]));
   ASSERT_TRUE(child_combinator);
 }
 
@@ -509,14 +477,10 @@ TEST_F(ParserTest, ParsesComplexSelectorNextSiblingCombinator) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  ASSERT_EQ(0, complex_selector->combinators().size());
-  cssom::AdjacentSelector* adjacent_selector =
-      complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
-  ASSERT_EQ(1, adjacent_selector->combinators().size());
+  ASSERT_EQ(1, complex_selector->combinators().size());
   cssom::NextSiblingCombinator* next_sibling_combinator =
       dynamic_cast<cssom::NextSiblingCombinator*>(
-          const_cast<cssom::Combinator*>(adjacent_selector->combinators()[0]));
+          const_cast<cssom::Combinator*>(complex_selector->combinators()[0]));
   ASSERT_TRUE(next_sibling_combinator);
 }
 

@@ -42,6 +42,7 @@
         'property_value_to_string_test.cc',
         'property_value_visitor_test.cc',
         'selector_test.cc',
+        'selector_tree_test.cc',
         'selector_visitor_test.cc',
         'specificity_test.cc',
         'style_sheet_list_test.cc',

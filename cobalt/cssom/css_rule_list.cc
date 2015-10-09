@@ -85,6 +85,7 @@ void CSSRuleList::AppendCSSRule(const scoped_refptr<CSSRule>& css_rule) {
     css_rule->AttachToCSSStyleSheet(parent_css_style_sheet_);
     parent_css_style_sheet_->OnCSSMutation();
   }
+  css_rule->set_index(static_cast<int>(css_rules_.size()));
   css_rules_.push_back(css_rule);
 }
 

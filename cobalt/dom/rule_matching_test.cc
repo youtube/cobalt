@@ -16,12 +16,18 @@
 
 #include "cobalt/dom/rule_matching.h"
 
+#include <algorithm>
+#include <vector>
+
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/cssom/selector_tree.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom_parser/parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,43 +43,46 @@ class RuleMatchingTest : public ::testing::Test {
         html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
                               NULL, NULL, NULL),
         document_(new Document(&html_element_context_, Document::Options())),
-        root_(new Element(document_)) {}
+        root_(document_->CreateElement("root")->AsHTMLElement()) {}
 
   ~RuleMatchingTest() OVERRIDE {}
 
-  void MatchRules(Element *element) {
-    HTMLElement* html_element = element->AsHTMLElement();
-
-    html_element->ClearMatchingRules();
-
-    style_sheet_->MaybeUpdateRuleIndexes();
-    UpdateMatchingRulesFromStyleSheet(style_sheet_, html_element,
-                                      cssom::kNormalAuthor);
-    matching_rules_ = html_element->matching_rules();
-    for (int i = 0; i < kMaxPseudoElementType; ++i) {
-      PseudoElementType pseudo_element_type = static_cast<PseudoElementType>(i);
-      PseudoElement* pseudo_element =
-          html_element->pseudo_element(pseudo_element_type);
-      if (pseudo_element) {
-        pseudo_element_matching_rules_[pseudo_element_type] =
-            pseudo_element->matching_rules();
-      } else {
-        pseudo_element_matching_rules_[pseudo_element_type] = NULL;
-      }
-    }
-  }
+  void MatchRules(Element* element);
 
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
-  scoped_refptr<Element> root_;
+  scoped_refptr<HTMLElement> root_;
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
-  cssom::RulesWithCascadePriority *matching_rules_;
-  cssom::RulesWithCascadePriority *
+  cssom::RulesWithCascadePriority* matching_rules_;
+  cssom::RulesWithCascadePriority*
       pseudo_element_matching_rules_[kMaxPseudoElementType];
 };
+
+void RuleMatchingTest::MatchRules(Element* element) {
+  HTMLElement* html_element = element->AsHTMLElement();
+  DCHECK(html_element);
+
+  document_->UpdateSelectorTreeFromStyleSheet(style_sheet_);
+
+  UpdateMatchingRulesUsingSelectorTree(root_, document_->selector_tree());
+
+  matching_rules_ = html_element->matching_rules();
+
+  for (int i = 0; i < kMaxPseudoElementType; ++i) {
+    PseudoElementType pseudo_element_type = static_cast<PseudoElementType>(i);
+    PseudoElement* pseudo_element =
+        html_element->pseudo_element(pseudo_element_type);
+    if (pseudo_element) {
+      pseudo_element_matching_rules_[pseudo_element_type] =
+          pseudo_element->matching_rules();
+    } else {
+      pseudo_element_matching_rules_[pseudo_element_type] = NULL;
+    }
+  }
+}
 
 // *:after should match <div/> and <span/>.
 TEST_F(RuleMatchingTest, DISABLED_AfterPseudoElementMatchGlobal) {
@@ -343,7 +352,6 @@ TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorMatch) {
       "span + span {}",
       base::SourceLocation("[object RuleMatchingTest]", 1, 1));
   root_->set_inner_html("<span/><span/>");
-
   MatchRules(root_->last_element_child());
   ASSERT_EQ(1, matching_rules_->size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
@@ -382,21 +390,26 @@ TEST_F(RuleMatchingTest, ComplexSelectorFollowingSiblingCombinatorNoMatch) {
   ASSERT_EQ(0, matching_rules_->size());
 }
 
-TEST_F(RuleMatchingTest, SelectorListMatchUseHighestSpecificity) {
+TEST_F(RuleMatchingTest, SelectorListMatchShouldContainAllMatches) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       ".first-class, #my-id, .first-class.second-class {}",
       base::SourceLocation("[object RuleMatchingTest]", 1, 1));
   root_->set_inner_html(
       "<div class=\"first-class second-class\" id=\"my-id\"/>");
   MatchRules(root_->first_element_child());
-  ASSERT_EQ(1, matching_rules_->size());
+  ASSERT_EQ(3, matching_rules_->size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
-  // Specificity of the second selector (1, 0, 0) should be used since it's the
-  // highest of all matching selectors.
-  EXPECT_EQ(cssom::CascadePriority(
-                cssom::kNormalAuthor, cssom::Specificity(1, 0, 0),
-                cssom::Appearance(cssom::Appearance::kUnattached, 0)),
-            (*matching_rules_)[0].second);
+  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[1].first);
+  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[2].first);
+
+  std::vector<cssom::Specificity> vs;
+  vs.push_back((*matching_rules_)[0].second.specificity());
+  vs.push_back((*matching_rules_)[1].second.specificity());
+  vs.push_back((*matching_rules_)[2].second.specificity());
+  sort(vs.begin(), vs.end());
+  EXPECT_EQ(vs[0], cssom::Specificity(0, 1, 0));
+  EXPECT_EQ(vs[1], cssom::Specificity(0, 2, 0));
+  EXPECT_EQ(vs[2], cssom::Specificity(1, 0, 0));
 }
 
 // A complex example using several combinators.
