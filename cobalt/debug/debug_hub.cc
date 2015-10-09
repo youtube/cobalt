@@ -126,11 +126,11 @@ int DebugHub::CycleDebugConsoleMode() {
   return debug_console_mode_;
 }
 
-void DebugHub::ExecuteCommand(const std::string& command) {
+std::string DebugHub::ExecuteCommand(const std::string& command) {
   // TODO(***REMOVED***) The command string should first be checked to see if it
   // matches any of a set of known commands to be executed locally, and only
   // interpreted as Javascript if it is not a known command.
-  execute_javascript_callback_.Run(
+  return execute_javascript_callback_.Run(
       command, base::SourceLocation("[object DebugHub]", 1, 1));
 }
 
@@ -170,8 +170,9 @@ int DebugHub::CycleDebugConsoleMode() { return kDebugConsoleOff; }
 
 int DebugHub::GetDebugConsoleMode() const { return kDebugConsoleOff; }
 
-void DebugHub::ExecuteCommand(const std::string& command) {
+std::string DebugHub::ExecuteCommand(const std::string& command) {
   UNREFERENCED_PARAMETER(command);
+  return "";
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 

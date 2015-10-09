@@ -20,6 +20,8 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/message_loop.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/css_parser/parser.h"
@@ -91,15 +93,28 @@ class WebModule {
   void InjectEvent(const scoped_refptr<dom::Event>& event);
 
   // Call this to execute Javascript code in this web module.
-  void ExecuteJavascript(const std::string& script_utf8,
-                         const base::SourceLocation& script_location);
+  std::string ExecuteJavascript(const std::string& script_utf8,
+                                const base::SourceLocation& script_location);
 
  private:
+  // Called by ExecuteJavascript, if that method is called from a different
+  // message loop to the one this WebModule is running on. Sets the result
+  // output parameter and signals got_result.
+  void WebModule::ExecuteJavascriptInternal(
+      const std::string& script_utf8,
+      const base::SourceLocation& script_location,
+      base::WaitableEvent* got_result, std::string* result);
+
   std::string name_;
 
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
+
+  // The message loop that this WebModule is running on. If a class method
+  // (e.g. ExecuteJavascript) is called from a different message loop, repost
+  // it to this one.
+  MessageLoop* const self_message_loop_;
 
   // CSS parser.
   scoped_ptr<css_parser::Parser> css_parser_;
