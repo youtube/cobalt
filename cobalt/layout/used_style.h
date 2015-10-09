@@ -22,7 +22,7 @@
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/transform_function_list_value.h"
-#include "cobalt/loader/image_cache.h"
+#include "cobalt/loader/image/image_cache.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/color_rgba.h"
@@ -49,7 +49,7 @@ class ContainingBlock;
 class UsedStyleProvider {
  public:
   UsedStyleProvider(render_tree::ResourceProvider* resource_provider,
-                    loader::ImageCache* image_cache);
+                    loader::image::ImageCache* image_cache);
 
   scoped_refptr<render_tree::Font> GetUsedFont(
       const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
@@ -61,7 +61,7 @@ class UsedStyleProvider {
 
  private:
   render_tree::ResourceProvider* const resource_provider_;
-  loader::ImageCache* const image_cache_;
+  loader::image::ImageCache* const image_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedStyleProvider);
 };

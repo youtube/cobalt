@@ -21,7 +21,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/loader/image_cache.h"
+#include "cobalt/loader/image/image_cache.h"
 #include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
@@ -62,8 +62,8 @@ class HTMLImageElement : public HTMLElement {
 
   void OnImageLoaded();
 
-  scoped_refptr<loader::CachedImage> cached_image_;
-  scoped_ptr<loader::CachedImage::OnLoadedCallbackHandler>
+  scoped_refptr<loader::image::CachedImage> cached_image_;
+  scoped_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
       cached_image_loaded_callback_handler_;
 };
 

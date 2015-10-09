@@ -200,6 +200,14 @@ class Image : public base::RefCountedThreadSafe<Image> {
  public:
   virtual const math::Size& GetSize() const = 0;
 
+  // The default implementation is to estimate the size based on the width and
+  // height. Derived classes may override this calculation with a more accurate
+  // one.
+  virtual uint32 GetEstimatedSizeInBytes() const {
+    return static_cast<uint32>(GetSize().width() * GetSize().height() *
+                               BytesPerPixel(kPixelFormatRGBA8));
+  }
+
  protected:
   virtual ~Image() {}
 

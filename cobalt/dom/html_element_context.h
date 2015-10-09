@@ -22,7 +22,7 @@
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/loader/image_cache.h"
+#include "cobalt/loader/image/image_cache.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_runner.h"
 
@@ -40,7 +40,7 @@ class HTMLElementContext {
                      cssom::CSSParser* css_parser, Parser* dom_parser,
                      media::WebMediaPlayerFactory* web_media_player_factory,
                      script::ScriptRunner* script_runner,
-                     loader::ImageCache* image_cache);
+                     loader::image::ImageCache* image_cache);
   ~HTMLElementContext();
 
   loader::FetcherFactory* fetcher_factory() { return fetcher_factory_; }
@@ -55,7 +55,7 @@ class HTMLElementContext {
 
   script::ScriptRunner* script_runner() { return script_runner_; }
 
-  loader::ImageCache* image_cache() const { return image_cache_; }
+  loader::image::ImageCache* image_cache() const { return image_cache_; }
 
   base::Thread* sync_load_thread() { return &sync_load_thread_; }
 
@@ -69,7 +69,7 @@ class HTMLElementContext {
   Parser* const dom_parser_;
   media::WebMediaPlayerFactory* const web_media_player_factory_;
   script::ScriptRunner* const script_runner_;
-  loader::ImageCache* const image_cache_;
+  loader::image::ImageCache* const image_cache_;
 
   base::Thread sync_load_thread_;
   scoped_ptr<HTMLElementFactory> html_element_factory_;

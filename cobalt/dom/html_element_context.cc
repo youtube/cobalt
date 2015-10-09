@@ -24,7 +24,7 @@ namespace dom {
 HTMLElementContext::HTMLElementContext(
     loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
     Parser* dom_parser, media::WebMediaPlayerFactory* web_media_player_factory,
-    script::ScriptRunner* script_runner, loader::ImageCache* image_cache)
+    script::ScriptRunner* script_runner, loader::image::ImageCache* image_cache)
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
       dom_parser_(dom_parser),

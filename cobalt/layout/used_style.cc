@@ -333,7 +333,7 @@ void UsedFontFamilyProvider::VisitString(cssom::StringValue* string) {
 
 UsedStyleProvider::UsedStyleProvider(
     render_tree::ResourceProvider* resource_provider,
-    loader::ImageCache* image_cache)
+    loader::image::ImageCache* image_cache)
     : resource_provider_(resource_provider), image_cache_(image_cache) {}
 
 scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
@@ -368,7 +368,7 @@ scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
 
 scoped_refptr<render_tree::Image> UsedStyleProvider::ResolveURLToImage(
     const GURL& url) const {
-  return image_cache_->CreateCachedImage(url)->TryGetImage();
+  return image_cache_->CreateCachedResource(url)->TryGetResource();
 }
 
 render_tree::ColorRGBA GetUsedColor(
