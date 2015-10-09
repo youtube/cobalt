@@ -17,7 +17,7 @@
 #include "cobalt/input/keypress_generator_filter.h"
 
 #include "cobalt/dom/event_names.h"
-#include "cobalt/dom/keyboard_code.h"
+#include "cobalt/dom/keycode.h"
 
 namespace cobalt {
 namespace input {
@@ -57,8 +57,8 @@ bool KeypressGeneratorFilter::ConditionallyGenerateKeypressEvent(
   int key_code = orig_event->key_code();
   int char_code = 0;
 
-  if (key_code == dom::kBack || key_code == dom::kReturn ||
-      key_code == dom::kSpace) {
+  if (key_code == dom::keycode::kBack || key_code == dom::keycode::kReturn ||
+      key_code == dom::keycode::kSpace) {
     // Treat these keys as special (mostly for debug console).
     char_code = key_code;
   } else {
