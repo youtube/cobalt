@@ -428,16 +428,65 @@ namespace {
 
 class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
-  ContentProvider() {}
+  ContentProvider() : element_is_generated_(false) {}
 
   const std::string& content_string() const { return content_string_; }
+  bool element_is_generated() const { return element_is_generated_; }
 
   void VisitString(cssom::StringValue* string_value) OVERRIDE {
     content_string_ = string_value->value();
+    element_is_generated_ = true;
+  }
+
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
+    switch (keyword->value()) {
+      case cssom::KeywordValue::kNone:
+      case cssom::KeywordValue::kNormal:
+        // The pseudo-element is not generated.
+        //   http://www.w3.org/TR/CSS21/generate.html#propdef-content
+        element_is_generated_ = false;
+        break;
+      case cssom::KeywordValue::kAbsolute:
+      case cssom::KeywordValue::kAuto:
+      case cssom::KeywordValue::kBaseline:
+      case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kBreakWord:
+      case cssom::KeywordValue::kCenter:
+      case cssom::KeywordValue::kClip:
+      case cssom::KeywordValue::kContain:
+      case cssom::KeywordValue::kCover:
+      case cssom::KeywordValue::kCursive:
+      case cssom::KeywordValue::kEllipsis:
+      case cssom::KeywordValue::kFantasy:
+      case cssom::KeywordValue::kFixed:
+      case cssom::KeywordValue::kHidden:
+      case cssom::KeywordValue::kInherit:
+      case cssom::KeywordValue::kInitial:
+      case cssom::KeywordValue::kInline:
+      case cssom::KeywordValue::kInlineBlock:
+      case cssom::KeywordValue::kLeft:
+      case cssom::KeywordValue::kMiddle:
+      case cssom::KeywordValue::kMonospace:
+      case cssom::KeywordValue::kNoRepeat:
+      case cssom::KeywordValue::kNoWrap:
+      case cssom::KeywordValue::kPre:
+      case cssom::KeywordValue::kRelative:
+      case cssom::KeywordValue::kRepeat:
+      case cssom::KeywordValue::kRight:
+      case cssom::KeywordValue::kSansSerif:
+      case cssom::KeywordValue::kSerif:
+      case cssom::KeywordValue::kStatic:
+      case cssom::KeywordValue::kTop:
+      case cssom::KeywordValue::kUppercase:
+      case cssom::KeywordValue::kVisible:
+      default:
+        NOTREACHED();
+    }
   }
 
  private:
   std::string content_string_;
+  bool element_is_generated_;
 };
 
 }  // namespace
@@ -468,26 +517,27 @@ void BoxGenerator::AppendPseudoElementToLine(
       // 'content' property.
       ContentProvider content_provider;
       pseudo_element->computed_style()->content()->Accept(&content_provider);
-      scoped_refptr<dom::Text> child_node(
-          new dom::Text(html_element->owner_document(),
-                        content_provider.content_string()));
+      if (content_provider.element_is_generated()) {
+        scoped_refptr<dom::Text> child_node(new dom::Text(
+            html_element->owner_document(), content_provider.content_string()));
 
-      BoxGenerator child_box_generator(pseudo_element->computed_style(),
-                                       used_style_provider_,
-                                       line_break_iterator_, paragraph_);
-      child_node->Accept(&child_box_generator);
-      Boxes child_boxes = child_box_generator.PassBoxes();
-      for (Boxes::iterator child_box_iterator = child_boxes.begin();
-           child_box_iterator != child_boxes.end(); ++child_box_iterator) {
-        scoped_ptr<Box> child_box(*child_box_iterator);
-        *child_box_iterator = NULL;
-        if (!pseudo_element_box->TryAddChild(&child_box)) {
-          return;
+        BoxGenerator child_box_generator(pseudo_element->computed_style(),
+                                         used_style_provider_,
+                                         line_break_iterator_, paragraph_);
+        child_node->Accept(&child_box_generator);
+        Boxes child_boxes = child_box_generator.PassBoxes();
+        for (Boxes::iterator child_box_iterator = child_boxes.begin();
+             child_box_iterator != child_boxes.end(); ++child_box_iterator) {
+          scoped_ptr<Box> child_box(*child_box_iterator);
+          *child_box_iterator = NULL;
+          if (!pseudo_element_box->TryAddChild(&child_box)) {
+            return;
+          }
         }
-      }
 
-      // Add the box(es) from the pseudo element to the associated element.
-      AppendChildBoxToLine(pseudo_element_box.release());
+        // Add the box(es) from the pseudo element to the associated element.
+        AppendChildBoxToLine(pseudo_element_box.release());
+      }
     }
   }
 }
