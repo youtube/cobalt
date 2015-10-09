@@ -16,7 +16,6 @@
 
 #include "cobalt/cssom/css_style_sheet.h"
 
-#include "cobalt/cssom/adjacent_selector.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
@@ -141,12 +140,8 @@ class CSSStyleSheet::CSSStyleRuleIndexer : public SelectorVisitor {
     }
   }
 
-  void VisitAdjacentSelector(AdjacentSelector* adjacent_selector) OVERRIDE {
-    adjacent_selector->last_selector()->Accept(this);
-  }
-
   void VisitComplexSelector(ComplexSelector* complex_selector) OVERRIDE {
-    complex_selector->last_selector()->Accept(this);
+    complex_selector->first_selector()->Accept(this);
   }
 
  private:
@@ -206,13 +201,15 @@ CSSStyleSheet::CSSStyleSheet()
     : parent_style_sheet_list_(NULL),
       css_parser_(NULL),
       rule_indexes_dirty_(false),
-      media_rules_changed_(false) {}
+      media_rules_changed_(false),
+      origin_(kNormalAuthor) {}
 
 CSSStyleSheet::CSSStyleSheet(CSSParser* css_parser)
     : parent_style_sheet_list_(NULL),
       css_parser_(css_parser),
       rule_indexes_dirty_(false),
-      media_rules_changed_(false) {}
+      media_rules_changed_(false),
+      origin_(kNormalAuthor) {}
 
 const scoped_refptr<CSSRuleList>& CSSStyleSheet::css_rules() {
   if (!css_rule_list_) {
@@ -236,9 +233,6 @@ void CSSStyleSheet::OnCSSMutation() {
 
 void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
   parent_style_sheet_list_ = style_sheet_list;
-  if (css_rule_list_) {
-    css_rule_list_->AttachToCSSStyleSheet(this);
-  }
 }
 
 void CSSStyleSheet::set_css_rules(
@@ -247,9 +241,7 @@ void CSSStyleSheet::set_css_rules(
   if (css_rule_list == css_rule_list_) {
     return;
   }
-  if (parent_style_sheet_list_) {
-    css_rule_list->AttachToCSSStyleSheet(this);
-  }
+  css_rule_list->AttachToCSSStyleSheet(this);
   bool rules_possibly_added_or_changed_or_removed =
       (css_rule_list->length() > 0) ||
       (css_rule_list_ && css_rule_list_->length() > 0);

@@ -24,6 +24,7 @@
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/style_sheet.h"
 #include "googleurl/src/gurl.h"
@@ -87,6 +88,9 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
     return empty_pseudo_class_rules_;
   }
 
+  Origin origin() const { return origin_; }
+  void set_origin(Origin origin) { origin_ = origin; }
+
   // If the rule indexes are dirty, as indicated by the rule_indexes_dirty flag,
   // assign the priority index to each rule in the rule list, and index the
   // rules by selectors.
@@ -132,6 +136,9 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   // change, which will require a re-evaluation of the media rule expressions.
   scoped_refptr<PropertyValue> previous_media_width_;
   scoped_refptr<PropertyValue> previous_media_height_;
+
+  // Origin of this style sheet.
+  Origin origin_;
 
   // Since CSSRuleList is merely a proxy, it needs access to CSS rules stored
   // in the stylesheet.

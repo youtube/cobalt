@@ -22,6 +22,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
@@ -41,9 +42,15 @@ class EmptyPseudoClass : public Selector {
   EmptyPseudoClass() {}
   ~EmptyPseudoClass() OVERRIDE {}
 
-  Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
-
+  // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
+  EmptyPseudoClass* AsEmptyPseudoClass() OVERRIDE { return this; }
+  Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
+  int GetRank() const OVERRIDE { return 3; }
+  std::string GetSelectorText() const OVERRIDE { return ":empty"; }
+  void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
+                             SelectorTree::Node* child_node,
+                             CombinatorType combinator) OVERRIDE;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EmptyPseudoClass);

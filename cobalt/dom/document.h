@@ -24,6 +24,7 @@
 #include "base/string_piece.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/cssom/mutation_observer.h"
+#include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/document_timeline.h"
 #include "cobalt/dom/event.h"
@@ -179,6 +180,8 @@ class Document : public Node, public cssom::MutationObserver {
     return &scripts_to_be_executed_;
   }
 
+  cssom::SelectorTree* selector_tree() { return &selector_tree_; }
+
   // These functions are for setting weak references to certain elements in the
   // document.
   void SetBody(HTMLBodyElement* body);
@@ -224,6 +227,11 @@ class Document : public Node, public cssom::MutationObserver {
   void UpdateMatchingRules(
       const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
+
+  void UpdateSelectorTreeFromStyleSheet(
+      const scoped_refptr<cssom::CSSStyleSheet>& style_sheet);
+  void UpdateSelectorTreeFromCSSRuleList(
+      const scoped_refptr<cssom::CSSRuleList>& css_rule_list, bool should_add);
 
   // Updates the computed styles of all of this document's HTML elements.
   void UpdateComputedStyles(
@@ -282,6 +290,8 @@ class Document : public Node, public cssom::MutationObserver {
   base::WeakPtr<Element> active_element_;
   // List of document observers.
   ObserverList<DocumentObserver> observers_;
+  // Selector Tree.
+  cssom::SelectorTree selector_tree_;
 
   // The document's latest sample from the global clock, used for updating
   // animations.

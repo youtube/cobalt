@@ -36,9 +36,9 @@ class NextSiblingCombinator : public Combinator {
   NextSiblingCombinator() {}
   ~NextSiblingCombinator() OVERRIDE {}
 
+  // From Combinator.
   void Accept(CombinatorVisitor* visitor) OVERRIDE;
-
-  bool IsAdjacentCombinator() OVERRIDE { return true; }
+  CombinatorType GetCombinatorType() OVERRIDE { return kNextSiblingCombinator; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NextSiblingCombinator);
