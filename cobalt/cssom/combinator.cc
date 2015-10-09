@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2014 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/id_selector.h"
+#include "cobalt/cssom/combinator.h"
 
-#include "cobalt/cssom/selector_visitor.h"
+#include "cobalt/cssom/selector.h"
 
 namespace cobalt {
 namespace cssom {
 
-void IdSelector::Accept(SelectorVisitor* visitor) {
-  visitor->VisitIdSelector(this);
-}
+Combinator::Combinator() {}
 
-void IdSelector::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
-                                       SelectorTree::Node* child_node,
-                                       CombinatorType combinator) {
-  parent_node->id_selector_nodes_map[combinator][id_].push_back(child_node);
+Combinator::~Combinator() {}
+
+Selector* Combinator::selector() { return selector_.get(); }
+
+void Combinator::set_selector(scoped_ptr<Selector> selector) {
+  selector_ = selector.Pass();
 }
 
 }  // namespace cssom

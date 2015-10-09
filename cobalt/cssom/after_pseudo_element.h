@@ -17,6 +17,8 @@
 #ifndef CSSOM_AFTER_PSEUDO_ELEMENT_H_
 #define CSSOM_AFTER_PSEUDO_ELEMENT_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/selector.h"
@@ -38,9 +40,12 @@ class AfterPseudoElement : public Selector {
   AfterPseudoElement() {}
   ~AfterPseudoElement() OVERRIDE {}
 
-  Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
-
+  // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
+  Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
+  AfterPseudoElement* AsAfterPseudoElement() OVERRIDE { return this; }
+  int GetRank() const OVERRIDE { return 4; }
+  std::string GetSelectorText() const OVERRIDE { return "::after"; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(AfterPseudoElement);

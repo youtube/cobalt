@@ -25,5 +25,12 @@ void TypeSelector::Accept(SelectorVisitor* visitor) {
   visitor->VisitTypeSelector(this);
 }
 
+void TypeSelector::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
+                                         SelectorTree::Node* child_node,
+                                         CombinatorType combinator) {
+  parent_node->type_selector_nodes_map[combinator][element_name_].push_back(
+      child_node);
+}
+
 }  // namespace cssom
 }  // namespace cobalt

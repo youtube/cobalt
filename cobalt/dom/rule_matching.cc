@@ -16,11 +16,13 @@
 
 #include "cobalt/dom/rule_matching.h"
 
+#include <algorithm>
 #include <string>
 
+#include "base/bind.h"
+#include "base/callback.h"
 #include "base/debug/trace_event.h"
 #include "base/string_util.h"
-#include "cobalt/cssom/adjacent_selector.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
@@ -29,8 +31,6 @@
 #include "cobalt/cssom/combinator_visitor.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
-#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/following_sibling_combinator.h"
@@ -38,7 +38,6 @@
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/selector_visitor.h"
-#include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/cssom/type_selector.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_element.h"
@@ -47,7 +46,6 @@
 #include "cobalt/math/safe_integer_conversions.h"
 
 namespace cobalt {
-
 namespace dom {
 namespace {
 
@@ -176,8 +174,6 @@ class SelectorMatcher : public cssom::SelectorVisitor {
     if (pseudo_element_type_) {
       DCHECK_NE(*pseudo_element_type_, kBeforePseudoElementType);
       *pseudo_element_type_ = kAfterPseudoElementType;
-    } else {
-      element_ = NULL;
     }
   }
 
@@ -188,8 +184,6 @@ class SelectorMatcher : public cssom::SelectorVisitor {
     if (pseudo_element_type_) {
       DCHECK_NE(*pseudo_element_type_, kAfterPseudoElementType);
       *pseudo_element_type_ = kBeforePseudoElementType;
-    } else {
-      element_ = NULL;
     }
   }
 
@@ -254,40 +248,12 @@ class SelectorMatcher : public cssom::SelectorVisitor {
     }
   }
 
-  // An adjacent selector is a chain of compound selectors separated by adjacent
-  // combinators.
-  // This is a custom concept and is not in the spec.
-  void VisitAdjacentSelector(
-      cssom::AdjacentSelector* adjacent_selector) OVERRIDE {
-    // Match the element against the last compound selector.
-    element_ = MatchSelectorAndElement(adjacent_selector->last_selector(),
-                                       element_, pseudo_element_type_);
-    if (!element_) {
-      return;
-    }
-
-    // Iterate through all the direct combinators and advance the pointer. If
-    // any of the adjacent combinators doesn't match, the direct selector
-    // doesn't match.
-    for (cssom::Combinators::const_reverse_iterator combinator_iterator =
-             adjacent_selector->combinators().rbegin();
-         combinator_iterator != adjacent_selector->combinators().rend();
-         ++combinator_iterator) {
-      CombinatorMatcher combinator_matcher(element_);
-      (*combinator_iterator)->Accept(&combinator_matcher);
-      element_ = combinator_matcher.element();
-      if (!element_) {
-        return;
-      }
-    }
-  }
-
   // A complex selector is a chain of one or more compound selectors separated
   // by combinators.
   //   http://www.w3.org/TR/selectors4/#complex
   void VisitComplexSelector(cssom::ComplexSelector* complex_selector) OVERRIDE {
     // Match the element against the last adjacent selector.
-    element_ = MatchSelectorAndElement(complex_selector->last_selector(),
+    element_ = MatchSelectorAndElement(complex_selector->first_selector(),
                                        element_, pseudo_element_type_);
     if (!element_) {
       return;
@@ -474,6 +440,214 @@ void UpdateMatchingRulesFromStyleSheet(
           pseudo_element_type, pseudo_elements[pseudo_element_type].release());
     }
   }
+}
+
+namespace {
+
+bool IsCompoundSelectorAndElementMatching(
+    cssom::CompoundSelector* compound_selector, Element* element) {
+  DCHECK(compound_selector);
+  DCHECK(element);
+
+  return MatchSelectorAndElement(compound_selector, element) != NULL;
+}
+
+void AddRulesOnNodeToElement(HTMLElement* element,
+                             cssom::SelectorTree::Node* node) {
+  cssom::Selector* pseudo_element = node->compound_selector->pseudo_element();
+
+  // Where to add matching rules.
+  cssom::RulesWithCascadePriority* target_matching_rules;
+
+  if (!pseudo_element) {
+    target_matching_rules = element->matching_rules();
+  } else {
+    PseudoElementType pseudo_element_type = kNotPseudoElementType;
+
+    if (pseudo_element->AsAfterPseudoElement()) {
+      pseudo_element_type = kAfterPseudoElementType;
+    } else if (pseudo_element->AsBeforePseudoElement()) {
+      pseudo_element_type = kBeforePseudoElementType;
+    } else {
+      NOTREACHED();
+    }
+
+    // Make sure the pseudo element exists under element.
+    if (!element->pseudo_element(pseudo_element_type)) {
+      element->set_pseudo_element(pseudo_element_type,
+                                  new dom::PseudoElement());
+    }
+
+    target_matching_rules =
+        element->pseudo_element(pseudo_element_type)->matching_rules();
+  }
+
+  element->rule_matching_state()->matching_nodes.insert(node);
+
+  for (cssom::SelectorTree::Rules::iterator rule_iterator = node->rules.begin();
+       rule_iterator != node->rules.end(); ++rule_iterator) {
+    base::WeakPtr<cssom::CSSStyleRule> rule = *rule_iterator;
+    if (!rule) {
+      continue;
+    }
+    DCHECK(rule->parent_style_sheet());
+    cssom::CascadePriority precedence(
+        rule->parent_style_sheet()->origin(), node->cumulative_specificity,
+        cssom::Appearance(rule->parent_style_sheet()->index(), rule->index()));
+    target_matching_rules->push_back(std::make_pair(rule.get(), precedence));
+  }
+}
+
+void GatherCandidateNodeSets(cssom::SelectorTree::SelectorTextToNodesMap* map,
+                             const std::string& key,
+                             cssom::SelectorTree::NodeSet* matching_nodes) {
+  cssom::SelectorTree::SelectorTextToNodesMap::iterator it = map->find(key);
+  if (it != map->end()) {
+    cssom::SelectorTree::Nodes* nodes = &(it->second);
+    matching_nodes->insert(nodes->begin(), nodes->end());
+  }
+}
+
+void ForEachChildOnNodes(
+    cssom::SelectorTree::NodeSet* node_set,
+    cssom::CombinatorType combinator_type, HTMLElement* element,
+    base::Callback<void(HTMLElement* element, cssom::SelectorTree::Node*)>
+        callback) {
+  // Iterate through all nodes in node_set.
+  for (cssom::SelectorTree::NodeSet::iterator node_iterator = node_set->begin();
+       node_iterator != node_set->end(); ++node_iterator) {
+    cssom::SelectorTree::Node* node = *node_iterator;
+
+    cssom::SelectorTree::NodeSet candidate_nodes;
+
+    // Gather candidate sets in node's children under the given combinator.
+
+    // Type selector.
+    GatherCandidateNodeSets(&(node->type_selector_nodes_map[combinator_type]),
+                            element->tag_name(), &candidate_nodes);
+
+    // Class selector.
+    scoped_refptr<DOMTokenList> class_list = element->class_list();
+    for (unsigned int index = 0; index < class_list->length(); ++index) {
+      GatherCandidateNodeSets(
+          &(node->class_selector_nodes_map[combinator_type]),
+          class_list->Item(index).value(), &candidate_nodes);
+    }
+
+    // Id selector.
+    GatherCandidateNodeSets(&(node->id_selector_nodes_map[combinator_type]),
+                            element->id(), &candidate_nodes);
+
+    // Empty pseudo class.
+    if (element->IsEmpty()) {
+      cssom::SelectorTree::Nodes* nodes =
+          &(node->empty_pseudo_class_nodes[combinator_type]);
+      candidate_nodes.insert(nodes->begin(), nodes->end());
+    }
+
+    // Check all candidate nodes can run callback for matching nodes.
+    for (cssom::SelectorTree::NodeSet::iterator candidate_node_iterator =
+             candidate_nodes.begin();
+         candidate_node_iterator != candidate_nodes.end();
+         ++candidate_node_iterator) {
+      cssom::SelectorTree::Node* candidate_node = *candidate_node_iterator;
+
+      if (IsCompoundSelectorAndElementMatching(
+              candidate_node->compound_selector, element)) {
+        callback.Run(element, candidate_node);
+      }
+    }
+  }
+}
+
+void CalculateMatchingRulesRecursively(HTMLElement* current_element,
+                                       cssom::SelectorTree* selector_tree) {
+  // Clear the node's matching rules and potential node sets.
+  current_element->ClearMatchingRules();
+
+  // Get parent and previous sibling of the current element.
+  HTMLElement* parent = current_element->parent_element()
+                            ? current_element->parent_element()->AsHTMLElement()
+                            : NULL;
+  HTMLElement* previous_sibling =
+      current_element->previous_element_sibling()
+          ? current_element->previous_element_sibling()->AsHTMLElement()
+          : NULL;
+
+  // Calculate current element's matching nodes.
+
+  if (parent) {
+    // Child combinator.
+    ForEachChildOnNodes(&parent->rule_matching_state()->matching_nodes,
+                        cssom::kChildCombinator, current_element,
+                        base::Bind(&AddRulesOnNodeToElement));
+
+    // Descendant combinator.
+    ForEachChildOnNodes(
+        &parent->rule_matching_state()->descendant_potential_nodes,
+        cssom::kDescendantCombinator, current_element,
+        base::Bind(&AddRulesOnNodeToElement));
+  } else {
+    // Descendant combinator from root.
+    ForEachChildOnNodes(selector_tree->root_set(), cssom::kDescendantCombinator,
+                        current_element, base::Bind(&AddRulesOnNodeToElement));
+  }
+
+  if (previous_sibling) {
+    // Next sibling combinator.
+    ForEachChildOnNodes(
+        &previous_sibling->rule_matching_state()->matching_nodes,
+        cssom::kNextSiblingCombinator, current_element,
+        base::Bind(&AddRulesOnNodeToElement));
+
+    // Following sibling combinator.
+    ForEachChildOnNodes(&previous_sibling->rule_matching_state()
+                             ->following_sibling_potential_nodes,
+                        cssom::kFollowingSiblingCombinator, current_element,
+                        base::Bind(&AddRulesOnNodeToElement));
+  }
+
+  // Calculate current element's descendant potential nodes.
+  if (parent) {
+    current_element->rule_matching_state()->descendant_potential_nodes.insert(
+        parent->rule_matching_state()->descendant_potential_nodes.begin(),
+        parent->rule_matching_state()->descendant_potential_nodes.end());
+  } else {
+    current_element->rule_matching_state()->descendant_potential_nodes.insert(
+        selector_tree->root());
+  }
+  current_element->rule_matching_state()->descendant_potential_nodes.insert(
+      current_element->rule_matching_state()->matching_nodes.begin(),
+      current_element->rule_matching_state()->matching_nodes.end());
+
+  // Calculate current element's following sibling potential nodes.
+  if (previous_sibling) {
+    current_element->rule_matching_state()
+        ->following_sibling_potential_nodes.insert(
+            previous_sibling->rule_matching_state()
+                ->following_sibling_potential_nodes.begin(),
+            previous_sibling->rule_matching_state()
+                ->following_sibling_potential_nodes.end());
+  }
+  current_element->rule_matching_state()
+      ->following_sibling_potential_nodes.insert(
+          current_element->rule_matching_state()->matching_nodes.begin(),
+          current_element->rule_matching_state()->matching_nodes.end());
+
+  // Calculate matching rules for current element's children.
+  for (Element* element = current_element->first_element_child(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    DCHECK(html_element);
+    CalculateMatchingRulesRecursively(html_element, selector_tree);
+  }
+}
+
+}  // namespace
+
+void UpdateMatchingRulesUsingSelectorTree(HTMLElement* dom_root,
+                                          cssom::SelectorTree* selector_tree) {
+  CalculateMatchingRulesRecursively(dom_root, selector_tree);
 }
 
 }  // namespace dom

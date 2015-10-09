@@ -26,7 +26,7 @@ namespace cssom {
 void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
                             RulesWithCascadePriority* matching_rules,
                             GURLMap* property_name_to_base_url_map) {
-  const CascadePriority kPrecedenceNotSet;
+  const CascadePriority kPrecedenceNotSet(kNormalUserAgent);
   const CascadePriority kPrecedenceImportantMin(kImportantAuthor);
 
 #define DEFINE_PROPERTY_PRECEDENCE(NAME) \
@@ -103,7 +103,7 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
         declared_style->IsPropertyImportant(DASHED_NAME) \
             ? &precedence_important                      \
             : &precedence_normal;                        \
-    if (*precedence > NAME##_precedence) {               \
+    if (NAME##_precedence < *precedence) {               \
       NAME##_precedence = *precedence;                   \
       style->set_##NAME(declared_style->NAME());         \
     }                                                    \
@@ -116,7 +116,7 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
           declared_style->IsPropertyImportant(kBackgroundImagePropertyName)
               ? &precedence_important
               : &precedence_normal;
-      if (*precedence > background_image_precedence) {
+      if (background_image_precedence < *precedence) {
         background_image_precedence = *precedence;
         style->set_background_image(declared_style->background_image());
 
