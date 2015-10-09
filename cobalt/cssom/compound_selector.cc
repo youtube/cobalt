@@ -16,10 +16,23 @@
 
 #include "cobalt/cssom/compound_selector.h"
 
+#include <algorithm>
+
+#include "cobalt/cssom/after_pseudo_element.h"
+#include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/selector_visitor.h"
 
 namespace cobalt {
 namespace cssom {
+namespace {
+
+bool CompareSelectorRank(const Selector* lhs, const Selector* rhs) {
+  return (lhs->GetRank() < rhs->GetRank()) ||
+         (lhs->GetRank() == rhs->GetRank() &&
+          lhs->GetSelectorText() < rhs->GetSelectorText());
+}
+
+}  // namespace
 
 void CompoundSelector::Accept(SelectorVisitor* visitor) {
   visitor->VisitCompoundSelector(this);
@@ -27,7 +40,25 @@ void CompoundSelector::Accept(SelectorVisitor* visitor) {
 
 void CompoundSelector::AppendSelector(scoped_ptr<Selector> selector) {
   specificity_.AddFrom(selector->GetSpecificity());
+  if (selector->AsAfterPseudoElement() || selector->AsBeforePseudoElement()) {
+    DCHECK(!pseudo_element_);
+    pseudo_element_ = selector.get();
+  }
   selectors_.push_back(selector.release());
+  should_normalize_ = true;
+}
+
+const std::string& CompoundSelector::GetNormalizedSelectorText() {
+  if (should_normalize_) {
+    should_normalize_ = false;
+    std::sort(selectors_.begin(), selectors_.end(), CompareSelectorRank);
+    normalized_selector_text_ = "";
+    for (Selectors::iterator it = selectors_.begin(); it != selectors_.end();
+         ++it) {
+      normalized_selector_text_ += (*it)->GetSelectorText();
+    }
+  }
+  return normalized_selector_text_;
 }
 
 }  // namespace cssom

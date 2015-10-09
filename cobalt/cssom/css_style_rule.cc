@@ -23,11 +23,13 @@
 namespace cobalt {
 namespace cssom {
 
-CSSStyleRule::CSSStyleRule() {}
+CSSStyleRule::CSSStyleRule() : added_to_selector_tree_(false) {}
 
 CSSStyleRule::CSSStyleRule(Selectors selectors,
                            const scoped_refptr<CSSStyleDeclaration>& style)
-    : selectors_(selectors.Pass()), style_(style) {
+    : selectors_(selectors.Pass()),
+      style_(style),
+      added_to_selector_tree_(false) {
   if (style_) {
     style_->set_parent_rule(this);
   }

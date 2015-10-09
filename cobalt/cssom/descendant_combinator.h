@@ -34,9 +34,9 @@ class DescendantCombinator : public Combinator {
   DescendantCombinator() {}
   ~DescendantCombinator() OVERRIDE {}
 
+  // From Combinator.
   void Accept(CombinatorVisitor* visitor) OVERRIDE;
-
-  bool IsAdjacentCombinator() OVERRIDE { return false; }
+  CombinatorType GetCombinatorType() OVERRIDE { return kDescendantCombinator; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DescendantCombinator);

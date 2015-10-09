@@ -26,6 +26,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/mutation_observer.h"
+#include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/pseudo_element.h"
@@ -67,6 +68,12 @@ enum PseudoElementType {
 //   http://www.w3.org/TR/html5/dom.html#htmlelement
 class HTMLElement : public Element, public cssom::MutationObserver {
  public:
+  struct RuleMatchingState {
+    cssom::SelectorTree::NodeSet matching_nodes;
+    cssom::SelectorTree::NodeSet descendant_potential_nodes;
+    cssom::SelectorTree::NodeSet following_sibling_potential_nodes;
+  };
+
   // Web API: HTMLElement
   //
   scoped_refptr<DOMStringMap> dataset();
@@ -121,9 +128,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
 
   // Returns pointer to cached rule matching results.
-  cssom::RulesWithCascadePriority* matching_rules() const {
-    return matching_rules_.get();
-  }
+  cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
+
+  // Returns rule matching state.
+  RuleMatchingState* rule_matching_state() { return &rule_matching_state_; }
 
   cssom::TransitionSet* transitions() { return &transitions_; }
 
@@ -145,14 +153,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Clears the cached set of CSS rules that match with this HTML element.
   void ClearMatchingRules();
-  // Updates the cached set of CSS rules that match with this HTML element.
-  void UpdateMatchingRules(
-      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-      const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
-  // Calls UpdateMatchingRules() on itself and all descendants.
-  void UpdateMatchingRulesRecursively(
-      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-      const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
 
   PseudoElement* pseudo_element(PseudoElementType type) const {
     DCHECK(type < kMaxPseudoElementType);
@@ -186,7 +186,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   bool computed_style_valid_;
 
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
-  scoped_ptr<cssom::RulesWithCascadePriority> matching_rules_;
+
+  // The following fields are used in rule matching.
+  cssom::RulesWithCascadePriority matching_rules_;
+  RuleMatchingState rule_matching_state_;
+
   cssom::TransitionSet transitions_;
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
   scoped_refptr<DOMStringMap> dataset_;

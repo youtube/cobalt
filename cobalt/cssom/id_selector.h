@@ -22,6 +22,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
@@ -37,9 +38,17 @@ class IdSelector : public Selector {
   explicit IdSelector(const std::string& id) : id_(id) {}
   ~IdSelector() OVERRIDE {}
 
-  Specificity GetSpecificity() const OVERRIDE { return Specificity(1, 0, 0); }
-
+  // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
+  Specificity GetSpecificity() const OVERRIDE { return Specificity(1, 0, 0); }
+  IdSelector* AsIdSelector() OVERRIDE { return this; }
+  int GetRank() const OVERRIDE { return 2; }
+  std::string GetSelectorText() const OVERRIDE { return "#" + id_; }
+  void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
+                             SelectorTree::Node* child_node,
+                             CombinatorType combinator) OVERRIDE;
+
+  // Rest of public methods.
 
   const std::string& id() const { return id_; }
 

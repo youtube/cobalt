@@ -17,6 +17,8 @@
 #ifndef CSSOM_COMPOUND_SELECTOR_H_
 #define CSSOM_COMPOUND_SELECTOR_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
@@ -33,20 +35,28 @@ class SelectorVisitor;
 //   http://www.w3.org/TR/selectors4/#compound
 class CompoundSelector : public Selector {
  public:
-  CompoundSelector() {}
+  CompoundSelector() : should_normalize_(false), pseudo_element_(NULL) {}
   ~CompoundSelector() OVERRIDE {}
 
-  Specificity GetSpecificity() const OVERRIDE { return specificity_; }
-
+  // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
-
+  Specificity GetSpecificity() const OVERRIDE { return specificity_; }
+  CompoundSelector* AsCompoundSelector() OVERRIDE { return this; }
   void AppendSelector(scoped_ptr<Selector> selector);
 
+  // Rest of public methods.
+
   const Selectors& selectors() { return selectors_; }
+  Selector* pseudo_element() { return pseudo_element_; }
+  const std::string& GetNormalizedSelectorText();
 
  private:
+  bool should_normalize_;
+  Selector* pseudo_element_;
+
   Selectors selectors_;
   Specificity specificity_;
+  std::string normalized_selector_text_;
 
   DISALLOW_COPY_AND_ASSIGN(CompoundSelector);
 };

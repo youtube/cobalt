@@ -70,6 +70,8 @@ class CSSMediaRule : public CSSConditionRule {
   // This method can be used to setup the parent style sheet.
   void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
 
+  CSSMediaRule* AsCSSMediaRule() OVERRIDE { return this; }
+
   DEFINE_WRAPPABLE_TYPE(CSSMediaRule);
 
  private:
