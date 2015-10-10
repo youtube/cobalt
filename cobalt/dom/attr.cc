@@ -36,6 +36,21 @@ void Attr::set_value(const std::string& value) {
   }
 }
 
+const std::string& Attr::node_value() const {
+#ifdef __LB_SHELL__FORCE_LOGGING__
+  // TODO(***REMOVED***): All warnings logged from Web APIs should contain JavaScript
+  //               call stack and should be deduplicated by JavaScript location
+  //               (b/24818138).
+  static bool duplicate_warning = false;
+  if (!duplicate_warning) {
+    duplicate_warning = true;
+    LOG(WARNING) << "Use of deprecated Web API: Attr.nodeValue.";
+  }
+#endif  // __LB_SHELL__FORCE_LOGGING__
+
+  return value_;
+}
+
 Attr::~Attr() { Stats::GetInstance()->Remove(this); }
 
 scoped_refptr<const NamedNodeMap> Attr::container() const { return container_; }
