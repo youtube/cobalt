@@ -166,7 +166,7 @@
           '_DEBUG',
           'COBALT_BOX_DUMP_ENABLED',
           'COBALT_BUILD_TYPE_DEBUG',
-          '__LB_SHELL__FORCE_LOGGING__',
+          '__LB_SHELL__FORCE_LOGGING__',  # TODO(***REMOVED***): Rename to COBALT_LOGGING_ENABLED.
           '__LB_SHELL__ENABLE_SCREENSHOT__',
           'SK_DEVELOPER',
           'ENABLE_DEBUG_CONSOLE',
