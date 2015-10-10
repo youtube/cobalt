@@ -17,6 +17,8 @@
 #ifndef RENDER_TREE_FONT_H_
 #define RENDER_TREE_FONT_H_
 
+#include <vector>
+
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/math/rect_f.h"
@@ -73,6 +75,15 @@ class Font : public base::RefCountedThreadSafe<Font> {
   // Returns the metrics common for all glyphs in the font. Used to calculate
   // the recommended line height and spacing between the lines.
   virtual FontMetrics GetFontMetrics() const = 0;
+
+  // Returns a size estimate for this font. While the derived class can
+  // potentially return an exact value, there is no guarantee that this will be
+  // the case.
+  virtual uint32 GetEstimatedSizeInBytes() const = 0;
+
+  // Returns a clone of the font, with the font size of the clone set to the
+  // passed in value.
+  virtual scoped_refptr<Font> CloneWithSize(float font_size) const = 0;
 
  protected:
   virtual ~Font() {}

@@ -55,17 +55,11 @@ class ResourceCache;
 template <typename CacheType>
 class CachedResource
     : public base::RefCountedThreadSafe<CachedResource<CacheType> > {
+ public:
   typedef ResourceCache<CacheType> ResourceCacheType;
   typedef typename CacheType::ResourceType ResourceType;
   typedef typename CacheType::DecoderProviderType DecoderProviderType;
 
-  enum CallbackType {
-    kOnLoadingDoneCallbackType,
-    kOnLoadingErrorCallbackType,
-    kCallbackTypeCount,
-  };
-
- public:
   // This class can be used to attach callbacks to CachedResource objects that
   // are executed when the resource is loaded or an error occurs with the load.
   // The callbacks are removed when the object is destroyed. If the resource has
@@ -120,6 +114,12 @@ class CachedResource
 
   typedef std::list<base::Closure> CallbackList;
   typedef std::list<base::Closure>::iterator CallbackListIterator;
+
+  enum CallbackType {
+    kOnLoadingDoneCallbackType,
+    kOnLoadingErrorCallbackType,
+    kCallbackTypeCount,
+  };
 
   ~CachedResource();
 
@@ -310,11 +310,11 @@ void CachedResource<CacheType>::RunCallbacks(CallbackType type) {
 
 template <typename CacheType>
 class CachedResourceReferenceWithCallbacks {
+ public:
   typedef CachedResource<CacheType> CachedResourceType;
   typedef typename CachedResourceType::OnLoadedCallbackHandler
       CachedResourceTypeOnLoadedCallbackHandler;
 
- public:
   typedef ScopedVector<CachedResourceReferenceWithCallbacks>
       CachedResourceReferenceVector;
 
@@ -348,11 +348,11 @@ class CachedResourceReferenceWithCallbacks {
 // be an observer of ResourceCache.
 template <typename CacheType>
 class ResourceCache {
+ public:
   typedef CachedResource<CacheType> CachedResourceType;
   typedef typename CacheType::ResourceType ResourceType;
   typedef typename CacheType::DecoderProviderType DecoderProviderType;
 
- public:
   ResourceCache(const std::string& name, uint32 cache_capacity,
                 scoped_ptr<DecoderProviderType> decoder_provider,
                 loader::FetcherFactory* fetcher_factory);

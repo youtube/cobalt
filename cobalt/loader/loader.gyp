@@ -28,6 +28,9 @@
         'fetcher_factory.h',
         'file_fetcher.cc',
         'file_fetcher.h',
+        'font/font_decoder.cc',
+        'font/font_decoder.h',
+        'font/remote_font_cache.h',
         'image/image_cache.h',
         'image/image_data_decoder.h',
         'image/image_decoder.cc',
@@ -61,6 +64,7 @@
       'sources': [
         'fetcher_factory_test.cc',
         'file_fetcher_test.cc',
+        'font/font_decoder_test.cc',
         'image/image_decoder_test.cc',
         'loader_test.cc',
         'text_decoder_test.cc',
