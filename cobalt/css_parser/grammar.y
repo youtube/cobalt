@@ -493,6 +493,8 @@
 %type <rule_list> rule_list rule_list_block
 %destructor { $$->Release(); } <rule_list>
 
+%type <string> unsupported_pseudo_class_token
+
 %union { cssom::Selector* selector; }
 %type <selector> class_selector_token id_selector_token pseudo_class_token
                  pseudo_element_token simple_selector_token type_selector_token
@@ -1314,6 +1316,25 @@ id_selector_token:
   }
   ;
 
+unsupported_pseudo_class_token:
+    kIdentifierToken
+  | kNotFunctionToken {
+    $$ = TrivialStringPiece::FromCString("not");
+  }
+  | kNthChildFunctionToken {
+    $$ = TrivialStringPiece::FromCString("nth-child");
+  }
+  | kNthLastChildFunctionToken {
+    $$ = TrivialStringPiece::FromCString("nth-last-child");
+  }
+  | kNthLastOfTypeFunctionToken {
+    $$ = TrivialStringPiece::FromCString("nth-last-of-type");
+  }
+  | kNthOfTypeFunctionToken {
+    $$ = TrivialStringPiece::FromCString("nth-of-type");
+  }
+  ;
+
 // The pseudo-class concept is introduced to permit selection based on
 // information that lies outside of the document tree or that can be awkward or
 // impossible to express using the other simple selectors.
@@ -1328,6 +1349,25 @@ pseudo_class_token:
   //   http://www.w3.org/TR/selectors4/#empty-pseudo
     ':' kEmptyToken {
     $$ = new cssom::EmptyPseudoClass();
+  }
+  | ':' unsupported_pseudo_class_token errors {
+#ifdef __LB_SHELL__FORCE_LOGGING__
+    DCHECK(non_trivial_static_fields.Get().
+        thread_checker.CalledOnValidThread());
+    base::hash_set<std::string>& pseudo_classes_warned_about =
+        non_trivial_static_fields.Get().pseudo_classes_warned_about;
+
+    // TODO(***REMOVED***): Stop deduplicating warnings after fixing CSS in ***REMOVED***.
+    std::string pseudo_class_name = $2.ToString();
+    if (pseudo_classes_warned_about.find(pseudo_class_name) ==
+        pseudo_classes_warned_about.end()) {
+      pseudo_classes_warned_about.insert(pseudo_class_name);
+      parser_impl->LogWarning(@1,
+                              "unsupported pseudo-class " + pseudo_class_name);
+    }
+#endif  // __LB_SHELL__FORCE_LOGGING__
+
+    $$ = NULL;
   }
   | ':' errors {
     parser_impl->LogWarning(@1, "unsupported pseudo-class");
@@ -3751,11 +3791,23 @@ maybe_declaration:
     std::string property_name = $1.ToString();
     DCHECK_GT(property_name.size(), 0U);
 
+#ifdef __LB_SHELL__FORCE_LOGGING__
     // Do not warn about non-standard or non-WebKit properties.
     if (property_name[0] != '-' ||
         StartsWithASCII(property_name, "-webkit-", false)) {
-      parser_impl->LogWarning(@1, "unsupported property " + property_name);
+      DCHECK(non_trivial_static_fields.Get().
+          thread_checker.CalledOnValidThread());
+      base::hash_set<std::string>& properties_warned_about =
+          non_trivial_static_fields.Get().properties_warned_about;
+
+      if (properties_warned_about.find(property_name) ==
+          properties_warned_about.end()) {
+        properties_warned_about.insert(property_name);
+        parser_impl->LogWarning(@1, "unsupported property " + property_name);
+      }
     }
+#endif  // __LB_SHELL__FORCE_LOGGING__
+
     $$ = NULL;
   }
   | errors {
