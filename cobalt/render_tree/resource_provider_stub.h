@@ -74,6 +74,11 @@ class ImageStub : public Image {
 // Simple class that returns dummy data for metric information.
 class FontStub : public Font {
  public:
+  FontStub(const void* data, size_t size)
+      : font_data_size_(static_cast<uint32>(size)) {
+    UNREFERENCED_PARAMETER(data);
+  }
+
   math::RectF GetBounds(const std::string& text) const OVERRIDE {
     FontMetrics font_metrics = GetFontMetrics();
     return math::RectF(
@@ -86,8 +91,18 @@ class FontStub : public Font {
     return FontMetrics(10, 5, 3, 6);
   }
 
+  uint32 GetEstimatedSizeInBytes() const OVERRIDE { return font_data_size_; }
+
+  scoped_refptr<render_tree::Font> CloneWithSize(
+      float font_size) const OVERRIDE {
+    UNREFERENCED_PARAMETER(font_size);
+    return NULL;
+  }
+
  private:
   ~FontStub() OVERRIDE {}
+
+  uint32 font_data_size_;
 };
 
 // Return the stub versions defined above for each resource.
@@ -129,7 +144,15 @@ class ResourceProviderStub : public ResourceProvider {
     UNREFERENCED_PARAMETER(font_family_name);
     UNREFERENCED_PARAMETER(font_style);
     UNREFERENCED_PARAMETER(font_size);
-    return new FontStub();
+    return make_scoped_refptr(new FontStub(NULL, 0));
+  }
+
+  scoped_refptr<render_tree::Font> CreateFontFromRawData(
+      scoped_ptr<RawFontDataVector> raw_data,
+      std::string* error_string) OVERRIDE {
+    UNREFERENCED_PARAMETER(raw_data);
+    UNREFERENCED_PARAMETER(error_string);
+    return make_scoped_refptr(new FontStub(NULL, 0));
   }
 };
 
