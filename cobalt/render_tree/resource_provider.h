@@ -36,6 +36,11 @@ namespace render_tree {
 // thread, but consumed on another.
 class ResourceProvider {
  public:
+  typedef std::vector<uint8_t> RawFontDataVector;
+
+  // This matches the max size in WebKit
+  static const size_t kMaxFontDataSize = 30 * 1024 * 1024;  // 30 MB
+
   virtual ~ResourceProvider() {}
 
   // This method can be used to create an ImageData object.
@@ -78,6 +83,15 @@ class ResourceProvider {
   virtual scoped_refptr<Font> GetPreInstalledFont(const char* font_family_name,
                                                   FontStyle font_style,
                                                   float font_size) = 0;
+
+  // Given raw font data in either TrueType, OpenType or WOFF data formats, this
+  // method creates and returns a new font. The font is not cached by the
+  // resource provider. If the creation fails, the error is written out to the
+  // error string.
+  // Note that kMaxFontDataSize represents a hard cap on the raw data size.
+  // Anything larger than that is guaranteed to result in font creation failure.
+  virtual scoped_refptr<render_tree::Font> CreateFontFromRawData(
+      scoped_ptr<RawFontDataVector> raw_data, std::string* error_string) = 0;
 };
 
 }  // namespace render_tree

@@ -46,6 +46,7 @@
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
         '<(DEPTH)/cobalt/renderer/backend/backend.gyp:renderer_backend',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
+        '<(DEPTH)/third_party/ots/ots.gyp:ots',
       ],
     },
 
