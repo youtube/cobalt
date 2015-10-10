@@ -108,6 +108,13 @@ class DummyFont : public Font {
   FontMetrics GetFontMetrics() const OVERRIDE {
     return FontMetrics(0, 0, 0, 0);
   }
+
+  uint32 GetEstimatedSizeInBytes() const OVERRIDE { return 0; }
+
+  scoped_refptr<Font> CloneWithSize(float font_size) const OVERRIDE {
+    UNREFERENCED_PARAMETER(font_size);
+    return NULL;
+  }
 };
 
 }  // namespace
