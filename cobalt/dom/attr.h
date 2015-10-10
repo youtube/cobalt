@@ -53,10 +53,7 @@ class Attr : public script::Wrappable,
   const std::string& value() const { return value_; }
   void set_value(const std::string& value);
 
-  const std::string& node_value() const {
-    LOG(WARNING) << "Use of deprecated Web API: Attr.nodeValue.";
-    return value_;
-  }
+  const std::string& node_value() const;
 
   DEFINE_WRAPPABLE_TYPE(Attr);
 

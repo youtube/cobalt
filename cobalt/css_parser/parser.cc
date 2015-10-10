@@ -24,6 +24,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/lazy_instance.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -198,6 +199,23 @@ class ParserImpl {
   friend int yyparse(ParserImpl* parser_impl);
 };
 
+// TODO(***REMOVED***): Stop deduplicating warnings after cleaning up CSS in ***REMOVED***
+//               (b/24818136).
+#ifdef __LB_SHELL__FORCE_LOGGING__
+namespace {
+
+struct NonTrivialStaticFields {
+  base::hash_set<std::string> properties_warned_about;
+  base::hash_set<std::string> pseudo_classes_warned_about;
+  base::ThreadChecker thread_checker;
+};
+
+base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
+    LAZY_INSTANCE_INITIALIZER;
+
+}  // namespace
+#endif  // __LB_SHELL__FORCE_LOGGING__
+
 ParserImpl::ParserImpl(const std::string& input,
                        const base::SourceLocation& input_location,
                        cssom::CSSParser* css_parser,
@@ -278,6 +296,12 @@ void ParserImpl::ParsePropertyIntoDeclarationData(
     source_location.line_start = input_.c_str();
     LogWarning(source_location, "unsupported property '" + property_name +
                                     "' while parsing property value.");
+    return;
+  }
+
+  // TODO(***REMOVED***): Handle shorthand properties (b/24818917).
+  if (input_.empty()) {
+    declaration_data->SetPropertyValue(property_name, NULL);
     return;
   }
 
