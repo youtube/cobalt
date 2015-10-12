@@ -100,10 +100,10 @@ class WebModule {
   // Called by ExecuteJavascript, if that method is called from a different
   // message loop to the one this WebModule is running on. Sets the result
   // output parameter and signals got_result.
-  void WebModule::ExecuteJavascriptInternal(
-      const std::string& script_utf8,
-      const base::SourceLocation& script_location,
-      base::WaitableEvent* got_result, std::string* result);
+  void ExecuteJavascriptInternal(const std::string& script_utf8,
+                                 const base::SourceLocation& script_location,
+                                 base::WaitableEvent* got_result,
+                                 std::string* result);
 
   std::string name_;
 
