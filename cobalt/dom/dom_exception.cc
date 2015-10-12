@@ -28,19 +28,21 @@ const char* GetErrorName(DOMException::ExceptionCode code) {
     case DOMException::kIndexSizeErr:
       return "IndexSizeError";
     case DOMException::kNotFoundErr:
-      return "NotFoundErr";
+      return "NotFoundError";
     case DOMException::kNotSupportedErr:
-      return "NotSupportedErr";
+      return "NotSupportedError";
     case DOMException::kInvalidStateErr:
-      return "InvalidStateErr";
+      return "InvalidStateError";
     case DOMException::kSyntaxErr:
-      return "SyntaxErr";
+      return "SyntaxError";
     case DOMException::kInvalidAccessErr:
-      return "InvalidAccessErr";
+      return "InvalidAccessError";
     case DOMException::kTypeMismatchErr:
-      return "TypeMismatchErr";
+      return "TypeMismatchError";
+    case DOMException::kSecurityErr:
+      return "SecurityError";
     case DOMException::kQuotaExceededErr:
-      return "QuotaExceededErr";
+      return "QuotaExceededError";
   }
   NOTREACHED();
   return "";
