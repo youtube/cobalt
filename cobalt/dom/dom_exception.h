@@ -42,6 +42,7 @@ class DOMException : public script::ScriptException {
     // Note that TypeMismatchErr is replaced by TypeError but we keep using it
     // to be in sync with Chrome.
     kTypeMismatchErr = 17,
+    kSecurityErr = 18,
     kQuotaExceededErr = 22,
   };
 
