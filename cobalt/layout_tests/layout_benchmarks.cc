@@ -15,10 +15,12 @@
  */
 
 #include "base/logging.h"
+#include "base/string_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/dom/benchmark_stat_names.h"
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout_tests/layout_snapshot.h"
+#include "cobalt/layout_tests/test_parser.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/system_window/create_system_window.h"
 #include "cobalt/trace_event/benchmark.h"
@@ -95,27 +97,56 @@ class RendererBenchmarkRunner {
 
 }  // namespace
 
-// clang-format off
-TRACE_EVENT_BENCHMARK10(
-    LayoutTimesForPerformanceSpikeInitialLayout,
-    layout::kBenchmarkStatLayout, cobalt::trace_event::IN_SCOPE_DURATION,
-    dom::kBenchmarkStatUpdateMatchingRules,
-        cobalt::trace_event::IN_SCOPE_DURATION,
-    dom::kBenchmarkStatUpdateComputedStyles,
-        cobalt::trace_event::IN_SCOPE_DURATION,
-    layout::kBenchmarkStatBoxGeneration,
-        cobalt::trace_event::IN_SCOPE_DURATION,
-    layout::kBenchmarkStatUpdateCrossReferences,
-        cobalt::trace_event::IN_SCOPE_DURATION,
-    layout::kBenchmarkStatUpdateUsedSizes,
-        cobalt::trace_event::IN_SCOPE_DURATION,
-    layout::kBenchmarkStatRenderAndAnimate,
-        cobalt::trace_event::IN_SCOPE_DURATION,
-    "NodeAnimationsMap::Apply()", cobalt::trace_event::IN_SCOPE_DURATION,
-    "VisitRenderTree", cobalt::trace_event::IN_SCOPE_DURATION,
-    "Skia Flush", cobalt::trace_event::IN_SCOPE_DURATION) {
-  // clang-format on
+class LayoutBenchmark : public trace_event::Benchmark {
+ public:
+  explicit LayoutBenchmark(const TestInfo& test_info);
+  ~LayoutBenchmark() OVERRIDE {}
 
+  void Experiment() OVERRIDE;
+  void AnalyzeTraceEvent(
+      const scoped_refptr<trace_event::EventParser::ScopedEvent>& event)
+      OVERRIDE;
+  std::vector<trace_event::Benchmark::Result> CompileResults() OVERRIDE;
+
+ private:
+  static std::string FilePathToBenchmarkName(const FilePath& filepath);
+
+  TestInfo test_info_;
+  typedef base::hash_map<std::string, std::vector<double> > SampleMap;
+  SampleMap samples_;
+};
+
+LayoutBenchmark::LayoutBenchmark(const TestInfo& test_info)
+    : test_info_(test_info) {
+  // Setup the name's benchmark based on the test entry file path.
+  set_name(FilePathToBenchmarkName(test_info_.base_file_path));
+
+  // Define the set of event names that we would like to watch for by
+  // initializing their map entries to the default constructed values (e.g.
+  // std::vector<double>()).
+  samples_[layout::kBenchmarkStatLayout];
+  samples_[dom::kBenchmarkStatUpdateMatchingRules];
+  samples_[dom::kBenchmarkStatUpdateComputedStyles];
+  samples_[layout::kBenchmarkStatBoxGeneration];
+  samples_[layout::kBenchmarkStatUpdateCrossReferences];
+  samples_[layout::kBenchmarkStatUpdateUsedSizes];
+  samples_[layout::kBenchmarkStatRenderAndAnimate];
+  samples_["NodeAnimationsMap::Apply()"];
+  samples_["VisitRenderTree"];
+  samples_["Skia Flush"];
+}
+
+std::string LayoutBenchmark::FilePathToBenchmarkName(const FilePath& filepath) {
+  std::vector<FilePath::StringType> components;
+  filepath.GetComponents(&components);
+
+  // Don't include the "benchmarks" directory as part of the benchmark name.
+  components.erase(components.begin());
+
+  return JoinString(components, '/');
+}
+
+void LayoutBenchmark::Experiment() {
   // Get rid of all log output so we only see benchmark results.
   logging::SetMinLogLevel(100);
 
@@ -131,6 +162,11 @@ TRACE_EVENT_BENCHMARK10(
   // benchmark.
   base::optional<browser::WebModule::LayoutResults> layout_results;
 
+  const math::Size kDefaultViewportSize(1920, 1080);
+  math::Size viewport_size = test_info_.viewport_size
+                                 ? *test_info_.viewport_size
+                                 : kDefaultViewportSize;
+
   // Set up a WebModule, load the URL and trigger layout multiple times and get
   // layout benchmark results.  We start with tracing disabled so that we can
   // skip the first layout, which is typically an outlier.
@@ -139,7 +175,7 @@ TRACE_EVENT_BENCHMARK10(
   for (int i = 0; i < kLayoutSampleCount + 1; ++i) {
     // Load and layout the scene.
     layout_results =
-        SnapshotURL(GURL(kURL), math::Size(1920, 1080),
+        SnapshotURL(test_info_.url, viewport_size,
                     renderer_benchmark_runner.GetResourceProvider());
 
     if (i == 0) {
@@ -152,6 +188,42 @@ TRACE_EVENT_BENCHMARK10(
   // rendering.
   renderer_benchmark_runner.RunBenchmarks(*layout_results);
 }
+
+void LayoutBenchmark::AnalyzeTraceEvent(
+    const scoped_refptr<trace_event::EventParser::ScopedEvent>& event) {
+  SampleMap::iterator found = samples_.find(event->name());
+  if (found != samples_.end()) {
+    found->second.push_back(event->in_scope_duration()->InSecondsF());
+  }
+}
+
+std::vector<trace_event::Benchmark::Result> LayoutBenchmark::CompileResults() {
+  std::vector<trace_event::Benchmark::Result> results;
+  for (SampleMap::iterator iter = samples_.begin(); iter != samples_.end();
+       ++iter) {
+    results.push_back(trace_event::Benchmark::Result(
+        iter->first + " in-scope duration in seconds", iter->second));
+  }
+  return results;
+}
+
+class LayoutBenchmarkCreator : public trace_event::BenchmarkCreator {
+ public:
+  ScopedVector<trace_event::Benchmark> CreateBenchmarks() OVERRIDE {
+    ScopedVector<trace_event::Benchmark> benchmarks;
+
+    std::vector<TestInfo> benchmark_infos = EnumerateLayoutTests("benchmarks");
+    for (std::vector<TestInfo>::const_iterator iter = benchmark_infos.begin();
+         iter != benchmark_infos.end(); ++iter) {
+      benchmarks.push_back(new LayoutBenchmark(*iter));
+    }
+
+    return benchmarks.Pass();
+  }
+
+ private:
+};
+LayoutBenchmarkCreator g_benchmark_creator;
 
 }  // namespace layout_tests
 }  // namespace cobalt
