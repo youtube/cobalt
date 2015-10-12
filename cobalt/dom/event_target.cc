@@ -103,8 +103,8 @@ void EventTarget::SetAttributeEventListener(
 }
 
 scoped_refptr<EventListener> EventTarget::GetAttributeEventListener(
-    const std::string& type) {
-  for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
+    const std::string& type) const {
+  for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if (iter->listener->IsAttribute() && iter->type == type) {
       return iter->listener;
