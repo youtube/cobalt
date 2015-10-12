@@ -65,7 +65,7 @@ ConstructorCallWith=EnvironmentSettings
 # The constructor/attribute/operation may raise an exception. A pointer to an
 # ExceptionState interface will be passed to the implementation at the end of
 # the parameter list.
-RaisesException=|Constructor
+RaisesException=|Constructor|Setter
 
 # The Constructor for an interface is different from the interface name.
 NamedConstructor=*
