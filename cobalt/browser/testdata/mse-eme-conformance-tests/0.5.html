@@ -18,7 +18,7 @@ limitations under the License.
   <head>
     <title>Legacy Media Source and Encrypted Media Conformance Tests (2013)</title>
     <link rel="stylesheet" href="style-20150612143746.css" type="text/css"></link>
-    <script type="application/javascript">
+    <script type="text/javascript">
 function Alert(msg) {
   console.log(msg);
   throw msg;
@@ -2255,7 +2255,7 @@ window.createMSTest = function(name) {
   return t;
 };
 
-var TestRunner = function(testSuite, testsMask, mseSpec) {
+var ConformanceTestRunner = function(testSuite, testsMask, mseSpec) {
   this.testView = null;
   this.currentTest = null;
   this.currentTestIdx = 0;
@@ -2280,13 +2280,13 @@ var TestRunner = function(testSuite, testsMask, mseSpec) {
   this.viewType = testSuite.viewType;
 };
 
-TestRunner.prototype.log = function() {
+ConformanceTestRunner.prototype.log = function() {
   var args = Array.prototype.slice.call(arguments, 0);
-  args.splice(0, 0, 'TestRunner: ');
+  args.splice(0, 0, 'ConformanceTestRunner: ');
   LOG.apply(this, args);
 };
 
-TestRunner.prototype.assert = function(cond, msg) {
+ConformanceTestRunner.prototype.assert = function(cond, msg) {
   if (!cond) {
     ++this.testList[this.currentTestIdx].prototype.failures;
     this.updateStatus();
@@ -2294,7 +2294,7 @@ TestRunner.prototype.assert = function(cond, msg) {
   }
 };
 
-TestRunner.prototype.checkException = function(testFunc, exceptionCode) {
+ConformanceTestRunner.prototype.checkException = function(testFunc, exceptionCode) {
   try {
     testFunc();
     this.fail('Expect exception ' + exceptionCode);
@@ -2303,21 +2303,21 @@ TestRunner.prototype.checkException = function(testFunc, exceptionCode) {
   }
 };
 
-TestRunner.prototype.check = function(condition, passMsg, failMsg) {
+ConformanceTestRunner.prototype.check = function(condition, passMsg, failMsg) {
   if (condition)
     this.log(passMsg);
   else
     this.assert(false, failMsg);
 };
 
-TestRunner.prototype.checkType = function(x, y, name) {
+ConformanceTestRunner.prototype.checkType = function(x, y, name) {
   var t = typeof(x);
   var result = t === y;
   this.check(result, 'checkType passed: type of ' + name + ' is (' + t + ').',
              'Type of ' + name + ' is (' + t + ') which should be (' + y + ')');
 };
 
-TestRunner.prototype.checkEq = function(x, y, name) {
+ConformanceTestRunner.prototype.checkEq = function(x, y, name) {
   var result = (x == y) ||
       (typeof(x) === 'number' && typeof(y) === 'number' &&
        isNaN(x) && isNaN(y));
@@ -2325,7 +2325,7 @@ TestRunner.prototype.checkEq = function(x, y, name) {
              name + ' is (' + x + ') which should be (' + y + ')');
 };
 
-TestRunner.prototype.checkNE = function(x, y, name) {
+ConformanceTestRunner.prototype.checkNE = function(x, y, name) {
   var result = (x != y) &&
       !(typeof(x) === 'number' && typeof(y) === 'number' &&
         isNaN(x) && isNaN(y));
@@ -2333,7 +2333,7 @@ TestRunner.prototype.checkNE = function(x, y, name) {
              name + ' is (' + x + ') which shouldn\'t.');
 };
 
-TestRunner.prototype.checkApproxEq = function(x, y, name) {
+ConformanceTestRunner.prototype.checkApproxEq = function(x, y, name) {
   var diff = Math.abs(x - y);
   var eps = 0.5;
   this.check(diff < eps, 'checkApproxEq passed: ' + name + ' is (' + x + ').',
@@ -2341,44 +2341,44 @@ TestRunner.prototype.checkApproxEq = function(x, y, name) {
                 (y - eps) + ', ' + (y + eps) + ']');
 };
 
-TestRunner.prototype.checkGr = function(x, y, name) {
+ConformanceTestRunner.prototype.checkGr = function(x, y, name) {
   this.check(x > y, 'checkGr passed: ' + name + ' is (' + x + ').',
              name + ' is (' + x +
                  ') which should be greater than (' + y + ')');
 };
 
-TestRunner.prototype.checkGE = function(x, y, name) {
+ConformanceTestRunner.prototype.checkGE = function(x, y, name) {
   this.check(x >= y, 'checkGE passed: ' + name + ' is (' + x + ').',
              name + ' is (' + x +
                  ') which should be greater than or equal to (' + y + ')');
 };
 
-TestRunner.prototype.checkLE = function(x, y, name) {
+ConformanceTestRunner.prototype.checkLE = function(x, y, name) {
   this.check(x <= y, 'checkLE passed: ' + name + ' is (' + x + ').',
              name + ' is (' + x +
                  ') which should be less than or equal to (' + y + ')');
 };
 
-TestRunner.prototype.getControlContainer = function() {
+ConformanceTestRunner.prototype.getControlContainer = function() {
   // Override this function to anchor one to the DOM.
   return document.createElement('div');
 };
 
-TestRunner.prototype.getNewVideoTag = function() {
+ConformanceTestRunner.prototype.getNewVideoTag = function() {
   // Override this function to anchor one to the DOM.
   return document.createElement('video');
 };
 
-TestRunner.prototype.getOutputArea = function() {
+ConformanceTestRunner.prototype.getOutputArea = function() {
   // Override this function to anchor one to the DOM.
   return document.createElement('div');
 };
 
-TestRunner.prototype.updateStatus = function() {
+ConformanceTestRunner.prototype.updateStatus = function() {
   this.testView.getTest(this.currentTestIdx).updateStatus();
 };
 
-TestRunner.prototype.initialize = function() {
+ConformanceTestRunner.prototype.initialize = function() {
   var self = this;
   if (this.viewType === 'extra compact')
     this.testView = compactTestView.create(this.mseSpec, this.fields,
@@ -2407,7 +2407,7 @@ TestRunner.prototype.initialize = function() {
   this.longestTest = null;
 };
 
-TestRunner.prototype.onfinished = function() {
+ConformanceTestRunner.prototype.onfinished = function() {
   this.log('Finished!');
   if (this.longestTest && this.longestTimeRatio > 0) {
     this.log('Longest test is ' + this.longestTest + ', it takes ' +
@@ -2429,7 +2429,7 @@ TestRunner.prototype.onfinished = function() {
   this.sendTestReport(GetTestResults());
 };
 
-TestRunner.prototype.sendTestReport = function(results) {
+ConformanceTestRunner.prototype.sendTestReport = function(results) {
   if (this.clientName) {
     var xhr = new XMLHttpRequest();
     var resultsURL = 'http://qual-e.appspot.com/api?command=save_result';
@@ -2441,7 +2441,7 @@ TestRunner.prototype.sendTestReport = function(results) {
   }
 };
 
-TestRunner.prototype.startTest = function(startIndex, numOfTestToRun) {
+ConformanceTestRunner.prototype.startTest = function(startIndex, numOfTestToRun) {
   if (!this.currentTest) {
     this.startIndex = startIndex;
     this.numOfTestToRun = numOfTestToRun;
@@ -2452,7 +2452,7 @@ TestRunner.prototype.startTest = function(startIndex, numOfTestToRun) {
   }
 };
 
-TestRunner.prototype.startNextTest = function() {
+ConformanceTestRunner.prototype.startNextTest = function() {
   UpdateStreamDef(Number(enablewebm));
   if (this.numOfTestToRun != 1) {
     while (this.testToRun > 0 &&
@@ -2500,7 +2500,7 @@ TestRunner.prototype.startNextTest = function() {
   this.currentTest.start(this, this.currentTest.video);
 };
 
-TestRunner.prototype.succeed = function() {
+ConformanceTestRunner.prototype.succeed = function() {
   this.lastResult = 'pass';
   ++this.testList[this.currentTestIdx].prototype.passes;
   this.updateStatus();
@@ -2508,7 +2508,7 @@ TestRunner.prototype.succeed = function() {
   this.teardownCurrentTest(false);
 };
 
-TestRunner.prototype.error = function(msg, isTimeout) {
+ConformanceTestRunner.prototype.error = function(msg, isTimeout) {
   this.lastResult = isTimeout ? 'timeout' : 'failure';
   var test = this.currentTest;
   this.log(msg);
@@ -2538,13 +2538,13 @@ TestRunner.prototype.error = function(msg, isTimeout) {
   if (this.assertThrowsError) throw msg;
 };
 
-TestRunner.prototype.fail = function(msg) {
+ConformanceTestRunner.prototype.fail = function(msg) {
   ++this.testList[this.currentTestIdx].prototype.failures;
   this.updateStatus();
   this.error('Test ' + this.currentTest.desc + ' FAILED: ' + msg, false);
 };
 
-TestRunner.prototype.timeout = function() {
+ConformanceTestRunner.prototype.timeout = function() {
   var isTestTimedOut = false;
   var currentTime = new Date().getTime();
   var testTime = currentTime - this.startTime;
@@ -2579,7 +2579,7 @@ TestRunner.prototype.timeout = function() {
   }
 };
 
-TestRunner.prototype.teardownCurrentTest = function(isTimeout) {
+ConformanceTestRunner.prototype.teardownCurrentTest = function(isTimeout) {
   if (!isTimeout) {
     var time = Date.now() - this.startTime;
     var ratio = time / this.currentTest.timeout;
@@ -2614,7 +2614,7 @@ TestRunner.prototype.teardownCurrentTest = function(isTimeout) {
 };
 
 window.TestBase = TestBase;
-window.TestRunner = TestRunner;
+window.ConformanceTestRunner = ConformanceTestRunner;
 
 window.GetTestResults = function(testStartId, testEndId) {
   testStartId = testStartId || 0;
@@ -6233,7 +6233,7 @@ window.globalRunner = null;
 
 var startRunner = function(testSuite, mseSpec) {
   var id = 0;
-  var runner = new TestRunner(testSuite, testsMask, mseSpec);
+  var runner = new ConformanceTestRunner(testSuite, testsMask, mseSpec);
 
   // Expose the runner so outside/injected scripts can read it.
   window.globalRunner = runner;
@@ -6292,7 +6292,7 @@ window.startMseTest = function(mseSpec) {
     </script>
   </head>
   <body>
-    <script type="application/javascript">
+    <script type="text/javascript">
       window.setTimeout(function() { startMseTest(); }, 1);
     </script>
   </body>
