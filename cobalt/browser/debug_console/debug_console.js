@@ -1,7 +1,15 @@
+// Text the user has typed since last hitting Enter
 var inputText = '';
+// The DOM node used as a container for message nodes.
 var messageBuffer = null;
+// Stores and manipulates the set of console values.
 var consoleValues = null;
+// Handles command input, editing, history traversal, etc.
 var commandInput = null;
+// Object to store methods to be executed in the debug console.
+var debug = null;
+// Shorthand reference for the debug object.
+var d = null;
 
 function createMessageBuffer() {
   var messageBox = document.getElementById('messageBox');
@@ -11,6 +19,15 @@ function createMessageBuffer() {
 function createCommandInput() {
   var inputElem = document.getElementById('in');
   this.commandInput = new CommandInput(inputElem);
+}
+
+function createConsoleValues() {
+  // Create the console values and attempt to load the active set using the
+  // default key. If this fails, it will leave the active set equal to the
+  // all registered CVals.
+  consoleValues = new ConsoleValues();
+  var loadResult = consoleValues.loadActiveSet();
+  printToMessageLog(messageBuffer.INTERACTIVE, loadResult);
 }
 
 function showBlockElem(elem, doShow) {
@@ -49,6 +66,7 @@ function updateMode() {
   showHud(mode >= window.debugHub.DEBUG_CONSOLE_HUD);
 }
 
+// Animation callback: updates state and animated nodes.
 function animate(time) {
   updateMode();
   updateHud(time);
@@ -56,14 +74,80 @@ function animate(time) {
   window.requestAnimationFrame(animate);
 }
 
+// Executes a command from the history buffer.
+// Index should be an integer (positive is an absolute index, negative is a
+// number of commands back from the current) or '!' to execute the last command.
+function executeCommandFromHistory(idx) {
+  if (idx == '!') {
+    idx = -1;
+  }
+  idx = parseInt(idx);
+  commandInput.setCurrentCommandFromHistory(idx);
+  executeCurrentCommand();
+}
+
+// Special commands that are executed immediately, not as JavaScript,
+// e.g. !N to execute the Nth command in the history buffer.
+// Returns true if the command is processed here, false otherwise.
+function executeImmediate(command) {
+  if (command[0] == '!') {
+    executeCommandFromHistory(command.substring(1));
+    return true;
+  } else if (command.trim() == 'help') {
+    // Treat 'help' as a special case for users not expecting JS execution.
+    help();
+    commandInput.clearCurrentCommand();
+    return true;
+  }
+  return false;
+}
+
+// JavaScript commands executed in this (debug console) web module.
+// The only commands we execute here are methods of the debug object
+// (or its shorthand equivalent).
+function executeDebug(command) {
+  if (command.trim().indexOf('debug.') == 0 ||
+      command.trim().indexOf('d.') == 0) {
+    eval(command);
+    return true;
+  }
+  return false;
+}
+
+// Execute a command as JavaScript in the main web module.
+function executeMain(command) {
+  var result = window.debugHub.executeCommand(command);
+  if (command.indexOf('console') == -1) {
+    // Echo the output for non-console commands.
+    printToMessageLog(messageBuffer.INFO, result);
+  }
+}
+
+// Executes a command entered by the user.
+// Commands are processed in the following order:
+// 1. Check for an 'immediate' command, e.g. history - !n.
+// 2. Execute debug JS commands in this web module.
+// 3. If no matching command is found, pass to the Cobalt DebugHub.
+//    DebugHub will execute any commands recognized on the C++ side,
+//    or pass to the main web module to be executed as JavaScript.
+function executeCommand(command) {
+  if (executeImmediate(command)) {
+    return;
+  }
+  commandInput.storeAndClearCurrentCommand();
+  if (executeDebug(command)) {
+    return;
+  }
+  executeMain(command);
+}
+
+// Executes the current command in the CommandInput object.
+// Typically called when the user hits Enter.
 function executeCurrentCommand() {
-    var command = commandInput.getCurrentCommand();
-    printToMessageLog(window.debugHub.LOG_INFO, '> ' + command);
-    var result = window.debugHub.executeCommand(command);
-    if (command.indexOf('console') == -1) {
-      printToMessageLog(window.debugHub.LOG_INFO, result);
-    }
-    commandInput.clearAndStoreCurrentCommand();
+  var command = commandInput.getCurrentCommand();
+  printToMessageLog(messageBuffer.INTERACTIVE, '> ' + command);
+  executeCommand(command);
+  printToMessageLog(messageBuffer.INTERACTIVE, '\n');
 }
 
 function onKeydown(event) {
@@ -113,7 +197,8 @@ function start() {
   createCommandInput();
   createMessageBuffer();
   showConsole(false);
-  consoleValues = new ConsoleValues();
+  createConsoleValues();
+  initDebugCommands();
   addLogMessageCallback();
   document.addEventListener('keypress', onKeypress);
   document.addEventListener('keydown', onKeydown);

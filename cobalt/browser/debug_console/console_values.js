@@ -1,18 +1,15 @@
 // Console values constructor
 function ConsoleValues() {
-  this.allCVals = [];
-  this.activeCVals = [];
-  this.cvalTree = null;
-}
-
-// Gets the space-separated list of console value names from Cobalt and splits
-// into an array.
-ConsoleValues.prototype.getNames = function() {
+  // Use a prefix on all WLS keys to ensure uniqueness.
+  this.KEY_PREFIX = 'cobalt.debugConsole.consoleValues';
+  // Default key used for auto-save, or if the user doesn't specify another.
+  this.DEFAULT_KEY = 'default';
+  // Reduced space-separated list of CVal prefixes to display at start-up.
+  this.DEFAULT_ACTIVE_SET = 'Cobalt Memory';
   var names = window.debugHub.getConsoleValueNames();
   this.allCVals = names.split(' ');
-  // For now, include all CVals in the active list. When we have input support
-  // and command execution, the user will be able to select the active set.
-  this.activeCVals = this.allCVals;
+  this.initActiveSet();
+  this.cvalTree = this.buildTree(this.activeCVals);
 }
 
 // Console value tree node constructor
@@ -126,7 +123,7 @@ ConsoleValues.prototype.treeToString = function(cvalTree, prefix) {
   }
   var result = '';
   var names = Object.keys(cvalTree);
-  var numNames = names.length;
+  var numNames = names ? names.length : 0;
   for (var i = 0; i < numNames; i++) {
     result += this.nodeToString(names[i], cvalTree[names[i]], prefix)
     if (i < numNames - 1) {
@@ -136,13 +133,134 @@ ConsoleValues.prototype.treeToString = function(cvalTree, prefix) {
   return result;
 }
 
+// Updates the complete list of registered CVals.
+// If any active CVals are no longer registered, remove them from the active set.
+ConsoleValues.prototype.updateRegistered = function() {
+  var names = window.debugHub.getConsoleValueNames();
+  this.allCVals = names.split(' ');
+  for (var i = 0; i < this.activeCVals.length; i++) {
+    if (this.allCVals.indexOf(this.activeCVals[i]) < 0) {
+      this.activeCVals.splice(i, 1);
+    }
+  }
+}
+
 // Updates the tree.
 ConsoleValues.prototype.update = function() {
-  this.getNames();
+  this.updateRegistered();
   this.cvalTree = this.buildTree(this.activeCVals);
 }
 
 // Creates a formatted string from the current tree.
 ConsoleValues.prototype.toString = function() {
-  return this.treeToString(this.cvalTree.children, null);
+  if (this.cvalTree && this.cvalTree.children) {
+    return this.treeToString(this.cvalTree.children, null);
+  } else {
+    return 'No CVals to display.';
+  }
+}
+
+// Initializes the active set of CVals from the default.
+ConsoleValues.prototype.initActiveSet = function() {
+  this.activeCVals = [];
+  this.addActive(this.DEFAULT_ACTIVE_SET);
+}
+
+// Lists all registered cvals
+ConsoleValues.prototype.listAll = function() {
+  var result = '';
+  for (var i = 0; i < this.allCVals.length; i++) {
+    result += this.allCVals[i] + '\n';
+  }
+  return result;
+}
+
+// Adds a single CVal to the active set.
+ConsoleValues.prototype.addSingleActive = function(cval) {
+  if (this.activeCVals.indexOf(cval) < 0) {
+    this.activeCVals.push(cval);
+    return 'Added cval "' + cval + '" to display list.';
+  } else {
+    return '"' + cval + '" already in display list.';
+  }
+}
+
+// Removes a single CVal from the active set.
+ConsoleValues.prototype.removeSingleActive = function(cval) {
+  var idx = this.activeCVals.indexOf(cval);
+  if (idx >= 0) {
+    this.activeCVals.splice(idx, 1);
+    return 'Removed cval "' + cval + '" from display list.';
+  } else {
+    return '"' + cval + '" not in display list.';
+  }
+}
+
+// Adds/removes one or more cvals from the active set.
+// Each console value is matched against the space-separated list of prefixes
+// and the specified method run on each match.
+ConsoleValues.prototype.updateActiveSet = function(onMatch, prefixList) {
+  var result = '';
+  var prefixesToMatch = prefixList.split(' ');
+  for (var j = 0; j < prefixesToMatch.length; j++) {
+    var prefix = prefixesToMatch[j];
+    var found = 0;
+    for (var i = 0; i < this.allCVals.length; i++) {
+      if (this.allCVals[i].indexOf(prefix) == 0) {
+        found += 1;
+        result += onMatch.call(this, this.allCVals[i]) + '\n';
+      }
+    }
+    if (found == 0) {
+      result += '"' + prefix + '" matched no registed cvals.\n';
+    }
+  }
+  this.activeCVals.sort();
+  return result;
+}
+
+// Saves the current active set using the web local storage.
+ConsoleValues.prototype.saveActiveSet = function(key) {
+  if (!key || !key.length) {
+    key = this.DEFAULT_KEY;
+  }
+  var longKey = this.KEY_PREFIX + '.' + key;
+  var value = '';
+  for (var i = 0; i < this.activeCVals.length; i++) {
+    value += this.activeCVals[i];
+    if (i < this.activeCVals.length - 1) {
+      value += ' ';
+    }
+  }
+  window.localStorage.setItem(longKey, value);
+  return 'Stored current CVal display set to "' + longKey + '"';
+}
+
+// Loads an active set from web local storage.
+ConsoleValues.prototype.loadActiveSet = function(key) {
+  if (!key || !key.length) {
+    key = this.DEFAULT_KEY;
+  }
+  var longKey = this.KEY_PREFIX + '.' + key;
+  var value = window.localStorage.getItem(longKey);
+  if (value && value.length > 0) {
+    this.activeCVals = value.split(' ');
+    return 'Loaded CVal display set from "' + longKey + '"';
+  } else {
+    return 'Could not load CVal display set from "' + longKey + '"';
+  }
+}
+
+// Adds one or more CVals to the active list.
+// Any of the registered console values that match one of the space-separated
+// set of prefixes will be added to the active set.
+ConsoleValues.prototype.addActive = function(prefixesToMatch) {
+  return this.updateActiveSet(this.addSingleActive, prefixesToMatch);
+}
+
+// Removes one or more CVals from the active list.
+// Any of the registered console values that match one of the space-separated
+// set of prefixes will be removed from the active set.
+ConsoleValues.prototype.removeActive = function(prefixesToMatch) {
+  return this.updateActiveSet(this.removeSingleActive, prefixesToMatch);
 }

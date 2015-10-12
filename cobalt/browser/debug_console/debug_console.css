@@ -32,11 +32,11 @@ body {
   left: 0%;
   top: 0%;
   width: 96%;
-  height: 93%;
+  height: 95%;
   background-color: rgba(0, 0, 0, 0.5);
   color: #FFFFFF;
   overflow: hidden;
-  padding: 0% 2% 2% 2%;
+  padding: 0% 2% 0.9% 2%;
 }
 
 #messageBox {
@@ -52,5 +52,6 @@ body {
   height: 3%;
   background-color: rgba(0, 0, 0, 0.75);
   color: #FFFFFF;
+  white-space: pre;
   padding: 1% 2% 1% 2%;
 }
