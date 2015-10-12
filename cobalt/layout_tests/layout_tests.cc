@@ -18,21 +18,13 @@
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/file_path.h"
-#include "base/file_util.h"
-#include "base/optional.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
-#include "base/run_loop.h"
-#include "base/string_number_conversions.h"
-#include "base/string_util.h"
 #include "cobalt/base/cobalt_paths.h"
-#include "cobalt/browser/web_module.h"
 #include "cobalt/layout_tests/layout_snapshot.h"
+#include "cobalt/layout_tests/test_parser.h"
 #include "cobalt/math/size.h"
-#include "cobalt/media/media_module_stub.h"
-#include "cobalt/network/network_module.h"
 #include "cobalt/renderer/render_tree_pixel_tester.h"
-#include "cobalt/storage/storage_manager.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -53,71 +45,6 @@ const char kOutputFailedTestDetails[] = "output-failed-test-details";
 const char kOutputAllTestDetails[] = "output-all-test-details";
 }  // namespace switches
 
-namespace {
-// The size of the test viewport tells us how many pixels our layout tests
-// will have available to them.  We must make a trade-off between room for
-// tests to maneuver within and speed at which pixel tests can be done.
-const math::Size kTestViewportSize(640, 360);
-
-// Returns the relative path to Cobalt layout tests.  This can be appended
-// to either base::DIR_SOURCE_ROOT to get the input directory or
-// base::DIR_COBALT_TEST_OUT to get the output directory.
-FilePath GetDirSourceRootRelativePath() {
-  return FilePath(FILE_PATH_LITERAL("cobalt"))
-      .Append(FILE_PATH_LITERAL("layout_tests"));
-}
-// Returns the root directory that all output will be placed within.  Output
-// is generated when rebaselining test expected output, or when test details
-// have been chosen to be output.
-FilePath GetTestOutputRootDirectory() {
-  FilePath dir_cobalt_test_out;
-  PathService::Get(cobalt::paths::DIR_COBALT_TEST_OUT, &dir_cobalt_test_out);
-  return dir_cobalt_test_out.Append(GetDirSourceRootRelativePath());
-}
-
-// Returns the root directory that all test input can be found in (e.g.
-// the HTML files that define the tests, and the PNG/TXT files that define
-// the expected output).
-FilePath GetTestInputRootDirectory() {
-  FilePath dir_source_root;
-  PathService::Get(base::DIR_SOURCE_ROOT, &dir_source_root);
-  return dir_source_root.Append(GetDirSourceRootRelativePath());
-}
-
-GURL GetURLFromBaseFilePath(const FilePath& base_file_path) {
-  return GURL("file:///" + GetDirSourceRootRelativePath().value() + "/" +
-              base_file_path.AddExtension("html").value());
-}
-}  // namespace
-
-struct TestInfo {
-  TestInfo(const FilePath& base_file_path, const GURL& url,
-           const math::Size& viewport_size)
-      : base_file_path(base_file_path),
-        url(url),
-        viewport_size(viewport_size) {}
-
-  // The base_file_path gives a path (relative to the root layout_tests
-  // directory) to the test base filename from which all related files (such
-  // as the source HTML file and the expected output PNG file) can be
-  // derived.  This essentially acts as the test's identifier.
-  FilePath base_file_path;
-
-  // The URL is what the layout tests will load and render to produce the
-  // actual output.  It is commonly computed from base_file_path (via
-  // GetURLFromBaseFilePath()), but it can also be stated explicitly in the case
-  // that it is external from the layout_tests.
-  GURL url;
-
-  // The viewport_size is the size of the viewport used during the test.
-  math::Size viewport_size;
-};
-
-// Define operator<< so that this test parameter can be printed by gtest if
-// a test fails.
-std::ostream& operator<<(std::ostream& out, const TestInfo& test_info) {
-  return out << test_info.base_file_path.value();
-}
 
 class LayoutTest : public ::testing::TestWithParam<TestInfo> {};
 TEST_P(LayoutTest, LayoutTest) {
@@ -139,13 +66,23 @@ TEST_P(LayoutTest, LayoutTest) {
   pixel_tester_options.output_all_test_details =
       CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kOutputAllTestDetails);
-  renderer::RenderTreePixelTester pixel_tester(
-      GetParam().viewport_size, GetTestInputRootDirectory(),
-      GetTestOutputRootDirectory(), pixel_tester_options);
 
-  browser::WebModule::LayoutResults layout_results =
-      SnapshotURL(GetParam().url, GetParam().viewport_size,
-                  pixel_tester.GetResourceProvider());
+  // Resolve the viewport size to a default if the test did not explicitly
+  // specify a size.  The size of the test viewport tells us how many pixels our
+  // layout tests will have available to them.  We must make a trade-off between
+  // room for tests to maneuver within and speed at which pixel tests can be
+  // done.
+  const math::Size kDefaultViewportSize(640, 360);
+  math::Size viewport_size = GetParam().viewport_size
+                                 ? *GetParam().viewport_size
+                                 : kDefaultViewportSize;
+
+  renderer::RenderTreePixelTester pixel_tester(
+      viewport_size, GetTestInputRootDirectory(), GetTestOutputRootDirectory(),
+      pixel_tester_options);
+
+  browser::WebModule::LayoutResults layout_results = SnapshotURL(
+      GetParam().url, viewport_size, pixel_tester.GetResourceProvider());
 
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline)) {
     pixel_tester.Rebaseline(layout_results.render_tree,
@@ -156,103 +93,6 @@ TEST_P(LayoutTest, LayoutTest) {
     EXPECT_TRUE(results);
   }
 }
-
-namespace {
-base::optional<TestInfo> ParseTestCaseLine(const FilePath& top_level,
-                                           const std::string& line_string) {
-  // Split the line up by commas, of which there may be none.
-  std::vector<std::string> test_case_tokens;
-  Tokenize(line_string, ",", &test_case_tokens);
-  if (test_case_tokens.empty() || test_case_tokens.size() > 2) {
-    return base::nullopt;
-  }
-
-  // Extract the test case file path as the first element before a comma, if
-  // there is one. The test case file path can optionally be postfixed by a
-  // colon and a viewport resolution.
-  std::vector<std::string> file_path_tokens;
-  Tokenize(test_case_tokens[0], ":", &file_path_tokens);
-  DCHECK(!file_path_tokens.empty());
-
-  math::Size viewport_size(kTestViewportSize);
-  if (file_path_tokens.size() > 1) {
-    DCHECK_EQ(2, file_path_tokens.size());
-    // If there is a colon, the string that comes after the colon contains the
-    // explicitly specified resolution in pixels, formatted as 'width x height'.
-    std::vector<std::string> resolution_tokens;
-    Tokenize(file_path_tokens[1], "x", &resolution_tokens);
-    if (resolution_tokens.size() == 2) {
-      int width, height;
-      base::StringToInt(resolution_tokens[0], &width);
-      base::StringToInt(resolution_tokens[1], &height);
-      viewport_size.SetSize(width, height);
-    }
-  }
-
-  std::string base_file_path_string;
-  TrimWhitespaceASCII(file_path_tokens[0], TRIM_ALL, &base_file_path_string);
-  if (base_file_path_string.empty()) {
-    return base::nullopt;
-  }
-  FilePath base_file_path(top_level.Append(base_file_path_string));
-
-  if (test_case_tokens.size() == 1) {
-    // If there is no comma, determine the URL from the file path.
-    return TestInfo(base_file_path, GetURLFromBaseFilePath(base_file_path),
-                    viewport_size);
-  } else {
-    // If there is a comma, the string that comes after it contains the
-    // explicitly specified URL.  Extract that and use it as the test URL.
-    DCHECK_EQ(2, test_case_tokens.size());
-    std::string url_string;
-    TrimWhitespaceASCII(test_case_tokens[1], TRIM_ALL, &url_string);
-    if (url_string.empty()) {
-      return base::nullopt;
-    }
-    return TestInfo(base_file_path, GURL(url_string), viewport_size);
-  }
-}
-
-// Load the file "layout_tests.txt" within the top-level directory and parse it.
-// The file should contain a list of file paths (one per line) relative to the
-// top level directory which the file lives.  These paths are returned as a
-// vector of file paths relative to the input directory.
-// The top_level parameter allows one to make different test case
-// instantiations for different types of layout tests.  For example there may
-// be an instantiation for Cobalt-specific layout tests, and another for
-// CSS test suite tests.
-std::vector<TestInfo> EnumerateLayoutTests(const std::string& top_level) {
-  FilePath test_dir(GetTestInputRootDirectory().Append(top_level));
-  FilePath layout_tests_list_file(
-      test_dir.Append(FILE_PATH_LITERAL("layout_tests.txt")));
-
-  std::string layout_test_list_string;
-  if (!file_util::ReadFileToString(layout_tests_list_file,
-                                   &layout_test_list_string)) {
-    DLOG(ERROR) << "Could not open '" << layout_tests_list_file.value() << "'.";
-    return std::vector<TestInfo>();
-  } else {
-    // Tokenize the file contents into lines, and then read each line one by
-    // one as the name of the test file.
-    std::vector<std::string> line_tokens;
-    Tokenize(layout_test_list_string, "\n\r", &line_tokens);
-
-    std::vector<TestInfo> test_info_list;
-    for (std::vector<std::string>::const_iterator iter = line_tokens.begin();
-         iter != line_tokens.end(); ++iter) {
-      base::optional<TestInfo> parsed_test_info =
-          ParseTestCaseLine(FilePath(top_level), *iter);
-      if (!parsed_test_info) {
-        DLOG(WARNING) << "Ignoring invalid test case line: " << iter->c_str();
-        continue;
-      } else {
-        test_info_list.push_back(*parsed_test_info);
-      }
-    }
-    return test_info_list;
-  }
-}
-}  // namespace
 
 // Cobalt-specific test cases.
 INSTANTIATE_TEST_CASE_P(CobaltSpecificLayoutTests, LayoutTest,
