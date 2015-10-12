@@ -23,6 +23,7 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/progress_event.h"
+#include "cobalt/dom/stats.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/script/global_object_proxy.h"
@@ -87,6 +88,7 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
       stop_timeout_(false),
       did_add_ref_(false) {
   DCHECK(settings_);
+  dom::Stats::GetInstance()->Add(this);
 }
 
 void XMLHttpRequest::Abort() {
@@ -443,6 +445,7 @@ void XMLHttpRequest::OnError(const std::string& error) {
 
 XMLHttpRequest::~XMLHttpRequest() {
   DCHECK(thread_checker_.CalledOnValidThread());
+  dom::Stats::GetInstance()->Remove(this);
 }
 
 void XMLHttpRequest::FireProgressEvent(const std::string& event_name) {
