@@ -30,23 +30,26 @@ BenchmarkRegistrar* BenchmarkRegistrar::GetInstance() {
 
 BenchmarkRegistrar::BenchmarkRegistrar() {}
 
-BenchmarkRegistrar::~BenchmarkRegistrar() {
-  for (BenchmarkList::iterator iter = benchmarks_.begin();
-       iter != benchmarks_.end(); ++iter) {
-    delete *iter;
-  }
-}
+BenchmarkRegistrar::~BenchmarkRegistrar() {}
 
-void BenchmarkRegistrar::RegisterBenchmark(Benchmark* benchmark) {
-  benchmarks_.push_back(benchmark);
+void BenchmarkRegistrar::RegisterBenchmarkCreator(
+    BenchmarkCreator* benchmark_registerer) {
+  benchmark_registerers_.push_back(benchmark_registerer);
 }
 
 BenchmarkResultsMap BenchmarkRegistrar::ExecuteBenchmarks() {
   BenchmarkResultsMap result;
-  for (BenchmarkList::iterator iter = benchmarks_.begin();
-       iter != benchmarks_.end(); ++iter) {
-    result[(*iter)->name()] = ExecuteBenchmark(*iter);
+
+  for (RegistererList::iterator iter = benchmark_registerers_.begin();
+       iter != benchmark_registerers_.end(); ++iter) {
+    ScopedVector<Benchmark> benchmarks = (*iter)->CreateBenchmarks();
+
+    for (ScopedVector<Benchmark>::iterator iter = benchmarks.begin();
+         iter != benchmarks.end(); ++iter) {
+      result[(*iter)->name()] = ExecuteBenchmark(*iter);
+    }
   }
+
   return result;
 }
 

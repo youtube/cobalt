@@ -23,14 +23,29 @@
   # It uses the TestRunner interface to control when the snapshot is taken.
   'targets': [
     {
-      'target_name': 'layout_snapshot',
+      'target_name': 'layout_test_utils',
       'type': 'static_library',
       'sources': [
         'layout_snapshot.cc',
+        'layout_snapshot.h',
+        'test_parser.cc',
+        'test_parser.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+      ],
+      'actions': [
+        {
+          'action_name': 'layout_tests_copy_test_data',
+          'variables': {
+            'input_files': [
+              '<(DEPTH)/cobalt/layout_tests/testdata/',
+            ],
+            'output_dir': 'cobalt/layout_tests',
+          },
+          'includes': ['../build/copy_data.gypi'],
+        }
       ],
     },
 
@@ -51,19 +66,7 @@
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
-        'layout_snapshot',
-      ],
-      'actions': [
-        {
-          'action_name': 'layout_tests_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/layout_tests/testdata/',
-            ],
-            'output_dir': 'cobalt/layout_tests',
-          },
-          'includes': ['../build/copy_data.gypi'],
-        }
+        'layout_test_utils',
       ],
     },
 
@@ -94,7 +97,7 @@
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:run_all_benchmarks',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
-        'layout_snapshot',
+        'layout_test_utils',
       ],
     },
     {
