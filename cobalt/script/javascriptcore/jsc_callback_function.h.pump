@@ -103,14 +103,9 @@ class JSCCallbackFunction<R($for ARG , [[A$(ARG)]])>
         JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
-      DCHECK(exception.isObject());
-      JSC::JSObject* exception_object = exception.toObject(exec_state);
-      DCHECK(exception_object->isErrorInstance());
-      JSC::JSValue error_message = exception_object->getDirect(
-          global_data, JSC::Identifier(&global_data, "message"));
-      WTF::String exception_string = error_message.toWTFString(exec_state);
-      DLOG(WARNING) << "Exception in callback:" +
-                           std::string(exception_string.utf8().data());
+      DLOG(WARNING) << "Exception in callback: "
+                    << exception.toWTFString(exec_state).utf8().data();
+
       exec_state->clearException();
     }
   }
