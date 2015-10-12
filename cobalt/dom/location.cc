@@ -71,6 +71,15 @@ void Location::set_port(const std::string& port) {
   NOTREACHED();
 }
 
+std::string Location::pathname() const {
+  return url_.is_empty() ? "" : url_.path();
+}
+
+void Location::set_pathname(const std::string& pathname) {
+  UNREFERENCED_PARAMETER(pathname);
+  NOTREACHED();
+}
+
 std::string Location::hash() const {
   return url_.ref().empty() ? "" : "#" + url_.ref();
 }

@@ -21,6 +21,7 @@ interface Document : Node {
   readonly attribute DOMString URL;
   readonly attribute DOMString documentURI;
   readonly attribute Element? documentElement;
+  readonly attribute DOMString title;
 
   HTMLCollection getElementsByTagName(DOMString localName);
   HTMLCollection getElementsByClassName(DOMString classNames);

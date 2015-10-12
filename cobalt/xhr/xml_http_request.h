@@ -20,10 +20,12 @@
 #include <string>
 #include <vector>
 
+#include "base/gtest_prod_util.h"
 #include "base/optional.h"
 #include "base/timer.h"
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/array_buffer_view.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
@@ -75,42 +77,60 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   };
 
   void Abort();
-  void Open(const std::string& method, const std::string& url);
+  void Open(const std::string& method, const std::string& url,
+            script::ExceptionState* exception_state) {
+    return Open(method, url, true, base::nullopt, base::nullopt,
+                exception_state);
+  }
+  void Open(const std::string& method, const std::string& url, bool async,
+            script::ExceptionState* exception_state) {
+    return Open(method, url, async, base::nullopt, base::nullopt,
+                exception_state);
+  }
+  void Open(const std::string& method, const std::string& url, bool async,
+            const base::optional<std::string>& username,
+            script::ExceptionState* exception_state) {
+    return Open(method, url, async, username, base::nullopt, exception_state);
+  }
+  void Open(const std::string& method, const std::string& url, bool async,
+            const base::optional<std::string>& username,
+            const base::optional<std::string>& password,
+            script::ExceptionState* exception_state);
 
   // Must be called after open(), but before send().
-  void SetRequestHeader(const std::string& header, const std::string& value);
+  void SetRequestHeader(const std::string& header, const std::string& value,
+                        script::ExceptionState* exception_state);
 
   // Override the MIME type returned by the server.
   // Call before Send(), otherwise throws InvalidStateError.
-  void OverrideMimeType(const std::string& mime_type);
+  void OverrideMimeType(const std::string& mime_type,
+                        script::ExceptionState* exception_state);
 
-  void Send();
-  void Send(const base::optional<RequestBodyType>& request_body);
+  void Send(script::ExceptionState* exception_state);
+  void Send(const base::optional<RequestBodyType>& request_body,
+            script::ExceptionState* exception_state);
 
   base::optional<std::string> GetResponseHeader(const std::string& header);
   std::string GetAllResponseHeaders();
 
-  std::string response_text();
-  base::optional<std::string> response_xml();
+  std::string response_text(script::ExceptionState* exception_state);
+  base::optional<std::string> response_xml(
+      script::ExceptionState* exception_state);
   std::string status_text();
-  base::optional<ResponseType> response();
+  base::optional<ResponseType> response(
+      script::ExceptionState* exception_state);
 
   int ready_state() const { return static_cast<int>(state_); }
   int status() const;
   std::string status_text() const;
-  void set_response_type(const std::string& reponse_type);
-  std::string response_type() const;
+  void set_response_type(const std::string& reponse_type,
+                         script::ExceptionState* exception_state);
+  std::string response_type(script::ExceptionState* exception_state) const;
 
   uint32 timeout() const { return timeout_ms_; }
   void set_timeout(uint32 timeout);
   bool with_credentials() const { return with_credentials_; }
   void set_with_credentials(bool b);
-
-  scoped_refptr<dom::EventListener> onreadystatechange() const {
-    return on_ready_state_change_listener_;
-  }
-  void set_onreadystatechange(
-      const scoped_refptr<dom::EventListener>& listener);
 
   // loader::Fetcher::Handler interface
   void OnReceived(loader::Fetcher* fetcher, const char* data,
@@ -118,21 +138,18 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   void OnDone(loader::Fetcher* fetcher) OVERRIDE;
   void OnError(loader::Fetcher* fetcher, const std::string& error) OVERRIDE;
 
-  // Accessors mainly for testing, not part of the IDL interface.
-  const GURL& request_url() const { return request_url_; }
-  bool error() const { return error_; }
-  bool sent() const { return sent_; }
-  const std::string& mime_type_override() const { return mime_type_override_; }
-  const net::HttpRequestHeaders& request_headers() const {
-    return request_headers_;
-  }
-
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequest);
 
  protected:
   ~XMLHttpRequest() OVERRIDE;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(XhrTest, GetResponseHeader);
+  FRIEND_TEST_ALL_PREFIXES(XhrTest, InvalidMethod);
+  FRIEND_TEST_ALL_PREFIXES(XhrTest, Open);
+  FRIEND_TEST_ALL_PREFIXES(XhrTest, OverrideMimeType);
+  FRIEND_TEST_ALL_PREFIXES(XhrTest, SetRequestHeader);
+
   enum RequestErrorType {
     kNetworkError,
     kAbortError,
@@ -156,14 +173,28 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   // Return array buffer response body as an ArrayBuffer.
   scoped_refptr<dom::ArrayBuffer> response_array_buffer();
 
-  // Ref this object to prevent it from being destroyed while
-  // there are active requests in flight.
-  void AddExtraRef();
-  void ReleaseExtraRef();
+  // Prevent this object from being destroyed while there are active requests
+  // in flight.
+  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#garbage-collection
+  void PreventGarbageCollection();
+  void AllowGarbageCollection();
+
+  // Accessors / mutators for testing.
+  const GURL& request_url() const { return request_url_; }
+  bool error() const { return error_; }
+  bool sent() const { return sent_; }
+  const std::string& mime_type_override() const { return mime_type_override_; }
+  const net::HttpRequestHeaders& request_headers() const {
+    return request_headers_;
+  }
+  void set_state(State state) { state_ = state; }
+  void set_http_response_headers(
+      const scoped_refptr<net::HttpResponseHeaders>& response_headers) {
+    http_response_headers_ = response_headers;
+  }
 
   base::ThreadChecker thread_checker_;
 
-  scoped_refptr<dom::EventListener> on_ready_state_change_listener_;
   scoped_ptr<loader::NetFetcher> net_fetcher_;
   scoped_refptr<net::HttpResponseHeaders> http_response_headers_;
   std::vector<uint8> response_body_;

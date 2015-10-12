@@ -17,20 +17,41 @@
 #include "cobalt/xhr/xml_http_request.h"
 
 #include "base/logging.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::HasSubstr;
 using ::testing::Pointee;
 using ::testing::Property;
+using ::testing::SaveArg;
+using ::testing::StrictMock;
 using cobalt::dom::testing::MockEventListener;
+using cobalt::script::testing::MockExceptionState;
 
 namespace cobalt {
 namespace xhr {
 
 namespace {
+
+const char kFakeHeaders[] = {
+    "HTTP/1.1 200 OK\0"
+    "Content-Length:4\0"
+    "Content-Type:text/plain\0"
+    "Date:Mon, 12 Oct 2015 18:22:16 GMT\0"
+    "Server:BaseHTTP/0.3 Python/2.7.6\0"
+    "Set-Cookie:test\0"
+    "Set-Cookie2:test\0"
+    "X-Custom-Header:test\0"
+    "X-Custom-Header-Bytes:%E2%80%A6\0"
+    "X-Custom-Header-Comma:2\0"
+    "X-Custom-Header-Comma:1\0"
+    "X-Custom-Header-Empty:\0"};
+
 
 // Helper class for intercepting DLOG output.
 // Not thread safe.
@@ -85,6 +106,7 @@ class XhrTest : public ::testing::Test {
 
   scoped_ptr<FakeSettings> settings_;
   scoped_refptr<XMLHttpRequest> xhr_;
+  StrictMock<MockExceptionState> exception_state_;
 };
 
 XhrTest::XhrTest()
@@ -93,14 +115,12 @@ XhrTest::XhrTest()
 XhrTest::~XhrTest() {}
 
 TEST_F(XhrTest, InvalidMethod) {
-  std::string output;
-  {
-    ScopedLogInterceptor li(&output);
-    xhr_->Open("INVALID_METHOD", "fake_url");
-  }
-  // Note: Once JS exceptions are supported, we will verify that
-  // the correct exceptions are thrown. For now we check for log output.
-  EXPECT_THAT(output, HasSubstr("TypeError: Invalid method"));
+  scoped_refptr<script::ScriptException> exception;
+  EXPECT_CALL(exception_state_, SetException(_))
+      .WillOnce(SaveArg<0>(&exception));
+  xhr_->Open("INVALID_METHOD", "fake_url", &exception_state_);
+  EXPECT_EQ(dom::DOMException::kSyntaxErr,
+            dynamic_cast<dom::DOMException*>(exception.get())->code());
 }
 
 TEST_F(XhrTest, Open) {
@@ -109,7 +129,7 @@ TEST_F(XhrTest, Open) {
   xhr_->set_onreadystatechange(listener);
   EXPECT_CALL(*listener, HandleEvent(Pointee(Property(
                              &dom::Event::type, "readystatechange")))).Times(1);
-  xhr_->Open("GET", "https://www.google.com");
+  xhr_->Open("GET", "https://www.google.com", &exception_state_);
 
   EXPECT_EQ(XMLHttpRequest::kOpened, xhr_->ready_state());
   EXPECT_EQ(GURL("https://www.google.com"), xhr_->request_url());
@@ -117,48 +137,66 @@ TEST_F(XhrTest, Open) {
 
 TEST_F(XhrTest, OverrideMimeType) {
   EXPECT_EQ("", xhr_->mime_type_override());
+  scoped_refptr<script::ScriptException> exception;
+  EXPECT_CALL(exception_state_, SetException(_))
+      .WillOnce(SaveArg<0>(&exception));
 
-  std::string output;
-  {
-    ScopedLogInterceptor li(&output);
-    xhr_->OverrideMimeType("invalidmimetype");
-  }
-  EXPECT_THAT(output, HasSubstr("TypeError"));
+  xhr_->OverrideMimeType("invalidmimetype", &exception_state_);
   EXPECT_EQ("", xhr_->mime_type_override());
+  EXPECT_EQ(dom::DOMException::kSyntaxErr,
+            dynamic_cast<dom::DOMException*>(exception.get())->code());
 
-  xhr_->OverrideMimeType("text/xml");
+  xhr_->OverrideMimeType("text/xml", &exception_state_);
   EXPECT_EQ("text/xml", xhr_->mime_type_override());
 }
 
 TEST_F(XhrTest, SetResponseType) {
-  xhr_->set_response_type("document");
-  EXPECT_EQ("document", xhr_->response_type());
+  xhr_->set_response_type("document", &exception_state_);
+  EXPECT_EQ("document", xhr_->response_type(&exception_state_));
 
   std::string output;
   {
     ScopedLogInterceptor li(&output);
-    xhr_->set_response_type("something invalid");
+    xhr_->set_response_type("something invalid", &exception_state_);
   }
   EXPECT_THAT(output, HasSubstr("WARNING"));
 }
 
 TEST_F(XhrTest, SetRequestHeaderBeforeOpen) {
-  std::string output;
-  {
-    ScopedLogInterceptor li(&output);
-    xhr_->SetRequestHeader("Foo", "bar");
-  }
-  EXPECT_THAT(output, HasSubstr("InvalidStateError"));
+  scoped_refptr<script::ScriptException> exception;
+  EXPECT_CALL(exception_state_, SetException(_))
+      .WillOnce(SaveArg<0>(&exception));
+  xhr_->SetRequestHeader("Foo", "bar", &exception_state_);
+  EXPECT_EQ(dom::DOMException::kInvalidStateErr,
+            dynamic_cast<dom::DOMException*>(exception.get())->code());
 }
 
 TEST_F(XhrTest, SetRequestHeader) {
-  xhr_->Open("GET", "https://www.google.com");
+  xhr_->Open("GET", "https://www.google.com", &exception_state_);
   EXPECT_EQ("\r\n", xhr_->request_headers().ToString());
 
-  xhr_->SetRequestHeader("Foo", "bar");
+  xhr_->SetRequestHeader("Foo", "bar", &exception_state_);
   EXPECT_EQ("Foo: bar\r\n\r\n", xhr_->request_headers().ToString());
-  xhr_->SetRequestHeader("Foo", "baz");
+  xhr_->SetRequestHeader("Foo", "baz", &exception_state_);
   EXPECT_EQ("Foo: bar, baz\r\n\r\n", xhr_->request_headers().ToString());
+}
+
+TEST_F(XhrTest, GetResponseHeader) {
+  xhr_->set_state(XMLHttpRequest::kUnsent);
+  EXPECT_EQ(base::nullopt, xhr_->GetResponseHeader("Content-Type"));
+  xhr_->set_state(XMLHttpRequest::kOpened);
+  EXPECT_EQ(base::nullopt, xhr_->GetResponseHeader("Content-Type"));
+  xhr_->set_state(XMLHttpRequest::kHeadersReceived);
+  scoped_refptr<net::HttpResponseHeaders> fake_headers(
+      new net::HttpResponseHeaders(
+          std::string(kFakeHeaders, kFakeHeaders + sizeof(kFakeHeaders))));
+
+  xhr_->set_http_response_headers(fake_headers);
+  EXPECT_EQ(base::nullopt, xhr_->GetResponseHeader("Unknown"));
+  EXPECT_EQ("text/plain", xhr_->GetResponseHeader("Content-Type").value_or(""));
+  EXPECT_EQ("text/plain", xhr_->GetResponseHeader("CONTENT-TYPE").value_or(""));
+  EXPECT_EQ("2, 1",
+            xhr_->GetResponseHeader("X-CUSTOM-header-COMMA").value_or(""));
 }
 
 }  // namespace xhr

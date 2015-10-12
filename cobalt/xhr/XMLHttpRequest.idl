@@ -27,14 +27,17 @@
     const unsigned short LOADING = 3;
     const unsigned short DONE = 4;
 
-    void open(DOMString method, DOMString url);
+    [RaisesException] void open(DOMString method, DOMString url);
+    [RaisesException] void open(DOMString method, DOMString url,
+                                boolean async,
+                                optional DOMString? username,
+                                optional DOMString? password);
 
-    void setRequestHeader(DOMString header, DOMString value);
-    // TODO(***REMOVED***): Wait for union types to be supported. Just allow DOMString for now.
+    [RaisesException] void setRequestHeader(DOMString header, DOMString value);
     // void send(optional (ArrayBufferView or Blob or Document or DOMString or FormData)? data);
-    void send(optional (DOMString or ArrayBufferView)? request_body);
+    [RaisesException] void send(optional (DOMString or ArrayBufferView)? request_body);
     void abort();
-    void overrideMimeType(DOMString mime_type);
+    [RaisesException] void overrideMimeType(DOMString mime_type);
     DOMString getAllResponseHeaders();
     DOMString? getResponseHeader(DOMString header);
 
@@ -48,12 +51,12 @@
     // TODO(***REMOVED***): Do we need to support uploads?
     // readonly attribute XMLHttpRequestUpload upload;
 
-    readonly attribute DOMString responseText;
-    readonly attribute Document? responseXML;
+    [RaisesException] readonly attribute DOMString responseText;
+    [RaisesException] readonly attribute Document? responseXML;
 
-    attribute DOMString responseType;
+    [RaisesException=Setter] attribute DOMString responseType;
     // TODO(***REMOVED***): Use a union type for all the possible response types.
-    readonly attribute (DOMString or ArrayBuffer) response;
+    [RaisesException] readonly attribute (DOMString or ArrayBuffer) response;
 
     readonly attribute unsigned short status;
     readonly attribute DOMString statusText;
