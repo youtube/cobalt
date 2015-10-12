@@ -67,6 +67,21 @@ CommandInput.prototype.getCurrentCommand = function() {
   return this.currCommand;
 }
 
+// Set the current command to any command from the history. This is used to
+// support shell-style execution of any previously executed command.
+// The idx parameter should be an integer: positive specifies an absolute
+// index, negative a number of commands back from the current one.
+CommandInput.prototype.setCurrentCommandFromHistory = function(idx) {
+  if (idx < 0) {
+    idx = this.commandHistory.length + idx;
+  }
+  if (idx >= 0 && idx < this.commandHistory.length) {
+    this.currCommand = this.commandHistory[idx];
+  } else {
+    this.currCommand = '';
+  }
+}
+
 // Set the current command to the previous command in the history buffer, if
 // one exists. If the current command has not yet been executed, store it in
 // the pending command member, in case the user decides to navigate forward to
@@ -99,20 +114,30 @@ CommandInput.prototype.forward = function() {
   }
 }
 
-// Clears the current command and stores it in the history buffer to make it
-// available for execution again using the back/forward methods. This will
-// typically be called when the user presses Enter to execute the current
-// command.
-CommandInput.prototype.clearAndStoreCurrentCommand = function() {
+// Stores the current command in the history buffer to make it
+// available for execution again using the back/forward methods.
+// Only stores if the current command is different from the previous.
+CommandInput.prototype.storeCurrentCommand = function() {
   var idx = this.commandHistory.length;
   if (this.commandHistory[idx - 1] != this.currCommand) {
     this.commandHistory[idx] = this.currCommand;
   }
+}
+
+// Clears the current command.
+CommandInput.prototype.clearCurrentCommand = function() {
   this.commandIndex = this.commandHistory.length;
   this.currCommand = '';
   this.pendingCommand = '';
   this.cursorPos = 0;
   this.updateText();
+}
+
+// Stores and clears the current command. This will typically be called when
+// the user presses Enter to execute the current command.
+CommandInput.prototype.storeAndClearCurrentCommand = function() {
+  this.storeCurrentCommand();
+  this.clearCurrentCommand();
 }
 
 // Called on the animation timer to make the cursor blink with a period
@@ -139,7 +164,7 @@ CommandInput.prototype.updateText = function() {
     html += '</span>';
     html += cmd.substring(pos + 1, cmd.length);
   } else {
-    html = cmd + '<span id="cursor">_</span>';
+    html = cmd + '<span id="cursor"> </span>';
   }
   this.inputElem.innerHTML = html;
   this.blinkOn = true;
@@ -158,4 +183,8 @@ CommandInput.prototype.updateCursor = function() {
     cursor.style.backgroundColor = '#000000';
     cursor.style.color = '#FFFFFF';
   }
+}
+
+CommandInput.prototype.getHistory = function() {
+  return this.commandHistory;
 }
