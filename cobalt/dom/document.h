@@ -97,6 +97,7 @@ class Document : public Node, public cssom::MutationObserver {
   const std::string& document_uri() const { return url_.spec(); }
 
   scoped_refptr<Element> document_element();
+  std::string title() const { return std::string(); }
 
   scoped_refptr<HTMLCollection> GetElementsByTagName(
       const std::string& local_name) const;

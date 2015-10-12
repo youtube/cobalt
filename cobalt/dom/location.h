@@ -58,6 +58,9 @@ class Location : public script::Wrappable {
   std::string port() const;
   void set_port(const std::string& port);
 
+  std::string pathname() const;
+  void set_pathname(const std::string& pathname);
+
   std::string hash() const;
   void set_hash(const std::string& hash);
 
