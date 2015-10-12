@@ -83,14 +83,9 @@ class JSCCallbackFunction<R(void)>
             args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
-      DCHECK(exception.isObject());
-      JSC::JSObject* exception_object = exception.toObject(exec_state);
-      DCHECK(exception_object->isErrorInstance());
-      JSC::JSValue error_message = exception_object->getDirect(
-          global_data, JSC::Identifier(&global_data, "message"));
-      WTF::String exception_string = error_message.toWTFString(exec_state);
-      DLOG(WARNING) << "Exception in callback:" +
-                           std::string(exception_string.utf8().data());
+      DLOG(WARNING) << "Exception in callback: "
+                    << exception.toWTFString(exec_state).utf8().data();
+
       exec_state->clearException();
     }
   }
@@ -137,14 +132,9 @@ class JSCCallbackFunction<R(A1)>
             args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
-      DCHECK(exception.isObject());
-      JSC::JSObject* exception_object = exception.toObject(exec_state);
-      DCHECK(exception_object->isErrorInstance());
-      JSC::JSValue error_message = exception_object->getDirect(
-          global_data, JSC::Identifier(&global_data, "message"));
-      WTF::String exception_string = error_message.toWTFString(exec_state);
-      DLOG(WARNING) << "Exception in callback:" +
-                           std::string(exception_string.utf8().data());
+      DLOG(WARNING) << "Exception in callback: "
+                    << exception.toWTFString(exec_state).utf8().data();
+
       exec_state->clearException();
     }
   }
@@ -193,14 +183,9 @@ class JSCCallbackFunction<R(A1, A2)>
             args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
-      DCHECK(exception.isObject());
-      JSC::JSObject* exception_object = exception.toObject(exec_state);
-      DCHECK(exception_object->isErrorInstance());
-      JSC::JSValue error_message = exception_object->getDirect(
-          global_data, JSC::Identifier(&global_data, "message"));
-      WTF::String exception_string = error_message.toWTFString(exec_state);
-      DLOG(WARNING) << "Exception in callback:" +
-                           std::string(exception_string.utf8().data());
+      DLOG(WARNING) << "Exception in callback: "
+                    << exception.toWTFString(exec_state).utf8().data();
+
       exec_state->clearException();
     }
   }
@@ -251,14 +236,9 @@ class JSCCallbackFunction<R(A1, A2, A3)>
             args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
-      DCHECK(exception.isObject());
-      JSC::JSObject* exception_object = exception.toObject(exec_state);
-      DCHECK(exception_object->isErrorInstance());
-      JSC::JSValue error_message = exception_object->getDirect(
-          global_data, JSC::Identifier(&global_data, "message"));
-      WTF::String exception_string = error_message.toWTFString(exec_state);
-      DLOG(WARNING) << "Exception in callback:" +
-                           std::string(exception_string.utf8().data());
+      DLOG(WARNING) << "Exception in callback: "
+                    << exception.toWTFString(exec_state).utf8().data();
+
       exec_state->clearException();
     }
   }
@@ -311,14 +291,9 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
             args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
-      DCHECK(exception.isObject());
-      JSC::JSObject* exception_object = exception.toObject(exec_state);
-      DCHECK(exception_object->isErrorInstance());
-      JSC::JSValue error_message = exception_object->getDirect(
-          global_data, JSC::Identifier(&global_data, "message"));
-      WTF::String exception_string = error_message.toWTFString(exec_state);
-      DLOG(WARNING) << "Exception in callback:" +
-                           std::string(exception_string.utf8().data());
+      DLOG(WARNING) << "Exception in callback: "
+                    << exception.toWTFString(exec_state).utf8().data();
+
       exec_state->clearException();
     }
   }
@@ -374,14 +349,9 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
             args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
-      DCHECK(exception.isObject());
-      JSC::JSObject* exception_object = exception.toObject(exec_state);
-      DCHECK(exception_object->isErrorInstance());
-      JSC::JSValue error_message = exception_object->getDirect(
-          global_data, JSC::Identifier(&global_data, "message"));
-      WTF::String exception_string = error_message.toWTFString(exec_state);
-      DLOG(WARNING) << "Exception in callback:" +
-                           std::string(exception_string.utf8().data());
+      DLOG(WARNING) << "Exception in callback: "
+                    << exception.toWTFString(exec_state).utf8().data();
+
       exec_state->clearException();
     }
   }
@@ -439,14 +409,9 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
             args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
-      DCHECK(exception.isObject());
-      JSC::JSObject* exception_object = exception.toObject(exec_state);
-      DCHECK(exception_object->isErrorInstance());
-      JSC::JSValue error_message = exception_object->getDirect(
-          global_data, JSC::Identifier(&global_data, "message"));
-      WTF::String exception_string = error_message.toWTFString(exec_state);
-      DLOG(WARNING) << "Exception in callback:" +
-                           std::string(exception_string.utf8().data());
+      DLOG(WARNING) << "Exception in callback: "
+                    << exception.toWTFString(exec_state).utf8().data();
+
       exec_state->clearException();
     }
   }
@@ -506,14 +471,9 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
             args);
     if (exec_state->hadException()) {
       JSC::JSValue exception = exec_state->exception();
-      DCHECK(exception.isObject());
-      JSC::JSObject* exception_object = exception.toObject(exec_state);
-      DCHECK(exception_object->isErrorInstance());
-      JSC::JSValue error_message = exception_object->getDirect(
-          global_data, JSC::Identifier(&global_data, "message"));
-      WTF::String exception_string = error_message.toWTFString(exec_state);
-      DLOG(WARNING) << "Exception in callback:" +
-                           std::string(exception_string.utf8().data());
+      DLOG(WARNING) << "Exception in callback: "
+                    << exception.toWTFString(exec_state).utf8().data();
+
       exec_state->clearException();
     }
   }
