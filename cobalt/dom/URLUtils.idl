@@ -24,6 +24,8 @@ interface URLUtils {
   attribute USVString host;
   attribute USVString hostname;
   attribute USVString port;
+  // pathname is not used by ***REMOVED***, but is used by test harness.
+  attribute USVString pathname;
   attribute USVString search;
   attribute USVString hash;
 };
