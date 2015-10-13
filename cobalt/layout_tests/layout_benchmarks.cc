@@ -31,11 +31,6 @@ namespace layout_tests {
 
 namespace {
 
-// The URL of the web page to load and perform the layout benchmarks on.  In the
-// future this may be a list of URLs.
-const char kURL[] =
-    "file:///cobalt/browser/testdata/performance-spike/index.html";
-
 // The RendererBenchmarkRunner sets up an environment where we can control
 // the number of benchmark samples we acquire from the renderer by counting
 // each time the renderer submit complete callback is made.  It also manages
