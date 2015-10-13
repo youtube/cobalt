@@ -125,7 +125,7 @@ void FileFetcher::DidCreateOrOpen(base::PlatformFileError error,
                                   bool /*created*/) {
   DCHECK(thread_checker_.CalledOnValidThread());
   if (error != base::PLATFORM_FILE_OK) {
-    handler()->OnError(PlatformFileErrorToString(error));
+    handler()->OnError(this, PlatformFileErrorToString(error));
     return;
   }
 
@@ -138,23 +138,23 @@ void FileFetcher::DidRead(base::PlatformFileError error, const char* data,
   DCHECK(thread_checker_.CalledOnValidThread());
 
   if (error != base::PLATFORM_FILE_OK) {
-    handler()->OnError(PlatformFileErrorToString(error));
+    handler()->OnError(this, PlatformFileErrorToString(error));
     return;
   }
 
   DCHECK_LE(num_bytes_read, bytes_left_to_read_);
 
   if (!num_bytes_read) {
-    handler()->OnDone();
+    handler()->OnDone(this);
     return;
   }
 
-  handler()->OnReceived(data, static_cast<size_t>(num_bytes_read));
+  handler()->OnReceived(this, data, static_cast<size_t>(num_bytes_read));
 
   bytes_left_to_read_ -= num_bytes_read;
 
   if (!bytes_left_to_read_) {
-    handler()->OnDone();
+    handler()->OnDone(this);
     return;
   }
 

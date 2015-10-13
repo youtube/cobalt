@@ -76,7 +76,7 @@ class LoaderCallback {
 class StubFetcherError : public Fetcher {
  public:
   explicit StubFetcherError(Handler* handler) : Fetcher(handler) {
-    handler->OnError("Fake error for test");
+    handler->OnError(this, "Fake error for test");
   }
 
   static scoped_ptr<Fetcher> Create(Handler* handler) {
@@ -87,8 +87,8 @@ class StubFetcherError : public Fetcher {
 class StubFetcherReceivedDone : public Fetcher {
  public:
   explicit StubFetcherReceivedDone(Handler* handler) : Fetcher(handler) {
-    handler->OnReceived(NULL, 0);
-    handler->OnDone();
+    handler->OnReceived(this, NULL, 0);
+    handler->OnDone(this);
   }
 
   static scoped_ptr<Fetcher> Create(Handler* handler) {
