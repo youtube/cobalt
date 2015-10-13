@@ -35,8 +35,62 @@ void BackgroundShorthandLayer::ReplaceNullWithInitialValues() {
     background_position = cssom::GetInitialStyle()->background_position();
   }
 
+  if (!background_repeat) {
+    background_repeat = cssom::GetInitialStyle()->background_repeat();
+  }
+
   if (!background_size) {
     background_size = cssom::GetInitialStyle()->background_size();
+  }
+}
+
+bool BackgroundShorthandLayer::IsBackgroundPropertyOverlapped(
+    const BackgroundShorthandLayer& that) const {
+  if (that.background_color && background_color) {
+    return true;
+  }
+
+  if (that.background_image && background_image) {
+    return true;
+  }
+
+  if (that.background_position && background_position) {
+    return true;
+  }
+
+  if (that.background_repeat && background_repeat) {
+    return true;
+  }
+
+  if (that.background_size && background_size) {
+    return true;
+  }
+
+  return false;
+}
+
+void BackgroundShorthandLayer::IntegrateNonOverlapped(
+    const BackgroundShorthandLayer& that) {
+  DCHECK(!IsBackgroundPropertyOverlapped(that));
+
+  if (that.background_color) {
+    background_color = that.background_color;
+  }
+
+  if (that.background_image) {
+    background_image = that.background_image;
+  }
+
+  if (that.background_position) {
+    background_position = that.background_position;
+  }
+
+  if (that.background_repeat) {
+    background_repeat = that.background_repeat;
+  }
+
+  if (that.background_size) {
+    background_size = that.background_size;
   }
 }
 
