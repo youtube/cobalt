@@ -77,7 +77,10 @@ bool FetcherBufferedDataSource::GetSize(int64* size_out) {
   return false;
 }
 
-void FetcherBufferedDataSource::OnReceived(const char* data, size_t size) {
+void FetcherBufferedDataSource::OnReceived(loader::Fetcher* fetcher,
+                                           const char* data, size_t size) {
+  UNREFERENCED_PARAMETER(fetcher);
+
   DCHECK_EQ(state_, kReading);
   if (size == 0) {
     return;
@@ -89,17 +92,21 @@ void FetcherBufferedDataSource::OnReceived(const char* data, size_t size) {
   ProcessPendingRead_Locked();
 }
 
-void FetcherBufferedDataSource::OnDone() {
+void FetcherBufferedDataSource::OnDone(loader::Fetcher* fetcher) {
+  UNREFERENCED_PARAMETER(fetcher);
+
   DCHECK_EQ(state_, kReading);
   base::AutoLock auto_lock(lock_);
   state_ = kFinishedReading;
   ProcessPendingRead_Locked();
 }
 
-void FetcherBufferedDataSource::OnError(const std::string& error) {
+void FetcherBufferedDataSource::OnError(loader::Fetcher* fetcher,
+                                        const std::string& error) {
+  UNREFERENCED_PARAMETER(fetcher);
+
   DLOG(ERROR) << "FetcherBufferedDataSource::OnError() called with error "
               << error;
-
   DCHECK_EQ(state_, kReading);
   base::AutoLock auto_lock(lock_);
   state_ = kError;
