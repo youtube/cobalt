@@ -360,6 +360,15 @@ HTMLElement::HTMLElement(Document* document, const std::string& tag_name)
   style_->set_mutation_observer(this);
 }
 
+void HTMLElement::OnParserStartTag(
+    const base::SourceLocation& opening_tag_location) {
+  UNREFERENCED_PARAMETER(opening_tag_location);
+  base::optional<std::string> style_attribute = GetAttribute("style");
+  if (style_attribute) {
+    style_->set_css_text(*style_attribute);
+  }
+}
+
 HTMLElement::~HTMLElement() {}
 
 void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
