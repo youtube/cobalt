@@ -28,9 +28,10 @@ class Fetcher {
  public:
   class Handler {
    public:
-    virtual void OnReceived(const char* data, size_t size) = 0;
-    virtual void OnDone() = 0;
-    virtual void OnError(const std::string& error) = 0;
+    virtual void OnReceived(Fetcher* fetcher, const char* data,
+                            size_t size) = 0;
+    virtual void OnDone(Fetcher* fetcher) = 0;
+    virtual void OnError(Fetcher* fetcher, const std::string& error) = 0;
 
    protected:
     Handler() {}
