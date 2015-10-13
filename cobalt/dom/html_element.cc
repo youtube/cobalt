@@ -388,7 +388,10 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
       cssom::AbsoluteURLValue* absolute_url =
           base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
               property_list_value->value()[i].get());
-      if (absolute_url->value().is_valid()) {
+      // Don't fetch the image if its url is invalid or the display of this
+      // element is turned off.
+      if (absolute_url->value().is_valid() &&
+          computed_style_->display() != cssom::KeywordValue::GetNone()) {
         scoped_refptr<loader::CachedImage> cached_image =
             html_element_context()->image_cache()->CreateCachedImage(
                 absolute_url->value());
