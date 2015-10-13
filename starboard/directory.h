@@ -51,6 +51,10 @@ SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
 // Returns whether SbDirectoryOpen is allowed for the given |path|.
 SB_EXPORT bool SbDirectoryCanOpen(const char *path);
 
+// Creates the directory |path|, assuming the parent directory already exists.
+// Returns whether the directory now exists (even if it existed before).
+SB_EXPORT bool SbDirectoryCreate(const char *path);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
