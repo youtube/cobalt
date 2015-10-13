@@ -39,8 +39,7 @@ std::string GetInitialURL() {
     return command_line->GetSwitchValueASCII(switches::kInitialURL);
   }
 
-  static const char kDefaultInitialURL[] =
-      "file:///cobalt/browser/testdata/performance-spike/index.html";
+  static const char kDefaultInitialURL[] = "https://youtube.com/tv";
   return std::string(kDefaultInitialURL);
 }
 
