@@ -23,12 +23,19 @@
 namespace cobalt {
 namespace css_parser {
 
+// This helps parsing and verifying syntax of background shorthand property
+// values.
 struct BackgroundShorthandLayer {
   void ReplaceNullWithInitialValues();
+
+  bool IsBackgroundPropertyOverlapped(
+      const BackgroundShorthandLayer& that) const;
+  void IntegrateNonOverlapped(const BackgroundShorthandLayer& that);
 
   scoped_refptr<cssom::PropertyValue> background_color;
   scoped_refptr<cssom::PropertyValue> background_image;
   scoped_refptr<cssom::PropertyValue> background_position;
+  scoped_refptr<cssom::PropertyValue> background_repeat;
   scoped_refptr<cssom::PropertyValue> background_size;
 };
 

@@ -631,9 +631,13 @@
 %destructor { delete $$; } <transition_builder>
 
 %union { BackgroundShorthandLayer* background_shorthand_layer; }
-%type <background_shorthand_layer> final_background_layer_without_position
-                                   final_background_layer
-                                   background_property_value
+%type <background_shorthand_layer>
+    background_position_and_size_shorthand_property_value
+    background_repeat_shorthand_property_value
+    background_position_and_repeat_combination
+    final_background_layer_without_position_and_repeat
+    final_background_layer
+    background_property_value
 %destructor { delete $$; } <background_shorthand_layer>
 
 %union { BackgroundPositionInfo* background_position_info; }
@@ -1829,8 +1833,13 @@ background_property_element:
   }
   | url {
     if (!$<background_shorthand_layer>0->background_image) {
+      scoped_ptr<cssom::PropertyListValue::Builder>
+          background_image_builder(new cssom::PropertyListValue::Builder());
+      background_image_builder->reserve(1);
+      background_image_builder->push_back($1);
       $<background_shorthand_layer>0->background_image =
-          MakeScopedRefPtrAndRelease($1);
+          background_image_builder ? AddRef(new cssom::PropertyListValue(
+              background_image_builder.Pass())) : NULL;
     } else {
       parser_impl->LogError(
           @1, "background-image value declared twice in background.");
@@ -1847,24 +1856,50 @@ maybe_background_size_property_value:
   }
   ;
 
-// 'background-size' property should follow with 'background-position' property
-//  and a '/'.
-background_position_and_size_element:
+background_position_and_size_shorthand_property_value:
     background_position_property_value maybe_background_size_property_value {
-    if (!$<background_shorthand_layer>0->background_position) {
-      $<background_shorthand_layer>0->background_position = $1;
+    scoped_ptr<BackgroundShorthandLayer> shorthand_layer(
+        new BackgroundShorthandLayer());
 
-      if ($2) {
-        $<background_shorthand_layer>0->background_size = $2;
-      }
-    } else {
-      parser_impl->LogError(
-          @1, "background-position value declared twice in background.");
+    shorthand_layer->background_position = MakeScopedRefPtrAndRelease($1);
+    if ($2) {
+      shorthand_layer->background_size = MakeScopedRefPtrAndRelease($2);
     }
+
+    $$ = shorthand_layer.release();
   }
   ;
 
-final_background_layer_without_position:
+background_repeat_shorthand_property_value:
+    background_repeat_property_value {
+    scoped_ptr<BackgroundShorthandLayer> shorthand_layer(
+        new BackgroundShorthandLayer());
+    shorthand_layer->background_repeat = MakeScopedRefPtrAndRelease($1);
+    $$ = shorthand_layer.release();
+  }
+  ;
+
+
+// 'background-size' property should follow with 'background-position' property
+//  and a '/'.
+background_position_and_repeat_combination:
+    background_position_and_size_shorthand_property_value
+  | background_repeat_shorthand_property_value
+  | background_position_and_size_shorthand_property_value
+    background_repeat_shorthand_property_value {
+    scoped_ptr<BackgroundShorthandLayer> shorthand_layer($1);
+    shorthand_layer->IntegrateNonOverlapped(*$2);
+    $$ = shorthand_layer.release();
+  }
+  | background_repeat_shorthand_property_value
+    background_position_and_size_shorthand_property_value {
+    scoped_ptr<BackgroundShorthandLayer> shorthand_layer($1);
+    shorthand_layer->IntegrateNonOverlapped(*$2);
+    $$ = shorthand_layer.release();
+  }
+  ;
+
+final_background_layer_without_position_and_repeat:
     /* empty */ {
     // Initialize the background shorthand which is to be filled in by
     // subsequent reductions.
@@ -1886,9 +1921,19 @@ final_background_layer:
     // subsequent reductions.
     $$ = new BackgroundShorthandLayer();
   }
-  | final_background_layer_without_position
-    background_position_and_size_element {
-    $$ = $1;
+  | final_background_layer_without_position_and_repeat
+    background_position_and_repeat_combination {
+    scoped_ptr<BackgroundShorthandLayer> shorthand($1);
+    scoped_ptr<BackgroundShorthandLayer> background_values($2);
+    if (!shorthand->IsBackgroundPropertyOverlapped(*background_values.get())) {
+      shorthand->IntegrateNonOverlapped(*background_values.get());
+      $$ = shorthand.release();
+    } else {
+      parser_impl->LogError(
+          @1, "background-position or background-repeat declared twice in "
+              "background.");
+      $$ = NULL;
+    }
   }
   | final_background_layer background_property_element {
     // Propagate the return value from the reduced list.
@@ -1909,6 +1954,7 @@ background_property_value:
         new BackgroundShorthandLayer());
     background->background_color = $1;
     background->background_image = $1;
+    background->background_repeat = $1;
     background->background_position = $1;
     background->background_size = $1;
     $$ = background.release();
@@ -3390,6 +3436,10 @@ maybe_declaration:
         PropertyDeclaration::NameValuePair(
             cssom::kBackgroundPositionPropertyName,
             background->background_position));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::NameValuePair(
+            cssom::kBackgroundRepeatPropertyName,
+            background->background_repeat));
     property_declaration->property_values.push_back(
         PropertyDeclaration::NameValuePair(
             cssom::kBackgroundSizePropertyName,
