@@ -100,6 +100,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   scoped_refptr<Node> Duplicate() const OVERRIDE;
 
   // Custom, not in any spec: Element.
+  void OnParserStartTag(
+      const base::SourceLocation& opening_tag_location) OVERRIDE;
   scoped_refptr<HTMLElement> AsHTMLElement() OVERRIDE { return this; }
 
   // Custom, not in any spec.
@@ -191,7 +193,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // computed style's background-image property is loaded.
   void OnBackgroundImageLoaded();
 
+  // The inline style specified via attribute's in the element's HTML tag, or
+  // through JavaScript (accessed via style() defined above).
   scoped_refptr<cssom::CSSStyleDeclaration> style_;
+
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
   scoped_ptr<cssom::RulesWithCascadePriority> matching_rules_;
   cssom::TransitionSet transitions_;
