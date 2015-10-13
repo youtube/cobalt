@@ -49,14 +49,18 @@ typedef std::vector<std::string> ResponseCookies;
 //   fetcher->Start();
 //
 //
-// The object you supply as a delegate must inherit from
-// URLFetcherDelegate; when the fetch is completed,
-// OnURLFetchComplete() will be called with a pointer to the URLFetcher.  From
-// that point until the original URLFetcher instance is destroyed, you may use
-// accessor methods to see the result of the fetch. You should copy these
-// objects if you need them to live longer than the URLFetcher instance. If the
-// URLFetcher instance is destroyed before the callback happens, the fetch will
-// be canceled and no callback will occur.
+// The object you supply as a delegate must inherit from URLFetcherDelegate.
+// When the response headers are received, OnURLFetchResponseStarted()
+// will be called with a pointer to the URLFetcher and GetResponseCode()/
+// GetResponseHeaders() can be called INSIDE it to retrieve the response code
+// and headers.  Note that when retry is enabled, the response code and headers
+// retrieved at this stage may different than the final ones.  When the fetch
+// is completed, OnURLFetchComplete() will be called with a pointer to the
+// URLFetcher.  From that point until the original URLFetcher instance is
+// destroyed, you may use accessor methods to see the result of the fetch.  You
+// should copy these objects if you need them to live longer than the
+// URLFetcher instance.  If the URLFetcher instance is destroyed before the
+// callback happens, the fetch will be canceled and no callback will occur.
 //
 // You may create the URLFetcher instance on any thread; OnURLFetchComplete()
 // will be called back on the same thread you use to create the instance.
@@ -231,8 +235,9 @@ class NET_EXPORT URLFetcher {
   virtual void DiscardResponse() = 0;
 #endif
 
-  // Retrieve the response headers from the request.  Must only be called after
-  // the OnURLFetchComplete callback has run.
+  // Retrieve the response headers from the request.  Must only be called
+  // inside the OnURLFetchReceivedResponseHeaders callback or after the
+  // OnURLFetchComplete callback is called.
   virtual HttpResponseHeaders* GetResponseHeaders() const = 0;
 
   // Retrieve the remote socket address from the request.  Must only
