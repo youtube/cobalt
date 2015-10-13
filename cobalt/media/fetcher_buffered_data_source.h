@@ -50,9 +50,10 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   enum State { kReading, kFinishedReading, kError };
 
   // loader::Fetcher::Handler methods.
-  void OnReceived(const char* data, size_t size) OVERRIDE;
-  void OnDone() OVERRIDE;
-  void OnError(const std::string& error) OVERRIDE;
+  void OnReceived(loader::Fetcher* fetcher, const char* data,
+                  size_t size) OVERRIDE;
+  void OnDone(loader::Fetcher* fetcher) OVERRIDE;
+  void OnError(loader::Fetcher* fetcher, const std::string& error) OVERRIDE;
   void Read_Locked(int64 position, int size, uint8* data,
                    const ReadCB& read_cb);
   void ProcessPendingRead_Locked();

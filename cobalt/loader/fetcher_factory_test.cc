@@ -27,26 +27,42 @@ namespace {
 
 class StubFetcherHandler : public Fetcher::Handler {
  public:
-  explicit StubFetcherHandler(base::RunLoop* run_loop) : run_loop_(run_loop) {}
+  explicit StubFetcherHandler(base::RunLoop* run_loop)
+      : fetcher_(NULL), run_loop_(run_loop) {}
 
   // From Fetcher::Handler.
-  void OnReceived(const char* data, size_t size) OVERRIDE {
+  void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE {
     UNREFERENCED_PARAMETER(data);
     UNREFERENCED_PARAMETER(size);
+    CheckFetcher(fetcher);
   }
-  void OnDone() OVERRIDE {
+  void OnDone(Fetcher* fetcher) OVERRIDE {
+    CheckFetcher(fetcher);
     if (run_loop_) {
       MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
     }
   }
-  void OnError(const std::string& error) OVERRIDE {
+  void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {
     UNREFERENCED_PARAMETER(error);
+    CheckFetcher(fetcher);
     if (run_loop_) {
       MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
     }
   }
 
+  Fetcher* fetcher() const { return fetcher_; }
+
  private:
+  void CheckFetcher(Fetcher* fetcher) {
+    EXPECT_TRUE(fetcher);
+    if (fetcher_ == NULL) {
+      fetcher_ = fetcher;
+      return;
+    }
+    EXPECT_EQ(fetcher_, fetcher);
+  }
+
+  Fetcher* fetcher_;
   base::RunLoop* run_loop_;
 };
 
@@ -69,6 +85,7 @@ TEST_F(FetcherFactoryTest, InvalidURL) {
   fetcher_ = fetcher_factory_.CreateFetcher(GURL("invalid-url"),
                                             &stub_fetcher_handler);
   EXPECT_FALSE(fetcher_.get());
+  EXPECT_FALSE(stub_fetcher_handler.fetcher());
 }
 
 TEST_F(FetcherFactoryTest, EmptyURL) {
@@ -76,6 +93,7 @@ TEST_F(FetcherFactoryTest, EmptyURL) {
   fetcher_ =
       fetcher_factory_.CreateFetcher(GURL("file:///"), &stub_fetcher_handler);
   EXPECT_FALSE(fetcher_.get());
+  EXPECT_FALSE(stub_fetcher_handler.fetcher());
 }
 
 TEST_F(FetcherFactoryTest, MultipleCreations) {
@@ -93,6 +111,7 @@ TEST_F(FetcherFactoryTest, MultipleCreations) {
                                             &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
   run_loop.Run();
+  EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());
 }
 
 TEST_F(FetcherFactoryTest, FetcherWithRange) {
@@ -107,6 +126,7 @@ TEST_F(FetcherFactoryTest, FetcherWithRange) {
   EXPECT_TRUE(fetcher_);
 
   run_loop.Run();
+  EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());
 }
 
 }  // namespace loader
