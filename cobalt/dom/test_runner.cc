@@ -25,7 +25,9 @@ TestRunner::TestRunner() : should_wait_(false) {}
 
 void TestRunner::NotifyDone() {
   DCHECK(should_wait_);
-  notify_done_callback_.Run();
+  if (!notify_done_callback_.is_null()) {
+    notify_done_callback_.Run();
+  }
 }
 
 void TestRunner::WaitUntilDone() { should_wait_ = true; }
