@@ -299,6 +299,10 @@ class URLFetcherCore
   void DisownFile();
 
   // Notify Delegate about the progress of upload/download.
+#if defined(COBALT)
+  void InformDelegateResponseStarted();
+  void InformDelegateResponseStartedInDelegateThread();
+#endif  // defined(COBALT)
   void InformDelegateUploadProgress();
   void InformDelegateUploadProgressInDelegateThread(int64 current, int64 total);
   void InformDelegateDownloadProgress();

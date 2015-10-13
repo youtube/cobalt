@@ -138,6 +138,11 @@ void TestURLFetcher::SaveResponseToTemporaryFile(
     scoped_refptr<base::TaskRunner> file_task_runner) {
 }
 
+#if defined(COBALT)
+void TestURLFetcher::DiscardResponse() {
+}
+#endif
+
 HttpResponseHeaders* TestURLFetcher::GetResponseHeaders() const {
   return fake_response_headers_;
 }
