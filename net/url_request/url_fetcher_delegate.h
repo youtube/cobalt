@@ -18,6 +18,11 @@ class URLFetcher;
 // A delegate interface for users of URLFetcher.
 class NET_EXPORT URLFetcherDelegate {
  public:
+#if defined(COBALT)
+  // This will be called when the response code and headers have been received.
+  virtual void OnURLFetchResponseStarted(const URLFetcher* source);
+#endif  // defined(COBALT)
+
   // This will be called when the URL has been fetched, successfully or not.
   // Use accessor methods on |source| to get the results.
   virtual void OnURLFetchComplete(const URLFetcher* source) = 0;

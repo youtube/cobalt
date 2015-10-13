@@ -562,6 +562,10 @@ void URLFetcherCore::OnResponseStarted(URLRequest* request) {
     socket_address_ = request_->GetSocketAddress();
     was_fetched_via_proxy_ = request_->was_fetched_via_proxy();
     total_response_bytes_ = request_->GetExpectedContentSize();
+
+#if defined(COBALT)
+    InformDelegateResponseStarted();
+#endif  // defined(COBALT)
   }
 
   ReadResponse();
@@ -1012,6 +1016,28 @@ void URLFetcherCore::ReadResponse() {
 void URLFetcherCore::DisownFile() {
   file_writer_->DisownFile();
 }
+
+#if defined(COBALT)
+
+void URLFetcherCore::InformDelegateResponseStarted() {
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(request_);
+
+  delegate_task_runner_->PostTask(
+      FROM_HERE,
+      base::Bind(
+          &URLFetcherCore::InformDelegateResponseStartedInDelegateThread,
+          this));
+}
+
+void URLFetcherCore::InformDelegateResponseStartedInDelegateThread() {
+  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+  if (delegate_) {
+    delegate_->OnURLFetchResponseStarted(fetcher_);
+  }
+}
+
+#endif  // defined(COBALT)
 
 void URLFetcherCore::InformDelegateUploadProgress() {
   DCHECK(network_task_runner_->BelongsToCurrentThread());
