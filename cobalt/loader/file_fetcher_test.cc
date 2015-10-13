@@ -26,6 +26,7 @@
 using ::testing::AtLeast;
 using ::testing::InSequence;
 using ::testing::Invoke;
+using ::testing::StrictMock;
 using ::testing::_;
 
 namespace cobalt {
@@ -35,44 +36,58 @@ namespace {
 class FetcherHandlerForTest : public Fetcher::Handler {
  public:
   explicit FetcherHandlerForTest(base::RunLoop* run_loop)
-      : run_loop_(run_loop) {}
+      : fetcher_(NULL), run_loop_(run_loop) {}
 
   // From Fetcher::Handler.
-  void OnReceived(const char* data, size_t size) OVERRIDE {
+  void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE {
+    CheckFetcher(fetcher);
     data_.append(data, size);
   }
-  void OnDone() OVERRIDE {
+  void OnDone(Fetcher* fetcher) OVERRIDE {
+    CheckFetcher(fetcher);
     MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }
-  void OnError(const std::string& error) OVERRIDE {
+  void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {
     UNREFERENCED_PARAMETER(error);
+    CheckFetcher(fetcher);
     MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }
 
-  std::string data() { return data_; }
+  const std::string& data() const { return data_; }
+  Fetcher* fetcher() const { return fetcher_; }
 
  private:
+  void CheckFetcher(Fetcher* fetcher) {
+    EXPECT_TRUE(fetcher);
+    if (fetcher_ == NULL) {
+      fetcher_ = fetcher;
+      return;
+    }
+    EXPECT_EQ(fetcher_, fetcher);
+  }
+
   std::string data_;
+  Fetcher* fetcher_;
   base::RunLoop* run_loop_;
 };
 
 class MockFetcherHandler : public Fetcher::Handler {
  public:
   explicit MockFetcherHandler(base::RunLoop* run_loop) : real_(run_loop) {
-    ON_CALL(*this, OnReceived(_, _))
+    ON_CALL(*this, OnReceived(_, _, _))
         .WillByDefault(Invoke(&real_, &FetcherHandlerForTest::OnReceived));
-    ON_CALL(*this, OnDone())
+    ON_CALL(*this, OnDone(_))
         .WillByDefault(Invoke(&real_, &FetcherHandlerForTest::OnDone));
-    ON_CALL(*this, OnError(_))
+    ON_CALL(*this, OnError(_, _))
         .WillByDefault(Invoke(&real_, &FetcherHandlerForTest::OnError));
-    ON_CALL(*this, data())
-        .WillByDefault(Invoke(&real_, &FetcherHandlerForTest::data));
   }
 
-  MOCK_METHOD2(OnReceived, void(const char*, size_t));
-  MOCK_METHOD0(OnDone, void());
-  MOCK_METHOD1(OnError, void(const std::string&));
-  MOCK_METHOD0(data, std::string());
+  MOCK_METHOD3(OnReceived, void(Fetcher*, const char*, size_t));
+  MOCK_METHOD1(OnDone, void(Fetcher*));
+  MOCK_METHOD2(OnError, void(Fetcher*, const std::string&));
+
+  const std::string& data() const { return real_.data(); }
+  Fetcher* fetcher() const { return real_.fetcher(); }
 
  private:
   FetcherHandlerForTest real_;
@@ -101,11 +116,8 @@ FileFetcherTest::FileFetcherTest() : message_loop_(MessageLoop::TYPE_DEFAULT) {
 TEST_F(FileFetcherTest, NonExisitingPath) {
   base::RunLoop run_loop;
 
-  MockFetcherHandler fetcher_handler_mock(&run_loop);
-  EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _)).Times(0);
-  EXPECT_CALL(fetcher_handler_mock, OnDone()).Times(0);
-  EXPECT_CALL(fetcher_handler_mock, data()).Times(0);
-  EXPECT_CALL(fetcher_handler_mock, OnError(_));
+  StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
+  EXPECT_CALL(fetcher_handler_mock, OnError(_, _));
 
   const FilePath file_path = data_dir_.Append(FILE_PATH_LITERAL("nonexistent"));
   FileFetcher::Options options;
@@ -113,6 +125,8 @@ TEST_F(FileFetcherTest, NonExisitingPath) {
       new FileFetcher(file_path, &fetcher_handler_mock, options));
 
   run_loop.Run();
+
+  EXPECT_EQ(file_fetcher_.get(), fetcher_handler_mock.fetcher());
 }
 
 TEST_F(FileFetcherTest, EmptyFile) {
@@ -120,11 +134,8 @@ TEST_F(FileFetcherTest, EmptyFile) {
 
   base::RunLoop run_loop;
 
-  MockFetcherHandler fetcher_handler_mock(&run_loop);
-  EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _)).Times(0);
-  EXPECT_CALL(fetcher_handler_mock, OnError(_)).Times(0);
-  EXPECT_CALL(fetcher_handler_mock, OnDone());
-  EXPECT_CALL(fetcher_handler_mock, data());
+  StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
+  EXPECT_CALL(fetcher_handler_mock, OnDone(_));
 
   const FilePath file_path = data_dir_.Append(FILE_PATH_LITERAL("empty.txt"));
   FileFetcher::Options options;
@@ -135,6 +146,8 @@ TEST_F(FileFetcherTest, EmptyFile) {
 
   std::string loaded_text = fetcher_handler_mock.data();
   EXPECT_EQ("", loaded_text);
+
+  EXPECT_EQ(file_fetcher_.get(), fetcher_handler_mock.fetcher());
 }
 
 // Typical usage of FileFetcher.
@@ -143,11 +156,9 @@ TEST_F(FileFetcherTest, ValidFile) {
 
   // Create a RunLoop that controls the current message loop.
   base::RunLoop run_loop;
-  MockFetcherHandler fetcher_handler_mock(&run_loop);
-  EXPECT_CALL(fetcher_handler_mock, OnError(_)).Times(0);
-  EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _)).Times(AtLeast(1));
-  EXPECT_CALL(fetcher_handler_mock, OnDone());
-  EXPECT_CALL(fetcher_handler_mock, data());
+  StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
+  EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _, _)).Times(AtLeast(1));
+  EXPECT_CALL(fetcher_handler_mock, OnDone(_));
 
   // Create a File Fetcher.
   const FilePath file_path =
@@ -167,6 +178,8 @@ TEST_F(FileFetcherTest, ValidFile) {
   EXPECT_TRUE(file_util::ReadFileToString(dir_source_root_.Append(file_path),
                                           &expected_text));
   EXPECT_EQ(expected_text, loaded_text);
+
+  EXPECT_EQ(file_fetcher_.get(), fetcher_handler_mock.fetcher());
 }
 
 // Use FileFetcher with an offset.
@@ -176,11 +189,9 @@ TEST_F(FileFetcherTest, ReadWithOffset) {
 
   // Create a RunLoop that controls the current message loop.
   base::RunLoop run_loop;
-  MockFetcherHandler fetcher_handler_mock(&run_loop);
-  EXPECT_CALL(fetcher_handler_mock, OnError(_)).Times(0);
-  EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _)).Times(AtLeast(1));
-  EXPECT_CALL(fetcher_handler_mock, OnDone());
-  EXPECT_CALL(fetcher_handler_mock, data());
+  StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
+  EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _, _)).Times(AtLeast(1));
+  EXPECT_CALL(fetcher_handler_mock, OnDone(_));
 
   // Create a File Fetcher.
   const FilePath file_path =
@@ -202,6 +213,8 @@ TEST_F(FileFetcherTest, ReadWithOffset) {
                                           &expected_text));
   expected_text = expected_text.substr(kStartOffset);
   EXPECT_EQ(expected_text, loaded_text);
+
+  EXPECT_EQ(file_fetcher_.get(), fetcher_handler_mock.fetcher());
 }
 
 // Use FileFetcher with an offset and explicit bytes to read.
@@ -212,11 +225,9 @@ TEST_F(FileFetcherTest, ReadWithOffsetAndSize) {
 
   // Create a RunLoop that controls the current message loop.
   base::RunLoop run_loop;
-  MockFetcherHandler fetcher_handler_mock(&run_loop);
-  EXPECT_CALL(fetcher_handler_mock, OnError(_)).Times(0);
-  EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _)).Times(2);
-  EXPECT_CALL(fetcher_handler_mock, OnDone());
-  EXPECT_CALL(fetcher_handler_mock, data());
+  StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
+  EXPECT_CALL(fetcher_handler_mock, OnReceived(_, _, _)).Times(2);
+  EXPECT_CALL(fetcher_handler_mock, OnDone(_));
 
   // Create a File Fetcher.
   const FilePath file_path =
@@ -239,6 +250,8 @@ TEST_F(FileFetcherTest, ReadWithOffsetAndSize) {
                                           &expected_text));
   expected_text = expected_text.substr(kStartOffset, kBytesToRead);
   EXPECT_EQ(expected_text, loaded_text);
+
+  EXPECT_EQ(file_fetcher_.get(), fetcher_handler_mock.fetcher());
 }
 
 }  // namespace loader

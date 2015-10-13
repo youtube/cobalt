@@ -17,6 +17,7 @@
 #include "cobalt/loader/sync_loader.h"
 
 #include "base/bind.h"
+#include "base/compiler_specific.h"
 #include "base/synchronization/waitable_event.h"
 
 namespace cobalt {
@@ -67,14 +68,17 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
         error_callback_(error_callback) {}
 
   // From Fetcher::Handler.
-  void OnReceived(const char* data, size_t size) OVERRIDE {
+  void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE {
+    UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
-  void OnDone() OVERRIDE {
+  void OnDone(Fetcher* fetcher) OVERRIDE {
+    UNREFERENCED_PARAMETER(fetcher);
     decoder_->Finish();
     loader_on_thread_->Signal();
   }
-  void OnError(const std::string& error) OVERRIDE {
+  void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {
+    UNREFERENCED_PARAMETER(fetcher);
     error_callback_.Run(error);
     loader_on_thread_->Signal();
   }

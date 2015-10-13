@@ -16,6 +16,7 @@
 
 #include "cobalt/loader/loader.h"
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 
 namespace cobalt {
@@ -34,11 +35,16 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
       : decoder_(decoder), error_callback_(error_callback) {}
 
   // From Fetcher::Handler.
-  void OnReceived(const char* data, size_t size) OVERRIDE {
+  void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE {
+    UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
-  void OnDone() OVERRIDE { decoder_->Finish(); }
-  void OnError(const std::string& error) OVERRIDE {
+  void OnDone(Fetcher* fetcher) OVERRIDE {
+    UNREFERENCED_PARAMETER(fetcher);
+    decoder_->Finish();
+  }
+  void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {
+    UNREFERENCED_PARAMETER(fetcher);
     error_callback_.Run(error);
   }
 

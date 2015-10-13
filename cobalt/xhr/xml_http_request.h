@@ -113,9 +113,10 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
       const scoped_refptr<dom::EventListener>& listener);
 
   // loader::Fetcher::Handler interface
-  void OnReceived(const char* data, size_t size) OVERRIDE;
-  void OnDone() OVERRIDE;
-  void OnError(const std::string& error) OVERRIDE;
+  void OnReceived(loader::Fetcher* fetcher, const char* data,
+                  size_t size) OVERRIDE;
+  void OnDone(loader::Fetcher* fetcher) OVERRIDE;
+  void OnError(loader::Fetcher* fetcher, const std::string& error) OVERRIDE;
 
   // Accessors mainly for testing, not part of the IDL interface.
   const GURL& request_url() const { return request_url_; }

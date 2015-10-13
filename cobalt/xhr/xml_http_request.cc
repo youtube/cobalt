@@ -16,6 +16,7 @@
 
 #include "cobalt/xhr/xml_http_request.h"
 
+#include "base/compiler_specific.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -385,13 +386,16 @@ void XMLHttpRequest::set_onreadystatechange(
                             listener);
 }
 
-void XMLHttpRequest::OnReceived(const char* data, size_t size) {
+void XMLHttpRequest::OnReceived(loader::Fetcher* fetcher, const char* data,
+                                size_t size) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  UNREFERENCED_PARAMETER(fetcher);
   response_body_.insert(response_body_.end(), data, data + size);
 }
 
-void XMLHttpRequest::OnDone() {
+void XMLHttpRequest::OnDone(loader::Fetcher* fetcher) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  UNREFERENCED_PARAMETER(fetcher);
   stop_timeout_ = true;
   net::URLFetcher* url_fetcher = net_fetcher_->url_fetcher();
   http_status_ = url_fetcher->GetResponseCode();
@@ -437,8 +441,10 @@ void XMLHttpRequest::OnDone() {
   ReleaseExtraRef();
 }
 
-void XMLHttpRequest::OnError(const std::string& error) {
+void XMLHttpRequest::OnError(loader::Fetcher* fetcher,
+                             const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  UNREFERENCED_PARAMETER(fetcher);
   UNREFERENCED_PARAMETER(error);
   HandleRequestError(kNetworkError);
 }
