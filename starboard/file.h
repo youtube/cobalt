@@ -161,14 +161,14 @@ SB_EXPORT bool SbFileFlush(SbFile file);
 // |true| if successful. If unsuccessful, |out_info| is untouched.
 SB_EXPORT bool SbFileGetInfo(SbFile file, SbFileInfo *out_info);
 
-// Places information about the file or directory at |path| into
-// |out_info|. Returns |true| if successful. If unsuccessful, |out_info| is
-// untouched.
+// Places information about the file or directory at |path|, which must be
+// absolute, into |out_info|. Returns |true| if successful. If unsuccessful,
+// |out_info| is untouched.
 SB_EXPORT bool SbFileGetPathInfo(const char *path, SbFileInfo *out_info);
 
-// Deletes the regular file at |path|, which must be absolute, if possible. Used
-// mainly to clean up after unit tests. May fail on some platforms if the file
-// in question is being held open.
+// Deletes the regular file, symlink, or empty directory at |path|, which must
+// be absolute. Used mainly to clean up after unit tests. May fail on some
+// platforms if the file in question is being held open.
 SB_EXPORT bool SbFileDelete(const char *path);
 
 // Returns whether a file or directory exists at |path|, which must be absolute.
