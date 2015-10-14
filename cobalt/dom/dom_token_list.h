@@ -30,11 +30,9 @@ class Element;
 
 // The DOMTokenList interface represents a set of space-separated tokens.
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-domtokenlist
-class DOMTokenList : public script::Wrappable,
-                     public base::SupportsWeakPtr<DOMTokenList> {
+class DOMTokenList : public script::Wrappable {
  public:
-  DOMTokenList(const scoped_refptr<Element>& element,
-               const std::string& attr_name);
+  DOMTokenList(Element* element, const std::string& attr_name);
 
   // Web API: DOMTokenList
   //
@@ -60,7 +58,7 @@ class DOMTokenList : public script::Wrappable,
   void MaybeRefresh() const;
 
   // The associated element.
-  scoped_refptr<Element> element_;
+  base::WeakPtr<Element> element_;
   // Name of the associated attribute.
   std::string attr_name_;
   // Node generation of the element when tokens is updated.
