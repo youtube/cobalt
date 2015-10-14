@@ -197,7 +197,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // by the identifier.
   //   http://www.w3.org/TR/selectors4/#class-selector
   void VisitClassSelector(cssom::ClassSelector* class_selector) OVERRIDE {
-    if (!element_->class_list()->Contains(class_selector->class_name())) {
+    if (!element_->class_list()->ContainsValid(class_selector->class_name())) {
       element_ = NULL;
     }
   }
