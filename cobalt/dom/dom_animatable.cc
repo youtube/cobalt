@@ -46,5 +46,15 @@ void DOMAnimatable::Deregister(web_animations::Animation* animation) {
   }
 }
 
+Element* DOMAnimatable::GetEventTarget() {
+  if (element_) {
+    return element_;
+  } else if (pseudo_element_) {
+    return pseudo_element_->parent_element();
+  }
+  NOTREACHED();
+  return NULL;
+}
+
 }  // namespace dom
 }  // namespace cobalt

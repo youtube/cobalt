@@ -19,9 +19,11 @@
 #include <vector>
 
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_animatable.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/pseudo_element.h"
+#include "cobalt/dom/transition_event.h"
 #include "cobalt/web_animations/keyframe.h"
 #include "cobalt/web_animations/keyframe_effect_read_only.h"
 
@@ -29,8 +31,15 @@ namespace cobalt {
 namespace dom {
 
 CSSTransitionsAdapter::CSSTransitionsAdapter(
-    const scoped_refptr<web_animations::Animatable>& target)
+    const scoped_refptr<dom::DOMAnimatable>& target)
     : animatable_(target) {}
+
+CSSTransitionsAdapter::~CSSTransitionsAdapter() {
+  for (PropertyValueAnimationMap::iterator iter = animation_map_.begin();
+       iter != animation_map_.end(); ++iter) {
+    delete iter->second;
+  }
+}
 
 void CSSTransitionsAdapter::OnTransitionStarted(
     const cssom::Transition& transition) {
@@ -69,13 +78,23 @@ void CSSTransitionsAdapter::OnTransitionStarted(
   scoped_refptr<web_animations::Animation> animation(
       new web_animations::Animation(keyframe_effect,
                                     animatable_->GetDefaultTimeline()));
-  animation->Play();
+
+  // Setup an event handler on the animation so we can watch for when it enters
+  // the after phase, allowing us to then trigger the transitionend event.
+  scoped_ptr<web_animations::Animation::EventHandler> event_handler =
+      animation->AttachEventHandler(
+          base::Bind(&CSSTransitionsAdapter::HandleAnimationEnterAfterPhase,
+                     base::Unretained(this), transition));
 
   // Track the animation in our map of all CSS Transitions-created animations.
   DCHECK(animation_map_.find(transition.target_property()) ==
          animation_map_.end());
-  animation_map_.insert(
-      std::make_pair(transition.target_property(), animation));
+
+  animation_map_.insert(std::make_pair(
+      transition.target_property(),
+      new AnimationWithEventHandler(animation, event_handler.Pass())));
+
+  animation->Play();
 }
 
 void CSSTransitionsAdapter::OnTransitionRemoved(
@@ -88,8 +107,20 @@ void CSSTransitionsAdapter::OnTransitionRemoved(
       animation_map_.find(transition.target_property());
   DCHECK(animation_map_.end() != found);
 
-  found->second->Cancel();
+  found->second->animation->Cancel();
+  delete found->second;
   animation_map_.erase(found);
+}
+
+
+void CSSTransitionsAdapter::HandleAnimationEnterAfterPhase(
+    const cssom::Transition& transition) {
+  // An animation corresponding to a transition has entered the "after phase",
+  // so we should correspondingly fire the transitionend event.
+  //   https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-transitions-events
+  animatable_->GetEventTarget()->DispatchEvent(new TransitionEvent(
+      "transitionend", transition.target_property(),
+      static_cast<float>(transition.duration().InMillisecondsF())));
 }
 
 }  // namespace dom
