@@ -26,23 +26,24 @@ namespace cobalt {
 namespace layout {
 
 BlockFormattingBlockContainerBox::BlockFormattingBlockContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions,
+    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
     const UsedStyleProvider* used_style_provider)
-    : BlockContainerBox(computed_style, transitions, used_style_provider) {}
+    : BlockContainerBox(computed_style_state, used_style_provider) {}
 
-bool BlockFormattingBlockContainerBox::TryAddChild(scoped_ptr<Box>* child_box) {
-  AddChild(child_box->Pass());
+bool BlockFormattingBlockContainerBox::TryAddChild(
+    const scoped_refptr<Box>& child_box) {
+  AddChild(child_box);
   return true;
 }
 
-void BlockFormattingBlockContainerBox::AddChild(scoped_ptr<Box> child_box) {
+void BlockFormattingBlockContainerBox::AddChild(
+    const scoped_refptr<Box>& child_box) {
   switch (child_box->GetLevel()) {
     case kBlockLevel:
       if (!child_box->IsAbsolutelyPositioned() ||
           GetLastChildAsAnonymousBlockBox() == NULL) {
         // A block formatting context required, simply add a child.
-        PushBackDirectChild(child_box.Pass());
+        PushBackDirectChild(child_box);
         break;
       }
       // Fall through if child is out-of-flow and follows an inline-level
@@ -51,7 +52,7 @@ void BlockFormattingBlockContainerBox::AddChild(scoped_ptr<Box> child_box) {
     case kInlineLevel:
       // An inline formatting context required,
       // add a child to an anonymous block box.
-      GetOrAddAnonymousBlockBox()->AddInlineLevelChild(child_box.Pass());
+      GetOrAddAnonymousBlockBox()->AddInlineLevelChild(child_box);
       break;
   }
 }
@@ -63,7 +64,7 @@ BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
   //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
   scoped_ptr<BlockFormattingContext> block_formatting_context(
       new BlockFormattingContext(child_layout_params));
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
+  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     if (child_box->IsAbsolutelyPositioned()) {
@@ -87,20 +88,22 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
   if (anonymous_block_box == NULL) {
     // TODO(***REMOVED***): Determine which transitions to propagate to the
     //               anonymous block box, instead of none at all.
-    scoped_ptr<AnonymousBlockBox> new_anonymous_block_box(new AnonymousBlockBox(
-        GetComputedStyleOfAnonymousBox(computed_style()),
-        cssom::TransitionSet::EmptyTransitionSet(), used_style_provider()));
+    scoped_refptr<cssom::ComputedStyleState> computed_style_state =
+        new cssom::ComputedStyleState();
+    computed_style_state->set_style(
+        GetComputedStyleOfAnonymousBox(computed_style()));
+    scoped_refptr<AnonymousBlockBox> new_anonymous_block_box(
+        new AnonymousBlockBox(computed_style_state, used_style_provider()));
     anonymous_block_box = new_anonymous_block_box.get();
-    PushBackDirectChild(new_anonymous_block_box.PassAs<Box>());
+    PushBackDirectChild(new_anonymous_block_box);
   }
   return anonymous_block_box;
 }
 
 BlockLevelBlockContainerBox::BlockLevelBlockContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions,
+    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
     const UsedStyleProvider* used_style_provider)
-    : BlockFormattingBlockContainerBox(computed_style, transitions,
+    : BlockFormattingBlockContainerBox(computed_style_state,
                                        used_style_provider) {}
 
 BlockLevelBlockContainerBox::~BlockLevelBlockContainerBox() {}
@@ -116,11 +119,10 @@ void BlockLevelBlockContainerBox::DumpClassName(std::ostream* stream) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions,
+    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
     const UsedStyleProvider* used_style_provider,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position)
-    : BlockFormattingBlockContainerBox(computed_style, transitions,
+    : BlockFormattingBlockContainerBox(computed_style_state,
                                        used_style_provider),
       paragraph_(paragraph),
       text_position_(text_position) {}

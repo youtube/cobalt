@@ -23,10 +23,9 @@ namespace cobalt {
 namespace layout {
 
 BlockContainerBox::BlockContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions,
+    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
     const UsedStyleProvider* used_style_provider)
-    : ContainerBox(computed_style, transitions, used_style_provider) {}
+    : ContainerBox(computed_style_state, used_style_provider) {}
 
 BlockContainerBox::~BlockContainerBox() {}
 
@@ -128,6 +127,8 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
     maybe_baseline_offset_from_top_margin_edge_ =
         margin_top() + border_top_width() + padding_top() +
         *formatting_context->maybe_baseline_offset_from_top_content_edge();
+  } else {
+    maybe_baseline_offset_from_top_margin_edge_ = base::nullopt;
   }
 }
 
@@ -227,13 +228,13 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   }
 }
 
-scoped_ptr<Box> BlockContainerBox::TrySplitAt(float /*available_width*/,
-                                              bool /*allow_overflow*/) {
-  return scoped_ptr<Box>();
+scoped_refptr<Box> BlockContainerBox::TrySplitAt(float /*available_width*/,
+                                                 bool /*allow_overflow*/) {
+  return scoped_refptr<Box>();
 }
 
-scoped_ptr<Box> BlockContainerBox::TrySplitAtSecondBidiLevelRun() {
-  return scoped_ptr<Box>();
+scoped_refptr<Box> BlockContainerBox::TrySplitAtSecondBidiLevelRun() {
+  return scoped_refptr<Box>();
 }
 
 base::optional<int> BlockContainerBox::GetBidiLevel() const {
@@ -286,8 +287,8 @@ float BlockContainerBox::GetBaselineOffsetFromTopMarginEdge() const {
       GetMarginBoxHeight());
 }
 
-scoped_ptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
-  return scoped_ptr<ContainerBox>();
+scoped_refptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
+  return scoped_refptr<ContainerBox>();
 }
 
 bool BlockContainerBox::IsTransformable() const { return true; }

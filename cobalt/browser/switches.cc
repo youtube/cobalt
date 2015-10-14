@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "switches.h"
+#include "cobalt/browser/switches.h"
 
 namespace cobalt {
 namespace browser {
@@ -41,6 +41,9 @@ const char kShutdownAfter[] = "shutdown_after";
 
 // Switches different debug console modes: on | hud | off
 const char kDebugConsoleMode[] = "debug_console";
+
+// Switches partial layout: on | off
+const char kPartialLayout[] = "partial_layout";
 
 }  // namespace switches
 }  // namespace browser

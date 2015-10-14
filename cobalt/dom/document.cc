@@ -16,11 +16,14 @@
 
 #include "cobalt/dom/document.h"
 
+#include <vector>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
+#include "base/string_util.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_rule_list.h"
@@ -74,6 +77,10 @@ Document::Document(HTMLElementContext* html_element_context,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           default_timeline_(new DocumentTimeline(this, 0))) {
   DCHECK(url_.is_empty() || url_.is_valid());
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  partial_layout_is_enabled_ = true;
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   // Sample the timeline upon initialization.
   SampleTimelineTime();
@@ -443,6 +450,34 @@ void Document::SampleTimelineTime() {
     timeline_sample_time_ = base::nullopt;
   }
 }
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+void Document::SetPartialLayout(const std::string& mode_string) {
+  std::vector<std::string> mode_tokens;
+  Tokenize(mode_string, ",", &mode_tokens);
+  for (std::vector<std::string>::iterator mode_token_iterator =
+           mode_tokens.begin();
+       mode_token_iterator != mode_tokens.end(); ++mode_token_iterator) {
+    const std::string& mode_token = *mode_token_iterator;
+    if (mode_token == "wipe") {
+      InvalidateLayoutBoxesFromNodeAndDescendants();
+      DLOG(INFO) << "Partial Layout state wiped";
+    } else if (mode_token == "off") {
+      partial_layout_is_enabled_ = false;
+      DLOG(INFO) << "Partial Layout mode turned off";
+    } else if (mode_token == "on") {
+      partial_layout_is_enabled_ = true;
+      DLOG(INFO) << "Partial Layout mode turned on";
+    } else if (mode_token == "undefined") {
+      DLOG(INFO) << "Partial Layout mode is currently "
+                 << (partial_layout_is_enabled_ ? "on" : "off");
+    } else {
+      DLOG(WARNING) << "Partial Layout mode \"" << mode_string
+                    << "\" not recognized.";
+    }
+  }
+}
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
 Document::~Document() {}
 

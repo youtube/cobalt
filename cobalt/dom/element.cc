@@ -215,6 +215,12 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   //    value is value, and then append this attribute to the context object and
   //    terminate these steps.
   // 5. Change attribute from context object to value.
+  AttributeMap::iterator attribute_iterator = attribute_map_.find(attr_name);
+  if (attribute_iterator != attribute_map_.end() &&
+      attribute_iterator->second == value) {
+    // Attribute did not change.
+    return;
+  }
   attribute_map_[attr_name] = value;
 
   // Custom, not in any spec.

@@ -38,7 +38,7 @@ scoped_refptr<cssom::CSSStyleDeclarationData>
 // This creates the initial containing block after adding background color
 // and image to the initial style, when needed.
 //   http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
-scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
+scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
     const scoped_refptr<cssom::CSSStyleDeclarationData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,

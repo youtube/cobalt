@@ -127,6 +127,7 @@
         'keyboard_event.cc',
         'keyboard_event.h',
         'keycode.h',
+        'layout_boxes.h',
         'local_storage_database.cc',
         'local_storage_database.h',
         'location.cc',

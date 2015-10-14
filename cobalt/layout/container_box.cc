@@ -25,70 +25,62 @@ namespace cobalt {
 namespace layout {
 
 ContainerBox::ContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions,
+    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
     const UsedStyleProvider* used_style_provider)
-    : Box(computed_style, transitions, used_style_provider),
+    : Box(computed_style_state, used_style_provider),
       update_size_results_valid_(false) {}
 
 ContainerBox::~ContainerBox() {}
 
 // Given a non-const container and a const iterator from that container, this
 // will return a non-const iterator.
-ContainerBox::ChildBoxes::iterator ContainerBox::RemoveConst(
-    ChildBoxes* container, ChildBoxes::const_iterator const_iter) {
+Boxes::iterator ContainerBox::RemoveConst(Boxes* container,
+                                          Boxes::const_iterator const_iter) {
   // Since ChildBoxes is a vector, std::distance and std::advance are both
   // constant time.
-  ContainerBox::ChildBoxes::iterator iter = container->begin();
-  std::advance(iter, std::distance<ContainerBox::ChildBoxes::const_iterator>(
-                         iter, const_iter));
+  Boxes::iterator iter = container->begin();
+  std::advance(iter, std::distance<Boxes::const_iterator>(iter, const_iter));
   return iter;
 }
 
-void ContainerBox::PushBackDirectChild(scoped_ptr<Box> child_box) {
-  Box* child_to_add = child_box.release();
-  child_boxes_.push_back(child_to_add);
-  OnChildAdded(child_to_add);
+void ContainerBox::PushBackDirectChild(const scoped_refptr<Box>& child_box) {
+  child_boxes_.push_back(child_box);
+  OnChildAdded(child_box);
 }
 
-ContainerBox::ChildBoxes::const_iterator ContainerBox::InsertDirectChild(
-    ChildBoxes::const_iterator position, scoped_ptr<Box> child_box) {
-  Box* child_to_add = child_box.release();
-  ChildBoxes::const_iterator inserted =
-      child_boxes_.insert(RemoveConst(&child_boxes_, position), child_to_add);
-  OnChildAdded(child_to_add);
+Boxes::const_iterator ContainerBox::InsertDirectChild(
+    Boxes::const_iterator position, const scoped_refptr<Box>& child_box) {
+  Boxes::const_iterator inserted =
+      child_boxes_.insert(RemoveConst(&child_boxes_, position), child_box);
+  OnChildAdded(child_box);
 
   return inserted;
 }
 
 void ContainerBox::MoveChildrenFrom(
-    ChildBoxes::const_iterator position_in_destination,
-    ContainerBox* source_box, ChildBoxes::const_iterator source_start,
-    ChildBoxes::const_iterator source_end) {
+    Boxes::const_iterator position_in_destination, ContainerBox* source_box,
+    Boxes::const_iterator source_start, Boxes::const_iterator source_end) {
   // Add the children to our list of child boxes.
-  ChildBoxes::iterator source_start_non_const =
+  Boxes::iterator source_start_non_const =
       RemoveConst(&source_box->child_boxes_, source_start);
-  ChildBoxes::iterator source_end_non_const =
+  Boxes::iterator source_end_non_const =
       RemoveConst(&source_box->child_boxes_, source_end);
   child_boxes_.insert(RemoveConst(&child_boxes_, position_in_destination),
                       source_start_non_const, source_end_non_const);
 
   // Setup any link relationships given our new parent.
-  for (ChildBoxes::const_iterator iter = source_start; iter != source_end;
-       ++iter) {
+  for (Boxes::const_iterator iter = source_start; iter != source_end; ++iter) {
     Box* child_box = *iter;
     DCHECK_NE(this, child_box->parent())
         << "Move children within the same container node is not supported by "
            "this method.";
-
     child_box->parent_ = NULL;
     child_box->containing_block_ = NULL;
     OnChildAdded(child_box);
   }
 
   // Erase the children from their previous container's list of children.
-  source_box->child_boxes_.weak_erase(source_start_non_const,
-                                      source_end_non_const);
+  source_box->child_boxes_.erase(source_start_non_const, source_end_non_const);
 
   // Invalidate the source box's size calculations.
   source_box->update_size_results_valid_ = false;
@@ -135,6 +127,12 @@ bool ContainerBox::IsStackingContext() const {
          has_opacity ||
          IsTransformed() ||
          is_positioned_with_non_auto_z_index;
+}
+
+void ContainerBox::InvalidateBoxAncestry() {
+  parent_ = NULL;
+  containing_block_ = NULL;
+  stacking_context_ = NULL;
 }
 
 void ContainerBox::AddContainingBlockChild(Box* child_box) {
@@ -192,9 +190,18 @@ bool ContainerBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
   }
 }
 
+void ContainerBox::InvalidateUpdateSizeInputsOfBoxAndDescendants() {
+  Box::InvalidateUpdateSizeInputsOfBoxAndDescendants();
+  for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
+       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+    Box* child_box = *child_box_iterator;
+    child_box->InvalidateUpdateSizeInputsOfBoxAndDescendants();
+  }
+}
+
 void ContainerBox::UpdateRectOfPositionedChildBoxes(
     const LayoutParams& child_layout_params) {
-  for (ChildBoxes::const_iterator child_box_iterator =
+  for (std::vector<Box*>::const_iterator child_box_iterator =
            positioned_child_boxes_.begin();
        child_box_iterator != positioned_child_boxes_.end();
        ++child_box_iterator) {
@@ -380,7 +387,7 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
 }
 
 void ContainerBox::SplitBidiLevelRuns() {
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+  for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     child_box->SplitBidiLevelRuns();
@@ -390,6 +397,10 @@ void ContainerBox::SplitBidiLevelRuns() {
 void ContainerBox::UpdateCrossReferencesWithContext(
     ContainerBox* fixed_containing_block,
     ContainerBox* absolute_containing_block, ContainerBox* stacking_context) {
+  positioned_child_boxes_.clear();
+  negative_z_index_child_.clear();
+  non_negative_z_index_child_.clear();
+
   // First setup this box with cross-references as necessary.
   Box::UpdateCrossReferencesWithContext(
       fixed_containing_block, absolute_containing_block, stacking_context);
@@ -408,7 +419,7 @@ void ContainerBox::UpdateCrossReferencesWithContext(
   ContainerBox* stacking_context_of_children =
       IsStackingContext() ? this : stacking_context;
 
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+  for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     child_box->UpdateCrossReferencesWithContext(
@@ -436,7 +447,7 @@ void ContainerBox::RenderAndAnimateContent(
                                           content_node_builder,
                                           node_animations_map_builder);
   // Render laid out child boxes.
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+  for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     if (!child_box->IsPositioned() && !child_box->IsTransformed()) {
@@ -444,13 +455,11 @@ void ContainerBox::RenderAndAnimateContent(
                                   node_animations_map_builder);
     }
   }
-
   // Render all positioned children with non-negative z-index values.
   //   http://www.w3.org/TR/CSS21/visuren.html#z-index
   RenderAndAnimateStackingContextChildren(non_negative_z_index_child_,
                                           content_node_builder,
                                           node_animations_map_builder);
-
   if (!offset_content_node_builder.composed_children().empty()) {
     scoped_refptr<render_tree::CompositionNode> content_node =
         new render_tree::CompositionNode(offset_content_node_builder.Pass());
@@ -465,7 +474,7 @@ void ContainerBox::DumpChildrenWithIndent(std::ostream* stream,
                                           int indent) const {
   Box::DumpChildrenWithIndent(stream, indent);
 
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+  for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     child_box->DumpWithIndent(stream, indent);
