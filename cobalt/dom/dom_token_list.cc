@@ -18,12 +18,11 @@
 
 #include <algorithm>
 
+#include "base/memory/weak_ptr.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/stats.h"
-
-#include "base/memory/weak_ptr.h"
 
 namespace cobalt {
 namespace dom {
@@ -70,6 +69,17 @@ bool DOMTokenList::Contains(const std::string& token) const {
   // Custom, not in any spec.
   MaybeRefresh();
 
+  // Cobalt changes the spec processing order to 3, then 1 and 2. The reason for
+  // this is that we're guaranteed that if the token is in the list, it is
+  // valid, and it being in the list is far more likely to be the case than it
+  // being invalid. Given that the two states are mutually exclusive, we're
+  // processing the likeliest path first.
+
+  // 3. Return true if token is in tokens, and false otherwise.
+  if (std::find(tokens_.begin(), tokens_.end(), token) != tokens_.end()) {
+    return true;
+  }
+
   // 1. If token is the empty string, then throw a "SyntaxError" exception.
   // 2. If token contains any ASCII whitespace, then throw an
   //    "InvalidCharacterError" exception.
@@ -77,10 +87,6 @@ bool DOMTokenList::Contains(const std::string& token) const {
     return false;
   }
 
-  // 3. Return true if token is in tokens, and false otherwise.
-  if (std::find(tokens_.begin(), tokens_.end(), token) != tokens_.end()) {
-    return true;
-  }
   return false;
 }
 
@@ -146,6 +152,26 @@ void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
   if (tokens_.size() != old_size) {
     UpdateSteps();
   }
+}
+
+// Custom, not in any spec, but based on:
+//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-contains
+bool DOMTokenList::ContainsValid(const std::string& valid_token) const {
+  MaybeRefresh();
+
+  // This version of Contains does not process steps 1 and 2 and requires the
+  // token to be pre-validated.
+
+  // 1. If token is the empty string, then throw a "SyntaxError" exception.
+  // 2. If token contains any ASCII whitespace, then throw an
+  //    "InvalidCharacterError" exception.
+
+  // 3. Return true if token is in tokens, and false otherwise.
+  if (std::find(tokens_.begin(), tokens_.end(), valid_token) != tokens_.end()) {
+    return true;
+  }
+
+  return false;
 }
 
 DOMTokenList::~DOMTokenList() { Stats::GetInstance()->Remove(this); }
