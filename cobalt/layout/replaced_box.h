@@ -40,8 +40,7 @@ class ReplacedBox : public Box {
   typedef base::Callback<scoped_refptr<render_tree::Image>()> ReplaceImageCB;
 
   ReplacedBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions,
+      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       const UsedStyleProvider* used_style_provider,
       const ReplaceImageCB& replace_image_cb,
       const scoped_refptr<Paragraph>& paragraph, int32 text_position,
@@ -50,11 +49,11 @@ class ReplacedBox : public Box {
       const base::optional<float>& maybe_intrinsic_ratio);
 
   // From |Box|.
-  scoped_ptr<Box> TrySplitAt(float available_width,
-                             bool allow_overflow) OVERRIDE;
+  scoped_refptr<Box> TrySplitAt(float available_width,
+                                bool allow_overflow) OVERRIDE;
 
   void SplitBidiLevelRuns() OVERRIDE;
-  scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
+  scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
   void SetShouldCollapseLeadingWhiteSpace(

@@ -18,6 +18,7 @@
 #define DOM_PSEUDO_ELEMENT_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/css_style_rule.h"
 
 namespace cobalt {
@@ -36,31 +37,35 @@ namespace dom {
 // This class adds a container for the DOM state needed for pseudo elements.
 class PseudoElement {
  public:
-  PseudoElement() {}
+  PseudoElement() : computed_style_state_(new cssom::ComputedStyleState()) {}
   ~PseudoElement() {}
 
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
   // computed value.
-  scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() const {
-    return computed_style_;
+  scoped_refptr<cssom::ComputedStyleState>& computed_style_state() {
+    return computed_style_state_;
   }
 
+  scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() const {
+    return computed_style_state_->style();
+  }
   void set_computed_style(
       scoped_refptr<cssom::CSSStyleDeclarationData> computed_style) {
-    computed_style_ = computed_style;
+    computed_style_state_->set_style(computed_style);
   }
 
   cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
 
-  cssom::TransitionSet* transitions() { return &transitions_; }
+  cssom::TransitionSet* transitions() const {
+    return computed_style_state_->transitions();
+  }
 
   void ClearMatchingRules() { matching_rules_.clear(); }
 
  private:
-  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
+  scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
   cssom::RulesWithCascadePriority matching_rules_;
-  cssom::TransitionSet transitions_;
 };
 
 }  // namespace dom

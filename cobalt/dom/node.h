@@ -214,6 +214,11 @@ class Node : public EventTarget {
 
   virtual scoped_refptr<Node> Duplicate() const = 0;
 
+  // Invalidate layout boxes from this node and all parent nodes
+  virtual void InvalidateLayoutBoxesFromNodeAndAncestors();
+  // Invalidate layout boxes from this node and all child nodes
+  virtual void InvalidateLayoutBoxesFromNodeAndDescendants();
+
   DEFINE_WRAPPABLE_TYPE(Node);
 
  protected:
