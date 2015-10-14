@@ -23,12 +23,13 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/stats.h"
 
+#include "base/memory/weak_ptr.h"
+
 namespace cobalt {
 namespace dom {
 
-DOMTokenList::DOMTokenList(const scoped_refptr<Element>& element,
-                           const std::string& attr_name)
-    : element_(element),
+DOMTokenList::DOMTokenList(Element* element, const std::string& attr_name)
+    : element_(base::AsWeakPtr(element)),
       attr_name_(attr_name),
       element_node_generation_(Node::kInvalidNodeGeneration) {
   // The current implementation relies on nodes calling UpdateNodeGeneration()
@@ -152,14 +153,17 @@ DOMTokenList::~DOMTokenList() { Stats::GetInstance()->Remove(this); }
 // Algorithm for UpdateSteps:
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#concept-dtl-update
 void DOMTokenList::UpdateSteps() const {
-  element_->SetAttribute(attr_name_, JoinString(tokens_, ' '));
+  if (element_) {
+    element_->SetAttribute(attr_name_, JoinString(tokens_, ' '));
+  }
 }
 
 void DOMTokenList::MaybeRefresh() const {
-  if (element_node_generation_ == element_->node_generation()) return;
-  element_node_generation_ = element_->node_generation();
-  std::string attribute = element_->GetAttribute(attr_name_).value_or("");
-  base::SplitStringAlongWhitespace(attribute, &tokens_);
+  if (element_ && element_node_generation_ != element_->node_generation()) {
+    element_node_generation_ = element_->node_generation();
+    std::string attribute = element_->GetAttribute(attr_name_).value_or("");
+    base::SplitStringAlongWhitespace(attribute, &tokens_);
+  }
 }
 
 bool DOMTokenList::IsTokenValid(const std::string& token) const {
