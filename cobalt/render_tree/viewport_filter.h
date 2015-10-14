@@ -31,7 +31,7 @@ class ViewportFilter {
   explicit ViewportFilter(const math::RectF& viewport) : viewport_(viewport) {}
 
   void set_viewport(const math::RectF& viewport) { viewport_ = viewport; }
-  math::RectF viewport() const { return viewport_; }
+  const math::RectF& viewport() const { return viewport_; }
 
  private:
   math::RectF viewport_;
