@@ -54,6 +54,7 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_, options.language),
       render_tree_combiner_(renderer_module_.pipeline()),
+      h5vcc_(new h5vcc::H5vcc()),
       ALLOW_THIS_IN_INITIALIZER_LIST(web_module_(
           url, base::Bind(&BrowserModule::OnRenderTreeProduced,
                           base::Unretained(this)),
@@ -61,7 +62,7 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           media_module_.get(), &network_module_,
           math::Size(kInitialWidth, kInitialHeight),
           renderer_module_.pipeline()->GetResourceProvider(),
-          renderer_module_.pipeline()->refresh_rate(),
+          renderer_module_.pipeline()->refresh_rate(), h5vcc_,
           options.web_module_options)),
       debug_hub_(new debug::DebugHub(base::Bind(
           &WebModule::ExecuteJavascript, base::Unretained(&web_module_)))),

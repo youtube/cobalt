@@ -22,6 +22,7 @@
 #include "base/optional.h"
 #include "base/stringprintf.h"
 #include "cobalt/dom/storage.h"
+#include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/storage/storage_manager.h"
 
 namespace cobalt {
@@ -44,7 +45,7 @@ WebModule::WebModule(
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const Options& options)
+    const scoped_refptr<h5vcc::H5vcc>& h5vcc, const Options& options)
     : name_(options.name),
       // TODO(***REMOVED***) This assumes the web module runs in the message loop
       // current when it was created. If that changes, we must change this.
@@ -81,6 +82,7 @@ WebModule::WebModule(
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
   window_->set_debug_hub(options.debug_hub);
+  window_->set_h5vcc(h5vcc);
 }
 
 WebModule::~WebModule() {}

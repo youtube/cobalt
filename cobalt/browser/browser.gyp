@@ -73,6 +73,7 @@
         '<(DEPTH)/cobalt/debug/debug.gyp:debug',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
+        '<(DEPTH)/cobalt/h5vcc/h5vcc.gyp:h5vcc',
         '<(DEPTH)/cobalt/input/input.gyp:input',
         '<(DEPTH)/cobalt/layout/layout.gyp:layout',
         '<(DEPTH)/cobalt/math/math.gyp:math',
