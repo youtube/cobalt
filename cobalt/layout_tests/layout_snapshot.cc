@@ -16,6 +16,8 @@
 
 #include "cobalt/layout_tests/layout_snapshot.h"
 
+#include <string>
+
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/browser/web_module.h"
@@ -72,7 +74,7 @@ browser::WebModule::LayoutResults SnapshotURL(
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop),
       base::Bind(&WebModuleErrorCallback, &run_loop), stub_media_module.get(),
       &network_module, viewport_size, resource_provider, 60.0f,
-      web_module_options);
+      NULL /* h5vcc */, web_module_options);
   run_loop.Run();
 
   // Return the results.

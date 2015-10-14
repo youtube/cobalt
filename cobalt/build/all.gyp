@@ -42,6 +42,7 @@
         '<(DEPTH)/cobalt/dom/dom.gyp:*',
         '<(DEPTH)/cobalt/dom/dom_test.gyp:*',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:*',
+        '<(DEPTH)/cobalt/h5vcc/h5vcc.gyp:*',
         '<(DEPTH)/cobalt/input/input.gyp:*',
         '<(DEPTH)/cobalt/layout/layout.gyp:*',
         '<(DEPTH)/cobalt/layout_tests/layout_tests.gyp:*',
