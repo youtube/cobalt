@@ -203,6 +203,7 @@
         'text.h',
         'time_ranges.cc',
         'time_ranges.h',
+        'transition_event.h',
         'typed_array.h',
         'ui_event.cc',
         'ui_event.h',

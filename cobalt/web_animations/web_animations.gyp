@@ -36,6 +36,8 @@
         'keyframe.h',
         'keyframe_effect_read_only.cc',
         'keyframe_effect_read_only.h',
+        'timed_task_queue.cc',
+        'timed_task_queue.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',

@@ -300,6 +300,7 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent(
     if (loading_counter_ == 0 && should_dispatch_load_event_) {
       DCHECK(MessageLoop::current());
       should_dispatch_load_event_ = false;
+
       MessageLoop::current()->PostTask(
           FROM_HERE, base::Bind(base::IgnoreResult(&Document::DispatchEvent),
                                 base::AsWeakPtr<Document>(this),
@@ -471,7 +472,8 @@ void Document::UpdateComputedStyles(
     // all animations that may be triggered here must start at the exact same
     // time if they were triggered in the same style change event.
     //   http://www.w3.org/TR/css3-transitions/#starting
-    base::TimeDelta style_change_event_time = *timeline_sample_time();
+    base::TimeDelta style_change_event_time =
+        base::TimeDelta::FromMillisecondsD(*default_timeline_->current_time());
 
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateComputedStyles);
     html()->UpdateComputedStyleRecursively(root_computed_style,
@@ -494,13 +496,7 @@ void Document::UpdateFontFaces(
   }
 }
 
-void Document::SampleTimelineTime() {
-  if (navigation_start_clock_) {
-    timeline_sample_time_ = navigation_start_clock_->Now();
-  } else {
-    timeline_sample_time_ = base::nullopt;
-  }
-}
+void Document::SampleTimelineTime() { default_timeline_->Sample(); }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 void Document::SetPartialLayout(const std::string& mode_string) {

@@ -21,7 +21,8 @@
 namespace cobalt {
 namespace web_animations {
 
-AnimationTimeline::AnimationTimeline() : animations_(new AnimationSet()) {}
+AnimationTimeline::AnimationTimeline(const scoped_refptr<base::Clock>& clock)
+    : clock_(clock), animations_(new AnimationSet()) {}
 
 AnimationTimeline::~AnimationTimeline() { DCHECK(animations_->IsEmpty()); }
 
@@ -35,6 +36,50 @@ void AnimationTimeline::Deregister(Animation* animation) {
 
 unsigned int AnimationTimeline::num_animations() const {
   return static_cast<unsigned int>(animations_->GetSize());
+}
+
+// Returns the current time for the document.  This is based off of the last
+// sampled time.
+// http://www.w3.org/TR/web-animations-1/#the-animationtimeline-interface
+base::optional<double> AnimationTimeline::current_time() {
+  if (sampled_clock_time_) {
+    return sampled_clock_time_->InMillisecondsF();
+  } else {
+    return base::nullopt;
+  }
+}
+
+void AnimationTimeline::Sample() {
+  if (clock_) {
+    sampled_clock_time_ = clock_->Now();
+    event_queue_.UpdateTime(*sampled_clock_time_);
+  } else {
+    sampled_clock_time_ = base::nullopt;
+  }
+  UpdateNextEventTimer();
+}
+
+scoped_ptr<TimedTaskQueue::Task> AnimationTimeline::QueueTask(
+    base::TimeDelta fire_time, const base::Closure& closure) {
+  scoped_ptr<TimedTaskQueue::Task> task =
+      event_queue_.QueueTask(fire_time, closure);
+
+  // Update our next-event timer since we may have modified the time of the
+  // next-to-fire event by inserting this new event.
+  UpdateNextEventTimer();
+
+  return task.Pass();
+}
+
+void AnimationTimeline::UpdateNextEventTimer() {
+  if (event_queue_.empty() || !sampled_clock_time_ || !clock_) {
+    next_event_timer_.Stop();
+  } else {
+    base::TimeDelta delay = event_queue_.next_fire_time() - clock_->Now();
+    next_event_timer_.Start(
+        FROM_HERE, delay < base::TimeDelta() ? base::TimeDelta() : delay,
+        base::Bind(&AnimationTimeline::Sample, base::Unretained(this)));
+  }
 }
 
 }  // namespace web_animations

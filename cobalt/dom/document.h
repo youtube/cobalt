@@ -146,7 +146,9 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Web Animations API
   // http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#extensions-to-the-document-interface
-  scoped_refptr<DocumentTimeline> timeline() { return default_timeline_; }
+  const scoped_refptr<DocumentTimeline>& timeline() const {
+    return default_timeline_;
+  }
 
   // Custom, not in any spec: Node.
   //
@@ -243,8 +245,9 @@ class Document : public Node, public cssom::MutationObserver {
   // This clock is also used for requestAnimationFrame() callbacks, according
   // to the specification above.
   void SampleTimelineTime();
-  base::optional<base::TimeDelta> timeline_sample_time() {
-    return timeline_sample_time_;
+
+  const scoped_refptr<base::Clock>& navigation_start_clock() const {
+    return navigation_start_clock_;
   }
 
   CSPDelegate* csp_delegate() const { return csp_delegate_.get(); }
@@ -302,7 +305,6 @@ class Document : public Node, public cssom::MutationObserver {
   // The document's latest sample from the global clock, used for updating
   // animations.
   const scoped_refptr<base::Clock> navigation_start_clock_;
-  base::optional<base::TimeDelta> timeline_sample_time_;
   scoped_refptr<DocumentTimeline> default_timeline_;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
