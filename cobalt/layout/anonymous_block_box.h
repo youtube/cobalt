@@ -31,8 +31,7 @@ namespace layout {
 class AnonymousBlockBox : public BlockContainerBox {
  public:
   AnonymousBlockBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions,
+      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       const UsedStyleProvider* used_style_provider);
 
   // From |Box|.
@@ -45,12 +44,12 @@ class AnonymousBlockBox : public BlockContainerBox {
 
   // This method should never be called, instead all children have to be added
   // through |AddInlineLevelChild|.
-  bool TryAddChild(scoped_ptr<Box>* child_box) OVERRIDE;
+  bool TryAddChild(const scoped_refptr<Box>& child_box) OVERRIDE;
 
   // Rest of the public methods.
 
   // An anonymous block box may only contain inline-level children.
-  void AddInlineLevelChild(scoped_ptr<Box> child_box);
+  void AddInlineLevelChild(const scoped_refptr<Box>& child_box);
 
  protected:
   // From |Box|.

@@ -40,17 +40,16 @@ class FormattingContext;
 class BlockContainerBox : public ContainerBox {
  public:
   BlockContainerBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions,
+      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       const UsedStyleProvider* used_style_provider);
   ~BlockContainerBox() OVERRIDE;
 
   // From |Box|.
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-  scoped_ptr<Box> TrySplitAt(float available_width,
-                             bool allow_overflow) OVERRIDE;
+  scoped_refptr<Box> TrySplitAt(float available_width,
+                                bool allow_overflow) OVERRIDE;
 
-  scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
+  scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
   void SetShouldCollapseLeadingWhiteSpace(
@@ -67,7 +66,7 @@ class BlockContainerBox : public ContainerBox {
   float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
   // From |ContainerBox|.
-  scoped_ptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
+  scoped_refptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
 
  protected:
   // From |Box|.

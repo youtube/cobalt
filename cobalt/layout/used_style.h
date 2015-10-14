@@ -62,6 +62,10 @@ class UsedStyleProvider {
 
   scoped_refptr<render_tree::Image> ResolveURLToImage(const GURL& url) const;
 
+  bool has_image_cache(const loader::image::ImageCache* image_cache) const {
+    return image_cache == image_cache_;
+  }
+
  private:
   render_tree::ResourceProvider* const resource_provider_;
   loader::image::ImageCache* const image_cache_;

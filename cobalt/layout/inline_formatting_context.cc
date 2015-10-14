@@ -40,7 +40,7 @@ InlineFormattingContext::InlineFormattingContext(
 
 InlineFormattingContext::~InlineFormattingContext() {}
 
-scoped_ptr<Box> InlineFormattingContext::BeginUpdateRectAndMaybeSplit(
+scoped_refptr<Box> InlineFormattingContext::BeginUpdateRectAndMaybeSplit(
     Box* child_box) {
   DCHECK(child_box->GetLevel() == Box::kInlineLevel ||
          child_box->IsAbsolutelyPositioned());
@@ -50,7 +50,7 @@ scoped_ptr<Box> InlineFormattingContext::BeginUpdateRectAndMaybeSplit(
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   //
   // We tackle this problem one split (and one line) at the time.
-  scoped_ptr<Box> child_box_after_split;
+  scoped_refptr<Box> child_box_after_split;
   if (!TryBeginUpdateRectAndMaybeCreateLineBox(child_box,
                                                &child_box_after_split)) {
     DCHECK(!child_box_after_split) << "A split should only occur when a child "
@@ -61,7 +61,7 @@ scoped_ptr<Box> InlineFormattingContext::BeginUpdateRectAndMaybeSplit(
     DCHECK(child_box_update_began)
         << "A line box should never reject the first child.";
   }
-  return child_box_after_split.Pass();
+  return child_box_after_split;
 }
 
 void InlineFormattingContext::BeginEstimateStaticPosition(Box* child_box) {
@@ -93,7 +93,7 @@ void InlineFormattingContext::EndUpdates() {
 }
 
 bool InlineFormattingContext::TryBeginUpdateRectAndMaybeCreateLineBox(
-    Box* child_box, scoped_ptr<Box>* child_box_after_split) {
+    Box* child_box, scoped_refptr<Box>* child_box_after_split) {
   bool child_box_update_began = line_box_->TryBeginUpdateRectAndMaybeSplit(
       child_box, child_box_after_split);
   DCHECK(child_box_update_began || *child_box_after_split == NULL);

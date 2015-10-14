@@ -29,11 +29,10 @@ namespace layout {
 // Defines a base interface for block and inline container boxes that allows
 // the box generator to be agnostic to a box type. Implementation-specific,
 // not defined in CSS 2.1.
-class ContainerBox : public Box {
+class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
  public:
   ContainerBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions,
+      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       const UsedStyleProvider* used_style_provider);
   ~ContainerBox() OVERRIDE;
 
@@ -42,7 +41,7 @@ class ContainerBox : public Box {
   // container boxes are able to become parents of both block- and inline-level
   // boxes, while inline container boxes are only able to become parents
   // of inline-level boxes.
-  virtual bool TryAddChild(scoped_ptr<Box>* child_box) = 0;
+  virtual bool TryAddChild(const scoped_refptr<Box>& child_box) = 0;
   // Attempts to split the box right before the end. Returns the part after
   // the split if the split succeeded. Only inline boxes are splittable and it's
   // always possible to split them. The returned part is identical to
@@ -50,10 +49,12 @@ class ContainerBox : public Box {
   //
   // A box generator uses this method to break inline boxes around block-level
   // boxes.
-  virtual scoped_ptr<ContainerBox> TrySplitAtEnd() = 0;
+  virtual scoped_refptr<ContainerBox> TrySplitAtEnd() = 0;
 
   // From |Box|.
   void SplitBidiLevelRuns() OVERRIDE;
+
+  void InvalidateUpdateSizeInputsOfBoxAndDescendants() OVERRIDE;
 
   void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* border_node_builder,
@@ -79,9 +80,10 @@ class ContainerBox : public Box {
   // descendant elements.
   bool IsStackingContext() const;
 
- protected:
-  typedef ScopedVector<Box> ChildBoxes;
+  // Invalidates the parent, containing block, and stacking context of the box.
+  void InvalidateBoxAncestry();
 
+ protected:
   class ZIndexComparator {
    public:
     bool operator()(const Box* lhs, const Box* rhs) const {
@@ -94,21 +96,21 @@ class ContainerBox : public Box {
       const LayoutParams& child_layout_params);
 
   // child_box will be added to the end of the list of direct children.
-  void PushBackDirectChild(scoped_ptr<Box> child_box);
+  void PushBackDirectChild(const scoped_refptr<Box>& child_box);
 
   // Adds a direct child at the specified position in this container's list of
   // children.
-  ChildBoxes::const_iterator InsertDirectChild(
-      ChildBoxes::const_iterator position, scoped_ptr<Box> child_box);
+  Boxes::const_iterator InsertDirectChild(Boxes::const_iterator position,
+                                          const scoped_refptr<Box>& child_box);
 
   // Moves a range of children from a range within a source container node, to
   // this destination container node at the specified position.
-  void MoveChildrenFrom(ChildBoxes::const_iterator position_in_destination,
+  void MoveChildrenFrom(Boxes::const_iterator position_in_destination,
                         ContainerBox* source_box,
-                        ChildBoxes::const_iterator source_start,
-                        ChildBoxes::const_iterator source_end);
+                        Boxes::const_iterator source_start,
+                        Boxes::const_iterator source_end);
 
-  const ChildBoxes& child_boxes() const { return child_boxes_; }
+  const Boxes& child_boxes() const { return child_boxes_; }
 
   void UpdateCrossReferencesWithContext(
       ContainerBox* fixed_containing_block,
@@ -116,10 +118,11 @@ class ContainerBox : public Box {
       ContainerBox* stacking_context) OVERRIDE;
 
   bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
+  void InvalidateUpdateSizeInputs() { update_size_results_valid_ = false; }
 
  private:
-  static ChildBoxes::iterator RemoveConst(
-      ChildBoxes* container, ChildBoxes::const_iterator const_iter);
+  static Boxes::iterator RemoveConst(Boxes* container,
+                                     Boxes::const_iterator const_iter);
   ContainerBox* FindContainingBlock(Box* box);
 
   // These helper functions are called from Box::SetupAsPositionedChild().
@@ -158,7 +161,7 @@ class ContainerBox : public Box {
   // A list of our direct children.  If a box is one of our child boxes, we
   // are that box's parent.  We may not be the box's containing block (such
   // as for 'absolute' or 'fixed' position elements).
-  ChildBoxes child_boxes_;
+  Boxes child_boxes_;
 
   // A list of our positioned child boxes.  For each box in our list of
   // positioned_child_boxes_, we are that child's containing block.  This is

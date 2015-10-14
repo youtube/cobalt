@@ -22,6 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
+#include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_transition_set.h"
@@ -29,6 +30,7 @@
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/layout_boxes.h"
 #include "cobalt/dom/pseudo_element.h"
 #include "cobalt/loader/image/image_cache.h"
 
@@ -123,8 +125,16 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
   // computed value.
+  scoped_refptr<cssom::ComputedStyleState>& computed_style_state() {
+    return computed_style_state_;
+  }
+
   scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() const {
-    return computed_style_;
+    return computed_style_state_->style();
+  }
+  void set_computed_style(
+      scoped_refptr<cssom::CSSStyleDeclarationData> computed_style) {
+    computed_style_state_->set_style(computed_style);
   }
 
   // Returns pointer to cached rule matching results.
@@ -133,7 +143,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Returns rule matching state.
   RuleMatchingState* rule_matching_state() { return &rule_matching_state_; }
 
-  cssom::TransitionSet* transitions() { return &transitions_; }
+  cssom::TransitionSet* transitions() const {
+    return computed_style_state_->transitions();
+  }
 
   // Determines whether this element is focusable.
   virtual bool IsFocusable() { return HasAttribute("tabindex"); }
@@ -164,6 +176,15 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return pseudo_elements_[type].reset(element);
   }
 
+  // The LayoutContainerBox gives the HTML Element an interface to the container
+  // box that result from it. The BoxList is set when layout is performed for a
+  // node.
+  void SetLayoutBoxes(LayoutBoxes* layout_boxes);
+  LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
+
+  void InvalidateLayoutBoxesFromNodeAndAncestors() OVERRIDE;
+  void InvalidateLayoutBoxesFromNodeAndDescendants() OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
@@ -181,17 +202,20 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // The inline style specified via attribute's in the element's HTML tag, or
   // through JavaScript (accessed via style() defined above).
   scoped_refptr<cssom::CSSStyleDeclaration> style_;
+
   // Keeps track of whether the HTML element's current computed style is out
   // of date or not.
   bool computed_style_valid_;
 
-  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
+  scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
 
   // The following fields are used in rule matching.
   cssom::RulesWithCascadePriority matching_rules_;
   RuleMatchingState rule_matching_state_;
 
-  cssom::TransitionSet transitions_;
+  // This contains information about the boxes generated from the element.
+  scoped_ptr<LayoutBoxes> layout_boxes_;
+
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
   scoped_refptr<DOMStringMap> dataset_;
 

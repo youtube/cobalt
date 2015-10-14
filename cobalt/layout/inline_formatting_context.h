@@ -17,6 +17,7 @@
 #ifndef LAYOUT_INLINE_FORMATTING_CONTEXT_H_
 #define LAYOUT_INLINE_FORMATTING_CONTEXT_H_
 
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/layout/box.h"
@@ -64,7 +65,7 @@ class InlineFormattingContext : public FormattingContext {
   // this formatting context must re-insert the returned part right after
   // the original child box and pass this part in the next call to
   // |BeginUpdateRectAndMaybeSplit|, so that it can be split again if needed.
-  scoped_ptr<Box> BeginUpdateRectAndMaybeSplit(Box* child_box);
+  scoped_refptr<Box> BeginUpdateRectAndMaybeSplit(Box* child_box);
   // Asynchronously estimates the static position of the given child box.
   // In CSS 2.1 the static position is only defined for absolutely positioned
   // boxes. The position is undefined until |EndUpdates| is called.
@@ -78,7 +79,7 @@ class InlineFormattingContext : public FormattingContext {
 
  private:
   bool TryBeginUpdateRectAndMaybeCreateLineBox(
-      Box* child_box, scoped_ptr<Box>* child_box_after_split);
+      Box* child_box, scoped_refptr<Box>* child_box_after_split);
 
   void CreateLineBox();
   void DestroyLineBox();

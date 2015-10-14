@@ -28,19 +28,18 @@ namespace layout {
 class BlockFormattingBlockContainerBox : public BlockContainerBox {
  public:
   BlockFormattingBlockContainerBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions,
+      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       const UsedStyleProvider* used_style_provider);
 
   // From |ContainerBox|.
-  bool TryAddChild(scoped_ptr<Box>* child_box) OVERRIDE;
+  bool TryAddChild(const scoped_refptr<Box>& child_box) OVERRIDE;
 
   // Rest of the public methods.
 
   // A convenience method to add children. It is guaranteed that a block
   // container box is able to become a parent of both block-level and
   // inline-level boxes.
-  void AddChild(scoped_ptr<Box> child_box);
+  void AddChild(const scoped_refptr<Box>& child_box);
 
  protected:
   // From |BlockContainerBox|.
@@ -66,8 +65,7 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
 class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
  public:
   BlockLevelBlockContainerBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions,
+      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       const UsedStyleProvider* used_style_provider);
   ~BlockLevelBlockContainerBox() OVERRIDE;
 
@@ -95,8 +93,7 @@ class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
  public:
   InlineLevelBlockContainerBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions,
+      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       const UsedStyleProvider* used_style_provider,
       const scoped_refptr<Paragraph>& paragraph, int32 text_position);
   ~InlineLevelBlockContainerBox() OVERRIDE;

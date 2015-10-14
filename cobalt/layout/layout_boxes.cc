@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_SWITCHES_H_
-#define BROWSER_SWITCHES_H_
+#include "cobalt/layout/layout_boxes.h"
+
+#include "cobalt/layout/container_box.h"
 
 namespace cobalt {
-namespace browser {
-namespace switches {
+namespace layout {
 
-extern const char kInitialURL[];
-extern const char kTimedTrace[];
-extern const char kInputFuzzer[];
-extern const char kShutdownAfter[];
-extern const char kDebugConsoleMode[];
-extern const char kPartialLayout[];
+LayoutBoxes::LayoutBoxes(const scoped_refptr<ContainerBox>& container_box)
+    : container_box_(container_box) {}
 
-}  // namespace switches
-}  // namespace browser
+LayoutBoxes::~LayoutBoxes() {}
+
+LayoutBoxes::Type LayoutBoxes::type() const { return kLayoutLayoutBoxes; }
+
+}  // namespace layout
 }  // namespace cobalt
-
-#endif  // BROWSER_SWITCHES_H_

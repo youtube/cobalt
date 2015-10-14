@@ -47,17 +47,14 @@ using cobalt::render_tree::animations::NodeAnimationsMap;
 namespace cobalt {
 namespace layout {
 
-Box::Box(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions,
-    const UsedStyleProvider* used_style_provider)
-    : computed_style_(computed_style),
+Box::Box(const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+         const UsedStyleProvider* used_style_provider)
+    : computed_style_state_(computed_style_state),
       used_style_provider_(used_style_provider),
-      transitions_(transitions),
       parent_(NULL),
       containing_block_(NULL),
       stacking_context_(NULL) {
-  DCHECK(transitions_);
+  DCHECK(transitions());
   DCHECK(used_style_provider_);
 
 #ifdef _DEBUG
@@ -115,6 +112,10 @@ bool Box::ValidateUpdateSizeInputs(const LayoutParams& params) {
   }
 }
 
+void Box::InvalidateUpdateSizeInputsOfBoxAndDescendants() {
+  last_update_size_params_ = base::nullopt;
+}
+
 float Box::GetMarginBoxWidth() const {
   return margin_left() + GetBorderBoxWidth() + margin_right();
 }
@@ -164,8 +165,9 @@ void Box::RenderAndAnimate(
     CompositionNode::Builder* parent_content_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
-      computed_style_->opacity().get())->value();
-  bool opacity_animated = transitions_->GetTransitionForProperty(
+                      computed_style()->opacity().get())
+                      ->value();
+  bool opacity_animated = transitions()->GetTransitionForProperty(
                               cssom::kOpacityPropertyName) != NULL;
   if (opacity <= 0.0f && !opacity_animated) {
     // If the box has 0 opacity, and opacity is not animated, then we do not
@@ -190,7 +192,7 @@ void Box::RenderAndAnimate(
   // Furthermore, descendants of the element will be visible if they have
   // 'visibility: visible'.
   //   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
-  if (computed_style_->visibility() == cssom::KeywordValue::GetVisible()) {
+  if (computed_style()->visibility() == cssom::KeywordValue::GetVisible()) {
     RenderAndAnimateBackgroundColor(&border_node_builder,
                                     node_animations_map_builder);
     RenderAndAnimateBackgroundImage(&border_node_builder,
@@ -332,19 +334,17 @@ void Box::UpdateBorders() {
 
 void Box::UpdatePaddings(const LayoutParams& layout_params) {
   padding_insets_.SetInsets(
-      GetUsedPaddingLeft(computed_style_, layout_params.containing_block_size),
-      GetUsedPaddingTop(computed_style_, layout_params.containing_block_size),
-      GetUsedPaddingRight(computed_style_, layout_params.containing_block_size),
-      GetUsedPaddingBottom(computed_style_,
+      GetUsedPaddingLeft(computed_style(), layout_params.containing_block_size),
+      GetUsedPaddingTop(computed_style(), layout_params.containing_block_size),
+      GetUsedPaddingRight(computed_style(),
+                          layout_params.containing_block_size),
+      GetUsedPaddingBottom(computed_style(),
                            layout_params.containing_block_size));
 }
 
 void Box::SetupAsPositionedChild(ContainerBox* containing_block,
                                  ContainerBox* stacking_context) {
   DCHECK(IsPositioned() || IsTransformed());
-
-  DCHECK_EQ(parent_, containing_block_);
-  DCHECK(!stacking_context_);
 
   // Setup the link between this child box and its containing block.
   containing_block_ = containing_block;
@@ -442,24 +442,26 @@ void Box::RenderAndAnimateBackgroundColor(
   // add it no matter what since its value may change over time to be
   // non-transparent.
   bool background_color_transparent =
-      GetUsedColor(computed_style_->background_color()).a() == 0.0f;
+      GetUsedColor(computed_style()->background_color()).a() == 0.0f;
   bool background_color_animated =
-      transitions_->GetTransitionForProperty(
+      transitions()->GetTransitionForProperty(
           cssom::kBackgroundColorPropertyName) != NULL;
   if (!background_color_transparent || background_color_animated) {
     RectNode::Builder rect_node_builder(GetPaddingBoxSize(),
                                         scoped_ptr<render_tree::Brush>());
-    SetupRectNodeFromStyle(computed_style_, &rect_node_builder);
+    SetupRectNodeFromStyle(computed_style(), &rect_node_builder);
     if (rect_node_builder.size.GetArea() != 0) {
       scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
       border_node_builder->AddChild(
           rect_node,
           math::TranslateMatrix(border_left_width(), border_top_width()));
 
+      // TODO(***REMOVED***) Investigate if we could pass computed_style_state_ instead
+      // here.
       if (background_color_animated) {
         AddTransitionAnimations<RectNode>(
-            base::Bind(&SetupRectNodeFromStyle), *computed_style_, rect_node,
-            *transitions_, node_animations_map_builder);
+            base::Bind(&SetupRectNodeFromStyle), *computed_style(), rect_node,
+            *transitions(), node_animations_map_builder);
       }
     }
   }
@@ -470,19 +472,19 @@ void Box::RenderAndAnimateBackgroundImage(
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   UNREFERENCED_PARAMETER(node_animations_map_builder);
 
-  if (computed_style_->background_image() != cssom::KeywordValue::GetNone()) {
+  if (computed_style()->background_image() != cssom::KeywordValue::GetNone()) {
     cssom::PropertyListValue* property_list =
         base::polymorphic_downcast<cssom::PropertyListValue*>(
-            computed_style_->background_image().get());
+            computed_style()->background_image().get());
     // The farthest image is added to |composition_node_builder| first.
     for (cssom::PropertyListValue::Builder::const_reverse_iterator
              image_iterator = property_list->value().rbegin();
          image_iterator != property_list->value().rend(); ++image_iterator) {
       UsedBackgroundNodeProvider background_node_provider(
           used_style_provider_, GetPaddingBoxSize(),
-          computed_style_->background_size(),
-          computed_style_->background_position(),
-          computed_style_->background_repeat());
+          computed_style()->background_size(),
+          computed_style()->background_position(),
+          computed_style()->background_repeat());
       (*image_iterator)->Accept(&background_node_provider);
       scoped_refptr<render_tree::Node> background_node =
           background_node_provider.background_node();
@@ -502,7 +504,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
         node_animations_map_builder,
     float opacity, bool opacity_animated) const {
   bool overflow_hidden =
-      computed_style_->overflow().get() == cssom::KeywordValue::GetHidden();
+      computed_style()->overflow().get() == cssom::KeywordValue::GetHidden();
   if (overflow_hidden || opacity < 1.0f || opacity_animated) {
     FilterNode::Builder filter_node_builder(border_node);
 
@@ -524,8 +526,8 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     if (opacity_animated) {
       // Possibly setup an animation for transitioning opacity.
       AddTransitionAnimations<FilterNode>(
-          base::Bind(&SetupFilterNodeFromStyle), *computed_style_, filter_node,
-          *transitions_, node_animations_map_builder);
+          base::Bind(&SetupFilterNodeFromStyle), *computed_style(), filter_node,
+          *transitions(), node_animations_map_builder);
     }
     return filter_node;
   }
@@ -538,7 +540,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder,
     math::Matrix3F* border_node_transform) const {
-  if (transitions_->GetTransitionForProperty(cssom::kTransformPropertyName)) {
+  if (transitions()->GetTransitionForProperty(cssom::kTransformPropertyName)) {
     // If the CSS transform is animated, we cannot flatten it into the layout
     // transform, thus we create a new composition node to separate it and
     // animate that node only.
@@ -552,17 +554,17 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     AddTransitionAnimations<CompositionNode>(
         base::Bind(&SetupCompositionNodeFromCSSSStyleTransform,
                    GetBorderBoxSize()),
-        *computed_style(), css_transform_node, *transitions_,
+        *computed_style(), css_transform_node, *transitions(),
         node_animations_map_builder);
 
     return css_transform_node;
   }
 
-  if (computed_style_->transform() != cssom::KeywordValue::GetNone()) {
+  if (computed_style()->transform() != cssom::KeywordValue::GetNone()) {
     // Combine layout transform and CSS transform.
     *border_node_transform =
         *border_node_transform *
-        GetCSSTransform(computed_style_->transform(), GetBorderBoxSize());
+        GetCSSTransform(computed_style()->transform(), GetBorderBoxSize());
   }
   return border_node;
 }

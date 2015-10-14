@@ -27,19 +27,20 @@ namespace cobalt {
 namespace layout {
 
 TextBox::TextBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions,
+    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
     const UsedStyleProvider* used_style_provider,
     const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
     int32 text_end_position, bool triggers_line_break)
-    : Box(computed_style, transitions, used_style_provider),
+    : Box(computed_style_state, used_style_provider),
       paragraph_(paragraph),
       text_start_position_(text_start_position),
       text_end_position_(text_end_position),
       is_preferred_font_loading_(false),
       used_font_(used_style_provider->GetUsedFont(
-          computed_style->font_family(), computed_style->font_size(),
-          computed_style->font_style(), computed_style->font_weight(),
+          computed_style_state->style()->font_family(),
+          computed_style_state->style()->font_size(),
+          computed_style_state->style()->font_style(),
+          computed_style_state->style()->font_weight(),
           &is_preferred_font_loading_)),
       text_has_leading_white_space_(false),
       text_has_trailing_white_space_(false),
@@ -103,10 +104,10 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   }
 }
 
-scoped_ptr<Box> TextBox::TrySplitAt(float available_width,
-                                    bool allow_overflow) {
+scoped_refptr<Box> TextBox::TrySplitAt(float available_width,
+                                       bool allow_overflow) {
   if (!WhiteSpaceStyleAllowsWrapping()) {
-    return scoped_ptr<Box>();
+    return scoped_refptr<Box>();
   }
 
   // Start from the text position when searching for the split position. We do
@@ -132,18 +133,18 @@ scoped_ptr<Box> TextBox::TrySplitAt(float available_width,
     return SplitAtPosition(split_position);
   }
 
-  return scoped_ptr<Box>();
+  return scoped_refptr<Box>();
 }
 
 void TextBox::SplitBidiLevelRuns() {}
 
-scoped_ptr<Box> TextBox::TrySplitAtSecondBidiLevelRun() {
+scoped_refptr<Box> TextBox::TrySplitAtSecondBidiLevelRun() {
   int32 split_position;
   if (paragraph_->GetNextRunPosition(text_start_position_, &split_position) &&
       split_position < text_end_position_) {
     return SplitAtPosition(split_position);
   } else {
-    return scoped_ptr<Box>();
+    return scoped_refptr<Box>();
   }
 }
 
@@ -296,7 +297,7 @@ void TextBox::UpdateTextHasTrailingWhiteSpace() {
   }
 }
 
-scoped_ptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
+scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   int32 split_end_position = text_end_position_;
   DCHECK_LE(split_start_position, split_end_position);
 
@@ -307,8 +308,8 @@ scoped_ptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   // updated as it has not changed.
   UpdateTextHasTrailingWhiteSpace();
 
-  scoped_ptr<Box> box_after_split(new TextBox(
-      computed_style(), transitions(), used_style_provider(), paragraph_,
+  scoped_refptr<Box> box_after_split(new TextBox(
+      computed_style_state(), used_style_provider(), paragraph_,
       split_start_position, split_end_position, triggers_line_break_));
 
   // TODO(***REMOVED***): Set the text width of the box after split to
@@ -319,7 +320,7 @@ scoped_ptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   // portion of the text and reset the value for this text box.
   triggers_line_break_ = false;
 
-  return box_after_split.Pass();
+  return box_after_split;
 }
 
 float TextBox::GetLeadingWhiteSpaceWidth() const {

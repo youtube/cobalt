@@ -179,6 +179,7 @@ scoped_refptr<Node> Node::InsertBefore(
   }
   new_child->next_sibling_ = next_sibling;
 
+  InvalidateLayoutBoxesFromNodeAndAncestors();
   new_child->UpdateNodeGeneration();
 
   if (inserted_into_document_) {
@@ -274,6 +275,7 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
   if (was_inserted_to_document) {
     node->OnRemovedFromDocument();
   }
+  InvalidateLayoutBoxesFromNodeAndAncestors();
   node->UpdateNodeGeneration();
 
   // 2. ~ 7. Not needed by Cobalt.
@@ -370,6 +372,20 @@ scoped_refptr<DocumentType> Node::AsDocumentType() { return NULL; }
 scoped_refptr<Element> Node::AsElement() { return NULL; }
 
 scoped_refptr<Text> Node::AsText() { return NULL; }
+
+void Node::InvalidateLayoutBoxesFromNodeAndAncestors() {
+  if (parent_) {
+    parent_->InvalidateLayoutBoxesFromNodeAndAncestors();
+  }
+}
+
+void Node::InvalidateLayoutBoxesFromNodeAndDescendants() {
+  Node* child = first_child_;
+  while (child) {
+    child->InvalidateLayoutBoxesFromNodeAndDescendants();
+    child = child->next_sibling_;
+  }
+}
 
 Node::Node(Document* document)
     : owner_document_(base::AsWeakPtr(document)),

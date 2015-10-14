@@ -17,10 +17,12 @@
 #include "cobalt/browser/web_module.h"
 
 #include "base/bind.h"
+#include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/storage/storage_manager.h"
@@ -36,6 +38,12 @@ const uint32 kRemoteFontCacheCapacity = 5U * 1024 * 1024;
 
 // Prefix applied to local storage keys.
 const char kLocalStoragePrefix[] = "cobalt.webModule";
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+// Help string for the 'partial_layout' command.
+const char kPartialLayoutCommandHelpString[] =
+    "Controls partial layout: on | off | wipe | wipe,off";
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 }  // namespace
 
 WebModule::WebModule(
@@ -82,6 +90,21 @@ WebModule::WebModule(
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
   window_->set_debug_hub(options.debug_hub);
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kPartialLayout)) {
+    const std::string partial_layout_string =
+        command_line->GetSwitchValueASCII(browser::switches::kPartialLayout);
+    OnPartialLayoutConsoleCommandReceived(partial_layout_string);
+  }
+  partial_layout_command_handler_.reset(
+      new base::ConsoleCommandManager::CommandHandler(
+          browser::switches::kPartialLayout,
+          base::Bind(&WebModule::OnPartialLayoutConsoleCommandReceived,
+                     base::Unretained(this)),
+          kPartialLayoutCommandHelpString));
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 }
 
 WebModule::~WebModule() {}
@@ -145,6 +168,21 @@ void WebModule::SetItemInLocalStorage(const std::string& key,
   std::string long_key = std::string(kLocalStoragePrefix) + "." + key;
   window_->local_storage()->SetItem(long_key, value);
 }
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+void WebModule::OnPartialLayoutConsoleCommandReceived(
+    const std::string& message) {
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&dom::Document::SetPartialLayout,
+                   base::AsWeakPtr<dom::Document>(window_->document()),
+                   message));
+  } else {
+    window_->document()->SetPartialLayout(message);
+  }
+}
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
 }  // namespace browser
 }  // namespace cobalt

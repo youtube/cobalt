@@ -20,9 +20,11 @@
 
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout/embedded_resources.h"  // Generated file.
@@ -54,8 +56,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 #endif  // ENABLE_TEST_RUNNER
 
   const scoped_refptr<dom::Window> window_;
-  const scoped_refptr<dom::Document> document_;
-  render_tree::ResourceProvider* const resource_provider_;
+  const scoped_ptr<UsedStyleProvider> used_style_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
   const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
   const LayoutTrigger layout_trigger_;
@@ -113,14 +114,15 @@ LayoutManager::Impl::Impl(
     cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
     float layout_refresh_rate)
     : window_(window),
-      document_(window->document()),
-      resource_provider_(resource_provider),
+      used_style_provider_(new UsedStyleProvider(
+          resource_provider, window->html_element_context()->image_cache(),
+          window->document()->font_face_cache())),
       on_render_tree_produced_callback_(on_render_tree_produced),
       user_agent_style_sheet_(ParseUserAgentStyleSheet(css_parser)),
       layout_trigger_(layout_trigger),
       layout_dirty_(false),
       layout_timer_(true, true) {
-  document_->AddObserver(this);
+  window_->document()->AddObserver(this);
 
   UErrorCode status = U_ZERO_ERROR;
   line_break_iterator_ = make_scoped_ptr(icu::BreakIterator::createLineInstance(
@@ -153,7 +155,7 @@ LayoutManager::Impl::Impl(
   }
 }
 
-LayoutManager::Impl::~Impl() { document_->RemoveObserver(this); }
+LayoutManager::Impl::~Impl() { window_->document()->RemoveObserver(this); }
 
 void LayoutManager::Impl::OnLoad() {
 #if defined(ENABLE_TEST_RUNNER)
@@ -187,12 +189,14 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
   TRACE_EVENT0("cobalt::layout",
                "LayoutManager::Impl::DoLayoutAndProduceRenderTree()");
 
-  if (!document_->html()) {
+  const scoped_refptr<dom::Document>& document = window_->document();
+
+  if (!document->html()) {
     return;
   }
 
   // Update the document's sample time, used for updating animations.
-  document_->SampleTimelineTime();
+  document->SampleTimelineTime();
 
   bool was_dirty = layout_dirty_;
   if (layout_dirty_) {
@@ -200,7 +204,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     // Update our computed style before running animation callbacks, so that
     // any transitioning elements adjusted during the animation callback will
     // transition from their previously set value.
-    document_->UpdateComputedStyles(
+    document->UpdateComputedStyles(
         CreateInitialContainingBlockComputedStyle(window_),
         user_agent_style_sheet_);
   }
@@ -221,12 +225,12 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     }
 
     RenderTreeWithAnimations render_tree_with_animations =
-        layout::Layout(window_, user_agent_style_sheet_, resource_provider_,
-                       line_break_iterator_.get());
+        layout::Layout(window_, user_agent_style_sheet_,
+                       used_style_provider_.get(), line_break_iterator_.get());
     on_render_tree_produced_callback_.Run(
         LayoutResults(render_tree_with_animations.render_tree,
                       render_tree_with_animations.animations,
-                      *document_->timeline_sample_time()));
+                      *document->timeline_sample_time()));
 
     layout_dirty_ = false;
 

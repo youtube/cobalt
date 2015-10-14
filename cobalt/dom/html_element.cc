@@ -222,6 +222,51 @@ PromoteMatchingRulesToComputedStyle(
   // Cache the results of the computed style calculation.
 }
 
+bool NewComputedStyleInvalidatesLayoutBoxes(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+        old_computed_style,
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& new_computed_style) {
+  // FIXE(***REMOVED***): Only invalidate layout boxes when a property that is used for
+  // box generation is modified. We currently have to also invalidate when any
+  // inheritable property is modified, because AnonymousBlockBox and TextBox use
+  // GetComputedStyleOfAnonymousBox() to store a copy of them that won't
+  // automatically get updated when the style() in a ComputedStyleState gets
+  // updated.
+  return !old_computed_style->display()->Equals(
+             *new_computed_style->display()) ||
+         !old_computed_style->content()->Equals(
+             *new_computed_style->content()) ||
+         !old_computed_style->text_transform()->Equals(
+             *new_computed_style->text_transform()) ||
+         !old_computed_style->white_space()->Equals(
+             *new_computed_style->white_space()) ||
+         !old_computed_style->color()->Equals(*new_computed_style->color()) ||
+         !old_computed_style->font_family()->Equals(
+             *new_computed_style->font_family()) ||
+         !old_computed_style->font_size()->Equals(
+             *new_computed_style->font_size()) ||
+         !old_computed_style->font_style()->Equals(
+             *new_computed_style->font_style()) ||
+         !old_computed_style->font_weight()->Equals(
+             *new_computed_style->font_weight()) ||
+         !old_computed_style->line_height()->Equals(
+             *new_computed_style->line_height()) ||
+         !old_computed_style->overflow_wrap()->Equals(
+             *new_computed_style->overflow_wrap()) ||
+         !old_computed_style->tab_size()->Equals(
+             *new_computed_style->tab_size()) ||
+         !old_computed_style->text_align()->Equals(
+             *new_computed_style->text_align()) ||
+         !old_computed_style->text_indent()->Equals(
+             *new_computed_style->text_indent()) ||
+         !old_computed_style->text_transform()->Equals(
+             *new_computed_style->text_transform()) ||
+         !old_computed_style->visibility()->Equals(
+             *new_computed_style->visibility()) ||
+         !old_computed_style->white_space()->Equals(
+             *new_computed_style->white_space());
+}
+
 }  // namespace
 
 void HTMLElement::UpdateComputedStyle(
@@ -239,10 +284,21 @@ void HTMLElement::UpdateComputedStyle(
   property_name_to_base_url_map[cssom::kBackgroundImagePropertyName] =
       document->url_as_gurl();
 
-  computed_style_ = PromoteMatchingRulesToComputedStyle(
-      matching_rules(), &property_name_to_base_url_map, style_->data(),
-      parent_computed_style, style_change_event_time, transitions(),
-      computed_style());
+  scoped_refptr<cssom::CSSStyleDeclarationData> new_computed_style =
+      PromoteMatchingRulesToComputedStyle(
+          matching_rules(), &property_name_to_base_url_map, style_->data(),
+          parent_computed_style, style_change_event_time, transitions(),
+          computed_style());
+
+  // If there is no previous computed style, there should also be no layout
+  // boxes, and nothing has to be invalidated.
+  bool invalidate_layout_boxes = false;
+  DCHECK(computed_style() || NULL == layout_boxes());
+  if (computed_style() && NewComputedStyleInvalidatesLayoutBoxes(
+                              computed_style(), new_computed_style)) {
+    invalidate_layout_boxes = true;
+  }
+  set_computed_style(new_computed_style);
 
   // Update cached background images after resolving the urls in
   // background_image CSS property of the computed style, so we have all the
@@ -256,15 +312,28 @@ void HTMLElement::UpdateComputedStyle(
       scoped_refptr<cssom::CSSStyleDeclarationData>
           pseudo_element_computed_style = PromoteMatchingRulesToComputedStyle(
               pseudo_elements_[pseudo_element_type]->matching_rules(),
-              &property_name_to_base_url_map, style_->data(), computed_style_,
+              &property_name_to_base_url_map, style_->data(), computed_style(),
               style_change_event_time,
               pseudo_elements_[pseudo_element_type]->transitions(),
               pseudo_elements_[pseudo_element_type]->computed_style());
 
+      if (!invalidate_layout_boxes &&
+          pseudo_elements_[pseudo_element_type]->computed_style() &&
+          NewComputedStyleInvalidatesLayoutBoxes(
+              pseudo_elements_[pseudo_element_type]->computed_style(),
+              pseudo_element_computed_style)) {
+        invalidate_layout_boxes = true;
+      }
       pseudo_elements_[pseudo_element_type]->set_computed_style(
           pseudo_element_computed_style);
     }
   }
+
+  if (invalidate_layout_boxes) {
+    InvalidateLayoutBoxesFromNodeAndAncestors();
+    InvalidateLayoutBoxesFromNodeAndDescendants();
+  }
+
   computed_style_valid_ = true;
 }
 
@@ -302,11 +371,32 @@ void HTMLElement::ClearMatchingRules() {
   computed_style_valid_ = false;
 }
 
+void HTMLElement::SetLayoutBoxes(LayoutBoxes* layout_boxes) {
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  if (!owner_document()->partial_layout_is_enabled()) {
+    layout_boxes_.reset();
+    return;
+  }
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  layout_boxes_.reset(layout_boxes);
+}
+
+void HTMLElement::InvalidateLayoutBoxesFromNodeAndAncestors() {
+  layout_boxes_.reset();
+  Node::InvalidateLayoutBoxesFromNodeAndAncestors();
+}
+
+void HTMLElement::InvalidateLayoutBoxesFromNodeAndDescendants() {
+  layout_boxes_.reset();
+  Node::InvalidateLayoutBoxesFromNodeAndDescendants();
+}
+
 HTMLElement::HTMLElement(Document* document)
     : Element(document),
       style_(new cssom::CSSStyleDeclaration(
           document->html_element_context()->css_parser())),
-      computed_style_valid_(false) {
+      computed_style_valid_(false),
+      computed_style_state_(new cssom::ComputedStyleState()) {
   style_->set_mutation_observer(this);
 }
 
@@ -314,7 +404,8 @@ HTMLElement::HTMLElement(Document* document, const std::string& tag_name)
     : Element(document, tag_name),
       style_(new cssom::CSSStyleDeclaration(
           document->html_element_context()->css_parser())),
-      computed_style_valid_(false) {
+      computed_style_valid_(false),
+      computed_style_state_(new cssom::ComputedStyleState()) {
   style_->set_mutation_observer(this);
 }
 
@@ -331,11 +422,11 @@ HTMLElement::~HTMLElement() {}
 
 void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
   scoped_refptr<cssom::PropertyValue> background_image =
-      computed_style_->background_image();
+      computed_style()->background_image();
   // Don't fetch or cache the image if no image is specified or the display of
   // this element is turned off.
   if (background_image != cssom::KeywordValue::GetNone() &&
-      computed_style_->display() != cssom::KeywordValue::GetNone()) {
+      computed_style()->display() != cssom::KeywordValue::GetNone()) {
     cssom::PropertyListValue* property_list_value =
         base::polymorphic_downcast<cssom::PropertyListValue*>(
             background_image.get());
