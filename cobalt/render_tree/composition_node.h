@@ -110,8 +110,11 @@ class CompositionNode : public Node {
     scoped_ptr<ComposedChildren> composed_children_;
   };
 
-  explicit CompositionNode(const Builder& builder) : data_(builder) {}
-  explicit CompositionNode(Builder::Moved builder) : data_(builder) {}
+  explicit CompositionNode(const Builder& builder)
+      : data_(builder), cached_bounds_(ComputeBounds()) {}
+
+  explicit CompositionNode(Builder::Moved builder)
+      : data_(builder), cached_bounds_(ComputeBounds()) {}
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;
@@ -119,7 +122,12 @@ class CompositionNode : public Node {
   const Builder& data() const { return data_; }
 
  private:
+  // Computes the bounding rectangle (given our children) for this composition
+  // node, which is what GetBounds() will subsequently return.
+  math::RectF ComputeBounds() const;
+
   const Builder data_;
+  const math::RectF cached_bounds_;
 };
 
 }  // namespace render_tree

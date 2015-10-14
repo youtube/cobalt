@@ -41,7 +41,16 @@ FilterNode::FilterNode(const ViewportFilter& viewport_filter,
 
 void FilterNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
-math::RectF FilterNode::GetBounds() const { return data_.source->GetBounds(); }
+math::RectF FilterNode::GetBounds() const {
+  math::RectF source_bounds = data_.source->GetBounds();
+
+  if (data_.viewport_filter) {
+    return math::IntersectRects(source_bounds,
+                                data_.viewport_filter->viewport());
+  } else {
+    return source_bounds;
+  }
+}
 
 }  // namespace render_tree
 }  // namespace cobalt
