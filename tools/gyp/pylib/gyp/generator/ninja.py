@@ -1473,6 +1473,61 @@ def OpenOutput(path, mode='w'):
   return open(path, mode)
 
 
+def GetDefaultConcurrentLinks():
+  """Returns a best-guess for a number of concurrent links."""
+  pool_size = int(os.getenv('GYP_LINK_CONCURRENCY', 0))
+  if pool_size:
+    return pool_size
+
+  if sys.platform in ('win32', 'cygwin'):
+    import ctypes
+
+    class MEMORYSTATUSEX(ctypes.Structure):
+      _fields_ = [
+        ("dwLength", ctypes.c_ulong),
+        ("dwMemoryLoad", ctypes.c_ulong),
+        ("ullTotalPhys", ctypes.c_ulonglong),
+        ("ullAvailPhys", ctypes.c_ulonglong),
+        ("ullTotalPageFile", ctypes.c_ulonglong),
+        ("ullAvailPageFile", ctypes.c_ulonglong),
+        ("ullTotalVirtual", ctypes.c_ulonglong),
+        ("ullAvailVirtual", ctypes.c_ulonglong),
+        ("sullAvailExtendedVirtual", ctypes.c_ulonglong),
+      ]
+
+    stat = MEMORYSTATUSEX()
+    stat.dwLength = ctypes.sizeof(stat)
+    ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
+
+    # VS 2015 uses 20% more working set than VS 2013 and can consume all RAM
+    # on a 64 GB machine.
+    mem_limit = max(1, stat.ullTotalPhys / (5 * (2 ** 30)))  # total / 5GB
+    hard_cap = max(1, int(os.getenv('GYP_LINK_CONCURRENCY_MAX', 2**32)))
+    return min(mem_limit, hard_cap)
+  elif sys.platform.startswith('linux'):
+    if os.path.exists("/proc/meminfo"):
+      with open("/proc/meminfo") as meminfo:
+        memtotal_re = re.compile(r'^MemTotal:\s*(\d*)\s*kB')
+        for line in meminfo:
+          match = memtotal_re.match(line)
+          if not match:
+            continue
+          # Allow 6Gb per link on Linux because Gold is quite memory hungry
+          return max(1, int(match.group(1)) / (6 * (2 ** 20)))
+    return 1
+  elif sys.platform == 'darwin':
+    try:
+      avail_bytes = int(subprocess.check_output(['sysctl', '-n', 'hw.memsize']))
+      # A static library debug build of Chromium's unit_tests takes ~2.7GB, so
+      # 4GB per ld process allows for some more bloat.
+      return max(1, avail_bytes / (4 * (2 ** 30)))  # total / 4GB
+    except:
+      return 1
+  else:
+    # TODO(scottmg): Implement this for other platforms.
+    return 1
+
+
 def GenerateOutputForConfig(target_list, target_dicts, data, params,
                             config_name):
   options = params['options']
@@ -1612,7 +1667,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     master_ninja.variable('arThinFlags', ar_flags + thin_flag_to_add)
 
   else:
-    master_ninja.variable('ld', 'flock linker.lock ' + ld)
+    master_ninja.variable('ld', ld)
     master_ninja.variable('ar', GetEnvironFallback(['AR_target', 'AR'], 'ar'))
     ar_flags = os.environ.get('ARFLAGS', 'rcs')
     master_ninja.variable('arFlags', ar_flags)
@@ -1637,19 +1692,16 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   master_ninja.variable('cxx_host', cxx_host)
   master_ninja.variable('arFlags_host', arflags_host)
   master_ninja.variable('arThinFlags_host', arthinflags_host)
-  # TODO(***REMOVED***) : winpython is used to correctly source the environment.x64
-  # file and call link.exe.  This should be wrapped so that cmd is called,
-  # environment.x64 is sourced and link.exe is called.
-  if flavor in ['win', 'ps3', 'ps4', 'xb1', 'xb360']:
-    master_ninja.variable('ld_host', ld_host)
-  else:
-    master_ninja.variable('ld_host', 'flock linker.lock ' + ld_host)
+  master_ninja.variable('ld_host', ld_host)
 
   if sys.platform == 'cygwin':
     python_path = cygpath.to_nt('/cygdrive/c/python_27_amd64/files/python.exe')
   else:
     python_path = 'python'
   master_ninja.variable('python', python_path)
+  master_ninja.newline()
+
+  master_ninja.pool('link_pool', depth=GetDefaultConcurrentLinks())
   master_ninja.newline()
 
   if flavor not in ['win', 'xb1', 'xb360']:
@@ -1756,7 +1808,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
                '$arch $asm $defines $includes /c /Fo $out $in' %
                python_exec))
 
-  if flavor not in ['mac', 'wiiu', 'win', 'xb1', 'xb360'] :
+  if flavor not in ['mac', 'wiiu', 'win', 'xb1', 'xb360']:
     alink_command = 'rm -f $out && $ar $arFlags $out @$out.rsp'
     # TODO: Use rcsT on Linux only.
     alink_thin_command = 'rm -f $out && $ar $arThinFlags $out @$out.rsp'
@@ -1817,7 +1869,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       # PS3 and PS4 linkers don't know about rpath.
       rpath = ''
     else:
-      rpath = '-Wl,-rpath=\$$ORIGIN/lib'
+      rpath = r'-Wl,-rpath=\$$ORIGIN/lib'
 
     master_ninja.rule(
       'link',
@@ -1825,7 +1877,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       command=(ld_cmd +' @$out.rsp'),
       rspfile='$out.rsp',
       rspfile_content=('$ldflags -o $out %s -Wl,--start-group $in $solibs '
-                       '-Wl,--end-group $libs' % rpath))
+                       '-Wl,--end-group $libs' % rpath),
+      pool='link_pool')
   elif flavor in ['win', 'xb1', 'xb360']:
     master_ninja.rule(
         'alink',
@@ -1872,7 +1925,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
         description='LINK $out',
         command=link_command,
         rspfile='$out.rsp',
-        rspfile_content='$in_newline $libs $ldflags')
+        rspfile_content='$in_newline $libs $ldflags',
+        pool='link_pool')
   elif flavor == 'wiiu':
     master_ninja.rule(
       'alink',
@@ -1883,9 +1937,10 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     master_ninja.rule(
       'link',
       description='LINK $out',
-      command=('flock linker.lock -c "cmd.exe /c $ld @$out.rsp"'),
+      command=('cmd.exe /c $ld @$out.rsp'),
       rspfile='$out.rsp',
-      rspfile_content='$ldflags -o $out $in $solibs $libs'),
+      rspfile_content='$ldflags -o $out $in $solibs $libs',
+      pool='link_pool'),
     master_ninja.rule(
       'preprpl',
       description='PREPRPL $out',
@@ -1964,7 +2019,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       'link',
       description='LINK $out, POSTBUILDS',
       command=('$ld $ldflags -o $out '
-               '$in $solibs $libs$postbuilds'))
+               '$in $solibs $libs$postbuilds'),
+      pool='link_pool')
     master_ninja.rule(
       'infoplist',
       description='INFOPLIST $out',
