@@ -20,6 +20,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/pseudo_element.h"
 #include "cobalt/web_animations/animatable.h"
@@ -50,6 +51,11 @@ class DOMAnimatable : public web_animations::Animatable {
   // either an HTMLElement or a PseudoElement).
   void Register(web_animations::Animation* animation) OVERRIDE;
   void Deregister(web_animations::Animation* animation) OVERRIDE;
+
+  // Returns the element that acts as an EventTarget for this animatable.
+  // In the case of elements, it will be the element itself.  In the case of
+  // pseudo elements, it will be the pseudo element's parent element.
+  Element* GetEventTarget();
 
  private:
   Element* element_;

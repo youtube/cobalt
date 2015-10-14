@@ -190,8 +190,7 @@ void Window::RunAnimationFrameCallbacks() {
       new AnimationFrameRequestCallbackList(this));
 
   // Now, iterate through each of the callbacks and call them.
-  frame_request_list->RunCallbacks(
-      document_->timeline_sample_time()->InMillisecondsF());
+  frame_request_list->RunCallbacks(*document_->timeline()->current_time());
 }
 
 void Window::InjectEvent(const scoped_refptr<Event>& event) {

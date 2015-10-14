@@ -17,6 +17,8 @@
 #ifndef WEB_ANIMATIONS_ANIMATION_H_
 #define WEB_ANIMATIONS_ANIMATION_H_
 
+#include <set>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
@@ -74,6 +76,30 @@ class Animation : public script::Wrappable {
     double playback_rate_;
   };
 
+  // EventHandler objects can be created via Animation::AttachEventHandler().
+  // Once created, they represent the connection of a set of Animation event
+  // callbacks which may get called as the animation is updated, until the
+  // EventHandler is destructed.
+  class EventHandler {
+   public:
+    EventHandler(const scoped_refptr<Animation>& animation,
+                 const base::Closure& on_enter_after_phase)
+        : animation_(animation), on_enter_after_phase_(on_enter_after_phase) {}
+
+    ~EventHandler() { animation_->RemoveEventHandler(this); }
+
+    const base::Closure& on_enter_after_phase() const {
+      return on_enter_after_phase_;
+    }
+
+   private:
+    // The animation we are handling events from.
+    scoped_refptr<Animation> animation_;
+
+    // Called when the Animation's effect enters the "after phase".
+    base::Closure on_enter_after_phase_;
+  };
+
   Animation(const scoped_refptr<AnimationEffectReadOnly>& effect,
             const scoped_refptr<AnimationTimeline>& timeline);
 
@@ -118,14 +144,45 @@ class Animation : public script::Wrappable {
   // Custom, not in any spec.
   const Data& data() const { return data_; }
 
+  // Connects a set of events (currently only the event where the Animation's
+  // effect enters its "after phase") to the provided callbacks, and returns
+  // an object that represents the connection.
+  scoped_ptr<EventHandler> AttachEventHandler(
+      const base::Closure& on_enter_after_phase);
+
   DEFINE_WRAPPABLE_TYPE(Animation);
 
  private:
   ~Animation() OVERRIDE;
 
+  // This will be called by EventHandler's destructor.
+  void RemoveEventHandler(EventHandler* handler);
+
+  // This method will update all timing-based tasks based on the current state
+  // of the Animation object (and all referenced objects) when this function
+  // is called.
+  void UpdatePendingTasks();
+
+  // Called when the animation's effect enters its after phase.
+  void OnEnterAfterPhase();
+
   scoped_refptr<AnimationEffectReadOnly> effect_;
   scoped_refptr<AnimationTimeline> timeline_;
   Data data_;
+
+  // A list of event handlers that are interested in receiving callbacks when
+  // animation events occur.
+  std::set<EventHandler*> event_handlers_;
+  // When a specific animation event occurs, we will copy event_handlers_ into
+  // this and then call each event one by one.  This way we can manage the set
+  // being modified as event handlers are called.
+  std::set<EventHandler*> event_handlers_being_called_;
+
+  // When active, this task will be setup to fire after we enter the after
+  // phase.
+  scoped_ptr<TimedTaskQueue::Task> on_enter_after_phase_;
+
+  friend class EventHandler;
 
   DISALLOW_COPY_AND_ASSIGN(Animation);
 };

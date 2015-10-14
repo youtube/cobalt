@@ -24,36 +24,41 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+
+scoped_refptr<base::Clock> CreateOffsetClock(Document* document,
+                                             double origin_time) {
+  return document->navigation_start_clock() ?
+      new base::OffsetClock(
+        document->navigation_start_clock(),
+        base::TimeDelta::FromMillisecondsD(origin_time)) :
+      NULL;
+}
+}  // namespace
+
 DocumentTimeline::DocumentTimeline(Document* document, double origin_time)
-    : origin_time_(origin_time) {
+    : AnimationTimeline(CreateOffsetClock(document, origin_time)) {
   document_ = base::AsWeakPtr<Document>(document);
 }
 
-DocumentTimeline::DocumentTimeline(script::EnvironmentSettings* settings,
-                                   double origin_time)
-    : origin_time_(origin_time) {
+namespace {
+dom::Document* DocumentFromEnvironmentSettings(
+    script::EnvironmentSettings* settings) {
   dom::DOMSettings* dom_settings =
       base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  document_ = base::AsWeakPtr<Document>(dom_settings->window()->document());
+  return dom_settings->window()->document();
+}
+}  // namespace
+
+DocumentTimeline::DocumentTimeline(script::EnvironmentSettings* settings,
+                                   double origin_time)
+    : AnimationTimeline(CreateOffsetClock(
+          DocumentFromEnvironmentSettings(settings), origin_time)) {
+  document_ =
+      base::AsWeakPtr<Document>(DocumentFromEnvironmentSettings(settings));
 }
 
 DocumentTimeline::~DocumentTimeline() {}
-
-// Returns the current time for the document.  This is based off of the last
-// sampled time.
-// http://www.w3.org/TR/web-animations-1/#the-animationtimeline-interface
-base::optional<double> DocumentTimeline::current_time() const {
-  base::optional<double> document_sample_time;
-  if (document_.get()) {
-    document_sample_time = document_->timeline_sample_time()->InMillisecondsF();
-  }
-
-  if (document_sample_time) {
-    return *document_sample_time - origin_time_;
-  } else {
-    return base::nullopt;
-  }
-}
 
 }  // namespace dom
 }  // namespace cobalt

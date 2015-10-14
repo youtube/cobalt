@@ -126,6 +126,8 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
         const base::optional<base::TimeDelta>& scaled_active_time,
         const base::optional<base::TimeDelta>& iteration_time) const;
 
+    base::TimeDelta time_until_after_phase(base::TimeDelta local_time) const;
+
    private:
     enum Phase {
       kBeforePhase,
