@@ -16,6 +16,8 @@
 
 #include "cobalt/layout/inline_container_box.h"
 
+#include <limits>
+
 #include "cobalt/layout/line_box.h"
 #include "cobalt/layout/used_style.h"
 
@@ -23,10 +25,9 @@ namespace cobalt {
 namespace layout {
 
 InlineContainerBox::InlineContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions,
+    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
     const UsedStyleProvider* used_style_provider)
-    : ContainerBox(computed_style, transitions, used_style_provider),
+    : ContainerBox(computed_style_state, used_style_provider),
       should_collapse_leading_white_space_(false),
       should_collapse_trailing_white_space_(false),
       has_leading_white_space_(false),
@@ -35,18 +36,19 @@ InlineContainerBox::InlineContainerBox(
       justifies_line_existence_(false),
       baseline_offset_from_margin_box_top_(0),
       used_font_(used_style_provider->GetUsedFont(
-          computed_style->font_family(), computed_style->font_size(),
-          computed_style->font_style(), computed_style->font_weight(), NULL)),
-      update_size_results_valid_(false) {}
+          computed_style_state->style()->font_family(),
+          computed_style_state->style()->font_size(),
+          computed_style_state->style()->font_style(),
+          computed_style_state->style()->font_weight(), NULL)) {}
 
 InlineContainerBox::~InlineContainerBox() {}
 
 Box::Level InlineContainerBox::GetLevel() const { return kInlineLevel; }
 
-bool InlineContainerBox::TryAddChild(scoped_ptr<Box>* child_box) {
-  switch ((*child_box)->GetLevel()) {
+bool InlineContainerBox::TryAddChild(const scoped_refptr<Box>& child_box) {
+  switch (child_box->GetLevel()) {
     case kBlockLevel:
-      if (!(*child_box)->IsAbsolutelyPositioned()) {
+      if (!child_box->IsAbsolutelyPositioned()) {
         // Only inline-level boxes are allowed as in-flow children of an inline
         // container box.
         return false;
@@ -60,7 +62,7 @@ bool InlineContainerBox::TryAddChild(scoped_ptr<Box>* child_box) {
         return false;
       }
 
-      PushBackDirectChild(child_box->Pass());
+      PushBackDirectChild(child_box);
       return true;
 
     default:
@@ -69,29 +71,16 @@ bool InlineContainerBox::TryAddChild(scoped_ptr<Box>* child_box) {
   }
 }
 
-scoped_ptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
-  scoped_ptr<ContainerBox> box_after_split(new InlineContainerBox(
-      computed_style(), transitions(), used_style_provider()));
+scoped_refptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
+  scoped_refptr<ContainerBox> box_after_split(
+      new InlineContainerBox(computed_style_state(), used_style_provider()));
 
   // When an inline box is split, margins, borders, and padding have no visual
   // effect where the split occurs.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   // TODO(***REMOVED***): Implement the above comment.
 
-  return box_after_split.Pass();
-}
-
-bool InlineContainerBox::ValidateUpdateSizeInputs(
-    const LayoutParams& params) {
-  // Also take into account mutable local state about (at least) whether white
-  // space should be collapsed or not.
-  if (ContainerBox::ValidateUpdateSizeInputs(params) &&
-      update_size_results_valid_) {
-    return true;
-  } else {
-    update_size_results_valid_ = true;
-    return false;
-  }
+  return box_after_split;
 }
 
 void InlineContainerBox::UpdateContentSizeAndMargins(
@@ -104,7 +93,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
                    should_collapse_trailing_white_space_, layout_params,
                    computed_style()->text_align());
 
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
+  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     line_box.BeginUpdateRectAndMaybeOverflow(child_box);
@@ -169,13 +158,13 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
                                          line_box.baseline_offset_from_top();
 }
 
-scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width,
-                                               bool allow_overflow) {
+scoped_refptr<Box> InlineContainerBox::TrySplitAt(float available_width,
+                                                  bool allow_overflow) {
   DCHECK_GT(GetMarginBoxWidth(), available_width);
 
   available_width -= margin_left() + border_left_width() + padding_left();
   if (!allow_overflow && available_width < 0) {
-    return scoped_ptr<Box>();
+    return scoped_refptr<Box>();
   }
 
   // Leave first N children that fit completely in the available width in this
@@ -183,7 +172,7 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width,
   // and partially left in this box. Additionally, if |allow_overflow| is true,
   // then overflows past the available width are allowed until a child with a
   // used width greater than 0 has been added.
-  ChildBoxes::const_iterator child_box_iterator;
+  Boxes::const_iterator child_box_iterator;
   for (child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
@@ -193,12 +182,12 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width,
     // Split the first child that overflows the available width.
     // Leave its part before the split in this box.
     if (available_width < margin_box_width_of_child_box) {
-      scoped_ptr<Box> child_box_after_split =
+      scoped_refptr<Box> child_box_after_split =
           child_box->TrySplitAt(available_width, allow_overflow);
       if (child_box_after_split) {
         ++child_box_iterator;
         child_box_iterator =
-            InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
+            InsertDirectChild(child_box_iterator, child_box_after_split);
       } else if (allow_overflow) {
         // Unable to split the child, but overflow is allowed, so increment
         // |child_box_iterator| because the whole first child box is being left
@@ -218,7 +207,7 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width,
 
   // The first child cannot be split, so this box cannot be split either.
   if (child_box_iterator == child_boxes().begin()) {
-    return scoped_ptr<Box>();
+    return scoped_refptr<Box>();
   }
   // Either:
   //   - All children fit but the right edge overflows.
@@ -234,17 +223,17 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width,
                available_width ||
            (allow_overflow &&
             child_boxes().back()->GetMarginBoxWidth() > available_width));
-    return scoped_ptr<Box>();
+    return scoped_refptr<Box>();
   }
 
   return SplitAtIterator(child_box_iterator);
 }
 
-scoped_ptr<Box> InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
+scoped_refptr<Box> InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
   const int kInvalidLevel = -1;
   int last_level = kInvalidLevel;
 
-  ChildBoxes::const_iterator child_box_iterator;
+  Boxes::const_iterator child_box_iterator;
   for (child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
@@ -264,19 +253,19 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
     }
 
     // Try to split the child box's internals.
-    scoped_ptr<Box> child_box_after_split =
+    scoped_refptr<Box> child_box_after_split =
         child_box->TrySplitAtSecondBidiLevelRun();
     if (child_box_after_split) {
       ++child_box_iterator;
       child_box_iterator =
-          InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
+          InsertDirectChild(child_box_iterator, child_box_after_split);
       break;
     }
   }
 
   // If the iterator reached the end, then no split was found.
   if (child_box_iterator == child_boxes().end()) {
-    return scoped_ptr<Box>();
+    return scoped_refptr<Box>();
   }
 
   return SplitAtIterator(child_box_iterator);
@@ -284,7 +273,7 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
 
 base::optional<int> InlineContainerBox::GetBidiLevel() const {
   if (!child_boxes().empty()) {
-    ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
+    Boxes::const_iterator child_box_iterator = child_boxes().begin();
     return (*child_box_iterator)->GetBidiLevel();
   }
 
@@ -296,7 +285,7 @@ void InlineContainerBox::SetShouldCollapseLeadingWhiteSpace(
   if (should_collapse_leading_white_space_ !=
       should_collapse_leading_white_space) {
     should_collapse_leading_white_space_ = should_collapse_leading_white_space;
-    update_size_results_valid_ = false;
+    InvalidateUpdateSizeInputs();
   }
 }
 
@@ -306,7 +295,7 @@ void InlineContainerBox::SetShouldCollapseTrailingWhiteSpace(
       should_collapse_trailing_white_space) {
     should_collapse_trailing_white_space_ =
         should_collapse_trailing_white_space;
-    update_size_results_valid_ = false;
+    InvalidateUpdateSizeInputs();
   }
 }
 
@@ -370,15 +359,15 @@ void InlineContainerBox::DumpProperties(std::ostream* stream) const {
 
 #endif  // COBALT_BOX_DUMP_ENABLED
 
-scoped_ptr<Box> InlineContainerBox::SplitAtIterator(
-    ChildBoxes::const_iterator child_split_iterator) {
+scoped_refptr<Box> InlineContainerBox::SplitAtIterator(
+    Boxes::const_iterator child_split_iterator) {
   // TODO(***REMOVED***): When an inline box is split, margins, borders, and padding
   //               have no visual effect where the split occurs.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
 
   // Move the children after the split into a new box.
-  scoped_ptr<InlineContainerBox> box_after_split(new InlineContainerBox(
-      computed_style(), transitions(), used_style_provider()));
+  scoped_refptr<InlineContainerBox> box_after_split(
+      new InlineContainerBox(computed_style_state(), used_style_provider()));
 
   box_after_split->MoveChildrenFrom(box_after_split->child_boxes().end(), this,
                                     child_split_iterator, child_boxes().end());
@@ -395,7 +384,7 @@ scoped_ptr<Box> InlineContainerBox::SplitAtIterator(
   set_margin_bottom(std::numeric_limits<float>::quiet_NaN());
 #endif  // _DEBUG
 
-  return box_after_split.PassAs<Box>();
+  return box_after_split;
 }
 
 }  // namespace layout

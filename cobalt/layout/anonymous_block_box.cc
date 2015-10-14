@@ -22,13 +22,14 @@ namespace cobalt {
 namespace layout {
 
 AnonymousBlockBox::AnonymousBlockBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions,
+    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
     const UsedStyleProvider* used_style_provider)
-    : BlockContainerBox(computed_style, transitions, used_style_provider),
+    : BlockContainerBox(computed_style_state, used_style_provider),
       used_font_(used_style_provider->GetUsedFont(
-          computed_style->font_family(), computed_style->font_size(),
-          computed_style->font_style(), computed_style->font_weight(), NULL)) {}
+          computed_style_state->style()->font_family(),
+          computed_style_state->style()->font_size(),
+          computed_style_state->style()->font_style(),
+          computed_style_state->style()->font_weight(), NULL)) {}
 
 Box::Level AnonymousBlockBox::GetLevel() const { return kBlockLevel; }
 
@@ -37,29 +38,30 @@ AnonymousBlockBox* AnonymousBlockBox::AsAnonymousBlockBox() { return this; }
 void AnonymousBlockBox::SplitBidiLevelRuns() {
   ContainerBox::SplitBidiLevelRuns();
 
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
+  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end();) {
     Box* child_box = *child_box_iterator;
     ++child_box_iterator;
 
-    scoped_ptr<Box> child_box_after_split =
+    scoped_refptr<Box> child_box_after_split =
         child_box->TrySplitAtSecondBidiLevelRun();
     if (child_box_after_split) {
       child_box_iterator =
-          InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
+          InsertDirectChild(child_box_iterator, child_box_after_split);
     }
   }
 }
 
-bool AnonymousBlockBox::TryAddChild(scoped_ptr<Box>* /*child_box*/) {
+bool AnonymousBlockBox::TryAddChild(const scoped_refptr<Box>& /*child_box*/) {
   NOTREACHED();
   return false;
 }
 
-void AnonymousBlockBox::AddInlineLevelChild(scoped_ptr<Box> child_box) {
+void AnonymousBlockBox::AddInlineLevelChild(
+    const scoped_refptr<Box>& child_box) {
   DCHECK(child_box->GetLevel() == kInlineLevel ||
          child_box->IsAbsolutelyPositioned());
-  PushBackDirectChild(child_box.Pass());
+  PushBackDirectChild(child_box);
 }
 
 #ifdef COBALT_BOX_DUMP_ENABLED
@@ -79,7 +81,7 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
           computed_style()->line_height(), used_font_->GetFontMetrics(),
           child_layout_params, computed_style()->text_align()));
 
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
+  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end();) {
     Box* child_box = *child_box_iterator;
     ++child_box_iterator;
@@ -87,7 +89,7 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
     if (child_box->IsAbsolutelyPositioned()) {
       inline_formatting_context->BeginEstimateStaticPosition(child_box);
     } else {
-      scoped_ptr<Box> child_box_after_split =
+      scoped_refptr<Box> child_box_after_split =
           inline_formatting_context->BeginUpdateRectAndMaybeSplit(child_box);
       if (child_box_after_split) {
         // Re-insert the rest of the child box and attempt to lay it out in
@@ -97,7 +99,7 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
         //               Consider using a new vector instead and swap its
         //               contents after the layout is done.
         child_box_iterator =
-            InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
+            InsertDirectChild(child_box_iterator, child_box_after_split);
       }
     }
   }

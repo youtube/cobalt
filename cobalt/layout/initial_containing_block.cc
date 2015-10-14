@@ -24,6 +24,7 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/specified_style.h"
+#include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_html_element.h"
@@ -109,7 +110,7 @@ void PropagateBackgroundStyleToInitialStyle(
   }
 }
 
-scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
+scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
     const scoped_refptr<cssom::CSSStyleDeclarationData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
@@ -122,9 +123,11 @@ scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
   PropagateBackgroundStyleToInitialStyle(
       document, initial_containing_block_style);
 
-  return make_scoped_ptr(new BlockLevelBlockContainerBox(
-      initial_containing_block_style,
-      cssom::TransitionSet::EmptyTransitionSet(), used_style_provider));
+  scoped_refptr<cssom::ComputedStyleState> initial_style_state =
+      new cssom::ComputedStyleState();
+  initial_style_state->set_style(initial_containing_block_style);
+  return make_scoped_refptr(new BlockLevelBlockContainerBox(
+      initial_style_state, used_style_provider));
 }
 
 }  // namespace layout

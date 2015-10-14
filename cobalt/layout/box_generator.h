@@ -22,6 +22,7 @@
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/layout/box.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
 
 namespace cobalt {
@@ -33,7 +34,6 @@ class HTMLVideoElement;
 namespace layout {
 
 class Box;
-class ContainerBox;
 class Paragraph;
 class UsedStyleProvider;
 
@@ -61,15 +61,13 @@ class BoxGenerator : public dom::NodeVisitor {
   void Visit(dom::Element* element) OVERRIDE;
   void Visit(dom::Text* text) OVERRIDE;
 
-  // The result of a box generator is zero or more root boxes.
-  typedef ScopedVector<Box> Boxes;
-  Boxes PassBoxes();
+  const Boxes& boxes() const { return boxes_; }
 
  private:
   void VisitVideoElement(dom::HTMLVideoElement* video_element);
   void VisitNonReplacedElement(dom::HTMLElement* html_element);
 
-  void AppendChildBoxToLine(Box* child_box_ptr);
+  void AppendChildBoxToLine(const scoped_refptr<Box>& child_box);
   void AppendPseudoElementToLine(dom::HTMLElement* html_element,
                                  dom::PseudoElementType pseudo_element_type);
 
@@ -79,6 +77,7 @@ class BoxGenerator : public dom::NodeVisitor {
   icu::BreakIterator* const line_break_iterator_;
   scoped_refptr<Paragraph>* paragraph_;
 
+  // The result of a box generator is zero or more root boxes.
   Boxes boxes_;
 
   DISALLOW_COPY_AND_ASSIGN(BoxGenerator);

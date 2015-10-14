@@ -208,7 +208,7 @@ class Window : public EventTarget {
   int width_;
   int height_;
 
-  scoped_ptr<HTMLElementContext> html_element_context_;
+  const scoped_ptr<HTMLElementContext> html_element_context_;
   scoped_refptr<Performance> performance_;
   scoped_refptr<Document> document_;
   scoped_ptr<loader::Loader> document_loader_;

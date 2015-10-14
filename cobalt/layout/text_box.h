@@ -19,6 +19,8 @@
 
 #include <string>
 
+#include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"
 #include "cobalt/render_tree/font.h"
@@ -32,22 +34,20 @@ namespace layout {
 // at soft wrap opportunities.
 class TextBox : public Box {
  public:
-  TextBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions,
-      const UsedStyleProvider* used_style_provider,
-      const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
-      int32 text_end_position, bool triggers_line_break);
+  TextBox(const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+          const UsedStyleProvider* used_style_provider,
+          const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
+          int32 text_end_position, bool triggers_line_break);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
 
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-  scoped_ptr<Box> TrySplitAt(float available_width,
-                             bool allow_overflow) OVERRIDE;
+  scoped_refptr<Box> TrySplitAt(float available_width,
+                                bool allow_overflow) OVERRIDE;
 
   void SplitBidiLevelRuns() OVERRIDE;
-  scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
+  scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
   void SetShouldCollapseLeadingWhiteSpace(
@@ -91,7 +91,7 @@ class TextBox : public Box {
   // the split occurs and the second box begins
   // |pre_split_width| indicates the width of the text that is remaining part
   // of the first box
-  scoped_ptr<Box> SplitAtPosition(int32 split_start_position);
+  scoped_refptr<Box> SplitAtPosition(int32 split_start_position);
 
   // Width of a space character in the used font, if the box has leading white
   // space.
@@ -112,7 +112,7 @@ class TextBox : public Box {
   const scoped_refptr<Paragraph> paragraph_;
   // The position within the paragraph where the text contained in this box
   // begins.
-  int32 text_start_position_;
+  const int32 text_start_position_;
   // The position within the paragraph where the text contained in this box
   // ends.
   int32 text_end_position_;

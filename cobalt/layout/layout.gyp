@@ -52,6 +52,8 @@
         'inline_level_replaced_box.h',
         'layout.cc',
         'layout.h',
+        'layout_boxes.cc',
+        'layout_boxes.h',
         'layout_manager.cc',
         'layout_manager.h',
         'line_box.cc',

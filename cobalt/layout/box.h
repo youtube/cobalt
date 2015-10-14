@@ -19,11 +19,13 @@
 
 #include <iosfwd>
 #include <string>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_transition_set.h"
+#include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/math/insets_f.h"
 #include "cobalt/math/point_f.h"
@@ -75,7 +77,10 @@ struct LayoutParams {
 // for elements in the document tree and laid out according to the visual
 // formatting model.
 //   http://www.w3.org/TR/CSS21/box.html
-class Box {
+// Boxes are reference counted, because they are referred to by both parent
+// boxes and LayoutBoxes objects stored with html elements in the DOM tree to
+// allow incremental box generation.
+class Box : public base::RefCounted<Box> {
  public:
   // Defines the formatting context in which the box should participate.
   // Do not confuse with the formatting context that the element may establish.
@@ -92,8 +97,7 @@ class Box {
     kInlineLevel,
   };
 
-  Box(const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions,
+  Box(const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       const UsedStyleProvider* used_style_provider);
   virtual ~Box();
 
@@ -103,15 +107,21 @@ class Box {
   // or hard-to-parallelize operations, such as resolving network requests or
   // retrieving values other than from the element and its parent.
   //   http://www.w3.org/TR/css-cascade-3/#computed
+  const scoped_refptr<cssom::ComputedStyleState>& computed_style_state() const {
+    return computed_style_state_;
+  }
+
   const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style()
       const {
-    return computed_style_;
+    return computed_style_state_->style();
   }
 
   // The transition set specifies all currently active transitions appyling
   // to this box's computed_style() CSS Style Declaration.
   //   http://www.w3.org/TR/css3-transitions
-  const cssom::TransitionSet* transitions() const { return transitions_; }
+  const cssom::TransitionSet* transitions() const {
+    return computed_style_state_->transitions();
+  }
 
   // Specifies the formatting context in which the box should participate.
   // Do not confuse with the formatting context that the element may establish.
@@ -194,15 +204,15 @@ class Box {
   // Returns the part after the split if the split succeeded.
   //
   // Note that only inline boxes are splittable.
-  virtual scoped_ptr<Box> TrySplitAt(float available_width,
-                                     bool allow_overflow) = 0;
+  virtual scoped_refptr<Box> TrySplitAt(float available_width,
+                                        bool allow_overflow) = 0;
 
   // Initial splitting of boxes between bidi level runs prior to layout, so that
   // they will not need to occur during layout.
   virtual void SplitBidiLevelRuns() = 0;
 
   // Attempt to split the box at the second level run within it.
-  virtual scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() = 0;
+  virtual scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() = 0;
 
   // Retrieve the bidi level for the box, if it has one.
   virtual base::optional<int> GetBidiLevel() const = 0;
@@ -261,6 +271,9 @@ class Box {
   // Derived classes may override this method to check if local box state has
   // changed as well.
   virtual bool ValidateUpdateSizeInputs(const LayoutParams& params);
+
+  // updates the boxes so that they can be reused for layout.
+  virtual void InvalidateUpdateSizeInputsOfBoxAndDescendants();
 
   // Converts a layout subtree into a render subtree.
   // This method defines the overall strategy of the conversion and relies
@@ -440,12 +453,11 @@ class Box {
           node_animations_map_builder,
       math::Matrix3F* border_node_transform) const;
 
-  const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
-  const UsedStyleProvider* const used_style_provider_;
-
-  // The transitions_ member references the cssom::TransitionSet object owned
+  // The computed_style_state_ member references the cssom::ComputedStyleState
+  // object owned
   // by the HTML Element from which this box is derived.
-  const cssom::TransitionSet* transitions_;
+  const scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
+  const UsedStyleProvider* const used_style_provider_;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
   std::string generating_html_;
@@ -499,6 +511,8 @@ inline std::ostream& operator<<(std::ostream& stream, const Box& box) {
 }
 
 #endif  // COBALT_BOX_DUMP_ENABLED
+
+typedef std::vector<scoped_refptr<Box> > Boxes;
 
 }  // namespace layout
 }  // namespace cobalt

@@ -252,6 +252,11 @@ class Document : public Node, public cssom::MutationObserver {
     return timeline_sample_time_;
   }
 
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  bool partial_layout_is_enabled() { return partial_layout_is_enabled_; }
+  void SetPartialLayout(const std::string& mode_string);
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
@@ -259,7 +264,7 @@ class Document : public Node, public cssom::MutationObserver {
 
  private:
   // Reference to HTML element context.
-  HTMLElementContext* html_element_context_;
+  HTMLElementContext* const html_element_context_;
   // Associated DOM implementation object.
   scoped_refptr<DOMImplementation> implementation_;
   // Associated location object.
@@ -298,6 +303,10 @@ class Document : public Node, public cssom::MutationObserver {
   const scoped_refptr<base::Clock> navigation_start_clock_;
   base::optional<base::TimeDelta> timeline_sample_time_;
   scoped_refptr<DocumentTimeline> default_timeline_;
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  bool partial_layout_is_enabled_;
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 };
 
 }  // namespace dom

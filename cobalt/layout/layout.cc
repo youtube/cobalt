@@ -38,7 +38,7 @@ namespace layout {
 RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::Window>& window,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    render_tree::ResourceProvider* resource_provider,
+    UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
 
@@ -51,33 +51,23 @@ RenderTreeWithAnimations Layout(
   document->UpdateComputedStyles(initial_containing_block_style,
                                  user_agent_style_sheet);
 
-  UsedStyleProvider used_style_provider(
-      resource_provider, document->html_element_context()->image_cache(),
-      document->font_face_cache());
-
   // Create initial containing block.
-  scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block =
-      CreateInitialContainingBlock(
-          initial_containing_block_style, window->document(),
-          &used_style_provider);
+  scoped_refptr<BlockLevelBlockContainerBox> initial_containing_block =
+      CreateInitialContainingBlock(initial_containing_block_style, document,
+                                   used_style_provider);
 
   // Generate boxes.
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
     scoped_refptr<Paragraph> paragraph;
     BoxGenerator root_box_generator(initial_containing_block->computed_style(),
-                                    &used_style_provider, line_break_iterator,
+                                    used_style_provider, line_break_iterator,
                                     &paragraph);
     document->html()->Accept(&root_box_generator);
-    BoxGenerator::Boxes root_boxes = root_box_generator.PassBoxes();
-    for (BoxGenerator::Boxes::iterator root_box_iterator = root_boxes.begin();
+    const Boxes& root_boxes = root_box_generator.boxes();
+    for (Boxes::const_iterator root_box_iterator = root_boxes.begin();
          root_box_iterator != root_boxes.end(); ++root_box_iterator) {
-      // Transfer the ownership of the root box from |ScopedVector|
-      // to |scoped_ptr|.
-      scoped_ptr<Box> root_box(*root_box_iterator);
-      *root_box_iterator = NULL;
-
-      initial_containing_block->AddChild(root_box.Pass());
+      initial_containing_block->AddChild(*root_box_iterator);
     }
   }
 
