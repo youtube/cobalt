@@ -43,6 +43,10 @@ class DOMTokenList : public script::Wrappable {
   void Add(const std::vector<std::string>& tokens);
   void Remove(const std::vector<std::string>& tokens);
 
+  // Custom, not in any spec. Should only be called in cases where the token has
+  // already been validated.
+  bool ContainsValid(const std::string& valid_token) const;
+
   DEFINE_WRAPPABLE_TYPE(DOMTokenList);
 
  private:
