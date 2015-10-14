@@ -21,7 +21,9 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/base/clock.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web_animations/timed_task_queue.h"
 
 namespace cobalt {
 namespace web_animations {
@@ -33,24 +35,22 @@ class AnimationSet;
 //   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animationtimeline-interface
 class AnimationTimeline : public script::Wrappable {
  public:
-  AnimationTimeline();
+  explicit AnimationTimeline(const scoped_refptr<base::Clock>& clock);
 
   // Returns the current sample time of the timeline, in milliseconds.  If the
   // returned optional is not engaged, this timeline is 'unresolved'.
-  virtual base::optional<double> current_time() const = 0;
+  base::optional<double> current_time();
 
   // Custom, not in any spec.
+
+  // The owner of this timeline should call Sample() each time a new sample
+  // time is ready.
+  void Sample();
 
   // Returns the number of animations registered to this timeline.  This is not
   // in the spec, but serves as a poor-man's replacement for getAnimations()
   // until we have support for that.
   unsigned int num_animations() const;
-
-  // Registers and deregisters an animation with this timeline so that we are
-  // able to track all animations currently associated with this timeline.
-  // This will be requiered in order to implement getAnimations().
-  void Register(Animation* animation);
-  void Deregister(Animation* animation);
 
   DEFINE_WRAPPABLE_TYPE(AnimationTimeline);
 
@@ -58,7 +58,27 @@ class AnimationTimeline : public script::Wrappable {
   ~AnimationTimeline() OVERRIDE;
 
  private:
+  // Registers and deregisters an animation with this timeline so that we are
+  // able to track all animations currently associated with this timeline.
+  // This will be required in order to implement getAnimations().
+  void Register(Animation* animation);
+  void Deregister(Animation* animation);
+
+  // Called by Animation objects to queue their events into this timeline's
+  // TimedTaskQueue.
+  scoped_ptr<TimedTaskQueue::Task> QueueTask(base::TimeDelta fire_time,
+                                             const base::Closure& closure);
+
+  void UpdateNextEventTimer();
+
+  scoped_refptr<base::Clock> clock_;
   scoped_refptr<AnimationSet> animations_;
+  TimedTaskQueue event_queue_;
+  base::optional<base::TimeDelta> sampled_clock_time_;
+  base::OneShotTimer<AnimationTimeline> next_event_timer_;
+
+  // So that Animation objects can register themselves.
+  friend class Animation;
 
   DISALLOW_COPY_AND_ASSIGN(AnimationTimeline);
 };

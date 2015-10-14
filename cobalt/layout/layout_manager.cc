@@ -163,6 +163,7 @@ void LayoutManager::Impl::OnLoad() {
   if (layout_trigger_ == kTestRunnerMode &&
       !window_->test_runner()->should_wait()) {
     layout_dirty_ = true;
+
     // Run the |DoLayoutAndProduceRenderTree| task after onload event finished.
     MessageLoop::current()->PostTask(
         FROM_HERE,
@@ -250,7 +251,8 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       on_render_tree_produced_callback_.Run(
           LayoutResults(render_tree_with_animations.render_tree,
                         render_tree_with_animations.animations,
-                        *document->timeline_sample_time()));
+                        base::TimeDelta::FromMillisecondsD(
+                            *document->timeline()->current_time())));
     }
 
     layout_dirty_ = false;

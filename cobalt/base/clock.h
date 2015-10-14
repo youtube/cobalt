@@ -55,7 +55,9 @@ class SystemMonotonicClock : public Clock {
 class OffsetClock : public Clock {
  public:
   OffsetClock(const scoped_refptr<Clock> parent, const base::TimeDelta& origin)
-      : parent_(parent), origin_(origin) {}
+      : parent_(parent), origin_(origin) {
+    DCHECK(parent_);
+  }
 
   base::TimeDelta Now() OVERRIDE { return parent_->Now() - origin_; }
 
