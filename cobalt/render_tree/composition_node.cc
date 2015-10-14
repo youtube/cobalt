@@ -29,7 +29,9 @@ void CompositionNode::Builder::AddChild(const scoped_refptr<Node>& node,
 
 void CompositionNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
-math::RectF CompositionNode::GetBounds() const {
+math::RectF CompositionNode::GetBounds() const { return cached_bounds_; }
+
+math::RectF CompositionNode::ComputeBounds() const {
   math::RectF bounds;
 
   // Take the union of the bounding rectangle for all child nodes, and use that
