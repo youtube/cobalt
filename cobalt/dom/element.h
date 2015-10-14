@@ -157,9 +157,10 @@ class Element : public Node {
   // A weak pointer to a NamedNodeMap that proxies the actual attributes.
   // This heavy weight object is kept in memory only when needed by the user.
   base::WeakPtr<NamedNodeMap> named_node_map_;
-  // A weak pointer to a DOMTokenList containing the the classes of the element.
-  // This heavy weight object is kept in memory only when needed by the user.
-  base::WeakPtr<DOMTokenList> class_list_;
+  // Lazily created list of CSS classes.
+  // After creation this is kept in memory because of the significant negative
+  // performance impact of repeatedly recreating it.
+  scoped_refptr<DOMTokenList> class_list_;
 
   friend class HTMLElement;
 };
