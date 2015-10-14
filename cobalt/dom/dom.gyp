@@ -75,6 +75,7 @@
         'float64_array.h',
         'focus_event.cc',
         'focus_event.h',
+        'h5vcc_stub.h',
         'history.cc',
         'history.h',
         'html_anchor_element.cc',

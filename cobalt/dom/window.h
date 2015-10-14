@@ -28,6 +28,7 @@
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/crypto.h"
+#include "cobalt/dom/h5vcc_stub.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/parser.h"
 #if defined(ENABLE_TEST_RUNNER)
@@ -182,6 +183,9 @@ class Window : public EventTarget {
   const scoped_refptr<TestRunner>& test_runner() const;
 #endif  // ENABLE_TEST_RUNNER
 
+  const scoped_refptr<H5vccStub>& h5vcc() const { return h5vcc_; }
+  void set_h5vcc(const scoped_refptr<H5vccStub>& h5vcc) { h5vcc_ = h5vcc; }
+
   HTMLElementContext* html_element_context() const;
 
   // Will fire the animation frame callbacks and reset the animation frame
@@ -227,6 +231,8 @@ class Window : public EventTarget {
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;
 #endif  // ENABLE_TEST_RUNNER
+
+  scoped_refptr<H5vccStub> h5vcc_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
