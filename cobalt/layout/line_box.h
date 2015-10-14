@@ -19,7 +19,7 @@
 
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/render_tree/font.h"
@@ -69,8 +69,8 @@ class LineBox {
   // of the box after the split is stored in |child_box_after_split|. The box
   // that establishes this formatting context must re-insert the returned part
   // right after the original child box.
-  bool TryBeginUpdateRectAndMaybeSplit(Box* child_box,
-                                       scoped_ptr<Box>* child_box_after_split);
+  bool TryBeginUpdateRectAndMaybeSplit(
+      Box* child_box, scoped_refptr<Box>* child_box_after_split);
   // Asynchronously calculates the position and size of the given child box,
   // ignoring the possible overflow. The used values will be undefined until
   // |EndUpdates| is called.

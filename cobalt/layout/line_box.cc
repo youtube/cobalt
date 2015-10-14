@@ -17,6 +17,7 @@
 #include "cobalt/layout/line_box.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "cobalt/layout/box.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -49,7 +50,7 @@ LineBox::LineBox(float top,
       baseline_offset_from_top_(0) {}
 
 bool LineBox::TryBeginUpdateRectAndMaybeSplit(
-    Box* child_box, scoped_ptr<Box>* child_box_after_split) {
+    Box* child_box, scoped_refptr<Box>* child_box_after_split) {
   DCHECK(!*child_box_after_split);
   DCHECK(!child_box->IsAbsolutelyPositioned());
 

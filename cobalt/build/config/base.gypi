@@ -170,6 +170,7 @@
           '__LB_SHELL__ENABLE_SCREENSHOT__',
           'SK_DEVELOPER',
           'ENABLE_DEBUG_CONSOLE',
+          'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
         ],
       }, # end of debug_base
@@ -186,6 +187,7 @@
           '__LB_SHELL__ENABLE_SCREENSHOT__',
           'SK_DEVELOPER',
           'ENABLE_DEBUG_CONSOLE',
+          'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
         ],
       }, # end of devel_base
@@ -201,6 +203,7 @@
           '__LB_SHELL__FOR_QA__',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
           'ENABLE_DEBUG_CONSOLE',
+          'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
         ],
       }, # end of devel_base

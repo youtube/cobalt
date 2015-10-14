@@ -45,37 +45,35 @@ const float kFallbackWidth = 300.0f;
 }  // namespace
 
 ReplacedBox::ReplacedBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions,
+    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
     const UsedStyleProvider* used_style_provider,
     const ReplaceImageCB& replace_image_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
     const base::optional<float>& maybe_intrinsic_width,
     const base::optional<float>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio)
-    : Box(computed_style, transitions, used_style_provider),
+    : Box(computed_style_state, used_style_provider),
       maybe_intrinsic_width_(maybe_intrinsic_width),
       maybe_intrinsic_height_(maybe_intrinsic_height),
       // Like Chromium, we assume that an element must always have an intrinsic
       // ratio, although technically it's a spec violation. For details see
       // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
-      intrinsic_ratio_(
-          maybe_intrinsic_ratio.value_or(kFallbackIntrinsicRatio)),
+      intrinsic_ratio_(maybe_intrinsic_ratio.value_or(kFallbackIntrinsicRatio)),
       replace_image_cb_(replace_image_cb),
       paragraph_(paragraph),
       text_position_(text_position) {
   DCHECK(!replace_image_cb_.is_null());
 }
 
-scoped_ptr<Box> ReplacedBox::TrySplitAt(float /*available_width*/,
-                                        bool /*allow_overflow*/) {
-  return scoped_ptr<Box>();
+scoped_refptr<Box> ReplacedBox::TrySplitAt(float /*available_width*/,
+                                           bool /*allow_overflow*/) {
+  return scoped_refptr<Box>();
 }
 
 void ReplacedBox::SplitBidiLevelRuns() {}
 
-scoped_ptr<Box> ReplacedBox::TrySplitAtSecondBidiLevelRun() {
-  return scoped_ptr<Box>();
+scoped_refptr<Box> ReplacedBox::TrySplitAtSecondBidiLevelRun() {
+  return scoped_refptr<Box>();
 }
 
 base::optional<int> ReplacedBox::GetBidiLevel() const {

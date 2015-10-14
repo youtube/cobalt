@@ -39,8 +39,7 @@ namespace layout {
 class InlineContainerBox : public ContainerBox {
  public:
   InlineContainerBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions,
+      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       const UsedStyleProvider* used_style_provider);
   ~InlineContainerBox() OVERRIDE;
 
@@ -48,10 +47,10 @@ class InlineContainerBox : public ContainerBox {
   Level GetLevel() const OVERRIDE;
 
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-  scoped_ptr<Box> TrySplitAt(float available_width,
-                             bool allow_overflow) OVERRIDE;
+  scoped_refptr<Box> TrySplitAt(float available_width,
+                                bool allow_overflow) OVERRIDE;
 
-  scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
+  scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
   void SetShouldCollapseLeadingWhiteSpace(
@@ -68,10 +67,8 @@ class InlineContainerBox : public ContainerBox {
   float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
   // From |ContainerBox|.
-  bool TryAddChild(scoped_ptr<Box>* child_box) OVERRIDE;
-  scoped_ptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
-
-  bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
+  bool TryAddChild(const scoped_refptr<Box>& child_box) OVERRIDE;
+  scoped_refptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
 
  protected:
   // From |Box|.
@@ -83,8 +80,8 @@ class InlineContainerBox : public ContainerBox {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
-  scoped_ptr<Box> SplitAtIterator(
-      ChildBoxes::const_iterator child_split_iterator);
+  scoped_refptr<Box> SplitAtIterator(
+      Boxes::const_iterator child_split_iterator);
 
   bool should_collapse_leading_white_space_;
   bool should_collapse_trailing_white_space_;
@@ -96,8 +93,6 @@ class InlineContainerBox : public ContainerBox {
   float baseline_offset_from_margin_box_top_;
   // A font used for text width and line height calculations.
   const scoped_refptr<render_tree::Font> used_font_;
-
-  bool update_size_results_valid_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineContainerBox);
 };

@@ -23,6 +23,7 @@
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/debug/debug_hub.h"
@@ -113,6 +114,10 @@ class WebModule {
                                  base::WaitableEvent* got_result,
                                  std::string* result);
 
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  void OnPartialLayoutConsoleCommandReceived(const std::string& message);
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
   std::string name_;
 
   // Thread checker ensures all calls to the WebModule are made from the same
@@ -163,6 +168,12 @@ class WebModule {
 
   // Triggers layout whenever the document changes.
   layout::LayoutManager layout_manager_;
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  // Handles the 'partial_layout' command.
+  scoped_ptr<base::ConsoleCommandManager::CommandHandler>
+      partial_layout_command_handler_;
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 };
 
 }  // namespace browser

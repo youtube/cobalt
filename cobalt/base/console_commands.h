@@ -36,7 +36,7 @@ namespace base {
 // construction and unregisters itself on destruction.
 //
 // Each CommandHandler object specifies a callback and a help string. When the
-// ConsoleCommandMananger receives a command broadcast on a particular channel,
+// ConsoleCommandManager receives a command broadcast on a particular channel,
 // it runs the callback of the CommandHandler object registered to that
 // channel. The help string is used within the debug console to document the
 // channels that have been registered to listen for commands.
