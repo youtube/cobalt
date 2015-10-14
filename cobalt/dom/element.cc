@@ -78,13 +78,13 @@ scoped_refptr<NamedNodeMap> Element::attributes() {
 }
 
 scoped_refptr<DOMTokenList> Element::class_list() {
-  scoped_refptr<DOMTokenList> class_list = class_list_.get();
-  if (!class_list) {
-    // Create a new instance and store a weak reference.
-    class_list = new DOMTokenList(this, "class");
-    class_list_ = class_list->AsWeakPtr();
+  if (!class_list_) {
+    // Create a new instance and store a reference to it. Because of the
+    // negative performance impact of having to constantly recreate DomTokenList
+    // objects, they are being kept in memory.
+    class_list_ = new DOMTokenList(this, "class");
   }
-  return class_list;
+  return class_list_;
 }
 
 // Algorithm for inner_html:
