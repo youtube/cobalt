@@ -40,18 +40,12 @@ class DocumentTimeline : public web_animations::AnimationTimeline {
   DocumentTimeline(Document* document, double origin_time);
   DocumentTimeline(script::EnvironmentSettings*, double origin_time);
 
-  // Returns the current DocumentTimeline's time (in milliseconds), according to
-  // its specified origin.
-  base::optional<double> current_time() const OVERRIDE;
-
   // Custom, not in any spec.
-  //
   DEFINE_WRAPPABLE_TYPE(DocumentTimeline);
 
  private:
   ~DocumentTimeline() OVERRIDE;
 
-  double origin_time_;
   base::WeakPtr<Document> document_;
 
   DISALLOW_COPY_AND_ASSIGN(DocumentTimeline);

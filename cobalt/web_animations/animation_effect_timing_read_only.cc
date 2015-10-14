@@ -70,6 +70,11 @@ AnimationEffectTimingReadOnly::Data::GetPhase(
   return kAfterPhase;
 }
 
+base::TimeDelta AnimationEffectTimingReadOnly::Data::time_until_after_phase(
+    base::TimeDelta local_time) const {
+  return (delay_ + duration_) - local_time;
+}
+
 namespace {
 base::TimeDelta ScaleTime(const base::TimeDelta& time, double scale) {
   return base::TimeDelta::FromMillisecondsD(time.InMillisecondsF() * scale);
