@@ -195,7 +195,7 @@ bool BrowserModule::FilterKeyEventForHotkeys(
 
 // Static
 int BrowserModule::GetDebugConsoleModeFromCommandLine() {
-  int debug_console_mode = debug::DebugHub::kDebugConsoleHud;
+  int debug_console_mode = debug::DebugHub::kDebugConsoleOff;
 
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDebugConsoleMode)) {
