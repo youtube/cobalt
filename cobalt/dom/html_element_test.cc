@@ -29,7 +29,7 @@ namespace dom {
 class HTMLElementTest : public ::testing::Test {
  protected:
   HTMLElementTest()
-      : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL),
+      : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL),
         document_(new Document(&html_element_context_, Document::Options())) {}
   ~HTMLElementTest() OVERRIDE {}
 
