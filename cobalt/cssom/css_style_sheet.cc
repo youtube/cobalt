@@ -177,8 +177,6 @@ class CSSStyleSheet::CSSRuleIndexer : public CSSRuleVisitor {
 
   void VisitCSSFontFaceRule(CSSFontFaceRule* css_font_face_rule) OVERRIDE {
     css_font_face_rule->set_index(next_css_rule_priority_index_++);
-    // TODO(***REMOVED***): Implement the visitor
-    NOTIMPLEMENTED() << "VisitCSSFontFaceRule not implemented yet.";
   }
 
   void VisitCSSMediaRule(CSSMediaRule* css_media_rule) OVERRIDE {

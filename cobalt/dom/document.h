@@ -38,6 +38,7 @@ namespace dom {
 class Attr;
 class DOMImplementation;
 class Element;
+class FontFaceCache;
 class HTMLBodyElement;
 class HTMLCollection;
 class HTMLElement;
@@ -166,6 +167,8 @@ class Document : public Node, public cssom::MutationObserver {
     return html_element_context_;
   }
 
+  FontFaceCache* font_face_cache() const { return font_face_cache_.get(); }
+
   const GURL& url_as_gurl() const { return url_; }
 
   scoped_refptr<HTMLHtmlElement> html() const;
@@ -227,6 +230,11 @@ class Document : public Node, public cssom::MutationObserver {
       const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
+  // Scans the user agent style sheet and all style sheets in the document's
+  // style sheet list and updates the font faces available in the document.
+  void UpdateFontFaces(
+      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
+
   // Manages the clock used by Web Animations.
   //     http://www.w3.org/TR/web-animations
   // This clock is also used for requestAnimationFrame() callbacks, according
@@ -244,9 +252,9 @@ class Document : public Node, public cssom::MutationObserver {
  private:
   // Reference to HTML element context.
   HTMLElementContext* html_element_context_;
-  // Associated DOM implementation obejct.
+  // Associated DOM implementation object.
   scoped_refptr<DOMImplementation> implementation_;
-  // Associated location obejct.
+  // Associated location object.
   scoped_refptr<Location> location_;
   // URL of the document.
   GURL url_;
@@ -254,6 +262,8 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<cssom::StyleSheetList> style_sheets_;
   // List of scripts that will execute in order as soon as possible.
   std::deque<HTMLScriptElement*> scripts_to_be_executed_;
+  // The font face cache for this document.
+  scoped_ptr<FontFaceCache> font_face_cache_;
   // The number of ongoing loadings.
   int loading_counter_;
   // Whether the load event should be dispatched when loading counter hits zero.
@@ -263,6 +273,7 @@ class Document : public Node, public cssom::MutationObserver {
   bool is_selector_tree_dirty_;
   bool is_rule_matching_result_dirty_;
   bool is_computed_style_dirty_;
+  bool are_font_faces_dirty_;
 
   // Weak references to the certain elements in the document.
   base::WeakPtr<HTMLBodyElement> body_;
