@@ -335,14 +335,17 @@ void UsedFontFamilyProvider::VisitString(cssom::StringValue* string) {
 
 UsedStyleProvider::UsedStyleProvider(
     render_tree::ResourceProvider* resource_provider,
-    loader::image::ImageCache* image_cache)
-    : resource_provider_(resource_provider), image_cache_(image_cache) {}
+    loader::image::ImageCache* image_cache, dom::FontFaceCache* font_face_cache)
+    : resource_provider_(resource_provider),
+      image_cache_(image_cache),
+      font_face_cache_(font_face_cache) {}
 
 scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
     const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
     const scoped_refptr<cssom::PropertyValue>& font_size_refptr,
     const scoped_refptr<cssom::PropertyValue>& font_style_refptr,
-    const scoped_refptr<cssom::PropertyValue>& font_weight_refptr) const {
+    const scoped_refptr<cssom::PropertyValue>& font_weight_refptr,
+    bool* maybe_is_preferred_font_loading) const {
   UsedFontFamilyProvider font_family_provider;
   font_family_refptr->Accept(&font_family_provider);
   const UsedFontFamilyProvider::FontFamilyList& font_family_list =
@@ -364,8 +367,22 @@ scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
       ConvertFontWeightToRenderTreeFontStyle(font_style->value(),
                                              font_weight->value());
 
-  return resource_provider_->GetPreInstalledFont(
-      font_family_name.c_str(), render_tree_font_style, font_size->value());
+  // Attempt to retrieve a font by font family name from the font face cache.
+  // This potentially will trigger a load of a remote font, in which case the
+  // font won't be available until later.
+  scoped_refptr<render_tree::Font> font_face_font =
+      font_face_cache_->TryGetFont(font_family_name,
+                                   maybe_is_preferred_font_loading);
+
+  // If the font face cache did return a font, then clone it with the proper
+  // size.
+  if (font_face_font) {
+    return font_face_font->CloneWithSize(font_size->value());
+    // Otherwise, request the font from the resource provider.
+  } else {
+    return resource_provider_->GetPreInstalledFont(
+        font_family_name.c_str(), render_tree_font_style, font_size->value());
+  }
 }
 
 scoped_refptr<render_tree::Image> UsedStyleProvider::ResolveURLToImage(

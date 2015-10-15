@@ -22,6 +22,7 @@
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/dom/font_face_cache.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
@@ -49,19 +50,22 @@ class ContainingBlock;
 class UsedStyleProvider {
  public:
   UsedStyleProvider(render_tree::ResourceProvider* resource_provider,
-                    loader::image::ImageCache* image_cache);
+                    loader::image::ImageCache* image_cache,
+                    dom::FontFaceCache* font_face_cache);
 
   scoped_refptr<render_tree::Font> GetUsedFont(
       const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
       const scoped_refptr<cssom::PropertyValue>& font_size_refptr,
       const scoped_refptr<cssom::PropertyValue>& font_style_refptr,
-      const scoped_refptr<cssom::PropertyValue>& font_weight_refptr) const;
+      const scoped_refptr<cssom::PropertyValue>& font_weight_refptr,
+      bool* maybe_is_preferred_font_loading) const;
 
   scoped_refptr<render_tree::Image> ResolveURLToImage(const GURL& url) const;
 
  private:
   render_tree::ResourceProvider* const resource_provider_;
   loader::image::ImageCache* const image_cache_;
+  dom::FontFaceCache* const font_face_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedStyleProvider);
 };
