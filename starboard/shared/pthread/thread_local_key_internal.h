@@ -12,21 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/mutex.h"
+#ifndef STARBOARD_SHARED_PTHREAD_THREAD_LOCAL_KEY_INTERNAL_H_
+#define STARBOARD_SHARED_PTHREAD_THREAD_LOCAL_KEY_INTERNAL_H_
 
 #include <pthread.h>
 
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/pthread/is_success.h"
+#include "starboard/thread.h"
 
-SbMutexResult SbMutexAcquireTry(SbMutex *mutex) {
-  if (!mutex) {
-    return kSbMutexDestroyed;
-  }
+struct SbThreadLocalKeyPrivate {
+  // The underlying thread-local variable handle.
+  pthread_key_t key;
+};
 
-  int result = pthread_mutex_trylock(mutex);
-  if (IsSuccess(result)) {
-    return kSbMutexAcquired;
-  }
-
-  return kSbMutexBusy;
-}
+#endif  // STARBOARD_SHARED_PTHREAD_THREAD_LOCAL_KEY_INTERNAL_H_

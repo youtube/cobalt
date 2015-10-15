@@ -12,21 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/mutex.h"
+#include "starboard/condition_variable.h"
 
 #include <pthread.h>
 
 #include "starboard/shared/pthread/is_success.h"
 
-SbMutexResult SbMutexAcquireTry(SbMutex *mutex) {
-  if (!mutex) {
-    return kSbMutexDestroyed;
+bool SbConditionVariableDestroy(SbConditionVariable *condition) {
+  if (!condition) {
+    return false;
   }
 
-  int result = pthread_mutex_trylock(mutex);
-  if (IsSuccess(result)) {
-    return kSbMutexAcquired;
-  }
-
-  return kSbMutexBusy;
+  return IsSuccess(pthread_cond_destroy(condition));
 }

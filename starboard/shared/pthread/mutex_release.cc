@@ -16,12 +16,12 @@
 
 #include <pthread.h>
 
-#include "starboard/shared/pthread/mutex_internal.h"
+#include "starboard/shared/pthread/is_success.h"
 
-bool SbMutexRelease(SbMutex mutex) {
+bool SbMutexRelease(SbMutex *mutex) {
   if (!mutex) {
     return false;
   }
 
-  return IsSuccess(pthread_mutex_unlock(&mutex->pmutex));
+  return IsSuccess(pthread_mutex_unlock(mutex));
 }
