@@ -16,6 +16,8 @@
 
 #include "cobalt/loader/image/jpeg_image_decoder.h"
 
+#include <algorithm>
+
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "third_party/libjpeg/jpegint.h"
@@ -31,7 +33,7 @@ namespace {
 // set to anything, and it will only allocate enough to hold what is needs to.
 // (within a factor of 2).
 uint32 kMaxBufferSizeBytes = 1024 * 1024L;
-size_t kInvalidHeight = 0xFFFFFF;
+JDIMENSION kInvalidHeight = 0xFFFFFF;
 
 void ErrorManagerExit(j_common_ptr common_ptr) {
   // Returns the control to the setjmp point. The buffer which is filled by a
