@@ -44,7 +44,7 @@ class SerializerTest : public ::testing::Test {
 
 SerializerTest::SerializerTest()
     : dom_parser_(new dom_parser::Parser()),
-      html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL),
+      html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL),
       document_(new Document(&html_element_context_, Document::Options())),
       root_(new Element(document_)),
       source_location_(base::SourceLocation("[object SerializerTest]", 1, 1)) {}
