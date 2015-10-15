@@ -145,6 +145,7 @@ void SqlAddCookie(const net::CanonicalCookie& cc,
   insert_cookie.BindBool(11, cc.IsHttpOnly());
   bool ok = insert_cookie.Run();
   DCHECK(ok);
+  sql_context->Flush();
 }
 
 void SqlUpdateCookieAccessTime(const net::CanonicalCookie& cc,
@@ -167,6 +168,7 @@ void SqlUpdateCookieAccessTime(const net::CanonicalCookie& cc,
   touch_cookie.BindString(3, cc.Path());
   bool ok = touch_cookie.Run();
   DCHECK(ok);
+  sql_context->Flush();
 }
 
 void SqlDeleteCookie(const net::CanonicalCookie& cc,
@@ -180,6 +182,7 @@ void SqlDeleteCookie(const net::CanonicalCookie& cc,
   delete_cookie.BindString(2, cc.Path());
   bool ok = delete_cookie.Run();
   DCHECK(ok);
+  sql_context->Flush();
 }
 
 }  // namespace
@@ -224,7 +227,7 @@ void PersistentCookieStore::SetForceKeepSessionState() {
 }
 
 void PersistentCookieStore::Flush(const base::Closure& callback) {
-  storage_->Flush(callback);
+  storage_->FlushNow(callback);
 }
 
 

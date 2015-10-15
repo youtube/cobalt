@@ -58,9 +58,6 @@ class StorageManager {
   //   tables should be tracked in SchemaTable.
   static const int kDatabaseUserVersion = 3;
 
-  // Flush the database to disk every five minutes.
-  static const int kFlushSeconds = 300;
-
   // Schema-related error codes.  See GetSchemaVersion().
   enum {
     kSchemaTableIsNew = -1,
@@ -71,16 +68,27 @@ class StorageManager {
   virtual ~StorageManager();
 
   // Obtain the SqlContext for our database.
-  // callback will be called with an SqlContext that can be used to operate on
+  // |callback| will be called with an SqlContext that can be used to operate on
   // the database. The callback will run on the storage manager's message loop.
   void GetSqlContext(const SqlCallback& callback);
 
-  // Trigger a write of our database to disk. This call returns immediately.
-  // callback, if provided, will be called when the Flush() has completed,
+  // Schedule a write of our database to disk to happen at some point in the
+  // future. Multiple calls to Flush() do not necessarily result in multiple
+  // writes to disk.
+  // This call returns immediately.
+  void Flush();
+
+  // Triggers a write to disk to happen immediately.  Each call to FlushNow()
+  // will result in a write to disk.
+  // |callback|, if provided, will be called when the I/O has completed,
   // and will be run on the storage manager's IO thread.
-  void Flush(const base::Closure& callback);
+  // This call returns immediately.
+  void FlushNow(const base::Closure& callback);
 
   const Options& options() const { return options_; }
+
+ protected:
+  virtual void FlushInternal(const base::Closure& callback);
 
  private:
   // SqlContext needs access to our internal APIs.
@@ -91,6 +99,10 @@ class StorageManager {
   // Initialize the SQLite database. This blocks until the savegame load is
   // complete.
   void FinishInit();
+
+  // Callback when flush timer has elapsed.
+  void OnFlushTimerFired();
+
 
   // Run on the storage I/O thread to start loading the savegame.
   void OnInitIO();
@@ -107,10 +119,6 @@ class StorageManager {
   // Called by the destructor, to ensure we destroy certain objects on the
   // I/O thread.
   void OnDestroyIO();
-
-  // Called by the flush timer every so often, if a Flush() hasn't already
-  // been explicitly called.
-  void TimedFlush();
 
   // Internal API for use by SqlContext.
   sql::Connection* sql_connection();
@@ -153,8 +161,10 @@ class StorageManager {
   // until we can initialize the database on the correct thread.
   scoped_ptr<Savegame::ByteVector> loaded_raw_bytes_;
 
-  // Timer that runs every N seconds to flush storage to disk.
-  scoped_ptr<base::DelayTimer<StorageManager> > flush_timer_;
+  // Timer that starts running when Flush() is called. When the time elapses,
+  // we actually perform the write. This is a simple form of rate limiting
+  // for I/O writes.
+  scoped_ptr<base::OneShotTimer<StorageManager> > flush_timer_;
 
   // See comments for for kDatabaseUserVersion.
   int loaded_database_version_;
@@ -191,8 +201,10 @@ class SqlContext {
     return storage_manager_->UpdateSchemaVersion(table_name, version);
   }
 
-  void Flush(const base::Closure& callback) {
-    storage_manager_->Flush(callback);
+  void Flush() { storage_manager_->Flush(); }
+
+  void FlushNow(const base::Closure& callback) {
+    storage_manager_->FlushNow(callback);
   }
 
  private:
