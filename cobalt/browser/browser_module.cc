@@ -158,7 +158,8 @@ bool BrowserModule::FilterKeyEventForHotkeys(
 #if !defined(ENABLE_DEBUG_CONSOLE)
   UNREFERENCED_PARAMETER(event);
 #else
-  if (event->ctrl_key() && event->key_code() == dom::keycode::kO) {
+  if (event->key_code() == dom::keycode::kF1 ||
+      (event->ctrl_key() && event->key_code() == dom::keycode::kO)) {
     if (event->type() == dom::EventNames::GetInstance()->keydown()) {
       // Ctrl+O toggles the debug console display.
       debug_hub_->CycleDebugConsoleMode();
