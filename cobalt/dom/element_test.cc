@@ -56,7 +56,7 @@ ElementTest::ElementTest()
     : css_parser_(css_parser::Parser::Create()),
       dom_parser_(new dom_parser::Parser()),
       html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
-                            NULL, NULL) {
+                            NULL, NULL, NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_, Document::Options());
 }

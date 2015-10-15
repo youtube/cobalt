@@ -130,6 +130,9 @@ class WebModule {
   // ImageCache that is used to manage image cache logic.
   scoped_ptr<loader::image::ImageCache> image_cache_;
 
+  // RemoteFontCache that is used to manage loading and caching fonts from URLs.
+  scoped_ptr<loader::font::RemoteFontCache> remote_font_cache_;
+
   // Interface between LocalStorage and the Storage Manager.
   dom::LocalStorageDatabase local_storage_database_;
 
