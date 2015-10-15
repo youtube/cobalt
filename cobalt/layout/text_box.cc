@@ -36,9 +36,11 @@ TextBox::TextBox(
       paragraph_(paragraph),
       text_start_position_(text_start_position),
       text_end_position_(text_end_position),
+      is_preferred_font_loading_(false),
       used_font_(used_style_provider->GetUsedFont(
           computed_style->font_family(), computed_style->font_size(),
-          computed_style->font_style(), computed_style->font_weight())),
+          computed_style->font_style(), computed_style->font_weight(),
+          &is_preferred_font_loading_)),
       text_has_leading_white_space_(false),
       text_has_trailing_white_space_(false),
       should_collapse_leading_white_space_(false),
@@ -213,8 +215,14 @@ void TextBox::RenderAndAnimateContent(
   DCHECK_EQ(0, border_left_width() + padding_left());
   DCHECK_EQ(0, border_top_width() + padding_top());
 
-  // Only add the text node to the render tree if it actually has content.
-  if (HasNonCollapsibleText()) {
+  // Only add the text node to the render tree if it actually has content and
+  // the preferred font isn't loading. The font is treated as transparent if
+  // the preferred font is currently being downloaded:
+  // "In cases where textual content is loaded before downloadable fonts are
+  // available, user agents may... render text transparently with fallback fonts
+  // to avoid a flash of text using a fallback font."
+  //   http://www.w3.org/TR/css3-fonts/#font-face-loading
+  if (HasNonCollapsibleText() && !is_preferred_font_loading_) {
     render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
     // Only render the text if it is not completely transparent.
