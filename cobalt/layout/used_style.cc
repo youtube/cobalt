@@ -99,10 +99,11 @@ BackgroundImageTransformData GetImageTransformationData(
   float composition_node_translate_matrix_y =
       used_background_position_provider->translate_y();
 
-  if (used_background_repeat_provider->repeat_x()) {
-    // When the background repeat horizontally, image node does the transform
-    // in horizontal direction and the composition node does the transform in
-    // vertical direction.
+  if (used_background_repeat_provider->repeat_x() ||
+      frame_size.width() < image_node_size.width()) {
+    // When the background repeat horizontally or the width of frame is smaller
+    // than the width of image, image node does the transform in horizontal
+    // direction.
     image_node_size.set_width(frame_size.width());
     image_node_translate_matrix_x =
         used_background_position_provider->translate_x_relative_to_frame();
@@ -111,10 +112,11 @@ BackgroundImageTransformData GetImageTransformationData(
     composition_node_translate_matrix_x = 0.0f;
   }
 
-  if (used_background_repeat_provider->repeat_y()) {
-    // When the background repeat vertically, image node does the transform
-    // in vertical direction and the composition node does the transform in
-    // horizontal direction.
+  if (used_background_repeat_provider->repeat_y() ||
+      frame_size.height() < image_node_size.height()) {
+    // When the background repeat vertically or the width of frame is smaller
+    // than the height of image, image node does the transform in vertical
+    // direction.
     image_node_size.set_height(frame_size.height());
     image_node_translate_matrix_y =
         used_background_position_provider->translate_y_relative_to_frame();
