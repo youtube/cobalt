@@ -12,21 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/mutex.h"
+#include "starboard/thread.h"
 
 #include <pthread.h>
 
-#include "starboard/shared/pthread/is_success.h"
+#include "starboard/shared/pthread/thread_local_key_internal.h"
 
-SbMutexResult SbMutexAcquireTry(SbMutex *mutex) {
-  if (!mutex) {
-    return kSbMutexDestroyed;
+bool SbThreadSetLocalValue(SbThreadLocalKey key, void *value) {
+  if (!SbThreadIsValidLocalKey(key)) {
+    return false;
   }
 
-  int result = pthread_mutex_trylock(mutex);
-  if (IsSuccess(result)) {
-    return kSbMutexAcquired;
+  if (IsSuccess(pthread_setspecific(key->key, value))) {
+    return true;
   }
 
-  return kSbMutexBusy;
+  return false;
 }

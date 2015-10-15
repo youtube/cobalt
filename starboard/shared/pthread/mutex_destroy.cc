@@ -16,19 +16,12 @@
 
 #include <pthread.h>
 
-#include "starboard/memory.h"
-#include "starboard/shared/pthread/mutex_internal.h"
+#include "starboard/shared/pthread/is_success.h"
 
-bool SbMutexDestroy(SbMutex mutex) {
+bool SbMutexDestroy(SbMutex *mutex) {
   if (!mutex) {
     return false;
   }
 
-  int result = pthread_mutex_destroy(&mutex->pmutex);
-  if (IsSuccess(result)) {
-    SbMemoryFree(mutex);
-    return true;
-  }
-
-  return false;
+  return IsSuccess(pthread_mutex_destroy(mutex));
 }

@@ -23,6 +23,7 @@
 
 namespace {
 const int64_t kMillisecondsPerSecond = kSbTimeSecond / kSbTimeMillisecond;
+const int64_t kNanosecondsPerMicrosecond = 1000;
 
 inline SbTime FromMilliseconds(int64_t ms) {
   return ms * kSbTimeMillisecond;
@@ -33,14 +34,21 @@ inline SbTime FromSeconds(int64_t secs) {
 }
 
 inline SbTime FromNanoseconds(int64_t ns) {
-  const int64_t kNanosecondsPerMicrosecond = 1000;
   return ns / kNanosecondsPerMicrosecond;
 }
 
-// Converts a timespec into microseconds, with no regard for the Epoch.
+// Converts a timespec representing a duration into microseconds.
 inline int64_t FromTimespecDelta(struct timespec *time) {
   return FromSeconds(static_cast<int64_t>(time->tv_sec)) +
       FromNanoseconds(static_cast<int64_t>(time->tv_nsec));
+}
+
+// Converts the number of microseconds in |time_us| into a POSIX timespec,
+// placing the result in |out_time|.
+inline void ToTimespec(struct timespec *out_time, int64_t time_us) {
+  out_time->tv_sec = time_us / kSbTimeSecond;
+  int64_t remainder_us = time_us - (out_time->tv_sec * kSbTimeSecond);
+  out_time->tv_nsec = remainder_us * kNanosecondsPerMicrosecond;
 }
 
 // Converts a timeval (relative to POSIX epoch) into microseconds since the
