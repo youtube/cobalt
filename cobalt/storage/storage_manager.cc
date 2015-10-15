@@ -31,6 +31,10 @@ namespace storage {
 
 namespace {
 
+// Flush() delays for a while to avoid spamming writes to disk.
+// We often get a bunch of Flush() calls in a row.
+const int kDatabaseFlushDelayMs = 100;
+
 const char kDefaultSaveFile[] = "cobalt_save.bin";
 
 void SqlDisableJournal(sql::Connection* connection) {
@@ -143,31 +147,29 @@ void StorageManager::GetSqlContext(const SqlCallback& callback) {
                               base::Bind(callback, sql_context_.get()));
 }
 
-void StorageManager::Flush(const base::Closure& callback) {
+void StorageManager::Flush() {
   // Make sure this runs on the correct thread.
   if (MessageLoop::current()->message_loop_proxy() != sql_message_loop_) {
     sql_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&StorageManager::Flush, base::Unretained(this), callback));
+        FROM_HERE, base::Bind(&StorageManager::Flush, base::Unretained(this)));
     return;
   }
-  FinishInit();
-  // Serialize the database into a buffer. Then send the bytes
-  // to OnFlushIO for a blocking write to the savegame.
-  scoped_ptr<Savegame::ByteVector> raw_bytes_ptr;
-  int size = vfs_->Serialize(NULL, true /*dry_run*/);
-  raw_bytes_ptr.reset(new Savegame::ByteVector(static_cast<size_t>(size)));
-  if (size > 0) {
-    Savegame::ByteVector& raw_bytes = *raw_bytes_ptr;
-    vfs_->Serialize(&raw_bytes[0], false /*dry_run*/);
+
+  flush_timer_->Start(FROM_HERE,
+                      base::TimeDelta::FromMilliseconds(kDatabaseFlushDelayMs),
+                      this, &StorageManager::OnFlushTimerFired);
+}
+
+void StorageManager::FlushNow(const base::Closure& callback) {
+  // Make sure this runs on the correct thread.
+  if (MessageLoop::current()->message_loop_proxy() != sql_message_loop_) {
+    sql_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&StorageManager::FlushNow, base::Unretained(this),
+                              callback));
+    return;
   }
 
-  // Re-start the auto-flush timer.
-  flush_timer_->Reset();
-
-  storage_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&StorageManager::OnFlushIO, base::Unretained(this),
-                            callback, base::Passed(&raw_bytes_ptr)));
+  FlushInternal(callback);
 }
 
 bool StorageManager::GetSchemaVersion(const char* table_name,
@@ -212,11 +214,7 @@ void StorageManager::FinishInit() {
   storage_ready_.Wait();
   vfs_.reset(new VirtualFileSystem());
   sql_vfs_.reset(new SqlVfs("cobalt_vfs", vfs_.get()));
-
-  flush_timer_.reset(new base::DelayTimer<StorageManager>(
-      FROM_HERE, base::TimeDelta::FromSeconds(kFlushSeconds), this,
-      &StorageManager::TimedFlush));
-
+  flush_timer_.reset(new base::OneShotTimer<StorageManager>());
   // Savegame has finished loading. Now initialize the database connection.
   // Check if the savegame data contains a VFS header.
   // If so, proceed to deserialize it.
@@ -276,9 +274,31 @@ void StorageManager::FinishInit() {
   SqlCreateSchemaTable(connection_.get());
   SqlUpdateDatabaseUserVersion(connection_.get());
 
-  // Start the auto-flush timer going.
-  flush_timer_->Reset();
   initialized_ = true;
+}
+
+void StorageManager::OnFlushTimerFired() {
+  DCHECK(sql_message_loop_->BelongsToCurrentThread());
+
+  FlushInternal(base::Closure());
+}
+
+void StorageManager::FlushInternal(const base::Closure& callback) {
+  DCHECK(sql_message_loop_->BelongsToCurrentThread());
+  FinishInit();
+
+  // Serialize the database into a buffer. Then send the bytes
+  // to OnFlushIO for a blocking write to the savegame.
+  scoped_ptr<Savegame::ByteVector> raw_bytes_ptr;
+  int size = vfs_->Serialize(NULL, true /*dry_run*/);
+  raw_bytes_ptr.reset(new Savegame::ByteVector(static_cast<size_t>(size)));
+  if (size > 0) {
+    Savegame::ByteVector& raw_bytes = *raw_bytes_ptr;
+    vfs_->Serialize(&raw_bytes[0], false /*dry_run*/);
+  }
+  storage_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&StorageManager::OnFlushIO, base::Unretained(this),
+                            callback, base::Passed(&raw_bytes_ptr)));
 }
 
 void StorageManager::OnInitIO() {
@@ -298,7 +318,6 @@ void StorageManager::OnInitIO() {
 void StorageManager::OnFlushIO(const base::Closure& callback,
                                scoped_ptr<Savegame::ByteVector> raw_bytes_ptr) {
   DCHECK(storage_message_loop_->BelongsToCurrentThread());
-
   if (raw_bytes_ptr->size() > 0) {
     bool ret = savegame_->Write(*raw_bytes_ptr);
     DCHECK(ret);
@@ -321,12 +340,6 @@ void StorageManager::OnDestroyIO() {
   DCHECK(storage_message_loop_->BelongsToCurrentThread());
   // Ensure these objects are destroyed on the proper thread.
   savegame_.reset(NULL);
-}
-
-void StorageManager::TimedFlush() {
-  DCHECK(sql_message_loop_->BelongsToCurrentThread());
-  // Called by flush_timer_ to sync every so often.
-  Flush(base::Closure());
 }
 
 }  // namespace storage

@@ -150,21 +150,24 @@ void LocalStorageDatabase::Write(const std::string& id, const std::string& key,
                                  const std::string& value) {
   Init();
   storage_->GetSqlContext(base::Bind(&SqlWrite, id, key, value));
+  storage_->Flush();
 }
 
 void LocalStorageDatabase::Delete(const std::string& id,
                                   const std::string& key) {
   Init();
   storage_->GetSqlContext(base::Bind(&SqlDelete, id, key));
+  storage_->Flush();
 }
 
 void LocalStorageDatabase::Clear(const std::string& id) {
   Init();
   storage_->GetSqlContext(base::Bind(&SqlClear, id));
+  storage_->Flush();
 }
 
 void LocalStorageDatabase::Flush(const base::Closure& callback) {
-  storage_->Flush(callback);
+  storage_->FlushNow(callback);
 }
 
 }  // namespace dom
