@@ -1718,6 +1718,20 @@ bool Scanner::DetectPseudoClassNameToken(const TrivialStringPiece& name,
         *pseudo_class_name_token = kEmptyToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFocusPseudoClassName)) {
+        *pseudo_class_name_token = kFocusToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kHoverPseudoClassName)) {
+        *pseudo_class_name_token = kHoverToken;
+        return true;
+      }
+      return false;
+    case 6:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kActivePseudoClassName)) {
+        *pseudo_class_name_token = kActiveToken;
+        return true;
+      }
       return false;
   }
 
