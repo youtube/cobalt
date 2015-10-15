@@ -10,9 +10,15 @@
 #include <utility>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/hash_tables.h"
 #include "base/logging.h"
 #include "base/memory/manual_constructor.h"
+
+// Disable warning about calling an uninitialized object's methods.  In this
+// case, the uninitialized object is ManualConstructor and its method is
+// aware that it is uninitialized.
+MSVC_PUSH_DISABLE_WARNING(6001)
 
 namespace base {
 
@@ -648,5 +654,7 @@ inline bool SmallMap<NormalMap, kArraySize, EqualKey,
 }
 
 }  // namespace base
+
+MSVC_POP_WARNING()
 
 #endif  // BASE_CONTAINERS_SMALL_MAP_H_
