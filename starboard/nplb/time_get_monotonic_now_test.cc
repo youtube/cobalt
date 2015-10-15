@@ -19,12 +19,12 @@
 namespace {
 
 TEST(SbTimeGetMonotonicNowTest, IsMonotonic) {
-  const int kNumIterations = 100;
-  for (int i = 0; i < kNumIterations; ++i) {
+  const int kTrials = 100;
+  for (int trial = 0; trial < kTrials; ++trial) {
     SbTimeMonotonic time1 = SbTimeGetMonotonicNow();
     SbTime clockStart = SbTimeGetNow();
 
-    // Spin tightly until time increments.
+    // Spin tightly until time changes.
     SbTimeMonotonic time2 = 0;
     while (true) {
       time2 = SbTimeGetMonotonicNow();
@@ -34,10 +34,11 @@ TEST(SbTimeGetMonotonicNowTest, IsMonotonic) {
         return;
       }
 
-      // If time hasn't increased within a second, our high-resolution monotimic
-      // timer is broked.
+      // If time hasn't increased within a second, our "high-resolution"
+      // monotomic timer is broked.
       if (SbTimeGetNow() - clockStart >= kSbTimeSecond) {
-        GTEST_FAIL() << "SbTimeGetMonotonicNow() hasn't changed within a second.";
+        GTEST_FAIL() << "SbTimeGetMonotonicNow() hasn't changed within a "
+                     << "second.";
         return;
       }
     }

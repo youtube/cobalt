@@ -12,34 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Destroy is mostly Sunny Day tested in Create.
+// Broadcast is Sunny Day tested in most of the other SbConditionVariable tests.
 
-#include "starboard/configuration.h"
-#include "starboard/mutex.h"
+#include "starboard/condition_variable.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
-TEST(SbMutexDestroyTest, SunnyDayAutoInit) {
-  SbMutex mutex = SB_MUTEX_INITIALIZER;
-  EXPECT_TRUE(SbMutexDestroy(&mutex));
+TEST(SbConditionVariableBroadcastTest, SunnyDayAutoInit) {
+  SbConditionVariable condition = SB_CONDITION_VARIABLE_INITIALIZER;
+  EXPECT_TRUE(SbConditionVariableBroadcast(&condition));
+  EXPECT_TRUE(SbConditionVariableDestroy(&condition));
 }
 
-TEST(SbMutexDestroyTest, RainyDayDestroyHeld) {
-  SbMutex mutex;
-  EXPECT_TRUE(SbMutexCreate(&mutex));
-
-  SbMutexResult result = SbMutexAcquire(&mutex);
-  EXPECT_EQ(result, kSbMutexAcquired);
-  EXPECT_TRUE(SbMutexIsSuccess(result));
-
-  EXPECT_FALSE(SbMutexDestroy(&mutex));
-  EXPECT_TRUE(SbMutexRelease(&mutex));
-  EXPECT_TRUE(SbMutexDestroy(&mutex));
-}
-
-TEST(SbMutexDestroyTest, RainyDayNull) {
-  EXPECT_FALSE(SbMutexDestroy(NULL));
+TEST(SbConditionVariableBroadcastTest, RainyDayNull) {
+  EXPECT_FALSE(SbConditionVariableBroadcast(NULL));
 }
 
 }  // namespace

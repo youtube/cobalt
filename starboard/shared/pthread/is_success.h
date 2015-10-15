@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/mutex.h"
+#ifndef STARBOARD_SHARED_PTHREAD_IS_SUCCESS_H_
+#define STARBOARD_SHARED_PTHREAD_IS_SUCCESS_H_
 
-#include <pthread.h>
+#include "starboard/shared/internal_only.h"
+#include "starboard/types.h"
 
-#include "starboard/shared/pthread/is_success.h"
-
-SbMutexResult SbMutexAcquireTry(SbMutex *mutex) {
-  if (!mutex) {
-    return kSbMutexDestroyed;
-  }
-
-  int result = pthread_mutex_trylock(mutex);
-  if (IsSuccess(result)) {
-    return kSbMutexAcquired;
-  }
-
-  return kSbMutexBusy;
+namespace {
+// A simple helper to test success results.
+inline bool IsSuccess(int result_code) {
+  return result_code == 0;
 }
+}  // namespace
+
+#endif  // STARBOARD_SHARED_PTHREAD_IS_SUCCESS_H_
