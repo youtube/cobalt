@@ -16,20 +16,12 @@
 
 #include <pthread.h>
 
-#include "starboard/memory.h"
-#include "starboard/shared/pthread/mutex_internal.h"
+#include "starboard/shared/pthread/is_success.h"
 
-SbMutex SbMutexCreate() {
-  SbMutex mutex =
-      static_cast<SbMutex>(SbMemoryAllocate(sizeof(SbMutexPrivate)));
+bool SbMutexCreate(SbMutex *mutex) {
   if (!mutex) {
-    return NULL;
+    return false;
   }
 
-  int result = pthread_mutex_init(&mutex->pmutex, NULL);
-  if (IsSuccess(result)) {
-    return mutex;
-  }
-
-  return NULL;
+  return IsSuccess(pthread_mutex_init(mutex, NULL));
 }

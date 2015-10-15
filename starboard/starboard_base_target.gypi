@@ -23,7 +23,8 @@
     # the / character to specify an include file, so we have to do the
     # concatenation here in GYP.
     # http://stackoverflow.com/questions/29601786/c-preprocessor-building-a-path-string
-    'STARBOARD_CONFIGURATION_INCLUDE="starboard/<(target_arch)/configuration.h"',
     'STARBOARD_ATOMIC_INCLUDE="starboard/<(target_arch)/atomic.h"',
+    'STARBOARD_CONFIGURATION_INCLUDE="starboard/<(target_arch)/configuration.h"',
+    'STARBOARD_THREAD_TYPES_INCLUDE="starboard/<(target_arch)/thread_types.h"',
   ],
 }

@@ -18,45 +18,38 @@
 
 namespace {
 
-TEST(SbMutexAcquireTryTest, AcquiresUncontended) {
-  SbMutex mutex = SbMutexCreate();
-  EXPECT_TRUE(SbMutexIsValid(mutex));
+TEST(SbMutexAcquireTryTest, SunnyDayUncontended) {
+  SbMutex mutex;
+  EXPECT_TRUE(SbMutexCreate(&mutex));
 
-  SbMutexResult result = SbMutexAcquireTry(mutex);
+  SbMutexResult result = SbMutexAcquireTry(&mutex);
   EXPECT_EQ(result, kSbMutexAcquired);
   EXPECT_TRUE(SbMutexIsSuccess(result));
-
-  bool release_result = SbMutexRelease(mutex);
-  EXPECT_TRUE(release_result);
-
-  bool destroy_result = SbMutexDestroy(mutex);
-  EXPECT_TRUE(destroy_result);
+  EXPECT_TRUE(SbMutexRelease(&mutex));
+  EXPECT_TRUE(SbMutexDestroy(&mutex));
 }
 
-TEST(SbMutexAcquireTryTest, DoesNotAcquireReentrantly) {
-  SbMutex mutex = SbMutexCreate();
-  EXPECT_TRUE(SbMutexIsValid(mutex));
+TEST(SbMutexAcquireTest, SunnyDayAutoInit) {
+  SbMutex mutex = SB_MUTEX_INITIALIZER;
+  SbMutexResult result = SbMutexAcquireTry(&mutex);
+  EXPECT_TRUE(SbMutexRelease(&mutex));
+  EXPECT_TRUE(SbMutexDestroy(&mutex));
+}
 
-  SbMutexResult result = SbMutexAcquireTry(mutex);
+TEST(SbMutexAcquireTryTest, RainyDayReentrant) {
+  SbMutex mutex;
+  EXPECT_TRUE(SbMutexCreate(&mutex));
+
+  SbMutexResult result = SbMutexAcquireTry(&mutex);
   EXPECT_EQ(result, kSbMutexAcquired);
   EXPECT_TRUE(SbMutexIsSuccess(result));
 
-  result = SbMutexAcquireTry(mutex);
+  result = SbMutexAcquireTry(&mutex);
   EXPECT_EQ(result, kSbMutexBusy);
   EXPECT_FALSE(SbMutexIsSuccess(result));
 
-  bool release_result = SbMutexRelease(mutex);
-  EXPECT_TRUE(release_result);
-
-  bool destroy_result = SbMutexDestroy(mutex);
-  EXPECT_TRUE(destroy_result);
-}
-
-TEST(SbMutexAcquireTryTest, DoesNotAcquireInvalid) {
-  SbMutex mutex = kSbMutexInvalid;
-  SbMutexResult result = SbMutexAcquireTry(mutex);
-  EXPECT_EQ(result, kSbMutexDestroyed);
-  EXPECT_FALSE(SbMutexIsSuccess(result));
+  EXPECT_TRUE(SbMutexRelease(&mutex));
+  EXPECT_TRUE(SbMutexDestroy(&mutex));
 }
 
 // TODO(***REMOVED***): Add tests for acquiring Mutices contended by other threads.
