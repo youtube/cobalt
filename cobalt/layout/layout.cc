@@ -52,7 +52,8 @@ RenderTreeWithAnimations Layout(
                                  user_agent_style_sheet);
 
   UsedStyleProvider used_style_provider(
-      resource_provider, document->html_element_context()->image_cache());
+      resource_provider, document->html_element_context()->image_cache(),
+      document->font_face_cache());
 
   // Create initial containing block.
   scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block =

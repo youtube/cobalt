@@ -117,6 +117,9 @@ class TextBox : public Box {
   // ends.
   int32 text_end_position_;
 
+  // Flag to track whether or not the preferred font is being downloaded. If
+  // this is the case, the text is hidden.
+  bool is_preferred_font_loading_;
   // A font used for text width and line height calculations.
   const scoped_refptr<render_tree::Font> used_font_;
 
