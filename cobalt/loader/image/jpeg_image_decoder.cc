@@ -31,6 +31,7 @@ namespace {
 // set to anything, and it will only allocate enough to hold what is needs to.
 // (within a factor of 2).
 uint32 kMaxBufferSizeBytes = 1024 * 1024L;
+size_t kInvalidHeight = 0xFFFFFF;
 
 void ErrorManagerExit(j_common_ptr common_ptr) {
   // Returns the control to the setjmp point. The buffer which is filled by a
@@ -204,6 +205,7 @@ MSVC_POP_WARNING();
   if (state_ == kReadLines) {
     if (info_.buffered_image) {  // Progressive JPEG.
       if (!DecodeProgressiveJPEG()) {
+        CacheSourceBytesToBuffer();
         return;
       }
     } else if (!ReadLines()) {  // Baseline sequential JPEG.
@@ -273,7 +275,8 @@ bool JPEGImageDecoder::DecodeProgressiveJPEG() {
   } while (status == JPEG_REACHED_SOS || status == JPEG_ROW_COMPLETED ||
            status == JPEG_SCAN_COMPLETED);
 
-  while (info_.output_scanline < info_.output_height) {
+  while (info_.output_scanline == kInvalidHeight ||
+         info_.output_scanline < info_.output_height) {
     if (info_.output_scanline == 0) {
       // Initialize for an output pass in buffered-image mode.
       // The |input_scan_number| indicates the scan of the image to be
@@ -284,18 +287,17 @@ bool JPEGImageDecoder::DecodeProgressiveJPEG() {
       }
     }
 
-    if (info_.output_scanline == 0xffffff) {
+    if (info_.output_scanline == kInvalidHeight) {
       // Recover from the previous set flag.
       info_.output_scanline = 0;
     }
 
     if (!ReadLines()) {
-      CacheSourceBytesToBuffer();
       if (info_.output_scanline == 0) {
         // Data is not enough for one line scan, so flag the |output_scanline|
         // to make sure that we don't call |jpeg_start_output| multiple times
         // for the same scan.
-        info_.output_scanline = 0xffffff;
+        info_.output_scanline = kInvalidHeight;
       }
       return false;
     }
@@ -318,8 +320,6 @@ bool JPEGImageDecoder::DecodeProgressiveJPEG() {
 
   // |jpeg_input_complete| tests for the end of image.
   if (!jpeg_input_complete(&info_)) {
-    // Cache the data if it does not reach the end of image.
-    CacheSourceBytesToBuffer();
     return false;
   }
 
