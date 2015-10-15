@@ -127,6 +127,11 @@ class CSSStyleSheet::CSSStyleRuleIndexer : public SelectorVisitor {
     css_style_sheet_->empty_pseudo_class_rules_.insert(css_style_rule_);
   }
 
+  void VisitUnsupportedPseudoClass(
+      UnsupportedPseudoClass* /* unsupported_pseudo_class */) OVERRIDE {
+    // Do nothing.
+  }
+
   void VisitCompoundSelector(CompoundSelector* compound_selector) OVERRIDE {
     for (Selectors::const_iterator selector_iterator =
              compound_selector->selectors().begin();

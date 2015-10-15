@@ -210,6 +210,11 @@ class SelectorMatcher : public cssom::SelectorVisitor {
     }
   }
 
+  // Unsupported pseudo-class never matches.
+  void VisitUnsupportedPseudoClass(cssom::UnsupportedPseudoClass*) OVERRIDE {
+    element_ = NULL;
+  }
+
   // An ID selector represents an element instance that has an identifier that
   // matches the identifier in the ID selector.
   //   http://www.w3.org/TR/selectors4/#id-selector
