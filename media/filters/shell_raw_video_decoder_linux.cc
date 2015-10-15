@@ -173,8 +173,13 @@ void ShellRawVideoDecoderLinux::Decode(
   YV12Param param(AlignUp(av_frame_->width, kPlatformAlignment * 2),
                   AlignUp(av_frame_->height, kPlatformAlignment * 2),
                   gfx::Rect(av_frame_->width, av_frame_->height));
+  // We have to make a copy of the frame buffer as the frame buffer retrieved
+  // from |av_frame_->opaque| may still be used by Ffmpeg.
+  scoped_refptr<FrameBuffer> frame_buffer_copy =
+      allocator->AllocateFrameBuffer(frame_buffer->size(), kPlatformAlignment);
+  memcpy(frame_buffer_copy->data(), frame_buffer->data(), frame_buffer->size());
   scoped_refptr<VideoFrame> frame =
-      allocator->CreateYV12Frame(frame_buffer, param, timestamp);
+      allocator->CreateYV12Frame(frame_buffer_copy, param, timestamp);
 
   decode_cb.Run(FRAME_DECODED, frame);
 }
