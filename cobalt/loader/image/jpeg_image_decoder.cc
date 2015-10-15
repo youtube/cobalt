@@ -78,9 +78,8 @@ void SourceManagerSkipInputData(j_decompress_ptr decompress_ptr,
   // |bytes_in_buffer| to 0 which will result in a call to
   // SourceManagerFillInputBuffer() which will return false to indicate that an
   // error has occurred.
-  long bytes_to_skip = std::min(static_cast<long>(  // NOLINT(runtime/int)
-                                    decompress_ptr->src->bytes_in_buffer),
-                                num_bytes);
+  size_t bytes_to_skip = std::min(decompress_ptr->src->bytes_in_buffer,
+                                  static_cast<size_t>(num_bytes));
   decompress_ptr->src->bytes_in_buffer -= bytes_to_skip;
   decompress_ptr->src->next_input_byte += bytes_to_skip;
 }
@@ -117,7 +116,6 @@ JPEGImageDecoder::~JPEGImageDecoder() {
   jpeg_destroy_decompress(&info_);
 }
 
-// TODO(***REMOVED***): Support reading progressive image.
 void JPEGImageDecoder::DecodeChunk(const char* data, size_t size) {
   TRACE_EVENT0("cobalt::loader::image_decoder",
                "JPEGImageDecoder::DecodeChunk");
@@ -278,7 +276,7 @@ bool JPEGImageDecoder::DecodeProgressiveJPEG() {
            status == JPEG_SCAN_COMPLETED);
 
   while (info_.output_scanline == kInvalidHeight ||
-         info_.output_scanline < info_.output_height) {
+         info_.output_scanline <= info_.output_height) {
     if (info_.output_scanline == 0) {
       // Initialize for an output pass in buffered-image mode.
       // The |input_scan_number| indicates the scan of the image to be
@@ -307,15 +305,21 @@ bool JPEGImageDecoder::DecodeProgressiveJPEG() {
     if (info_.output_scanline == info_.output_height) {
       // Finish up after an output pass in buffered-image mode.
       if (!jpeg_finish_output(&info_)) {
-        // Decompression is suspended.
+        // Decompression is suspended due to
+        // input_scan_number <= output_scan_number and EOI is not reached.
+        // The suspension will be recovered when more data are coming.
         return false;
       }
 
       // The output scan number is the notional scan being processed by the
-      // output side.
-      if (info_.input_scan_number != info_.output_scan_number) {
-        // More scans are needed to be processed. Reset the output scanline.
-        info_.output_scanline = 0;
+      // output side. The decompressor will not allow output scan number to get
+      // ahead of input scan number.
+      DCHECK_GE(info_.input_scan_number, info_.output_scan_number);
+      // This scan pass is done, so reset the output scanline.
+      info_.output_scanline = 0;
+      if (info_.input_scan_number == info_.output_scan_number) {
+        // No more scan needed at this point.
+        break;
       }
     }
   }
