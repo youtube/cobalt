@@ -19,7 +19,10 @@
 namespace cobalt {
 namespace cssom {
 
+const char kActivePseudoClassName[] = "active";
 const char kEmptyPseudoClassName[] = "empty";
+const char kFocusPseudoClassName[] = "focus";
+const char kHoverPseudoClassName[] = "hover";
 
 }  // namespace cssom
 }  // namespace cobalt
