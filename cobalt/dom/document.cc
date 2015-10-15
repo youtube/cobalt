@@ -26,6 +26,8 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/font_face_cache.h"
+#include "cobalt/dom/font_face_cache_updater.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
@@ -52,11 +54,16 @@ Document::Document(HTMLElementContext* html_element_context,
       url_(options.url),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           style_sheets_(new cssom::StyleSheetList(this))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(font_face_cache_(new FontFaceCache(
+          html_element_context_ ? html_element_context_->remote_font_cache()
+                                : NULL,
+          base::Bind(&Document::RecordMutation, base::Unretained(this))))),
       loading_counter_(0),
       should_dispatch_load_event_(true),
       is_selector_tree_dirty_(true),
       is_rule_matching_result_dirty_(true),
       is_computed_style_dirty_(true),
+      are_font_faces_dirty_(true),
       navigation_start_clock_(options.navigation_start_clock),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           default_timeline_(new DocumentTimeline(this, 0))) {
@@ -306,6 +313,7 @@ void Document::OnCSSMutation() {
   is_selector_tree_dirty_ = true;
   is_rule_matching_result_dirty_ = true;
   is_computed_style_dirty_ = true;
+  are_font_faces_dirty_ = true;
 
   RecordMutation();
 }
@@ -366,6 +374,19 @@ void Document::UpdateComputedStyles(
                                            style_change_event_time, true);
 
     is_computed_style_dirty_ = false;
+  }
+
+  UpdateFontFaces(user_agent_style_sheet);
+}
+
+void Document::UpdateFontFaces(
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+  if (are_font_faces_dirty_) {
+    TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateFontFaces);
+    FontFaceCacheUpdater font_face_updater(url_, font_face_cache_.get());
+    font_face_updater.ProcessCSSStyleSheet(user_agent_style_sheet);
+    font_face_updater.ProcessStyleSheetList(style_sheets());
+    are_font_faces_dirty_ = false;
   }
 }
 

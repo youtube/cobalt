@@ -27,6 +27,7 @@ namespace dom {
 
 extern const char kBenchmarkStatUpdateComputedStyles[];
 extern const char kBenchmarkStatUpdateMatchingRules[];
+extern const char kBenchmarkStatUpdateFontFaces[];
 
 }  // namespace dom
 }  // namespace cobalt
