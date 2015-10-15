@@ -73,6 +73,7 @@
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/type_selector.h"
 #include "cobalt/cssom/unicode_range_value.h"
+#include "cobalt/cssom/unsupported_pseudo_class.h"
 #include "cobalt/cssom/url_value.h"
 
 namespace cobalt {

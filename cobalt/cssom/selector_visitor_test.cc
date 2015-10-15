@@ -25,6 +25,7 @@
 #include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/type_selector.h"
+#include "cobalt/cssom/unsupported_pseudo_class.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -42,6 +43,8 @@ class MockSelectorVisitor : public SelectorVisitor {
                void(EmptyPseudoClass* empty_pseudo_class));
   MOCK_METHOD1(VisitIdSelector, void(IdSelector* id_selector));
   MOCK_METHOD1(VisitTypeSelector, void(TypeSelector* type_selector));
+  MOCK_METHOD1(VisitUnsupportedPseudoClass,
+               void(UnsupportedPseudoClass* unsupported_pseudo_class));
 
   MOCK_METHOD1(VisitCompoundSelector,
                void(CompoundSelector* compound_selector));
@@ -90,6 +93,14 @@ TEST(SelectorVisitorTest, VisitsTypeSelector) {
   MockSelectorVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTypeSelector(&type_selector));
   type_selector.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsUnsupportedPseudoClass) {
+  UnsupportedPseudoClass unsupported_pseudo_class;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor,
+              VisitUnsupportedPseudoClass(&unsupported_pseudo_class));
+  unsupported_pseudo_class.Accept(&mock_visitor);
 }
 
 TEST(SelectorVisitorTest, VisitCompoundSelector) {

@@ -29,6 +29,7 @@ class CompoundSelector;
 class EmptyPseudoClass;
 class IdSelector;
 class TypeSelector;
+class UnsupportedPseudoClass;
 
 // Type-safe branching on a class hierarchy of CSS selectors,
 // implemented after a classical GoF pattern (see
@@ -44,6 +45,8 @@ class SelectorVisitor {
   virtual void VisitEmptyPseudoClass(EmptyPseudoClass* empty_pseudo_class) = 0;
   virtual void VisitIdSelector(IdSelector* id_selector) = 0;
   virtual void VisitTypeSelector(TypeSelector* type_selector) = 0;
+  virtual void VisitUnsupportedPseudoClass(
+      UnsupportedPseudoClass* unsupported_pseudo_class) = 0;
 
   // Compound selector.
   virtual void VisitCompoundSelector(CompoundSelector* compound_selector) = 0;

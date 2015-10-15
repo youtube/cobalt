@@ -10,4 +10,5 @@ relative-font-size
 simple-transform-text
 transform-translate-with-em-units
 transform-with-background-color
+unsupported-pseudo-classes-should-be-ignored
 user-agent-style-sheet-display
