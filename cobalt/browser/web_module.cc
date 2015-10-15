@@ -29,6 +29,7 @@ namespace {
 
 // TODO(***REMOVED***): These numbers should be adjusted by the size of client memory.
 const uint32 kImageCacheCapacity = 32U * 1024 * 1024;
+const uint32 kRemoteFontCacheCapacity = 5U * 1024 * 1024;
 
 }  // namespace
 
@@ -50,6 +51,9 @@ WebModule::WebModule(
       image_cache_(loader::image::CreateImageCache(
           base::StringPrintf("%s.ImageCache", name_.c_str()),
           kImageCacheCapacity, resource_provider, fetcher_factory_.get())),
+      remote_font_cache_(loader::font::CreateRemoteFontCache(
+          base::StringPrintf("%s.RemoteFontCache", name_.c_str()),
+          kRemoteFontCacheCapacity, resource_provider, fetcher_factory_.get())),
       local_storage_database_(network_module->storage_manager()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
       global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
@@ -60,10 +64,10 @@ WebModule::WebModule(
       window_(new dom::Window(
           window_dimensions.width(), window_dimensions.height(),
           css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-          image_cache_.get(), &local_storage_database_, media_module,
-          execution_state_.get(), script_runner_.get(), initial_url,
-          network_module->user_agent(), network_module->preferred_language(),
-          error_callback)),
+          image_cache_.get(), remote_font_cache_.get(),
+          &local_storage_database_, media_module, execution_state_.get(),
+          script_runner_.get(), initial_url, network_module->user_agent(),
+          network_module->preferred_language(), error_callback)),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, javascript_engine_.get(),
           global_object_proxy_.get())),
