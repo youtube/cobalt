@@ -49,6 +49,9 @@ typedef struct SbTimeExploded {
   int millisecond;   // Milliseconds within the current second (0-999)
 } SbTimeExploded;
 
+// How many nanoseconds in one SbTime unit (microseconds).
+const SbTime kSbTimeNanosecondsPerMicrosecond = 1000;
+
 // One millisecond in SbTime units (microseconds).
 const SbTime kSbTimeMillisecond = 1000;
 

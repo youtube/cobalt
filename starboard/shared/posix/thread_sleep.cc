@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/mutex.h"
+#include "starboard/thread.h"
 
-#include <pthread.h>
+#include <unistd.h>
 
-#include "starboard/shared/pthread/is_success.h"
+#include "starboard/time.h"
 
-SbMutexResult SbMutexAcquireTry(SbMutex *mutex) {
-  if (!mutex) {
-    return kSbMutexDestroyed;
+void SbThreadSleep(SbTime duration) {
+  if (duration <= 0) {
+    return;
   }
 
-  int result = pthread_mutex_trylock(mutex);
-  if (IsSuccess(result)) {
-    return kSbMutexAcquired;
-  }
-
-  return kSbMutexBusy;
+  // SbTime is microseconds, so this is easy.
+  usleep(duration);
 }

@@ -12,34 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Destroy is mostly Sunny Day tested in Create.
+// Thread joining is mostly tested in the other tests.
 
-#include "starboard/configuration.h"
-#include "starboard/mutex.h"
+#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
-TEST(SbMutexDestroyTest, SunnyDayAutoInit) {
-  SbMutex mutex = SB_MUTEX_INITIALIZER;
-  EXPECT_TRUE(SbMutexDestroy(&mutex));
-}
-
-TEST(SbMutexDestroyTest, RainyDayDestroyHeld) {
-  SbMutex mutex;
-  EXPECT_TRUE(SbMutexCreate(&mutex));
-
-  SbMutexResult result = SbMutexAcquire(&mutex);
-  EXPECT_EQ(result, kSbMutexAcquired);
-  EXPECT_TRUE(SbMutexIsSuccess(result));
-
-  EXPECT_FALSE(SbMutexDestroy(&mutex));
-  EXPECT_TRUE(SbMutexRelease(&mutex));
-  EXPECT_TRUE(SbMutexDestroy(&mutex));
-}
-
-TEST(SbMutexDestroyTest, RainyDayNull) {
-  EXPECT_FALSE(SbMutexDestroy(NULL));
+TEST(SbThreadJoinTest, RainyDayInvalid) {
+  void *result = NULL;
+  EXPECT_FALSE(SbThreadJoin(kSbThreadInvalid, NULL));
+  EXPECT_FALSE(SbThreadJoin(kSbThreadInvalid, &result));
+  EXPECT_EQ(NULL, result);
 }
 
 }  // namespace

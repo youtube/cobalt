@@ -16,14 +16,14 @@
 
 #include <pthread.h>
 
-#include "starboard/shared/pthread/mutex_internal.h"
+#include "starboard/shared/pthread/is_success.h"
 
-SbMutexResult SbMutexAcquire(SbMutex mutex) {
+SbMutexResult SbMutexAcquire(SbMutex *mutex) {
   if (!mutex) {
     return kSbMutexDestroyed;
   }
 
-  int result = pthread_mutex_lock(&mutex->pmutex);
+  int result = pthread_mutex_lock(mutex);
   if (IsSuccess(result)) {
     return kSbMutexAcquired;
   }
