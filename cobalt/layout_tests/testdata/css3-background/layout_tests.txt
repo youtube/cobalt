@@ -1,2 +1,3 @@
 3-11-2-propagate-computed-value-of-background-from-body-to-root
 3-11-2-propagate-computed-value-of-background-from-html-to-root
+14-2-1-background-positioning-area-is-smaller-than-image-size
