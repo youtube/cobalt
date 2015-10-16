@@ -369,9 +369,12 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
       render_tree::CompositionNode::Builder position_offset_node_builder;
       child_box->RenderAndAnimate(&position_offset_node_builder,
                                   node_animations_map_builder);
-      content_node_builder->AddChild(
-          new render_tree::CompositionNode(position_offset_node_builder.Pass()),
-          math::TranslateMatrix(position_offset.x(), position_offset.y()));
+      if (!position_offset_node_builder.composed_children().empty()) {
+        content_node_builder->AddChild(
+            new render_tree::CompositionNode(
+                position_offset_node_builder.Pass()),
+            math::TranslateMatrix(position_offset.x(), position_offset.y()));
+      }
     }
   }
 }

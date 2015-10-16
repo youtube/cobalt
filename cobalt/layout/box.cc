@@ -200,16 +200,18 @@ void Box::RenderAndAnimate(
 
   RenderAndAnimateContent(&border_node_builder, node_animations_map_builder);
 
-  scoped_refptr<render_tree::Node> border_node =
-      new CompositionNode(border_node_builder.Pass());
-  border_node = RenderAndAnimateOpacity(
-      border_node, node_animations_map_builder, opacity, opacity_animated);
-  math::Matrix3F border_node_transform =
-      math::TranslateMatrix(left() + margin_left(), top() + margin_top());
-  border_node = RenderAndAnimateTransform(
-      border_node, node_animations_map_builder, &border_node_transform);
+  if (!border_node_builder.composed_children().empty()) {
+    scoped_refptr<render_tree::Node> border_node =
+        new CompositionNode(border_node_builder.Pass());
+    border_node = RenderAndAnimateOpacity(
+        border_node, node_animations_map_builder, opacity, opacity_animated);
+    math::Matrix3F border_node_transform =
+        math::TranslateMatrix(left() + margin_left(), top() + margin_top());
+    border_node = RenderAndAnimateTransform(
+        border_node, node_animations_map_builder, &border_node_transform);
 
-  parent_content_node_builder->AddChild(border_node, border_node_transform);
+    parent_content_node_builder->AddChild(border_node, border_node_transform);
+  }
 }
 
 AnonymousBlockBox* Box::AsAnonymousBlockBox() { return NULL; }
@@ -448,16 +450,17 @@ void Box::RenderAndAnimateBackgroundColor(
     RectNode::Builder rect_node_builder(GetPaddingBoxSize(),
                                         scoped_ptr<render_tree::Brush>());
     SetupRectNodeFromStyle(computed_style_, &rect_node_builder);
+    if (rect_node_builder.size.GetArea() != 0) {
+      scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
+      border_node_builder->AddChild(
+          rect_node,
+          math::TranslateMatrix(border_left_width(), border_top_width()));
 
-    scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
-    border_node_builder->AddChild(
-        rect_node,
-        math::TranslateMatrix(border_left_width(), border_top_width()));
-
-    if (background_color_animated) {
-      AddTransitionAnimations<RectNode>(
-          base::Bind(&SetupRectNodeFromStyle), *computed_style_, rect_node,
-          *transitions_, node_animations_map_builder);
+      if (background_color_animated) {
+        AddTransitionAnimations<RectNode>(
+            base::Bind(&SetupRectNodeFromStyle), *computed_style_, rect_node,
+            *transitions_, node_animations_map_builder);
+      }
     }
   }
 }
