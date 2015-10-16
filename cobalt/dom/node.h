@@ -160,9 +160,8 @@ class Node : public EventTarget {
 
   bool Contains(const scoped_refptr<Node>& other_name) const;
 
-  virtual scoped_refptr<Node> InsertBefore(
-      const scoped_refptr<Node>& new_child,
-      const scoped_refptr<Node>& reference_child);
+  scoped_refptr<Node> InsertBefore(const scoped_refptr<Node>& new_child,
+                                   const scoped_refptr<Node>& reference_child);
   scoped_refptr<Node> AppendChild(const scoped_refptr<Node>& new_child);
   scoped_refptr<Node> ReplaceChild(const scoped_refptr<Node>& node,
                                    const scoped_refptr<Node>& child);
@@ -224,6 +223,11 @@ class Node : public EventTarget {
  protected:
   explicit Node(Document* document);
   virtual ~Node();
+
+  virtual void OnInsertBefore(
+      const scoped_refptr<Node>& /* new_child */,
+      const scoped_refptr<Node>& /* reference_child */) {}
+  virtual void OnRemoveChild(const scoped_refptr<Node>& /* node */) {}
 
   // Called to notify that the node along with all its descendants has been
   // inserted to its owner document.

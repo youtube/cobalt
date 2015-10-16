@@ -76,6 +76,11 @@ SelectorTree::Node* SelectorTree::GetOrCreateNodeForComplexSelector(
 SelectorTree::Node* SelectorTree::GetOrCreateNodeForCompoundSelector(
     CompoundSelector* compound_selector, Node* parent_node,
     CombinatorType combinator) {
+  if (combinator == kNextSiblingCombinator ||
+      combinator == kFollowingSiblingCombinator) {
+    has_sibling_combinators_ = true;
+  }
+
   for (OwnedNodes::iterator it = parent_node->children[combinator].begin();
        it != parent_node->children[combinator].end(); ++it) {
     if ((*it)->compound_selector->GetNormalizedSelectorText() ==

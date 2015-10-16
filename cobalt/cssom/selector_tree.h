@@ -17,13 +17,14 @@
 #ifndef CSSOM_SELECTOR_TREE_H_
 #define CSSOM_SELECTOR_TREE_H_
 
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/hash_tables.h"
 #include "base/basictypes.h"
 #include "base/containers/small_map.h"
+#include "base/hash_tables.h"
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/unused.h"
@@ -85,10 +86,14 @@ class SelectorTree {
     Rules rules;
   };
 
-  SelectorTree() { root_set_.insert(std::make_pair(&root_, base::Unused())); }
+  SelectorTree() : has_sibling_combinators_(false) {
+    root_set_.insert(std::make_pair(&root_, base::Unused()));
+  }
 
   Node* root() { return &root_; }
   NodeSet* root_set() { return &root_set_; }
+
+  bool has_sibling_combinators() { return has_sibling_combinators_; }
 
   void AppendRule(CSSStyleRule* rule);
   void RemoveRule(CSSStyleRule* rule);
@@ -105,6 +110,8 @@ class SelectorTree {
 
   Node root_;
   NodeSet root_set_;
+
+  bool has_sibling_combinators_;
 
   DISALLOW_COPY_AND_ASSIGN(SelectorTree);
 };

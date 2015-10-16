@@ -52,6 +52,8 @@ void UpdateMatchingRulesFromStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
     HTMLElement* element, cssom::Origin origin);
 
+// Updates the matching rules on an element and its children, using the given
+// selector tree.
 void UpdateMatchingRulesUsingSelectorTree(HTMLElement* dom_root,
                                           cssom::SelectorTree* selector_tree);
 
