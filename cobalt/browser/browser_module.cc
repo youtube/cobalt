@@ -39,6 +39,10 @@ const int kInitialHeight = 1080;
 const char kInitialDebugConsoleUrl[] =
     "file:///cobalt/browser/debug_console/debug_console.html";
 
+// Local storage key for the debug console mode.
+#if defined(ENABLE_DEBUG_CONSOLE)
+const char kDebugConsoleModeKey[] = "debugConsole.mode";
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 }  // namespace
 
 BrowserModule::BrowserModule(const GURL& url, const Options& options)
@@ -88,8 +92,12 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
         keyboard_event_callback, main_system_window_.get());
   }
 
-  // Set the initial debug console mode according to the command-line args
-  debug_hub_->SetDebugConsoleMode(GetDebugConsoleModeFromCommandLine());
+  // Debug console defaults to Off if not specified.
+  // Stored preference overrides this, if it exists.
+  // Command line setting overrides this, if specified.
+  debug_hub_->SetDebugConsoleMode(debug::DebugHub::kDebugConsoleOff);
+  LoadDebugConsoleMode();
+  SetDebugConsoleModeFromCommandLine();
 
   // Always render the debug console. It will draw nothing if disabled.
   // This setting is ignored if ENABLE_DEBUG_CONSOLE is not defined.
@@ -163,6 +171,8 @@ bool BrowserModule::FilterKeyEventForHotkeys(
     if (event->type() == dom::EventNames::GetInstance()->keydown()) {
       // Ctrl+O toggles the debug console display.
       debug_hub_->CycleDebugConsoleMode();
+      // Persist the new debug console mode to web local storage.
+      SaveDebugConsoleMode();
     }
     return false;
   }
@@ -194,24 +204,31 @@ bool BrowserModule::FilterKeyEventForHotkeys(
   return true;
 }
 
-// Static
-int BrowserModule::GetDebugConsoleModeFromCommandLine() {
-  int debug_console_mode = debug::DebugHub::kDebugConsoleOff;
+void BrowserModule::SaveDebugConsoleMode() {
+#if defined(ENABLE_DEBUG_CONSOLE)
+  const std::string mode_string = debug_hub_->GetDebugConsoleModeAsString();
+  debug_console_.web_module().SetItemInLocalStorage(kDebugConsoleModeKey,
+                                                    mode_string);
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+}
 
+void BrowserModule::LoadDebugConsoleMode() {
+#if defined(ENABLE_DEBUG_CONSOLE)
+  const std::string mode_string =
+      debug_console_.web_module().GetItemInLocalStorage(kDebugConsoleModeKey);
+  debug_hub_->SetDebugConsoleModeAsString(mode_string);
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+}
+
+bool BrowserModule::SetDebugConsoleModeFromCommandLine() {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDebugConsoleMode)) {
     const std::string debug_console_mode_string =
         command_line->GetSwitchValueASCII(switches::kDebugConsoleMode);
-    if (debug_console_mode_string == "off") {
-      debug_console_mode = debug::DebugHub::kDebugConsoleOff;
-    } else if (debug_console_mode_string == "hud") {
-      debug_console_mode = debug::DebugHub::kDebugConsoleHud;
-    } else if (debug_console_mode_string == "on") {
-      debug_console_mode = debug::DebugHub::kDebugConsoleOn;
-    }
+    debug_hub_->SetDebugConsoleModeAsString(debug_console_mode_string);
+    return true;
   }
-
-  return debug_console_mode;
+  return false;
 }
 
 }  // namespace browser

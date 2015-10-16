@@ -24,10 +24,16 @@ namespace debug {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
+namespace {
+const char kDebugConsoleOffString[] = "off";
+const char kDebugConsoleHudString[] = "hud";
+const char kDebugConsoleOnString[] = "on";
+}
+
 DebugHub::DebugHub(const ExecuteJavascriptCallback& execute_javascript_callback)
     : execute_javascript_callback_(execute_javascript_callback),
       next_log_message_callback_id_(0),
-      debug_console_mode_(kDebugConsoleHud) {
+      debug_console_mode_(kDebugConsoleOff) {
   // Get log output while still making it available elsewhere.
   const base::LogMessageHandler::OnLogMessageCallback on_log_message_callback =
       base::Bind(&DebugHub::OnLogMessage, base::Unretained(this));
@@ -126,6 +132,31 @@ int DebugHub::CycleDebugConsoleMode() {
   return debug_console_mode_;
 }
 
+void DebugHub::SetDebugConsoleModeAsString(const std::string& mode_string) {
+  if (mode_string == kDebugConsoleOffString) {
+    SetDebugConsoleMode(kDebugConsoleOff);
+  } else if (mode_string == kDebugConsoleHudString) {
+    SetDebugConsoleMode(kDebugConsoleHud);
+  } else if (mode_string == kDebugConsoleOnString) {
+    SetDebugConsoleMode(kDebugConsoleOn);
+  } else {
+    DLOG(WARNING) << "Debug console mode \"" << mode_string
+                  << "\" not recognized.";
+  }
+}
+
+std::string DebugHub::GetDebugConsoleModeAsString() const {
+  switch (debug_console_mode_) {
+    case kDebugConsoleHud:
+      return kDebugConsoleHudString;
+    case kDebugConsoleOn:
+      return kDebugConsoleOnString;
+    case kDebugConsoleOff:
+    default:
+      return kDebugConsoleOffString;
+  }
+}
+
 std::string DebugHub::ExecuteCommand(const std::string& command) {
   // TODO(***REMOVED***) The command string should first be checked to see if it
   // matches any of a set of known commands to be executed locally, and only
@@ -169,6 +200,12 @@ void DebugHub::SetDebugConsoleMode(int debug_console_mode) {
 int DebugHub::CycleDebugConsoleMode() { return kDebugConsoleOff; }
 
 int DebugHub::GetDebugConsoleMode() const { return kDebugConsoleOff; }
+
+void DebugHub::SetDebugConsoleModeAsString(const std::string& mode_string) {
+  UNREFERENCED_PARAMETER(mode_string);
+}
+
+std::string DebugHub::GetDebugConsoleModeAsString() const { return ""; }
 
 std::string DebugHub::ExecuteCommand(const std::string& command) {
   UNREFERENCED_PARAMETER(command);
