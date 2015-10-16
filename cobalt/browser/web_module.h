@@ -98,6 +98,10 @@ class WebModule {
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location);
 
+  // Methods to get and set items in the local storage of this web module.
+  std::string GetItemInLocalStorage(const std::string& key);
+  void SetItemInLocalStorage(const std::string& key, const std::string& value);
+
  private:
   // Called by ExecuteJavascript, if that method is called from a different
   // message loop to the one this WebModule is running on. Sets the result

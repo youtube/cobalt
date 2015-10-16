@@ -19,7 +19,9 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/dom/storage.h"
 #include "cobalt/storage/storage_manager.h"
 
 namespace cobalt {
@@ -31,6 +33,8 @@ namespace {
 const uint32 kImageCacheCapacity = 32U * 1024 * 1024;
 const uint32 kRemoteFontCacheCapacity = 5U * 1024 * 1024;
 
+// Prefix applied to local storage keys.
+const char kLocalStoragePrefix[] = "cobalt.webModule";
 }  // namespace
 
 WebModule::WebModule(
@@ -121,6 +125,24 @@ void WebModule::ExecuteJavascriptInternal(
   DCHECK(thread_checker_.CalledOnValidThread());
   *result = script_runner_->Execute(script_utf8, script_location);
   got_result->Signal();
+}
+
+std::string WebModule::GetItemInLocalStorage(const std::string& key) {
+  std::string long_key = std::string(kLocalStoragePrefix) + "." + key;
+  base::optional<std::string> result =
+      window_->local_storage()->GetItem(long_key);
+  if (result) {
+    return result.value();
+  }
+  // Key wasn't found.
+  DLOG(WARNING) << "Key \"" << long_key << "\" not found in local storage.";
+  return "";
+}
+
+void WebModule::SetItemInLocalStorage(const std::string& key,
+                                      const std::string& value) {
+  std::string long_key = std::string(kLocalStoragePrefix) + "." + key;
+  window_->local_storage()->SetItem(long_key, value);
 }
 
 }  // namespace browser
