@@ -2550,6 +2550,7 @@ font_family_property_value:
 //   http://www.w3.org/TR/css3-fonts/#font-size-prop
 font_size_property_value:
     length { $$ = $1; }
+  | positive_percentage { $$ = $1; }
   | common_values
   ;
 
