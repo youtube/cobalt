@@ -32,6 +32,8 @@
         'image_wrap_scene.h',
         'marquee_scene.cc',
         'marquee_scene.h',
+        'scaling_text_scene.cc',
+        'scaling_text_scene.h',
         'scene_helpers.cc',
         'scene_helpers.h',
         'spinning_sprites_scene.cc',
