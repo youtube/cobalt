@@ -117,7 +117,7 @@ function executeDebug(command) {
 
 // Execute a command as JavaScript in the main web module.
 function executeMain(command) {
-  var result = window.debugHub.executeCommand(command);
+  var result = window.debugHub.executeJavascript(command);
   if (command.indexOf('console') == -1) {
     // Echo the output for non-console commands.
     printToMessageLog(messageLog.INFO, result);

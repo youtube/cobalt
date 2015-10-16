@@ -36,7 +36,11 @@ interface DebugHub {
 
   long getDebugConsoleMode();
 
-  DOMString executeCommand(DOMString command);
+  DOMString executeJavascript(DOMString javascript);
+
+  DOMString getCommandChannels();
+  DOMString getCommandChannelHelp(DOMString command);
+  void sendCommand(DOMString channel, DOMString message);
 };
 
 callback LogMessageCallback = void(long severity, DOMString file, long line,

@@ -23,6 +23,8 @@
         'clock.h',
         'cobalt_paths.h',
         'compiler.h',
+        'console_commands.cc',
+        'console_commands.h',
         'console_values.cc',
         'console_values.h',
         'fixed_no_free_allocator.h',
