@@ -16,6 +16,7 @@
 
 #include "cobalt/debug/debug_hub.h"
 
+#include "cobalt/base/console_commands.h"
 #include "cobalt/base/console_values.h"
 #include "cobalt/base/source_location.h"
 
@@ -28,7 +29,7 @@ namespace {
 const char kDebugConsoleOffString[] = "off";
 const char kDebugConsoleHudString[] = "hud";
 const char kDebugConsoleOnString[] = "on";
-}
+}  // namespace
 
 DebugHub::DebugHub(const ExecuteJavascriptCallback& execute_javascript_callback)
     : execute_javascript_callback_(execute_javascript_callback),
@@ -157,12 +158,54 @@ std::string DebugHub::GetDebugConsoleModeAsString() const {
   }
 }
 
-std::string DebugHub::ExecuteCommand(const std::string& command) {
-  // TODO(***REMOVED***) The command string should first be checked to see if it
-  // matches any of a set of known commands to be executed locally, and only
-  // interpreted as Javascript if it is not a known command.
+std::string DebugHub::ExecuteJavascript(const std::string& javascript) {
+  // Assume the command is JavaScript to be exected in the main web module
+  // using the callback provided at construction.
   return execute_javascript_callback_.Run(
-      command, base::SourceLocation("[object DebugHub]", 1, 1));
+      javascript, base::SourceLocation("[object DebugHub]", 1, 1));
+}
+
+// TODO(***REMOVED***) - This function should be modified to return an array of
+// strings instead of a single space-separated string, once the bindings
+// support return of a string array.
+std::string DebugHub::GetCommandChannels() const {
+  std::string result = "";
+  base::ConsoleCommandManager* command_mananger =
+      base::ConsoleCommandManager::GetInstance();
+  DCHECK(command_mananger);
+
+  if (command_mananger) {
+    std::set<std::string> channels = command_mananger->GetRegisteredChannels();
+    for (std::set<std::string>::const_iterator it = channels.begin();
+         it != channels.end(); ++it) {
+      result += (*it);
+      std::set<std::string>::const_iterator next = it;
+      ++next;
+      if (next != channels.end()) {
+        result += " ";
+      }
+    }
+  }
+  return result;
+}
+
+std::string DebugHub::GetCommandChannelHelp(const std::string& channel) const {
+  std::string result = "<undefined>";
+  base::ConsoleCommandManager* command_mananger =
+      base::ConsoleCommandManager::GetInstance();
+  DCHECK(command_mananger);
+  if (command_mananger) {
+    result = command_mananger->GetHelpString(channel);
+  }
+  return result;
+}
+
+void DebugHub::SendCommand(const std::string& channel,
+                           const std::string& message) {
+  base::ConsoleCommandManager* console_command_manager =
+      base::ConsoleCommandManager::GetInstance();
+  DCHECK(console_command_manager);
+  console_command_manager->HandleCommand(channel, message);
 }
 
 #else   // ENABLE_DEBUG_CONSOLE
@@ -207,9 +250,22 @@ void DebugHub::SetDebugConsoleModeAsString(const std::string& mode_string) {
 
 std::string DebugHub::GetDebugConsoleModeAsString() const { return ""; }
 
-std::string DebugHub::ExecuteCommand(const std::string& command) {
-  UNREFERENCED_PARAMETER(command);
+std::string DebugHub::ExecuteJavascript(const std::string& javascript) {
+  UNREFERENCED_PARAMETER(javascript);
   return "";
+}
+
+std::string DebugHub::GetCommandChannels() const { return ""; }
+
+std::string DebugHub::GetCommandChannelHelp(const std::string& channel) const {
+  UNREFERENCED_PARAMETER(channel);
+  return "";
+}
+
+void DebugHub::SendCommand(const std::string& channel,
+                           const std::string& message) {
+  UNREFERENCED_PARAMETER(channel);
+  UNREFERENCED_PARAMETER(message);
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 
