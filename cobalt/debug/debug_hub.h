@@ -93,6 +93,11 @@ class DebugHub : public script::Wrappable {
   void SetDebugConsoleMode(int debug_console_mode);
   int CycleDebugConsoleMode();
 
+  // Convenience methods to get/set debug console mode as string.
+  // This supports command line options and persistent local storage.
+  std::string GetDebugConsoleModeAsString() const;
+  void SetDebugConsoleModeAsString(const std::string& mode_string);
+
   // Executes a command.
   // This could either be a command to be executed locally, or Javascript to be
   // passed into the main web module for execution (via the callback stored in

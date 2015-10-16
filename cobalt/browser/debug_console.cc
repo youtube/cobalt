@@ -16,6 +16,7 @@
 
 #include "cobalt/browser/debug_console.h"
 
+#include "cobalt/base/source_location.h"
 #include "cobalt/dom/event_names.h"
 
 namespace cobalt {
@@ -43,6 +44,7 @@ bool DebugConsole::FilterKeyEvent(
   web_module_.InjectEvent(event);
   return false;
 }
+
 #else   // ENABLE_DEBUG_CONSOLE
 DebugConsole::DebugConsole(
     const GURL& url, const WebModule::OnRenderTreeProducedCallback&

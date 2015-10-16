@@ -47,6 +47,11 @@ class DebugConsole {
   // false if it was consumed within this function.
   bool FilterKeyEvent(const scoped_refptr<dom::KeyboardEvent>& event);
 
+#if defined(ENABLE_DEBUG_CONSOLE)
+  const WebModule& web_module() const { return web_module_; }
+  WebModule& web_module() { return web_module_; }
+#endif  // ENABLE_DEBUG_CONSOLE
+
  private:
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Sets up everything to do with the management of the web page that
