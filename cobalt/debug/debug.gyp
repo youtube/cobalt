@@ -28,6 +28,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
       ],
     },
   ],
