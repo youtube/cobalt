@@ -65,8 +65,14 @@ class BrowserModule {
   void OnDebugConsoleRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
 
-  // Gets the user-specified debug console mode from the command-line.
-  static int GetDebugConsoleModeFromCommandLine();
+  // Sets the debug console mode if specified on the command-line.
+  // Returns true if the debug console mode was set, false otherwise.
+  bool SetDebugConsoleModeFromCommandLine();
+
+  // Saves/loads the debug console mode to/from local storage so we can
+  // persist the user's preference.
+  void SaveDebugConsoleMode();
+  void LoadDebugConsoleMode();
 
   // Glue function to deal with the production of an input event from the
   // input device, and manage handing it off to the web module for
