@@ -187,6 +187,7 @@ scoped_refptr<Node> Node::InsertBefore(
     owner_document_->OnDOMMutation();
   }
 
+  OnInsertBefore(new_child, reference_child);
   return new_child;
 }
 
@@ -300,6 +301,7 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
     node->owner_document()->OnDOMMutation();
   }
 
+  OnRemoveChild(node);
   return node;
 }
 

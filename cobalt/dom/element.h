@@ -155,6 +155,10 @@ class Element : public Node {
   HTMLElementContext* html_element_context();
 
  private:
+  virtual void OnSetAttribute(const std::string& /* name */,
+                              const std::string& /* value */) {}
+  virtual void OnRemoveAttribute(const std::string& /* name */) {}
+
   // Callback for error when parsing inner / outer HTML.
   void HTMLParseError(const std::string& error);
 

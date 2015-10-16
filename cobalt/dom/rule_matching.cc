@@ -574,11 +574,8 @@ void ForEachChildOnNodes(
   }
 }
 
-void CalculateMatchingRulesRecursively(HTMLElement* current_element,
-                                       cssom::SelectorTree* selector_tree) {
-  // Clear the node's matching rules and potential node sets.
-  current_element->ClearMatchingRules();
-
+void CalculateMatchingRules(HTMLElement* current_element,
+                            cssom::SelectorTree* selector_tree) {
   // Get parent and previous sibling of the current element.
   HTMLElement* parent = current_element->parent_element()
                             ? current_element->parent_element()->AsHTMLElement()
@@ -647,6 +644,16 @@ void CalculateMatchingRulesRecursively(HTMLElement* current_element,
       ->following_sibling_potential_nodes.insert(
           current_element->rule_matching_state()->matching_nodes.begin(),
           current_element->rule_matching_state()->matching_nodes.end());
+
+  // Set the valid flag on the element.
+  current_element->SetMatchingRulesValid();
+}
+
+void CalculateMatchingRulesRecursively(HTMLElement* current_element,
+                                       cssom::SelectorTree* selector_tree) {
+  if (!current_element->matching_rules_valid()) {
+    CalculateMatchingRules(current_element, selector_tree);
+  }
 
   // Calculate matching rules for current element's children.
   for (Element* element = current_element->first_element_child(); element;
