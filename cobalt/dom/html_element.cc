@@ -25,6 +25,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_names.h"
+#include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_string_map.h"
@@ -112,15 +113,20 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
   return new_html_element;
 }
 
+void HTMLElement::OnParserStartTag(
+    const base::SourceLocation& opening_tag_location) {
+  UNREFERENCED_PARAMETER(opening_tag_location);
+  base::optional<std::string> style_attribute = GetAttribute("style");
+  if (style_attribute) {
+    style_->set_css_text(*style_attribute);
+  }
+}
+
 void HTMLElement::OnCSSMutation() {
   // Invalidate the computed style of this node.
   computed_style_valid_ = false;
 
   owner_document()->OnElementInlineStyleMutation();
-}
-
-void HTMLElement::OnBackgroundImageLoaded() {
-  owner_document()->RecordMutation();
 }
 
 scoped_refptr<HTMLAnchorElement> HTMLElement::AsHTMLAnchorElement() {
@@ -169,6 +175,45 @@ scoped_refptr<HTMLUnknownElement> HTMLElement::AsHTMLUnknownElement() {
 
 scoped_refptr<HTMLVideoElement> HTMLElement::AsHTMLVideoElement() {
   return NULL;
+}
+
+void HTMLElement::InvalidateMatchingRules() {
+  if (!matching_rules_valid_) {
+    return;
+  }
+
+  matching_rules_valid_ = false;
+  computed_style_valid_ = false;
+
+  matching_rules_.clear();
+  rule_matching_state_.matching_nodes.clear();
+  rule_matching_state_.descendant_potential_nodes.clear();
+  rule_matching_state_.following_sibling_potential_nodes.clear();
+  for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
+       ++pseudo_element_type) {
+    if (pseudo_elements_[pseudo_element_type]) {
+      pseudo_elements_[pseudo_element_type]->ClearMatchingRules();
+    }
+  }
+
+  // Invalidate matching rules on all children.
+  for (Element* element = first_element_child(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    DCHECK(html_element);
+    html_element->InvalidateMatchingRules();
+  }
+
+  // Invalidate matching rules on all following siblings if sibling combinators
+  // are used.
+  if (owner_document()->selector_tree()->has_sibling_combinators()) {
+    for (Element* element = next_element_sibling(); element;
+         element = element->next_element_sibling()) {
+      HTMLElement* html_element = element->AsHTMLElement();
+      DCHECK(html_element);
+      html_element->InvalidateMatchingRules();
+    }
+  }
 }
 
 namespace {
@@ -357,20 +402,6 @@ void HTMLElement::UpdateComputedStyleRecursively(
   }
 }
 
-void HTMLElement::ClearMatchingRules() {
-  matching_rules_.clear();
-  rule_matching_state_.matching_nodes.clear();
-  rule_matching_state_.descendant_potential_nodes.clear();
-  rule_matching_state_.following_sibling_potential_nodes.clear();
-  for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
-       ++pseudo_element_type) {
-    if (pseudo_elements_[pseudo_element_type]) {
-      pseudo_elements_[pseudo_element_type]->ClearMatchingRules();
-    }
-  }
-  computed_style_valid_ = false;
-}
-
 void HTMLElement::SetLayoutBoxes(scoped_ptr<LayoutBoxes> layout_boxes) {
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   if (!owner_document()->partial_layout_is_enabled()) {
@@ -396,7 +427,8 @@ HTMLElement::HTMLElement(Document* document)
       style_(new cssom::CSSStyleDeclaration(
           document->html_element_context()->css_parser())),
       computed_style_valid_(false),
-      computed_style_state_(new cssom::ComputedStyleState()) {
+      computed_style_state_(new cssom::ComputedStyleState()),
+      matching_rules_valid_(false) {
   style_->set_mutation_observer(this);
 }
 
@@ -405,20 +437,35 @@ HTMLElement::HTMLElement(Document* document, const std::string& tag_name)
       style_(new cssom::CSSStyleDeclaration(
           document->html_element_context()->css_parser())),
       computed_style_valid_(false),
-      computed_style_state_(new cssom::ComputedStyleState()) {
+      computed_style_state_(new cssom::ComputedStyleState()),
+      matching_rules_valid_(false) {
   style_->set_mutation_observer(this);
 }
 
-void HTMLElement::OnParserStartTag(
-    const base::SourceLocation& opening_tag_location) {
-  UNREFERENCED_PARAMETER(opening_tag_location);
-  base::optional<std::string> style_attribute = GetAttribute("style");
-  if (style_attribute) {
-    style_->set_css_text(*style_attribute);
+HTMLElement::~HTMLElement() {}
+
+void HTMLElement::OnInsertBefore(
+    const scoped_refptr<Node>& /* new_child */,
+    const scoped_refptr<Node>& /* reference_child */) {
+  InvalidateMatchingRules();
+}
+
+void HTMLElement::OnRemoveChild(const scoped_refptr<Node>& /* node */) {
+  InvalidateMatchingRules();
+}
+
+void HTMLElement::OnSetAttribute(const std::string& name,
+                                 const std::string& /* value */) {
+  if (name == "class" || name == "id") {
+    InvalidateMatchingRules();
   }
 }
 
-HTMLElement::~HTMLElement() {}
+void HTMLElement::OnRemoveAttribute(const std::string& name) {
+  if (name == "class" || name == "id") {
+    InvalidateMatchingRules();
+  }
+}
 
 void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
   scoped_refptr<cssom::PropertyValue> background_image =
@@ -455,6 +502,10 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
   } else {
     cached_background_images_.clear();
   }
+}
+
+void HTMLElement::OnBackgroundImageLoaded() {
+  owner_document()->RecordMutation();
 }
 
 }  // namespace dom

@@ -24,8 +24,8 @@
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
-#include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_media_rule.h"
+#include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
@@ -355,6 +355,7 @@ void Document::UpdateMatchingRules(
     const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
+  DCHECK(html());
 
   if (is_selector_tree_dirty_) {
     TRACE_EVENT0("cobalt::dom", kBenchmarkStatUpdateSelectorTree);
@@ -369,6 +370,8 @@ void Document::UpdateMatchingRules(
           style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
       UpdateSelectorTreeFromStyleSheet(style_sheet);
     }
+
+    html()->InvalidateMatchingRules();
     is_selector_tree_dirty_ = false;
   }
 

@@ -245,6 +245,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   }
 
   owner_document()->OnDOMMutation();
+  OnSetAttribute(name, value);
 }
 
 // Algorithm for RemoveAttribute:
@@ -287,6 +288,7 @@ void Element::RemoveAttribute(const std::string& name) {
   }
 
   owner_document()->OnDOMMutation();
+  OnRemoveAttribute(name);
 }
 
 // Algorithm for HasAttribute:
