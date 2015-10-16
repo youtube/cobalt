@@ -122,13 +122,27 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   virtual scoped_refptr<HTMLUnknownElement> AsHTMLUnknownElement();
   virtual scoped_refptr<HTMLVideoElement> AsHTMLVideoElement();
 
+  // Rule matching related methods.
+  //
+  // Returns pointer to cached rule matching results.
+  cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
+  // Returns rule matching state.
+  RuleMatchingState* rule_matching_state() { return &rule_matching_state_; }
+  // Returns whether the matching rules are valid.
+  bool matching_rules_valid() const { return matching_rules_valid_; }
+  // Sets the flag indicating matching rules are valid.
+  void SetMatchingRulesValid() { matching_rules_valid_ = true; }
+  // Invalidates the matching rules and rule matching state in this element.
+  void InvalidateMatchingRules();
+
+  // Computed style related methods.
+  //
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
   // computed value.
   scoped_refptr<cssom::ComputedStyleState>& computed_style_state() {
     return computed_style_state_;
   }
-
   scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() const {
     return computed_style_state_->style();
   }
@@ -136,20 +150,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
       scoped_refptr<cssom::CSSStyleDeclarationData> computed_style) {
     computed_style_state_->set_style(computed_style);
   }
-
-  // Returns pointer to cached rule matching results.
-  cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
-
-  // Returns rule matching state.
-  RuleMatchingState* rule_matching_state() { return &rule_matching_state_; }
-
-  cssom::TransitionSet* transitions() const {
-    return computed_style_state_->transitions();
-  }
-
-  // Determines whether this element is focusable.
-  virtual bool IsFocusable() { return HasAttribute("tabindex"); }
-
   // Updates the cached computed style of one HTML element.
   //   http://www.w3.org/TR/css-cascade-3/#value-stages
   void UpdateComputedStyle(
@@ -163,8 +163,22 @@ class HTMLElement : public Element, public cssom::MutationObserver {
       const base::TimeDelta& style_change_event_time,
       bool ancestors_were_valid);
 
-  // Clears the cached set of CSS rules that match with this HTML element.
-  void ClearMatchingRules();
+  // Layout box related methods.
+  //
+  // The LayoutContainerBox gives the HTML Element an interface to the container
+  // box that result from it. The BoxList is set when layout is performed for a
+  // node.
+  void SetLayoutBoxes(scoped_ptr<LayoutBoxes> layout_boxes);
+  LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
+  void InvalidateLayoutBoxesFromNodeAndAncestors() OVERRIDE;
+  void InvalidateLayoutBoxesFromNodeAndDescendants() OVERRIDE;
+
+  // Determines whether this element is focusable.
+  virtual bool IsFocusable() { return HasAttribute("tabindex"); }
+
+  cssom::TransitionSet* transitions() const {
+    return computed_style_state_->transitions();
+  }
 
   PseudoElement* pseudo_element(PseudoElementType type) const {
     DCHECK(type < kMaxPseudoElementType);
@@ -176,15 +190,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return pseudo_elements_[type].reset(element);
   }
 
-  // The LayoutContainerBox gives the HTML Element an interface to the container
-  // box that result from it. The BoxList is set when layout is performed for a
-  // node.
-  void SetLayoutBoxes(scoped_ptr<LayoutBoxes> layout_boxes);
-  LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
-
-  void InvalidateLayoutBoxesFromNodeAndAncestors() OVERRIDE;
-  void InvalidateLayoutBoxesFromNodeAndDescendants() OVERRIDE;
-
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
@@ -193,6 +198,16 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   ~HTMLElement() OVERRIDE;
 
  private:
+  // From Node.
+  void OnInsertBefore(const scoped_refptr<Node>& new_child,
+                      const scoped_refptr<Node>& reference_child) OVERRIDE;
+  void OnRemoveChild(const scoped_refptr<Node>& node) OVERRIDE;
+
+  // From Element.
+  void OnSetAttribute(const std::string& name,
+                      const std::string& value) OVERRIDE;
+  void OnRemoveAttribute(const std::string& name) OVERRIDE;
+
   void UpdateCachedBackgroundImagesFromComputedStyle();
 
   // This will be called when the image data associated with this element's
@@ -216,6 +231,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // This contains information about the boxes generated from the element.
   scoped_ptr<LayoutBoxes> layout_boxes_;
 
+  bool matching_rules_valid_;
+
+  cssom::TransitionSet transitions_;
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
   scoped_refptr<DOMStringMap> dataset_;
 
