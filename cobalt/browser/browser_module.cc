@@ -39,8 +39,14 @@ const int kInitialHeight = 1080;
 const char kInitialDebugConsoleUrl[] =
     "file:///cobalt/browser/debug_console/debug_console.html";
 
-// Local storage key for the debug console mode.
+// Name of the channel to listen for trace commands from the debug console.
+const char kTraceCommandChannel[] = "trace";
+
+// Help string for the trace command channel
+const char kTraceCommandHelpString[] = "Starts/stops execution tracing.";
+
 #if defined(ENABLE_DEBUG_CONSOLE)
+// Local storage key for the debug console mode.
 const char kDebugConsoleModeKey[] = "debugConsole.mode";
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 }  // namespace
@@ -75,7 +81,11 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           renderer_module_.pipeline()->GetResourceProvider(),
           renderer_module_.pipeline()->refresh_rate(),
           WebModule::Options("DebugConsoleWebModule", debug_hub_))),
-      self_message_loop_(MessageLoop::current()) {
+      self_message_loop_(MessageLoop::current()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(trace_command_handler_(
+          kTraceCommandChannel,
+          base::Bind(&BrowserModule::OnTraceMessage, base::Unretained(this)),
+          kTraceCommandHelpString)) {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
 
   input::KeyboardEventCallback keyboard_event_callback =
@@ -183,29 +193,43 @@ bool BrowserModule::FilterKeyEventForHotkeys(
 
   if (event->key_code() == dom::keycode::kF3) {
     if (event->type() == dom::EventNames::GetInstance()->keydown()) {
-      CommandLine* command_line = CommandLine::ForCurrentProcess();
-      if (command_line->HasSwitch(switches::kTimedTrace)) {
-        DLOG(WARNING)
-            << "Cannot manually trigger a trace when timed_trace is active.";
-      } else {
-        static const char* kOutputTraceFilename = "triggered_trace.json";
-        if (trace_to_file_) {
-          DLOG(INFO) << "Ending trace.";
-          DLOG(INFO) << "Trace results in file \"" << kOutputTraceFilename
-                     << "\"";
-          trace_to_file_.reset();
-        } else {
-          DLOG(INFO) << "Starting trace...";
-          trace_to_file_.reset(new trace_event::ScopedTraceToFile(
-              FilePath(kOutputTraceFilename)));
-        }
-      }
+      StartOrStopTrace();
     }
     return false;
   }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   return true;
+}
+
+void BrowserModule::OnTraceMessage(const std::string& message) {
+  UNREFERENCED_PARAMETER(message);
+  if (MessageLoop::current() == self_message_loop_) {
+    StartOrStopTrace();
+  } else {
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&BrowserModule::StartOrStopTrace, base::Unretained(this)));
+  }
+}
+
+void BrowserModule::StartOrStopTrace() {
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kTimedTrace)) {
+    DLOG(WARNING)
+        << "Cannot manually trigger a trace when timed_trace is active.";
+  } else {
+    static const char* kOutputTraceFilename = "triggered_trace.json";
+    if (trace_to_file_) {
+      DLOG(INFO) << "Ending trace.";
+      DLOG(INFO) << "Trace results in file \"" << kOutputTraceFilename << "\"";
+      trace_to_file_.reset();
+    } else {
+      DLOG(INFO) << "Starting trace...";
+      trace_to_file_.reset(
+          new trace_event::ScopedTraceToFile(FilePath(kOutputTraceFilename)));
+    }
+  }
 }
 
 void BrowserModule::SaveDebugConsoleMode() {
