@@ -19,10 +19,10 @@
 
 #include <string>
 
+#include "cobalt/base/console_commands.h"
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/web_module.h"
-#include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager.h"
@@ -93,6 +93,11 @@ class BrowserModule {
   // false if it was consumed within this function.
   bool FilterKeyEventForHotkeys(const scoped_refptr<dom::KeyboardEvent>& event);
 
+  // Message handler callback for trace messages from debug console.
+  void OnTraceMessage(const std::string& message);
+
+  void StartOrStopTrace();
+
   // The main system window for our browser.
   // This routes event callbacks, and provides a native window handle
   // on desktop systems.
@@ -135,6 +140,9 @@ class BrowserModule {
   // This object can be set to start a trace if a hotkey (like F3) is pressed.
   // While initialized, it means that a trace is on-going.
   scoped_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
+
+  // Command handler object for trace commands from the debug console.
+  base::ConsoleCommandManager::CommandHandler trace_command_handler_;
 };
 
 }  // namespace browser

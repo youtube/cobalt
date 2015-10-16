@@ -79,6 +79,13 @@ function initDebugCommands() {
   debug.dir.longHelp =
       'Lists the properties of the specified object in the main web module. ' +
       'Remember to enclose the name of the object in quotes.';
+
+  debug.command = function(channel, message) {
+    window.debugHub.sendCommand(channel, message);
+  }
+  debug.command.shortHelp =
+    'Sends a command message to the main application.';
+  debug.command.longHelp = commandLongHelp();
 }
 
 function help(command) {
@@ -121,4 +128,17 @@ function dir(objectName) {
            '  return properties;' +
            '}(' + objectName + '))';
   executeMain(js);
+}
+
+function commandLongHelp() {
+  var channelString = window.debugHub.getCommandChannels();
+  var channels = channelString.split(' ');
+  var result =
+    'Sends a command message to the main application on a specified channel. ' +
+    'Registered channels:'
+  for (var i = 0; i < channels.length; i++) {
+    var channelHelp = window.debugHub.getCommandChannelHelp(channels[i]);
+    result += '\n' + channels[i] + ' - ' + channelHelp;
+  }
+  return result;
 }
