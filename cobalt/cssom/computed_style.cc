@@ -105,6 +105,7 @@ class ComputedFontSizeProvider : public NotReachedPropertyValueVisitor {
       const LengthValue* parent_computed_font_size);
 
   void VisitLength(LengthValue* length) OVERRIDE;
+  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
 
   const scoped_refptr<LengthValue>& computed_font_size() const {
     return computed_font_size_;
@@ -128,6 +129,20 @@ void ComputedFontSizeProvider::VisitLength(LengthValue* specified_length) {
   //   http://www.w3.org/TR/css3-values/#font-relative-lengths
   computed_font_size_ =
       ProvideAbsoluteLength(specified_length, parent_computed_font_size_);
+}
+
+void ComputedFontSizeProvider::VisitPercentage(
+    PercentageValue* specified_percentage) {
+  // A percentage value specifies an absolute font size relative to the parent
+  // element's fonts size.
+  //   http://www.w3.org/TR/css3-fonts/#percentage-size-value
+  // TODO(***REMOVED***): Track down why we're having percentage values of 0 show up
+  // here in ***REMOVED***. Only use the percentage if it's greater than 0.
+  float parent_size_percentage =
+      specified_percentage->value() > 0 ? specified_percentage->value() : 1;
+  computed_font_size_ = new LengthValue(
+      parent_computed_font_size_->value() * parent_size_percentage,
+      kPixelsUnit);
 }
 
 // Computed value: for length and percentage the absolute value;
