@@ -829,6 +829,7 @@
             'synchronization/waitable_event_watcher_unittest.cc',
           ],
           'sources': [
+            'circular_buffer_shell_unittest.cc',
             'optional_unittest.cc',
             'state_machine_shell_unittest.cc',
           ],

@@ -2,25 +2,26 @@
 
 #include <string.h>
 
-#include "external/chromium/base/memory/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
 // 100 characters, repeating every 16 characters.
-const char kTestData[] = "0123456789ABCDEF01234567890ABCDEF"
-    "0123456789ABCDEF0123456789ABCDEF01234567890ABCDEF0123456789ABCDEF" "0123";
+const char kTestData[] =
+    "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
+    "01234567890ABCDEF0123456789ABCDEF0123";
 
 // 100 characters, repeating every 17 characters.
-#define UNSET_DATA "GHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTUVW" \
-    "GHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTU"
+#define UNSET_DATA                                      \
+  "GHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTUVW" \
+  "GHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTU"
 
 const char kUnsetData[] = UNSET_DATA;
 const size_t kUnsetSize = 1024;
 
-
 // Like memcmp, but reports which index and values failed.
-bool IsSame(const char *expected, const char *actual, size_t length) {
+bool IsSame(const char* expected, const char* actual, size_t length) {
   for (size_t i = 0; i < length; ++i) {
     if (expected[i] != actual[i]) {
       printf("Expected '%c' at %lu, but got '%c'\n", expected[i], i, actual[i]);
@@ -41,23 +42,21 @@ void ClearPos() {
   write_pos = 0;
 }
 
-void TestWrite(base::CircularBufferShell *circular_buffer,
-                      size_t to_write) {
+void TestWrite(base::CircularBufferShell* circular_buffer, size_t to_write) {
   size_t before_length = circular_buffer->GetLength();
   size_t bytes_written = kUnsetSize;
-  bool result = circular_buffer->Write(kTestData + write_pos, to_write,
-                                      &bytes_written);
+  bool result =
+      circular_buffer->Write(kTestData + write_pos, to_write, &bytes_written);
   EXPECT_EQ(true, result);
   EXPECT_EQ(to_write, bytes_written);
   EXPECT_EQ(before_length + to_write, circular_buffer->GetLength());
   write_pos += to_write;
 }
 
-void TestRead(base::CircularBufferShell *circular_buffer,
-                     size_t to_read) {
+void TestRead(base::CircularBufferShell* circular_buffer, size_t to_read) {
   size_t before_length = circular_buffer->GetLength();
   char data[] = UNSET_DATA UNSET_DATA;
-  char *buffer = data + strlen(kUnsetData);
+  char* buffer = data + strlen(kUnsetData);
   size_t bytes_read = kUnsetSize;
   circular_buffer->Read(buffer, to_read, &bytes_read);
   EXPECT_EQ(to_read, bytes_read);
@@ -65,7 +64,7 @@ void TestRead(base::CircularBufferShell *circular_buffer,
   EXPECT_TRUE(IsSame(kTestData + read_pos, buffer, to_read));
   EXPECT_TRUE(IsSame(kUnsetData + to_read, buffer + to_read, to_read));
   EXPECT_TRUE(IsSame(kUnsetData + strlen(kUnsetData) - to_read,
-                          buffer - to_read, to_read));
+                     buffer - to_read, to_read));
   read_pos += to_read;
 }
 
@@ -171,7 +170,6 @@ TEST(CircularBufferShellTest, ExpandWhileWrapped) {
   TestRead(circular_buffer.get(), 15);
 }
 
-
 // --- Rainy Day Tests ---
 
 TEST(CircularBufferShellTest, WriteTooMuch) {
@@ -226,6 +224,126 @@ TEST(CircularBufferShellTest, ReadToNull) {
   }
 }
 
+TEST(CircularBufferShellTest, Peek) {
+  const size_t kMaxCapacity = 20;
+  base::CircularBufferShell circular_buffer(kMaxCapacity);
+  size_t bytes_peeked;
+  size_t peek_offset = 0;
+
+  circular_buffer.Write(kTestData, kMaxCapacity, NULL);
+
+  // Peek with offset 0.
+  {
+    char destination[] = UNSET_DATA;
+    circular_buffer.Peek(destination + 9, 10, peek_offset, &bytes_peeked);
+
+    EXPECT_EQ(10, bytes_peeked);
+    EXPECT_TRUE(IsSame(UNSET_DATA, destination, 9));
+    EXPECT_TRUE(IsSame(UNSET_DATA + 9 + bytes_peeked,
+                       destination + 9 + bytes_peeked,
+                       sizeof(UNSET_DATA) - 9 - bytes_peeked));
+    EXPECT_TRUE(IsSame(kTestData, destination + 9, 10));
+    peek_offset += bytes_peeked;
+  }
+
+  // Peek with non-zero offset.
+  {
+    char destination[] = UNSET_DATA;
+    circular_buffer.Peek(destination + 9, 7, peek_offset, &bytes_peeked);
+
+    EXPECT_EQ(7, bytes_peeked);
+    EXPECT_TRUE(IsSame(UNSET_DATA, destination, 9));
+    EXPECT_TRUE(IsSame(UNSET_DATA + 9 + bytes_peeked,
+                       destination + 9 + bytes_peeked,
+                       sizeof(UNSET_DATA) - 9 - bytes_peeked));
+    EXPECT_TRUE(IsSame(kTestData + peek_offset, destination + 9, bytes_peeked));
+    peek_offset += bytes_peeked;
+  }
+
+  // Peek more data than available.
+  {
+    char destination[] = UNSET_DATA;
+    circular_buffer.Peek(destination + 9, 7, peek_offset, &bytes_peeked);
+
+    EXPECT_EQ(3, bytes_peeked);
+    EXPECT_TRUE(IsSame(UNSET_DATA, destination, 9));
+    EXPECT_TRUE(IsSame(UNSET_DATA + 9 + bytes_peeked,
+                       destination + 9 + bytes_peeked,
+                       sizeof(UNSET_DATA) - 9 - bytes_peeked));
+    EXPECT_TRUE(IsSame(kTestData + peek_offset, destination + 9, bytes_peeked));
+    peek_offset += bytes_peeked;
+  }
+
+  // Peek an empty buffer.
+  {
+    char destination[] = UNSET_DATA;
+    circular_buffer.Peek(destination + 9, 7, peek_offset, &bytes_peeked);
+
+    EXPECT_TRUE(IsSame(UNSET_DATA, destination, sizeof(destination)));
+    EXPECT_EQ(0, bytes_peeked);
+    // Verify that we are actually peeking instead of reading.
+    EXPECT_EQ(kMaxCapacity, circular_buffer.GetLength());
+  }
+}
+
+TEST(CircularBufferShellTest, Skip) {
+  const size_t kMaxCapacity = 20;
+  base::CircularBufferShell circular_buffer(kMaxCapacity);
+  char destination[] = UNSET_DATA UNSET_DATA;
+  size_t bytes;
+
+  circular_buffer.Write(kTestData, kMaxCapacity, NULL);
+  circular_buffer.Skip(10, &bytes);
+  EXPECT_EQ(10, bytes);
+  EXPECT_EQ(kMaxCapacity - 10, circular_buffer.GetLength());
+
+  circular_buffer.Read(destination, kMaxCapacity, &bytes);
+
+  EXPECT_EQ(kMaxCapacity - 10, bytes);
+  EXPECT_TRUE(IsSame(kTestData + 10, destination, bytes));
+}
+
+TEST(CircularBufferShellTest, PeekWrapped) {
+  const size_t kMaxCapacity = 20;
+  base::CircularBufferShell circular_buffer(kMaxCapacity);
+  char destination[] = UNSET_DATA;
+  size_t bytes_peeked;
+
+  circular_buffer.Write(kTestData, kMaxCapacity, NULL);
+
+  // Skip 10 bytes to free some space.
+  circular_buffer.Skip(10, &bytes_peeked);
+
+  // Fill the free space with new data.
+  circular_buffer.Write(kTestData + kMaxCapacity, 10, NULL);
+  EXPECT_EQ(kMaxCapacity, circular_buffer.GetLength());
+
+  // Peek with a non-zero offset.
+  circular_buffer.Peek(destination, kMaxCapacity, 5, &bytes_peeked);
+
+  EXPECT_EQ(kMaxCapacity - 5, bytes_peeked);
+  EXPECT_TRUE(IsSame(kTestData + 15, destination, bytes_peeked));
+}
+
+TEST(CircularBufferShellTest, SkipWrapped) {
+  const size_t kMaxCapacity = 20;
+  base::CircularBufferShell circular_buffer(kMaxCapacity);
+  char destination[] = UNSET_DATA;
+  size_t bytes;
+
+  circular_buffer.Write(kTestData, kMaxCapacity, NULL);
+  circular_buffer.Skip(10, &bytes);
+
+  circular_buffer.Write(kTestData + kMaxCapacity, 10, NULL);
+  EXPECT_EQ(kMaxCapacity, circular_buffer.GetLength());
+
+  circular_buffer.Skip(kMaxCapacity - 5, NULL);
+  EXPECT_EQ(5, circular_buffer.GetLength());
+
+  circular_buffer.Read(destination, 5, &bytes);
+  EXPECT_EQ(5, bytes);
+  EXPECT_TRUE(IsSame(kTestData + kMaxCapacity + 5, destination, 5));
+}
 
 // --- Legacy Tests ---
 
@@ -260,30 +378,30 @@ TEST(CircularBufferShellTest, Basic) {
   circular_buffer->Write(write_buffer2, strlen(write_buffer2), &bytes_written);
   EXPECT_EQ(bytes_written, strlen(write_buffer2));
   EXPECT_EQ(circular_buffer->GetLength(),
-      strlen(write_buffer) + strlen(write_buffer2));
+            strlen(write_buffer) + strlen(write_buffer2));
 
   // Read 2 bytes, got read_pos 2, write_pos 6
   circular_buffer->Read(read_buffer, kReadSize2, &bytes_read);
   EXPECT_EQ(0, memcmp(read_buffer, "he", kReadSize2));
   EXPECT_EQ(bytes_read, kReadSize2);
   EXPECT_EQ(circular_buffer->GetLength(),
-      strlen(write_buffer) + strlen(write_buffer2) - kReadSize2);
+            strlen(write_buffer) + strlen(write_buffer2) - kReadSize2);
 
   // Write 6 bytes, got read_pos 2, write_pos 2, full of data
   const char write_buffer3[] = "world!";
   circular_buffer->Write(write_buffer3, strlen(write_buffer3), &bytes_written);
   EXPECT_EQ(bytes_written, strlen(write_buffer3));
   EXPECT_EQ(circular_buffer->GetLength(),
-      strlen(write_buffer) + strlen(write_buffer2) + strlen(write_buffer3)
-      - kReadSize2);
+            strlen(write_buffer) + strlen(write_buffer2) +
+                strlen(write_buffer3) - kReadSize2);
 
   // Read 4 bytes, got read_pos 6, write_pos 2
   circular_buffer->Read(read_buffer, kReadSize3, &bytes_read);
   EXPECT_EQ(bytes_read, kReadSize3);
   EXPECT_EQ(0, memcmp(read_buffer, "llo ", kReadSize3));
   EXPECT_EQ(circular_buffer->GetLength(),
-      strlen(write_buffer) + strlen(write_buffer2) + strlen(write_buffer3)
-      - kReadSize2 - kReadSize3);
+            strlen(write_buffer) + strlen(write_buffer2) +
+                strlen(write_buffer3) - kReadSize2 - kReadSize3);
 
   // Read 6 bytes, got read_pos 2, write_pos 2, empty
   circular_buffer->Read(read_buffer, kReadSize4, &bytes_read);
@@ -313,7 +431,7 @@ TEST(CircularBufferShellTest, CycleReadWrite) {
     circular_buffer->Write(write_buffer, sizeof(write_buffer), &bytes_written);
     EXPECT_EQ(bytes_written, sizeof(write_buffer));
     EXPECT_EQ(circular_buffer->GetLength(),
-        sizeof(write_buffer) + sizeof(write_buffer));
+              sizeof(write_buffer) + sizeof(write_buffer));
 
     circular_buffer->Read(read_buffer, sizeof(read_buffer), &bytes_read);
     EXPECT_EQ(bytes_read, sizeof(write_buffer) + sizeof(write_buffer));
