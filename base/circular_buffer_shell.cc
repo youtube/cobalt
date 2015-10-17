@@ -10,12 +10,12 @@
 
 #include "base/logging.h"
 
-static inline void *add_to_pointer(void *pointer, size_t amount) {
-    return static_cast<uint8_t *>(pointer) + amount;
+static inline void* add_to_pointer(void* pointer, size_t amount) {
+  return static_cast<uint8_t*>(pointer) + amount;
 }
 
-static inline const void *add_to_pointer(const void *pointer, size_t amount) {
-    return static_cast<const uint8_t *>(pointer) + amount;
+static inline const void* add_to_pointer(const void* pointer, size_t amount) {
+  return static_cast<const uint8_t*>(pointer) + amount;
 }
 
 namespace base {
@@ -25,8 +25,7 @@ CircularBufferShell::CircularBufferShell(size_t max_capacity)
       buffer_(NULL),
       capacity_(0),
       length_(0),
-      read_position_(0) {
-}
+      read_position_(0) {}
 
 CircularBufferShell::~CircularBufferShell() {
   Clear();
@@ -44,18 +43,37 @@ void CircularBufferShell::Clear() {
   read_position_ = 0;
 }
 
-void CircularBufferShell::Read(void *destination, size_t length,
-                               size_t *bytes_read) {
+void CircularBufferShell::Read(void* destination,
+                               size_t length,
+                               size_t* bytes_read) {
   base::AutoLock l(lock_);
   DCHECK(destination != NULL || length == 0);
   if (destination == NULL)
     length = 0;
 
-  ReadUnchecked(destination, length, bytes_read);
+  ReadAndAdvanceUnchecked(destination, length, bytes_read);
 }
 
-bool CircularBufferShell::Write(const void *source, size_t length,
-                                size_t *bytes_written) {
+void CircularBufferShell::Peek(void* destination,
+                               size_t length,
+                               size_t source_offset,
+                               size_t* bytes_peeked) const {
+  base::AutoLock l(lock_);
+  DCHECK(destination != NULL || length == 0);
+  if (destination == NULL)
+    length = 0;
+
+  ReadUnchecked(destination, length, source_offset, bytes_peeked);
+}
+
+void CircularBufferShell::Skip(size_t length, size_t* bytes_skipped) {
+  base::AutoLock l(lock_);
+  ReadAndAdvanceUnchecked(NULL, length, bytes_skipped);
+}
+
+bool CircularBufferShell::Write(const void* source,
+                                size_t length,
+                                size_t* bytes_written) {
   base::AutoLock l(lock_);
   DCHECK(source != NULL || length == 0);
   if (source == NULL)
@@ -75,8 +93,8 @@ bool CircularBufferShell::Write(const void *source, size_t length,
       break;
 
     // Copy this segment and do the accounting.
-    void *destination = GetWritePointer();
-    const void *src = add_to_pointer(source, produced);
+    void* destination = GetWritePointer();
+    const void* src = add_to_pointer(source, produced);
     memcpy(destination, src, to_write);
     length_ += to_write;
     produced += to_write;
@@ -92,36 +110,70 @@ size_t CircularBufferShell::GetLength() const {
   return length_;
 }
 
+void CircularBufferShell::ReadUnchecked(void* destination,
+                                        size_t destination_length,
+                                        size_t source_offset,
+                                        size_t* bytes_read) const {
+  DCHECK(destination != NULL || bytes_read != NULL);
 
-void CircularBufferShell::ReadUnchecked(void *destination, size_t length,
-                                        size_t *bytes_read) {
+  size_t dummy = 0;
+  if (!bytes_read) {
+    bytes_read = &dummy;
+  }
+
+  // Return immediately if the CircularBuffer is empty or if |source_offset| is
+  // greater or equal than |length_|.
+  if (capacity_ == 0 || source_offset >= length_) {
+    *bytes_read = 0;
+    return;
+  }
+
   size_t consumed = 0;
+  size_t source_length = length_ - source_offset;
+  size_t read_position = (read_position_ + source_offset) % capacity_;
+
   while (true) {
-    size_t remaining = std::min(length_, length - consumed);
+    size_t remaining = std::min(source_length, destination_length - consumed);
 
     // In this pass, read the remaining data that is contiguous.
-    size_t to_read = std::min(remaining, capacity_ - read_position_);
+    size_t to_read = std::min(remaining, capacity_ - read_position);
     if (to_read == 0)
       break;
 
     // Copy this segment and do the accounting.
-    const void *source = GetReadPointer();
-    void *dest = add_to_pointer(destination, consumed);
-    memcpy(dest, source, to_read);
-    length_ -= to_read;
-    read_position_ = (read_position_ + to_read) % capacity_;
+    const void* source = add_to_pointer(buffer_, read_position);
+    if (destination) {
+      void* dest = add_to_pointer(destination, consumed);
+      memcpy(dest, source, to_read);
+    }
+    source_length -= to_read;
+    read_position = (read_position + to_read) % capacity_;
     consumed += to_read;
   }
 
-  if (bytes_read)
-    *bytes_read = consumed;
+  *bytes_read = consumed;
 }
 
-const void *CircularBufferShell::GetReadPointer() const {
-  return add_to_pointer(buffer_, read_position_);
+void CircularBufferShell::ReadAndAdvanceUnchecked(void* destination,
+                                                  size_t destination_length,
+                                                  size_t* bytes_read) {
+  size_t dummy = 0;
+  if (!bytes_read) {
+    bytes_read = &dummy;
+  }
+
+  // Return immediately if the CircularBuffer is empty.
+  if (capacity_ == 0) {
+    *bytes_read = 0;
+    return;
+  }
+
+  ReadUnchecked(destination, destination_length, 0, bytes_read);
+  length_ -= *bytes_read;
+  read_position_ = (read_position_ + *bytes_read) % capacity_;
 }
 
-void *CircularBufferShell::GetWritePointer() const {
+void* CircularBufferShell::GetWritePointer() const {
   return add_to_pointer(buffer_, GetWritePosition());
 }
 
@@ -153,7 +205,7 @@ bool CircularBufferShell::IncreaseCapacityTo(size_t capacity) {
 
   // If the data isn't wrapped, we can just use realloc.
   if (buffer_ != NULL && read_position_ + length_ <= capacity_) {
-    void *result = realloc(buffer_, capacity);
+    void* result = realloc(buffer_, capacity);
     if (result == NULL) {
       return false;
     }
@@ -162,7 +214,7 @@ bool CircularBufferShell::IncreaseCapacityTo(size_t capacity) {
     return true;
   }
 
-  void *buffer = malloc(capacity);
+  void* buffer = malloc(capacity);
   if (buffer == NULL) {
     return false;
   }
@@ -171,7 +223,7 @@ bool CircularBufferShell::IncreaseCapacityTo(size_t capacity) {
   size_t length = length_;
 
   // Copy the data over to the new buffer.
-  ReadUnchecked(buffer, length_, NULL);
+  ReadUnchecked(buffer, length_, 0, NULL);
 
   // Adjust the accounting.
   length_ = length;
