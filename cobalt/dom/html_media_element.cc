@@ -23,7 +23,7 @@
 #include "base/compiler_specific.h"
 #include "base/guid.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event.h"
@@ -633,13 +633,17 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   UpdateVolume();
 
   // TODO(***REMOVED***): deal with load error.
-  if (!url.is_empty() && url.spec() == SourceURL()) {
+  if (url.is_empty()) {
+    return;
+  }
+  if (url.spec() == SourceURL()) {
     player_->LoadMediaSource();
   } else {
-    player_->LoadProgressive(
-        url, new media::FetcherBufferedDataSource(
-                 url, html_element_context()->fetcher_factory()),
-        WebMediaPlayer::kCORSModeUnspecified);
+    player_->LoadProgressive(url,
+                             new media::FetcherBufferedDataSource(
+                                 base::MessageLoopProxy::current(), url,
+                                 html_element_context()->fetcher_factory()),
+                             WebMediaPlayer::kCORSModeUnspecified);
   }
   // if (!player_->Load(url, WebMediaPlayer::kCORSModeUnspecified))
   //   MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError);
