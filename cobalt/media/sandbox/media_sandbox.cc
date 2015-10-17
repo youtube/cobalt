@@ -16,6 +16,7 @@
 
 #include "cobalt/media/sandbox/media_sandbox.h"
 
+#include "base/message_loop_proxy.h"
 #include "cobalt/media/fetcher_buffered_data_source.h"
 
 namespace cobalt {
@@ -33,9 +34,10 @@ MediaSandbox::MediaSandbox(ResourceProvider* resource_provider)
 void MediaSandbox::LoadAndPlay(const GURL& url,
                                loader::FetcherFactory* fetcher_factory) {
   player_->SetRate(1.0);
-  player_->LoadProgressive(url,
-                           new FetcherBufferedDataSource(url, fetcher_factory),
-                           ::media::WebMediaPlayer::kCORSModeUnspecified);
+  player_->LoadProgressive(
+      url, new FetcherBufferedDataSource(base::MessageLoopProxy::current(), url,
+                                         fetcher_factory),
+      ::media::WebMediaPlayer::kCORSModeUnspecified);
   player_->Play();
 }
 
