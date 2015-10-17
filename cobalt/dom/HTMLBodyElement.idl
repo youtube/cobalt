@@ -14,4 +14,9 @@
  * limitations under the License.
  */
 
-interface HTMLBodyElement : HTMLElement {};
+interface HTMLBodyElement : HTMLElement {
+  // CSSOM View Module
+  // http://www.w3.org/TR/cssom-view/#extensions-to-the-htmlelement-interface
+  readonly attribute long offsetWidth;
+  readonly attribute long offsetHeight;
+};
