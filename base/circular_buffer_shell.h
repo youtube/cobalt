@@ -11,6 +11,8 @@
 namespace base {
 
 // A thread-safe circular buffer implementation.
+// TODO(xiaomings): Returns the size in Read(), Peek(), and Skip() as a return
+// value.
 class BASE_EXPORT CircularBufferShell {
  public:
   explicit CircularBufferShell(size_t max_capacity);
@@ -23,12 +25,27 @@ class BASE_EXPORT CircularBufferShell {
   // Reads the requested amount of data into the given buffer, writing the
   // number of bytes actually read into the bytes_read paramter. If there is
   // less data then requested, then the remaining data will be consumed.
-  void Read(void *destination, size_t length, size_t *bytes_read);
+  void Read(void* destination, size_t length, size_t* bytes_read);
+
+  // It works the same as Read() except:
+  // 1. It doesn't modify the buffer in any way.
+  // 2. It allows the caller to specify an offset inside the buffer where the
+  // peek starts.
+  void Peek(void* destination,
+            size_t length,
+            size_t source_offset,
+            size_t* bytes_peeked) const;
+
+  // Advance the buffer cursor without reading any data.
+  void Skip(size_t length, size_t* bytes_skipped);
 
   // Writes the given data into the circular buffer. Returns false if the buffer
   // could not be expanded to hold the new data. If returning false,
   // bytes_written will not be set, and the buffer will remain unchanged.
-  bool Write(const void *source, size_t length, size_t *bytes_written);
+  // TODO(xiaomings): Remove bytes_written.  Because Write returns false when
+  // the buffer cannot hold all data, bytes_written isn't useful here unless we
+  // allow partial write.
+  bool Write(const void* source, size_t length, size_t* bytes_written);
 
   // Returns the length of the data left in the buffer to read.
   size_t GetLength() const;
@@ -45,19 +62,31 @@ class BASE_EXPORT CircularBufferShell {
   bool IncreaseCapacityTo(size_t capacity);
 
   // Private workhorse for Read without the parameter validation or locking.
-  void ReadUnchecked(void *destination, size_t length, size_t *bytes_read);
+  // When |destination| is NULL, it purely calculates the the bytes that would
+  // have been read.
+  // Note that the function doesn't advance the read cursor or modify the
+  // length.  It is caller's responsibility to adjust |read_position_| and
+  // |length_| according to the return value, which is the actual number of
+  // bytes read.
+  void ReadUnchecked(void* destination,
+                     size_t destination_length,
+                     size_t source_offset,
+                     size_t* bytes_read) const;
 
-  // Gets a pointer to the current read position.
-  const void *GetReadPointer() const;
+  // The same the as above functions except that it also advance the
+  // |read_position_| and adjust the |length_| accordingly.
+  void ReadAndAdvanceUnchecked(void* destination,
+                               size_t destination_length,
+                               size_t* bytes_read);
 
   // Gets a pointer to the current write position.
-  void *GetWritePointer() const;
+  void* GetWritePointer() const;
 
   // Gets the current write position.
   size_t GetWritePosition() const;
 
   const size_t max_capacity_;
-  void *buffer_;
+  void* buffer_;
   size_t capacity_;
   size_t length_;
   size_t read_position_;
