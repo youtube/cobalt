@@ -21,10 +21,21 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+
+// TODO(***REMOVED***): Dynamically determine these.
+static const int kOffsetWidth = 1920;
+static const int kOffsetHeight = 1080;
+
+}  // namespace
+
 // static
 const char HTMLBodyElement::kTagName[] = "body";
 
 std::string HTMLBodyElement::tag_name() const { return kTagName; }
+
+int HTMLBodyElement::offset_width() const { return kOffsetWidth; }
+int HTMLBodyElement::offset_height() const { return kOffsetHeight; }
 
 void HTMLBodyElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();

@@ -37,6 +37,11 @@ class HTMLBodyElement : public HTMLElement {
   // Web API: Element
   std::string tag_name() const OVERRIDE;
 
+  // Web API: CSSOM View Module
+  // http://dev.w3.org/csswg/cssom-view/#extensions-to-the-htmlelement-interface
+  int offset_width() const;
+  int offset_height() const;
+
   // Custom, not in any spec.
   scoped_refptr<HTMLBodyElement> AsHTMLBodyElement() OVERRIDE { return this; }
 

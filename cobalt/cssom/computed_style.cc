@@ -136,12 +136,8 @@ void ComputedFontSizeProvider::VisitPercentage(
   // A percentage value specifies an absolute font size relative to the parent
   // element's fonts size.
   //   http://www.w3.org/TR/css3-fonts/#percentage-size-value
-  // TODO(***REMOVED***): Track down why we're having percentage values of 0 show up
-  // here in ***REMOVED***. Only use the percentage if it's greater than 0.
-  float parent_size_percentage =
-      specified_percentage->value() > 0 ? specified_percentage->value() : 1;
   computed_font_size_ = new LengthValue(
-      parent_computed_font_size_->value() * parent_size_percentage,
+      parent_computed_font_size_->value() * specified_percentage->value(),
       kPixelsUnit);
 }
 
