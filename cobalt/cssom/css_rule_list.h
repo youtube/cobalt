@@ -32,8 +32,6 @@ class CSSRule;
 class CSSRuleVisitor;
 class CSSStyleSheet;
 
-typedef std::vector<scoped_refptr<CSSRule> > CSSRules;
-
 // The CSSRuleList interface represents an ordered collection of CSS
 // style rules.
 //   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssrulelist-interface
@@ -54,8 +52,6 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
 
   // Custom, not in any spec.
   //
-  // Returns a read-only, live object representing the CSS rules.
-  const CSSRules* css_rules() const { return &css_rules_; }
 
   CSSStyleSheet* parent_css_style_sheet() { return parent_css_style_sheet_; }
 
@@ -72,6 +68,8 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
   DEFINE_WRAPPABLE_TYPE(CSSRuleList);
 
  private:
+  typedef std::vector<scoped_refptr<CSSRule> > CSSRules;
+
   ~CSSRuleList();
 
   CSSRules css_rules_;
