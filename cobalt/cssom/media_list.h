@@ -31,8 +31,6 @@ class CSSParser;
 class MediaQuery;
 class PropertyValue;
 
-typedef std::vector<scoped_refptr<MediaQuery> > MediaQueries;
-
 // The MediaList interface represents a list of Media Queries.
 //   http://www.w3.org/TR/cssom/#medialist
 class MediaList : public script::Wrappable {
@@ -65,6 +63,8 @@ class MediaList : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(MediaList);
 
  private:
+  typedef std::vector<scoped_refptr<MediaQuery> > MediaQueries;
+
   ~MediaList();
 
   CSSParser* const css_parser_;
