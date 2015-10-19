@@ -1,7 +1,7 @@
 // Text the user has typed since last hitting Enter
 var inputText = '';
 // The DOM node used as a container for message nodes.
-var messageBuffer = null;
+var messageLog = null;
 // Stores and manipulates the set of console values.
 var consoleValues = null;
 // Handles command input, editing, history traversal, etc.
@@ -11,9 +11,9 @@ var debug = null;
 // Shorthand reference for the debug object.
 var d = null;
 
-function createMessageBuffer() {
-  var messageBox = document.getElementById('messageBox');
-  messageBuffer = new MessageBuffer(messageBox);
+function createMessageLog() {
+  var messageContainer = document.getElementById('messageContainer');
+  messageLog = new MessageLog(messageContainer);
 }
 
 function createCommandInput() {
@@ -27,7 +27,7 @@ function createConsoleValues() {
   // all registered CVals.
   consoleValues = new ConsoleValues();
   var loadResult = consoleValues.loadActiveSet();
-  printToMessageLog(messageBuffer.INTERACTIVE, loadResult);
+  printToMessageLog(messageLog.INTERACTIVE, loadResult);
 }
 
 function showBlockElem(elem, doShow) {
@@ -39,10 +39,11 @@ function showBlockElem(elem, doShow) {
 
 function showConsole(doShow) {
   showBlockElem(document.getElementById('consoleFrame'), doShow);
+  messageLog.setVisible(doShow);
 }
 
 function printToMessageLog(severity, message) {
-  messageBuffer.addMessage(severity, message);
+  messageLog.addMessage(severity, message);
 }
 
 function showHud(doShow) {
@@ -119,7 +120,7 @@ function executeMain(command) {
   var result = window.debugHub.executeCommand(command);
   if (command.indexOf('console') == -1) {
     // Echo the output for non-console commands.
-    printToMessageLog(messageBuffer.INFO, result);
+    printToMessageLog(messageLog.INFO, result);
   }
 }
 
@@ -145,9 +146,9 @@ function executeCommand(command) {
 // Typically called when the user hits Enter.
 function executeCurrentCommand() {
   var command = commandInput.getCurrentCommand();
-  printToMessageLog(messageBuffer.INTERACTIVE, '> ' + command);
+  printToMessageLog(messageLog.INTERACTIVE, '> ' + command);
   executeCommand(command);
-  printToMessageLog(messageBuffer.INTERACTIVE, '\n');
+  printToMessageLog(messageLog.INTERACTIVE, '');
 }
 
 function onKeydown(event) {
@@ -164,6 +165,10 @@ function onKeydown(event) {
     commandInput.deleteCharBehindCursor();
   } else if (key == 'Enter') {
     executeCurrentCommand();
+  } else if (key == 'PageUp') {
+    messageLog.pageUp();
+  } else if (key == 'PageDown') {
+    messageLog.pageDown();
   }
 }
 
@@ -195,7 +200,7 @@ function addLogMessageCallback() {
 
 function start() {
   createCommandInput();
-  createMessageBuffer();
+  createMessageLog();
   showConsole(false);
   createConsoleValues();
   initDebugCommands();
