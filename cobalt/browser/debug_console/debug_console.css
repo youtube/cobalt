@@ -27,7 +27,7 @@ body {
   padding: 0% 0% 2% 0%;
 }
 
-#messageLog {
+#messageContainerFrame {
   position: absolute;
   left: 0%;
   top: 0%;
@@ -39,7 +39,7 @@ body {
   padding: 0% 2% 0.9% 2%;
 }
 
-#messageBox {
+#messageContainer {
   position: absolute;
   bottom: 0;
 }
