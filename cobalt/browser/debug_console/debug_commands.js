@@ -4,7 +4,7 @@ function initDebugCommands() {
 
   debug.cvalList = function() {
     var result = consoleValues.listAll();
-    printToMessageLog(messageBuffer.INTERACTIVE, result);
+    printToMessageLog(messageLog.INTERACTIVE, result);
   }
   debug.cvalList.shortHelp = 'List all registered console values.';
   debug.cvalList.longHelp =
@@ -14,7 +14,7 @@ function initDebugCommands() {
 
   debug.cvalAdd = function(substringToMatch) {
     var result = consoleValues.addActive(substringToMatch);
-    printToMessageLog(messageBuffer.INTERACTIVE, result);
+    printToMessageLog(messageLog.INTERACTIVE, result);
     // After each change, save the active set with the default key.
     this.cvalSave();
   }
@@ -26,7 +26,7 @@ function initDebugCommands() {
 
   debug.cvalRemove = function(substringToMatch) {
     var result = consoleValues.removeActive(substringToMatch);
-    printToMessageLog(messageBuffer.INTERACTIVE, result);
+    printToMessageLog(messageLog.INTERACTIVE, result);
     // After each change, save the active set with the default key.
     this.cvalSave();
   }
@@ -38,7 +38,7 @@ function initDebugCommands() {
 
   debug.cvalSave = function(key) {
     var result = consoleValues.saveActiveSet(key);
-    printToMessageLog(messageBuffer.INTERACTIVE, result);
+    printToMessageLog(messageLog.INTERACTIVE, result);
   }
   debug.cvalSave.shortHelp =
       'Saves the current set of console values displayed in the HUD.';
@@ -50,7 +50,7 @@ function initDebugCommands() {
 
   debug.cvalLoad = function(key) {
     var result = consoleValues.loadActiveSet(key);
-    printToMessageLog(messageBuffer.INTERACTIVE, result);
+    printToMessageLog(messageLog.INTERACTIVE, result);
   }
   debug.cvalLoad.shortHelp =
       'Loads a previously stored set of console values displayed in the HUD.';
@@ -77,8 +77,8 @@ function initDebugCommands() {
   debug.dir.shortHelp =
       'Lists the properties of an object in the main web module.';
   debug.dir.longHelp =
-      'Lists the properties of the specified object in the main web module.' +
-      'Don\'t forget to enclose the name of the object in quotes.';
+      'Lists the properties of the specified object in the main web module. ' +
+      'Remember to enclose the name of the object in quotes.';
 }
 
 function help(command) {
@@ -104,13 +104,13 @@ function help(command) {
         'All other text will be executed as JavaScript in the main web ' +
         'module.\n';
   }
-  printToMessageLog(messageBuffer.INTERACTIVE, helpString);
+  printToMessageLog(messageLog.INTERACTIVE, helpString);
 }
 
 function history() {
   var history = commandInput.getHistory();
   for (var i = 0; i < history.length; i += 1) {
-    printToMessageLog(messageBuffer.INTERACTIVE, i + ' ' + history[i]);
+    printToMessageLog(messageLog.INTERACTIVE, i + ' ' + history[i]);
   }
 }
 
