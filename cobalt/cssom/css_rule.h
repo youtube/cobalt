@@ -88,8 +88,6 @@ class CSSRule : public script::Wrappable,
   DISALLOW_COPY_AND_ASSIGN(CSSRule);
 };
 
-typedef std::vector<scoped_refptr<CSSRule> > CSSRules;
-
 }  // namespace cssom
 }  // namespace cobalt
 

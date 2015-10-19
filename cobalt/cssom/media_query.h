@@ -54,8 +54,6 @@ class MediaQuery : public script::Wrappable {
   DISALLOW_COPY_AND_ASSIGN(MediaQuery);
 };
 
-typedef std::vector<scoped_refptr<MediaQuery> > MediaQueries;
-
 }  // namespace cssom
 }  // namespace cobalt
 
