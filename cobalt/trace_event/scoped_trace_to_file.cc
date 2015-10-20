@@ -29,7 +29,7 @@ namespace trace_event {
 
 ScopedTraceToFile::ScopedTraceToFile(
     const FilePath& output_path_relative_to_logs) {
-  PathService::Get(cobalt::paths::DIR_COBALT_LOGS, &absolute_output_path_);
+  PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &absolute_output_path_);
   absolute_output_path_ =
       absolute_output_path_.Append(output_path_relative_to_logs);
 
