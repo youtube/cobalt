@@ -87,8 +87,9 @@ SelectorTree::Node* SelectorTree::GetOrCreateNodeForCompoundSelector(
       new Node(compound_selector, parent_node->cumulative_specificity);
   parent_node->children[combinator].push_back(child_node);
 
-  for (Selectors::const_iterator it = compound_selector->selectors().begin();
-       it != compound_selector->selectors().end(); ++it) {
+  for (CompoundSelector::SimpleSelectors::const_iterator it =
+           compound_selector->simple_selectors().begin();
+       it != compound_selector->simple_selectors().end(); ++it) {
     (*it)->IndexSelectorTreeNode(parent_node, child_node, combinator);
   }
   return child_node;

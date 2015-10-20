@@ -21,8 +21,8 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/selector_tree.h"
+#include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
@@ -33,7 +33,7 @@ class SelectorVisitor;
 // An ID selector represents an element instance that has an identifier that
 // matches the identifier in the ID selector.
 //   http://www.w3.org/TR/selectors4/#id-selector
-class IdSelector : public Selector {
+class IdSelector : public SimpleSelector {
  public:
   explicit IdSelector(const std::string& id) : id_(id) {}
   ~IdSelector() OVERRIDE {}
@@ -41,8 +41,10 @@ class IdSelector : public Selector {
   // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
   Specificity GetSpecificity() const OVERRIDE { return Specificity(1, 0, 0); }
+
+  // From SimpleSelector.
   IdSelector* AsIdSelector() OVERRIDE { return this; }
-  int GetRank() const OVERRIDE { return 2; }
+  int GetRank() const OVERRIDE { return kIdSelectorRank; }
   std::string GetSelectorText() const OVERRIDE { return "#" + id_; }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
