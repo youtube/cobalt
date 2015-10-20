@@ -54,7 +54,6 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_, options.language),
       render_tree_combiner_(renderer_module_.pipeline()),
-      h5vcc_(new h5vcc::H5vcc()),
       ALLOW_THIS_IN_INITIALIZER_LIST(web_module_(
           url, base::Bind(&BrowserModule::OnRenderTreeProduced,
                           base::Unretained(this)),
@@ -62,7 +61,7 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           media_module_.get(), &network_module_,
           math::Size(kInitialWidth, kInitialHeight),
           renderer_module_.pipeline()->GetResourceProvider(),
-          renderer_module_.pipeline()->refresh_rate(), h5vcc_,
+          renderer_module_.pipeline()->refresh_rate(),
           options.web_module_options)),
       debug_hub_(new debug::DebugHub(base::Bind(
           &WebModule::ExecuteJavascript, base::Unretained(&web_module_)))),
@@ -104,6 +103,10 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
   // This setting is ignored if ENABLE_DEBUG_CONSOLE is not defined.
   // TODO(***REMOVED***) Render tree combiner should probably be refactored.
   render_tree_combiner_.set_render_debug_console(true);
+
+  h5vcc::H5vcc::Settings h5vcc_settings;
+  h5vcc_settings.network_module = &network_module_;
+  web_module_.window()->set_h5vcc(new h5vcc::H5vcc(h5vcc_settings));
 }
 
 BrowserModule::~BrowserModule() {}

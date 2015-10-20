@@ -30,7 +30,6 @@
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
-#include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/math/size.h"
@@ -88,8 +87,7 @@ class WebModule {
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
-            float layout_refresh_rate, const scoped_refptr<h5vcc::H5vcc>& h5vcc,
-            const Options& options);
+            float layout_refresh_rate, const Options& options);
   ~WebModule();
 
   // Call this to inject an event into the web module which will ultimately make
@@ -99,6 +97,8 @@ class WebModule {
   // Call this to execute Javascript code in this web module.
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location);
+
+  scoped_refptr<dom::Window> window() const { return window_; }
 
   // Methods to get and set items in the local storage of this web module.
   std::string GetItemInLocalStorage(const std::string& key);

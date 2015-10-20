@@ -18,6 +18,7 @@
 #define H5VCC_H5VCC_STORAGE_H_
 
 #include "base/optional.h"
+#include "cobalt/network/network_module.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -25,12 +26,18 @@ namespace h5vcc {
 
 class H5vccStorage : public script::Wrappable {
  public:
+  explicit H5vccStorage(network::NetworkModule* network_module);
   void ClearCookies();
-  void Flush(base::optional<bool> sync);
+  void Flush(const base::optional<bool>& sync);
   bool GetCookiesEnabled();
   void SetCookiesEnabled(bool enabled);
 
   DEFINE_WRAPPABLE_TYPE(H5vccStorage);
+
+ private:
+  network::NetworkModule* network_module_;
+
+  DISALLOW_COPY_AND_ASSIGN(H5vccStorage);
 };
 
 }  // namespace h5vcc
