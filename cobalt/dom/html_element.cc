@@ -367,7 +367,10 @@ HTMLElement::~HTMLElement() {}
 void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
   scoped_refptr<cssom::PropertyValue> background_image =
       computed_style_->background_image();
-  if (background_image != cssom::KeywordValue::GetNone()) {
+  // Don't fetch or cache the image if no image is specified or the display of
+  // this element is turned off.
+  if (background_image != cssom::KeywordValue::GetNone() &&
+      computed_style_->display() != cssom::KeywordValue::GetNone()) {
     cssom::PropertyListValue* property_list_value =
         base::polymorphic_downcast<cssom::PropertyListValue*>(
             background_image.get());
@@ -380,10 +383,7 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
       cssom::AbsoluteURLValue* absolute_url =
           base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
               property_list_value->value()[i].get());
-      // Don't fetch the image if its url is invalid or the display of this
-      // element is turned off.
-      if (absolute_url->value().is_valid() &&
-          computed_style_->display() != cssom::KeywordValue::GetNone()) {
+      if (absolute_url->value().is_valid()) {
         scoped_refptr<loader::image::CachedImage> cached_image =
             html_element_context()->image_cache()->CreateCachedResource(
                 absolute_url->value());
@@ -396,6 +396,8 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
     }
 
     cached_background_images_ = cached_images.Pass();
+  } else {
+    cached_background_images_.clear();
   }
 }
 
