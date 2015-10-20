@@ -113,9 +113,6 @@ class BrowserModule {
   // Manages the two render trees, combines and renders them.
   RenderTreeCombiner render_tree_combiner_;
 
-  // Class to encapsulate all H5vcc API objects.
-  scoped_refptr<h5vcc::H5vcc> h5vcc_;
-
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The
   // web module will ultimately produce a render tree that can be passed
