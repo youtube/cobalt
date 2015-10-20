@@ -16,27 +16,36 @@
 
 #include "cobalt/h5vcc/h5vcc_storage.h"
 
+#include "cobalt/storage/storage_manager.h"
+#include "net/url_request/url_request_context.h"
+
 namespace cobalt {
 namespace h5vcc {
 
+H5vccStorage::H5vccStorage(network::NetworkModule* network_module)
+    : network_module_(network_module) {}
+
 void H5vccStorage::ClearCookies() {
-  NOTIMPLEMENTED();
-  DLOG(INFO) << "ClearCookies";
+  net::CookieStore* cookie_store =
+      network_module_->url_request_context()->cookie_store();
+  cookie_store->GetCookieMonster()->DeleteAllAsync(
+      net::CookieStore::DeleteCallback());
 }
 
-void H5vccStorage::Flush(base::optional<bool> sync) {
-  NOTIMPLEMENTED();
-  DLOG(INFO) << "H5vccStorage::Flush(" << sync << ")";
+void H5vccStorage::Flush(const base::optional<bool>& sync) {
+  if (sync.value_or(false) == true) {
+    DLOG(WARNING) << "Synchronous flush is not supported.";
+  }
+
+  network_module_->storage_manager()->FlushNow(base::Closure());
 }
 
 bool H5vccStorage::GetCookiesEnabled() {
-  NOTIMPLEMENTED();
-  return false;
+  return network_module_->network_delegate()->cookies_enabled();
 }
 
 void H5vccStorage::SetCookiesEnabled(bool enabled) {
-  NOTIMPLEMENTED();
-  DLOG(INFO) << "H5vccStorage::SetCookiesEnabled(" << enabled << ")";
+  network_module_->network_delegate()->set_cookies_enabled(enabled);
 }
 
 }  // namespace h5vcc

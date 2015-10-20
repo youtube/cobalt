@@ -22,7 +22,7 @@ namespace cobalt {
 namespace network {
 
 NetworkDelegate::NetworkDelegate(const NetworkDelegate::Options& options)
-    : cookie_policy_(options.cookie_policy) {}
+    : cookie_policy_(options.cookie_policy), cookies_enabled_(true) {}
 
 NetworkDelegate::~NetworkDelegate() {}
 
@@ -149,8 +149,11 @@ void NetworkDelegate::OnRequestWaitStateChange(const net::URLRequest& request,
 }
 
 net::StaticCookiePolicy::Type NetworkDelegate::ComputeCookiePolicy() const {
-  // TODO(***REMOVED***): Allow dynamically overriding this for debugging.
-  return cookie_policy_;
+  if (cookies_enabled_) {
+    return cookie_policy_;
+  } else {
+    return net::StaticCookiePolicy::BLOCK_ALL_COOKIES;
+  }
 }
 
 }  // namespace network
