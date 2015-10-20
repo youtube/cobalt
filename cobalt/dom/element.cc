@@ -219,8 +219,18 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
 
   // Custom, not in any spec.
   // Changing the class name may affect the contents of proxy objects.
-  if (attr_name == "class") {
-    UpdateNodeGeneration();
+  switch (attr_name.size()) {
+    case 2:
+      if (attr_name == "id") {
+        id_attribute_ = value;
+      }
+      break;
+    case 5:
+      if (attr_name == "class") {
+        class_attribute_ = value;
+        UpdateNodeGeneration();
+      }
+      break;
   }
   if (named_node_map_) {
     named_node_map_->SetAttributeInternal(attr_name, value);
@@ -249,8 +259,18 @@ void Element::RemoveAttribute(const std::string& name) {
 
   // Custom, not in any spec.
   // Changing the class name may affect the contents of proxy objects.
-  if (attr_name == "class") {
-    UpdateNodeGeneration();
+  switch (attr_name.size()) {
+    case 2:
+      if (attr_name == "id") {
+        id_attribute_ = "";
+      }
+      break;
+    case 5:
+      if (attr_name == "class") {
+        class_attribute_ = "";
+        UpdateNodeGeneration();
+      }
+      break;
   }
   if (named_node_map_) {
     named_node_map_->RemoveAttributeInternal(attr_name);
@@ -297,13 +317,19 @@ void Element::SetBooleanAttribute(const std::string& name, bool value) {
   }
 }
 
+void Element::CopyAttributes(const Element& other) {
+  attribute_map_ = other.attribute_map_;
+  id_attribute_ = other.id_attribute_;
+  class_attribute_ = other.class_attribute_;
+}
+
 void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Element::Duplicate() const {
   Element* new_element = new Element(owner_document());
-  new_element->attribute_map_ = attribute_map_;
+  new_element->CopyAttributes(*this);
   return new_element;
 }
 

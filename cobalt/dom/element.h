@@ -62,10 +62,10 @@ class Element : public Node {
 
   virtual std::string tag_name() const { return tag_name_; }
 
-  std::string id() const { return GetAttribute("id").value_or(""); }
+  const std::string& id() const { return id_attribute_; }
   void set_id(const std::string& value) { SetAttribute("id", value); }
 
-  std::string class_name() const { return GetAttribute("class").value_or(""); }
+  const std::string& class_name() const { return class_attribute_; }
   void set_class_name(const std::string& value) {
     SetAttribute("class", value);
   }
@@ -144,6 +144,8 @@ class Element : public Node {
   bool GetBooleanAttribute(const std::string& name) const;
   void SetBooleanAttribute(const std::string& name, bool value);
 
+  void CopyAttributes(const Element& other);
+
   HTMLElementContext* html_element_context();
 
  private:
@@ -154,6 +156,12 @@ class Element : public Node {
   std::string tag_name_;
   // A map that holds the actual element attributes.
   AttributeMap attribute_map_;
+  // The "id" attribute for this element. Stored here in addition to being
+  // stored in |attribute_map_| as an optimization for id().
+  std::string id_attribute_;
+  // The "class" attribute for this element. Stored here in addition to being
+  // stored in |attribute_map_| as an optimization for class().
+  std::string class_attribute_;
   // A weak pointer to a NamedNodeMap that proxies the actual attributes.
   // This heavy weight object is kept in memory only when needed by the user.
   base::WeakPtr<NamedNodeMap> named_node_map_;
@@ -161,8 +169,6 @@ class Element : public Node {
   // After creation this is kept in memory because of the significant negative
   // performance impact of repeatedly recreating it.
   scoped_refptr<DOMTokenList> class_list_;
-
-  friend class HTMLElement;
 };
 
 }  // namespace dom
