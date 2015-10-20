@@ -19,9 +19,9 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vcc::H5vcc() { storage_ = new H5vccStorage(); }
-
-H5vcc::~H5vcc() {}
+H5vcc::H5vcc(const Settings& settings) {
+  storage_ = new H5vccStorage(settings.network_module);
+}
 
 }  // namespace h5vcc
 }  // namespace cobalt

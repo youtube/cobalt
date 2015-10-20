@@ -41,6 +41,10 @@ class NetworkDelegate : public net::NetworkDelegate {
   explicit NetworkDelegate(const Options& options);
   ~NetworkDelegate() OVERRIDE;
 
+  // For debugging, we allow blocking all cookies.
+  void set_cookies_enabled(bool enabled) { cookies_enabled_ = enabled; }
+  bool cookies_enabled() const { return cookies_enabled_; }
+
  protected:
   // net::NetworkDelegate implementation.
   int OnBeforeURLRequest(net::URLRequest* request,
@@ -87,6 +91,8 @@ class NetworkDelegate : public net::NetworkDelegate {
 
  private:
   net::StaticCookiePolicy::Type cookie_policy_;
+  bool cookies_enabled_;
+
   DISALLOW_COPY_AND_ASSIGN(NetworkDelegate);
 };
 

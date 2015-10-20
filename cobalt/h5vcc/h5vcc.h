@@ -25,14 +25,20 @@ namespace h5vcc {
 
 class H5vcc : public dom::H5vccStub {
  public:
-  H5vcc();
-  ~H5vcc() OVERRIDE;
+  struct Settings {
+    Settings() : network_module(NULL) {}
+    network::NetworkModule* network_module;
+  };
+
+  explicit H5vcc(const Settings& config);
   const scoped_refptr<H5vccStorage>& storage() { return storage_; }
 
   DEFINE_WRAPPABLE_TYPE(H5vcc);
 
  private:
   scoped_refptr<H5vccStorage> storage_;
+
+  DISALLOW_COPY_AND_ASSIGN(H5vcc);
 };
 
 }  // namespace h5vcc
