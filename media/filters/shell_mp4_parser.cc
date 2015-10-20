@@ -610,7 +610,7 @@ bool ShellMP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
   if (track_duration > duration_) {
     DLOG(WARNING) << base::StringPrintf(
         "mdhd has longer duration: %" PRId64" ms than old value: %" PRId64" ms.",
-        track_duration.InMilliseconds(), duration_.InMilliseconds());
+        track_duration.InMicroseconds(), duration_.InMicroseconds());
     duration_ = track_duration;
   }
   if (current_trak_is_video_) {
