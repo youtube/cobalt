@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
@@ -74,6 +75,8 @@ class CSSStyleRule : public CSSRule {
   Selectors selectors_;
   scoped_refptr<CSSStyleDeclaration> style_;
   bool added_to_selector_tree_;
+
+  DISALLOW_COPY_AND_ASSIGN(CSSStyleRule);
 };
 
 typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;

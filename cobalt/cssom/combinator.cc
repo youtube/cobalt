@@ -16,7 +16,7 @@
 
 #include "cobalt/cssom/combinator.h"
 
-#include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/compound_selector.h"
 
 namespace cobalt {
 namespace cssom {
@@ -25,10 +25,10 @@ Combinator::Combinator() {}
 
 Combinator::~Combinator() {}
 
-Selector* Combinator::selector() { return selector_.get(); }
+CompoundSelector* Combinator::selector() { return compound_selector_.get(); }
 
-void Combinator::set_selector(scoped_ptr<Selector> selector) {
-  selector_ = selector.Pass();
+void Combinator::set_selector(scoped_ptr<CompoundSelector> compound_selector) {
+  compound_selector_ = compound_selector.Pass();
 }
 
 }  // namespace cssom

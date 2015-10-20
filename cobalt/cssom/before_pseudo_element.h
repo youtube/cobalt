@@ -21,8 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/cssom/selector.h"
-#include "cobalt/cssom/specificity.h"
+#include "cobalt/cssom/pseudo_element.h"
 
 namespace cobalt {
 namespace cssom {
@@ -35,17 +34,19 @@ class SelectorVisitor;
 // document tree content. The 'content' property, in conjunction with these
 // pseudo-elements, specifies what is inserted.
 //   http://www.w3.org/TR/CSS21/generate.html#before-after-content
-class BeforePseudoElement : public Selector {
+class BeforePseudoElement : public PseudoElement {
  public:
   BeforePseudoElement() {}
   ~BeforePseudoElement() OVERRIDE {}
 
   // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
-  Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
-  BeforePseudoElement* AsBeforePseudoElement() OVERRIDE { return this; }
-  int GetRank() const OVERRIDE { return 4; }
+
+  // From SimpleSelector.
   std::string GetSelectorText() const OVERRIDE { return "::before"; }
+
+  // From PseudoElement.
+  BeforePseudoElement* AsBeforePseudoElement() OVERRIDE { return this; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(BeforePseudoElement);

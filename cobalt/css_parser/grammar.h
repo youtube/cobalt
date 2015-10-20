@@ -63,6 +63,7 @@
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function.h"

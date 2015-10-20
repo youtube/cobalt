@@ -29,32 +29,36 @@ namespace cobalt {
 namespace cssom {
 
 class SelectorVisitor;
+class SimpleSelector;
+class PseudoElement;
 
 // A compound selector is a chain of simple selectors that are not separated by
 // a combinator.
 //   http://www.w3.org/TR/selectors4/#compound
 class CompoundSelector : public Selector {
  public:
-  CompoundSelector() : should_normalize_(false), pseudo_element_(NULL) {}
-  ~CompoundSelector() OVERRIDE {}
+  typedef ScopedVector<SimpleSelector> SimpleSelectors;
+
+  CompoundSelector();
+  ~CompoundSelector() OVERRIDE;
 
   // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
-  Specificity GetSpecificity() const OVERRIDE { return specificity_; }
   CompoundSelector* AsCompoundSelector() OVERRIDE { return this; }
-  void AppendSelector(scoped_ptr<Selector> selector);
+  Specificity GetSpecificity() const OVERRIDE { return specificity_; }
 
   // Rest of public methods.
 
-  const Selectors& selectors() { return selectors_; }
-  Selector* pseudo_element() { return pseudo_element_; }
+  void AppendSelector(scoped_ptr<SimpleSelector> selector);
+  const SimpleSelectors& simple_selectors() { return simple_selectors_; }
+  PseudoElement* pseudo_element() { return pseudo_element_; }
   const std::string& GetNormalizedSelectorText();
 
  private:
   bool should_normalize_;
-  Selector* pseudo_element_;
+  PseudoElement* pseudo_element_;
 
-  Selectors selectors_;
+  SimpleSelectors simple_selectors_;
   Specificity specificity_;
   std::string normalized_selector_text_;
 
