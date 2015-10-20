@@ -24,9 +24,9 @@
 namespace cobalt {
 namespace cssom {
 
-class Selector;
 class ChildCombinator;
 class CombinatorVisitor;
+class CompoundSelector;
 class DescendantCombinator;
 class FollowingSiblingCombinator;
 class NextSiblingCombinator;
@@ -51,12 +51,12 @@ class Combinator {
 
   virtual CombinatorType GetCombinatorType() = 0;
 
-  // The selector to the right of the combinator.
-  Selector* selector();
-  void set_selector(scoped_ptr<Selector> selector);
+  // The compound selector to the right of the combinator.
+  CompoundSelector* selector();
+  void set_selector(scoped_ptr<CompoundSelector> compound_selector);
 
  private:
-  scoped_ptr<Selector> selector_;
+  scoped_ptr<CompoundSelector> compound_selector_;
 
   DISALLOW_COPY_AND_ASSIGN(Combinator);
 };

@@ -498,11 +498,15 @@
 
 %type <string> unsupported_pseudo_class_token
 
-%union { cssom::Selector* selector; }
-%type <selector> class_selector_token id_selector_token pseudo_class_token
-                 pseudo_element_token simple_selector_token type_selector_token
-                 universal_selector_token
-%destructor { delete $$; } <selector>
+%union { cssom::SimpleSelector* simple_selector; }
+%type <simple_selector> class_selector_token
+                        id_selector_token
+                        pseudo_class_token
+                        pseudo_element_token
+                        simple_selector_token
+                        type_selector_token
+                        universal_selector_token
+%destructor { delete $$; } <simple_selector>
 
 %union { cssom::CompoundSelector* compound_selector; }
 %type <compound_selector> compound_selector_token
@@ -1454,12 +1458,12 @@ pseudo_element_token:
 // A simple selector represents an aspect of an element to be matched against.
 //   http://www.w3.org/TR/selectors4/#simple
 simple_selector_token:
-    type_selector_token
-  | universal_selector_token
-  | class_selector_token
+    class_selector_token
   | id_selector_token
   | pseudo_class_token
   | pseudo_element_token
+  | type_selector_token
+  | universal_selector_token
   ;
 
 // A compound selector is a chain of simple selectors that are not separated by
@@ -1467,7 +1471,7 @@ simple_selector_token:
 //   http://www.w3.org/TR/selectors4/#compound
 compound_selector_token:
     simple_selector_token {
-    scoped_ptr<cssom::Selector> simple_selector($1);
+    scoped_ptr<cssom::SimpleSelector> simple_selector($1);
 
     if (simple_selector) {
       $$ = new cssom::CompoundSelector();
@@ -1478,7 +1482,7 @@ compound_selector_token:
   }
   | compound_selector_token simple_selector_token {
     scoped_ptr<cssom::CompoundSelector> compound_selector($1);
-    scoped_ptr<cssom::Selector> simple_selector($2);
+    scoped_ptr<cssom::SimpleSelector> simple_selector($2);
 
     if (compound_selector && simple_selector) {
       $$ = compound_selector.release();

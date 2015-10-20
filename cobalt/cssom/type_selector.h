@@ -21,8 +21,8 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/selector_tree.h"
+#include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
@@ -33,7 +33,7 @@ class SelectorVisitor;
 // A type selector represents an instance of the element type in the document
 // tree.
 //   http://www.w3.org/TR/selectors4/#type-selector
-class TypeSelector : public Selector {
+class TypeSelector : public SimpleSelector {
  public:
   explicit TypeSelector(const std::string& element_name)
       : element_name_(element_name) {}
@@ -42,8 +42,10 @@ class TypeSelector : public Selector {
   // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
   Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 0, 1); }
+
+  // From SimpleSelector.
   TypeSelector* AsTypeSelector() OVERRIDE { return this; }
-  int GetRank() const OVERRIDE { return 0; }
+  int GetRank() const OVERRIDE { return kTypeSelectorRank; }
   std::string GetSelectorText() const OVERRIDE { return element_name_; }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
