@@ -107,7 +107,8 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
           ->html_element_context()
           ->html_element_factory()
           ->CreateHTMLElement(owner_document(), tag_name());
-  new_html_element->attribute_map_ = attribute_map_;
+  new_html_element->CopyAttributes(*this);
+
   return new_html_element;
 }
 
