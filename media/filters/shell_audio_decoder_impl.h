@@ -97,14 +97,8 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
                     const PipelineStatusCB& status_cb,
                     const StatisticsCB& statistics_cb);
   bool ValidateConfig(const AudioDecoderConfig& config);
-
   void DoDecodeBuffer();
-  void DecodeBuffer(AudioBus* audio_bus, DemuxerStream::Status status,
-                    const scoped_refptr<DecoderBuffer>& buffer);
-
   void DoRead();
-  void DoDecodeBuffer(DemuxerStream::Status status,
-                      const scoped_refptr<DecoderBuffer>& buffer);
 
   void QueueBuffer(DemuxerStream::Status status,
                    const scoped_refptr<DecoderBuffer>& buffer);
