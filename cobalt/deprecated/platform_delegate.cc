@@ -17,6 +17,7 @@
 #include "cobalt/deprecated/platform_delegate.h"
 
 #include "base/file_path.h"
+#include "base/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -26,6 +27,11 @@ namespace cobalt {
 namespace deprecated {
 namespace {
 
+bool GetOrCreateDirectory(const char* directory) {
+  return directory && (file_util::PathExists(FilePath(directory)) ||
+                       file_util::CreateDirectory(FilePath(directory)));
+}
+
 bool PathProvider(int key, FilePath* result) {
   const global_values_t* global_values = GetGlobalsPtr();
   if (!global_values) {
@@ -33,27 +39,22 @@ bool PathProvider(int key, FilePath* result) {
   }
 
   switch (key) {
-    case paths::DIR_COBALT_LOGS:
-      if (global_values->logging_output_path) {
+    case paths::DIR_COBALT_DEBUG_OUT:
+      if (GetOrCreateDirectory(global_values->logging_output_path)) {
         *result = FilePath(global_values->logging_output_path);
         return true;
+      } else {
+        return false;
       }
-      return false;
-
-    case paths::DIR_COBALT_SCREENSHOTS:
-      if (global_values->screenshot_output_path) {
-        *result = FilePath(global_values->screenshot_output_path);
-        return true;
-      }
-      return false;
 
     case paths::DIR_COBALT_TEST_OUT:
       // TODO(***REMOVED***): Create a special directory for tests.
-      if (global_values->logging_output_path) {
+      if (GetOrCreateDirectory(global_values->logging_output_path)) {
         *result = FilePath(global_values->logging_output_path);
         return true;
+      } else {
+        return false;
       }
-      return false;
 
     default:
       return false;
