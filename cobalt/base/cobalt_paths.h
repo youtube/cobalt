@@ -26,17 +26,16 @@ namespace paths {
 // Example:
 // --------
 //   FilePath log_directory;
-//   PathService::Get(paths::DIR_COBALT_LOGS, &log_directory);
+//   PathService::Get(paths::DIR_COBALT_DEBUG_OUT, &log_directory);
 //
 
 enum CobaltPathKeys {
   // Unique key which should not collide with other path provider keys.
   PATH_COBALT_START = 1000,
 
-  // Directory where Cobalt logs should be stored.
-  DIR_COBALT_LOGS,
-  // Directory where Cobalt screenshots should be stored.
-  DIR_COBALT_SCREENSHOTS,
+  // Directory where all Cobalt debug output (such as logs) should be stored.
+  DIR_COBALT_DEBUG_OUT,
+
   // Directory where tests can write data such as expected results.
   DIR_COBALT_TEST_OUT,
 
