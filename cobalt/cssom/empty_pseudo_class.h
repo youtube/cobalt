@@ -21,9 +21,8 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/pseudo_class.h"
 #include "cobalt/cssom/selector_tree.h"
-#include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
 namespace cssom {
@@ -37,20 +36,22 @@ class SelectorVisitor;
 // instructions, and other nodes must not affect whether an element is
 // considered empty or not.
 //   http://www.w3.org/TR/selectors4/#empty-pseudo
-class EmptyPseudoClass : public Selector {
+class EmptyPseudoClass : public PseudoClass {
  public:
   EmptyPseudoClass() {}
   ~EmptyPseudoClass() OVERRIDE {}
 
   // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
-  EmptyPseudoClass* AsEmptyPseudoClass() OVERRIDE { return this; }
-  Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
-  int GetRank() const OVERRIDE { return 3; }
+
+  // From SimpleSelector.
   std::string GetSelectorText() const OVERRIDE { return ":empty"; }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) OVERRIDE;
+
+  // From PseudoClass.
+  EmptyPseudoClass* AsEmptyPseudoClass() OVERRIDE { return this; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EmptyPseudoClass);

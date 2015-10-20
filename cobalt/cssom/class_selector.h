@@ -21,8 +21,8 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/selector_tree.h"
+#include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
@@ -33,7 +33,7 @@ class SelectorVisitor;
 // The class selector represents an element belonging to the class identified by
 // the identifier.
 //   http://www.w3.org/TR/selectors4/#class-selector
-class ClassSelector : public Selector {
+class ClassSelector : public SimpleSelector {
  public:
   explicit ClassSelector(const std::string& class_name)
       : class_name_(class_name) {}
@@ -42,8 +42,10 @@ class ClassSelector : public Selector {
   // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
   Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
+
+  // From SimpleSelector.
   ClassSelector* AsClassSelector() OVERRIDE { return this; }
-  int GetRank() const OVERRIDE { return 1; }
+  int GetRank() const OVERRIDE { return kClassSelectorRank; }
   std::string GetSelectorText() const OVERRIDE { return "." + class_name_; }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,

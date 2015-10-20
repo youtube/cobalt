@@ -132,9 +132,9 @@ class CSSStyleSheet::CSSStyleRuleIndexer : public SelectorVisitor {
   }
 
   void VisitCompoundSelector(CompoundSelector* compound_selector) OVERRIDE {
-    for (Selectors::const_iterator selector_iterator =
-             compound_selector->selectors().begin();
-         selector_iterator != compound_selector->selectors().end();
+    for (CompoundSelector::SimpleSelectors::const_iterator selector_iterator =
+             compound_selector->simple_selectors().begin();
+         selector_iterator != compound_selector->simple_selectors().end();
          ++selector_iterator) {
       (*selector_iterator)->Accept(this);
     }

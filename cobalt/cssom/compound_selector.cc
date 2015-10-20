@@ -18,15 +18,15 @@
 
 #include <algorithm>
 
-#include "cobalt/cssom/after_pseudo_element.h"
-#include "cobalt/cssom/before_pseudo_element.h"
+#include "cobalt/cssom/pseudo_element.h"
 #include "cobalt/cssom/selector_visitor.h"
 
 namespace cobalt {
 namespace cssom {
 namespace {
 
-bool CompareSelectorRank(const Selector* lhs, const Selector* rhs) {
+bool CompareSimpleSelectors(const SimpleSelector* lhs,
+                            const SimpleSelector* rhs) {
   return (lhs->GetRank() < rhs->GetRank()) ||
          (lhs->GetRank() == rhs->GetRank() &&
           lhs->GetSelectorText() < rhs->GetSelectorText());
@@ -34,27 +34,34 @@ bool CompareSelectorRank(const Selector* lhs, const Selector* rhs) {
 
 }  // namespace
 
+CompoundSelector::CompoundSelector()
+    : should_normalize_(false), pseudo_element_(NULL) {}
+
+CompoundSelector::~CompoundSelector() {}
+
 void CompoundSelector::Accept(SelectorVisitor* visitor) {
   visitor->VisitCompoundSelector(this);
 }
 
-void CompoundSelector::AppendSelector(scoped_ptr<Selector> selector) {
-  specificity_.AddFrom(selector->GetSpecificity());
-  if (selector->AsAfterPseudoElement() || selector->AsBeforePseudoElement()) {
+void CompoundSelector::AppendSelector(
+    scoped_ptr<SimpleSelector> simple_selector) {
+  specificity_.AddFrom(simple_selector->GetSpecificity());
+  if (simple_selector->AsPseudoElement()) {
     DCHECK(!pseudo_element_);
-    pseudo_element_ = selector.get();
+    pseudo_element_ = simple_selector->AsPseudoElement();
   }
-  selectors_.push_back(selector.release());
+  simple_selectors_.push_back(simple_selector.release());
   should_normalize_ = true;
 }
 
 const std::string& CompoundSelector::GetNormalizedSelectorText() {
   if (should_normalize_) {
     should_normalize_ = false;
-    std::sort(selectors_.begin(), selectors_.end(), CompareSelectorRank);
+    std::sort(simple_selectors_.begin(), simple_selectors_.end(),
+              CompareSimpleSelectors);
     normalized_selector_text_ = "";
-    for (Selectors::iterator it = selectors_.begin(); it != selectors_.end();
-         ++it) {
+    for (SimpleSelectors::iterator it = simple_selectors_.begin();
+         it != simple_selectors_.end(); ++it) {
       normalized_selector_text_ += (*it)->GetSelectorText();
     }
   }

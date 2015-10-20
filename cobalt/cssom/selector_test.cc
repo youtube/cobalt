@@ -23,6 +23,7 @@
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
+#include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/type_selector.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -30,22 +31,22 @@ namespace cobalt {
 namespace cssom {
 
 TEST(SelectorTest, ClassSelectorSpecificity) {
-  scoped_ptr<Selector> class_selector(new ClassSelector("my-class"));
+  scoped_ptr<SimpleSelector> class_selector(new ClassSelector("my-class"));
   EXPECT_EQ(Specificity(0, 1, 0), class_selector->GetSpecificity());
 }
 
 TEST(SelectorTest, EmptyPseudoClassSpecificity) {
-  scoped_ptr<Selector> empty_pseudo_class(new EmptyPseudoClass());
+  scoped_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
   EXPECT_EQ(Specificity(0, 1, 0), empty_pseudo_class->GetSpecificity());
 }
 
 TEST(SelectorTest, IdSelectorSpecificity) {
-  scoped_ptr<Selector> id_selector(new IdSelector("my-id"));
+  scoped_ptr<SimpleSelector> id_selector(new IdSelector("my-id"));
   EXPECT_EQ(Specificity(1, 0, 0), id_selector->GetSpecificity());
 }
 
 TEST(SelectorTest, TypeSelectorSpecificity) {
-  scoped_ptr<Selector> type_selector(new TypeSelector("div"));
+  scoped_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
   EXPECT_EQ(Specificity(0, 0, 1), type_selector->GetSpecificity());
 }
 
@@ -54,16 +55,16 @@ TEST(SelectorTest, CompoundSelectorSpecificity) {
   //
   scoped_ptr<CompoundSelector> compound_selector(new CompoundSelector());
 
-  scoped_ptr<Selector> class_selector(new ClassSelector("my-class"));
+  scoped_ptr<SimpleSelector> class_selector(new ClassSelector("my-class"));
   compound_selector->AppendSelector(class_selector.Pass());
 
-  scoped_ptr<Selector> empty_pseudo_class(new EmptyPseudoClass());
+  scoped_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
   compound_selector->AppendSelector(empty_pseudo_class.Pass());
 
-  scoped_ptr<Selector> id_selector(new IdSelector("my-id"));
+  scoped_ptr<SimpleSelector> id_selector(new IdSelector("my-id"));
   compound_selector->AppendSelector(id_selector.Pass());
 
-  scoped_ptr<Selector> type_selector(new TypeSelector("div"));
+  scoped_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
   compound_selector->AppendSelector(type_selector.Pass());
 
   EXPECT_EQ(Specificity(1, 2, 1), compound_selector->GetSpecificity());
@@ -76,27 +77,27 @@ TEST(SelectorTest, ComplexSelectorSpecificity) {
 
   scoped_ptr<CompoundSelector> compound_selector(new CompoundSelector());
 
-  scoped_ptr<Selector> class_selector(new ClassSelector("my-class"));
+  scoped_ptr<SimpleSelector> class_selector(new ClassSelector("my-class"));
   compound_selector->AppendSelector(class_selector.Pass());
 
-  scoped_ptr<Selector> empty_pseudo_class(new EmptyPseudoClass());
+  scoped_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
   compound_selector->AppendSelector(empty_pseudo_class.Pass());
 
-  scoped_ptr<Selector> id_selector(new IdSelector("my-id"));
+  scoped_ptr<SimpleSelector> id_selector(new IdSelector("my-id"));
   compound_selector->AppendSelector(id_selector.Pass());
 
-  scoped_ptr<Selector> type_selector(new TypeSelector("div"));
+  scoped_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
   compound_selector->AppendSelector(type_selector.Pass());
 
   scoped_ptr<CompoundSelector> compound_selector2(new CompoundSelector());
   compound_selector2->AppendSelector(
-      make_scoped_ptr<Selector>(new TypeSelector("div")));
+      make_scoped_ptr<SimpleSelector>(new TypeSelector("div")));
   complex_selector->AppendSelector(compound_selector2.Pass());
 
   scoped_ptr<CompoundSelector> compound_selector3(new CompoundSelector());
   scoped_ptr<ChildCombinator> child_combinator(new ChildCombinator());
   compound_selector3->AppendSelector(
-      make_scoped_ptr<Selector>(new TypeSelector("div")));
+      make_scoped_ptr<SimpleSelector>(new TypeSelector("div")));
   complex_selector->AppendCombinatorAndSelector(
       child_combinator.PassAs<Combinator>(), compound_selector3.Pass());
 

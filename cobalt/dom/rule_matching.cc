@@ -38,7 +38,9 @@
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/property_value.h"
+#include "cobalt/cssom/pseudo_element.h"
 #include "cobalt/cssom/selector_visitor.h"
+#include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/type_selector.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_element.h"
@@ -234,12 +236,12 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   //   http://www.w3.org/TR/selectors4/#compound
   void VisitCompoundSelector(
       cssom::CompoundSelector* compound_selector) OVERRIDE {
-    DCHECK_GT(compound_selector->selectors().size(), 0U);
+    DCHECK_GT(compound_selector->simple_selectors().size(), 0U);
     // Iterate through all the simple selectors. If any of the simple selectors
     // doesn't match, the compound selector doesn't match.
-    for (cssom::Selectors::const_iterator selector_iterator =
-             compound_selector->selectors().begin();
-         selector_iterator != compound_selector->selectors().end();
+    for (cssom::CompoundSelector::SimpleSelectors::const_iterator
+             selector_iterator = compound_selector->simple_selectors().begin();
+         selector_iterator != compound_selector->simple_selectors().end();
          ++selector_iterator) {
       element_ = MatchSelectorAndElement(*selector_iterator, element_,
                                          pseudo_element_type_);
@@ -455,7 +457,8 @@ bool IsCompoundSelectorAndElementMatching(
 
 void AddRulesOnNodeToElement(HTMLElement* element,
                              cssom::SelectorTree::Node* node) {
-  cssom::Selector* pseudo_element = node->compound_selector->pseudo_element();
+  cssom::PseudoElement* pseudo_element =
+      node->compound_selector->pseudo_element();
 
   // Where to add matching rules.
   cssom::RulesWithCascadePriority* target_matching_rules;
