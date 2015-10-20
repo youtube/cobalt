@@ -33,8 +33,7 @@ DebugConsole::DebugConsole(
     const WebModule::Options& options)
     : web_module_(url, render_tree_produced_callback, error_callback,
                   media_module, network_module, window_dimensions,
-                  resource_provider, layout_refresh_rate, NULL /* h5vcc */,
-                  options) {}
+                  resource_provider, layout_refresh_rate, options) {}
 
 DebugConsole::~DebugConsole() {}
 
