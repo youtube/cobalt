@@ -35,7 +35,7 @@ ScopedEventParserTrace::ScopedEventParserTrace(
     const EventParser::ScopedEventFlowEndCallback& flow_end_event_callback,
     const FilePath& log_relative_output_path) {
   FilePath absolute_output_path;
-  PathService::Get(cobalt::paths::DIR_COBALT_LOGS, &absolute_output_path);
+  PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &absolute_output_path);
   absolute_output_path_ = absolute_output_path.Append(log_relative_output_path);
 
   CommonInit(flow_end_event_callback);
