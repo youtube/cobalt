@@ -41,6 +41,7 @@
         'reuse_allocator.h',
         'source_location.h',
         'type_id.h',
+        'unused.h',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
