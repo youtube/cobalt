@@ -111,7 +111,7 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   return true;
 }
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   std::ifstream file1(filename1.value().c_str(), std::ios::in);
   std::ifstream file2(filename2.value().c_str(), std::ios::in);
@@ -156,6 +156,25 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 bool ReadFileToString(const FilePath& path, std::string* contents) {
   if (path.ReferencesParent())
     return false;
+#if defined(OS_STARBOARD)
+  base::PlatformFile file = base::CreatePlatformFile(
+      path, base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ, NULL, NULL);
+  if (file == base::kInvalidPlatformFileValue) {
+    return false;
+  }
+
+  char buf[1 << 16];
+  size_t len;
+  while ((len = base::ReadPlatformFileAtCurrentPos(file, buf, sizeof(buf))) >
+         0) {
+    if (contents) {
+      contents->append(buf, len);
+    }
+  }
+  base::ClosePlatformFile(file);
+
+  return true;
+#else
   FILE* file = OpenFile(path, "rb");
   if (!file) {
     return false;
@@ -170,6 +189,7 @@ bool ReadFileToString(const FilePath& path, std::string* contents) {
   CloseFile(file);
 
   return true;
+#endif
 }
 
 bool IsDirectoryEmpty(const FilePath& dir_path) {
@@ -180,6 +200,7 @@ bool IsDirectoryEmpty(const FilePath& dir_path) {
   return false;
 }
 
+#if !defined(OS_STARBOARD)
 FILE* CreateAndOpenTemporaryFile(FilePath* path) {
   FilePath directory;
   if (!GetTempDir(&directory))
@@ -187,6 +208,7 @@ FILE* CreateAndOpenTemporaryFile(FilePath* path) {
 
   return CreateAndOpenTemporaryFileInDir(directory, path);
 }
+#endif  // !defined(OS_STARBOARD)
 
 bool GetFileSize(const FilePath& file_path, int64* file_size) {
   base::PlatformFileInfo info;
@@ -239,6 +261,7 @@ bool SetLastModifiedTime(const FilePath& path,
   return TouchFile(path, last_modified, last_modified);
 }
 
+#if !defined(OS_STARBOARD)
 bool CloseFile(FILE* file) {
   if (file == NULL)
     return true;
@@ -262,6 +285,7 @@ bool TruncateFile(FILE* file) {
 #endif
   return true;
 }
+#endif  // !defined(OS_STARBOARD)
 
 int GetUniquePathNumber(
     const FilePath& path,
@@ -321,6 +345,8 @@ int64 ComputeDirectorySize(const FilePath& root_path) {
 #if defined(OS_WIN)
     LARGE_INTEGER li = { info.nFileSizeLow, info.nFileSizeHigh };
     running_size += li.QuadPart;
+#elif defined(OS_STARBOARD)
+    running_size += info.sb_info.size;
 #else
     running_size += info.stat.st_size;
 #endif
@@ -339,6 +365,8 @@ int64 ComputeFilesSize(const FilePath& directory,
 #if defined(OS_WIN)
     LARGE_INTEGER li = { info.nFileSizeLow, info.nFileSizeHigh };
     running_size += li.QuadPart;
+#elif defined(OS_STARBOARD)
+    running_size += info.sb_info.size;
 #else
     running_size += info.stat.st_size;
 #endif
@@ -346,7 +374,7 @@ int64 ComputeFilesSize(const FilePath& directory,
   return running_size;
 }
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 ///////////////////////////////////////////////
 // MemoryMappedFile
 

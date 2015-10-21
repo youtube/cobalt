@@ -30,7 +30,7 @@ class BASE_EXPORT CommandLine {
 #if defined(OS_WIN)
   // The native command line string type.
   typedef std::wstring StringType;
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   typedef std::string StringType;
 #endif
 

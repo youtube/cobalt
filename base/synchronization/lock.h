@@ -57,7 +57,7 @@ class BASE_EXPORT Lock {
   void AssertAcquired() const;
 #endif                          // NDEBUG
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_STARBOARD)
   // The posix implementation of ConditionVariable needs to be able
   // to see our lock and tweak our debugging counters, as it releases
   // and acquires locks inside of pthread_cond_{timed,}wait.
