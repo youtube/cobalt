@@ -103,8 +103,8 @@ Provider base_provider_starboard = {
   base::PathProviderStarboard,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_POSIX_START,
-  base::PATH_POSIX_END,
+  base::PATH_STARBOARD_START,
+  base::PATH_STARBOARD_END,
 #endif
   true
 };
@@ -201,8 +201,14 @@ bool PathService::Get(int key, FilePath* result) {
   DCHECK_GE(key, base::DIR_CURRENT);
 
   // special case the current directory because it can never be cached
-  if (key == base::DIR_CURRENT)
+  if (key == base::DIR_CURRENT) {
+#if defined(OS_STARBOARD)
+    NOTREACHED() << "DIR_CURRENT not supported in Starboard.";
+    return false;
+#else
     return file_util::GetCurrentDirectory(result);
+#endif
+  }
 
   Provider* provider = NULL;
   {

@@ -67,7 +67,10 @@
 
 #include "build/build_config.h"
 
-#if defined(__LB_SHELL__)
+#if defined(OS_STARBOARD)
+#include "starboard/condition_variable.h"
+#include "starboard/mutex.h"
+#elif defined(__LB_SHELL__)
 #include "lb_mutex.h"
 #elif defined(OS_POSIX)
 #include <pthread.h>
@@ -103,20 +106,19 @@ class BASE_EXPORT ConditionVariable {
 
 #if defined(OS_WIN)
   ConditionVarImpl* impl_;
+#elif defined(OS_STARBOARD)
+  SbConditionVariable condition_;
+  SbMutex* user_mutex_;
 #elif defined(__LB_SHELL__)
   lb_shell_cond_t condition_;
   lb_shell_mutex_t* user_mutex_;
-#if !defined(NDEBUG)
-  base::Lock* user_lock_;     // Needed to adjust shadow lock state on wait.
-#endif
-
 #elif defined(OS_POSIX)
   pthread_cond_t condition_;
   pthread_mutex_t* user_mutex_;
-#if !defined(NDEBUG)
-  base::Lock* user_lock_;     // Needed to adjust shadow lock state on wait.
 #endif
 
+#if !defined(NDEBUG) && !defined(OS_WIN)
+  base::Lock* user_lock_;     // Needed to adjust shadow lock state on wait.
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(ConditionVariable);
