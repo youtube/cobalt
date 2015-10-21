@@ -13,20 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "media/filters/shell_audio_decoder_impl.h"
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "media/base/bind_to_loop.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/shell_media_statistics.h"
 #include "media/mp4/aac.h"
 
+namespace media {
+
 using base::Time;
 using base::TimeDelta;
 
-namespace media {
+const size_t kSamplesPerFrame = mp4::AAC::kSamplesPerFrame;
 
 // TODO(***REMOVED***) : These should be eventually get from the low level decoder.
 #if defined(__LB_LINUX__)
@@ -38,6 +42,34 @@ const int kAudioBytesPerSample = sizeof(int16_t);
 #else
 #error kAudioBytesPerSample has to be specified!
 #endif
+
+namespace {
+
+bool ValidateConfig(const AudioDecoderConfig& config) {
+  if (!config.IsValidConfig()) {
+    DLOG(ERROR) << "Invalid audio stream -"
+                << " codec: " << config.codec()
+                << " channel layout: " << config.channel_layout()
+                << " bits per channel: " << config.bits_per_channel()
+                << " samples per second: " << config.samples_per_second();
+    return false;
+  }
+
+  // check this is a config we can decode and play back
+  if (config.codec() != kCodecAAC) {
+    return false;
+  }
+
+  // TODO(***REMOVED***) : Get this from low-level decoder or streamer.
+  int channels = ChannelLayoutToChannelCount(config.channel_layout());
+  if (channels != 1 && channels != 2 && channels != 6 && channels != 8) {
+    return false;
+  }
+
+  return true;
+}
+
+}  // namespace
 
 //==============================================================================
 // Static ShellAudioDecoder Methods
@@ -58,25 +90,28 @@ ShellAudioDecoderImpl::ShellAudioDecoderImpl(
     const ShellRawAudioDecoder::Creator& raw_audio_decoder_creator)
     : message_loop_(message_loop),
       raw_audio_decoder_creator_(raw_audio_decoder_creator),
-      shell_audio_decoder_status_(kUninitialized),
+      demuxer_read_and_decode_in_progress_(false),
       samples_per_second_(0),
-      num_channels_(0),
-      pending_renderer_read_(false),
-      pending_demuxer_read_(false) {
+      num_channels_(0) {
   DCHECK(message_loop_);
   DCHECK(!raw_audio_decoder_creator_.is_null());
 }
 
 ShellAudioDecoderImpl::~ShellAudioDecoderImpl() {
-  DCHECK(!pending_renderer_read_);
   DCHECK(read_cb_.is_null());
   DCHECK(reset_cb_.is_null());
 }
 
 void ShellAudioDecoderImpl::Initialize(
-    const scoped_refptr<DemuxerStream> &stream,
-    const PipelineStatusCB &status_cb, const StatisticsCB &statistics_cb) {
+    const scoped_refptr<DemuxerStream>& stream,
+    const PipelineStatusCB& status_cb, const StatisticsCB& statistics_cb) {
   TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::Initialize()");
+
+  DCHECK(stream);
+  DCHECK(!status_cb.is_null());
+  DCHECK(!statistics_cb.is_null());
+  DCHECK(!demuxer_stream_);
+
   demuxer_stream_ = stream;
   statistics_cb_ = statistics_cb;
   const AudioDecoderConfig& config = demuxer_stream_->audio_decoder_config();
@@ -99,16 +134,13 @@ void ShellAudioDecoderImpl::Initialize(
   test_probe_.CloseAfter(30 * 1000);
 #endif
 
-  pending_renderer_read_ = false;
-  pending_demuxer_read_ = false;
-
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_CODEC, config.codec());
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_CHANNELS, num_channels_);
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_SAMPLE_PER_SECOND,
                           samples_per_second_);
 
-  DLOG(INFO) << "Configuration at Start: "
-             << demuxer_stream_->audio_decoder_config().AsHumanReadableString();
+  LOG(INFO) << "Configuration at Start: "
+            << demuxer_stream_->audio_decoder_config().AsHumanReadableString();
   raw_decoder_ = raw_audio_decoder_creator_.Run(config);
 
   if (!raw_decoder_) {
@@ -116,34 +148,12 @@ void ShellAudioDecoderImpl::Initialize(
     return;
   }
 
-  shell_audio_decoder_status_ = kNormal;
   status_cb.Run(PIPELINE_OK);
 }
 
-bool ShellAudioDecoderImpl::ValidateConfig(const AudioDecoderConfig& config) {
-  if (!config.IsValidConfig()) {
-    DLOG(ERROR) << "Invalid audio stream -"
-                << " codec: " << config.codec()
-                << " channel layout: " << config.channel_layout()
-                << " bits per channel: " << config.bits_per_channel()
-                << " samples per second: " << config.samples_per_second();
-    return false;
-  }
-  // check this is a config we can decode and play back
-  if (config.codec() != kCodecAAC) {
-    return false;
-  }
-
-  // Now we only support stereo and mono streams
-  // TODO(***REMOVED***) : Get this from low-level decoder or streamer.
-  int channels = ChannelLayoutToChannelCount(config.channel_layout());
-  if (channels != 1 && channels != 2 && channels != 6 && channels != 8) {
-    return false;
-  }
-  return true;
-}
-
 void ShellAudioDecoderImpl::Read(const AudioDecoder::ReadCB& read_cb) {
+  TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::Read()");
+
   // This may be called from another thread (H/W audio thread) so redirect
   // this request to the decoder's message loop
   if (!message_loop_->BelongsToCurrentThread()) {
@@ -152,21 +162,105 @@ void ShellAudioDecoderImpl::Read(const AudioDecoder::ReadCB& read_cb) {
     return;
   }
 
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(demuxer_stream_);  // Initialize() has been called.
   DCHECK(!read_cb.is_null());
-  // Save the callback before posting the task
-  DCHECK(read_cb_.is_null());
+  DCHECK(read_cb_.is_null());  // No Read() in progress.
+  DCHECK(reset_cb_.is_null());  //  No Reset() in progress.
 
-  // Save the callback and then process the task
-  read_cb_ = read_cb;
-  DoRead();
+  if (queued_buffers_.empty()) {
+    read_cb_ = read_cb;
+  } else {
+    scoped_refptr<DecoderBuffer> buffer = queued_buffers_.front();
+    queued_buffers_.pop();
+    TRACE_EVENT1("media_stack",
+                 "ShellAudioDecoderImpl::Read() deliver audio data.",
+                 "timestamp", buffer->GetTimestamp().InMicroseconds());
+    read_cb.Run(kOk, buffer);
+  }
+
+  TryToReadFromDemuxerStream();
 }
 
-void ShellAudioDecoderImpl::QueueBuffer(DemuxerStream::Status status,
-    const scoped_refptr<DecoderBuffer>& buffer) {
+int ShellAudioDecoderImpl::bits_per_channel() {
+  return kAudioBytesPerSample * 8;
+}
+
+ChannelLayout ShellAudioDecoderImpl::channel_layout() {
+  DCHECK(demuxer_stream_);
+  const AudioDecoderConfig& config = demuxer_stream_->audio_decoder_config();
+  return config.channel_layout();
+}
+
+int ShellAudioDecoderImpl::samples_per_second() {
+  return samples_per_second_;
+}
+
+void ShellAudioDecoderImpl::Reset(const base::Closure& reset_cb) {
+  TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::Reset()");
+
   if (!message_loop_->BelongsToCurrentThread()) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
-        &ShellAudioDecoderImpl::QueueBuffer, this, status, buffer));
+        &ShellAudioDecoderImpl::Reset, this, reset_cb));
+    return;
+  }
+
+  DCHECK(demuxer_stream_);  // Initialize() has been called.
+  DCHECK(!reset_cb.is_null());
+  DCHECK(reset_cb_.is_null());  // No Reset() in progress.
+
+  if (demuxer_read_and_decode_in_progress_) {
+    reset_cb_ = reset_cb;
+    return;
+  }
+
+#if __SAVE_DECODER_OUTPUT__
+  test_probe_.Close();
+#endif
+
+  DCHECK(read_cb_.is_null());  // No Read() in progress.
+
+  // Release the buffers we queued internally
+  while (!queued_buffers_.empty()) {
+    queued_buffers_.pop();
+  }
+  raw_decoder_->Flush();
+  eos_buffer_ = NULL;
+  reset_cb.Run();
+}
+
+void ShellAudioDecoderImpl::TryToReadFromDemuxerStream() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  if (!demuxer_read_and_decode_in_progress_ &&
+      queued_buffers_.size() < kMaxQueuedBuffers) {
+    demuxer_read_and_decode_in_progress_ = true;
+    if (eos_buffer_) {
+      // We have already received EOS from demuxer stream, so we no longer need
+      // to request from DemuxerStream.  However, we still have to send the eos
+      // buffer to raw decoder so it can keep decoding any left over buffers.
+      TRACE_EVENT0("media_stack",
+                   "ShellAudioDecoderImpl::TryToReadFromDemuxerStream() EOS");
+      DCHECK(eos_buffer_);
+      message_loop_->PostTask(
+          FROM_HERE, base::Bind(&ShellAudioDecoderImpl::OnDemuxerRead,
+                                this, DemuxerStream::kOk, eos_buffer_));
+    } else {
+      TRACE_EVENT0("media_stack",
+                   "ShellAudioDecoderImpl::TryToReadFromDemuxerStream() Read");
+      demuxer_stream_->Read(
+          BindToCurrentLoop(base::Bind(&ShellAudioDecoderImpl::OnDemuxerRead,
+                                       this)));
+    }
+  }
+}
+
+void ShellAudioDecoderImpl::OnDemuxerRead(
+    DemuxerStream::Status status, const scoped_refptr<DecoderBuffer>& buffer) {
+  TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::OnDemuxerRead()");
+
+  if (!message_loop_->BelongsToCurrentThread()) {
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &ShellAudioDecoderImpl::OnDemuxerRead, this, status, buffer));
     return;
   }
 
@@ -192,207 +286,106 @@ void ShellAudioDecoderImpl::QueueBuffer(DemuxerStream::Status status,
     if (Time::Now() - last_hit > kTimeBetweenUnderflow + kTimeToUnderflow) {
       last_hit = Time::Now();
       message_loop_->PostDelayedTask(FROM_HERE, base::Bind(
-          &ShellAudioDecoderImpl::QueueBuffer, this, status, buffer),
+          &ShellAudioDecoderImpl::OnDemuxerRead, this, status, buffer),
           kTimeToUnderflow);
       return;
     }
   }
 #endif // !defined(__LB_SHELL__FOR_RELEASE__)
 
-  DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(pending_demuxer_read_);
-  pending_demuxer_read_ = false;
+  DCHECK(demuxer_read_and_decode_in_progress_);
 
-  queued_buffers_.push_back(std::make_pair(status, buffer));
-  if (pending_renderer_read_) {
-    DCHECK(!read_cb_.is_null());
-    pending_renderer_read_ = false;
-    DoDecodeBuffer();
+  if (status == DemuxerStream::kOk) {
+    if (buffer->IsEndOfStream()) {
+      TRACE_EVENT0("media_stack",
+                   "ShellAudioDecoderImpl::DecodeBuffer() EOS reached.");
+      eos_buffer_ = buffer;
+    }
+    raw_decoder_->Decode(
+        buffer, base::Bind(&ShellAudioDecoderImpl::OnBufferDecoded, this));
+    return;
   }
 
-  if (status == DemuxerStream::kOk && !buffer->IsEndOfStream()) {
-    message_loop_->PostTask(FROM_HERE, base::Bind(
-        &ShellAudioDecoderImpl::RequestBuffer, this));
-  }
+  DCHECK(!buffer);
+  demuxer_read_and_decode_in_progress_ = false;
 
-  if (shell_audio_decoder_status_ == kFlushing && !pending_renderer_read_) {
-    // Reset was called, but there were pending reads.
-    // Call the Reset callback now
-    DCHECK(!reset_cb_.is_null());
-    message_loop_->PostTask(FROM_HERE, base::Bind(
-        &ShellAudioDecoderImpl::Reset,
-        this,
-        reset_cb_));
-    reset_cb_.Reset();
-  }
-}
-
-void ShellAudioDecoderImpl::RequestBuffer() {
-  // check for EOS
-  if (!pending_demuxer_read_ && queued_buffers_.size() < kMaxQueuedBuffers
-      && shell_audio_decoder_status_ == kNormal) {
-    pending_demuxer_read_ = true;
-    demuxer_stream_->Read(base::Bind(&ShellAudioDecoderImpl::QueueBuffer,
-                                     this));
-  }
-}
-
-void ShellAudioDecoderImpl::DoRead() {
-  TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::DoRead()");
-  DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK_NE(shell_audio_decoder_status_, kUninitialized);
-  DCHECK(!read_cb_.is_null());
-
-  if (shell_audio_decoder_status_ == kNormal) {
-    DoDecodeBuffer();
-    RequestBuffer();
-  } else if (shell_audio_decoder_status_ == kStopped) {
-    TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::DoRead() EOS sent.");
-    base::ResetAndReturn(&read_cb_).Run(kOk,
-                                        DecoderBuffer::CreateEOSBuffer(
-                                            kNoTimestamp()));
+  if (status == DemuxerStream::kConfigChanged) {
+    // We don't support audio config change.
+    // We must call audio_decoder_config() to acknowledge the config change.
+    // Otherwise, the demuxer will keep sending back kConfigChange for any
+    // Read() call until the config change is acknowledged.
+    demuxer_stream_->audio_decoder_config();
+    TryToReadFromDemuxerStream();
   } else {
-    // report decode error downstream
-    base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kDecodeError, NULL);
-  }
-}
-
-void ShellAudioDecoderImpl::DoDecodeBuffer() {
-  TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::DoDecodeBuffer()");
-  DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(!read_cb_.is_null());
-
-  // drop input data if we are flushing or stopped
-  if (shell_audio_decoder_status_ != kNormal) {
-    return;
-  }
-
-  // No data is queued up, so save this for later
-  if (queued_buffers_.empty()) {
-    DCHECK(!pending_renderer_read_);
-    pending_renderer_read_ = true;
-    return;
-  }
-
-  // Get the buffer from the front of the queue
-  QueuedBuffer queued_buffer = queued_buffers_.front();
-  queued_buffers_.pop_front();
-
-  DemuxerStream::Status status = queued_buffer.first;
-  const scoped_refptr<DecoderBuffer>& buffer = queued_buffer.second;
-
-  // check for demuxer error
-  if (status != DemuxerStream::kOk) {
-    DCHECK(!buffer);
-    AudioDecoder::Status decoder_status =
-        (status == DemuxerStream::kAborted) ? kAborted : kDecodeError;
-    DLOG_IF(WARNING, decoder_status == kDecodeError) << "Demuxer error";
-    base::ResetAndReturn(&read_cb_).Run(decoder_status, NULL);
-    return;
-  }
-
-  // check for EndOfStream, if so flush the input queue.
-  if (buffer->IsEndOfStream()) {
-    TRACE_EVENT0("media_stack",
-                 "ShellAudioDecoderImpl::DoDecodeBuffer() EOS received");
-    // Consume any additional EOS buffers that are queued up
-    while (!queued_buffers_.empty()) {
-      DCHECK(queued_buffers_.front().second->IsEndOfStream());
-      queued_buffers_.pop_front();
+    DCHECK_EQ(status, DemuxerStream::kAborted);
+    // We are seeking or stopping, fulfill any outstanding callbacks.
+    if (!read_cb_.is_null()) {
+      base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
+    }
+    if (!reset_cb_.is_null()) {
+      Reset(base::ResetAndReturn(&reset_cb_));
     }
   }
-
-  scoped_refptr<DecoderBuffer> decoded_buffer = raw_decoder_->Decode(buffer);
-  if (!decoded_buffer) {
-    DCHECK(!pending_renderer_read_);
-    pending_renderer_read_ = true;
-    return;
-  }
-
-  if (decoded_buffer->IsEndOfStream()) {
-    TRACE_EVENT0("media_stack",
-                 "ShellAudioDecoderImpl::DoDecodeBuffer() EOS sent.");
-    // Set to kStopped so that subsequent read requests will get EOS
-    shell_audio_decoder_status_ = kStopped;
-    // pass EOS buffer down the chain
-    base::ResetAndReturn(&read_cb_).Run(kOk, decoded_buffer);
-    return;
-  }
-
-  message_loop_->PostTask(FROM_HERE, base::Bind(
-      &ShellAudioDecoderImpl::RequestBuffer, this));
-
-  DCHECK_EQ(decoded_buffer->GetDataSize(),
-            mp4::AAC::kSamplesPerFrame * bits_per_channel() / 8 *
-                num_channels_);
-
-#if __SAVE_DECODER_OUTPUT__
-  test_probe_.AddData(decoded_buffer->GetData());
-#endif
-
-  TRACE_EVENT1("media_stack",
-               "ShellAudioDecoderImpl::DoDecodeBuffer() data decoded.",
-               "timestamp", decoded_buffer->GetTimestamp().InMicroseconds());
-  base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kOk, decoded_buffer);
-
-  if (shell_audio_decoder_status_ == kFlushing) {
-    // Reset was called, but there were pending reads.
-    // Call the Reset callback now
-    DCHECK(!reset_cb_.is_null());
-    message_loop_->PostTask(FROM_HERE, base::Bind(
-        &ShellAudioDecoderImpl::Reset,
-        this,
-        reset_cb_));
-    reset_cb_.Reset();
-  }
 }
 
-int ShellAudioDecoderImpl::bits_per_channel() {
-  return kAudioBytesPerSample * 8;
-}
-
-ChannelLayout ShellAudioDecoderImpl::channel_layout() {
-  DCHECK(demuxer_stream_);
-  const AudioDecoderConfig& config = demuxer_stream_->audio_decoder_config();
-  return config.channel_layout();
-}
-
-int ShellAudioDecoderImpl::samples_per_second() {
-  return samples_per_second_;
-}
-
-void ShellAudioDecoderImpl::Reset(const base::Closure& closure) {
-  TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::Reset()");
+void ShellAudioDecoderImpl::OnBufferDecoded(
+    ShellRawAudioDecoder::DecodeStatus status,
+    const scoped_refptr<DecoderBuffer>& buffer) {
   if (!message_loop_->BelongsToCurrentThread()) {
-    message_loop_->PostTask(FROM_HERE, base::Bind(
-        &ShellAudioDecoderImpl::Reset, this, closure));
+    message_loop_->PostTask(FROM_HERE,
+                            base::Bind(&ShellAudioDecoderImpl::OnBufferDecoded,
+                                       this, status, buffer));
     return;
   }
 
-  DCHECK(message_loop_->BelongsToCurrentThread());
-  shell_audio_decoder_status_ = kFlushing;
-  if (pending_demuxer_read_ || !read_cb_.is_null()) {
-    DCHECK(reset_cb_.is_null());
-    reset_cb_ = closure;
-    return;
-  }
-  // This should have been reset before calling Reset again
-  DCHECK(reset_cb_.is_null());
+  DCHECK(demuxer_read_and_decode_in_progress_);
+  demuxer_read_and_decode_in_progress_ = false;
+
+  bool eos_decoded = false;
+  if (status == ShellRawAudioDecoder::BUFFER_DECODED) {
+    DCHECK(buffer);
+    queued_buffers_.push(buffer);
+
+    eos_decoded = buffer->IsEndOfStream();
+    if (!eos_decoded) {
+      TRACE_EVENT1("media_stack",
+                   "ShellAudioDecoderImpl::DecodeBuffer() data decoded.",
+                   "timestamp", buffer->GetTimestamp().InMicroseconds());
+      DCHECK_EQ(buffer->GetDataSize(),
+                kSamplesPerFrame * kAudioBytesPerSample * num_channels_);
+
+      PipelineStatistics statistics;
+      statistics.audio_bytes_decoded = buffer->GetDataSize();
+      statistics_cb_.Run(statistics);
 
 #if __SAVE_DECODER_OUTPUT__
-  test_probe_.Close();
+      test_probe_.AddData(buffer->GetData());
 #endif
+    }
+  } else if (status == ShellRawAudioDecoder::NEED_MORE_DATA) {
+    DCHECK_EQ(status, ShellRawAudioDecoder::NEED_MORE_DATA);
+    DCHECK(!buffer);
+    TryToReadFromDemuxerStream();
+    return;
+  }
 
-  // Release the buffers we queued internally
-  queued_buffers_.clear();
-  // Sanity-check our assumption that there is no pending decode or in-flight
-  // I/O requests
-  DCHECK(read_cb_.is_null());
-  DCHECK(!pending_renderer_read_);
-  DCHECK(!pending_demuxer_read_);
-  raw_decoder_->Flush();
-  shell_audio_decoder_status_ = kNormal;
-  closure.Run();
+  if (!read_cb_.is_null()) {
+    DCHECK(!queued_buffers_.empty());
+    scoped_refptr<DecoderBuffer> buffer = queued_buffers_.front();
+    queued_buffers_.pop();
+    TRACE_EVENT1("media_stack",
+                 "ShellAudioDecoderImpl::OnBufferDecoded() deliver audio data.",
+                 "timestamp", buffer->GetTimestamp().InMicroseconds());
+    base::ResetAndReturn(&read_cb_).Run(kOk, buffer);
+  }
+
+  if (reset_cb_.is_null()) {
+    if (!eos_decoded) {
+      TryToReadFromDemuxerStream();
+    }
+  } else {
+    Reset(base::ResetAndReturn(&reset_cb_));
+  }
 }
 
 }  // namespace media
