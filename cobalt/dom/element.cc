@@ -224,7 +224,8 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   attribute_map_[attr_name] = value;
 
   // Custom, not in any spec.
-  // Changing the class name may affect the contents of proxy objects.
+  // Check for specific attributes that require additional caching and update
+  // logic.
   switch (attr_name.size()) {
     case 2:
       if (attr_name == "id") {
@@ -234,6 +235,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
     case 5:
       if (attr_name == "class") {
         class_attribute_ = value;
+        // Changing the class name may affect the contents of proxy objects.
         UpdateNodeGeneration();
       }
       break;
@@ -264,7 +266,8 @@ void Element::RemoveAttribute(const std::string& name) {
   attribute_map_.erase(iter);
 
   // Custom, not in any spec.
-  // Changing the class name may affect the contents of proxy objects.
+  // Check for specific attributes that require additional caching and update
+  // logic.
   switch (attr_name.size()) {
     case 2:
       if (attr_name == "id") {
@@ -274,6 +277,7 @@ void Element::RemoveAttribute(const std::string& name) {
     case 5:
       if (attr_name == "class") {
         class_attribute_ = "";
+        // Changing the class name may affect the contents of proxy objects.
         UpdateNodeGeneration();
       }
       break;
