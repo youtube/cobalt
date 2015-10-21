@@ -36,6 +36,11 @@ namespace switches {
 // test output from the actual output to the output directory.
 const char kRebaseline[] = "rebaseline";
 
+// If enabled, will run all tests and display which ones passed and which
+// ones failed, as usual, however it will also output new expected output
+// images for ONLY the tests that failed.
+const char kRebaselineFailedTests[] = "rebaseline-failed-tests";
+
 // If enabled, will output details (in the form of files placed in the output
 // directory) for all tests that fail.
 const char kOutputFailedTestDetails[] = "output-failed-test-details";
@@ -90,6 +95,14 @@ TEST_P(LayoutTest, LayoutTest) {
   } else {
     bool results = pixel_tester.TestTree(layout_results.render_tree,
                                          GetParam().base_file_path);
+
+    if (!results &&
+        CommandLine::ForCurrentProcess()->HasSwitch(
+            switches::kRebaselineFailedTests)) {
+      pixel_tester.Rebaseline(layout_results.render_tree,
+                              GetParam().base_file_path);
+    }
+
     EXPECT_TRUE(results);
   }
 }
