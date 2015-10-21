@@ -26,8 +26,9 @@ namespace dom {
 // the benchmarks are uploaded to.  See ***REMOVED***steel-build-stats-doc.
 
 extern const char kBenchmarkStatUpdateComputedStyles[];
-extern const char kBenchmarkStatUpdateMatchingRules[];
 extern const char kBenchmarkStatUpdateFontFaces[];
+extern const char kBenchmarkStatUpdateMatchingRules[];
+extern const char kBenchmarkStatUpdateSelectorTree[];
 
 }  // namespace dom
 }  // namespace cobalt
