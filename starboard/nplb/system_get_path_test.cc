@@ -69,8 +69,7 @@ TEST(SbSystemGetPathTest, FailsGracefullyBogusId) {
 }
 
 TEST(SbSystemGetPathTest, DoesNotBlowUpForDefinedIds) {
-  BasicTest(kSbSystemPathLogOutputDirectory, false, false, __LINE__);
-  BasicTest(kSbSystemPathScreenshotDirectory, false, false, __LINE__);
+  BasicTest(kSbSystemPathDebugOutputDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathSourceDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathTempDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathTestOutputDirectory, false, false, __LINE__);
