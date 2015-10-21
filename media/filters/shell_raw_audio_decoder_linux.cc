@@ -81,10 +81,10 @@ class ShellRawAudioDecoderLinux : public ShellRawAudioDecoder {
   // is any.
   // The input buffer can be NULL, in this case the function will return a
   // queued buffer if there is any or return NULL if there is no queued buffer.
-  virtual scoped_refptr<DecoderBuffer> Decode(
-      const scoped_refptr<DecoderBuffer>& buffer) OVERRIDE;
-  virtual bool Flush() OVERRIDE;
-  virtual bool UpdateConfig(const AudioDecoderConfig& config) OVERRIDE;
+  void Decode(const scoped_refptr<DecoderBuffer>& buffer,
+              const DecodeCB& decoder_cb) OVERRIDE;
+  bool Flush() OVERRIDE;
+  bool UpdateConfig(const AudioDecoderConfig& config) OVERRIDE;
 
  private:
   void ReleaseResource();
@@ -137,8 +137,8 @@ ShellRawAudioDecoderLinux::~ShellRawAudioDecoderLinux() {
   ReleaseResource();
 }
 
-scoped_refptr<DecoderBuffer> ShellRawAudioDecoderLinux::Decode(
-    const scoped_refptr<DecoderBuffer>& buffer) {
+void ShellRawAudioDecoderLinux::Decode(
+    const scoped_refptr<DecoderBuffer>& buffer, const DecodeCB& decoder_cb) {
   if (buffer && !buffer->IsEndOfStream()) {
     if (last_input_timestamp_ == kNoTimestamp()) {
       last_input_timestamp_ = buffer->GetTimestamp();
@@ -152,11 +152,13 @@ scoped_refptr<DecoderBuffer> ShellRawAudioDecoderLinux::Decode(
   if (buffer && queued_audio_.empty())
     RunDecodeLoop(buffer, true);
 
-  if (queued_audio_.empty())
-    return NULL;
+  if (queued_audio_.empty()) {
+    decoder_cb.Run(NEED_MORE_DATA, NULL);
+    return;
+  }
   scoped_refptr<DecoderBuffer> result = queued_audio_.front().buffer;
   queued_audio_.pop_front();
-  return result;
+  decoder_cb.Run(BUFFER_DECODED, result);
 }
 
 bool ShellRawAudioDecoderLinux::Flush() {

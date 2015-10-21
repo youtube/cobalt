@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #ifndef MEDIA_FILTERS_SHELL_AUDIO_DECODER_IMPL_H_
 #define MEDIA_FILTERS_SHELL_AUDIO_DECODER_IMPL_H_
 
-#include <list>
+#include <queue>
 
 #include "base/callback.h"
-#include "base/message_loop.h"
 #include "base/memory/scoped_ptr.h"
-#include "media/base/audio_bus.h"
+#include "base/message_loop.h"
 #include "media/base/audio_decoder.h"
 #include "media/base/audio_decoder_config.h"
-#include "media/base/buffers.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/filters/shell_audio_decoder.h"
@@ -40,14 +39,20 @@ namespace media {
 
 class ShellRawAudioDecoder {
  public:
+  enum DecodeStatus {
+    BUFFER_DECODED,  // Successfully decoded audio data.
+    NEED_MORE_DATA  // Need more data to produce decoded audio data.
+  };
   typedef media::DecoderBuffer DecoderBuffer;
   typedef media::AudioDecoderConfig AudioDecoderConfig;
   typedef base::Callback<scoped_ptr<ShellRawAudioDecoder>(
                              const AudioDecoderConfig& config)> Creator;
+  typedef base::Callback<void (DecodeStatus,
+                               const scoped_refptr<DecoderBuffer>&)> DecodeCB;
 
   virtual ~ShellRawAudioDecoder() {}
-  virtual scoped_refptr<DecoderBuffer> Decode(
-      const scoped_refptr<DecoderBuffer>& buffer) = 0;
+  virtual void Decode(const scoped_refptr<DecoderBuffer>& buffer,
+                      const DecodeCB& decode_cb) = 0;
   virtual bool Flush() = 0;
   virtual bool UpdateConfig(const AudioDecoderConfig& config) = 0;
 
@@ -63,12 +68,33 @@ class ShellRawAudioDecoder {
   DISALLOW_COPY_AND_ASSIGN(ShellRawAudioDecoder);
 };
 
+// The audio decoder mainly has two features:
+// 1. It tries to read buffers from the demuxer, then decode the buffers and put
+//    decoded buffers into a queue.  In this way the decoder can cache some
+//    buffers to speed up audio caching.
+// 2. When its Read() function is called, it tries to fulfill the Read() with
+//    decoded data.
+// A Reset() call will break both of them and halt the decoder until another
+// Read() is called.
+// The ShellAudioDecoderImpl is only used by the AudioRenderer.  The renderer
+// will call Initialize() before any other function is called.  The renderer may
+// then call Read() repeatly to request decoded audio data.  Reset() is called
+// when a seek is initiated to clear any internal data of the decoder.
+// Note that the renderer will not explicitly destroy the decoder when playback
+// is finished.  It simply release its reference to the decoder and the decoder
+// may be alive for a short time.  When playback is finished, the demuxer will
+// keep return EOS buffer.  So the decoder will stop reading quickly.  Once no
+// callback is in progress, it will be destroyed automatically because there is
+// no reference to it.
 class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
  public:
   ShellAudioDecoderImpl(
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
       const ShellRawAudioDecoder::Creator& raw_audio_decoder_creator);
   ~ShellAudioDecoderImpl() OVERRIDE;
+
+ private:
+  static const int kMaxQueuedBuffers = 32;
 
   // AudioDecoder implementation.
   void Initialize(const scoped_refptr<DemuxerStream>& stream,
@@ -78,61 +104,44 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
   int bits_per_channel() OVERRIDE;
   ChannelLayout channel_layout() OVERRIDE;
   int samples_per_second() OVERRIDE;
-  void Reset(const base::Closure& closure) OVERRIDE;
+  void Reset(const base::Closure& reset_cb) OVERRIDE;
 
- private:
-  // There's a DemuxerStream::Status as well as an AudioDecoder::Status enum.
-  // We make our own to keep track of ShellAudioDecoderImpl specific state, and
-  // give it a lengthy name to disambiguate it from the others.
-  enum ShellAudioDecoderStatus {
-    kUninitialized,
-    kNormal,
-    kFlushing,
-    kStopped,
-    kShellDecodeError
-  };
+  void TryToReadFromDemuxerStream();
+  void OnDemuxerRead(DemuxerStream::Status status,
+                     const scoped_refptr<DecoderBuffer>& buffer);
+  // the callback from the raw decoder indicates an operation has been finished.
+  void OnBufferDecoded(ShellRawAudioDecoder::DecodeStatus status,
+                       const scoped_refptr<DecoderBuffer>& buffer);
 
-  // initialization
-  void DoInitialize(const scoped_refptr<DemuxerStream>& stream,
-                    const PipelineStatusCB& status_cb,
-                    const StatisticsCB& statistics_cb);
-  bool ValidateConfig(const AudioDecoderConfig& config);
-  void DoDecodeBuffer();
-  void DoRead();
-
-  void QueueBuffer(DemuxerStream::Status status,
-                   const scoped_refptr<DecoderBuffer>& buffer);
-  void RequestBuffer();
-
-  // general state
+  // The message loop that all functions run on to avoid explicit sync.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   ShellRawAudioDecoder::Creator raw_audio_decoder_creator_;
   scoped_refptr<DemuxerStream> demuxer_stream_;
   StatisticsCB statistics_cb_;
-  ShellAudioDecoderStatus shell_audio_decoder_status_;
+
+  scoped_ptr<ShellRawAudioDecoder> raw_decoder_;
+
+  // Are we currently in a read/decode cycle?  One thing worth noting is, Read()
+  // and Reset() will only be deferred when demuxer_read_and_decode_in_progress_
+  // is true,  so if demuxer_read_and_decode_in_progress_ is false, read_cb_ and
+  // reset_cb_ will be NULL.
+  bool demuxer_read_and_decode_in_progress_;
+  // Save the EOS buffer received so we can send it again to the raw decoder
+  // with correct timestamp.  When this is non NULL, we shouldn't read from the
+  // demuxer again until it is reset in Reset().
+  scoped_refptr<DecoderBuffer> eos_buffer_;
 
 #if __SAVE_DECODER_OUTPUT__
   ShellWavTestProbe test_probe_;
 #endif
 
-  // cached stream info
   int samples_per_second_;
   int num_channels_;
 
-  scoped_ptr<ShellRawAudioDecoder> raw_decoder_;
-
-  // Callback on completion of a decode
-  bool pending_renderer_read_;
   ReadCB read_cb_;
-
-  static const int kMaxQueuedBuffers = 8;
-  typedef std::pair<DemuxerStream::Status, const scoped_refptr<DecoderBuffer> >
-      QueuedBuffer;
-  std::list<QueuedBuffer> queued_buffers_;
-  bool pending_demuxer_read_;
-
-  // Callback on flushing all pending reads
   base::Closure reset_cb_;
+
+  std::queue<scoped_refptr<DecoderBuffer> > queued_buffers_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ShellAudioDecoderImpl);
 };
