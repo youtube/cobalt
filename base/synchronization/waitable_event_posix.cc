@@ -342,7 +342,7 @@ WaitableEvent::WaitableEventKernel::WaitableEventKernel(bool manual_reset,
                                                         bool initially_signaled)
     : manual_reset_(manual_reset),
       signaled_(initially_signaled) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   waiters_.reserve(1);
 #endif
 }
@@ -355,7 +355,7 @@ WaitableEvent::WaitableEventKernel::~WaitableEventKernel() {
 // -----------------------------------------------------------------------------
 bool WaitableEvent::SignalAll() {
   bool signaled_at_least_one = false;
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   for (std::vector<Waiter*>::iterator
 #else
   for (std::list<Waiter*>::iterator
@@ -379,7 +379,7 @@ bool WaitableEvent::SignalOne() {
       return false;
 
     const bool r = (*kernel_->waiters_.begin())->Fire(this);
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
     // This appears to be slow, but the size of the vector is almost always 1.
     // Therefore, this line is usually constant time.
     kernel_->waiters_.erase(kernel_->waiters_.begin());
@@ -403,7 +403,7 @@ void WaitableEvent::Enqueue(Waiter* waiter) {
 // actually removed. Called with lock held.
 // -----------------------------------------------------------------------------
 bool WaitableEvent::WaitableEventKernel::Dequeue(Waiter* waiter, void* tag) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   for (std::vector<Waiter*>::iterator
 #else
   for (std::list<Waiter*>::iterator

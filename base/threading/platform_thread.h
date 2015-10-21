@@ -19,6 +19,8 @@
 #elif defined(OS_POSIX)
 #include <pthread.h>
 #include <unistd.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/thread.h"
 #endif
 
 namespace base {
@@ -31,19 +33,41 @@ namespace base {
 typedef DWORD PlatformThreadId;
 typedef void* PlatformThreadHandle;  // HANDLE
 const PlatformThreadHandle kNullThreadHandle = NULL;
+const PlatformThreadId kInvalidThreadId = 0;
 #elif defined(OS_POSIX)
 typedef pthread_t PlatformThreadHandle;
 const PlatformThreadHandle kNullThreadHandle = 0;
 typedef pid_t PlatformThreadId;
+const PlatformThreadId kInvalidThreadId = 0;
+#elif defined(OS_STARBOARD)
+typedef SbThread PlatformThreadHandle;
+const PlatformThreadHandle kNullThreadHandle = kSbThreadInvalid;
+typedef SbThreadId PlatformThreadId;
+const PlatformThreadId kInvalidThreadId = kSbThreadInvalidId;
 #endif
 
-const PlatformThreadId kInvalidThreadId = 0;
-
 // Valid values for SetThreadPriority()
-enum ThreadPriority{
+enum ThreadPriority {
+#if defined(OS_STARBOARD)
+  // See the priorities defined in "starboard/thread.h"
+
+  kThreadPriority_Default = kSbThreadNoPriority,
+  kThreadPriority_Lowest = kSbThreadPriorityLowest,
+  kThreadPriority_Low = kSbThreadPriorityLow,
+  kThreadPriority_Normal = kSbThreadPriorityNormal,
+  kThreadPriority_High = kSbThreadPriorityHigh,
+  kThreadPriority_Highest = kSbThreadPriorityHighest,
+  kThreadPriority_RealTime = kSbThreadPriorityRealTime,
+  kThreadPriority_RealtimeAudio = kThreadPriority_RealTime,
+#else
   kThreadPriority_Normal,
+
   // Suitable for low-latency, glitch-resistant audio.
-  kThreadPriority_RealtimeAudio
+  //
+  // Avoid using this, instead prefer to create your own application-specific
+  // mappings in your application layer.
+  kThreadPriority_RealtimeAudio,
+#endif
 };
 
 // A namespace for low-level thread functions.
@@ -68,6 +92,18 @@ class BASE_EXPORT PlatformThread {
     int priority;
 
     // -1 indicates default affinity
+    int affinity;
+  };
+#elif defined(OS_STARBOARD)
+  struct PlatformThreadOptions {
+    // <= 0 indicates default stack size
+    int64_t stack_size;
+
+    // The priority to start the thread at, or kThreadPriority_Default for the
+    // default priority assignment policy.
+    ThreadPriority priority;
+
+    // The CPU index to pin the thread to, or -1 for no affinity.
     int affinity;
   };
 #endif
@@ -114,7 +150,7 @@ class BASE_EXPORT PlatformThread {
   // PlatformThreadHandle.
   static bool CreateNonJoinable(size_t stack_size, Delegate* delegate);
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   static bool CreateWithOptions(const PlatformThreadOptions& options,
                                 Delegate* delegate,
                                 PlatformThreadHandle* thread_handle);

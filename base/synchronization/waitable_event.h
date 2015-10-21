@@ -12,8 +12,8 @@
 #include <windows.h>
 #endif
 
-#if defined(OS_POSIX)
-#if defined(__LB_SHELL__)
+#if defined(OS_POSIX) || defined(OS_STARBOARD)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
 #include <vector>
 #else
 #include <list>
@@ -154,7 +154,7 @@ class BASE_EXPORT WaitableEvent {
     base::Lock lock_;
     const bool manual_reset_;
     bool signaled_;
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
     std::vector<Waiter*> waiters_;
 #else
     std::list<Waiter*> waiters_;
