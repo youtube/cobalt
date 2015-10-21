@@ -10,6 +10,8 @@
 
 #if defined(OS_POSIX)
 #include <pthread.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/thread.h"
 #endif
 
 namespace base {
@@ -64,6 +66,8 @@ class BASE_EXPORT ThreadLocalStorage {
     int slot_;
 #elif defined(OS_POSIX)
     pthread_key_t key_;
+#elif defined(OS_STARBOARD)
+    SbThreadLocalKey key_;
 #endif
 
   };
@@ -80,6 +84,8 @@ class BASE_EXPORT ThreadLocalStorage {
 #if defined(OS_WIN)
     using StaticSlot::slot_;
 #elif defined(OS_POSIX)
+    using StaticSlot::key_;
+#elif defined(OS_STARBOARD)
     using StaticSlot::key_;
 #endif
     DISALLOW_COPY_AND_ASSIGN(Slot);
