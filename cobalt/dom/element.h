@@ -17,9 +17,10 @@
 #ifndef DOM_ELEMENT_H_
 #define DOM_ELEMENT_H_
 
-#include <base/hash_tables.h>
 #include <string>
 
+#include "base/containers/small_map.h"
+#include "base/hash_tables.h"
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/base/source_location.h"
@@ -41,7 +42,12 @@ class NodeList;
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-element
 class Element : public Node {
  public:
-  typedef base::hash_map<std::string, std::string> AttributeMap;
+  // NOTE: The array size of SmallMap and the decision to use base::hash_map as
+  // the underlying container type are based on extensive performance testing
+  // with ***REMOVED***. Do not change these unless additional profiling data justifies
+  // it.
+  typedef base::SmallMap<base::hash_map<std::string, std::string>, 2>
+      AttributeMap;
 
   explicit Element(Document* document);
   Element(Document* document, const std::string& tag_name);
