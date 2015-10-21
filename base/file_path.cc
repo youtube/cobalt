@@ -417,7 +417,7 @@ FilePath FilePath::InsertBeforeExtensionASCII(const base::StringPiece& suffix)
   DCHECK(IsStringASCII(suffix));
 #if defined(OS_WIN)
   return InsertBeforeExtension(ASCIIToUTF16(suffix.as_string()));
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   return InsertBeforeExtension(suffix.as_string());
 #endif
 }
@@ -518,7 +518,7 @@ FilePath FilePath::AppendASCII(const base::StringPiece& component) const {
   DCHECK(IsStringASCII(component));
 #if defined(OS_WIN)
   return Append(ASCIIToUTF16(component.as_string()));
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   return Append(component.as_string());
 #endif
 }
@@ -547,7 +547,7 @@ bool FilePath::ReferencesParent() const {
   return false;
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_STARBOARD)
 // See file_path.h for a discussion of the encoding of paths on POSIX
 // platforms.  These encoding conversion functions are not quite correct.
 

@@ -53,6 +53,8 @@
 
 #if defined(OS_POSIX)
 #include <pthread.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/thread.h"
 #endif
 
 namespace base {
@@ -65,6 +67,8 @@ struct BASE_EXPORT ThreadLocalPlatform {
   typedef unsigned long SlotType;
 #elif defined(OS_POSIX)
   typedef pthread_key_t SlotType;
+#elif defined(OS_STARBOARD)
+  typedef SbThreadLocalKey SlotType;
 #endif
 
   static void AllocateSlot(SlotType& slot);
