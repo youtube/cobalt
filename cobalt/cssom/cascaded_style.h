@@ -17,7 +17,7 @@
 #ifndef CSSOM_CASCADED_STYLE_H_
 #define CSSOM_CASCADED_STYLE_H_
 
-#include "base/hash_tables.h"
+#include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -26,7 +26,10 @@
 namespace cobalt {
 namespace cssom {
 
-typedef base::hash_map<const char*, GURL> GURLMap;
+// NOTE: The array size of SmallMap and the decision to use std::map as the
+// underlying container type are based on extensive performance testing with
+// ***REMOVED***. Do not change these unless additional profiling data justifies it.
+typedef base::SmallMap<std::map<const char*, GURL>, 1> GURLMap;
 
 // The cascaded value represents the result of the cascade: it is the declared
 // value that wins the cascade (is sorted first in the output of the cascade).

@@ -21,10 +21,12 @@
 #include <utility>
 #include <vector>
 
-#include "base/basictypes.h"
 #include "base/hash_tables.h"
+#include "base/basictypes.h"
+#include "base/containers/small_map.h"
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/base/unused.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/specificity.h"
 
@@ -47,10 +49,19 @@ class SelectorTree {
   typedef std::vector<base::WeakPtr<CSSStyleRule> > Rules;
 
   struct Node;
+
   typedef ScopedVector<Node> OwnedNodes;
-  typedef base::hash_set<Node*> NodeSet;
+  // NOTE: The array size of SmallMap and the decision to use std::map as the
+  // underlying container type are based on extensive performance testing with
+  // ***REMOVED***. Do not change these unless additional profiling data justifies it.
+  typedef base::SmallMap<std::map<Node*, base::Unused>, 12> NodeSet;
   typedef std::vector<Node*> Nodes;
-  typedef base::hash_map<std::string, Nodes> SelectorTextToNodesMap;
+  // NOTE: The array size of SmallMap and the decision to use base::hash_map as
+  // the underlying container type are based on extensive performance testing
+  // with ***REMOVED***. Do not change these unless additional profiling data justifies
+  // it.
+  typedef base::SmallMap<base::hash_map<std::string, Nodes>, 2>
+      SelectorTextToNodesMap;
 
   struct Node {
     Node() : compound_selector(NULL) {}
@@ -74,7 +85,7 @@ class SelectorTree {
     Rules rules;
   };
 
-  SelectorTree() { root_set_.insert(&root_); }
+  SelectorTree() { root_set_.insert(std::make_pair(&root_, base::Unused())); }
 
   Node* root() { return &root_; }
   NodeSet* root_set() { return &root_set_; }

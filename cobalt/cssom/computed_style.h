@@ -17,6 +17,7 @@
 #ifndef CSSOM_COMPUTED_STYLE_H_
 #define CSSOM_COMPUTED_STYLE_H_
 
+#include "base/containers/small_map.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "googleurl/src/gurl.h"
@@ -26,7 +27,10 @@ namespace cssom {
 
 class CSSStyleDeclarationData;
 
-typedef base::hash_map<const char*, GURL> GURLMap;
+// NOTE: The array size of SmallMap and the decision to use std::map as the
+// underlying container type are based on extensive performance testing with
+// ***REMOVED***. Do not change these unless additional profiling data justifies it.
+typedef base::SmallMap<std::map<const char*, GURL>, 1> GURLMap;
 
 // The computed value is the result of resolving the specified value,
 // generally absolutizing it. The computed value is the value that is

@@ -23,6 +23,7 @@
 #include "base/callback.h"
 #include "base/debug/trace_event.h"
 #include "base/string_util.h"
+#include "cobalt/base/unused.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
@@ -482,7 +483,8 @@ void AddRulesOnNodeToElement(HTMLElement* element,
         element->pseudo_element(pseudo_element_type)->matching_rules();
   }
 
-  element->rule_matching_state()->matching_nodes.insert(node);
+  element->rule_matching_state()->matching_nodes.insert(
+      std::make_pair(node, base::Unused()));
 
   for (cssom::SelectorTree::Rules::iterator rule_iterator = node->rules.begin();
        rule_iterator != node->rules.end(); ++rule_iterator) {
@@ -503,8 +505,11 @@ void GatherCandidateNodeSets(cssom::SelectorTree::SelectorTextToNodesMap* map,
                              cssom::SelectorTree::NodeSet* matching_nodes) {
   cssom::SelectorTree::SelectorTextToNodesMap::iterator it = map->find(key);
   if (it != map->end()) {
-    cssom::SelectorTree::Nodes* nodes = &(it->second);
-    matching_nodes->insert(nodes->begin(), nodes->end());
+    cssom::SelectorTree::Nodes& nodes = it->second;
+    for (cssom::SelectorTree::Nodes::iterator nodes_iterator = nodes.begin();
+         nodes_iterator != nodes.end(); ++nodes_iterator) {
+      matching_nodes->insert(std::make_pair(*nodes_iterator, base::Unused()));
+    }
   }
 }
 
@@ -516,7 +521,7 @@ void ForEachChildOnNodes(
   // Iterate through all nodes in node_set.
   for (cssom::SelectorTree::NodeSet::iterator node_iterator = node_set->begin();
        node_iterator != node_set->end(); ++node_iterator) {
-    cssom::SelectorTree::Node* node = *node_iterator;
+    cssom::SelectorTree::Node* node = node_iterator->first;
 
     cssom::SelectorTree::NodeSet candidate_nodes;
 
@@ -540,9 +545,12 @@ void ForEachChildOnNodes(
 
     // Empty pseudo class.
     if (element->IsEmpty()) {
-      cssom::SelectorTree::Nodes* nodes =
-          &(node->empty_pseudo_class_nodes[combinator_type]);
-      candidate_nodes.insert(nodes->begin(), nodes->end());
+      cssom::SelectorTree::Nodes& nodes =
+          node->empty_pseudo_class_nodes[combinator_type];
+      for (cssom::SelectorTree::Nodes::iterator nodes_iterator = nodes.begin();
+           nodes_iterator != nodes.end(); ++nodes_iterator) {
+        candidate_nodes.insert(std::make_pair(*nodes_iterator, base::Unused()));
+      }
     }
 
     // Check all candidate nodes can run callback for matching nodes.
@@ -550,7 +558,8 @@ void ForEachChildOnNodes(
              candidate_nodes.begin();
          candidate_node_iterator != candidate_nodes.end();
          ++candidate_node_iterator) {
-      cssom::SelectorTree::Node* candidate_node = *candidate_node_iterator;
+      cssom::SelectorTree::Node* candidate_node =
+          candidate_node_iterator->first;
 
       if (IsCompoundSelectorAndElementMatching(
               candidate_node->compound_selector, element)) {
@@ -614,7 +623,7 @@ void CalculateMatchingRulesRecursively(HTMLElement* current_element,
         parent->rule_matching_state()->descendant_potential_nodes.end());
   } else {
     current_element->rule_matching_state()->descendant_potential_nodes.insert(
-        selector_tree->root());
+        std::make_pair(selector_tree->root(), base::Unused()));
   }
   current_element->rule_matching_state()->descendant_potential_nodes.insert(
       current_element->rule_matching_state()->matching_nodes.begin(),
