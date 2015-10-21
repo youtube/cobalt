@@ -345,9 +345,10 @@ void Document::UpdateMatchingRules(
   TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
 
   if (is_selector_tree_dirty_) {
+    TRACE_EVENT0("cobalt::dom", kBenchmarkStatUpdateSelectorTree);
+
     EvaluateStyleSheetMediaRules(root_computed_style, user_agent_style_sheet,
                                  style_sheets());
-
     UpdateSelectorTreeFromStyleSheet(user_agent_style_sheet);
     DCHECK(style_sheets_);
     for (unsigned int style_sheet_index = 0;
