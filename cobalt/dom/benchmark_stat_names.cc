@@ -20,8 +20,9 @@ namespace cobalt {
 namespace dom {
 
 const char kBenchmarkStatUpdateComputedStyles[] = "UpdateComputedStyle";
-const char kBenchmarkStatUpdateMatchingRules[] = "UpdateMatchingRules";
 const char kBenchmarkStatUpdateFontFaces[] = "UpdateFontFaces";
+const char kBenchmarkStatUpdateMatchingRules[] = "UpdateMatchingRules";
+const char kBenchmarkStatUpdateSelectorTree[] = "UpdateSelectorTree";
 
 }  // namespace dom
 }  // namespace cobalt
