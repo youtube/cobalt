@@ -16,6 +16,7 @@
 #include "media/filters/shell_audio_renderer_impl.h"
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/callback.h"
 #include "base/callback_helpers.h"
 #include "base/debug/trace_event.h"
@@ -28,13 +29,6 @@
 #include "media/filters/audio_decoder_selector.h"
 #include "media/filters/decrypting_demuxer_stream.h"
 #include "media/mp4/aac.h"
-
-namespace {
-
-// Used by decrypting_demuxer_stream_->Reset() as we don't handle the callback.
-void DummyFunction() {}
-
-}  // namespace
 
 namespace media {
 
@@ -529,7 +523,7 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
     // finishes. Once Reset() is done the decoded_audio_bus_ will be set to NULL
     // and the renderer_idle_cb_ will be called in the next if block. This will
     // reset the decoder and finish the Stop().
-    decrypting_demuxer_stream_->Reset(base::Bind(DummyFunction));
+    decrypting_demuxer_stream_->Reset(base::Bind(base::DoNothing));
     decrypting_demuxer_stream_ = NULL;
   }
   if (decoded_audio_bus_ == NULL) {
