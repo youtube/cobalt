@@ -30,8 +30,11 @@ ConsoleCommandManager* ConsoleCommandManager::GetInstance() {
 ConsoleCommandManager::CommandHandler::CommandHandler(
     const std::string& channel,
     const ConsoleCommandManager::CommandCallback& callback,
-    const std::string& help_string)
-    : channel_(channel), callback_(callback), help_string_(help_string) {
+    const std::string& short_help, const std::string& long_help)
+    : channel_(channel),
+      callback_(callback),
+      short_help_(short_help),
+      long_help_(long_help) {
   ConsoleCommandManager* manager = ConsoleCommandManager::GetInstance();
   DCHECK(manager);
   manager->RegisterCommandHandler(this);
@@ -64,11 +67,20 @@ std::set<std::string> ConsoleCommandManager::GetRegisteredChannels() const {
   return result;
 }
 
-std::string ConsoleCommandManager::GetHelpString(
+std::string ConsoleCommandManager::GetShortHelp(
     const std::string& channel) const {
   CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
   if (iter != command_channel_map_.end()) {
-    return iter->second->help_string();
+    return iter->second->short_help();
+  }
+  return "No help available for unregistered channel: " + channel;
+}
+
+std::string ConsoleCommandManager::GetLongHelp(
+    const std::string& channel) const {
+  CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
+  if (iter != command_channel_map_.end()) {
+    return iter->second->long_help();
   }
   return "No help available for unregistered channel: " + channel;
 }
@@ -92,10 +104,11 @@ void ConsoleCommandManager::UnregisterCommandHandler(
 ConsoleCommandManager::CommandHandler::CommandHandler(
     const std::string& channel,
     const ConsoleCommandManager::CommandCallback& callback,
-    const std::string& help_string) {
+    const std::string& short_help, const std::string& long_help) {
   UNREFERENCED_PARAMETER(channel);
   UNREFERENCED_PARAMETER(callback);
-  UNREFERENCED_PARAMETER(help_string);
+  UNREFERENCED_PARAMETER(short_help);
+  UNREFERENCED_PARAMETER(long_help);
 }
 
 ConsoleCommandManager::CommandHandler::~CommandHandler() {}
@@ -110,7 +123,13 @@ std::set<std::string> ConsoleCommandManager::GetRegisteredChannels() const {
   return std::set<std::string>();
 }
 
-std::string ConsoleCommandManager::GetHelpString(
+std::string ConsoleCommandManager::GetShortHelp(
+    const std::string& channel) const {
+  UNREFERENCED_PARAMETER(channel);
+  return "";
+}
+
+std::string ConsoleCommandManager::GetLongHelp(
     const std::string& channel) const {
   UNREFERENCED_PARAMETER(channel);
   return "";

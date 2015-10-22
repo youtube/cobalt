@@ -201,13 +201,26 @@ std::string DebugHub::GetCommandChannels() const {
   return result;
 }
 
-std::string DebugHub::GetCommandChannelHelp(const std::string& channel) const {
+std::string DebugHub::GetCommandChannelShortHelp(
+    const std::string& channel) const {
   std::string result = "<undefined>";
   base::ConsoleCommandManager* command_mananger =
       base::ConsoleCommandManager::GetInstance();
   DCHECK(command_mananger);
   if (command_mananger) {
-    result = command_mananger->GetHelpString(channel);
+    result = command_mananger->GetShortHelp(channel);
+  }
+  return result;
+}
+
+std::string DebugHub::GetCommandChannelLongHelp(
+    const std::string& channel) const {
+  std::string result = "<undefined>";
+  base::ConsoleCommandManager* command_mananger =
+      base::ConsoleCommandManager::GetInstance();
+  DCHECK(command_mananger);
+  if (command_mananger) {
+    result = command_mananger->GetLongHelp(channel);
   }
   return result;
 }
@@ -268,7 +281,14 @@ std::string DebugHub::ExecuteJavascript(const std::string& javascript) {
 
 std::string DebugHub::GetCommandChannels() const { return ""; }
 
-std::string DebugHub::GetCommandChannelHelp(const std::string& channel) const {
+std::string DebugHub::GetCommandChannelShortHelp(
+    const std::string& channel) const {
+  UNREFERENCED_PARAMETER(channel);
+  return "";
+}
+
+std::string DebugHub::GetCommandChannelLongHelp(
+    const std::string& channel) const {
   UNREFERENCED_PARAMETER(channel);
   return "";
 }

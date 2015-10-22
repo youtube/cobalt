@@ -80,12 +80,7 @@ function initDebugCommands() {
       'Lists the properties of the specified object in the main web module. ' +
       'Remember to enclose the name of the object in quotes.';
 
-  debug.command = function(channel, message) {
-    window.debugHub.sendCommand(channel, message);
-  }
-  debug.command.shortHelp =
-    'Sends a command message to the main application.';
-  debug.command.longHelp = commandLongHelp();
+  addUserCommands();
 }
 
 function help(command) {
@@ -130,15 +125,21 @@ function dir(objectName) {
   executeMain(js);
 }
 
-function commandLongHelp() {
+function addUserCommands() {
   var channelString = window.debugHub.getCommandChannels();
   var channels = channelString.split(' ');
-  var result =
-    'Sends a command message to the main application on a specified channel. ' +
-    'Registered channels:'
   for (var i = 0; i < channels.length; i++) {
-    var channelHelp = window.debugHub.getCommandChannelHelp(channels[i]);
-    result += '\n' + channels[i] + ' - ' + channelHelp;
+    addSingleUserCommand(channels[i])
   }
-  return result;
+}
+
+function addSingleUserCommand(channel) {
+  var channelHelp = window.debugHub.getCommandChannelShortHelp(channel);
+  debug[channel] = function(message) {
+    window.debugHub.sendCommand(channel, message);
+  }
+  debug[channel].shortHelp =
+      window.debugHub.getCommandChannelShortHelp(channel);
+  debug[channel].longHelp =
+      window.debugHub.getCommandChannelLongHelp(channel);
 }
