@@ -37,12 +37,14 @@ TEST(SbThreadCreateTest, SunnyDayWithPriorities) {
   const int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
     SbThreadPriority priority;
-    switch (i % 5) {
+    switch (i % 7) {
       case 0: priority = kSbThreadPriorityLowest; break;
       case 1: priority = kSbThreadPriorityLow; break;
       case 2: priority = kSbThreadPriorityNormal; break;
       case 3: priority = kSbThreadPriorityHigh; break;
       case 4: priority = kSbThreadPriorityHighest; break;
+      case 5: priority = kSbThreadPriorityRealTime; break;
+      case 6: priority = kSbThreadNoPriority; break;
     }
     SbThread thread = SbThreadCreate(0, priority, kSbThreadNoAffinity,
                                      true, kThreadName, AddOneEntryPoint,
