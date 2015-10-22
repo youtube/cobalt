@@ -526,7 +526,14 @@ class SmallMap {
   // Invalidates iterators.
   void erase(const iterator& position) {
     if (size_ >= 0) {
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+#endif
       int i = position.array_iter_ - array_;
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
       array_[i].Destroy();
       --size_;
       if (i != size_) {
