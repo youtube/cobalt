@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -313,7 +314,8 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       container_box_ = make_scoped_refptr(new BlockLevelBlockContainerBox(
           computed_style_state_, used_style_provider_));
       if (html_element_) {
-        html_element_->SetLayoutBoxes(new LayoutBoxes(container_box_));
+        scoped_ptr<LayoutBoxes> layout_boxes(new LayoutBoxes(container_box_));
+        html_element_->SetLayoutBoxes(layout_boxes.PassAs<dom::LayoutBoxes>());
       }
 
       // The block ends the current paragraph and begins a new one that ends

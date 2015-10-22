@@ -371,14 +371,14 @@ void HTMLElement::ClearMatchingRules() {
   computed_style_valid_ = false;
 }
 
-void HTMLElement::SetLayoutBoxes(LayoutBoxes* layout_boxes) {
+void HTMLElement::SetLayoutBoxes(scoped_ptr<LayoutBoxes> layout_boxes) {
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   if (!owner_document()->partial_layout_is_enabled()) {
     layout_boxes_.reset();
     return;
   }
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  layout_boxes_.reset(layout_boxes);
+  layout_boxes_ = layout_boxes.Pass();
 }
 
 void HTMLElement::InvalidateLayoutBoxesFromNodeAndAncestors() {
