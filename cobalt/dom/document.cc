@@ -66,7 +66,7 @@ Document::Document(HTMLElementContext* html_element_context,
       ALLOW_THIS_IN_INITIALIZER_LIST(font_face_cache_(new FontFaceCache(
           html_element_context_ ? html_element_context_->remote_font_cache()
                                 : NULL,
-          base::Bind(&Document::RecordMutation, base::Unretained(this))))),
+          base::Bind(&Document::OnFontLoadEvent, base::Unretained(this))))),
       loading_counter_(0),
       should_dispatch_load_event_(true),
       is_selector_tree_dirty_(true),
@@ -337,6 +337,11 @@ void Document::OnDOMMutation() {
   is_rule_matching_result_dirty_ = true;
   is_computed_style_dirty_ = true;
 
+  RecordMutation();
+}
+
+void Document::OnFontLoadEvent() {
+  InvalidateLayoutBoxesFromNodeAndDescendants();
   RecordMutation();
 }
 
