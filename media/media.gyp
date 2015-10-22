@@ -203,6 +203,8 @@
         'base/data_source.h',
         'base/decoder_buffer.cc',
         'base/decoder_buffer.h',
+        'base/decoder_buffer_pool.cc',
+        'base/decoder_buffer_pool.h',
         'base/decryptor.cc',
         'base/decryptor.h',
         'base/decryptor_client.h',
@@ -571,6 +573,8 @@
                 'filters/shell_audio_renderer_ps3.h',
                 'filters/shell_audio_resampler_ps3.cc',
                 'filters/shell_audio_resampler_ps3.h',
+                'filters/shell_raw_audio_decoder_ps3.cc',
+                'filters/shell_raw_audio_decoder_ps3.h',
                 'filters/shell_raw_video_decoder_ps3.cc',
                 'filters/shell_raw_video_decoder_ps3.h',
                 'filters/shell_vdec_helper_ps3.cc',
@@ -578,7 +582,6 @@
               ],
               'sources/': [
                 # PS3 has its own implementations.
-                ['exclude', 'filters/shell_audio_decoder_impl'],
                 ['exclude', 'filters/shell_audio_renderer_impl'],
               ],
               'dependencies' : [

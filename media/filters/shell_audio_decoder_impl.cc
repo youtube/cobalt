@@ -32,37 +32,21 @@ using base::TimeDelta;
 
 const size_t kSamplesPerFrame = mp4::AAC::kSamplesPerFrame;
 
-// TODO(***REMOVED***) : These should be eventually get from the low level decoder.
-#if defined(__LB_LINUX__)
-const int kAudioBytesPerSample = sizeof(float);
-#elif defined(__LB_PS4__)
-const int kAudioBytesPerSample = sizeof(float);
-#elif defined(__LB_WIIU__)
-const int kAudioBytesPerSample = sizeof(int16_t);
-#else
-#error kAudioBytesPerSample has to be specified!
-#endif
-
 namespace {
 
 bool ValidateConfig(const AudioDecoderConfig& config) {
   if (!config.IsValidConfig()) {
-    DLOG(ERROR) << "Invalid audio stream -"
-                << " codec: " << config.codec()
-                << " channel layout: " << config.channel_layout()
-                << " bits per channel: " << config.bits_per_channel()
-                << " samples per second: " << config.samples_per_second();
+    NOTREACHED() << "Invalid audio stream -"
+                 << " codec: " << config.codec()
+                 << " channel layout: " << config.channel_layout()
+                 << " bits per channel: " << config.bits_per_channel()
+                 << " samples per second: " << config.samples_per_second();
     return false;
   }
 
   // check this is a config we can decode and play back
   if (config.codec() != kCodecAAC) {
-    return false;
-  }
-
-  // TODO(***REMOVED***) : Get this from low-level decoder or streamer.
-  int channels = ChannelLayoutToChannelCount(config.channel_layout());
-  if (channels != 1 && channels != 2 && channels != 6 && channels != 8) {
+    NOTREACHED();
     return false;
   }
 
@@ -182,7 +166,13 @@ void ShellAudioDecoderImpl::Read(const AudioDecoder::ReadCB& read_cb) {
 }
 
 int ShellAudioDecoderImpl::bits_per_channel() {
-  return kAudioBytesPerSample * 8;
+  DCHECK(raw_decoder_);
+
+  if (raw_decoder_) {
+    return raw_decoder_->GetBytesPerSample() * 8;
+  }
+
+  return sizeof(float) * 8;
 }
 
 ChannelLayout ShellAudioDecoderImpl::channel_layout() {
@@ -352,7 +342,7 @@ void ShellAudioDecoderImpl::OnBufferDecoded(
                    "ShellAudioDecoderImpl::DecodeBuffer() data decoded.",
                    "timestamp", buffer->GetTimestamp().InMicroseconds());
       DCHECK_EQ(buffer->GetDataSize(),
-                kSamplesPerFrame * kAudioBytesPerSample * num_channels_);
+                kSamplesPerFrame * bits_per_channel() / 8 * num_channels_);
 
       PipelineStatistics statistics;
       statistics.audio_bytes_decoded = buffer->GetDataSize();
