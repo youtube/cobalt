@@ -41,8 +41,23 @@ const char kLocalStoragePrefix[] = "cobalt.webModule";
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 // Help string for the 'partial_layout' command.
-const char kPartialLayoutCommandHelpString[] =
+const char kPartialLayoutCommandShortHelp[] =
     "Controls partial layout: on | off | wipe | wipe,off";
+const char kPartialLayoutCommandLongHelp[] =
+    "Controls partial layout.\n"
+    "\n"
+    "Syntax:\n"
+    "  debug.partial_layout('CMD [, CMD ...]')\n"
+    "\n"
+    "Where CMD can be:\n"
+    "  on   : turn partial layout on.\n"
+    "  off  : turn partial layout off.\n"
+    "  wipe : wipe the box tree.\n"
+    "\n"
+    "Example:\n"
+    "  debug.partial_layout('off,wipe')\n"
+    "\n"
+    "To wipe the box tree and turn partial layout off.";
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 }  // namespace
 
@@ -103,7 +118,7 @@ WebModule::WebModule(
           browser::switches::kPartialLayout,
           base::Bind(&WebModule::OnPartialLayoutConsoleCommandReceived,
                      base::Unretained(this)),
-          kPartialLayoutCommandHelpString));
+          kPartialLayoutCommandShortHelp, kPartialLayoutCommandLongHelp));
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 }
 

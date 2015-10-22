@@ -50,17 +50,19 @@ class ConsoleCommandManager {
   class CommandHandler {
    public:
     CommandHandler(const std::string& channel, const CommandCallback& callback,
-                   const std::string& help_string);
+                   const std::string& short_help, const std::string& long_help);
     ~CommandHandler();
 
     const std::string& channel() const { return channel_; }
     const CommandCallback& callback() const { return callback_; }
-    const std::string& help_string() const { return help_string_; }
+    const std::string& short_help() const { return short_help_; }
+    const std::string& long_help() const { return long_help_; }
 
    private:
     std::string channel_;
     CommandCallback callback_;
-    std::string help_string_;
+    std::string short_help_;
+    std::string long_help_;
   };
 
   friend struct StaticMemorySingletonTraits<ConsoleCommandManager>;
@@ -75,8 +77,9 @@ class ConsoleCommandManager {
   // Returns a set of all the currently registered channels.
   std::set<std::string> GetRegisteredChannels() const;
 
-  // Returns the help string for a channel.
-  std::string GetHelpString(const std::string& channel) const;
+  // Returns the help strings for a channel.
+  std::string GetShortHelp(const std::string& channel) const;
+  std::string GetLongHelp(const std::string& channel) const;
 
  private:
   // Class can only be instanced via the singleton
