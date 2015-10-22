@@ -32,6 +32,7 @@
         'dom_implementation_test.cc',
         'dom_parser_test.cc',
         'dom_string_map_test.cc',
+        'dom_token_list_test.cc',
         'element_test.cc',
         'event_queue_test.cc',
         'event_target_test.cc',

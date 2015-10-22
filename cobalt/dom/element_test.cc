@@ -22,6 +22,7 @@
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/comment.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
