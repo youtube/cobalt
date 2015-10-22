@@ -39,7 +39,8 @@ interface DebugHub {
   DOMString executeJavascript(DOMString javascript);
 
   DOMString getCommandChannels();
-  DOMString getCommandChannelHelp(DOMString command);
+  DOMString getCommandChannelShortHelp(DOMString command);
+  DOMString getCommandChannelLongHelp(DOMString command);
   void sendCommand(DOMString channel, DOMString message);
 };
 
