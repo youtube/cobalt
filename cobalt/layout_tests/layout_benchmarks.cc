@@ -120,6 +120,7 @@ LayoutBenchmark::LayoutBenchmark(const TestInfo& test_info)
   // initializing their map entries to the default constructed values (e.g.
   // std::vector<double>()).
   samples_[layout::kBenchmarkStatLayout];
+  samples_[dom::kBenchmarkStatUpdateSelectorTree];
   samples_[dom::kBenchmarkStatUpdateMatchingRules];
   samples_[dom::kBenchmarkStatUpdateComputedStyles];
   samples_[layout::kBenchmarkStatBoxGeneration];
