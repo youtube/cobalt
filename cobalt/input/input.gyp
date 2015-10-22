@@ -40,6 +40,8 @@
           'sources': [
             'input_device_manager_ps3.cc',
             'input_device_manager_ps3.h',
+            'keycode_conversion_ps3.cc',
+            'keycode_conversion_ps3.h',
           ],
         }],
         ['actual_target_arch in ["linux", "win"]', {
