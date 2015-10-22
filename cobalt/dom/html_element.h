@@ -179,7 +179,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // The LayoutContainerBox gives the HTML Element an interface to the container
   // box that result from it. The BoxList is set when layout is performed for a
   // node.
-  void SetLayoutBoxes(LayoutBoxes* layout_boxes);
+  void SetLayoutBoxes(scoped_ptr<LayoutBoxes> layout_boxes);
   LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
 
   void InvalidateLayoutBoxesFromNodeAndAncestors() OVERRIDE;
