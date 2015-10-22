@@ -172,8 +172,6 @@ void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
   }
 }
 
-// Custom, not in any spec, but based on:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-item
 const std::string& DOMTokenList::NonNullItem(unsigned int index) const {
   MaybeRefresh();
 
@@ -187,8 +185,6 @@ const std::string& DOMTokenList::NonNullItem(unsigned int index) const {
   return tokens_[index];
 }
 
-// Custom, not in any spec, but based on:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-contains
 bool DOMTokenList::ContainsValid(const std::string& valid_token) const {
   MaybeRefresh();
 
