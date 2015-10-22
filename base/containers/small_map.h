@@ -15,10 +15,18 @@
 #include "base/logging.h"
 #include "base/memory/manual_constructor.h"
 
+// Disable warning about conversion from '__int64' to 'int'. This value is based
+// on the number of elements in the array, and the program would crash from
+// running out of memory long before the max int value was reached.
+MSVC_PUSH_DISABLE_WARNING(4244)
 // Disable warning about calling an uninitialized object's methods.  In this
 // case, the uninitialized object is ManualConstructor and its method is
 // aware that it is uninitialized.
 MSVC_PUSH_DISABLE_WARNING(6001)
+// Disable warning about reading invalid data from the array. The array offset
+// index is determined by the array_iter, which will not go past the end of
+// the array.
+MSVC_PUSH_DISABLE_WARNING(6385)
 
 namespace base {
 
@@ -655,6 +663,8 @@ inline bool SmallMap<NormalMap, kArraySize, EqualKey,
 
 }  // namespace base
 
+MSVC_POP_WARNING()
+MSVC_POP_WARNING()
 MSVC_POP_WARNING()
 
 #endif  // BASE_CONTAINERS_SMALL_MAP_H_
