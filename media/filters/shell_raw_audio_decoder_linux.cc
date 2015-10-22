@@ -16,23 +16,22 @@
 
 #include <memory.h>
 
+#include <list>
+
 #include "base/bind.h"
 #include "base/logging.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/audio_timestamp_helper.h"
-#include "media/base/shell_buffer_factory.h"
+#include "media/base/decoder_buffer_pool.h"
 #include "media/filters/shell_audio_decoder_impl.h"
 #include "media/filters/shell_ffmpeg.h"
 #include "media/mp4/aac.h"
-
 
 namespace media {
 
 namespace {
 
 const size_t kSampleSizeInBytes = sizeof(float);
-const size_t kMaxNumberOfChannels = 8;
-const size_t kMaxNumberOfDecoderBuffers = 32;
 
 struct QueuedAudioBuffer {
 //  AudioDecoder::Status status;  // status is used to represent decode errors
@@ -74,8 +73,9 @@ void ResampleToInterleavedFloat(int source_sample_format, int channel_layout,
 class ShellRawAudioDecoderLinux : public ShellRawAudioDecoder {
  public:
   ShellRawAudioDecoderLinux();
-  ~ShellRawAudioDecoderLinux();
+  ~ShellRawAudioDecoderLinux() OVERRIDE;
 
+  int GetBytesPerSample() const OVERRIDE { return kSampleSizeInBytes; }
   // When the input buffer is not NULL, it can be a normal buffer or an EOS
   // buffer. In this case the function will return the decoded buffer if there
   // is any.
@@ -91,7 +91,8 @@ class ShellRawAudioDecoderLinux : public ShellRawAudioDecoder {
   void ResetTimestampState();
   void RunDecodeLoop(const scoped_refptr<DecoderBuffer>& input,
                      bool skip_eos_append);
-  scoped_refptr<DecoderBuffer> AllocateDecoderBuffer(size_t size);
+
+  DecoderBufferPool decoder_buffer_pool_;
 
   AVCodecContext* codec_context_;
   AVFrame* av_frame_;
@@ -110,13 +111,12 @@ class ShellRawAudioDecoderLinux : public ShellRawAudioDecoder {
   // queue them up and hand them out as we receive Read() calls.
   std::list<QueuedAudioBuffer> queued_audio_;
 
-  std::vector<scoped_refptr<DecoderBuffer> > decoder_buffers_;
-
   DISALLOW_COPY_AND_ASSIGN(ShellRawAudioDecoderLinux);
 };
 
 ShellRawAudioDecoderLinux::ShellRawAudioDecoderLinux()
-    : codec_context_(NULL),
+    : decoder_buffer_pool_(GetBytesPerSample()),
+      codec_context_(NULL),
       av_frame_(NULL),
       bits_per_channel_(0),
       channel_layout_(CHANNEL_LAYOUT_NONE),
@@ -124,13 +124,6 @@ ShellRawAudioDecoderLinux::ShellRawAudioDecoderLinux()
       bytes_per_frame_(0),
       last_input_timestamp_(kNoTimestamp()) {
   EnsureFfmpegInitialized();
-
-  size_t buffer_size =
-      kSampleSizeInBytes * mp4::AAC::kSamplesPerFrame * kMaxNumberOfChannels;
-  for (size_t i = 0; i < kMaxNumberOfDecoderBuffers; ++i) {
-    decoder_buffers_.push_back(
-        ShellBufferFactory::Instance()->AllocateBufferNow(buffer_size));
-  }
 }
 
 ShellRawAudioDecoderLinux::~ShellRawAudioDecoderLinux() {
@@ -316,7 +309,7 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
       // Copy the audio samples into an output buffer.
       int buffer_size = kSampleSizeInBytes * mp4::AAC::kSamplesPerFrame *
                         codec_context_->channels;
-      output = AllocateDecoderBuffer(buffer_size);
+      output = decoder_buffer_pool_.Allocate(buffer_size);
       DCHECK(output);
       // Interleave the planar samples to conform to the general decoder
       // requirement. This should eventually be lifted as WiiU is also planar.
@@ -345,19 +338,6 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
 
     // TODO(***REMOVED***) : update statistics.
   } while (packet.size > 0);
-}
-
-scoped_refptr<DecoderBuffer> ShellRawAudioDecoderLinux::AllocateDecoderBuffer(
-    size_t size) {
-  for (size_t i = 0; i < kMaxNumberOfDecoderBuffers; ++i) {
-    if (decoder_buffers_[i]->HasOneRef()) {
-      decoder_buffers_[i]->ShrinkTo(size);
-      return decoder_buffers_[i];
-    }
-  }
-
-  NOTREACHED();
-  return NULL;
 }
 
 }  // namespace

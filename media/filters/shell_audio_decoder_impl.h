@@ -51,6 +51,7 @@ class ShellRawAudioDecoder {
                                const scoped_refptr<DecoderBuffer>&)> DecodeCB;
 
   virtual ~ShellRawAudioDecoder() {}
+  virtual int GetBytesPerSample() const = 0;
   virtual void Decode(const scoped_refptr<DecoderBuffer>& buffer,
                       const DecodeCB& decode_cb) = 0;
   virtual bool Flush() = 0;
