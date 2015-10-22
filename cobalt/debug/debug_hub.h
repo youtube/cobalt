@@ -130,8 +130,9 @@ class DebugHub : public script::Wrappable {
   // ordered, space-separated list.
   std::string GetCommandChannels() const;
 
-  // Gets the help string for a specified command channel.
-  std::string GetCommandChannelHelp(const std::string& channel) const;
+  // Gets the help strings for a specified command channel.
+  std::string GetCommandChannelShortHelp(const std::string& channel) const;
+  std::string GetCommandChannelLongHelp(const std::string& channel) const;
 
   // Sends a command to be handled by registered handers.
   // This lets the JavaScript debug console trigger actions in the app.

@@ -42,8 +42,12 @@ const char kInitialDebugConsoleUrl[] =
 // Name of the channel to listen for trace commands from the debug console.
 const char kTraceCommandChannel[] = "trace";
 
-// Help string for the trace command channel
-const char kTraceCommandHelpString[] = "Starts/stops execution tracing.";
+// Help strings for the trace command channel
+const char kTraceCommandShortHelp[] = "Starts/stops execution tracing.";
+const char kTraceCommandLongHelp[] =
+    "Starts/stops execution tracing.\n"
+    "If a trace is currently running, stops it and saves the result; "
+    "otherwise starts a new trace.";
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 // Local storage key for the debug console mode.
@@ -85,7 +89,7 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
       ALLOW_THIS_IN_INITIALIZER_LIST(trace_command_handler_(
           kTraceCommandChannel,
           base::Bind(&BrowserModule::OnTraceMessage, base::Unretained(this)),
-          kTraceCommandHelpString)) {
+          kTraceCommandShortHelp, kTraceCommandLongHelp)) {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
 
   input::KeyboardEventCallback keyboard_event_callback =
