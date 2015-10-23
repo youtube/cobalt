@@ -30,6 +30,7 @@ extern const char kBenchmarkStatLayout[];
 extern const char kBenchmarkStatRenderAndAnimate[];
 extern const char kBenchmarkStatUpdateCrossReferences[];
 extern const char kBenchmarkStatUpdateUsedSizes[];
+extern const char kBenchmarkStatNonMeasuredLayout[];
 
 }  // namespace layout
 }  // namespace cobalt

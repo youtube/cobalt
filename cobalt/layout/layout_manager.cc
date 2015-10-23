@@ -52,7 +52,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   void DoLayoutAndProduceRenderTree();
 
 #if defined(ENABLE_TEST_RUNNER)
-  void NotifyDone();
+  void DoTestRunnerLayoutCallback();
 #endif  // ENABLE_TEST_RUNNER
 
   const scoped_refptr<dom::Window> window_;
@@ -131,8 +131,9 @@ LayoutManager::Impl::Impl(
 
 #if defined(ENABLE_TEST_RUNNER)
   if (layout_trigger_ == kTestRunnerMode) {
-    window_->test_runner()->set_notify_done_callback(
-        base::Bind(&LayoutManager::Impl::NotifyDone, base::Unretained(this)));
+    window_->test_runner()->set_trigger_layout_callback(
+        base::Bind(&LayoutManager::Impl::DoTestRunnerLayoutCallback,
+                   base::Unretained(this)));
   } else {
 #else
   {
@@ -178,10 +179,21 @@ void LayoutManager::Impl::OnMutation() {
 }
 
 #if defined(ENABLE_TEST_RUNNER)
-void LayoutManager::Impl::NotifyDone() {
+void LayoutManager::Impl::DoTestRunnerLayoutCallback() {
   DCHECK_EQ(kTestRunnerMode, layout_trigger_);
   layout_dirty_ = true;
+
+  if (layout_trigger_ == kTestRunnerMode &&
+      window_->test_runner()->should_wait()) {
+    TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatNonMeasuredLayout);
+  }
+
   DoLayoutAndProduceRenderTree();
+
+  if (layout_trigger_ == kTestRunnerMode &&
+      window_->test_runner()->should_wait()) {
+    TRACE_EVENT_END0("cobalt::layout", kBenchmarkStatNonMeasuredLayout);
+  }
 }
 #endif  // ENABLE_TEST_RUNNER
 
@@ -227,10 +239,19 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     RenderTreeWithAnimations render_tree_with_animations =
         layout::Layout(window_, user_agent_style_sheet_,
                        used_style_provider_.get(), line_break_iterator_.get());
-    on_render_tree_produced_callback_.Run(
-        LayoutResults(render_tree_with_animations.render_tree,
-                      render_tree_with_animations.animations,
-                      *document->timeline_sample_time()));
+    bool run_on_render_tree_produced_callback = true;
+#if defined(ENABLE_TEST_RUNNER)
+    if (layout_trigger_ == kTestRunnerMode &&
+        window_->test_runner()->should_wait()) {
+      run_on_render_tree_produced_callback = false;
+    }
+#endif  // ENABLE_TEST_RUNNER
+    if (run_on_render_tree_produced_callback) {
+      on_render_tree_produced_callback_.Run(
+          LayoutResults(render_tree_with_animations.render_tree,
+                        render_tree_with_animations.animations,
+                        *document->timeline_sample_time()));
+    }
 
     layout_dirty_ = false;
 
