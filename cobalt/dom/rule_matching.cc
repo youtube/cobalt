@@ -364,7 +364,7 @@ void UpdateMatchingRulesFromStyleSheet(
   scoped_refptr<DOMTokenList> class_list = element->class_list();
   for (unsigned int index = 0; index < class_list->length(); ++index) {
     CopyMatchingRules(style_sheet->class_selector_rules_map(),
-                      class_list->Item(index).value(), &candidate_rules);
+                      class_list->NonNullItem(index), &candidate_rules);
   }
   // Add candidate rules according to id.
   CopyMatchingRules(style_sheet->id_selector_rules_map(), element->id(),
@@ -536,7 +536,7 @@ void ForEachChildOnNodes(
     for (unsigned int index = 0; index < class_list->length(); ++index) {
       GatherCandidateNodeSets(
           &(node->class_selector_nodes_map[combinator_type]),
-          class_list->Item(index).value(), &candidate_nodes);
+          class_list->NonNullItem(index), &candidate_nodes);
     }
 
     // Id selector.
