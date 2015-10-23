@@ -42,11 +42,21 @@ class TestRunner : public script::Wrappable {
   void NotifyDone();
   void WaitUntilDone();
 
-  void set_notify_done_callback(const base::Closure& notify_done_callback) {
-    notify_done_callback_ = notify_done_callback;
+  // Trigger a layout that is not measured. Can only be called after
+  // |WaitUntilDone|. This method can be used to setup tests for partial
+  // layouts.
+  void DoNonMeasuredLayout();
+
+  // When this callback is called, a layout should be triggered. Not all
+  // triggered layouts should be measured, and the callback function should call
+  // should_wait() to ensure that measurements are only taken when should_wait()
+  // returns false.
+  void set_trigger_layout_callback(
+      const base::Closure& trigger_layout_callback) {
+    trigger_layout_callback_ = trigger_layout_callback;
   }
 
-  bool should_wait() { return should_wait_; }
+  bool should_wait() const { return should_wait_; }
 
   DEFINE_WRAPPABLE_TYPE(TestRunner);
 
@@ -54,7 +64,7 @@ class TestRunner : public script::Wrappable {
   ~TestRunner() {}
 
   bool should_wait_;
-  base::Closure notify_done_callback_;
+  base::Closure trigger_layout_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(TestRunner);
 };
