@@ -44,10 +44,6 @@
       '<(fonts_dir)/Lohit-Tamil.ttf',
       '<(fonts_dir)/Lohit-Telugu.ttf',
       '<(fonts_dir)/OpenSans-Regular.ttf',
-      # TODO(***REMOVED***): Remove the following three items and font files when @font-face is implemented.
-      '<(fonts_dir)/Roboto-Bold.ttf',
-      '<(fonts_dir)/Roboto-Regular.ttf',
-      '<(fonts_dir)/icons.ttf',
     ],
   },
 
