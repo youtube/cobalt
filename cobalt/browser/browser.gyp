@@ -24,7 +24,6 @@
         'main.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr_copy_test_data',
         'browser',
         'browser_copy_debug_console',
@@ -82,9 +81,33 @@
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
+        '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
+    },
+
+    {
+      'target_name': 'snapshot_app_stats',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'snapshot_app_stats.cc',
+      ],
+      'dependencies': [
+        'cobalt',
+        'browser',
+      ],
+    },
+    {
+      'target_name': 'snapshot_app_stats_deploy',
+      'type': 'none',
+      'dependencies': [
+        'snapshot_app_stats',
+      ],
+      'variables': {
+        'executable_name': 'snapshot_app_stats',
+      },
+      'includes': [ '../build/deploy.gypi' ],
     },
 
     {

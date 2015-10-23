@@ -90,8 +90,12 @@ Application::Application()
 Application::~Application() { DCHECK(!message_loop_.is_running()); }
 
 void Application::Quit() {
-  if (!quit_closure_.is_null()) {
-    quit_closure_.Run();
+  if (MessageLoop::current() == &message_loop_) {
+    if (!quit_closure_.is_null()) {
+      quit_closure_.Run();
+    }
+  } else {
+    message_loop_.PostTask(FROM_HERE, quit_closure_);
   }
 }
 

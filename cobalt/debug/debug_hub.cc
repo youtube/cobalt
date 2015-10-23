@@ -96,6 +96,15 @@ void DebugHub::RemoveLogMessageCallback(int callback_id) {
   }
 }
 
+void DebugHub::RemoveAllLogMessageCallbacks() {
+  base::AutoLock auto_lock(lock_);
+  for (LogMessageCallbacks::iterator it = log_message_callbacks_.begin();
+       it != log_message_callbacks_.end(); ++it) {
+    delete it->second;
+  }
+  log_message_callbacks_.clear();
+}
+
 // TODO(***REMOVED***) - This function should be modified to return an array of
 // strings instead of a single space-separated string, once the bindings
 // support return of a string array.
@@ -125,10 +134,9 @@ std::string DebugHub::GetConsoleValue(const std::string& name) const {
   DCHECK(cvm);
 
   if (cvm) {
-    base::ConsoleValueManager::ValueQueryResults result =
-        cvm->GetValueAsPrettyString(name);
-    if (result.valid) {
-      ret = result.value;
+    base::optional<std::string> result = cvm->GetValueAsPrettyString(name);
+    if (result) {
+      return *result;
     }
   }
   return ret;
