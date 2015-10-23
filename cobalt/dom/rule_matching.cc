@@ -494,7 +494,9 @@ void AddRulesOnNodeToElement(HTMLElement* element,
     }
     DCHECK(rule->parent_style_sheet());
     cssom::CascadePriority precedence(
-        rule->parent_style_sheet()->origin(), node->cumulative_specificity,
+        pseudo_element ? cssom::kNormalOverride
+                       : rule->parent_style_sheet()->origin(),
+        node->cumulative_specificity,
         cssom::Appearance(rule->parent_style_sheet()->index(), rule->index()));
     target_matching_rules->push_back(std::make_pair(rule.get(), precedence));
   }
