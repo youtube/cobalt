@@ -25,12 +25,20 @@ TestRunner::TestRunner() : should_wait_(false) {}
 
 void TestRunner::NotifyDone() {
   DCHECK(should_wait_);
-  if (!notify_done_callback_.is_null()) {
-    notify_done_callback_.Run();
+  should_wait_ = false;
+  if (!trigger_layout_callback_.is_null()) {
+    trigger_layout_callback_.Run();
   }
 }
 
 void TestRunner::WaitUntilDone() { should_wait_ = true; }
+
+void TestRunner::DoNonMeasuredLayout() {
+  DCHECK(should_wait_);
+  if (!trigger_layout_callback_.is_null()) {
+    trigger_layout_callback_.Run();
+  }
+}
 
 }  // namespace dom
 }  // namespace cobalt
