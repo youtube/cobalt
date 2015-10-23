@@ -33,12 +33,12 @@ class Application {
   virtual ~Application();
 
   void Run();
+  void Quit();
 
  protected:
   Application();
 
   MessageLoop* message_loop() { return &message_loop_; }
-  void Quit();
 
  private:
   // The message loop that will handle UI events.
