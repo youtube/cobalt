@@ -24,6 +24,7 @@ const char kBenchmarkStatLayout[] = "Layout";
 const char kBenchmarkStatRenderAndAnimate[] = "RenderAndAnimate";
 const char kBenchmarkStatUpdateCrossReferences[] = "UpdateCrossReferences";
 const char kBenchmarkStatUpdateUsedSizes[] = "UpdateUsedSizes";
+const char kBenchmarkStatNonMeasuredLayout[] = "NonMeasuredLayout";
 
 }  // namespace layout
 }  // namespace cobalt
