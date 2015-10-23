@@ -107,6 +107,8 @@ class DebugHub : public script::Wrappable {
   // AddLogMessageCallback.
   void RemoveLogMessageCallback(int id);
 
+  void RemoveAllLogMessageCallbacks();
+
   // Gets the collection of available CVal names as an alphabetically ordered,
   // space-separated list.
   std::string GetConsoleValueNames() const;

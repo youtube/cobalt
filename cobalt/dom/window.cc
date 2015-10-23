@@ -212,7 +212,14 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
   }
 }
 
-Window::~Window() {}
+Window::~Window() {
+  // If we are a DebugHub owner, remove all callbacks from it so that the
+  // DebugHub does not retain pointers to anything in the Window context
+  // which is about to be destroyed.
+  if (debug_hub_) {
+    debug_hub_->RemoveAllLogMessageCallbacks();
+  }
+}
 
 }  // namespace dom
 }  // namespace cobalt
