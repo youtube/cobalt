@@ -185,10 +185,31 @@ void LayoutBenchmark::Experiment() {
   renderer_benchmark_runner.RunBenchmarks(*layout_results);
 }
 
+namespace {
+
+// Return true if the event has a kBenchmarkStatNonMeasuredLayout ancestor
+// event, which is true for events generated during a layout triggered from
+// |TestRunnner::DoNonMeasuredLayout|.
+bool HasNonMeasuredLayoutAncestorEvent(
+    const scoped_refptr<trace_event::EventParser::ScopedEvent>& event) {
+  scoped_refptr<trace_event::EventParser::ScopedEvent> ancestor_event =
+      event->parent();
+  while (ancestor_event) {
+    if (ancestor_event->name() == layout::kBenchmarkStatNonMeasuredLayout) {
+      break;
+    }
+    ancestor_event = ancestor_event->parent();
+  }
+
+  return ancestor_event.get() != NULL;
+}
+
+}  // namespace
+
 void LayoutBenchmark::AnalyzeTraceEvent(
     const scoped_refptr<trace_event::EventParser::ScopedEvent>& event) {
   SampleMap::iterator found = samples_.find(event->name());
-  if (found != samples_.end()) {
+  if (found != samples_.end() && !HasNonMeasuredLayoutAncestorEvent(event)) {
     found->second.push_back(event->in_scope_duration()->InSecondsF());
   }
 }
