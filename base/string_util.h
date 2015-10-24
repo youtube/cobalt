@@ -149,6 +149,8 @@ template<typename Char> struct CaseInsensitiveCompareASCII {
 #include "base/string_util_win.h"
 #elif defined(OS_POSIX)
 #include "base/string_util_posix.h"
+#elif defined(OS_STARBOARD)
+#include "base/string_util_starboard.h"
 #else
 #error Define string operations appropriately for your platform
 #endif
