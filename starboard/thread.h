@@ -92,7 +92,7 @@ typedef void (*SbThreadLocalDestructor)(void* value);
 typedef int32_t SbThreadAffinity;
 
 // Private structure representing a thread-local key.
-struct SbThreadLocalKeyPrivate;
+typedef struct SbThreadLocalKeyPrivate SbThreadLocalKeyPrivate;
 
 // A handle to a thread-local key.
 typedef SbThreadLocalKeyPrivate *SbThreadLocalKey;
@@ -104,8 +104,7 @@ const SbThreadId kSbThreadInvalidId = (SbThreadId)0;
 const SbThreadAffinity kSbThreadNoAffinity = (SbThreadAffinity)kSbInvalidInt;
 
 // Well-defined constant value to mean "no thread local key."
-const SbThreadLocalKey kSbThreadLocalKeyInvalid =
-    (SbThreadLocalKey)kSbInvalidPointer;
+const SbThreadLocalKey kSbThreadLocalKeyInvalid = (SbThreadLocalKey)NULL;
 
 // Returns whether the given thread handle is valid.
 SB_C_INLINE bool SbThreadIsValid(SbThread thread) {

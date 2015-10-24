@@ -103,7 +103,7 @@ typedef struct SbFileInfo {
 } SbFileInfo;
 
 // Well-defined value for an invalid file handle.
-const SbFile kSbFileInvalid = (SbFile)kSbInvalidPointer;
+const SbFile kSbFileInvalid = (SbFile)NULL;
 
 // Returns whether the given file handle is valid.
 SB_C_INLINE bool SbFileIsValid(SbFile file) {
