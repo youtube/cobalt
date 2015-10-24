@@ -86,6 +86,14 @@ SB_EXPORT void *SbMemoryMove(void *destination,
 // Meant to be a drop-in replacement for memset.
 SB_EXPORT void *SbMemorySet(void *destination, int byte_value, size_t count);
 
+// Compares the contents of the first |count| bytes of |buffer1| and |buffer2|.
+// returns -1 if |buffer1| is "less-than" |buffer2|, 0 if they are equal, or 1
+// if |buffer1| is "greater-than" |buffer2|.  Meant to be a drop-in replacement
+// for memcmp.
+SB_EXPORT int SbMemoryCompare(const void *buffer1,
+                              const void *buffer2,
+                              size_t count);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
