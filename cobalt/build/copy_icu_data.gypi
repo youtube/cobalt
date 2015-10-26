@@ -16,9 +16,9 @@
 # platform specific ICU data into <(PRODUCT_DIR)/content.
 
 {
-  'variables': {
-    'static_contents_dir': '<(DEPTH)/lbshell/content',
+  'includes': [ 'contents_dir.gypi' ],
 
+  'variables': {
     'variables': {
       'variables': {
         'variables': {
@@ -45,16 +45,16 @@
 
       'conditions': [
         ['little_endian==1 and use_icu_dat_file==1', {
-          'inputs_icu%': '<(static_contents_dir)/icu/icudt46l.dat',
+          'inputs_icu%': '<(static_contents_source_dir)/icu/icudt46l.dat',
         }],
         ['little_endian==1 and use_icu_dat_file==0', {
-          'inputs_icu%': '<(static_contents_dir)/icu/icudt46l/',
+          'inputs_icu%': '<(static_contents_source_dir)/icu/icudt46l/',
         }],
         ['little_endian==0 and use_icu_dat_file==1', {
-          'inputs_icu%': '<(static_contents_dir)/icu/icudt46b.dat',
+          'inputs_icu%': '<(static_contents_source_dir)/icu/icudt46b.dat',
         }],
         ['little_endian==0 and use_icu_dat_file==0', {
-          'inputs_icu%': '<(static_contents_dir)/icu/icudt46b/',
+          'inputs_icu%': '<(static_contents_source_dir)/icu/icudt46b/',
         }],
       ],
     },
@@ -64,7 +64,7 @@
 
   'copies': [
     {
-      'destination': '<(PRODUCT_DIR)/content/data/icu',
+      'destination': '<(static_contents_output_data_dir)/icu',
       'files': [ '<(inputs_icu)' ],
     },
   ],

@@ -16,9 +16,10 @@
 # platform specific font data into <(PRODUCT_DIR)/content.
 
 {
+  'includes': [ '../build/contents_dir.gypi' ],
+
   'variables': {
-    'static_contents_dir': '<(DEPTH)/lbshell/content',
-    'fonts_dir': '<(static_contents_dir)/fonts',
+    'fonts_dir': '<(static_contents_source_dir)/fonts',
 
     'input_fonts': [
       '<(fonts_dir)/DroidNaskh-Bold.ttf',
@@ -49,7 +50,7 @@
 
   'copies': [
     {
-      'destination': '<(PRODUCT_DIR)/content/data/fonts',
+      'destination': '<(static_contents_output_data_dir)/fonts',
       'files': [ '<@(input_fonts)' ],
     },
   ],
