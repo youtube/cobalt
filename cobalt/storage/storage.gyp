@@ -13,9 +13,10 @@
 # limitations under the License.
 
 {
+  'includes': [ '../build/contents_dir.gypi' ],
+
   'variables': {
     'cobalt_code': 1,
-    'static_contents_dir': '<(DEPTH)/lbshell/content',
   },
   'targets': [
     {
@@ -44,8 +45,8 @@
           ],
           'copies': [
           {
-            'destination': '<(PRODUCT_DIR)/content/data',
-            'files': ['<(static_contents_dir)/platform/ps3/USRDIR/SAVE_ICON.PNG'],
+            'destination': '<(static_contents_output_data_dir)',
+            'files': ['<(static_contents_source_dir)/platform/ps3/USRDIR/SAVE_ICON.PNG'],
           }],
         }],
         ['actual_target_arch in ["linux", "win"]', {
