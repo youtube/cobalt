@@ -18,7 +18,7 @@
 #include <sched.h>
 
 #include "starboard/shared/pthread/is_success.h"
-#include "starboard/shared/string_util.h"
+#include "starboard/string.h"
 
 namespace {
 
@@ -86,8 +86,7 @@ SbThread SbThreadCreate(
   params->context = context;
 
   if (name) {
-    starboard::shared::CopyString(params->name, name,
-                                  SB_ARRAY_SIZE_INT(params->name));
+    SbStringCopy(params->name, name, SB_ARRAY_SIZE_INT(params->name));
   } else {
     params->name[0] = '\0';
   }
