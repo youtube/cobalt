@@ -261,6 +261,8 @@ void DebugHub::RemoveLogMessageCallback(int callback_id) {
   UNREFERENCED_PARAMETER(callback_id);
 }
 
+void DebugHub::RemoveAllLogMessageCallbacks() {}
+
 std::string DebugHub::GetConsoleValueNames() const { return ""; }
 
 std::string DebugHub::GetConsoleValue(const std::string& name) const {
