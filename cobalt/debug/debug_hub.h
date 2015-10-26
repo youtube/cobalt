@@ -107,6 +107,7 @@ class DebugHub : public script::Wrappable {
   // AddLogMessageCallback.
   void RemoveLogMessageCallback(int id);
 
+  // Removes all registered callbacks connected to this DebugHub.
   void RemoveAllLogMessageCallbacks();
 
   // Gets the collection of available CVal names as an alphabetically ordered,
