@@ -19,7 +19,7 @@
 
 #include "starboard/file.h"
 #include "starboard/shared/iso/directory_internal.h"
-#include "starboard/shared/string_util.h"
+#include "starboard/string.h"
 
 SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
                                   SbDirectoryEntry *out_entry) {
@@ -34,7 +34,7 @@ SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
     return false;
   }
 
-  starboard::shared::CopyString(out_entry->name, dirent->d_name,
-                                SB_ARRAY_SIZE_INT(out_entry->name));
+  SbStringCopy(out_entry->name, dirent->d_name,
+               SB_ARRAY_SIZE_INT(out_entry->name));
   return true;
 }
