@@ -20,6 +20,7 @@
 #include "starboard/directory.h"
 #include "starboard/export.h"
 #include "starboard/file.h"
+#include "starboard/float.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/string.h"
