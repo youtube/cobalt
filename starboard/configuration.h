@@ -39,6 +39,15 @@
 #define SB_MAXIMUM_API_VERSION 1
 
 
+// --- Common Detected Features ----------------------------------------------
+
+#if defined(__GNUC__)
+#  define SB_IS_COMPILER_GCC 1
+#elif defined(_MSC_VER)
+#  define SB_IS_COMPILER_MSVC 1
+#endif
+
+
 // --- Common Helper Macros --------------------------------------------------
 
 // Determines a compile-time capability of the system.
@@ -64,16 +73,21 @@
 #if defined(__cplusplus)
 #  define SB_ARRAY_SIZE_INT(array) static_cast<int>(SB_ARRAY_SIZE(array))
 #else
-#  define SB_ARRAY_SIZE_INT(array) ((int)(SB_ARRAY_SIZE(array)))
+#  define SB_ARRAY_SIZE_INT(array) \
+    ((int)(SB_ARRAY_SIZE(array)))  // NOLINT(readability/casting)
 #endif
 
-
-// --- Common Detected Features ----------------------------------------------
-
-#if defined(__GNUC__)
-#  define SB_IS_COMPILER_GCC 1
-#elif defined(_MSC_VER)
-#  define SB_IS_COMPILER_MSVC 1
+// Tells the compiler a function is using a printf-style format string.
+// |format_param| is the one-based index of the format string parameter;
+// |dots_param| is the one-based index of the "..." parameter.
+// For v*printf functions (which take a va_list), pass 0 for dots_param.
+// (This is undocumented but matches what the system C headers do.)
+// (Partially taken from base/compiler_specific.h)
+#if SB_IS(COMPILER_GCC)
+#  define SB_PRINTF_FORMAT(format_param, dots_param) \
+    __attribute__((format(printf, format_param, dots_param)))
+#else
+#  define SB_PRINTF_FORMAT(format_param, dots_param)
 #endif
 
 
