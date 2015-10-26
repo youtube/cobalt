@@ -42,6 +42,7 @@
         'file_seek_test.cc',
         'file_truncate_test.cc',
         'file_write_test.cc',
+        'float_is_finite_test.cc',
         'include_all.c',
         'main.cc',
         'memory_allocate_aligned_test.cc',
