@@ -12,20 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Includes all headers in a C context to make sure they compile as C files.
+// Double-precision floating point helper functions.
 
-#include "starboard/atomic.h"
-#include "starboard/condition_variable.h"
-#include "starboard/configuration.h"
-#include "starboard/directory.h"
-#include "starboard/double.h"
+#ifndef STARBOARD_DOUBLE_H_
+#define STARBOARD_DOUBLE_H_
+
 #include "starboard/export.h"
-#include "starboard/file.h"
-#include "starboard/memory.h"
-#include "starboard/mutex.h"
-#include "starboard/string.h"
-#include "starboard/system.h"
-#include "starboard/thread.h"
-#include "starboard/time.h"
-#include "starboard/time_zone.h"
 #include "starboard/types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Determines whether double-precision floating-point number |d| represents a
+// fininte number. |d| is a pointer to a double to avoid copying the whole
+// double, similar to using a const reference in C++.
+SB_EXPORT bool SbDoubleIsFinite(const double *d);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // STARBOARD_DOUBLE_H_
