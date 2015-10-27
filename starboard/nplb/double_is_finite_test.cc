@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Includes all headers in a C context to make sure they compile as C files.
+#include <limits>
 
-#include "starboard/atomic.h"
-#include "starboard/condition_variable.h"
-#include "starboard/configuration.h"
-#include "starboard/directory.h"
 #include "starboard/double.h"
-#include "starboard/export.h"
-#include "starboard/file.h"
-#include "starboard/memory.h"
-#include "starboard/mutex.h"
-#include "starboard/string.h"
-#include "starboard/system.h"
-#include "starboard/thread.h"
-#include "starboard/time.h"
-#include "starboard/time_zone.h"
-#include "starboard/types.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace {
+
+TEST(SbDoubleIsFiniteTest, SunnyDay) {
+  double d = 1;
+  EXPECT_TRUE((&d));
+
+  d = std::numeric_limits<double>::infinity();
+  EXPECT_FALSE(SbDoubleIsFinite(&d));
+}
+
+}  // namespace
