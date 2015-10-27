@@ -32,10 +32,12 @@ void PerfTestSuite::Initialize() {
   }
   ASSERT_TRUE(InitPerfLog(log_path));
 
+#if !defined(OS_STARBOARD)
   // Raise to high priority to have more precise measurements. Since we don't
   // aim at 1% precision, it is not necessary to run at realtime level.
   if (!base::debug::BeingDebugged())
     base::RaiseProcessToHighPriority();
+#endif
 }
 
 void PerfTestSuite::Shutdown() {
