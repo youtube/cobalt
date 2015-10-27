@@ -344,6 +344,7 @@ bool FileUtilProxy::Write(
       Bind(&WriteHelper::Reply, Owned(helper), callback));
 }
 
+#if !defined(OS_STARBOARD)
 // static
 bool FileUtilProxy::Touch(
     TaskRunner* task_runner,
@@ -373,6 +374,7 @@ bool FileUtilProxy::Touch(
            last_access_time, last_modified_time),
       Bind(&CallWithTranslatedParameter, callback));
 }
+#endif
 
 // static
 bool FileUtilProxy::Truncate(

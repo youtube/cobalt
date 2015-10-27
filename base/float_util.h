@@ -7,13 +7,19 @@
 
 #include "build/build_config.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/double.h"
+#else
 #include <float.h>
 #include <math.h>
+#endif
 
 namespace base {
 
 inline bool IsFinite(const double& number) {
-#if defined(__LB_SHELL__)
+#if defined(OS_STARBOARD)
+  return SbDoubleIsFinite(&number);
+#elif defined(__LB_SHELL__)
   return fpclassify(number) != FP_INFINITE;
 #elif defined(OS_ANDROID)
   // isfinite isn't available on Android: http://b.android.com/34793

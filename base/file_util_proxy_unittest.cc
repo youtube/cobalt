@@ -333,7 +333,7 @@ TEST_F(FileUtilProxyTest, WriteAndFlush) {
   }
 }
 
-#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
+#if !defined(__LB_PS3__) && !defined(__LB_WIIU__) && !defined(OS_STARBOARD)
 // FileUtilProxy::Touch creates a platform file and passes its descriptor to
 // base::TouchPlatformFile().
 // This requires OS support for futimes.

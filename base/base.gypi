@@ -611,14 +611,30 @@
               'circular_buffer_shell.h',
               'file_util_starboard.cc',
               'platform_file_starboard.cc',
+              'process_starboard.cc',
+              'process_util_starboard.cc',
               'synchronization/condition_variable_starboard.cc',
-              'synchronization/waitable_event_starboard.cc',
               'synchronization/lock_impl_starboard.cc',
+              'synchronization/waitable_event_starboard.cc',
               'threading/platform_thread_starboard.cc',
               'threading/thread_local_starboard.cc',
               'threading/thread_local_storage_starboard.cc',
               'threading/worker_pool_starboard.cc',
               'time_starboard.cc',
+            ],
+            'sources!': [
+              # Uses file_util::ReplaceFile, which isn't implemented in
+              # Starboard, and isn't otherwise used in Cobalt.
+              'files/important_file_writer.cc',
+              'files/important_file_writer.h',
+
+              # All the common functions have been removed for Starboard, so we
+              # don't even want to compile this.
+              'process_util.cc',
+
+              # Tricky to support cross-platform, and not used by Cobalt.
+              'scoped_native_library.cc',
+              'scoped_native_library.h',
             ],
             'sources/': [
               ['include', 'sys_string_conversions_linux.cc'],
