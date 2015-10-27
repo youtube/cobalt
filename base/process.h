@@ -12,6 +12,8 @@
 #include <sys/types.h>
 #if defined(OS_WIN)
 #include <windows.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/types.h"
 #endif
 
 namespace base {
@@ -29,6 +31,12 @@ const ProcessId kNullProcessId = 0;
 // On POSIX, our ProcessHandle will just be the PID.
 typedef pid_t ProcessHandle;
 typedef pid_t ProcessId;
+const ProcessHandle kNullProcessHandle = 0;
+const ProcessId kNullProcessId = 0;
+#elif defined(OS_STARBOARD)
+// We don't really support processes in Starboard.
+typedef int32_t ProcessHandle;
+typedef int32_t ProcessId;
 const ProcessHandle kNullProcessHandle = 0;
 const ProcessId kNullProcessId = 0;
 #endif  // defined(OS_WIN)
