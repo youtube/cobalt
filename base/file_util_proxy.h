@@ -128,6 +128,7 @@ class BASE_EXPORT FileUtilProxy {
       int bytes_to_write,
       const WriteCallback& callback);
 
+#if !defined(OS_STARBOARD)
   // Touches a file. The callback can be null.
   static bool Touch(
       TaskRunner* task_runner,
@@ -143,6 +144,7 @@ class BASE_EXPORT FileUtilProxy {
       const Time& last_access_time,
       const Time& last_modified_time,
       const StatusCallback& callback);
+#endif
 
   // Truncates a file to the given length. If |length| is greater than the
   // current length of the file, the file will be extended with zeroes.

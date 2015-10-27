@@ -159,7 +159,7 @@ void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
     // Windows uses UTF-16 encoding for filenames.
     U16_NEXT(file_name->data(), cursor, static_cast<int>(file_name->length()),
              code_point);
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBAORD)
     // Linux doesn't actually define an encoding. It basically allows anything
     // except for a few special ASCII characters.
     unsigned char cur_char = static_cast<unsigned char>((*file_name)[cursor++]);
@@ -185,7 +185,7 @@ bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
   return LocaleAwareComparator::GetInstance()->Compare(a.value().c_str(),
                                                        b.value().c_str()) < 0;
 
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   // On linux, the file system encoding is not defined. We assume
   // SysNativeMBToWide takes care of it.
   //

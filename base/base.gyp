@@ -419,6 +419,15 @@
         'prefs/value_map_pref_store.cc',
         'prefs/value_map_pref_store.h',
       ],
+      'conditions': [
+        ['OS == "starboard"', {
+          'sources!': [
+            # Uses ImportantFileWriter, which is not supported by Starboard.
+            'prefs/json_pref_store.cc',
+            'prefs/json_pref_store.h',
+          ],
+        }],  # OS=="starboard"
+      ],
     },
     {
       # This is the subset of files from base that should not be used with a
@@ -825,6 +834,7 @@
             'metrics/field_trial_unittest.cc',
             'metrics/stats_table_unittest.cc',
             'process_util_unittest.cc',
+            'scoped_native_library_unittest.cc',
             'shared_memory_unittest.cc',
             'synchronization/waitable_event_watcher_unittest.cc',
           ],
@@ -975,6 +985,12 @@
           'sources/': [
             ['exclude', 'test/multiprocess_test'],
           ],
+          'sources!': [
+            'perftimer.cc',
+          ],
+          'sources': [
+            'perftimer_starboard.cc',
+          ],
         }],
       ],  # target_conditions
     },
@@ -1002,6 +1018,14 @@
             #   base/test/test_suite.h
             #   gtk/gtk.h
             '../build/linux/system.gyp:gtk',
+          ],
+        }],
+        ['OS=="starboard"', {
+          'sources!': [
+            'perftimer.cc',
+          ],
+          'sources': [
+            'perftimer_starboard.cc',
           ],
         }],
       ],

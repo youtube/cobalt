@@ -28,6 +28,10 @@
 #include "base/debug/trace_event_win.h"
 #endif
 
+#if defined(OS_STARBOARD)
+#include "starboard/types.h"
+#endif
+
 class DeleteTraceLogForTesting {
  public:
   static void Delete() {

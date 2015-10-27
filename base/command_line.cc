@@ -29,7 +29,7 @@ const CommandLine::CharType kSwitchValueSeparator[] = FILE_PATH_LITERAL("=");
 // listed before shorter versions (like "-") of similar prefixes.
 #if defined(OS_WIN)
 const CommandLine::CharType* const kSwitchPrefixes[] = {L"--", L"-", L"/"};
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
 // Unixes don't use slash as a switch.
 const CommandLine::CharType* const kSwitchPrefixes[] = {"--", "-"};
 #endif
@@ -75,7 +75,7 @@ void AppendSwitchesAndArguments(CommandLine& command_line,
     if (parse_switches && IsSwitch(arg, &switch_string, &switch_value)) {
 #if defined(OS_WIN)
       command_line.AppendSwitchNative(WideToASCII(switch_string), switch_value);
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
       command_line.AppendSwitchNative(switch_string, switch_value);
 #endif
     } else {
@@ -88,7 +88,7 @@ void AppendSwitchesAndArguments(CommandLine& command_line,
 std::string LowerASCIIOnWindows(const std::string& string) {
 #if defined(OS_WIN)
   return StringToLowerASCII(string);
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   return string;
 #endif
 }
@@ -179,7 +179,7 @@ bool CommandLine::Init(int argc, const char* const* argv) {
   current_process_commandline_ = new CommandLine(NO_PROGRAM);
 #if defined(OS_WIN)
   current_process_commandline_->ParseFromString(::GetCommandLineW());
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   current_process_commandline_->InitFromArgv(argc, argv);
 #endif
 
@@ -318,7 +318,7 @@ void CommandLine::AppendSwitchNative(const std::string& switch_string,
   std::string switch_key(LowerASCIIOnWindows(switch_string));
 #if defined(OS_WIN)
   StringType combined_switch_string(ASCIIToWide(switch_key));
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   StringType combined_switch_string(switch_string);
 #endif
   size_t prefix_length = GetSwitchPrefixLength(combined_switch_string);
@@ -336,7 +336,7 @@ void CommandLine::AppendSwitchASCII(const std::string& switch_string,
                                     const std::string& value_string) {
 #if defined(OS_WIN)
   AppendSwitchNative(switch_string, ASCIIToWide(value_string));
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   AppendSwitchNative(switch_string, value_string);
 #endif
 }
@@ -365,7 +365,7 @@ void CommandLine::AppendArg(const std::string& value) {
 #if defined(OS_WIN)
   DCHECK(IsStringUTF8(value));
   AppendArgNative(UTF8ToWide(value));
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   AppendArgNative(value);
 #endif
 }
