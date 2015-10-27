@@ -18,7 +18,7 @@ import subprocess
 # Interfaces related to testing the bindings generation are under testing.
 # Interfaces to our custom debugging functionality (e.g. console) is in debug.
 KNOWN_COMPONENTS = frozenset(
-    ['cssom', 'debug', 'dom', 'h5vcc', 'testing', 'xhr',])
+    ['audio', 'cssom', 'debug', 'dom', 'h5vcc', 'testing', 'xhr',])
 
 
 def idl_filename_to_interface_name(idl_filename):
