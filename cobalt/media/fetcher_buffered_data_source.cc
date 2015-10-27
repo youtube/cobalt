@@ -20,9 +20,20 @@
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
+#include "net/http/http_status_code.h"
 
 namespace cobalt {
 namespace media {
+
+namespace {
+
+// This function can be posted to a message loop to destroy a fetcher on the
+// particular message loop.
+void DestroyFetcher(scoped_ptr<loader::Fetcher> fetcher) {
+  fetcher.reset();  // Explicitly destroy the fetcher.
+}
+
+}  // namespace
 
 FetcherBufferedDataSource::FetcherBufferedDataSource(
     const scoped_refptr<base::MessageLoopProxy>& message_loop, const GURL& url,
@@ -88,6 +99,40 @@ bool FetcherBufferedDataSource::GetSize(int64* size_out) {
   return *size_out != kInvalidSize;
 }
 
+void FetcherBufferedDataSource::OnResponseStarted(
+    Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(headers);
+
+  base::AutoLock auto_lock(lock_);
+
+  if (fetcher_ != fetcher || error_occured_) {
+    return;
+  }
+
+  uint64 first_byte_offset = 0;
+
+  if (headers->response_code() == net::HTTP_PARTIAL_CONTENT) {
+    int64 first_byte_position = -1;
+    int64 last_byte_position = -1;
+    int64 instance_length = -1;
+    bool is_range_valid =
+        headers &&
+        headers->GetContentRange(&first_byte_position, &last_byte_position,
+                                 &instance_length);
+    if (is_range_valid && first_byte_position >= 0) {
+      first_byte_offset = static_cast<uint64>(first_byte_position);
+    }
+  }
+
+  DCHECK_LE(first_byte_offset, last_request_offset_);
+
+  if (first_byte_offset < last_request_offset_) {
+    last_request_size_ += last_request_offset_ - first_byte_offset;
+    last_request_offset_ = first_byte_offset;
+  }
+}
+
 void FetcherBufferedDataSource::OnReceived(Fetcher* fetcher, const char* data,
                                            size_t size) {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -98,13 +143,19 @@ void FetcherBufferedDataSource::OnReceived(Fetcher* fetcher, const char* data,
 
   base::AutoLock auto_lock(lock_);
 
-  if (fetcher_ != fetcher) {
+  if (fetcher_ != fetcher || error_occured_) {
     return;
   }
 
-  if (size > last_request_size_) {
-    // The server side doesn't support range request.  Treat this as an error.
-    error_occured_ = true;
+  size = static_cast<size_t>(std::min<uint64>(size, last_request_size_));
+
+  if (size == 0) {
+    // The server side doesn't support range request.  Delete the fetcher to
+    // stop the current request.  Note that we cannot delete the fetcher inside
+    // this callback because the caller (the Fetcher) may still use its member
+    // after this function returns.
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(DestroyFetcher, base::Passed(&fetcher_)));
     ProcessPendingRead_Locked();
     return;
   }
@@ -154,7 +205,7 @@ void FetcherBufferedDataSource::OnDone(Fetcher* fetcher) {
 
   base::AutoLock auto_lock(lock_);
 
-  if (fetcher_ != fetcher) {
+  if (fetcher_ != fetcher || error_occured_) {
     return;
   }
 
@@ -182,16 +233,12 @@ void FetcherBufferedDataSource::OnError(Fetcher* fetcher,
 
   error_occured_ = true;
   buffer_.Clear();
+  fetcher_.reset();
   ProcessPendingRead_Locked();
 }
 
-void FetcherBufferedDataSource::DestroyOldFetcherAndCreateNew(
-    scoped_ptr<Fetcher> old_fetcher) {
+void FetcherBufferedDataSource::CreateNewFetcher() {
   DCHECK(message_loop_->BelongsToCurrentThread());
-
-  if (old_fetcher) {
-    old_fetcher.reset();
-  }
 
   base::AutoLock auto_lock(lock_);
   DCHECK_GE(static_cast<int64>(last_request_offset_), 0);
@@ -291,10 +338,11 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
     last_request_offset_ = buffer_offset_ + buffer_.GetLength();
   }
 
+  message_loop_->PostTask(FROM_HERE,
+                          base::Bind(DestroyFetcher, base::Passed(&fetcher_)));
   message_loop_->PostTask(
       FROM_HERE,
-      base::Bind(&FetcherBufferedDataSource::DestroyOldFetcherAndCreateNew,
-                 this, base::Passed(&fetcher_)));
+      base::Bind(&FetcherBufferedDataSource::CreateNewFetcher, this));
 }
 
 void FetcherBufferedDataSource::ProcessPendingRead_Locked() {
