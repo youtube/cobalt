@@ -159,6 +159,7 @@ BASE_EXPORT ProcessHandle GetCurrentProcessHandle();
 BASE_EXPORT HMODULE GetModuleFromAddress(void* address);
 #endif
 
+#if !defined(OS_STARBOARD)
 // Converts a PID to a process handle. This handle must be closed by
 // CloseProcessHandle when you are done with it. Returns true on success.
 BASE_EXPORT bool OpenProcessHandle(ProcessId pid, ProcessHandle* handle);
@@ -185,6 +186,7 @@ BASE_EXPORT void CloseProcessHandle(ProcessHandle process);
 // same as Windows' GetProcessId(), but works on versions of Windows before
 // Win XP SP1 as well.
 BASE_EXPORT ProcessId GetProcId(ProcessHandle process);
+#endif  // !defined(OS_STARBOARD)
 
 #if defined(OS_LINUX) || defined(OS_ANDROID) || defined(OS_BSD)
 // Returns the path to the executable of the given process.
@@ -344,6 +346,7 @@ struct LaunchOptions {
 #endif  // !defined(OS_WIN)
 };
 
+#if !defined(OS_STARBOARD)
 // Launch a process via the command line |cmdline|.
 // See the documentation of LaunchOptions for details on |options|.
 //
@@ -365,6 +368,7 @@ struct LaunchOptions {
 BASE_EXPORT bool LaunchProcess(const CommandLine& cmdline,
                                const LaunchOptions& options,
                                ProcessHandle* process_handle);
+#endif  // !defined(OS_STARBOARD)
 
 #if defined(OS_WIN)
 
@@ -432,11 +436,13 @@ BASE_EXPORT void LaunchSynchronize(LaunchSynchronizationHandle handle);
 BASE_EXPORT bool SetJobObjectAsKillOnJobClose(HANDLE job_object);
 #endif  // defined(OS_WIN)
 
+#if !defined(OS_STARBOARD)
 // Executes the application specified by |cl| and wait for it to exit. Stores
 // the output (stdout) in |output|. Redirects stderr to /dev/null. Returns true
 // on success (application launched and exited cleanly, with exit code
 // indicating success).
 BASE_EXPORT bool GetAppOutput(const CommandLine& cl, std::string* output);
+#endif  // !defined(OS_STARBOARD)
 
 #if defined(OS_POSIX)
 // A POSIX-specific version of GetAppOutput that takes an argv array
@@ -459,6 +465,7 @@ BASE_EXPORT bool GetAppOutputWithExitCode(const CommandLine& cl,
                                           std::string* output, int* exit_code);
 #endif  // defined(OS_POSIX)
 
+#if !defined(OS_STARBOARD)
 // Used to filter processes by process ID.
 class ProcessFilter {
  public:
@@ -489,6 +496,7 @@ BASE_EXPORT bool KillProcesses(const FilePath::StringType& executable_name,
 // for the process to be actually terminated before returning.
 // Returns true if this is successful, false otherwise.
 BASE_EXPORT bool KillProcess(ProcessHandle process, int exit_code, bool wait);
+#endif  // !defined(OS_STARBOARD)
 
 #if defined(OS_POSIX)
 // Attempts to kill the process group identified by |process_group_id|. Returns
@@ -501,6 +509,7 @@ BASE_EXPORT bool KillProcessById(ProcessId process_id, int exit_code,
                                  bool wait);
 #endif  // defined(OS_WIN)
 
+#if !defined(OS_STARBOARD)
 // Get the termination status of the process by interpreting the
 // circumstances of the child process' death. |exit_code| is set to
 // the status returned by waitpid() on POSIX, and from
@@ -511,6 +520,7 @@ BASE_EXPORT bool KillProcessById(ProcessId process_id, int exit_code,
 // will no longer be available).
 BASE_EXPORT TerminationStatus GetTerminationStatus(ProcessHandle handle,
                                                    int* exit_code);
+#endif  // !defined(OS_STARBOARD)
 
 #if defined(OS_POSIX)
 // Wait for the process to exit and get the termination status. See
@@ -521,6 +531,7 @@ BASE_EXPORT TerminationStatus WaitForTerminationStatus(ProcessHandle handle,
                                                        int* exit_code);
 #endif  // defined(OS_POSIX)
 
+#if !defined(OS_STARBOARD)
 // Waits for process to exit. On POSIX systems, if the process hasn't been
 // signaled then puts the exit code in |exit_code|; otherwise it's considered
 // a failure. On Windows |exit_code| is always filled. Returns true on success,
@@ -578,6 +589,7 @@ BASE_EXPORT bool CleanupProcesses(const FilePath::StringType& executable_name,
 // and SYNCHRONIZE permissions.
 //
 BASE_EXPORT void EnsureProcessTerminated(ProcessHandle process_handle);
+#endif  // !defined(OS_STARBOARD)
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
 // The nicer version of EnsureProcessTerminated() that is patient and will
@@ -585,6 +597,7 @@ BASE_EXPORT void EnsureProcessTerminated(ProcessHandle process_handle);
 BASE_EXPORT void EnsureProcessGetsReaped(ProcessHandle process_handle);
 #endif
 
+#if !defined(OS_STARBOARD)
 // This class provides a way to iterate through a list of processes on the
 // current machine with a specified filter.
 // To use, create an instance and then call NextProcessEntry() until it returns
@@ -812,6 +825,7 @@ class BASE_EXPORT ProcessMetrics {
 
   DISALLOW_COPY_AND_ASSIGN(ProcessMetrics);
 };
+#endif  // !defined(OS_STARBOARD)
 
 #if defined(OS_LINUX) || defined(OS_ANDROID)
 // Data from /proc/meminfo about system-wide memory consumption.
@@ -839,6 +853,7 @@ struct BASE_EXPORT SystemMemoryInfoKB {
 BASE_EXPORT bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo);
 #endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
+#if !defined(OS_STARBOARD)
 // Returns the memory committed by the system in KBytes.
 // Returns 0 if it can't compute the commit charge.
 BASE_EXPORT size_t GetSystemCommitCharge();
@@ -850,17 +865,20 @@ BASE_EXPORT size_t GetSystemCommitCharge();
 // entering the main loop.
 // Note: Returns true on Windows 2000 without doing anything.
 BASE_EXPORT bool EnableLowFragmentationHeap();
+#endif  // !defined(OS_STARBOARD)
 
 // Enables 'terminate on heap corruption' flag. Helps protect against heap
 // overflow. Has no effect if the OS doesn't provide the necessary facility.
 BASE_EXPORT void EnableTerminationOnHeapCorruption();
 
+#if !defined(OS_STARBOARD)
 // Turns on process termination if memory runs out.
 BASE_EXPORT void EnableTerminationOnOutOfMemory();
 
 // If supported on the platform, and the user has sufficent rights, increase
 // the current process's scheduling priority to a high priority.
 BASE_EXPORT void RaiseProcessToHighPriority();
+#endif  // !defined(OS_STARBOARD)
 
 #if defined(OS_MACOSX)
 // Restore the default exception handler, setting it to Apple Crash Reporter
