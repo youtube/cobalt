@@ -205,7 +205,6 @@ ShellDemuxer::ShellDemuxer(
 }
 
 ShellDemuxer::~ShellDemuxer() {
-  NOTIMPLEMENTED();
 }
 
 void ShellDemuxer::Initialize(DemuxerHost* host,
