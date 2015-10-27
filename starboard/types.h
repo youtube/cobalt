@@ -29,7 +29,9 @@
 
 #if SB_HAS(STDINT_H)
 #  include <stdint.h>
-#elif SB_HAS(INTTYPES_H)
+#endif
+
+#if SB_HAS(INTTYPES_H)
 #  include <inttypes.h>
 #endif  // SB_HAS(STDINT_H)
 
@@ -88,6 +90,10 @@ typedef SB_UINTPTR uintptr_t;
 #  define SB_INT64_C(x) x##LL
 #  define SB_UINT64_C(x) x##ULL
 #endif  // defined(_MSC_VER)
+
+#if !defined(PRId32)
+#  error "inttypes.h should provide the portable formatting macros."
+#endif
 
 #if defined(_MSC_VER)
 #  pragma warning(push)
