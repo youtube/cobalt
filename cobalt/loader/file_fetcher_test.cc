@@ -82,6 +82,8 @@ class MockFetcherHandler : public Fetcher::Handler {
         .WillByDefault(Invoke(&real_, &FetcherHandlerForTest::OnError));
   }
 
+  MOCK_METHOD2(OnResponseStarted,
+               void(Fetcher*, const scoped_refptr<net::HttpResponseHeaders>&));
   MOCK_METHOD3(OnReceived, void(Fetcher*, const char*, size_t));
   MOCK_METHOD1(OnDone, void(Fetcher*));
   MOCK_METHOD2(OnError, void(Fetcher*, const std::string&));
