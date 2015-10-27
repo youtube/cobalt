@@ -53,6 +53,7 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   ~NetFetcher() OVERRIDE;
 
   // net::URLFetcherDelegate interface
+  void OnURLFetchResponseStarted(const net::URLFetcher* source) OVERRIDE;
   void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
   bool ShouldSendDownloadData() OVERRIDE;
   void OnURLFetchDownloadData(const net::URLFetcher* source,

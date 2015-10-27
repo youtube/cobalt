@@ -20,6 +20,8 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
+#include "net/http/http_response_headers.h"
 
 namespace cobalt {
 namespace loader {
@@ -28,6 +30,14 @@ class Fetcher {
  public:
   class Handler {
    public:
+    // The function will be called by supported Fetcher (like NetFetcher) before
+    // any OnReceived() is called so the Handler can preview the response.
+    virtual void OnResponseStarted(
+        Fetcher* fetcher,
+        const scoped_refptr<net::HttpResponseHeaders>& headers) {
+      UNREFERENCED_PARAMETER(fetcher);
+      UNREFERENCED_PARAMETER(headers);
+    }
     virtual void OnReceived(Fetcher* fetcher, const char* data,
                             size_t size) = 0;
     virtual void OnDone(Fetcher* fetcher) = 0;

@@ -74,10 +74,13 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   typedef loader::Fetcher Fetcher;
 
   // Fetcher::Handler methods.
+  void OnResponseStarted(
+      Fetcher* fetcher,
+      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE;
   void OnDone(Fetcher* fetcher) OVERRIDE;
   void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE;
-  void DestroyOldFetcherAndCreateNew(scoped_ptr<Fetcher> old_fetcher);
+  void CreateNewFetcher();
   void Read_Locked(uint64 position, uint64 size, uint8* data,
                    const ReadCB& read_cb);
   void ProcessPendingRead_Locked();
