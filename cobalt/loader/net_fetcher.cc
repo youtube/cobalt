@@ -41,6 +41,12 @@ NetFetcher::NetFetcher(const GURL& url, Handler* handler,
   url_fetcher_->Start();
 }
 
+void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  handler()->OnResponseStarted(this, source->GetResponseHeaders());
+}
+
 void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
   const net::URLRequestStatus& status = source->GetStatus();
