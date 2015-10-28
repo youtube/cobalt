@@ -54,6 +54,14 @@ FetcherFactory::FetcherFactory(network::NetworkModule* network_module)
   file_thread_.Start();
 }
 
+FetcherFactory::FetcherFactory(network::NetworkModule* network_module,
+                               const FilePath& extra_search_dir)
+    : file_thread_("File"),
+      network_module_(network_module),
+      extra_search_dir_(extra_search_dir) {
+  file_thread_.Start();
+}
+
 scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
                                                   Fetcher::Handler* handler) {
   if (!url.is_valid()) {
@@ -67,6 +75,7 @@ scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
     if (FileURLToFilePath(url, &file_path)) {
       FileFetcher::Options options;
       options.message_loop_proxy = file_thread_.message_loop_proxy();
+      options.extra_search_dir = extra_search_dir_;
       fetcher.reset(new FileFetcher(file_path, handler, options));
     }
   } else {

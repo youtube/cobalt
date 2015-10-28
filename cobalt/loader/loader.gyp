@@ -104,7 +104,7 @@
             ],
             'output_dir': 'cobalt/loader/testdata/',
           },
-          'includes': [ '../build/copy_data.gypi' ],
+          'includes': [ '../build/copy_test_data.gypi' ],
         },
       ],
     },

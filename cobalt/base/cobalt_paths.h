@@ -39,6 +39,9 @@ enum CobaltPathKeys {
   // Directory where tests can write data such as expected results.
   DIR_COBALT_TEST_OUT,
 
+  // Root directory for local web files (those fetched from file://).
+  DIR_COBALT_WEB_ROOT,
+
   // End of Cobalt keys.
   PATH_COBALT_END,
 };

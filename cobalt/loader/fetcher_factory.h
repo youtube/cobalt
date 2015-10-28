@@ -17,6 +17,7 @@
 #ifndef LOADER_FETCHER_FACTORY_H_
 #define LOADER_FETCHER_FACTORY_H_
 
+#include "base/file_path.h"
 #include "base/threading/thread.h"
 #include "cobalt/loader/fetcher.h"
 #include "googleurl/src/gurl.h"
@@ -31,6 +32,8 @@ namespace loader {
 class FetcherFactory {
  public:
   explicit FetcherFactory(network::NetworkModule* network_module);
+  FetcherFactory(network::NetworkModule* network_module,
+                 const FilePath& extra_search_dir);
   scoped_ptr<Fetcher> CreateFetcher(
       const GURL& url, Fetcher::Handler* handler);
   scoped_ptr<Fetcher> CreateFetcherWithRange(const GURL& url,
@@ -43,6 +46,7 @@ class FetcherFactory {
  private:
   base::Thread file_thread_;
   network::NetworkModule* network_module_;
+  FilePath extra_search_dir_;
 };
 
 }  // namespace loader

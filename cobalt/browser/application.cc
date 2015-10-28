@@ -20,8 +20,10 @@
 
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/string_number_conversions.h"
+#include "cobalt/base/cobalt_paths.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
@@ -77,6 +79,26 @@ base::TimeDelta GetTimedTraceDuration() {
   }
 }
 
+FilePath GetExtraWebFileDir() {
+  // Default is empty, command line can override.
+  FilePath result;
+
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kExtraWebFileDir)) {
+    result =
+        FilePath(command_line->GetSwitchValueASCII(switches::kExtraWebFileDir));
+    if (!result.IsAbsolute()) {
+      // Non-absolute paths are relative to the executable directory.
+      FilePath content_path;
+      PathService::Get(base::DIR_EXE, &content_path);
+      result = content_path.DirName().DirName().Append(result);
+    }
+    DLOG(INFO) << "Extra web file dir: " << result.value();
+  }
+
+  return result;
+}
+
 }  // namespace
 
 Application::Application()
@@ -104,6 +126,8 @@ Application::Application()
   options.web_module_options.name = "MainWebModule";
   // TODO(***REMOVED***): Retrieve the system language from the system.
   options.language = "en-US";
+  // User can specify an extra search path entry for files loaded via file://.
+  options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
   browser_module_.reset(new BrowserModule(url, options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 
