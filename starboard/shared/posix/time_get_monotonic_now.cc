@@ -16,12 +16,13 @@
 
 #include <time.h>
 
+#include "starboard/log.h"
 #include "starboard/shared/posix/time_internal.h"
 
 SbTimeMonotonic SbTimeGetMonotonicNow() {
   struct timespec time;
   if (clock_gettime(CLOCK_MONOTONIC, &time) != 0) {
-    // TODO(***REMOVED***): SB_NOTREACHED() << "clock_gettime(CLOCK_MONOTONIC) failed.";
+    SB_NOTREACHED() << "clock_gettime(CLOCK_MONOTONIC) failed.";
     return 0;
   }
 

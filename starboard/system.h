@@ -26,6 +26,9 @@
 extern "C" {
 #endif
 
+// A type that can represent a system error code across all Starboard platforms.
+typedef int SbSystemError;
+
 // Enumeration of special paths that the platform can define.
 typedef enum SbSystemPathId {
   // Path to where the local content files that ship with the binary are
@@ -54,6 +57,10 @@ typedef enum SbSystemPathId {
   kSbSystemPathTestOutputDirectory,
 } SbSystemPathId;
 
+// Breaks the current program into the debugger, if a debugger is
+// attached. Aborts the program otherwise.
+SB_EXPORT void SbSystemBreakIntoDebugger();
+
 // Gets the platform-defined system path specified by |path_id|, placing it as a
 // zero-terminated string into the user-allocated |out_path|, unless it is
 // longer than |path_length| - 1. Returns false if |path_id| is invalid for this
@@ -65,10 +72,21 @@ SB_EXPORT bool SbSystemGetPath(
     char *out_path,
     int path_length);
 
-// Gets a psuedorandom number uniformly distributed between the minimum and
+// Gets a pseudorandom number uniformly distributed between the minimum and
 // maximum limits of uint64_t. This is expected to be a cryptographically secure
 // random number generator, and doesn't require manual seeding.
 SB_EXPORT uint64_t SbSystemGetRandomUInt64();
+
+// Gets the last error produced by any Starboard call in the current thread.
+SB_EXPORT SbSystemError SbSystemGetLastError();
+
+// Writes a human-readable string for |error|, up to |string_length| bytes, into
+// the provided |out_string|. Returns the total desired length of the string.
+// |out_string| may be null, in which case just the total desired length of the
+// string is returned. |out_string| is always terminated with a null byte.
+SB_EXPORT int SbSystemGetErrorString(SbSystemError error,
+                                     char *out_string,
+                                     int string_length);
 
 #ifdef __cplusplus
 }  // extern "C"
