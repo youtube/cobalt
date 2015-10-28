@@ -16,11 +16,17 @@
 
 #include "cobalt/audio/audio_buffer_source_node.h"
 
+#include "cobalt/audio/audio_node_output.h"
+
 namespace cobalt {
 namespace audio {
 
+// numberOfInputs  : 0
+// numberOfOutputs : 1
 AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* context)
-    : AudioNode(context), start_time_(0), end_time_(0) {}
+    : AudioNode(context), start_time_(0), end_time_(0) {
+  AddOutput(new AudioNodeOutput(this));
+}
 
 void AudioBufferSourceNode::Start(double when, double offset) {
   Start(when, offset, 0);

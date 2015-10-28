@@ -27,6 +27,20 @@ AudioNode::AudioNode(AudioContext* context)
       channel_count_mode_(AudioNode::kMax),
       channel_interpretation_(AudioNode::kSpeakers) {}
 
+AudioNode::~AudioNode() {
+  while (!inputs_.empty()) {
+    AudioNodeInput* input = inputs_.back();
+    input->DisconnectAll();
+    inputs_.pop_back();
+  }
+
+  while (!outputs_.empty()) {
+    AudioNodeOutput* output = outputs_.back();
+    output->DisconnectAll();
+    outputs_.pop_back();
+  }
+}
+
 void AudioNode::set_channel_count(uint32 channel_count,
                                   script::ExceptionState* exception_state) {
   // If this value is set to zero, the implementation MUST throw a
@@ -63,8 +77,16 @@ void AudioNode::Connect(const scoped_refptr<AudioNode>& destination,
     return;
   }
 
-  // TODO(***REMOVED***): Connect destination audio input(index |input|) to this audio
-  // output(index |output|).
+  // TODO(***REMOVED***): Detect if there is a cycle when connecting an AudioNode to
+  // another AudioNode. A cycle is allowed only if there is at least one
+  // DelayNode in the cycle or a NOT_SUPPORTED_ERR exception MUST be thrown.
+  AudioNodeInput* input_node = destination->inputs_[input];
+  AudioNodeOutput* output_node = outputs_[output];
+
+  DCHECK(input_node);
+  DCHECK(output_node);
+
+  input_node->Connect(output_node);
 }
 
 void AudioNode::Disconnect(uint32 output,
@@ -77,8 +99,22 @@ void AudioNode::Disconnect(uint32 output,
     return;
   }
 
-  // TODO(***REMOVED***): Disconnect all the connections for the output(index
-  // |output|).
+  AudioNodeOutput* output_node = outputs_[output].get();
+
+  DCHECK(output_node);
+  output_node->DisconnectAll();
+}
+
+void AudioNode::AddInput(const scoped_refptr<AudioNodeInput>& input) {
+  DCHECK(input);
+
+  inputs_.push_back(input);
+}
+
+void AudioNode::AddOutput(const scoped_refptr<AudioNodeOutput>& output) {
+  DCHECK(output);
+
+  outputs_.push_back(output);
 }
 
 }  // namespace audio
