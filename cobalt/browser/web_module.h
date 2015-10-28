@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/file_path.h"
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
@@ -72,10 +73,14 @@ class WebModule {
         : name(name),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation),
           debug_hub(initial_debug_hub) {}
+    explicit Options(const FilePath& extra_web_file_dir)
+        : extra_web_file_dir(extra_web_file_dir) {}
 
     std::string name;
     layout::LayoutManager::LayoutTrigger layout_trigger;
     scoped_refptr<debug::DebugHub> debug_hub;
+    // Optional directory to add to the search path for web files (file://).
+    FilePath extra_web_file_dir;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

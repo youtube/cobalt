@@ -51,6 +51,9 @@ const char kEnableWebDriver[] = "enable_webdriver";
 // Port that the WebDriver server should be listening on.
 const char kWebDriverPort[] = "webdriver_port";
 
+// Additional base directory for accessing web files via file://.
+const char kExtraWebFileDir[] = "web_file_path";
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt

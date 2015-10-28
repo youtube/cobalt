@@ -95,7 +95,7 @@
             ],
             'output_dir': 'cobalt/renderer',
           },
-          'includes': ['../build/copy_data.gypi'],
+          'includes': ['../build/copy_test_data.gypi'],
         }
       ],
     },
