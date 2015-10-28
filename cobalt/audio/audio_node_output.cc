@@ -14,16 +14,34 @@
  * limitations under the License.
  */
 
-#include "cobalt/audio/audio_destination_node.h"
+#include "cobalt/audio/audio_node_output.h"
+
+#include "base/logging.h"
+#include "cobalt/audio/audio_node.h"
+#include "cobalt/audio/audio_node_input.h"
 
 namespace cobalt {
 namespace audio {
 
-// numberOfInputs  : 1
-// numberOfOutputs : 0
-AudioDestinationNode::AudioDestinationNode(AudioContext* context)
-    : AudioNode(context), max_channel_count_(2) {
-  AddInput(new AudioNodeInput(this));
+AudioNodeOutput::AudioNodeOutput(AudioNode* node) : owner_node_(node) {}
+
+void AudioNodeOutput::AddInput(AudioNodeInput* input) {
+  DCHECK(input);
+
+  inputs_.insert(input);
+}
+
+void AudioNodeOutput::RemoveInput(AudioNodeInput* input) {
+  DCHECK(input);
+
+  inputs_.erase(input);
+}
+
+void AudioNodeOutput::DisconnectAll() {
+  while (!inputs_.empty()) {
+    AudioNodeInput* input = *inputs_.begin();
+    input->Disconnect(this);
+  }
 }
 
 }  // namespace audio

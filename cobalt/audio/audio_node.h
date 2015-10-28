@@ -17,6 +17,10 @@
 #ifndef AUDIO_AUDIO_NODE_H_
 #define AUDIO_AUDIO_NODE_H_
 
+#include <vector>
+
+#include "cobalt/audio/audio_node_input.h"
+#include "cobalt/audio/audio_node_output.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event_target.h"
 
@@ -51,6 +55,7 @@ class AudioNode : public dom::EventTarget {
   };
 
   explicit AudioNode(AudioContext* context);
+  ~AudioNode() OVERRIDE;
 
   // Web API: AudioNode
   //
@@ -59,16 +64,10 @@ class AudioNode : public dom::EventTarget {
 
   // The number of inputs feeding into the AudioNode. For source nodes, this
   // will be 0.
-  uint32 number_of_inputs() const {
-    // TODO(***REMOVED***): Implement this.
-    return 0;
-  }
+  size_t number_of_inputs() const { return inputs_.size(); }
   // The number of outputs coming out of the AudioNode. This will be 0 for an
   // AudioDestinationNode.
-  uint32 number_of_outputs() const {
-    // TODO(***REMOVED***): Implement this.
-    return 0;
-  }
+  size_t number_of_outputs() const { return outputs_.size(); }
 
   // The number of channels used when up-mixing and down-mixing connections to
   // any inputs to the node. The default value is 2 except for specific nodes
@@ -109,7 +108,17 @@ class AudioNode : public dom::EventTarget {
 
   DEFINE_WRAPPABLE_TYPE(AudioNode);
 
+ protected:
+  void AddInput(const scoped_refptr<AudioNodeInput>& input);
+  void AddOutput(const scoped_refptr<AudioNodeOutput>& output);
+
  private:
+  typedef std::vector<scoped_refptr<AudioNodeInput> > AudioNodeInputVector;
+  typedef std::vector<scoped_refptr<AudioNodeOutput> > AudioNodeOutputVector;
+
+  AudioNodeInputVector inputs_;
+  AudioNodeOutputVector outputs_;
+
   AudioContext* audio_context_;
 
   // Channel up-mixing and down-mixing rules for all inputs.
