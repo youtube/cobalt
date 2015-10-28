@@ -14,17 +14,37 @@
  * limitations under the License.
  */
 
-#include "cobalt/audio/audio_destination_node.h"
+#ifndef AUDIO_AUDIO_NODE_OUTPUT_H_
+#define AUDIO_AUDIO_NODE_OUTPUT_H_
+
+#include <set>
+
+#include "base/memory/ref_counted.h"
 
 namespace cobalt {
 namespace audio {
 
-// numberOfInputs  : 1
-// numberOfOutputs : 0
-AudioDestinationNode::AudioDestinationNode(AudioContext* context)
-    : AudioNode(context), max_channel_count_(2) {
-  AddInput(new AudioNodeInput(this));
-}
+class AudioNode;
+class AudioNodeInput;
+
+// This represents the output coming out of the AudioNode.
+// It may be connected to one or more AudioNodeInputs.
+class AudioNodeOutput : public base::RefCountedThreadSafe<AudioNodeOutput> {
+ public:
+  explicit AudioNodeOutput(AudioNode* node);
+
+  void AddInput(AudioNodeInput* input);
+  void RemoveInput(AudioNodeInput* input);
+
+  void DisconnectAll();
+
+ private:
+  AudioNode* owner_node_;
+
+  std::set<AudioNodeInput*> inputs_;
+};
 
 }  // namespace audio
 }  // namespace cobalt
+
+#endif  // AUDIO_AUDIO_NODE_OUTPUT_H_

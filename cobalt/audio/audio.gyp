@@ -31,6 +31,10 @@
         'audio_destination_node.h',
         'audio_node.cc',
         'audio_node.h',
+        'audio_node_input.cc',
+        'audio_node_input.h',
+        'audio_node_output.cc',
+        'audio_node_output.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
