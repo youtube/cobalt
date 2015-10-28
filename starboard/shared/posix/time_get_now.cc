@@ -16,12 +16,13 @@
 
 #include <sys/time.h>
 
+#include "starboard/log.h"
 #include "starboard/shared/posix/time_internal.h"
 
 SbTime SbTimeGetNow() {
   struct timeval time;
   if (gettimeofday(&time, NULL) != 0) {
-    // TODO(***REMOVED***): Log an error.
+    SB_NOTREACHED() << "Could not determine time of day.";
     return 0;
   }
 

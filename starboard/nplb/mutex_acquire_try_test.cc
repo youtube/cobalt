@@ -52,6 +52,4 @@ TEST(SbMutexAcquireTryTest, RainyDayReentrant) {
   EXPECT_TRUE(SbMutexDestroy(&mutex));
 }
 
-// TODO(***REMOVED***): Add tests for acquiring Mutices contended by other threads.
-
 }  // namespace
