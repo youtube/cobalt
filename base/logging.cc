@@ -24,6 +24,14 @@ typedef HANDLE MutexHandle;
 #include <sys/syscall.h>
 #endif
 #include <time.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/file.h"
+#include "starboard/log.h"
+#include "starboard/mutex.h"
+#include "starboard/system.h"
+#include "starboard/time.h"
+typedef SbFile FileHandle;
+typedef SbMutex MutexHandle;
 #endif
 
 #if defined(__LB_SHELL__)
@@ -96,6 +104,8 @@ int min_log_level = 0;
 LoggingDestination logging_destination = LOG_ONLY_TO_FILE;
 #elif defined(OS_POSIX)
 LoggingDestination logging_destination = LOG_ONLY_TO_SYSTEM_DEBUG_LOG;
+#elif defined(OS_STARBOARD)
+LoggingDestination logging_destination = LOG_ONLY_TO_SYSTEM_DEBUG_LOG;
 #endif
 
 // For LOG_ERROR and above, always print to stderr.
@@ -137,7 +147,7 @@ LogMessageHandlerFunction log_message_handler = NULL;
 int32 CurrentProcessId() {
 #if defined(OS_WIN)
   return GetCurrentProcessId();
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) || defined(OS_STARBOARD)
   // This should never be reached, because logging PIDs should never
   // be enabled for LB shell.
   return 0;
@@ -155,6 +165,8 @@ uint64 TickCount() {
   // NaCl sadly does not have _POSIX_TIMERS enabled in sys/features.h
   // So we have to use clock() for now.
   return clock();
+#elif defined(OS_STARBOARD)
+  return static_cast<uint64>(SbTimeGetMonotonicNow());
 #elif defined(__LB_SHELL__)
   return LB::Platform::TickCount();
 #elif defined(OS_POSIX)
@@ -172,6 +184,8 @@ uint64 TickCount() {
 void CloseFile(FileHandle log) {
 #if defined(OS_WIN)
   CloseHandle(log);
+#elif defined(OS_STARBOARD)
+  SbFileClose(log);
 #else
   fclose(log);
 #endif
@@ -180,6 +194,8 @@ void CloseFile(FileHandle log) {
 void DeleteFilePath(const PathString& log_name) {
 #if defined(OS_WIN)
   DeleteFile(log_name.c_str());
+#elif defined(OS_STARBOARD)
+  SbFileDelete(log_name.c_str());
 #else
   unlink(log_name.c_str());
 #endif
@@ -197,6 +213,15 @@ PathString GetDefaultLogFile() {
   if (last_backslash != PathString::npos)
     log_file.erase(last_backslash + 1);
   log_file += L"debug.log";
+  return log_file;
+#elif defined(OS_STARBOARD)
+  // On Starboard, we politely ask for the log directory, like a civilized
+  // platform.
+  char path[SB_FILE_MAX_PATH + 1];
+  SbSystemGetPath(kSbSystemPathDebugOutputDirectory, path,
+                  SB_ARRAY_SIZE_INT(path));
+  PathString log_file = path;
+  log_file += SB_FILE_SEP_STRING "debug.log";
   return log_file;
 #elif defined(OS_POSIX)
   // On other platforms we just use the current directory.
@@ -267,6 +292,8 @@ class LoggingLock {
       // loop. For more info see http://crbug.com/18028.
 #elif defined(OS_POSIX)
       pthread_mutex_lock(&log_mutex);
+#elif defined(OS_STARBOARD)
+      SbMutexAcquire(&log_mutex);
 #endif
     } else {
       // use the lock
@@ -280,6 +307,8 @@ class LoggingLock {
       ReleaseMutex(log_mutex);
 #elif defined(OS_POSIX)
       pthread_mutex_unlock(&log_mutex);
+#elif defined(OS_STARBOARD)
+      SbMutexRelease(&log_mutex);
 #endif
     } else {
       log_lock->Unlock();
@@ -297,6 +326,8 @@ class LoggingLock {
   static MutexHandle log_mutex;
 #elif defined(OS_POSIX)
   static pthread_mutex_t log_mutex;
+#elif defined(OS_STARBOARD)
+  static SbMutex log_mutex;
 #endif
 
   static bool initialized;
@@ -315,6 +346,8 @@ LogLockingState LoggingLock::lock_log_file = LOCK_LOG_FILE;
 MutexHandle LoggingLock::log_mutex = NULL;
 #elif defined(OS_POSIX)
 pthread_mutex_t LoggingLock::log_mutex = PTHREAD_MUTEX_INITIALIZER;
+#elif defined(OS_STARBOARD)
+SbMutex LoggingLock::log_mutex = SB_MUTEX_INITIALIZER;
 #endif
 
 // Called by logging functions to ensure that debug_file is initialized
@@ -351,6 +384,13 @@ bool InitializeLogFileHandle() {
     log_file = fopen(log_file_name->c_str(), "a");
     if (log_file == NULL)
       return false;
+#elif defined(OS_STARBOARD)
+    log_file = SbFileOpen(log_file_name->c_str(),
+                          kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
+    if (!SbFileIsValid(log_file))
+      return false;
+
+    SbFileSeek(log_file, kSbFileFromEnd, 0);
 #endif
   }
 
@@ -575,7 +615,8 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity,
 LogMessage::~LogMessage() {
   // TODO(port): enable stacktrace generation on LOG_FATAL once backtrace are
   // working in Android.
-#if (!defined(NDEBUG) || defined(__LB_SHELL__FORCE_LOGGING__)) && !defined(OS_ANDROID) && !defined(OS_NACL)
+#if (!defined(NDEBUG) || defined(__LB_SHELL__FORCE_LOGGING__)) && \
+    !defined(OS_ANDROID) && !defined(OS_NACL) && !defined(OS_STARBOARD)
   if (severity_ == LOG_FATAL) {
     // Include a stack trace on a fatal.
     base::debug::StackTrace trace;
@@ -595,7 +636,25 @@ LogMessage::~LogMessage() {
 
   if (logging_destination == LOG_ONLY_TO_SYSTEM_DEBUG_LOG ||
       logging_destination == LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG) {
-#if defined(OS_WIN) || defined(COBALT_WIN)
+#if defined(OS_STARBOARD)
+    SbLogPriority priority = kSbLogPriorityUnknown;
+    switch (severity_) {
+      case LOG_INFO:
+        priority = kSbLogPriorityInfo;
+        break;
+      case LOG_WARNING:
+        priority = kSbLogPriorityWarning;
+        break;
+      case LOG_ERROR:
+      case LOG_ERROR_REPORT:
+        priority = kSbLogPriorityError;
+        break;
+      case LOG_FATAL:
+        priority = kSbLogPriorityFatal;
+        break;
+    }
+    SbLog(priority, str_newline.c_str());
+#elif defined(OS_WIN) || defined(COBALT_WIN)
     OutputDebugStringA(str_newline.c_str());
 #elif defined(OS_ANDROID) || defined(__LB_ANDROID__)
     android_LogPriority priority = ANDROID_LOG_UNKNOWN;
@@ -616,8 +675,10 @@ LogMessage::~LogMessage() {
     }
     __android_log_write(priority, "chromium", str_newline.c_str());
 #endif
+#if !defined(OS_STARBOARD)
     fprintf(stderr, "%s", str_newline.c_str());
     fflush(stderr);
+#endif
   } else if (severity_ >= kAlwaysPrintErrorLevel) {
     // When we're only outputting to a log file, above a certain log level, we
     // should still output to stderr so that we can better detect and diagnose
@@ -647,6 +708,17 @@ LogMessage::~LogMessage() {
                 static_cast<DWORD>(str_newline.length()),
                 &num_written,
                 NULL);
+#elif defined(OS_STARBOARD)
+      SbFileSeek(log_file, kSbFileFromEnd, 0);
+      int written = 0;
+      while (written < str_newline.length()) {
+        int result = SbFileWrite(log_file, &(str_newline.c_str()[written]),
+                                 str_newline.length() - written);
+        if (result < 0) {
+          break;
+        }
+        written += result;
+      }
 #else
       fprintf(log_file, "%s", str_newline.c_str());
       fflush(log_file);
@@ -747,6 +819,9 @@ SystemErrorCode GetLastSystemErrorCode() {
   return ::GetLastError();
 #elif defined(OS_POSIX)
   return errno;
+#elif defined(OS_STARBOARD)
+  // Not implemented yet
+  return SbSystemGetLastError();
 #else
 #error Not implemented
 #endif
@@ -825,6 +900,20 @@ ErrnoLogMessage::ErrnoLogMessage(const char* file,
 ErrnoLogMessage::~ErrnoLogMessage() {
   stream() << ": " << safe_strerror(err_);
 }
+#elif defined(OS_STARBOARD)
+StarboardLogMessage::StarboardLogMessage(const char* file,
+                                         int line,
+                                         LogSeverity severity,
+                                         SystemErrorCode err)
+    : err_(err),
+      log_message_(file, line, severity) {
+}
+
+StarboardLogMessage::~StarboardLogMessage() {
+  char message[512];
+  SbSystemGetErrorString(err_, message, SB_ARRAY_SIZE_INT(message));
+  stream() << ": " << message;
+}
 #endif  // OS_WIN
 
 void CloseLogFile() {
@@ -839,6 +928,9 @@ void CloseLogFile() {
 
 void RawLog(int level, const char* message) {
   if (level >= min_log_level) {
+#if defined(OS_STARBOARD)
+    SbLogRaw(message);
+#else
     size_t bytes_written = 0;
     const size_t message_len = strlen(message);
     int rv;
@@ -862,6 +954,7 @@ void RawLog(int level, const char* message) {
         }
       } while (rv != 1);
     }
+#endif
   }
 
   if (level == LOG_FATAL)
