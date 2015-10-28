@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/browser/web_module.h"

@@ -29,6 +29,7 @@ extern const char kDebugConsoleMode[];
 extern const char kPartialLayout[];
 extern const char kEnableWebDriver[];
 extern const char kWebDriverPort[];
+extern const char kExtraWebFileDir[];
 
 }  // namespace switches
 }  // namespace browser

@@ -19,7 +19,9 @@
 #include "base/bind.h"
 #include "base/file_util.h"
 #include "base/file_util_proxy.h"
+#include "base/location.h"
 #include "base/path_service.h"
+#include "cobalt/base/cobalt_paths.h"
 
 namespace cobalt {
 namespace loader {
@@ -32,25 +34,51 @@ FileFetcher::FileFetcher(const FilePath& file_path, Handler* handler,
       file_offset_(options.start_offset),
       bytes_left_to_read_(options.bytes_to_read),
       message_loop_proxy_(options.message_loop_proxy),
+      file_path_(file_path),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
   DCHECK_GT(buffer_size_, 0);
 
-  // Get the actual file path by prepending DIR_SOURCE_ROOT to the file path.
-  FilePath actual_file_path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &actual_file_path);
-  actual_file_path = actual_file_path.Append(file_path);
-
-  // Trigger fetching in the given message loop.
-  base::FileUtilProxy::CreateOrOpen(
-      message_loop_proxy_, actual_file_path,
-      base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ,
-      base::Bind(&FileFetcher::DidCreateOrOpen,
-                 weak_ptr_factory_.GetWeakPtr()));
+  // Try fetching the file from each search path entry in turn.
+  // Start at the beginning. On failure, we'll try the next path entry,
+  // and so on until we open the file or reach the end of the search path.
+  BuildSearchPath(options.extra_search_dir);
+  curr_search_path_iter_ = search_path_.begin();
+  TryFileOpen();
 }
 
 FileFetcher::~FileFetcher() {
   DCHECK(thread_checker_.CalledOnValidThread());
   CloseFile();
+}
+
+void FileFetcher::BuildSearchPath(const FilePath& extra_search_dir) {
+  // Build the vector of paths to search for files.
+  // Paths will be tried in the order they are listed.
+  // Add the user-specified extra directory first, if specified,
+  // so it has precendence.
+  if (!extra_search_dir.empty()) {
+    search_path_.push_back(extra_search_dir);
+  }
+
+  FilePath search_dir;
+  PathService::Get(paths::DIR_COBALT_WEB_ROOT, &search_dir);
+  search_path_.push_back(search_dir);
+  // TODO(***REMOVED***) This should eventually be removed in release builds,
+  // as they should not access DIR_SOURCE_ROOT.
+  PathService::Get(base::DIR_SOURCE_ROOT, &search_dir);
+  search_path_.push_back(search_dir);
+}
+
+void FileFetcher::TryFileOpen() {
+  // Append the file path to the current search path entry and try.
+  FilePath actual_file_path;
+  actual_file_path = curr_search_path_iter_->Append(file_path_);
+
+  base::FileUtilProxy::CreateOrOpen(
+      message_loop_proxy_, actual_file_path,
+      base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ,
+      base::Bind(&FileFetcher::DidCreateOrOpen,
+                 weak_ptr_factory_.GetWeakPtr()));
 }
 
 void FileFetcher::ReadNextChunk() {
@@ -125,7 +153,13 @@ void FileFetcher::DidCreateOrOpen(base::PlatformFileError error,
                                   bool /*created*/) {
   DCHECK(thread_checker_.CalledOnValidThread());
   if (error != base::PLATFORM_FILE_OK) {
-    handler()->OnError(this, PlatformFileErrorToString(error));
+    // File could not be opened at the current search path entry.
+    // Try the next, or if we've searched the whole path, signal error.
+    if (++curr_search_path_iter_ != search_path_.end()) {
+      TryFileOpen();
+    } else {
+      handler()->OnError(this, PlatformFileErrorToString(error));
+    }
     return;
   }
 

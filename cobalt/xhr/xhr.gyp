@@ -69,7 +69,7 @@
             ],
             'output_dir': 'cobalt/xhr/testdata/',
           },
-          'includes': [ '../build/copy_data.gypi' ],
+          'includes': [ '../build/copy_test_data.gypi' ],
         },
       ],
     },

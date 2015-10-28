@@ -18,6 +18,7 @@
 #define LOADER_FILE_FETCHER_H_
 
 #include <limits>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
@@ -33,8 +34,8 @@ namespace cobalt {
 namespace loader {
 
 // FileFetcher is for fetching data from files on local disk. The file path that
-// is passed into the constructor shouldn't include DIR_SOURCE_ROOT, e.g. it
-// could be "cobalt/loader/testdata/...".
+// is passed into the constructor shouldn't include the root directory,
+// e.g. it could be "cobalt/loader/testdata/...".
 class FileFetcher : public Fetcher {
  public:
   struct Options {
@@ -49,6 +50,7 @@ class FileFetcher : public Fetcher {
     int64 start_offset;
     int64 bytes_to_read;
     scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
+    FilePath extra_search_dir;
   };
 
   FileFetcher(const FilePath& file_path, Handler* handler,
@@ -64,6 +66,12 @@ class FileFetcher : public Fetcher {
  private:
   // Default size of the buffer that FileFetcher will use to load data.
   static const int32 kDefaultBufferSize = 64 * 1024;
+
+  // Builds the search path list, including an optional extra directory.
+  void BuildSearchPath(const FilePath& extra_search_dir);
+
+  // Tries opening a file using the current entry in the seach path.
+  void TryFileOpen();
 
   void ReadNextChunk();
   void CloseFile();
@@ -88,8 +96,15 @@ class FileFetcher : public Fetcher {
   int64 bytes_left_to_read_;
   // Message loop that is used for actual IO operations in FileUtilProxy.
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+  // Relative (to the current search path entry) file path.
+  FilePath file_path_;
+  // Paths to search for files. When a file is to be fetched, the fetcher will
+  // look at each path in here until the file is found or the end is reached.
+  std::vector<FilePath> search_path_;
   // Used internally to support callbacks with weak references to self.
   base::WeakPtrFactory<FileFetcher> weak_ptr_factory_;
+  // Current iterator into the search path vector.
+  std::vector<FilePath>::const_iterator curr_search_path_iter_;
 };
 
 }  // namespace loader

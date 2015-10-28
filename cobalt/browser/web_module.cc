@@ -75,7 +75,8 @@ WebModule::WebModule(
       self_message_loop_(MessageLoop::current()),
       css_parser_(css_parser::Parser::Create()),
       dom_parser_(new dom_parser::Parser(error_callback)),
-      fetcher_factory_(new loader::FetcherFactory(network_module)),
+      fetcher_factory_(new loader::FetcherFactory(network_module,
+                                                  options.extra_web_file_dir)),
       image_cache_(loader::image::CreateImageCache(
           base::StringPrintf("%s.ImageCache", name_.c_str()),
           kImageCacheCapacity, resource_provider, fetcher_factory_.get())),
