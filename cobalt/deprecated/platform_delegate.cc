@@ -56,6 +56,10 @@ bool PathProvider(int key, FilePath* result) {
         return false;
       }
 
+    case paths::DIR_COBALT_WEB_ROOT:
+      *result = FilePath(global_values->game_content_path).Append("web");
+      return true;
+
     default:
       return false;
   }
