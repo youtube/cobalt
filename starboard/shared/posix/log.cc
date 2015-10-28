@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/double.h"
-
-#include <float.h>
-#include <math.h>
-
 #include "starboard/log.h"
 
-bool SbDoubleIsFinite(const double *d) {
-  SB_DCHECK(d != NULL);
-  return (!d ? false : fpclassify(*d) != FP_INFINITE);
+#include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+
+void SbLog(SbLogPriority priority, const char *message) {
+  SB_UNREFERENCED_PARAMETER(priority);
+  fprintf(stderr, "%s", message);
+  fflush(stderr);
 }
