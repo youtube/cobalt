@@ -15,6 +15,10 @@
 #include "base/debug/debugger.h"
 #include "build/build_config.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/system.h"
+#endif
+
 //
 // Optional message capabilities
 // -----------------------------
@@ -438,8 +442,9 @@ const LogSeverity LOG_0 = LOG_ERROR;
 // for each platform.
 #define PLOG_STREAM(severity) LOG_ERRNO_STREAM(severity)
 #elif defined(OS_STARBOARD)
-// TODO(iffy): Replace with Starboard error codes when they exist.
-#define LOG_SB_ERROR_STREAM(severity) LOG_STREAM(severity)
+#define LOG_SB_ERROR_STREAM(severity) \
+  COMPACT_GOOGLE_LOG_EX_ ## severity(StarboardLogMessage, \
+      ::logging::GetLastSystemErrorCode()).stream()
 #define LOG_SB_ERROR(severity) \
   LAZY_STREAM(LOG_SB_ERROR_STREAM(severity), LOG_IS_ON(severity))
 // PLOG_STREAM is used by PLOG, which is the usual error logging macro
@@ -909,7 +914,7 @@ typedef unsigned long SystemErrorCode;
 #elif defined(OS_POSIX)
 typedef int SystemErrorCode;
 #elif defined(OS_STARBOARD)
-typedef int SystemErrorCode;
+typedef SbSystemError SystemErrorCode;
 #endif
 
 // Alias for ::GetLastError() on Windows and errno on POSIX. Avoids having to
@@ -964,6 +969,26 @@ class BASE_EXPORT ErrnoLogMessage {
 
   DISALLOW_COPY_AND_ASSIGN(ErrnoLogMessage);
 };
+#elif defined(OS_STARBOARD)
+// Appends a formatted system message of the errno type
+class BASE_EXPORT StarboardLogMessage {
+ public:
+  StarboardLogMessage(const char* file,
+                      int line,
+                      LogSeverity severity,
+                      SystemErrorCode err);
+
+  // Appends the error message before destructing the encapsulated class.
+  ~StarboardLogMessage();
+
+  std::ostream& stream() { return log_message_.stream(); }
+
+ private:
+  SystemErrorCode err_;
+  LogMessage log_message_;
+
+  DISALLOW_COPY_AND_ASSIGN(StarboardLogMessage);
+};
 #endif  // OS_WIN
 
 // Closes the log file explicitly if open.
@@ -996,7 +1021,7 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
   return out << wstr.c_str();
 }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #if defined(__cplusplus_winrt)
 // Support for logging C++/CX strings. This function must be inlined because
 // the Chromium library is not compiled with C++/CX extensions enabled.
@@ -1021,7 +1046,7 @@ inline std::ostream& operator<<(std::ostream& out, ::Platform::String^ str) {
 #if (defined(OS_ANDROID) && defined(OFFICIAL_BUILD)) || \
   defined(__LB_SHELL__FOR_RELEASE__)
 #define NOTIMPLEMENTED_POLICY 0
-#elif defined (__LB_SHELL__)
+#elif defined (__LB_SHELL__) || defined(COBALT)
   // Only print each message once.
 #define NOTIMPLEMENTED_POLICY 5
 #else
@@ -1034,7 +1059,7 @@ inline std::ostream& operator<<(std::ostream& out, ::Platform::String^ str) {
 // On Linux, with GCC, we can use __PRETTY_FUNCTION__ to get the demangled name
 // of the current function in the NOTIMPLEMENTED message.
 #define NOTIMPLEMENTED_MSG "Not implemented reached in " << __PRETTY_FUNCTION__
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) || defined(COBALT)
 #define NOTIMPLEMENTED_MSG "Not implemented reached in " << __FUNCTION__
 #else
 #define NOTIMPLEMENTED_MSG "NOT IMPLEMENTED"
