@@ -12,14 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/double.h"
+#include "starboard/system.h"
 
-#include <float.h>
-#include <math.h>
+#include <errno.h>
 
-#include "starboard/log.h"
-
-bool SbDoubleIsFinite(const double *d) {
-  SB_DCHECK(d != NULL);
-  return (!d ? false : fpclassify(*d) != FP_INFINITE);
+SbSystemError SbSystemGetLastError() {
+  return errno;
 }

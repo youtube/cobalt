@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include "starboard/log.h"
 #include "starboard/shared/posix/file_internal.h"
 
 SbFile SbFileOpen(
@@ -35,22 +36,20 @@ SbFile SbFileOpen(
     *out_created = false;
   }
 
-  // TODO(***REMOVED***): Bring back the DCHECKs and COMPILE_ASSERT once we have
-  // Starboard Logging.
   if (flags & kSbFileCreateAlways) {
-    // DCHECK(!open_flags);
+    SB_DCHECK(!open_flags);
     open_flags = O_CREAT | O_TRUNC;
   }
 
   if (flags & kSbFileOpenTruncated) {
-    // DCHECK(!open_flags);
-    // DCHECK(flags & kSbFileWrite);
+    SB_DCHECK(!open_flags);
+    SB_DCHECK(flags & kSbFileWrite);
     open_flags = O_TRUNC;
   }
 
   if (!open_flags && !(flags & kSbFileOpenOnly) &&
       !(flags & kSbFileOpenAlways)) {
-    // NOTREACHED();
+    SB_NOTREACHED();
     errno = EOPNOTSUPP;
     if (out_error) {
       *out_error = kSbFileErrorFailed;
@@ -65,7 +64,7 @@ SbFile SbFileOpen(
     open_flags |= O_WRONLY;
   }
 
-  // COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
+  SB_COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
 
   int mode = S_IRUSR | S_IWUSR;
   int descriptor = HANDLE_EINTR(open(path, open_flags, mode));

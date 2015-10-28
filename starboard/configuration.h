@@ -90,6 +90,17 @@
 #  define SB_PRINTF_FORMAT(format_param, dots_param)
 #endif
 
+// Trivially references a parameter that is otherwise unreferenced, preventing a
+// compiler warning on some platforms.
+#if SB_IS(COMPILER_MSVC)
+#  define SB_UNREFERENCED_PARAMETER(x)
+#else
+#  define SB_UNREFERENCED_PARAMETER(x) \
+  do {                                 \
+    (void)(x);                         \
+  } while (0)
+#endif
+
 
 // --- Platform Configuration ------------------------------------------------
 

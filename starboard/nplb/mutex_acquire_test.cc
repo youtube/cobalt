@@ -18,11 +18,10 @@
 #include "starboard/nplb/thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace starboard::nplb;
-
 namespace {
 
 struct TestContext {
+  TestContext() : count(0) {}
   SbMutex mutex;
   int count;
 };
