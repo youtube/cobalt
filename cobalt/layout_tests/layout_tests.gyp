@@ -48,7 +48,7 @@
             ],
             'output_dir': 'cobalt/layout_tests',
           },
-          'includes': ['../build/copy_data.gypi'],
+          'includes': ['../build/copy_test_data.gypi'],
         }
       ],
     },
