@@ -12,14 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/double.h"
+#include "starboard/file.h"
+#include "starboard/nplb/file_helpers.h"
+#include "starboard/system.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-#include <float.h>
-#include <math.h>
+using starboard::nplb::ScopedRandomFile;
 
-#include "starboard/log.h"
+namespace {
 
-bool SbDoubleIsFinite(const double *d) {
-  SB_DCHECK(d != NULL);
-  return (!d ? false : fpclassify(*d) != FP_INFINITE);
+TEST(SbSystemGetLastErrorTest, SunnyDay) {
+  // Opening a non-existant file should generate an error on all platforms.
+  ScopedRandomFile random_file(ScopedRandomFile::kDontCreate);
+  SbFile file = SbFileOpen(random_file.filename().c_str(),
+                           kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+
+  SbSystemError error = SbSystemGetLastError();
+  EXPECT_NE(0, error);
 }
+
+}  // namespace

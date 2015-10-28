@@ -12,14 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/double.h"
-
-#include <float.h>
-#include <math.h>
+// This test doesn't test that the appropriate output was produced, but ensures
+// it compiles and runs without crashing.
 
 #include "starboard/log.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-bool SbDoubleIsFinite(const double *d) {
-  SB_DCHECK(d != NULL);
-  return (!d ? false : fpclassify(*d) != FP_INFINITE);
+namespace {
+
+TEST(SbLogRawTest, SunnyDayEmpty) {
+  SbLogRaw("");
 }
+
+TEST(SbLogRawTest, SunnyDayNewline) {
+  SbLogRaw("\n");
+}
+
+TEST(SbLogRawTest, SunnyDayTextNoNewline) {
+  SbLogRaw("test");
+}
+
+TEST(SbLogRawTest, SunnyDayTextAndNewline) {
+  SbLogRaw("test\n");
+}
+
+}  // namespace
