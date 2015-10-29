@@ -124,6 +124,14 @@ SB_EXPORT bool SbSystemSymbolize(const void* address,
                                  char* out_buffer,
                                  int buffer_size);
 
+// Requests that the application be terminated gracefully at the next convenient
+// point. Some work may continue to be done, and unrelated system events
+// dispatched, in the meantime. This will eventually result in a
+// kSbEventTypeStop event being dispatched to the application.  When the process
+// finally terminates, it will return |error_level|, if that has any meaning on
+// the current platform.
+SB_EXPORT void SbSystemRequestStop(int error_level);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

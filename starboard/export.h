@@ -25,6 +25,9 @@
 // SB_EXPORT_PRIVATE: Specification for a symbol that should be exported or
 // imported for testing purposes only.
 
+// SB_IMPORT: Specification for a symbol that is expected to be defined
+// externally to this module.
+
 #if defined(COMPONENT_BUILD)
 // COMPONENT_BUILD is defined when generating shared libraries for each project,
 // rather than static libraries. This means we need to be careful about
@@ -35,13 +38,16 @@
 // Starboard.
 #define SB_EXPORT SB_EXPORT_PLATFORM
 #define SB_EXPORT_PRIVATE SB_EXPORT_PLATFORM
+#define SB_IMPORT SB_IMPORT_PLATFORM
 #else  // defined(STARBOARD_IMPLEMENTATION)
 #define SB_EXPORT SB_IMPORT_PLATFORM
 #define SB_EXPORT_PRIVATE SB_IMPORT_PLATFORM
+#define SB_IMPORT SB_EXPORT_PLATFORM
 #endif
 #else  // defined(COMPONENT_BUILD)
 #define SB_EXPORT
 #define SB_EXPORT_PRIVATE
+#define SB_IMPORT
 #endif  // defined(COMPONENT_BUILD)
 
 #endif  // STARBOARD_EXPORT_H_
