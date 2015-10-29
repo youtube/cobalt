@@ -27,6 +27,7 @@
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/specified_style.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_string_map.h"
 #include "cobalt/dom/focus_event.h"
@@ -487,6 +488,11 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
           base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
               property_list_value->value()[i].get());
       if (absolute_url->value().is_valid()) {
+        if (!owner_document()->csp_delegate()->CanLoadImage(
+                absolute_url->value())) {
+          continue;
+        }
+
         scoped_refptr<loader::image::CachedImage> cached_image =
             html_element_context()->image_cache()->CreateCachedResource(
                 absolute_url->value());

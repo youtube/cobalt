@@ -191,7 +191,7 @@ ContentSecurityPolicy::ContentSecurityPolicy()
 ContentSecurityPolicy::~ContentSecurityPolicy() {}
 
 void ContentSecurityPolicy::DidReceiveHeaders(const ResponseHeaders& headers) {
-  DCHECK(!delegate_) << "BindDelegate should not be called yet";
+  DCHECK(delegate_);
   if (!headers.content_security_policy().empty()) {
     AddPolicyFromHeaderValue(headers.content_security_policy(),
                              kHeaderTypeEnforce, kHeaderSourceHTTP);
@@ -200,6 +200,7 @@ void ContentSecurityPolicy::DidReceiveHeaders(const ResponseHeaders& headers) {
     AddPolicyFromHeaderValue(headers.content_security_policy_report_only(),
                              kHeaderTypeReport, kHeaderSourceHTTP);
   }
+  ApplyPolicy();
 }
 
 void ContentSecurityPolicy::BindDelegate(Delegate* delegate) {
@@ -210,13 +211,9 @@ void ContentSecurityPolicy::BindDelegate(Delegate* delegate) {
 void ContentSecurityPolicy::DidReceiveHeader(const std::string& header,
                                              HeaderType type,
                                              HeaderSource source) {
+  DCHECK(delegate_);
   AddPolicyFromHeaderValue(header, type, source);
-
-  // This might be called after we've been bound. For example, a <meta>
-  // element might be injected after page load.
-  if (delegate_) {
-    ApplyPolicy();
-  }
+  ApplyPolicy();
 }
 
 bool ContentSecurityPolicy::UrlMatchesSelf(const GURL& url) const {
