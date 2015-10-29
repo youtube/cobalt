@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/event.h"
+#include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-int main(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  int result = RUN_ALL_TESTS();
-  return result;
+void SbEventHandle(const SbEvent* event) {
+  if (event->type == kSbEventTypeStart) {
+    SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
+    ::testing::InitGoogleTest(&data->argument_count, data->argument_values);
+    int result = RUN_ALL_TESTS();
+    SbSystemRequestStop(result);
+  }
 }
