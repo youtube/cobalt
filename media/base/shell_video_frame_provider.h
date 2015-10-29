@@ -19,8 +19,10 @@
 
 #include <vector>
 
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
+#include "base/time.h"
 #include "media/base/video_frame.h"
 
 namespace media {
@@ -37,6 +39,16 @@ class ShellVideoFrameProvider {
  public:
   ShellVideoFrameProvider();
 
+  typedef base::Callback<base::TimeDelta()> MediaTimeCB;
+  // This class uses the media time to decide which frame is current.  It
+  // retrieves the media time from the registered media_time_cb.  There can only
+  // be one registered media_time_cb at a certain time, a call to
+  // RegisterMediaTimeCB() will overwrite the previously registered callback.
+  void RegisterMediaTimeCB(const MediaTimeCB& media_time_cb);
+  // This function unregisters the media time callback if it hasn't been
+  // overwritten by another callback.
+  void UnregisterMediaTimeCB(const MediaTimeCB& media_time_cb);
+
   // Returns the current frame to be displayed if there is one. Otherwise it
   // returns NULL.
   const scoped_refptr<VideoFrame>& GetCurrentFrame();
@@ -50,7 +62,10 @@ class ShellVideoFrameProvider {
   size_t GetNumOfFramesCached() const;
 
  private:
+  base::TimeDelta GetMediaTime_Locked() const;
+
   mutable base::Lock frames_lock_;
+  MediaTimeCB media_time_cb_;
   std::vector<scoped_refptr<VideoFrame> > frames_;
   scoped_refptr<VideoFrame> current_frame_;
 
