@@ -233,7 +233,6 @@ class ContentSecurityPolicy {
   }
 
  private:
-  // Called by BindDelegate() to update self_source_.
   void ApplyPolicy();
   // Parses CSP header and creates policy based on that.
   void AddPolicyFromHeaderValue(const std::string& header, HeaderType type,

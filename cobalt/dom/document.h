@@ -37,6 +37,7 @@ namespace cobalt {
 namespace dom {
 
 class Attr;
+class CSPDelegate;
 class DOMImplementation;
 class Element;
 class FontFaceCache;
@@ -255,6 +256,8 @@ class Document : public Node, public cssom::MutationObserver {
     return timeline_sample_time_;
   }
 
+  CSPDelegate* csp_delegate() const { return csp_delegate_.get(); }
+
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   bool partial_layout_is_enabled() { return partial_layout_is_enabled_; }
   void SetPartialLayout(const std::string& mode_string);
@@ -306,6 +309,9 @@ class Document : public Node, public cssom::MutationObserver {
   const scoped_refptr<base::Clock> navigation_start_clock_;
   base::optional<base::TimeDelta> timeline_sample_time_;
   scoped_refptr<DocumentTimeline> default_timeline_;
+
+  // Content Security Policy enforcement for this document.
+  scoped_ptr<CSPDelegate> csp_delegate_;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   bool partial_layout_is_enabled_;
