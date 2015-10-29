@@ -156,5 +156,13 @@ INSTANTIATE_TEST_CASE_P(
     AnimationTimingAPILayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("animation-timing")));
 
+// Disable on Windows until network stack is implemented.
+#if !defined(COBALT_WIN)
+// Content Security Policy test cases.
+INSTANTIATE_TEST_CASE_P(
+    ContentSecurityPolicyTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("csp")));
+#endif  // !defined(COBALT_WIN)
+
 }  // namespace layout_tests
 }  // namespace cobalt

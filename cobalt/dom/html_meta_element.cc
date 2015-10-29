@@ -16,8 +16,17 @@
 
 #include "cobalt/dom/html_meta_element.h"
 
+#include "base/string_util.h"
+#include "cobalt/csp/content_security_policy.h"
+#include "cobalt/dom/csp_delegate.h"
+#include "cobalt/dom/document.h"
+
 namespace cobalt {
 namespace dom {
+
+namespace {
+const char kContentSecurityPolicy[] = "content-security-policy";
+}  // namespace
 
 // static
 const char HTMLMetaElement::kTagName[] = "meta";
@@ -26,8 +35,13 @@ std::string HTMLMetaElement::tag_name() const { return kTagName; }
 
 void HTMLMetaElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
-  // TODO(***REMOVED***): Inform property values to the CSP component of the document.
-  NOTIMPLEMENTED();
+  std::string http_equiv_attribute = GetAttribute("http-equiv").value_or("");
+  if (LowerCaseEqualsASCII(http_equiv_attribute, kContentSecurityPolicy)) {
+    std::string csp_text = GetAttribute("content").value_or("");
+
+    owner_document()->csp_delegate()->csp()->DidReceiveHeader(
+        csp_text, csp::kHeaderTypeEnforce, csp::kHeaderSourceMeta);
+  }
 }
 
 }  // namespace dom

@@ -20,6 +20,7 @@
 
 #include "base/message_loop.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/html_element_context.h"
@@ -81,6 +82,10 @@ void HTMLImageElement::UpdateImageData() {
     const GURL selected_source = base_url.Resolve(src);
     if (!selected_source.is_valid()) {
       LOG(WARNING) << src << " cannot be resolved based on " << base_url << ".";
+      return;
+    }
+
+    if (!owner_document()->csp_delegate()->CanLoadImage(selected_source)) {
       return;
     }
 
