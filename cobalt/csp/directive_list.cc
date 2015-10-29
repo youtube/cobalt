@@ -690,13 +690,12 @@ void DirectiveList::ParseReflectedXSS(const std::string& name,
 
   // value1
   //       ^
-  base::StringPiece begin_piece(begin, static_cast<size_t>(position - begin));
 
-  if (LowerCaseEqualsASCII("allow", begin_piece.data())) {
+  if (LowerCaseEqualsASCII(begin, position, "allow")) {
     reflected_xss_disposition_ = kAllowReflectedXSS;
-  } else if (LowerCaseEqualsASCII("filter", begin_piece.data())) {
+  } else if (LowerCaseEqualsASCII(begin, position, "filter")) {
     reflected_xss_disposition_ = kFilterReflectedXSS;
-  } else if (LowerCaseEqualsASCII("block", begin_piece.data())) {
+  } else if (LowerCaseEqualsASCII(begin, position, "block")) {
     reflected_xss_disposition_ = kBlockReflectedXSS;
   } else {
     reflected_xss_disposition_ = kReflectedXSSInvalid;
@@ -742,20 +741,18 @@ void DirectiveList::ParseReferrer(const std::string& name,
 
   // value1
   //       ^
-  base::StringPiece begin_piece(begin, static_cast<size_t>(position - begin));
-  if (LowerCaseEqualsASCII("unsafe-url", begin_piece.data())) {
+  if (LowerCaseEqualsASCII(begin, position, "unsafe-url")) {
     referrer_policy_ = kReferrerPolicyUnsafeUrl;
-  } else if (LowerCaseEqualsASCII("no-referrer", begin_piece.data())) {
+  } else if (LowerCaseEqualsASCII(begin, position, "no-referrer")) {
     referrer_policy_ = kReferrerPolicyNoReferrer;
-  } else if (LowerCaseEqualsASCII("no-referrer-when-downgrade",
-                                  begin_piece.data())) {
+  } else if (LowerCaseEqualsASCII(begin, position,
+                                  "no-referrer-when-downgrade")) {
     referrer_policy_ = kReferrerPolicyDefault;
-  } else if (LowerCaseEqualsASCII("origin", begin_piece.data())) {
+  } else if (LowerCaseEqualsASCII(begin, position, "origin")) {
     referrer_policy_ = kReferrerPolicyOrigin;
-  } else if (LowerCaseEqualsASCII("origin-when-cross-origin",
-                                  begin_piece.data()) ||
-             LowerCaseEqualsASCII("origin-when-crossorigin",
-                                  begin_piece.data())) {
+  } else if (LowerCaseEqualsASCII(begin, position,
+                                  "origin-when-cross-origin") ||
+             LowerCaseEqualsASCII(begin, position, "origin-when-crossorigin")) {
     referrer_policy_ = kReferrerPolicyOriginWhenCrossOrigin;
   } else {
     policy_->ReportInvalidReferrer(value);
