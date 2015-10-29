@@ -154,27 +154,26 @@ bool SourceList::ParseSource(const char* begin, const char* end,
     return false;
   }
 
-  base::StringPiece begin_piece(begin, static_cast<size_t>(end - begin));
-  if (LowerCaseEqualsASCII("'none'", begin_piece.data())) {
+  if (LowerCaseEqualsASCII(begin, end, "'none'")) {
     return false;
   }
 
+  base::StringPiece begin_piece(begin, static_cast<size_t>(end - begin));
   if (begin_piece.length() == 1 && begin_piece[0] == '*') {
     AddSourceStar();
     return true;
   }
-
-  if (LowerCaseEqualsASCII("'self'", begin_piece.data())) {
+  if (LowerCaseEqualsASCII(begin, end, "'self'")) {
     AddSourceSelf();
     return true;
   }
 
-  if (LowerCaseEqualsASCII("'unsafe-inline'", begin_piece.data())) {
+  if (LowerCaseEqualsASCII(begin, end, "'unsafe-inline'")) {
     AddSourceUnsafeInline();
     return true;
   }
 
-  if (LowerCaseEqualsASCII("'unsafe-eval'", begin_piece.data())) {
+  if (LowerCaseEqualsASCII(begin, end, "'unsafe-eval'")) {
     AddSourceUnsafeEval();
     return true;
   }
