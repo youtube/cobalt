@@ -24,7 +24,6 @@
 namespace cobalt {
 namespace audio {
 
-class AudioNode;
 class AudioNodeOutput;
 
 // This represents the input feeding into the AudioNode.
@@ -36,16 +35,12 @@ class AudioNodeOutput;
 // input has no connections, then it has one channel which is silent.
 class AudioNodeInput : public base::RefCountedThreadSafe<AudioNodeInput> {
  public:
-  explicit AudioNodeInput(AudioNode* node);
-
   void Connect(AudioNodeOutput* output);
   void Disconnect(AudioNodeOutput* output);
 
   void DisconnectAll();
 
  private:
-  AudioNode* owner_node_;
-
   std::set<AudioNodeOutput*> outputs_;
 };
 

@@ -23,8 +23,6 @@
 namespace cobalt {
 namespace audio {
 
-AudioNodeInput::AudioNodeInput(AudioNode* node) : owner_node_(node) {}
-
 void AudioNodeInput::Connect(AudioNodeOutput* output) {
   DCHECK(output);
 
