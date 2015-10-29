@@ -23,7 +23,7 @@ namespace audio {
 // numberOfOutputs : 0
 AudioDestinationNode::AudioDestinationNode(AudioContext* context)
     : AudioNode(context), max_channel_count_(2) {
-  AddInput(new AudioNodeInput(this));
+  AddInput(new AudioNodeInput());
 }
 
 }  // namespace audio

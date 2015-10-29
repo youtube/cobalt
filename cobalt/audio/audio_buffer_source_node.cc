@@ -25,7 +25,7 @@ namespace audio {
 // numberOfOutputs : 1
 AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* context)
     : AudioNode(context), start_time_(0), end_time_(0) {
-  AddOutput(new AudioNodeOutput(this));
+  AddOutput(new AudioNodeOutput());
 }
 
 void AudioBufferSourceNode::Start(double when, double offset) {

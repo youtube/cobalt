@@ -24,23 +24,18 @@
 namespace cobalt {
 namespace audio {
 
-class AudioNode;
 class AudioNodeInput;
 
 // This represents the output coming out of the AudioNode.
 // It may be connected to one or more AudioNodeInputs.
 class AudioNodeOutput : public base::RefCountedThreadSafe<AudioNodeOutput> {
  public:
-  explicit AudioNodeOutput(AudioNode* node);
-
   void AddInput(AudioNodeInput* input);
   void RemoveInput(AudioNodeInput* input);
 
   void DisconnectAll();
 
  private:
-  AudioNode* owner_node_;
-
   std::set<AudioNodeInput*> inputs_;
 };
 
