@@ -19,6 +19,7 @@
 #include "starboard/configuration.h"
 #include "starboard/directory.h"
 #include "starboard/double.h"
+#include "starboard/event.h"
 #include "starboard/export.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
@@ -30,4 +31,3 @@
 #include "starboard/time.h"
 #include "starboard/time_zone.h"
 #include "starboard/types.h"
-
