@@ -22,7 +22,7 @@
       'default_project': 1,
       'type': 'none',
       'dependencies': [
-        '<(DEPTH)/cobalt/browser/browser.gyp:cobalt',
+        '<(DEPTH)/cobalt/browser/cobalt.gyp:cobalt',
       ],
     },
 
@@ -35,6 +35,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:*',
         '<(DEPTH)/cobalt/bindings/testing/testing.gyp:*',
         '<(DEPTH)/cobalt/browser/browser.gyp:*',
+        '<(DEPTH)/cobalt/browser/cobalt.gyp:*',
         '<(DEPTH)/cobalt/csp/csp.gyp:*',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:*',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:*',
