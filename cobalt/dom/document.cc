@@ -31,6 +31,7 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/benchmark_stat_names.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
@@ -75,7 +76,8 @@ Document::Document(HTMLElementContext* html_element_context,
       are_font_faces_dirty_(true),
       navigation_start_clock_(options.navigation_start_clock),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          default_timeline_(new DocumentTimeline(this, 0))) {
+          default_timeline_(new DocumentTimeline(this, 0))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(csp_delegate_(new CSPDelegate(this))) {
   DCHECK(url_.is_empty() || url_.is_valid());
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)

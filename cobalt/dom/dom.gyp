@@ -41,6 +41,8 @@
         'console.h',
         'crypto.cc',
         'crypto.h',
+        'csp_delegate.cc',
+        'csp_delegate.h',
         'data_view.cc',
         'data_view.h',
         'document.cc',
@@ -211,6 +213,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/csp/csp.gyp:csp',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/cobalt/debug/debug.gyp:debug',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
