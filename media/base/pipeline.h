@@ -17,6 +17,9 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/ranges.h"
 #include "media/base/serial_runner.h"
+#if defined(__LB_SHELL__)
+#include "media/base/shell_video_frame_provider.h"
+#endif  // defined(__LB_SHELL__)
 #include "ui/gfx/size.h"
 
 class MessageLoop;
@@ -113,12 +116,6 @@ class MEDIA_EXPORT Pipeline
   // Constructs a media pipeline that will execute on |message_loop|.
   Pipeline(const scoped_refptr<base::MessageLoopProxy>& message_loop,
            MediaLog* media_log);
-
-#if defined(__LB_SHELL__)
-  // TODO(***REMOVED***) : Refactor this function. This function works fine it is
-  // ugly to let LB::VideoOverlay to know Pipeline directly.
-  static base::TimeDelta GetCurrentTime();
-#endif  // defined(__LB_SHELL__)
 
   // Build a pipeline to using the given filter collection to construct a filter
   // chain, executing |seek_cb| when the initial seek/preroll has completed.
@@ -475,6 +472,10 @@ class MEDIA_EXPORT Pipeline
   base::Time creation_time_;
 
   scoped_ptr<SerialRunner> pending_callbacks_;
+
+#if defined(__LB_SHELL__)
+  ShellVideoFrameProvider::MediaTimeCB media_time_cb_;
+#endif  // defined(__LB_SHELL__)
 
   base::ThreadChecker thread_checker_;
 
