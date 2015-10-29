@@ -47,7 +47,7 @@
             'window_driver.cc',
             'window_driver.h',
           ],
-          'direct_dependent_settings': {
+          'all_dependent_settings': {
             'defines': [ 'ENABLE_WEBDRIVER', ],
           },
         }],

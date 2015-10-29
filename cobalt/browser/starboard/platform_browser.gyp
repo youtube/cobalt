@@ -20,6 +20,9 @@
       'sources': [
         'application.cc',
       ],
+      'dependencies': [
+        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+      ],
     },
   ],
 }

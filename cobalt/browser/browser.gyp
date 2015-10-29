@@ -18,36 +18,6 @@
   },
   'targets': [
     {
-      'target_name': 'cobalt',
-      'type': '<(final_executable_type)',
-      'sources': [
-        'main.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr_copy_test_data',
-        'browser',
-        'browser_copy_debug_console',
-      ],
-      'conditions': [
-        ['cobalt_copy_test_data == 1', {
-          'dependencies': ['browser_copy_test_data'],
-        }],
-      ],
-    },
-
-    {
-      'target_name': 'cobalt_deploy',
-      'type': 'none',
-      'dependencies': [
-        'cobalt',
-      ],
-      'variables': {
-        'executable_name': 'cobalt',
-      },
-      'includes': [ '../build/deploy.gypi' ],
-    },
-
-    {
       'target_name': 'browser',
       'type': 'static_library',
       'sources': [
@@ -68,7 +38,6 @@
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/bindings/browser.gyp:bindings',
-        '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
         '<(DEPTH)/cobalt/debug/debug.gyp:debug',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
@@ -83,33 +52,10 @@
         '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
-	'<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
+        '<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
-    },
-
-    {
-      'target_name': 'snapshot_app_stats',
-      'type': '<(final_executable_type)',
-      'sources': [
-        'snapshot_app_stats.cc',
-      ],
-      'dependencies': [
-        'cobalt',
-        'browser',
-      ],
-    },
-    {
-      'target_name': 'snapshot_app_stats_deploy',
-      'type': 'none',
-      'dependencies': [
-        'snapshot_app_stats',
-      ],
-      'variables': {
-        'executable_name': 'snapshot_app_stats',
-      },
-      'includes': [ '../build/deploy.gypi' ],
     },
 
     {
