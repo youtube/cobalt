@@ -16,35 +16,121 @@
 
 #include "cobalt/media/sandbox/media_sandbox.h"
 
-#include "base/message_loop_proxy.h"
-#include "cobalt/media/fetcher_buffered_data_source.h"
+#include "base/at_exit.h"
+#include "base/logging.h"
+#include "base/message_loop.h"
+#include "base/synchronization/lock.h"
+#include "cobalt/base/init_cobalt.h"
+#include "cobalt/math/size_f.h"
+#include "cobalt/network/network_module.h"
+#include "cobalt/render_tree/animations/node_animations_map.h"
+#include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/renderer/renderer_module.h"
+#include "cobalt/storage/storage_manager.h"
+#include "cobalt/system_window/create_system_window.h"
+#include "cobalt/trace_event/scoped_trace_to_file.h"
 
 namespace cobalt {
 namespace media {
 namespace sandbox {
 
-using ::media::VideoFrame;
-using ::media::WebMediaPlayerDelegate;
-using cobalt::render_tree::ResourceProvider;
+namespace {
 
-MediaSandbox::MediaSandbox(ResourceProvider* resource_provider)
-    : media_module_(MediaModule::Create(resource_provider)),
-      player_(media_module_->CreateWebMediaPlayer(this)) {}
+// This class is introduced to ensure that CobaltInit() is called after AtExit
+// is initialized.
+class CobaltInit {
+ public:
+  CobaltInit(int argc, char** argv) { InitCobalt(argc, argv); }
+};
 
-void MediaSandbox::LoadAndPlay(const GURL& url,
-                               loader::FetcherFactory* fetcher_factory) {
-  player_->SetRate(1.0);
-  player_->LoadProgressive(
-      url, new FetcherBufferedDataSource(base::MessageLoopProxy::current(), url,
-                                         fetcher_factory),
-      ::media::WebMediaPlayer::kCORSModeUnspecified);
-  player_->Play();
+}  // namespace
+
+class MediaSandbox::Impl {
+ public:
+  Impl(int argc, char** argv, const FilePath& trace_log_path)
+      : cobalt_init_(argc, argv),
+        trace_to_file_(trace_log_path),
+        fetcher_factory_(&network_module_),
+        system_window_(system_window::CreateSystemWindow()),
+        renderer_module_(system_window_.get(),
+                         renderer::RendererModule::Options()),
+        media_module_(MediaModule::Create(
+            renderer_module_.pipeline()->GetResourceProvider())) {
+    SetupAndSubmitScene();
+  }
+
+  void RegisterFrameCB(const MediaSandbox::FrameCB& frame_cb) {
+    base::AutoLock auto_lock(lock_);
+    frame_cb_ = frame_cb;
+  }
+
+  MediaModule* GetMediaModule() { return media_module_.get(); }
+
+  loader::FetcherFactory* GetFetcherFactory() { return &fetcher_factory_; }
+
+ private:
+  void SetupAndSubmitScene() {
+    scoped_refptr<render_tree::ImageNode> image_node =
+        new render_tree::ImageNode(NULL);
+    render_tree::animations::NodeAnimationsMap::Builder
+        node_animations_map_builder;
+
+    node_animations_map_builder.Add(
+        image_node, base::Bind(&Impl::AnimateCB, base::Unretained(this)));
+
+    renderer_module_.pipeline()->Submit(renderer::Pipeline::Submission(
+        image_node, new render_tree::animations::NodeAnimationsMap(
+                        node_animations_map_builder.Pass()),
+        base::TimeDelta()));
+  }
+  void AnimateCB(render_tree::ImageNode::Builder* image_node,
+                 base::TimeDelta time) {
+    DCHECK(image_node);
+    math::SizeF output_size(
+        renderer_module_.render_target()->GetSurfaceInfo().size);
+    image_node->destination_size = output_size;
+    base::AutoLock auto_lock(lock_);
+    image_node->source = frame_cb_.is_null() ? NULL : frame_cb_.Run(time);
+  }
+
+  base::Lock lock_;
+  base::AtExitManager at_exit;
+  CobaltInit cobalt_init_;
+  trace_event::ScopedTraceToFile trace_to_file_;
+  MessageLoop message_loop_;
+  network::NetworkModule network_module_;
+  loader::FetcherFactory fetcher_factory_;
+  // System window used as a render target.
+  scoped_ptr<system_window::SystemWindow> system_window_;
+  renderer::RendererModule renderer_module_;
+  scoped_ptr<MediaModule> media_module_;
+  MediaSandbox::FrameCB frame_cb_;
+};
+
+MediaSandbox::MediaSandbox(int argc, char** argv,
+                           const FilePath& trace_log_path) {
+  impl_ = new Impl(argc, argv, trace_log_path);
 }
 
-scoped_refptr<render_tree::Image> MediaSandbox::GetCurrentFrame() {
-  scoped_refptr<VideoFrame> frame =
-      player_->GetVideoFrameProvider()->GetCurrentFrame();
-  return frame ? reinterpret_cast<Image*>(frame->texture_id()) : NULL;
+MediaSandbox::~MediaSandbox() {
+  DCHECK(impl_);
+  delete impl_;
+}
+
+void MediaSandbox::RegisterFrameCB(const FrameCB& frame_cb) {
+  DCHECK(impl_);
+  impl_->RegisterFrameCB(frame_cb);
+}
+
+MediaModule* MediaSandbox::GetMediaModule() {
+  DCHECK(impl_);
+  return impl_->GetMediaModule();
+}
+
+loader::FetcherFactory* MediaSandbox::GetFetcherFactory() {
+  DCHECK(impl_);
+  return impl_->GetFetcherFactory();
 }
 
 }  // namespace sandbox
