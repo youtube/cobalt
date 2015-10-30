@@ -22,7 +22,7 @@ BASE_EXPORT std::string GenerateGUID();
 // Returns true if the input string conforms to the GUID format.
 BASE_EXPORT bool IsValidGUID(const std::string& guid);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_STARBOARD)
 // For unit testing purposes only.  Do not use outside of tests.
 BASE_EXPORT std::string RandomDataToGUIDString(const uint64 bytes[2]);
 #endif

@@ -275,8 +275,13 @@ bool PathService::OverrideAndCreateIfNeeded(int key,
   // We need to have an absolute path, as extensions and plugins don't like
   // relative paths, and will gladly crash the browser in CHECK()s if they get a
   // relative path.
+#if defined(OS_STARBOARD)
+  if (!file_path.IsAbsolute())
+    return false;
+#else
   if (!file_util::AbsolutePath(&file_path))
     return false;
+#endif
 
   base::AutoLock scoped_lock(path_data->lock);
 

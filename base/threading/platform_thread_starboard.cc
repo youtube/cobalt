@@ -56,8 +56,8 @@ bool CreateThread(size_t stack_size,
   params->delegate = delegate;
   params->joinable = joinable;
 
-  SbThread thread = SbThreadCreate(stack_size, priority, affinity,
-                                   joinable, name, ThreadFunc, delegate);
+  SbThread thread = SbThreadCreate(stack_size, priority, affinity, joinable,
+                                   name, ThreadFunc, params);
   if (SbThreadIsValid(thread)) {
     if (thread_handle) {
       *thread_handle = thread;

@@ -22,9 +22,11 @@ class BASE_EXPORT SysInfo {
   // Return the number of bytes of physical memory on the current machine.
   static int64 AmountOfPhysicalMemory();
 
+#if !defined(OS_STARBOARD)
   // Return the number of bytes of current available physical memory on the
   // machine.
   static int64 AmountOfAvailablePhysicalMemory();
+#endif
 
   // Return the number of megabytes of physical memory on the current machine.
   static int AmountOfPhysicalMemoryMB() {
@@ -38,11 +40,13 @@ class BASE_EXPORT SysInfo {
   // Returns system uptime in milliseconds.
   static int64 Uptime();
 
+#if !defined(OS_STARBOARD)
   // Returns the name of the host operating system.
   static std::string OperatingSystemName();
 
   // Returns the version of the host operating system.
   static std::string OperatingSystemVersion();
+#endif
 
   // Retrieves detailed numeric values for the OS version.
   // TODO(port): Implement a Linux version of this method and enable the
@@ -56,6 +60,7 @@ class BASE_EXPORT SysInfo {
                                             int32* minor_version,
                                             int32* bugfix_version);
 
+#if !defined(OS_STARBOARD)
   // Returns the architecture of the running operating system.
   // Exact return value may differ across platforms.
   // e.g. a 32-bit x86 kernel on a 64-bit capable CPU will return "x86",
@@ -71,6 +76,7 @@ class BASE_EXPORT SysInfo {
   // Return the smallest amount of memory (in bytes) which the VM system will
   // allocate.
   static size_t VMAllocationGranularity();
+#endif
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
   // Returns the maximum SysV shared memory segment size.

@@ -245,6 +245,7 @@ TEST_F(LoggingTest, Dcheck) {
   EXPECT_TRUE(DLOG_IS_ON(DCHECK));
 #endif  // defined(LOGGING_IS_OFFICIAL_BUILD)
 
+#if !defined(OS_STARBOARD)
 #if defined(__LB_SHELL__)
   // These only break when the Logging class thinks a debugger is attached.
   // Unfortunately, LB_SHELL assumes a debugger is attached as long as
@@ -260,6 +261,7 @@ TEST_F(LoggingTest, Dcheck) {
     EXPECT_EQ(DCHECK_IS_ON() ? 3 : 0, log_sink_call_count);
 #if defined(__LB_SHELL__)
   }
+#endif
 #endif
 }
 

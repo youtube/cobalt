@@ -272,6 +272,7 @@ TEST(PlatformFile, TruncatePlatformFile) {
   base::ClosePlatformFile(file);
 }
 
+#if !defined(OS_STARBOARD)
 // Flakily fails: http://crbug.com/86494
 TEST(PlatformFile, DISABLED_TouchGetInfoPlatformFile) {
   base::ScopedTempDir temp_dir;
@@ -348,3 +349,4 @@ TEST(PlatformFile, DISABLED_TouchGetInfoPlatformFile) {
   // Close the file handle to allow the temp directory to be deleted.
   base::ClosePlatformFile(file);
 }
+#endif

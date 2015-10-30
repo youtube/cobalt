@@ -25,6 +25,9 @@ SbTime TimeDelta::ToSbTime() const {
 }
 
 // static
+const int64 Time::kTimeTToMicrosecondsOffset = -kSbTimeToPosixDelta;
+
+// static
 Time Time::Now() {
   return Time(SbTimeGetNow());
 }
