@@ -182,7 +182,8 @@ MessageLoop::MessageLoop(Type type)
 // ipc_channel_nacl.cc uses a worker thread to do socket reads currently, and
 // doesn't require extra support for watching file descriptors.
 #define MESSAGE_PUMP_IO new base::MessagePumpDefault();
-#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+#elif(defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || \
+    defined(OS_STARBOARD)
 #define MESSAGE_PUMP_UI new base::MessagePumpShell()
 #define MESSAGE_PUMP_IO new base::MessagePumpShell()
 #elif defined(OS_POSIX)  // POSIX but not MACOSX.
