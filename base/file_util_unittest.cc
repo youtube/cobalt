@@ -300,14 +300,18 @@ TEST_F(FileUtilTest, FileAndDirectorySize) {
   int64 computed_size = file_util::ComputeDirectorySize(temp_dir_.path());
   EXPECT_EQ(size_f1 + size_f2 + 3, computed_size);
 
+#if !defined(OS_STARBOARD)
+  // No pattern support in Starboard.
   computed_size =
       file_util::ComputeFilesSize(temp_dir_.path(), FPL("The file*"));
   EXPECT_EQ(size_f1, computed_size);
 
   computed_size = file_util::ComputeFilesSize(temp_dir_.path(), FPL("bla*"));
   EXPECT_EQ(0, computed_size);
+#endif
 }
 
+#if !defined(OS_STARBOARD)
 TEST_F(FileUtilTest, NormalizeFilePathBasic) {
   // Create a directory under the test dir.  Because we create it,
   // we know it is not a link.
@@ -338,6 +342,7 @@ TEST_F(FileUtilTest, NormalizeFilePathBasic) {
   ASSERT_TRUE(normalized_file_a_path.DirName()
       .IsParent(normalized_file_b_path.DirName()));
 }
+#endif
 
 #if defined(OS_WIN)
 
@@ -1154,6 +1159,7 @@ TEST_F(FileUtilTest, MoveExist) {
 }
 #endif
 
+#if !defined(OS_STARBOARD)
 TEST_F(FileUtilTest, MAYBE_CopyDirectoryRecursivelyNew) {
   // Create a directory.
   FilePath dir_name_from =
@@ -1451,6 +1457,7 @@ TEST_F(FileUtilTest, MAYBE_CopyDirectoryWithTrailingSeparators) {
   EXPECT_TRUE(file_util::PathExists(dir_name_to));
   EXPECT_TRUE(file_util::PathExists(file_name_to));
 }
+#endif  // defined(OS_STARBOARD)
 
 TEST_F(FileUtilTest, CopyFile) {
   // Create a directory
@@ -1705,6 +1712,7 @@ TEST_F(FileUtilTest, CreateTemporaryFileTest) {
     EXPECT_TRUE(file_util::Delete(temp_files[i], false));
 }
 
+#if !defined(OS_STARBOARD)
 TEST_F(FileUtilTest, CreateAndOpenTemporaryFileTest) {
   FilePath names[3];
   FILE* fps[3];
@@ -1728,6 +1736,7 @@ TEST_F(FileUtilTest, CreateAndOpenTemporaryFileTest) {
     EXPECT_TRUE(file_util::Delete(names[i], false));
   }
 }
+#endif
 
 TEST_F(FileUtilTest, CreateNewTempDirectoryTest) {
   FilePath temp_dir;
@@ -1901,7 +1910,7 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_TRUE(c2_non_recursive.HasFile(dir2));
   EXPECT_EQ(c2_non_recursive.size(), 2);
 
-#if !defined(__LB_XB1__)
+#if !defined(__LB_XB1__) && !defined(OS_STARBOARD)
 // As all file access is absolute, this is not an issue
   // Only enumerate directories, non-recursively, including "..".
   file_util::FileEnumerator f2_dotdot(temp_dir_.path(), false,
@@ -1936,6 +1945,7 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_TRUE(c4.HasFile(file2_abs));
   EXPECT_EQ(c4.size(), 4);
 
+#if !defined(OS_STARBOARD)
   // Enumerate with a pattern.
   file_util::FileEnumerator f5(temp_dir_.path(), true, FILES_AND_DIRECTORIES,
       FILE_PATH_LITERAL("dir*"));
@@ -1946,6 +1956,7 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_TRUE(c5.HasFile(dir2inner));
   EXPECT_TRUE(c5.HasFile(dir2innerfile));
   EXPECT_EQ(c5.size(), 5);
+#endif
 
   // Make sure the destructor closes the find handle while in the middle of a
   // query to allow TearDown to delete the directory.

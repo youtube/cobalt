@@ -828,6 +828,7 @@
         ['OS == "lb_shell" or OS == "starboard"', {
           'sources!': [
             'environment_unittest.cc',
+            'files/important_file_writer_unittest.cc',
             # We don't use field trials (an experiments framework) in Cobalt,
             # and these tests depend on the current date being set correctly,
             # so do not run them.

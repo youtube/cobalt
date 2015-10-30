@@ -49,7 +49,7 @@ bool BreakIterator::Init() {
                     string_.data(), static_cast<int32_t>(string_.size()),
                     &status);
   if (U_FAILURE(status)) {
-    NOTREACHED() << "ubrk_open failed";
+    NOTREACHED() << "ubrk_open failed: " << u_errorName(status);
     return false;
   }
   // Move the iterator to the beginning of the string.
