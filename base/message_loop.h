@@ -26,7 +26,11 @@
 // We need this to declare base::MessagePumpWin::Dispatcher, which we should
 // really just eliminate.
 #include "base/message_pump_win.h"
-#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+#elif (defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || \
+    defined(OS_STARBOARD)
+// TODO(iffy): Abstract enough of what MessagePumps do to implement them by way
+// of Starboard. Until then, we can use this lowest-common denominator that we
+// have used on all released platforms.
 #include "base/message_pump_shell.h"
 #elif defined(OS_IOS)
 #include "base/message_pump_io_ios.h"
@@ -85,7 +89,7 @@ class MessagePumpForUI;
 //
 class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
  public:
-#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+#if (defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || defined(OS_STARBOARD)
   typedef base::MessagePumpShell::Dispatcher Dispatcher;
   typedef base::MessagePumpShell::Observer Observer;
 #elif !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
@@ -128,7 +132,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // MessagePump implementation for 'TYPE_UI'.
   static void InitMessagePumpForUIFactory(MessagePumpFactory* factory);
 
-#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+#if (defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || defined(OS_STARBOARD)
   inline std::size_t Size() const {
     return work_queue_.size() + delayed_work_queue_.size() +
            deferred_non_nestable_work_queue_.size() + incoming_queue_.size();
@@ -635,7 +639,8 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
   typedef base::MessagePumpForIO::IOHandler IOHandler;
   typedef base::MessagePumpForIO::IOContext IOContext;
   typedef base::MessagePumpForIO::IOObserver IOObserver;
-#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+#elif (defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || \
+    defined(OS_STARBOARD)
   typedef base::MessagePumpShell::Watcher Watcher;
   typedef base::MessagePumpShell::FileDescriptorWatcher FileDescriptorWatcher;
   typedef base::MessagePumpShell::IOObserver IOObserver;
@@ -700,7 +705,8 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
     return static_cast<base::MessagePumpForIO*>(pump_.get());
   }
 
-#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+#elif (defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || \
+    defined(OS_STARBOARD)
   bool WatchSocket(int sock,
                    bool persistent,
                    Mode mode,

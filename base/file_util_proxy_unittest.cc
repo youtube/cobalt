@@ -182,8 +182,10 @@ TEST_F(FileUtilProxyTest, Close) {
   // file_ has been closed by FileUtilProxy::Close
   file_ = kInvalidPlatformFileValue;
 
+#if !defined(OS_STARBOARD)
   // Now it should pass on all platforms.
   EXPECT_TRUE(file_util::Move(test_path(), test_dir_path().AppendASCII("new")));
+#endif
 }
 
 TEST_F(FileUtilProxyTest, CreateTemporary) {
