@@ -50,34 +50,35 @@ typedef struct SbTimeExploded {
 } SbTimeExploded;
 
 // How many nanoseconds in one SbTime unit (microseconds).
-const SbTime kSbTimeNanosecondsPerMicrosecond = 1000;
+static const SbTime kSbTimeNanosecondsPerMicrosecond = 1000;
 
 // One millisecond in SbTime units (microseconds).
-const SbTime kSbTimeMillisecond = 1000;
+static const SbTime kSbTimeMillisecond = 1000;
 
 // One second in SbTime units (microseconds).
-const SbTime kSbTimeSecond = kSbTimeMillisecond * 1000;
+static const SbTime kSbTimeSecond = kSbTimeMillisecond * 1000;
 
 // One minute in SbTime units (microseconds).
-const SbTime kSbTimeMinute = kSbTimeSecond * 60;
+static const SbTime kSbTimeMinute = kSbTimeSecond * 60;
 
 // One hour in SbTime units (microseconds).
-const SbTime kSbTimeHour = kSbTimeMinute * 60;
+static const SbTime kSbTimeHour = kSbTimeMinute * 60;
 
 // One day in SbTime units (microseconds).
-const SbTime kSbTimeDay = kSbTimeHour * 24;
+static const SbTime kSbTimeDay = kSbTimeHour * 24;
 
 // A term that can be added to an SbTime to convert it into the number of
 // microseconds since the POSIX epoch.
-const SbTime kSbTimeToPosixDelta = SB_INT64_C(-11644473600) * kSbTimeSecond;
+static const SbTime kSbTimeToPosixDelta =
+    SB_INT64_C(-11644473600) * kSbTimeSecond;
 
 // Converts an SbTime into microseconds from the POSIX epoch.
-SB_C_FORCE_INLINE int64_t SbTimeToPosix(SbTime time) {
+static SB_C_FORCE_INLINE int64_t SbTimeToPosix(SbTime time) {
   return time + kSbTimeToPosixDelta;
 }
 
 // Converts microseconds from the POSIX epoch into an SbTime.
-SB_C_FORCE_INLINE SbTime SbTimeFromPosix(int64_t time) {
+static SB_C_FORCE_INLINE SbTime SbTimeFromPosix(int64_t time) {
   return time - kSbTimeToPosixDelta;
 }
 
