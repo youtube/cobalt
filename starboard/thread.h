@@ -86,9 +86,6 @@ typedef void (*SbThreadLocalDestructor)(void* value);
 // Type for thread core affinity. This generally will be a single cpu (or core
 // or hyperthread) identifier. Some platforms may not support affinity, and some
 // may have specific rules about how it must be used.
-//
-// TODO(***REMOVED***): Add "SbSystemGetCpuCount()" to describe how many CPUs are
-// available on the platform.
 typedef int32_t SbThreadAffinity;
 
 // Private structure representing a thread-local key.
