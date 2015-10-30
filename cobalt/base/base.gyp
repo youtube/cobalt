@@ -39,6 +39,7 @@
         'polymorphic_equatable.h',
         'reuse_allocator.cc',
         'reuse_allocator.h',
+        'sanitizer_options.cc',
         'source_location.h',
         'type_id.h',
         'unused.h',
