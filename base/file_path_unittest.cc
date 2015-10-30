@@ -316,7 +316,7 @@ TEST_F(FilePathTest, Append) {
     // handle the case when AppendASCII is passed UTF8
 #if defined(OS_WIN)
     std::string ascii = WideToUTF8(leaf);
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
     std::string ascii = leaf;
 #endif
     observed_str = root.AppendASCII(ascii);
@@ -1014,13 +1014,17 @@ TEST_F(FilePathTest, CompareIgnoreCase) {
 //               strings are single-byte. Unicode characters cannot be
 //               represented in single-byte encoding, so tests below are doomed
 //               to fail. Re-enable tests after getting rid of POSIX emulation.
-#if !defined(COBALT_WIN)
+// TODO(iffy): Starboard, the replacement for POSIX emulation, would like path
+//             encoding to be consistent across platforms in common code. Lowest
+//             common denominator suggests we should still use single-byte
+//             paths. The TODO is to discuss and act on these TODOs.
+#if !defined(COBALT_WIN) && !defined(OS_STARBOARD)
     { { FPL("\u1E9E"),                       FPL("\u1E9E") },               0},
 #endif
 // CompareIgnoreCase is tertiary.  These glyphs don't exist and on the
 // XBox One this comparison shows up in the opposite direction.
 #if defined (__LB_XB1__)
-#if !defined(COBALT_WIN)
+#if !defined(COBALT_WIN) && !defined(OS_STARBOARD)
     { { FPL("\u00DF"),                       FPL("\u1E9E") },               1},
     { { FPL("SS"),                           FPL("\u00DF") },              -1},
     { { FPL("SS"),                           FPL("\u1E9E") },               1},

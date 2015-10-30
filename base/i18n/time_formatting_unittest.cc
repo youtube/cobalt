@@ -12,7 +12,7 @@
 namespace base {
 namespace {
 
-#if defined(__LB_PS3__)
+#if defined(__LB_PS3__) || defined(OS_STARBOARD)
 // The PS3's local time calculations always use the current daylight savings
 // time when exploding/unexploding time ticks, no matter what the time to
 // explode is.

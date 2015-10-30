@@ -15,6 +15,18 @@ using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
 
+#if defined(OS_STARBOARD)
+// Starboard acknowledges that not all platforms can do local explosions
+// properly, so it doesn't allow usage of that API.
+#define MAYBE_TimeT DISABLED_TimeT
+#define MAYBE_LocalExplode DISABLED_LocalExplode
+#define MAYBE_LocalMidnight DISABLED_LocalMidnight
+#else
+#define MAYBE_TimeT TimeT
+#define MAYBE_LocalExplode LocalExplode
+#define MAYBE_LocalMidnight LocalMidnight
+#endif
+
 // Specialized test fixture allowing time strings without timezones to be
 // tested by comparing them to a known time in the local zone.
 // See also pr_time_unittests.cc
@@ -50,7 +62,7 @@ class TimeTest : public testing::Test {
 };
 
 // Test conversions to/from time_t and exploding/unexploding.
-TEST_F(TimeTest, TimeT) {
+TEST_F(TimeTest, MAYBE_TimeT) {
   // C library time and exploded time.
   time_t now_t_1 = time(NULL);
   struct tm tms;
@@ -129,7 +141,7 @@ TEST_F(TimeTest, ZeroIsSymmetric) {
   EXPECT_EQ(0.0, zero_time.ToDoubleT());
 }
 
-TEST_F(TimeTest, LocalExplode) {
+TEST_F(TimeTest, MAYBE_LocalExplode) {
   Time a = Time::Now();
   Time::Exploded exploded;
   a.LocalExplode(&exploded);
@@ -151,7 +163,7 @@ TEST_F(TimeTest, UTCExplode) {
   EXPECT_TRUE((a - b) < TimeDelta::FromSeconds(1));
 }
 
-TEST_F(TimeTest, LocalMidnight) {
+TEST_F(TimeTest, MAYBE_LocalMidnight) {
   Time::Exploded exploded;
   Time::Now().LocalMidnight().LocalExplode(&exploded);
   EXPECT_EQ(0, exploded.hour);

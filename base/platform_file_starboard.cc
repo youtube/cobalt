@@ -47,17 +47,14 @@ PlatformFile CreatePlatformFileUnsafe(const FilePath& name,
 
     case PLATFORM_FILE_CREATE:
       open_flags = kSbFileCreateOnly;
-      DCHECK(flags & PLATFORM_FILE_WRITE);
       break;
 
     case PLATFORM_FILE_OPEN_ALWAYS:
       open_flags = kSbFileOpenAlways;
-      DCHECK(flags & PLATFORM_FILE_WRITE);
       break;
 
     case PLATFORM_FILE_CREATE_ALWAYS:
       open_flags = kSbFileCreateAlways;
-      DCHECK(flags & PLATFORM_FILE_WRITE);
       break;
 
     case PLATFORM_FILE_OPEN_TRUNCATED:
@@ -72,6 +69,8 @@ PlatformFile CreatePlatformFileUnsafe(const FilePath& name,
       }
       return kInvalidPlatformFileValue;
   }
+
+  DCHECK(flags & PLATFORM_FILE_WRITE || flags & PLATFORM_FILE_READ);
 
   if (flags & PLATFORM_FILE_READ) {
     open_flags |= kSbFileRead;
@@ -128,6 +127,36 @@ int64 SeekPlatformFile(PlatformFile file,
                        int64 offset) {
   base::ThreadRestrictions::AssertIOAllowed();
   return SbFileSeek(file, static_cast<SbFileWhence>(whence), offset);
+}
+
+int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (size < 0) {
+    return -1;
+  }
+
+  int original_position = SbFileSeek(file, kSbFileFromCurrent, 0);
+  if (original_position < 0) {
+    return -1;
+  }
+
+  int position = SbFileSeek(file, kSbFileFromBegin, offset);
+  int result = 0;
+  if (position == offset) {
+    result = ReadPlatformFileAtCurrentPos(file, data, size);
+  }
+
+  // Restore position regardless of result of write.
+  position = SbFileSeek(file, kSbFileFromBegin, original_position);
+  if (result < 0) {
+    return result;
+  }
+
+  if (position < 0) {
+    return -1;
+  }
+
+  return result;
 }
 
 int ReadPlatformFileAtCurrentPos(PlatformFile file, char *data, int size) {
@@ -202,7 +231,7 @@ int WritePlatformFile(PlatformFile file,
   int position = SbFileSeek(file, kSbFileFromBegin, offset);
   int result = 0;
   if (position == offset) {
-    result = SbFileWrite(file, data, size);
+    result = WritePlatformFileAtCurrentPos(file, data, size);
   }
 
   // Restore position regardless of result of write.

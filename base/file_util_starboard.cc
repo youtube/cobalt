@@ -65,7 +65,8 @@ void GenerateTempFileName(FilePath::StringType *in_out_template) {
   for (int i = 0; i < kTempSubstitutionLength; ++i) {
     uint64_t random = SbSystemGetRandomUInt64();
     int index = random % kPortableFilenameCharactersLength;
-    in_out_template[template_start + i] = kPortableFilenameCharacters[index];
+
+    (*in_out_template)[template_start + i] = kPortableFilenameCharacters[index];
   }
 }
 
@@ -254,7 +255,19 @@ bool DirectoryExists(const FilePath& path) {
 }
 
 bool GetTempDir(FilePath *path) {
-  return PathService::Get(base::DIR_TEMP, path);
+  char buffer[SB_FILE_MAX_PATH + 1] = {0};
+  bool result = SbSystemGetPath(kSbSystemPathTempDirectory, buffer,
+                                SB_ARRAY_SIZE_INT(buffer));
+  if (!result) {
+    return false;
+  }
+
+  *path = FilePath(buffer);
+  if (DirectoryExists(*path)) {
+    return true;
+  }
+
+  return CreateDirectory(*path);
 }
 
 bool GetShmemTempDir(FilePath *path, bool executable) {

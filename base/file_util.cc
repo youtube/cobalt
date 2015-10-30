@@ -226,6 +226,7 @@ bool IsDotDot(const FilePath& path) {
   return FILE_PATH_LITERAL("..") == path.BaseName().value();
 }
 
+#if !defined(OS_STARBOARD)
 bool TouchFile(const FilePath& path,
                const base::Time& last_accessed,
                const base::Time& last_modified) {
@@ -261,7 +262,6 @@ bool SetLastModifiedTime(const FilePath& path,
   return TouchFile(path, last_modified, last_modified);
 }
 
-#if !defined(OS_STARBOARD)
 bool CloseFile(FILE* file) {
   if (file == NULL)
     return true;
@@ -312,9 +312,14 @@ bool ContainsPath(const FilePath &parent, const FilePath& child) {
   FilePath abs_parent = FilePath(parent);
   FilePath abs_child = FilePath(child);
 
+#if defined(OS_STARBOARD)
+  if (!abs_parent.IsAbsolute() || !abs_child.IsAbsolute())
+    return false;
+#else
   if (!file_util::AbsolutePath(&abs_parent) ||
       !file_util::AbsolutePath(&abs_child))
     return false;
+#endif
 
 #if defined(OS_WIN)
   // file_util::AbsolutePath() does not flatten case on Windows, so we must do

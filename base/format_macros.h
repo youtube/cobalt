@@ -23,7 +23,11 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_POSIX) && !defined(__LB_XB1__) && !defined(__LB_XB360__)
+#if defined(OS_STARBOARD)
+#include "starboard/types.h"
+#endif
+
+#if (defined(OS_POSIX) || defined(OS_STARBOARD)) && !defined(COMPILER_MSVC)
 
 #if (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && !defined(PRId64)
 #error "inttypes.h has already been included before this header file, but "
