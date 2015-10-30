@@ -17,48 +17,40 @@
 #ifndef MEDIA_SANDBOX_MEDIA_SANDBOX_H_
 #define MEDIA_SANDBOX_MEDIA_SANDBOX_H_
 
+#include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/file_path.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/media/media_module.h"
+#include "base/time.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/media/media_module.h"
 #include "cobalt/render_tree/image.h"
-#include "cobalt/render_tree/resource_provider.h"
-#include "googleurl/src/gurl.h"
-#include "media/player/web_media_player.h"
 
 namespace cobalt {
 namespace media {
 namespace sandbox {
 
-class MediaSandbox : public ::media::WebMediaPlayerClient {
+class MediaSandbox {
  public:
   typedef render_tree::Image Image;
+  typedef base::Callback<scoped_refptr<Image>(const base::TimeDelta&)> FrameCB;
 
-  explicit MediaSandbox(
-      cobalt::render_tree::ResourceProvider* resource_provider);
+  MediaSandbox(int argc, char** argv, const FilePath& trace_log_path);
+  ~MediaSandbox();
 
-  void LoadAndPlay(const GURL& url, loader::FetcherFactory* fetcher_factory);
-  scoped_refptr<Image> GetCurrentFrame();
+  // This function registers a callback so the MediaSandbox instance can pull
+  // the current frame to render.  Call this function will a null callback will
+  // reset the frame callback.
+  void RegisterFrameCB(const FrameCB& frame_cb);
+  MediaModule* GetMediaModule();
+  loader::FetcherFactory* GetFetcherFactory();
 
  private:
-  typedef ::media::WebMediaPlayer WebMediaPlayer;
+  class Impl;
 
-  // WebMediaPlayerClient methods
-  void NetworkStateChanged() OVERRIDE {}
-  void ReadyStateChanged() OVERRIDE {}
-  void TimeChanged() OVERRIDE {}
-  void DurationChanged() OVERRIDE {}
-  void RateChanged() OVERRIDE {}
-  void SizeChanged() OVERRIDE {}
-  void PlaybackStateChanged() OVERRIDE {}
-  void Repaint() OVERRIDE {}
-  void SawUnsupportedTracks() OVERRIDE {}
-  float Volume() const OVERRIDE { return 1.f; }
-  void SourceOpened() OVERRIDE {}
-  std::string SourceURL() const OVERRIDE { return ""; }
+  Impl* impl_;
 
-  scoped_ptr<MediaModule> media_module_;
-  scoped_ptr<WebMediaPlayer> player_;
+  DISALLOW_IMPLICIT_CONSTRUCTORS(MediaSandbox);
 };
 
 }  // namespace sandbox
