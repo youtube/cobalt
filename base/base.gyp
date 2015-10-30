@@ -766,7 +766,7 @@
                 ],
                 'output_dir': 'base/data',
               },
-              'includes': [ '../cobalt/build/copy_data.gypi' ],
+              'includes': [ '../cobalt/build/copy_test_data.gypi' ],
             },
           ],
         }],
