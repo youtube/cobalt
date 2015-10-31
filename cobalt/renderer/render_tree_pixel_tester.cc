@@ -16,6 +16,9 @@
 
 #include "cobalt/renderer/render_tree_pixel_tester.h"
 
+#include <algorithm>
+#include <string>
+
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
@@ -124,6 +127,20 @@ SkBitmap BlurBitmap(const SkBitmap& bitmap, float sigma) {
   canvas.drawBitmap(premul_alpha_bitmap, 0, 0, &paint);
 
   return blurred_bitmap;
+}
+
+bool BitmapsAreEqual(const SkBitmap& bitmap_a, const SkBitmap& bitmap_b) {
+  if (bitmap_a.height() != bitmap_b.height() ||
+      bitmap_a.rowBytes() != bitmap_b.rowBytes()) {
+    return false;
+  }
+
+  SkAutoLockPixels lock_a(bitmap_a);
+  SkAutoLockPixels lock_b(bitmap_b);
+  void* pixels_a = reinterpret_cast<void*>(bitmap_a.getPixels());
+  void* pixels_b = reinterpret_cast<void*>(bitmap_b.getPixels());
+  size_t byte_count = bitmap_a.rowBytes() * bitmap_a.height();
+  return memcmp(pixels_a, pixels_b, byte_count) == 0;
 }
 
 // Compares bitmap_a with bitmap_b, where the comparison is done by checking
@@ -239,6 +256,14 @@ bool TestActualAgainstExpectedBitmap(float gaussian_blur_sigma,
                                      bool output_all_test_details) {
   DCHECK_EQ(kRGBA_8888_SkColorType, expected_bitmap.colorType());
   DCHECK_EQ(kRGBA_8888_SkColorType, actual_bitmap.colorType());
+
+  // We can try an exact comparison if we don't need to dump out the
+  // diff and blur images.
+  bool quick_test_ok = !output_failed_test_details && !output_all_test_details;
+
+  if (quick_test_ok && BitmapsAreEqual(expected_bitmap, actual_bitmap)) {
+    return true;
+  }
 
   // We first blur both the actual and expected bitmaps before testing them.
   // This is done to permit small 1 or 2 pixel translation differences in the
