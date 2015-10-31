@@ -17,6 +17,9 @@
 #ifndef AUDIO_AUDIO_CONTEXT_H_
 #define AUDIO_AUDIO_CONTEXT_H_
 
+#include "base/callback.h"
+#include "base/optional.h"
+#include "cobalt/audio/async_audio_decoder.h"
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_buffer_source_node.h"
 #include "cobalt/audio/audio_destination_node.h"
@@ -43,8 +46,11 @@ class AudioContext : public dom::EventTarget {
   typedef script::CallbackFunction<void(
       const scoped_refptr<AudioBuffer>& decoded_data)> DecodeSuccessCallback;
   typedef script::ScriptObject<DecodeSuccessCallback> DecodeSuccessCallbackArg;
+  typedef DecodeSuccessCallbackArg::Reference DecodeSuccessCallbackReference;
+
   typedef script::CallbackFunction<void()> DecodeErrorCallback;
   typedef script::ScriptObject<DecodeErrorCallback> DecodeErrorCallbackArg;
+  typedef DecodeErrorCallbackArg::Reference DecodeErrorCallbackReference;
 
   AudioContext();
 
@@ -85,13 +91,35 @@ class AudioContext : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(AudioContext);
 
  private:
-  scoped_refptr<AudioDestinationNode> destination_;
+  struct DecodeCallbackInfo
+      : public base::RefCountedThreadSafe<DecodeCallbackInfo> {
+    DecodeCallbackInfo(const AudioContext* const audio_context,
+                       const DecodeSuccessCallbackArg& success_handler)
+        : success_callback(audio_context, success_handler) {}
+
+    DecodeCallbackInfo(const AudioContext* const audio_context,
+                       const DecodeSuccessCallbackArg& success_handler,
+                       const DecodeErrorCallbackArg& error_handler)
+        : success_callback(audio_context, success_handler) {
+      error_callback.emplace(audio_context, error_handler);
+    }
+
+    DecodeSuccessCallbackReference success_callback;
+    base::optional<DecodeErrorCallbackReference> error_callback;
+  };
+
+  void DecodeFinish(const scoped_refptr<DecodeCallbackInfo>& info,
+                    const scoped_refptr<AudioBuffer>& audio_data);
 
   float sample_rate_;
   double current_time_;
 
-  scoped_ptr<DecodeSuccessCallbackArg::Reference> success_callback_;
-  scoped_ptr<DecodeErrorCallbackArg::Reference> error_callback_;
+  scoped_refptr<AudioDestinationNode> destination_;
+
+  AsyncAudioDecoder audio_decoder_;
+
+  // The main message loop.
+  scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioContext);
 };

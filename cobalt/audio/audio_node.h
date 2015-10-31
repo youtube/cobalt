@@ -64,10 +64,14 @@ class AudioNode : public dom::EventTarget {
 
   // The number of inputs feeding into the AudioNode. For source nodes, this
   // will be 0.
-  size_t number_of_inputs() const { return inputs_.size(); }
+  uint32 number_of_inputs() const {
+    return static_cast<uint32>(inputs_.size());
+  }
   // The number of outputs coming out of the AudioNode. This will be 0 for an
   // AudioDestinationNode.
-  size_t number_of_outputs() const { return outputs_.size(); }
+  uint32 number_of_outputs() const {
+    return static_cast<uint32>(outputs_.size());
+  }
 
   // The number of channels used when up-mixing and down-mixing connections to
   // any inputs to the node. The default value is 2 except for specific nodes

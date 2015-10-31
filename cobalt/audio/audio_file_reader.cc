@@ -14,31 +14,18 @@
  * limitations under the License.
  */
 
-#include "cobalt/audio/audio_node_output.h"
+#include "cobalt/audio/audio_file_reader.h"
 
-#include "base/logging.h"
-#include "cobalt/audio/audio_node_input.h"
+#include "cobalt/audio/audio_file_reader_wav.h"
 
 namespace cobalt {
 namespace audio {
 
-void AudioNodeOutput::AddInput(AudioNodeInput* input) {
-  DCHECK(input);
-
-  inputs_.insert(input);
-}
-
-void AudioNodeOutput::RemoveInput(AudioNodeInput* input) {
-  DCHECK(input);
-
-  inputs_.erase(input);
-}
-
-void AudioNodeOutput::DisconnectAll() {
-  while (!inputs_.empty()) {
-    AudioNodeInput* input = *inputs_.begin();
-    input->Disconnect(this);
-  }
+// static
+scoped_ptr<AudioFileReader> AudioFileReader::TryCreate(
+    const std::vector<uint8>& data) {
+  // Try to create other type of audio file reader.
+  return AudioFileReaderWAV::TryCreate(data).Pass();
 }
 
 }  // namespace audio

@@ -14,32 +14,35 @@
  * limitations under the License.
  */
 
-#include "cobalt/audio/audio_node_output.h"
+#ifndef AUDIO_ASYNC_AUDIO_DECODER_H_
+#define AUDIO_ASYNC_AUDIO_DECODER_H_
 
-#include "base/logging.h"
-#include "cobalt/audio/audio_node_input.h"
+#include "base/callback.h"
+#include "base/threading/thread.h"
+#include "cobalt/audio/audio_buffer.h"
+#include "cobalt/dom/array_buffer.h"
 
 namespace cobalt {
 namespace audio {
 
-void AudioNodeOutput::AddInput(AudioNodeInput* input) {
-  DCHECK(input);
+class AsyncAudioDecoder {
+ public:
+  typedef base::Callback<void(const scoped_refptr<AudioBuffer>&)>
+      DecodeFinishCallback;
 
-  inputs_.insert(input);
-}
+  AsyncAudioDecoder();
 
-void AudioNodeOutput::RemoveInput(AudioNodeInput* input) {
-  DCHECK(input);
+  void AsyncDecode(const scoped_refptr<dom::ArrayBuffer>& audio_data,
+                   const DecodeFinishCallback& decode_finish_callback);
 
-  inputs_.erase(input);
-}
+ private:
+  // The decoder thread.
+  base::Thread thread_;
 
-void AudioNodeOutput::DisconnectAll() {
-  while (!inputs_.empty()) {
-    AudioNodeInput* input = *inputs_.begin();
-    input->Disconnect(this);
-  }
-}
+  DISALLOW_COPY_AND_ASSIGN(AsyncAudioDecoder);
+};
 
 }  // namespace audio
 }  // namespace cobalt
+
+#endif  // AUDIO_ASYNC_AUDIO_DECODER_H_
