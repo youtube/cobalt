@@ -22,34 +22,56 @@ namespace cobalt {
 namespace audio {
 
 AudioContext::AudioContext()
-    : ALLOW_THIS_IN_INITIALIZER_LIST(
+    : sample_rate_(0.0f),
+      current_time_(0.0f),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
           destination_(new AudioDestinationNode(this))),
-      sample_rate_(0.0f),
-      current_time_(0.0f) {}
+      main_message_loop_(base::MessageLoopProxy::current()) {
+  DCHECK(main_message_loop_);
+}
 
 scoped_refptr<AudioBufferSourceNode> AudioContext::CreateBufferSource() {
   return scoped_refptr<AudioBufferSourceNode>(new AudioBufferSourceNode(this));
 }
 
 void AudioContext::DecodeAudioData(
-    const scoped_refptr<dom::ArrayBuffer>& /*audio_data*/,
+    const scoped_refptr<dom::ArrayBuffer>& audio_data,
     const DecodeSuccessCallbackArg& success_handler) {
-  success_callback_.reset(
-      new DecodeSuccessCallbackArg::Reference(this, success_handler));
-
-  // TODO(***REMOVED***): Do the actual audio decoding asynchronously.
+  scoped_refptr<DecodeCallbackInfo> info(
+      new DecodeCallbackInfo(this, success_handler));
+  AsyncAudioDecoder::DecodeFinishCallback decode_callback =
+      base::Bind(&AudioContext::DecodeFinish, base::Unretained(this), info);
+  audio_decoder_.AsyncDecode(audio_data, decode_callback);
 }
 
 void AudioContext::DecodeAudioData(
-    const scoped_refptr<dom::ArrayBuffer>& /*audio_data*/,
+    const scoped_refptr<dom::ArrayBuffer>& audio_data,
     const DecodeSuccessCallbackArg& success_handler,
     const DecodeErrorCallbackArg& error_handler) {
-  success_callback_.reset(
-      new DecodeSuccessCallbackArg::Reference(this, success_handler));
-  error_callback_.reset(
-      new DecodeErrorCallbackArg::Reference(this, error_handler));
+  scoped_refptr<DecodeCallbackInfo> info(
+      new DecodeCallbackInfo(this, success_handler, error_handler));
+  AsyncAudioDecoder::DecodeFinishCallback decode_callback =
+      base::Bind(&AudioContext::DecodeFinish, base::Unretained(this), info);
+  audio_decoder_.AsyncDecode(audio_data, decode_callback);
+}
 
-  // TODO(***REMOVED***): Do the actual audio decoding asynchronously.
+// Success callback and error callback should be scheduled to run on the main
+// thread's event loop.
+void AudioContext::DecodeFinish(const scoped_refptr<DecodeCallbackInfo>& info,
+                                const scoped_refptr<AudioBuffer>& audio_data) {
+  if (!main_message_loop_->BelongsToCurrentThread()) {
+    main_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&AudioContext::DecodeFinish, this, info, audio_data));
+    return;
+  }
+
+  DCHECK(info);
+  if (audio_data) {
+    info->success_callback.value().Run(audio_data);
+  } else if (info->error_callback) {
+    info->error_callback.value().value().Run();
+  }
 }
 
 }  // namespace audio

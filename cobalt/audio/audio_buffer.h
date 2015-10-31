@@ -17,6 +17,8 @@
 #ifndef AUDIO_AUDIO_BUFFER_H_
 #define AUDIO_AUDIO_BUFFER_H_
 
+#include <vector>
+
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/float32_array.h"
 #include "cobalt/script/wrappable.h"
@@ -35,8 +37,10 @@ namespace audio {
 //   http://www.w3.org/TR/webaudio/#AudioBuffer
 class AudioBuffer : public script::Wrappable {
  public:
+  typedef std::vector<scoped_refptr<dom::Float32Array> > Float32ArrayVector;
+
   AudioBuffer(float sample_rate, int32 number_of_frames,
-              int32 number_of_channels);
+              const Float32ArrayVector& channels_data);
 
   // Web API: AudioBuffer
   //
@@ -50,18 +54,21 @@ class AudioBuffer : public script::Wrappable {
   double duration() const { return length() / sample_rate(); }
 
   // The number of discrete audio channels.
-  int32 number_of_channels() const { return number_of_channels_; }
+  int32 number_of_channels() const {
+    return static_cast<int32>(channels_data_.size());
+  }
 
   // Represents the PCM audio data for the specific channel.
-  dom::Float32Array* GetChannelData(uint32 channel_index,
-                                    script::ExceptionState* exception_state);
+  scoped_refptr<dom::Float32Array> GetChannelData(
+      uint32 channel_index, script::ExceptionState* exception_state) const;
 
   DEFINE_WRAPPABLE_TYPE(AudioBuffer);
 
  private:
   float sample_rate_;
   int32 length_;
-  int32 number_of_channels_;
+
+  Float32ArrayVector channels_data_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioBuffer);
 };
