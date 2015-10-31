@@ -17,7 +17,6 @@
 #include "cobalt/audio/audio_node_input.h"
 
 #include "base/logging.h"
-#include "cobalt/audio/audio_node.h"
 #include "cobalt/audio/audio_node_output.h"
 
 namespace cobalt {

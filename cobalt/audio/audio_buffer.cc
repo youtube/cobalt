@@ -22,17 +22,17 @@ namespace cobalt {
 namespace audio {
 
 AudioBuffer::AudioBuffer(float sample_rate, int32 number_of_frames,
-                         int32 number_of_channels)
+                         const Float32ArrayVector& channels_data)
     : sample_rate_(sample_rate),
       length_(number_of_frames),
-      number_of_channels_(number_of_channels) {
-  DCHECK_GT(sample_rate, 0);
-  DCHECK_GT(number_of_frames, 0);
-  DCHECK_GT(number_of_channels, 0);
+      channels_data_(channels_data) {
+  DCHECK_GT(sample_rate_, 0);
+  DCHECK_GT(length_, 0);
+  DCHECK(!channels_data_.empty());
 }
 
-dom::Float32Array* AudioBuffer::GetChannelData(
-    uint32 channel_index, script::ExceptionState* exception_state) {
+scoped_refptr<dom::Float32Array> AudioBuffer::GetChannelData(
+    uint32 channel_index, script::ExceptionState* exception_state) const {
   // The index value MUST be less than number_of_channels() or an INDEX_SIZE_ERR
   // exception MUST be thrown.
   if (channel_index >= static_cast<uint32>(number_of_channels())) {
@@ -40,8 +40,7 @@ dom::Float32Array* AudioBuffer::GetChannelData(
     return NULL;
   }
 
-  // TODO(***REMOVED***): Implement this. Return the channel data in Float32Array.
-  return NULL;
+  return channels_data_[channel_index];
 }
 
 }  // namespace audio

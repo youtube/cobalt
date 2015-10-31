@@ -14,32 +14,28 @@
  * limitations under the License.
  */
 
-#include "cobalt/audio/audio_node_output.h"
+#ifndef AUDIO_AUDIO_FILE_READER_H_
+#define AUDIO_AUDIO_FILE_READER_H_
 
-#include "base/logging.h"
-#include "cobalt/audio/audio_node_input.h"
+#include <vector>
+
+#include "cobalt/audio/audio_buffer.h"
+#include "cobalt/dom/array_buffer.h"
 
 namespace cobalt {
 namespace audio {
 
-void AudioNodeOutput::AddInput(AudioNodeInput* input) {
-  DCHECK(input);
+class AudioFileReader {
+ public:
+  virtual ~AudioFileReader() {}
 
-  inputs_.insert(input);
-}
+  static scoped_ptr<AudioFileReader> TryCreate(const std::vector<uint8>& data);
 
-void AudioNodeOutput::RemoveInput(AudioNodeInput* input) {
-  DCHECK(input);
-
-  inputs_.erase(input);
-}
-
-void AudioNodeOutput::DisconnectAll() {
-  while (!inputs_.empty()) {
-    AudioNodeInput* input = *inputs_.begin();
-    input->Disconnect(this);
-  }
-}
+  // Reads the data and returns the audio buffer which has the audio info.
+  virtual const scoped_refptr<AudioBuffer>& audio_buffer() = 0;
+};
 
 }  // namespace audio
 }  // namespace cobalt
+
+#endif  // AUDIO_AUDIO_FILE_READER_H_
