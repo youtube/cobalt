@@ -40,18 +40,6 @@ void EvaluateStyleSheetMediaRules(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
 
-// Updates the rule indexes used in UpdateMatchingRulesFromStyleSheet().
-void UpdateStyleSheetRuleIndexes(
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
-
-// Scans one style sheet for rules that match the given HTMLElement and appends
-// the matching rules to the element's |matching_rules_| field.
-// UpdateStyleSheetRuleIndexes() must be called before this function.
-void UpdateMatchingRulesFromStyleSheet(
-    const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
-    HTMLElement* element, cssom::Origin origin);
-
 // Updates the matching rules on an element and its children, using the given
 // selector tree.
 void UpdateMatchingRulesUsingSelectorTree(HTMLElement* dom_root,
