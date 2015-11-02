@@ -24,6 +24,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
@@ -36,6 +37,7 @@
 #include "cobalt/css_parser/string_pool.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/css_parser/trivial_type_pairs.h"
+#include "cobalt/cssom/active_pseudo_class.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
@@ -47,9 +49,11 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
+#include "cobalt/cssom/focus_pseudo_class.h"
 #include "cobalt/cssom/following_sibling_combinator.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
+#include "cobalt/cssom/hover_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/integer_value.h"

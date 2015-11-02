@@ -83,131 +83,18 @@ class MediaRuleUpdater : public CSSRuleVisitor {
 }  // namespace
 
 //////////////////////////////////////////////////////////////////////////
-// CSSStyleSheet::CSSStyleRuleIndexer
-//////////////////////////////////////////////////////////////////////////
-
-// This class is used to index the css style rules according to the simple
-// selectors in the last compound selector.
-class CSSStyleSheet::CSSStyleRuleIndexer : public SelectorVisitor {
- public:
-  CSSStyleRuleIndexer(CSSStyleRule* css_style_rule,
-                      CSSStyleSheet* css_style_sheet)
-      : css_style_rule_(css_style_rule), css_style_sheet_(css_style_sheet) {}
-
-  void VisitAfterPseudoElement(
-      AfterPseudoElement* /* after_pseudo_element */) OVERRIDE {
-    // Do nothing.
-  }
-
-  void VisitBeforePseudoElement(
-      BeforePseudoElement* /* before_pseudo_element */) OVERRIDE {
-    // Do nothing.
-  }
-
-  void VisitClassSelector(ClassSelector* class_selector) OVERRIDE {
-    StringToCSSRuleSetMap& rules_map =
-        css_style_sheet_->class_selector_rules_map_;
-    rules_map[class_selector->class_name()].insert(css_style_rule_);
-  }
-
-  void VisitIdSelector(IdSelector* id_selector) OVERRIDE {
-    StringToCSSRuleSetMap& rules_map = css_style_sheet_->id_selector_rules_map_;
-    rules_map[id_selector->id()].insert(css_style_rule_);
-  }
-
-  void VisitTypeSelector(TypeSelector* type_selector) OVERRIDE {
-    StringToCSSRuleSetMap& rules_map =
-        css_style_sheet_->type_selector_rules_map_;
-    rules_map[type_selector->element_name()].insert(css_style_rule_);
-  }
-
-  void VisitEmptyPseudoClass(
-      EmptyPseudoClass* /* empty_pseudo_class */) OVERRIDE {
-    css_style_sheet_->empty_pseudo_class_rules_.insert(css_style_rule_);
-  }
-
-  void VisitUnsupportedPseudoClass(
-      UnsupportedPseudoClass* /* unsupported_pseudo_class */) OVERRIDE {
-    // Do nothing.
-  }
-
-  void VisitCompoundSelector(CompoundSelector* compound_selector) OVERRIDE {
-    for (CompoundSelector::SimpleSelectors::const_iterator selector_iterator =
-             compound_selector->simple_selectors().begin();
-         selector_iterator != compound_selector->simple_selectors().end();
-         ++selector_iterator) {
-      (*selector_iterator)->Accept(this);
-    }
-  }
-
-  void VisitComplexSelector(ComplexSelector* complex_selector) OVERRIDE {
-    complex_selector->first_selector()->Accept(this);
-  }
-
- private:
-  CSSStyleRule* css_style_rule_;
-  CSSStyleSheet* css_style_sheet_;
-
-  DISALLOW_COPY_AND_ASSIGN(CSSStyleRuleIndexer);
-};
-
-//////////////////////////////////////////////////////////////////////////
-// CSSStyleSheet::CSSRuleIndexer
-//////////////////////////////////////////////////////////////////////////
-
-class CSSStyleSheet::CSSRuleIndexer : public CSSRuleVisitor {
- public:
-  explicit CSSRuleIndexer(CSSStyleSheet* css_style_sheet)
-      : next_css_rule_priority_index_(0), css_style_sheet_(css_style_sheet) {}
-
-  void VisitCSSStyleRule(CSSStyleRule* css_style_rule) OVERRIDE {
-    css_style_rule->set_index(next_css_rule_priority_index_++);
-    for (Selectors::const_iterator it = css_style_rule->selectors().begin();
-         it != css_style_rule->selectors().end(); ++it) {
-      CSSStyleSheet::CSSStyleRuleIndexer rule_indexer(css_style_rule,
-                                                      css_style_sheet_);
-      (*it)->Accept(&rule_indexer);
-    }
-  }
-
-  void VisitCSSFontFaceRule(CSSFontFaceRule* css_font_face_rule) OVERRIDE {
-    css_font_face_rule->set_index(next_css_rule_priority_index_++);
-  }
-
-  void VisitCSSMediaRule(CSSMediaRule* css_media_rule) OVERRIDE {
-    css_media_rule->set_index(next_css_rule_priority_index_++);
-    if (css_media_rule->condition_value()) {
-      css_media_rule->css_rules()->Accept(this);
-    }
-  }
-
-
- private:
-  // The priority index to be used for the next appended CSS Rule.
-  // This is used for the Appearance parameter of the CascadePriority.
-  //   http://www.w3.org/TR/css-cascade-3/#cascade-order
-  int next_css_rule_priority_index_;
-
-  CSSStyleSheet* css_style_sheet_;
-
-  DISALLOW_COPY_AND_ASSIGN(CSSRuleIndexer);
-};
-
-//////////////////////////////////////////////////////////////////////////
 // CSSStyleSheet
 //////////////////////////////////////////////////////////////////////////
 
 CSSStyleSheet::CSSStyleSheet()
     : parent_style_sheet_list_(NULL),
       css_parser_(NULL),
-      rule_indexes_dirty_(false),
       media_rules_changed_(false),
       origin_(kNormalAuthor) {}
 
 CSSStyleSheet::CSSStyleSheet(CSSParser* css_parser)
     : parent_style_sheet_list_(NULL),
       css_parser_(css_parser),
-      rule_indexes_dirty_(false),
       media_rules_changed_(false),
       origin_(kNormalAuthor) {}
 
@@ -225,7 +112,6 @@ unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
 }
 
 void CSSStyleSheet::OnCSSMutation() {
-  rule_indexes_dirty_ = true;
   if (parent_style_sheet_list_) {
     parent_style_sheet_list_->OnCSSMutation();
   }
@@ -251,19 +137,11 @@ void CSSStyleSheet::set_css_rules(
   }
 }
 
-void CSSStyleSheet::MaybeUpdateRuleIndexes() {
-  if (rule_indexes_dirty_) {
-    CSSRuleIndexer rule_indexer(this);
-    css_rule_list_->Accept(&rule_indexer);
-    rule_indexes_dirty_ = false;
-  }
-}
-
 void CSSStyleSheet::EvaluateMediaRules(
     const scoped_refptr<PropertyValue>& width,
     const scoped_refptr<PropertyValue>& height) {
   // If the media rules change, we have to do an update.
-  bool update_media_rules = media_rules_changed_;
+  bool should_update_media_rules = media_rules_changed_;
   media_rules_changed_ = false;
 
   if (!css_rule_list_) {
@@ -271,15 +149,15 @@ void CSSStyleSheet::EvaluateMediaRules(
   }
 
   // If the media parameters change, we have to do an update.
-  if (!update_media_rules) {
+  if (!should_update_media_rules) {
     if (!width || !previous_media_width_ ||
         width->Equals(*previous_media_width_) || !height ||
         !previous_media_height_ || height->Equals(*previous_media_height_)) {
-      update_media_rules = true;
+      should_update_media_rules = true;
     }
   }
 
-  if (update_media_rules) {
+  if (should_update_media_rules) {
     // Evaluate the media rule conditions, and signal a css mutation if any
     // condition values have changed.
     MediaRuleUpdater media_rule_updater(width, height);

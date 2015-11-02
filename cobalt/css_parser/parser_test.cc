@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "cobalt/cssom/active_pseudo_class.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
@@ -35,9 +36,11 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
+#include "cobalt/cssom/focus_pseudo_class.h"
 #include "cobalt/cssom/following_sibling_combinator.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
+#include "cobalt/cssom/hover_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/integer_value.h"
@@ -306,6 +309,31 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS3) {
   ASSERT_TRUE(before_pseudo_element);
 }
 
+TEST_F(ParserTest, ParsesActivePseudoClass) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet(":active {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::ActivePseudoClass* active_pseudo_class =
+      dynamic_cast<cssom::ActivePseudoClass*>(
+          const_cast<cssom::SimpleSelector*>(
+              compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(active_pseudo_class);
+}
+
 TEST_F(ParserTest, ParsesEmptyPseudoClass) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(":empty {}", source_location_);
@@ -328,6 +356,54 @@ TEST_F(ParserTest, ParsesEmptyPseudoClass) {
       dynamic_cast<cssom::EmptyPseudoClass*>(const_cast<cssom::SimpleSelector*>(
           compound_selector->simple_selectors()[0]));
   ASSERT_TRUE(empty_pseudo_class);
+}
+
+TEST_F(ParserTest, ParsesFocusPseudoClass) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet(":focus {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::FocusPseudoClass* focus_pseudo_class =
+      dynamic_cast<cssom::FocusPseudoClass*>(const_cast<cssom::SimpleSelector*>(
+          compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(focus_pseudo_class);
+}
+
+TEST_F(ParserTest, ParsesHoverPseudoClass) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet(":hover {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::HoverPseudoClass* hover_pseudo_class =
+      dynamic_cast<cssom::HoverPseudoClass*>(const_cast<cssom::SimpleSelector*>(
+          compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(hover_pseudo_class);
 }
 
 TEST_F(ParserTest, ParsesIdSelector) {

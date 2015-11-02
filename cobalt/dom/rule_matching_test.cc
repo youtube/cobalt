@@ -83,6 +83,93 @@ void RuleMatchingTest::MatchRules(Element* element) {
   }
 }
 
+// div should match <div/>.
+TEST_F(RuleMatchingTest, TypeSelectorMatch) {
+  style_sheet_ = css_parser_->ParseStyleSheet(
+      "div {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div/>");
+
+  MatchRules(root_->first_element_child());
+  ASSERT_EQ(1, matching_rules_->size());
+  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
+}
+
+// .my-class should match <div class="my-class"/>.
+TEST_F(RuleMatchingTest, ClassSelectorMatch) {
+  style_sheet_ = css_parser_->ParseStyleSheet(
+      ".my-class {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div class=\"my-class\"/>");
+
+  MatchRules(root_->first_element_child());
+  ASSERT_EQ(1, matching_rules_->size());
+  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
+}
+
+// #div1 should match <div id="div1"/>.
+TEST_F(RuleMatchingTest, IdSelectorMatch) {
+  style_sheet_ = css_parser_->ParseStyleSheet(
+      "#div1 {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div id=\"div1\"/>");
+
+  MatchRules(root_->first_element_child());
+  ASSERT_EQ(1, matching_rules_->size());
+  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
+}
+
+// :empty should match <div></div>.
+TEST_F(RuleMatchingTest, EmptyPseudoClassMatch) {
+  style_sheet_ = css_parser_->ParseStyleSheet(
+      ":empty {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div></div>");
+
+  MatchRules(root_->first_element_child());
+  ASSERT_EQ(1, matching_rules_->size());
+  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
+}
+
+// :empty should match <div><!--comment--></div>.
+TEST_F(RuleMatchingTest, EmptyPseudoClassShouldMatchCommentOnly) {
+  style_sheet_ = css_parser_->ParseStyleSheet(
+      ":empty {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div><!--comment--></div>");
+
+  MatchRules(root_->first_element_child());
+  ASSERT_EQ(1, matching_rules_->size());
+  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
+}
+
+// :empty shouldn't match <div> </div>.
+TEST_F(RuleMatchingTest, EmptyPseudoClassShouldMatchTextOnly) {
+  style_sheet_ = css_parser_->ParseStyleSheet(
+      ":empty {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div> </div>");
+
+  MatchRules(root_->first_element_child());
+  EXPECT_EQ(0, matching_rules_->size());
+}
+
+// div:focus should match focused div.
+TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
+  style_sheet_ = css_parser_->ParseStyleSheet(
+      ":focus {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div tabIndex=-1/>");
+  root_->first_element_child()->AsHTMLElement()->Focus();
+
+  MatchRules(root_->first_element_child());
+  ASSERT_EQ(1, matching_rules_->size());
+  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
+}
+
+// div:focus shouldn't match unfocused div.
+TEST_F(RuleMatchingTest, FocusPseudoClassNoMatch) {
+  style_sheet_ = css_parser_->ParseStyleSheet(
+      ":focus {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div tabIndex=-1/>");
+
+  MatchRules(root_->first_element_child());
+  EXPECT_EQ(0, matching_rules_->size());
+}
+
 // *:after should match <div/> and <span/>.
 TEST_F(RuleMatchingTest, DISABLED_AfterPseudoElementMatchGlobal) {
   // Generate rules in the style sheet from the following CSS code.
@@ -198,49 +285,6 @@ TEST_F(RuleMatchingTest, BeforePseudoElementSelectorNoMatch) {
   ASSERT_FALSE(pseudo_element_matching_rules_[kBeforePseudoElementType]);
 }
 
-// .my-class should match <div class="my-class"/>.
-TEST_F(RuleMatchingTest, ClassSelectorMatch) {
-  style_sheet_ = css_parser_->ParseStyleSheet(
-      ".my-class {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root_->set_inner_html("<div class=\"my-class\"/>");
-
-  MatchRules(root_->first_element_child());
-  ASSERT_EQ(1, matching_rules_->size());
-  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
-}
-
-// :empty should match <div></div>.
-TEST_F(RuleMatchingTest, EmptyPseudoClassMatch) {
-  style_sheet_ = css_parser_->ParseStyleSheet(
-      ":empty {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root_->set_inner_html("<div></div>");
-
-  MatchRules(root_->first_element_child());
-  ASSERT_EQ(1, matching_rules_->size());
-  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
-}
-
-// :empty should match <div><!--comment--></div>.
-TEST_F(RuleMatchingTest, EmptyPseudoClassMatchCommentOnly) {
-  style_sheet_ = css_parser_->ParseStyleSheet(
-      ":empty {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root_->set_inner_html("<div><!--comment--></div>");
-
-  MatchRules(root_->first_element_child());
-  ASSERT_EQ(1, matching_rules_->size());
-  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
-}
-
-// :empty shouldn't match <div> </div>.
-TEST_F(RuleMatchingTest, EmptyPseudoClassMatchTextOnly) {
-  style_sheet_ = css_parser_->ParseStyleSheet(
-      ":empty {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root_->set_inner_html("<div> </div>");
-
-  MatchRules(root_->first_element_child());
-  EXPECT_EQ(0, matching_rules_->size());
-}
-
 // :empty shouldn't match (the outer) <div><div></div></div>.
 TEST_F(RuleMatchingTest, EmptyPseudoClassNotMatchElement) {
   style_sheet_ = css_parser_->ParseStyleSheet(
@@ -249,28 +293,6 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassNotMatchElement) {
 
   MatchRules(root_->first_element_child());
   EXPECT_EQ(0, matching_rules_->size());
-}
-
-// #div1 should match <div id="div1"/>.
-TEST_F(RuleMatchingTest, IdSelectorMatch) {
-  style_sheet_ = css_parser_->ParseStyleSheet(
-      "#div1 {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root_->set_inner_html("<div id=\"div1\"/>");
-
-  MatchRules(root_->first_element_child());
-  ASSERT_EQ(1, matching_rules_->size());
-  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
-}
-
-// div should match <div/>.
-TEST_F(RuleMatchingTest, TypeSelectorMatch) {
-  style_sheet_ = css_parser_->ParseStyleSheet(
-      "div {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root_->set_inner_html("<div/>");
-
-  MatchRules(root_->first_element_child());
-  ASSERT_EQ(1, matching_rules_->size());
-  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
 }
 
 // div.my-class should match <div class="my-class"/>.

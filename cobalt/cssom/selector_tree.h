@@ -80,7 +80,10 @@ class SelectorTree {
     SelectorTextToNodesMap type_selector_nodes_map[kCombinatorCount];
     SelectorTextToNodesMap class_selector_nodes_map[kCombinatorCount];
     SelectorTextToNodesMap id_selector_nodes_map[kCombinatorCount];
+    Nodes active_pseudo_class_nodes[kCombinatorCount];
     Nodes empty_pseudo_class_nodes[kCombinatorCount];
+    Nodes focus_pseudo_class_nodes[kCombinatorCount];
+    Nodes hover_pseudo_class_nodes[kCombinatorCount];
 
     // Rules that end with this node.
     Rules rules;
