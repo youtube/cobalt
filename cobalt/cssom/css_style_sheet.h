@@ -107,9 +107,6 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   DEFINE_WRAPPABLE_TYPE(CSSStyleSheet);
 
  private:
-  class CSSStyleRuleIndexer;
-  class CSSRuleIndexer;
-
   ~CSSStyleSheet() OVERRIDE;
 
   StringToCSSRuleSetMap class_selector_rules_map_;
@@ -122,11 +119,6 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   StyleSheetList* parent_style_sheet_list_;
   CSSParser* const css_parser_;
   GURL location_url_;
-
-  // When true, this means that a rule has been added or modified, and the rule
-  // indexes need to be updated. This flag is set in OnCSSMutation(), and
-  // cleared in MaybeUpdateRuleIndexes().
-  bool rule_indexes_dirty_;
 
   // When true, this means a media rule has been added or modified, and a
   // re-evaluation of the media at-rules is needed.

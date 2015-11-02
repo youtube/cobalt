@@ -47,13 +47,9 @@ class PseudoElement : public SimpleSelector {
   // From SimpleSelector.
   PseudoElement* AsPseudoElement() OVERRIDE { return this; }
   int GetRank() const OVERRIDE { return kPseudoElementRank; }
-  void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
-                             SelectorTree::Node* child_node,
-                             CombinatorType combinator) OVERRIDE {
-    UNREFERENCED_PARAMETER(parent_node);
-    UNREFERENCED_PARAMETER(child_node);
-    UNREFERENCED_PARAMETER(combinator);
-  }
+  void IndexSelectorTreeNode(SelectorTree::Node* /* parent_node */,
+                             SelectorTree::Node* /* child_node */,
+                             CombinatorType /* combinator */) OVERRIDE {}
 
   // Rest of public methods.
   virtual AfterPseudoElement* AsAfterPseudoElement() { return NULL; }

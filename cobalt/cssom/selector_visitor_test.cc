@@ -16,12 +16,15 @@
 
 #include "cobalt/cssom/selector_visitor.h"
 
+#include "cobalt/cssom/active_pseudo_class.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
+#include "cobalt/cssom/focus_pseudo_class.h"
+#include "cobalt/cssom/hover_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/type_selector.h"
 #include "cobalt/cssom/unsupported_pseudo_class.h"
@@ -33,22 +36,87 @@ namespace cssom {
 
 class MockSelectorVisitor : public SelectorVisitor {
  public:
+  MOCK_METHOD1(VisitTypeSelector, void(TypeSelector* type_selector));
+  MOCK_METHOD1(VisitClassSelector, void(ClassSelector* class_selector));
+  MOCK_METHOD1(VisitIdSelector, void(IdSelector* id_selector));
+
+  MOCK_METHOD1(VisitActivePseudoClass,
+               void(ActivePseudoClass* active_pseudo_class));
+  MOCK_METHOD1(VisitEmptyPseudoClass,
+               void(EmptyPseudoClass* empty_pseudo_class));
+  MOCK_METHOD1(VisitFocusPseudoClass,
+               void(FocusPseudoClass* focus_pseudo_class));
+  MOCK_METHOD1(VisitHoverPseudoClass,
+               void(HoverPseudoClass* hover_pseudo_class));
+  MOCK_METHOD1(VisitUnsupportedPseudoClass,
+               void(UnsupportedPseudoClass* unsupported_pseudo_class));
+
   MOCK_METHOD1(VisitAfterPseudoElement,
                void(AfterPseudoElement* after_pseudo_element));
   MOCK_METHOD1(VisitBeforePseudoElement,
                void(BeforePseudoElement* before_pseudo_element));
-  MOCK_METHOD1(VisitClassSelector, void(ClassSelector* class_selector));
-  MOCK_METHOD1(VisitEmptyPseudoClass,
-               void(EmptyPseudoClass* empty_pseudo_class));
-  MOCK_METHOD1(VisitIdSelector, void(IdSelector* id_selector));
-  MOCK_METHOD1(VisitTypeSelector, void(TypeSelector* type_selector));
-  MOCK_METHOD1(VisitUnsupportedPseudoClass,
-               void(UnsupportedPseudoClass* unsupported_pseudo_class));
 
   MOCK_METHOD1(VisitCompoundSelector,
                void(CompoundSelector* compound_selector));
   MOCK_METHOD1(VisitComplexSelector, void(ComplexSelector* complex_selector));
 };
+
+TEST(SelectorVisitorTest, VisitsTypeSelector) {
+  TypeSelector type_selector("div");
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitTypeSelector(&type_selector));
+  type_selector.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsClassSelector) {
+  ClassSelector class_selector("my-class");
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitClassSelector(&class_selector));
+  class_selector.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsIdSelector) {
+  IdSelector id_selector("id");
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitIdSelector(&id_selector));
+  id_selector.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsActivePseudoClass) {
+  ActivePseudoClass active_pseudo_class;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitActivePseudoClass(&active_pseudo_class));
+  active_pseudo_class.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsFocusPseudoClass) {
+  FocusPseudoClass focus_pseudo_class;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitFocusPseudoClass(&focus_pseudo_class));
+  focus_pseudo_class.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsEmptyPseudoClass) {
+  EmptyPseudoClass empty_pseudo_class;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitEmptyPseudoClass(&empty_pseudo_class));
+  empty_pseudo_class.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsHoverPseudoClass) {
+  HoverPseudoClass hover_pseudo_class;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitHoverPseudoClass(&hover_pseudo_class));
+  hover_pseudo_class.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsUnsupportedPseudoClass) {
+  UnsupportedPseudoClass unsupported_pseudo_class;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor,
+              VisitUnsupportedPseudoClass(&unsupported_pseudo_class));
+  unsupported_pseudo_class.Accept(&mock_visitor);
+}
 
 TEST(SelectorVisitorTest, VisitsAfterPseudoElement) {
   AfterPseudoElement after_pseudo_element;
@@ -62,42 +130,6 @@ TEST(SelectorVisitorTest, VisitsBeforePseudoElement) {
   MockSelectorVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitBeforePseudoElement(&before_pseudo_element));
   before_pseudo_element.Accept(&mock_visitor);
-}
-
-TEST(SelectorVisitorTest, VisitsClassSelector) {
-  ClassSelector class_selector("my-class");
-  MockSelectorVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitClassSelector(&class_selector));
-  class_selector.Accept(&mock_visitor);
-}
-
-TEST(SelectorVisitorTest, VisitsEmptyPseudoClass) {
-  EmptyPseudoClass empty_pseudo_class;
-  MockSelectorVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitEmptyPseudoClass(&empty_pseudo_class));
-  empty_pseudo_class.Accept(&mock_visitor);
-}
-
-TEST(SelectorVisitorTest, VisitsIdSelector) {
-  IdSelector id_selector("id");
-  MockSelectorVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitIdSelector(&id_selector));
-  id_selector.Accept(&mock_visitor);
-}
-
-TEST(SelectorVisitorTest, VisitsTypeSelector) {
-  TypeSelector type_selector("div");
-  MockSelectorVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitTypeSelector(&type_selector));
-  type_selector.Accept(&mock_visitor);
-}
-
-TEST(SelectorVisitorTest, VisitsUnsupportedPseudoClass) {
-  UnsupportedPseudoClass unsupported_pseudo_class;
-  MockSelectorVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor,
-              VisitUnsupportedPseudoClass(&unsupported_pseudo_class));
-  unsupported_pseudo_class.Accept(&mock_visitor);
 }
 
 TEST(SelectorVisitorTest, VisitCompoundSelector) {

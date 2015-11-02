@@ -126,6 +126,10 @@ class Element : public Node {
   //   http://www.w3.org/TR/selectors4/#empty-pseudo
   bool IsEmpty();
 
+  // Returns whether the element has focus.
+  //   http://www.w3.org/TR/selectors4/#focus-pseudo
+  bool HasFocus();
+
   // Returns a map that holds the actual attributes of the element.
   const AttributeMap& attribute_map() const { return attribute_map_; }
 
