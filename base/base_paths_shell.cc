@@ -32,13 +32,11 @@ bool PathProviderShell(int key, FilePath* result) {
       *result = FilePath(global_values->game_content_path);
       return true;
 
+#if defined(ENABLE_DIR_SOURCE_ROOT_ACCESS)
     case base::DIR_SOURCE_ROOT:
-      // TODO(aabtop): When Cobalt's primary use-case ceases to be serving
-      //               web-pages locally, we should add a check here to ensure
-      //               that release builds do not try to access DIR_SOURCE_ROOT.
-      //               b/22359828
       *result = FilePath(global_values->dir_source_root);
       return true;
+#endif  // ENABLE_DIR_SOURCE_ROOT_ACCESS
 
     case base::DIR_CACHE:
       *result = FilePath(global_values->tmp_path).Append("cache");
