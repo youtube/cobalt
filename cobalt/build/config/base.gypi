@@ -174,6 +174,7 @@
           'ENABLE_DEBUG_CONSOLE',
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
+          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
         ],
       }, # end of debug_base
       'devel_base': {
@@ -191,6 +192,7 @@
           'ENABLE_DEBUG_CONSOLE',
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
+          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
         ],
       }, # end of devel_base
       'qa_base': {
@@ -207,6 +209,7 @@
           'ENABLE_DEBUG_CONSOLE',
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
+          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
         ],
       }, # end of devel_base
       'gold_base': {
@@ -234,11 +237,13 @@
   'conditions': [
     ['cobalt_config != "Gold"', {
       'variables' : {
+        'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,
       },
     },
     {
       'variables' : {
+        'cobalt_copy_debug_console': 0,
         'cobalt_copy_test_data': 0,
       },
     }],

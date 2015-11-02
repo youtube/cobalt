@@ -24,13 +24,19 @@
         'main.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr_copy_test_data',
         '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
-        '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_debug_console',
       ],
       'conditions': [
         ['cobalt_copy_test_data == 1', {
-          'dependencies': ['<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data'],
+          'dependencies': [
+            '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
+            '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr_copy_test_data',
+          ],
+        }],
+        ['cobalt_copy_debug_console == 1', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_debug_console',
+          ],
         }],
       ],
     },
