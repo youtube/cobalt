@@ -174,7 +174,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void InvalidateLayoutBoxesFromNodeAndDescendants() OVERRIDE;
 
   // Determines whether this element is focusable.
-  virtual bool IsFocusable() { return HasAttribute("tabindex"); }
+  bool IsFocusable() { return HasAttribute("tabindex"); }
 
   cssom::TransitionSet* transitions() const {
     return computed_style_state_->transitions();
