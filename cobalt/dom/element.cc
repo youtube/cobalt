@@ -356,6 +356,13 @@ bool Element::IsEmpty() {
   return true;
 }
 
+bool Element::HasFocus() {
+  if (!owner_document()) {
+    return false;
+  }
+  return owner_document()->active_element() == this;
+}
+
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
 Element::~Element() {}

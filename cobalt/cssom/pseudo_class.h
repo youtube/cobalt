@@ -24,7 +24,10 @@
 namespace cobalt {
 namespace cssom {
 
+class ActivePseudoClass;
 class EmptyPseudoClass;
+class FocusPseudoClass;
+class HoverPseudoClass;
 
 // The pseudo-class concept is introduced to permit selection based on
 // information that lies outside of the document tree or that can be awkward or
@@ -42,7 +45,10 @@ class PseudoClass : public SimpleSelector {
   int GetRank() const OVERRIDE { return kPseudoClassRank; }
 
   // Rest of public methods.
+  virtual ActivePseudoClass* AsActivePseudoClass() { return NULL; }
   virtual EmptyPseudoClass* AsEmptyPseudoClass() { return NULL; }
+  virtual FocusPseudoClass* AsFocusPseudoClass() { return NULL; }
+  virtual HoverPseudoClass* AsHoverPseudoClass() { return NULL; }
 };
 
 }  // namespace cssom
