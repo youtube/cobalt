@@ -84,6 +84,7 @@ class SelectorTree {
     Nodes empty_pseudo_class_nodes[kCombinatorCount];
     Nodes focus_pseudo_class_nodes[kCombinatorCount];
     Nodes hover_pseudo_class_nodes[kCombinatorCount];
+    Nodes not_pseudo_class_nodes[kCombinatorCount];
 
     // Rules that end with this node.
     Rules rules;
