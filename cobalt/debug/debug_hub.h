@@ -27,10 +27,12 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/base/log_message_handler.h"
 #include "cobalt/base/source_location.h"
+#include "cobalt/debug/debugger.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/debug/system_stats_tracker.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/debug_server.h"
 #include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
 
@@ -95,9 +97,13 @@ class DebugHub : public script::Wrappable {
   static const int kLogErrorReport = logging::LOG_ERROR_REPORT;
   static const int kLogFatal = logging::LOG_FATAL;
 
-  explicit DebugHub(
-      const ExecuteJavascriptCallback& execute_javascript_callback);
+  DebugHub(
+      const ExecuteJavascriptCallback& execute_javascript_callback,
+      const Debugger::CreateDebugServerCallback& create_debug_server_callback);
   ~DebugHub();
+
+  // Gets the JavaScript debugger client interface.
+  const scoped_refptr<Debugger>& debugger() { return debugger_; }
 
   // Called from JS to register a log message callback.
   // Returns an id that can be used to remove the callback.
@@ -170,6 +176,9 @@ class DebugHub : public script::Wrappable {
   // The current debug console mode
   int debug_console_mode_;
 #endif  // ENABLE_DEBUG_CONSOLE
+
+  // Interface to the JavaScript debugger client.
+  scoped_refptr<Debugger> debugger_;
 };
 
 }  // namespace debug
