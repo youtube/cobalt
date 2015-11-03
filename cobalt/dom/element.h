@@ -31,6 +31,7 @@
 namespace cobalt {
 namespace dom {
 
+class DOMRect;
 class DOMTokenList;
 class HTMLCollection;
 class HTMLElement;
@@ -91,9 +92,14 @@ class Element : public Node {
   scoped_refptr<HTMLCollection> GetElementsByClassName(
       const std::string& class_name) const;
 
-  // TODO(***REMOVED***, b/24212587): Support clientWidth and clientHeight properly.
-  float client_width() const { return 1920; }
-  float client_height() const { return 1080; }
+  // Web API: CSSOM View Module: Extensions to the Element Interface (partial
+  // interface)
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
+  virtual scoped_refptr<DOMRect> GetBoundingClientRect();
+  virtual float client_top();
+  virtual float client_left();
+  virtual float client_width();
+  virtual float client_height();
 
   // Web API: DOM Parsing and Serialization (partial interface)
   //   http://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface

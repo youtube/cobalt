@@ -18,6 +18,7 @@
 
 #include "base/message_loop.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/named_node_map.h"
@@ -67,6 +68,39 @@ TEST_F(HTMLElementTest, IsFocusable) {
 
   html_element->set_tab_index(-1);
   EXPECT_TRUE(html_element->IsFocusable());
+}
+
+TEST_F(HTMLElementTest, GetBoundingClientRectWithoutLayoutBox) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  scoped_refptr<DOMRect> rect = html_element->GetBoundingClientRect();
+  DCHECK(rect);
+  EXPECT_FLOAT_EQ(rect->x(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->y(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->width(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->height(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->top(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->right(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->bottom(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->left(), 0.0f);
+}
+
+TEST_F(HTMLElementTest, ClientTopLeftWidthHeightWithoutLayoutBox) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  EXPECT_FLOAT_EQ(html_element->client_top(), 0.0f);
+  EXPECT_FLOAT_EQ(html_element->client_left(), 0.0f);
+  EXPECT_FLOAT_EQ(html_element->client_width(), 0.0f);
+  EXPECT_FLOAT_EQ(html_element->client_height(), 0.0f);
+}
+
+TEST_F(HTMLElementTest, OffsetTopLeftWidthHeightWithoutLayoutBox) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  EXPECT_FLOAT_EQ(html_element->offset_top(), 0.0f);
+  EXPECT_FLOAT_EQ(html_element->offset_left(), 0.0f);
+  EXPECT_FLOAT_EQ(html_element->offset_width(), 0.0f);
+  EXPECT_FLOAT_EQ(html_element->offset_height(), 0.0f);
 }
 
 TEST_F(HTMLElementTest, Duplicate) {

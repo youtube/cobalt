@@ -20,6 +20,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_collection.h"
@@ -88,95 +89,6 @@ scoped_refptr<DOMTokenList> Element::class_list() {
     class_list_ = new DOMTokenList(this, "class");
   }
   return class_list_;
-}
-
-// Algorithm for inner_html:
-//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
-std::string Element::inner_html() const {
-  std::ostringstream oss;
-  Serializer serializer(&oss);
-  serializer.SerializeDescendantsOnly(this);
-  return oss.str();
-}
-
-// Algorithm for set_inner_html:
-//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
-void Element::set_inner_html(const std::string& inner_html) {
-  // 1. Let fragment be the result of invoking the fragment parsing algorithm
-  // with the new value as markup, and the context object as the context
-  // element.
-  // 2. Replace all with fragment within the context object.
-  // Remove all children.
-  scoped_refptr<Node> child = first_child();
-  while (child) {
-    scoped_refptr<Node> next_child = child->next_sibling();
-    RemoveChild(child);
-    child = next_child;
-  }
-
-  // Use the DOM parser to parse the HTML input and generate children nodes.
-  // TODO(***REMOVED***): Replace "Element" in the source location with the name
-  //               of actual class, like "HTMLDivElement".
-  html_element_context()->dom_parser()->ParseDocumentFragment(
-      inner_html, owner_document(), this, NULL,
-      base::SourceLocation("[object Element]", 1, 1));
-}
-
-// Algorithm for outer_html:
-//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
-std::string Element::outer_html() const {
-  std::ostringstream oss;
-  Serializer serializer(&oss);
-  serializer.Serialize(this);
-  return oss.str();
-}
-
-// Algorithm for set_outer_html:
-//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-outerHTML
-void Element::set_outer_html(const std::string& outer_html) {
-  // 1. Let parent be the context object's parent.
-  scoped_refptr<Node> parent = parent_node();
-
-  // 2. If parent is null, terminate these steps. There would be no way to
-  // obtain a reference to the nodes created even if the remaining steps were
-  // run.
-  if (!parent) {
-    return;
-  }
-
-  // 3. If parent is a Document, throw a DOMException with name
-  // "NoModificationAllowedError" exception.
-  if (parent->IsDocument()) {
-    // TODO(***REMOVED***): Throw JS NoModificationAllowedError.
-    return;
-  }
-
-  // 4. Not needed by Cobalt.
-
-  // 5. Let fragment be the result of invoking the fragment parsing algorithm
-  // with the new value as markup, and parent as the context element.
-  // 6. Replace the context object with fragment within the context object's
-  // parent.
-  // Remove this node from its parent.
-  scoped_refptr<Node> reference = next_sibling();
-  parent->RemoveChild(this);
-
-  // Use the DOM parser to parse the HTML input and generate children nodes.
-  // TODO(***REMOVED***): Replace "Element" in the source location with the name
-  //               of actual class, like "HTMLDivElement".
-  html_element_context()->dom_parser()->ParseDocumentFragment(
-      outer_html, owner_document(), parent, reference,
-      base::SourceLocation("[object Element]", 1, 1));
-}
-
-scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {
-  return QuerySelectorInternal(selectors, html_element_context()->css_parser());
-}
-
-scoped_refptr<NodeList> Element::QuerySelectorAll(
-    const std::string& selectors) {
-  return QuerySelectorAllInternal(selectors,
-                                  html_element_context()->css_parser());
 }
 
 // Algorithm for GetAttribute:
@@ -320,22 +232,135 @@ scoped_refptr<HTMLCollection> Element::GetElementsByClassName(
   return HTMLCollection::CreateWithElementsByClassName(this, class_name);
 }
 
-bool Element::GetBooleanAttribute(const std::string& name) const {
-  return HasAttribute(name);
+// Algorithm for getBoundingClientRect:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getboundingclientrect
+scoped_refptr<DOMRect> Element::GetBoundingClientRect() {
+  // 1. Let list be the result of invoking getClientRects() on the same element
+  // this method was invoked on.
+  // 2. If the list is empty return a DOMRect object whose x, y, width and
+  // height members are zero.
+  return make_scoped_refptr(new DOMRect());
 }
 
-void Element::SetBooleanAttribute(const std::string& name, bool value) {
-  if (value) {
-    SetAttribute(name, "");
-  } else {
-    RemoveAttribute(name);
+// Algorithm for client_top:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
+float Element::client_top() {
+  // 1. If the element has no associated CSS layout box or if the CSS layout box
+  // is inline, return zero.
+  return 0.0f;
+}
+
+// Algorithm for client_left:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
+float Element::client_left() {
+  // 1. If the element has no associated CSS layout box or if the CSS layout box
+  // is inline, return zero.
+  return 0.0f;
+}
+
+// Algorithm for client_width:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
+float Element::client_width() {
+  // 1. If the element has no associated CSS layout box or if the CSS layout box
+  // is inline, return zero.
+  return 0.0f;
+}
+
+// Algorithm for client_height:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
+float Element::client_height() {
+  // 1. If the element has no associated CSS layout box or if the CSS layout box
+  // is inline, return zero.
+  return 0.0f;
+}
+
+// Algorithm for inner_html:
+//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
+std::string Element::inner_html() const {
+  std::ostringstream oss;
+  Serializer serializer(&oss);
+  serializer.SerializeDescendantsOnly(this);
+  return oss.str();
+}
+
+// Algorithm for set_inner_html:
+//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
+void Element::set_inner_html(const std::string& inner_html) {
+  // 1. Let fragment be the result of invoking the fragment parsing algorithm
+  // with the new value as markup, and the context object as the context
+  // element.
+  // 2. Replace all with fragment within the context object.
+  // Remove all children.
+  scoped_refptr<Node> child = first_child();
+  while (child) {
+    scoped_refptr<Node> next_child = child->next_sibling();
+    RemoveChild(child);
+    child = next_child;
   }
+
+  // Use the DOM parser to parse the HTML input and generate children nodes.
+  // TODO(***REMOVED***): Replace "Element" in the source location with the name
+  //               of actual class, like "HTMLDivElement".
+  html_element_context()->dom_parser()->ParseDocumentFragment(
+      inner_html, owner_document(), this, NULL,
+      base::SourceLocation("[object Element]", 1, 1));
 }
 
-void Element::CopyAttributes(const Element& other) {
-  attribute_map_ = other.attribute_map_;
-  id_attribute_ = other.id_attribute_;
-  class_attribute_ = other.class_attribute_;
+// Algorithm for outer_html:
+//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
+std::string Element::outer_html() const {
+  std::ostringstream oss;
+  Serializer serializer(&oss);
+  serializer.Serialize(this);
+  return oss.str();
+}
+
+// Algorithm for set_outer_html:
+//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-outerHTML
+void Element::set_outer_html(const std::string& outer_html) {
+  // 1. Let parent be the context object's parent.
+  scoped_refptr<Node> parent = parent_node();
+
+  // 2. If parent is null, terminate these steps. There would be no way to
+  // obtain a reference to the nodes created even if the remaining steps were
+  // run.
+  if (!parent) {
+    return;
+  }
+
+  // 3. If parent is a Document, throw a DOMException with name
+  // "NoModificationAllowedError" exception.
+  if (parent->IsDocument()) {
+    // TODO(***REMOVED***): Throw JS NoModificationAllowedError.
+    return;
+  }
+
+  // 4. Not needed by Cobalt.
+
+  // 5. Let fragment be the result of invoking the fragment parsing algorithm
+  // with the new value as markup, and parent as the context element.
+  // 6. Replace the context object with fragment within the context object's
+  // parent.
+  // Remove this node from its parent.
+  scoped_refptr<Node> reference = next_sibling();
+  parent->RemoveChild(this);
+
+  // Use the DOM parser to parse the HTML input and generate children nodes.
+  // TODO(***REMOVED***): Replace "Element" in the source location with the name
+  //               of actual class, like "HTMLDivElement".
+  html_element_context()->dom_parser()->ParseDocumentFragment(
+      outer_html, owner_document(), parent, reference,
+      base::SourceLocation("[object Element]", 1, 1));
+}
+
+scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {
+  return QuerySelectorInternal(selectors, html_element_context()->css_parser());
+}
+
+scoped_refptr<NodeList> Element::QuerySelectorAll(
+    const std::string& selectors) {
+  return QuerySelectorAllInternal(selectors,
+                                  html_element_context()->css_parser());
 }
 
 void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
@@ -369,6 +394,24 @@ bool Element::HasFocus() {
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
 Element::~Element() {}
+
+bool Element::GetBooleanAttribute(const std::string& name) const {
+  return HasAttribute(name);
+}
+
+void Element::SetBooleanAttribute(const std::string& name, bool value) {
+  if (value) {
+    SetAttribute(name, "");
+  } else {
+    RemoveAttribute(name);
+  }
+}
+
+void Element::CopyAttributes(const Element& other) {
+  attribute_map_ = other.attribute_map_;
+  id_attribute_ = other.id_attribute_;
+  class_attribute_ = other.class_attribute_;
+}
 
 HTMLElementContext* Element::html_element_context() {
   return owner_document()->html_element_context();

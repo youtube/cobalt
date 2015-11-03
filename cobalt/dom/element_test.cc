@@ -23,6 +23,7 @@
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
@@ -309,6 +310,28 @@ TEST_F(ElementTest, GetElementsByClassName) {
 TEST_F(ElementTest, GetElementsByTagName) {
   scoped_refptr<Element> root = new Element(document_);
   testing::TestGetElementsByTagName(root);
+}
+
+TEST_F(ElementTest, GetBoundingClientRect) {
+  scoped_refptr<Element> root = new Element(document_);
+  scoped_refptr<DOMRect> rect = root->GetBoundingClientRect();
+  DCHECK(rect);
+  EXPECT_FLOAT_EQ(rect->x(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->y(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->width(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->height(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->top(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->right(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->bottom(), 0.0f);
+  EXPECT_FLOAT_EQ(rect->left(), 0.0f);
+}
+
+TEST_F(ElementTest, ClientTopLeftWidthHeight) {
+  scoped_refptr<Element> root = new Element(document_);
+  EXPECT_FLOAT_EQ(root->client_top(), 0.0f);
+  EXPECT_FLOAT_EQ(root->client_left(), 0.0f);
+  EXPECT_FLOAT_EQ(root->client_width(), 0.0f);
+  EXPECT_FLOAT_EQ(root->client_height(), 0.0f);
 }
 
 TEST_F(ElementTest, InnerHTML) {
