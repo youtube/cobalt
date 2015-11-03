@@ -39,6 +39,7 @@
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/script/debug_server.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
@@ -123,6 +124,11 @@ class WebModule {
   scoped_ptr<webdriver::SessionDriver> CreateSessionDriver(
       const webdriver::protocol::SessionId& session_id);
 #endif
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // Create a new debug server that interacts with this web module.
+  scoped_ptr<script::DebugServer> CreateDebugServer();
+#endif  // ENABLE_DEBUG_CONSOLE
 
  private:
   // Called by ExecuteJavascript, if that method is called from a different
