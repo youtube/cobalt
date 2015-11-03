@@ -39,6 +39,7 @@
 namespace cobalt {
 namespace dom {
 
+class DOMRect;
 class DOMStringMap;
 class HTMLAnchorElement;
 class HTMLBodyElement;
@@ -91,6 +92,24 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Web API: ElementCSSInlineStyle (implements)
   //   http://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
   const scoped_refptr<cssom::CSSStyleDeclaration>& style() { return style_; }
+
+  // Web API: CSSOM View Module: Extensions to the Element Interface (partial
+  // interface)
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
+  scoped_refptr<DOMRect> GetBoundingClientRect() OVERRIDE;
+  float client_top() OVERRIDE;
+  float client_left() OVERRIDE;
+  float client_width() OVERRIDE;
+  float client_height() OVERRIDE;
+
+  // Web API: CSSOM View Module: Extensions to the HTMLElement Interface
+  // (partial interface)
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface
+  scoped_refptr<Element> offset_parent();
+  float offset_top();
+  float offset_left();
+  float offset_width();
+  float offset_height();
 
   // Custom, not in any spec: Node.
   scoped_refptr<Node> Duplicate() const OVERRIDE;

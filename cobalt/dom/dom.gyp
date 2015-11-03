@@ -62,6 +62,8 @@
         'dom_implementation.h',
         'dom_parser.cc',
         'dom_parser.h',
+        'dom_rect.h',
+        'dom_rect_read_only.h',
         'dom_settings.cc',
         'dom_settings.h',
         'dom_string_map.cc',

@@ -29,6 +29,7 @@
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_animatable.h"
+#include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/dom_string_map.h"
 #include "cobalt/dom/focus_event.h"
 #include "cobalt/dom/html_anchor_element.h"
@@ -103,6 +104,88 @@ void HTMLElement::Blur() {
 
     DispatchEvent(new FocusEvent("blur", NULL));
   }
+}
+
+// Algorithm for getBoundingClientRect:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getboundingclientrect
+scoped_refptr<DOMRect> HTMLElement::GetBoundingClientRect() {
+  // 1. Let list be the result of invoking getClientRects() on the same element
+  // this method was invoked on.
+  // 2. If the list is empty return a DOMRect object whose x, y, width and
+  // height members are zero.
+  // TODO(***REMOVED***): Return the Bounding Client Rectangle from the layout boxes.
+  return make_scoped_refptr(new DOMRect());
+}
+
+// Algorithm for client_top:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
+float HTMLElement::client_top() {
+  // 1. If the element has no associated CSS layout box or if the CSS layout box
+  // is inline, return zero.
+  // TODO(***REMOVED***): Return client top from the layout boxes.
+  return 0.0f;
+}
+
+// Algorithm for client_left:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
+float HTMLElement::client_left() {
+  // 1. If the element has no associated CSS layout box or if the CSS layout box
+  // is inline, return zero.
+  // TODO(***REMOVED***): Return client left from the layout boxes.
+  return 0.0f;
+}
+
+// Algorithm for client_width:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
+float HTMLElement::client_width() {
+  // 1. If the element has no associated CSS layout box or if the CSS layout box
+  // is inline, return zero.
+  if (!layout_boxes_) return 0.0f;
+  // TODO(***REMOVED***): Return client width from the layout boxes.
+  return 1920.0f;
+}
+
+// Algorithm for client_height:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
+float HTMLElement::client_height() {
+  // 1. If the element has no associated CSS layout box or if the CSS layout box
+  // is inline, return zero.
+  if (!layout_boxes_) return 0.0f;
+  // TODO(***REMOVED***): Return client height from the layout boxes.
+  return 1080.0f;
+}
+
+scoped_refptr<Element> HTMLElement::offset_parent() {
+  // TODO(***REMOVED***): Return the offset_parent box.
+  return scoped_refptr<Element>();
+}
+
+// Algorithm for offset_top:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
+float HTMLElement::offset_top() {
+  // TODO(***REMOVED***): Return offset top from the layout boxes.
+  return 0.0f;
+}
+
+// Algorithm for offset_left:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
+float HTMLElement::offset_left() {
+  // TODO(***REMOVED***): Return offset left from the layout boxes.
+  return 0.0f;
+}
+
+// Algorithm for offset_width:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
+float HTMLElement::offset_width() {
+  // TODO(***REMOVED***): Return offset width from the layout boxes.
+  return client_width();
+}
+
+// Algorithm for offset_height:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
+float HTMLElement::offset_height() {
+  // TODO(***REMOVED***): Return offset height from the layout boxes.
+  return client_height();
 }
 
 scoped_refptr<Node> HTMLElement::Duplicate() const {

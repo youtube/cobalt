@@ -24,7 +24,7 @@ namespace dom {
 
 // As its name suggests, the Screen interface represents information about the
 // screen of the output device.
-//   http://www.w3.org/TR/cssom-view/#the-screen-interface
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#the-screen-interface
 class Screen : public script::Wrappable {
  public:
   Screen(int width, int height)
@@ -32,7 +32,7 @@ class Screen : public script::Wrappable {
         height_(static_cast<float>(height)) {}
 
   // Web API
-  //   http://www.w3.org/TR/cssom-view/#the-screen-interface
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#the-screen-interface
 
   // The availWidth attribute must return the available width of the rendering
   // surface of the output device, in CSS pixels.
