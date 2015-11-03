@@ -170,6 +170,29 @@ TEST_F(RuleMatchingTest, FocusPseudoClassNoMatch) {
   EXPECT_EQ(0, matching_rules_->size());
 }
 
+// :not(.my-class) should match <div/>.
+TEST_F(RuleMatchingTest, NotPseudoClassMatch) {
+  style_sheet_ = css_parser_->ParseStyleSheet(
+      ":not(.my-class) {}",
+      base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div/>");
+
+  MatchRules(root_->first_element_child());
+  ASSERT_EQ(1, matching_rules_->size());
+  EXPECT_EQ(style_sheet_->css_rules()->Item(0), (*matching_rules_)[0].first);
+}
+
+// :not(.my-class) shouldn't match <div class="my-class"/>.
+TEST_F(RuleMatchingTest, NotPseudoClassNoMatch) {
+  style_sheet_ = css_parser_->ParseStyleSheet(
+      ":not(.my-class) {}",
+      base::SourceLocation("[object RuleMatchingTest]", 1, 1));
+  root_->set_inner_html("<div class=\"my-class\"/>");
+
+  MatchRules(root_->first_element_child());
+  EXPECT_EQ(0, matching_rules_->size());
+}
+
 // *:after should match <div/> and <span/>.
 TEST_F(RuleMatchingTest, DISABLED_AfterPseudoElementMatchGlobal) {
   // Generate rules in the style sheet from the following CSS code.
