@@ -15,12 +15,12 @@
  */
 
   // Web API: CSSOM View Module: Extensions to the window interface
-  //   http://www.w3.org/TR/cssom-view/#extensions-to-the-window-interface
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
 
 partial interface Window {
   // As its name suggests, the Screen interface represents information about the
   // screen of the output device.
-  //   http://www.w3.org/TR/cssom-view/#screen
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#screen
   [SameObject] readonly attribute Screen screen;
 
   // viewport
@@ -31,18 +31,18 @@ partial interface Window {
   // The screenX attribute must return the x-coordinate, relative to the origin
   // of the screen of the output device, of the left of the client window as
   // number of pixels, or zero if there is no such thing.
-  //   http://www.w3.org/TR/cssom-view/#dom-window-screenx
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-screenx
   readonly attribute double screenX;
   // The screenY attribute must return the y-coordinate, relative to the origin
   // of the screen of the output device, of the top of the client window as
   // number of pixels, or zero if there is no such thing.
-  //   http://www.w3.org/TR/cssom-view/#dom-window-screeny
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-screeny
   readonly attribute double screenY;
-  //   http://www.w3.org/TR/cssom-view/#dom-window-outerwidth
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-outerwidth
   readonly attribute double outerWidth;
-  //   http://www.w3.org/TR/cssom-view/#dom-window-outerheight
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-outerheight
   readonly attribute double outerHeight;
-  //   http://www.w3.org/TR/cssom-view/#dom-window-devicepixelratio
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-devicepixelratio
   readonly attribute double devicePixelRatio;
 
 };
