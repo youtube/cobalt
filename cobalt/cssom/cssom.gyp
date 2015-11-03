@@ -133,6 +133,8 @@
         'mutation_observer.h',
         'next_sibling_combinator.cc',
         'next_sibling_combinator.h',
+        'not_pseudo_class.cc',
+        'not_pseudo_class.h',
         'number_value.cc',
         'number_value.h',
         'percentage_value.cc',

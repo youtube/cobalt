@@ -30,6 +30,7 @@ class EmptyPseudoClass;
 class FocusPseudoClass;
 class HoverPseudoClass;
 class IdSelector;
+class NotPseudoClass;
 class TypeSelector;
 class UnsupportedPseudoClass;
 
@@ -50,6 +51,7 @@ class SelectorVisitor {
   virtual void VisitEmptyPseudoClass(EmptyPseudoClass* empty_pseudo_class) = 0;
   virtual void VisitFocusPseudoClass(FocusPseudoClass* focus_pseudo_class) = 0;
   virtual void VisitHoverPseudoClass(HoverPseudoClass* hover_pseudo_class) = 0;
+  virtual void VisitNotPseudoClass(NotPseudoClass* not_pseudo_class) = 0;
   virtual void VisitUnsupportedPseudoClass(
       UnsupportedPseudoClass* unsupported_pseudo_class) = 0;
 
