@@ -212,5 +212,13 @@ scoped_ptr<webdriver::SessionDriver> WebModule::CreateSessionDriver(
 }
 #endif
 
+#if defined(ENABLE_DEBUG_CONSOLE)
+scoped_ptr<script::DebugServer> WebModule::CreateDebugServer() {
+  // This may be called from a thread other than web_module_message_loop_.
+  return script::DebugServer::CreateDebugServer(
+      global_object_proxy_, self_message_loop_->message_loop_proxy());
+}
+#endif  // ENABLE_DEBUG_CONSOLE
+
 }  // namespace browser
 }  // namespace cobalt

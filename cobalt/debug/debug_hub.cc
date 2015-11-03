@@ -16,6 +16,8 @@
 
 #include "cobalt/debug/debug_hub.h"
 
+#include <set>
+
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/console_values.h"
 #include "cobalt/base/source_location.h"
@@ -31,11 +33,14 @@ const char kDebugConsoleHudString[] = "hud";
 const char kDebugConsoleOnString[] = "on";
 }  // namespace
 
-DebugHub::DebugHub(const ExecuteJavascriptCallback& execute_javascript_callback)
+DebugHub::DebugHub(
+    const ExecuteJavascriptCallback& execute_javascript_callback,
+    const Debugger::CreateDebugServerCallback& create_debug_server_callback)
     : execute_javascript_callback_(execute_javascript_callback),
       next_log_message_callback_id_(0),
       log_message_callbacks_deleter_(&log_message_callbacks_),
-      debug_console_mode_(kDebugConsoleOff) {
+      debug_console_mode_(kDebugConsoleOff),
+      debugger_(new Debugger(create_debug_server_callback)) {
   // Get log output while still making it available elsewhere.
   const base::LogMessageHandler::OnLogMessageCallback on_log_message_callback =
       base::Bind(&DebugHub::OnLogMessage, base::Unretained(this));
@@ -246,8 +251,10 @@ void DebugHub::SendCommand(const std::string& channel,
 // Stub implementation when debug not enabled (release builds)
 
 DebugHub::DebugHub(
-    const ExecuteJavascriptCallback& execute_javascript_callback) {
+    const ExecuteJavascriptCallback& execute_javascript_callback,
+    const Debugger::CreateDebugServerCallback& create_debug_server_callback) {
   UNREFERENCED_PARAMETER(execute_javascript_callback);
+  UNREFERENCED_PARAMETER(create_debug_server_callback);
 }
 
 DebugHub::~DebugHub() {}

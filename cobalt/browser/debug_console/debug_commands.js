@@ -80,6 +80,15 @@ function initDebugCommands() {
       'Lists the properties of the specified object in the main web module. ' +
       'Remember to enclose the name of the object in quotes.';
 
+  debug.debugger = function() {
+    return debugHub.debugger;
+  }
+  debug.debugger.shortHelp =
+      'Get the debugger client';
+  debug.debugger.longHelp =
+      'Get the debugger client. The debugger client can be used to issue ' +
+      'JavaScript debugging commands to the main web module.';
+
   addUserCommands();
 }
 
