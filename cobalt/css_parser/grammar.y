@@ -1351,13 +1351,8 @@ an_plus_b:
 //               cause the entire rule to be rejected. Remove this reduction
 //               once all tracking bugs below are resolved.
 unsupported_pseudo_class_token:
-  // Tracked by b/24955668.
-  kNotFunctionToken complex_selector ')' {
-    scoped_ptr<cssom::ComplexSelector> complex_selector($2);
-    $$ = TrivialStringPiece::FromCString("not");
-  }
   // Tracked by b/19149783.
-  | kNthChildFunctionToken an_plus_b ')' {
+    kNthChildFunctionToken an_plus_b ')' {
     $$ = TrivialStringPiece::FromCString("nth-child");
   }
   // Tracked by b/19149783.
@@ -1413,6 +1408,21 @@ pseudo_class_token:
   //   http://www.w3.org/TR/selectors4/#hover-pseudo
   | ':' kHoverToken {
     $$ = new cssom::HoverPseudoClass();
+  }
+  // The negation pseudo-class, :not(), is a functional pseudo-class taking a
+  // selector list as an argument. It represents an element that is not
+  // represented by its argument.
+  //   http://www.w3.org/TR/selectors4/#negation-pseudo
+  | ':' kNotFunctionToken compound_selector_token ')' {
+    scoped_ptr<cssom::CompoundSelector> compound_selector($3);
+    scoped_ptr<cssom::NotPseudoClass> not_pseudo_class(new
+        cssom::NotPseudoClass());
+    not_pseudo_class->set_selector(compound_selector.Pass());
+    $$ = not_pseudo_class.release();
+  }
+  | ':' kNotFunctionToken errors ')' {
+    parser_impl->LogWarning(@1, "unsupported selector within :not()");
+    $$ = NULL;
   }
   | ':' unsupported_pseudo_class_token {
 #ifdef __LB_SHELL__FORCE_LOGGING__

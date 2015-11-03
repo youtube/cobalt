@@ -50,6 +50,7 @@
 #include "cobalt/cssom/local_src_value.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
+#include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
@@ -404,6 +405,67 @@ TEST_F(ParserTest, ParsesHoverPseudoClass) {
       dynamic_cast<cssom::HoverPseudoClass*>(const_cast<cssom::SimpleSelector*>(
           compound_selector->simple_selectors()[0]));
   ASSERT_TRUE(hover_pseudo_class);
+}
+
+TEST_F(ParserTest, ParsesNotPseudoClass) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet(":not(div.my-class) {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::NotPseudoClass* not_pseudo_class =
+      dynamic_cast<cssom::NotPseudoClass*>(const_cast<cssom::SimpleSelector*>(
+          compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(not_pseudo_class);
+
+  // Check the selector within :not pseudo class.
+  cssom::CompoundSelector* not_compound_selector = not_pseudo_class->selector();
+  ASSERT_TRUE(not_compound_selector);
+  ASSERT_EQ(2, not_compound_selector->simple_selectors().size());
+  cssom::TypeSelector* type_selector =
+      dynamic_cast<cssom::TypeSelector*>(const_cast<cssom::SimpleSelector*>(
+          not_compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(type_selector);
+  EXPECT_EQ("div", type_selector->element_name());
+  cssom::ClassSelector* class_selector =
+      dynamic_cast<cssom::ClassSelector*>(const_cast<cssom::SimpleSelector*>(
+          not_compound_selector->simple_selectors()[1]));
+  ASSERT_TRUE(class_selector);
+  EXPECT_EQ("my-class", class_selector->class_name());
+}
+
+TEST_F(ParserTest, ParsesNotPseudoClassShouldNotTakeEmptyParameter) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: unsupported "
+                        "selector within :not()"));
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet(":not() {}", source_location_);
+
+  EXPECT_EQ(0, style_sheet->css_rules()->length());
+}
+
+TEST_F(ParserTest, ParsesNotPseudoClassShouldNotTakeComplexSelector) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: unsupported "
+                        "selector within :not()"));
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet(":not(div span) {}", source_location_);
+
+  EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, ParsesIdSelector) {
