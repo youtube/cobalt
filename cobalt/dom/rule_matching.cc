@@ -37,6 +37,7 @@
 #include "cobalt/cssom/following_sibling_combinator.h"
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
+#include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/pseudo_element.h"
 #include "cobalt/cssom/selector_visitor.h"
@@ -222,6 +223,17 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   void VisitHoverPseudoClass(cssom::HoverPseudoClass*) OVERRIDE {
     NOTIMPLEMENTED();
     element_ = NULL;
+  }
+
+  // The negation pseudo-class, :not(), is a functional pseudo-class taking a
+  // selector list as an argument. It represents an element that is not
+  // represented by its argument.
+  //   http://www.w3.org/TR/selectors4/#negation-pseudo
+  virtual void VisitNotPseudoClass(
+      cssom::NotPseudoClass* not_pseudo_class) OVERRIDE {
+    if (MatchSelectorAndElement(not_pseudo_class->selector(), element_)) {
+      element_ = NULL;
+    }
   }
 
   // Unsupported pseudo-class never matches.
@@ -479,6 +491,10 @@ void ForEachChildOnNodes(
       GatherCandidateNodesFromSet(
           &(node->focus_pseudo_class_nodes[combinator_type]), &candidate_nodes);
     }
+
+    // Not pseudo class.
+    GatherCandidateNodesFromSet(
+        &(node->not_pseudo_class_nodes[combinator_type]), &candidate_nodes);
 
     // Check all candidate nodes can run callback for matching nodes.
     for (cssom::SelectorTree::NodeSet::iterator candidate_node_iterator =
