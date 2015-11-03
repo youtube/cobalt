@@ -29,6 +29,7 @@
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/renderer/renderer_module.h"
+#include "cobalt/script/debug_server.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/create_system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
@@ -70,6 +71,12 @@ class BrowserModule {
     return web_module_->CreateSessionDriver(session_id);
   }
 #endif
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  scoped_ptr<script::DebugServer> CreateDebugServer() {
+    return web_module_->CreateDebugServer();
+  }
+#endif  // ENABLE_DEBUG_CONSOLE
 
  private:
   // Internal Navigate function. Replaces the current WebModule with a new

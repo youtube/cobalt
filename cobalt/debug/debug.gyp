@@ -23,6 +23,8 @@
       'sources': [
         'debug_hub.cc',
         'debug_hub.h',
+        'debugger.cc',
+        'debugger.h',
         'system_stats_tracker.cc',
         'system_stats_tracker.h',
       ],
