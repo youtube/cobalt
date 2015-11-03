@@ -97,8 +97,12 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_, options.language),
       render_tree_combiner_(renderer_module_.pipeline()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(debug_hub_(new debug::DebugHub(base::Bind(
-          &BrowserModule::ExecuteJavascript, base::Unretained(this))))),
+#if defined(ENABLE_DEBUG_CONSOLE)
+      ALLOW_THIS_IN_INITIALIZER_LIST(debug_hub_(new debug::DebugHub(
+          base::Bind(&BrowserModule::ExecuteJavascript, base::Unretained(this)),
+          base::Bind(&BrowserModule::CreateDebugServer,
+                     base::Unretained(this))))),
+#endif  // ENABLE_DEBUG_CONSOLE
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
           GURL(kInitialDebugConsoleUrl),
           base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
