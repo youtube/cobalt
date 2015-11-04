@@ -9,7 +9,7 @@
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
-#if !defined (__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
 #include "base/metrics/stats_table.h"
 #endif
 #include "base/time.h"
@@ -48,7 +48,7 @@ namespace base {
 // as the implementation varies, or depending on compile options.
 //------------------------------------------------------------------------------
 // First provide generic macros, which exist in production as well as debug.
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #define STATS_COUNTER(name, delta)
 #define SIMPLE_STATS_COUNTER(name)
 #define RATE_COUNTER(name, duration)

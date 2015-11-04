@@ -7,7 +7,7 @@
 #include "base/logging.h"
 
 namespace base {
-#if defined (__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 // Intentionally no-ops.
 StatsCounter::StatsCounter() {
 }
