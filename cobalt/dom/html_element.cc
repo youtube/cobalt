@@ -55,10 +55,13 @@ namespace cobalt {
 namespace dom {
 
 scoped_refptr<DOMStringMap> HTMLElement::dataset() {
-  if (!dataset_) {
-    dataset_ = new DOMStringMap(this);
+  scoped_refptr<DOMStringMap> dataset(dataset_);
+  if (!dataset) {
+    // Create a new instance and store a weak reference.
+    dataset = new DOMStringMap(this);
+    dataset_ = dataset->AsWeakPtr();
   }
-  return dataset_;
+  return dataset;
 }
 
 int32 HTMLElement::tab_index() const {
