@@ -85,13 +85,15 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   return !event->default_prevented();
 }
 
-// Return NULL if the node itself is Document.
+// Algorithm for owner_document:
 //   http://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-ownerdocument
 scoped_refptr<Document> Node::owner_document() const {
-  if (owner_document_ == this) {
+  // 1. If the context object is a document, return null.
+  if (IsDocument()) {
     return NULL;
   }
-  return owner_document_.get();
+  // 2. Return the node document.
+  return node_document();
 }
 
 scoped_refptr<Element> Node::parent_element() const {
@@ -184,7 +186,7 @@ scoped_refptr<Node> Node::InsertBefore(
 
   if (inserted_into_document_) {
     new_child->OnInsertedIntoDocument();
-    owner_document_->OnDOMMutation();
+    node_document_->OnDOMMutation();
   }
 
   OnInsertBefore(new_child, reference_child);
@@ -390,10 +392,10 @@ void Node::InvalidateLayoutBoxesFromNodeAndDescendants() {
 }
 
 Node::Node(Document* document)
-    : owner_document_(base::AsWeakPtr(document)),
+    : node_document_(base::AsWeakPtr(document)),
       inserted_into_document_(false),
       node_generation_(kInitialNodeGeneration) {
-  DCHECK(owner_document_);
+  DCHECK(node_document_);
 
   Stats::GetInstance()->Add(this);
 }
@@ -401,7 +403,7 @@ Node::Node(Document* document)
 Node::~Node() { Stats::GetInstance()->Remove(this); }
 
 void Node::OnInsertedIntoDocument() {
-  DCHECK(owner_document_);
+  DCHECK(node_document_);
   DCHECK(!inserted_into_document_);
   inserted_into_document_ = true;
 

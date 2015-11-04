@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/dom/html_element.h"
@@ -82,7 +83,6 @@ class HTMLScriptElement : public HTMLElement {
 
   void OnLoadingDone(const std::string& content);
   void OnLoadingError(const std::string& error);
-  void StopLoading();
 
   void ExecuteExternal() {
     Execute(content_, base::SourceLocation(url_.spec(), 1, 1), true);
@@ -107,6 +107,8 @@ class HTMLScriptElement : public HTMLElement {
   // Thread checker ensures all calls to DOM element are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
+  // Weak reference to the document at the time Prepare() started.
+  base::WeakPtr<Document> document_;
   // The loader that is used for asynchronous loads.
   scoped_ptr<loader::Loader> loader_;
   // Whether the sync load is successful.
