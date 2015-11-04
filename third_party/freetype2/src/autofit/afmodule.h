@@ -4,7 +4,7 @@
 /*                                                                         */
 /*    Auto-fitter module implementation (specification).                   */
 /*                                                                         */
-/*  Copyright 2003, 2004, 2005 by                                          */
+/*  Copyright 2003-2015 by                                                 */
 /*  David Turner, Robert Wilhelm, and Werner Lemberg.                      */
 /*                                                                         */
 /*  This file is part of the FreeType project, and may only be used,       */
@@ -26,7 +26,26 @@
 
 FT_BEGIN_HEADER
 
-FT_DECLARE_MODULE(autofit_module_class)
+
+  /*
+   *  This is the `extended' FT_Module structure that holds the
+   *  autofitter's global data.
+   */
+
+  typedef struct  AF_ModuleRec_
+  {
+    FT_ModuleRec  root;
+
+    FT_UInt       fallback_style;
+    FT_UInt       default_script;
+#ifdef AF_CONFIG_OPTION_USE_WARPER
+    FT_Bool       warping;
+#endif
+
+  } AF_ModuleRec, *AF_Module;
+
+
+FT_DECLARE_MODULE( autofit_module_class )
 
 
 FT_END_HEADER
