@@ -34,14 +34,4 @@ void SbLogRaw(const char *message) {
     }
     bytes_written += rv;
   }
-
-  if (message_len > 0 && message[message_len - 1] != '\n') {
-    do {
-      rv = HANDLE_EINTR(write(STDERR_FILENO, "\n", 1));
-      if (rv < 0) {
-        // Give up, nothing we can do now.
-        break;
-      }
-    } while (rv != 1);
-  }
 }
