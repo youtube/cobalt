@@ -1897,10 +1897,9 @@ background_property_element:
       scoped_ptr<cssom::PropertyListValue::Builder>
           background_image_builder(new cssom::PropertyListValue::Builder());
       background_image_builder->reserve(1);
-      background_image_builder->push_back($1);
+      background_image_builder->push_back(MakeScopedRefPtrAndRelease($1));
       $<background_shorthand_layer>0->background_image =
-          background_image_builder ? AddRef(new cssom::PropertyListValue(
-              background_image_builder.Pass())) : NULL;
+          new cssom::PropertyListValue(background_image_builder.Pass());
     } else {
       parser_impl->LogError(
           @1, "background-image value declared twice in background.");
@@ -1949,13 +1948,15 @@ background_position_and_repeat_combination:
   | background_position_and_size_shorthand_property_value
     background_repeat_shorthand_property_value {
     scoped_ptr<BackgroundShorthandLayer> shorthand_layer($1);
-    shorthand_layer->IntegrateNonOverlapped(*$2);
+    scoped_ptr<BackgroundShorthandLayer> non_overlapped($2);
+    shorthand_layer->IntegrateNonOverlapped(*non_overlapped);
     $$ = shorthand_layer.release();
   }
   | background_repeat_shorthand_property_value
     background_position_and_size_shorthand_property_value {
     scoped_ptr<BackgroundShorthandLayer> shorthand_layer($1);
-    shorthand_layer->IntegrateNonOverlapped(*$2);
+    scoped_ptr<BackgroundShorthandLayer> non_overlapped($2);
+    shorthand_layer->IntegrateNonOverlapped(*non_overlapped);
     $$ = shorthand_layer.release();
   }
   ;
@@ -2188,8 +2189,9 @@ background_position_property_list:
   | background_position_property_list
     background_position_property_list_element {
     scoped_ptr<BackgroundPositionInfo> position_info($1);
+    scoped_refptr<cssom::PropertyValue> element = MakeScopedRefPtrAndRelease($2);
     if (position_info &&
-        !position_info->PushBackElement(MakeScopedRefPtrAndRelease($2))) {
+        !position_info->PushBackElement(element)) {
       parser_impl->LogWarning(@2, "invalid background position value");
       $$ = NULL;
     } else {
@@ -2256,9 +2258,7 @@ background_repeat_property_value:
     builder->reserve(2);
     builder->push_back(MakeScopedRefPtrAndRelease($1));
     builder->push_back($1);
-    $$ = builder
-         ? AddRef(new cssom::PropertyListValue(builder.Pass()))
-         : NULL;
+    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
   }
   | background_repeat_element background_repeat_element {
     scoped_ptr<cssom::PropertyListValue::Builder> builder(
@@ -2266,9 +2266,7 @@ background_repeat_property_value:
     builder->reserve(2);
     builder->push_back(MakeScopedRefPtrAndRelease($1));
     builder->push_back(MakeScopedRefPtrAndRelease($2));
-    $$ = builder
-         ? AddRef(new cssom::PropertyListValue(builder.Pass()))
-         : NULL;
+    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
   }
   | kRepeatXToken maybe_whitespace {
     scoped_ptr<cssom::PropertyListValue::Builder> builder(
@@ -2276,9 +2274,7 @@ background_repeat_property_value:
     builder->reserve(2);
     builder->push_back(cssom::KeywordValue::GetRepeat().get());
     builder->push_back(cssom::KeywordValue::GetNoRepeat().get());
-    $$ = builder
-         ? AddRef(new cssom::PropertyListValue(builder.Pass()))
-         : NULL;
+    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
   }
   | kRepeatYToken maybe_whitespace {
     scoped_ptr<cssom::PropertyListValue::Builder> builder(
@@ -2286,9 +2282,7 @@ background_repeat_property_value:
     builder->reserve(2);
     builder->push_back(cssom::KeywordValue::GetNoRepeat().get());
     builder->push_back(cssom::KeywordValue::GetRepeat().get());
-    $$ = builder
-         ? AddRef(new cssom::PropertyListValue(builder.Pass()))
-         : NULL;
+    $$ = AddRef(new cssom::PropertyListValue(builder.Pass()));
   }
   ;
 
@@ -2402,6 +2396,7 @@ font_face_local_src:
     kLocalFunctionToken maybe_whitespace font_family_specific_name ')'
         maybe_whitespace {
     $$ = AddRef(new cssom::LocalSrcValue($3->value()));
+    $3->Release();
   }
   ;
 
