@@ -33,7 +33,7 @@
 
 #if defined(OS_WIN)
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_SHARED
-#elif defined(OS_IOS) || defined(__LB_SHELL__)
+#elif defined(OS_IOS) || defined(__LB_SHELL__) || defined(OS_STARBOARD)
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_FILE
 #else
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_STATIC
@@ -88,15 +88,16 @@ bool Initialize() {
   // Mac/Linux bundle the ICU data in.
   return true;
 #elif (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   // Locate the data directory.
   FilePath data_path;
   bool path_ok = PathService::Get(base::DIR_EXE, &data_path);
   DCHECK(path_ok);
+  data_path = data_path.Append("icu");
 #if U_IS_BIG_ENDIAN
-  data_path = data_path.Append("icu/icudt46b");
+  data_path = data_path.Append("icudt46b");
 #else
-  data_path = data_path.Append("icu/icudt46l");
+  data_path = data_path.Append("icudt46l");
 #endif
   // set this as the data directory.
   u_setDataDirectory(data_path.value().c_str());
