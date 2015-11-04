@@ -1477,11 +1477,20 @@ TEST_F(FileUtilTest, CopyFile) {
   FilePath dest_file = dir_name_from.Append(FILE_PATH_LITERAL("DestFile.txt"));
   ASSERT_TRUE(file_util::CopyFile(file_name_from, dest_file));
 
+#if defined(OS_STARBOARD)
+  // Why should we ensure CopyFile is unsafe? On Starboard, it won't open files
+  // with a ".." in the path.
+  // Copy the file to another location using '..' in the path.
+  FilePath dest_file2(temp_dir_.path());
+  dest_file2 = dest_file2.AppendASCII("DestFile.txt");
+  ASSERT_TRUE(file_util::CopyFile(file_name_from, dest_file2));
+#else
   // Copy the file to another location using '..' in the path.
   FilePath dest_file2(dir_name_from);
   dest_file2 = dest_file2.AppendASCII("..");
   dest_file2 = dest_file2.AppendASCII("DestFile.txt");
   ASSERT_TRUE(file_util::CopyFile(file_name_from, dest_file2));
+#endif
 
   FilePath dest_file2_test(dir_name_from);
   dest_file2_test = dest_file2_test.DirName();

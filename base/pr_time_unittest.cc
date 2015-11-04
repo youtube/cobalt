@@ -19,6 +19,10 @@ PRTime comparison_time_pdt = 1192477500 * Time::kMicrosecondsPerSecond;
 // Specialized test fixture allowing time strings without timezones to be
 // tested by comparing them to a known time in the local zone.
 class PRTimeTest : public testing::Test {
+  // TODO(iffy): This test breaks the platform seal by including time.h, and
+  // using that to check the NS PRTime code against. Do something else instead
+  // that is more platform-abstracted.
+
  protected:
   virtual void SetUp() OVERRIDE {
     // Use mktime to get a time_t, and turn it into a PRTime by converting
@@ -43,6 +47,11 @@ class PRTimeTest : public testing::Test {
 
   PRTime comparison_time_local_;
 };
+
+#if !defined(OS_STARBOARD)
+// More of the no local time on Starboard issue. We can't use these standard
+// functions to check NSPR Time against because they don't always work on all
+// platforms, making these tests inherently flaky and non-portable.
 
 // Tests the PR_ParseTimeString nspr helper function for
 // a variety of time strings.
@@ -71,6 +80,7 @@ TEST_F(PRTimeTest, ParseTimeTest1) {
   EXPECT_EQ(PR_SUCCESS, result);
   EXPECT_EQ(current_time64, parsed_time);
 }
+#endif
 
 TEST_F(PRTimeTest, ParseTimeTest2) {
   PRTime parsed_time = 0;

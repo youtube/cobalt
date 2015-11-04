@@ -120,7 +120,7 @@ bool ICUIsRTL() {
 }
 
 TextDirection GetTextDirectionForLocale(const char* locale_name) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   // lbshell does not have the icu tables needed to determine RTL-ness.
   // Rather than beef up our icu tables, hard-code the list of RTL languages
   // that Chrome supports.  RTL layout is implemented by other components,
