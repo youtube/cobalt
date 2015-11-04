@@ -59,10 +59,12 @@ class BASE_EXPORT SimpleThread : public PlatformThread::Delegate {
  public:
   class BASE_EXPORT Options {
    public:
-    Options() : stack_size_(0), priority_(-1), affinity_(-1) { }
-    Options(size_t stack_size, int priority)
-        : stack_size_(stack_size), priority_(priority), affinity_(-1) { }
-    Options(size_t stack_size, int priority, int affinity)
+    Options() : stack_size_(0), priority_(kThreadPriority_Default),
+        affinity_(kNoThreadAffinity) { }
+    Options(size_t stack_size, ThreadPriority priority)
+        : stack_size_(stack_size), priority_(priority),
+        affinity_(kNoThreadAffinity) { }
+    Options(size_t stack_size, ThreadPriority priority, ThreadAffinity affinity)
         : stack_size_(stack_size), priority_(priority), affinity_(affinity) { }
     ~Options() { }
 
@@ -73,17 +75,17 @@ class BASE_EXPORT SimpleThread : public PlatformThread::Delegate {
     size_t stack_size() const { return stack_size_; }
 
     // Thread priority
-    void set_priority(int priority) { priority_ = priority; }
-    int priority() const { return priority_; }
+    void set_priority(ThreadPriority priority) { priority_ = priority; }
+    ThreadPriority priority() const { return priority_; }
 
     // Core affinity
-    void set_affinity(int affinity) { affinity_ = affinity; }
-    int affinity() const { return affinity_; }
+    void set_affinity(ThreadAffinity affinity) { affinity_ = affinity; }
+    ThreadAffinity affinity() const { return affinity_; }
 
    private:
     size_t stack_size_;
-    int priority_;
-    int affinity_;
+    ThreadPriority priority_;
+    ThreadAffinity affinity_;
   };
 
   // Create a SimpleThread.  |options| should be used to manage any specific
