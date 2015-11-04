@@ -21,7 +21,7 @@ const base::subtle::Atomic32 kMagicValue = 42;
 // Helper for memory accesses that can potentially corrupt memory or cause a
 // crash during a native run.
 #if defined(ADDRESS_SANITIZER)
-#if defined(OS_IOS) || defined(__LB_SHELL__)
+#if defined(OS_IOS) || defined(__LB_SHELL__) || defined(OS_STARBOARD)
 // EXPECT_DEATH is not supported on IOS.
 // TODO(rjogrady): We have EXPECT_DEATH disabled for all Steel platforms,
 // but we could potentially support it on Linux.

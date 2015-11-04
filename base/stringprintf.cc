@@ -13,7 +13,7 @@ namespace base {
 
 namespace {
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 // Emperically derived lowest number required to pass unit tests.
 const int kMaxStringPrintfBufferSize = 8 * 1024; // 8kB
 #else
