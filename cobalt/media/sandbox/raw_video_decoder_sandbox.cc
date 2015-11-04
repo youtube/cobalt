@@ -94,7 +94,7 @@ class RawVideoDecoderSandbox {
       }
       decoder_->Decode(buffer,
                        BindToCurrentLoop(Bind(&RawVideoDecoderSandbox::DecodeCB,
-                                              buffer, Unretained(this))));
+                                              Unretained(this), buffer)));
     } else {
       NOTREACHED();
     }
@@ -105,7 +105,7 @@ class RawVideoDecoderSandbox {
     DCHECK_EQ(status, DemuxerStream::kOk);
     decoder_->Decode(buffer,
                      BindToCurrentLoop(Bind(&RawVideoDecoderSandbox::DecodeCB,
-                                            buffer, Unretained(this))));
+                                            Unretained(this), buffer)));
   }
 
   scoped_refptr<Demuxer> demuxer_;
