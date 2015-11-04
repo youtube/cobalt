@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2005, 2006, 2007, 2008, 2009 by
+# Copyright 2005-2015 by
 # David Turner, Robert Wilhelm, and Werner Lemberg.
 #
 # This file is part of the FreeType project, and may only be used, modified,
@@ -55,7 +55,7 @@ compare_to_minimum_version ()
   if test $MAJOR1 -lt $MAJOR2; then
     echo 0
     return
-  else 
+  else
     if test $MAJOR1 -gt $MAJOR2; then
       echo 1
       return
@@ -67,7 +67,7 @@ compare_to_minimum_version ()
   if test $MINOR1 -lt $MINOR2; then
     echo 0
     return
-  else 
+  else
     if test $MINOR1 -gt $MINOR2; then
       echo 1
       return
@@ -95,10 +95,11 @@ compare_to_minimum_version ()
 check_tool_version ()
 {
   field=$5
+  # assume the output of "[TOOL] --version" is "toolname (GNU toolname foo bar) version"
   if test "$field"x = x; then
-    field=4  # default to 4 for all GNU autotools
+    field=3  # default to 3 for all GNU autotools, after filtering enclosed string
   fi
-  version=`$1 --version | head -1 | cut -d ' ' -f $field`
+  version=`$1 --version | head -1 | sed 's/([^)]*)/()/g' | cut -d ' ' -f $field`
   version_check=`compare_to_minimum_version $version $4`
   if test "$version_check"x = 0x; then
     echo "ERROR: Your version of the \`$2' tool is too old."
@@ -117,9 +118,12 @@ fi
 
 # On MacOS X, the GNU libtool is named `glibtool'.
 HOSTOS=`uname`
-LIBTOOLIZE=libtoolize
-if test "$HOSTOS"x = Darwinx; then
+if test "$LIBTOOLIZE"x != x; then
+  :
+elif test "$HOSTOS"x = Darwinx; then
   LIBTOOLIZE=glibtoolize
+else
+  LIBTOOLIZE=libtoolize
 fi
 
 if test "$ACLOCAL"x = x; then
@@ -135,7 +139,7 @@ check_tool_version $LIBTOOLIZE libtoolize LIBTOOLIZE 2.2.4
 check_tool_version $AUTOCONF   autoconf   AUTOCONF   2.62
 
 # This sets freetype_major, freetype_minor, and freetype_patch.
-eval `sed -nf version.sed include/freetype/freetype.h`
+eval `sed -nf version.sed include/freetype.h`
 
 # We set freetype-patch to an empty value if it is zero.
 if test "$freetype_patch" = ".0"; then
