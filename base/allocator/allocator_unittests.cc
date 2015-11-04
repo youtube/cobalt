@@ -15,7 +15,7 @@ static const size_t kMaxSize = ~static_cast<size_t>(0);
 // Maximum positive size of a size_t if it were signed.
 static const size_t kMaxSignedSize = ((size_t(1) << (kSizeBits-1)) - 1);
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 // An allocation size which is not too big to be reasonable.
 static const size_t kNotTooBig = 100000;
 // An allocation size which is just too big.
@@ -84,7 +84,7 @@ static int NextSize(int size) {
   }
 }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
 #if defined(GG_ULONGLONG)
 // GG_ULONGLONG is already defined in base/port.h
 #undef GG_ULONGLONG
@@ -306,8 +306,8 @@ static void TestCalloc(size_t n, size_t s, bool ok) {
   }
 }
 
-#if !defined(__LB_SHELL__)
-// Exceptions are disabled on lbshell.
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
+// Exceptions are disabled on lbshell and Starboard.
 
 // A global test counter for number of times the NewHandler is called.
 static int news_handled = 0;
@@ -404,7 +404,7 @@ TEST(Allocators, Calloc) {
   TestCalloc(kMaxSignedSize, kMaxSignedSize, false);
 }
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 // Exceptions are disabled on lbshell.
 TEST(Allocators, New) {
   TestNothrowNew(&::operator new);
@@ -412,7 +412,7 @@ TEST(Allocators, New) {
 }
 #endif
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 // The test assumes the memory space to be very empty
 // and doesn't work on lb_shell platforms.
 
@@ -546,7 +546,8 @@ TEST(Allocators, AlignedMalloc) {
 
 #endif
 
-#if !defined(__LB_SHELL__)  // main defined in run_all_unittests
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
+// main defined in run_all_unittests
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

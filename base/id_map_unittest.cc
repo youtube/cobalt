@@ -193,7 +193,7 @@ TEST(IDMapTest, AssignIterator) {
 // given ID at a given iteration point.  This is a bad expectation for a
 // hash_map, and one that does not hold on lbshell platforms.  This test
 // should be rewritten.
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 TEST(IDMapTest, IteratorRemainsValidWhenClearing) {
   IDMap<TestObject> map;
 
