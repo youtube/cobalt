@@ -48,8 +48,8 @@ typedef enum SbLogPriority {
 SB_EXPORT void SbLog(SbLogPriority priority, const char *message);
 
 // A bare-bones log output method that is async-signal-safe, i.e. safe to call
-// from an asynchronous signal handler (e.g. a SIGSEGV handler). It ensures the
-// message is output with a trailing newline, but does no other formatting.
+// from an asynchronous signal handler (e.g. a SIGSEGV handler). It should do no
+// additional formatting.
 SB_EXPORT void SbLogRaw(const char *message);
 
 #ifdef __cplusplus
