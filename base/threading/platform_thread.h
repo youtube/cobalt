@@ -29,6 +29,8 @@ namespace base {
 // standard intends to allow pthread_t to be a structure.  This means you
 // should not initialize it to a value, like 0.  If it's a member variable, the
 // constructor can safely "value initialize" using () in the initializer list.
+//
+// ... Note that PlatformThreadHandle is assumed to be a scalar type below.
 #if defined(OS_WIN)
 typedef DWORD PlatformThreadId;
 typedef void* PlatformThreadHandle;  // HANDLE
@@ -39,11 +41,17 @@ typedef pthread_t PlatformThreadHandle;
 const PlatformThreadHandle kNullThreadHandle = 0;
 typedef pid_t PlatformThreadId;
 const PlatformThreadId kInvalidThreadId = 0;
+#if defined(COBALT)
+typedef int ThreadAffinity;
+const ThreadAffinity kNoThreadAffinity = -1;
+#endif
 #elif defined(OS_STARBOARD)
 typedef SbThread PlatformThreadHandle;
 const PlatformThreadHandle kNullThreadHandle = kSbThreadInvalid;
 typedef SbThreadId PlatformThreadId;
 const PlatformThreadId kInvalidThreadId = kSbThreadInvalidId;
+typedef SbThreadAffinity ThreadAffinity;
+const ThreadAffinity kNoThreadAffinity = kSbThreadNoAffinity;
 #endif
 
 // Valid values for SetThreadPriority()
@@ -59,13 +67,22 @@ enum ThreadPriority {
   kThreadPriority_Highest = kSbThreadPriorityHighest,
   kThreadPriority_RealTime = kSbThreadPriorityRealTime,
   kThreadPriority_RealtimeAudio = kThreadPriority_RealTime,
-#else
-  kThreadPriority_Normal,
+#elif defined(COBALT)
+  // Cobalt on non-Starboard platforms.
 
+  kThreadPriority_Default = -1,
+  kThreadPriority_Lowest = 0,
+  kThreadPriority_Low,
+  kThreadPriority_Normal,
+  kThreadPriority_High,
+  kThreadPriority_Highest,
+  kThreadPriority_RealTime,
+  kThreadPriority_RealtimeAudio = kThreadPriority_RealTime,
+#else
+  // The original Chromium priorities.
+
+  kThreadPriority_Normal,
   // Suitable for low-latency, glitch-resistant audio.
-  //
-  // Avoid using this, instead prefer to create your own application-specific
-  // mappings in your application layer.
   kThreadPriority_RealtimeAudio,
 #endif
 };
@@ -83,18 +100,7 @@ class BASE_EXPORT PlatformThread {
     virtual ~Delegate() {}
   };
 
-#if defined(__LB_SHELL__)
-  struct PlatformThreadOptions {
-    // 0 indicates default stack size
-    size_t stack_size;
-
-    // -1 indicates default priority
-    int priority;
-
-    // -1 indicates default affinity
-    int affinity;
-  };
-#elif defined(OS_STARBOARD)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   struct PlatformThreadOptions {
     // <= 0 indicates default stack size
     int64_t stack_size;
@@ -103,8 +109,8 @@ class BASE_EXPORT PlatformThread {
     // default priority assignment policy.
     ThreadPriority priority;
 
-    // The CPU index to pin the thread to, or -1 for no affinity.
-    int affinity;
+    // The CPU index to pin the thread to, or kNoThreadAffinity for no affinity.
+    ThreadAffinity affinity;
   };
 #endif
 
