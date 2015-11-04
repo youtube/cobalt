@@ -151,20 +151,46 @@ CommandInput.prototype.animateBlink = function() {
   }
 }
 
+CommandInput.prototype.escapeTagChars = function(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Replaces tag characters with their escaped equivalents for safe HTML display.
+// Adjusts the cursor position accordingly.
+// After escaping the tag characters, the cursor span may be longer than
+// one character, hence we calculate cursorStart/End.
+CommandInput.prototype.escapeTagCharsAndAdjustCursor =
+    function(rawCommand, cursorPos) {
+  var beforeCursor = rawCommand.substring(0, cursorPos);
+  var atCursor = rawCommand.substring(cursorPos, cursorPos + 1);
+  var afterCursor = rawCommand.substring(cursorPos + 1, rawCommand.length);
+  beforeCursor = this.escapeTagChars(beforeCursor);
+  atCursor = this.escapeTagChars(atCursor);
+  afterCursor = this.escapeTagChars(afterCursor);
+  var result = {};
+  result.commandAsHTML = beforeCursor + atCursor + afterCursor;
+  result.cursorStart = beforeCursor.length;
+  result.cursorEnd = beforeCursor.length + (atCursor.length || 1);
+  return result;
+}
+
 // Called when the current command text changes.
 CommandInput.prototype.updateText = function() {
-  var pos = this.cursorPos;
-  var cmd = this.currCommand;
+  var modifiedCommand = this.escapeTagCharsAndAdjustCursor(this.currCommand,
+                                                           this.cursorPos);
+  var cursorStart = modifiedCommand.cursorStart;
+  var cursorEnd = modifiedCommand.cursorEnd;
+  var commandAsHTML = modifiedCommand.commandAsHTML;
   var html = '';
 
-  if (pos < cmd.length) {
-    html = cmd.substring(0, pos);
+  if (cursorEnd <= commandAsHTML.length) {
+    html = commandAsHTML.substring(0, cursorStart);
     html += '<span id="cursor">';
-    html += cmd.substring(pos, pos + 1);
+    html += commandAsHTML.substring(cursorStart, cursorEnd);
     html += '</span>';
-    html += cmd.substring(pos + 1, cmd.length);
+    html += commandAsHTML.substring(cursorEnd, commandAsHTML.length);
   } else {
-    html = cmd + '<span id="cursor"> </span>';
+    html = commandAsHTML + '<span id="cursor"> </span>';
   }
   this.inputElem.innerHTML = html;
   this.blinkOn = true;
