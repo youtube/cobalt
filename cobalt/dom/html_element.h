@@ -21,6 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/string_piece.h"
 #include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/css_style_declaration.h"
@@ -235,7 +236,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   cssom::TransitionSet transitions_;
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
-  scoped_refptr<DOMStringMap> dataset_;
+  base::WeakPtr<DOMStringMap> dataset_;
 
   // |cached_background_images_| contains a list of CachedImage references for
   // all images referenced by the computed value for the background_image CSS
