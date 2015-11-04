@@ -175,7 +175,7 @@ class ObserverListBase
   int notify_depth_;
   NotificationType type_;
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
   // friend is not needed for nested classes in modern compilers.
   friend class ObserverListBase::Iterator;
 #endif

@@ -338,7 +338,7 @@ void ThreadData::OnThreadTermination(void* thread_data) {
 }
 
 void ThreadData::OnThreadTerminationCleanup() {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   // The Chromium code avoids doing allocations here and puts ThreadDatas
   // into a linked list for reuse.
   // However, every call to InitializeThreadContext() will create

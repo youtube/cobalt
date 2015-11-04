@@ -72,7 +72,7 @@ void SystemMonitor::ProcessPowerMessage(PowerEvent event_id) {
   // send multiple notifications of the same event.
   switch (event_id) {
     case POWER_STATE_EVENT:
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
       {
         bool on_battery = IsBatteryPower();
         if (on_battery != battery_in_use_) {

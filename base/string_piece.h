@@ -421,7 +421,9 @@ BASE_EXPORT std::ostream& operator<<(std::ostream& o,
   return result;                                                        \
 
 namespace BASE_HASH_NAMESPACE {
-#if defined(COMPILER_GCC) && !(defined(__LB_SHELL__) && !defined(__LB_LINUX__))
+#if defined(COMPILER_GCC) &&                                            \
+  (!(defined(__LB_SHELL__) && !defined(__LB_LINUX__)) ||                \
+   (defined(OS_STARBOARD) && defined(SB_HAS_HASH_VALUE) && SB_HAS_HASH_VALUE))
 
 template<>
 struct hash<base::StringPiece> {
@@ -436,7 +438,8 @@ struct hash<base::StringPiece16> {
   }
 };
 
-#elif defined(COMPILER_MSVC) || defined(__LB_SHELL__)
+#elif defined(COMPILER_MSVC) || defined(__LB_SHELL__) ||                \
+  (defined(OS_STARBOARD) && defined(SB_HAS_HASH_VALUE) && SB_HAS_HASH_VALUE)
 
 inline size_t hash_value(const base::StringPiece& sp) {
   HASH_STRING_PIECE(base::StringPiece, sp);

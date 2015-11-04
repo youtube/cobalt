@@ -21,6 +21,11 @@
 
 #if defined(__LB_SHELL__)
 #include <stdlib.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/memory.h"
+#endif
+
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #endif
@@ -46,18 +51,26 @@ typedef ino_t SharedMemoryId;
 // On POSIX, the lock is implemented as a lockf() on the mapped file,
 // so no additional member (or definition of SharedMemoryLock) is
 // needed.
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) || defined(OS_STARBOARD)
 
-// For LB_SHELL, we will only ever have one process, and so we use
-// standard heap memory for this.
+// For LB_SHELL, and Starboard, we will only ever have one process, and so we
+// use standard heap memory for this.
 class RefCountedMem : public base::RefCountedThreadSafe<RefCountedMem> {
  public:
   RefCountedMem(size_t size) {
     size_ = size;
+#if defined(OS_STARBOARD)
+    memory_ = SbMemoryAllocate(size);
+#else
     memory_ = malloc(size);
+#endif
   }
   ~RefCountedMem() {
+#if defined(OS_STARBOARD)
+    SbMemoryFree(memory_);
+#else
     free(memory_);
+#endif
   }
 
   void* GetMemory() const { return memory_; }

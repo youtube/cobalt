@@ -28,7 +28,7 @@ TEST_F(SysInfoTest, AmountOfMem) {
   EXPECT_GT(base::SysInfo::AmountOfPhysicalMemoryMB(), 0);
 }
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 // Disk space queries are not available cross-platform.
 
 TEST_F(SysInfoTest, AmountOfFreeDiskSpace) {
