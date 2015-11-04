@@ -18,10 +18,10 @@
 
 #include "base/callback.h"
 #include "cobalt/dom/attr.h"
-#include "cobalt/dom/xml_document.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/dom/xml_document.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,7 +41,7 @@ class XMLDecoderTest : public ::testing::Test {
   scoped_refptr<dom::XMLDocument> document_;
   base::SourceLocation source_location_;
   MockErrorCallback mock_error_callback_;
-  XMLDecoder* xml_decoder_;
+  scoped_ptr<XMLDecoder> xml_decoder_;
 };
 
 XMLDecoderTest::XMLDecoderTest()
@@ -50,10 +50,10 @@ XMLDecoderTest::XMLDecoderTest()
 
 TEST_F(XMLDecoderTest, ShouldNotAddImpliedTags) {
   const std::string input = "<ENTITY></ENTITY>";
-  xml_decoder_ = new XMLDecoder(
+  xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, source_location_, base::Closure(),
       base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -65,10 +65,10 @@ TEST_F(XMLDecoderTest, ShouldNotAddImpliedTags) {
 
 TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
   const std::string input = "<ENTITY a=\"1\" b=\"2\"></ENTITY>";
-  xml_decoder_ = new XMLDecoder(
+  xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, source_location_, base::Closure(),
       base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -85,10 +85,10 @@ TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
 
 TEST_F(XMLDecoderTest, TagNamesShouldBeCaseSensitive) {
   const std::string input = "<ENTITY><entity></entity></ENTITY>";
-  xml_decoder_ = new XMLDecoder(
+  xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, source_location_, base::Closure(),
       base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
@@ -103,10 +103,10 @@ TEST_F(XMLDecoderTest, TagNamesShouldBeCaseSensitive) {
 
 TEST_F(XMLDecoderTest, AttributesShouldBeCaseSensitive) {
   const std::string input = "<ENTITY A=\"1\" a=\"2\"></ENTITY>";
-  xml_decoder_ = new XMLDecoder(
+  xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, source_location_, base::Closure(),
       base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+                 base::Unretained(&mock_error_callback_))));
   xml_decoder_->DecodeChunk(input.c_str(), input.length());
   xml_decoder_->Finish();
 
