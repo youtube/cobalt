@@ -363,6 +363,14 @@ bool InitializeLogFileHandle() {
     log_file_name = new PathString(GetDefaultLogFile());
   }
 
+#if defined(COBALT)
+  // This seems to get called a lot with an empty filename, at least in
+  // base_unittests.
+  if (log_file_name->empty()) {
+    return false;
+  }
+#endif
+
   if (logging_destination == LOG_ONLY_TO_FILE ||
       logging_destination == LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG) {
 #if defined(OS_WIN)
@@ -930,6 +938,10 @@ void RawLog(int level, const char* message) {
   if (level >= min_log_level) {
 #if defined(OS_STARBOARD)
     SbLogRaw(message);
+    const size_t message_len = strlen(message);
+    if (message_len > 0 && message[message_len - 1] != '\n') {
+      SbLogRaw("\n");
+    }
 #else
     size_t bytes_written = 0;
     const size_t message_len = strlen(message);

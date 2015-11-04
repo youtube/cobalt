@@ -5,6 +5,9 @@
 #include "base/basictypes.h"
 #include "base/stringprintf.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#if defined(OS_STARBOARD)
+#include "starboard/string.h"
+#endif
 
 namespace base {
 
@@ -19,6 +22,19 @@ static void StringAppendVTestHelper(std::string* out, const char* format, ...) {
   StringAppendV(out, format, ap);
   va_end(ap);
 }
+
+#if defined(OS_STARBOARD)
+// Same deal for SbStringFormat
+static void SbStringFormatHelper(char *out_buffer,
+                                 size_t buffer_size,
+                                 const char *format,
+                                 ...) {
+  va_list ap;
+  va_start(ap, format);
+  SbStringFormat(out_buffer, buffer_size, format, ap);
+  va_end(ap);
+}
+#endif
 
 }  // namespace
 
@@ -114,6 +130,8 @@ TEST(StringPrintfTest, Grow) {
   sprintf_s(ref, kRefSize, fmt, src, src, src, src, src, src, src);
 #elif defined(OS_POSIX)
   snprintf(ref, kRefSize, fmt, src, src, src, src, src, src, src);
+#elif defined(OS_STARBOARD)
+  SbStringFormatHelper(ref, kRefSize, fmt, src, src, src, src, src, src, src);
 #endif
 
   EXPECT_STREQ(ref, out.c_str());
