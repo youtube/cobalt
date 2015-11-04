@@ -29,16 +29,23 @@ bool PathProviderShell(int key, FilePath* result) {
   switch (key) {
     case base::DIR_EXE:
     case base::DIR_MODULE:
+      DCHECK(global_values->game_content_path);
       *result = FilePath(global_values->game_content_path);
       return true;
 
 #if defined(ENABLE_DIR_SOURCE_ROOT_ACCESS)
     case base::DIR_SOURCE_ROOT:
-      *result = FilePath(global_values->dir_source_root);
-      return true;
+      if (global_values->dir_source_root) {
+        *result = FilePath(global_values->dir_source_root);
+        return true;
+      } else {
+        DLOG(INFO) << "DIR_SOURCE_ROOT not defined - skipping.";
+        return false;
+      }
 #endif  // ENABLE_DIR_SOURCE_ROOT_ACCESS
 
     case base::DIR_CACHE:
+      DCHECK(global_values->tmp_path);
       *result = FilePath(global_values->tmp_path).Append("cache");
       return true;
   }
