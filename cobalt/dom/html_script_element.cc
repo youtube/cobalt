@@ -67,8 +67,18 @@ scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
 }
 
 HTMLScriptElement::~HTMLScriptElement() {
-  if (loader_) {
-    StopLoading();
+  // Remove the script from the list of scripts that will execute in order as
+  // soon as possible associated with the Document, only if the document still
+  // exists when the script element is destroyed.
+  if (node_document()) {
+    std::deque<HTMLScriptElement*>* scripts_to_be_executed =
+        node_document()->scripts_to_be_executed();
+
+    std::deque<HTMLScriptElement*>::iterator it = std::find(
+        scripts_to_be_executed->begin(), scripts_to_be_executed->end(), this);
+    if (it != scripts_to_be_executed->end()) {
+      scripts_to_be_executed->erase(it);
+    }
   }
 }
 
@@ -90,9 +100,10 @@ void HTMLScriptElement::Prepare() {
 
   // 5. If the element is not in a Document, then the user agent must abort
   // these steps at this point. The script is not executed.
-  if (!owner_document()) {
+  if (!node_document()) {
     return;
   }
+  document_ = base::AsWeakPtr<Document>(node_document());
 
   // 6. If either:
   //    the script element has a type attribute and its value is the empty
@@ -147,7 +158,7 @@ void HTMLScriptElement::Prepare() {
   //   3. Resolve src relative to the element.
   //   4. If the previous step failed, queue a task to fire a simple event named
   // error at the element, and abort these steps.
-  const GURL base_url = owner_document()->url_as_gurl();
+  const GURL base_url = document_->url_as_gurl();
   url_ = base_url.Resolve(src());
   if (!url_.is_valid()) {
     LOG(WARNING) << src() << " cannot be resolved based on " << base_url << ".";
@@ -232,7 +243,7 @@ void HTMLScriptElement::Prepare() {
       // execute in order as soon as possible associated with the Document of
       // the script element at the time the prepare a script algorithm started.
       std::deque<HTMLScriptElement*>* scripts_to_be_executed =
-          owner_document()->scripts_to_be_executed();
+          document_->scripts_to_be_executed();
       scripts_to_be_executed->push_back(this);
       loader_.reset(new loader::Loader(
           base::Bind(
@@ -247,7 +258,7 @@ void HTMLScriptElement::Prepare() {
       // Fetching an external script must delay the load event of the element's
       // document until the task that is queued by the networking task source
       // once the resource has been fetched (defined above) has been run.
-      owner_document()->IncreaseLoadingCounter();
+      document_->IncreaseLoadingCounter();
     } break;
     case 5: {
       // If the element has a src attribute.
@@ -268,7 +279,7 @@ void HTMLScriptElement::Prepare() {
       // Fetching an external script must delay the load event of the element's
       // document until the task that is queued by the networking task source
       // once the resource has been fetched (defined above) has been run.
-      owner_document()->IncreaseLoadingCounter();
+      document_->IncreaseLoadingCounter();
     } break;
     case 6: {
       // Otherwise.
@@ -294,6 +305,10 @@ void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
 //   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  if (!document_) {
+    return;
+  }
+
   content_ = content;
   switch (load_option_) {
     case 4: {
@@ -307,7 +322,7 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
       //   above, then mark the element as ready but abort these steps without
       //   executing the script yet.
       std::deque<HTMLScriptElement*>* scripts_to_be_executed =
-          owner_document()->scripts_to_be_executed();
+          document_->scripts_to_be_executed();
       if (scripts_to_be_executed->front() != this) {
         is_ready_ = true;
         return;
@@ -336,7 +351,7 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
       // Fetching an external script must delay the load event of the element's
       // document until the task that is queued by the networking task source
       // once the resource has been fetched (defined above) has been run.
-      owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+      document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
     } break;
     case 5: {
       // If the element has a src attribute.
@@ -350,18 +365,19 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
       // Fetching an external script must delay the load event of the element's
       // document until the task that is queued by the networking task source
       // once the resource has been fetched (defined above) has been run.
-      owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+      document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
     } break;
     default: { NOTREACHED(); }
   }
-  StopLoading();
 }
 
 // Algorithm for OnLoadingError:
 //   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingError(const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(load_option_ == 4 || load_option_ == 5);
+  if (!document_) {
+    return;
+  }
 
   LOG(ERROR) << error;
 
@@ -369,23 +385,12 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
   // named error at the element.
   DispatchEvent(new Event("error"));
 
-  // Fetching an external script must delay the load event of the element's
-  // document until the task that is queued by the networking task source
-  // once the resource has been fetched (defined above) has been run.
-  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
-
-  StopLoading();
-}
-
-// Algorithm for StopLoading:
-//   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
-void HTMLScriptElement::StopLoading() {
   switch (load_option_) {
     case 4: {
       // If the element has a src attribute, does not have an async attribute,
       // and does not have the "force-async" flag set.
       std::deque<HTMLScriptElement*>* scripts_to_be_executed =
-          owner_document()->scripts_to_be_executed();
+          document_->scripts_to_be_executed();
 
       std::deque<HTMLScriptElement*>::iterator it = std::find(
           scripts_to_be_executed->begin(), scripts_to_be_executed->end(), this);
@@ -398,8 +403,11 @@ void HTMLScriptElement::StopLoading() {
     } break;
     default: { NOTREACHED(); }
   }
-  DCHECK(loader_);
-  loader_.reset();
+
+  // Fetching an external script must delay the load event of the element's
+  // document until the task that is queued by the networking task source
+  // once the resource has been fetched (defined above) has been run.
+  document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
 }
 
 // Algorithm for Execute:
