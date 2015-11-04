@@ -172,6 +172,9 @@ TEST_F(TimeTest, MAYBE_LocalMidnight) {
   EXPECT_EQ(0, exploded.millisecond);
 }
 
+#if !defined(OS_STARBOARD)
+// Local time conversion is broken on some platforms, so Starboard acknowledges
+// this by not providing such features.
 TEST_F(TimeTest, ParseTimeTest1) {
   time_t current_time = 0;
   time(&current_time);
@@ -194,6 +197,7 @@ TEST_F(TimeTest, ParseTimeTest1) {
   EXPECT_TRUE(Time::FromString(time_buf, &parsed_time));
   EXPECT_EQ(current_time, parsed_time.ToTimeT());
 }
+#endif
 
 TEST_F(TimeTest, DayOfWeekSunday) {
   Time time;
