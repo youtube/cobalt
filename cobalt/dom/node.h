@@ -201,6 +201,12 @@ class Node : public EventTarget {
   virtual scoped_refptr<Element> AsElement();
   virtual scoped_refptr<Text> AsText();
 
+  // Each node has an associated node document, set upon creation, that is a
+  // document.
+  //   http://www.w3.org/TR/2015/WD-dom-20150618/#concept-node-document
+  // Returns the node document if it still exists, NULL if not.
+  Document* node_document() const { return node_document_.get(); }
+
   // Node generation counter that will be modified for every content change
   // that affects the topology of the subtree defined by this node.
   // The returned node generation will be never equal to kInvalidNodeGeneration.
@@ -251,6 +257,13 @@ class Node : public EventTarget {
       const std::string& selectors, cssom::CSSParser* css_parser);
 
  private:
+  // Weak reference to the node document.
+  base::WeakPtr<Document> node_document_;
+  // Whether the node has been inserted into its node document.
+  bool inserted_into_document_;
+  // Node generation counter.
+  uint32_t node_generation_;
+
   // Weak reference to the parent node.
   base::WeakPtr<Node> parent_;
   // Strong reference that owns the next sibling node.
@@ -262,17 +275,7 @@ class Node : public EventTarget {
   scoped_refptr<Node> first_child_;
   // Weak reference to the last child in the subtree defined by this node.
   base::WeakPtr<Node> last_child_;
-  // Weak reference to the containing document.
-  base::WeakPtr<Document> owner_document_;
-  // Its value is true if the node is currently inserted into its owner
-  // document.  Note that a node always has an owner document after it is
-  // created but it may not be attached to the document until functions like
-  // AppendChild() is called.
-  bool inserted_into_document_;
-  // Node generation counter.
-  uint32_t node_generation_;
 
-  friend class Document;
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
