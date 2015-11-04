@@ -4,7 +4,7 @@
 /*                                                                         */
 /*    Auto-fitter glyph loading routines (body).                           */
 /*                                                                         */
-/*  Copyright 2003, 2004, 2005, 2006, 2007, 2008, 2009 by                  */
+/*  Copyright 2003-2015 by                                                 */
 /*  David Turner, Robert Wilhelm, and Werner Lemberg.                      */
 /*                                                                         */
 /*  This file is part of the FreeType project, and may only be used,       */
@@ -16,41 +16,42 @@
 /***************************************************************************/
 
 
+#include "afglobal.h"
 #include "afloader.h"
 #include "afhints.h"
-#include "afglobal.h"
 #include "aferrors.h"
+#include "afmodule.h"
+#include "afpic.h"
 
 
-  FT_LOCAL_DEF( FT_Error )
-  af_loader_init( AF_Loader  loader,
-                  FT_Memory  memory )
+  /* Initialize glyph loader. */
+
+  FT_LOCAL_DEF( void )
+  af_loader_init( AF_Loader      loader,
+                  AF_GlyphHints  hints )
   {
     FT_ZERO( loader );
 
-    af_glyph_hints_init( &loader->hints, memory );
-#ifdef AF_DEBUG
-    _af_debug_hints = &loader->hints;
-#endif
-    return FT_GlyphLoader_New( memory, &loader->gloader );
+    loader->hints = hints;
   }
 
 
+  /* Reset glyph loader and compute globals if necessary. */
+
   FT_LOCAL_DEF( FT_Error )
   af_loader_reset( AF_Loader  loader,
+                   AF_Module  module,
                    FT_Face    face )
   {
-    FT_Error  error = AF_Err_Ok;
+    FT_Error  error = FT_Err_Ok;
 
 
     loader->face    = face;
     loader->globals = (AF_FaceGlobals)face->autohint.data;
 
-    FT_GlyphLoader_Rewind( loader->gloader );
-
     if ( loader->globals == NULL )
     {
-      error = af_face_globals_new( face, &loader->globals );
+      error = af_face_globals_new( face, &loader->globals, module );
       if ( !error )
       {
         face->autohint.data =
@@ -64,39 +65,41 @@
   }
 
 
+  /* Finalize glyph loader. */
+
   FT_LOCAL_DEF( void )
   af_loader_done( AF_Loader  loader )
   {
-    af_glyph_hints_done( &loader->hints );
-
     loader->face    = NULL;
     loader->globals = NULL;
-
-#ifdef AF_DEBUG
-    _af_debug_hints = NULL;
-#endif
-    FT_GlyphLoader_Done( loader->gloader );
-    loader->gloader = NULL;
+    loader->hints   = NULL;
   }
 
+
+  /* Do the main work of `af_loader_load_glyph'.  Note that we never   */
+  /* have to deal with composite glyphs as those get loaded into       */
+  /* FT_GLYPH_FORMAT_OUTLINE by the recursed `FT_Load_Glyph' function. */
+  /* In the rare cases where FT_LOAD_NO_RECURSE is set, it implies     */
+  /* FT_LOAD_NO_SCALE and as such the auto-hinter is never called.     */
 
   static FT_Error
   af_loader_load_g( AF_Loader  loader,
                     AF_Scaler  scaler,
                     FT_UInt    glyph_index,
-                    FT_Int32   load_flags,
-                    FT_UInt    depth )
+                    FT_Int32   load_flags )
   {
     FT_Error          error;
     FT_Face           face     = loader->face;
-    FT_GlyphLoader    gloader  = loader->gloader;
-    AF_ScriptMetrics  metrics  = loader->metrics;
-    AF_GlyphHints     hints    = &loader->hints;
+    AF_StyleMetrics   metrics  = loader->metrics;
+    AF_GlyphHints     hints    = loader->hints;
     FT_GlyphSlot      slot     = face->glyph;
     FT_Slot_Internal  internal = slot->internal;
+    FT_GlyphLoader    gloader  = internal->loader;
+    FT_Int32          flags;
 
 
-    error = FT_Load_Glyph( face, glyph_index, load_flags );
+    flags = load_flags | FT_LOAD_LINEAR_DESIGN;
+    error = FT_Load_Glyph( face, glyph_index, flags );
     if ( error )
       goto Exit;
 
@@ -110,13 +113,9 @@
       loader->trans_delta  = internal->glyph_delta;
 
       inverse = loader->trans_matrix;
-      FT_Matrix_Invert( &inverse );
-      FT_Vector_Transform( &loader->trans_delta, &inverse );
+      if ( !FT_Matrix_Invert( &inverse ) )
+        FT_Vector_Transform( &loader->trans_delta, &inverse );
     }
-
-    /* set linear metrics */
-    slot->linearHoriAdvance = slot->metrics.horiAdvance;
-    slot->linearVertAdvance = slot->metrics.vertAdvance;
 
     switch ( slot->format )
     {
@@ -126,29 +125,6 @@
         FT_Outline_Translate( &slot->outline,
                               loader->trans_delta.x,
                               loader->trans_delta.y );
-
-      /* copy the outline points in the loader's current               */
-      /* extra points which is used to keep original glyph coordinates */
-      error = FT_GLYPHLOADER_CHECK_POINTS( gloader,
-                                           slot->outline.n_points + 4,
-                                           slot->outline.n_contours );
-      if ( error )
-        goto Exit;
-
-      FT_ARRAY_COPY( gloader->current.outline.points,
-                     slot->outline.points,
-                     slot->outline.n_points );
-
-      FT_ARRAY_COPY( gloader->current.outline.contours,
-                     slot->outline.contours,
-                     slot->outline.n_contours );
-
-      FT_ARRAY_COPY( gloader->current.outline.tags,
-                     slot->outline.tags,
-                     slot->outline.n_points );
-
-      gloader->current.outline.n_points   = slot->outline.n_points;
-      gloader->current.outline.n_contours = slot->outline.n_contours;
 
       /* compute original horizontal phantom points (and ignore */
       /* vertical ones)                                         */
@@ -164,13 +140,23 @@
 
       /* now load the slot image into the auto-outline and run the */
       /* automatic hinting process                                 */
-      if ( metrics->clazz->script_hints_apply )
-        metrics->clazz->script_hints_apply( hints,
-                                            &gloader->current.outline,
-                                            metrics );
+      {
+#ifdef FT_CONFIG_OPTION_PIC
+        AF_FaceGlobals         globals = loader->globals;
+#endif
+        AF_StyleClass          style_class = metrics->style_class;
+        AF_WritingSystemClass  writing_system_class =
+          AF_WRITING_SYSTEM_CLASSES_GET[style_class->writing_system];
 
-      /* we now need to hint the metrics according to the change in */
-      /* width/positioning that occurred during the hinting process */
+
+        if ( writing_system_class->style_hints_apply )
+          writing_system_class->style_hints_apply( hints,
+                                                   &gloader->base.outline,
+                                                   metrics );
+      }
+
+      /* we now need to adjust the metrics according to the change in */
+      /* width/positioning that occurred during the hinting process   */
       if ( scaler->render_mode != FT_RENDER_MODE_LIGHT )
       {
         FT_Pos        old_rsb, old_lsb, new_lsb;
@@ -240,142 +226,14 @@
         slot->rsb_delta = loader->pp2.x - pp2x;
       }
 
-      /* good, we simply add the glyph to our loader's base */
-      FT_GlyphLoader_Add( gloader );
-      break;
-
-    case FT_GLYPH_FORMAT_COMPOSITE:
-      {
-        FT_UInt      nn, num_subglyphs = slot->num_subglyphs;
-        FT_UInt      num_base_subgs, start_point;
-        FT_SubGlyph  subglyph;
-
-
-        start_point = gloader->base.outline.n_points;
-
-        /* first of all, copy the subglyph descriptors in the glyph loader */
-        error = FT_GlyphLoader_CheckSubGlyphs( gloader, num_subglyphs );
-        if ( error )
-          goto Exit;
-
-        FT_ARRAY_COPY( gloader->current.subglyphs,
-                       slot->subglyphs,
-                       num_subglyphs );
-
-        gloader->current.num_subglyphs = num_subglyphs;
-        num_base_subgs                 = gloader->base.num_subglyphs;
-
-        /* now, read each subglyph independently */
-        for ( nn = 0; nn < num_subglyphs; nn++ )
-        {
-          FT_Vector  pp1, pp2;
-          FT_Pos     x, y;
-          FT_UInt    num_points, num_new_points, num_base_points;
-
-
-          /* gloader.current.subglyphs can change during glyph loading due */
-          /* to re-allocation -- we must recompute the current subglyph on */
-          /* each iteration                                                */
-          subglyph = gloader->base.subglyphs + num_base_subgs + nn;
-
-          pp1 = loader->pp1;
-          pp2 = loader->pp2;
-
-          num_base_points = gloader->base.outline.n_points;
-
-          error = af_loader_load_g( loader, scaler, subglyph->index,
-                                    load_flags, depth + 1 );
-          if ( error )
-            goto Exit;
-
-          /* recompute subglyph pointer */
-          subglyph = gloader->base.subglyphs + num_base_subgs + nn;
-
-          if ( subglyph->flags & FT_SUBGLYPH_FLAG_USE_MY_METRICS )
-          {
-            pp1 = loader->pp1;
-            pp2 = loader->pp2;
-          }
-          else
-          {
-            loader->pp1 = pp1;
-            loader->pp2 = pp2;
-          }
-
-          num_points     = gloader->base.outline.n_points;
-          num_new_points = num_points - num_base_points;
-
-          /* now perform the transform required for this subglyph */
-
-          if ( subglyph->flags & ( FT_SUBGLYPH_FLAG_SCALE    |
-                                   FT_SUBGLYPH_FLAG_XY_SCALE |
-                                   FT_SUBGLYPH_FLAG_2X2      ) )
-          {
-            FT_Vector*  cur   = gloader->base.outline.points +
-                                num_base_points;
-            FT_Vector*  limit = cur + num_new_points;
-
-
-            for ( ; cur < limit; cur++ )
-              FT_Vector_Transform( cur, &subglyph->transform );
-          }
-
-          /* apply offset */
-
-          if ( !( subglyph->flags & FT_SUBGLYPH_FLAG_ARGS_ARE_XY_VALUES ) )
-          {
-            FT_Int      k = subglyph->arg1;
-            FT_UInt     l = subglyph->arg2;
-            FT_Vector*  p1;
-            FT_Vector*  p2;
-
-
-            if ( start_point + k >= num_base_points         ||
-                               l >= (FT_UInt)num_new_points )
-            {
-              error = AF_Err_Invalid_Composite;
-              goto Exit;
-            }
-
-            l += num_base_points;
-
-            /* for now, only use the current point coordinates;    */
-            /* we may consider another approach in the near future */
-            p1 = gloader->base.outline.points + start_point + k;
-            p2 = gloader->base.outline.points + start_point + l;
-
-            x = p1->x - p2->x;
-            y = p1->y - p2->y;
-          }
-          else
-          {
-            x = FT_MulFix( subglyph->arg1, hints->x_scale ) + hints->x_delta;
-            y = FT_MulFix( subglyph->arg2, hints->y_scale ) + hints->y_delta;
-
-            x = FT_PIX_ROUND( x );
-            y = FT_PIX_ROUND( y );
-          }
-
-          {
-            FT_Outline  dummy = gloader->base.outline;
-
-
-            dummy.points  += num_base_points;
-            dummy.n_points = (short)num_new_points;
-
-            FT_Outline_Translate( &dummy, x, y );
-          }
-        }
-      }
       break;
 
     default:
       /* we don't support other formats (yet?) */
-      error = AF_Err_Unimplemented_Feature;
+      error = FT_THROW( Unimplemented_Feature );
     }
 
   Hint_Metrics:
-    if ( depth == 0 )
     {
       FT_BBox    bbox;
       FT_Vector  vvector;
@@ -423,9 +281,10 @@
         slot->metrics.horiAdvance = FT_MulFix( slot->metrics.horiAdvance,
                                                x_scale );
 #else
-      if ( FT_IS_FIXED_WIDTH( slot->face )                              ||
-           ( af_face_globals_is_digit( loader->globals, glyph_index ) &&
-             metrics->digits_have_same_width                          ) )
+      if ( scaler->render_mode != FT_RENDER_MODE_LIGHT                      &&
+           ( FT_IS_FIXED_WIDTH( slot->face )                              ||
+             ( af_face_globals_is_digit( loader->globals, glyph_index ) &&
+               metrics->digits_have_same_width                          ) ) )
       {
         slot->metrics.horiAdvance = FT_MulFix( slot->metrics.horiAdvance,
                                                metrics->scaler.x_scale );
@@ -444,43 +303,44 @@
 #endif
 
       slot->metrics.vertAdvance = FT_MulFix( slot->metrics.vertAdvance,
-                                              metrics->scaler.y_scale );
+                                             metrics->scaler.y_scale );
 
       slot->metrics.horiAdvance = FT_PIX_ROUND( slot->metrics.horiAdvance );
       slot->metrics.vertAdvance = FT_PIX_ROUND( slot->metrics.vertAdvance );
 
-      /* now copy outline into glyph slot */
-      FT_GlyphLoader_Rewind( internal->loader );
-      error = FT_GlyphLoader_CopyPoints( internal->loader, gloader );
-      if ( error )
-        goto Exit;
+#if 0
+      /* reassign all outline fields except flags to protect them */
+      slot->outline.n_contours = internal->loader->base.outline.n_contours;
+      slot->outline.n_points   = internal->loader->base.outline.n_points;
+      slot->outline.points     = internal->loader->base.outline.points;
+      slot->outline.tags       = internal->loader->base.outline.tags;
+      slot->outline.contours   = internal->loader->base.outline.contours;
+#endif
 
-      slot->outline = internal->loader->base.outline;
       slot->format  = FT_GLYPH_FORMAT_OUTLINE;
     }
-
-#ifdef DEBUG_HINTER
-    af_debug_hinter = hinter;
-#endif
 
   Exit:
     return error;
   }
 
 
+  /* Load a glyph. */
+
   FT_LOCAL_DEF( FT_Error )
   af_loader_load_glyph( AF_Loader  loader,
+                        AF_Module  module,
                         FT_Face    face,
                         FT_UInt    gindex,
-                        FT_UInt32  load_flags )
+                        FT_Int32   load_flags )
   {
     FT_Error      error;
-    FT_Size       size = face->size;
+    FT_Size       size   = face->size;
     AF_ScalerRec  scaler;
 
 
     if ( !size )
-      return AF_Err_Invalid_Argument;
+      return FT_THROW( Invalid_Size_Handle );
 
     FT_ZERO( &scaler );
 
@@ -493,42 +353,50 @@
     scaler.render_mode = FT_LOAD_TARGET_MODE( load_flags );
     scaler.flags       = 0;  /* XXX: fix this */
 
-    error = af_loader_reset( loader, face );
+    error = af_loader_reset( loader, module, face );
     if ( !error )
     {
-      AF_ScriptMetrics  metrics;
-      FT_UInt           options = 0;
+      AF_StyleMetrics  metrics;
+      FT_UInt          options = AF_STYLE_NONE_DFLT;
 
 
 #ifdef FT_OPTION_AUTOFIT2
-      /* XXX: undocumented hook to activate the latin2 hinter */
+      /* XXX: undocumented hook to activate the latin2 writing system */
       if ( load_flags & ( 1UL << 20 ) )
-        options = 2;
+        options = AF_STYLE_LTN2_DFLT;
 #endif
 
       error = af_face_globals_get_metrics( loader->globals, gindex,
                                            options, &metrics );
       if ( !error )
       {
+#ifdef FT_CONFIG_OPTION_PIC
+        AF_FaceGlobals         globals = loader->globals;
+#endif
+        AF_StyleClass          style_class = metrics->style_class;
+        AF_WritingSystemClass  writing_system_class =
+          AF_WRITING_SYSTEM_CLASSES_GET[style_class->writing_system];
+
+
         loader->metrics = metrics;
 
-        if ( metrics->clazz->script_metrics_scale )
-          metrics->clazz->script_metrics_scale( metrics, &scaler );
+        if ( writing_system_class->style_metrics_scale )
+          writing_system_class->style_metrics_scale( metrics, &scaler );
         else
           metrics->scaler = scaler;
 
         load_flags |=  FT_LOAD_NO_SCALE | FT_LOAD_IGNORE_TRANSFORM;
         load_flags &= ~FT_LOAD_RENDER;
 
-        if ( metrics->clazz->script_hints_init )
+        if ( writing_system_class->style_hints_init )
         {
-          error = metrics->clazz->script_hints_init( &loader->hints,
-                                                     metrics );
+          error = writing_system_class->style_hints_init( loader->hints,
+                                                          metrics );
           if ( error )
             goto Exit;
         }
 
-        error = af_loader_load_g( loader, &scaler, gindex, load_flags, 0 );
+        error = af_loader_load_g( loader, &scaler, gindex, load_flags );
       }
     }
   Exit:

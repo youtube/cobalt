@@ -5,7 +5,8 @@
 /*    FreeType's TrueTypeGX/AAT validation module implementation           */
 /*    (specification).                                                     */
 /*                                                                         */
-/*  Copyright 2004, 2005 by suzuki toshiya, Masatake YAMATO, Red Hat K.K., */
+/*  Copyright 2004-2015 by                                                 */
+/*  suzuki toshiya, Masatake YAMATO, Red Hat K.K.,                         */
 /*  David Turner, Robert Wilhelm, and Werner Lemberg.                      */
 /*                                                                         */
 /*  This file is part of the FreeType project, and may only be used,       */
@@ -36,7 +37,7 @@ FT_BEGIN_HEADER
 
 #ifdef FT_CONFIG_OPTION_PIC
 #error "this module does not support PIC yet"
-#endif 
+#endif
 
 
   FT_EXPORT_VAR( const FT_Module_Class )  gxv_module_class;

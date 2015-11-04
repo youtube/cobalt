@@ -3,7 +3,7 @@
 #
 
 
-# Copyright 2001, 2003 by
+# Copyright 2001-2015 by
 # David Turner, Robert Wilhelm, and Werner Lemberg.
 #
 # This file is part of the FreeType project, and may only be used, modified,
@@ -20,15 +20,19 @@ PSHINTER_DIR := $(SRC_DIR)/pshinter
 
 # compilation flags for the driver
 #
-PSHINTER_COMPILE := $(FT_COMPILE) $I$(subst /,$(COMPILER_SEP),$(PSHINTER_DIR))
+PSHINTER_COMPILE := $(CC) $(ANSIFLAGS)                                 \
+                          $I$(subst /,$(COMPILER_SEP),$(PSHINTER_DIR)) \
+                          $(INCLUDE_FLAGS)                             \
+                          $(FT_CFLAGS)
 
 
 # PSHINTER driver sources (i.e., C files)
 #
-PSHINTER_DRV_SRC := $(PSHINTER_DIR)/pshrec.c  \
+PSHINTER_DRV_SRC := $(PSHINTER_DIR)/pshalgo.c \
                     $(PSHINTER_DIR)/pshglob.c \
                     $(PSHINTER_DIR)/pshmod.c  \
-                    $(PSHINTER_DIR)/pshalgo.c
+                    $(PSHINTER_DIR)/pshpic.c  \
+                    $(PSHINTER_DIR)/pshrec.c
 
 
 # PSHINTER driver headers
