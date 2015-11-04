@@ -88,7 +88,7 @@ bool Thread::StartWithOptions(const Options& options) {
   StartupData startup_data(options);
   startup_data_ = &startup_data;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   PlatformThread::PlatformThreadOptions platform_options;
   platform_options.stack_size = options.stack_size;
   platform_options.priority = options.priority;
