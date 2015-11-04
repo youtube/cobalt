@@ -143,6 +143,7 @@ void ProcessBacktrace(void* const* trace,
     }
 
     OutputPointer(trace[i], handler);
+    handler->HandleOutput("\n");
   }
 }
 

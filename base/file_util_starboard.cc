@@ -42,12 +42,12 @@ const char kPortableFilenameCharacters[] = {
   "._-"
 };
 const int kPortableFilenameCharactersLength =
-    SB_ARRAY_SIZE_INT(kPortableFilenameCharacters);
+    SB_ARRAY_SIZE_INT(kPortableFilenameCharacters) - 1;
 
 // 8 characters = 65 ^ 8 possible filenames, which gives a nice wide space for
 // avoiding collisions.
 const char kTempSubstitution[] = "XXXXXXXX";
-const int kTempSubstitutionLength = SB_ARRAY_SIZE_INT(kTempSubstitution);
+const int kTempSubstitutionLength = SB_ARRAY_SIZE_INT(kTempSubstitution) - 1;
 
 std::string TempFileName() {
   return std::string(".com.youtube.Cobalt.XXXXXXXX");
@@ -65,7 +65,6 @@ void GenerateTempFileName(FilePath::StringType *in_out_template) {
   for (int i = 0; i < kTempSubstitutionLength; ++i) {
     uint64_t random = SbSystemGetRandomUInt64();
     int index = random % kPortableFilenameCharactersLength;
-
     (*in_out_template)[template_start + i] = kPortableFilenameCharacters[index];
   }
 }
@@ -178,20 +177,22 @@ bool Delete(const FilePath &path, bool recursive) {
 bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
   base::ThreadRestrictions::AssertIOAllowed();
 
-  base::PlatformFile infile = base::CreatePlatformFile(
+  base::PlatformFile source_file = base::CreatePlatformFile(
       from_path, base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ, NULL,
       NULL);
-  if (infile == base::kInvalidPlatformFileValue) {
-    DLOG(ERROR) << "CopyFile(): Unable to open in file: " << from_path.value();
+  if (source_file == base::kInvalidPlatformFileValue) {
+    DPLOG(ERROR) << "CopyFile(): Unable to open source file: "
+                 << from_path.value();
     return false;
   }
 
-  base::PlatformFile outfile = base::CreatePlatformFile(
+  base::PlatformFile destination_file = base::CreatePlatformFileUnsafe(
       to_path, base::PLATFORM_FILE_CREATE | base::PLATFORM_FILE_WRITE, NULL,
       NULL);
-  if (outfile == base::kInvalidPlatformFileValue) {
-    DLOG(ERROR) << "CopyFile(): Unable to open in file: " << to_path.value();
-    ignore_result(base::ClosePlatformFile(infile));
+  if (destination_file == base::kInvalidPlatformFileValue) {
+    DPLOG(ERROR) << "CopyFile(): Unable to open destination file: "
+                 << to_path.value();
+    ignore_result(base::ClosePlatformFile(destination_file));
     return false;
   }
 
@@ -200,8 +201,8 @@ bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
   bool result = true;
 
   while (result) {
-    int bytes_read =
-        base::ReadPlatformFileAtCurrentPos(infile, &buffer[0], buffer.size());
+    int bytes_read = base::ReadPlatformFileAtCurrentPos(source_file, &buffer[0],
+                                                        buffer.size());
     if (bytes_read < 0) {
       result = false;
       break;
@@ -211,8 +212,8 @@ bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
       break;
     }
 
-    int bytes_written =
-        base::WritePlatformFileAtCurrentPos(outfile, &buffer[0], bytes_read);
+    int bytes_written = base::WritePlatformFileAtCurrentPos(
+        destination_file, &buffer[0], bytes_read);
     if (bytes_written < bytes_read) {
       DLOG(ERROR) << "CopyFile(): bytes_read (" << bytes_read
                   << ") > bytes_written (" << bytes_written << ")";
@@ -223,11 +224,11 @@ bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
     }
   }
 
-  if (!base::ClosePlatformFile(infile)) {
+  if (!base::ClosePlatformFile(source_file)) {
     result = false;
   }
 
-  if (!base::ClosePlatformFile(outfile)) {
+  if (!base::ClosePlatformFile(destination_file)) {
     result = false;
   }
 
