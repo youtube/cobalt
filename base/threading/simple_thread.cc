@@ -29,7 +29,7 @@ SimpleThread::~SimpleThread() {
 
 void SimpleThread::Start() {
   DCHECK(!HasBeenStarted()) << "Tried to Start a thread multiple times.";
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   PlatformThread::PlatformThreadOptions platform_options;
   platform_options.stack_size = options_.stack_size();
   platform_options.priority = options_.priority();

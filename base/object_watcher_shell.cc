@@ -60,8 +60,8 @@ ObjectWatchMultiplexer::ObjectWatchMultiplexer()
         base::SimpleThread::Options(
             // TODO(rjogrady): Pass these into ObjectWatchMultiplexer.
             0 /* kObjectWatcherThreadStackSize */,
-            -1 /* kObjectWatcherThreadPriority */,
-            -1 /* kNetworkIOThreadAffinity */)),
+            kThreadPriority_Default /* kObjectWatcherThreadPriority */,
+            kNoThreadAffinity /* kNetworkIOThreadAffinity */)),
         non_empty_list_event_(true, false),
         max_watch_handle_(0),
         should_recompose_pollfd_array_(true),

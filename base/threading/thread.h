@@ -31,14 +31,15 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
  public:
   struct Options {
     Options() : message_loop_type(MessageLoop::TYPE_DEFAULT), stack_size(0)
-        , priority(-1), affinity(-1) {}
+        , priority(kThreadPriority_Default), affinity(kNoThreadAffinity) {}
     Options(MessageLoop::Type type, size_t size)
-        : message_loop_type(type), stack_size(size), priority(-1)
-        , affinity(-1) {}
-    Options(MessageLoop::Type type, size_t size, int priority)
+        : message_loop_type(type), stack_size(size)
+        , priority(kThreadPriority_Default), affinity(kNoThreadAffinity) {}
+    Options(MessageLoop::Type type, size_t size, ThreadPriority priority)
         : message_loop_type(type), stack_size(size), priority(priority)
-        , affinity(-1) {}
-    Options(MessageLoop::Type type, size_t size, int priority, int affinity)
+        , affinity(kNoThreadAffinity) {}
+    Options(MessageLoop::Type type, size_t size, ThreadPriority priority,
+            ThreadAffinity affinity)
         : message_loop_type(type), stack_size(size), priority(priority)
         , affinity(affinity) {}
 
@@ -50,11 +51,11 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
     // A value of 0 indicates that the default maximum should be used.
     size_t stack_size;
 
-    // Specifies the initial thread priority. -1 means default priority.
-    int priority;
+    // Specifies the initial thread priority.
+    ThreadPriority priority;
 
-    // Specifies the initial thread core affinity. -1 means default affinity.
-    int affinity;
+    // Specifies the initial thread core affinity.
+    ThreadAffinity affinity;
   };
 
   // Constructor.
