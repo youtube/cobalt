@@ -14,16 +14,33 @@
  * limitations under the License.
  */
 
-#include "cobalt/h5vcc/h5vcc.h"
+#ifndef H5VCC_H5VCC_SYSTEM_H_
+#define H5VCC_H5VCC_SYSTEM_H_
+
+#include <string>
+
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace h5vcc {
 
-H5vcc::H5vcc(const Settings& settings) {
-  account_info_ = new H5vccAccountInfo();
-  storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem();
-}
+class H5vccSystem : public script::Wrappable {
+ public:
+  H5vccSystem();
+
+  bool are_keys_reversed() const;
+  std::string build_id() const;
+  std::string platform() const;
+  std::string region() const;
+  std::string version() const;
+
+  DEFINE_WRAPPABLE_TYPE(H5vccSystem);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(H5vccSystem);
+};
 
 }  // namespace h5vcc
 }  // namespace cobalt
+
+#endif  // H5VCC_H5VCC_SYSTEM_H_
