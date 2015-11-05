@@ -14,16 +14,30 @@
  * limitations under the License.
  */
 
-#include "cobalt/h5vcc/h5vcc.h"
+#ifndef H5VCC_H5VCC_ACCOUNT_INFO_H_
+#define H5VCC_H5VCC_ACCOUNT_INFO_H_
+
+#include <string>
+
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace h5vcc {
 
-H5vcc::H5vcc(const Settings& settings) {
-  account_info_ = new H5vccAccountInfo();
-  storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem();
-}
+class H5vccAccountInfo : public script::Wrappable {
+ public:
+  H5vccAccountInfo();
+  std::string avatar_url() const;
+  std::string username() const;
+  std::string user_id() const;
+
+  DEFINE_WRAPPABLE_TYPE(H5vccAccountInfo);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(H5vccAccountInfo);
+};
 
 }  // namespace h5vcc
 }  // namespace cobalt
+
+#endif  // H5VCC_H5VCC_ACCOUNT_INFO_H_

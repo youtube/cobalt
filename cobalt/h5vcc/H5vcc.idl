@@ -28,5 +28,7 @@
 // than having Window have an explicit h5vcc attribute.
 
 interface H5vcc {
+  readonly attribute H5vccAccountInfo accountInfo;
   readonly attribute H5vccStorage storage;
+  readonly attribute H5vccSystem system;
 };
