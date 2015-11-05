@@ -209,6 +209,10 @@
 #  error "Your platform must define SB_PATH_SEP_STRING."
 #endif
 
+#if !defined(SB_MAX_THREADS)
+#  error "Your platform must define SB_MAX_THREADS."
+#endif
+
 
 // --- Derived Configuration -------------------------------------------------
 
