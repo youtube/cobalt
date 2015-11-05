@@ -19,8 +19,8 @@
 #include <algorithm>
 #include <limits>
 
-#include "cobalt/layout/box.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/layout/box.h"
 #include "cobalt/layout/used_style.h"
 
 namespace cobalt {
@@ -347,11 +347,11 @@ void LineBox::UpdateChildBoxLeftPositions() {
   // Set used value of "left" of the child boxes according to the value
   // of "text-align", vaguely specified by
   // http://www.w3.org/TR/CSS21/text.html#propdef-text-align.
-  float child_box_left = 0;
+  float child_box_left = horizontal_offset_due_alignment;
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->set_left(child_box_left + horizontal_offset_due_alignment);
+    child_box->set_left(child_box_left);
     child_box_left = child_box->GetRightMarginEdgeOffsetFromContainingBlock();
   }
 }
