@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/event_target.h"
@@ -51,10 +52,15 @@ class MediaSource : public EventTarget {
   // in the url as the url is assigned from JavaScript.
   class Registry {
    public:
-    static void Register(const std::string& blob_url,
-                         const scoped_refptr<MediaSource>& media_source);
-    static scoped_refptr<MediaSource> Retrieve(const std::string& blob_url);
-    static void Unregister(const std::string& blob_url);
+    void Register(const std::string& blob_url,
+                  const scoped_refptr<MediaSource>& media_source);
+    scoped_refptr<MediaSource> Retrieve(const std::string& blob_url);
+    void Unregister(const std::string& blob_url);
+
+   private:
+    typedef base::hash_map<std::string, scoped_refptr<MediaSource> >
+        MediaSourceRegistry;
+    MediaSourceRegistry media_source_registry_;
   };
 
   // Custom, not in any spec.

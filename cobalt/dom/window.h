@@ -28,8 +28,9 @@
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/crypto.h"
-#include "cobalt/dom/h5vcc_stub.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/h5vcc_stub.h"
+#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/parser.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
@@ -84,7 +85,8 @@ class Window : public EventTarget {
          LocalStorageDatabase* local_storage_database,
          media::WebMediaPlayerFactory* web_media_player_factory,
          script::ExecutionState* execution_state,
-         script::ScriptRunner* script_runner, const GURL& url,
+         script::ScriptRunner* script_runner,
+         MediaSource::Registry* media_source_registry, const GURL& url,
          const std::string& user_agent, const std::string& language,
          const base::Callback<void(const std::string&)>& error_callback);
 
