@@ -18,6 +18,7 @@
 
 #include <limits>
 
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/line_box.h"
 #include "cobalt/layout/used_style.h"
 
@@ -91,7 +92,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
                    used_font_->GetFontMetrics(),
                    should_collapse_leading_white_space_,
                    should_collapse_trailing_white_space_, layout_params,
-                   computed_style()->text_align());
+                   cssom::KeywordValue::GetLeft());
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
