@@ -18,13 +18,13 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace starboard::nplb;
+namespace nplb = starboard::nplb;
 
 namespace {
 
 // Returns the thread's ID.
 void *GetThreadIdEntryPoint(void *context) {
-  return toVoid(SbThreadGetId());
+  return nplb::ToVoid(SbThreadGetId());
 }
 
 TEST(SbThreadGetIdTest, SunnyDay) {
@@ -46,7 +46,7 @@ TEST(SbThreadGetIdTest, SunnyDayDifferentIds) {
   for (int i = 0; i < kThreads; ++i) {
     void *result = NULL;
     EXPECT_TRUE(SbThreadJoin(threads[i], &result));
-    SbThread id = fromVoid(result);
+    SbThread id = nplb::FromVoid(result);
     EXPECT_NE(id, SbThreadGetId());
     thread_ids[i] = id;
   }
