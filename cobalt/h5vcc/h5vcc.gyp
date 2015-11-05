@@ -23,8 +23,12 @@
       'sources': [
         'h5vcc.cc',
         'h5vcc.h',
+        'h5vcc_account_info.cc',
+        'h5vcc_account_info.h',
         'h5vcc_storage.cc',
         'h5vcc_storage.h',
+        'h5vcc_system.cc',
+        'h5vcc_system.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
