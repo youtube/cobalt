@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
 #include "starboard/nplb/thread_helpers.h"
+#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace starboard::nplb;
+using starboard::nplb::ToVoid;
 
 namespace {
 
 void *EntryPoint(void *context) {
-  return toVoid(SbThreadGetCurrent());
+  return ToVoid(SbThreadGetCurrent());
 }
 
 TEST(SbThreadGetCurrentTest, SunnyDay) {
@@ -36,7 +36,7 @@ TEST(SbThreadGetCurrentTest, SunnyDay) {
   for (int i = 0; i < kThreads; ++i) {
     void *result = NULL;
     EXPECT_TRUE(SbThreadJoin(threads[i], &result));
-    EXPECT_EQ(toVoid(threads[i]), result);
+    EXPECT_EQ(ToVoid(threads[i]), result);
   }
 }
 
