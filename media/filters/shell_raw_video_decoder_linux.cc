@@ -42,6 +42,10 @@ size_t AlignUp(size_t size, int alignment) {
   return (size + alignment - 1) & ~(alignment - 1);
 }
 
+size_t GetYV12SizeInBytes(int32 width, int32 height) {
+  return width * height * 3 / 2;
+}
+
 VideoFrame::Format PixelFormatToVideoFormat(PixelFormat pixel_format) {
   switch (pixel_format) {
     case PIX_FMT_YUV420P:
@@ -84,6 +88,54 @@ PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format) {
       DLOG(ERROR) << "Unsupported VideoFrame::Format: " << video_format;
   }
   return PIX_FMT_NONE;
+}
+
+void CopyColorPlane(const uint8* src,
+                    int32 width_in_bytes,
+                    int32 pitch,
+                    int32 height,
+                    uint8* dest) {
+  while (height > 0) {
+    memcpy(dest, src, width_in_bytes);
+    src += pitch;
+    dest += width_in_bytes;
+    --height;
+  }
+}
+
+// Convert a frame buffer whose pitch might be different than its width to a
+// frame buffer whose pitch is the same as its width.  This involves line by
+// line copy of all three color planes.
+scoped_refptr<FrameBuffer> ConvertFrameBuffer(
+    const scoped_refptr<FrameBuffer>& src,
+    int32 width,
+    int32 height) {
+  DCHECK(width % 2 == 0) << "Invalid width " << width;
+  DCHECK(height % 2 == 0) << "Invalid height " << height;
+
+  ShellVideoDataAllocator* allocator =
+      ShellMediaPlatform::Instance()->GetVideoDataAllocator();
+  DCHECK(allocator);
+  size_t yv12_frame_size = GetYV12SizeInBytes(width, height);
+  scoped_refptr<FrameBuffer> dest =
+      allocator->AllocateFrameBuffer(yv12_frame_size, kPlatformAlignment);
+
+  // Get the src pitch and height as what we did in GetVideoBuffer().
+  int32 src_pitch = AlignUp(width, kPlatformAlignment * 2);
+  int32 src_height = AlignUp(height, kPlatformAlignment * 2);
+  DCHECK_LE(GetYV12SizeInBytes(src_pitch, src_height), src->size());
+  DCHECK_LE(GetYV12SizeInBytes(width, height), dest->size());
+
+  uint8* src_data = src->data();
+  uint8* dest_data = dest->data();
+  CopyColorPlane(src_data, width, src_pitch, height, dest_data);
+  src_data += src_pitch * src_height;
+  dest_data += width * height;
+  CopyColorPlane(src_data, width / 2, src_pitch / 2, height / 2, dest_data);
+  src_data += src_pitch / 2 * src_height / 2;
+  dest_data += width / 2 * height / 2;
+  CopyColorPlane(src_data, width / 2, src_pitch / 2, height / 2, dest_data);
+  return dest;
 }
 
 // TODO(***REMOVED***) : Make this decoder handle decoder errors. Now it assumes
@@ -169,17 +221,24 @@ void ShellRawVideoDecoderLinux::Decode(
   DCHECK(allocator);
 
   TimeDelta timestamp = TimeDelta::FromMilliseconds(av_frame_->pkt_pts);
-  // Align to kPlatformAlignment * 2 as what we do in GetVideoBuffer().
-  YV12Param param(AlignUp(av_frame_->width, kPlatformAlignment * 2),
-                  AlignUp(av_frame_->height, kPlatformAlignment * 2),
+  // TODO(***REMOVED***): Currently the Linux egl backend doesn't support texture
+  // with pitch different than its width.  So we create a new video frame whose
+  // visible size is the same as its coded size to ensure that the underlying
+  // texture has the same pitch as its width.  This makes code complex, though
+  // it doesn't necessary mean that the new code is slower as we have to make a
+  // copy anyway to avoid using the frame buffer while Ffmpeg is still using it.
+  // It is worth revisiting if we are going to release Linux as a production
+  // platform.
+  YV12Param param(av_frame_->width, av_frame_->height,
                   gfx::Rect(av_frame_->width, av_frame_->height));
   // We have to make a copy of the frame buffer as the frame buffer retrieved
   // from |av_frame_->opaque| may still be used by Ffmpeg.
-  scoped_refptr<FrameBuffer> frame_buffer_copy =
-      allocator->AllocateFrameBuffer(frame_buffer->size(), kPlatformAlignment);
-  memcpy(frame_buffer_copy->data(), frame_buffer->data(), frame_buffer->size());
+  size_t yv12_frame_size =
+      GetYV12SizeInBytes(av_frame_->width, av_frame_->height);
+  scoped_refptr<FrameBuffer> converted_frame_buffer =
+      ConvertFrameBuffer(frame_buffer, av_frame_->width, av_frame_->height);
   scoped_refptr<VideoFrame> frame =
-      allocator->CreateYV12Frame(frame_buffer_copy, param, timestamp);
+      allocator->CreateYV12Frame(converted_frame_buffer, param, timestamp);
 
   decode_cb.Run(FRAME_DECODED, frame);
 }
@@ -278,9 +337,8 @@ int ShellRawVideoDecoderLinux::GetVideoBuffer(AVCodecContext* codec_context,
   size_t y_stride = AlignUp(size.width(), kPlatformAlignment * 2);
   size_t uv_stride = y_stride / 2;
   size_t aligned_height = AlignUp(size.height(), kPlatformAlignment * 2);
-  scoped_refptr<FrameBuffer> frame_buffer =
-      allocator->AllocateFrameBuffer(y_stride * aligned_height * 3 / 2,
-                                     kPlatformAlignment);
+  scoped_refptr<FrameBuffer> frame_buffer = allocator->AllocateFrameBuffer(
+      GetYV12SizeInBytes(y_stride, aligned_height), kPlatformAlignment);
 
   // y plane
   frame->base[0] = frame_buffer->data();
