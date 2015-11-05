@@ -28,7 +28,7 @@ void DoNotYield() {
 
 // Adds 1 to the input.
 void *AddOneEntryPoint(void *context) {
-  return toVoid(fromVoid(context) + 1);
+  return ToVoid(FromVoid(context) + 1);
 }
 
 void *WaiterEntryPoint(void *context) {
