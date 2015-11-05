@@ -13,17 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include "cobalt/h5vcc/h5vcc.h"
-
-namespace cobalt {
-namespace h5vcc {
-
-H5vcc::H5vcc(const Settings& settings) {
-  account_info_ = new H5vccAccountInfo();
-  storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem();
-}
-
-}  // namespace h5vcc
-}  // namespace cobalt
+interface H5vccAccountInfo {
+  readonly attribute DOMString avatarUrl;
+  readonly attribute DOMString username;
+  readonly attribute DOMString userId;
+};
