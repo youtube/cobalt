@@ -95,12 +95,13 @@ WebModule::WebModule(
           css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
           image_cache_.get(), remote_font_cache_.get(),
           &local_storage_database_, media_module, execution_state_.get(),
-          script_runner_.get(), initial_url, network_module->user_agent(),
-          network_module->preferred_language(), error_callback)),
+          script_runner_.get(), &media_source_registry_, initial_url,
+          network_module->user_agent(), network_module->preferred_language(),
+          error_callback)),
       window_weak_(base::AsWeakPtr(window_.get())),
       environment_settings_(new dom::DOMSettings(
-          fetcher_factory_.get(), window_, javascript_engine_.get(),
-          global_object_proxy_.get())),
+          fetcher_factory_.get(), window_, &media_source_registry_,
+          javascript_engine_.get(), global_object_proxy_.get())),
       layout_manager_(window_.get(), resource_provider,
                       render_tree_produced_callback, css_parser_.get(),
                       options.layout_trigger, layout_refresh_rate) {

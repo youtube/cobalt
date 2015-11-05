@@ -611,7 +611,8 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 
   DCHECK(!media_source_);
   if (url.SchemeIs(kMediaSourceUrlProtocol)) {
-    media_source_ = MediaSource::Registry::Retrieve(url.spec());
+    media_source_ =
+        html_element_context()->media_source_registry()->Retrieve(url.spec());
     // If media_source_ is NULL, the player will try to load it as a normal
     // media resource url and throw a DOM exception when it fails.
     if (media_source_) {
