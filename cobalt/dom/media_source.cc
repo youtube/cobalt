@@ -37,12 +37,6 @@ using ::media::WebMediaPlayer;
 
 namespace {
 
-typedef base::hash_map<std::string, scoped_refptr<MediaSource> >
-    MediaSourceRegistry;
-
-base::LazyInstance<MediaSourceRegistry> s_media_source_registry =
-    LAZY_INSTANCE_INITIALIZER;
-
 // Parse mime and codecs from content type. It will return "video/mp4" and
 // ("avc1.42E01E", "mp4a.40.2") for "video/mp4; codecs="avc1.42E01E, mp4a.40.2".
 // Note that this function does minimum validation as the media stack will check
@@ -76,22 +70,18 @@ bool ParseContentType(const std::string& content_type, std::string* mime,
 
 }  // namespace
 
-// static
 void MediaSource::Registry::Register(
     const std::string& blob_url,
     const scoped_refptr<MediaSource>& media_source) {
   DCHECK(media_source);
-  MediaSourceRegistry& registry = s_media_source_registry.Get();
-  DCHECK(registry.find(blob_url) == registry.end());
-  registry.insert(std::make_pair(blob_url, media_source));
+  DCHECK(media_source_registry_.find(blob_url) == media_source_registry_.end());
+  media_source_registry_.insert(std::make_pair(blob_url, media_source));
 }
 
-// static
 scoped_refptr<MediaSource> MediaSource::Registry::Retrieve(
     const std::string& blob_url) {
-  MediaSourceRegistry& registry = s_media_source_registry.Get();
-  MediaSourceRegistry::iterator iter = registry.find(blob_url);
-  if (iter == registry.end()) {
+  MediaSourceRegistry::iterator iter = media_source_registry_.find(blob_url);
+  if (iter == media_source_registry_.end()) {
     DLOG(WARNING) << "Cannot find MediaSource object for blob url " << blob_url;
     return NULL;
   }
@@ -99,16 +89,14 @@ scoped_refptr<MediaSource> MediaSource::Registry::Retrieve(
   return iter->second;
 }
 
-// static
 void MediaSource::Registry::Unregister(const std::string& blob_url) {
-  MediaSourceRegistry& registry = s_media_source_registry.Get();
-  MediaSourceRegistry::iterator iter = registry.find(blob_url);
-  if (iter == registry.end()) {
+  MediaSourceRegistry::iterator iter = media_source_registry_.find(blob_url);
+  if (iter == media_source_registry_.end()) {
     DLOG(WARNING) << "Cannot find MediaSource object for blob url " << blob_url;
     return;
   }
 
-  registry.erase(iter);
+  media_source_registry_.erase(iter);
 }
 
 MediaSource::MediaSource()

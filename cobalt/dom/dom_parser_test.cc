@@ -47,7 +47,8 @@ DOMParserTest::DOMParserTest()
       html_element_context_(
           &fetcher_factory_, &stub_css_parser_, dom_parser_parser_.get(),
           NULL /* web_media_player_factory */, &stub_script_runner_,
-          NULL /* image_cache */, NULL /* remote_font_cache */),
+          NULL /*media_source_registry */, NULL /* image_cache */,
+          NULL /* remote_font_cache */),
       dom_parser_(new DOMParser(&html_element_context_)) {}
 
 TEST_F(DOMParserTest, ParsesXML) {

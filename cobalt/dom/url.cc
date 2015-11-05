@@ -18,6 +18,8 @@
 
 #include "base/guid.h"
 #include "base/logging.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/dom_settings.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -31,22 +33,33 @@ const char kBlobUrlProtocol[] = "blob";
 
 // static
 std::string URL::CreateObjectURL(
+    script::EnvironmentSettings* environment_settings,
     const scoped_refptr<MediaSource>& media_source) {
+  DOMSettings* dom_settings =
+      base::polymorphic_downcast<DOMSettings*>(environment_settings);
+  DCHECK(dom_settings);
+  DCHECK(dom_settings->media_source_registry());
   DCHECK(media_source);
+
   if (!media_source) {
     return "";
   }
 
   std::string blob_url = kBlobUrlProtocol;
   blob_url += ':' + base::GenerateGUID();
-  MediaSource::Registry::Register(blob_url, media_source);
+  dom_settings->media_source_registry()->Register(blob_url, media_source);
   return blob_url;
 }
 
 // static
-void URL::RevokeObjectURL(const std::string& url) {
+void URL::RevokeObjectURL(script::EnvironmentSettings* environment_settings,
+                          const std::string& url) {
+  DOMSettings* dom_settings =
+      base::polymorphic_downcast<DOMSettings*>(environment_settings);
+  DCHECK(dom_settings);
+  DCHECK(dom_settings->media_source_registry());
   DCHECK(GURL(url).SchemeIs(kBlobUrlProtocol)) << url << " is not a blob url";
-  MediaSource::Registry::Unregister(url);
+  dom_settings->media_source_registry()->Unregister(url);
 }
 
 }  // namespace dom
