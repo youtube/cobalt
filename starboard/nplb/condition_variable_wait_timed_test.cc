@@ -18,13 +18,13 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace starboard::nplb;
+namespace nplb = starboard::nplb;
 
 namespace {
 
-void DoSunnyDay(TakeThenSignalContext *context, bool check_timeout) {
+void DoSunnyDay(nplb::TakeThenSignalContext *context, bool check_timeout) {
   SbThread thread = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                   true, NULL, TakeThenSignalEntryPoint,
+                                   true, NULL, nplb::TakeThenSignalEntryPoint,
                                    context);
 
   const SbTime kDelay = kSbTimeMillisecond * 10;
@@ -73,7 +73,7 @@ void DoSunnyDay(TakeThenSignalContext *context, bool check_timeout) {
 }
 
 TEST(SbConditionVariableWaitTimedTest, SunnyDay) {
-  TakeThenSignalContext context;
+  nplb::TakeThenSignalContext context;
   EXPECT_TRUE(SbMutexCreate(&context.mutex));
   EXPECT_TRUE(SbConditionVariableCreate(&context.condition, &context.mutex));
   DoSunnyDay(&context, true);
@@ -81,8 +81,9 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDay) {
 
 TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
   {
-    TakeThenSignalContext context = { 0, SB_MUTEX_INITIALIZER,
-                                      SB_CONDITION_VARIABLE_INITIALIZER };
+    nplb::TakeThenSignalContext context = { nplb::Semaphore(0),
+                                            SB_MUTEX_INITIALIZER,
+                                            SB_CONDITION_VARIABLE_INITIALIZER };
     DoSunnyDay(&context, true);
   }
 
@@ -91,8 +92,9 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
   // this mode, hoping to have the auto-initting contend in various ways.
   const int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
-    TakeThenSignalContext context = { 0, SB_MUTEX_INITIALIZER,
-                                      SB_CONDITION_VARIABLE_INITIALIZER };
+    nplb::TakeThenSignalContext context = { nplb::Semaphore(0),
+                                            SB_MUTEX_INITIALIZER,
+                                            SB_CONDITION_VARIABLE_INITIALIZER };
     DoSunnyDay(&context, false);
   }
 }

@@ -23,16 +23,16 @@
 namespace starboard {
 namespace nplb {
 
-inline void *toVoid(intptr_t value) {
+inline void *ToVoid(intptr_t value) {
   return reinterpret_cast<void *>(value);
 }
 
-inline intptr_t fromVoid(void *value) {
+inline intptr_t FromVoid(void *value) {
   return reinterpret_cast<intptr_t>(value);
 }
 
-void * const kSomeContext = toVoid(1234);
-void * const kSomeContextPlusOne = toVoid(1235);
+void * const kSomeContext = ToVoid(1234);
+void * const kSomeContextPlusOne = ToVoid(1235);
 
 const char * const kThreadName = "ThreadName";
 const char * const kAltThreadName = "AltThreadName";
@@ -73,7 +73,7 @@ struct WaiterContext {
 // A semaphore that tests can use to trigger other threads
 struct Semaphore {
   Semaphore();
-  Semaphore(int initial_value);
+  explicit Semaphore(int initial_value);
   ~Semaphore();
 
   void Put();
