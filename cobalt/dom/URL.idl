@@ -15,6 +15,7 @@
  */
 
 interface URL {
-  static DOMString createObjectURL(MediaSource mediaSource);
-  static void revokeObjectURL(DOMString url);
+  [CallWith=EnvironmentSettings] static DOMString
+      createObjectURL(MediaSource mediaSource);
+  [CallWith=EnvironmentSettings] static void revokeObjectURL(DOMString url);
 };

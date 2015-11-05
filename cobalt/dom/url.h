@@ -20,6 +20,7 @@
 #include <string>
 
 #include "cobalt/dom/media_source.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -39,8 +40,10 @@ namespace dom {
 class URL : public script::Wrappable {
  public:
   static std::string CreateObjectURL(
+      script::EnvironmentSettings* environment_settings,
       const scoped_refptr<MediaSource>& media_source);
-  static void RevokeObjectURL(const std::string& url);
+  static void RevokeObjectURL(script::EnvironmentSettings* environment_settings,
+                              const std::string& url);
 
   DEFINE_WRAPPABLE_TYPE(URL);
 };

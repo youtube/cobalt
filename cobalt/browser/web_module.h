@@ -30,6 +30,7 @@
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/local_storage_database.h"
+#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/layout/layout_manager.h"
@@ -172,6 +173,9 @@ class WebModule {
 
   // Interface for the document to execute JavaScript code.
   scoped_ptr<script::ScriptRunner> script_runner_;
+
+  // Object to register and retrieve MediaSource object with a string key.
+  dom::MediaSource::Registry media_source_registry_;
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
