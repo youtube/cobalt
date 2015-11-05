@@ -66,14 +66,16 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                LocalStorageDatabase* local_storage_database,
                media::WebMediaPlayerFactory* web_media_player_factory,
                script::ExecutionState* execution_state,
-               script::ScriptRunner* script_runner, const GURL& url,
+               script::ScriptRunner* script_runner,
+               MediaSource::Registry* media_source_registry, const GURL& url,
                const std::string& user_agent, const std::string& language,
                const base::Callback<void(const std::string&)>& error_callback)
     : width_(width),
       height_(height),
       html_element_context_(new HTMLElementContext(
           fetcher_factory, css_parser, dom_parser, web_media_player_factory,
-          script_runner, image_cache, remote_font_cache)),
+          script_runner, media_source_registry, image_cache,
+          remote_font_cache)),
       performance_(new Performance(new base::SystemMonotonicClock())),
       document_(new Document(
           html_element_context_.get(),

@@ -17,6 +17,7 @@
 #ifndef DOM_DOM_SETTINGS_H_
 #define DOM_DOM_SETTINGS_H_
 
+#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/environment_settings.h"
 
@@ -37,6 +38,7 @@ class DOMSettings : public script::EnvironmentSettings {
  public:
   DOMSettings(loader::FetcherFactory* fetcher_factory,
               const scoped_refptr<Window>& window,
+              MediaSource::Registry* media_source_registry,
               script::JavaScriptEngine* engine,
               script::GlobalObjectProxy* global_object_proxy);
   ~DOMSettings() OVERRIDE;
@@ -54,6 +56,9 @@ class DOMSettings : public script::EnvironmentSettings {
   script::GlobalObjectProxy* global_object() const {
     return global_object_proxy_;
   }
+  MediaSource::Registry* media_source_registry() const {
+    return media_source_registry_;
+  }
 
   // An absolute URL used to resolve relative URLs.
   virtual GURL base_url() const;
@@ -61,6 +66,7 @@ class DOMSettings : public script::EnvironmentSettings {
  private:
   loader::FetcherFactory* fetcher_factory_;
   scoped_refptr<Window> window_;
+  MediaSource::Registry* media_source_registry_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalObjectProxy* global_object_proxy_;
 
