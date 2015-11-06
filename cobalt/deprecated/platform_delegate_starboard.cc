@@ -19,61 +19,24 @@
 #include "lbshell/src/lb_globals.h"
 #include "starboard/types.h"
 
-
 namespace cobalt {
 namespace deprecated {
 
-// static
-void PlatformDelegate::PlatformInit() {
-  NOTIMPLEMENTED();
-}
+namespace {
 
-std::string PlatformDelegate::GetSystemLanguage() {
-  NOTIMPLEMENTED();
-  return "en-US";
-}
+class PlatformDelegateStarboard : public PlatformDelegate {
+ public:
+  PlatformDelegateStarboard();
+  ~PlatformDelegateStarboard() OVERRIDE;
+};
 
-// static
-void PlatformDelegate::PlatformUpdateDuringStartup() {
-  NOTIMPLEMENTED();
-}
+PlatformDelegateStarboard::PlatformDelegateStarboard() {}
+PlatformDelegateStarboard::~PlatformDelegateStarboard() {}
 
-// static
-void PlatformDelegate::PlatformTeardown() {
-  NOTIMPLEMENTED();
-}
+}  // namespace
 
-// static
-bool PlatformDelegate::ExitGameRequested() {
-  NOTIMPLEMENTED();
-  return false;
-}
-
-// static
-const char *PlatformDelegate::GameTitleId() {
-  NOTIMPLEMENTED();
-  return "";
-}
-
-// static
-void PlatformDelegate::PlatformMediaInit() {
-  NOTIMPLEMENTED();
-}
-
-// static
-void PlatformDelegate::PlatformMediaTeardown() {
-  NOTIMPLEMENTED();
-}
-
-// static
-void PlatformDelegate::CheckParentalControl() {
-  NOTIMPLEMENTED();
-}
-
-// static
-bool PlatformDelegate::ProtectOutput() {
-  NOTIMPLEMENTED();
-  return false;
+PlatformDelegate* PlatformDelegate::Create() {
+  return new PlatformDelegateStarboard;
 }
 
 }  // namespace deprecated
