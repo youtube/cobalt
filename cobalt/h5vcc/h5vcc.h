@@ -19,6 +19,7 @@
 
 #include "cobalt/dom/h5vcc_stub.h"
 #include "cobalt/h5vcc/h5vcc_account_info.h"
+#include "cobalt/h5vcc/h5vcc_audio_config_array.h"
 #include "cobalt/h5vcc/h5vcc_storage.h"
 #include "cobalt/h5vcc/h5vcc_system.h"
 
@@ -36,6 +37,9 @@ class H5vcc : public dom::H5vccStub {
   const scoped_refptr<H5vccAccountInfo>& account_info() const {
     return account_info_;
   }
+  const scoped_refptr<H5vccAudioConfigArray>& audio_config() {
+    return audio_config_array_;
+  }
   const scoped_refptr<H5vccStorage>& storage() const { return storage_; }
   const scoped_refptr<H5vccSystem>& system() const { return system_; }
 
@@ -43,6 +47,7 @@ class H5vcc : public dom::H5vccStub {
 
  private:
   scoped_refptr<H5vccAccountInfo> account_info_;
+  scoped_refptr<H5vccAudioConfigArray> audio_config_array_;
   scoped_refptr<H5vccStorage> storage_;
   scoped_refptr<H5vccSystem> system_;
 
