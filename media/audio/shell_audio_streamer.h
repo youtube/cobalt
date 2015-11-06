@@ -1,6 +1,9 @@
 #ifndef MEDIA_AUDIO_SHELL_AUDIO_STREAMER_H_
 #define MEDIA_AUDIO_SHELL_AUDIO_STREAMER_H_
 
+#include <string>
+#include <vector>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
@@ -128,6 +131,14 @@ class ShellAudioStreamer {
     uint32 native_output_sample_rate_;
   };
 
+  struct OutputDevice {
+    std::string connector;
+    uint32 latency_ms;
+    std::string coding_type;
+    uint32 number_of_channels;
+    uint32 sampling_frequency;
+  };
+
   ShellAudioStreamer() {}
   virtual ~ShellAudioStreamer() {};
 
@@ -145,6 +156,13 @@ class ShellAudioStreamer {
   // Some consoles have background music tracks playing even when other apps
   // are running. This function can be used to stop the background music.
   virtual void StopBackgroundMusic() {}
+  // Returns the available audio output devices.  This function is for
+  // informational purpose and is currently only used to create
+  // h5vcc::AudioConfig.
+  virtual std::vector<OutputDevice> GetOutputDevices() {
+    NOTIMPLEMENTED();
+    return std::vector<OutputDevice>();
+  }
 
   DISALLOW_COPY_AND_ASSIGN(ShellAudioStreamer);
 };
