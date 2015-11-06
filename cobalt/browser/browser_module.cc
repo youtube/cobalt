@@ -90,15 +90,25 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           kTraceCommandChannel,
           base::Bind(&BrowserModule::OnTraceMessage, base::Unretained(this)),
           kTraceCommandShortHelp, kTraceCommandLongHelp)) {
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
 
   input::KeyboardEventCallback keyboard_event_callback =
       base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this));
 
+  bool use_input_fuzzer = false;
+
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+  if (command_line->HasSwitch(switches::kInputFuzzer)) {
+    use_input_fuzzer = true;
+  }
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
+
   // If the user has asked to activate the input fuzzer, then we wire up the
   // input fuzzer key generator to our keyboard event callback.  Otherwise, we
   // create and connect the platform-specific input event generator.
-  if (command_line->HasSwitch(switches::kInputFuzzer)) {
+  if (use_input_fuzzer) {
     input_device_manager_ = scoped_ptr<input::InputDeviceManager>(
         new input::InputDeviceManagerFuzzer(keyboard_event_callback));
   } else {
@@ -218,8 +228,16 @@ void BrowserModule::OnTraceMessage(const std::string& message) {
 }
 
 void BrowserModule::StartOrStopTrace() {
+  bool timed_trace_active = false;
+
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kTimedTrace)) {
+    timed_trace_active = true;
+  }
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
+
+  if (timed_trace_active) {
     DLOG(WARNING)
         << "Cannot manually trigger a trace when timed_trace is active.";
   } else {
@@ -253,6 +271,7 @@ void BrowserModule::LoadDebugConsoleMode() {
 }
 
 bool BrowserModule::SetDebugConsoleModeFromCommandLine() {
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDebugConsoleMode)) {
     const std::string debug_console_mode_string =
@@ -260,6 +279,8 @@ bool BrowserModule::SetDebugConsoleModeFromCommandLine() {
     debug_hub_->SetDebugConsoleModeAsString(debug_console_mode_string);
     return true;
   }
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
+
   return false;
 }
 
