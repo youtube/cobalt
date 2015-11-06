@@ -34,6 +34,7 @@ namespace browser {
 namespace {
 
 #if defined(ENABLE_WEBDRIVER)
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
 int GetWebDriverPort() {
   // The default port on which the webdriver server should listen for incoming
   // connections.
@@ -52,21 +53,25 @@ int GetWebDriverPort() {
   }
   return webdriver_port;
 }
-#endif
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_WEBDRIVER
 
 std::string GetInitialURL() {
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
   // Allow the user to override the default initial URL via a command line
   // parameter.
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInitialURL)) {
     return command_line->GetSwitchValueASCII(switches::kInitialURL);
   }
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
 
   static const char kDefaultInitialURL[] = "https://youtube.com/tv";
   return std::string(kDefaultInitialURL);
 }
 
 base::TimeDelta GetTimedTraceDuration() {
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   int duration_in_seconds = 0;
   if (command_line->HasSwitch(switches::kTimedTrace) &&
@@ -74,15 +79,17 @@ base::TimeDelta GetTimedTraceDuration() {
           command_line->GetSwitchValueASCII(switches::kTimedTrace),
           &duration_in_seconds)) {
     return base::TimeDelta::FromSeconds(duration_in_seconds);
-  } else {
-    return base::TimeDelta();
   }
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
+
+  return base::TimeDelta();
 }
 
 FilePath GetExtraWebFileDir() {
   // Default is empty, command line can override.
   FilePath result;
 
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kExtraWebFileDir)) {
     result =
@@ -95,6 +102,7 @@ FilePath GetExtraWebFileDir() {
     }
     DLOG(INFO) << "Extra web file dir: " << result.value();
   }
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
 
   return result;
 }
@@ -132,6 +140,7 @@ Application::Application()
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 
 #if defined(ENABLE_WEBDRIVER)
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kEnableWebDriver)) {
     int webdriver_port = GetWebDriverPort();
@@ -139,7 +148,8 @@ Application::Application()
         webdriver_port, base::Bind(&BrowserModule::CreateSessionDriver,
                                    base::Unretained(browser_module_.get()))));
   }
-#endif
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
+#endif  // ENABLE_WEBDRIVER
 }
 
 Application::~Application() { DCHECK(!message_loop_.is_running()); }
@@ -158,6 +168,7 @@ void Application::Run() {
   base::RunLoop run_loop;
   quit_closure_ = run_loop.QuitClosure();
 
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   int duration_in_seconds = 0;
   if (command_line->HasSwitch(switches::kShutdownAfter) &&
@@ -171,6 +182,7 @@ void Application::Run() {
         FROM_HERE, quit_closure_,
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
 
   run_loop.Run();
 }
