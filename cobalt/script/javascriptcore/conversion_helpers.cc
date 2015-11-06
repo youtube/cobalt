@@ -48,6 +48,14 @@ void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
 
 WTF::String ToWTFString(const std::string& utf8_string) {
   DCHECK(IsStringUTF8(utf8_string));
+
+  // If the string is all ASCII, we can convert it using half the memory of
+  // the generalized conversion function. This is significant as ***REMOVED*** uses
+  // some huge ASCII-only source files (> 10M chars).
+  if (IsStringASCII(utf8_string)) {
+    return WTF::String(utf8_string.c_str(), utf8_string.length());
+  }
+
   return WTF::String::fromUTF8(utf8_string.c_str());
 }
 
