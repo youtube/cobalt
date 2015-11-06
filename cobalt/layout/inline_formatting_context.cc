@@ -28,11 +28,13 @@ InlineFormattingContext::InlineFormattingContext(
     const scoped_refptr<cssom::PropertyValue>& line_height,
     const render_tree::FontMetrics& font_metrics,
     const LayoutParams& layout_params,
-    const scoped_refptr<cssom::PropertyValue>& text_align)
+    const scoped_refptr<cssom::PropertyValue>& text_align,
+    const scoped_refptr<cssom::PropertyValue>& white_space)
     : line_height_(line_height),
       font_metrics_(font_metrics),
       layout_params_(layout_params),
       text_align_(text_align),
+      white_space_(white_space),
       line_count_(0),
       preferred_min_width_(0) {
   CreateLineBox();
@@ -112,9 +114,9 @@ void InlineFormattingContext::CreateLineBox() {
   // Line boxes are stacked with no vertical separation and they never
   // overlap.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  line_box_ =
-      make_scoped_ptr(new LineBox(auto_height(), line_height_, font_metrics_,
-                                  true, true, layout_params_, text_align_));
+  line_box_ = make_scoped_ptr(
+      new LineBox(auto_height(), line_height_, font_metrics_, true, true,
+                  layout_params_, text_align_, white_space_));
 }
 
 void InlineFormattingContext::DestroyLineBox() {
