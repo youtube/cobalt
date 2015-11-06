@@ -14,17 +14,10 @@
  * limitations under the License.
  */
 
-#include "cobalt/h5vcc/h5vcc.h"
-
-namespace cobalt {
-namespace h5vcc {
-
-H5vcc::H5vcc(const Settings& settings) {
-  account_info_ = new H5vccAccountInfo();
-  audio_config_array_ = new H5vccAudioConfigArray();
-  storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem();
-}
-
-}  // namespace h5vcc
-}  // namespace cobalt
+interface H5vccAudioConfig {
+  readonly attribute DOMString connector;
+  readonly attribute unsigned long latencyMs;
+  readonly attribute DOMString codingType;
+  readonly attribute unsigned long numberOfChannels;
+  readonly attribute unsigned long samplingFrequency;
+};
