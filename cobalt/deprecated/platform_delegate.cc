@@ -21,27 +21,28 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
-#include "lbshell/src/lb_globals.h"
+
 
 namespace cobalt {
 namespace deprecated {
+
 namespace {
 
-bool GetOrCreateDirectory(const char* directory) {
-  return directory && (file_util::PathExists(FilePath(directory)) ||
-                       file_util::CreateDirectory(FilePath(directory)));
+bool GetOrCreateDirectory(const std::string& directory) {
+  return file_util::PathExists(FilePath(directory)) ||
+         file_util::CreateDirectory(FilePath(directory));
 }
 
 bool PathProvider(int key, FilePath* result) {
-  const global_values_t* global_values = GetGlobalsPtr();
-  if (!global_values) {
+  const PlatformDelegate* plat = PlatformDelegate::Get();
+  if (!plat) {
     return false;
   }
 
   switch (key) {
     case paths::DIR_COBALT_DEBUG_OUT:
-      if (GetOrCreateDirectory(global_values->logging_output_path)) {
-        *result = FilePath(global_values->logging_output_path);
+      if (GetOrCreateDirectory(plat->logging_output_path())) {
+        *result = FilePath(plat->logging_output_path());
         return true;
       } else {
         return false;
@@ -49,15 +50,15 @@ bool PathProvider(int key, FilePath* result) {
 
     case paths::DIR_COBALT_TEST_OUT:
       // TODO(***REMOVED***): Create a special directory for tests.
-      if (GetOrCreateDirectory(global_values->logging_output_path)) {
-        *result = FilePath(global_values->logging_output_path);
+      if (GetOrCreateDirectory(plat->logging_output_path())) {
+        *result = FilePath(plat->logging_output_path());
         return true;
       } else {
         return false;
       }
 
     case paths::DIR_COBALT_WEB_ROOT:
-      *result = FilePath(global_values->game_content_path).Append("web");
+      *result = FilePath(plat->game_content_path()).Append("web");
       return true;
 
     default:
@@ -70,23 +71,28 @@ bool PathProvider(int key, FilePath* result) {
 
 }  // namespace
 
-// static
+PlatformDelegate* PlatformDelegate::instance_;
+
 void PlatformDelegate::Init() {
-  PlatformInit();
+  DCHECK(!instance_);
+  instance_ = PlatformDelegate::Create();
+}
 
-  PlatformMediaInit();
+void PlatformDelegate::Teardown() {
+  DCHECK(instance_);
+  delete instance_;
+  instance_ = NULL;
+}
 
+PlatformDelegate::PlatformDelegate() {
   // Register a path provider for Cobalt-specific paths.
   PathService::RegisterProvider(&PathProvider, paths::PATH_COBALT_START,
                                 paths::PATH_COBALT_END);
 }
 
-// static
-void PlatformDelegate::Teardown() {
-  PlatformMediaTeardown();
+std::string PlatformDelegate::GetSystemLanguage() { return "en-US"; }
 
-  PlatformTeardown();
-}
+PlatformDelegate::~PlatformDelegate() {}
 
 }   // namespace deprecated
 }   // namespace cobalt
