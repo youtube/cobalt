@@ -175,6 +175,7 @@
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
           'ENABLE_DIR_SOURCE_ROOT_ACCESS',
+          'ENABLE_COMMAND_LINE_SWITCHES',
         ],
       }, # end of debug_base
       'devel_base': {
@@ -193,6 +194,7 @@
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
           'ENABLE_DIR_SOURCE_ROOT_ACCESS',
+          'ENABLE_COMMAND_LINE_SWITCHES',
         ],
       }, # end of devel_base
       'qa_base': {
@@ -210,6 +212,7 @@
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
           'ENABLE_DIR_SOURCE_ROOT_ACCESS',
+          'ENABLE_COMMAND_LINE_SWITCHES',
         ],
       }, # end of devel_base
       'gold_base': {
