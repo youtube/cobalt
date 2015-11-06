@@ -18,6 +18,7 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/media/media_module_stub.h"
+#include "media/audio/shell_audio_streamer.h"
 
 namespace cobalt {
 namespace media {
@@ -32,3 +33,23 @@ scoped_ptr<MediaModule> MediaModule::Create(
 
 }  // namespace media
 }  // namespace cobalt
+
+// ShellAudioStreamer is used by H5vccAudioConfigArray.  Ideally we should get
+// the ShellAudioStreamer from ShellMediaPlatform.  But before that's done, we
+// have to have the following stub implementation to ensure that Cobalt links on
+// Windows.
+namespace media {
+
+// static
+void ShellAudioStreamer::Initialize() { NOTIMPLEMENTED(); }
+
+// static
+void ShellAudioStreamer::Terminate() { NOTIMPLEMENTED(); }
+
+// static
+ShellAudioStreamer* ShellAudioStreamer::Instance() {
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
+}  // namespace media
