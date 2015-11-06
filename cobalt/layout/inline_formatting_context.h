@@ -53,7 +53,8 @@ class InlineFormattingContext : public FormattingContext {
       const scoped_refptr<cssom::PropertyValue>& line_height,
       const render_tree::FontMetrics& font_metrics,
       const LayoutParams& layout_params,
-      const scoped_refptr<cssom::PropertyValue>& text_align);
+      const scoped_refptr<cssom::PropertyValue>& text_align,
+      const scoped_refptr<cssom::PropertyValue>& white_space);
   ~InlineFormattingContext() OVERRIDE;
 
   // Asynchronously calculates the position and size of the given child box and
@@ -88,6 +89,7 @@ class InlineFormattingContext : public FormattingContext {
   const render_tree::FontMetrics font_metrics_;
   const LayoutParams layout_params_;
   const scoped_refptr<cssom::PropertyValue> text_align_;
+  const scoped_refptr<cssom::PropertyValue> white_space_;
 
   // The inline formatting context only keeps the last line box, which may be
   // NULL if no child boxes were seen.

@@ -34,7 +34,8 @@ LineBox::LineBox(float top,
                  bool should_collapse_leading_white_space,
                  bool should_collapse_trailing_white_space,
                  const LayoutParams& layout_params,
-                 const scoped_refptr<cssom::PropertyValue>& text_align)
+                 const scoped_refptr<cssom::PropertyValue>& text_align,
+                 const scoped_refptr<cssom::PropertyValue>& white_space)
     : top_(top),
       line_height_(line_height),
       font_metrics_(font_metrics),
@@ -43,6 +44,9 @@ LineBox::LineBox(float top,
           should_collapse_trailing_white_space),
       layout_params_(layout_params),
       text_align_(text_align),
+      is_text_wrapping_disabled_(white_space ==
+                                     cssom::KeywordValue::GetNoWrap() ||
+                                 white_space == cssom::KeywordValue::GetPre()),
       at_end_(false),
       line_exists_(false),
       shrink_to_fit_width_(0),
@@ -58,7 +62,20 @@ bool LineBox::TryBeginUpdateRectAndMaybeSplit(
     return false;
   }
 
+  // If the white-space style of the line box disables text wrapping then always
+  // allow overflow.
+  // NOTE: While this works properly for typical use cases, it does not allow
+  // child boxes to enable or disable wrapping, so this is not a robust
+  // long-term solution. However, it handles ***REMOVED***'s current needs.
+  // TODO(***REMOVED***): Implement the full line breaking algorithm (tracked as
+  // b/25504189).
+  if (is_text_wrapping_disabled_) {
+    BeginUpdateRectAndMaybeOverflow(child_box);
+    return true;
+  }
+
   UpdateSizePreservingTrailingWhiteSpace(child_box);
+
   float available_width = GetAvailableWidth();
 
   // Horizontal margins, borders, and padding are respected between boxes.
