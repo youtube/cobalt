@@ -18,6 +18,13 @@
         # platform_delegate_win.cc.
         'platform_delegate_<(actual_target_arch).cc',
       ],
+      'conditions': [
+        ['target_arch=="ps3"', {
+          'sources': [
+            'platform_delegate_ps3.h',
+          ],
+        }],
+      ],
     },
   ],
 }

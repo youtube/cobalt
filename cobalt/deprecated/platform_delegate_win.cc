@@ -22,7 +22,7 @@
 
 #include <string>
 
-#include "lbshell/src/lb_globals.h"
+#include "base/compiler_specific.h"
 #include "lbshell/src/platform/xb1/posix_emulation/pthread.h"
 #include "lbshell/src/platform/xb1/posix_emulation/pthread_internal.h"
 
@@ -52,13 +52,13 @@ namespace {
 // This will initialize pthread support inside the POSIX emulation layer.
 PThreadInitializer pthread_initializer;
 
-}  // namespace
+class PlatformDelegateWin : public PlatformDelegate {
+ public:
+  PlatformDelegateWin();
+  ~PlatformDelegateWin() OVERRIDE;
+};
 
-static bool exit_game_requested = false;
-
-// static
-void PlatformDelegate::PlatformInit() {
-  global_values_t* global_values = GetGlobalsPtr();
+PlatformDelegateWin::PlatformDelegateWin() {
   char path_buffer[MAX_PATH];
 
   // Get the directory of the executable.
@@ -68,101 +68,32 @@ void PlatformDelegate::PlatformInit() {
   unsigned last_bs = exe_path.rfind('\\');
   std::string exe_dir = exe_path.substr(0, last_bs);
 
-  // Set game_content_path.
-  std::string game_content_path = exe_dir + "\\content\\data";
-  global_values->game_content_path = strdup(game_content_path.c_str());
-
-  // Set dir_source_root.
-  std::string dir_source_root = exe_dir + "\\content\\dir_source_root";
-  global_values->dir_source_root = strdup(dir_source_root.c_str());
+  game_content_path_ = exe_dir + "\\content\\data";
+  dir_source_root_ = exe_dir + "\\content\\dir_source_root";
 
   // Set screenshot_output_path.
 #if defined(__LB_SHELL__ENABLE_SCREENSHOT__)
-  std::string screenshot_output_path = exe_dir + "\\content\\logs";
-  global_values->screenshot_output_path =
-      strdup(screenshot_output_path.c_str());
-  _mkdir(screenshot_output_path.c_str());
+  screenshot_output_path_ = exe_dir + "\\content\\logs";
+  _mkdir(screenshot_output_path_.c_str());
 #endif
 
   // Set logging_output_path.
 #if defined(__LB_SHELL__FORCE_LOGGING__) || \
     defined(__LB_SHELL__ENABLE_CONSOLE__)
-  std::string logging_output_path = exe_dir + "\\content\\logs";
-  global_values->logging_output_path = strdup(logging_output_path.c_str());
-  _mkdir(logging_output_path.c_str());
+  logging_output_path_ = exe_dir + "\\content\\logs";
+  _mkdir(logging_output_path_.c_str());
 #endif
 
   // Set tmp_path.
   GetTempPathA(MAX_PATH, path_buffer);
-  global_values->tmp_path = strdup(path_buffer);
-
-#if !defined(__LB_SHELL_NO_CHROME__)
-  // setup graphics
-  // LBGraphics::SetupGraphics();
-#endif
+  temp_path_ = path_buffer;
 }
 
-std::string PlatformDelegate::GetSystemLanguage() {
-  return "en-US";
-}
+PlatformDelegateWin::~PlatformDelegateWin() {}
 
-// static
-void PlatformDelegate::PlatformUpdateDuringStartup() {
-}
+}  // namespace
 
-// static
-void PlatformDelegate::PlatformTeardown() {
-#if !defined(__LB_SHELL_NO_CHROME__)
-  // stop graphics
-  // LBGraphics::TeardownGraphics();
-#endif
-
-  global_values_t* global_values = GetGlobalsPtr();
-  free(const_cast<char*>(global_values->dir_source_root));
-  free(const_cast<char*>(global_values->game_content_path));
-  free(const_cast<char*>(global_values->screenshot_output_path));
-  free(const_cast<char*>(global_values->logging_output_path));
-  free(const_cast<char*>(global_values->tmp_path));
-  global_values->dir_source_root = NULL;
-  global_values->game_content_path = NULL;
-  global_values->screenshot_output_path = NULL;
-  global_values->logging_output_path = NULL;
-  global_values->tmp_path = NULL;
-}
-
-// static
-bool PlatformDelegate::ExitGameRequested() {
-  return exit_game_requested;
-}
-
-// static
-const char *PlatformDelegate::GameTitleId() {
-  return "";
-}
-
-// static
-void PlatformDelegate::PlatformMediaInit() {
-#if !defined(__LB_SHELL_NO_CHROME__)
-  // media::ShellAudioStreamer::Initialize();
-#endif
-}
-
-// static
-void PlatformDelegate::PlatformMediaTeardown() {
-#if !defined(__LB_SHELL_NO_CHROME__)
-  // media::ShellAudioStreamer::Terminate();
-#endif
-}
-
-// static
-void PlatformDelegate::CheckParentalControl() {
-}
-
-// static
-bool PlatformDelegate::ProtectOutput() {
-  // Output protection not supported.
-  return false;
-}
+PlatformDelegate* PlatformDelegate::Create() { return new PlatformDelegateWin; }
 
 }  // namespace deprecated
 }  // namespace cobalt
