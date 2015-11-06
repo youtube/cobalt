@@ -17,38 +17,59 @@
 #ifndef DEPRECATED_PLATFORM_DELEGATE_H_
 #define DEPRECATED_PLATFORM_DELEGATE_H_
 
-#include "cobalt/cobalt_export.h"
-
 #include <string>
+
+#include "cobalt/cobalt_export.h"
 
 namespace cobalt {
 namespace deprecated {
 
+// Abstract base class for handling per-platform details.
+// Each platform must implement a PlatformDelegate that derives from this
+// class, and performs any required startup and shutdown operations.
+// The factory method PlatformDelegate::Create() will be called, which should
+// construct the derived class.
 class COBALT_EXPORT PlatformDelegate {
  public:
-  // first method called by main()
+  // Must be first method called by main()
   static void Init();
-  static void PlatformInit();
-  static void PlatformMediaInit();
-  // gets the system langauge
+  // Must be called during AtExit callback or before exit.
+  static void Teardown();
+
+  static PlatformDelegate* Get() { return instance_; }
+
+  // Gets the system language.
   // NOTE: should be in the format described by bcp47.
   // http://www.rfc-editor.org/rfc/bcp/bcp47.txt
   // Example: "en-US" or "de"
-  static std::string GetSystemLanguage();
-  // last method called by main()
-  static void Teardown();
-  static void PlatformTeardown();
-  static void PlatformMediaTeardown();
-  // perform system update tasks at checkpoints during startup
-  static void PlatformUpdateDuringStartup();
-  // true if exit game was requested by the platform.
-  static bool ExitGameRequested();
-  // gets the title id of the game
-  static const char *GameTitleId();
-  // check parental control settings.
-  static void CheckParentalControl();
-  // enable output protection (HDCP or CGMS) and block until complete
-  static bool ProtectOutput();
+  virtual std::string GetSystemLanguage();
+
+  const std::string& dir_source_root() const { return dir_source_root_; }
+  const std::string& game_content_path() const { return game_content_path_; }
+  const std::string& screenshot_output_path() const {
+    return screenshot_output_path_;
+  }
+  const std::string& logging_output_path() const {
+    return logging_output_path_;
+  }
+  const std::string& temp_path() const { return temp_path_; }
+
+ protected:
+  // Class can only be created via Init() / Teardown().
+  PlatformDelegate();
+  virtual ~PlatformDelegate() = 0;
+
+  std::string dir_source_root_;
+  std::string game_content_path_;
+  std::string screenshot_output_path_;
+  std::string logging_output_path_;
+  std::string temp_path_;
+
+ private:
+  // Each platform implements the Create() function to return its own
+  // class derived from PlatformDelegate.
+  static PlatformDelegate* Create();
+  static PlatformDelegate* instance_;
 };
 
 }   // namespace deprecated
