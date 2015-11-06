@@ -20,6 +20,7 @@ namespace cobalt {
 namespace browser {
 namespace switches {
 
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
 // Setting this switch defines the startup URL that Cobalt will use.  If no
 // value is set, a default URL will be used.
 const char kInitialURL[] = "url";
@@ -53,6 +54,7 @@ const char kWebDriverPort[] = "webdriver_port";
 
 // Additional base directory for accessing web files via file://.
 const char kExtraWebFileDir[] = "web_file_path";
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
 
 }  // namespace switches
 }  // namespace browser

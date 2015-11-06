@@ -21,6 +21,7 @@ namespace cobalt {
 namespace browser {
 namespace switches {
 
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
 extern const char kInitialURL[];
 extern const char kTimedTrace[];
 extern const char kInputFuzzer[];
@@ -30,6 +31,7 @@ extern const char kPartialLayout[];
 extern const char kEnableWebDriver[];
 extern const char kWebDriverPort[];
 extern const char kExtraWebFileDir[];
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
 
 }  // namespace switches
 }  // namespace browser
