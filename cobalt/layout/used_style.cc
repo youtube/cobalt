@@ -31,9 +31,9 @@
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
-#include "cobalt/cssom/translate_function.h"
-#include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/string_value.h"
+#include "cobalt/cssom/transform_function_visitor.h"
+#include "cobalt/cssom/translate_function.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image_node.h"
@@ -352,7 +352,7 @@ scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
       font_family_provider.font_families();
   // TODO(***REMOVED***): This will be modified to return the list of fonts soon.
   std::string font_family_name =
-      font_family_list.size() > 0 ? font_family_list[0] : "Droid Sans";
+      font_family_list.size() > 0 ? font_family_list[0] : "Roboto";
 
   cssom::LengthValue* font_size =
       base::polymorphic_downcast<cssom::LengthValue*>(font_size_refptr.get());
