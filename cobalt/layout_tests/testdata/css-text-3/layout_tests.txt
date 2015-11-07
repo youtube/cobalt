@@ -14,7 +14,5 @@
 6-2-words-should-be-breakable-with-word-wrap-break-word-if-first-on-line
 6-2-words-should-not-be-breakable-with-overflow-wrap-break-word-if-not-first-on-line
 6-2-words-should-not-be-breakable-with-word-wrap-break-word-if-not-first-on-line
-7-1-text-align-center-should-not-double-shift-contents-of-inline-container-box
-7-1-text-align-center-should-not-impact-spacing-between-boxes
-7-1-text-align-right-should-not-double-shift-contents-of-inline-container-box
-7-1-text-align-right-should-not-impact-spacing-between-boxes
+7-1-text-align-should-not-double-shift-contents-of-inline-container-box
+7-1-text-align-should-not-impact-spacing-between-boxes
