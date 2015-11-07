@@ -235,6 +235,8 @@ bool MediaFeature::EvaluateConditionValue(
     const scoped_refptr<PropertyValue>& width_refptr,
     const scoped_refptr<PropertyValue>& height_refptr) {
   switch (name_) {
+    case kInvalidFeature:
+      break;
     case kAspectRatioMediaFeature:
     case kDeviceAspectRatioMediaFeature:
       return CompareAspectRatio(width_refptr, height_refptr);

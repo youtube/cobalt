@@ -37,6 +37,7 @@ extern const char kScanMediaFeatureName[];
 extern const char kWidthMediaFeatureName[];
 
 enum MediaFeatureName {
+  kInvalidFeature,
   kAspectRatioMediaFeature,
   kColorIndexMediaFeature,
   kColorMediaFeature,
