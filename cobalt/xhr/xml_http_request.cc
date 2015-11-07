@@ -217,7 +217,7 @@ void XMLHttpRequest::OverrideMimeType(const std::string& override_mime,
   // once we have them.
   std::string mime_type;
   std::string charset;
-  bool had_charset;
+  bool had_charset = false;
   net::HttpUtil::ParseContentType(override_mime, &mime_type, &charset,
                                    &had_charset, NULL);
   if (!mime_type.length()) {
