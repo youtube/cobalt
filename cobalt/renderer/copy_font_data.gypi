@@ -24,8 +24,6 @@
     'input_fonts': [
       '<(fonts_dir)/DroidNaskh-Bold.ttf',
       '<(fonts_dir)/DroidNaskh-Regular.ttf',
-      '<(fonts_dir)/DroidSans-Bold.ttf',
-      '<(fonts_dir)/DroidSans.ttf',
       '<(fonts_dir)/DroidSansArmenian.ttf',
       '<(fonts_dir)/DroidSansEthiopic-Bold.ttf',
       '<(fonts_dir)/DroidSansEthiopic-Regular.ttf',
@@ -45,6 +43,8 @@
       '<(fonts_dir)/Lohit-Tamil.ttf',
       '<(fonts_dir)/Lohit-Telugu.ttf',
       '<(fonts_dir)/OpenSans-Regular.ttf',
+      '<(fonts_dir)/Roboto-Bold.ttf',
+      '<(fonts_dir)/Roboto-Regular.ttf',
     ],
   },
 

@@ -104,7 +104,7 @@ TEST_F(CSSFontFaceRuleTest, SrcSetter) {
   font_face->AttachToCSSStyleSheet(css_style_sheet_);
 
   const std::string src =
-      "local(Droid Sans), url('../assets/icons.ttf') format('truetype')";
+      "local(Roboto), url('../assets/icons.ttf') format('truetype')";
 
   EXPECT_CALL(
       css_parser_,
@@ -184,7 +184,7 @@ TEST_F(CSSFontFaceRuleTest, CssTextGetter) {
   scoped_ptr<PropertyListValue::Builder> src_builder(
       new PropertyListValue::Builder());
   src_builder->reserve(2);
-  src_builder->push_back(new LocalSrcValue("Droid Sans"));
+  src_builder->push_back(new LocalSrcValue("Roboto"));
   src_builder->push_back(
       new UrlSrcValue(new URLValue("'../assets/icons.ttf'"), "truetype"));
   scoped_refptr<PropertyListValue> src(
@@ -214,7 +214,7 @@ TEST_F(CSSFontFaceRuleTest, CssTextGetter) {
 
   EXPECT_EQ(font_face->css_text(),
             "font-family: 'youtube-icons'; "
-            "src: local('Droid Sans'), "
+            "src: local('Roboto'), "
             "url('../assets/icons.ttf') format('truetype'); "
             "font-style: italic; "
             "font-weight: bold; "

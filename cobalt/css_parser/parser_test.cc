@@ -2084,7 +2084,7 @@ TEST_F(ParserTest, ParsesFontFamilySingleIdentifierPropertyName) {
 
 TEST_F(ParserTest, ParsesFontFamilyMultipleIdentifierName) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
-      parser_.ParseStyleDeclarationList("font-family: Droid Sans;",
+      parser_.ParseStyleDeclarationList("font-family: Roboto;",
                                         source_location_);
 
   scoped_refptr<cssom::PropertyListValue> font_family_list =
@@ -2096,7 +2096,7 @@ TEST_F(ParserTest, ParsesFontFamilyMultipleIdentifierName) {
       dynamic_cast<cssom::StringValue*>(
           font_family_list->get_item_modulo_size(0).get());
   ASSERT_TRUE(font_family_string);
-  EXPECT_EQ("Droid Sans", font_family_string->value());
+  EXPECT_EQ("Roboto", font_family_string->value());
 }
 
 TEST_F(ParserTest, ParsesFontFamilyIdentifierNameContainingInheritKeyword) {
@@ -2135,7 +2135,7 @@ TEST_F(ParserTest, ParsesFontFamilyIdentifierNameContainingGenericFont) {
 
 TEST_F(ParserTest, ParsesFontFamilyStringName) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
-      parser_.ParseStyleDeclarationList("font-family: \"Droid Sans\";",
+      parser_.ParseStyleDeclarationList("font-family: \"Roboto\";",
                                         source_location_);
 
   scoped_refptr<cssom::PropertyListValue> font_family_list =
@@ -2147,13 +2147,13 @@ TEST_F(ParserTest, ParsesFontFamilyStringName) {
       dynamic_cast<cssom::StringValue*>(
           font_family_list->get_item_modulo_size(0).get());
   ASSERT_TRUE(font_family_string);
-  EXPECT_EQ("Droid Sans", font_family_string->value());
+  EXPECT_EQ("Roboto", font_family_string->value());
 }
 
 TEST_F(ParserTest, ParsesFontFamilyList) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList(
-          "font-family: 'Droid Sans', Noto, sans-serif;", source_location_);
+          "font-family: 'Roboto', Noto, sans-serif;", source_location_);
 
   scoped_refptr<cssom::PropertyListValue> font_family_list =
       dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
@@ -2164,7 +2164,7 @@ TEST_F(ParserTest, ParsesFontFamilyList) {
       dynamic_cast<cssom::StringValue*>(
           font_family_list->get_item_modulo_size(0).get());
   ASSERT_TRUE(font_family_name_1);
-  EXPECT_EQ("Droid Sans", font_family_name_1->value());
+  EXPECT_EQ("Roboto", font_family_name_1->value());
 
   scoped_refptr<cssom::StringValue> font_family_name_2 =
       dynamic_cast<cssom::StringValue*>(
@@ -4086,7 +4086,7 @@ TEST_F(ParserTest, ParsesDeclarationsInSpecifiedOrder) {
 
 TEST_F(ParserTest, ParsesFontFaceFamily) {
   scoped_refptr<cssom::CSSFontFaceDeclarationData> font_face =
-      parser_.ParseFontFaceDeclarationList("font-family: 'Droid Sans';",
+      parser_.ParseFontFaceDeclarationList("font-family: 'Roboto';",
                                            source_location_);
 
   scoped_refptr<cssom::PropertyListValue> font_family_list =
@@ -4098,12 +4098,12 @@ TEST_F(ParserTest, ParsesFontFaceFamily) {
       dynamic_cast<cssom::StringValue*>(
           font_family_list->get_item_modulo_size(0).get());
   ASSERT_TRUE(font_family_string);
-  EXPECT_EQ("Droid Sans", font_family_string->value());
+  EXPECT_EQ("Roboto", font_family_string->value());
 }
 
 TEST_F(ParserTest, ParsesFontFaceSrcLocalString) {
   scoped_refptr<cssom::CSSFontFaceDeclarationData> font_face =
-      parser_.ParseFontFaceDeclarationList("src: local('Droid Sans');",
+      parser_.ParseFontFaceDeclarationList("src: local('Roboto');",
                                            source_location_);
 
   scoped_refptr<cssom::PropertyListValue> src_list =
@@ -4115,12 +4115,12 @@ TEST_F(ParserTest, ParsesFontFaceSrcLocalString) {
       dynamic_cast<cssom::LocalSrcValue*>(
           src_list->get_item_modulo_size(0).get());
   ASSERT_TRUE(local_src);
-  EXPECT_EQ("Droid Sans", local_src->value());
+  EXPECT_EQ("Roboto", local_src->value());
 }
 
 TEST_F(ParserTest, ParsesFontFaceSrcLocalIdentifier) {
   scoped_refptr<cssom::CSSFontFaceDeclarationData> font_face =
-      parser_.ParseFontFaceDeclarationList("src: local(Droid Sans);",
+      parser_.ParseFontFaceDeclarationList("src: local(Roboto);",
                                            source_location_);
 
   scoped_refptr<cssom::PropertyListValue> src_list =
@@ -4132,7 +4132,7 @@ TEST_F(ParserTest, ParsesFontFaceSrcLocalIdentifier) {
       dynamic_cast<cssom::LocalSrcValue*>(
           src_list->get_item_modulo_size(0).get());
   ASSERT_TRUE(local_src);
-  EXPECT_EQ("Droid Sans", local_src->value());
+  EXPECT_EQ("Roboto", local_src->value());
 }
 
 TEST_F(ParserTest, ParsesFontFaceSrcUrlWithoutFormat) {
@@ -4180,7 +4180,7 @@ TEST_F(ParserTest, ParsesFontFaceSrcUrlWithFormat) {
 TEST_F(ParserTest, ParsesFontFaceSrcList) {
   scoped_refptr<cssom::CSSFontFaceDeclarationData> font_face =
       parser_.ParseFontFaceDeclarationList(
-          "src: local(Droid Sans), "
+          "src: local(Roboto), "
           "url(../assets/icons.ttf) format('truetype');",
           source_location_);
 
@@ -4193,7 +4193,7 @@ TEST_F(ParserTest, ParsesFontFaceSrcList) {
       dynamic_cast<cssom::LocalSrcValue*>(
           src_list->get_item_modulo_size(0).get());
   ASSERT_TRUE(local_src);
-  EXPECT_EQ("Droid Sans", local_src->value());
+  EXPECT_EQ("Roboto", local_src->value());
 
   scoped_refptr<cssom::UrlSrcValue> url_src = dynamic_cast<cssom::UrlSrcValue*>(
       src_list->get_item_modulo_size(1).get());
