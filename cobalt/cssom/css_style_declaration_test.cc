@@ -222,7 +222,7 @@ TEST(CSSStyleDeclarationTest, FontFamilySetter) {
   scoped_refptr<CSSStyleDeclaration> style =
       new CSSStyleDeclaration(&css_parser);
 
-  const std::string font_family = "Droid Sans";
+  const std::string font_family = "Roboto";
   MockMutationObserver observer;
   style->set_mutation_observer(&observer);
 

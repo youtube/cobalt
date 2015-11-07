@@ -77,7 +77,7 @@ scoped_refptr<CSSStyleDeclarationData> CreateTestComputedData() {
   initial_data->set_color(new RGBAColorValue(0x00000000));
   initial_data->set_display(KeywordValue::GetBlock());
   initial_data->set_font_family(
-      MakePropertyListWithSingleProperty(new StringValue("Droid Sans")));
+      MakePropertyListWithSingleProperty(new StringValue("Roboto")));
   initial_data->set_font_size(new LengthValue(16, kPixelsUnit));
   initial_data->set_height(new LengthValue(400, kPixelsUnit));
   initial_data->set_opacity(new NumberValue(0.5f));
