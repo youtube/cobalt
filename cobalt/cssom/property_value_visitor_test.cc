@@ -208,7 +208,7 @@ TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsStringValue) {
-  scoped_refptr<StringValue> string_value = new StringValue("Droid Sans");
+  scoped_refptr<StringValue> string_value = new StringValue("Roboto");
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitString(string_value.get()));
   string_value->Accept(&mock_visitor);
@@ -268,7 +268,7 @@ TEST(PropertyValueVisitorTest, VisitsURLValue) {
 
 TEST(PropertyValueVisitorTest, VisitsUrlSrcValue) {
   scoped_refptr<UrlSrcValue> url_src_value =
-      new UrlSrcValue(new URLValue(""), "'Droid Sans'");
+      new UrlSrcValue(new URLValue(""), "'Roboto'");
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitUrlSrc(url_src_value.get()));
   url_src_value->Accept(&mock_visitor);
