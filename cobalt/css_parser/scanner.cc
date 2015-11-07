@@ -23,7 +23,6 @@
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/string_pool.h"
 #include "cobalt/cssom/character_classification.h"
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/media_feature_keyword_value_names.h"
 #include "cobalt/cssom/media_feature_names.h"
@@ -616,13 +615,15 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
   double real_as_double(std::strtod(number.begin, &number_end));
   DCHECK_EQ(number_end, number.end);
 
-  float real_as_float = static_cast<float>(real_as_double);
-  if (real_as_float != real_as_float ||  // n != n if and only if it's NaN.
-      real_as_float == std::numeric_limits<float>::infinity()) {
+  if (real_as_double != real_as_double ||  // n != n if and only if it's NaN.
+      real_as_double == std::numeric_limits<float>::infinity() ||
+      real_as_double > std::numeric_limits<float>::max()) {
     token_value->string.begin = number.begin;
     token_value->string.end = number.end;
     return kInvalidNumberToken;
   }
+
+  float real_as_float = static_cast<float>(real_as_double);
 
   // Type of the function.
   if (IsInputIteratorAtIdentifierStart()) {
@@ -1991,7 +1992,7 @@ bool Scanner::DetectMediaQueryToken(
     const TrivialStringPiece& name, Token* media_query_token,
     cssom::MediaFeatureName* media_feature_name) const {
   DCHECK_EQ(parsing_mode_, kMediaQueryMode);
-
+  *media_feature_name = cssom::kInvalidFeature;
   switch (name.size()) {
     case 2:
       if (IsAsciiAlphaCaselessEqual(name.begin[0],
