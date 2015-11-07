@@ -489,7 +489,12 @@ void Document::SetPartialLayout(const std::string& mode_string) {
 }
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
-Document::~Document() {}
+Document::~Document() {
+  // Ensure that all outstanding weak ptrs become invalid.
+  // Some objects that will be released while this destructor runs may
+  // have weak ptrs to |this|.
+  InvalidateWeakPtrs();
+}
 
 }  // namespace dom
 }  // namespace cobalt
