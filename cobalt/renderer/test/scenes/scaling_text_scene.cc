@@ -17,6 +17,7 @@
 #include "cobalt/renderer/test/scenes/scaling_text_scene.h"
 
 #include <cmath>
+#include <string>
 
 #include "base/bind.h"
 #include "cobalt/math/size_f.h"
@@ -64,7 +65,7 @@ RenderTreeWithAnimations CreateScalingTextScene(
   // Load a font for use with text rendering.
   const float kBaseFontSize = 20.0f;
   scoped_refptr<Font> font = resource_provider->GetPreInstalledFont(
-      "Droid Sans", render_tree::kNormal, kBaseFontSize);
+      "Roboto", render_tree::kNormal, kBaseFontSize);
 
   // Add the actual text node to our composition.
   CompositionNode::Builder text_collection_builder;

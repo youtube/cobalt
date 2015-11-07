@@ -16,6 +16,8 @@
 
 #include "cobalt/renderer/test/scenes/marquee_scene.h"
 
+#include <string>
+
 #include "base/bind.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
@@ -85,7 +87,7 @@ RenderTreeWithAnimations CreateMarqueeScene(
   // Load a font for use with text rendering.
   const float kFontSize = 40.0f;
   scoped_refptr<Font> test_font = resource_provider->GetPreInstalledFont(
-      "Droid Sans", render_tree::kNormal, kFontSize);
+      "Roboto", render_tree::kNormal, kFontSize);
 
   // Use information about the string we are rendering to properly position
   // it in the vertical center of the screen and far enough offscreen that
