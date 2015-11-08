@@ -61,6 +61,24 @@ const char kPartialLayoutCommandLongHelp[] =
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 }  // namespace
 
+class WebModule::DocumentLoadedObserver : public dom::DocumentObserver {
+ public:
+  typedef std::vector<base::Closure> ClosureVector;
+  explicit DocumentLoadedObserver(const ClosureVector& loaded_callbacks)
+      : loaded_callbacks_(loaded_callbacks) {}
+  // Called at most once, when document and all referred resources are loaded.
+  void OnLoad() OVERRIDE {
+    for (size_t i = 0; i < loaded_callbacks_.size(); ++i) {
+      loaded_callbacks_[i].Run();
+    }
+  }
+
+  void OnMutation() OVERRIDE{};
+
+ private:
+  ClosureVector loaded_callbacks_;
+};
+
 WebModule::WebModule(
     const GURL& initial_url,
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
@@ -109,6 +127,12 @@ WebModule::WebModule(
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
   window_->set_debug_hub(options.debug_hub);
+
+  if (!options.loaded_callbacks.empty()) {
+    document_load_observer_.reset(
+        new DocumentLoadedObserver(options.loaded_callbacks));
+    window_->document()->AddObserver(document_load_observer_.get());
+  }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -204,11 +228,11 @@ void WebModule::OnPartialLayoutConsoleCommandReceived(
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
 #if defined(ENABLE_WEBDRIVER)
-scoped_ptr<webdriver::SessionDriver> WebModule::CreateSessionDriver(
-    const webdriver::protocol::SessionId& session_id) {
+scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
+    const webdriver::protocol::WindowId& window_id) {
   // This may be called from a thread other than web_module_message_loop_.
-  return make_scoped_ptr(new webdriver::SessionDriver(
-      session_id, window_weak_, self_message_loop_->message_loop_proxy()));
+  return make_scoped_ptr(new webdriver::WindowDriver(
+      window_id, window_weak_, self_message_loop_->message_loop_proxy()));
 }
 #endif
 
