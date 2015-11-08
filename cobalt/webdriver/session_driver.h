@@ -17,6 +17,7 @@
 #ifndef WEBDRIVER_SESSION_DRIVER_H_
 #define WEBDRIVER_SESSION_DRIVER_H_
 
+#include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
@@ -32,9 +33,21 @@ namespace webdriver {
 
 class SessionDriver {
  public:
+  // SessionDriver calls this to navigate to the specified URL. The provided
+  // Closure will be called when navigation is complete, as defined by the
+  // OnLoad event.
+  typedef base::Callback<void(const GURL&, const base::Closure&)>
+      NavigateCallback;
+
+  // Factory callback to create a WindowDriver for the currently displayed
+  // Window.
+  typedef base::Callback<scoped_ptr<webdriver::WindowDriver>(
+      const webdriver::protocol::WindowId& window_id)>
+      CreateWindowDriverCallback;
+
   SessionDriver(const protocol::SessionId& session_id,
-                const base::WeakPtr<dom::Window>& window,
-                const scoped_refptr<base::MessageLoopProxy>& message_loop);
+                const NavigateCallback& navigate_callback,
+                const CreateWindowDriverCallback& create_window_driver_cb);
   const protocol::SessionId& session_id() const { return session_id_; }
   const protocol::Capabilities* capabilities() const {
     return capabilities_.get();
@@ -43,9 +56,17 @@ class SessionDriver {
   WindowDriver* GetWindow(const protocol::WindowId& window_id);
   WindowDriver* GetCurrentWindow() { return window_driver_.get(); }
 
+  void Navigate(const std::string& url);
+
  private:
+  protocol::WindowId GetUniqueWindowId();
+
+  base::ThreadChecker thread_checker_;
   const protocol::SessionId session_id_;
   scoped_ptr<protocol::Capabilities> capabilities_;
+  NavigateCallback navigate_callback_;
+  CreateWindowDriverCallback create_window_driver_callback_;
+  int32 next_window_id_;
   scoped_ptr<WindowDriver> window_driver_;
 };
 

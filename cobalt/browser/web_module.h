@@ -18,6 +18,7 @@
 #define BROWSER_WEB_MODULE_H_
 
 #include <string>
+#include <vector>
 
 #include "base/callback.h"
 #include "base/file_path.h"
@@ -83,6 +84,7 @@ class WebModule {
     scoped_refptr<debug::DebugHub> debug_hub;
     // Optional directory to add to the search path for web files (file://).
     FilePath extra_web_file_dir;
+    std::vector<base::Closure> loaded_callbacks;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -119,10 +121,10 @@ class WebModule {
   void SetItemInLocalStorage(const std::string& key, const std::string& value);
 
 #if defined(ENABLE_WEBDRIVER)
-  // Create a new webdriver::SessionDriver that interacts with this WebModule
-  // instance.
-  scoped_ptr<webdriver::SessionDriver> CreateSessionDriver(
-      const webdriver::protocol::SessionId& session_id);
+  // Creates a new webdriver::WindowDriver that interacts with the Window that
+  // is owned by this WebModule instance.
+  scoped_ptr<webdriver::WindowDriver> CreateWindowDriver(
+      const webdriver::protocol::WindowId& window_id);
 #endif
 
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -131,6 +133,8 @@ class WebModule {
 #endif  // ENABLE_DEBUG_CONSOLE
 
  private:
+  class DocumentLoadedObserver;
+
   // Called by ExecuteJavascript, if that method is called from a different
   // message loop to the one this WebModule is running on. Sets the result
   // output parameter and signals got_result.
@@ -205,6 +209,9 @@ class WebModule {
 
   // URL for the current document.
   const GURL url_;
+
+  // DocumentObserver that observes the loading document.
+  scoped_ptr<DocumentLoadedObserver> document_load_observer_;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   // Handles the 'partial_layout' command.
