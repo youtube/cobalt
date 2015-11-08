@@ -18,23 +18,21 @@
 
 namespace cobalt {
 namespace webdriver {
-namespace {
-// There is only one window supported in Cobalt, and this is its ID.
-const char kWindowId[] = "window-0";
-
-}  // namespace
 
 SessionDriver::SessionDriver(
     const protocol::SessionId& session_id,
-    const base::WeakPtr<dom::Window>& window,
-    const scoped_refptr<base::MessageLoopProxy>& message_loop)
+    const NavigateCallback& navigate_callback,
+    const CreateWindowDriverCallback& create_window_driver_callback)
     : session_id_(session_id),
-      capabilities_(protocol::Capabilities::CreateActualCapabilities()) {
-  window_driver_.reset(
-      new WindowDriver(protocol::WindowId(kWindowId), window, message_loop));
+      capabilities_(protocol::Capabilities::CreateActualCapabilities()),
+      navigate_callback_(navigate_callback),
+      create_window_driver_callback_(create_window_driver_callback),
+      next_window_id_(0) {
+  window_driver_ = create_window_driver_callback_.Run(GetUniqueWindowId());
 }
 
 WindowDriver* SessionDriver::GetWindow(const protocol::WindowId& window_id) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   if (protocol::WindowId::IsCurrent(window_id) ||
       window_driver_->window_id() == window_id) {
     return window_driver_.get();
@@ -43,6 +41,27 @@ WindowDriver* SessionDriver::GetWindow(const protocol::WindowId& window_id) {
   }
 }
 
+void SessionDriver::Navigate(const std::string& url) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  protocol::WindowId current_id = window_driver_->window_id();
+  base::WaitableEvent finished_event(true, false);
+  navigate_callback_.Run(GURL(url),
+                         base::Bind(&base::WaitableEvent::Signal,
+                                    base::Unretained(&finished_event)));
+  // TODO(***REMOVED***): Implement timeout logic.
+  finished_event.Wait();
+  // Create a new WindowDriver using the same ID. Even though we've created a
+  // new Window and WindowDriver, it should appear as though the navigation
+  // happened within the same window.
+  window_driver_ = create_window_driver_callback_.Run(current_id);
+}
+
+protocol::WindowId SessionDriver::GetUniqueWindowId() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  std::string window_id = base::StringPrintf("window-%d", next_window_id_++);
+  return protocol::WindowId(window_id);
+}
 
 }  // namespace webdriver
 }  // namespace cobalt

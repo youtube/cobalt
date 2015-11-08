@@ -47,6 +47,8 @@ class WindowDriver {
   ElementDriver* GetElementDriver(const protocol::ElementId& element_id);
 
   protocol::Size GetWindowSize();
+  std::string GetCurrentUrl();
+  std::string GetTitle();
   ElementDriver* FindElement(const protocol::SearchStrategy& strategy);
 
  private:
@@ -56,6 +58,8 @@ class WindowDriver {
   protocol::ElementId GetUniqueElementId();
 
   protocol::Size GetWindowSizeInternal();
+  std::string GetCurrentUrlInternal();
+  std::string GetTitleInternal();
   base::WeakPtr<dom::Element> FindElementInternal(
       const protocol::SearchStrategy& strategy);
 

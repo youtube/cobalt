@@ -21,6 +21,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/webdriver/dispatcher.h"
+#include "cobalt/webdriver/protocol/element_id.h"
 #include "cobalt/webdriver/protocol/server_status.h"
 #include "cobalt/webdriver/protocol/session_id.h"
 #include "cobalt/webdriver/protocol/window_id.h"
@@ -28,6 +29,7 @@
 namespace cobalt {
 namespace webdriver {
 
+class ElementDriver;
 class SessionDriver;
 class WebDriverServer;
 class WindowDriver;
@@ -37,13 +39,25 @@ class WebDriverModule {
   typedef base::Callback<scoped_ptr<SessionDriver>(const protocol::SessionId&)>
       CreateSessionDriverCB;
   WebDriverModule(int server_port,
-                  const CreateSessionDriverCB& create_session_driver_cb);
+                  const CreateSessionDriverCB& create_session_driver_cb,
+                  const base::Closure& shutdown_cb);
   ~WebDriverModule();
 
  private:
-  SessionDriver* GetSession(const protocol::SessionId& session_id);
-  WindowDriver* GetWindow(SessionDriver* session,
-                          const protocol::WindowId& window_id);
+  // Helper functions to get the specified XXXDriver based on the
+  // path variables. If there is no mapping to the driver, an
+  // InvalidParameter response will be sent and NULL returned.
+  SessionDriver* GetSessionDriverOrReturnInvalidResponse(
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      WebDriverDispatcher::CommandResultHandler* result_handler);
+  WindowDriver* GetWindowDriverOrReturnInvalidResponse(
+      SessionDriver* session_driver,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      WebDriverDispatcher::CommandResultHandler* result_handler);
+  ElementDriver* GetElementDriverOrReturnInvalidResponse(
+      WindowDriver* window_driver,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      WebDriverDispatcher::CommandResultHandler* result_handler);
 
   void GetServerStatus(
       const base::Value* parameters,
@@ -61,6 +75,11 @@ class WebDriverModule {
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
       scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  void Shutdown(
+      const base::Value* parameters,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+
   void GetSessionCapabilities(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
@@ -77,6 +96,18 @@ class WebDriverModule {
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
       scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  void GetCurrentUrl(
+      const base::Value* parameters,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  void Navigate(
+      const base::Value* parameters,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  void GetTitle(
+      const base::Value* parameters,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
   void FindElement(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
@@ -90,6 +121,9 @@ class WebDriverModule {
 
   // Create a new WebDriver session through this callback.
   CreateSessionDriverCB create_session_driver_cb_;
+
+  // Callback to shut down the application.
+  base::Closure shutdown_cb_;
 
   // The WebDriver command dispatcher
   scoped_ptr<WebDriverDispatcher> webdriver_dispatcher_;
