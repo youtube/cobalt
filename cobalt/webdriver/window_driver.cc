@@ -22,6 +22,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_collection.h"
+#include "cobalt/dom/location.h"
 #include "cobalt/webdriver/util/call_on_message_loop.h"
 
 namespace cobalt {
@@ -45,6 +46,20 @@ protocol::Size WindowDriver::GetWindowSize() {
   return size;
 }
 
+std::string WindowDriver::GetCurrentUrl() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::CallOnMessageLoop(
+      window_message_loop_,
+      base::Bind(&WindowDriver::GetCurrentUrlInternal, base::Unretained(this)));
+}
+
+std::string WindowDriver::GetTitle() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::CallOnMessageLoop(
+      window_message_loop_,
+      base::Bind(&WindowDriver::GetTitleInternal, base::Unretained(this)));
+}
+
 ElementDriver* WindowDriver::FindElement(
     const protocol::SearchStrategy& strategy) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -65,6 +80,16 @@ protocol::Size WindowDriver::GetWindowSizeInternal() {
   float width = window_->outer_width();
   float height = window_->outer_height();
   return protocol::Size(width, height);
+}
+
+std::string WindowDriver::GetCurrentUrlInternal() {
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  return window_->location()->href();
+}
+
+std::string WindowDriver::GetTitleInternal() {
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  return window_->document()->title();
 }
 
 base::WeakPtr<dom::Element> WindowDriver::FindElementInternal(

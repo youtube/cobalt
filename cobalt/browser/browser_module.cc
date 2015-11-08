@@ -77,7 +77,7 @@ void OnNavigateMessage(BrowserModule* browser_module,
   GURL url(message);
   DLOG_IF(WARNING, !url.is_valid()) << "Invalid URL: " << message;
   if (url.is_valid()) {
-    browser_module->Navigate(url);
+    browser_module->Navigate(url, base::Closure());
   }
 }
 
@@ -164,23 +164,30 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
   // TODO(***REMOVED***) Render tree combiner should probably be refactored.
   render_tree_combiner_.set_render_debug_console(true);
 
-  NavigateInternal(url);
+  NavigateInternal(url, base::Closure());
 }
 
-void BrowserModule::Navigate(const GURL& url) {
+void BrowserModule::Navigate(const GURL& url,
+                             const base::Closure& loaded_callback) {
   // Always post this as a task in case this is being called from the WebModule.
   self_message_loop_->PostTask(
       FROM_HERE, base::Bind(&BrowserModule::NavigateInternal,
-                            base::Unretained(this), url));
+                            base::Unretained(this), url, loaded_callback));
 }
 
-void BrowserModule::NavigateInternal(const GURL& url) {
-  DCHECK(MessageLoop::current() == self_message_loop_);
+void BrowserModule::NavigateInternal(const GURL& url,
+                                     const base::Closure& loaded_callback) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
   // Reset it explicitly first, so we don't get a memory high-watermark after
   // the second WebModule's construtor runs, but before scoped_ptr::reset() is
   // run.
   web_module_.reset(NULL);
+
+  WebModule::Options options(web_module_options_);
+  if (!loaded_callback.is_null()) {
+    options.loaded_callbacks.push_back(loaded_callback);
+  }
 
   web_module_.reset(new WebModule(
       url,
@@ -189,7 +196,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       media_module_.get(), &network_module_,
       math::Size(kInitialWidth, kInitialHeight),
       renderer_module_.pipeline()->GetResourceProvider(),
-      renderer_module_.pipeline()->refresh_rate(), web_module_options_));
+      renderer_module_.pipeline()->refresh_rate(), options));
 
   h5vcc::H5vcc::Settings h5vcc_settings;
   h5vcc_settings.network_module = &network_module_;
@@ -202,7 +209,7 @@ void BrowserModule::Reload() {
       FROM_HERE, base::Bind(&BrowserModule::Reload, base::Unretained(this)));
     return;
   }
-  Navigate(web_module_->url());
+  Navigate(web_module_->url(), base::Closure());
 }
 
 BrowserModule::~BrowserModule() {}
@@ -355,6 +362,15 @@ bool BrowserModule::SetDebugConsoleModeFromCommandLine() {
 
   return false;
 }
+
+#if defined(ENABLE_WEBDRIVER)
+scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
+    const webdriver::protocol::SessionId& session_id) {
+  return make_scoped_ptr(new webdriver::SessionDriver(session_id,
+      base::Bind(&BrowserModule::Navigate, base::Unretained(this)),
+      base::Bind(&BrowserModule::CreateWindowDriver, base::Unretained(this))));
+}
+#endif
 
 }  // namespace browser
 }  // namespace cobalt
