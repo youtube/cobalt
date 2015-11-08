@@ -101,6 +101,18 @@ scoped_refptr<Element> Document::document_element() {
   return first_element_child();
 }
 
+std::string Document::title() const {
+  const char kTitleTag[] = "title";
+  if (head()) {
+    scoped_refptr<HTMLCollection> collection =
+        head()->GetElementsByTagName(kTitleTag);
+    if (collection->length() > 0) {
+      return collection->Item(0)->text_content().value_or("");
+    }
+  }
+  return "";
+}
+
 scoped_refptr<DOMImplementation> Document::implementation() {
   return implementation_;
 }
