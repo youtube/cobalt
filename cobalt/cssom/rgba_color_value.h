@@ -45,20 +45,44 @@ class PropertyValueVisitor;
 // See http://www.w3.org/TR/css3-color/#rgb-color for details.
 class RGBAColorValue : public PropertyValue {
  public:
-  explicit RGBAColorValue(uint32_t value) : value_(value) {}
+  // Basic color keywords:
+  //  http://www.w3.org/TR/css3-color/#html4
+  // Transparent keyword:
+  //  http://www.w3.org/TR/css3-color/#transparent-def
+  enum Keyword {
+    kAqua = 0x00FFFFFF,
+    kBlack = 0x000000FF,
+    kBlue = 0x0000FFFF,
+    kFuchsia = 0xFF00FFFF,
+    kGray = 0x808080FF,
+    kGreen = 0x008000FF,
+    kLime = 0x00FF00FF,
+    kMaroon = 0x800000FF,
+    kNavy = 0x000080FF,
+    kOlive = 0x808000FF,
+    kPurple = 0x800080FF,
+    kRed = 0xFF0000FF,
+    kSilver = 0xC0C0C0FF,
+    kTeal = 0x008080FF,
+    kTransparent = 0x00000000,
+    kWhite = 0xFFFFFFFF,
+    kYellow = 0xFFFF00FF,
+  };
 
-  RGBAColorValue(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
-      : value_(static_cast<uint32_t>(r << 24) | static_cast<uint32_t>(g << 16) |
-               static_cast<uint32_t>(b << 8) | static_cast<uint32_t>(a << 0)) {}
+  explicit RGBAColorValue(uint32 value) : value_(value) {}
+
+  RGBAColorValue(uint8 r, uint8 g, uint8 b, uint8 a)
+      : value_(static_cast<uint32>(r << 24) | static_cast<uint32>(g << 16) |
+               static_cast<uint32>(b << 8) | static_cast<uint32>(a << 0)) {}
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
-  uint32_t value() const { return value_; }
+  uint32 value() const { return value_; }
 
-  uint8_t r() const { return static_cast<uint8_t>((value_ >> 24) & 0xFF); }
-  uint8_t g() const { return static_cast<uint8_t>((value_ >> 16) & 0xFF); }
-  uint8_t b() const { return static_cast<uint8_t>((value_ >> 8) & 0xFF); }
-  uint8_t a() const { return static_cast<uint8_t>((value_ >> 0) & 0xFF); }
+  uint8 r() const { return static_cast<uint8>((value_ >> 24) & 0xFF); }
+  uint8 g() const { return static_cast<uint8>((value_ >> 16) & 0xFF); }
+  uint8 b() const { return static_cast<uint8>((value_ >> 8) & 0xFF); }
+  uint8 a() const { return static_cast<uint8>((value_ >> 0) & 0xFF); }
 
   std::string ToString() const OVERRIDE;
 
@@ -71,7 +95,7 @@ class RGBAColorValue : public PropertyValue {
  private:
   ~RGBAColorValue() OVERRIDE {}
 
-  const uint32_t value_;
+  const uint32 value_;
 
   DISALLOW_COPY_AND_ASSIGN(RGBAColorValue);
 };

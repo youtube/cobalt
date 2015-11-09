@@ -20,9 +20,12 @@ namespace cobalt {
 namespace cssom {
 
 const char kAbsoluteKeywordName[] = "absolute";
+const char kAquaKeywordName[] = "aqua";
 const char kAutoKeywordName[] = "auto";
 const char kBaselineKeywordName[] = "baseline";
+const char kBlackKeywordName[] = "black";
 const char kBlockKeywordName[] = "block";
+const char kBlueKeywordName[] = "blue";
 const char kBoldKeywordName[] = "bold";
 const char kBottomKeywordName[] = "bottom";
 const char kBreakWordKeywordName[] = "break-word";
@@ -39,6 +42,9 @@ const char kEllipsisKeywordName[] = "ellipsis";
 const char kEndKeywordName[] = "end";
 const char kFantasyKeywordName[] = "fantasy";
 const char kFixedKeywordName[] = "fixed";
+const char kFuchsiaKeywordName[] = "fuchsia";
+const char kGrayKeywordName[] = "gray";
+const char kGreenKeywordName[] = "green";
 const char kHiddenKeywordName[] = "hidden";
 const char kInheritKeywordName[] = "inherit";
 const char kInitialKeywordName[] = "initial";
@@ -46,15 +52,21 @@ const char kInlineBlockKeywordName[] = "inline-block";
 const char kInlineKeywordName[] = "inline";
 const char kItalicKeywordName[] = "italic";
 const char kLeftKeywordName[] = "left";
+const char kLimeKeywordName[] = "lime";
 const char kLinearKeywordName[] = "linear";
+const char kMaroonKeywordName[] = "maroon";
 const char kMiddleKeywordName[] = "middle";
 const char kMonospaceKeywordName[] = "monospace";
+const char kNavyKeywordName[] = "navy";
 const char kNoneKeywordName[] = "none";
 const char kNoRepeatKeywordName[] = "no-repeat";
 const char kNormalKeywordName[] = "normal";
 const char kNoWrapKeywordName[] = "nowrap";
 const char kObliqueKeywordName[] = "oblique";
+const char kOliveKeywordName[] = "olive";
 const char kPreKeywordName[] = "pre";
+const char kPurpleKeywordName[] = "purple";
+const char kRedKeywordName[] = "red";
 const char kRelativeKeywordName[] = "relative";
 const char kRepeatKeywordName[] = "repeat";
 const char kRepeatXKeywordName[] = "repeat-x";
@@ -62,14 +74,19 @@ const char kRepeatYKeywordName[] = "repeat-y";
 const char kRightKeywordName[] = "right";
 const char kSansSerifKeywordName[] = "sans-serif";
 const char kSerifKeywordName[] = "serif";
+const char kSilverKeywordName[] = "silver";
 const char kStartKeywordName[] = "start";
 const char kStaticKeywordName[] = "static";
 const char kStepEndKeywordName[] = "step-end";
 const char kStepStartKeywordName[] = "step-start";
+const char kTealKeywordName[] = "teal";
 const char kToKeywordName[] = "to";
 const char kTopKeywordName[] = "top";
+const char kTransparentKeywordName[] = "transparent";
 const char kUppercaseKeywordName[] = "uppercase";
 const char kVisibleKeywordName[] = "visible";
+const char kWhiteKeywordName[] = "white";
+const char kYellowKeywordName[] = "yellow";
 
 }  // namespace cssom
 }  // namespace cobalt

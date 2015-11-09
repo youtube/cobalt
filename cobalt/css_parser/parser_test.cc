@@ -1061,6 +1061,17 @@ TEST_F(ParserTest, ParsesBackgroundWithNoRepeatAndCenter) {
   EXPECT_EQ(cssom::KeywordValue::GetNoRepeat(), background_repeat->value()[1]);
 }
 
+TEST_F(ParserTest, ParsesBackgroundWithTransparent) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background: transparent;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x00000000, background_color->value());
+}
+
 TEST_F(ParserTest, ParsesBackgroundColor) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("background-color: #fff;",
@@ -1070,6 +1081,193 @@ TEST_F(ParserTest, ParsesBackgroundColor) {
       dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
   ASSERT_TRUE(background_color);
   EXPECT_EQ(0xffffffff, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordAqua) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: aqua;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x00FFFFFF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordBlack) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: black;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x000000FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordBlue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: blue;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x0000FFFF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordFuchsia) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: fuchsia;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0xFF00FFFF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordGray) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: gray;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x808080FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordGreen) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: green;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x008000FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordLime) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: lime;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x00FF00FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordMaroon) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: maroon;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x800000FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordNavy) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: navy;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x000080FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordOlive) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: olive;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x808000FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordPurple) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: purple;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x800080FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordRed) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: red;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0xFF0000FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordSilver) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: silver;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0xC0C0C0FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordTeal) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: teal;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x008080FF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordTransparent) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: transparent;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x00000000, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordWhite) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: white;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0xFFFFFFFF, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordYellow) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: yellow;",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0xFFFF00FF, background_color->value());
 }
 
 TEST_F(ParserTest, ParsesBackgroundImageNone) {
