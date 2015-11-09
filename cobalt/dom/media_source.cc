@@ -266,7 +266,7 @@ void MediaSource::ScheduleEvent(const std::string& event_name) {
 scoped_refptr<TimeRanges> MediaSource::GetBuffered(
     const SourceBuffer* source_buffer,
     script::ExceptionState* exception_state) {
-  if (!player_ || ready_state_ != kReadyStateOpen) {
+  if (!player_ || ready_state_ == kReadyStateClosed) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     // Return value should be ignored.
     return NULL;
@@ -286,7 +286,7 @@ scoped_refptr<TimeRanges> MediaSource::GetBuffered(
 bool MediaSource::SetTimestampOffset(const SourceBuffer* source_buffer,
                                      double timestamp_offset,
                                      script::ExceptionState* exception_state) {
-  if (!player_ || ready_state_ != kReadyStateOpen) {
+  if (!player_ || ready_state_ == kReadyStateClosed) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     // Return value should be ignored.
     return false;
