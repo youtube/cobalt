@@ -469,7 +469,11 @@ void SetMinLogLevel(int level) {
 }
 
 int GetMinLogLevel() {
+#if LOGGING_IS_OFFICIAL_BUILD
+  return LOG_FATAL;
+#else
   return min_log_level;
+#endif
 }
 
 int GetVlogVerbosity() {
