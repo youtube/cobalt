@@ -56,14 +56,26 @@ class BrowserModule {
 
   const std::string& GetUserAgent() { return network_module_.user_agent(); }
 
+  // Requests navigation to the specified URL. The current WebModule will be
+  // destroyed and replaced with a new one.
+  void Navigate(const GURL& url);
+
+  // Reloads the current URL. The current WebModule will be
+  // destroyed and replaced with a new one.
+  void Reload();
+
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::SessionDriver> CreateSessionDriver(
       const webdriver::protocol::SessionId& session_id) {
-    return web_module_.CreateSessionDriver(session_id);
+    return web_module_->CreateSessionDriver(session_id);
   }
 #endif
 
  private:
+  // Internal Navigate function. Replaces the current WebModule with a new
+  // one that is displaying the specified URL.
+  void NavigateInternal(const GURL& url);
+
   // Glue function to deal with the production of the main render tree,
   // and will manage handing it off to the renderer.
   void OnRenderTreeProduced(
@@ -77,6 +89,12 @@ class BrowserModule {
   // Sets the debug console mode if specified on the command-line.
   // Returns true if the debug console mode was set, false otherwise.
   bool SetDebugConsoleModeFromCommandLine();
+
+  // Calls the ExecuteJavascript for the current WebModule.
+  std::string ExecuteJavascript(const std::string& script_utf8,
+                                const base::SourceLocation& script_location) {
+    return web_module_->ExecuteJavascript(script_utf8, script_location);
+  }
 
   // Saves/loads the debug console mode to/from local storage so we can
   // persist the user's preference.
@@ -130,7 +148,7 @@ class BrowserModule {
   // parsing the web page and all referenced files to laying it out.  The
   // web module will ultimately produce a render tree that can be passed
   // into the renderer module.
-  WebModule web_module_;
+  scoped_ptr<WebModule> web_module_;
 
   // Manages debug communication with the web modules.
   scoped_refptr<debug::DebugHub> debug_hub_;
@@ -151,6 +169,15 @@ class BrowserModule {
 
   // Command handler object for trace commands from the debug console.
   base::ConsoleCommandManager::CommandHandler trace_command_handler_;
+
+  // Command handler object for navigate command from the debug console.
+  base::ConsoleCommandManager::CommandHandler navigate_command_handler_;
+
+  // Command handler object for reload command from the debug console.
+  base::ConsoleCommandManager::CommandHandler reload_command_handler_;
+
+  // WebModule options.
+  WebModule::Options web_module_options_;
 };
 
 }  // namespace browser
