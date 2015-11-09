@@ -1542,14 +1542,26 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kPreToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kRedKeywordName)) {
+        *property_value_token = kRedToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kTopKeywordName)) {
         *property_value_token = kTopToken;
         return true;
       }
       return false;
     case 4:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kAquaKeywordName)) {
+        *property_value_token = kAquaToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kAutoKeywordName)) {
         *property_value_token = kAutoToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kBlueKeywordName)) {
+        *property_value_token = kBlueToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kBoldKeywordName)) {
@@ -1564,6 +1576,14 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kEaseToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kGrayKeywordName)) {
+        *property_value_token = kGrayToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kNavyKeywordName)) {
+        *property_value_token = kNavyToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kNoneKeywordName)) {
         *property_value_token = kNoneToken;
         return true;
@@ -1572,9 +1592,21 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kLeftToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kLimeKeywordName)) {
+        *property_value_token = kLimeToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kTealKeywordName)) {
+        *property_value_token = kTealToken;
+        return true;
+      }
       return false;
 
     case 5:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kBlackKeywordName)) {
+        *property_value_token = kBlackToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kBlockKeywordName)) {
         *property_value_token = kBlockToken;
         return true;
@@ -1587,6 +1619,14 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kFixedToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kGreenKeywordName)) {
+        *property_value_token = kGreenToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kOliveKeywordName)) {
+        *property_value_token = kOliveToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kRightKeywordName)) {
         *property_value_token = kRightToken;
         return true;
@@ -1597,6 +1637,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kStartKeywordName)) {
         *property_value_token = kStartToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kWhiteKeywordName)) {
+        *property_value_token = kWhiteToken;
         return true;
       }
       return false;
@@ -1626,6 +1670,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kLinearToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMaroonKeywordName)) {
+        *property_value_token = kMaroonToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kMiddleKeywordName)) {
         *property_value_token = kMiddleToken;
         return true;
@@ -1638,12 +1686,24 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kNoWrapToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kPurpleKeywordName)) {
+        *property_value_token = kPurpleToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kRepeatKeywordName)) {
         *property_value_token = kRepeatToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kSilverKeywordName)) {
+        *property_value_token = kSilverToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kStaticKeywordName)) {
         *property_value_token = kStaticToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kYellowKeywordName)) {
+        *property_value_token = kYellowToken;
         return true;
       }
       return false;
@@ -1663,6 +1723,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kFantasyKeywordName)) {
         *property_value_token = kFantasyToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFuchsiaKeywordName)) {
+        *property_value_token = kFuchsiaToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kInheritKeywordName)) {
@@ -1753,6 +1817,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kEaseInOutToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kTransparentKeywordName)) {
+        *property_value_token = kTransparentToken;
+        return true;
+      }
       return false;
 
     case 12:
@@ -1764,7 +1832,7 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
   }
 
   return false;
-}
+}  // NOLINT(readability/fn_size)
 
 // WARNING: every time a new value token is introduced, it should be added
 //          to |identifier_token| rule in grammar.y.

@@ -134,9 +134,12 @@
 // WARNING: Every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kAbsoluteToken                   // absolute
+%token kAquaToken                       // aqua
 %token kAutoToken                       // auto
 %token kBaselineToken                   // baseline
+%token kBlackToken                      // black
 %token kBlockToken                      // block
+%token kBlueToken                       // blue
 %token kBoldToken                       // bold
 %token kBreakWordToken                  // break-word
 %token kCenterToken                     // center
@@ -152,22 +155,31 @@
 %token kEndToken                        // end
 %token kFantasyToken                    // fantasy
 %token kFixedToken                      // fixed
+%token kFuchsiaToken                    // fuchsia
+%token kGrayToken                       // gray
+%token kGreenToken                      // green
 %token kHiddenToken                     // hidden
 %token kInheritToken                    // inherit
 %token kInitialToken                    // initial
 %token kInlineBlockToken                // inline-block
 %token kInlineToken                     // inline
 %token kItalicToken                     // italic
+%token kLimeToken                       // lime
 %token kLinearToken                     // linear
 // %token kLeftToken                    // left - also property name token
+%token kMaroonToken                     // maroon
 %token kMiddleToken                     // middle
 %token kMonospaceToken                  // monospace
+%token kNavyToken                       // navy
 %token kNoneToken                       // none
 %token kNoRepeatToken                   // no-repeat
 %token kNormalToken                     // normal
 %token kNoWrapToken                     // nowrap
 %token kObliqueToken                    // oblique
+%token kOliveToken                      // olive
 %token kPreToken                        // pre
+%token kPurpleToken                     // purple
+%token kRedToken                        // red
 %token kRepeatToken                     // repeat
 %token kRepeatXToken                    // repeat-x
 %token kRepeatYToken                    // repeat-y
@@ -175,14 +187,19 @@
 // %token kRightToken                   // right - also property name token
 %token kSansSerifToken                  // sans-serif
 %token kSerifToken                      // serif
+%token kSilverToken                     // silver
 %token kStartToken                      // start
 %token kStaticToken                     // static
 %token kStepEndToken                    // step-end
 %token kStepStartToken                  // step-start
+%token kTealToken                       // teal
 %token kToToken                         // to
 // %token kTopToken                     // top - also property name token
+%token kTransparentToken                // transparent
 %token kUppercaseToken                  // uppercase
 %token kVisibleToken                    // visible
+%token kWhiteToken                      // white
+%token kYellowToken                     // yellow
 
 // Pseudo-class name tokens.
 // WARNING: Every time a new name token is introduced, it should be added
@@ -963,9 +980,6 @@ identifier_token:
   | kAllToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kAllProperty));
   }
-  | kBackgroundToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundProperty));
-  }
   | kBackgroundColorToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundColorProperty));
   }
@@ -981,6 +995,9 @@ identifier_token:
   }
   | kBackgroundSizeToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundSizeProperty));
+  }
+  | kBackgroundToken {
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundProperty));
   }
   | kBorderRadiusToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBorderRadiusProperty));
@@ -1024,11 +1041,11 @@ identifier_token:
   | kMarginRightToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginRightProperty));
   }
-  | kMarginTopToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginTopProperty));
-  }
   | kMarginToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginProperty));
+  }
+  | kMarginTopToken {
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginTopProperty));
   }
   | kMaxHeightToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMaxHeightProperty));
@@ -1060,11 +1077,11 @@ identifier_token:
   | kPaddingRightToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingRightProperty));
   }
-  | kPaddingTopToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingTopProperty));
-  }
   | kPaddingToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingProperty));
+  }
+  | kPaddingTopToken {
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingTopProperty));
   }
   | kPositionToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPositionProperty));
@@ -1096,10 +1113,6 @@ identifier_token:
   | kTransformToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransformProperty));
   }
-  | kTransitionToken {
-    $$ =
-        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionProperty));
-  }
   | kTransitionDelayToken {
     $$ =
         TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionDelayProperty));
@@ -1115,6 +1128,10 @@ identifier_token:
   | kTransitionTimingFunctionToken {
     $$ = TrivialStringPiece::FromCString(
              cssom::GetPropertyName(cssom::kTransitionTimingFunctionProperty));
+  }
+  | kTransitionToken {
+    $$ =
+        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionProperty));
   }
   | kUnicodeRangePropertyToken {
     $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kUnicodeRangeProperty));
@@ -1138,11 +1155,23 @@ identifier_token:
   | kAbsoluteToken {
     $$ = TrivialStringPiece::FromCString(cssom::kAbsoluteKeywordName);
   }
+  | kAquaToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kAquaKeywordName);
+  }
   | kAutoToken {
     $$ = TrivialStringPiece::FromCString(cssom::kAutoKeywordName);
   }
+  | kBaselineToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBaselineKeywordName);
+  }
+  | kBlackToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBlackKeywordName);
+  }
   | kBlockToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBlockKeywordName);
+  }
+  | kBlueToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBlueKeywordName);
   }
   | kBoldToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBoldKeywordName);
@@ -1165,17 +1194,20 @@ identifier_token:
   | kCursiveToken {
     $$ = TrivialStringPiece::FromCString(cssom::kCursiveKeywordName);
   }
-  | kEaseToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kEaseKeywordName);
+  | kEaseInOutToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEaseInOutKeywordName);
   }
   | kEaseInToken {
     $$ = TrivialStringPiece::FromCString(cssom::kEaseInKeywordName);
   }
-  | kEaseInOutToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kEaseInOutKeywordName);
-  }
   | kEaseOutToken {
     $$ = TrivialStringPiece::FromCString(cssom::kEaseOutKeywordName);
+  }
+  | kEaseToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEaseKeywordName);
+  }
+  | kEllipsisToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEllipsisKeywordName);
   }
   | kEndToken {
     $$ = TrivialStringPiece::FromCString(cssom::kEndKeywordName);
@@ -1186,32 +1218,50 @@ identifier_token:
   | kFixedToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFixedKeywordName);
   }
+  | kFuchsiaToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFuchsiaKeywordName);
+  }
+  | kGrayToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kGrayKeywordName);
+  }
+  | kGreenToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kGreenKeywordName);
+  }
   | kHiddenToken {
     $$ = TrivialStringPiece::FromCString(cssom::kHiddenKeywordName);
   }
   | kInheritToken {
     $$ = TrivialStringPiece::FromCString(cssom::kInheritKeywordName);
   }
-  | kInlineToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kInlineKeywordName);
+  | kInitialToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kInitialKeywordName);
   }
   | kInlineBlockToken {
     $$ = TrivialStringPiece::FromCString(cssom::kInlineBlockKeywordName);
   }
-  | kInitialToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kInitialKeywordName);
+  | kInlineToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kInlineKeywordName);
   }
   | kItalicToken {
     $$ = TrivialStringPiece::FromCString(cssom::kItalicKeywordName);
   }
+  | kLimeToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kLimeKeywordName);
+  }
   | kLinearToken {
     $$ = TrivialStringPiece::FromCString(cssom::kLinearKeywordName);
+  }
+  | kMaroonToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMaroonKeywordName);
   }
   | kMiddleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kMiddleKeywordName);
   }
   | kMonospaceToken {
     $$ = TrivialStringPiece::FromCString(cssom::kMonospaceKeywordName);
+  }
+  | kNavyToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kNavyKeywordName);
   }
   | kNoneToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNoneKeywordName);
@@ -1225,11 +1275,20 @@ identifier_token:
   | kNoWrapToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNoWrapKeywordName);
   }
+  | kObliqueToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kObliqueKeywordName);
+  }
+  | kOliveToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kOliveKeywordName);
+  }
   | kPreToken {
     $$ = TrivialStringPiece::FromCString(cssom::kPreKeywordName);
   }
-  | kObliqueToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kObliqueKeywordName);
+  | kPurpleToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kPurpleKeywordName);
+  }
+  | kRedToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kRedKeywordName);
   }
   | kRepeatToken {
     $$ = TrivialStringPiece::FromCString(cssom::kRepeatKeywordName);
@@ -1249,6 +1308,9 @@ identifier_token:
   | kSerifToken {
     $$ = TrivialStringPiece::FromCString(cssom::kSerifKeywordName);
   }
+  | kSilverToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kSilverKeywordName);
+  }
   | kStartToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStartKeywordName);
   }
@@ -1261,6 +1323,9 @@ identifier_token:
   | kStepStartToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStepStartKeywordName);
   }
+  | kTealToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kTealKeywordName);
+  }
   | kToToken {
     $$ = TrivialStringPiece::FromCString(cssom::kToKeywordName);
   }
@@ -1268,11 +1333,20 @@ identifier_token:
   //| kTopToken {
   //  $$ = TrivialStringPiece::FromCString(cssom::kTopKeywordName);
   //}
+  | kTransparentToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kTransparentKeywordName);
+  }
   | kUppercaseToken {
     $$ = TrivialStringPiece::FromCString(cssom::kUppercaseKeywordName);
   }
   | kVisibleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kVisibleKeywordName);
+  }
+  | kWhiteToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kWhiteKeywordName);
+  }
+  | kYellowToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kYellowKeywordName);
   }
   // Pseudo-class names.
   | kActiveToken {
@@ -1831,10 +1905,10 @@ color:
       // The three-digit RGB notation (#rgb) is converted into six-digit
       // form (#rrggbb) by replicating digits.
       case 3: {
-        uint32_t rgb = ParseHexToken($1);
-        uint32_t r = (rgb & 0xf00) >> 8;
-        uint32_t g = (rgb & 0x0f0) >> 4;
-        uint32_t b = (rgb & 0x00f);
+        uint32 rgb = ParseHexToken($1);
+        uint32 r = (rgb & 0xf00) >> 8;
+        uint32 g = (rgb & 0x0f0) >> 4;
+        uint32 b = (rgb & 0x00f);
         $$ = AddRef(new cssom::RGBAColorValue((r << 28) | (r << 24) |
                                               (g << 20) | (g << 16) |
                                               (b << 12) | (b << 8) |
@@ -1842,7 +1916,7 @@ color:
         break;
       }
       case 6: {
-        uint32_t rgb = ParseHexToken($1);
+        uint32 rgb = ParseHexToken($1);
         $$ = AddRef(new cssom::RGBAColorValue((rgb << 8) | 0xff));
         break;
       }
@@ -1856,21 +1930,72 @@ color:
   //   http://www.w3.org/TR/css3-color/#rgb-color
   | kRGBFunctionToken maybe_whitespace integer comma
       integer comma integer ')' maybe_whitespace {
-    uint8_t r = static_cast<uint8_t>(ClampToRange(0, 255, $3));
-    uint8_t g = static_cast<uint8_t>(ClampToRange(0, 255, $5));
-    uint8_t b = static_cast<uint8_t>(ClampToRange(0, 255, $7));
+    uint8 r = static_cast<uint8>(ClampToRange(0, 255, $3));
+    uint8 g = static_cast<uint8>(ClampToRange(0, 255, $5));
+    uint8 b = static_cast<uint8>(ClampToRange(0, 255, $7));
     $$ = AddRef(new cssom::RGBAColorValue(r, g, b, 0xff));
   }
   // RGB color model with opacity.
   //   http://www.w3.org/TR/css3-color/#rgba-color
   | kRGBAFunctionToken maybe_whitespace integer comma integer comma integer
       comma alpha ')' maybe_whitespace {
-    uint8_t r = static_cast<uint8_t>(ClampToRange(0, 255, $3));
-    uint8_t g = static_cast<uint8_t>(ClampToRange(0, 255, $5));
-    uint8_t b = static_cast<uint8_t>(ClampToRange(0, 255, $7));
+    uint8 r = static_cast<uint8>(ClampToRange(0, 255, $3));
+    uint8 g = static_cast<uint8>(ClampToRange(0, 255, $5));
+    uint8 b = static_cast<uint8>(ClampToRange(0, 255, $7));
     float a = $9;  // Already clamped.
     $$ = AddRef(
-        new cssom::RGBAColorValue(r, g, b, static_cast<uint8_t>(a * 0xff)));
+        new cssom::RGBAColorValue(r, g, b, static_cast<uint8>(a * 0xff)));
+  }
+  | kAquaToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kAqua));
+  }
+  | kBlackToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kBlack));
+  }
+  | kBlueToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kBlue));
+  }
+  | kFuchsiaToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kFuchsia));
+  }
+  | kGrayToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kGray));
+  }
+  | kGreenToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kGreen));
+  }
+  | kLimeToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kLime));
+  }
+  | kMaroonToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kMaroon));
+  }
+  | kNavyToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kNavy));
+  }
+  | kOliveToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kOlive));
+  }
+  | kPurpleToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kPurple));
+  }
+  | kRedToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kRed));
+  }
+  | kSilverToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kSilver));
+  }
+  | kTealToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kTeal));
+  }
+  | kTransparentToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kTransparent));
+  }
+  | kWhiteToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kWhite));
+  }
+  | kYellowToken maybe_whitespace {
+    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kYellow));
   }
   ;
 
