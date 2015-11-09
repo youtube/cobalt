@@ -22,9 +22,12 @@ namespace cssom {
 
 // Lower-case names of CSS keywords used as property values.
 extern const char kAbsoluteKeywordName[];
+extern const char kAquaKeywordName[];
 extern const char kAutoKeywordName[];
 extern const char kBaselineKeywordName[];
+extern const char kBlackKeywordName[];
 extern const char kBlockKeywordName[];
+extern const char kBlueKeywordName[];
 extern const char kBoldKeywordName[];
 extern const char kBottomKeywordName[];
 extern const char kBreakWordKeywordName[];
@@ -41,6 +44,9 @@ extern const char kEllipsisKeywordName[];
 extern const char kEndKeywordName[];
 extern const char kFantasyKeywordName[];
 extern const char kFixedKeywordName[];
+extern const char kFuchsiaKeywordName[];
+extern const char kGrayKeywordName[];
+extern const char kGreenKeywordName[];
 extern const char kHiddenKeywordName[];
 extern const char kInheritKeywordName[];
 extern const char kInitialKeywordName[];
@@ -48,15 +54,21 @@ extern const char kInlineBlockKeywordName[];
 extern const char kInlineKeywordName[];
 extern const char kItalicKeywordName[];
 extern const char kLeftKeywordName[];
+extern const char kLimeKeywordName[];
 extern const char kLinearKeywordName[];
+extern const char kMaroonKeywordName[];
 extern const char kMiddleKeywordName[];
 extern const char kMonospaceKeywordName[];
+extern const char kNavyKeywordName[];
 extern const char kNoneKeywordName[];
 extern const char kNoRepeatKeywordName[];
 extern const char kNormalKeywordName[];
 extern const char kNoWrapKeywordName[];
-extern const char kPreKeywordName[];
 extern const char kObliqueKeywordName[];
+extern const char kOliveKeywordName[];
+extern const char kPreKeywordName[];
+extern const char kPurpleKeywordName[];
+extern const char kRedKeywordName[];
 extern const char kRelativeKeywordName[];
 extern const char kRepeatKeywordName[];
 extern const char kRepeatXKeywordName[];
@@ -64,14 +76,19 @@ extern const char kRepeatYKeywordName[];
 extern const char kRightKeywordName[];
 extern const char kSansSerifKeywordName[];
 extern const char kSerifKeywordName[];
+extern const char kSilverKeywordName[];
 extern const char kStartKeywordName[];
 extern const char kStaticKeywordName[];
 extern const char kStepEndKeywordName[];
 extern const char kStepStartKeywordName[];
+extern const char kTealKeywordName[];
 extern const char kToKeywordName[];
 extern const char kTopKeywordName[];
+extern const char kTransparentKeywordName[];
 extern const char kUppercaseKeywordName[];
 extern const char kVisibleKeywordName[];
+extern const char kWhiteKeywordName[];
+extern const char kYellowKeywordName[];
 
 }  // namespace cssom
 }  // namespace cobalt
