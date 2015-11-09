@@ -104,7 +104,8 @@ WebModule::WebModule(
           javascript_engine_.get(), global_object_proxy_.get())),
       layout_manager_(window_.get(), resource_provider,
                       render_tree_produced_callback, css_parser_.get(),
-                      options.layout_trigger, layout_refresh_rate) {
+                      options.layout_trigger, layout_refresh_rate),
+      url_(initial_url) {
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
   window_->set_debug_hub(options.debug_hub);

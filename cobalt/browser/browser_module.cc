@@ -42,17 +42,50 @@ const char kInitialDebugConsoleUrl[] =
 // Name of the channel to listen for trace commands from the debug console.
 const char kTraceCommandChannel[] = "trace";
 
-// Help strings for the trace command channel
+// Help strings for the trace command channel.
 const char kTraceCommandShortHelp[] = "Starts/stops execution tracing.";
 const char kTraceCommandLongHelp[] =
     "Starts/stops execution tracing.\n"
     "If a trace is currently running, stops it and saves the result; "
     "otherwise starts a new trace.";
 
+// Command to navigate to a URL.
+const char kNavigateCommand[] = "navigate";
+
+// Help strings for the navigate command.
+const char kNavigateCommandShortHelp[] = "Navigates to URL.";
+const char kNavigateCommandLongHelp[] =
+    "Destroys the current document and window and creates a new one in its "
+    "place that displays the specified URL.";
+
+// Command to reload the current URL.
+const char kReloadCommand[] = "reload";
+
+// Help strings for the navigate command.
+const char kReloadCommandShortHelp[] = "Reloads the current URL.";
+const char kReloadCommandLongHelp[] =
+    "Destroys the current document and window and creates a new one in its "
+    "place that displays the current URL.";
+
 #if defined(ENABLE_DEBUG_CONSOLE)
 // Local storage key for the debug console mode.
 const char kDebugConsoleModeKey[] = "debugConsole.mode";
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+void OnNavigateMessage(BrowserModule* browser_module,
+                       const std::string& message) {
+  GURL url(message);
+  DLOG_IF(WARNING, !url.is_valid()) << "Invalid URL: " << message;
+  if (url.is_valid()) {
+    browser_module->Navigate(url);
+  }
+}
+
+void OnReloadMessage(BrowserModule* browser_module,
+                     const std::string& message) {
+  UNREFERENCED_PARAMETER(message);
+  browser_module->Reload();
+}
 }  // namespace
 
 BrowserModule::BrowserModule(const GURL& url, const Options& options)
@@ -64,17 +97,8 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_, options.language),
       render_tree_combiner_(renderer_module_.pipeline()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(web_module_(
-          url, base::Bind(&BrowserModule::OnRenderTreeProduced,
-                          base::Unretained(this)),
-          base::Bind(&BrowserModule::OnError, base::Unretained(this)),
-          media_module_.get(), &network_module_,
-          math::Size(kInitialWidth, kInitialHeight),
-          renderer_module_.pipeline()->GetResourceProvider(),
-          renderer_module_.pipeline()->refresh_rate(),
-          options.web_module_options)),
-      debug_hub_(new debug::DebugHub(base::Bind(
-          &WebModule::ExecuteJavascript, base::Unretained(&web_module_)))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(debug_hub_(new debug::DebugHub(base::Bind(
+          &BrowserModule::ExecuteJavascript, base::Unretained(this))))),
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
           GURL(kInitialDebugConsoleUrl),
           base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
@@ -89,7 +113,15 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
       ALLOW_THIS_IN_INITIALIZER_LIST(trace_command_handler_(
           kTraceCommandChannel,
           base::Bind(&BrowserModule::OnTraceMessage, base::Unretained(this)),
-          kTraceCommandShortHelp, kTraceCommandLongHelp)) {
+          kTraceCommandShortHelp, kTraceCommandLongHelp)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(navigate_command_handler_(
+          kNavigateCommand,
+          base::Bind(&OnNavigateMessage, base::Unretained(this)),
+          kNavigateCommandShortHelp, kNavigateCommandLongHelp)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(reload_command_handler_(
+          kReloadCommand, base::Bind(&OnReloadMessage, base::Unretained(this)),
+          kReloadCommandShortHelp, kReloadCommandLongHelp)),
+      web_module_options_(options.web_module_options) {
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
@@ -128,9 +160,45 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
   // TODO(***REMOVED***) Render tree combiner should probably be refactored.
   render_tree_combiner_.set_render_debug_console(true);
 
+  NavigateInternal(url);
+}
+
+void BrowserModule::Navigate(const GURL& url) {
+  // Always post this as a task in case this is being called from the WebModule.
+  self_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&BrowserModule::NavigateInternal,
+                            base::Unretained(this), url));
+}
+
+void BrowserModule::NavigateInternal(const GURL& url) {
+  DCHECK(MessageLoop::current() == self_message_loop_);
+
+  // Reset it explicitly first, so we don't get a memory high-watermark after
+  // the second WebModule's construtor runs, but before scoped_ptr::reset() is
+  // run.
+  web_module_.reset(NULL);
+
+  web_module_.reset(new WebModule(
+      url,
+      base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
+      base::Bind(&BrowserModule::OnError, base::Unretained(this)),
+      media_module_.get(), &network_module_,
+      math::Size(kInitialWidth, kInitialHeight),
+      renderer_module_.pipeline()->GetResourceProvider(),
+      renderer_module_.pipeline()->refresh_rate(), web_module_options_));
+
   h5vcc::H5vcc::Settings h5vcc_settings;
   h5vcc_settings.network_module = &network_module_;
-  web_module_.window()->set_h5vcc(new h5vcc::H5vcc(h5vcc_settings));
+  web_module_->window()->set_h5vcc(new h5vcc::H5vcc(h5vcc_settings));
+}
+
+void BrowserModule::Reload() {
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&BrowserModule::Reload, base::Unretained(this)));
+    return;
+  }
+  Navigate(web_module_->url());
 }
 
 BrowserModule::~BrowserModule() {}
@@ -167,7 +235,7 @@ void BrowserModule::OnKeyEventProduced(
   // Filter the key event and inject into the web module if it wasn't
   // processed anywhere else.
   if (FilterKeyEvent(event)) {
-    web_module_.InjectEvent(event);
+    web_module_->InjectEvent(event);
   }
 }
 
