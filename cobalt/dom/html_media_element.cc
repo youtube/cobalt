@@ -1242,16 +1242,6 @@ void HTMLMediaElement::DurationChanged() {
   EndProcessingMediaPlayerCallback();
 }
 
-void HTMLMediaElement::RateChanged() {
-  // TODO(***REMOVED***): Remove mediaPlayerRateChanged.
-  NOTREACHED();
-}
-
-void HTMLMediaElement::SizeChanged() {
-  // TODO(***REMOVED***): Remove mediaPlayerSizeChanged.
-  NOTREACHED();
-}
-
 void HTMLMediaElement::PlaybackStateChanged() {
   if (!player_) {
     return;
