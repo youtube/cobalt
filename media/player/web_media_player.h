@@ -210,8 +210,6 @@ class WebMediaPlayerClient {
   virtual void ReadyStateChanged() = 0;
   virtual void TimeChanged() = 0;
   virtual void DurationChanged() = 0;
-  virtual void RateChanged() = 0;
-  virtual void SizeChanged() = 0;
   virtual void PlaybackStateChanged() = 0;
   virtual void Repaint() = 0;
   // TODO(***REMOVED***) : Revisit the necessity of the following function.
