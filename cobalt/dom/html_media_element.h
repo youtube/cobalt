@@ -207,8 +207,6 @@ class HTMLMediaElement : public HTMLElement,
   void ReadyStateChanged() OVERRIDE;
   void TimeChanged() OVERRIDE;
   void DurationChanged() OVERRIDE;
-  void RateChanged() OVERRIDE;
-  void SizeChanged() OVERRIDE;
   void PlaybackStateChanged() OVERRIDE;
   void Repaint() OVERRIDE;
   void SawUnsupportedTracks() OVERRIDE;
