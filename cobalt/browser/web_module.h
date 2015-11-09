@@ -106,7 +106,12 @@ class WebModule {
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location);
 
+  // TODO(***REMOVED***): Window should not be exposed through WebModule in this way as
+  // it may not be thread-safe.
   scoped_refptr<dom::Window> window() const { return window_; }
+
+  // Returns the URL of the current Document. This getter is threadsafe.
+  GURL url() const { return url_; }
 
   // Methods to get and set items in the local storage of this web module.
   std::string GetItemInLocalStorage(const std::string& key);
@@ -191,6 +196,9 @@ class WebModule {
 
   // Triggers layout whenever the document changes.
   layout::LayoutManager layout_manager_;
+
+  // URL for the current document.
+  const GURL url_;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   // Handles the 'partial_layout' command.
