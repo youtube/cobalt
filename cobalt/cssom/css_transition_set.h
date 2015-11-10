@@ -79,12 +79,6 @@ class TransitionSet {
   // Returns true if there are no animations in this animation set.
   bool empty() const { return transitions_.IsEmpty(); }
 
-  // Given a time and a target style, animates all properties found to be
-  // transitioning by this TransitionSet.  Non-animated properties are not
-  // adjusted on the target style.
-  void ApplyTransitions(const base::TimeDelta& current_time,
-                        CSSStyleDeclarationData* target_style) const;
-
  private:
   void UpdateTransitionForProperty(
       PropertyKey property, const base::TimeDelta& current_time,
@@ -111,9 +105,10 @@ class TransitionSet {
     // already exist in the map.
     void RemoveTransitionForProperty(PropertyKey property);
 
-   private:
     typedef std::map<PropertyKey, Transition> InternalTransitionMap;
+    const InternalTransitionMap& GetInternalMap() const { return transitions_; }
 
+   private:
     EventHandler* event_handler_;
     InternalTransitionMap transitions_;
   };

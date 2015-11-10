@@ -18,7 +18,6 @@
 
 #include "base/time.h"
 #include "cobalt/cssom/absolute_url_value.h"
-#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
@@ -30,6 +29,7 @@
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
@@ -144,12 +144,12 @@ TEST(PropertyValueToStringTest, PropertyListValue) {
   EXPECT_EQ(property->ToString(), "50%, 128px");
 }
 
-TEST(PropertyValueToStringTest, PropertyNameListValue) {
-  ConstStringListValue::Builder property_list;
-  property_list.push_back(GetPropertyName(kBackgroundColorProperty));
-  property_list.push_back(GetPropertyName(kOpacityProperty));
-  scoped_refptr<ConstStringListValue> property(new ConstStringListValue(
-      make_scoped_ptr(new ConstStringListValue::Builder(property_list))));
+TEST(PropertyValueToStringTest, PropertyKeyListValue) {
+  PropertyKeyListValue::Builder property_list;
+  property_list.push_back(kBackgroundColorProperty);
+  property_list.push_back(kOpacityProperty);
+  scoped_refptr<PropertyKeyListValue> property(new PropertyKeyListValue(
+      make_scoped_ptr(new PropertyKeyListValue::Builder(property_list))));
 
   EXPECT_EQ(property->ToString(), "background-color, opacity");
 }
