@@ -18,7 +18,7 @@
 #define CSS_PARSER_TRANSITION_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 
 #include "base/optional.h"
-#include "cobalt/cssom/css_property_definitions.h"
+#include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function_list_value.h"

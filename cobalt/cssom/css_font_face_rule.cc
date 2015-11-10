@@ -22,9 +22,9 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_declaration_util.h"
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/style_sheet_list.h"
 
 namespace cobalt {
