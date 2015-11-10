@@ -633,7 +633,6 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 
   UpdateVolume();
 
-  // TODO(***REMOVED***): deal with load error.
   if (url.is_empty()) {
     return;
   }
@@ -646,8 +645,6 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
                                  html_element_context()->fetcher_factory()),
                              WebMediaPlayer::kCORSModeUnspecified);
   }
-  // if (!player_->Load(url, WebMediaPlayer::kCORSModeUnspecified))
-  //   MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError);
 }
 
 void HTMLMediaElement::ClearMediaPlayer() {
