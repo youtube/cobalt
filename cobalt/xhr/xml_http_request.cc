@@ -120,6 +120,11 @@ void XMLHttpRequest::Abort() {
     HandleRequestError(kAbortError);
   }
   ChangeState(kUnsent);
+  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
+  // Clear response_body_ as any attempt to retrieve response data in UNSENT
+  // should receive empty data.  Use swap() instead of clear() so the memory
+  // allocated by response_body_ will be freed.
+  std::vector<uint8>().swap(response_body_);
 }
 
 // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-open()-method
@@ -166,7 +171,10 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
   sent_ = false;
   stop_timeout_ = false;
 
-  response_body_.clear();
+  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
+  // Use swap() instead of clear() so the memory allocated by response_body_
+  // will be freed.
+  std::vector<uint8>().swap(response_body_);
   request_headers_.Clear();
 
   // Check previous state to avoid dispatching readyState event when calling
@@ -450,7 +458,9 @@ void XMLHttpRequest::OnReceived(loader::Fetcher* fetcher, const char* data,
                                 size_t size) {
   DCHECK(thread_checker_.CalledOnValidThread());
   UNREFERENCED_PARAMETER(fetcher);
+  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
   response_body_.insert(response_body_.end(), data, data + size);
+  dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(response_body_.capacity());
 }
 
 void XMLHttpRequest::OnDone(loader::Fetcher* fetcher) {
@@ -517,6 +527,7 @@ void XMLHttpRequest::OnError(loader::Fetcher* fetcher,
 XMLHttpRequest::~XMLHttpRequest() {
   DCHECK(thread_checker_.CalledOnValidThread());
   dom::Stats::GetInstance()->Remove(this);
+  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
 }
 
 void XMLHttpRequest::FireProgressEvent(const std::string& event_name) {
@@ -623,7 +634,8 @@ void XMLHttpRequest::AllowGarbageCollection() {
   DCHECK_EQ((is_active && has_event_listeners), false);
 
   did_add_ref_ = false;
-  settings_->javascript_engine()->ReportExtraMemoryCost(response_body_.size());
+  settings_->javascript_engine()->ReportExtraMemoryCost(
+      response_body_.capacity());
   settings_->global_object()->AllowGarbageCollection(make_scoped_refptr(this));
 }
 
