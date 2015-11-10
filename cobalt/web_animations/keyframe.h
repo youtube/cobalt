@@ -25,7 +25,7 @@
 #include "base/containers/small_map.h"
 #include "base/logging.h"
 #include "base/optional.h"
-#include "cobalt/cssom/css_property_definitions.h"
+#include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/timing_function.h"
 #include "cobalt/script/wrappable.h"

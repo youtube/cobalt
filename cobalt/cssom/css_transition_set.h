@@ -22,8 +22,8 @@
 #include "base/basictypes.h"
 #include "base/optional.h"
 #include "base/time.h"
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_transition.h"
+#include "cobalt/cssom/property_definitions.h"
 
 namespace cobalt {
 namespace cssom {

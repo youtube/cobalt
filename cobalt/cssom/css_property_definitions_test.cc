@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/css_property_definitions.h"
+#include "cobalt/cssom/property_definitions.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
