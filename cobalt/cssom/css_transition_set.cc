@@ -74,7 +74,8 @@ void TransitionSet::UpdateTransitions(
       base::polymorphic_downcast<const TimeListValue*>(
           destination_computed_style.transition_duration().get());
   if (transition_duration->value().size() == 1 &&
-      transition_duration->value()[0] == base::TimeDelta()) {
+      transition_duration->value()[0] == base::TimeDelta() &&
+      transitions_.IsEmpty()) {
     // No need to process transitions if all their durations are set to
     // 0, the initial value, so this will happen often.
     return;
@@ -83,16 +84,16 @@ void TransitionSet::UpdateTransitions(
   // For each animatable property, check to see if there are any transitions
   // assigned to it.  If so, check to see if there are any existing transitions
   // that must be updated, otherwise introduce new transitions.
-  UpdateTransitionForProperty(kBackgroundColorProperty, current_time,
-                              source_computed_style.background_color(),
-                              destination_computed_style.background_color(),
-                              destination_computed_style);
-  UpdateTransitionForProperty(
-      kTransformProperty, current_time, source_computed_style.transform(),
-      destination_computed_style.transform(), destination_computed_style);
-  UpdateTransitionForProperty(
-      kOpacityProperty, current_time, source_computed_style.opacity(),
-      destination_computed_style.opacity(), destination_computed_style);
+  const AnimatablePropertyList& animatable_properties =
+      GetAnimatableProperties();
+  for (AnimatablePropertyList::const_iterator iter =
+           animatable_properties.begin();
+       iter != animatable_properties.end(); ++iter) {
+    UpdateTransitionForProperty(
+        *iter, current_time, source_computed_style.GetPropertyValueByKey(*iter),
+        destination_computed_style.GetPropertyValueByKey(*iter),
+        destination_computed_style);
+  }
 }
 
 namespace {
@@ -258,32 +259,6 @@ void TransitionSet::UpdateTransitionForProperty(
 const Transition* TransitionSet::GetTransitionForProperty(
     PropertyKey property) const {
   return transitions_.GetTransitionForProperty(property);
-}
-
-void TransitionSet::ApplyTransitions(
-    const base::TimeDelta& current_time,
-    CSSStyleDeclarationData* target_style) const {
-  // For each animatable property, check if it's transitioning, and if so,
-  // evaluate its new animated value given the current time and update the
-  // target_style.
-  const Transition* background_color_transition =
-      GetTransitionForProperty(kBackgroundColorProperty);
-  if (background_color_transition) {
-    target_style->set_background_color(
-        background_color_transition->Evaluate(current_time));
-  }
-
-  const Transition* transform_transition =
-      GetTransitionForProperty(kTransformProperty);
-  if (transform_transition) {
-    target_style->set_transform(transform_transition->Evaluate(current_time));
-  }
-
-  const Transition* opacity_transition =
-      GetTransitionForProperty(kOpacityProperty);
-  if (opacity_transition) {
-    target_style->set_opacity(opacity_transition->Evaluate(current_time));
-  }
 }
 
 TransitionSet::TransitionMap::TransitionMap(EventHandler* event_handler)

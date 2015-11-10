@@ -23,7 +23,6 @@
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/calc_value.h"
-#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
@@ -31,6 +30,7 @@
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
@@ -69,8 +69,6 @@ class InterpolateVisitor : public PropertyValueVisitor {
 
   void VisitAbsoluteURL(AbsoluteURLValue* start_absolute_url_value) OVERRIDE;
   void VisitCalc(CalcValue* start_calc_value) OVERRIDE;
-  void VisitConstStringList(
-      ConstStringListValue* start_const_string_list_value) OVERRIDE;
   void VisitFontStyle(FontStyleValue* start_font_style_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* start_font_weight_value) OVERRIDE;
   void VisitInteger(IntegerValue* integer_value) OVERRIDE;
@@ -501,12 +499,6 @@ void InterpolateVisitor::VisitRGBAColor(RGBAColorValue* start_color_value) {
 }
 
 void InterpolateVisitor::VisitString(StringValue* /*start_string_value*/) {
-  NOTIMPLEMENTED();
-  interpolated_value_ = end_value_;
-}
-
-void InterpolateVisitor::VisitConstStringList(
-    ConstStringListValue* /*start_const_string_list_value*/) {
   NOTIMPLEMENTED();
   interpolated_value_ = end_value_;
 }
