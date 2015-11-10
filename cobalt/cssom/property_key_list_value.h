@@ -23,8 +23,8 @@
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_equatable.h"
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/list_value.h"
+#include "cobalt/cssom/property_definitions.h"
 
 namespace cobalt {
 namespace cssom {

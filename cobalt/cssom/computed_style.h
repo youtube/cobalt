@@ -18,7 +18,7 @@
 #define CSSOM_COMPUTED_STYLE_H_
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/cssom/css_property_definitions.h"
+#include "cobalt/cssom/property_definitions.h"
 
 namespace cobalt {
 namespace cssom {

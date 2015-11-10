@@ -18,7 +18,6 @@
 
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
@@ -27,6 +26,7 @@
 #include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"
 #include "testing/gmock/include/gmock/gmock.h"

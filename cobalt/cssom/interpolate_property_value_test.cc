@@ -17,13 +17,13 @@
 #include <cmath>
 
 #include "base/time.h"
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/interpolate_property_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
