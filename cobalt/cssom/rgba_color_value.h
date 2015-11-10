@@ -45,29 +45,23 @@ class PropertyValueVisitor;
 // See http://www.w3.org/TR/css3-color/#rgb-color for details.
 class RGBAColorValue : public PropertyValue {
  public:
-  // Basic color keywords:
-  //  http://www.w3.org/TR/css3-color/#html4
-  // Transparent keyword:
-  //  http://www.w3.org/TR/css3-color/#transparent-def
-  enum Keyword {
-    kAqua = 0x00FFFFFF,
-    kBlack = 0x000000FF,
-    kBlue = 0x0000FFFF,
-    kFuchsia = 0xFF00FFFF,
-    kGray = 0x808080FF,
-    kGreen = 0x008000FF,
-    kLime = 0x00FF00FF,
-    kMaroon = 0x800000FF,
-    kNavy = 0x000080FF,
-    kOlive = 0x808000FF,
-    kPurple = 0x800080FF,
-    kRed = 0xFF0000FF,
-    kSilver = 0xC0C0C0FF,
-    kTeal = 0x008080FF,
-    kTransparent = 0x00000000,
-    kWhite = 0xFFFFFFFF,
-    kYellow = 0xFFFF00FF,
-  };
+  static const scoped_refptr<RGBAColorValue>& GetAqua();
+  static const scoped_refptr<RGBAColorValue>& GetBlack();
+  static const scoped_refptr<RGBAColorValue>& GetBlue();
+  static const scoped_refptr<RGBAColorValue>& GetFuchsia();
+  static const scoped_refptr<RGBAColorValue>& GetGray();
+  static const scoped_refptr<RGBAColorValue>& GetGreen();
+  static const scoped_refptr<RGBAColorValue>& GetLime();
+  static const scoped_refptr<RGBAColorValue>& GetMaroon();
+  static const scoped_refptr<RGBAColorValue>& GetNavy();
+  static const scoped_refptr<RGBAColorValue>& GetOlive();
+  static const scoped_refptr<RGBAColorValue>& GetPurple();
+  static const scoped_refptr<RGBAColorValue>& GetRed();
+  static const scoped_refptr<RGBAColorValue>& GetSilver();
+  static const scoped_refptr<RGBAColorValue>& GetTeal();
+  static const scoped_refptr<RGBAColorValue>& GetTransparent();
+  static const scoped_refptr<RGBAColorValue>& GetWhite();
+  static const scoped_refptr<RGBAColorValue>& GetYellow();
 
   explicit RGBAColorValue(uint32 value) : value_(value) {}
 

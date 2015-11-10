@@ -1947,55 +1947,55 @@ color:
         new cssom::RGBAColorValue(r, g, b, static_cast<uint8>(a * 0xff)));
   }
   | kAquaToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kAqua));
+    $$ = AddRef(cssom::RGBAColorValue::GetAqua().get());
   }
   | kBlackToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kBlack));
+    $$ = AddRef(cssom::RGBAColorValue::GetBlack().get());
   }
   | kBlueToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kBlue));
+    $$ = AddRef(cssom::RGBAColorValue::GetBlue().get());
   }
   | kFuchsiaToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kFuchsia));
+    $$ = AddRef(cssom::RGBAColorValue::GetFuchsia().get());
   }
   | kGrayToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kGray));
+    $$ = AddRef(cssom::RGBAColorValue::GetGray().get());
   }
   | kGreenToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kGreen));
+    $$ = AddRef(cssom::RGBAColorValue::GetGreen().get());
   }
   | kLimeToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kLime));
+    $$ = AddRef(cssom::RGBAColorValue::GetLime().get());
   }
   | kMaroonToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kMaroon));
+    $$ = AddRef(cssom::RGBAColorValue::GetMaroon().get());
   }
   | kNavyToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kNavy));
+    $$ = AddRef(cssom::RGBAColorValue::GetNavy().get());
   }
   | kOliveToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kOlive));
+    $$ = AddRef(cssom::RGBAColorValue::GetOlive().get());
   }
   | kPurpleToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kPurple));
+    $$ = AddRef(cssom::RGBAColorValue::GetPurple().get());
   }
   | kRedToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kRed));
+    $$ = AddRef(cssom::RGBAColorValue::GetRed().get());
   }
   | kSilverToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kSilver));
+    $$ = AddRef(cssom::RGBAColorValue::GetSilver().get());
   }
   | kTealToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kTeal));
+    $$ = AddRef(cssom::RGBAColorValue::GetTeal().get());
   }
   | kTransparentToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kTransparent));
+    $$ = AddRef(cssom::RGBAColorValue::GetTransparent().get());
   }
   | kWhiteToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kWhite));
+    $$ = AddRef(cssom::RGBAColorValue::GetWhite().get());
   }
   | kYellowToken maybe_whitespace {
-    $$ = AddRef(new cssom::RGBAColorValue(cssom::RGBAColorValue::kYellow));
+    $$ = AddRef(cssom::RGBAColorValue::GetYellow().get());
   }
   ;
 
