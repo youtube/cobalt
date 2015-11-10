@@ -17,6 +17,7 @@
 #include <cmath>
 
 #include "base/time.h"
+#include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/interpolate_property_value.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -28,6 +29,7 @@
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/math/transform_2d.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -236,6 +238,109 @@ TEST(InterpolatePropertyValueTest, TransformSingleTranslateYValuesInterpolate) {
 }
 TEST(InterpolatePropertyValueTest, TransformSingleTranslateZValuesInterpolate) {
   TestTransformSingleTranslateValuesAnimate(TranslateFunction::kZAxis);
+}
+
+void TestTransformTranslateFromLengthToPercentageValuesAnimate(
+    TranslateFunction::Axis axis) {
+  struct MakeSingleTranslateTransform {
+    static scoped_refptr<PropertyValue> Start(TranslateFunction::Axis axis) {
+      TransformFunctionListValue::Builder functions;
+      functions.push_back(
+          new TranslateFunction(axis, new LengthValue(1.0f, kPixelsUnit)));
+      return new TransformFunctionListValue(functions.Pass());
+    }
+    static scoped_refptr<PropertyValue> End(TranslateFunction::Axis axis) {
+      TransformFunctionListValue::Builder functions;
+      functions.push_back(
+          new TranslateFunction(axis, new PercentageValue(0.5f)));
+      return new TransformFunctionListValue(functions.Pass());
+    }
+  };
+
+  scoped_refptr<TransformFunctionListValue> interpolated =
+      InterpolatePropertyTyped<TransformFunctionListValue>(
+          0.5f, MakeSingleTranslateTransform::Start(axis),
+          MakeSingleTranslateTransform::End(axis));
+
+  ASSERT_EQ(1, interpolated->value().size());
+  const TranslateFunction* single_function =
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[0]);
+  ASSERT_TRUE(single_function);
+
+  ASSERT_EQ(TranslateFunction::kCalc, single_function->offset_type());
+  EXPECT_NEAR(0.5f, single_function->offset_as_calc()->length_value()->value(),
+              kErrorEpsilon);
+  EXPECT_EQ(kPixelsUnit,
+            single_function->offset_as_calc()->length_value()->unit());
+  EXPECT_NEAR(0.25f,
+              single_function->offset_as_calc()->percentage_value()->value(),
+              kErrorEpsilon);
+  EXPECT_EQ(axis, single_function->axis());
+}
+
+TEST(InterpolatePropertyValueTest,
+     TransformTranslateXFromLengthToPercentageValuesAnimate) {
+  TestTransformTranslateFromLengthToPercentageValuesAnimate(
+      TranslateFunction::kXAxis);
+}
+TEST(InterpolatePropertyValueTest,
+     TransformTranslateYFromLengthToPercentageValuesAnimate) {
+  TestTransformTranslateFromLengthToPercentageValuesAnimate(
+      TranslateFunction::kYAxis);
+}
+TEST(InterpolatePropertyValueTest,
+     TransformTranslateZFromLengthToPercentageValuesAnimate) {
+  TestTransformTranslateFromLengthToPercentageValuesAnimate(
+      TranslateFunction::kZAxis);
+}
+
+void TestTransformTranslateCalcValuesAnimate(TranslateFunction::Axis axis) {
+  struct MakeSingleTranslateTransform {
+    static scoped_refptr<PropertyValue> Start(TranslateFunction::Axis axis) {
+      TransformFunctionListValue::Builder functions;
+      functions.push_back(new TranslateFunction(
+          axis, new CalcValue(new LengthValue(1.0f, kPixelsUnit),
+                              new PercentageValue(0.2f))));
+      return new TransformFunctionListValue(functions.Pass());
+    }
+    static scoped_refptr<PropertyValue> End(TranslateFunction::Axis axis) {
+      TransformFunctionListValue::Builder functions;
+      functions.push_back(new TranslateFunction(
+          axis, new CalcValue(new LengthValue(2.0f, kPixelsUnit),
+                              new PercentageValue(0.4f))));
+      return new TransformFunctionListValue(functions.Pass());
+    }
+  };
+
+  scoped_refptr<TransformFunctionListValue> interpolated =
+      InterpolatePropertyTyped<TransformFunctionListValue>(
+          0.5f, MakeSingleTranslateTransform::Start(axis),
+          MakeSingleTranslateTransform::End(axis));
+
+  ASSERT_EQ(1, interpolated->value().size());
+  const TranslateFunction* single_function =
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[0]);
+  ASSERT_TRUE(single_function);
+
+  ASSERT_EQ(TranslateFunction::kCalc, single_function->offset_type());
+  EXPECT_NEAR(1.5f, single_function->offset_as_calc()->length_value()->value(),
+              kErrorEpsilon);
+  EXPECT_EQ(kPixelsUnit,
+            single_function->offset_as_calc()->length_value()->unit());
+  EXPECT_NEAR(0.3f,
+              single_function->offset_as_calc()->percentage_value()->value(),
+              kErrorEpsilon);
+  EXPECT_EQ(axis, single_function->axis());
+}
+
+TEST(InterpolatePropertyValueTest, TestTransformTranslateXCalcValuesAnimate) {
+  TestTransformTranslateCalcValuesAnimate(TranslateFunction::kXAxis);
+}
+TEST(InterpolatePropertyValueTest, TestTransformTranslateYCalcValuesAnimate) {
+  TestTransformTranslateCalcValuesAnimate(TranslateFunction::kYAxis);
+}
+TEST(InterpolatePropertyValueTest, TestTransformTranslateZCalcValuesAnimate) {
+  TestTransformTranslateCalcValuesAnimate(TranslateFunction::kZAxis);
 }
 
 void TestTransformFromTranslateToNoneValuesAnimate(
@@ -462,24 +567,20 @@ TEST(InterpolatePropertyValueTest,
     }
   };
 
-  scoped_refptr<TransformFunctionListValue> interpolated =
-      InterpolatePropertyTyped<TransformFunctionListValue>(
+  // Since the original transform list had mismatched types, the result should
+  // be a transform matrix.
+  scoped_refptr<TransformMatrixFunctionValue> interpolated =
+      InterpolatePropertyTyped<TransformMatrixFunctionValue>(
           0.75f, MakeMultipleMismatchedTransform::Start(),
           MakeMultipleMismatchedTransform::End());
-
-  ASSERT_EQ(1, interpolated->value().size());
-
-  // Since the original transform list had mismatched types, the result should
-  // be a matrix.
-  const MatrixFunction* single_function =
-      dynamic_cast<const MatrixFunction*>(interpolated->value()[0]);
-  ASSERT_TRUE(single_function);
-
-  EXPECT_TRUE(single_function->value().IsNear(
-      math::TranslateMatrix(3.5f, 0.0f) *
-          math::RotateMatrix(-static_cast<float>(M_PI * 3 / 8)) *
-          math::ScaleMatrix(3.5f, 1.75f),
-      kErrorEpsilon));
+  EXPECT_TRUE(interpolated->value().percentage_fields_zero());
+  EXPECT_TRUE(
+      interpolated->value()
+          .ToMatrix3F(math::SizeF())
+          .IsNear(math::TranslateMatrix(3.5f, 0.0f) *
+                      math::RotateMatrix(-static_cast<float>(M_PI * 3 / 8)) *
+                      math::ScaleMatrix(3.5f, 1.75f),
+                  kErrorEpsilon));
 }
 
 TEST(InterpolatePropertyValueTest,
@@ -502,25 +603,104 @@ TEST(InterpolatePropertyValueTest,
     }
   };
 
+  // Since the original transform list had mismatched types, the result should
+  // be a matrix.
+  scoped_refptr<TransformMatrixFunctionValue> interpolated =
+      InterpolatePropertyTyped<TransformMatrixFunctionValue>(
+          0.5f, MakeMultipleMismatchedTransform::Start(),
+          MakeMultipleMismatchedTransform::End());
+
+  scoped_refptr<TransformMatrixFunctionValue> next_interpolated =
+      InterpolatePropertyTyped<TransformMatrixFunctionValue>(
+          0.5f, interpolated, MakeMultipleMismatchedTransform::Start());
+
+  EXPECT_TRUE(next_interpolated->value().percentage_fields_zero());
+  EXPECT_TRUE(next_interpolated->value()
+                  .ToMatrix3F(math::SizeF())
+                  .IsNear(math::RotateMatrix(-static_cast<float>(M_PI / 8)),
+                          kErrorEpsilon));
+}
+
+TEST(InterpolatePropertyValueTest,
+     CanInterpolateFromTranslateLengthToTranslatePercentage) {
+  struct MakeMultipleMismatchedTransform {
+    static scoped_refptr<PropertyValue> Start() {
+      TransformFunctionListValue::Builder functions;
+      functions.push_back(new TranslateFunction(
+          TranslateFunction::kXAxis, new LengthValue(5.0f, kPixelsUnit)));
+      return new TransformFunctionListValue(functions.Pass());
+    }
+    static scoped_refptr<PropertyValue> End() {
+      TransformFunctionListValue::Builder functions;
+      functions.push_back(new TranslateFunction(TranslateFunction::kXAxis,
+                                                new PercentageValue(0.5f)));
+      return new TransformFunctionListValue(functions.Pass());
+    }
+  };
+
   scoped_refptr<TransformFunctionListValue> interpolated =
       InterpolatePropertyTyped<TransformFunctionListValue>(
           0.5f, MakeMultipleMismatchedTransform::Start(),
           MakeMultipleMismatchedTransform::End());
 
-  scoped_refptr<TransformFunctionListValue> next_interpolated =
-      InterpolatePropertyTyped<TransformFunctionListValue>(
-          0.5f, interpolated, MakeMultipleMismatchedTransform::Start());
+  ASSERT_EQ(1, interpolated->value().size());
+  const TranslateFunction* single_function =
+      dynamic_cast<const TranslateFunction*>(interpolated->value()[0]);
+  ASSERT_TRUE(single_function);
+  EXPECT_EQ(TranslateFunction::kXAxis, single_function->axis());
 
-  ASSERT_EQ(1, next_interpolated->value().size());
+  scoped_refptr<CalcValue> calc_value = single_function->offset_as_calc();
+  EXPECT_NEAR(2.5f, calc_value->length_value()->value(), kErrorEpsilon);
+  EXPECT_EQ(kPixelsUnit, calc_value->length_value()->unit());
+  EXPECT_NEAR(0.25f, calc_value->percentage_value()->value(), kErrorEpsilon);
+}
+
+TEST(InterpolatePropertyValueTest,
+     CanInterpolateMatricesWithPercentageAndOffsets) {
+  struct MakeMultipleMismatchedTransform {
+    static scoped_refptr<PropertyValue> Start() {
+      TransformFunctionListValue::Builder functions;
+      functions.push_back(new TranslateFunction(
+          TranslateFunction::kXAxis,
+          new CalcValue(new LengthValue(2.0f, kPixelsUnit),
+                        new PercentageValue(0.2f))));
+      functions.push_back(new RotateFunction(static_cast<float>(M_PI / 2)));
+      functions.push_back(new TranslateFunction(
+          TranslateFunction::kXAxis,
+          new CalcValue(new LengthValue(10.0f, kPixelsUnit),
+                        new PercentageValue(1.0f))));
+      return new TransformFunctionListValue(functions.Pass());
+    }
+    static scoped_refptr<PropertyValue> End() {
+      TransformFunctionListValue::Builder functions;
+      functions.push_back(new TranslateFunction(
+          TranslateFunction::kYAxis,
+          new CalcValue(new LengthValue(5.0f, kPixelsUnit),
+                        new PercentageValue(0.5f))));
+      return new TransformFunctionListValue(functions.Pass());
+    }
+  };
 
   // Since the original transform list had mismatched types, the result should
   // be a matrix.
-  const MatrixFunction* next_single_function =
-      dynamic_cast<const MatrixFunction*>(next_interpolated->value()[0]);
-  ASSERT_TRUE(next_single_function);
+  scoped_refptr<TransformMatrixFunctionValue> interpolated =
+      InterpolatePropertyTyped<TransformMatrixFunctionValue>(
+          0.5f, MakeMultipleMismatchedTransform::Start(),
+          MakeMultipleMismatchedTransform::End());
 
-  EXPECT_TRUE(next_single_function->value().IsNear(
-      math::RotateMatrix(-static_cast<float>(M_PI / 8)), kErrorEpsilon));
+  const TransformMatrix& value = interpolated->value();
+
+  EXPECT_NEAR(cos(M_PI / 4), value.offset_matrix().Get(0, 0), kErrorEpsilon);
+  EXPECT_NEAR(sin(M_PI / 4), value.offset_matrix().Get(1, 0), kErrorEpsilon);
+  EXPECT_NEAR(-sin(M_PI / 4), value.offset_matrix().Get(0, 1), kErrorEpsilon);
+  EXPECT_NEAR(cos(M_PI / 4), value.offset_matrix().Get(1, 1), kErrorEpsilon);
+  EXPECT_NEAR(1.0f, value.offset_matrix().Get(0, 2), kErrorEpsilon);
+  EXPECT_NEAR(7.5f, value.offset_matrix().Get(1, 2), kErrorEpsilon);
+
+  EXPECT_NEAR(0.1f, value.width_percentage_translation().x(), kErrorEpsilon);
+  EXPECT_NEAR(0.5f, value.width_percentage_translation().y(), kErrorEpsilon);
+  EXPECT_NEAR(0.0f, value.height_percentage_translation().x(), kErrorEpsilon);
+  EXPECT_NEAR(0.25f, value.height_percentage_translation().y(), kErrorEpsilon);
 }
 
 }  // namespace cssom
