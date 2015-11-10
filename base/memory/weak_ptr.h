@@ -266,6 +266,13 @@ class SupportsWeakPtr : public internal::SupportsWeakPtrBase {
  protected:
   ~SupportsWeakPtr() {}
 
+  // Call this method to invalidate all existing weak pointers.
+  // This may be useful to call explicitly in a destructor of a derived class,
+  // as the SupportsWeakPtr destructor won't run until late in destruction.
+  void InvalidateWeakPtrs() {
+    weak_reference_owner_.Invalidate();
+  }
+
  private:
   internal::WeakReferenceOwner weak_reference_owner_;
   DISALLOW_COPY_AND_ASSIGN(SupportsWeakPtr);
