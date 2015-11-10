@@ -13,6 +13,8 @@
 #include <iosfwd>
 #include <string>
 
+#include "base/logging.h"
+
 namespace cobalt {
 namespace math {
 
@@ -42,6 +44,17 @@ class Vector2dF {
 
   void operator+=(const Vector2dF& other) { Add(other); }
   void operator-=(const Vector2dF& other) { Subtract(other); }
+
+  float operator[](int i) const {
+    DCHECK_LE(0, i);
+    DCHECK_GE(1, i);
+    return i == 0 ? x_ : y_;
+  }
+  float& operator[](int i) {
+    DCHECK_LE(0, i);
+    DCHECK_GE(1, i);
+    return i == 0 ? x_ : y_;
+  }
 
   void SetToMin(const Vector2dF& other) {
     x_ = x_ <= other.x_ ? x_ : other.x_;

@@ -23,8 +23,8 @@
 #include "base/compiler_specific.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/length_value.h"
-#include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
@@ -50,9 +50,11 @@ class CalcValue : public PropertyValue {
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
-  const LengthValue* length_value() const { return length_value_.get(); }
+  const scoped_refptr<LengthValue>& length_value() const {
+    return length_value_;
+  }
 
-  const PercentageValue* percentage_value() const {
+  const scoped_refptr<PercentageValue> percentage_value() const {
     return percentage_value_.get();
   }
 

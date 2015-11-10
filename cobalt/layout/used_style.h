@@ -17,11 +17,12 @@
 #ifndef LAYOUT_USED_STYLE_H_
 #define LAYOUT_USED_STYLE_H_
 
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/transform_matrix.h"
 #include "cobalt/dom/font_face_cache.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/math/size.h"
@@ -217,9 +218,7 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   DISALLOW_COPY_AND_ASSIGN(UsedLineHeightProvider);
 };
 
-scoped_refptr<cssom::TransformFunctionListValue> GetUsedTransformListValue(
-    cssom::TransformFunctionListValue* transform_list,
-    const math::SizeF& bounding_box);
+cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value);
 
 // Functions to calculate used values of box model properties.
 base::optional<float> GetUsedLeftIfNotAuto(
