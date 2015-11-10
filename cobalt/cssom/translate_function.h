@@ -28,6 +28,7 @@
 namespace cobalt {
 namespace cssom {
 
+class CalcValue;
 class LengthValue;
 class PercentageValue;
 
@@ -43,6 +44,7 @@ class TranslateFunction : public TransformFunction {
     kZAxis,
   };
   enum OffsetType {
+    kCalc,
     kLength,
     kPercentage,
   };
@@ -59,6 +61,15 @@ class TranslateFunction : public TransformFunction {
 
   scoped_refptr<LengthValue> offset_as_length() const;
   scoped_refptr<PercentageValue> offset_as_percentage() const;
+  scoped_refptr<CalcValue> offset_as_calc() const;
+
+  // The following two functions will return the length/percentage components
+  // of the translation, regardless of whether it is a LengthValue,
+  // PercentageValue or CalcValue.
+  // length_component_in_pixels() can only be called if length units are in
+  // pixels.
+  float length_component_in_pixels() const;
+  float percentage_component() const;
 
   Axis axis() const { return axis_; }
 

@@ -41,6 +41,7 @@
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
+#include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_src_value.h"
@@ -90,6 +91,8 @@ class InterpolateVisitor : public PropertyValueVisitor {
   void VisitString(StringValue* start_string_value) OVERRIDE;
   void VisitTransformFunctionList(
       TransformFunctionListValue* start_transform_list_value) OVERRIDE;
+  void VisitTransformMatrixFunction(
+      TransformMatrixFunctionValue* transform_matrix_function_value) OVERRIDE;
   void VisitTimeList(TimeListValue* start_time_list_value) OVERRIDE;
   void VisitTimingFunctionList(
       TimingFunctionListValue* start_timing_function_list_value) OVERRIDE;
@@ -202,52 +205,51 @@ void AnimateTransformFunction::VisitScale(const ScaleFunction* scale_function) {
       Lerp(scale_function->y_factor(), end_y_factor, progress_)));
 }
 
+namespace {
+scoped_ptr<TranslateFunction> InterpolateTranslateFunctions(
+    const TranslateFunction* a, const TranslateFunction* b, float progress) {
+  if (b) {
+    DCHECK_EQ(a->axis(), b->axis());
+  }
+
+  float end_length_offset = b ? b->length_component_in_pixels() : 0.0f;
+  float lerped_length_offset =
+      Lerp(a->length_component_in_pixels(), end_length_offset, progress);
+
+  float end_percentage_offset = b ? b->percentage_component() : 0.0f;
+  float lerped_percentage_offset =
+      Lerp(a->percentage_component(), end_percentage_offset, progress);
+
+  bool result_is_calc = (b && a->offset_type() != b->offset_type()) ||
+                        a->offset_type() == TranslateFunction::kCalc;
+
+  if (result_is_calc) {
+    return make_scoped_ptr(new TranslateFunction(
+        a->axis(),
+        new CalcValue(new LengthValue(lerped_length_offset, kPixelsUnit),
+                      new PercentageValue(lerped_percentage_offset))));
+  } else if (a->offset_type() == TranslateFunction::kLength) {
+    DCHECK_EQ(0.0f, lerped_percentage_offset);
+    return make_scoped_ptr(new TranslateFunction(
+        a->axis(), new LengthValue(lerped_length_offset, kPixelsUnit)));
+  } else if (a->offset_type() == TranslateFunction::kPercentage) {
+    DCHECK_EQ(0.0f, lerped_length_offset);
+    return make_scoped_ptr(new TranslateFunction(
+        a->axis(), new PercentageValue(lerped_percentage_offset)));
+  } else {
+    NOTREACHED();
+    return scoped_ptr<TranslateFunction>();
+  }
+}
+}  // namespace
+
 void AnimateTransformFunction::VisitTranslate(
     const TranslateFunction* translate_function) {
   const TranslateFunction* translate_end =
       base::polymorphic_downcast<const TranslateFunction*>(end_);
-  if (translate_end) {
-    // TODO(***REMOVED***): Eventually we'll have to support calc() so that we can
-    //               animate from one unit (e.g. length) to another
-    //               (e.g. percentage) for not just translations but other
-    //               length/percentage property values also.
-    DCHECK_EQ(translate_function->offset_type(), translate_end->offset_type())
-        << "calc() is needed for animating mixed units, but is not yet "
-           "supported.";
 
-    DCHECK_EQ(translate_function->axis(), translate_end->axis());
-  }
-
-  switch (translate_function->offset_type()) {
-    case TranslateFunction::kLength: {
-      DCHECK_EQ(kPixelsUnit, translate_function->offset_as_length()->unit());
-      if (translate_end) {
-        DCHECK_EQ(kPixelsUnit, translate_end->offset_as_length()->unit());
-      }
-
-      // The transform function's identity is the value 0.0f.
-      float end_offset =
-          translate_end ? translate_end->offset_as_length()->value() : 0.0f;
-
-      animated_.reset(new TranslateFunction(
-          translate_function->axis(),
-          new LengthValue(Lerp(translate_function->offset_as_length()->value(),
-                               end_offset, progress_),
-                          kPixelsUnit)));
-    } break;
-    case TranslateFunction::kPercentage: {
-      // The transform function's identity is the value 0.0f.
-      float end_offset =
-          translate_end ? translate_end->offset_as_percentage()->value() : 0.0f;
-
-      animated_.reset(new TranslateFunction(
-          translate_function->axis(),
-          new PercentageValue(
-              Lerp(translate_function->offset_as_percentage()->value(),
-                   end_offset, progress_))));
-    } break;
-    default: { NOTREACHED(); }
-  }
+  animated_ = InterpolateTranslateFunctions(translate_function, translate_end,
+                                            progress_);
 }
 
 // Returns true if two given transform function lists have the same number of
@@ -335,10 +337,8 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
     // into a matrix and animate the matrix using the algorithm described here:
     //   http://www.w3.org/TR/2012/WD-css3-transforms-20120228/#matrix-decomposition
     DCHECK(end_transform);
-    TransformFunctionListValue::Builder animated_functions;
-    animated_functions.push_back(new MatrixFunction(math::InterpolateMatrices(
-        start_transform->ToMatrix(), end_transform->ToMatrix(), progress)));
-    return new TransformFunctionListValue(animated_functions.Pass());
+    return new TransformMatrixFunctionValue(InterpolateTransformMatrices(
+        start_transform->ToMatrix(), end_transform->ToMatrix(), progress));
   }
 }
 }  // namespace
@@ -509,10 +509,60 @@ void InterpolateVisitor::VisitTimeList(
   interpolated_value_ = end_value_;
 }
 
+namespace {
+// Returns a TransformMatrix representing a valid 'transform' property value.
+TransformMatrix GetTransformMatrixFromPropertyValue(
+    const PropertyValue* value) {
+  if (value->Equals(*KeywordValue::GetNone())) {
+    // Return the identity matrix via the default constructor.
+    return TransformMatrix();
+  } else if (value->GetTypeId() ==
+             base::GetTypeId<TransformFunctionListValue>()) {
+    return base::polymorphic_downcast<const TransformFunctionListValue*>(value)
+        ->ToMatrix();
+  } else if (value->GetTypeId() ==
+             base::GetTypeId<TransformMatrixFunctionValue>()) {
+    return base::polymorphic_downcast<const TransformMatrixFunctionValue*>(
+               value)
+        ->value();
+  } else {
+    NOTREACHED();
+    return TransformMatrix();
+  }
+}
+
+// Converts some given valid 'transform' property values to TransformMatrices,
+// and then interpolates them and returns the result.
+scoped_refptr<TransformMatrixFunctionValue> InterpolateTransformsAsMatrices(
+    const PropertyValue* a, const PropertyValue* b, float progress) {
+  return new TransformMatrixFunctionValue(InterpolateTransformMatrices(
+      GetTransformMatrixFromPropertyValue(a),
+      GetTransformMatrixFromPropertyValue(b), progress));
+}
+}  // namespace
+
 void InterpolateVisitor::VisitTransformFunctionList(
     TransformFunctionListValue* start_transform_list_value) {
-  interpolated_value_ =
-      AnimateTransform(start_transform_list_value, end_value_, progress_);
+  if (end_value_->GetTypeId() ==
+      base::GetTypeId<TransformMatrixFunctionValue>()) {
+    // If our end value is a transform matrix, then simply convert to a
+    // transform matrix and interpolate between them.
+    interpolated_value_ = InterpolateTransformsAsMatrices(
+        start_transform_list_value, end_value_, progress_);
+  } else {
+    // If we are not dealing with a transform matrix, then animate the
+    // transform lists, attempting to keep the list structure as the result
+    // if possible (as opposed to converting to a matrix and interpolating that,
+    // resulting in a matrix).
+    interpolated_value_ =
+        AnimateTransform(start_transform_list_value, end_value_, progress_);
+  }
+}
+
+void InterpolateVisitor::VisitTransformMatrixFunction(
+    TransformMatrixFunctionValue* start_transform_matrix_function_value) {
+  interpolated_value_ = InterpolateTransformsAsMatrices(
+      start_transform_matrix_function_value, end_value_, progress_);
 }
 
 void InterpolateVisitor::VisitTimingFunctionList(

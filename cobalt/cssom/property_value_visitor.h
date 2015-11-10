@@ -44,6 +44,7 @@ class StringValue;
 class TimeListValue;
 class TimingFunctionListValue;
 class TransformFunctionListValue;
+class TransformMatrixFunctionValue;
 class UnicodeRangeValue;
 class URLValue;
 class UrlSrcValue;
@@ -79,6 +80,8 @@ class PropertyValueVisitor {
       TimingFunctionListValue* timing_function_list_value) = 0;
   virtual void VisitTransformFunctionList(
       TransformFunctionListValue* transform_function_list_value) = 0;
+  virtual void VisitTransformMatrixFunction(
+      TransformMatrixFunctionValue* transform_matrix_function_value) = 0;
   virtual void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) = 0;
   virtual void VisitURL(URLValue* url_value) = 0;
   virtual void VisitUrlSrc(UrlSrcValue* url_src_value) = 0;
@@ -117,6 +120,8 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
       TimingFunctionListValue* timing_function_list_value) OVERRIDE;
   void VisitTransformFunctionList(
       TransformFunctionListValue* transform_function_list_value) OVERRIDE;
+  void VisitTransformMatrixFunction(
+      TransformMatrixFunctionValue* transform_matrix_function_value) OVERRIDE;
   void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
   void VisitUrlSrc(UrlSrcValue* url_src_value) OVERRIDE;

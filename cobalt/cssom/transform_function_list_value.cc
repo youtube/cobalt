@@ -19,16 +19,16 @@
 namespace cobalt {
 namespace cssom {
 
-math::Matrix3F TransformFunctionListValue::ToMatrix() const {
+TransformMatrix TransformFunctionListValue::ToMatrix() const {
   // Iterate through all transforms in the transform list appending them
   // to our transform_matrix.
-  math::Matrix3F transform_matrix(math::Matrix3F::Identity());
+  TransformMatrix matrix;
   for (Builder::const_iterator iter = value().begin(); iter != value().end();
        ++iter) {
-    PostMultiplyMatrixByTransform(*iter, &transform_matrix);
+    matrix.PostMultiplyByTransform(*iter);
   }
 
-  return transform_matrix;
+  return matrix;
 }
 
 std::string TransformFunctionListValue::ToString() const {
