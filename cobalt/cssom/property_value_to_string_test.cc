@@ -18,7 +18,6 @@
 
 #include "base/time.h"
 #include "cobalt/cssom/absolute_url_value.h"
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/integer_value.h"
@@ -29,6 +28,7 @@
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/ratio_value.h"

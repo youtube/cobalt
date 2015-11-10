@@ -17,9 +17,9 @@
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 
 #include "base/string_util.h"
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
+#include "cobalt/cssom/property_definitions.h"
 
 namespace cobalt {
 namespace cssom {

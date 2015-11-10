@@ -21,9 +21,9 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_declaration_util.h"
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/mutation_observer.h"
+#include "cobalt/cssom/property_definitions.h"
 
 namespace cobalt {
 namespace cssom {

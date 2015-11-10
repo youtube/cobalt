@@ -16,8 +16,8 @@
 
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/property_definitions.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
