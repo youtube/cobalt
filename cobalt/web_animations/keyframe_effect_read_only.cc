@@ -94,23 +94,13 @@ bool KeyframeEffectReadOnly::Data::IsPropertyAnimated(
 void KeyframeEffectReadOnly::Data::ApplyAnimation(
     const scoped_refptr<cssom::CSSStyleDeclarationData>& in_out_style,
     double iteration_progress, double current_iteration) const {
-  // TODO(***REMOVED***): After b/24774272 is addressed, we should not explicitly
-  //               check all properties that may be animated to see if they are.
-
-  if (IsPropertyAnimated(cssom::kBackgroundColorProperty)) {
-    in_out_style->set_background_color(ComputeAnimatedPropertyValue(
-        cssom::kBackgroundColorProperty, in_out_style->background_color(),
-        iteration_progress, current_iteration));
-  }
-  if (IsPropertyAnimated(cssom::kTransformProperty)) {
-    in_out_style->set_transform(ComputeAnimatedPropertyValue(
-        cssom::kTransformProperty, in_out_style->transform(),
-        iteration_progress, current_iteration));
-  }
-  if (IsPropertyAnimated(cssom::kOpacityProperty)) {
-    in_out_style->set_opacity(ComputeAnimatedPropertyValue(
-        cssom::kOpacityProperty, in_out_style->opacity(), iteration_progress,
-        current_iteration));
+  for (std::set<cssom::PropertyKey>::const_iterator iter =
+           properties_affected_.begin();
+       iter != properties_affected_.end(); ++iter) {
+    in_out_style->SetPropertyValueByKey(
+        *iter, ComputeAnimatedPropertyValue(
+                   *iter, in_out_style->GetPropertyValueByKey(*iter),
+                   iteration_progress, current_iteration));
   }
 }
 

@@ -49,8 +49,6 @@
         'computed_style.cc',
         'computed_style.h',
         'computed_style_state.h',
-        'const_string_list_value.cc',
-        'const_string_list_value.h',
         'css_condition_rule.cc',
         'css_condition_rule.h',
         'css_declaration_data.h',

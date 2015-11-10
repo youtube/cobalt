@@ -18,7 +18,6 @@
 
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/calc_value.h"
-#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/integer_value.h"
@@ -53,8 +52,6 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
  public:
   MOCK_METHOD1(VisitAbsoluteURL, void(AbsoluteURLValue* absolute_url_value));
   MOCK_METHOD1(VisitCalc, void(CalcValue* calc_value));
-  MOCK_METHOD1(VisitConstStringList,
-               void(ConstStringListValue* const_string_list_value));
   MOCK_METHOD1(VisitFontStyle, void(FontStyleValue* font_style_value));
   MOCK_METHOD1(VisitFontWeight, void(FontWeightValue* font_weight_value));
   MOCK_METHOD1(VisitInteger, void(IntegerValue* integer_value));
@@ -62,7 +59,6 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
   MOCK_METHOD1(VisitLinearGradient,
                void(LinearGradientValue* linear_gradient_value));
-  MOCK_METHOD1(VisitList, void(ConstStringListValue* const_string_list_value));
   MOCK_METHOD1(VisitList, void(TimeListValue* time_list_value));
   MOCK_METHOD1(VisitLocalSrc, void(LocalSrcValue* local_src_value));
   MOCK_METHOD1(VisitMediaFeatureKeywordValue,
@@ -177,7 +173,17 @@ TEST(PropertyValueVisitorTest, VisitsPercentageValue) {
   percentage_value->Accept(&mock_visitor);
 }
 
-TEST(PropertyValueVisitorTest, VisitsPropertyList) {
+TEST(PropertyValueVisitorTest, VisitsPropertyKeyListValue) {
+  scoped_refptr<PropertyKeyListValue> property_key_list_value =
+      new PropertyKeyListValue(
+          make_scoped_ptr(new PropertyKeyListValue::Builder()));
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor,
+              VisitPropertyKeyList(property_key_list_value.get()));
+  property_key_list_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsPropertyListValue) {
   scoped_refptr<PropertyListValue> property_list_value = new PropertyListValue(
       make_scoped_ptr(new ScopedRefListValue<PropertyValue>::Builder()));
   MockPropertyValueVisitor mock_visitor;
@@ -212,16 +218,6 @@ TEST(PropertyValueVisitorTest, VisitsStringValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitString(string_value.get()));
   string_value->Accept(&mock_visitor);
-}
-
-TEST(PropertyValueVisitorTest, VisitsConstStringValue) {
-  scoped_refptr<ConstStringListValue> property_name_list_value =
-      new ConstStringListValue(
-          make_scoped_ptr(new ListValue<const char*>::Builder()));
-  MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor,
-              VisitConstStringList(property_name_list_value.get()));
-  property_name_list_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsTimeListValue) {
