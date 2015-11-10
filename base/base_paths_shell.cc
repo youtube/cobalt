@@ -18,25 +18,26 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "lb_globals.h"
+#include "cobalt/deprecated/platform_delegate.h"
 
 namespace base {
 
 // this is where we can control the path for placement
 // of a lot of file resources for lbshell.
 bool PathProviderShell(int key, FilePath* result) {
-  const global_values_t* global_values = GetGlobalsPtr();
+  cobalt::deprecated::PlatformDelegate* plat =
+      cobalt::deprecated::PlatformDelegate::Get();
   switch (key) {
     case base::DIR_EXE:
     case base::DIR_MODULE:
-      DCHECK(global_values->game_content_path);
-      *result = FilePath(global_values->game_content_path);
+      DCHECK(!plat->game_content_path().empty());
+      *result = FilePath(plat->game_content_path());
       return true;
 
 #if defined(ENABLE_DIR_SOURCE_ROOT_ACCESS)
     case base::DIR_SOURCE_ROOT:
-      if (global_values->dir_source_root) {
-        *result = FilePath(global_values->dir_source_root);
+      if (plat->dir_source_root().length() > 0) {
+        *result = FilePath(plat->dir_source_root());
         return true;
       } else {
         DLOG(INFO) << "DIR_SOURCE_ROOT not defined - skipping.";
@@ -44,13 +45,19 @@ bool PathProviderShell(int key, FilePath* result) {
       }
 #endif  // ENABLE_DIR_SOURCE_ROOT_ACCESS
 
+    case base::DIR_TEMP:
+      DCHECK(!plat->temp_path().empty());
+      *result = FilePath(plat->temp_path());
+      return true;
+
     case base::DIR_CACHE:
-      DCHECK(global_values->tmp_path);
-      *result = FilePath(global_values->tmp_path).Append("cache");
+      DCHECK(!plat->temp_path().empty());
+      *result = FilePath(plat->temp_path()).Append("cache");
       return true;
   }
 
   return false;
 }
 
-}
+}  // namespace base
+
