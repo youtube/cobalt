@@ -22,6 +22,7 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
+#include "base/path_service.h"
 #include "base/platform_file.h"
 #include "base/string_util.h"
 #include "base/synchronization/lock.h"
@@ -38,10 +39,6 @@
 #include "net/http/http_util.h"
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_dir_job.h"
-
-#if defined(__LB_SHELL__)
-#include "lb_globals.h"
-#endif
 
 #if defined(OS_WIN)
 #include "base/win/shortcut.h"
@@ -81,9 +78,10 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
 
 #if defined(__LB_SHELL__)
   // Jail the file path to a specific folder.
-  const std::string game_content_path(GetGlobalsPtr()->game_content_path);
-  std::string jail_path = game_content_path + "/local";
-  file_path = FilePath(jail_path + file_path.value());
+  FilePath jail_path;
+  PathService::Get(base::DIR_EXE, &jail_path);
+  jail_path = jail_path.Append("/local");
+  file_path = jail_path.Append(file_path);
   // Check for a jail-break attempt.
   if (file_path.ReferencesParent()) {
     // The request could lead to a path outside of our jail.
