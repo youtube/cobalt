@@ -34,12 +34,6 @@ class HTMLElement;
 // Returns whether a rule matches an element.
 bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element);
 
-// Evaluates the @media rules for the given width and height of the viewport.
-void EvaluateStyleSheetMediaRules(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
-
 // Updates the matching rules on an element and its children, using the given
 // selector tree.
 void UpdateMatchingRulesUsingSelectorTree(HTMLElement* dom_root,

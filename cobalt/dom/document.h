@@ -218,25 +218,15 @@ class Document : public Node, public cssom::MutationObserver {
   // Called when the inline style of an element is modified.
   void OnElementInlineStyleMutation();
 
-  // Called to update the rule indexes of all style sheets when needed.
-  void UpdateRuleIndexes(
-      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
-
-  // Scans the user agent style sheet and all style sheets in the document's
-  // style sheet list and updates the cached matching rules of the document's
-  // elements by performing rule matching. Only a subset of selectors is
-  // supported as specified here:
+  // Updates the cached matching rules on all the elements in the document.
+  // Media rules will be reevaluated using given root_computed_style.
+  // Only a subset of selectors is supported as specified here:
   //   http://***REMOVED***cobalt-css#heading=h.s82z8u3l3se
   // Those selectors that are supported are implemented after Selectors Level 4.
   //   http://www.w3.org/TR/selectors4/
   void UpdateMatchingRules(
       const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
-
-  void UpdateSelectorTreeFromStyleSheet(
-      const scoped_refptr<cssom::CSSStyleSheet>& style_sheet);
-  void UpdateSelectorTreeFromCSSRuleList(
-      const scoped_refptr<cssom::CSSRuleList>& css_rule_list, bool should_add);
 
   // Updates the computed styles of all of this document's HTML elements.
   void UpdateComputedStyles(

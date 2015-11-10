@@ -184,10 +184,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
 
   void set_pseudo_element(PseudoElementType type,
-                          scoped_ptr<PseudoElement> element) {
-    DCHECK_EQ(this, element->parent_element());
+                          scoped_ptr<PseudoElement> pseudo_element) {
+    DCHECK_EQ(this, pseudo_element->parent_element());
     DCHECK(type < kMaxPseudoElementType);
-    pseudo_elements_[type] = element.Pass();
+    pseudo_elements_[type] = pseudo_element.Pass();
   }
 
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
