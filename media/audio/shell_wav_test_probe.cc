@@ -18,8 +18,9 @@
 
 #include <string>
 
+#include "base/file_path.h"
 #include "base/logging.h"
-#include "lb_globals.h"
+#include "base/path_service.h"
 #include "lb_platform.h"
 #include "media/filters/shell_demuxer.h"
 
@@ -48,9 +49,7 @@ ShellWavTestProbe::ShellWavTestProbe()
     , bits_per_sample_(0)
     , bytes_per_frame_(0)
     , closed_(true)
-    , close_after_ms_(0) {
-
-}
+    , close_after_ms_(0) {}
 
 void ShellWavTestProbe::Initialize(const char* file_name,
                                    int channel_count,
@@ -58,9 +57,11 @@ void ShellWavTestProbe::Initialize(const char* file_name,
                                    int bits_per_sample,
                                    bool use_floats) {
   // try to open file first
-  const std::string game_content_path(GetGlobalsPtr()->game_content_path);
-  std::string path = game_content_path + "/" + std::string(file_name);
-  wav_file_ = fopen(path.c_str(), "wb");
+  FilePath base_path;
+  bool path_ok = PathService::Get(base::DIR_EXE, &base_path);
+  DCHECK(path_ok);
+  base_path = base_path.Append(file_name);
+  wav_file_ = fopen(base_path.value().c_str(), "wb");
   DCHECK(wav_file_);
   closed_ = false;
 
