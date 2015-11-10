@@ -21,9 +21,9 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/css_transition_set.h"
+#include "cobalt/cssom/property_definitions.h"
 #include "cobalt/web_animations/animatable.h"
 #include "cobalt/web_animations/animation.h"
 #include "cobalt/web_animations/animation_timeline.h"
