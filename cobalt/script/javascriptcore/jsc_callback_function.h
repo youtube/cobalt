@@ -25,6 +25,7 @@
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
+#include "cobalt/script/javascriptcore/util/exception_helpers.h"
 #include "cobalt/script/script_object.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 
@@ -56,9 +57,7 @@ class JSCCallbackFunction<R(void)>
     : public CallbackFunction<R(void)> {
  public:
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
-      : callable_(callable) {
-    DCHECK(callable_);
-  }
+      : callable_(callable) { DCHECK(callable_); }
 
   R Run()
       const OVERRIDE {
@@ -77,12 +76,12 @@ class JSCCallbackFunction<R(void)>
         JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
-                                    this_value, args);
+    JSC::JSValue retval =
+        JSC::call(exec_state, callable_, call_type, call_data, this_value,
+            args);
     if (exec_state->hadException()) {
-      JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
-                    << exception.toWTFString(exec_state).utf8().data();
+                    << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
     }
@@ -99,9 +98,7 @@ class JSCCallbackFunction<R(A1)>
     : public CallbackFunction<R(A1)> {
  public:
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
-      : callable_(callable) {
-    DCHECK(callable_);
-  }
+      : callable_(callable) { DCHECK(callable_); }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1)
@@ -122,12 +119,12 @@ class JSCCallbackFunction<R(A1)>
         JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
-                                    this_value, args);
+    JSC::JSValue retval =
+        JSC::call(exec_state, callable_, call_type, call_data, this_value,
+            args);
     if (exec_state->hadException()) {
-      JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
-                    << exception.toWTFString(exec_state).utf8().data();
+                    << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
     }
@@ -144,9 +141,7 @@ class JSCCallbackFunction<R(A1, A2)>
     : public CallbackFunction<R(A1, A2)> {
  public:
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
-      : callable_(callable) {
-    DCHECK(callable_);
-  }
+      : callable_(callable) { DCHECK(callable_); }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -169,12 +164,12 @@ class JSCCallbackFunction<R(A1, A2)>
         JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
-                                    this_value, args);
+    JSC::JSValue retval =
+        JSC::call(exec_state, callable_, call_type, call_data, this_value,
+            args);
     if (exec_state->hadException()) {
-      JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
-                    << exception.toWTFString(exec_state).utf8().data();
+                    << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
     }
@@ -191,9 +186,7 @@ class JSCCallbackFunction<R(A1, A2, A3)>
     : public CallbackFunction<R(A1, A2, A3)> {
  public:
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
-      : callable_(callable) {
-    DCHECK(callable_);
-  }
+      : callable_(callable) { DCHECK(callable_); }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -218,12 +211,12 @@ class JSCCallbackFunction<R(A1, A2, A3)>
         JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
-                                    this_value, args);
+    JSC::JSValue retval =
+        JSC::call(exec_state, callable_, call_type, call_data, this_value,
+            args);
     if (exec_state->hadException()) {
-      JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
-                    << exception.toWTFString(exec_state).utf8().data();
+                    << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
     }
@@ -240,9 +233,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
     : public CallbackFunction<R(A1, A2, A3, A4)> {
  public:
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
-      : callable_(callable) {
-    DCHECK(callable_);
-  }
+      : callable_(callable) { DCHECK(callable_); }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -269,12 +260,12 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
         JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
-                                    this_value, args);
+    JSC::JSValue retval =
+        JSC::call(exec_state, callable_, call_type, call_data, this_value,
+            args);
     if (exec_state->hadException()) {
-      JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
-                    << exception.toWTFString(exec_state).utf8().data();
+                    << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
     }
@@ -292,9 +283,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5)> {
  public:
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
-      : callable_(callable) {
-    DCHECK(callable_);
-  }
+      : callable_(callable) { DCHECK(callable_); }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -323,12 +312,12 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
         JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
-                                    this_value, args);
+    JSC::JSValue retval =
+        JSC::call(exec_state, callable_, call_type, call_data, this_value,
+            args);
     if (exec_state->hadException()) {
-      JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
-                    << exception.toWTFString(exec_state).utf8().data();
+                    << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
     }
@@ -346,9 +335,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5, A6)> {
  public:
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
-      : callable_(callable) {
-    DCHECK(callable_);
-  }
+      : callable_(callable) { DCHECK(callable_); }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -379,12 +366,12 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
         JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
-                                    this_value, args);
+    JSC::JSValue retval =
+        JSC::call(exec_state, callable_, call_type, call_data, this_value,
+            args);
     if (exec_state->hadException()) {
-      JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
-                    << exception.toWTFString(exec_state).utf8().data();
+                    << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
     }
@@ -402,9 +389,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> {
  public:
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
-      : callable_(callable) {
-    DCHECK(callable_);
-  }
+      : callable_(callable) { DCHECK(callable_); }
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -437,12 +422,12 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
         JSC::JSFunction::getCallData(callable_, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
     JSC::JSGlobalData& global_data = global_object->globalData();
-    JSC::JSValue retval = JSC::call(exec_state, callable_, call_type, call_data,
-                                    this_value, args);
+    JSC::JSValue retval =
+        JSC::call(exec_state, callable_, call_type, call_data, this_value,
+            args);
     if (exec_state->hadException()) {
-      JSC::JSValue exception = exec_state->exception();
       DLOG(WARNING) << "Exception in callback: "
-                    << exception.toWTFString(exec_state).utf8().data();
+                    << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
     }
