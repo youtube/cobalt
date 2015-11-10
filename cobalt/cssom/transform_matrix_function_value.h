@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,46 +14,50 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
-#define CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
+#ifndef CSSOM_TRANSFORM_MATRIX_FUNCTION_VALUE_H_
+#define CSSOM_TRANSFORM_MATRIX_FUNCTION_VALUE_H_
 
 #include <string>
 
 #include "base/compiler_specific.h"
 #include "cobalt/base/polymorphic_equatable.h"
+#include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
-#include "cobalt/cssom/scoped_list_value.h"
-#include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_matrix.h"
-#include "cobalt/math/matrix3_f.h"
 
 namespace cobalt {
 namespace cssom {
 
-// A list of transform functions that define how transformation is applied
-// to the coordinate system an HTML element renders in.
-//   http://www.w3.org/TR/css-transforms-1/#typedef-transform-list
-class TransformFunctionListValue : public ScopedListValue<TransformFunction> {
+class TransformFunctionVisitor;
+
+// The matrix function allows one to specify a 2D 2x3 affine transformation
+// as a matrix.
+//   http://www.w3.org/TR/css-transforms-1/#funcdef-matrix
+class TransformMatrixFunctionValue : public PropertyValue {
  public:
-  explicit TransformFunctionListValue(
-      ScopedListValue<TransformFunction>::Builder value)
-      : ScopedListValue(value.Pass()) {}
+  explicit TransformMatrixFunctionValue(const TransformMatrix& matrix);
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE {
-    visitor->VisitTransformFunctionList(this);
+    visitor->VisitTransformMatrixFunction(this);
   }
 
-  TransformMatrix ToMatrix() const;
+  const TransformMatrix& value() const { return value_; }
 
   std::string ToString() const OVERRIDE;
 
-  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TransformFunctionListValue);
+  bool operator==(const TransformMatrixFunctionValue& other) const {
+    return value_ == other.value_;
+  }
+
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TransformMatrixFunctionValue);
 
  private:
-  virtual ~TransformFunctionListValue() OVERRIDE {}
+  virtual ~TransformMatrixFunctionValue() OVERRIDE {}
+
+  const TransformMatrix value_;
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
+#endif  // CSSOM_TRANSFORM_MATRIX_FUNCTION_VALUE_H_

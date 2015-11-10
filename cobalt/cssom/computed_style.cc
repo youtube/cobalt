@@ -1445,6 +1445,15 @@ void ComputedTransformFunctionProvider::VisitTranslate(
       computed_transform_function_.reset(
           new TranslateFunction(*translate_function));
     } break;
+    case TranslateFunction::kCalc: {
+      scoped_refptr<CalcValue> calc_value =
+          translate_function->offset_as_calc();
+      computed_transform_function_.reset(new TranslateFunction(
+          translate_function->axis(),
+          new CalcValue(ProvideAbsoluteLength(calc_value->length_value(),
+                                              computed_font_size_),
+                        calc_value->percentage_value())));
+    } break;
     default: { NOTREACHED(); }
   }
 }

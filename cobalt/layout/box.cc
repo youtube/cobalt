@@ -375,15 +375,8 @@ math::Matrix3F GetCSSTransform(cssom::PropertyValue* transform_property_value,
     return math::Matrix3F::Identity();
   }
 
-  cssom::TransformFunctionListValue* transform =
-      base::polymorphic_downcast<cssom::TransformFunctionListValue*>(
-          transform_property_value);
-  DCHECK(!transform->value().empty());
-
-  scoped_refptr<cssom::TransformFunctionListValue> used_transform =
-      GetUsedTransformListValue(transform, used_size);
-
-  math::Matrix3F css_transform_matrix(used_transform->ToMatrix());
+  math::Matrix3F css_transform_matrix =
+      GetTransformMatrix(transform_property_value).ToMatrix3F(used_size);
 
   // Apply the CSS transformations, taking into account the CSS
   // transform-origin property.
