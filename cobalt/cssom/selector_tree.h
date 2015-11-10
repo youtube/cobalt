@@ -103,11 +103,11 @@ class SelectorTree {
   void RemoveRule(CSSStyleRule* rule);
 
  private:
-  // Get or create node for complex selector, starting from root.
+  // Gets or creates node for complex selector, starting from root.
   Node* GetOrCreateNodeForComplexSelector(ComplexSelector* selector);
 
-  // Get or create node for compound selector, starting from given node, using
-  // given combiantor.
+  // Gets or creates node for compound selector, starting from given node, using
+  // given combiantor as edge.
   Node* GetOrCreateNodeForCompoundSelector(CompoundSelector* compound_selector,
                                            Node* parent_node,
                                            CombinatorType combinator);

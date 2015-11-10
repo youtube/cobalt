@@ -91,11 +91,6 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   Origin origin() const { return origin_; }
   void set_origin(Origin origin) { origin_ = origin; }
 
-  // If the rule indexes are dirty, as indicated by the rule_indexes_dirty flag,
-  // assign the priority index to each rule in the rule list, and index the
-  // rules by selectors.
-  void MaybeUpdateRuleIndexes();
-
   // This performs a recalculation of the media rule expressions, if needed.
   void EvaluateMediaRules(const scoped_refptr<PropertyValue>& width,
                           const scoped_refptr<PropertyValue>& height);
