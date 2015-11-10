@@ -39,6 +39,7 @@
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_src_value.h"
 #include "cobalt/cssom/url_value.h"
@@ -77,6 +78,9 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
                void(TimingFunctionListValue* timing_function_list_value));
   MOCK_METHOD1(VisitTransformFunctionList,
                void(TransformFunctionListValue* transform_list_value));
+  MOCK_METHOD1(
+      VisitTransformMatrixFunction,
+      void(TransformMatrixFunctionValue* transform_matrix_function_value));
   MOCK_METHOD1(VisitUnicodeRange, void(UnicodeRangeValue* unicode_range_value));
   MOCK_METHOD1(VisitURL, void(URLValue* url_value));
   MOCK_METHOD1(VisitUrlSrc, void(UrlSrcValue* url_src_value));
@@ -245,6 +249,15 @@ TEST(PropertyValueVisitorTest, VisitsTransformListValue) {
   EXPECT_CALL(mock_visitor,
               VisitTransformFunctionList(transform_list_value.get()));
   transform_list_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsTransformMatrixFunctionValue) {
+  scoped_refptr<TransformMatrixFunctionValue> transform_matrix_function_value =
+      new TransformMatrixFunctionValue(TransformMatrix());
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitTransformMatrixFunction(
+                                transform_matrix_function_value.get()));
+  transform_matrix_function_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsUnicodeRangeValue) {
