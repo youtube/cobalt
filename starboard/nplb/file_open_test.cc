@@ -28,14 +28,14 @@ void BasicTest(bool existing,
                bool expected_created,
                bool expected_success,
                int original_line) {
-  ScopedRandomFile random_file(
-      existing ? ScopedRandomFile::kCreate : ScopedRandomFile::kDontCreate);
-  const std::string &filename = random_file.filename();
-#define SB_FILE_OPEN_TEST_CONTEXT \
-  "existing=" << existing << ", flags=0x" << std::hex << open_flags \
+  ScopedRandomFile random_file(existing ? ScopedRandomFile::kCreate
+                                        : ScopedRandomFile::kDontCreate);
+  const std::string& filename = random_file.filename();
+#define SB_FILE_OPEN_TEST_CONTEXT                                      \
+  "existing=" << existing << ", flags=0x" << std::hex << open_flags    \
               << std::dec << ", expected_created=" << expected_created \
-              << ", expected_success=" << expected_success \
-              << ", filename=" << filename \
+              << ", expected_success=" << expected_success             \
+              << ", filename=" << filename                             \
               << ", original_line=" << original_line
 
   if (!existing) {
@@ -68,7 +68,6 @@ void BasicTest(bool existing,
   }
 #undef SB_FILE_OPEN_TEST_CONTEXT
 }
-
 
 TEST(SbFileOpenTest, OpenOnlyOpensExistingFile) {
   BasicTest(true, kSbFileOpenOnly | kSbFileRead, false, true, __LINE__);
@@ -112,7 +111,7 @@ TEST(SbFileOpenTest, OpenTruncatedDoesNotCreateNonExistingFile) {
 
 TEST(SbFileOpenTest, WorksWithNullOutParams) {
   ScopedRandomFile random_file;
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
   // What error?
   {
@@ -138,13 +137,12 @@ TEST(SbFileOpenTest, WorksWithNullOutParams) {
 
   // What what?
   {
-    SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
-                             NULL, NULL);
+    SbFile file =
+        SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
     ASSERT_TRUE(SbFileIsValid(file));
     bool result = SbFileClose(file);
     EXPECT_TRUE(result) << "SbFileClose failed for " << filename;
   }
 }
-
 
 }  // namespace

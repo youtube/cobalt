@@ -28,8 +28,8 @@ struct TestContext {
 
 const int kLoops = 10000;
 
-void *EntryPoint(void *parameter) {
-  TestContext *context = static_cast<TestContext *>(parameter);
+void* EntryPoint(void* parameter) {
+  TestContext* context = static_cast<TestContext*>(parameter);
 
   for (int i = 0; i < kLoops; ++i) {
     SbMutexAcquire(&context->mutex);

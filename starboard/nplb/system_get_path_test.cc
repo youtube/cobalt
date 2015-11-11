@@ -27,7 +27,7 @@ void BasicTest(SbSystemPathId id,
                bool expected_result,
                int line) {
 #define LOCAL_CONTEXT "Context : id=" << id << ", line=" << line;
-  char path[kPathSize] = { 0 };
+  char path[kPathSize] = {0};
   memset(path, 0xCD, kPathSize);
   bool result = SbSystemGetPath(id, path, kPathSize);
   if (expect_result) {
@@ -48,13 +48,13 @@ TEST(SbSystemGetPathTest, ReturnsRequiredPaths) {
 }
 
 TEST(SbSystemGetPathTest, FailsGracefullyZeroBufferLength) {
-  char path[kPathSize] = { 0 };
+  char path[kPathSize] = {0};
   bool result = SbSystemGetPath(kSbSystemPathContentDirectory, path, 0);
   EXPECT_FALSE(result);
 }
 
 TEST(SbSystemGetPathTest, FailsGracefullyNullBuffer) {
-  char path[kPathSize] = { 0 };
+  char path[kPathSize] = {0};
   bool result = SbSystemGetPath(kSbSystemPathContentDirectory, NULL, kPathSize);
   EXPECT_FALSE(result);
 }

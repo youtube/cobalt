@@ -26,13 +26,13 @@ struct ThreadParams {
   SbThreadAffinity affinity;
   SbThreadEntryPoint entry_point;
   char name[128];
-  void *context;
+  void* context;
 };
 
-void *ThreadFunc(void *context) {
-  ThreadParams *thread_params = static_cast<ThreadParams *>(context);
+void* ThreadFunc(void* context) {
+  ThreadParams* thread_params = static_cast<ThreadParams*>(context);
   SbThreadEntryPoint entry_point = thread_params->entry_point;
-  void *real_context = thread_params->context;
+  void* real_context = thread_params->context;
   SbThreadAffinity affinity = thread_params->affinity;
   if (thread_params->name[0] != '\0') {
     SbThreadSetName(thread_params->name);
@@ -52,14 +52,13 @@ void *ThreadFunc(void *context) {
 
 }  // namespace
 
-SbThread SbThreadCreate(
-    int64_t stack_size,
-    SbThreadPriority priority,
-    SbThreadAffinity affinity,
-    bool joinable,
-    const char *name,
-    SbThreadEntryPoint entry_point,
-    void *context) {
+SbThread SbThreadCreate(int64_t stack_size,
+                        SbThreadPriority priority,
+                        SbThreadAffinity affinity,
+                        bool joinable,
+                        const char* name,
+                        SbThreadEntryPoint entry_point,
+                        void* context) {
   if (stack_size < 0 || !entry_point) {
     return kSbThreadInvalid;
   }
@@ -70,8 +69,9 @@ SbThread SbThreadCreate(
     return kSbThreadInvalid;
   }
 
-  pthread_attr_setdetachstate(&attributes, (joinable ? PTHREAD_CREATE_JOINABLE :
-                                            PTHREAD_CREATE_DETACHED));
+  pthread_attr_setdetachstate(
+      &attributes,
+      (joinable ? PTHREAD_CREATE_JOINABLE : PTHREAD_CREATE_DETACHED));
   if (stack_size > 0) {
     pthread_attr_setstacksize(&attributes, stack_size);
   }
@@ -80,7 +80,7 @@ SbThread SbThreadCreate(
   // without using a realtime scheduling policy, according to this article:
   // http://stackoverflow.com/questions/3649281/how-to-increase-thread-priority-in-pthreads/3663250
 
-  ThreadParams *params = new ThreadParams();
+  ThreadParams* params = new ThreadParams();
   params->affinity = affinity;
   params->entry_point = entry_point;
   params->context = context;

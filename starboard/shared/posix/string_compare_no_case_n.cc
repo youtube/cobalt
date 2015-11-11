@@ -16,8 +16,8 @@
 
 #include <strings.h>
 
-int SbStringCompareNoCaseN(const char *string1,
-                           const char *string2,
+int SbStringCompareNoCaseN(const char* string1,
+                           const char* string2,
                            size_t count) {
   return ::strncasecmp(string1, string2, count);
 }

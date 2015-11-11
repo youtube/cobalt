@@ -22,11 +22,10 @@
 #include "starboard/log.h"
 #include "starboard/shared/posix/file_internal.h"
 
-SbFile SbFileOpen(
-    const char *path,
-    int flags,
-    bool *out_created,
-    SbFileError *out_error) {
+SbFile SbFileOpen(const char* path,
+                  int flags,
+                  bool* out_created,
+                  SbFileError* out_error) {
   int open_flags = 0;
   if (flags & kSbFileCreateOnly) {
     open_flags = O_CREAT | O_EXCL;

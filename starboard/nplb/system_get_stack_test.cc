@@ -24,13 +24,13 @@ namespace {
 #pragma GCC optimize("O0")
 #endif
 
-int GetStackWithAnExtraFrame(void **out_stack, int stack_size) {
+int GetStackWithAnExtraFrame(void** out_stack, int stack_size) {
   return SbSystemGetStack(out_stack, stack_size);
 }
 
 void WowThatsADeepStack() {
-  void *stack1[10] = {0};
-  void *stack2[10] = {0};
+  void* stack1[10] = {0};
+  void* stack2[10] = {0};
   EXPECT_LT(0, SbSystemGetStack(stack1, SB_ARRAY_SIZE_INT(stack1)));
   EXPECT_LT(1, GetStackWithAnExtraFrame(stack2, SB_ARRAY_SIZE_INT(stack2)));
   EXPECT_EQ(stack1[3], stack2[4]);
@@ -57,34 +57,34 @@ void Deep() {
 TEST(SbSystemGetStackTest, SunnyDay) {
   // Ensure we have more entries than actual stack frames, to check that we have
   // the correct target positioning within the destination array.
-  void *stack[1024] = {0};
+  void* stack[1024] = {0};
   int count = SbSystemGetStack(&stack[2], SB_ARRAY_SIZE_INT(stack) - 2);
   EXPECT_LT(0, count);
   EXPECT_GE(SB_ARRAY_SIZE_INT(stack) - 2, count);
 
   // The target should be filled in from the front of the destination array
   // towards the back.
-  EXPECT_NE(static_cast<void *>(NULL), stack[2]);
+  EXPECT_NE(static_cast<void*>(NULL), stack[2]);
 
   // Ensure no data before the given entry is modified.
-  EXPECT_EQ(static_cast<void *>(NULL), stack[0]);
-  EXPECT_EQ(static_cast<void *>(NULL), stack[1]);
+  EXPECT_EQ(static_cast<void*>(NULL), stack[0]);
+  EXPECT_EQ(static_cast<void*>(NULL), stack[1]);
 }
 
 TEST(SbSystemGetStackTest, SunnyDayShortStack) {
   // Ensure we have fewer entries than actual stack frames.
-  void *stack[2] = {0};
+  void* stack[2] = {0};
   int count = SbSystemGetStack(stack, SB_ARRAY_SIZE_INT(stack));
   EXPECT_LT(0, count);
   EXPECT_GE(SB_ARRAY_SIZE_INT(stack), count);
-  EXPECT_NE(static_cast<void *>(NULL), stack[0]);
+  EXPECT_NE(static_cast<void*>(NULL), stack[0]);
 }
 
 TEST(SbSystemGetStackTest, SunnyDayNoStack) {
-  void *stack[1] = {0};
+  void* stack[1] = {0};
   int count = SbSystemGetStack(stack, 0);
   EXPECT_EQ(0, count);
-  EXPECT_EQ(static_cast<void *>(NULL), stack[0]);
+  EXPECT_EQ(static_cast<void*>(NULL), stack[0]);
 }
 
 TEST(SbSystemGetStackTest, SunnyDayStackDirection) {

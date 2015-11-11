@@ -16,8 +16,8 @@
 
 #include <wchar.h>
 
-int SbStringCompareWide(const wchar_t *string1,
-                        const wchar_t *string2,
+int SbStringCompareWide(const wchar_t* string1,
+                        const wchar_t* string2,
                         size_t count) {
   return wcsncmp(string1, string2, count);
 }

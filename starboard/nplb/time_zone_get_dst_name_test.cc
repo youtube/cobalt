@@ -19,12 +19,14 @@
 namespace {
 
 TEST(SbTimeZoneGetDstNameTest, IsKindOfSane) {
-  const char *name = SbTimeZoneGetDstName();
+  const char* name = SbTimeZoneGetDstName();
 
-  ASSERT_NE(name, static_cast<const char *>(NULL));
+  ASSERT_NE(name, static_cast<const char*>(NULL));
 
   int i = 0;
-  while (name[i] != '\0') { ++i; }
+  while (name[i] != '\0') {
+    ++i;
+  }
 
   // See SbTimeZoneGetNameTest for more discussion.
   EXPECT_GE(i, 3);

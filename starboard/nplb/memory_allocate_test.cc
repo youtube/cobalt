@@ -20,28 +20,28 @@ namespace {
 const size_t kSize = 1024 * 128;
 
 TEST(SbMemoryAllocateTest, AllocatesNormally) {
-  void *memory = SbMemoryAllocate(kSize);
-  EXPECT_NE(static_cast<void *>(NULL), memory);
+  void* memory = SbMemoryAllocate(kSize);
+  EXPECT_NE(static_cast<void*>(NULL), memory);
   SbMemoryFree(memory);
 }
 
 TEST(SbMemoryAllocateTest, AllocatesZero) {
-  void *memory = SbMemoryAllocate(0);
+  void* memory = SbMemoryAllocate(0);
   // We can't expect anything here because some implementations may return an
   // allocated zero-size memory block, and some implementations may return NULL.
   SbMemoryFree(memory);
 }
 
 TEST(SbMemoryAllocateTest, AllocatesOne) {
-  void *memory = SbMemoryAllocate(1);
-  EXPECT_NE(static_cast<void *>(NULL), memory);
+  void* memory = SbMemoryAllocate(1);
+  EXPECT_NE(static_cast<void*>(NULL), memory);
   SbMemoryFree(memory);
 }
 
 TEST(SbMemoryAllocateTest, CanReadWriteToResult) {
-  void *memory = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }

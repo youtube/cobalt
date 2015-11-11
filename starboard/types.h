@@ -24,19 +24,19 @@
 #include "starboard/configuration.h"
 
 #if SB_HAS(STDBOOL_H) && !defined(__cplusplus)
-#  include <stdbool.h>
+#include <stdbool.h>
 #endif  // SB_HAS(STDBOOL_H) && !defined(__cplusplus)
 
 #if SB_HAS(STDINT_H)
-#  include <stdint.h>
+#include <stdint.h>
 #endif
 
 #if SB_HAS(INTTYPES_H)
-#  include <inttypes.h>
+#include <inttypes.h>
 #endif  // SB_HAS(STDINT_H)
 
 #if SB_HAS(STDDEF_H)
-#  include <stddef.h>
+#include <stddef.h>
 #endif
 
 #ifdef __cplusplus
@@ -45,12 +45,12 @@ extern "C" {
 
 // Simulate stdint.h for platforms that don't provide it.
 #if !SB_HAS(STDINT_H) && !SB_HAS(INTTYPES_H)
-#  if !defined(SB_INT8) || !defined(SB_UINT8) || !defined(SB_INT16) || \
-      !defined(SB_UINT16) || !defined(SB_INT32) || !defined(SB_UINT32) || \
-      !defined(SB_INT64) || !defined(SB_UINT64) || !defined(SB_INTPTR) || \
-      !defined(SB_UINTPTR)
-#    error "No stdint.h or inttypes.h, so define SB_U?INT(8|16|32|64|PTR)."
-#  endif  // !defined(SB_U?INT(8|16|32|64|PTR))
+#if !defined(SB_INT8) || !defined(SB_UINT8) || !defined(SB_INT16) ||    \
+    !defined(SB_UINT16) || !defined(SB_INT32) || !defined(SB_UINT32) || \
+    !defined(SB_INT64) || !defined(SB_UINT64) || !defined(SB_INTPTR) || \
+    !defined(SB_UINTPTR)
+#error "No stdint.h or inttypes.h, so define SB_U?INT(8|16|32|64|PTR)."
+#endif  // !defined(SB_U?INT(8|16|32|64|PTR))
 typedef SB_INT8 int8_t;
 typedef SB_UINT8 uint8_t;
 
@@ -69,39 +69,39 @@ typedef SB_UINTPTR uintptr_t;
 
 // Simulate stdbool.h for platforms that don't provide it.
 #if !SB_HAS(STDBOOL_H) && !defined(__cplusplus)
-#  if __STDC_VERSION__ >= 199901L
-#    define bool _Bool
-#  else
-#    define bool int
-#  endif
-#  define false 0
-#  define true 1
+#if __STDC_VERSION__ >= 199901L
+#define bool _Bool
+#else
+#define bool int
+#endif
+#define false 0
+#define true 1
 #endif  // !SB_HAS(STDBOOL_H) && !defined(__cplusplus)
 
 // Simulate stddef.h for platforms that don't provide it.
 #if !SB_HAS(STDDEF_H)
-#  define NULL ((void *)0)
+#define NULL ((void*)0)
 #endif
 
 #if defined(_MSC_VER)
-#  define SB_INT64_C(x) x##I64
-#  define SB_UINT64_C(x) x##UI64
+#define SB_INT64_C(x) x##I64
+#define SB_UINT64_C(x) x##UI64
 #else  // defined(_MSC_VER)
-#  define SB_INT64_C(x) x##LL
-#  define SB_UINT64_C(x) x##ULL
+#define SB_INT64_C(x) x##LL
+#define SB_UINT64_C(x) x##ULL
 #endif  // defined(_MSC_VER)
 
 #if !defined(PRId32)
-#  error "inttypes.h should provide the portable formatting macros."
+#error "inttypes.h should provide the portable formatting macros."
 #endif
 
 #if defined(_MSC_VER)
-#  pragma warning(push)
-#  pragma warning(disable : 4310)  // Cast truncates constant value.
+#pragma warning(push)
+#pragma warning(disable : 4310)  // Cast truncates constant value.
 #endif
 
-static const int8_t kSbInt8Min  = ((int8_t)0x80);
-static const int8_t kSbInt8Max  = ((int8_t)0x7F);
+static const int8_t kSbInt8Min = ((int8_t)0x80);
+static const int8_t kSbInt8Max = ((int8_t)0x7F);
 static const uint8_t kSbUInt8Max = ((uint8_t)0xFF);
 
 static const int16_t kSbInt16Min = ((int16_t)0x8000);
@@ -117,7 +117,7 @@ static const int64_t kSbInt64Max = ((int64_t)SB_INT64_C(0x7FFFFFFFFFFFFFFF));
 static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
 
 #if defined(_MSC_VER)
-#  pragma warning(pop)
+#pragma warning(pop)
 #endif
 
 // A value that represents an int that is probably invalid.

@@ -27,19 +27,19 @@ void DoNotYield() {
 }
 
 // Adds 1 to the input.
-void *AddOneEntryPoint(void *context) {
+void* AddOneEntryPoint(void* context) {
   return ToVoid(FromVoid(context) + 1);
 }
 
-void *WaiterEntryPoint(void *context) {
-  WaiterContext *real_context = static_cast<WaiterContext *>(context);
+void* WaiterEntryPoint(void* context) {
+  WaiterContext* real_context = static_cast<WaiterContext*>(context);
   real_context->Wait();
   return NULL;
 }
 
-void *TakeThenSignalEntryPoint(void *context) {
-  TakeThenSignalContext *test_context =
-      static_cast<TakeThenSignalContext *>(context);
+void* TakeThenSignalEntryPoint(void* context) {
+  TakeThenSignalContext* test_context =
+      static_cast<TakeThenSignalContext*>(context);
 
   // Don't signal the condition variable until we are asked.
   test_context->do_signal.Take();

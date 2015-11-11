@@ -20,18 +20,18 @@ namespace {
 const size_t kSize = 1024 * 128;
 
 TEST(SbMemoryCopyTest, CopiesSomeData) {
-  void *memory1 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory1);
-  void *memory2 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory2);
-  char *data1 = static_cast<char *>(memory1);
-  char *data2 = static_cast<char *>(memory2);
+  void* memory1 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory1);
+  void* memory2 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory2);
+  char* data1 = static_cast<char*>(memory1);
+  char* data2 = static_cast<char*>(memory2);
   for (int i = 0; i < kSize; ++i) {
     data1[i] = static_cast<char>(i);
     data2[i] = 0;
   }
 
-  void *result = SbMemoryCopy(memory2, memory1, kSize);
+  void* result = SbMemoryCopy(memory2, memory1, kSize);
   EXPECT_EQ(memory2, result);
 
   for (int i = 0; i < kSize; ++i) {
@@ -44,18 +44,18 @@ TEST(SbMemoryCopyTest, CopiesSomeData) {
 }
 
 TEST(SbMemoryCopyTest, CopiesZeroData) {
-  void *memory1 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory1);
-  void *memory2 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory2);
-  char *data1 = static_cast<char *>(memory1);
-  char *data2 = static_cast<char *>(memory2);
+  void* memory1 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory1);
+  void* memory2 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory2);
+  char* data1 = static_cast<char*>(memory1);
+  char* data2 = static_cast<char*>(memory2);
   for (int i = 0; i < kSize; ++i) {
     data1[i] = static_cast<char>(i);
     data2[i] = 0;
   }
 
-  void *result = SbMemoryCopy(memory2, memory1, 0);
+  void* result = SbMemoryCopy(memory2, memory1, 0);
   EXPECT_EQ(memory2, result);
 
   for (int i = 0; i < kSize; ++i) {

@@ -16,6 +16,6 @@
 
 #include <strings.h>
 
-int SbStringCompareNoCase(const char *string1, const char *string2) {
+int SbStringCompareNoCase(const char* string1, const char* string2) {
   return strcasecmp(string1, string2);
 }

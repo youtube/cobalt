@@ -20,7 +20,7 @@
 namespace {
 
 TEST(SbThreadJoinTest, RainyDayInvalid) {
-  void *result = NULL;
+  void* result = NULL;
   EXPECT_FALSE(SbThreadJoin(kSbThreadInvalid, NULL));
   EXPECT_FALSE(SbThreadJoin(kSbThreadInvalid, &result));
   EXPECT_EQ(NULL, result);

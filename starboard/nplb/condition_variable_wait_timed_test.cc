@@ -22,10 +22,10 @@ namespace nplb = starboard::nplb;
 
 namespace {
 
-void DoSunnyDay(nplb::TakeThenSignalContext *context, bool check_timeout) {
-  SbThread thread = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                   true, NULL, nplb::TakeThenSignalEntryPoint,
-                                   context);
+void DoSunnyDay(nplb::TakeThenSignalContext* context, bool check_timeout) {
+  SbThread thread =
+      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
+                     nplb::TakeThenSignalEntryPoint, context);
 
   const SbTime kDelay = kSbTimeMillisecond * 10;
 
@@ -34,9 +34,8 @@ void DoSunnyDay(nplb::TakeThenSignalContext *context, bool check_timeout) {
   if (check_timeout) {
     EXPECT_TRUE(SbMutexIsSuccess(SbMutexAcquire(&context->mutex)));
     SbTimeMonotonic start = SbTimeGetMonotonicNow();
-    SbConditionVariableResult result =
-        SbConditionVariableWaitTimed(&context->condition, &context->mutex,
-                                     kDelay);
+    SbConditionVariableResult result = SbConditionVariableWaitTimed(
+        &context->condition, &context->mutex, kDelay);
     EXPECT_EQ(kSbConditionVariableTimedOut, result);
     SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - start;
     EXPECT_LE(kDelay, elapsed);
@@ -55,9 +54,8 @@ void DoSunnyDay(nplb::TakeThenSignalContext *context, bool check_timeout) {
 
     // We release the mutex when we wait, allowing the thread to actually do the
     // signaling, and ensuring we are waiting before it signals.
-    SbConditionVariableResult result =
-        SbConditionVariableWaitTimed(&context->condition, &context->mutex,
-                                     kDelay);
+    SbConditionVariableResult result = SbConditionVariableWaitTimed(
+        &context->condition, &context->mutex, kDelay);
     EXPECT_EQ(kSbConditionVariableSignaled, result);
 
     // We should have waited only a very small amount of time.
@@ -81,9 +79,9 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDay) {
 
 TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
   {
-    nplb::TakeThenSignalContext context = { nplb::Semaphore(0),
-                                            SB_MUTEX_INITIALIZER,
-                                            SB_CONDITION_VARIABLE_INITIALIZER };
+    nplb::TakeThenSignalContext context = {nplb::Semaphore(0),
+                                           SB_MUTEX_INITIALIZER,
+                                           SB_CONDITION_VARIABLE_INITIALIZER};
     DoSunnyDay(&context, true);
   }
 
@@ -92,9 +90,9 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
   // this mode, hoping to have the auto-initting contend in various ways.
   const int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
-    nplb::TakeThenSignalContext context = { nplb::Semaphore(0),
-                                            SB_MUTEX_INITIALIZER,
-                                            SB_CONDITION_VARIABLE_INITIALIZER };
+    nplb::TakeThenSignalContext context = {nplb::Semaphore(0),
+                                           SB_MUTEX_INITIALIZER,
+                                           SB_CONDITION_VARIABLE_INITIALIZER};
     DoSunnyDay(&context, false);
   }
 }

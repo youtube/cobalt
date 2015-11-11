@@ -78,7 +78,7 @@ typedef int32_t SbThreadId;
 
 // Function pointer type for SbThreadCreate.  |context| is a pointer-sized bit
 // of data passed in from the calling thread.
-typedef void *(*SbThreadEntryPoint)(void *context);
+typedef void* (*SbThreadEntryPoint)(void* context);
 
 // Function pointer type for Thread-Local destructors.
 typedef void (*SbThreadLocalDestructor)(void* value);
@@ -92,7 +92,7 @@ typedef int32_t SbThreadAffinity;
 typedef struct SbThreadLocalKeyPrivate SbThreadLocalKeyPrivate;
 
 // A handle to a thread-local key.
-typedef SbThreadLocalKeyPrivate *SbThreadLocalKey;
+typedef SbThreadLocalKeyPrivate* SbThreadLocalKey;
 
 // Well-defined constant value to mean "no thread ID."
 const SbThreadId kSbThreadInvalidId = (SbThreadId)0;
@@ -143,14 +143,13 @@ SB_C_INLINE bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
 // must call SbThreadJoin to release system resources associated with the
 // thread. This is not necessary for detached threads, but a detached thread
 // cannot be joined.
-SB_EXPORT SbThread SbThreadCreate(
-    int64_t stack_size,
-    SbThreadPriority priority,
-    SbThreadAffinity affinity,
-    bool joinable,
-    const char *name,
-    SbThreadEntryPoint entry_point,
-    void *context);
+SB_EXPORT SbThread SbThreadCreate(int64_t stack_size,
+                                  SbThreadPriority priority,
+                                  SbThreadAffinity affinity,
+                                  bool joinable,
+                                  const char* name,
+                                  SbThreadEntryPoint entry_point,
+                                  void* context);
 
 // Joins with joinable |thread|, created with SbThreadCreate.  This function
 // blocks the caller until the designated thread exits, and then cleans up that
@@ -162,7 +161,7 @@ SB_EXPORT SbThread SbThreadCreate(
 // Each joinable thread can only be joined once. Once SbThreadJoin is called,
 // the thread behaves as if it was detached to all threads other than the
 // joining thread.
-SB_EXPORT bool SbThreadJoin(SbThread thread, void **out_return);
+SB_EXPORT bool SbThreadJoin(SbThread thread, void** out_return);
 
 // Detaches |thread|, which prevents it from being joined. This is sort of like
 // a non-blocking join. Does nothing if the thread is already detached, or is
@@ -183,11 +182,11 @@ SB_EXPORT SbThread SbThreadGetCurrent();
 SB_EXPORT SbThreadId SbThreadGetId();
 
 // Gets the debug name of the currently executing thread.
-SB_EXPORT void SbThreadGetName(char *buffer, int buffer_size);
+SB_EXPORT void SbThreadGetName(char* buffer, int buffer_size);
 
 // Sets the debug name of the currently executing thread. Will copy the
 // specified name string.
-SB_EXPORT void SbThreadSetName(const char *name);
+SB_EXPORT void SbThreadSetName(const char* name);
 
 // Creates a new, unique key for thread local data with given optional
 // |destructor|. |destructor| may be NULL if there is no clean up
@@ -196,8 +195,8 @@ SB_EXPORT void SbThreadSetName(const char *name);
 // When does |destructor| get called? It can only be called in the owning
 // thread, and let's just say thread interruption isn't viable. The destructor,
 // if specified, is called on every thread's local values when the thread exits.
-SB_EXPORT SbThreadLocalKey SbThreadCreateLocalKey(
-    SbThreadLocalDestructor destructor);
+SB_EXPORT SbThreadLocalKey
+SbThreadCreateLocalKey(SbThreadLocalDestructor destructor);
 
 // Destroys thread local data |key|. Does nothing if key is
 // kSbThreadLocalKeyInvalid or has already been destroyed. This does NOT call
@@ -207,12 +206,12 @@ SB_EXPORT void SbThreadDestroyLocalKey(SbThreadLocalKey key);
 // Gets the pointer-sized value for |key| in the currently executing thread's
 // local storage. Returns NULL if key is kSbThreadLocalKeyInvalid or has already
 // been destroyed.
-SB_EXPORT void *SbThreadGetLocalValue(SbThreadLocalKey key);
+SB_EXPORT void* SbThreadGetLocalValue(SbThreadLocalKey key);
 
 // Sets the pointer-sized value for |key| in the currently executing thread's
 // local storage. Returns whether |key| is valid and has not already been
 // destroyed.
-SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void *value);
+SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value);
 
 #ifdef __cplusplus
 }  // extern "C"

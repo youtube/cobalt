@@ -20,7 +20,7 @@
 
 #include "starboard/shared/posix/file_internal.h"
 
-int SbFileRead(SbFile file, char *data, int size) {
+int SbFileRead(SbFile file, char* data, int size) {
   if (!file || file->descriptor < 0 || size < 0) {
     return -1;
   }

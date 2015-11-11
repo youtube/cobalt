@@ -20,7 +20,7 @@
 
 #include "starboard/shared/posix/file_internal.h"
 
-bool SbFileCanOpen(const char *path, int flags) {
+bool SbFileCanOpen(const char* path, int flags) {
   int amode = 0;
   if (flags & kSbFileRead) {
     amode |= R_OK;

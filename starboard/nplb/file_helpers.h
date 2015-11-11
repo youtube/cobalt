@@ -39,51 +39,44 @@ class ScopedRandomFile {
   };
 
   // Will create a file of |kDefaultLength| bytes long.
-  ScopedRandomFile(): size_(kDefaultLength) {
+  ScopedRandomFile() : size_(kDefaultLength) {
     filename_ = MakeRandomFile(size_);
   }
 
   // Will create a file |length| bytes long.
-  ScopedRandomFile(int length): size_(length) {
+  ScopedRandomFile(int length) : size_(length) {
     filename_ = MakeRandomFile(size_);
   }
 
   // Will either create a file |length| bytes long, or will just generate a
   // filename.  |create| is whether to create the file or not.
-  ScopedRandomFile(int length, Create create): size_(length) {
+  ScopedRandomFile(int length, Create create) : size_(length) {
     filename_ =
         (create == kCreate ? MakeRandomFile(size_) : MakeRandomFilename());
   }
 
   // Will either create a file of |kDefaultLength| bytes long, or will just
   // generate a filename.  |create| is whether to create the file or not.
-  ScopedRandomFile(Create create): size_(kDefaultLength) {
+  ScopedRandomFile(Create create) : size_(kDefaultLength) {
     filename_ =
         (create == kCreate ? MakeRandomFile(size_) : MakeRandomFilename());
   }
 
-  ~ScopedRandomFile() {
-    SbFileDelete(filename_.c_str());
-  }
+  ~ScopedRandomFile() { SbFileDelete(filename_.c_str()); }
 
   // Returns the filename generated for this file.
-  const std::string &filename() const {
-    return filename_;
-  }
+  const std::string& filename() const { return filename_; }
 
   // Returns the SPECIFIED size of the file (not the size returned by the
   // filesystem).
-  const int size() const {
-    return size_;
-  }
+  const int size() const { return size_; }
 
   // Checks |buffer| of size |size| against this class's write pattern, offset
   // by |pattern_offset|. Failures print the original line number |line|.
-  static void ExpectPattern(
-      int pattern_offset,
-      void *buffer,
-      int size,
-      int line);
+  static void ExpectPattern(int pattern_offset,
+                            void* buffer,
+                            int size,
+                            int line);
 
  private:
   // Creates a file with a random name and |length| bytes, returning the path to

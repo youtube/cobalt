@@ -18,7 +18,7 @@
 
 #include "starboard/shared/pthread/thread_local_key_internal.h"
 
-bool SbThreadSetLocalValue(SbThreadLocalKey key, void *value) {
+bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value) {
   if (!SbThreadIsValidLocalKey(key)) {
     return false;
   }

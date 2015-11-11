@@ -18,7 +18,7 @@
 
 #include "starboard/shared/pthread/is_success.h"
 
-bool SbMutexRelease(SbMutex *mutex) {
+bool SbMutexRelease(SbMutex* mutex) {
   if (!mutex) {
     return false;
   }

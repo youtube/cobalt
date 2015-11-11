@@ -50,7 +50,7 @@ TEST(SbDirectoryOpenTest, ManySunnyDay) {
   EXPECT_TRUE(SbFileExists(path.c_str()));
 
   const int kMany = 256;
-  SbDirectory directories[kMany] = { 0 };
+  SbDirectory directories[kMany] = {0};
 
   for (int i = 0; i < SB_ARRAY_SIZE_INT(directories); ++i) {
     SbFileError error = kSbFileErrorMax;
@@ -64,7 +64,6 @@ TEST(SbDirectoryOpenTest, ManySunnyDay) {
   }
 }
 
-
 TEST(SbDirectoryOpenTest, FailsInvalidPath) {
   std::string path = starboard::nplb::GetTempDir();
   EXPECT_FALSE(path.empty());
@@ -72,10 +71,10 @@ TEST(SbDirectoryOpenTest, FailsInvalidPath) {
 
   // Funny way to make sure the directory seems valid but doesn't exist.
   int len = path.length();
-  if (path[len-1] != 'z') {
-    path[len-1] = 'z';
+  if (path[len - 1] != 'z') {
+    path[len - 1] = 'z';
   } else {
-    path[len-1] = 'y';
+    path[len - 1] = 'y';
   }
 
   ASSERT_FALSE(SbFileExists(path.c_str()));

@@ -20,28 +20,28 @@ namespace {
 const size_t kSize = 1024 * 128;
 
 TEST(SbMemoryReallocateTest, AllocatesNormally) {
-  void *memory = SbMemoryReallocate(NULL, kSize);
-  EXPECT_NE(static_cast<void *>(NULL), memory);
+  void* memory = SbMemoryReallocate(NULL, kSize);
+  EXPECT_NE(static_cast<void*>(NULL), memory);
   SbMemoryFree(memory);
 }
 
 TEST(SbMemoryReallocateTest, AllocatesZero) {
-  void *memory = SbMemoryReallocate(NULL, 0);
+  void* memory = SbMemoryReallocate(NULL, 0);
   // We can't expect anything here because some implementations may return an
   // allocated zero-size memory block, and some implementations may return NULL.
   SbMemoryFree(memory);
 }
 
 TEST(SbMemoryReallocateTest, AllocatesOne) {
-  void *memory = SbMemoryReallocate(NULL, 1);
-  EXPECT_NE(static_cast<void *>(NULL), memory);
+  void* memory = SbMemoryReallocate(NULL, 1);
+  EXPECT_NE(static_cast<void*>(NULL), memory);
   SbMemoryFree(memory);
 }
 
 TEST(SbMemoryReallocateTest, CanReadWriteToResult) {
-  void *memory = SbMemoryReallocate(NULL, kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryReallocate(NULL, kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = i;
   }
@@ -54,9 +54,9 @@ TEST(SbMemoryReallocateTest, CanReadWriteToResult) {
 }
 
 TEST(SbMemoryReallocateTest, ReallocatesSmaller) {
-  void *memory = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = i;
   }
@@ -66,8 +66,8 @@ TEST(SbMemoryReallocateTest, ReallocatesSmaller) {
   }
 
   memory = SbMemoryReallocate(memory, kSize / 2);
-  data = static_cast<char *>(memory);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
+  data = static_cast<char*>(memory);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
   for (int i = 0; i < kSize / 2; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
@@ -76,9 +76,9 @@ TEST(SbMemoryReallocateTest, ReallocatesSmaller) {
 }
 
 TEST(SbMemoryReallocateTest, ReallocatesBigger) {
-  void *memory = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = i;
   }
@@ -88,8 +88,8 @@ TEST(SbMemoryReallocateTest, ReallocatesBigger) {
   }
 
   memory = SbMemoryReallocate(memory, kSize * 2);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
-  data = static_cast<char *>(memory);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
+  data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
@@ -106,17 +106,17 @@ TEST(SbMemoryReallocateTest, ReallocatesBigger) {
 }
 
 TEST(SbMemoryReallocateTest, ReallocatestoZero) {
-  void *memory = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
+  void* memory = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
   memory = SbMemoryReallocate(memory, 0);
   // See allocates zero above.
   SbMemoryFree(memory);
 }
 
 TEST(SbMemoryReallocateTest, ReallocatestoSameSize) {
-  void *memory = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = i;
   }
@@ -126,8 +126,8 @@ TEST(SbMemoryReallocateTest, ReallocatestoSameSize) {
   }
 
   memory = SbMemoryReallocate(memory, kSize);
-  data = static_cast<char *>(memory);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
+  data = static_cast<char*>(memory);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
   for (int i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }

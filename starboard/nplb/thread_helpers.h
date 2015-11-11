@@ -23,33 +23,33 @@
 namespace starboard {
 namespace nplb {
 
-inline void *ToVoid(intptr_t value) {
-  return reinterpret_cast<void *>(value);
+inline void* ToVoid(intptr_t value) {
+  return reinterpret_cast<void*>(value);
 }
 
-inline intptr_t FromVoid(void *value) {
+inline intptr_t FromVoid(void* value) {
   return reinterpret_cast<intptr_t>(value);
 }
 
-void * const kSomeContext = ToVoid(1234);
-void * const kSomeContextPlusOne = ToVoid(1235);
+void* const kSomeContext = ToVoid(1234);
+void* const kSomeContextPlusOne = ToVoid(1235);
 
-const char * const kThreadName = "ThreadName";
-const char * const kAltThreadName = "AltThreadName";
+const char* const kThreadName = "ThreadName";
+const char* const kAltThreadName = "AltThreadName";
 
 // Does not yield, can't you read?
 void DoNotYield();
 
 // Adds 1 to the input.
-void *AddOneEntryPoint(void *context);
+void* AddOneEntryPoint(void* context);
 
 // Acquires the mutex from the WaiterContext, signals the return_condition, then
 // waits on the condition.
-void *WaiterEntryPoint(void *context);
+void* WaiterEntryPoint(void* context);
 
 // Takes a token from the TakeThenSignalContext semaphore, and then signals the
 // condition variable.
-void *TakeThenSignalEntryPoint(void *context);
+void* TakeThenSignalEntryPoint(void* context);
 
 // A simple struct that will initialize its members on construction and destroy
 // them on destruction.

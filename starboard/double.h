@@ -27,7 +27,7 @@ extern "C" {
 // Determines whether double-precision floating-point number |d| represents a
 // fininte number. |d| is a pointer to a double to avoid copying the whole
 // double, similar to using a const reference in C++.
-SB_EXPORT bool SbDoubleIsFinite(const double *d);
+SB_EXPORT bool SbDoubleIsFinite(const double* d);
 
 #ifdef __cplusplus
 }  // extern "C"
