@@ -99,8 +99,14 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // Inherited: no.
   // Initial: none.
   //   http://www.w3.org/TR/css3-background/#background-image
+  scoped_ptr<PropertyListValue::Builder> background_image_builder(
+      new PropertyListValue::Builder());
+  background_image_builder->reserve(1);
+  background_image_builder->push_back(KeywordValue::GetNone());
+  scoped_refptr<PropertyListValue> background_image_list(
+      new PropertyListValue(background_image_builder.Pass()));
   SetPropertyDefinition(kBackgroundImageProperty, "background-image", false,
-                        false, KeywordValue::GetNone());
+                        false, background_image_list);
 
   // Inherited: no.
   // Initial: 0% 0%..

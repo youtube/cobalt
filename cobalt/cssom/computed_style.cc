@@ -886,6 +886,7 @@ class ComputedBackgroundImageSingleLayerProvider
       : base_url_(base_url) {}
 
   void VisitAbsoluteURL(AbsoluteURLValue* absolute_url_value) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
 
@@ -904,43 +905,8 @@ void ComputedBackgroundImageSingleLayerProvider::VisitAbsoluteURL(
   computed_background_image_ = absolute_url_value;
 }
 
-void ComputedBackgroundImageSingleLayerProvider::VisitLinearGradient(
-    LinearGradientValue* /*linear_gradient_value*/) {
-  // TODO(***REMOVED***): Deal with linear gradient value.
-  NOTIMPLEMENTED();
-}
-
-void ComputedBackgroundImageSingleLayerProvider::VisitURL(URLValue* url_value) {
-  GURL absolute_url;
-
-  if (url_value->is_absolute()) {
-    absolute_url = GURL(url_value->value());
-  } else {
-    absolute_url = url_value->Resolve(base_url_);
-  }
-
-  computed_background_image_ = new AbsoluteURLValue(absolute_url);
-}
-
-class ComputedBackgroundImageProvider : public NotReachedPropertyValueVisitor {
- public:
-  explicit ComputedBackgroundImageProvider(const GURL& base_url)
-      : base_url_(base_url) {}
-
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
-
-  const scoped_refptr<PropertyValue>& computed_background_image() const {
-    return computed_background_image_;
-  }
-
- private:
-  const GURL base_url_;
-
-  scoped_refptr<PropertyValue> computed_background_image_;
-};
-
-void ComputedBackgroundImageProvider::VisitKeyword(KeywordValue* keyword) {
+void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
+    KeywordValue* keyword) {
   switch (keyword->value()) {
     case KeywordValue::kNone:
       computed_background_image_ = keyword;
@@ -985,6 +951,41 @@ void ComputedBackgroundImageProvider::VisitKeyword(KeywordValue* keyword) {
       break;
   }
 }
+
+void ComputedBackgroundImageSingleLayerProvider::VisitLinearGradient(
+    LinearGradientValue* /*linear_gradient_value*/) {
+  // TODO(***REMOVED***): Deal with linear gradient value.
+  NOTIMPLEMENTED();
+}
+
+void ComputedBackgroundImageSingleLayerProvider::VisitURL(URLValue* url_value) {
+  GURL absolute_url;
+
+  if (url_value->is_absolute()) {
+    absolute_url = GURL(url_value->value());
+  } else {
+    absolute_url = url_value->Resolve(base_url_);
+  }
+
+  computed_background_image_ = new AbsoluteURLValue(absolute_url);
+}
+
+class ComputedBackgroundImageProvider : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedBackgroundImageProvider(const GURL& base_url)
+      : base_url_(base_url) {}
+
+  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+
+  const scoped_refptr<PropertyValue>& computed_background_image() const {
+    return computed_background_image_;
+  }
+
+ private:
+  const GURL base_url_;
+
+  scoped_refptr<PropertyValue> computed_background_image_;
+};
 
 void ComputedBackgroundImageProvider::VisitPropertyList(
     PropertyListValue* property_list_value) {

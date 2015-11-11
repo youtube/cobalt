@@ -482,19 +482,21 @@ void HTMLElement::OnRemoveAttribute(const std::string& name) {
 void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
   scoped_refptr<cssom::PropertyValue> background_image =
       computed_style()->background_image();
-  // Don't fetch or cache the image if no image is specified or the display of
-  // this element is turned off.
-  if (background_image != cssom::KeywordValue::GetNone() &&
-      computed_style()->display() != cssom::KeywordValue::GetNone()) {
+  // Don't fetch or cache the image if the display of this element is turned
+  // off.
+  if (computed_style()->display() != cssom::KeywordValue::GetNone()) {
     cssom::PropertyListValue* property_list_value =
         base::polymorphic_downcast<cssom::PropertyListValue*>(
             background_image.get());
 
     loader::image::CachedImageReferenceVector cached_images;
-    cached_images.reserve(property_list_value->value().size());
-
     for (size_t i = 0; i < property_list_value->value().size(); ++i) {
-      // TODO(***REMOVED***): Using visitors when linear gradient is supported.
+      // Skip this image if it is not an absolute URL.
+      if (property_list_value->value()[i]->GetTypeId() !=
+          base::GetTypeId<cssom::AbsoluteURLValue>()) {
+        continue;
+      }
+
       cssom::AbsoluteURLValue* absolute_url =
           base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
               property_list_value->value()[i].get());
@@ -517,6 +519,7 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
 
     cached_background_images_ = cached_images.Pass();
   } else {
+    // Clear the previous cached background image if the display is "none".
     cached_background_images_.clear();
   }
 }
