@@ -168,7 +168,6 @@ TEST(PromoteToComputedStyle, BackgroundImageAbsoluteURL) {
   PromoteToComputedStyle(computed_style, parent_computed_style,
                          &property_key_to_base_url_map);
 
-  ASSERT_NE(cssom::KeywordValue::GetNone(), computed_style->background_image());
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           computed_style->background_image().get());
@@ -203,7 +202,6 @@ TEST(PromoteToComputedStyle, BackgroundImageRelativeURL) {
   PromoteToComputedStyle(computed_style, parent_computed_style,
                          &property_key_to_base_url_map);
 
-  ASSERT_NE(cssom::KeywordValue::GetNone(), computed_style->background_image());
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           computed_style->background_image().get());
@@ -219,7 +217,13 @@ TEST(PromoteToComputedStyle, BackgroundImageRelativeURL) {
 TEST(PromoteToComputedStyle, BackgroundImageNone) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
-  computed_style->set_background_image(cssom::KeywordValue::GetNone());
+
+  scoped_ptr<cssom::PropertyListValue::Builder> background_image_builder(
+      new cssom::PropertyListValue::Builder());
+  background_image_builder->push_back(cssom::KeywordValue::GetNone());
+  scoped_refptr<cssom::PropertyListValue> background_image(
+      new cssom::PropertyListValue(background_image_builder.Pass()));
+  computed_style->set_background_image(background_image);
 
   scoped_refptr<cssom::CSSStyleDeclarationData> parent_computed_style(
       new cssom::CSSStyleDeclarationData());
@@ -231,8 +235,13 @@ TEST(PromoteToComputedStyle, BackgroundImageNone) {
   PromoteToComputedStyle(computed_style, parent_computed_style,
                          &property_key_to_base_url_map);
 
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            computed_style->background_image().get());
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  ASSERT_EQ(1, background_image_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), background_image_list->value()[0]);
 }
 
 TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithoutKeywordValue) {

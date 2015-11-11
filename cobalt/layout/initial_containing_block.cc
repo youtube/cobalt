@@ -69,8 +69,15 @@ bool ConditionalCopyBackgroundStyle(
     scoped_refptr<cssom::CSSStyleDeclarationData> destination_style) {
   bool background_color_is_transparent =
       GetUsedColor(source_style->background_color()).a() == 0.0f;
+
+  cssom::PropertyListValue* background_image_list =
+      base::polymorphic_downcast<cssom::PropertyListValue*>(
+          source_style->background_image().get());
+  DCHECK_GT(background_image_list->value().size(), 0);
+
   bool background_image_is_none =
-      source_style->background_image() == cssom::KeywordValue::GetNone();
+      background_image_list->value().size() == 1 &&
+      background_image_list->value()[0] == cssom::KeywordValue::GetNone();
 
   if (!background_color_is_transparent || !background_image_is_none) {
     if (!background_color_is_transparent) {
