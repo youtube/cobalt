@@ -18,7 +18,6 @@
       'target_name': 'platform_system_window',
       'type': 'static_library',
       'sources': [
-        'create_system_window.cc',
         'system_window.cc',
         'system_window.h',
       ],

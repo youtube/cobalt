@@ -27,7 +27,8 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/threading/thread_local.h"
-#include "cobalt/dom/event_names.h"
+#include "cobalt/system_window/application_event.h"
+#include "cobalt/system_window/keyboard_event.h"
 
 namespace cobalt {
 namespace system_window {
@@ -55,22 +56,23 @@ inline bool IsKeyDown(int keycode) {
 }
 
 unsigned int GetModifierKeyState() {
-  unsigned int modifiers = dom::KeyboardEvent::kNoModifier;
+  unsigned int modifiers = KeyboardEvent::kNoModifier;
   if (IsKeyDown(VK_MENU)) {
-    modifiers |= dom::KeyboardEvent::kAltKey;
+    modifiers |= KeyboardEvent::kAltKey;
   }
   if (IsKeyDown(VK_CONTROL)) {
-    modifiers |= dom::KeyboardEvent::kCtrlKey;
+    modifiers |= KeyboardEvent::kCtrlKey;
   }
   if (IsKeyDown(VK_SHIFT)) {
-    modifiers |= dom::KeyboardEvent::kShiftKey;
+    modifiers |= KeyboardEvent::kShiftKey;
   }
   return modifiers;
 }
 }  // namespace
 
-SystemWindowWin::SystemWindowWin()
-    : thread(kThreadName),
+SystemWindowWin::SystemWindowWin(base::EventDispatcher* event_dispatcher)
+    : SystemWindow(event_dispatcher),
+      thread(kThreadName),
       window_initialized(true, false),
       window_handle_(NULL) {
   StartWindow();
@@ -96,31 +98,28 @@ LRESULT CALLBACK SystemWindowWin::WndProc(HWND window_handle, UINT message,
 
   switch (message) {
     case WM_CLOSE: {
-      // The user expressed a desire to close the window
-      // TODO(***REMOVED***) - Should really exit the loop and pass control
-      // back to the browser to correctly clean up. However, this is
-      // equivalent to Ctrl+C, which is what we are forced to use now.
       DLOG(INFO) << "User clicked X button on window " << system_window;
-      raise(SIGINT);
+      scoped_ptr<ApplicationEvent> quit_event(
+          new ApplicationEvent(ApplicationEvent::kQuit));
+      system_window->event_dispatcher()->DispatchEvent(
+          quit_event.PassAs<base::Event>());
       return 0;
     } break;
     case WM_KEYDOWN: {
-      // The user has pressed a key on the keyboard.
-      dom::KeyboardEvent::KeyLocationCode location =
-          dom::KeyboardEvent::KeyCodeToKeyLocation(w_param);
-      scoped_refptr<dom::KeyboardEvent> keyboard_event(new dom::KeyboardEvent(
-          dom::EventNames::GetInstance()->keydown(), location,
-          GetModifierKeyState(), w_param, w_param, IsKeyRepeat(l_param)));
-      system_window->HandleKeyboardEvent(keyboard_event);
+      int key_code = w_param;
+      bool is_repeat = IsKeyRepeat(l_param);
+      scoped_ptr<KeyboardEvent> keyboard_event(new KeyboardEvent(
+          KeyboardEvent::kKeyDown, key_code, GetModifierKeyState(), is_repeat));
+      system_window->event_dispatcher()->DispatchEvent(
+          keyboard_event.PassAs<base::Event>());
     } break;
     case WM_KEYUP: {
       // The user has released a key on the keyboard.
-      dom::KeyboardEvent::KeyLocationCode location =
-          dom::KeyboardEvent::KeyCodeToKeyLocation(w_param);
-      scoped_refptr<dom::KeyboardEvent> keyboard_event(new dom::KeyboardEvent(
-          dom::EventNames::GetInstance()->keyup(), location,
-          GetModifierKeyState(), w_param, w_param, false));
-      system_window->HandleKeyboardEvent(keyboard_event);
+      int key_code = w_param;
+      scoped_ptr<KeyboardEvent> keyboard_event(new KeyboardEvent(
+          KeyboardEvent::kKeyUp, key_code, GetModifierKeyState(), false));
+      system_window->event_dispatcher()->DispatchEvent(
+          keyboard_event.PassAs<base::Event>());
     } break;
   }
 
@@ -179,6 +178,11 @@ void SystemWindowWin::Win32WindowThread() {
   CHECK(UnregisterClass(kClassName, module_instance));
   lazy_tls_ptr.Pointer()->Set(NULL);
   DCHECK(lazy_tls_ptr.Pointer()->Get() == NULL);
+}
+
+scoped_ptr<SystemWindow> CreateSystemWindow(
+    base::EventDispatcher* event_dispatcher) {
+  return scoped_ptr<SystemWindow>(new SystemWindowWin(event_dispatcher));
 }
 
 }  // namespace system_window

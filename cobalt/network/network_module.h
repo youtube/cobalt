@@ -22,6 +22,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/object_watcher_shell.h"
 #include "base/threading/thread.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/url_request_context.h"
 #include "cobalt/network/url_request_context_getter.h"
@@ -40,6 +41,7 @@ class StorageManager;
 
 namespace network {
 
+class NetworkSystem;
 // NetworkModule wraps various networking-related components such as
 // a URL request context. This is owned by BrowserModule.
 class NetworkModule {
@@ -48,6 +50,7 @@ class NetworkModule {
   NetworkModule();
   // Constructor for production use.
   NetworkModule(storage::StorageManager* storage_manager,
+                base::EventDispatcher* event_dispatcher,
                 const std::string& preferred_language);
   ~NetworkModule();
 
@@ -68,7 +71,7 @@ class NetworkModule {
   storage::StorageManager* storage_manager() const { return storage_manager_; }
 
  private:
-  void Initialize();
+  void Initialize(base::EventDispatcher* event_dispatcher);
   void OnCreate(base::WaitableEvent* creation_event);
 
   storage::StorageManager* storage_manager_;
@@ -79,6 +82,7 @@ class NetworkModule {
   scoped_ptr<NetworkDelegate> network_delegate_;
   scoped_ptr<UserAgent> user_agent_;
   std::string preferred_language_;
+  scoped_ptr<NetworkSystem> network_system_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);
 };

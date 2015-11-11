@@ -17,6 +17,8 @@
 #ifndef DOM_UI_EVENT_WITH_KEY_STATE_H_
 #define DOM_UI_EVENT_WITH_KEY_STATE_H_
 
+#include <string>
+
 #include "cobalt/dom/ui_event.h"
 
 namespace cobalt {
