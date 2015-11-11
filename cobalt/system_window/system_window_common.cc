@@ -14,25 +14,12 @@
  * limitations under the License.
  */
 
-#include "cobalt/network/network_system.h"
+#include "cobalt/system_window/system_window.h"
 
 namespace cobalt {
-namespace network {
+namespace system_window {
 
-namespace {
-class NetworkSystemWin : public NetworkSystem {
- public:
-  NetworkSystemWin();
-};
-NetworkSystemWin::NetworkSystemWin() {}
+SystemWindow::~SystemWindow() {}
 
-}  // namespace
-
-scoped_ptr<NetworkSystem> NetworkSystem::Create(
-    base::EventDispatcher* /*event_dispatcher*/) {
-  scoped_ptr<NetworkSystem> network_system(new NetworkSystemWin());
-  return network_system.Pass();
-}
-
-}  // namespace network
+}  // namespace system_window
 }  // namespace cobalt

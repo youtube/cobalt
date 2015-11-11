@@ -88,14 +88,15 @@ void OnReloadMessage(BrowserModule* browser_module,
 }
 }  // namespace
 
-BrowserModule::BrowserModule(const GURL& url, const Options& options)
-    : main_system_window_(system_window::CreateSystemWindow()),
-      storage_manager_(options.storage_manager_options),
-      renderer_module_(main_system_window_.get(),
-                       options.renderer_module_options),
+BrowserModule::BrowserModule(const GURL& url,
+                             system_window::SystemWindow* system_window,
+                             const Options& options)
+    : storage_manager_(options.storage_manager_options),
+      renderer_module_(system_window, options.renderer_module_options),
       media_module_(media::MediaModule::Create(
           renderer_module_.pipeline()->GetResourceProvider())),
-      network_module_(&storage_manager_, options.language),
+      network_module_(&storage_manager_, system_window->event_dispatcher(),
+                      options.language),
       render_tree_combiner_(renderer_module_.pipeline()),
 #if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_hub_(new debug::DebugHub(
@@ -149,7 +150,7 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
         new input::InputDeviceManagerFuzzer(keyboard_event_callback));
   } else {
     input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
-        keyboard_event_callback, main_system_window_.get());
+        keyboard_event_callback, system_window);
   }
 
   // Debug console defaults to Off if not specified.

@@ -14,25 +14,32 @@
  * limitations under the License.
  */
 
-#include "cobalt/network/network_system.h"
+#ifndef NETWORK_NETWORK_EVENT_H_
+#define NETWORK_NETWORK_EVENT_H_
+
+#include "base/compiler_specific.h"
+#include "cobalt/base/event.h"
 
 namespace cobalt {
 namespace network {
 
-namespace {
-class NetworkSystemWin : public NetworkSystem {
+class NetworkEvent : public base::Event {
  public:
-  NetworkSystemWin();
+  enum Type {
+    kConnection,
+    kDisconnection,
+  };
+
+  explicit NetworkEvent(Type type) : type_(type) {}
+  Type type() const { return type_; }
+
+  BASE_EVENT_SUBCLASS(NetworkEvent);
+
+ private:
+  Type type_;
 };
-NetworkSystemWin::NetworkSystemWin() {}
-
-}  // namespace
-
-scoped_ptr<NetworkSystem> NetworkSystem::Create(
-    base::EventDispatcher* /*event_dispatcher*/) {
-  scoped_ptr<NetworkSystem> network_system(new NetworkSystemWin());
-  return network_system.Pass();
-}
 
 }  // namespace network
 }  // namespace cobalt
+
+#endif  // NETWORK_NETWORK_EVENT_H_

@@ -31,7 +31,6 @@
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/script/debug_server.h"
 #include "cobalt/storage/storage_manager.h"
-#include "cobalt/system_window/create_system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "cobalt/webdriver/session_driver.h"
 
@@ -52,7 +51,8 @@ class BrowserModule {
     std::string language;
   };
 
-  BrowserModule(const GURL& url, const Options& options);
+  BrowserModule(const GURL& url, system_window::SystemWindow* system_window,
+                const Options& options);
   ~BrowserModule();
 
   const std::string& GetUserAgent() { return network_module_.user_agent(); }
@@ -137,11 +137,6 @@ class BrowserModule {
     return web_module_->CreateWindowDriver(window_id);
   }
 #endif
-
-  // The main system window for our browser.
-  // This routes event callbacks, and provides a native window handle
-  // on desktop systems.
-  scoped_ptr<system_window::SystemWindow> main_system_window_;
 
   storage::StorageManager storage_manager_;
 
