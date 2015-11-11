@@ -20,9 +20,9 @@
 
 namespace {
 
-int Format(wchar_t *out_buffer,
+int Format(wchar_t* out_buffer,
            size_t buffer_size,
-           const wchar_t *format,
+           const wchar_t* format,
            ...) {
   va_list arguments;
   va_start(arguments, format);

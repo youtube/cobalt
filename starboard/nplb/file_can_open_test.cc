@@ -24,7 +24,7 @@ namespace {
 
 TEST(SbFileCanOpenTest, NonExistingFileFails) {
   ScopedRandomFile random_file(ScopedRandomFile::kDontCreate);
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
   bool result = SbFileCanOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead);
   EXPECT_FALSE(result);
@@ -39,7 +39,7 @@ TEST(SbFileCanOpenTest, NonExistingFileFails) {
 
 TEST(SbFileCanOpenTest, ExistingFileSucceeds) {
   ScopedRandomFile random_file;
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
   bool result = SbFileCanOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead);
   EXPECT_TRUE(result);

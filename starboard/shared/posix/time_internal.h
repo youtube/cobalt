@@ -38,14 +38,14 @@ inline SbTime FromNanoseconds(int64_t ns) {
 }
 
 // Converts a timespec representing a duration into microseconds.
-inline int64_t FromTimespecDelta(struct timespec *time) {
+inline int64_t FromTimespecDelta(struct timespec* time) {
   return FromSeconds(static_cast<int64_t>(time->tv_sec)) +
-      FromNanoseconds(static_cast<int64_t>(time->tv_nsec));
+         FromNanoseconds(static_cast<int64_t>(time->tv_nsec));
 }
 
 // Converts the number of microseconds in |time_us| into a POSIX timespec,
 // placing the result in |out_time|.
-inline void ToTimespec(struct timespec *out_time, int64_t time_us) {
+inline void ToTimespec(struct timespec* out_time, int64_t time_us) {
   out_time->tv_sec = time_us / kSbTimeSecond;
   int64_t remainder_us = time_us - (out_time->tv_sec * kSbTimeSecond);
   out_time->tv_nsec = remainder_us * kNanosecondsPerMicrosecond;
@@ -53,7 +53,7 @@ inline void ToTimespec(struct timespec *out_time, int64_t time_us) {
 
 // Converts a timeval (relative to POSIX epoch) into microseconds since the
 // Windows epoch (1601).
-inline int64_t FromTimeval(struct timeval *time) {
+inline int64_t FromTimeval(struct timeval* time) {
   return SbTimeFromPosix(FromSeconds(static_cast<int64_t>(time->tv_sec)) +
                          time->tv_usec);
 }

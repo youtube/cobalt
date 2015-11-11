@@ -25,7 +25,7 @@
 namespace {
 
 TEST(SbFileGetInfoTest, InvalidFileErrors) {
-  SbFileInfo info = { 0 };
+  SbFileInfo info = {0};
   bool result = SbFileGetInfo(kSbFileInvalid, &info);
   EXPECT_FALSE(result);
 }
@@ -41,15 +41,14 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
 
     const int kFileSize = 12;
     starboard::nplb::ScopedRandomFile random_file(kFileSize);
-    const std::string &filename = random_file.filename();
+    const std::string& filename = random_file.filename();
 
-    SbFile file = SbFileOpen(filename.c_str(),
-                             kSbFileOpenOnly | kSbFileRead,
-                             NULL, NULL);
+    SbFile file =
+        SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
     ASSERT_TRUE(SbFileIsValid(file));
 
     {
-      SbFileInfo info = { 0 };
+      SbFileInfo info = {0};
       bool result = SbFileGetInfo(file, &info);
       EXPECT_EQ(kFileSize, info.size);
       EXPECT_FALSE(info.is_directory);
@@ -65,18 +64,16 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
 }
 
 TEST(SbFileGetInfoTest, WorksOnADirectory) {
-  char path[SB_FILE_MAX_PATH] = { 0 };
-  bool result = SbSystemGetPath(kSbSystemPathTempDirectory, path,
-                                SB_FILE_MAX_PATH);
+  char path[SB_FILE_MAX_PATH] = {0};
+  bool result =
+      SbSystemGetPath(kSbSystemPathTempDirectory, path, SB_FILE_MAX_PATH);
   EXPECT_TRUE(result);
 
-  SbFile file = SbFileOpen(path,
-                           kSbFileOpenOnly | kSbFileRead,
-                           NULL, NULL);
+  SbFile file = SbFileOpen(path, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   {
-    SbFileInfo info = { 0 };
+    SbFileInfo info = {0};
     bool result = SbFileGetInfo(file, &info);
     EXPECT_LE(0, info.size);
     EXPECT_TRUE(info.is_directory);

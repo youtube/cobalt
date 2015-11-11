@@ -18,7 +18,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void SbLog(SbLogPriority priority, const char *message) {
+void SbLog(SbLogPriority priority, const char* message) {
   SB_UNREFERENCED_PARAMETER(priority);
   fprintf(stderr, "%s", message);
   fflush(stderr);

@@ -23,8 +23,8 @@
 #include "starboard/time.h"
 
 SbConditionVariableResult SbConditionVariableWaitTimed(
-    SbConditionVariable *condition,
-    SbMutex *mutex,
+    SbConditionVariable* condition,
+    SbMutex* mutex,
     SbTime timeout) {
   if (!condition || !mutex) {
     return kSbConditionVariableFailed;

@@ -16,6 +16,6 @@
 
 #include <string.h>
 
-size_t SbStringGetLength(const char *str) {
+size_t SbStringGetLength(const char* str) {
   return strlen(str);
 }

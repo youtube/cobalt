@@ -33,18 +33,18 @@ TEST(SbFileReadTest, BasicReading) {
   // is over several times the size of the buffer.
   const int kFileSize = kBufferLength * 16 / 3;
   starboard::nplb::ScopedRandomFile random_file(kFileSize);
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
-  SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
-                           NULL, NULL);
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   // Create a bigger buffer than necessary, so we can test the memory around the
   // portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
-  char real_buffer[kRealBufferLength] = { 0 };
+  char real_buffer[kRealBufferLength] = {0};
   const int kBufferOffset = kBufferLength / 2;
-  char *buffer = real_buffer + kBufferOffset;
+  char* buffer = real_buffer + kBufferOffset;
 
   // Initialize to some arbitrary pattern so we can verify it later.
   for (int i = 0; i < kRealBufferLength; ++i) {
@@ -97,18 +97,18 @@ TEST(SbFileReadTest, BasicReading) {
 TEST(SbFileReadTest, ReadPastEnd) {
   const int kFileSize = kBufferLength;
   starboard::nplb::ScopedRandomFile random_file(kFileSize);
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
-  SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
-                           NULL, NULL);
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   // Create a bigger buffer than necessary, so we can test the memory around the
   // portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
-  char real_buffer[kRealBufferLength] = { 0 };
+  char real_buffer[kRealBufferLength] = {0};
   const int kBufferOffset = kBufferLength / 2;
-  char *buffer = real_buffer + kBufferOffset;
+  char* buffer = real_buffer + kBufferOffset;
 
   // Initialize to some arbitrary pattern so we can verify it later.
   for (int i = 0; i < kRealBufferLength; ++i) {
@@ -132,18 +132,18 @@ TEST(SbFileReadTest, ReadPastEnd) {
 TEST(SbFileReadTest, ReadZeroBytes) {
   const int kFileSize = kBufferLength;
   starboard::nplb::ScopedRandomFile random_file(kFileSize);
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
-  SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
-                           NULL, NULL);
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   // Create a bigger buffer than necessary, so we can test the memory around the
   // portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
-  char real_buffer[kRealBufferLength] = { 0 };
+  char real_buffer[kRealBufferLength] = {0};
   const int kBufferOffset = kBufferLength / 2;
-  char *buffer = real_buffer + kBufferOffset;
+  char* buffer = real_buffer + kBufferOffset;
 
   // Initialize to some arbitrary pattern so we can verify it later.
   for (int i = 0; i < kRealBufferLength; ++i) {
@@ -167,18 +167,18 @@ TEST(SbFileReadTest, ReadZeroBytes) {
 TEST(SbFileReadTest, ReadFromMiddle) {
   const int kFileSize = kBufferLength * 2;
   starboard::nplb::ScopedRandomFile random_file(kFileSize);
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
-  SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
-                           NULL, NULL);
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   // Create a bigger buffer than necessary, so we can test the memory around the
   // portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
-  char real_buffer[kRealBufferLength] = { 0 };
+  char real_buffer[kRealBufferLength] = {0};
   const int kBufferOffset = kBufferLength / 2;
-  char *buffer = real_buffer + kBufferOffset;
+  char* buffer = real_buffer + kBufferOffset;
 
   // Initialize to some arbitrary pattern so we can verify it later.
   for (int i = 0; i < kRealBufferLength; ++i) {

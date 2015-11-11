@@ -35,11 +35,11 @@ SB_EXPORT SbTimeZone SbTimeZoneGetCurrent();
 
 // Gets the three-letter code of the current timezone in standard time,
 // regardless of current DST status. (e.g. "PST")
-SB_EXPORT const char *SbTimeZoneGetName();
+SB_EXPORT const char* SbTimeZoneGetName();
 
 // Gets the three-letter code of the current timezone in Daylight Savings Time,
 // regardless of current DST status. (e.g. "PDT")
-SB_EXPORT const char *SbTimeZoneGetDstName();
+SB_EXPORT const char* SbTimeZoneGetDstName();
 
 #ifdef __cplusplus
 }  // extern "C"

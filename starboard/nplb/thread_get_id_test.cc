@@ -23,7 +23,7 @@ namespace nplb = starboard::nplb;
 namespace {
 
 // Returns the thread's ID.
-void *GetThreadIdEntryPoint(void *context) {
+void* GetThreadIdEntryPoint(void* context) {
   return nplb::ToVoid(SbThreadGetId());
 }
 
@@ -44,7 +44,7 @@ TEST(SbThreadGetIdTest, SunnyDayDifferentIds) {
   // We join on all these threads to get their IDs back.
   SbThreadId thread_ids[kThreads];
   for (int i = 0; i < kThreads; ++i) {
-    void *result = NULL;
+    void* result = NULL;
     EXPECT_TRUE(SbThreadJoin(threads[i], &result));
     SbThread id = nplb::FromVoid(result);
     EXPECT_NE(id, SbThreadGetId());

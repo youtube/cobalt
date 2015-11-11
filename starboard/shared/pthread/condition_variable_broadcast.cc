@@ -18,7 +18,7 @@
 
 #include "starboard/shared/pthread/is_success.h"
 
-bool SbConditionVariableBroadcast(SbConditionVariable *condition) {
+bool SbConditionVariableBroadcast(SbConditionVariable* condition) {
   if (!condition) {
     return false;
   }

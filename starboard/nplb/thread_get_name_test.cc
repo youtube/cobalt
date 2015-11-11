@@ -23,19 +23,19 @@ using namespace starboard::nplb;
 namespace {
 
 // Returns the thread's ID.
-void *GetThreadNameEntryPoint(void *context) {
+void* GetThreadNameEntryPoint(void* context) {
   char name[4096] = {0};
   SbThreadGetName(name, SB_ARRAY_SIZE_INT(name));
-  std::string *result = static_cast<std::string *>(context);
+  std::string* result = static_cast<std::string*>(context);
   *result = name;
   return NULL;
 }
 
 TEST(SbThreadGetNameTest, SunnyDay) {
   std::string result;
-  SbThread thread = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                   true, kThreadName, GetThreadNameEntryPoint,
-                                   &result);
+  SbThread thread =
+      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
+                     kThreadName, GetThreadNameEntryPoint, &result);
   EXPECT_TRUE(SbThreadIsValid(thread));
   EXPECT_TRUE(SbThreadJoin(thread, NULL));
   EXPECT_EQ(kThreadName, result);

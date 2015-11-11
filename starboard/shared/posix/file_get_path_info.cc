@@ -21,7 +21,7 @@
 #include "starboard/shared/posix/file_internal.h"
 #include "starboard/shared/posix/time_internal.h"
 
-bool SbFileGetPathInfo(const char *path, SbFileInfo *out_info) {
+bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
   if (!path || path[0] == '\0' || !out_info) {
     return false;
   }

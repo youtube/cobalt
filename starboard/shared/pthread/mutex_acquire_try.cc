@@ -18,7 +18,7 @@
 
 #include "starboard/shared/pthread/is_success.h"
 
-SbMutexResult SbMutexAcquireTry(SbMutex *mutex) {
+SbMutexResult SbMutexAcquireTry(SbMutex* mutex) {
   if (!mutex) {
     return kSbMutexDestroyed;
   }

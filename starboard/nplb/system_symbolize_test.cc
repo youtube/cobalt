@@ -19,9 +19,9 @@
 namespace {
 
 TEST(SbSystemSymbolizeTest, SunnyDay) {
-  void *stack[100];
+  void* stack[100];
   EXPECT_LT(0, SbSystemGetStack(stack, SB_ARRAY_SIZE_INT(stack)));
-  EXPECT_NE(static_cast<void *>(NULL), stack[0]);
+  EXPECT_NE(static_cast<void*>(NULL), stack[0]);
   char buffer[1024] = {0};
   bool result = SbSystemSymbolize(stack[0], buffer, SB_ARRAY_SIZE_INT(buffer));
   EXPECT_EQ(true, result);

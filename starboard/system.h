@@ -81,10 +81,9 @@ SB_EXPORT int64_t SbSystemGetTotalMemory();
 // platform, or if |path_length| is too short for the given result, or if
 // |out_path| is NULL. On failure, |out_path| will not be
 // changed. Implementation must be thread-safe.
-SB_EXPORT bool SbSystemGetPath(
-    SbSystemPathId path_id,
-    char *out_path,
-    int path_length);
+SB_EXPORT bool SbSystemGetPath(SbSystemPathId path_id,
+                               char* out_path,
+                               int path_length);
 
 // Gets a pseudorandom number uniformly distributed between the minimum and
 // maximum limits of uint64_t. This is expected to be a cryptographically secure
@@ -99,7 +98,7 @@ SB_EXPORT SbSystemError SbSystemGetLastError();
 // |out_string| may be null, in which case just the total desired length of the
 // string is returned. |out_string| is always terminated with a null byte.
 SB_EXPORT int SbSystemGetErrorString(SbSystemError error,
-                                     char *out_string,
+                                     char* out_string,
                                      int string_length);
 
 // Places up to |stack_size| instruction pointer addresses of the current
@@ -113,7 +112,7 @@ SB_EXPORT int SbSystemGetErrorString(SbSystemError error,
 //
 // See the following about what it means to be async-signal-safe on POSIX:
 // http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03
-SB_EXPORT int SbSystemGetStack(void **out_stack, int stack_size);
+SB_EXPORT int SbSystemGetStack(void** out_stack, int stack_size);
 
 // Looks up |address| as an instruction pointer and places up to |buffer_size| -
 // 1 characters of the symbol associated with it in |out_buffer|, which must not
@@ -121,10 +120,9 @@ SB_EXPORT int SbSystemGetStack(void **out_stack, int stack_size);
 // reasonable match for |address|. If the return value is false, |out_buffer|
 // will not be modified. This function must be async-signal-safe on platforms
 // that support signals, as it will be used in crash signal handlers.
-SB_EXPORT bool SbSystemSymbolize(const void *address,
-                                 char *out_buffer,
+SB_EXPORT bool SbSystemSymbolize(const void* address,
+                                 char* out_buffer,
                                  int buffer_size);
-
 
 #ifdef __cplusplus
 }  // extern "C"
