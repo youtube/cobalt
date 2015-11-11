@@ -25,7 +25,7 @@ namespace system_window {
 
 class SystemWindowStarboard : public SystemWindow {
  public:
-  SystemWindowStarboard();
+  explicit SystemWindowStarboard(base::EventDispatcher* event_dispatcher);
   ~SystemWindowStarboard() OVERRIDE;
 };
 

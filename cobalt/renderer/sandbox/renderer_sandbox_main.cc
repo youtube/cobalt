@@ -21,7 +21,7 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/test/scenes/all_scenes_combined_scene.h"
-#include "cobalt/system_window/create_system_window.h"
+#include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 
 using cobalt::render_tree::ResourceProvider;
@@ -37,9 +37,10 @@ int main(int argc, char** argv) {
   cobalt::trace_event::ScopedTraceToFile trace_to_file(
       FilePath(FILE_PATH_LITERAL("renderer_sandbox_trace.json")));
 
+  base::EventDispatcher event_dispatcher;
   // Create a system window to use as a render target.
   scoped_ptr<SystemWindow> system_window =
-      cobalt::system_window::CreateSystemWindow();
+      cobalt::system_window::CreateSystemWindow(&event_dispatcher);
 
   // Construct a renderer module using default options.
   cobalt::renderer::RendererModule::Options renderer_module_options;
