@@ -310,12 +310,10 @@
     if ( FT_IS_SCALABLE( size->face ) )
     {
       error = tt_size_reset( ttsize );
-      // COBALT CHANGE
-      // ttsize->root.metrics = ttsize->metrics;
-      //
-      // TODO(jegray): Determine why commenting out that line is necessary
+#if defined(COBALT)
+      // TODO(jegray): Determine why disabling this line is necessary
       // for subpixel rendering to work properly in Cobalt.
-      // 
+      //
       // Original CL introducing the line:
       //   2011-07-16  Steven Chu  <steven.f.chu@gmail.com>
       //
@@ -323,6 +321,9 @@
       //
       //   * src/truetype/ttdriver.c (tt_size_request): Fix copying metrics
       //    from TT_Size to FT_Size if scalable font.
+#else
+      ttsize->root.metrics = ttsize->metrics;
+#endif
     }
 
     return error;
