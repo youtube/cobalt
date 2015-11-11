@@ -40,6 +40,7 @@ class Serializer : public ConstNodeVisitor {
 
  private:
   // From ConstNodeVisitor.
+  void Visit(const CDATASection* cdata_section) OVERRIDE;
   void Visit(const Comment* comment) OVERRIDE;
   void Visit(const Document* document) OVERRIDE;
   void Visit(const DocumentType* document_type) OVERRIDE;

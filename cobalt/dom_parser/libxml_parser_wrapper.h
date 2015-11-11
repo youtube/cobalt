@@ -26,18 +26,20 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "cobalt/base/source_location.h"
-#include "cobalt/dom/node.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/node.h"
 #include "cobalt/loader/decoder.h"
 
 namespace cobalt {
 namespace dom_parser {
 
+typedef unsigned char xmlChar;
+
 /////////////////////////////////////////////////////////////////////////////
 // Libxml SAX Handlers
 /////////////////////////////////////////////////////////////////////////////
 
-typedef unsigned char xmlChar;
+// These handlers are shared between HTML parser and XML parser.
 
 void StartDocument(void* context);
 void EndDocument(void* context);
@@ -49,6 +51,7 @@ void Comment(void* context, const xmlChar* value);
 void ParserWarning(void* context, const char* message, ...);
 void ParserError(void* context, const char* message, ...);
 void ParserFatal(void* context, const char* message, ...);
+void CDATABlock(void* context, const xmlChar* value, int len);
 
 //////////////////////////////////////////////////////////////////
 // LibxmlParserWrapper
@@ -98,6 +101,7 @@ class LibxmlParserWrapper {
   virtual void OnComment(const std::string& comment);
   virtual void OnParsingIssue(IssueSeverity severity,
                               const std::string& message);
+  virtual void OnCDATABlock(const std::string& value);
 
   // These interfaces are for the decoder that uses the wrapper.
   virtual void DecodeChunk(const char* data, size_t size) = 0;
@@ -128,6 +132,7 @@ class LibxmlParserWrapper {
   const scoped_refptr<dom::Node> reference_node_;
   const base::SourceLocation first_chunk_location_;
   const base::Callback<void(const std::string&)> error_callback_;
+
   std::stack<scoped_refptr<dom::Node> > node_stack_;
 
   DISALLOW_COPY_AND_ASSIGN(LibxmlParserWrapper);

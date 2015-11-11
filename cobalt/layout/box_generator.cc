@@ -599,6 +599,8 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   AppendPseudoElementToLine(html_element, dom::kAfterPseudoElementType);
 }
 
+void BoxGenerator::Visit(dom::CDATASection* /* cdata_section */) {}
+
 void BoxGenerator::Visit(dom::Comment* /*comment*/) {}
 
 void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
