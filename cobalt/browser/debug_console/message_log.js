@@ -183,12 +183,21 @@ MessageLog.prototype.pageUp = function() {
   this.displayMessages();
 }
 
-
 MessageLog.prototype.pageDown = function() {
   this.displayPos -= this.SCROLL_SIZE;
   if (this.displayPos < 0) {
     this.displayPos = 0;
   }
+  this.displayMessages();
+}
+
+MessageLog.prototype.toHead = function() {
+  this.displayPos = this.buffer.size - this.DISPLAY_AT_HEAD;
+  this.displayMessages();
+}
+
+MessageLog.prototype.toTail = function() {
+  this.displayPos = 0;
   this.displayMessages();
 }
 

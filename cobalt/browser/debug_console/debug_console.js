@@ -169,6 +169,20 @@ function onKeydown(event) {
     messageLog.pageUp();
   } else if (key == 'PageDown') {
     messageLog.pageDown();
+  } else if (key == 'Delete') {
+    commandInput.deleteCharAtCursor();
+  } else if (key == 'Home') {
+    if (event.ctrlKey) {
+      messageLog.toHead();
+    } else {
+      commandInput.moveCursor(-1000);
+    }
+  } else if (key == 'End') {
+    if (event.ctrlKey) {
+      messageLog.toTail();
+    } else {
+      commandInput.moveCursor(1000);
+    }
   }
 }
 
