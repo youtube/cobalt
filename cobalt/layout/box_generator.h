@@ -55,6 +55,7 @@ class BoxGenerator : public dom::NodeVisitor {
                scoped_refptr<Paragraph>* paragraph);
   ~BoxGenerator();
 
+  void Visit(dom::CDATASection* cdata_section) OVERRIDE;
   void Visit(dom::Comment* comment) OVERRIDE;
   void Visit(dom::Document* document) OVERRIDE;
   void Visit(dom::DocumentType* document_type) OVERRIDE;

@@ -20,6 +20,9 @@ namespace cobalt {
 namespace dom_parser {
 namespace {
 
+// Libxml SAX handler.
+//   http://www.xmlsoft.org/html/libxml-tree.html#xmlSAXHandler
+
 htmlSAXHandler html_sax_handler = {
     NULL,           /* internalSubset */
     NULL,           /* isStandalone */

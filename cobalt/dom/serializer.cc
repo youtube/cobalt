@@ -21,6 +21,7 @@
 
 #include "base/stringprintf.h"
 #include "cobalt/dom/attr.h"
+#include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_type.h"
@@ -87,6 +88,12 @@ void Serializer::SerializeDescendantsOnly(
   while (child) {
     Serialize(child);
     child = child->next_sibling();
+  }
+}
+
+void Serializer::Visit(const CDATASection* cdata_section) {
+  if (entering_node_) {
+    *out_stream_ << "<![CDATA[" << cdata_section->data() << "]]>";
   }
 }
 

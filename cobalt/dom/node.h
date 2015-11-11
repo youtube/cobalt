@@ -27,6 +27,7 @@
 namespace cobalt {
 namespace dom {
 
+class CDATASection;
 class Comment;
 class Document;
 class DocumentType;
@@ -39,6 +40,7 @@ class Text;
 // hierarchy of Node objects.
 class NodeVisitor {
  public:
+  virtual void Visit(CDATASection* cdata_section) = 0;
   virtual void Visit(Comment* comment) = 0;
   virtual void Visit(Document* document) = 0;
   virtual void Visit(DocumentType* document_type) = 0;
@@ -51,6 +53,7 @@ class NodeVisitor {
 
 class ConstNodeVisitor {
  public:
+  virtual void Visit(const CDATASection* cdata_section) = 0;
   virtual void Visit(const Comment* comment) = 0;
   virtual void Visit(const Document* document) = 0;
   virtual void Visit(const DocumentType* document_type) = 0;
@@ -111,6 +114,7 @@ class Node : public EventTarget {
                             // Use |NodeType| instead.
     kElementNode = 1,
     kTextNode = 3,
+    kCdataSectionNode = 4,
     kCommentNode = 8,
     kDocumentNode = 9,
     kDocumentTypeNode = 10,
@@ -187,6 +191,7 @@ class Node : public EventTarget {
   //
   virtual bool HasAttributes() const { return false; }
 
+  virtual bool IsCDATASection() const { return false; }
   virtual bool IsComment() const { return false; }
   virtual bool IsDocument() const { return false; }
   virtual bool IsDocumentType() const { return false; }
@@ -195,6 +200,7 @@ class Node : public EventTarget {
 
   // Safe type conversion methods that will downcast to the required type if
   // possible or return NULL otherwise.
+  virtual scoped_refptr<CDATASection> AsCDATASection();
   virtual scoped_refptr<Comment> AsComment();
   virtual scoped_refptr<Document> AsDocument();
   virtual scoped_refptr<DocumentType> AsDocumentType();
