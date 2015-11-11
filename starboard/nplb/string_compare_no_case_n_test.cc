@@ -19,15 +19,14 @@ namespace {
 
 TEST(SbStringCompareNoCaseNTest, SunnyDaySelf) {
   const char kString[] = "0123456789";
-  EXPECT_EQ(0, SbStringCompareNoCaseN(kString, kString,
-                                      SbStringGetLength(kString)));
+  EXPECT_EQ(
+      0, SbStringCompareNoCaseN(kString, kString, SbStringGetLength(kString)));
   EXPECT_EQ(0, SbStringCompareNoCaseN("", "", 0));
 }
 
 TEST(SbStringCompareNoCaseNTest, SunnyDayEmptyLessThanNotEmpty) {
   const char kString[] = "0123456789";
-  EXPECT_GT(0, SbStringCompareNoCaseN("", kString,
-                                      SbStringGetLength(kString)));
+  EXPECT_GT(0, SbStringCompareNoCaseN("", kString, SbStringGetLength(kString)));
 }
 
 TEST(SbStringCompareNoCaseNTest, SunnyDayEmptyZeroNEqual) {

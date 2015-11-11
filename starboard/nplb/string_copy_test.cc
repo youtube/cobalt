@@ -19,7 +19,7 @@ namespace {
 
 const char kSource[] = "01234567890123456789";
 
-void TestCopy(const char *source, bool is_short) {
+void TestCopy(const char* source, bool is_short) {
   const int kDestinationOffset = 16;
   int source_length = SbStringGetLength(source);
   int destination_size = source_length + kDestinationOffset * 2;
@@ -30,7 +30,7 @@ void TestCopy(const char *source, bool is_short) {
   }
   ASSERT_GT(1024, destination_size);
   char destination[1024] = {0};
-  char *dest = destination + kDestinationOffset;
+  char* dest = destination + kDestinationOffset;
   int result = SbStringCopy(dest, source, destination_limit);
 
   EXPECT_EQ(source_length, result);

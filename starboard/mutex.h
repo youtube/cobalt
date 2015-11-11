@@ -44,24 +44,24 @@ SB_C_INLINE bool SbMutexIsSuccess(SbMutexResult result) {
 
 // Creates a new mutex, placing the handle to the newly created mutex in
 // |out_mutex|. Returns whether able to create a new mutex.
-SB_EXPORT bool SbMutexCreate(SbMutex *out_mutex);
+SB_EXPORT bool SbMutexCreate(SbMutex* out_mutex);
 
 // Destroys a mutex, returning whether the destruction was successful. The mutex
 // specified by |mutex| is invalidated.
-SB_EXPORT bool SbMutexDestroy(SbMutex *mutex);
+SB_EXPORT bool SbMutexDestroy(SbMutex* mutex);
 
 // Acquires |mutex|, blocking indefinitely, returning the acquisition result.
 // SbMutexes are not reentrant, so a recursive acquisition will block forever.
-SB_EXPORT SbMutexResult SbMutexAcquire(SbMutex *mutex);
+SB_EXPORT SbMutexResult SbMutexAcquire(SbMutex* mutex);
 
 // Acquires |mutex|, without blocking, returning the acquisition result.
 // SbMutexes are not reentrant, so a recursive acquisition will always fail.
-SB_EXPORT SbMutexResult SbMutexAcquireTry(SbMutex *mutex);
+SB_EXPORT SbMutexResult SbMutexAcquireTry(SbMutex* mutex);
 
 // Releases |mutex| held by the current thread, returning whether the release
 // was successful. Releases should always be successful if the mutex is held by
 // the current thread.
-SB_EXPORT bool SbMutexRelease(SbMutex *handle);
+SB_EXPORT bool SbMutexRelease(SbMutex* handle);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -23,8 +23,7 @@
 
 struct SbDirectoryPrivate {
   // The ISO C directory stream handle.
-  DIR *directory;
+  DIR* directory;
 };
-
 
 #endif  // STARBOARD_SHARED_ISO_DIRECTORY_INTERNAL_H_

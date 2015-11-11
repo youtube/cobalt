@@ -35,15 +35,15 @@ TEST(SbFileTruncateTest, TruncateToZero) {
   const int kStartSize = 123;
   const int kEndSize = 0;
   starboard::nplb::ScopedRandomFile random_file(kStartSize);
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
-  SbFile file = SbFileOpen(filename.c_str(),
-                           kSbFileOpenOnly | kSbFileWrite | kSbFileRead,
-                           NULL, NULL);
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileWrite | kSbFileRead,
+                 NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   {
-    SbFileInfo info = { 0 };
+    SbFileInfo info = {0};
     bool result = SbFileGetInfo(file, &info);
     EXPECT_EQ(kStartSize, info.size);
   }
@@ -52,7 +52,7 @@ TEST(SbFileTruncateTest, TruncateToZero) {
   EXPECT_TRUE(result);
 
   {
-    SbFileInfo info = { 0 };
+    SbFileInfo info = {0};
     result = SbFileGetInfo(file, &info);
     EXPECT_EQ(kEndSize, info.size);
   }
@@ -66,15 +66,15 @@ TEST(SbFileTruncateTest, TruncateUpInSize) {
   const int kStartSize = 123;
   const int kEndSize = kStartSize * 2;
   starboard::nplb::ScopedRandomFile random_file(kStartSize);
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
-  SbFile file = SbFileOpen(filename.c_str(),
-                           kSbFileOpenOnly | kSbFileWrite | kSbFileRead,
-                           NULL, NULL);
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileWrite | kSbFileRead,
+                 NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   {
-    SbFileInfo info = { 0 };
+    SbFileInfo info = {0};
     bool result = SbFileGetInfo(file, &info);
     EXPECT_TRUE(result);
     EXPECT_EQ(kStartSize, info.size);
@@ -90,13 +90,13 @@ TEST(SbFileTruncateTest, TruncateUpInSize) {
   EXPECT_EQ(0, position);
 
   {
-    SbFileInfo info = { 0 };
+    SbFileInfo info = {0};
     result = SbFileGetInfo(file, &info);
     EXPECT_TRUE(result);
     EXPECT_EQ(kEndSize, info.size);
   }
 
-  char buffer[kEndSize] = { 0 };
+  char buffer[kEndSize] = {0};
   int bytes = SbFileRead(file, buffer, kEndSize);
   EXPECT_EQ(kEndSize, bytes);
 

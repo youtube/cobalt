@@ -32,22 +32,22 @@ inline bool IsYielder(int trial, int index) {
 // loops, the more the yielders should fall behind.
 const int kLoops = 1000;
 
-void *YieldingEntryPoint(void *context) {
+void* YieldingEntryPoint(void* context) {
   for (int i = 0; i < kLoops; ++i) {
     SbThreadYield();
   }
 
-  SbTimeMonotonic *end_time = static_cast<SbTimeMonotonic *>(context);
+  SbTimeMonotonic* end_time = static_cast<SbTimeMonotonic*>(context);
   *end_time = SbTimeGetMonotonicNow();
   return NULL;
 }
 
-void *UnyieldingEntryPoint(void *context) {
+void* UnyieldingEntryPoint(void* context) {
   for (int i = 0; i < kLoops; ++i) {
     DoNotYield();
   }
 
-  SbTimeMonotonic *end_time = static_cast<SbTimeMonotonic *>(context);
+  SbTimeMonotonic* end_time = static_cast<SbTimeMonotonic*>(context);
   *end_time = SbTimeGetMonotonicNow();
   return NULL;
 }

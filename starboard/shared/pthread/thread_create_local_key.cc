@@ -18,8 +18,7 @@
 
 #include "starboard/shared/pthread/thread_local_key_internal.h"
 
-SbThreadLocalKey SbThreadCreateLocalKey(
-    SbThreadLocalDestructor destructor) {
+SbThreadLocalKey SbThreadCreateLocalKey(SbThreadLocalDestructor destructor) {
   SbThreadLocalKey key = new SbThreadLocalKeyPrivate();
   if (!IsSuccess(pthread_key_create(&key->key, destructor))) {
     delete key;

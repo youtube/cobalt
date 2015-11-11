@@ -16,7 +16,7 @@
 
 #include <time.h>
 
-const char *SbTimeZoneGetName() {
+const char* SbTimeZoneGetName() {
   // TODO(***REMOVED***): Using tzname assumes that tzset() has been called at some
   // point. That should happen as part of Starboard's main loop initialization,
   // but that doesn't exist yet.

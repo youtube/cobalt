@@ -18,9 +18,9 @@
 
 namespace {
 
-void RunTest(const char *input) {
-  char *dupe = SbStringDuplicate(input);
-  const char *kNull = NULL;
+void RunTest(const char* input) {
+  char* dupe = SbStringDuplicate(input);
+  const char* kNull = NULL;
   EXPECT_NE(kNull, dupe);
   EXPECT_EQ(0, SbStringCompareNoCase(input, dupe));
   EXPECT_EQ(SbStringGetLength(input), SbStringGetLength(dupe));

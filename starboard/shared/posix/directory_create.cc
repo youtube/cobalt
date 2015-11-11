@@ -23,7 +23,7 @@
 
 namespace {
 
-void RemoveTrailingSeparators(std::string *path) {
+void RemoveTrailingSeparators(std::string* path) {
   size_t found = path->find_last_not_of('/');
   if (found != std::string::npos) {
     path->resize(found + 1);
@@ -32,7 +32,7 @@ void RemoveTrailingSeparators(std::string *path) {
   }
 }
 
-std::string GetParent(const std::string &path) {
+std::string GetParent(const std::string& path) {
   size_t last_slash = path.find_last_of('/');
   if (last_slash != std::string::npos) {
     std::string parent = path.substr(0, last_slash);
@@ -45,7 +45,7 @@ std::string GetParent(const std::string &path) {
 
 }  // namespace
 
-bool SbDirectoryCreate(const char *path) {
+bool SbDirectoryCreate(const char* path) {
   // Require a non-empty, absolute path.
   if (!path || path[0] != '/') {
     return false;

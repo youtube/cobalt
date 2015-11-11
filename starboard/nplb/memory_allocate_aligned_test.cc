@@ -24,8 +24,8 @@ const size_t kSize = 1024 * 128 + 1;
 TEST(SbMemoryAllocateAlignedTest, AllocatesAligned) {
   const size_t kMaxAlign = 4096 + 1;
   for (size_t align = 2; align < kMaxAlign; align <<= 1) {
-    void *memory = SbMemoryAllocateAligned(align, kSize);
-    ASSERT_NE(static_cast<void *>(NULL), memory);
+    void* memory = SbMemoryAllocateAligned(align, kSize);
+    ASSERT_NE(static_cast<void*>(NULL), memory);
     EXPECT_TRUE(SbMemoryIsAligned(memory, align));
     SbMemoryFreeAligned(memory);
   }
@@ -34,7 +34,7 @@ TEST(SbMemoryAllocateAlignedTest, AllocatesAligned) {
 TEST(SbMemoryAllocateAlignedTest, AllocatesAlignedZero) {
   const size_t kMaxAlign = 4096 + 1;
   for (size_t align = 2; align < kMaxAlign; align <<= 1) {
-    void *memory = SbMemoryAllocateAligned(align, 0);
+    void* memory = SbMemoryAllocateAligned(align, 0);
     // We can't expect anything here because some implementations may return an
     // allocated zero-size memory block, and some implementations may return
     // NULL.
@@ -47,9 +47,9 @@ TEST(SbMemoryAllocateAlignedTest, AllocatesAlignedZero) {
 
 TEST(SbMemoryAllocateAlignedTest, CanReadWriteToResult) {
   const size_t kAlign = 4096;
-  void *memory = SbMemoryAllocateAligned(kAlign, kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryAllocateAligned(kAlign, kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }

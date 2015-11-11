@@ -20,6 +20,6 @@
 
 #include "starboard/shared/posix/file_internal.h"
 
-bool SbFileExists(const char *path) {
+bool SbFileExists(const char* path) {
   return access(path, F_OK) == 0;
 }

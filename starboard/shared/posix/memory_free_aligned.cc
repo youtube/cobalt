@@ -16,6 +16,6 @@
 
 #include <malloc.h>
 
-void SbMemoryFreeAligned(void *memory) {
+void SbMemoryFreeAligned(void* memory) {
   return free(memory);
 }

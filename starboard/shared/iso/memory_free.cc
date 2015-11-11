@@ -16,6 +16,6 @@
 
 #include <stdlib.h>
 
-void SbMemoryFree(void *memory) {
+void SbMemoryFree(void* memory) {
   free(memory);
 }

@@ -20,7 +20,7 @@ using starboard::nplb::ToVoid;
 
 namespace {
 
-void *EntryPoint(void *context) {
+void* EntryPoint(void* context) {
   return ToVoid(SbThreadGetCurrent());
 }
 
@@ -34,7 +34,7 @@ TEST(SbThreadGetCurrentTest, SunnyDay) {
   }
 
   for (int i = 0; i < kThreads; ++i) {
-    void *result = NULL;
+    void* result = NULL;
     EXPECT_TRUE(SbThreadJoin(threads[i], &result));
     EXPECT_EQ(ToVoid(threads[i]), result);
   }

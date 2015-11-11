@@ -20,8 +20,8 @@ namespace {
 const size_t kSize = 1024 * 128;
 
 TEST(SbMemoryFreeTest, FreesNormally) {
-  void *memory = SbMemoryAllocate(kSize);
-  EXPECT_NE(static_cast<void *>(NULL), memory);
+  void* memory = SbMemoryAllocate(kSize);
+  EXPECT_NE(static_cast<void*>(NULL), memory);
   SbMemoryFree(memory);
 }
 

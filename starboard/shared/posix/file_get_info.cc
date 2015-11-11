@@ -21,7 +21,7 @@
 #include "starboard/shared/posix/file_internal.h"
 #include "starboard/shared/posix/time_internal.h"
 
-bool SbFileGetInfo(SbFile file, SbFileInfo *out_info) {
+bool SbFileGetInfo(SbFile file, SbFileInfo* out_info) {
   if (!file || file->descriptor < 0 || !out_info) {
     return false;
   }

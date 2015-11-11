@@ -20,13 +20,13 @@ namespace {
 const size_t kSize = 1024 * 128;
 
 TEST(SbMemorySetTest, SetsSomeData) {
-  void *memory = SbMemoryAllocate(kSize);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryAllocate(kSize);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
 
-  void *result = SbMemorySet(memory, 0xCD, kSize);
+  void* result = SbMemorySet(memory, 0xCD, kSize);
   EXPECT_EQ(memory, result);
   for (int i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], '\xCD');
@@ -36,13 +36,13 @@ TEST(SbMemorySetTest, SetsSomeData) {
 }
 
 TEST(SbMemorySetTest, SetsZeroData) {
-  void *memory = SbMemoryAllocate(kSize);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryAllocate(kSize);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
 
-  void *result = SbMemorySet(memory, 0xCD, 0);
+  void* result = SbMemorySet(memory, 0xCD, 0);
   EXPECT_EQ(memory, result);
   for (int i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
@@ -52,13 +52,13 @@ TEST(SbMemorySetTest, SetsZeroData) {
 }
 
 TEST(SbMemorySetTest, IgnoresExtraData) {
-  void *memory = SbMemoryAllocate(kSize);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryAllocate(kSize);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
 
-  void *result = SbMemorySet(memory, 0x6789ABCD, kSize);
+  void* result = SbMemorySet(memory, 0x6789ABCD, kSize);
   EXPECT_EQ(memory, result);
   for (int i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], '\xCD');

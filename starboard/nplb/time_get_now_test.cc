@@ -29,7 +29,6 @@ TEST(SbTimeGetNowTest, IsKindOfSane) {
   EXPECT_LT(time, kTestTimePastWritten);
 }
 
-
 TEST(SbTimeGetNowTest, HasDecentResolution) {
   const int kNumIterations = 100;
   for (int i = 0; i < kNumIterations; ++i) {

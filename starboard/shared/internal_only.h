@@ -19,7 +19,7 @@
 #define STARBOARD_SHARED_INTERNAL_ONLY_H_
 
 #if !defined(STARBOARD_IMPLEMENTATION)
-#  error "This file cannot be included outside of a starboard implementation."
+#error "This file cannot be included outside of a starboard implementation."
 #endif
 
 #endif  // STARBOARD_SHARED_INTERNAL_ONLY_H_

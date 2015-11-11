@@ -16,6 +16,6 @@
 
 #include <string.h>
 
-void *SbMemorySet(void *destination, int byte_value, size_t count) {
+void* SbMemorySet(void* destination, int byte_value, size_t count) {
   return memset(destination, byte_value, count);
 }

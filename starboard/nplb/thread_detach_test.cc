@@ -27,7 +27,7 @@ TEST(SbThreadDetachTest, SunnyDay) {
                                    true, NULL, AddOneEntryPoint, NULL);
   EXPECT_TRUE(SbThreadIsValid(thread));
   SbThreadDetach(thread);
-  void *result = NULL;
+  void* result = NULL;
   EXPECT_FALSE(SbThreadJoin(thread, &result));
   EXPECT_EQ(NULL, result);
 }

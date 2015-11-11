@@ -16,6 +16,6 @@
 
 #include <wchar.h>
 
-size_t SbStringGetLengthWide(const wchar_t *str) {
+size_t SbStringGetLengthWide(const wchar_t* str) {
   return wcslen(str);
 }

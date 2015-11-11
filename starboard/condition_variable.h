@@ -49,37 +49,35 @@ SB_C_INLINE bool SbConditionVariableIsSignaled(
 // Creates a new condition variable to work with |mutex|, placing the newly
 // created condition variable in |out_condition|. Returns whether the condition
 // variable could be created.
-SB_EXPORT bool SbConditionVariableCreate(
-    SbConditionVariable *out_condition,
-    SbMutex *mutex);
+SB_EXPORT bool SbConditionVariableCreate(SbConditionVariable* out_condition,
+                                         SbMutex* mutex);
 
 // Destroys a condition variable, returning whether the destruction was
 // successful. The condition variable specified by |condition| is
 // invalidated.
-SB_EXPORT bool SbConditionVariableDestroy(SbConditionVariable *condition);
+SB_EXPORT bool SbConditionVariableDestroy(SbConditionVariable* condition);
 
 // Waits for |condition|, releasing the held lock |mutex|, blocking
 // indefinitely, and returning the result. Behavior is undefined if |mutex| is
 // not held.
-SB_EXPORT SbConditionVariableResult SbConditionVariableWait(
-    SbConditionVariable *condition,
-    SbMutex *mutex);
+SB_EXPORT SbConditionVariableResult
+SbConditionVariableWait(SbConditionVariable* condition, SbMutex* mutex);
 
 // Waits for |condition|, releasing the held lock |mutex|, blocking up to
 // |timeout_duration|, and returning the acquisition result. If
 // |timeout_duration| is less than or equal to zero, it will return as quickly
 // as possible with a kSbConditionVariableTimedOut result. Behavior is undefined
 // if |mutex| is not held.
-SB_EXPORT SbConditionVariableResult SbConditionVariableWaitTimed(
-    SbConditionVariable *condition,
-    SbMutex *mutex,
-    SbTime timeout_duration);
+SB_EXPORT SbConditionVariableResult
+SbConditionVariableWaitTimed(SbConditionVariable* condition,
+                             SbMutex* mutex,
+                             SbTime timeout_duration);
 
 // Broadcasts to all current waiters of |condition| to stop waiting.
-SB_EXPORT bool SbConditionVariableBroadcast(SbConditionVariable *condition);
+SB_EXPORT bool SbConditionVariableBroadcast(SbConditionVariable* condition);
 
 // Signals the next waiter of |condition| to stop waiting.
-SB_EXPORT bool SbConditionVariableSignal(SbConditionVariable *condition);
+SB_EXPORT bool SbConditionVariableSignal(SbConditionVariable* condition);
 
 #ifdef __cplusplus
 }  // extern "C"
