@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,52 +14,52 @@
  * limitations under the License.
  */
 
-#ifndef DOM_TEXT_H_
-#define DOM_TEXT_H_
+#ifndef DOM_CDATA_SECTION_H_
+#define DOM_CDATA_SECTION_H_
 
 #include <string>
 
 #include "base/string_piece.h"
-#include "cobalt/dom/character_data.h"
-#include "cobalt/dom/document.h"
+#include "cobalt/dom/text.h"
 #include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
 
-// The Text interface represents the textual content of Element or Attr.
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-text
-class Text : public CharacterData {
+class Document;
+
+// CDATA sections are used to escape blocks of text containing characters that
+// would otherwise be regarded as markup.
+//   http://www.w3.org/TR/2000/REC-DOM-Level-2-Core-20001113/core.html#ID-667469212
+class CDATASection : public Text {
  public:
-  Text(script::EnvironmentSettings* env_settings,
-       const base::StringPiece& comment);
-  Text(Document* document, const base::StringPiece& text);
+  CDATASection(script::EnvironmentSettings* env_settings,
+               const base::StringPiece& cdata_section);
+  CDATASection(Document* document, const base::StringPiece& cdata_section);
 
   // Web API: Node
   //
   std::string node_name() const OVERRIDE;
-  NodeType node_type() const OVERRIDE { return Node::kTextNode; }
+  NodeType node_type() const OVERRIDE { return Node::kCdataSectionNode; }
 
   // Custom, not in any spec: Node.
   //
-  bool IsText() const OVERRIDE { return true; }
+  bool IsCDATASection() const OVERRIDE { return true; }
 
-  scoped_refptr<Text> AsText() OVERRIDE { return this; }
+  scoped_refptr<CDATASection> AsCDATASection() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
-  scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new Text(owner_document(), data());
-  }
+  scoped_refptr<Node> Duplicate() const OVERRIDE;
 
-  DEFINE_WRAPPABLE_TYPE(Text);
+  DEFINE_WRAPPABLE_TYPE(CDATASection);
 
- protected:
-  ~Text() OVERRIDE {}
+ private:
+  ~CDATASection() OVERRIDE {}
 };
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_TEXT_H_
+#endif  // DOM_CDATA_SECTION_H_

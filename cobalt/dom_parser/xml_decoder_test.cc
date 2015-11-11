@@ -18,6 +18,7 @@
 
 #include "base/callback.h"
 #include "cobalt/dom/attr.h"
+#include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/text.h"
@@ -61,6 +62,38 @@ TEST_F(XMLDecoderTest, ShouldNotAddImpliedTags) {
   ASSERT_TRUE(element);
   EXPECT_EQ("ENTITY", element->tag_name());
   EXPECT_FALSE(element->HasChildNodes());
+}
+
+TEST_F(XMLDecoderTest, CanParseCDATASection) {
+  // Libxml requires that a CDATA must be inside an element.
+  const std::string input =
+      "<ENTITY>"
+      "<![CDATA["
+      "<tag> <!--comment--> <![CDATA[ & &amp; ]]&gt;"
+      "]]>"
+      "<![CDATA["
+      "another CDATA section"
+      "]]>"
+      "</ENTITY>";
+  xml_decoder_.reset(new XMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  xml_decoder_->DecodeChunk(input.c_str(), input.length());
+  xml_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("ENTITY", element->tag_name());
+
+  dom::CDATASection* cdata_section1 = element->first_child()->AsCDATASection();
+  ASSERT_TRUE(cdata_section1);
+  EXPECT_EQ("<tag> <!--comment--> <![CDATA[ & &amp; ]]&gt;",
+            cdata_section1->data());
+
+  dom::CDATASection* cdata_section2 = element->last_child()->AsCDATASection();
+  ASSERT_TRUE(cdata_section2);
+  EXPECT_EQ("another CDATA section", cdata_section2->data());
 }
 
 TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
