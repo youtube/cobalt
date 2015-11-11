@@ -16,6 +16,6 @@
 
 #include <string.h>
 
-void *SbMemoryMove(void *destination, const void *source, size_t count) {
+void* SbMemoryMove(void* destination, const void* source, size_t count) {
   return memmove(destination, source, count);
 }

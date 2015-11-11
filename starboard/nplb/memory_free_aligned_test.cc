@@ -22,7 +22,7 @@ const size_t kSize = 1024 * 128;
 TEST(SbMemoryFreeAlignedTest, FreesAligned) {
   const size_t kMaxAlign = 4096 + 1;
   for (size_t align = 2; align < kMaxAlign; align <<= 1) {
-    void *memory = SbMemoryAllocateAligned(align, kSize);
+    void* memory = SbMemoryAllocateAligned(align, kSize);
     SbMemoryFreeAligned(memory);
   }
 }

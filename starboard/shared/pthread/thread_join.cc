@@ -18,12 +18,12 @@
 
 #include "starboard/shared/pthread/is_success.h"
 
-bool SbThreadJoin(SbThread thread, void **out_return) {
+bool SbThreadJoin(SbThread thread, void** out_return) {
   if (!SbThreadIsValid(thread)) {
     return false;
   }
 
-  void *joined_return = NULL;
+  void* joined_return = NULL;
   int result = pthread_join(thread, &joined_return);
   if (!IsSuccess(result)) {
     return false;

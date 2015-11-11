@@ -32,9 +32,8 @@ TEST(SbConditionVariableDestroyTest, SunnyDayAutoInit) {
 TEST(SbConditionVariableDestroyTest, RainyDayWithWaiters) {
   WaiterContext context;
 
-  SbThread thread =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                     NULL, WaiterEntryPoint, &context);
+  SbThread thread = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
+                                   true, NULL, WaiterEntryPoint, &context);
   context.WaitForReturnSignal();
 
   // We won't be able to destroy it if it has waiters.

@@ -36,9 +36,9 @@ TEST(SbFileSeekTest, InvalidFileErrors) {
 
 TEST(SbFileSeekTest, FromEndWorks) {
   starboard::nplb::ScopedRandomFile random_file;
-  const std::string &filename = random_file.filename();
-  SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
-                           NULL, NULL);
+  const std::string& filename = random_file.filename();
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   SbFileInfo info;
@@ -61,9 +61,9 @@ TEST(SbFileSeekTest, FromEndWorks) {
 
 TEST(SbFileSeekTest, FromCurrentWorks) {
   starboard::nplb::ScopedRandomFile random_file;
-  const std::string &filename = random_file.filename();
-  SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
-                           NULL, NULL);
+  const std::string& filename = random_file.filename();
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   SbFileInfo info;
@@ -95,9 +95,9 @@ TEST(SbFileSeekTest, FromCurrentWorks) {
 
 TEST(SbFileSeekTest, FromBeginWorks) {
   starboard::nplb::ScopedRandomFile random_file;
-  const std::string &filename = random_file.filename();
-  SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
-                           NULL, NULL);
+  const std::string& filename = random_file.filename();
+  SbFile file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   SbFileInfo info;

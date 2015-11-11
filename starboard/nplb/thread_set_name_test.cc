@@ -28,11 +28,10 @@ struct Context {
   std::string got_name2;
 };
 
-
 // Gets the thread's name and sets it in the context.
-void *SetThreadNameEntryPoint(void *context) {
+void* SetThreadNameEntryPoint(void* context) {
   char name[4096] = {0};
-  Context *real_context = static_cast<Context *>(context);
+  Context* real_context = static_cast<Context*>(context);
 
   SbThreadGetName(name, SB_ARRAY_SIZE_INT(name));
   real_context->got_name1 = name;
@@ -48,9 +47,9 @@ void *SetThreadNameEntryPoint(void *context) {
 TEST(SbThreadSetNameTest, SunnyDay) {
   Context context;
   context.name_to_set = kAltThreadName;
-  SbThread thread = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                   true, kThreadName, SetThreadNameEntryPoint,
-                                   &context);
+  SbThread thread =
+      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
+                     kThreadName, SetThreadNameEntryPoint, &context);
   EXPECT_TRUE(SbThreadIsValid(thread));
   EXPECT_TRUE(SbThreadJoin(thread, NULL));
   EXPECT_EQ(kThreadName, context.got_name1);

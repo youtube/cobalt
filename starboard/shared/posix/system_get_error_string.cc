@@ -23,14 +23,14 @@
 #include "starboard/string.h"
 
 int SbSystemGetErrorString(SbSystemError error,
-                           char *out_string,
+                           char* out_string,
                            int string_length) {
   char buffer[256];
 
 #if defined(__GLIBC__)
-  char *result = strerror_r(error, buffer, SB_ARRAY_SIZE(buffer));
+  char* result = strerror_r(error, buffer, SB_ARRAY_SIZE(buffer));
 #else
-  char *result = buffer;
+  char* result = buffer;
   int return_value = strerror_r(error, buffer, SB_ARRAY_SIZE(buffer));
   if (return_value != 0) {
     return 0;

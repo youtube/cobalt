@@ -23,12 +23,11 @@ namespace {
 TEST(SbThreadCreateTest, SunnyDay) {
   const int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
-    SbThread thread =
-        SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                       nplb::kThreadName, nplb::AddOneEntryPoint,
-                       nplb::kSomeContext);
+    SbThread thread = SbThreadCreate(
+        0, kSbThreadNoPriority, kSbThreadNoAffinity, true, nplb::kThreadName,
+        nplb::AddOneEntryPoint, nplb::kSomeContext);
     EXPECT_TRUE(SbThreadIsValid(thread));
-    void *result = NULL;
+    void* result = NULL;
     EXPECT_TRUE(SbThreadJoin(thread, &result));
     EXPECT_EQ(nplb::kSomeContextPlusOne, result);
   }
@@ -39,20 +38,33 @@ TEST(SbThreadCreateTest, SunnyDayWithPriorities) {
   for (int i = 0; i < kTrials; ++i) {
     SbThreadPriority priority;
     switch (i % 7) {
-      case 0: priority = kSbThreadPriorityLowest; break;
-      case 1: priority = kSbThreadPriorityLow; break;
-      case 2: priority = kSbThreadPriorityNormal; break;
-      case 3: priority = kSbThreadPriorityHigh; break;
-      case 4: priority = kSbThreadPriorityHighest; break;
-      case 5: priority = kSbThreadPriorityRealTime; break;
-      case 6: priority = kSbThreadNoPriority; break;
+      case 0:
+        priority = kSbThreadPriorityLowest;
+        break;
+      case 1:
+        priority = kSbThreadPriorityLow;
+        break;
+      case 2:
+        priority = kSbThreadPriorityNormal;
+        break;
+      case 3:
+        priority = kSbThreadPriorityHigh;
+        break;
+      case 4:
+        priority = kSbThreadPriorityHighest;
+        break;
+      case 5:
+        priority = kSbThreadPriorityRealTime;
+        break;
+      case 6:
+        priority = kSbThreadNoPriority;
+        break;
     }
-    SbThread thread = SbThreadCreate(0, priority, kSbThreadNoAffinity,
-                                     true, nplb::kThreadName,
-                                     nplb::AddOneEntryPoint,
+    SbThread thread = SbThreadCreate(0, priority, kSbThreadNoAffinity, true,
+                                     nplb::kThreadName, nplb::AddOneEntryPoint,
                                      nplb::kSomeContext);
     EXPECT_TRUE(SbThreadIsValid(thread));
-    void *result = NULL;
+    void* result = NULL;
     EXPECT_TRUE(SbThreadJoin(thread, &result));
     EXPECT_EQ(nplb::kSomeContextPlusOne, result);
   }
@@ -60,10 +72,10 @@ TEST(SbThreadCreateTest, SunnyDayWithPriorities) {
 
 TEST(SbThreadCreateTest, SunnyDayNoName) {
   SbThread thread =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                     NULL, nplb::AddOneEntryPoint, nplb::kSomeContext);
+      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
+                     nplb::AddOneEntryPoint, nplb::kSomeContext);
   EXPECT_TRUE(SbThreadIsValid(thread));
-  void *result = NULL;
+  void* result = NULL;
   EXPECT_TRUE(SbThreadJoin(thread, &result));
   EXPECT_EQ(nplb::kSomeContextPlusOne, result);
 }
@@ -73,29 +85,27 @@ TEST(SbThreadCreateTest, SunnyDayNoContext) {
       SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
                      nplb::kThreadName, nplb::AddOneEntryPoint, NULL);
   EXPECT_TRUE(SbThreadIsValid(thread));
-  void *result = NULL;
+  void* result = NULL;
   EXPECT_TRUE(SbThreadJoin(thread, &result));
   EXPECT_EQ(nplb::ToVoid(1), result);
 }
 
 TEST(SbThreadCreateTest, SunnyDayWithAffinity) {
   SbThread thread =
-      SbThreadCreate(0, kSbThreadNoPriority, 0, true,
-                     nplb::kThreadName, nplb::AddOneEntryPoint,
-                     nplb::kSomeContext);
+      SbThreadCreate(0, kSbThreadNoPriority, 0, true, nplb::kThreadName,
+                     nplb::AddOneEntryPoint, nplb::kSomeContext);
   EXPECT_TRUE(SbThreadIsValid(thread));
-  void *result = NULL;
+  void* result = NULL;
   EXPECT_TRUE(SbThreadJoin(thread, &result));
   EXPECT_EQ(nplb::kSomeContextPlusOne, result);
 }
 
 TEST(SbThreadCreateTest, SunnyDayDetached) {
-  SbThread thread =
-      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, false,
-                     nplb::kThreadName, nplb::AddOneEntryPoint,
-                     nplb::kSomeContext);
+  SbThread thread = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
+                                   false, nplb::kThreadName,
+                                   nplb::AddOneEntryPoint, nplb::kSomeContext);
   EXPECT_TRUE(SbThreadIsValid(thread));
-  void *result = NULL;
+  void* result = NULL;
   EXPECT_FALSE(SbThreadJoin(thread, &result));
 }
 
@@ -110,8 +120,8 @@ TEST(SbThreadCreateTest, Summertime) {
   }
 
   for (int i = 0; i < kMany; ++i) {
-    void *result = NULL;
-    void * const kExpected = nplb::ToVoid(i + 1);
+    void* result = NULL;
+    void* const kExpected = nplb::ToVoid(i + 1);
     EXPECT_TRUE(SbThreadJoin(threads[i], &result));
     EXPECT_EQ(kExpected, result);
   }

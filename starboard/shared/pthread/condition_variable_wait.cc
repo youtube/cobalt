@@ -19,8 +19,8 @@
 #include "starboard/shared/pthread/is_success.h"
 
 SbConditionVariableResult SbConditionVariableWait(
-    SbConditionVariable *condition,
-    SbMutex *mutex) {
+    SbConditionVariable* condition,
+    SbMutex* mutex) {
   if (!condition || !mutex) {
     return kSbConditionVariableFailed;
   }

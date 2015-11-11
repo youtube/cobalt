@@ -47,15 +47,15 @@
 #include STARBOARD_THREAD_TYPES_INCLUDE
 
 #ifndef SB_CONDITION_VARIABLE_INITIALIZER
-#  error "SB_CONDITION_VARIABLE_INITIALIZER not defined by platform."
+#error "SB_CONDITION_VARIABLE_INITIALIZER not defined by platform."
 #endif
 
 #ifndef SB_MUTEX_INITIALIZER
-#  error "SB_MUTEX_INITIALIZER not defined by platform."
+#error "SB_MUTEX_INITIALIZER not defined by platform."
 #endif
 
 #ifndef SB_ONCE_INITIALIZER
-#  error "SB_ONCE_INITIALIZER not defined by platform."
+#error "SB_ONCE_INITIALIZER not defined by platform."
 #endif
 
 #endif  // STARBOARD_TYPES_H_

@@ -20,7 +20,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-bool SbFileDelete(const char *path) {
+bool SbFileDelete(const char* path) {
   if (!path || *path == '\0') {
     return false;
   }

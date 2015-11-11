@@ -28,7 +28,7 @@ namespace {
 const int kBufferLength = 16 * 1024;
 
 TEST(SbFileWriteTest, InvalidFileErrors) {
-  char buffer[kBufferLength] = { 0 };
+  char buffer[kBufferLength] = {0};
   int result = SbFileWrite(kSbFileInvalid, buffer, kBufferLength);
   EXPECT_EQ(-1, result);
 }
@@ -38,16 +38,16 @@ TEST(SbFileWriteTest, BasicWriting) {
   // over several times the size of the buffer.
   const int kFileSize = kBufferLength * 16 / 3;
   ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
-  SbFile file = SbFileOpen(filename.c_str(),
-                           kSbFileCreateAlways | kSbFileWrite | kSbFileRead,
-                           NULL, NULL);
+  SbFile file =
+      SbFileOpen(filename.c_str(),
+                 kSbFileCreateAlways | kSbFileWrite | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
   // Create a bigger buffer than necessary, so we can test the memory around the
   // portion given to SbFileRead.
-  char buffer[kBufferLength] = { 0 };
+  char buffer[kBufferLength] = {0};
 
   // Initialize to some arbitrary pattern so we can verify it later.
   for (int i = 0; i < kBufferLength; ++i) {
@@ -100,11 +100,8 @@ TEST(SbFileWriteTest, BasicWriting) {
     previous_total = total;
     total += bytes_read;
 
-    ScopedRandomFile::ExpectPattern(
-        previous_total,
-        buffer,
-        bytes_read,
-        __LINE__);
+    ScopedRandomFile::ExpectPattern(previous_total, buffer, bytes_read,
+                                    __LINE__);
   }
 
   // Check that we read the whole file.
@@ -116,13 +113,13 @@ TEST(SbFileWriteTest, BasicWriting) {
 
 TEST(SbFileWriteTest, WriteZeroBytes) {
   ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
-  const std::string &filename = random_file.filename();
+  const std::string& filename = random_file.filename();
 
   SbFile file = SbFileOpen(filename.c_str(), kSbFileCreateOnly | kSbFileWrite,
                            NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
 
-  char buffer[kBufferLength] = { 0 };
+  char buffer[kBufferLength] = {0};
 
   // Write zero bytes.
   for (int i = 0; i < 10; ++i) {
@@ -133,8 +130,8 @@ TEST(SbFileWriteTest, WriteZeroBytes) {
   bool result = SbFileClose(file);
   EXPECT_TRUE(result);
 
-  file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
-                    NULL, NULL);
+  file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   ASSERT_TRUE(SbFileIsValid(file));
   SbFileInfo info;
   result = SbFileGetInfo(file, &info);

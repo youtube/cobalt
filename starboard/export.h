@@ -29,19 +29,19 @@
 // COMPONENT_BUILD is defined when generating shared libraries for each project,
 // rather than static libraries. This means we need to be careful about
 // EXPORT/IMPORT.
-#  if defined(STARBOARD_IMPLEMENTATION)
+#if defined(STARBOARD_IMPLEMENTATION)
 // STARBOARD_IMPLEMENTATION is defined when building the Starboard library
 // sources, and shouldn't be defined when building sources that are clients of
 // Starboard.
-#    define SB_EXPORT SB_EXPORT_PLATFORM
-#    define SB_EXPORT_PRIVATE SB_EXPORT_PLATFORM
-#  else  // defined(STARBOARD_IMPLEMENTATION)
-#    define SB_EXPORT SB_IMPORT_PLATFORM
-#    define SB_EXPORT_PRIVATE SB_IMPORT_PLATFORM
-#  endif
+#define SB_EXPORT SB_EXPORT_PLATFORM
+#define SB_EXPORT_PRIVATE SB_EXPORT_PLATFORM
+#else  // defined(STARBOARD_IMPLEMENTATION)
+#define SB_EXPORT SB_IMPORT_PLATFORM
+#define SB_EXPORT_PRIVATE SB_IMPORT_PLATFORM
+#endif
 #else  // defined(COMPONENT_BUILD)
-#  define SB_EXPORT
-#  define SB_EXPORT_PRIVATE
+#define SB_EXPORT
+#define SB_EXPORT_PRIVATE
 #endif  // defined(COMPONENT_BUILD)
 
 #endif  // STARBOARD_EXPORT_H_

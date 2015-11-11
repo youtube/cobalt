@@ -24,8 +24,8 @@ using starboard::nplb::ScopedRandomFile;
 
 namespace {
 
-const char *kManyFileSeparators = SB_FILE_SEP_STRING SB_FILE_SEP_STRING
-                                  SB_FILE_SEP_STRING SB_FILE_SEP_STRING;
+const char* kManyFileSeparators =
+    SB_FILE_SEP_STRING SB_FILE_SEP_STRING SB_FILE_SEP_STRING SB_FILE_SEP_STRING;
 
 // NOTE: There is a test missing here, for creating a directory right off of the
 // root. But, this is likely to fail due to permissions, so we can't make a
@@ -34,7 +34,7 @@ const char *kManyFileSeparators = SB_FILE_SEP_STRING SB_FILE_SEP_STRING
 TEST(SbDirectoryCreateTest, SunnyDay) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
 
-  const std::string &path = dir.filename();
+  const std::string& path = dir.filename();
 
   EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
@@ -56,7 +56,7 @@ TEST(SbDirectoryCreateTest, SunnyDayTrailingSeparators) {
 }
 
 TEST(SbDirectoryCreateTest, SunnyDayRoot) {
-  const char *kRootPath = SB_FILE_SEP_STRING;
+  const char* kRootPath = SB_FILE_SEP_STRING;
   EXPECT_TRUE(SbDirectoryCanOpen(kRootPath));
   EXPECT_TRUE(SbDirectoryCreate(kRootPath));
   EXPECT_TRUE(SbDirectoryCanOpen(kRootPath));
@@ -84,7 +84,7 @@ TEST(SbDirectoryCreateTest, FailureNonexistentParent) {
 }
 
 TEST(SbDirectoryCreateTest, FailureNotAbsolute) {
-  const char *kPath = "hallo";
+  const char* kPath = "hallo";
 
   EXPECT_FALSE(SbDirectoryCanOpen(kPath));
   EXPECT_FALSE(SbDirectoryCreate(kPath));

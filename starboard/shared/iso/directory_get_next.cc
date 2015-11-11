@@ -22,13 +22,13 @@
 #include "starboard/string.h"
 
 SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
-                                  SbDirectoryEntry *out_entry) {
+                                  SbDirectoryEntry* out_entry) {
   if (!directory || !directory->directory || !out_entry) {
     return false;
   }
 
   struct dirent dirent_buffer;
-  struct dirent *dirent;
+  struct dirent* dirent;
   int result = readdir_r(directory->directory, &dirent_buffer, &dirent);
   if (result || !dirent) {
     return false;

@@ -21,13 +21,13 @@ namespace nplb = starboard::nplb;
 namespace {
 
 TEST(SbConditionVariableWaitTest, SunnyDayAutoInit) {
-  nplb::TakeThenSignalContext context = { nplb::Semaphore(0),
-                                          SB_MUTEX_INITIALIZER,
-                                          SB_CONDITION_VARIABLE_INITIALIZER };
+  nplb::TakeThenSignalContext context = {nplb::Semaphore(0),
+                                         SB_MUTEX_INITIALIZER,
+                                         SB_CONDITION_VARIABLE_INITIALIZER};
   // Start the thread.
-  SbThread thread = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                   true, NULL, nplb::TakeThenSignalEntryPoint,
-                                   &context);
+  SbThread thread =
+      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
+                     nplb::TakeThenSignalEntryPoint, &context);
 
   EXPECT_TRUE(SbMutexIsSuccess(SbMutexAcquire(&context.mutex)));
 
@@ -49,16 +49,14 @@ TEST(SbConditionVariableWaitTest, SunnyDayAutoInit) {
   EXPECT_TRUE(SbMutexDestroy(&context.mutex));
 }
 
-
 TEST(SbConditionVariableWaitTest, SunnyDay) {
   const int kMany = 64;
   nplb::WaiterContext context;
 
   SbThread threads[kMany];
   for (int i = 0; i < kMany; ++i) {
-    threads[i] =
-        SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                       NULL, nplb::WaiterEntryPoint, &context);
+    threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
+                                true, NULL, nplb::WaiterEntryPoint, &context);
   }
 
   for (int i = 0; i < kMany; ++i) {

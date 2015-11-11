@@ -20,12 +20,12 @@ namespace {
 const char kSource[] = "0123456789";
 const char kInitial[] = "ABCDEFGHIJ";
 
-void TestConcat(const char *initial, const char *source, bool is_short) {
+void TestConcat(const char* initial, const char* source, bool is_short) {
   const int kDestinationOffset = 16;
   int initial_length = SbStringGetLength(initial);
   int source_length = SbStringGetLength(source);
-  int destination_size = initial_length + source_length +
-                         kDestinationOffset * 2;
+  int destination_size =
+      initial_length + source_length + kDestinationOffset * 2;
   int destination_limit = initial_length + source_length + 1;
   if (is_short) {
     ASSERT_LT(1, destination_limit);
@@ -33,7 +33,7 @@ void TestConcat(const char *initial, const char *source, bool is_short) {
   }
   ASSERT_GT(1024, destination_size);
   char destination[1024] = {0};
-  char *dest = destination + kDestinationOffset;
+  char* dest = destination + kDestinationOffset;
   SbStringCopy(dest, initial, destination_limit);
   int result = SbStringConcat(dest, source, destination_limit);
 

@@ -20,18 +20,18 @@ namespace {
 const size_t kSize = 1024 * 128;
 
 TEST(SbMemoryMoveTest, MovesSomeData) {
-  void *memory1 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory1);
-  void *memory2 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory2);
-  char *data1 = static_cast<char *>(memory1);
-  char *data2 = static_cast<char *>(memory2);
+  void* memory1 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory1);
+  void* memory2 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory2);
+  char* data1 = static_cast<char*>(memory1);
+  char* data2 = static_cast<char*>(memory2);
   for (int i = 0; i < kSize; ++i) {
     data1[i] = i;
     data2[i] = 0;
   }
 
-  void *result = SbMemoryMove(memory2, memory1, kSize);
+  void* result = SbMemoryMove(memory2, memory1, kSize);
   EXPECT_EQ(memory2, result);
 
   for (int i = 0; i < kSize; ++i) {
@@ -44,18 +44,18 @@ TEST(SbMemoryMoveTest, MovesSomeData) {
 }
 
 TEST(SbMemoryMoveTest, MovesZeroData) {
-  void *memory1 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory1);
-  void *memory2 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory2);
-  char *data1 = static_cast<char *>(memory1);
-  char *data2 = static_cast<char *>(memory2);
+  void* memory1 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory1);
+  void* memory2 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory2);
+  char* data1 = static_cast<char*>(memory1);
+  char* data2 = static_cast<char*>(memory2);
   for (int i = 0; i < kSize; ++i) {
     data1[i] = static_cast<char>(i);
     data2[i] = static_cast<char>(i + 1);
   }
 
-  void *result = SbMemoryMove(memory2, memory1, 0);
+  void* result = SbMemoryMove(memory2, memory1, 0);
   EXPECT_EQ(memory2, result);
 
   for (int i = 0; i < kSize; ++i) {
@@ -68,14 +68,14 @@ TEST(SbMemoryMoveTest, MovesZeroData) {
 }
 
 TEST(SbMemoryMoveTest, MovesOverlappingDataForward) {
-  void *memory = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
 
-  void *result = SbMemoryMove(data + 3, data, kSize - 3);
+  void* result = SbMemoryMove(data + 3, data, kSize - 3);
   EXPECT_EQ(data + 3, result);
 
   for (int i = 0; i < kSize - 3; ++i) {
@@ -86,14 +86,14 @@ TEST(SbMemoryMoveTest, MovesOverlappingDataForward) {
 }
 
 TEST(SbMemoryMoveTest, MovesOverlappingDataBackwards) {
-  void *memory = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory);
-  char *data = static_cast<char *>(memory);
+  void* memory = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory);
+  char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
 
-  void *result = SbMemoryMove(data, data + 3, kSize - 3);
+  void* result = SbMemoryMove(data, data + 3, kSize - 3);
   EXPECT_EQ(memory, result);
 
   for (int i = 0; i < kSize - 3; ++i) {

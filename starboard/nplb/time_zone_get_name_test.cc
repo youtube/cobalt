@@ -19,12 +19,14 @@
 namespace {
 
 TEST(SbTimeZoneGetNameTest, IsKindOfSane) {
-  const char *name = SbTimeZoneGetName();
+  const char* name = SbTimeZoneGetName();
 
-  ASSERT_NE(name, static_cast<const char *>(NULL));
+  ASSERT_NE(name, static_cast<const char*>(NULL));
 
   int i = 0;
-  while (name[i] != '\0') { ++i; }
+  while (name[i] != '\0') {
+    ++i;
+  }
 
   // Most time zones are 3 letters.
   // I haven't been able to get Linux to produce a 2 or 1 letter time zone.

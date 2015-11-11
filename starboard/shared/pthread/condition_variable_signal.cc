@@ -18,7 +18,7 @@
 
 #include "starboard/shared/pthread/is_success.h"
 
-bool SbConditionVariableSignal(SbConditionVariable *condition) {
+bool SbConditionVariableSignal(SbConditionVariable* condition) {
   if (!condition) {
     return false;
   }
