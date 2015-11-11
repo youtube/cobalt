@@ -470,28 +470,31 @@ void Box::RenderAndAnimateBackgroundImage(
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   UNREFERENCED_PARAMETER(node_animations_map_builder);
 
-  if (computed_style()->background_image() != cssom::KeywordValue::GetNone()) {
-    cssom::PropertyListValue* property_list =
-        base::polymorphic_downcast<cssom::PropertyListValue*>(
-            computed_style()->background_image().get());
-    // The farthest image is added to |composition_node_builder| first.
-    for (cssom::PropertyListValue::Builder::const_reverse_iterator
-             image_iterator = property_list->value().rbegin();
-         image_iterator != property_list->value().rend(); ++image_iterator) {
-      UsedBackgroundNodeProvider background_node_provider(
-          used_style_provider_, GetPaddingBoxSize(),
-          computed_style()->background_size(),
-          computed_style()->background_position(),
-          computed_style()->background_repeat());
-      (*image_iterator)->Accept(&background_node_provider);
-      scoped_refptr<render_tree::Node> background_node =
-          background_node_provider.background_node();
+  cssom::PropertyListValue* property_list =
+      base::polymorphic_downcast<cssom::PropertyListValue*>(
+          computed_style()->background_image().get());
+  // The farthest image is added to |composition_node_builder| first.
+  for (cssom::PropertyListValue::Builder::const_reverse_iterator
+           image_iterator = property_list->value().rbegin();
+       image_iterator != property_list->value().rend(); ++image_iterator) {
+    // Skip this image if it is specified as none.
+    if (*image_iterator == cssom::KeywordValue::GetNone()) {
+      continue;
+    }
 
-      if (background_node) {
-        border_node_builder->AddChild(
-            background_node,
-            math::TranslateMatrix(border_left_width(), border_top_width()));
-      }
+    UsedBackgroundNodeProvider background_node_provider(
+        used_style_provider_, GetPaddingBoxSize(),
+        computed_style()->background_size(),
+        computed_style()->background_position(),
+        computed_style()->background_repeat());
+    (*image_iterator)->Accept(&background_node_provider);
+    scoped_refptr<render_tree::Node> background_node =
+        background_node_provider.background_node();
+
+    if (background_node) {
+      border_node_builder->AddChild(
+          background_node,
+          math::TranslateMatrix(border_left_width(), border_top_width()));
     }
   }
 }
