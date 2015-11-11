@@ -48,6 +48,16 @@ CommandInput.prototype.deleteCharBehindCursor = function() {
   }
 }
 
+CommandInput.prototype.deleteCharAtCursor = function() {
+  var cmd = this.currCommand;
+  var pos = this.cursorPos;
+  if (cmd.length > 0 && pos < cmd.length) {
+    this.currCommand = cmd.substring(0, pos);
+    this.currCommand += cmd.substring(pos + 1, cmd.length);
+    this.updateText();
+  }
+}
+
 // The move parameter is an integer that specifies how many characters to the
 // right to move the input cursor. A negative value will move the cursor that
 // many characters to the right.
