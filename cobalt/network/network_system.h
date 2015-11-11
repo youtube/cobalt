@@ -16,11 +16,33 @@
 
 #ifndef NETWORK_NETWORK_SYSTEM_H_
 #define NETWORK_NETWORK_SYSTEM_H_
+
+#include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/base/event_dispatcher.h"
+
 namespace cobalt {
 namespace network {
-// One-time startup and shutdown for networking.
-void PlatformInit();
-void PlatformShutdown();
+
+// Platform-specific networking initialization and management.
+// The NetworkSystem will be owned by NetworkModule.
+class NetworkSystem {
+ public:
+  virtual ~NetworkSystem() {}
+
+  // To be implemented by each platform.
+  // Platforms may wish to dispatch NetworkEvents to any registered listeners.
+  // Use the event_dispatcher for this.
+  static scoped_ptr<NetworkSystem> Create(
+      base::EventDispatcher* event_dispatcher);
+
+ protected:
+  NetworkSystem() {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(NetworkSystem);
+};
+
 }  // namespace network
 }  // namespace cobalt
 #endif  // NETWORK_NETWORK_SYSTEM_H_

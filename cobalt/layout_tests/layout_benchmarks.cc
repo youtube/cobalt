@@ -17,12 +17,13 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/synchronization/waitable_event.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/dom/benchmark_stat_names.h"
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout_tests/layout_snapshot.h"
 #include "cobalt/layout_tests/test_parser.h"
 #include "cobalt/renderer/renderer_module.h"
-#include "cobalt/system_window/create_system_window.h"
+#include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/benchmark.h"
 #include "googleurl/src/gurl.h"
 
@@ -41,7 +42,7 @@ class RendererBenchmarkRunner {
       : samples_to_gather_(samples_to_gather),
         submits_completed_(0),
         done_gathering_samples_(true, false),
-        system_window_(system_window::CreateSystemWindow()),
+        system_window_(system_window::CreateSystemWindow(&event_dispatcher_)),
         renderer_module_(system_window_.get(),
                          renderer::RendererModule::Options()) {}
 
@@ -85,6 +86,7 @@ class RendererBenchmarkRunner {
   const int samples_to_gather_;
   int submits_completed_;
   base::WaitableEvent done_gathering_samples_;
+  base::EventDispatcher event_dispatcher_;
 
   scoped_ptr<system_window::SystemWindow> system_window_;
   renderer::RendererModule renderer_module_;

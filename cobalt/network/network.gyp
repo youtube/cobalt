@@ -26,6 +26,7 @@
         '<(actual_target_arch)/network_system.cc',
         'network_delegate.cc',
         'network_delegate.h',
+        'network_event.h',
         'network_module.cc',
         'network_module.h',
         'network_system.h',

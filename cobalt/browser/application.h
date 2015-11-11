@@ -19,7 +19,10 @@
 
 #include "base/callback.h"
 #include "base/message_loop.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
+#include "cobalt/system_window/system_window.h"
+
 #if defined(ENABLE_WEBDRIVER)
 #include "cobalt/webdriver/web_driver_module.h"
 #endif
@@ -50,6 +53,14 @@ class Application {
   base::Closure quit_closure_;
 
  protected:
+  // A conduit for system events.
+  base::EventDispatcher event_dispatcher_;
+
+  // The main system window for our application.
+  // This routes event callbacks, and provides a native window handle
+  // on desktop systems.
+  scoped_ptr<system_window::SystemWindow> system_window_;
+
   // Main components of the Cobalt browser application.
   scoped_ptr<BrowserModule> browser_module_;
 

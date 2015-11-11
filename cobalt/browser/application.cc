@@ -137,7 +137,8 @@ Application::Application()
       cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage();
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
-  browser_module_.reset(new BrowserModule(url, options));
+  system_window_ = system_window::CreateSystemWindow(&event_dispatcher_);
+  browser_module_.reset(new BrowserModule(url, system_window_.get(), options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 
 #if defined(ENABLE_WEBDRIVER)

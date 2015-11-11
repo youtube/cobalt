@@ -19,9 +19,20 @@
 namespace cobalt {
 namespace network {
 
-// No-op on this platform.
-void PlatformInit() {}
-void PlatformShutdown() {}
+namespace {
+class NetworkSystemStarboard : public NetworkSystem {
+ public:
+  NetworkSystemStarboard();
+};
+NetworkSystemStarboard::NetworkSystemStarboard() {}
+
+}  // namespace
+
+scoped_ptr<NetworkSystem> NetworkSystem::Create(
+    base::EventDispatcher* /*event_dispatcher*/) {
+  scoped_ptr<NetworkSystem> network_system(new NetworkSystemStarboard());
+  return network_system.Pass();
+}
 
 }  // namespace network
 }  // namespace cobalt

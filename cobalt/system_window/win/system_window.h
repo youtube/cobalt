@@ -19,7 +19,7 @@
 
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
-#include "cobalt/system_window/system_window_desktop.h"
+#include "cobalt/system_window/system_window.h"
 
 #if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN
@@ -32,9 +32,9 @@ namespace system_window {
 // Windows implementation of the SystemWindow class.
 // Each window has its own thread and event loop on which messages are
 // received and processed.
-class SystemWindowWin : public SystemWindowDesktop {
+class SystemWindowWin : public SystemWindow {
  public:
-  SystemWindowWin();
+  explicit SystemWindowWin(base::EventDispatcher* event_dispatcher);
 
   ~SystemWindowWin() OVERRIDE;
 
