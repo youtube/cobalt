@@ -1463,9 +1463,19 @@
         {
           CF2_Int  v;
 
+#if defined(COBALT)
+          // NOTE(jegray): This code is modified as a result of gcc processing
+          // the second cf2_buf_readByte before the first, causing the glyph
+          // to fail.
+          CF2_Int byte1 = cf2_buf_readByte( charstring );
+          CF2_Int byte2 = cf2_buf_readByte( charstring );
+          v = (FT_Short)( ( byte1 << 8 ) |
+                            byte2        );
+#else
 
           v = (FT_Short)( ( cf2_buf_readByte( charstring ) << 8 ) |
                             cf2_buf_readByte( charstring )        );
+#endif
 
           FT_TRACE4(( " %d", v ));
 
@@ -1527,12 +1537,26 @@
           {
             CF2_Fixed  v;
 
-
+#if defined(COBALT)
+            // NOTE(jegray): This code is modified as a result of gcc not
+            // processing the cf2_buf_readByte's from left to right, causing
+            // the glyph to fail.
+            FT_UInt32 byte1 = (FT_UInt32)cf2_buf_readByte( charstring );
+            FT_UInt32 byte2 = (FT_UInt32)cf2_buf_readByte( charstring );
+            FT_UInt32 byte3 = (FT_UInt32)cf2_buf_readByte( charstring );
+            FT_UInt32 byte4 = (FT_UInt32)cf2_buf_readByte( charstring );
+            v = (CF2_Fixed)
+                  ( ( byte1 << 24 ) |
+                    ( byte2 << 16 ) |
+                    ( byte3 <<  8 ) |
+                      byte4         );
+#else
             v = (CF2_Fixed)
                   ( ( (FT_UInt32)cf2_buf_readByte( charstring ) << 24 ) |
                     ( (FT_UInt32)cf2_buf_readByte( charstring ) << 16 ) |
                     ( (FT_UInt32)cf2_buf_readByte( charstring ) <<  8 ) |
                       (FT_UInt32)cf2_buf_readByte( charstring )         );
+#endif
 
             FT_TRACE4(( " %.2f", v / 65536.0 ));
 
