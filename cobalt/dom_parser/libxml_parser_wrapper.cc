@@ -18,6 +18,7 @@
 
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/text.h"
@@ -125,6 +126,11 @@ void ParserFatal(void* context, const char* message, ...) {
       LibxmlParserWrapper::kFatal, StringPrintVAndTrim(message, arguments));
 }
 
+void CDATABlock(void* context, const xmlChar* value, int len) {
+  ToLibxmlParserWrapper(context)
+      ->OnCDATABlock(std::string(ToCString(value), static_cast<size_t>(len)));
+}
+
 //////////////////////////////////////////////////////////////////
 // LibxmlParserWrapper
 //////////////////////////////////////////////////////////////////
@@ -161,7 +167,7 @@ void LibxmlParserWrapper::OnCharacters(const std::string& value) {
   // create. Otherwise, the provided value will be appended to the previous
   // created Text node.
   scoped_refptr<dom::Node> last_child = node_stack_.top()->last_child();
-  if (last_child && last_child->IsText()) {
+  if (last_child && last_child->IsText() && !last_child->IsCDATASection()) {
     dom::Text* text = last_child->AsText();
     std::string data = text->data();
     data.append(value.data(), value.size());
@@ -180,6 +186,10 @@ void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
   if (severity == LibxmlParserWrapper::kFatal) {
     error_callback_.Run(message);
   }
+}
+
+void LibxmlParserWrapper::OnCDATABlock(const std::string& value) {
+  node_stack_.top()->AppendChild(new dom::CDATASection(document_, value));
 }
 
 }  // namespace dom_parser
