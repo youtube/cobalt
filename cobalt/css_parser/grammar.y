@@ -2029,7 +2029,7 @@ background_property_element:
           @1, "background-color value declared twice in background.");
     }
   }
-  | url {
+  | background_image_property_list_element {
     if (!$<background_shorthand_layer>0->background_image) {
       scoped_ptr<cssom::PropertyListValue::Builder>
           background_image_builder(new cssom::PropertyListValue::Builder());
@@ -2267,6 +2267,9 @@ background_image_property_list_element:
   | kLinearGradientFunctionToken maybe_whitespace linear_gradient_params ')' {
     $$ = $3;
   }
+  | kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
   ;
 
 comma_separated_background_image_list:
@@ -2285,10 +2288,7 @@ comma_separated_background_image_list:
 // and each subsequent image behind the previous one.
 //   http://www.w3.org/TR/css3-background/#the-background-image
 background_image_property_value:
-    kNoneToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetNone().get());
-  }
-  | comma_separated_background_image_list {
+  comma_separated_background_image_list {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
     $$ = property_value
          ? AddRef(new cssom::PropertyListValue(property_value.Pass()))

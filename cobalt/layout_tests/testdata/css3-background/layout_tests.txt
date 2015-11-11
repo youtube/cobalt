@@ -59,3 +59,4 @@
 14-2-1-background-with-repeat-position-color-image
 14-2-1-background-with-repeat-position-image
 14-2-1-background-with-repeat-position-image-color
+14-2-1-multiple-layers-background-image
