@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/synchronization/lock.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/network/network_module.h"
@@ -28,7 +29,7 @@
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/storage/storage_manager.h"
-#include "cobalt/system_window/create_system_window.h"
+#include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 
 namespace cobalt {
@@ -52,7 +53,7 @@ class MediaSandbox::Impl {
       : cobalt_init_(argc, argv),
         trace_to_file_(trace_log_path),
         fetcher_factory_(&network_module_),
-        system_window_(system_window::CreateSystemWindow()),
+        system_window_(system_window::CreateSystemWindow(&event_dispatcher_)),
         renderer_module_(system_window_.get(),
                          renderer::RendererModule::Options()),
         media_module_(MediaModule::Create(
@@ -101,6 +102,7 @@ class MediaSandbox::Impl {
   MessageLoop message_loop_;
   network::NetworkModule network_module_;
   loader::FetcherFactory fetcher_factory_;
+  base::EventDispatcher event_dispatcher_;
   // System window used as a render target.
   scoped_ptr<system_window::SystemWindow> system_window_;
   renderer::RendererModule renderer_module_;

@@ -17,10 +17,14 @@
 #ifndef SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 #define SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/base/event_dispatcher.h"
+
 namespace cobalt {
 namespace system_window {
 
-// A SystemWindow represents a window on desktop systems.
+// A SystemWindow represents a window on desktop systems as well as
+// as a mechanism for routing system events and notifications.
 // The SystemWindow routes callbacks for user input, and provides the
 // information necessary to create a display render target for a graphics
 // system. A SystemWindow is typically created via a call to
@@ -28,8 +32,21 @@ namespace system_window {
 // platform.
 class SystemWindow {
  public:
-  virtual ~SystemWindow() {}
+  explicit SystemWindow(base::EventDispatcher* event_dispatcher)
+      : event_dispatcher_(event_dispatcher) {}
+  virtual ~SystemWindow();
+
+  base::EventDispatcher* event_dispatcher() const { return event_dispatcher_; }
+
+ private:
+  base::EventDispatcher* event_dispatcher_;
 };
+
+// The implementation of this function should be platform specific, and will
+// create and return a platform-specific system window object. The system
+// window object routes callbacks for user input and provides the information
+// necessary to create a display render target for a graphics system.
+scoped_ptr<SystemWindow> CreateSystemWindow(base::EventDispatcher*);
 
 }  // namespace system_window
 }  // namespace cobalt

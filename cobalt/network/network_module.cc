@@ -34,14 +34,15 @@ void OnDestroy(scoped_ptr<URLRequestContext> /* url_request_context */,
 
 NetworkModule::NetworkModule()
     : storage_manager_(NULL), preferred_language_("en-US") {
-  Initialize();
+  Initialize(NULL /* event_dispatcher */);
 }
 
 NetworkModule::NetworkModule(storage::StorageManager* storage_manager,
+                             base::EventDispatcher* event_dispatcher,
                              const std::string& preferred_language)
     : storage_manager_(storage_manager),
       preferred_language_(preferred_language) {
-  Initialize();
+  Initialize(event_dispatcher);
 }
 
 NetworkModule::~NetworkModule() {
@@ -57,15 +58,15 @@ NetworkModule::~NetworkModule() {
   // This will run the above task, and then stop the thread.
   thread_.reset(NULL);
   object_watch_multiplexer_.reset(NULL);
-  PlatformShutdown();
+  network_system_.reset(NULL);
 }
 
-void NetworkModule::Initialize() {
+void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
   thread_.reset(new base::Thread("NetworkModule"));
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
   user_agent_.reset(new UserAgent(preferred_language_));
 
-  PlatformInit();
+  network_system_ = NetworkSystem::Create(event_dispatcher);
 
   // Launch the IO thread.
   base::Thread::Options thread_options;

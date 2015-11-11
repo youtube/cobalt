@@ -16,7 +16,9 @@
 
 #include "cobalt/input/input_device_manager_desktop.h"
 
-#include "cobalt/base/polymorphic_downcast.h"
+#include <string>
+
+#include "cobalt/system_window/keyboard_event.h"
 
 namespace cobalt {
 namespace input {
@@ -24,29 +26,46 @@ namespace input {
 InputDeviceManagerDesktop::InputDeviceManagerDesktop(
     const KeyboardEventCallback& callback,
     system_window::SystemWindow* system_window)
-    :  // We are in the desktop implementation of this class (Windows/Linux),
-      // so we can assume that system_window is actually a pointer to an object
-      // of the SystemWindowDesktop subclass.
-      system_window_(
-          base::polymorphic_downcast<system_window::SystemWindowDesktop*>(
-              system_window)),
+    : system_window_(system_window),
       keyboard_event_callback_(
           base::Bind(&InputDeviceManagerDesktop::HandleKeyboardEvent,
                      base::Unretained(this))),
       keypress_generator_filter_(callback) {
-  // Add this object's keyboard event callback to the system window.
-  system_window_->AddKeyboardEventCallback(keyboard_event_callback_);
+  if (system_window_) {
+    // Add this object's keyboard event callback to the system window.
+    system_window_->event_dispatcher()->AddEventCallback(
+        system_window::KeyboardEvent::TypeId(), keyboard_event_callback_);
+  }
 }
 
 InputDeviceManagerDesktop::~InputDeviceManagerDesktop() {
   // If we have an associated system window, remove our callback from it.
   if (system_window_) {
-    system_window_->RemoveKeyboardEventCallback(keyboard_event_callback_);
+    system_window_->event_dispatcher()->RemoveEventCallback(
+        system_window::KeyboardEvent::TypeId(), keyboard_event_callback_);
   }
 }
 
-void InputDeviceManagerDesktop::HandleKeyboardEvent(
-    const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
+void InputDeviceManagerDesktop::HandleKeyboardEvent(const base::Event* event) {
+  // The user has pressed a key on the keyboard.
+  const system_window::KeyboardEvent* key_event =
+      base::polymorphic_downcast<const system_window::KeyboardEvent*>(event);
+  const int key_code = key_event->key_code();
+  const uint32 modifiers = key_event->modifiers();
+
+  dom::KeyboardEvent::KeyLocationCode location =
+      dom::KeyboardEvent::KeyCodeToKeyLocation(key_code);
+  DCHECK(key_event->type() == system_window::KeyboardEvent::kKeyDown ||
+         key_event->type() == system_window::KeyboardEvent::kKeyUp);
+
+  const std::string& event_name =
+      key_event->type() == system_window::KeyboardEvent::kKeyDown
+          ? dom::EventNames::GetInstance()->keydown()
+          : dom::EventNames::GetInstance()->keyup();
+  scoped_refptr<dom::KeyboardEvent> keyboard_event(
+      new dom::KeyboardEvent(event_name, location, modifiers, key_code,
+                             key_code, key_event->is_repeat()));
+
   keypress_generator_filter_.HandleKeyboardEvent(keyboard_event);
 }
 
