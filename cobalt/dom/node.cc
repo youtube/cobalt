@@ -20,6 +20,7 @@
 
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_type.h"
@@ -366,6 +367,8 @@ scoped_refptr<Element> Node::next_element_sibling() {
   }
   return NULL;
 }
+
+scoped_refptr<CDATASection> Node::AsCDATASection() { return NULL; }
 
 scoped_refptr<Comment> Node::AsComment() { return NULL; }
 

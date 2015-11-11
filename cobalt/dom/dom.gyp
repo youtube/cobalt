@@ -32,6 +32,8 @@
         'benchmark_stat_names.cc',
         'benchmark_stat_names.h',
         'blob.h',
+        'cdata_section.cc',
+        'cdata_section.h',
         'character_data.cc',
         'character_data.h',
         'comment.cc',
