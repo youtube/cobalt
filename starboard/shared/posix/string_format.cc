@@ -17,7 +17,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-int SbStringFormat(char *out_buffer, size_t buffer_size,
-                   const char *format, va_list arguments) {
+int SbStringFormat(char* out_buffer,
+                   size_t buffer_size,
+                   const char* format,
+                   va_list arguments) {
   return vsnprintf(out_buffer, buffer_size, format, arguments);
 }

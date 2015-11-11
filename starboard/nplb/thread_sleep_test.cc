@@ -33,8 +33,8 @@ TEST(SbThreadSleepTest, SunnyDayAtLeastDelay) {
     const SbTime kDelay = kSbTimeSecond / (1 << ((trial % 3) + 6));
     SbTimeMonotonic start = SbTimeGetMonotonicNow();
     SbThreadSleep(kDelay);
-    EXPECT_LE(start + kDelay, SbTimeGetMonotonicNow())
-        << "Trial " << trial << ", kDelay=" << kDelay;
+    EXPECT_LE(start + kDelay, SbTimeGetMonotonicNow()) << "Trial " << trial
+                                                       << ", kDelay=" << kDelay;
   }
 }
 
@@ -43,8 +43,8 @@ TEST(SbThreadSleepTest, RainyDayNegativeDuration) {
   for (int trial = 0; trial < kTrials; ++trial) {
     SbTimeMonotonic start = SbTimeGetMonotonicNow();
     SbThreadSleep(-kSbTimeSecond);
-    EXPECT_GT(kSbTimeSecond / 5, SbTimeGetMonotonicNow() - start)
-        << "Trial " << trial;
+    EXPECT_GT(kSbTimeSecond / 5, SbTimeGetMonotonicNow() - start) << "Trial "
+                                                                  << trial;
   }
 }
 

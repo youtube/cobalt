@@ -26,22 +26,22 @@ struct Context {
   Context() : key(), in_value(), out_value(), destroyed_before_exit(false) {}
 
   SbThreadLocalKey key;
-  void *in_value;
-  void *out_value;
+  void* in_value;
+  void* out_value;
   bool destroyed_before_exit;
 };
 
-void DestroyThreadLocalValue(void *value) {
-  ThreadLocalValue *thread_local_value = static_cast<ThreadLocalValue *>(value);
+void DestroyThreadLocalValue(void* value) {
+  ThreadLocalValue* thread_local_value = static_cast<ThreadLocalValue*>(value);
   thread_local_value->destroyed = true;
 }
 
-void *EntryPoint(void *context) {
-  Context *real_context = static_cast<Context *>(context);
+void* EntryPoint(void* context) {
+  Context* real_context = static_cast<Context*>(context);
   SbThreadSetLocalValue(real_context->key, real_context->in_value);
   real_context->out_value = SbThreadGetLocalValue(real_context->key);
-  ThreadLocalValue *thread_local_value =
-      static_cast<ThreadLocalValue *>(real_context->out_value);
+  ThreadLocalValue* thread_local_value =
+      static_cast<ThreadLocalValue*>(real_context->out_value);
   real_context->destroyed_before_exit = thread_local_value->destroyed;
 
   return NULL;
@@ -64,9 +64,8 @@ void DoSunnyDayTest(bool use_destructor) {
   }
 
   for (int i = 0; i < kThreads; ++i) {
-    threads[i] =
-        SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                       NULL, EntryPoint, &contexts[i]);
+    threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
+                                true, NULL, EntryPoint, &contexts[i]);
   }
 
   for (int i = 0; i < kThreads; ++i) {
@@ -112,7 +111,5 @@ TEST(SbThreadLocalValueTest, SunnyDayMany) {
     SbThreadDestroyLocalKey(keys[i]);
   }
 }
-
-
 
 }  // namespace

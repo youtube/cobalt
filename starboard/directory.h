@@ -30,14 +30,13 @@ extern "C" {
 struct SbDirectoryPrivate;
 
 // A handle to an open directory stream.
-typedef struct SbDirectoryPrivate *SbDirectory;
+typedef struct SbDirectoryPrivate* SbDirectory;
 
 // Represents a directory entry.
 typedef struct SbDirectoryEntry {
   // The name of this directory entry.
   char name[SB_FILE_MAX_NAME];
 } SbDirectoryEntry;
-
 
 // Well-defined value for an invalid directory stream handle.
 const SbDirectory kSbDirectoryInvalid = (SbDirectory)NULL;
@@ -50,9 +49,7 @@ SB_C_INLINE bool SbDirectoryIsValid(SbDirectory directory) {
 // Opens the given existing directory for listing. Will return
 // kSbDirectoryInvalidHandle if not successful. If |out_error| is provided by
 // the caller, it will be set to the appropriate SbFileError code on failure.
-SB_EXPORT SbDirectory SbDirectoryOpen(
-    const char *path,
-    SbFileError *out_error);
+SB_EXPORT SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error);
 
 // Closes an open directory stream handle. Returns whether the close was
 // successful.
@@ -62,14 +59,14 @@ SB_EXPORT bool SbDirectoryClose(SbDirectory directory);
 // the stream forward by one entry. Returns |true| if there was a next
 // directory, and |false| at the end of the directory stream.
 SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
-                                  SbDirectoryEntry *out_entry);
+                                  SbDirectoryEntry* out_entry);
 
 // Returns whether SbDirectoryOpen is allowed for the given |path|.
-SB_EXPORT bool SbDirectoryCanOpen(const char *path);
+SB_EXPORT bool SbDirectoryCanOpen(const char* path);
 
 // Creates the directory |path|, assuming the parent directory already exists.
 // Returns whether the directory now exists (even if it existed before).
-SB_EXPORT bool SbDirectoryCreate(const char *path);
+SB_EXPORT bool SbDirectoryCreate(const char* path);
 
 #ifdef __cplusplus
 }  // extern "C"

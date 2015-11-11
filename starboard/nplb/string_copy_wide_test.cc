@@ -19,7 +19,7 @@ namespace {
 
 const wchar_t kSource[] = L"01234567890123456789";
 
-void TestCopy(const wchar_t *source, bool is_short) {
+void TestCopy(const wchar_t* source, bool is_short) {
   const int kDestinationOffset = 16;
   int source_length = SbStringGetLengthWide(source);
   int destination_size = source_length + kDestinationOffset * 2;
@@ -30,7 +30,7 @@ void TestCopy(const wchar_t *source, bool is_short) {
   }
   ASSERT_GT(1024, destination_size);
   wchar_t destination[1024] = {0};
-  wchar_t *dest = destination + kDestinationOffset;
+  wchar_t* dest = destination + kDestinationOffset;
   int result = SbStringCopyWide(dest, source, destination_limit);
 
   EXPECT_EQ(source_length, result);

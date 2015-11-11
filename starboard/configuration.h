@@ -24,9 +24,8 @@
 #define STARBOARD_CONFIGURATION_H_
 
 #if !defined(STARBOARD)
-#  error "You must define STARBOARD in Starboard builds."
+#error "You must define STARBOARD in Starboard builds."
 #endif
-
 
 // --- Common Defines --------------------------------------------------------
 
@@ -38,15 +37,13 @@
 // inclusive.
 #define SB_MAXIMUM_API_VERSION 1
 
-
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
-#  define SB_IS_COMPILER_GCC 1
+#define SB_IS_COMPILER_GCC 1
 #elif defined(_MSC_VER)
-#  define SB_IS_COMPILER_MSVC 1
+#define SB_IS_COMPILER_MSVC 1
 #endif
-
 
 // --- Common Helper Macros --------------------------------------------------
 
@@ -71,10 +68,10 @@
 // A constant expression that evaluates to the int size of a statically-sized
 // array.
 #if defined(__cplusplus)
-#  define SB_ARRAY_SIZE_INT(array) static_cast<int>(SB_ARRAY_SIZE(array))
+#define SB_ARRAY_SIZE_INT(array) static_cast<int>(SB_ARRAY_SIZE(array))
 #else
-#  define SB_ARRAY_SIZE_INT(array) \
-    ((int)(SB_ARRAY_SIZE(array)))  // NOLINT(readability/casting)
+#define SB_ARRAY_SIZE_INT(array) \
+  ((int)(SB_ARRAY_SIZE(array)))  // NOLINT(readability/casting)
 #endif
 
 // Tells the compiler a function is using a printf-style format string.
@@ -84,23 +81,22 @@
 // (This is undocumented but matches what the system C headers do.)
 // (Partially taken from base/compiler_specific.h)
 #if SB_IS(COMPILER_GCC)
-#  define SB_PRINTF_FORMAT(format_param, dots_param) \
-    __attribute__((format(printf, format_param, dots_param)))
+#define SB_PRINTF_FORMAT(format_param, dots_param) \
+  __attribute__((format(printf, format_param, dots_param)))
 #else
-#  define SB_PRINTF_FORMAT(format_param, dots_param)
+#define SB_PRINTF_FORMAT(format_param, dots_param)
 #endif
 
 // Trivially references a parameter that is otherwise unreferenced, preventing a
 // compiler warning on some platforms.
 #if SB_IS(COMPILER_MSVC)
-#  define SB_UNREFERENCED_PARAMETER(x)
+#define SB_UNREFERENCED_PARAMETER(x)
 #else
-#  define SB_UNREFERENCED_PARAMETER(x) \
-  do {                                 \
-    (void)(x);                         \
+#define SB_UNREFERENCED_PARAMETER(x) \
+  do {                               \
+    (void)(x);                       \
   } while (0)
 #endif
-
 
 // --- Platform Configuration ------------------------------------------------
 
@@ -109,110 +105,108 @@
 // targets and all configurations.
 #include STARBOARD_CONFIGURATION_INCLUDE
 
-
 // --- Configuration Audits --------------------------------------------------
 
 #if !defined(SB_API_VERSION)
-#  error "SB_API_VERSION was not defined by your platform."
+#error "SB_API_VERSION was not defined by your platform."
 #endif
 
 #if SB_API_VERSION > SB_MAXIMUM_API_VERSION
-#  error "Your platform's SB_API_VERSION > SB_MAXIMUM_API_VERSION."
+#error "Your platform's SB_API_VERSION > SB_MAXIMUM_API_VERSION."
 #endif
 
 #if SB_API_VERSION < SB_MINIMUM_API_VERSION
-#  error "Your platform's SB_API_VERSION < SB_MINIMUM_API_VERSION."
+#error "Your platform's SB_API_VERSION < SB_MINIMUM_API_VERSION."
 #endif
 
 #if !SB_IS(ARCH_ARM) && !SB_IS(ARCH_MIPS) && !SB_IS(ARCH_PPC) && \
     !SB_IS(ARCH_X86)
-#  error "Your platform doesn't define a known architecture."
+#error "Your platform doesn't define a known architecture."
 #endif
 
 #if SB_IS(32_BIT) == SB_IS(64_BIT)
-#  error "Your platform must be exactly one of { 32-bit, 64-bit }."
+#error "Your platform must be exactly one of { 32-bit, 64-bit }."
 #endif
 
 #if !defined(SB_IS_BIG_ENDIAN)
-#  error "Your platform must define SB_IS_BIG_ENDIAN."
+#error "Your platform must define SB_IS_BIG_ENDIAN."
 #endif
 
 #if defined(SB_IS_LITTLE_ENDIAN)
-#  error "SB_IS_LITTLE_ENDIAN is set based on SB_IS_BIG_ENDIAN."
+#error "SB_IS_LITTLE_ENDIAN is set based on SB_IS_BIG_ENDIAN."
 #endif
 
 #if SB_IS(WCHAR_T_UTF16) == SB_IS(WCHAR_T_UTF32)
-#  error "You must define either SB_IS_WCHAR_T_UTF16 or SB_IS_WCHAR_T_UTF32."
+#error "You must define either SB_IS_WCHAR_T_UTF16 or SB_IS_WCHAR_T_UTF32."
 #endif
 
 #if defined(SB_IS_WCHAR_T_SIGNED) && defined(SB_IS_WCHAR_T_UNSIGNED)
-#  error "You can't define SB_IS_WCHAR_T_SIGNED and SB_IS_WCHAR_T_UNSIGNED."
+#error "You can't define SB_IS_WCHAR_T_SIGNED and SB_IS_WCHAR_T_UNSIGNED."
 #endif
 
 #if !defined(SB_C_FORCE_INLINE)
-#  error "Your platform must define SB_C_FORCE_INLINE."
+#error "Your platform must define SB_C_FORCE_INLINE."
 #endif
 
 #if !defined(SB_C_INLINE)
-#  error "Your platform must define SB_C_INLINE."
+#error "Your platform must define SB_C_INLINE."
 #endif
 
 #if !defined(SB_EXPORT_PLATFORM)
-#  error "Your platform must define SB_EXPORT_PLATFORM."
+#error "Your platform must define SB_EXPORT_PLATFORM."
 #endif
 
 #if !defined(SB_IMPORT_PLATFORM)
-#  error "Your platform must define SB_IMPORT_PLATFORM."
+#error "Your platform must define SB_IMPORT_PLATFORM."
 #endif
 
 #if !defined(SB_HASH_MAP_INCLUDE)
-#  error "Your platform must define SB_HASH_MAP_INCLUDE."
+#error "Your platform must define SB_HASH_MAP_INCLUDE."
 #endif
 
 #if !defined(SB_HASH_NAMESPACE)
-#  error "Your platform must define SB_HASH_NAMESPACE."
+#error "Your platform must define SB_HASH_NAMESPACE."
 #endif
 
 #if !defined(SB_HASH_SET_INCLUDE)
-#  error "Your platform must define SB_HASH_SET_INCLUDE."
+#error "Your platform must define SB_HASH_SET_INCLUDE."
 #endif
 
 #if !defined(SB_FILE_MAX_NAME) || SB_FILE_MAX_NAME < 2
-#  error "Your platform must define SB_FILE_MAX_NAME > 1."
+#error "Your platform must define SB_FILE_MAX_NAME > 1."
 #endif
 
 #if !defined(SB_FILE_MAX_PATH) || SB_FILE_MAX_PATH < 2
-#  error "Your platform must define SB_FILE_MAX_PATH > 1."
+#error "Your platform must define SB_FILE_MAX_PATH > 1."
 #endif
 
 #if !defined(SB_FILE_SEP_CHAR)
-#  error "Your platform must define SB_FILE_SEP_CHAR."
+#error "Your platform must define SB_FILE_SEP_CHAR."
 #endif
 
 #if !defined(SB_FILE_ALT_SEP_CHAR)
-#  error "Your platform must define SB_FILE_ALT_SEP_CHAR."
+#error "Your platform must define SB_FILE_ALT_SEP_CHAR."
 #endif
 
 #if !defined(SB_PATH_SEP_CHAR)
-#  error "Your platform must define SB_PATH_SEP_CHAR."
+#error "Your platform must define SB_PATH_SEP_CHAR."
 #endif
 
 #if !defined(SB_FILE_SEP_STRING)
-#  error "Your platform must define SB_FILE_SEP_STRING."
+#error "Your platform must define SB_FILE_SEP_STRING."
 #endif
 
 #if !defined(SB_FILE_ALT_SEP_STRING)
-#  error "Your platform must define SB_FILE_ALT_SEP_STRING."
+#error "Your platform must define SB_FILE_ALT_SEP_STRING."
 #endif
 
 #if !defined(SB_PATH_SEP_STRING)
-#  error "Your platform must define SB_PATH_SEP_STRING."
+#error "Your platform must define SB_PATH_SEP_STRING."
 #endif
 
 #if !defined(SB_MAX_THREADS)
-#  error "Your platform must define SB_MAX_THREADS."
+#error "Your platform must define SB_MAX_THREADS."
 #endif
-
 
 // --- Derived Configuration -------------------------------------------------
 

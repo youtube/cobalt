@@ -20,9 +20,7 @@
 #include "starboard/file.h"
 #include "starboard/shared/iso/directory_internal.h"
 
-SbDirectory SbDirectoryOpen(
-    const char *path,
-    SbFileError *out_error) {
+SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
   if (!path) {
     if (out_error) {
       *out_error = kSbFileErrorNotFound;
@@ -30,7 +28,7 @@ SbDirectory SbDirectoryOpen(
     return kSbDirectoryInvalid;
   }
 
-  DIR *dir = opendir(path);
+  DIR* dir = opendir(path);
   if (!dir) {
     if (out_error) {
       switch (errno) {

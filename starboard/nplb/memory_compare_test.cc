@@ -20,12 +20,12 @@ namespace {
 const size_t kSize = 1024 * 128;
 
 TEST(SbMemoryCompareTest, SunnyDayEquals) {
-  void *memory1 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory1);
-  void *memory2 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory2);
-  char *data1 = static_cast<char *>(memory1);
-  char *data2 = static_cast<char *>(memory2);
+  void* memory1 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory1);
+  void* memory2 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory2);
+  char* data1 = static_cast<char*>(memory1);
+  char* data2 = static_cast<char*>(memory2);
   for (int i = 0; i < kSize; ++i) {
     data1[i] = static_cast<char>(i);
     data2[i] = static_cast<char>(i);
@@ -39,12 +39,12 @@ TEST(SbMemoryCompareTest, SunnyDayEquals) {
 }
 
 TEST(SbMemoryCompareTest, SunnyDayLessAndMore) {
-  void *memory1 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory1);
-  void *memory2 = SbMemoryAllocate(kSize);
-  ASSERT_NE(static_cast<void *>(NULL), memory2);
-  char *data1 = static_cast<char *>(memory1);
-  char *data2 = static_cast<char *>(memory2);
+  void* memory1 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory1);
+  void* memory2 = SbMemoryAllocate(kSize);
+  ASSERT_NE(static_cast<void*>(NULL), memory2);
+  char* data1 = static_cast<char*>(memory1);
+  char* data2 = static_cast<char*>(memory2);
   for (int i = 0; i < kSize; ++i) {
     data1[i] = static_cast<char>(i);
     char x = data1[i];

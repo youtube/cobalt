@@ -18,7 +18,7 @@
 
 #include "starboard/shared/pthread/is_success.h"
 
-bool SbConditionVariableDestroy(SbConditionVariable *condition) {
+bool SbConditionVariableDestroy(SbConditionVariable* condition) {
   if (!condition) {
     return false;
   }

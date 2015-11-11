@@ -16,6 +16,6 @@
 
 #include <string.h>
 
-int SbMemoryCompare(const void *buffer1, const void *buffer2, size_t count) {
+int SbMemoryCompare(const void* buffer1, const void* buffer2, size_t count) {
   return memcmp(buffer1, buffer2, count);
 }

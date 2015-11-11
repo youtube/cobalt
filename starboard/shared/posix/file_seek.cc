@@ -20,9 +20,7 @@
 
 #include "starboard/shared/posix/file_internal.h"
 
-int64_t SbFileSeek(SbFile file,
-                   SbFileWhence whence,
-                   int64_t offset) {
+int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset) {
   if (!file || file->descriptor < 0) {
     return -1;
   }

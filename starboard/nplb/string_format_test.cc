@@ -20,7 +20,7 @@
 
 namespace {
 
-int Format(char *out_buffer, size_t buffer_size, const char *format, ...) {
+int Format(char* out_buffer, size_t buffer_size, const char* format, ...) {
   va_list arguments;
   va_start(arguments, format);
   int result = SbStringFormat(out_buffer, buffer_size, format, arguments);
@@ -31,8 +31,8 @@ int Format(char *out_buffer, size_t buffer_size, const char *format, ...) {
 TEST(SbStringFormatTest, SunnyDay) {
   const char kExpected[] = "a1b2c3test";
   char destination[1024] = {0};
-  int result = Format(destination, SB_ARRAY_SIZE(destination), "a%db%dc%d%s",
-                      1, 2, 3, "test");
+  int result = Format(destination, SB_ARRAY_SIZE(destination), "a%db%dc%d%s", 1,
+                      2, 3, "test");
   size_t expected_length = SbStringGetLength(kExpected);
   EXPECT_EQ(expected_length, result);
   for (size_t i = 0; i <= expected_length; ++i) {

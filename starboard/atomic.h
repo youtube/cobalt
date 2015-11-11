@@ -41,27 +41,23 @@ typedef int32_t SbAtomic32;
 // Always return the old value of "*ptr"
 //
 // This routine implies no memory barriers.
-SbAtomic32 SbAtomicNoBarrier_CompareAndSwap(
-  volatile SbAtomic32 *ptr,
-  SbAtomic32 old_value,
-  SbAtomic32 new_value);
+SbAtomic32 SbAtomicNoBarrier_CompareAndSwap(volatile SbAtomic32* ptr,
+                                            SbAtomic32 old_value,
+                                            SbAtomic32 new_value);
 
 // Atomically store new_value into *ptr, returning the previous value held in
 // *ptr.  This routine implies no memory barriers.
-SbAtomic32 SbAtomicNoBarrier_Exchange(
-  volatile SbAtomic32 *ptr,
-  SbAtomic32 new_value);
+SbAtomic32 SbAtomicNoBarrier_Exchange(volatile SbAtomic32* ptr,
+                                      SbAtomic32 new_value);
 
 // Atomically increment *ptr by "increment".  Returns the new value of
 // *ptr with the increment applied.  This routine implies no memory barriers.
-SbAtomic32 SbAtomicNoBarrier_Increment(
-  volatile SbAtomic32 *ptr,
-  SbAtomic32 increment);
+SbAtomic32 SbAtomicNoBarrier_Increment(volatile SbAtomic32* ptr,
+                                       SbAtomic32 increment);
 
 // Same as SbAtomicNoBarrier_Increment, but with a memory barrier.
-SbAtomic32 SbAtomicBarrier_Increment(
-  volatile SbAtomic32 *ptr,
-  SbAtomic32 increment);
+SbAtomic32 SbAtomicBarrier_Increment(volatile SbAtomic32* ptr,
+                                     SbAtomic32 increment);
 
 // These following lower-level operations are typically useful only to people
 // implementing higher-level synchronization operations like spinlocks, mutexes,
@@ -72,55 +68,47 @@ SbAtomic32 SbAtomicBarrier_Increment(
 // after the operation.  "Barrier" operations have both "Acquire" and "Release"
 // semantics.  A SbAtomicMemoryBarrier() has "Barrier" semantics, but does no
 // memory access.
-SbAtomic32 SbAtomicAcquire_CompareAndSwap(
-  volatile SbAtomic32 *ptr,
-  SbAtomic32 old_value,
-  SbAtomic32 new_value);
-SbAtomic32 SbAtomicRelease_CompareAndSwap(
-  volatile SbAtomic32 *ptr,
-  SbAtomic32 old_value,
-  SbAtomic32 new_value);
+SbAtomic32 SbAtomicAcquire_CompareAndSwap(volatile SbAtomic32* ptr,
+                                          SbAtomic32 old_value,
+                                          SbAtomic32 new_value);
+SbAtomic32 SbAtomicRelease_CompareAndSwap(volatile SbAtomic32* ptr,
+                                          SbAtomic32 old_value,
+                                          SbAtomic32 new_value);
 
 void SbAtomicMemoryBarrier();
-void SbAtomicNoBarrier_Store(volatile SbAtomic32 *ptr, SbAtomic32 value);
-void SbAtomicAcquire_Store(volatile SbAtomic32 *ptr, SbAtomic32 value);
-void SbAtomicRelease_Store(volatile SbAtomic32 *ptr, SbAtomic32 value);
+void SbAtomicNoBarrier_Store(volatile SbAtomic32* ptr, SbAtomic32 value);
+void SbAtomicAcquire_Store(volatile SbAtomic32* ptr, SbAtomic32 value);
+void SbAtomicRelease_Store(volatile SbAtomic32* ptr, SbAtomic32 value);
 
-SbAtomic32 SbAtomicNoBarrier_Load(volatile const SbAtomic32 *ptr);
-SbAtomic32 SbAtomicAcquire_Load(volatile const SbAtomic32 *ptr);
-SbAtomic32 SbAtomicRelease_Load(volatile const SbAtomic32 *ptr);
+SbAtomic32 SbAtomicNoBarrier_Load(volatile const SbAtomic32* ptr);
+SbAtomic32 SbAtomicAcquire_Load(volatile const SbAtomic32* ptr);
+SbAtomic32 SbAtomicRelease_Load(volatile const SbAtomic32* ptr);
 
 // 64-bit atomic operations (only available on 64-bit processors).
 #if SB_IS(64_BIT)
 typedef int64_t SbAtomic64;
 
-SbAtomic64 SbAtomicNoBarrier_CompareAndSwap64(
-  volatile SbAtomic64 *ptr,
-  SbAtomic64 old_value,
-  SbAtomic64 new_value);
-SbAtomic64 SbAtomicNoBarrier_Exchange64(
-  volatile SbAtomic64 *ptr,
-  SbAtomic64 new_value);
-SbAtomic64 SbAtomicNoBarrier_Increment64(
-  volatile SbAtomic64 *ptr,
-  SbAtomic64 increment);
-SbAtomic64 SbAtomicBarrier_Increment64(
-  volatile SbAtomic64 *ptr,
-  SbAtomic64 increment);
-SbAtomic64 SbAtomicAcquire_CompareAndSwap64(
-  volatile SbAtomic64 *ptr,
-  SbAtomic64 old_value,
-  SbAtomic64 new_value);
-SbAtomic64 SbAtomicRelease_CompareAndSwap64(
-  volatile SbAtomic64 *ptr,
-  SbAtomic64 old_value,
-  SbAtomic64 new_value);
-void SbAtomicNoBarrier_Store64(volatile SbAtomic64 *ptr, SbAtomic64 value);
-void SbAtomicAcquire_Store64(volatile SbAtomic64 *ptr, SbAtomic64 value);
-void SbAtomicRelease_Store64(volatile SbAtomic64 *ptr, SbAtomic64 value);
-SbAtomic64 SbAtomicNoBarrier_Load64(volatile const SbAtomic64 *ptr);
-SbAtomic64 SbAtomicAcquire_Load64(volatile const SbAtomic64 *ptr);
-SbAtomic64 SbAtomicRelease_Load64(volatile const SbAtomic64 *ptr);
+SbAtomic64 SbAtomicNoBarrier_CompareAndSwap64(volatile SbAtomic64* ptr,
+                                              SbAtomic64 old_value,
+                                              SbAtomic64 new_value);
+SbAtomic64 SbAtomicNoBarrier_Exchange64(volatile SbAtomic64* ptr,
+                                        SbAtomic64 new_value);
+SbAtomic64 SbAtomicNoBarrier_Increment64(volatile SbAtomic64* ptr,
+                                         SbAtomic64 increment);
+SbAtomic64 SbAtomicBarrier_Increment64(volatile SbAtomic64* ptr,
+                                       SbAtomic64 increment);
+SbAtomic64 SbAtomicAcquire_CompareAndSwap64(volatile SbAtomic64* ptr,
+                                            SbAtomic64 old_value,
+                                            SbAtomic64 new_value);
+SbAtomic64 SbAtomicRelease_CompareAndSwap64(volatile SbAtomic64* ptr,
+                                            SbAtomic64 old_value,
+                                            SbAtomic64 new_value);
+void SbAtomicNoBarrier_Store64(volatile SbAtomic64* ptr, SbAtomic64 value);
+void SbAtomicAcquire_Store64(volatile SbAtomic64* ptr, SbAtomic64 value);
+void SbAtomicRelease_Store64(volatile SbAtomic64* ptr, SbAtomic64 value);
+SbAtomic64 SbAtomicNoBarrier_Load64(volatile const SbAtomic64* ptr);
+SbAtomic64 SbAtomicAcquire_Load64(volatile const SbAtomic64* ptr);
+SbAtomic64 SbAtomicRelease_Load64(volatile const SbAtomic64* ptr);
 #endif  // SB_IS(64_BIT)
 
 #ifdef __cplusplus

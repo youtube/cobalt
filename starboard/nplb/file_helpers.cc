@@ -33,7 +33,7 @@ namespace nplb {
 
 std::string GetTempDir() {
   // It seems there's absolutely no way to get to std::string without a copy.
-  char path[kPathSize] = { 0 };
+  char path[kPathSize] = {0};
   if (!SbSystemGetPath(kSbSystemPathTempDirectory, path,
                        SB_ARRAY_SIZE_INT(path))) {
     return "";
@@ -43,22 +43,20 @@ std::string GetTempDir() {
 }
 
 // static
-void ScopedRandomFile::ExpectPattern(
-    int pattern_offset,
-    void *buffer,
-    int size,
-    int line) {
-  char *char_buffer = static_cast<char *>(buffer);
+void ScopedRandomFile::ExpectPattern(int pattern_offset,
+                                     void* buffer,
+                                     int size,
+                                     int line) {
+  char* char_buffer = static_cast<char*>(buffer);
   for (int i = 0; i < size; ++i) {
     EXPECT_EQ(static_cast<char>((i + pattern_offset) & 0xFF), char_buffer[i])
         << "original line=" << line;
   }
 }
 
-
 // static
 std::string ScopedRandomFile::MakeRandomFilename() {
-  char path[kPathSize] = { 0 };
+  char path[kPathSize] = {0};
   bool result = SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize);
   EXPECT_TRUE(result);
   if (!result) {

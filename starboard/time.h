@@ -89,12 +89,10 @@ SB_EXPORT SbTime SbTimeGetNow();
 SB_EXPORT SbTimeMonotonic SbTimeGetMonotonicNow();
 
 // Converts |time| into an SbTimeExploded, placing the result in |out_exploded|.
-SB_EXPORT void SbTimeExplode(
-    SbTime time,
-    SbTimeExploded *out_exploded);
+SB_EXPORT void SbTimeExplode(SbTime time, SbTimeExploded* out_exploded);
 
 // Converts |exploded| into a SbTime.
-SB_EXPORT SbTime SbTimeImplode(SbTimeExploded *exploded);
+SB_EXPORT SbTime SbTimeImplode(SbTimeExploded* exploded);
 
 #ifdef __cplusplus
 }  // extern "C"

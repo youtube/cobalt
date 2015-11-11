@@ -18,7 +18,7 @@
 
 #include "starboard/shared/pthread/is_success.h"
 
-bool SbMutexDestroy(SbMutex *mutex) {
+bool SbMutexDestroy(SbMutex* mutex) {
   if (!mutex) {
     return false;
   }

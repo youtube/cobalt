@@ -19,15 +19,14 @@
 
 #include "starboard/shared/posix/file_internal.h"
 
-void SbLogRaw(const char *message) {
+void SbLogRaw(const char* message) {
   // Cribbed from base/logging.cc's RawLog() function.
   size_t bytes_written = 0;
   const size_t message_len = strlen(message);
   int rv;
   while (bytes_written < message_len) {
-    rv = HANDLE_EINTR(
-        write(STDERR_FILENO, message + bytes_written,
-              message_len - bytes_written));
+    rv = HANDLE_EINTR(write(STDERR_FILENO, message + bytes_written,
+                            message_len - bytes_written));
     if (rv < 0) {
       // Give up, nothing we can do now.
       break;
