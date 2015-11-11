@@ -73,7 +73,7 @@ bool ConditionalCopyBackgroundStyle(
   cssom::PropertyListValue* background_image_list =
       base::polymorphic_downcast<cssom::PropertyListValue*>(
           source_style->background_image().get());
-  DCHECK_GT(background_image_list->value().size(), 0);
+  DCHECK_GT(background_image_list->value().size(), 0u);
 
   bool background_image_is_none =
       background_image_list->value().size() == 1 &&
