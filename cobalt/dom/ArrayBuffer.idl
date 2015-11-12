@@ -16,10 +16,13 @@
 
 // https://www.khronos.org/registry/typedarray/specs/latest/
 
-[Constructor(unsigned long length)]
+[
+    Constructor(unsigned long length),
+    ConstructorCallWith=EnvironmentSettings
+]
 interface ArrayBuffer {
     readonly attribute unsigned long byteLength;
-    ArrayBuffer slice(long begin, optional long end);
+    [CallWith=EnvironmentSettings] ArrayBuffer slice(long begin, optional long end);
 
     // TODO(***REMOVED***): Do we need to support this?
     // static boolean isView(any value);

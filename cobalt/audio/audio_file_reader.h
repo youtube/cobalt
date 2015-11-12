@@ -17,10 +17,7 @@
 #ifndef AUDIO_AUDIO_FILE_READER_H_
 #define AUDIO_AUDIO_FILE_READER_H_
 
-#include <vector>
-
-#include "cobalt/audio/audio_buffer.h"
-#include "cobalt/dom/array_buffer.h"
+#include "base/memory/scoped_ptr.h"  // For scoped_array
 
 namespace cobalt {
 namespace audio {
@@ -29,10 +26,15 @@ class AudioFileReader {
  public:
   virtual ~AudioFileReader() {}
 
-  static scoped_ptr<AudioFileReader> TryCreate(const std::vector<uint8>& data);
+  static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size);
 
-  // Reads the data and returns the audio buffer which has the audio info.
-  virtual const scoped_refptr<AudioBuffer>& audio_buffer() = 0;
+  // Returns the sample data stored as float sample in planar form.  Note that
+  // this function transfers the ownership of the data to the caller so it can
+  // only be called once.
+  virtual scoped_array<uint8> sample_data() = 0;
+  virtual float sample_rate() const = 0;
+  virtual int32 number_of_frames() const = 0;
+  virtual int32 number_of_channels() const = 0;
 };
 
 }  // namespace audio

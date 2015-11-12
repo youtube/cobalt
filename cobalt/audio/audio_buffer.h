@@ -20,7 +20,9 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"  // For scoped_array
 #include "cobalt/dom/float32_array.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -37,10 +39,13 @@ namespace audio {
 //   http://www.w3.org/TR/webaudio/#AudioBuffer
 class AudioBuffer : public script::Wrappable {
  public:
-  typedef std::vector<scoped_refptr<dom::Float32Array> > Float32ArrayVector;
-
-  AudioBuffer(float sample_rate, int32 number_of_frames,
-              const Float32ArrayVector& channels_data);
+  // The audio data passed in |channels_data| stores multi-channel audio in
+  // planar.  So for stereo audio, the first channel will be stored in the first
+  // half of |channels_data| and the second channel will be stored in the second
+  // half.
+  AudioBuffer(script::EnvironmentSettings* settings, float sample_rate,
+              int32 number_of_frames, int32 number_of_channels,
+              scoped_array<uint8> channels_data);
 
   // Web API: AudioBuffer
   //
@@ -65,6 +70,8 @@ class AudioBuffer : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(AudioBuffer);
 
  private:
+  typedef std::vector<scoped_refptr<dom::Float32Array> > Float32ArrayVector;
+
   float sample_rate_;
   int32 length_;
 
