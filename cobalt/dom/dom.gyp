@@ -158,6 +158,8 @@
         'media_key_message_event.h',
         'media_key_needed_event.cc',
         'media_key_needed_event.h',
+        'media_query_list.cc',
+        'media_query_list.h',
         'media_source.cc',
         'media_source.h',
         'mime_type_array.cc',

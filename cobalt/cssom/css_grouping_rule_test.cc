@@ -18,14 +18,8 @@
 
 #include <string>
 
-#include "cobalt/cssom/css_font_face_declaration_data.h"
-#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_rule_list.h"
-#include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/media_query.h"
-#include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -65,7 +59,6 @@ class CSSGroupingRuleTest : public ::testing::Test {
   const scoped_refptr<FakeCSSGroupingRule> css_grouping_rule_;
   testing::MockCSSParser css_parser_;
 };
-
 
 TEST_F(CSSGroupingRuleTest, InsertRule) {
   const std::string css_text = "div { font-size: 100px; color: #0047ab; }";

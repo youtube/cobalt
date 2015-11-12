@@ -16,13 +16,7 @@
 
 #include "cobalt/cssom/media_list.h"
 
-#include "cobalt/cssom/css_font_face_declaration_data.h"
-#include "cobalt/cssom/css_parser.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
-#include "cobalt/cssom/css_style_rule.h"
-#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/media_query.h"
-#include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,31 +27,48 @@ namespace cssom {
 using ::testing::_;
 using ::testing::Return;
 
-class PropertyValue;
-
-TEST(MediaListTest, ItemAccess) {
+TEST(MediaListTest, MediaTextSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<MediaList> media_list(new MediaList(&css_parser));
-  ASSERT_EQ(0, media_list->length());
-  ASSERT_TRUE(media_list->Item(0).empty());
+  const std::string media_query = "screen, (width: 1024px)";
+
+  scoped_refptr<MediaList> parsed_media_list(new MediaList(&css_parser));
+  scoped_refptr<MediaQuery> media_query_1(new MediaQuery(true));
+  scoped_refptr<MediaQuery> media_query_2(new MediaQuery(true));
+  parsed_media_list->Append(media_query_1);
+  parsed_media_list->Append(media_query_2);
+
+  EXPECT_CALL(css_parser, ParseMediaList(media_query, _))
+      .WillOnce(Return(parsed_media_list));
+  media_list->set_media_text(media_query);
+  EXPECT_EQ(2, media_list->length());
+}
+
+TEST(MediaListTest, ItemAccessAndLength) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<MediaList> media_list(new MediaList(&css_parser));
+  EXPECT_EQ(0, media_list->length());
+  EXPECT_TRUE(media_list->Item(0).empty());
 
   scoped_refptr<MediaQuery> media_query(new MediaQuery(true));
   media_list->Append(media_query);
-  ASSERT_EQ(1, media_list->length());
+  EXPECT_EQ(1, media_list->length());
   // The returned string is empty, because MediaQuery serialization is not
   // implemented yet.
-  ASSERT_TRUE(media_list->Item(0).empty());
-  ASSERT_TRUE(media_list->Item(1).empty());
+  EXPECT_TRUE(media_list->Item(0).empty());
+  EXPECT_TRUE(media_list->Item(1).empty());
 }
 
 TEST(MediaListTest, AppendMedium) {
   testing::MockCSSParser css_parser;
   scoped_refptr<MediaList> media_list(new MediaList(&css_parser));
+  EXPECT_EQ(0, media_list->length());
   const std::string media_query = "screen";
 
   EXPECT_CALL(css_parser, ParseMediaQuery(media_query, _))
-      .WillOnce(Return(scoped_refptr<MediaQuery>()));
+      .WillOnce(Return(scoped_refptr<MediaQuery>(new MediaQuery(true))));
   media_list->AppendMedium(media_query);
+  EXPECT_EQ(1, media_list->length());
 }
 
 TEST(MediaListTest, EvaluateMediaQueryFalse) {

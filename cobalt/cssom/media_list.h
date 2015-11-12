@@ -57,6 +57,8 @@ class MediaList : public script::Wrappable {
   //
   void Append(const scoped_refptr<MediaQuery>& media_query);
 
+  bool EvaluateConditionValueFromFloat(float width, float height);
+
   bool EvaluateConditionValue(const scoped_refptr<PropertyValue>& width,
                               const scoped_refptr<PropertyValue>& height);
 
