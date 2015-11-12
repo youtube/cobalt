@@ -227,7 +227,7 @@ void XMLHttpRequest::OverrideMimeType(const std::string& override_mime,
   std::string charset;
   bool had_charset = false;
   net::HttpUtil::ParseContentType(override_mime, &mime_type, &charset,
-                                   &had_charset, NULL);
+                                  &had_charset, NULL);
   if (!mime_type.length()) {
     DOMException::Raise(DOMException::kSyntaxErr, exception_state);
     return;
@@ -603,9 +603,9 @@ scoped_refptr<dom::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
   if (error_ || state_ != kDone) {
     return NULL;
   }
-  scoped_refptr<dom::ArrayBuffer> array_buffer =
-      new dom::ArrayBuffer(static_cast<uint32>(response_body_.size()));
-  array_buffer->bytes() = response_body_;
+  scoped_refptr<dom::ArrayBuffer> array_buffer = new dom::ArrayBuffer(
+      settings_, static_cast<uint32>(response_body_.size()));
+  memcpy(array_buffer->data(), &response_body_[0], response_body_.size());
   return array_buffer;
 }
 

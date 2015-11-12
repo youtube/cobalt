@@ -32,7 +32,7 @@ using testing::StrictMock;
 
 TEST(DataViewTest, Constructors) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(10);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 10);
 
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, &exception_state);
@@ -55,7 +55,7 @@ TEST(DataViewTest, Constructors) {
 // DataView whose byte_length is 0 is allowed.
 TEST(DataViewTest, ConstructingEmptyDataView) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(0);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 0);
 
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, &exception_state);
@@ -71,7 +71,7 @@ TEST(DataViewTest, ConstructingEmptyDataView) {
 TEST(DataViewTest, ExceptionInConstructors) {
   StrictMock<MockExceptionState> exception_state;
   script::ExceptionState::SimpleExceptionType exception_type;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(10);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 10);
 
   EXPECT_CALL(exception_state, SetSimpleException(_, _))
       .WillOnce(SaveArg<0>(&exception_type));
@@ -93,28 +93,28 @@ TEST(DataViewTest, ExceptionInConstructors) {
 
 TEST(DataViewTest, Getters) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(13);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 13);
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, &exception_state);
 
 // For test of each type, we write 0 to the data that is going to be read and
 // 0xff to the data that won't be read.  So all values we read out will be 0.
-#define DEFINE_DATA_VIEW_GETTER_TEST(DomType, CppType)                    \
-  {                                                                       \
-    memset(&array_buffer->bytes()[0], 0, sizeof(CppType));                \
-    memset(&array_buffer->bytes()[0] + sizeof(CppType), 0xff,             \
-           array_buffer->byte_length() - sizeof(CppType));                \
-    CppType value = data_view->Get##DomType(0, &exception_state);         \
-    EXPECT_EQ(0, value);                                                  \
-                                                                          \
-    memset(&array_buffer->bytes()[0], 0xff,                               \
-           array_buffer->byte_length() - sizeof(CppType));                \
-    memset(&array_buffer->bytes()[0] + array_buffer->byte_length() -      \
-               sizeof(CppType),                                           \
-           0, sizeof(CppType));                                           \
-    value = data_view->Get##DomType(                                      \
-        array_buffer->byte_length() - sizeof(CppType), &exception_state); \
-    EXPECT_EQ(0, value);                                                  \
+#define DEFINE_DATA_VIEW_GETTER_TEST(DomType, CppType)                        \
+  {                                                                           \
+    memset(array_buffer->data(), 0, sizeof(CppType));                         \
+    memset(array_buffer->data() + sizeof(CppType), 0xff,                      \
+           array_buffer->byte_length() - sizeof(CppType));                    \
+    CppType value = data_view->Get##DomType(0, &exception_state);             \
+    EXPECT_EQ(0, value);                                                      \
+                                                                              \
+    memset(array_buffer->data(), 0xff,                                        \
+           array_buffer->byte_length() - sizeof(CppType));                    \
+    memset(                                                                   \
+        array_buffer->data() + array_buffer->byte_length() - sizeof(CppType), \
+        0, sizeof(CppType));                                                  \
+    value = data_view->Get##DomType(                                          \
+        array_buffer->byte_length() - sizeof(CppType), &exception_state);     \
+    EXPECT_EQ(0, value);                                                      \
   }
   DATA_VIEW_ACCESSOR_FOR_EACH(DEFINE_DATA_VIEW_GETTER_TEST)
 #undef DEFINE_DATA_VIEW_GETTER_TEST
@@ -123,7 +123,7 @@ TEST(DataViewTest, Getters) {
 TEST(DataViewTest, GettersWithException) {
   StrictMock<MockExceptionState> exception_state;
   script::ExceptionState::SimpleExceptionType exception_type;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(13);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 13);
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, &exception_state);
 
@@ -141,19 +141,19 @@ TEST(DataViewTest, GettersWithException) {
 
 TEST(DataViewTest, GettersWithOffset) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(13);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 13);
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, 3, &exception_state);
 
 // For test of each type, we write 0 to the data that is going to be read and
 // 0xff to the data that won't be read.  So all values we read out will be 0.
-#define DEFINE_DATA_VIEW_GETTER_WITH_OFFSET_TEST(DomType, CppType)        \
-  {                                                                       \
-    memset(&array_buffer->bytes()[0], 0xff, array_buffer->byte_length()); \
-    memset(&array_buffer->bytes()[0] + data_view->byte_offset(), 0x0,     \
-           sizeof(CppType));                                              \
-    CppType value = data_view->Get##DomType(0, &exception_state);         \
-    EXPECT_EQ(0, value);                                                  \
+#define DEFINE_DATA_VIEW_GETTER_WITH_OFFSET_TEST(DomType, CppType)   \
+  {                                                                  \
+    memset(array_buffer->data(), 0xff, array_buffer->byte_length()); \
+    memset(array_buffer->data() + data_view->byte_offset(), 0x0,     \
+           sizeof(CppType));                                         \
+    CppType value = data_view->Get##DomType(0, &exception_state);    \
+    EXPECT_EQ(0, value);                                             \
   }
   DATA_VIEW_ACCESSOR_FOR_EACH(DEFINE_DATA_VIEW_GETTER_WITH_OFFSET_TEST)
 #undef DEFINE_DATA_VIEW_GETTER_WITH_OFFSET_TEST
@@ -161,7 +161,7 @@ TEST(DataViewTest, GettersWithOffset) {
 
 TEST(DataViewTest, Setters) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(13);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 13);
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, &exception_state);
 
@@ -170,12 +170,12 @@ TEST(DataViewTest, Setters) {
 // is indeed 0.
 #define DEFINE_DATA_VIEW_SETTER_TEST(DomType, CppType)                        \
   {                                                                           \
-    memset(&array_buffer->bytes()[0], 0xff, array_buffer->byte_length());     \
+    memset(array_buffer->data(), 0xff, array_buffer->byte_length());          \
     data_view->Set##DomType(0, 0, &exception_state);                          \
     CppType value = data_view->Get##DomType(0, &exception_state);             \
     EXPECT_EQ(0, value);                                                      \
                                                                               \
-    memset(&array_buffer->bytes()[0], 0xff, array_buffer->byte_length());     \
+    memset(array_buffer->data(), 0xff, array_buffer->byte_length());          \
     data_view->Set##DomType(array_buffer->byte_length() - sizeof(CppType), 0, \
                             &exception_state);                                \
     value = data_view->Get##DomType(                                          \
@@ -189,7 +189,7 @@ TEST(DataViewTest, Setters) {
 TEST(DataViewTest, SettersWithException) {
   StrictMock<MockExceptionState> exception_state;
   script::ExceptionState::SimpleExceptionType exception_type;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(13);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 13);
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, &exception_state);
 
@@ -207,19 +207,19 @@ TEST(DataViewTest, SettersWithException) {
 
 TEST(DataViewTest, SettersWithOffset) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(13);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 13);
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, 3, &exception_state);
 
 // For test of each type, we fill the array_buffer to 0xff and then set the
 // value at the particular index to 0.  Then we read it out to verify that it
 // is indeed 0.
-#define DEFINE_DATA_VIEW_SETTER_WITH_OFFSET_TEST(DomType, CppType)        \
-  {                                                                       \
-    memset(&array_buffer->bytes()[0], 0xff, array_buffer->byte_length()); \
-    data_view->Set##DomType(0, 0, &exception_state);                      \
-    CppType value = data_view->Get##DomType(0, &exception_state);         \
-    EXPECT_EQ(0, value);                                                  \
+#define DEFINE_DATA_VIEW_SETTER_WITH_OFFSET_TEST(DomType, CppType)   \
+  {                                                                  \
+    memset(array_buffer->data(), 0xff, array_buffer->byte_length()); \
+    data_view->Set##DomType(0, 0, &exception_state);                 \
+    CppType value = data_view->Get##DomType(0, &exception_state);    \
+    EXPECT_EQ(0, value);                                             \
   }
   DATA_VIEW_ACCESSOR_FOR_EACH(DEFINE_DATA_VIEW_SETTER_WITH_OFFSET_TEST)
 #undef DEFINE_DATA_VIEW_SETTER_WITH_OFFSET_TEST
@@ -227,7 +227,7 @@ TEST(DataViewTest, SettersWithOffset) {
 
 TEST(DataViewTest, GetterSetterEndianness) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(13);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 13);
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, 3, &exception_state);
 
@@ -272,7 +272,7 @@ TEST(DataViewTest, GetterSetterEndianness) {
 
 TEST(DataViewTest, PlatformEndianness) {
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(13);
+  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 13);
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, 3, &exception_state);
 
@@ -287,13 +287,13 @@ TEST(DataViewTest, PlatformEndianness) {
 #define DEFINE_DATA_VIEW_PLATFORM_ENDIANNESS_TEST(DomType, CppType)       \
   {                                                                       \
     for (uint32 i = 0; i < sizeof(CppType); ++i) {                        \
-      array_buffer->bytes()[data_view->byte_offset() + i] =               \
+      array_buffer->data()[data_view->byte_offset() + i] =                \
           static_cast<uint8>(i);                                          \
     }                                                                     \
     CppType value =                                                       \
         data_view->Get##DomType(0, kCpuIsLittleEndian, &exception_state); \
     EXPECT_EQ(0, memcmp(reinterpret_cast<uint8*>(&value),                 \
-                        &array_buffer->bytes()[data_view->byte_offset()], \
+                        array_buffer->data() + data_view->byte_offset(),  \
                         sizeof(value)));                                  \
   }
   DATA_VIEW_ACCESSOR_FOR_EACH(DEFINE_DATA_VIEW_PLATFORM_ENDIANNESS_TEST)

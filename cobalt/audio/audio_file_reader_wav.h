@@ -17,8 +17,6 @@
 #ifndef AUDIO_AUDIO_FILE_READER_WAV_H_
 #define AUDIO_AUDIO_FILE_READER_WAV_H_
 
-#include <vector>
-
 #include "cobalt/audio/audio_file_reader.h"
 
 namespace cobalt {
@@ -28,30 +26,29 @@ namespace audio {
 //   http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
 class AudioFileReaderWAV : public AudioFileReader {
  public:
-  static scoped_ptr<AudioFileReader> TryCreate(const std::vector<uint8>& data);
+  static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size);
 
-  const scoped_refptr<AudioBuffer>& audio_buffer() OVERRIDE {
-    return audio_buffer_;
-  }
+  scoped_array<uint8> sample_data() OVERRIDE { return sample_data_.Pass(); }
+  float sample_rate() const OVERRIDE { return sample_rate_; }
+  int32 number_of_frames() const OVERRIDE { return number_of_frames_; }
+  int32 number_of_channels() const OVERRIDE { return number_of_channels_; }
 
  private:
-  explicit AudioFileReaderWAV(const std::vector<uint8>& data);
+  AudioFileReaderWAV(const uint8* data, size_t size);
 
-  bool ParseRIFFHeader(const std::vector<uint8>& audio_data);
-  void ParseChunks(const std::vector<uint8>& audio_data);
-  bool ParseWAV_fmt(const uint8* riff_data, uint32 offset, uint32 size,
-                    bool* is_float, int32* channels, float* sample_rate);
-  bool ParseWAV_data(const uint8* riff_data, uint32 offset, uint32 size,
-                     bool is_float, int32 channels, float sample_rate);
+  bool ParseRIFFHeader(const uint8* data, size_t size);
+  void ParseChunks(const uint8* data, size_t size);
+  bool ParseWAV_fmt(const uint8* data, size_t offset, size_t size,
+                    bool* is_sample_in_float);
+  bool ParseWAV_data(const uint8* data, size_t offset, size_t size,
+                     bool is_sample_in_float);
 
-  AudioBuffer::Float32ArrayVector ReadAsFloatToFloat32ArrayVector(
-      int32 channels, int32 number_of_frames, const uint8* data_samples);
-  AudioBuffer::Float32ArrayVector ReadAsInt16ToFloat32ArrayVector(
-      int32 channels, int32 number_of_frames, const uint8* data_samples);
+  bool is_valid() { return sample_data_ != NULL; }
 
-  bool is_valid() { return audio_buffer_ != NULL; }
-
-  scoped_refptr<AudioBuffer> audio_buffer_;
+  scoped_array<uint8> sample_data_;
+  float sample_rate_;
+  int32 number_of_frames_;
+  int32 number_of_channels_;
 };
 
 }  // namespace audio

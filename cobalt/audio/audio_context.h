@@ -27,6 +27,7 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_object.h"
 
 namespace cobalt {
@@ -79,9 +80,11 @@ class AudioContext : public dom::EventTarget {
   // ArrayBuffer can, for example, be loaded from an XMLHttpRequest's response
   // attribute after setting the responseType to "arraybuffer". Audio file data
   // can be in any of the formats supported by the audio element.
-  void DecodeAudioData(const scoped_refptr<dom::ArrayBuffer>& audio_data,
+  void DecodeAudioData(script::EnvironmentSettings* settings,
+                       const scoped_refptr<dom::ArrayBuffer>& audio_data,
                        const DecodeSuccessCallbackArg& success_handler);
-  void DecodeAudioData(const scoped_refptr<dom::ArrayBuffer>& audio_data,
+  void DecodeAudioData(script::EnvironmentSettings* settings,
+                       const scoped_refptr<dom::ArrayBuffer>& audio_data,
                        const DecodeSuccessCallbackArg& success_handler,
                        const DecodeErrorCallbackArg& error_handler);
 
@@ -93,23 +96,30 @@ class AudioContext : public dom::EventTarget {
  private:
   struct DecodeCallbackInfo
       : public base::RefCountedThreadSafe<DecodeCallbackInfo> {
-    DecodeCallbackInfo(const AudioContext* const audio_context,
+    DecodeCallbackInfo(script::EnvironmentSettings* settings,
+                       const AudioContext* const audio_context,
                        const DecodeSuccessCallbackArg& success_handler)
-        : success_callback(audio_context, success_handler) {}
+        : env_settings(settings),
+          success_callback(audio_context, success_handler) {}
 
-    DecodeCallbackInfo(const AudioContext* const audio_context,
+    DecodeCallbackInfo(script::EnvironmentSettings* settings,
+                       const AudioContext* const audio_context,
                        const DecodeSuccessCallbackArg& success_handler,
                        const DecodeErrorCallbackArg& error_handler)
-        : success_callback(audio_context, success_handler) {
+        : env_settings(settings),
+          success_callback(audio_context, success_handler) {
       error_callback.emplace(audio_context, error_handler);
     }
 
+    script::EnvironmentSettings* env_settings;
     DecodeSuccessCallbackReference success_callback;
     base::optional<DecodeErrorCallbackReference> error_callback;
   };
 
   void DecodeFinish(const scoped_refptr<DecodeCallbackInfo>& info,
-                    const scoped_refptr<AudioBuffer>& audio_data);
+                    float sample_rate, int32 number_of_frames,
+                    int32 number_of_channels,
+                    scoped_array<uint8> channels_data);
 
   float sample_rate_;
   double current_time_;

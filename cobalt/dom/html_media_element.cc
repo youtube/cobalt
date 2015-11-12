@@ -1313,8 +1313,8 @@ void HTMLMediaElement::KeyMessage(const std::string& key_system,
                                   unsigned int message_length,
                                   const std::string& default_url) {
   event_queue_.Enqueue(new MediaKeyMessageEvent(
-      key_system, session_id, new Uint8Array(message, message_length),
-      default_url));
+      key_system, session_id,
+      new Uint8Array(NULL, message, message_length, NULL), default_url));
 }
 
 void HTMLMediaElement::KeyNeeded(const std::string& key_system,
@@ -1322,7 +1322,8 @@ void HTMLMediaElement::KeyNeeded(const std::string& key_system,
                                  const unsigned char* init_data,
                                  unsigned int init_data_length) {
   event_queue_.Enqueue(new MediaKeyNeededEvent(
-      key_system, session_id, new Uint8Array(init_data, init_data_length)));
+      key_system, session_id,
+      new Uint8Array(NULL, init_data, init_data_length, NULL)));
 }
 
 

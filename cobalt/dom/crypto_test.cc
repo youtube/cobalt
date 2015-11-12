@@ -36,8 +36,10 @@ using testing::StrictMock;
 // TODO(***REMOVED***) : Test arrays in float types.
 
 TEST(CryptoTest, GetRandomValues) {
-  scoped_refptr<Uint8Array> array1 = new Uint8Array(16);
-  scoped_refptr<Uint8Array> array2 = new Uint8Array(16);
+  StrictMock<MockExceptionState> exception_state;
+
+  scoped_refptr<Uint8Array> array1 = new Uint8Array(NULL, 16, &exception_state);
+  scoped_refptr<Uint8Array> array2 = new Uint8Array(NULL, 16, &exception_state);
   for (uint32 i = 0; i < array1->length(); ++i) {
     DCHECK_EQ(0, array1->Get(i));
   }
@@ -46,8 +48,6 @@ TEST(CryptoTest, GetRandomValues) {
   }
 
   scoped_refptr<Crypto> crypto = new Crypto;
-  StrictMock<MockExceptionState> exception_state;
-
   scoped_refptr<ArrayBufferView> result =
       crypto->GetRandomValues(array1, &exception_state);
   EXPECT_EQ(array1, result);
@@ -89,8 +89,9 @@ TEST(CryptoTest, LargeArray) {
   // When array length exceeds 65536 GetRandomValues() should throw
   // QuotaExceededErr.
   scoped_refptr<Crypto> crypto = new Crypto;
-  scoped_refptr<Uint8Array> array65537 = new Uint8Array(65537);
   StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<Uint8Array> array65537 =
+      new Uint8Array(NULL, 65537, &exception_state);
   scoped_refptr<script::ScriptException> exception;
 
   EXPECT_CALL(exception_state, SetException(_))
@@ -104,7 +105,8 @@ TEST(CryptoTest, LargeArray) {
             base::polymorphic_downcast<DOMException*>(exception.get())->code());
 
   // Also ensure that we can work with array whose length is exactly 65536.
-  scoped_refptr<Uint8Array> array65536 = new Uint8Array(65536);
+  scoped_refptr<Uint8Array> array65536 =
+      new Uint8Array(NULL, 65536, &exception_state);
   result = crypto->GetRandomValues(array65536, &exception_state);
   EXPECT_EQ(array65536, result);
 }

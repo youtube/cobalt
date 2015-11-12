@@ -19,6 +19,7 @@
     Constructor(unsigned long length),
     Constructor(Uint8Array array),
     Constructor(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length),
+    ConstructorCallWith=EnvironmentSettings,
     RaisesException=Constructor
 ]
 interface Uint8Array : ArrayBufferView {
@@ -38,5 +39,5 @@ interface Uint8Array : ArrayBufferView {
 
     // Return a new Uint8Array that is a view on top of this one.
     // Contains this[start]..this[end]. end defaults to length if unspecified.
-    Uint8Array subarray(long start, optional long end);
+    [CallWith=EnvironmentSettings] Uint8Array subarray(long start, optional long end);
 };

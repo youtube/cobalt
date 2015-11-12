@@ -28,12 +28,19 @@ namespace {
 // Perform the decoding operation. The decoding thread will attempt to decode
 // the encoded audio_data into linear PCM.
 void Decode(
-    const scoped_refptr<dom::ArrayBuffer>& audio_data,
+    const uint8* audio_data, size_t size,
     const AsyncAudioDecoder::DecodeFinishCallback& decode_finish_callback) {
   scoped_ptr<AudioFileReader> reader(
-      AudioFileReader::TryCreate(audio_data->bytes()));
+      AudioFileReader::TryCreate(audio_data, size));
 
-  decode_finish_callback.Run(reader ? reader->audio_buffer() : NULL);
+  scoped_array<uint8> sample_data(reader->sample_data());
+  if (reader) {
+    decode_finish_callback.Run(
+        reader->sample_rate(), reader->number_of_frames(),
+        reader->number_of_channels(), sample_data.Pass());
+  } else {
+    decode_finish_callback.Run(0.f, 0, 0, sample_data.Pass());
+  }
 }
 
 }  // namespace
@@ -43,14 +50,14 @@ AsyncAudioDecoder::AsyncAudioDecoder() : thread_("AsyncAudioDecoder") {
 }
 
 void AsyncAudioDecoder::AsyncDecode(
-    const scoped_refptr<dom::ArrayBuffer>& audio_data,
+    const uint8* audio_data, size_t size,
     const DecodeFinishCallback& decode_finish_callback) {
   DCHECK(audio_data);
   DCHECK(!decode_finish_callback.is_null());
 
   // Queue a decoding operation to be performed on AsyncAudioDecoder thread.
   thread_.message_loop()->PostTask(
-      FROM_HERE, base::Bind(&Decode, audio_data, decode_finish_callback));
+      FROM_HERE, base::Bind(&Decode, audio_data, size, decode_finish_callback));
 }
 
 }  // namespace audio
