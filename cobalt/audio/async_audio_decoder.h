@@ -27,12 +27,13 @@ namespace audio {
 
 class AsyncAudioDecoder {
  public:
-  typedef base::Callback<void(const scoped_refptr<AudioBuffer>&)>
-      DecodeFinishCallback;
+  typedef base::Callback<void(
+      float sample_rate, int32 number_of_frames, int32 number_of_channels,
+      scoped_array<uint8> channels_data)> DecodeFinishCallback;
 
   AsyncAudioDecoder();
 
-  void AsyncDecode(const scoped_refptr<dom::ArrayBuffer>& audio_data,
+  void AsyncDecode(const uint8* audio_data, size_t size,
                    const DecodeFinishCallback& decode_finish_callback);
 
  private:

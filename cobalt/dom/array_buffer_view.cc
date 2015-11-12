@@ -27,11 +27,7 @@ ArrayBufferView::ArrayBufferView(const scoped_refptr<ArrayBuffer>& buffer,
     : buffer_(buffer), byte_offset_(byte_offset), byte_length_(byte_length) {}
 
 void* ArrayBufferView::base_address() const {
-  if (buffer_->bytes().size() > 0) {
-    return reinterpret_cast<void*>(&buffer_->bytes()[0] + byte_offset_);
-  } else {
-    return NULL;
-  }
+  return buffer_->data() + byte_offset_;
 }
 
 ArrayBufferView::~ArrayBufferView() {}

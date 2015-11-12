@@ -112,7 +112,7 @@ class DataView : public script::Wrappable {
       return ElementType();
     }
     ElementType value;
-    CopyBytes(&buffer_->bytes()[byte_offset_ + byte_offset], sizeof(value),
+    CopyBytes(buffer_->data() + byte_offset_ + byte_offset, sizeof(value),
               little_endian, reinterpret_cast<uint8*>(&value));
     return value;
   }
@@ -126,8 +126,8 @@ class DataView : public script::Wrappable {
           "Offset is outside the bounds of the DataView.");
       return;
     }
-    CopyBytes(reinterpret_cast<uint8*>(&value), sizeof(value),
-              little_endian, &buffer_->bytes()[byte_offset_ + byte_offset]);
+    CopyBytes(reinterpret_cast<uint8*>(&value), sizeof(value), little_endian,
+              buffer_->data() + byte_offset_ + byte_offset);
   }
 
   const scoped_refptr<ArrayBuffer> buffer_;

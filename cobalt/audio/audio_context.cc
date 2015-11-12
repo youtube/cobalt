@@ -35,40 +35,50 @@ scoped_refptr<AudioBufferSourceNode> AudioContext::CreateBufferSource() {
 }
 
 void AudioContext::DecodeAudioData(
+    script::EnvironmentSettings* settings,
     const scoped_refptr<dom::ArrayBuffer>& audio_data,
     const DecodeSuccessCallbackArg& success_handler) {
   scoped_refptr<DecodeCallbackInfo> info(
-      new DecodeCallbackInfo(this, success_handler));
+      new DecodeCallbackInfo(settings, this, success_handler));
   AsyncAudioDecoder::DecodeFinishCallback decode_callback =
       base::Bind(&AudioContext::DecodeFinish, base::Unretained(this), info);
-  audio_decoder_.AsyncDecode(audio_data, decode_callback);
+  audio_decoder_.AsyncDecode(audio_data->data(), audio_data->byte_length(),
+                             decode_callback);
 }
 
 void AudioContext::DecodeAudioData(
+    script::EnvironmentSettings* settings,
     const scoped_refptr<dom::ArrayBuffer>& audio_data,
     const DecodeSuccessCallbackArg& success_handler,
     const DecodeErrorCallbackArg& error_handler) {
   scoped_refptr<DecodeCallbackInfo> info(
-      new DecodeCallbackInfo(this, success_handler, error_handler));
+      new DecodeCallbackInfo(settings, this, success_handler, error_handler));
   AsyncAudioDecoder::DecodeFinishCallback decode_callback =
       base::Bind(&AudioContext::DecodeFinish, base::Unretained(this), info);
-  audio_decoder_.AsyncDecode(audio_data, decode_callback);
+  audio_decoder_.AsyncDecode(audio_data->data(), audio_data->byte_length(),
+                             decode_callback);
 }
 
 // Success callback and error callback should be scheduled to run on the main
 // thread's event loop.
 void AudioContext::DecodeFinish(const scoped_refptr<DecodeCallbackInfo>& info,
-                                const scoped_refptr<AudioBuffer>& audio_data) {
+                                float sample_rate, int32 number_of_frames,
+                                int32 number_of_channels,
+                                scoped_array<uint8> channels_data) {
   if (!main_message_loop_->BelongsToCurrentThread()) {
     main_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&AudioContext::DecodeFinish, this, info, audio_data));
+        FROM_HERE, base::Bind(&AudioContext::DecodeFinish, this, info,
+                              sample_rate, number_of_frames, number_of_channels,
+                              base::Passed(&channels_data)));
     return;
   }
 
   DCHECK(info);
-  if (audio_data) {
-    info->success_callback.value().Run(audio_data);
+  if (channels_data) {
+    const scoped_refptr<AudioBuffer>& audio_buffer =
+        new AudioBuffer(info->env_settings, sample_rate, number_of_frames,
+                        number_of_channels, channels_data.Pass());
+    info->success_callback.value().Run(audio_buffer);
   } else if (info->error_callback) {
     info->error_callback.value().value().Run();
   }

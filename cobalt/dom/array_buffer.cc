@@ -18,21 +18,53 @@
 
 #include <algorithm>
 
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/stats.h"
+#include "cobalt/script/javascript_engine.h"
+
 namespace cobalt {
 namespace dom {
 
-ArrayBuffer::ArrayBuffer(uint32 length) : bytes_(length) {}
+ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings, uint32 length)
+    : data_(new uint8[length]), size_(length) {
+  memset(data_.get(), 0, size_);
+  // TODO(***REMOVED***): Once we can have a reliable way to pass the
+  // EnvironmentSettings to HTMLMediaElement, we should make EnvironmentSettings
+  // mandatory for creating ArrayBuffer in non-testing code.
+  if (settings) {
+    DOMSettings* dom_settings =
+        base::polymorphic_downcast<dom::DOMSettings*>(settings);
+    dom_settings->javascript_engine()->ReportExtraMemoryCost(size_);
+  }
+  Stats::GetInstance()->IncreaseArrayBufferMemoryUsage(size_);
+}
 
-scoped_refptr<ArrayBuffer> ArrayBuffer::Slice(int start, int end) {
+ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings,
+                         scoped_array<uint8> data, uint32 length)
+    : data_(data.Pass()), size_(length) {
+  // TODO(***REMOVED***): Make EnvironmentSettings mandatory for creating
+  // ArrayBuffer in non-testing code.
+  if (settings) {
+    DOMSettings* dom_settings =
+        base::polymorphic_downcast<dom::DOMSettings*>(settings);
+    dom_settings->javascript_engine()->ReportExtraMemoryCost(size_);
+  }
+  Stats::GetInstance()->IncreaseArrayBufferMemoryUsage(size_);
+}
+
+scoped_refptr<ArrayBuffer> ArrayBuffer::Slice(
+    script::EnvironmentSettings* settings, int start, int end) {
   int clamped_start;
   int clamped_end;
   ClampRange(start, end, static_cast<int>(byte_length()), &clamped_start,
              &clamped_end);
-  scoped_refptr<ArrayBuffer> slice(
-      new ArrayBuffer(static_cast<uint32>(clamped_end - clamped_start)));
-  slice->bytes_.insert(slice->bytes_.begin(), bytes_.begin() + clamped_start,
-                       bytes_.begin() + clamped_end);
-  return slice;
+  DCHECK_GE(clamped_end, clamped_start);
+  size_t slice_size = static_cast<size_t>(clamped_end - clamped_start);
+  scoped_array<uint8> slice(new uint8[slice_size]);
+  memcpy(slice.get(), data() + clamped_start, slice_size);
+  return new ArrayBuffer(settings, slice.Pass(),
+                         static_cast<uint32>(slice_size));
 }
 
 void ArrayBuffer::ClampRange(int start, int end, int source_length,
@@ -62,7 +94,9 @@ void ArrayBuffer::ClampRange(int start, int end, int source_length,
   *clamped_end = end;
 }
 
-ArrayBuffer::~ArrayBuffer() {}
+ArrayBuffer::~ArrayBuffer() {
+  Stats::GetInstance()->DecreaseArrayBufferMemoryUsage(size_);
+}
 
 }  // namespace dom
 }  // namespace cobalt

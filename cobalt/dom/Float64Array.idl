@@ -20,6 +20,7 @@
     Constructor(unsigned long length),
     Constructor(Float64Array array),
     Constructor(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length),
+    ConstructorCallWith=EnvironmentSettings,
     RaisesException=Constructor
 ]
 interface Float64Array : ArrayBufferView {
@@ -32,5 +33,5 @@ interface Float64Array : ArrayBufferView {
 
     // Return a new Float64Array that is a view on top of this one.
     // Contains this[start]..this[end]. end defaults to length if unspecified.
-    Float64Array subarray(long start, optional long end);
+    [CallWith=EnvironmentSettings] Float64Array subarray(long start, optional long end);
 };
