@@ -27,8 +27,6 @@
         'key_repeat_filter.h',
         'keypress_generator_filter.cc',
         'keypress_generator_filter.h',
-        'modifier_key_filter.cc',
-        'modifier_key_filter.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',

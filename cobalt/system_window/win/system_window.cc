@@ -48,6 +48,25 @@ const int kWindowHeight = 1080;
 // (the thread running Win32WindowThread).
 base::LazyInstance<base::ThreadLocalPointer<SystemWindowWin> > lazy_tls_ptr =
     LAZY_INSTANCE_INITIALIZER;
+
+inline bool IsKeyDown(int keycode) {
+  // Key down state is indicated by high-order bit of SHORT.
+  return (GetKeyState(keycode) & 0x8000) != 0;
+}
+
+unsigned int GetModifierKeyState() {
+  unsigned int modifiers = dom::KeyboardEvent::kNoModifier;
+  if (IsKeyDown(VK_MENU)) {
+    modifiers |= dom::KeyboardEvent::kAltKey;
+  }
+  if (IsKeyDown(VK_CONTROL)) {
+    modifiers |= dom::KeyboardEvent::kCtrlKey;
+  }
+  if (IsKeyDown(VK_SHIFT)) {
+    modifiers |= dom::KeyboardEvent::kShiftKey;
+  }
+  return modifiers;
+}
 }  // namespace
 
 SystemWindowWin::SystemWindowWin()
@@ -89,10 +108,9 @@ LRESULT CALLBACK SystemWindowWin::WndProc(HWND window_handle, UINT message,
       // The user has pressed a key on the keyboard.
       dom::KeyboardEvent::KeyLocationCode location =
           dom::KeyboardEvent::KeyCodeToKeyLocation(w_param);
-      scoped_refptr<dom::KeyboardEvent> keyboard_event(
-          new dom::KeyboardEvent(dom::EventNames::GetInstance()->keydown(),
-                                 location, dom::KeyboardEvent::kNoModifier,
-                                 w_param, w_param, IsKeyRepeat(l_param)));
+      scoped_refptr<dom::KeyboardEvent> keyboard_event(new dom::KeyboardEvent(
+          dom::EventNames::GetInstance()->keydown(), location,
+          GetModifierKeyState(), w_param, w_param, IsKeyRepeat(l_param)));
       system_window->HandleKeyboardEvent(keyboard_event);
     } break;
     case WM_KEYUP: {
@@ -101,7 +119,7 @@ LRESULT CALLBACK SystemWindowWin::WndProc(HWND window_handle, UINT message,
           dom::KeyboardEvent::KeyCodeToKeyLocation(w_param);
       scoped_refptr<dom::KeyboardEvent> keyboard_event(new dom::KeyboardEvent(
           dom::EventNames::GetInstance()->keyup(), location,
-          dom::KeyboardEvent::kNoModifier, w_param, w_param, false));
+          GetModifierKeyState(), w_param, w_param, false));
       system_window->HandleKeyboardEvent(keyboard_event);
     } break;
   }
