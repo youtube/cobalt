@@ -102,5 +102,17 @@ TEST_F(DOMTokenListTest, DOMTokenListRemove) {
   EXPECT_EQ("a b", element->GetAttribute("class").value());
 }
 
+TEST_F(DOMTokenListTest, DOMTokenListAnonymousStringifier) {
+  scoped_refptr<Element> element = new Element(document_);
+  scoped_refptr<DOMTokenList> dom_token_list =
+      new DOMTokenList(element, "class");
+  std::vector<std::string> vs;
+  vs.push_back("a");
+  vs.push_back("b");
+  vs.push_back("c");
+  dom_token_list->Add(vs);
+  EXPECT_EQ("a b c", dom_token_list->AnonymousStringifier());
+}
+
 }  // namespace dom
 }  // namespace cobalt
