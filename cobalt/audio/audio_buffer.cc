@@ -21,14 +21,31 @@
 namespace cobalt {
 namespace audio {
 
-AudioBuffer::AudioBuffer(float sample_rate, int32 number_of_frames,
-                         const Float32ArrayVector& channels_data)
-    : sample_rate_(sample_rate),
-      length_(number_of_frames),
-      channels_data_(channels_data) {
+AudioBuffer::AudioBuffer(script::EnvironmentSettings* settings,
+                         float sample_rate, int32 number_of_frames,
+                         int32 number_of_channels,
+                         scoped_array<uint8> channels_data)
+    : sample_rate_(sample_rate), length_(number_of_frames) {
   DCHECK_GT(sample_rate_, 0);
   DCHECK_GT(length_, 0);
-  DCHECK(!channels_data_.empty());
+  DCHECK_GT(number_of_channels, 0);
+
+  // Create an ArrayBuffer stores sample data from all channels.
+  scoped_refptr<dom::ArrayBuffer> array_buffer(new dom::ArrayBuffer(
+      settings, channels_data.Pass(),
+      number_of_frames * number_of_channels * sizeof(float)));
+
+  channels_data_.resize(static_cast<size_t>(number_of_channels));
+  // Each channel should have |number_of_frames * sizeof(float)| bytes.  We
+  // create |number_of_channels| of Float32Array as views into the above
+  // ArrayBuffer, this doesn't need any extra allocation.
+  uint32 start_offset_in_bytes = 0;
+  for (int32 i = 0; i < number_of_channels; ++i) {
+    channels_data_[static_cast<size_t>(i)] =
+        new dom::Float32Array(settings, array_buffer, start_offset_in_bytes,
+                              static_cast<uint32>(number_of_frames), NULL);
+    start_offset_in_bytes += number_of_frames * sizeof(float);
+  }
 }
 
 scoped_refptr<dom::Float32Array> AudioBuffer::GetChannelData(

@@ -18,6 +18,7 @@
 
 #include <limits>
 
+#include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Note that most of the basic functionalities are already tested inside
@@ -28,10 +29,15 @@ namespace cobalt {
 namespace dom {
 namespace {
 
+using script::testing::MockExceptionState;
+using testing::StrictMock;
+
 // Sanity check that we can actually store float values and get them back.
 TEST(Float32Array, SetGetFloat) {
   static const uint32 kLength = 5;
-  scoped_refptr<Float32Array> array = new Float32Array(kLength);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<Float32Array> array =
+      new Float32Array(NULL, kLength, &exception_state);
   float values[kLength];
 
   // Use an array to keep the values to avoid any floating point inaccuracy.
@@ -47,7 +53,9 @@ TEST(Float32Array, SetGetFloat) {
 
 // The Float32Array supports float values like Infinity and NaN.
 TEST(Float32Array, UnrestrictedFloatValues) {
-  scoped_refptr<Float32Array> array = new Float32Array(1);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<Float32Array> array =
+      new Float32Array(NULL, 1, &exception_state);
 
   array->Set(0, std::numeric_limits<float>::infinity());
   EXPECT_EQ(std::numeric_limits<float>::infinity(), array->Get(0));

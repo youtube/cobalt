@@ -42,7 +42,9 @@ TYPED_TEST_CASE(TypedArrayTest, TypedArrays);
 
 TYPED_TEST(TypedArrayTest, CreateArray) {
   static const uint32 kLength = 5;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
   EXPECT_EQ(kLength, array->length());
   for (uint32 i = 0; i < kLength; ++i) {
     EXPECT_EQ(0, array->Get(i));
@@ -51,11 +53,13 @@ TYPED_TEST(TypedArrayTest, CreateArray) {
 
 TYPED_TEST(TypedArrayTest, CreateArrayCopy) {
   static const uint32 kLength = 5;
-  scoped_refptr<TypeParam> source = new TypeParam(kLength);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> source =
+      new TypeParam(NULL, kLength, &exception_state);
   for (uint32 i = 0; i < kLength; ++i) {
     source->Set(i, static_cast<uint8>(i));
   }
-  scoped_refptr<TypeParam> copy = new TypeParam(source);
+  scoped_refptr<TypeParam> copy = new TypeParam(NULL, source, &exception_state);
   for (uint32 i = 0; i < kLength; ++i) {
     EXPECT_EQ(source->Get(i), copy->Get(i));
   }
@@ -63,12 +67,14 @@ TYPED_TEST(TypedArrayTest, CreateArrayCopy) {
 
 TYPED_TEST(TypedArrayTest, CopyArrayWithSet) {
   static const uint32 kLength = 5;
-  scoped_refptr<TypeParam> source = new TypeParam(kLength);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> source =
+      new TypeParam(NULL, kLength, &exception_state);
   for (uint32 i = 0; i < kLength; ++i) {
     source->Set(i, static_cast<uint8>(i));
   }
-  scoped_refptr<TypeParam> copy = new TypeParam(kLength);
-  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> copy =
+      new TypeParam(NULL, kLength, &exception_state);
   copy->Set(source, &exception_state);
   for (uint32 i = 0; i < kLength; ++i) {
     EXPECT_EQ(source->Get(i), copy->Get(i));
@@ -78,12 +84,14 @@ TYPED_TEST(TypedArrayTest, CopyArrayWithSet) {
 TYPED_TEST(TypedArrayTest, CopyArrayWithSetOffset) {
   static const uint32 kLength = 5;
   static const uint32 kOffset = 3;
-  scoped_refptr<TypeParam> source = new TypeParam(kLength);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> source =
+      new TypeParam(NULL, kLength, &exception_state);
   for (uint32 i = 0; i < kLength; ++i) {
     source->Set(i, static_cast<uint8>(i));
   }
-  scoped_refptr<TypeParam> copy = new TypeParam(kLength + kOffset);
-  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> copy =
+      new TypeParam(NULL, kLength + kOffset, &exception_state);
   copy->Set(source, kOffset, &exception_state);
   for (uint32 i = 0; i < kOffset; ++i) {
     EXPECT_EQ(0, copy->Get(i));
@@ -109,17 +117,18 @@ TYPED_TEST(TypedArrayTest, CopyArrayWithSetOffsetOnTypeParamWithNonZeroOffset) {
 
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<ArrayBuffer> dst_buffer =
-      new ArrayBuffer(5 * TypeParam::kBytesPerElement);
+      new ArrayBuffer(NULL, 5 * TypeParam::kBytesPerElement);
   scoped_refptr<TypeParam> dst = new TypeParam(
-      dst_buffer, 1 * TypeParam::kBytesPerElement, 3, &exception_state);
+      NULL, dst_buffer, 1 * TypeParam::kBytesPerElement, 3, &exception_state);
 
   scoped_refptr<ArrayBuffer> src_buffer =
-      new ArrayBuffer(6 * TypeParam::kBytesPerElement);
+      new ArrayBuffer(NULL, 6 * TypeParam::kBytesPerElement);
   scoped_refptr<TypeParam> src = new TypeParam(
-      src_buffer, 2 * TypeParam::kBytesPerElement, 2, &exception_state);
+      NULL, src_buffer, 2 * TypeParam::kBytesPerElement, 2, &exception_state);
 
   // Use a TypedArray to fill |src_buffer| with values.
-  scoped_refptr<TypeParam> fill = new TypeParam(src_buffer, &exception_state);
+  scoped_refptr<TypeParam> fill =
+      new TypeParam(NULL, src_buffer, &exception_state);
   for (uint32 i = 0; i < fill->length(); ++i) {
     fill->Set(i, static_cast<uint8>(i + 1));
   }
@@ -133,7 +142,9 @@ TYPED_TEST(TypedArrayTest, CopyArrayWithSetOffsetOnTypeParamWithNonZeroOffset) {
 
 TYPED_TEST(TypedArrayTest, SetItem) {
   static const uint32 kLength = 3;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
   array->Set(1, 0xff);
   EXPECT_EQ(0, array->Get(0));
   EXPECT_EQ(0xff, array->Get(1));
@@ -145,9 +156,10 @@ TYPED_TEST(TypedArrayTest, ArrayView) {
   // Write to the view and then check the original was modified.
   static const uint32 kLength = 5;
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
   scoped_refptr<TypeParam> view =
-      new TypeParam(array->buffer(), &exception_state);
+      new TypeParam(NULL, array->buffer(), &exception_state);
   for (uint32 i = 0; i < kLength; ++i) {
     view->Set(i, static_cast<uint8>(i + 1));
   }
@@ -159,9 +171,11 @@ TYPED_TEST(TypedArrayTest, ArrayView) {
 TYPED_TEST(TypedArrayTest, ArrayViewLengthZero) {
   static const uint32 kLength = 5;
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
-  scoped_refptr<TypeParam> view = new TypeParam(
-      array->buffer(), kLength * TypeParam::kBytesPerElement, &exception_state);
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
+  scoped_refptr<TypeParam> view =
+      new TypeParam(NULL, array->buffer(),
+                    kLength * TypeParam::kBytesPerElement, &exception_state);
   EXPECT_EQ(0, view->length());
 }
 
@@ -171,10 +185,11 @@ TYPED_TEST(TypedArrayTest, ArrayViewOffset) {
   static const uint32 kLength = 5;
   static const uint32 kViewOffset = 3;
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
-  scoped_refptr<TypeParam> view =
-      new TypeParam(array->buffer(), kViewOffset * TypeParam::kBytesPerElement,
-                    &exception_state);
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
+  scoped_refptr<TypeParam> view = new TypeParam(
+      NULL, array->buffer(), kViewOffset * TypeParam::kBytesPerElement,
+      &exception_state);
   for (uint32 i = 0; i < kLength - kViewOffset; ++i) {
     view->Set(i, 0xff);
   }
@@ -192,10 +207,11 @@ TYPED_TEST(TypedArrayTest, ArrayViewOffsetAndLength) {
   static const uint32 kViewOffset = 3;
   static const uint32 kViewLength = kLength - kViewOffset;
   StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
-  scoped_refptr<TypeParam> view =
-      new TypeParam(array->buffer(), kViewOffset * TypeParam::kBytesPerElement,
-                    kViewLength, &exception_state);
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
+  scoped_refptr<TypeParam> view = new TypeParam(
+      NULL, array->buffer(), kViewOffset * TypeParam::kBytesPerElement,
+      kViewLength, &exception_state);
   for (uint32 i = 0; i < kViewLength; ++i) {
     view->Set(i, static_cast<uint8>(kViewOffset + i));
   }
@@ -208,8 +224,10 @@ TYPED_TEST(TypedArrayTest, ArrayViewOffsetAndLength) {
 
 TYPED_TEST(TypedArrayTest, CreateSubArrayOnlyStart) {
   static const uint32 kLength = 5;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
-  scoped_refptr<TypeParam> subarray = array->Subarray(1);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
+  scoped_refptr<TypeParam> subarray = array->Subarray(NULL, 1);
   for (uint32 i = 0; i < kLength; ++i) {
     array->Set(i, static_cast<uint8>(i));
   }
@@ -222,8 +240,10 @@ TYPED_TEST(TypedArrayTest, CreateSubArrayOnlyStart) {
 
 TYPED_TEST(TypedArrayTest, CreateSubArrayStartEnd) {
   static const uint32 kLength = 5;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
-  scoped_refptr<TypeParam> subarray = array->Subarray(1, 4);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
+  scoped_refptr<TypeParam> subarray = array->Subarray(NULL, 1, 4);
   for (uint32 i = 0; i < kLength; ++i) {
     array->Set(i, static_cast<uint8>(i));
   }
@@ -244,18 +264,21 @@ TYPED_TEST(TypedArrayTest, CreateSubArrayStartEndOnTypeParamWithNonZeroOffset) {
   static const uint32 kLength = 5;
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<ArrayBuffer> array_buffer =
-      new ArrayBuffer(kLength * TypeParam::kBytesPerElement);
+      new ArrayBuffer(NULL, kLength * TypeParam::kBytesPerElement);
   scoped_refptr<TypeParam> array =
-      new TypeParam(array_buffer, 1 * TypeParam::kBytesPerElement, kLength - 1,
-                    &exception_state);
-  // The length passed to Subarray() is actually one element longer than what
-  // |array| has.  This should be clamped inside Subarray() and the size of
+      new TypeParam(NULL, array_buffer, 1 * TypeParam::kBytesPerElement,
+                    kLength - 1, &exception_state);
+  // The length passed to Subarray(NULL, ) is actually one element longer than
+  // what
+  // |array| has.  This should be clamped inside Subarray(NULL, ) and the size
+  // of
   // |subarray| should still be three.
   scoped_refptr<TypeParam> subarray =
-      array->Subarray(1, static_cast<int>(array->length()));
+      array->Subarray(NULL, 1, static_cast<int>(array->length()));
 
   // Use a TypedArray to fill |array_buffer| with values.
-  scoped_refptr<TypeParam> fill = new TypeParam(array_buffer, &exception_state);
+  scoped_refptr<TypeParam> fill =
+      new TypeParam(NULL, array_buffer, &exception_state);
   for (uint32 i = 0; i < fill->length(); ++i) {
     fill->Set(i, static_cast<uint8>(i));
   }
@@ -266,8 +289,10 @@ TYPED_TEST(TypedArrayTest, CreateSubArrayStartEndOnTypeParamWithNonZeroOffset) {
 
 TYPED_TEST(TypedArrayTest, CreateSubArrayNegativeOnlyStart) {
   static const uint32 kLength = 5;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
-  scoped_refptr<TypeParam> subarray = array->Subarray(-2);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
+  scoped_refptr<TypeParam> subarray = array->Subarray(NULL, -2);
   for (uint32 i = 0; i < kLength; ++i) {
     array->Set(i, static_cast<uint8>(i));
   }
@@ -281,8 +306,10 @@ TYPED_TEST(TypedArrayTest, CreateSubArrayNegativeOnlyStart) {
 
 TYPED_TEST(TypedArrayTest, CreateSubArrayNegativeStartEnd) {
   static const uint32 kLength = 5;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
-  scoped_refptr<TypeParam> subarray = array->Subarray(-3, -1);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
+  scoped_refptr<TypeParam> subarray = array->Subarray(NULL, -3, -1);
   for (uint32 i = 0; i < kLength; ++i) {
     array->Set(i, static_cast<uint8>(i));
   }
@@ -296,8 +323,10 @@ TYPED_TEST(TypedArrayTest, CreateSubArrayNegativeStartEnd) {
 
 TYPED_TEST(TypedArrayTest, CreateSubArrayInvalidLength) {
   static const uint32 kLength = 5;
-  scoped_refptr<TypeParam> array = new TypeParam(kLength);
-  scoped_refptr<TypeParam> subarray = array->Subarray(12, 5);
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<TypeParam> array =
+      new TypeParam(NULL, kLength, &exception_state);
+  scoped_refptr<TypeParam> subarray = array->Subarray(NULL, 12, 5);
   EXPECT_EQ(0, subarray->length());
 }
 
@@ -316,11 +345,11 @@ TYPED_TEST(TypedArrayTest, ExceptionInConstructor) {
   // Create an ArrayBuffer whose size isn't a multiple of
   // TypeParam::kBytesPerElement.
   scoped_refptr<ArrayBuffer> array_buffer =
-      new ArrayBuffer(TypeParam::kBytesPerElement + 1);
+      new ArrayBuffer(NULL, TypeParam::kBytesPerElement + 1);
   // The size of the array_buffer isn't a multiple of
   // TypeParam::kBytesPerElement.
   scoped_refptr<TypeParam> array =
-      new TypeParam(array_buffer, &exception_state);
+      new TypeParam(NULL, array_buffer, &exception_state);
   EXPECT_EQ(script::ExceptionState::kRangeError, exception_type);
 
   EXPECT_CALL(exception_state, SetSimpleException(_, _))
@@ -328,30 +357,30 @@ TYPED_TEST(TypedArrayTest, ExceptionInConstructor) {
   // Neither the size of the array_buffer nor the byte_offset is a multiple of
   // TypeParam::kBytesPerElement, but SetSimpleException() should only be called
   // once.
-  array = new TypeParam(array_buffer, 1, &exception_state);
+  array = new TypeParam(NULL, array_buffer, 1, &exception_state);
   EXPECT_EQ(script::ExceptionState::kRangeError, exception_type);
 
   EXPECT_CALL(exception_state, SetSimpleException(_, _))
       .WillOnce(SaveArg<0>(&exception_type));
   // Now the size of the array_buffer is a multiple of
   // TypeParam::kBytesPerElement but the byte_offset isn't.
-  array_buffer = new ArrayBuffer(TypeParam::kBytesPerElement);
-  array = new TypeParam(array_buffer, 1, &exception_state);
+  array_buffer = new ArrayBuffer(NULL, TypeParam::kBytesPerElement);
+  array = new TypeParam(NULL, array_buffer, 1, &exception_state);
   EXPECT_EQ(script::ExceptionState::kRangeError, exception_type);
 
   EXPECT_CALL(exception_state, SetSimpleException(_, _))
       .WillOnce(SaveArg<0>(&exception_type));
   // Both the size of the array_buffer and the byte_offset are multiples of
   // TypeParam::kBytesPerElement but array_buffer cannot hold 2 elements.
-  array = new TypeParam(array_buffer, 0, 2, &exception_state);
+  array = new TypeParam(NULL, array_buffer, 0, 2, &exception_state);
   EXPECT_EQ(script::ExceptionState::kRangeError, exception_type);
 
   // The size of the array_buffer isn't a multiple of
   // TypeParam::kBytesPerElement but the byte_offset is.  Also the whole typed
   // array can fit into the array_buffer.  The constructor should run without
   // raising any exception.
-  array_buffer = new ArrayBuffer(TypeParam::kBytesPerElement * 2 + 1);
-  array = new TypeParam(array_buffer, TypeParam::kBytesPerElement, 1,
+  array_buffer = new ArrayBuffer(NULL, TypeParam::kBytesPerElement * 2 + 1);
+  array = new TypeParam(NULL, array_buffer, TypeParam::kBytesPerElement, 1,
                         &exception_state);
 }
 
@@ -369,15 +398,16 @@ TYPED_TEST(TypedArrayTest, ExceptionInSet) {
 
   static const uint32 kLength = 5;
   scoped_refptr<TypeParam> source =
-      new TypeParam(kLength + 1, &exception_state);
-  scoped_refptr<TypeParam> dest = new TypeParam(kLength, &exception_state);
+      new TypeParam(NULL, kLength + 1, &exception_state);
+  scoped_refptr<TypeParam> dest =
+      new TypeParam(NULL, kLength, &exception_state);
   dest->Set(source, &exception_state);
   EXPECT_EQ(script::ExceptionState::kRangeError, exception_type);
 
   EXPECT_CALL(exception_state, SetSimpleException(_, _))
       .WillOnce(SaveArg<0>(&exception_type));
-  source = new TypeParam(kLength, &exception_state);
-  dest = new TypeParam(kLength + 1, &exception_state);
+  source = new TypeParam(NULL, kLength, &exception_state);
+  dest = new TypeParam(NULL, kLength + 1, &exception_state);
   dest->Set(source, 2, &exception_state);
   EXPECT_EQ(script::ExceptionState::kRangeError, exception_type);
 
