@@ -22,6 +22,7 @@
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "cobalt/dom/array_buffer_view.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 
 namespace cobalt {
@@ -40,20 +41,22 @@ class TypedArray : public ArrayBufferView {
 
   // Create a new TypedArray of the specified length.  Each element is
   // initialized to 0 inside the ctor of ArrayBuffer.
-  explicit TypedArray(uint32 length)
-      : ArrayBufferView(new ArrayBuffer(length * kBytesPerElement)) {}
+  TypedArray(script::EnvironmentSettings* settings, uint32 length)
+      : ArrayBufferView(new ArrayBuffer(settings, length * kBytesPerElement)) {}
 
   // Create a new TypedArray of the specified length and initialize it with the
   // given data.
-  TypedArray(const ElementType* data, uint32 length)
-      : ArrayBufferView(new ArrayBuffer(length * kBytesPerElement)) {
+  TypedArray(script::EnvironmentSettings* settings, const ElementType* data,
+             uint32 length)
+      : ArrayBufferView(new ArrayBuffer(settings, length * kBytesPerElement)) {
     DCHECK_EQ(this->length(), length);
     memcpy(this->data(), data, length * kBytesPerElement);
   }
 
   // Creates a new TypedArray and copies the elements of 'other' into this.
-  explicit TypedArray(const scoped_refptr<TypedArray>& other)
-      : ArrayBufferView(other->buffer()->Slice(0)) {}
+  TypedArray(script::EnvironmentSettings* settings,
+             const scoped_refptr<TypedArray>& other)
+      : ArrayBufferView(other->buffer()->Slice(settings, 0)) {}
 
   // TODO(***REMOVED***): Support constructors from Array types.
   // i.e. uint8[], float[], etc.
@@ -61,8 +64,8 @@ class TypedArray : public ArrayBufferView {
   // Create a view on top of the specified buffer.
   // Offset starts at byte_offset, length is byte_length.
   // This refers to the same underlying data as buffer.
-  explicit TypedArray(const scoped_refptr<ArrayBuffer>& buffer,
-                      script::ExceptionState* exception_state)
+  TypedArray(const scoped_refptr<ArrayBuffer>& buffer,
+             script::ExceptionState* exception_state)
       : ArrayBufferView(buffer) {
     if (buffer->byte_length() % kBytesPerElement != 0) {
       exception_state->SetSimpleException(
@@ -106,14 +109,15 @@ class TypedArray : public ArrayBufferView {
 
   // Create a new TypedArray that is a view into this existing array.
   template <typename SubarrayType>
-  scoped_refptr<SubarrayType> SubarrayImpl(int start, int end) {
+  scoped_refptr<SubarrayType> SubarrayImpl(
+      script::EnvironmentSettings* settings, int start, int end) {
     const int cur_length = static_cast<int>(length());
     int clamped_start;
     int clamped_end;
     ArrayBuffer::ClampRange(start, end, cur_length, &clamped_start,
                             &clamped_end);
     return new SubarrayType(
-        buffer(),
+        settings, buffer(),
         static_cast<uint32>(byte_offset() + clamped_start * kBytesPerElement),
         static_cast<uint32>(clamped_end - clamped_start), NULL);
   }
@@ -180,42 +184,51 @@ class TypedArray : public ArrayBufferView {
 #define DEFINE_TYPED_ARRAY(SubarrayType, ElementType)                          \
   class SubarrayType : public TypedArray<ElementType> {                        \
    public:                                                                     \
-    explicit SubarrayType(uint32 length) : TypedArray<ElementType>(length) {}  \
-    SubarrayType(uint32 length, script::ExceptionState* exception_state)       \
-        : TypedArray<ElementType>(length) {                                    \
+    SubarrayType(script::EnvironmentSettings* settings, uint32 length,         \
+                 script::ExceptionState* exception_state)                      \
+        : TypedArray<ElementType>(settings, length) {                          \
       UNREFERENCED_PARAMETER(exception_state);                                 \
     }                                                                          \
-    SubarrayType(const ElementType* data, uint32 length)                       \
-        : TypedArray<ElementType>(data, length) {}                             \
-    SubarrayType(const ElementType* data, uint32 length,                       \
+    SubarrayType(script::EnvironmentSettings* settings,                        \
+                 const ElementType* data, uint32 length,                       \
                  script::ExceptionState* exception_state)                      \
-        : TypedArray<ElementType>(data, length) {                              \
+        : TypedArray<ElementType>(settings, data, length) {                    \
       UNREFERENCED_PARAMETER(exception_state);                                 \
     }                                                                          \
-    explicit SubarrayType(const scoped_refptr<SubarrayType>& other)            \
-        : TypedArray<ElementType>(other.get()) {}                              \
-    SubarrayType(const scoped_refptr<SubarrayType>& other,                     \
+    SubarrayType(script::EnvironmentSettings* settings,                        \
+                 const scoped_refptr<SubarrayType>& other,                     \
                  script::ExceptionState* exception_state)                      \
-        : TypedArray<ElementType>(other.get()) {                               \
+        : TypedArray<ElementType>(settings, other.get()) {                     \
       UNREFERENCED_PARAMETER(exception_state);                                 \
     }                                                                          \
-    SubarrayType(const scoped_refptr<ArrayBuffer>& buffer,                     \
+    SubarrayType(script::EnvironmentSettings* settings,                        \
+                 const scoped_refptr<ArrayBuffer>& buffer,                     \
                  script::ExceptionState* exception_state)                      \
-        : TypedArray<ElementType>(buffer.get(), exception_state) {}            \
-    SubarrayType(const scoped_refptr<ArrayBuffer>& buffer, uint32 byte_offset, \
+        : TypedArray<ElementType>(buffer.get(), exception_state) {             \
+      UNREFERENCED_PARAMETER(settings);                                        \
+    }                                                                          \
+    SubarrayType(script::EnvironmentSettings* settings,                        \
+                 const scoped_refptr<ArrayBuffer>& buffer, uint32 byte_offset, \
                  script::ExceptionState* exception_state)                      \
-        : TypedArray<ElementType>(buffer, byte_offset, exception_state) {}     \
-    SubarrayType(const scoped_refptr<ArrayBuffer>& buffer, uint32 byte_offset, \
+        : TypedArray<ElementType>(buffer, byte_offset, exception_state) {      \
+      UNREFERENCED_PARAMETER(settings);                                        \
+    }                                                                          \
+    SubarrayType(script::EnvironmentSettings* settings,                        \
+                 const scoped_refptr<ArrayBuffer>& buffer, uint32 byte_offset, \
                  uint32 byte_length, script::ExceptionState* exception_state)  \
         : TypedArray<ElementType>(buffer, byte_offset, byte_length,            \
-                                  exception_state) {}                          \
-                                                                               \
-    scoped_refptr<SubarrayType> Subarray(int start, int end) {                 \
-      return SubarrayImpl<SubarrayType>(start, end);                           \
+                                  exception_state) {                           \
+      UNREFERENCED_PARAMETER(settings);                                        \
     }                                                                          \
                                                                                \
-    scoped_refptr<SubarrayType> Subarray(int start) {                          \
-      return SubarrayImpl<SubarrayType>(start, static_cast<int>(length()));    \
+    scoped_refptr<SubarrayType> Subarray(                                      \
+        script::EnvironmentSettings* settings, int start, int end) {           \
+      return SubarrayImpl<SubarrayType>(settings, start, end);                 \
+    }                                                                          \
+    scoped_refptr<SubarrayType> Subarray(                                      \
+        script::EnvironmentSettings* settings, int start) {                    \
+      return SubarrayImpl<SubarrayType>(settings, start,                       \
+                                        static_cast<int>(length()));           \
     }                                                                          \
                                                                                \
     DEFINE_WRAPPABLE_TYPE(SubarrayType);                                       \

@@ -22,10 +22,10 @@ namespace cobalt {
 namespace audio {
 
 // static
-scoped_ptr<AudioFileReader> AudioFileReader::TryCreate(
-    const std::vector<uint8>& data) {
+scoped_ptr<AudioFileReader> AudioFileReader::TryCreate(const uint8* data,
+                                                       size_t size) {
   // Try to create other type of audio file reader.
-  return AudioFileReaderWAV::TryCreate(data).Pass();
+  return AudioFileReaderWAV::TryCreate(data, size).Pass();
 }
 
 }  // namespace audio

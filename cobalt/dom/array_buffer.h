@@ -17,9 +17,10 @@
 #ifndef DOM_ARRAY_BUFFER_H_
 #define DOM_ARRAY_BUFFER_H_
 
-#include <string>
 #include <vector>
 
+#include "base/memory/scoped_ptr.h"  // For scoped_array
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -27,16 +28,20 @@ namespace dom {
 
 class ArrayBuffer : public script::Wrappable {
  public:
-  explicit ArrayBuffer(uint32 length);
+  ArrayBuffer(script::EnvironmentSettings* settings, uint32 length);
+  ArrayBuffer(script::EnvironmentSettings* settings, scoped_array<uint8> data,
+              uint32 length);
 
-  uint32 byte_length() const { return static_cast<uint32>(bytes_.size()); }
-  scoped_refptr<ArrayBuffer> Slice(int begin) {
-    return Slice(begin, static_cast<int>(byte_length()));
+  uint32 byte_length() const { return static_cast<uint32>(size_); }
+  scoped_refptr<ArrayBuffer> Slice(script::EnvironmentSettings* settings,
+                                   int begin) {
+    return Slice(settings, begin, static_cast<int>(byte_length()));
   }
-  scoped_refptr<ArrayBuffer> Slice(int begin, int end);
+  scoped_refptr<ArrayBuffer> Slice(script::EnvironmentSettings* settings,
+                                   int begin, int end);
 
-  std::vector<uint8>& bytes() { return bytes_; }
-  const std::vector<uint8>& bytes() const { return bytes_; }
+  uint8* data() { return data_.get(); }
+  const uint8* data() const { return data_.get(); }
 
   // Utility function for restricting begin/end offsets to an appropriate
   // range as defined by the spec. Negative start or end values refer
@@ -51,7 +56,8 @@ class ArrayBuffer : public script::Wrappable {
  private:
   ~ArrayBuffer();
 
-  std::vector<uint8> bytes_;
+  scoped_array<uint8> data_;
+  size_t size_;
 
   DISALLOW_COPY_AND_ASSIGN(ArrayBuffer);
 };
