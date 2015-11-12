@@ -123,6 +123,18 @@ float Box::GetMarginBoxHeight() const {
   return margin_top() + GetBorderBoxHeight() + margin_bottom();
 }
 
+float Box::GetMarginBoxLeftEdge() const {
+  float left_from_containing_block =
+      containing_block_ ? containing_block_->GetContentBoxLeftEdge() : 0.0f;
+  return left() + left_from_containing_block;
+}
+
+float Box::GetMarginBoxTopEdge() const {
+  float top_from_containing_block =
+      containing_block_ ? containing_block_->GetContentBoxTopEdge() : 0.0f;
+  return top() + top_from_containing_block;
+}
+
 float Box::GetRightMarginEdgeOffsetFromContainingBlock() const {
   return left() + GetMarginBoxWidth();
 }
@@ -143,6 +155,14 @@ math::SizeF Box::GetBorderBoxSize() const {
   return math::SizeF(GetBorderBoxWidth(), GetBorderBoxHeight());
 }
 
+float Box::GetBorderBoxLeftEdge() const {
+  return GetMarginBoxLeftEdge() + margin_left();
+}
+
+float Box::GetBorderBoxTopEdge() const {
+  return GetMarginBoxTopEdge() + margin_right();
+}
+
 float Box::GetPaddingBoxWidth() const {
   return padding_left() + width() + padding_right();
 }
@@ -155,9 +175,25 @@ math::SizeF Box::GetPaddingBoxSize() const {
   return math::SizeF(GetPaddingBoxWidth(), GetPaddingBoxHeight());
 }
 
+float Box::GetPaddingBoxLeftEdge() const {
+  return GetBorderBoxLeftEdge() + border_left_width();
+}
+
+float Box::GetPaddingBoxTopEdge() const {
+  return GetBorderBoxTopEdge() + border_top_width();
+}
+
 math::Vector2dF Box::GetContentBoxOffsetFromMarginBox() const {
   return math::Vector2dF(margin_left() + border_left_width() + padding_left(),
                          margin_top() + border_top_width() + padding_top());
+}
+
+float Box::GetContentBoxLeftEdge() const {
+  return GetPaddingBoxLeftEdge() + padding_left();
+}
+
+float Box::GetContentBoxTopEdge() const {
+  return GetPaddingBoxTopEdge() + padding_top();
 }
 
 void Box::RenderAndAnimate(
@@ -253,7 +289,6 @@ void SetupRectNodeFromStyle(
 }
 }  // namespace
 
-
 bool Box::HasNonZeroMarginOrBorderOrPadding() const {
   return width() != GetMarginBoxWidth() || height() != GetMarginBoxHeight();
 }
@@ -299,6 +334,12 @@ void Box::UpdateCrossReferences(ContainerBox* fixed_containing_block) {
   //               partial layouts, we will need to search up our ancestor
   //               chain for the correct values to pass in here as context.
   UpdateCrossReferencesWithContext(fixed_containing_block, NULL, NULL);
+}
+
+void Box::InvalideBoxAncestryReferences() {
+  parent_ = NULL;
+  containing_block_ = NULL;
+  stacking_context_ = NULL;
 }
 
 void Box::UpdateCrossReferencesWithContext(
@@ -609,7 +650,6 @@ void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
     set_margin_right(horizontal_margin);
   }
 }
-
 
 }  // namespace layout
 }  // namespace cobalt

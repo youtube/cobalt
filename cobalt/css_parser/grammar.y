@@ -54,6 +54,7 @@
 
 // Entry point tokens, injected by the parser in order to choose the path
 // within a grammar, never appear in the source code.
+%token kMediaListEntryPointToken
 %token kMediaQueryEntryPointToken
 %token kStyleSheetEntryPointToken
 %token kRuleEntryPointToken
@@ -4877,6 +4878,12 @@ entry_point:
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
         MakeScopedRefPtrAndRelease($3);
     parser_impl->set_style_sheet(style_sheet);
+  }
+  // Parses the media list.
+  | kMediaListEntryPointToken maybe_whitespace media_list {
+    scoped_refptr<cssom::MediaList> media_list =
+        MakeScopedRefPtrAndRelease($3);
+    parser_impl->set_media_list(media_list);
   }
   // Parses the media query.
   | kMediaQueryEntryPointToken maybe_whitespace media_query {

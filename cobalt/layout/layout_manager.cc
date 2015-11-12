@@ -27,6 +27,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/benchmark_stat_names.h"
+#include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/embedded_resources.h"  // Generated file.
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout.h"
@@ -46,6 +47,9 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   // From dom::DocumentObserver.
   void OnLoad() OVERRIDE;
   void OnMutation() OVERRIDE;
+
+  // Called to perform a synchronous layout.
+  void DoSynchronousLayout();
 
  private:
   void DoLayoutAndProduceRenderTree();
@@ -73,6 +77,10 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   scoped_ptr<icu::BreakIterator> line_break_iterator_;
 
   base::Timer layout_timer_;
+
+  // The initial containing block is kept until the next layout, so that
+  // the box tree remains valid.
+  scoped_refptr<BlockLevelBlockContainerBox> initial_containing_block_;
 
   DISALLOW_COPY_AND_ASSIGN(Impl);
 };
@@ -118,9 +126,11 @@ LayoutManager::Impl::Impl(
       on_render_tree_produced_callback_(on_render_tree_produced),
       user_agent_style_sheet_(ParseUserAgentStyleSheet(css_parser)),
       layout_trigger_(layout_trigger),
-      layout_dirty_(false),
+      layout_dirty_(true),
       layout_timer_(true, true) {
   window_->document()->AddObserver(this);
+  window_->SetSynchronousLayoutCallback(
+      base::Bind(&Impl::DoSynchronousLayout, base::Unretained(this)));
 
   UErrorCode status = U_ZERO_ERROR;
   line_break_iterator_ = make_scoped_ptr(icu::BreakIterator::createLineInstance(
@@ -175,6 +185,13 @@ void LayoutManager::Impl::OnMutation() {
   if (layout_trigger_ == kOnDocumentMutation) {
     layout_dirty_ = true;
   }
+}
+
+void LayoutManager::Impl::DoSynchronousLayout() {
+  // TOOD(***REMOVED***): At this time, just the layout boxes are needed, so
+  // producing the render tree should be delayed until it's needed. Tracked in
+  // b/25887489.
+  DoLayoutAndProduceRenderTree();
 }
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -235,9 +252,9 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
     }
 
-    RenderTreeWithAnimations render_tree_with_animations =
-        layout::Layout(window_, user_agent_style_sheet_,
-                       used_style_provider_.get(), line_break_iterator_.get());
+    RenderTreeWithAnimations render_tree_with_animations = layout::Layout(
+        window_, user_agent_style_sheet_, used_style_provider_.get(),
+        line_break_iterator_.get(), &initial_containing_block_);
     bool run_on_render_tree_produced_callback = true;
 #if defined(ENABLE_TEST_RUNNER)
     if (layout_trigger_ == kTestRunnerMode &&
