@@ -17,7 +17,9 @@
 #ifndef DOM_DOM_TOKEN_LIST_H_
 #define DOM_DOM_TOKEN_LIST_H_
 
-#include "base/hash_tables.h"
+#include <string>
+#include <vector>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
@@ -42,6 +44,7 @@ class DOMTokenList : public script::Wrappable {
   bool Contains(const std::string& token) const;
   void Add(const std::vector<std::string>& tokens);
   void Remove(const std::vector<std::string>& tokens);
+  std::string AnonymousStringifier() const;
 
   // Custom, not in any spec.
 
@@ -58,13 +61,13 @@ class DOMTokenList : public script::Wrappable {
  private:
   ~DOMTokenList();
 
-  // Web API: DOMTokenList.
-  // Update steps defined in spec.
+  // From the spec: DOMTokenList.
+  //   http://www.w3.org/TR/dom/#concept-dtl-update
   void UpdateSteps() const;
-  // Check if a token is valid.
-  bool IsTokenValid(const std::string& token) const;
 
-  // Check if the cache is up to date and refresh it if it's not.
+  // Returns if a token is valid.
+  bool IsTokenValid(const std::string& token) const;
+  // Refreshes the cache if it is not up to date.
   void MaybeRefresh() const;
 
   // The associated element.
