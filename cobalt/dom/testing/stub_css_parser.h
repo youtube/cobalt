@@ -17,7 +17,20 @@
 #ifndef DOM_TESTING_STUB_CSS_PARSER_H_
 #define DOM_TESTING_STUB_CSS_PARSER_H_
 
+#include <string>
+
+#include "base/compiler_specific.h"
+#include "base/memory/ref_counted.h"
+#include "cobalt/base/source_location.h"
+#include "cobalt/cssom/css_declaration_data.h"
+#include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_rule.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/media_list.h"
+#include "cobalt/cssom/media_query.h"
+#include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace dom {
@@ -51,6 +64,10 @@ class StubCSSParser : public cssom::CSSParser {
 
   scoped_refptr<cssom::MediaQuery> ParseMediaQuery(
       const std::string& media_query,
+      const base::SourceLocation& input_location) OVERRIDE;
+
+  scoped_refptr<cssom::MediaList> ParseMediaList(
+      const std::string& media_list,
       const base::SourceLocation& input_location) OVERRIDE;
 };
 

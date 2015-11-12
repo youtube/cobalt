@@ -20,7 +20,9 @@
 
 #include "base/logging.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/media_query.h"
+#include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
@@ -42,9 +44,12 @@ std::string MediaList::media_text() const {
   return media;
 }
 
-void MediaList::set_media_text(const std::string& /* css_text */) {
-  // TODO(***REMOVED***): setting of MediaList from a string.
-  NOTIMPLEMENTED() << "MediaList media_text setting not implemented yet.";
+void MediaList::set_media_text(const std::string& css_text) {
+  DCHECK(css_parser_);
+  scoped_refptr<MediaList> media_list = css_parser_->ParseMediaList(
+      css_text, base::SourceLocation("[object MediaList]", 1, 1));
+
+  media_queries_.swap(media_list->media_queries_);
 }
 
 // Returns the number of MediaQuery objects represented by the collection.
@@ -63,11 +68,7 @@ std::string MediaList::Item(unsigned int index) const {
 void MediaList::AppendMedium(const std::string& medium) {
   DCHECK(css_parser_);
   scoped_refptr<MediaQuery> media_query = css_parser_->ParseMediaQuery(
-      medium, base::SourceLocation("[object CSSStyleSheet]", 1, 1));
-
-  if (!media_query) {
-    return;
-  }
+      medium, base::SourceLocation("[object MediaList]", 1, 1));
 
   // TODO(***REMOVED***): Don't add the query if the same one already exists in the
   // collection. See http://www.w3.org/TR/cssom/#medialist for details.
@@ -76,6 +77,14 @@ void MediaList::AppendMedium(const std::string& medium) {
 
 void MediaList::Append(const scoped_refptr<MediaQuery>& media_query) {
   media_queries_.push_back(media_query);
+}
+
+bool MediaList::EvaluateConditionValueFromFloat(float width, float height) {
+  scoped_refptr<LengthValue> width_property(
+      new LengthValue(width, kPixelsUnit));
+  scoped_refptr<LengthValue> height_property(
+      new LengthValue(height, kPixelsUnit));
+  return EvaluateConditionValue(width_property, height_property);
 }
 
 bool MediaList::EvaluateConditionValue(

@@ -30,6 +30,7 @@
 #include "cobalt/dom/crypto.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/h5vcc_stub.h"
+#include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/parser.h"
 #if defined(ENABLE_TEST_RUNNER)
@@ -109,6 +110,9 @@ class Window : public EventTarget {
 
   // Web API: CSSOM View Module: Extensions to the window interface
   //
+
+  // Parses a media query.
+  scoped_refptr<MediaQueryList> MatchMedia(const std::string& query);
 
   // As its name suggests, the Screen interface represents information about the
   // screen of the output device.
@@ -204,6 +208,11 @@ class Window : public EventTarget {
   void InjectEvent(const scoped_refptr<Event>& event);
 
   scoped_refptr<Window> opener() const { return NULL; }
+
+  // Sets the function to call to trigger a synchronous layout.
+  void SetSynchronousLayoutCallback(
+      const base::Closure& synchronous_layout_callback);
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:

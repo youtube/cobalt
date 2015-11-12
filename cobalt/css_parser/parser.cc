@@ -60,6 +60,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/matrix_function.h"
+#include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/not_pseudo_class.h"
@@ -124,6 +125,7 @@ class ParserImpl {
   void ParsePropertyIntoDeclarationData(
       const std::string& property_name,
       cssom::CSSDeclarationData* declaration_data);
+  scoped_refptr<cssom::MediaList> ParseMediaList();
   scoped_refptr<cssom::MediaQuery> ParseMediaQuery();
 
   Scanner& scanner() { return scanner_; }
@@ -136,6 +138,9 @@ class ParserImpl {
   void LogWarning(const YYLTYPE& source_location, const std::string& message);
   void LogError(const YYLTYPE& source_location, const std::string& message);
 
+  void set_media_list(const scoped_refptr<cssom::MediaList>& media_list) {
+    media_list_ = media_list;
+  }
   void set_media_query(const scoped_refptr<cssom::MediaQuery>& media_query) {
     media_query_ = media_query;
   }
@@ -184,6 +189,7 @@ class ParserImpl {
 
   // Parsing results, named after entry points.
   // Only one of them may be non-NULL.
+  scoped_refptr<cssom::MediaList> media_list_;
   scoped_refptr<cssom::MediaQuery> media_query_;
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
   scoped_refptr<cssom::CSSRule> rule_;
@@ -318,11 +324,15 @@ void ParserImpl::ParsePropertyIntoDeclarationData(
   Parse();
 }
 
+scoped_refptr<cssom::MediaList> ParserImpl::ParseMediaList() {
+  scanner_.PrependToken(kMediaListEntryPointToken);
+  return Parse() ? media_list_ : make_scoped_refptr(new cssom::MediaList());
+}
+
 scoped_refptr<cssom::MediaQuery> ParserImpl::ParseMediaQuery() {
   scanner_.PrependToken(kMediaQueryEntryPointToken);
   return Parse() ? media_query_ : make_scoped_refptr(new cssom::MediaQuery());
 }
-
 
 void ParserImpl::LogWarning(const YYLTYPE& source_location,
                             const std::string& message) {
@@ -535,10 +545,19 @@ void Parser::ParsePropertyIntoDeclarationData(
                                                       declaration_data);
 }
 
-scoped_refptr<cssom::MediaQuery> Parser::ParseMediaQuery(
-    const std::string& input, const base::SourceLocation& input_location) {
-  ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
+scoped_refptr<cssom::MediaList> Parser::ParseMediaList(
+    const std::string& media_list, const base::SourceLocation& input_location) {
+  ParserImpl parser_impl(media_list, input_location, this, on_warning_callback_,
                          on_error_callback_, message_verbosity_);
+  return parser_impl.ParseMediaList();
+}
+
+scoped_refptr<cssom::MediaQuery> Parser::ParseMediaQuery(
+    const std::string& media_query,
+    const base::SourceLocation& input_location) {
+  ParserImpl parser_impl(media_query, input_location, this,
+                         on_warning_callback_, on_error_callback_,
+                         message_verbosity_);
   return parser_impl.ParseMediaQuery();
 }
 

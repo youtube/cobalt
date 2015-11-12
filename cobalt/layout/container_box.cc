@@ -129,12 +129,6 @@ bool ContainerBox::IsStackingContext() const {
          is_positioned_with_non_auto_z_index;
 }
 
-void ContainerBox::InvalidateBoxAncestry() {
-  parent_ = NULL;
-  containing_block_ = NULL;
-  stacking_context_ = NULL;
-}
-
 void ContainerBox::AddContainingBlockChild(Box* child_box) {
   DCHECK_EQ(this, child_box->containing_block());
   positioned_child_boxes_.push_back(child_box);
@@ -346,7 +340,6 @@ math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
 }
 
 }  // namespace
-
 
 void ContainerBox::RenderAndAnimateStackingContextChildren(
     const ZIndexSortedList& z_index_child_list,

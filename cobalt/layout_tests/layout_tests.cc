@@ -50,7 +50,6 @@ const char kOutputFailedTestDetails[] = "output-failed-test-details";
 const char kOutputAllTestDetails[] = "output-all-test-details";
 }  // namespace switches
 
-
 class LayoutTest : public ::testing::TestWithParam<TestInfo> {};
 TEST_P(LayoutTest, LayoutTest) {
   // Output the name of the current input file so that it is visible in test
@@ -153,6 +152,11 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     IncrementalLayoutLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("incremental-layout")));
+// Custom CSSOM view (http://www.w3.org/TR/2013/WD-cssom-view-20131217/)
+// test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSSOMViewLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("cssom-view")));
 
 // JavaScript HTML5 WebAPIs (http://www.w3.org/TR/html5/webappapis.html) test
 // cases.

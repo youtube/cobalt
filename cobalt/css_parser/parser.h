@@ -17,6 +17,8 @@
 #ifndef CSS_PARSER_PARSER_H_
 #define CSS_PARSER_PARSER_H_
 
+#include <string>
+
 #include "base/callback.h"
 #include "cobalt/cssom/css_parser.h"
 
@@ -52,6 +54,10 @@ class Parser : public cssom::CSSParser {
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location,
       cssom::CSSDeclarationData* declaration_data) OVERRIDE;
+
+  scoped_refptr<cssom::MediaList> ParseMediaList(
+      const std::string& media_list,
+      const base::SourceLocation& input_location) OVERRIDE;
 
   scoped_refptr<cssom::MediaQuery> ParseMediaQuery(
       const std::string& media_query,

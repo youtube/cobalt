@@ -19,6 +19,7 @@
 
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
@@ -56,7 +57,8 @@ RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::Window>& window,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     UsedStyleProvider* used_style_provider,
-    icu::BreakIterator* line_break_iterator);
+    icu::BreakIterator* line_break_iterator,
+    scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block);
 
 }  // namespace layout
 }  // namespace cobalt

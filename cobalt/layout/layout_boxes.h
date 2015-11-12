@@ -20,28 +20,48 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/layout_boxes.h"
+#include "cobalt/layout/box.h"
 
 namespace cobalt {
 namespace layout {
 
-class ContainerBox;
-
 class LayoutBoxes : public dom::LayoutBoxes {
  public:
-  explicit LayoutBoxes(const scoped_refptr<ContainerBox>& container_box);
+  LayoutBoxes();
   ~LayoutBoxes() OVERRIDE;
 
   // From: dom:LayoutBoxes
   //
   Type type() const OVERRIDE;
 
-  // Other
+  scoped_refptr<dom::DOMRect> GetBoundingClientRect() const OVERRIDE;
+  bool IsInlineLevel() const OVERRIDE;
 
-  const scoped_refptr<ContainerBox>& container_box() { return container_box_; }
+  float GetBorderEdgeLeft() const OVERRIDE;
+  float GetBorderEdgeTop() const OVERRIDE;
+  float GetBorderEdgeWidth() const OVERRIDE;
+  float GetBorderEdgeHeight() const OVERRIDE;
+
+  float GetBorderLeftWidth() const OVERRIDE;
+  float GetBorderTopWidth() const OVERRIDE;
+
+  float GetMarginEdgeWidth() const OVERRIDE;
+  float GetMarginEdgeHeight() const OVERRIDE;
+
+  float GetPaddingEdgeLeft() const OVERRIDE;
+  float GetPaddingEdgeTop() const OVERRIDE;
+  float GetPaddingEdgeWidth() const OVERRIDE;
+  float GetPaddingEdgeHeight() const OVERRIDE;
+
+  // Other
+  //
+  void SwapBoxes(Boxes& boxes) { boxes_.swap(boxes); }
+  const Boxes& boxes() { return boxes_; }
 
  private:
-  const scoped_refptr<ContainerBox> container_box_;
+  Boxes boxes_;
 };
 
 }  // namespace layout

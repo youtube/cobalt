@@ -77,6 +77,7 @@ class BoxGenerator : public dom::NodeVisitor {
   UsedStyleProvider* const used_style_provider_;
   icu::BreakIterator* const line_break_iterator_;
   scoped_refptr<Paragraph>* paragraph_;
+  scoped_refptr<dom::HTMLElement> generating_html_element_;
 
   // The result of a box generator is zero or more root boxes.
   Boxes boxes_;

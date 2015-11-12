@@ -30,6 +30,7 @@ class CSSFontFaceDeclarationData;
 class CSSRule;
 class CSSStyleDeclarationData;
 class CSSStyleSheet;
+class MediaList;
 class MediaQuery;
 class PropertyValue;
 
@@ -93,8 +94,14 @@ class CSSParser {
       const base::SourceLocation& property_location,
       CSSDeclarationData* declaration_data) = 0;
 
+  // Parses the media list.
+  // Always returns non-NULL media list, even if an error occurred.
+  virtual scoped_refptr<MediaList> ParseMediaList(
+      const std::string& media_list,
+      const base::SourceLocation& input_location) = 0;
+
   // Parses the media query.
-  // Always returns non-NULL style rule, even if an error occurred.
+  // Always returns non-NULL media query, even if an error occurred.
   virtual scoped_refptr<MediaQuery> ParseMediaQuery(
       const std::string& media_query,
       const base::SourceLocation& input_location) = 0;

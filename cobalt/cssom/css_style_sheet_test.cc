@@ -16,7 +16,6 @@
 
 #include "cobalt/cssom/css_rule_list.h"
 
-#include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
@@ -29,7 +28,6 @@
 #include "cobalt/cssom/media_feature_names.h"
 #include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
-#include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"
@@ -145,7 +143,6 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedForAddingFalseMediaRule) {
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(0);
   css_style_sheet_->EvaluateMediaRules(width, height);
 }
-
 
 TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaValueChanges) {
   // Changing a media value (width or height) should result in a call to

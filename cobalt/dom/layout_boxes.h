@@ -17,6 +17,9 @@
 #ifndef DOM_LAYOUT_BOXES_H_
 #define DOM_LAYOUT_BOXES_H_
 
+#include "base/memory/ref_counted.h"
+#include "cobalt/dom/dom_rect.h"
+
 namespace cobalt {
 namespace dom {
 
@@ -30,15 +33,46 @@ class LayoutBoxes {
 
   // All classes implementing this interface have a unique Type value.
   enum Type {
-    kLayoutLayoutBoxes = 0,
+    kLayoutLayoutBoxes,
   };
 
   // Returns the type of layout boxes.
   virtual Type type() const = 0;
 
-  // TODO(***REMOVED***): Add CSSOM view support, for methods such as
-  // getBoundingClientRect() and clientWidth/clientHeight().
-  // The required functionality wil be implemented in layout.
+  // Methods to support the CSSOM View Module extensions to the Element and
+  // HTMLElement Interfaces. See
+  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
+  // and
+  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface.
+
+  // Returns the rectangle bounding all child boxes after transformation.
+  virtual scoped_refptr<DOMRect> GetBoundingClientRect() const = 0;
+
+  // Returns true if the container box level is inline.
+  virtual bool IsInlineLevel() const = 0;
+
+  // Returns border edge values.
+  // See http://www.w3.org/TR/CSS21/box.html#box-dimensions
+  virtual float GetBorderEdgeLeft() const = 0;
+  virtual float GetBorderEdgeTop() const = 0;
+  virtual float GetBorderEdgeWidth() const = 0;
+  virtual float GetBorderEdgeHeight() const = 0;
+
+  // Returns the border width (thickness) values.
+  virtual float GetBorderLeftWidth() const = 0;
+  virtual float GetBorderTopWidth() const = 0;
+
+  // Returns margin edge values.
+  // See http://www.w3.org/TR/CSS21/box.html#box-dimensions
+  virtual float GetMarginEdgeWidth() const = 0;
+  virtual float GetMarginEdgeHeight() const = 0;
+
+  // Returns padding edge values.
+  // See http://www.w3.org/TR/CSS21/box.html#box-dimensions
+  virtual float GetPaddingEdgeLeft() const = 0;
+  virtual float GetPaddingEdgeTop() const = 0;
+  virtual float GetPaddingEdgeWidth() const = 0;
+  virtual float GetPaddingEdgeHeight() const = 0;
 
  protected:
   LayoutBoxes() {}

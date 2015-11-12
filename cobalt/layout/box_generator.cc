@@ -73,26 +73,48 @@ BoxGenerator::BoxGenerator(
       line_break_iterator_(line_break_iterator),
       paragraph_(paragraph) {}
 
-BoxGenerator::~BoxGenerator() {}
+BoxGenerator::~BoxGenerator() {
+  if (generating_html_element_) {
+    scoped_ptr<LayoutBoxes> layout_boxes;
+    if (!boxes_.empty()) {
+      layout_boxes = make_scoped_ptr(new LayoutBoxes());
+      layout_boxes->SwapBoxes(boxes_);
+    }
+    generating_html_element_->set_layout_boxes(
+        layout_boxes.PassAs<dom::LayoutBoxes>());
+  }
+}
 
 void BoxGenerator::Visit(dom::Element* element) {
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
   DCHECK(html_element);
+  generating_html_element_ = html_element;
+
+  bool partial_layout_is_enabled = true;
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  partial_layout_is_enabled =
+      html_element->owner_document()->partial_layout_is_enabled();
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   // If the html element already has layout boxes, we can reuse them.
-  if (html_element->layout_boxes() &&
+  if (partial_layout_is_enabled && html_element->layout_boxes() &&
       html_element->layout_boxes()->type() ==
           dom::LayoutBoxes::kLayoutLayoutBoxes) {
     LayoutBoxes* layout_boxes =
         base::polymorphic_downcast<LayoutBoxes*>(html_element->layout_boxes());
-    const scoped_refptr<ContainerBox>& container_box =
-        layout_boxes->container_box();
-    container_box->InvalidateBoxAncestry();
-    container_box->InvalidateUpdateSizeInputsOfBoxAndDescendants();
-    boxes_.push_back(container_box);
-    return;
+    DCHECK(boxes_.empty());
+    DCHECK(!layout_boxes->boxes().empty());
+    if (layout_boxes->boxes().front()->GetLevel() == Box::kBlockLevel) {
+      boxes_ = layout_boxes->boxes();
+      for (Boxes::const_iterator box_iterator = boxes_.begin();
+           box_iterator != boxes_.end(); ++box_iterator) {
+        const scoped_refptr<Box>& box = *box_iterator;
+        box->InvalideBoxAncestryReferences();
+        box->InvalidateUpdateSizeInputsOfBoxAndDescendants();
+      }
+      return;
+    }
   }
-
   scoped_refptr<dom::HTMLVideoElement> video_element =
       html_element->AsHTMLVideoElement();
   if (video_element) {
@@ -270,13 +292,12 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
       const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       UsedStyleProvider* used_style_provider,
       icu::BreakIterator* line_break_iterator,
-      scoped_refptr<Paragraph>* paragraph, dom::HTMLElement* html_element)
+      scoped_refptr<Paragraph>* paragraph)
       : computed_style_state_(computed_style_state),
         used_style_provider_(used_style_provider),
         line_break_iterator_(line_break_iterator),
         paragraph_(paragraph),
-        paragraph_scoped_(false),
-        html_element_(html_element) {}
+        paragraph_scoped_(false) {}
   ~ContainerBoxGenerator();
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
@@ -294,7 +315,6 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   scoped_refptr<Paragraph> prior_paragraph_;
   bool paragraph_scoped_;
 
-  dom::HTMLElement* html_element_;
   scoped_refptr<ContainerBox> container_box_;
 };
 
@@ -321,11 +341,6 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kBlock:
       container_box_ = make_scoped_refptr(new BlockLevelBlockContainerBox(
           computed_style_state_, used_style_provider_));
-      if (html_element_) {
-        scoped_ptr<LayoutBoxes> layout_boxes(new LayoutBoxes(container_box_));
-        html_element_->SetLayoutBoxes(layout_boxes.PassAs<dom::LayoutBoxes>());
-      }
-
       // The block ends the current paragraph and begins a new one that ends
       // with the block, so close the current paragraph, and create a new
       // paragraph that will close when the container box generator is
@@ -542,7 +557,7 @@ void BoxGenerator::AppendPseudoElementToLine(
   if (pseudo_element) {
     ContainerBoxGenerator pseudo_element_box_generator(
         pseudo_element->computed_style_state(), used_style_provider_,
-        line_break_iterator_, paragraph_, NULL);
+        line_break_iterator_, paragraph_);
     pseudo_element->computed_style()->display()->Accept(
         &pseudo_element_box_generator);
     scoped_refptr<ContainerBox> pseudo_element_box =
@@ -583,7 +598,7 @@ void BoxGenerator::AppendPseudoElementToLine(
 void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   ContainerBoxGenerator container_box_generator(
       html_element->computed_style_state(), used_style_provider_,
-      line_break_iterator_, paragraph_, html_element);
+      line_break_iterator_, paragraph_);
   html_element->computed_style()->display()->Accept(&container_box_generator);
   scoped_refptr<ContainerBox> container_box_before_split =
       container_box_generator.container_box();

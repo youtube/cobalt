@@ -131,6 +131,15 @@ void Window::CancelAnimationFrame(int32 handle) {
   animation_frame_request_callback_list_->CancelAnimationFrame(handle);
 }
 
+scoped_refptr<MediaQueryList> Window::MatchMedia(const std::string& query) {
+  DCHECK(html_element_context_);
+  DCHECK(html_element_context_->css_parser());
+  scoped_refptr<cssom::MediaList> media_list =
+      html_element_context_->css_parser()->ParseMediaList(
+          query, base::SourceLocation("[object Window]", 1, 1));
+  return make_scoped_refptr(new MediaQueryList(media_list, screen_));
+}
+
 const scoped_refptr<Screen>& Window::screen() { return screen_; }
 
 scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
@@ -216,6 +225,11 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
   } else {
     NOTREACHED();
   }
+}
+
+void Window::SetSynchronousLayoutCallback(
+    const base::Closure& synchronous_layout_callback) {
+  document_->set_synchronous_layout_callback(synchronous_layout_callback);
 }
 
 Window::~Window() {

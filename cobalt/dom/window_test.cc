@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/window.h"
 
+#include <string>
+
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/message_loop.h"
@@ -26,6 +28,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/media_module_stub.h"
 #include "cobalt/network/network_module.h"
+#include "googleurl/src/gurl.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

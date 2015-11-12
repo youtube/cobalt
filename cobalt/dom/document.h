@@ -277,6 +277,13 @@ class Document : public Node, public cssom::MutationObserver {
   void SetPartialLayout(const std::string& mode_string);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
+  // Triggers a synchronous layout.
+  void DoSynchronousLayout();
+  void set_synchronous_layout_callback(
+      const base::Closure& synchronous_layout_callback) {
+    synchronous_layout_callback_ = synchronous_layout_callback;
+  }
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
@@ -331,6 +338,8 @@ class Document : public Node, public cssom::MutationObserver {
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   bool partial_layout_is_enabled_;
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+  base::Closure synchronous_layout_callback_;
 };
 
 }  // namespace dom
