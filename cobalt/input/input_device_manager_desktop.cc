@@ -33,8 +33,7 @@ InputDeviceManagerDesktop::InputDeviceManagerDesktop(
       keyboard_event_callback_(
           base::Bind(&InputDeviceManagerDesktop::HandleKeyboardEvent,
                      base::Unretained(this))),
-      keypress_generator_filter_(callback),
-      modifier_key_filter_(&keypress_generator_filter_) {
+      keypress_generator_filter_(callback) {
   // Add this object's keyboard event callback to the system window.
   system_window_->AddKeyboardEventCallback(keyboard_event_callback_);
 }
@@ -48,7 +47,7 @@ InputDeviceManagerDesktop::~InputDeviceManagerDesktop() {
 
 void InputDeviceManagerDesktop::HandleKeyboardEvent(
     const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
-  modifier_key_filter_.HandleKeyboardEvent(keyboard_event);
+  keypress_generator_filter_.HandleKeyboardEvent(keyboard_event);
 }
 
 }  // namespace input
