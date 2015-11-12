@@ -695,16 +695,12 @@ TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
 }
 
 TEST_F(ParserTest, WarnsAboutInvalidStandardAndWebKitProperties) {
-  EXPECT_CALL(parser_observer_, OnWarning(
-                                    "[object ParserTest]:1:1: warning: "
-                                    "unsupported property -webkit-pony"));
   EXPECT_CALL(
       parser_observer_,
-      OnWarning("[object ParserTest]:2:1: warning: unsupported property pony"));
+      OnWarning("[object ParserTest]:1:1: warning: unsupported property pony"));
 
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList(
-          "-webkit-pony: rainbowdash;\n"
           "pony: rainbowdash;\n"
           "color: #9edbf9;\n",
           source_location_);
