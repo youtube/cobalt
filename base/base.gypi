@@ -579,7 +579,11 @@
               'synchronization/condition_variable_shell.cc',
               'synchronization/lock_impl_shell.cc',
               'synchronization/waitable_event_shell.cc',
+              'threading/thread_checker_impl_atomic.cc',
               '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/base -type f)',
+            ],
+            'sources!': [
+               'threading/thread_checker_impl.cc',
             ],
             'sources/': [
               ['include', 'sys_string_conversions_linux.cc'],
