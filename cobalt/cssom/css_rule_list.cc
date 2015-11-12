@@ -47,7 +47,7 @@ unsigned int CSSRuleList::InsertRule(const std::string& rule,
   DCHECK(parent_css_style_sheet_);
   scoped_refptr<CSSRule> css_rule =
       parent_css_style_sheet_->css_parser()->ParseRule(
-          rule, base::SourceLocation("[object CSSStyleSheet]", 1, 1));
+          rule, base::SourceLocation("[object CSSRuleList]", 1, 1));
 
   if (css_rule == NULL) {
     // TODO(***REMOVED***): Throw a SyntaxError exception instead of logging.

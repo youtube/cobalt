@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -33,6 +34,7 @@
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/css_animations_adapter.h"
 #include "cobalt/dom/css_transitions_adapter.h"
+#include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/layout_boxes.h"
 #include "cobalt/dom/pseudo_element.h"
@@ -41,7 +43,6 @@
 namespace cobalt {
 namespace dom {
 
-class DOMRect;
 class DOMStringMap;
 class HTMLAnchorElement;
 class HTMLBodyElement;
@@ -191,13 +192,16 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // The LayoutContainerBox gives the HTML Element an interface to the container
   // box that result from it. The BoxList is set when layout is performed for a
   // node.
-  void SetLayoutBoxes(scoped_ptr<LayoutBoxes> layout_boxes);
+  void set_layout_boxes(scoped_ptr<LayoutBoxes> layout_boxes) {
+    layout_boxes_ = layout_boxes.Pass();
+  }
+
   LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
   void InvalidateLayoutBoxesFromNodeAndAncestors() OVERRIDE;
   void InvalidateLayoutBoxesFromNodeAndDescendants() OVERRIDE;
 
   // Determines whether this element is focusable.
-  bool IsFocusable() { return HasAttribute("tabindex"); }
+  bool IsFocusable() const { return HasAttribute("tabindex"); }
 
   PseudoElement* pseudo_element(PseudoElementType type) const {
     DCHECK(type < kMaxPseudoElementType);
@@ -234,6 +238,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // This will be called when the image data associated with this element's
   // computed style's background-image property is loaded.
   void OnBackgroundImageLoaded();
+
+  // Returns true if the element is the root element as defined in
+  // http://www.w3.org/TR/html5/semantics.html#the-root-element.
+  bool IsRootElement();
 
   // The inline style specified via attribute's in the element's HTML tag, or
   // through JavaScript (accessed via style() defined above).

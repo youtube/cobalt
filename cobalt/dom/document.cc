@@ -338,6 +338,14 @@ void Document::RecordMutation() {
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnMutation());
 }
 
+void Document::DoSynchronousLayout() {
+  TRACE_EVENT0("cobalt::dom", "Document::DoSynchronousLayout()");
+
+  if (!synchronous_layout_callback_.is_null()) {
+    synchronous_layout_callback_.Run();
+  }
+}
+
 void Document::OnCSSMutation() {
   // Something in the document's CSS rules has been modified, but we don't know
   // what, so set the flag indicating that rule matching needs to be done.

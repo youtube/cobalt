@@ -177,6 +177,8 @@ class Box : public base::RefCounted<Box> {
   const math::Vector2dF& margin_box_offset_from_containing_block() const {
     return margin_box_offset_from_containing_block_;
   }
+  float GetMarginBoxLeftEdge() const;
+  float GetMarginBoxTopEdge() const;
   float GetRightMarginEdgeOffsetFromContainingBlock() const;
   float GetBottomMarginEdgeOffsetFromContainingBlock() const;
 
@@ -184,17 +186,23 @@ class Box : public base::RefCounted<Box> {
   float GetBorderBoxWidth() const;
   float GetBorderBoxHeight() const;
   math::SizeF GetBorderBoxSize() const;
+  float GetBorderBoxLeftEdge() const;
+  float GetBorderBoxTopEdge() const;
 
   // Padding box.
   float GetPaddingBoxWidth() const;
   float GetPaddingBoxHeight() const;
   math::SizeF GetPaddingBoxSize() const;
+  float GetPaddingBoxLeftEdge() const;
+  float GetPaddingBoxTopEdge() const;
 
   // Content box.
   float width() const { return content_size_.width(); }
   float height() const { return content_size_.height(); }
   const math::SizeF& content_box_size() const { return content_size_; }
   math::Vector2dF GetContentBoxOffsetFromMarginBox() const;
+  float GetContentBoxLeftEdge() const;
+  float GetContentBoxTopEdge() const;
 
   // Attempts to split the box, so that the part before the split would fit
   // the available width. However, if |allow_overflow| is true, then the split
@@ -313,6 +321,9 @@ class Box : public base::RefCounted<Box> {
   // contexts and containing blocks).  Calling this function will recursively
   // resolve these links for all elements in the box tree.
   void UpdateCrossReferences(ContainerBox* fixed_containing_block);
+
+  // Invalidates the ancestor references of the box.
+  void InvalideBoxAncestryReferences();
 
  protected:
   UsedStyleProvider* used_style_provider() const {
@@ -497,6 +508,7 @@ class Box : public base::RefCounted<Box> {
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;
+  friend class LayoutBoxes;
 
   DISALLOW_COPY_AND_ASSIGN(Box);
 };

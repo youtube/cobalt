@@ -80,9 +80,6 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // descendant elements.
   bool IsStackingContext() const;
 
-  // Invalidates the parent, containing block, and stacking context of the box.
-  void InvalidateBoxAncestry();
-
  protected:
   class ZIndexComparator {
    public:
