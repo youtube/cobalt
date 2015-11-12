@@ -21,12 +21,81 @@
 namespace cobalt {
 namespace layout {
 
-LayoutBoxes::LayoutBoxes(const scoped_refptr<ContainerBox>& container_box)
-    : container_box_(container_box) {}
+LayoutBoxes::LayoutBoxes() {}
 
 LayoutBoxes::~LayoutBoxes() {}
 
 LayoutBoxes::Type LayoutBoxes::type() const { return kLayoutLayoutBoxes; }
+
+scoped_refptr<dom::DOMRect> LayoutBoxes::GetBoundingClientRect() const {
+  // TODO(***REMOVED***): Implement algorithm for GetBoundingClientRect().
+  return make_scoped_refptr(new dom::DOMRect());
+}
+
+bool LayoutBoxes::IsInlineLevel() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetLevel() == Box::kInlineLevel;
+}
+
+float LayoutBoxes::GetBorderEdgeLeft() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetBorderBoxLeftEdge();
+}
+
+float LayoutBoxes::GetBorderEdgeTop() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetBorderBoxTopEdge();
+}
+
+float LayoutBoxes::GetBorderEdgeWidth() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetBorderBoxWidth();
+}
+
+float LayoutBoxes::GetBorderEdgeHeight() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetBorderBoxHeight();
+}
+
+float LayoutBoxes::GetBorderLeftWidth() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->border_left_width();
+}
+
+float LayoutBoxes::GetBorderTopWidth() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->border_top_width();
+}
+
+float LayoutBoxes::GetMarginEdgeWidth() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetMarginBoxWidth();
+}
+
+float LayoutBoxes::GetMarginEdgeHeight() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetMarginBoxHeight();
+}
+
+float LayoutBoxes::GetPaddingEdgeLeft() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetPaddingBoxLeftEdge();
+}
+
+float LayoutBoxes::GetPaddingEdgeTop() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetPaddingBoxTopEdge();
+}
+
+float LayoutBoxes::GetPaddingEdgeWidth() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetPaddingBoxWidth();
+}
+
+float LayoutBoxes::GetPaddingEdgeHeight() const {
+  DCHECK(!boxes_.empty());
+  return boxes_.front()->GetPaddingBoxHeight();
+}
 
 }  // namespace layout
 }  // namespace cobalt

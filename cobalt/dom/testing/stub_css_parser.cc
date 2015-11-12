@@ -16,14 +16,6 @@
 
 #include "cobalt/dom/testing/stub_css_parser.h"
 
-#include "cobalt/cssom/css_font_face_declaration_data.h"
-#include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
-#include "cobalt/cssom/css_style_rule.h"
-#include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/media_query.h"
-#include "cobalt/cssom/property_value.h"
-
 namespace cobalt {
 namespace dom {
 namespace testing {
@@ -77,6 +69,13 @@ void StubCSSParser::ParsePropertyIntoDeclarationData(
   UNREFERENCED_PARAMETER(declaration_data);
 }
 
+scoped_refptr<cssom::MediaList> StubCSSParser::ParseMediaList(
+    const std::string& media_list, const base::SourceLocation& input_location) {
+  UNREFERENCED_PARAMETER(media_list);
+  UNREFERENCED_PARAMETER(input_location);
+  return new cssom::MediaList();
+}
+
 scoped_refptr<cssom::MediaQuery> StubCSSParser::ParseMediaQuery(
     const std::string& media_query,
     const base::SourceLocation& input_location) {
@@ -84,7 +83,6 @@ scoped_refptr<cssom::MediaQuery> StubCSSParser::ParseMediaQuery(
   UNREFERENCED_PARAMETER(input_location);
   return new cssom::MediaQuery();
 }
-
 
 }  // namespace testing
 }  // namespace dom

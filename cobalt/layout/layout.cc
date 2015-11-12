@@ -26,7 +26,6 @@
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/layout/benchmark_stat_names.h"
-#include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/used_style.h"
@@ -39,7 +38,8 @@ RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::Window>& window,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     UsedStyleProvider* used_style_provider,
-    icu::BreakIterator* line_break_iterator) {
+    icu::BreakIterator* line_break_iterator,
+    scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
 
   // Layout-related cleanup is performed on the UsedStyleProvider in this
@@ -57,22 +57,21 @@ RenderTreeWithAnimations Layout(
                                  user_agent_style_sheet);
 
   // Create initial containing block.
-  scoped_refptr<BlockLevelBlockContainerBox> initial_containing_block =
-      CreateInitialContainingBlock(initial_containing_block_style, document,
-                                   used_style_provider);
+  *initial_containing_block = CreateInitialContainingBlock(
+      initial_containing_block_style, document, used_style_provider);
 
   // Generate boxes.
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
     scoped_refptr<Paragraph> paragraph;
-    BoxGenerator root_box_generator(initial_containing_block->computed_style(),
-                                    used_style_provider, line_break_iterator,
-                                    &paragraph);
+    BoxGenerator root_box_generator(
+        (*initial_containing_block)->computed_style(), used_style_provider,
+        line_break_iterator, &paragraph);
     document->html()->Accept(&root_box_generator);
     const Boxes& root_boxes = root_box_generator.boxes();
     for (Boxes::const_iterator root_box_iterator = root_boxes.begin();
          root_box_iterator != root_boxes.end(); ++root_box_iterator) {
-      initial_containing_block->AddChild(*root_box_iterator);
+      (*initial_containing_block)->AddChild(*root_box_iterator);
     }
   }
 
@@ -82,7 +81,7 @@ RenderTreeWithAnimations Layout(
   // reversible during layout without requiring additional run-induced splits.
   {
     TRACE_EVENT0("cobalt::layout", "SplitBidiLevelRuns");
-    initial_containing_block->SplitBidiLevelRuns();
+    (*initial_containing_block)->SplitBidiLevelRuns();
   }
 
   // Update node cross-references.
@@ -93,16 +92,16 @@ RenderTreeWithAnimations Layout(
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateCrossReferences);
     // Since scrolling is not supported in Cobalt, setting the fixed containing
     // block to be equal to the initial containing block will work perfectly.
-    initial_containing_block->UpdateCrossReferences(
-        initial_containing_block.get());
+    (*initial_containing_block)
+        ->UpdateCrossReferences(initial_containing_block->get());
   }
 
   // Layout.
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateUsedSizes);
-    initial_containing_block->set_left(0);
-    initial_containing_block->set_top(0);
-    initial_containing_block->UpdateSize(LayoutParams());
+    (*initial_containing_block)->set_left(0);
+    (*initial_containing_block)->set_top(0);
+    (*initial_containing_block)->UpdateSize(LayoutParams());
   }
 
   // Add to render tree.
@@ -111,8 +110,9 @@ RenderTreeWithAnimations Layout(
   render_tree::CompositionNode::Builder render_tree_root_builder;
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatRenderAndAnimate);
-    initial_containing_block->RenderAndAnimate(&render_tree_root_builder,
-                                               &node_animations_map_builder);
+    (*initial_containing_block)
+        ->RenderAndAnimate(&render_tree_root_builder,
+                           &node_animations_map_builder);
   }
 
   return RenderTreeWithAnimations(

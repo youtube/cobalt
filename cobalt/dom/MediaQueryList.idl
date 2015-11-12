@@ -14,17 +14,10 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
-
-partial interface Window {
-  MediaQueryList matchMedia(DOMString query);
-  [SameObject] readonly attribute Screen screen;
-  readonly attribute double innerWidth;
-  readonly attribute double innerHeight;
-
-  readonly attribute double screenX;
-  readonly attribute double screenY;
-  readonly attribute double outerWidth;
-  readonly attribute double outerHeight;
-  readonly attribute double devicePixelRatio;
+// A MediaQueryList object has an associated media query list set on creation.
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#mediaquerylist
+interface MediaQueryList {
+  readonly attribute DOMString media;
+  readonly attribute boolean matches;
+  // TODO(***REMOVED***): Add addListener()/removeListener().
 };

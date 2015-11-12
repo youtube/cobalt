@@ -111,83 +111,247 @@ void HTMLElement::Blur() {
 // Algorithm for getBoundingClientRect:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getboundingclientrect
 scoped_refptr<DOMRect> HTMLElement::GetBoundingClientRect() {
-  // 1. Let list be the result of invoking getClientRects() on the same element
-  // this method was invoked on.
-  // 2. If the list is empty return a DOMRect object whose x, y, width and
-  // height members are zero.
-  // TODO(***REMOVED***): Return the Bounding Client Rectangle from the layout boxes.
+  DCHECK(owner_document());
+  owner_document()->DoSynchronousLayout();
+
+  if (layout_boxes_) {
+    return layout_boxes_->GetBoundingClientRect();
+  }
   return make_scoped_refptr(new DOMRect());
 }
 
 // Algorithm for client_top:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
 float HTMLElement::client_top() {
+  DCHECK(owner_document());
+  owner_document()->DoSynchronousLayout();
+
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
-  // TODO(***REMOVED***): Return client top from the layout boxes.
-  return 0.0f;
+  if (!layout_boxes_ || layout_boxes_->IsInlineLevel()) {
+    return 0.0f;
+  }
+  // 2. Return the computed value of the 'border-top-width' property plus the
+  // height of any scrollbar rendered between the top padding edge and the top
+  // border edge, ignoring any transforms that apply to the element and its
+  // ancestors.
+  return layout_boxes_->GetBorderTopWidth();
 }
 
 // Algorithm for client_left:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
 float HTMLElement::client_left() {
+  DCHECK(owner_document());
+  owner_document()->DoSynchronousLayout();
+
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
-  // TODO(***REMOVED***): Return client left from the layout boxes.
-  return 0.0f;
+  if (!layout_boxes_ || layout_boxes_->IsInlineLevel()) {
+    return 0.0f;
+  }
+  // 2. Return the computed value of the 'border-left-width' property plus the
+  // width of any scrollbar rendered between the left padding edge and the left
+  // border edge, ignoring any transforms that apply to the element and its
+  // ancestors.
+  return layout_boxes_->GetBorderLeftWidth();
 }
 
 // Algorithm for client_width:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
 float HTMLElement::client_width() {
+  DCHECK(owner_document());
+  owner_document()->DoSynchronousLayout();
+
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
-  if (!layout_boxes_) return 0.0f;
-  // TODO(***REMOVED***): Return client width from the layout boxes.
-  return 1920.0f;
+  if (!layout_boxes_ || layout_boxes_->IsInlineLevel()) {
+    return 0.0f;
+  }
+
+  // 2. If the element is the root element, return the viewport width.
+  if (IsRootElement()) {
+    return layout_boxes_->GetMarginEdgeWidth();
+  }
+
+  // 3. Return the width of the padding edge, ignoring any transforms that apply
+  // to the element and its ancestors.
+  return layout_boxes_->GetPaddingEdgeWidth();
 }
 
 // Algorithm for client_height:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
 float HTMLElement::client_height() {
+  DCHECK(owner_document());
+  owner_document()->DoSynchronousLayout();
+
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
-  if (!layout_boxes_) return 0.0f;
-  // TODO(***REMOVED***): Return client height from the layout boxes.
-  return 1080.0f;
+  if (!layout_boxes_ || layout_boxes_->IsInlineLevel()) {
+    return 0.0f;
+  }
+
+  // 2. If the element is the root element, return the viewport height.
+  if (IsRootElement()) {
+    return layout_boxes_->GetMarginEdgeHeight();
+  }
+
+  // Return the height of the padding edge, ignoring any transforms that apply
+  // to the element and its ancestors.
+  return layout_boxes_->GetPaddingEdgeHeight();
 }
 
+// Algorithm for offsetParent:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
 scoped_refptr<Element> HTMLElement::offset_parent() {
-  // TODO(***REMOVED***): Return the offset_parent box.
+  DCHECK(owner_document());
+  owner_document()->DoSynchronousLayout();
+
+  // 1. If any of the following holds true return null and terminate this
+  //    algorithm:
+  //    . The element does not have an associated CSS layout box.
+  //    . The element is the root element.
+  //    . The element is the HTML body element.
+  //    . The element's computed value of the 'position' property is 'fixed'.
+  DCHECK(computed_style());
+  if (!layout_boxes_ || IsRootElement() || AsHTMLBodyElement() ||
+      computed_style()->position() == cssom::KeywordValue::GetFixed()) {
+    return scoped_refptr<Element>();
+  }
+
+  // 2. Return the nearest ancestor element of the element for which at least
+  //    one of the following is true and terminate this algorithm if such an
+  //    ancestor is found:
+  //    . The computed value of the 'position' property is not 'static'.
+  //    . It is the HTML body element.
+  for (scoped_refptr<Node> ancestor_node = parent_node(); ancestor_node;
+       ancestor_node = ancestor_node->parent_node()) {
+    scoped_refptr<Element> ancestor_element = ancestor_node->AsElement();
+    if (!ancestor_element) {
+      continue;
+    }
+    scoped_refptr<HTMLElement> ancestor_html_element =
+        ancestor_element->AsHTMLElement();
+    if (!ancestor_html_element) {
+      continue;
+    }
+    DCHECK(ancestor_html_element->computed_style());
+    if (ancestor_html_element->AsHTMLBodyElement() ||
+        ancestor_html_element->computed_style()->position() !=
+            cssom::KeywordValue::GetStatic()) {
+      return ancestor_element;
+    }
+  }
+
+  // 3. Return null.
   return scoped_refptr<Element>();
 }
 
 // Algorithm for offset_top:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
 float HTMLElement::offset_top() {
-  // TODO(***REMOVED***): Return offset top from the layout boxes.
-  return 0.0f;
+  DCHECK(owner_document());
+  owner_document()->DoSynchronousLayout();
+
+  // 1. If the element is the HTML body element or does not have any associated
+  // CSS layout box return zero and terminate this algorithm.
+  if (!layout_boxes_ || AsHTMLBodyElement()) {
+    return 0.0f;
+  }
+
+  // 2. If the offsetParent of the element is null return the y-coordinate of
+  // the top border edge of the first CSS layout box associated with the
+  // element, relative to the initial containing block origin, ignoring any
+  // transforms that apply to the element and its ancestors, and terminate this
+  // algorithm.
+  scoped_refptr<Element> offset_parent_element = offset_parent();
+  if (!offset_parent_element) {
+    return layout_boxes_->GetBorderEdgeTop();
+  }
+
+  // 3. Return the result of subtracting the y-coordinate of the top padding
+  // edge of the first CSS layout box associated with the offsetParent of the
+  // element from the y-coordinate of the top border edge of the first CSS
+  // layout box associated with the element, relative to the initial containing
+  // block origin, ignoring any transforms that apply to the element and its
+  // ancestors.
+  scoped_refptr<HTMLElement> offset_parent_html_element =
+      offset_parent_element->AsHTMLElement();
+  DCHECK(offset_parent_html_element);
+  DCHECK(offset_parent_html_element->layout_boxes());
+  return layout_boxes_->GetBorderEdgeTop() -
+         offset_parent_html_element->layout_boxes()->GetPaddingEdgeTop();
 }
 
 // Algorithm for offset_left:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
 float HTMLElement::offset_left() {
-  // TODO(***REMOVED***): Return offset left from the layout boxes.
-  return 0.0f;
+  DCHECK(owner_document());
+  owner_document()->DoSynchronousLayout();
+
+  // 1. If the element is the HTML body element or does not have any associated
+  // CSS layout box return zero and terminate this algorithm.
+  if (!layout_boxes_ || AsHTMLBodyElement()) {
+    return 0.0f;
+  }
+
+  // 2. If the offsetParent of the element is null return the x-coordinate of
+  // the left border edge of the first CSS layout box associated with the
+  // element, relative to the initial containing block origin, ignoring any
+  // transforms that apply to the element and its ancestors, and terminate this
+  // algorithm.
+  scoped_refptr<Element> offset_parent_element = offset_parent();
+  if (!offset_parent_element) {
+    return layout_boxes_->GetBorderEdgeLeft();
+  }
+
+  // 3. Return the result of subtracting the x-coordinate of the left padding
+  // edge of the first CSS layout box associated with the offsetParent of the
+  // element from the x-coordinate of the left border edge of the first CSS
+  // layout box associated with the element, relative to the initial containing
+  // block origin, ignoring any transforms that apply to the element and its
+  // ancestors.
+  scoped_refptr<HTMLElement> offset_parent_html_element =
+      offset_parent_element->AsHTMLElement();
+  DCHECK(offset_parent_html_element);
+  DCHECK(offset_parent_html_element->layout_boxes());
+  return layout_boxes_->GetBorderEdgeLeft() -
+         offset_parent_html_element->layout_boxes()->GetPaddingEdgeLeft();
 }
 
 // Algorithm for offset_width:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
 float HTMLElement::offset_width() {
-  // TODO(***REMOVED***): Return offset width from the layout boxes.
-  return client_width();
+  DCHECK(owner_document());
+  owner_document()->DoSynchronousLayout();
+
+  // 1. If the element does not have any associated CSS layout box return zero
+  // and terminate this algorithm.
+  if (!layout_boxes_) {
+    return 0.0f;
+  }
+
+  // 2. Return the border edge width of the first CSS layout box associated with
+  // the element, ignoring any transforms that apply to the element and its
+  // ancestors.
+  return layout_boxes_->GetBorderEdgeWidth();
 }
 
 // Algorithm for offset_height:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
 float HTMLElement::offset_height() {
-  // TODO(***REMOVED***): Return offset height from the layout boxes.
-  return client_height();
+  DCHECK(owner_document());
+  owner_document()->DoSynchronousLayout();
+
+  // 1. If the element does not have any associated CSS layout box return zero
+  // and terminate this algorithm.
+  if (!layout_boxes_) {
+    return 0.0f;
+  }
+
+  // 2. Return the border edge height of the first CSS layout box associated
+  // with the element, ignoring any transforms that apply to the element and its
+  // ancestors.
+  return layout_boxes_->GetBorderEdgeHeight();
 }
 
 scoped_refptr<Node> HTMLElement::Duplicate() const {
@@ -498,16 +662,6 @@ void HTMLElement::UpdateComputedStyleRecursively(
   }
 }
 
-void HTMLElement::SetLayoutBoxes(scoped_ptr<LayoutBoxes> layout_boxes) {
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  if (!owner_document()->partial_layout_is_enabled()) {
-    layout_boxes_.reset();
-    return;
-  }
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  layout_boxes_ = layout_boxes.Pass();
-}
-
 void HTMLElement::InvalidateLayoutBoxesFromNodeAndAncestors() {
   layout_boxes_.reset();
   Node::InvalidateLayoutBoxesFromNodeAndAncestors();
@@ -624,6 +778,12 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
 
 void HTMLElement::OnBackgroundImageLoaded() {
   owner_document()->RecordMutation();
+}
+
+bool HTMLElement::IsRootElement() {
+  // The html element represents the root of an HTML document.
+  //   http://www.w3.org/TR/2014/REC-html5-20141028/semantics.html#the-root-element
+  return AsHTMLHtmlElement() != NULL;
 }
 
 }  // namespace dom

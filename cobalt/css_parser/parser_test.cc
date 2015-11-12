@@ -50,6 +50,8 @@
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/local_src_value.h"
 #include "cobalt/cssom/matrix_function.h"
+#include "cobalt/cssom/media_list.h"
+#include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/number_value.h"
@@ -5096,6 +5098,42 @@ TEST_F(ParserTest, ParsesFontFaceUnicodeRangeList) {
   ASSERT_TRUE(unicode_range3->IsValid());
   EXPECT_EQ(0x100000, unicode_range3->start());
   EXPECT_EQ(0x10ffff, unicode_range3->end());
+}
+
+TEST_F(ParserTest, ParsesEmptyMediaQuery) {
+  scoped_refptr<cssom::MediaQuery> media_query =
+      parser_.ParseMediaQuery("", source_location_).get();
+  ASSERT_TRUE(media_query.get());
+  ASSERT_EQ(media_query->media_query(), "");
+}
+
+TEST_F(ParserTest, ParsesValidMediaQuery) {
+  scoped_refptr<cssom::MediaQuery> media_query =
+      parser_.ParseMediaQuery("(max-width: 1024px) and (max-height: 512px)",
+                              source_location_)
+          .get();
+  ASSERT_TRUE(media_query.get());
+  // TODO(***REMOVED***): Update when media query serialization is implemented.
+  ASSERT_EQ(media_query->media_query(), "");
+}
+
+TEST_F(ParserTest, ParsesEmptyMediaList) {
+  scoped_refptr<cssom::MediaList> media_list =
+      parser_.ParseMediaList("", source_location_).get();
+  ASSERT_TRUE(media_list.get());
+  ASSERT_EQ(media_list->media_text(), "");
+}
+
+TEST_F(ParserTest, ParsesValidMediaList) {
+  scoped_refptr<cssom::MediaList> media_list =
+      parser_.ParseMediaList("(max-width: 1024px), (max-height: 512px)",
+                             source_location_)
+          .get();
+  ASSERT_TRUE(media_list.get());
+  ASSERT_EQ(media_list->length(), 2);
+
+  // TODO(***REMOVED***): Update when media query serialization is implemented.
+  ASSERT_EQ(media_list->media_text(), ", ");
 }
 
 }  // namespace css_parser

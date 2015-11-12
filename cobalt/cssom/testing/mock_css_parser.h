@@ -17,7 +17,19 @@
 #ifndef CSSOM_TESTING_MOCK_CSS_PARSER_H_
 #define CSSOM_TESTING_MOCK_CSS_PARSER_H_
 
+#include <string>
+
+#include "base/memory/ref_counted.h"
+#include "cobalt/base/source_location.h"
+#include "cobalt/cssom/css_declaration_data.h"
+#include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_rule.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/media_list.h"
+#include "cobalt/cssom/media_query.h"
+#include "cobalt/cssom/property_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {
@@ -44,6 +56,9 @@ class MockCSSParser : public CSSParser {
   MOCK_METHOD4(ParsePropertyIntoDeclarationData,
                void(const std::string&, const std::string&,
                     const base::SourceLocation&, CSSDeclarationData*));
+  MOCK_METHOD2(ParseMediaList,
+               scoped_refptr<MediaList>(const std::string&,
+                                        const base::SourceLocation&));
   MOCK_METHOD2(ParseMediaQuery,
                scoped_refptr<MediaQuery>(const std::string&,
                                          const base::SourceLocation&));
