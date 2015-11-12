@@ -1220,10 +1220,7 @@ ComputedBackgroundPositionProvider::ConvertToOriginInfo(
 scoped_refptr<CalcValue>
 ComputedBackgroundPositionProvider::ProvideCalcValueFromOriginAndOffset(
     OriginInfo* origin_info, const scoped_refptr<PropertyValue>& offset) {
-  if (!origin_info) {
-    OriginInfo info = OriginInfo(0.0f, 1, kNone);
-    origin_info = &info;
-  }
+  DCHECK(origin_info);
 
   if (!offset) {
     return new CalcValue(
@@ -1310,8 +1307,9 @@ void ComputedBackgroundPositionProvider::
       FillPositionBuilderFromOriginAndOffset(current_value, NULL,
                                              position_builder);
     } else {
+      OriginInfo default_origin = OriginInfo(0.0f, 1, kNone);
       (*position_builder)[i] =
-          ProvideCalcValueFromOriginAndOffset(NULL, current_value);
+          ProvideCalcValueFromOriginAndOffset(&default_origin, current_value);
     }
   }
 }
