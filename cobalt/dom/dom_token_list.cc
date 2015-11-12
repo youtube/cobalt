@@ -19,7 +19,6 @@
 #include <algorithm>
 
 #include "base/lazy_instance.h"
-#include "base/memory/weak_ptr.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "cobalt/dom/element.h"
@@ -172,6 +171,10 @@ void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
   }
 }
 
+std::string DOMTokenList::AnonymousStringifier() const {
+  return JoinString(tokens_, ' ');
+}
+
 const std::string& DOMTokenList::NonNullItem(unsigned int index) const {
   MaybeRefresh();
 
@@ -206,19 +209,17 @@ bool DOMTokenList::ContainsValid(const std::string& valid_token) const {
 DOMTokenList::~DOMTokenList() { Stats::GetInstance()->Remove(this); }
 
 // Algorithm for UpdateSteps:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#concept-dtl-update
+//   http://www.w3.org/TR/dom/#concept-dtl-update
 void DOMTokenList::UpdateSteps() const {
-  if (element_) {
-    element_->SetAttribute(attr_name_, JoinString(tokens_, ' '));
+  // 1. If there is no associated attribute (when the object is a
+  // DOMSettableTokenList), terminate these steps.
+  if (!element_) {
+    return;
   }
-}
 
-void DOMTokenList::MaybeRefresh() const {
-  if (element_ && element_node_generation_ != element_->node_generation()) {
-    element_node_generation_ = element_->node_generation();
-    std::string attribute = element_->GetAttribute(attr_name_).value_or("");
-    base::SplitStringAlongWhitespace(attribute, &tokens_);
-  }
+  // 2. Set an attribute for the associated element using associated attribute's
+  // local name and the result of running the ordered set serializer for tokens.
+  element_->SetAttribute(attr_name_, JoinString(tokens_, ' '));
 }
 
 bool DOMTokenList::IsTokenValid(const std::string& token) const {
@@ -231,6 +232,14 @@ bool DOMTokenList::IsTokenValid(const std::string& token) const {
     return false;
   }
   return true;
+}
+
+void DOMTokenList::MaybeRefresh() const {
+  if (element_ && element_node_generation_ != element_->node_generation()) {
+    element_node_generation_ = element_->node_generation();
+    std::string attribute = element_->GetAttribute(attr_name_).value_or("");
+    base::SplitStringAlongWhitespace(attribute, &tokens_);
+  }
 }
 
 }  // namespace dom
