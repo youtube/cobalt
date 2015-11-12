@@ -19,7 +19,6 @@
 
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/input/keypress_generator_filter.h"
-#include "cobalt/input/modifier_key_filter.h"
 #include "cobalt/system_window/system_window_desktop.h"
 
 namespace cobalt {
@@ -48,7 +47,6 @@ class InputDeviceManagerDesktop : public InputDeviceManager {
 
   // Keyboard event filters to process the events generated.
   KeypressGeneratorFilter keypress_generator_filter_;
-  ModifierKeyFilter modifier_key_filter_;
 };
 
 }  // namespace input
