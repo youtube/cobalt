@@ -1176,6 +1176,7 @@ identifier_token:
   | kBoldToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBoldKeywordName);
   }
+  // A rule for kBottomToken is already defined for the matching property name.
   | kBreakWordToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBreakWordKeywordName);
   }
@@ -1329,10 +1330,7 @@ identifier_token:
   | kToToken {
     $$ = TrivialStringPiece::FromCString(cssom::kToKeywordName);
   }
-  // This is redundant with the GetPropertyName(kTopProperty) defined above.
-  //| kTopToken {
-  //  $$ = TrivialStringPiece::FromCString(cssom::kTopKeywordName);
-  //}
+  // A rule for kTopToken is already defined for the matching property name.
   | kTransparentToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTransparentKeywordName);
   }
@@ -3154,7 +3152,10 @@ transform_property_value:
 // Determines the vertical alignment of a box.
 //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
 vertical_align_property_value:
-    kTopToken maybe_whitespace {
+    kBottomToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetBottom().get());
+  }
+  | kTopToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetTop().get());
   }
   | kMiddleToken maybe_whitespace {
