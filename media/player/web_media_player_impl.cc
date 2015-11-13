@@ -163,16 +163,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 #else   // defined(LB_USE_SHELL_PIPELINE)
   pipeline_ = new Pipeline(pipeline_message_loop, media_log_);
 #endif  // defined(LB_USE_SHELL_PIPELINE)
-  // Let V8 know we started new thread if we did not did it yet.
-  // Made separate task to avoid deletion of player currently being created.
-  // Also, delaying GC until after player starts gets rid of starting lag --
-  // collection happens in parallel with playing.
-  //
-  // TODO(enal): remove when we get rid of per-audio-stream thread.
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(&WebMediaPlayerImpl::IncrementExternallyAllocatedMemory,
-                 AsWeakPtr()));
 
   // Also we want to be notified of |main_loop_| destruction.
   main_loop_->AddDestructionObserver(this);
@@ -1206,11 +1196,6 @@ WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   DCHECK(client_);
   return client_;
-}
-
-void WebMediaPlayerImpl::IncrementExternallyAllocatedMemory() {
-  DCHECK_EQ(main_loop_, MessageLoop::current());
-  NOTIMPLEMENTED();
 }
 
 void WebMediaPlayerImpl::OnDurationChanged() {
