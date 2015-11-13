@@ -15,8 +15,10 @@
  */
 #include "cobalt/script/javascriptcore/wrapper_factory.h"
 
+#include <utility>
+
 #include "base/lazy_instance.h"
-#include "cobalt/script/javascriptcore/jsc_object_handle.h"
+#include "cobalt/script/javascriptcore/jsc_wrapper_handle.h"
 #include "cobalt/script/javascriptcore/wrapper_base.h"
 #include "third_party/WebKit/Source/JavaScriptCore/heap/WeakHandleOwner.h"
 
@@ -95,12 +97,12 @@ JSC::JSObject* WrapperFactory::GetWrapper(
   }
 
   JSC::JSObject* wrapper =
-      JSCObjectHandle::GetJSObject(GetCachedWrapper(wrappable.get()));
+      JSCWrapperHandle::GetJSObject(GetCachedWrapper(wrappable.get()));
   if (!wrapper) {
-    scoped_ptr<ScriptObjectHandle> object_handle =
+    scoped_ptr<Wrappable::WeakWrapperHandle> object_handle =
         WrapperFactory::CreateWrapper(global_object, wrappable);
     SetCachedWrapper(wrappable.get(), object_handle.Pass());
-    wrapper = JSCObjectHandle::GetJSObject(GetCachedWrapper(wrappable.get()));
+    wrapper = JSCWrapperHandle::GetJSObject(GetCachedWrapper(wrappable.get()));
   }
   DCHECK(wrapper);
   return wrapper;
@@ -118,17 +120,17 @@ const JSC::ClassInfo* WrapperFactory::GetClassInfo(
 }
 
 
-scoped_ptr<ScriptObjectHandle> WrapperFactory::CreateWrapper(
+scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
     JSCGlobalObject* global_object,
     const scoped_refptr<Wrappable>& wrappable) const {
   WrappableTypeInfoMap::const_iterator it =
       wrappable_type_infos_.find(wrappable->GetWrappableType());
   if (it == wrappable_type_infos_.end()) {
     NOTREACHED();
-    return scoped_ptr<ScriptObjectHandle>();
+    return scoped_ptr<Wrappable::WeakWrapperHandle>();
   }
-  return make_scoped_ptr<ScriptObjectHandle>(
-      new JSCObjectHandle(JSC::PassWeak<JSC::JSObject>(
+  return make_scoped_ptr<Wrappable::WeakWrapperHandle>(
+      new JSCWrapperHandle(JSC::PassWeak<JSC::JSObject>(
           it->second.create_function.Run(global_object, wrappable),
           cached_handle_owner.Pointer())));
 }

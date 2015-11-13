@@ -13,29 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
+#ifndef SCRIPT_OPAQUE_HANDLE_H_
+#define SCRIPT_OPAQUE_HANDLE_H_
 
-#include "cobalt/script/opaque_handle.h"
-#include "third_party/WebKit/Source/JavaScriptCore/runtime/JSObject.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
+#include "cobalt/script/script_object.h"
 
 namespace cobalt {
 namespace script {
-namespace javascriptcore {
 
-// A wrapper around a JSC::JSObject that can be passed into Cobalt as an
-// opaque script object.
-class JSCObjectHandle : public OpaqueHandle {
- public:
-  explicit JSCObjectHandle(JSC::JSObject* wrapper) : handle_(wrapper) {}
-  JSC::JSObject* handle() const { return handle_; }
-
- private:
-  JSC::JSObject* handle_;
+// A handle to an object that is managed by the JavaScript Engine. There should
+// be no need for Cobalt code to operate on this handle, aside from managing its
+// lifetime.
+class OpaqueHandle {
+ protected:
+  OpaqueHandle() {}
+  virtual ~OpaqueHandle() {}
 };
 
-}  // namespace javascriptcore
+typedef ScriptObject<OpaqueHandle> OpaqueHandleHolder;
+
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
+#endif  // SCRIPT_OPAQUE_HANDLE_H_
