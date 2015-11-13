@@ -20,6 +20,7 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/base_interface.h"
 #include "cobalt/bindings/testing/derived_interface.h"
+#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -32,7 +33,8 @@ class ObjectTypeBindingsInterface : public script::Wrappable {
   MOCK_METHOD0(arbitrary_object, scoped_refptr<ArbitraryInterface>());
   MOCK_METHOD0(base_interface, scoped_refptr<BaseInterface>());
   MOCK_METHOD0(derived_interface, scoped_refptr<DerivedInterface>());
-  MOCK_METHOD0(object_property, scoped_refptr<Wrappable>());
+  MOCK_METHOD0(object_property, const script::OpaqueHandleHolder*());
+  MOCK_METHOD1(set_object_property, void(const script::OpaqueHandleHolder&));
 
   DEFINE_WRAPPABLE_TYPE(ObjectTypeBindingsInterface);
 };

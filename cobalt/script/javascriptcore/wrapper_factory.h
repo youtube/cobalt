@@ -16,14 +16,12 @@
 #ifndef SCRIPT_JAVASCRIPTCORE_WRAPPER_FACTORY_H_
 #define SCRIPT_JAVASCRIPTCORE_WRAPPER_FACTORY_H_
 
-#include "config.h"
-
 #include "base/bind.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/type_id.h"
-#include "cobalt/script/script_object_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/ClassInfo.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSObject.h"
 
@@ -45,7 +43,7 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
   const JSC::ClassInfo* GetClassInfo(base::TypeId wrappable_type) const;
 
  private:
-  scoped_ptr<ScriptObjectHandle> CreateWrapper(
+  scoped_ptr<Wrappable::WeakWrapperHandle> CreateWrapper(
       JSCGlobalObject* global_object,
       const scoped_refptr<Wrappable>& wrappable) const;
 

@@ -24,6 +24,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/debug_server.h"
+#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
 
@@ -42,7 +43,7 @@ class Debugger : public script::Wrappable {
 
   // JavaScript callback to be run when a debug command has been executed.
   typedef script::CallbackFunction<void(
-      scoped_refptr<script::Wrappable> result)> CommandCallback;
+      const script::OpaqueHandleHolder* result)> CommandCallback;
   typedef script::ScriptObject<CommandCallback> CommandCallbackArg;
 
   // Callback to be run to create a debug server.
@@ -57,7 +58,7 @@ class Debugger : public script::Wrappable {
   void Attach(const AttachCallbackArg& callback);
   void Detach(const AttachCallbackArg& callback);
   void SendCommand(const std::string& method,
-                   scoped_refptr<script::Wrappable> params,
+                   const script::OpaqueHandleHolder& param,
                    const CommandCallbackArg& callback);
 
   DEFINE_WRAPPABLE_TYPE(Debugger);
