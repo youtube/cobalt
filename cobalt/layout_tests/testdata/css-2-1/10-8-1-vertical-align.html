@@ -7,107 +7,126 @@
 <head>
   <style>
     body {
+      font-family: Roboto;
       margin: 0px;
-      font-size: 15px;
+      font-size: 8px;
       color: #FFFFFF;
     }
 
     div {
       display: inline-block;
     }
-    div.bluebg {
+    div.block {
       display: block;
+    }
+
+    div.bluebg {
       background: #2020F0;
     }
-    div.greybg {
-      display: block;
+    div.greybg_20 {
+      background: #202020;
+    }
+    div.greybg_40 {
+      background: #404040;
+    }
+    div.greybg_80 {
+      background: #808080;
+    }
+    div.greybg_B0 {
       background: #B0B0B0;
     }
 
-    div.boxed_baseline {
-      vertical-align: baseline;
-      background: #202020;
-      width : 16px;
-      height : 32px;
+    div.halfheightbox {
+      width : 8px;
+      height : 8px;
     }
-    div.v_baseline {
-      vertical-align: baseline;
-      background: #202020;
-    }
-    div.boxed_middle {
-      vertical-align: middle;
-      background: #404040;
-      width : 16px;
-      height : 32px;
-    }
-    div.small_boxed_middle {
-      vertical-align: middle;
-      background: #404040;
-      width : 16px;
+    div.fullheightbox {
+      width : 8px;
       height : 16px;
     }
-    div.v_middle {
+    div.plusheightbox {
+      width : 8px;
+      height : 20px;
+    }
+
+    div.baseline {
+      vertical-align: baseline;
+    }
+    div.middle {
       vertical-align: middle;
-      background: #404040;
     }
-    div.boxed_top {
+    div.top {
       vertical-align: top;
-      background: #808080;
-      width : 16px;
-      height : 40px;
     }
-    div.v_top {
-      vertical-align: top;
-      background: #808080;
+    div.bottom {
+      vertical-align: bottom;
     }
   </style>
 </head>
 <body>
-  <div class="greybg">x
-    <div class="boxed_middle">x</div>
-    <div class="v_middle">x</div>
+  <div class="block greybg_B0">x
+    <div class="greybg_40 fullheightbox middle">x</div>
+    <div class="greybg_40 middle">x</div>
   </div>
-  <div class="bluebg">x
-    <div class="boxed_middle">x</div>
-    <div class="small_boxed_middle"></div>
+  <div class="block bluebg">x
+    <div class="greybg_40 fullheightbox middle">x</div>
+    <div class="greybg_40 halfheightbox middle"></div>
   </div>
-  <div class="greybg">x
-    <div class="boxed_middle">x</div>
-    <div class="small_boxed_middle">x</div>
+  <div class="block greybg_B0">x
+    <div class="greybg_40 fullheightbox middle">x</div>
+    <div class="greybg_40 halfheightbox middle">x</div>
   </div>
-  <div class="bluebg">x
-    <div class="boxed_top">x</div>
-    <div class="v_top">x</div>
+  <div class="block bluebg">x
+    <div class="greybg_80 plusheightbox top">x</div>
+    <div class="greybg_80 top">x</div>
   </div>
-  <div class="greybg">x
-    <div class="boxed_baseline"></div>
-    <div class="v_baseline">x</div>
+  <div class="block greybg_B0">x
+    <div class="greybg_40 plusheightbox bottom">x</div>
+    <div class="greybg_40 bottom">x</div>
   </div>
-  <div class="bluebg">x
-    <div class="boxed_baseline">x</div>
-    <div class="v_baseline">x</div>
+  <div class="block bluebg">x
+    <div class="greybg_20 fullheightbox baseline"></div>
+    <div class="greybg_20 baseline">x</div>
   </div>
-  <div class="greybg">x
-    <div class="boxed_middle">x</div><div class="v_middle">x</div>
-    <div class="boxed_top">x</div>
-    <div class="v_baseline">x</div>
+  <div class="block greybg_B0">x
+    <div class="greybg_20 fullheightbox baseline">x</div>
+    <div class="greybg_20 baseline">x</div>
   </div>
-  <div class="bluebg">x
-    <div class="boxed_middle">x</div><div class="v_middle">x</div>
-    <div class="boxed_top">x</div><div class="v_top">x</div>
-    <div class="boxed_baseline">x</div><div class="v_baseline">x</div>
-    <div class="boxed_middle">x</div><div class="v_middle">x</div>
+  <div class="block bluebg">x
+    <div class="greybg_40 fullheightbox middle">x</div><div class="greybg_40 middle">x</div>
+    <div class="greybg_40 plusheightbox bottom">x</div>
+    <div class="greybg_20 baseline">x</div>
   </div>
-  <div class="greybg">x
-    <div class="boxed_middle">x</div><div class="v_middle">x</div>
-    <div class="boxed_top">x</div><div class="v_top">x</div>
-    <div class="v_baseline">x</div>
-    <div class="boxed_middle">x</div><div class="v_middle">x</div>
+  <div class="block greybg_B0">x
+    <div class="greybg_40 fullheightbox middle">x</div><div class="greybg_40 middle">x</div>
+    <div class="greybg_80 plusheightbox top">x</div>
+    <div class="greybg_20 baseline">x</div>
   </div>
-  <div class="bluebg">x
-    <div class="boxed_top">x</div><div class="v_top">x</div>
-    <div class="boxed_baseline">x</div><div class="v_baseline">x</div>
-    <div class="boxed_middle">x</div><div class="v_middle">x</div>
+  <div class="block bluebg">x
+    <div class="greybg_40 fullheightbox middle">x</div><div class="greybg_40 middle">x</div>
+    <div class="greybg_80 plusheightbox top">x</div>
+    <div class="greybg_40 plusheightbox bottom">x</div>
+    <div class="greybg_20 baseline">x</div>
+  </div>
+  <div class="block greybg_B0">x
+    <div class="greybg_40 fullheightbox middle">x</div><div class="greybg_40 middle">x</div>
+    <div class="greybg_80 plusheightbox top">x</div><div class="greybg_80 top">x</div>
+    <div class="greybg_40 plusheightbox bottom">x</div><div class="greybg_40 bottom">x</div>
+    <div class="greybg_20 fullheightbox baseline">x</div><div class="greybg_20 baseline">x</div>
+    <div class="greybg_40 fullheightbox middle">x</div><div class="greybg_40 middle">x</div>
+  </div>
+  <div class="block bluebg">x
+    <div class="greybg_40 fullheightbox middle">x</div><div class="greybg_40 middle">x</div>
+    <div class="greybg_80 plusheightbox top">x</div><div class="greybg_80 top">x</div>
+    <div class="greybg_40 plusheightbox bottom">x</div><div class="greybg_40 bottom">x</div>
+    <div class="greybg_20 baseline">x</div>
+    <div class="greybg_40 fullheightbox middle">x</div><div class="greybg_40 middle">x</div>
+  </div>
+  <div class="block greybg_B0">x
+    <div class="greybg_80 plusheightbox top">x</div><div class="greybg_80 top">x</div>
+    <div class="greybg_40 plusheightbox bottom">x</div><div class="greybg_40 bottom">x</div>
+    <div class="greybg_20 fullheightbox baseline">x</div><div class="greybg_20 baseline">x</div>
+    <div class="greybg_40 fullheightbox middle">x</div><div class="greybg_40 middle">x</div>
   </div>
 </body>
 </html>

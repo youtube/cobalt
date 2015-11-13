@@ -3086,6 +3086,14 @@ TEST_F(ParserTest, ParsesBaselineVerticalAlign) {
   EXPECT_EQ(cssom::KeywordValue::GetBaseline(), style->vertical_align());
 }
 
+TEST_F(ParserTest, ParsesBottomVerticalAlign) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("vertical-align: bottom;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetBottom(), style->vertical_align());
+}
+
 TEST_F(ParserTest, ParsesMiddleVerticalAlign) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("vertical-align: middle;",
