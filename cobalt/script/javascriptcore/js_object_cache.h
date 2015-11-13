@@ -16,16 +16,14 @@
 #ifndef SCRIPT_JAVASCRIPTCORE_JS_OBJECT_CACHE_H_
 #define SCRIPT_JAVASCRIPTCORE_JS_OBJECT_CACHE_H_
 
-#include "config.h"
-
 #include "base/bind.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/type_id.h"
-#include "cobalt/script/script_object_handle.h"
-#include "cobalt/script/wrappable.h"
 #include "cobalt/script/javascriptcore/constructor_base.h"
 #include "cobalt/script/javascriptcore/prototype_base.h"
+#include "cobalt/script/wrappable.h"
+#include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/ClassInfo.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSObject.h"
 
