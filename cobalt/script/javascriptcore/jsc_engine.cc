@@ -16,17 +16,80 @@
 #include "cobalt/script/javascriptcore/jsc_engine.h"
 
 #include "base/logging.h"
+#include "base/memory/singleton.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
+#include "base/timer.h"
+#include "cobalt/base/console_values.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/InitializeThreading.h"
+#include "third_party/WebKit/Source/WTF/wtf/OSAllocator.h"
 
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+namespace {
+
+class JSCEngineStats {
+ public:
+  JSCEngineStats()
+      : js_memory_("Memory.JS", 0,
+                   "Total memory occupied by the JSC page allocator."),
+        js_engine_count_("JS.EngineCount", 0,
+                         "Total JavaScript engine registered."),
+        timer_(true, true) {
+    timer_.Start(FROM_HERE, base::TimeDelta::FromMilliseconds(20),
+                 base::Bind(&JSCEngineStats::Update, base::Unretained(this)));
+  }
+
+  static JSCEngineStats* GetInstance() {
+    return Singleton<JSCEngineStats,
+                     StaticMemorySingletonTraits<JSCEngineStats> >::get();
+  }
+
+  void JSCEngineCreated() {
+    base::AutoLock auto_lock(lock_);
+    ++js_engine_count_;
+  }
+
+  void JSCEngineDestroyed() {
+    base::AutoLock auto_lock(lock_);
+    --js_engine_count_;
+  }
+
+ private:
+  friend struct StaticMemorySingletonTraits<JSCEngineStats>;
+
+  void Update() {
+    base::AutoLock audo_lock(lock_);
+    if (js_engine_count_ > 0) {
+      js_memory_ = OSAllocator::getCurrentBytesAllocated();
+    }
+  }
+
+  base::Lock lock_;
+  base::CVal<size_t> js_memory_;
+  base::CVal<size_t> js_engine_count_;
+  base::Timer timer_;
+};
+
+}  // namespace
+#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+
 JSCEngine::JSCEngine() {
   global_data_ = JSC::JSGlobalData::create(JSC::LargeHeap);
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+  JSCEngineStats::GetInstance()->JSCEngineCreated();
+#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+}
+
+JSCEngine::~JSCEngine() {
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+  JSCEngineStats::GetInstance()->JSCEngineDestroyed();
+#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 }
 
 scoped_refptr<GlobalObjectProxy> JSCEngine::CreateGlobalObjectProxy() {

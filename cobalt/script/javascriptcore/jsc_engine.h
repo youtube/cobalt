@@ -30,6 +30,7 @@ namespace javascriptcore {
 class JSCEngine : public JavaScriptEngine {
  public:
   JSCEngine();
+  ~JSCEngine() OVERRIDE;
   scoped_refptr<GlobalObjectProxy> CreateGlobalObjectProxy() OVERRIDE;
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
