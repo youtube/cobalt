@@ -557,6 +557,8 @@
             }],
             ['target_arch=="ps3"', {
               'sources': [
+                'base/shell_cached_decoder_buffer.cc',
+                'base/shell_cached_decoder_buffer.h',
                 'audio/shell_audio_streamer_ps3.cc',
                 'audio/shell_audio_streamer_ps3.h',
                 'audio/shell_spurs_ps3.cc',
