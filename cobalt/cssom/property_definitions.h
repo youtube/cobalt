@@ -104,6 +104,16 @@ enum PropertyKey {
   kMaxEveryPropertyKey = kWordWrapProperty,
 };
 
+enum Inherited {
+  kInheritedNo,
+  kInheritedYes,
+};
+
+enum Animatable {
+  kAnimatableNo,
+  kAnimatableYes,
+};
+
 // NOTE: The array size of SmallMap and the decision to use std::map as the
 // underlying container type are based on extensive performance testing with
 // ***REMOVED***. Do not change these unless additional profiling data justifies it.
@@ -113,9 +123,9 @@ const char* GetPropertyName(PropertyKey key);
 
 const scoped_refptr<PropertyValue>& GetPropertyInitialValue(PropertyKey key);
 
-bool GetPropertyInheritance(PropertyKey key);
+Inherited GetPropertyInheritance(PropertyKey key);
 
-bool GetPropertyAnimatable(PropertyKey key);
+Animatable GetPropertyAnimatable(PropertyKey key);
 
 typedef std::vector<PropertyKey> AnimatablePropertyList;
 const AnimatablePropertyList& GetAnimatableProperties();
