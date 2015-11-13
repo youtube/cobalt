@@ -25,6 +25,7 @@
 #include "base/string_number_conversions.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
 
@@ -132,8 +133,8 @@ Application::Application()
   // Create the main components of our browser.
   BrowserModule::Options options;
   options.web_module_options.name = "MainWebModule";
-  // TODO(***REMOVED***): Retrieve the system language from the system.
-  options.language = "en-US";
+  options.language =
+      cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage();
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
   browser_module_.reset(new BrowserModule(url, options));
