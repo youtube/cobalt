@@ -31,6 +31,8 @@
         'audio_context.h',
         'audio_destination_node.cc',
         'audio_destination_node.h',
+        'audio_device.cc',
+        'audio_device.h',
         'audio_file_reader.cc',
         'audio_file_reader.h',
         'audio_file_reader_wav.cc',
