@@ -388,7 +388,8 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
   float baseline_offset_from_bottom =
       used_line_height_provider.baseline_offset_from_bottom();
 
-  float child_max_margin_box_height = 0;
+  float child_max_top_aligned_margin_box_height = 0;
+  float child_max_bottom_aligned_margin_box_height = 0;
 
   // During this loop, the line box height above and below the baseline is
   // established.
@@ -415,8 +416,15 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
       // may affect the height below the baseline if this is the tallest child
       // box. We measure the tallest top-aligned box to implement that after
       // this loop.
-      child_max_margin_box_height = std::max(child_max_margin_box_height,
-                                             child_box->GetMarginBoxHeight());
+      child_max_top_aligned_margin_box_height =
+          std::max(child_max_top_aligned_margin_box_height,
+                   child_box->GetMarginBoxHeight());
+    } else if (vertical_align == cssom::KeywordValue::GetBottom()) {
+      // Align the bottom of the aligned subtree with the bottom of the line
+      // box.
+      child_max_bottom_aligned_margin_box_height =
+          std::max(child_max_bottom_aligned_margin_box_height,
+                   child_box->GetMarginBoxHeight());
     } else if (vertical_align == cssom::KeywordValue::GetBaseline()) {
       // Align the baseline of the box with the baseline of the parent box.
       baseline_offset_from_child_top_margin_edge =
@@ -443,10 +451,18 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
   // lowermost box bottom.
   //   http://www.w3.org/TR/CSS21/visudet.html#line-height
   height_ = baseline_offset_from_top_ + baseline_offset_from_bottom;
-  if (child_max_margin_box_height > height_) {
+  if (child_max_top_aligned_margin_box_height > height_) {
     // Increase the line box height below the baseline to make the largest
     // top-aligned child box fit.
-    baseline_offset_from_bottom += child_max_margin_box_height - height_;
+    baseline_offset_from_bottom +=
+        child_max_top_aligned_margin_box_height - height_;
+    height_ = baseline_offset_from_top_ + baseline_offset_from_bottom;
+  }
+  if (child_max_bottom_aligned_margin_box_height > height_) {
+    // Increase the line box height above the baseline to make the largest
+    // bottom-aligned child box fit.
+    baseline_offset_from_top_ +=
+        child_max_bottom_aligned_margin_box_height - height_;
     height_ = baseline_offset_from_top_ + baseline_offset_from_bottom;
   }
 }
@@ -471,6 +487,10 @@ void LineBox::UpdateChildBoxTopPositions() {
     } else if (vertical_align == cssom::KeywordValue::GetTop()) {
       // Align the top of the aligned subtree with the top of the line box.
       child_top = 0;
+    } else if (vertical_align == cssom::KeywordValue::GetBottom()) {
+      // Align the bottom of the aligned subtree with the bottom of the line
+      // box.
+      child_top = height_ - child_box->GetMarginBoxHeight();
     } else if (vertical_align == cssom::KeywordValue::GetBaseline()) {
       // Align the baseline of the box with the baseline of the parent box.
       child_top = baseline_offset_from_top_ -
@@ -485,7 +505,7 @@ void LineBox::UpdateChildBoxTopPositions() {
 
 // Returns the height of half the given box above the 'middle' of the line box.
 float LineBox::GetHeightAboveMiddleAlignmentPoint(Box* child_box) {
-  return (child_box->height() + font_metrics_.x_height) / 2;
+  return (child_box->height() + font_metrics_.x_height) / 2.0f;
 }
 
 }  // namespace layout
