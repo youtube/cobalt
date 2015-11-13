@@ -20,38 +20,12 @@
 
   'variables': {
     'fonts_dir': '<(static_contents_source_dir)/fonts',
-
-    'input_fonts': [
-      '<(fonts_dir)/DroidNaskh-Bold.ttf',
-      '<(fonts_dir)/DroidNaskh-Regular.ttf',
-      '<(fonts_dir)/DroidSansArmenian.ttf',
-      '<(fonts_dir)/DroidSansEthiopic-Bold.ttf',
-      '<(fonts_dir)/DroidSansEthiopic-Regular.ttf',
-      '<(fonts_dir)/DroidSansFallbackFull.ttf',
-      '<(fonts_dir)/DroidSansGeorgian.ttf',
-      '<(fonts_dir)/DroidSansHebrew-Bold.ttf',
-      '<(fonts_dir)/DroidSansHebrew-Regular.ttf',
-      '<(fonts_dir)/DroidSansJapanese.ttf',
-      '<(fonts_dir)/DroidSansThai.ttf',
-      '<(fonts_dir)/Lohit-Bengali.ttf',
-      '<(fonts_dir)/Lohit-Devanagari.ttf',
-      '<(fonts_dir)/Lohit-Gujarati.ttf',
-      '<(fonts_dir)/Lohit-Kannada.ttf',
-      '<(fonts_dir)/Lohit-Malayalam.ttf',
-      '<(fonts_dir)/Lohit-Oriya.ttf',
-      '<(fonts_dir)/Lohit-Punjabi.ttf',
-      '<(fonts_dir)/Lohit-Tamil.ttf',
-      '<(fonts_dir)/Lohit-Telugu.ttf',
-      '<(fonts_dir)/OpenSans-Regular.ttf',
-      '<(fonts_dir)/Roboto-Bold.ttf',
-      '<(fonts_dir)/Roboto-Regular.ttf',
-    ],
   },
 
   'copies': [
     {
-      'destination': '<(static_contents_output_data_dir)/fonts',
-      'files': [ '<@(input_fonts)' ],
+      'destination': '<(static_contents_output_data_dir)',
+      'files': [ '<@(fonts_dir)' ],
     },
   ],
 }
