@@ -20,8 +20,8 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/javascriptcore/jsc_callback_function.h"
-#include "cobalt/script/script_object.h"
 #include "cobalt/script/javascriptcore/script_object_registry.h"
+#include "cobalt/script/script_object.h"
 
 namespace cobalt {
 namespace script {

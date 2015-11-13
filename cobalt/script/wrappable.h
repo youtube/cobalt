@@ -21,22 +21,34 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/type_id.h"
-#include "cobalt/script/script_object_handle.h"
+#include "cobalt/script/opaque_handle.h"
 
 namespace cobalt {
 namespace script {
 
 class Wrappable : public base::RefCounted<Wrappable> {
  public:
-  // A class that creates ScriptObjectHandles should inherit from this interface
+  // A handle to this Wrappable's corresponding Wrapper object. It may be
+  // NULL if no wrapper has been created. A Wrapper may get garbage collected
+  // independent of the lifetime of its corresponding Wrappable object.
+  class WeakWrapperHandle {
+   protected:
+    WeakWrapperHandle() {}
+    virtual ~WeakWrapperHandle() {}
+
+   private:
+    friend class scoped_ptr<WeakWrapperHandle>;
+  };
+
+  // A class that creates OpaqueHandles should inherit from this interface
   // so that it can get/set the cached wrapper handle.
   class CachedWrapperAccessor {
    protected:
-    ScriptObjectHandle* GetCachedWrapper(Wrappable* wrappable) const {
+    WeakWrapperHandle* GetCachedWrapper(Wrappable* wrappable) const {
       return wrappable->cached_wrapper_.get();
     }
     void SetCachedWrapper(Wrappable* wrappable,
-                          scoped_ptr<ScriptObjectHandle> wrapper) const {
+                          scoped_ptr<WeakWrapperHandle> wrapper) const {
       wrappable->cached_wrapper_ = wrapper.Pass();
     }
   };
@@ -60,7 +72,7 @@ class Wrappable : public base::RefCounted<Wrappable> {
   // A cached weak reference to the interface's corresponding wrapper object.
   // This may get garbage-collected before the associated Wrappable is
   // destroyed.
-  scoped_ptr<ScriptObjectHandle> cached_wrapper_;
+  scoped_ptr<WeakWrapperHandle> cached_wrapper_;
 
   friend class base::RefCounted<Wrappable>;
 };
