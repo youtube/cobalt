@@ -16,6 +16,7 @@
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/callback_function_interface.h"
+#include "cobalt/bindings/testing/script_object_owner.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,25 +32,6 @@ namespace testing {
 
 namespace {
 typedef InterfaceBindingsTest<CallbackFunctionInterface> CallbackFunctionTest;
-
-template <typename T>
-class ScriptObjectOwner {
- public:
-  explicit ScriptObjectOwner(script::Wrappable* owner) : owner_(owner) {}
-  void TakeOwnership(const T& function) {
-    if (!function.IsNull()) {
-      reference_.emplace(owner_, function);
-    } else {
-      reference_ = base::nullopt;
-    }
-  }
-  typename T::Reference& reference() { return reference_.value(); }
-  bool IsSet() { return static_cast<bool>(reference_); }
-
- private:
-  script::Wrappable* owner_;
-  base::optional<typename T::Reference> reference_;
-};
 }  // namespace
 
 TEST_F(CallbackFunctionTest, ScriptCallbackCanBeCalledFromC) {

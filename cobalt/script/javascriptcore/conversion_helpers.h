@@ -20,7 +20,6 @@
 #include <limits>
 #include <string>
 
-#include "config.h"
 
 #include "base/logging.h"
 #include "base/optional.h"
@@ -32,8 +31,10 @@
 #include "cobalt/script/javascriptcore/jsc_event_listener_callable.h"
 #include "cobalt/script/javascriptcore/jsc_exception_state.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
+#include "cobalt/script/javascriptcore/jsc_object_handle_holder.h"
 #include "cobalt/script/javascriptcore/union_type_conversion_forward.h"
 #include "cobalt/script/javascriptcore/wrapper_base.h"
+#include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSValue.h"
@@ -164,6 +165,28 @@ inline JSC::JSValue ToJSValue(
   const JSCCallbackFunction<T>* jsc_callback =
       base::polymorphic_downcast<const JSCCallbackFunction<T>*>(callback);
   return JSC::JSValue(jsc_callback->callable());
+}
+
+
+// OpaqueHandle -> JSValue
+inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
+                              const OpaqueHandleHolder* opaque_handle_holder) {
+  if (!opaque_handle_holder) {
+    return JSC::jsNull();
+  }
+
+  // Downcast to JSCObjectHandleHolder, which has public members that
+  // we can use to dig in to get the JS object.
+  const JSCObjectHandleHolder* jsc_object_handle_holder =
+      base::polymorphic_downcast<const JSCObjectHandleHolder*>(
+          opaque_handle_holder);
+
+  JSC::JSObject* js_object = jsc_object_handle_holder->js_object();
+  if (js_object) {
+    return JSC::JSValue(js_object);
+  } else {
+    return JSC::jsNull();
+  }
 }
 
 // Overloads of FromJSValue retrieve the Cobalt value from a JSValue.
@@ -298,6 +321,33 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   JSCCallbackFunction<typename T::Signature> callback_function(js_function);
   *out_callback = JSCCallbackFunctionHolder<T>(
       callback_function, global_object->script_object_registry());
+}
+
+// JSValue -> OpaqueHandle
+inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        int conversion_flags, ExceptionState* out_exception,
+                        JSCObjectHandleHolder* out_handle) {
+  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+      << "No conversion flags supported.";
+  if (jsvalue.isNull()) {
+    // TODO(***REMOVED***): Throw TypeError if callback is not nullable.
+    return;
+  }
+
+  // http://www.w3.org/TR/WebIDL/#es-object
+  // 1. If Type(V) is not Object, throw a TypeError
+  if (!jsvalue.isObject()) {
+    out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                      "Not an object");
+    return;
+  }
+
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+
+  JSCObjectHandle jsc_object_handle(jsvalue.toObject(exec_state));
+  *out_handle = JSCObjectHandleHolder(jsc_object_handle,
+                                      global_object->script_object_registry());
 }
 
 }  // namespace javascriptcore

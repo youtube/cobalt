@@ -18,9 +18,11 @@
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/derived_interface.h"
 #include "cobalt/bindings/testing/object_type_bindings_interface.h"
-
+#include "cobalt/bindings/testing/script_object_owner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::StrictMock;
 
@@ -160,11 +162,58 @@ TEST_F(ObjectTypeBindingsTest, ReturnDerivedClassWrapper) {
 }
 
 TEST_F(ObjectTypeBindingsTest, ReturnCorrectWrapperForObjectType) {
-  EXPECT_CALL(test_mock(), object_property()).WillOnce(
-      Return(make_scoped_refptr<script::Wrappable>(arbitrary_interface_)));
-  EXPECT_CALL(*arbitrary_interface_, ArbitraryFunction());
+  typedef ScriptObjectOwner<script::OpaqueHandleHolder> ObjectOwner;
+  ObjectOwner object_owner(&test_mock());
 
-  EXPECT_TRUE(EvaluateScript("test.objectProperty.arbitraryFunction()", NULL));
+  // Store the Wrappable object as an opaque handle.
+  EXPECT_CALL(test_mock(), set_object_property(_))
+      .WillOnce(Invoke(&object_owner, &ObjectOwner::TakeOwnership));
+  EXPECT_TRUE(
+      EvaluateScript("test.objectProperty = new ArbitraryInterface();", NULL));
+  ASSERT_TRUE(object_owner.IsSet());
+
+  // Return it back to JS as the original type.
+  EXPECT_CALL(test_mock(), object_property())
+      .WillOnce(Return(&object_owner.reference().referenced_object()));
+  EXPECT_TRUE(
+      EvaluateScript("Object.getPrototypeOf(test.objectProperty) === "
+                     "ArbitraryInterface.prototype;",
+                     NULL));
+}
+
+TEST_F(ObjectTypeBindingsTest, PassUserObjectforObjectType) {
+  typedef ScriptObjectOwner<script::OpaqueHandleHolder> ObjectOwner;
+  ObjectOwner object_owner(&test_mock());
+
+  EXPECT_TRUE(EvaluateScript("var obj = new Object();", NULL));
+  EXPECT_CALL(test_mock(), set_object_property(_))
+      .WillOnce(Invoke(&object_owner, &ObjectOwner::TakeOwnership));
+  EXPECT_TRUE(EvaluateScript("test.objectProperty = obj;", NULL));
+  ASSERT_TRUE(object_owner.IsSet());
+
+  EXPECT_CALL(test_mock(), object_property())
+      .WillOnce(Return(&object_owner.reference().referenced_object()));
+  EXPECT_TRUE(EvaluateScript("test.objectProperty === obj;", NULL));
+}
+
+TEST_F(ObjectTypeBindingsTest, NullObject) {
+  typedef ScriptObjectOwner<script::OpaqueHandleHolder> ObjectOwner;
+  ObjectOwner object_owner(&test_mock());
+
+  EXPECT_CALL(test_mock(), set_object_property(_))
+      .WillOnce(Invoke(&object_owner, &ObjectOwner::TakeOwnership));
+  EXPECT_TRUE(EvaluateScript("test.objectProperty = null;", NULL));
+  EXPECT_FALSE(object_owner.IsSet());
+
+  EXPECT_CALL(test_mock(), object_property());
+  EXPECT_TRUE(EvaluateScript("test.objectProperty === null;", NULL));
+}
+
+TEST_F(ObjectTypeBindingsTest, NonObjectType) {
+  EXPECT_FALSE(EvaluateScript("test.objectProperty = 5;", NULL));
+  EXPECT_FALSE(EvaluateScript("test.objectProperty = false;", NULL));
+  EXPECT_FALSE(EvaluateScript("test.objectProperty = \"string\";", NULL));
+  EXPECT_FALSE(EvaluateScript("test.objectProperty = undefined;", NULL));
 }
 
 }  // namespace testing

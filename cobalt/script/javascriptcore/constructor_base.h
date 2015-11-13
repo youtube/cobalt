@@ -16,6 +16,7 @@
 #ifndef SCRIPT_JAVASCRIPTCORE_CONSTRUCTOR_BASE_H_
 #define SCRIPT_JAVASCRIPTCORE_CONSTRUCTOR_BASE_H_
 
+#include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 
 namespace cobalt {

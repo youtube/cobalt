@@ -18,11 +18,13 @@
 #define SCRIPT_SCRIPT_OBJECT_H_
 
 #include "base/basictypes.h"
+#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace script {
+
+class Wrappable;
 
 // ScriptObject is a wrapper around JavaScript objects that are being passed
 // into Cobalt. These are objects that do not correspond to cobalt Wrappable

@@ -41,8 +41,9 @@ void Debugger::Detach(const AttachCallbackArg& callback) {
 }
 
 void Debugger::SendCommand(const std::string& method,
-                           scoped_refptr<script::Wrappable> params,
+                           const script::OpaqueHandleHolder& params,
                            const CommandCallbackArg& callback) {
+  UNREFERENCED_PARAMETER(params);
   UNREFERENCED_PARAMETER(callback);
 
   if (!debug_server_) {
@@ -52,7 +53,6 @@ void Debugger::SendCommand(const std::string& method,
 
   DLOG(INFO) << "Debugger::SendCommand";
   DLOG(INFO) << "method: " << method;
-  DLOG(INFO) << "params: " << params;
 }
 
 }  // namespace debug
