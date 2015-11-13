@@ -4,71 +4,77 @@
 <head>
   <style>
     body {
+      font-family: Roboto;
       margin: 0px;
     }
 
     div.block {
       display: block;
     }
-    div.greybg {
-      display: block;
+    div.inline_block {
+      display: inline-block;
+    }
+
+    div.greybg_40 {
+      background: #404040;
+      color: #FFFFFF;
+    }
+    div.greybg_80 {
+      background: #808080;
+    }
+    div.greybg_C0 {
       background: #C0C0C0;
     }
 
-    div.boxed_baseline {
-      display: inline-block;
-      vertical-align: baseline;
-      background: #303030;
+    div.halfheightbox {
       width : 32px;
       height : 64px;
     }
-    div.v_baseline {
-      display: inline-block;
-      vertical-align: baseline;
-    }
-    div.boxed_middle {
-      display: inline-block;
-      vertical-align: middle;
-      background: #404040;
+    div.fullheightbox {
       width : 32px;
       height : 128px;
     }
-    div.v_middle {
-      display: inline-block;
+
+    div.baseline {
+      vertical-align: baseline;
+    }
+    div.middle {
       vertical-align: middle;
     }
-    div.boxed_top {
-      display: inline-block;
+    div.top {
       vertical-align: top;
-      background: #808080;
-      width : 32px;
-      height : 64px;
     }
-    div.v_top {
-      display: inline-block;
-      vertical-align: top;
+    div.bottom {
+      vertical-align: bottom;
     }
   </style>
 </head>
 <body>
-  <div class="greybg">
-    <div class="boxed_middle">A
+  <div class="block greybg_C0 ">
+    <div class="greybg_40 fullheightbox inline_block middle">A
     </div>
-    <div class="v_middle">
+    <div class="inline_block middle">
       Middle
     </div>
   </div>
-  <div class="greybg">
-    <div class="boxed_top">B
+  <div class="block greybg_C0 ">
+    <div class="greybg_80 halfheightbox inline_block top">B
     </div>
-    <div class="v_top">
+    <div class="inline_block top">
       Top
     </div>
   </div>
-  <div class="greybg">
-    <div class="boxed_baseline">C
+  <div class="block greybg_C0 ">
+    <div class="greybg_40 halfheightbox inline_block bottom">C
     </div>
-    <div class="v_baseline">
+    <div class="inline_block bottom">
+      Bottom
+    </div>
+  </div>
+  <div class="block greybg_C0 ">
+    <div class="greybg_80 halfheightbox inline_block baseline">D
+    </div>
+    <div class="inline_block baseline">
       Baseline
     </div>
   </div>
