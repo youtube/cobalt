@@ -254,9 +254,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Getter method to |client_|.
   WebMediaPlayerClient* GetClient();
 
-  // Lets V8 know that player uses extra resources not managed by V8.
-  void IncrementExternallyAllocatedMemory();
-
   // Callbacks that forward duration change from |pipeline_| to |client_|.
   void OnDurationChanged();
 
