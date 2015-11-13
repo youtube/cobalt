@@ -17,6 +17,9 @@
 #ifndef AUDIO_AUDIO_DESTINATION_NODE_H_
 #define AUDIO_AUDIO_DESTINATION_NODE_H_
 
+#include <vector>
+
+#include "cobalt/audio/audio_device.h"
 #include "cobalt/audio/audio_node.h"
 
 namespace cobalt {
@@ -29,7 +32,8 @@ namespace audio {
 // There is only a single AudioDestinationNode per AudioContext, provided
 // through the destination attribute of AudioContext.
 //   http://www.w3.org/TR/webaudio/#AudioDestinationNode
-class AudioDestinationNode : public AudioNode {
+class AudioDestinationNode : public AudioNode,
+                             public AudioDevice::RenderCallback {
  public:
   explicit AudioDestinationNode(AudioContext* context);
 
@@ -39,10 +43,16 @@ class AudioDestinationNode : public AudioNode {
   // to.
   uint32 max_channel_count() const { return max_channel_count_; }
 
+  void FillAudioBuffer(int32 number_of_frames,
+                       std::vector<std::vector<float> >* audio_buffer,
+                       bool* silence) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(AudioDestinationNode);
 
  private:
   uint32 max_channel_count_;
+
+  AudioDevice audio_device_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioDestinationNode);
 };
