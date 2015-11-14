@@ -22,6 +22,8 @@
       'type': 'static_library',
       'sources': [
         'decoder.h',
+        'embedded_fetcher.cc',
+        'embedded_fetcher.h',
         'fetcher.cc',
         'fetcher.h',
         'fetcher_factory.cc',
@@ -55,6 +57,7 @@
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/third_party/libjpeg/libjpeg.gyp:libjpeg',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
+        'embed_resources_as_header_files',
       ],
     },
 
@@ -107,6 +110,43 @@
           'includes': [ '../build/copy_test_data.gypi' ],
         },
       ],
+    },
+
+    {
+      # This target takes all files in the embedded_resources directory (e.g.
+      # the splash screen) and embeds them as header files for
+      # inclusion into the binary.
+      'target_name': 'embed_resources_as_header_files',
+      'type': 'none',
+      # Because we generate a header, we must set the hard_dependency flag.
+      'hard_dependency': 1,
+      'variables': {
+        'script_path': '<(DEPTH)/lbshell/build/generate_data_header.py',
+        'output_path': '<(SHARED_INTERMEDIATE_DIR)/cobalt/loader/embedded_resources.h',
+        'input_directory': 'embedded_resources',
+      },
+      'sources': [
+        '<(input_directory)/splash_screen.html',
+      ],
+      'actions': [
+        {
+          'action_name': 'embed_resources_as_header_files',
+          'inputs': [
+            '<(script_path)',
+            '<@(_sources)',
+          ],
+          'outputs': [
+            '<(output_path)',
+          ],
+          'action': ['python', '<(script_path)', 'LoaderEmbeddedResources', '<(input_directory)', '<(output_path)'],
+          'message': 'Embedding layout resources in "<(input_directory)" into header file, "<(output_path)".',
+        },
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(SHARED_INTERMEDIATE_DIR)',
+        ],
+      },
     },
   ],
 }
