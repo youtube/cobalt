@@ -20,6 +20,7 @@
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "cobalt/browser/splash_screen.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/keycode.h"
@@ -189,6 +190,16 @@ void BrowserModule::NavigateInternal(const GURL& url,
   if (!loaded_callback.is_null()) {
     options.loaded_callbacks.push_back(loaded_callback);
   }
+
+  // Show a splash screen while we're waiting for the web page to load.
+  base::Closure on_splash_screen_done = SplashScreen::Create(
+      base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
+      base::Bind(&BrowserModule::OnError, base::Unretained(this)),
+      media_module_.get(), &network_module_,
+      math::Size(kInitialWidth, kInitialHeight),
+      renderer_module_.pipeline()->GetResourceProvider(),
+      renderer_module_.pipeline()->refresh_rate(), SplashScreen::Options());
+  options.loaded_callbacks.push_back(on_splash_screen_done);
 
   web_module_.reset(new WebModule(
       url,
