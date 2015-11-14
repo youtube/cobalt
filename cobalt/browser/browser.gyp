@@ -29,6 +29,8 @@
         'debug_console.h',
         'render_tree_combiner.cc',
         'render_tree_combiner.h',
+        'splash_screen.cc',
+        'splash_screen.h',
         'switches.cc',
         'switches.h',
         'web_module.cc',

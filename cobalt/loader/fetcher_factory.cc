@@ -22,6 +22,7 @@
 #include "base/file_path.h"
 #include "base/path_service.h"
 #include "base/string_number_conversions.h"
+#include "cobalt/loader/embedded_fetcher.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/network/network_module.h"
@@ -30,6 +31,8 @@ namespace cobalt {
 namespace loader {
 namespace {
 
+const char kEmbeddedScheme[] = "embedded";
+
 bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
   DCHECK(url.is_valid() && url.SchemeIsFile());
   std::string path = url.path();
@@ -37,6 +40,15 @@ bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
   path.erase(0, 1);
   *file_path = FilePath(path);
   return !file_path->empty();
+}
+
+bool EmbeddedURLToKey(const GURL& url, std::string* key) {
+  DCHECK(url.is_valid() && url.SchemeIs(kEmbeddedScheme));
+  *key = url.path();
+  DCHECK_EQ('/', (*key)[0]);
+  DCHECK_EQ('/', (*key)[1]);
+  (*key).erase(0, 2);
+  return !key->empty();
 }
 
 void SetRequestRange(int64 start_offset, int64 bytes_to_read,
@@ -70,7 +82,13 @@ scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
   }
 
   scoped_ptr<Fetcher> fetcher;
-  if (url.SchemeIsFile()) {
+  if (url.SchemeIs(kEmbeddedScheme)) {
+    std::string key;
+    if (EmbeddedURLToKey(url, &key)) {
+      EmbeddedFetcher::Options options;
+      fetcher.reset(new EmbeddedFetcher(key, handler, options));
+    }
+  } else if (url.SchemeIsFile()) {
     FilePath file_path;
     if (FileURLToFilePath(url, &file_path)) {
       FileFetcher::Options options;
@@ -106,6 +124,15 @@ scoped_ptr<Fetcher> FetcherFactory::CreateFetcherWithRange(
   }
 
   scoped_ptr<Fetcher> fetcher;
+  if (url.SchemeIs(kEmbeddedScheme)) {
+    std::string key;
+    if (EmbeddedURLToKey(url, &key)) {
+      EmbeddedFetcher::Options options;
+      options.start_offset = start_offset;
+      options.bytes_to_read = bytes_to_read;
+      fetcher.reset(new EmbeddedFetcher(key, handler, options));
+    }
+  }
   if (url.SchemeIsFile()) {
     FilePath file_path;
     if (FileURLToFilePath(url, &file_path)) {
