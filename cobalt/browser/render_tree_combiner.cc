@@ -41,8 +41,8 @@ void RenderTreeCombiner::UpdateDebugConsoleRenderTree(
 }
 
 void RenderTreeCombiner::SubmitToRenderer() {
-  if (render_debug_console_) {
-    if (main_render_tree_ && debug_console_render_tree_) {
+  if (render_debug_console_ && debug_console_render_tree_) {
+    if (main_render_tree_) {
       render_tree::CompositionNode::Builder builder;
       builder.AddChild(main_render_tree_->render_tree,
                        math::Matrix3F::Identity());
@@ -61,6 +61,8 @@ void RenderTreeCombiner::SubmitToRenderer() {
           (base::TimeTicks::HighResNow() - *main_render_tree_receipt_time_);
 
       renderer_pipeline_->Submit(combined_submission);
+    } else {
+      renderer_pipeline_->Submit(*debug_console_render_tree_);
     }
   } else if (main_render_tree_) {
     renderer_pipeline_->Submit(*main_render_tree_);
