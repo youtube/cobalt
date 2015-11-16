@@ -45,6 +45,13 @@ const int kSecondsToWait = 20;
 //
 // You can examine the current database table here:
 //   https://***REMOVED***.***REMOVED***/#/table/google::youtube_steel.SnapshotAppStats/schema
+//
+// A document that explains how to modify the database in more detail can be
+// found here:
+//   https://docs.google.com/document/d/1N5us1taagC6wWonEDrMmvYeTj4MOfKPwVA8wJH9CMlw/edit
+//
+// Note that the database schema can be viewed from here:
+//   https://cs.***REMOVED***/#piper///depot/***REMOVED***/video/youtube/tv/steel/steel_stats/db.sql&cl=101617641
 
 const char* g_cvals_to_snapshot[] = {
     "DOM.Nodes",
@@ -58,7 +65,7 @@ const char* g_cvals_to_snapshot[] = {
     "Memory.GraphicsPS3.Fixed.size",
     "Memory.JS",
     "Memory.Media.AudioDecoder",
-    "Memory.Media.MediaSource.CPU.Fixed",
+    "Memory.Media.MediaSource.CPU.Fixed.capacity",
     "Memory.Media.VideoDecoder",
     "Memory.XHR",
 };
