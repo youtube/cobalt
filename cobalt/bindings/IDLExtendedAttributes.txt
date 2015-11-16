@@ -67,17 +67,25 @@ ConstructorCallWith=EnvironmentSettings
 # the parameter list.
 RaisesException=|Constructor|Setter
 
+# The Constructor keyword exposes a Constructor to JavaScript.
+Constructor
+
 # The Constructor for an interface is different from the interface name.
 NamedConstructor=*
+
+# When set on a DOMString type, null will be converted to the empty string
+# rather than the string "null".
+TreatNullAs=EmptyString
+
+# When TreatUndefinedAs=EmptyString is set on a DOMString type, undefined will
+# be converted to the empty string rather than the string "undefined".
+TreatUndefinedAs=EmptyString
 
 # Not yet supported
 ArrayClass
 Conditional=*
-Constructor
 OverrideBuiltins
 PutForwards=*
-TreatNullAs=*
-TreatNullAs=NullString|EmptyString
 Unforgeable
 
 # Ignored attributes. We do not perform any additional logic in the bindings

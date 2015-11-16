@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/optional.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -34,6 +35,17 @@ class DOMStringTestInterface : public script::Wrappable {
 
   // readonly attribute DOMString readOnlyProperty
   MOCK_CONST_METHOD0(read_only_property, std::string());
+
+  MOCK_CONST_METHOD0(null_is_empty_property, std::string());
+  MOCK_METHOD1(set_null_is_empty_property, void(const std::string&));
+
+  MOCK_CONST_METHOD0(undefined_is_empty_property, std::string());
+  MOCK_METHOD1(set_undefined_is_empty_property, void(const std::string&));
+
+  MOCK_CONST_METHOD0(nullable_undefined_is_empty_property,
+                     base::optional<std::string>());
+  MOCK_METHOD1(set_nullable_undefined_is_empty_property,
+               void(const base::optional<std::string>&));
 
   DEFINE_WRAPPABLE_TYPE(DOMStringTestInterface);
 };

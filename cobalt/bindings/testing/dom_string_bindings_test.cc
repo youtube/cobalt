@@ -74,6 +74,22 @@ TEST_F(DOMStringBindingsTest, SetUndefined) {
   EXPECT_STREQ("undefined", result.c_str());
 }
 
+TEST_F(DOMStringBindingsTest, SetNullAsEmptyString) {
+  EXPECT_CALL(test_mock(), set_null_is_empty_property(""));
+  EXPECT_TRUE(EvaluateScript("test.nullIsEmptyProperty = null;", NULL));
+}
+
+TEST_F(DOMStringBindingsTest, SetUndefinedAsEmptyString) {
+  EXPECT_CALL(test_mock(), set_undefined_is_empty_property(""));
+  EXPECT_TRUE(
+      EvaluateScript("test.undefinedIsEmptyProperty = undefined;", NULL));
+
+  EXPECT_CALL(test_mock(), set_nullable_undefined_is_empty_property(
+                               base::optional<std::string>("")));
+  EXPECT_TRUE(EvaluateScript(
+      "test.nullableUndefinedIsEmptyProperty = undefined;", NULL));
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
