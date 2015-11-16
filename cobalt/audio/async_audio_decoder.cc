@@ -33,13 +33,12 @@ void Decode(
   scoped_ptr<AudioFileReader> reader(
       AudioFileReader::TryCreate(audio_data, size));
 
-  scoped_array<uint8> sample_data(reader->sample_data());
   if (reader) {
     decode_finish_callback.Run(
         reader->sample_rate(), reader->number_of_frames(),
-        reader->number_of_channels(), sample_data.Pass());
+        reader->number_of_channels(), reader->sample_data());
   } else {
-    decode_finish_callback.Run(0.f, 0, 0, sample_data.Pass());
+    decode_finish_callback.Run(0.f, 0, 0, scoped_array<uint8>());
   }
 }
 
