@@ -31,8 +31,12 @@ namespace testing {
 class ObjectTypeBindingsInterface : public script::Wrappable {
  public:
   MOCK_METHOD0(arbitrary_object, scoped_refptr<ArbitraryInterface>());
+  MOCK_METHOD1(set_arbitrary_object,
+               void(const scoped_refptr<ArbitraryInterface>&));
   MOCK_METHOD0(base_interface, scoped_refptr<BaseInterface>());
   MOCK_METHOD0(derived_interface, scoped_refptr<DerivedInterface>());
+  MOCK_METHOD1(set_derived_interface,
+               void(const scoped_refptr<DerivedInterface>&));
   MOCK_METHOD0(object_property, const script::OpaqueHandleHolder*());
   MOCK_METHOD1(set_object_property, void(const script::OpaqueHandleHolder&));
 
