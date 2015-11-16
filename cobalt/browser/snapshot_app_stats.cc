@@ -31,15 +31,36 @@ namespace {
 const int kSecondsToWait = 20;
 
 // The list of CVals we are interested in reporting.
+// Note that if you add an item to this list, you should also add a column
+// to the stats tracking table in the database.  You can add a column with the
+// following commands:
+//
+// > prodaccess
+// > /***REMOVED***/projects/speckle/mysql -S /cloudsql/carbon-airlock-95823:steel-build-statistics -u root SteelBuildStatistics
+// > ALTER TABLE SnapshotAppStats ADD COLUMN yourCvalName DECIMAL(20, 10);
+//
+// Where you would replace "yourCvalName" above with the name of the CVal except
+// with the dots removed and the cval name converted to camel case.  For
+// example, "DOM.TokenLists" would become "dOMTokenLists".
+//
+// You can examine the current database table here:
+//   https://***REMOVED***.***REMOVED***/#/table/google::youtube_steel.SnapshotAppStats/schema
+
 const char* g_cvals_to_snapshot[] = {
     "DOM.Nodes",
     "DOM.TokenLists",
     "DOM.XHR",
     "MainWebModule.ImageCache.Used",
     "MainWebModule.RemoteFontCache.Used",
+    "Memory.ArrayBuffer",
     "Memory.CPU.Exe",
     "Memory.CPU.Used",
     "Memory.GraphicsPS3.Fixed.size",
+    "Memory.JS",
+    "Memory.Media.AudioDecoder",
+    "Memory.Media.MediaSource.CPU.Fixed",
+    "Memory.Media.VideoDecoder",
+    "Memory.XHR",
 };
 
 PRINTF_FORMAT(1, 2) void Output(const char* fmt, ...) {
