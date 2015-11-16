@@ -27,6 +27,7 @@ namespace cobalt {
 namespace audio {
 
 using LB::Platform::load_uint16_little_endian;
+using LB::Platform::load_uint32_big_endian;
 using LB::Platform::load_uint32_little_endian;
 
 namespace {
@@ -76,17 +77,17 @@ AudioFileReaderWAV::AudioFileReaderWAV(const uint8* data, size_t size)
 
 bool AudioFileReaderWAV::ParseRIFFHeader(const uint8* data, size_t size) {
   // First 4 bytes need to be the RIFF chunkID.
-  if (LB::Platform::load_uint32_big_endian(data) != kWAVChunkID_RIFF) {
+  if (load_uint32_big_endian(data) != kWAVChunkID_RIFF) {
     return false;
   }
   // Sanity-check the size. It should be large enough to hold at least the chunk
   // header. Next 4 bytes need to be chunk size.
-  uint32 riff_chunk_size = LB::Platform::load_uint32_little_endian(data + 4);
+  uint32 riff_chunk_size = load_uint32_little_endian(data + 4);
   if (riff_chunk_size > size - 8 || riff_chunk_size < 4) {
     return false;
   }
   // Next 4 bytes need to be the WAVE id, check for that.
-  if (LB::Platform::load_uint32_big_endian(data + 8) != kWAVWaveID_WAVE) {
+  if (load_uint32_big_endian(data + 8) != kWAVWaveID_WAVE) {
     return false;
   }
 
@@ -102,10 +103,10 @@ void AudioFileReaderWAV::ParseChunks(const uint8* data, size_t size) {
   // WAV file is extensible format.
   for (int i = 0; i < 2; ++i) {
     // Sub chunk id.
-    uint32 chunk_id = LB::Platform::load_uint32_big_endian(data + offset);
+    uint32 chunk_id = load_uint32_big_endian(data + offset);
     offset += 4;
     // Sub chunk size.
-    uint32 chunk_size = LB::Platform::load_uint32_little_endian(data + offset);
+    uint32 chunk_size = load_uint32_little_endian(data + offset);
     offset += 4;
 
     if (offset + chunk_size > size) {
@@ -140,7 +141,7 @@ bool AudioFileReaderWAV::ParseWAV_fmt(const uint8* data, size_t offset,
   }
 
   // AudioFormat.
-  uint16 format_code = LB::Platform::load_uint16_little_endian(data + offset);
+  uint16 format_code = load_uint16_little_endian(data + offset);
   if (format_code != kWAVFormatCodeFloat && format_code != kWAVFormatCodePCM) {
     DLOG(ERROR) << "Bad format on WAV, we only support uncompressed samples!"
                 << "Format code: " << format_code;
@@ -150,20 +151,18 @@ bool AudioFileReaderWAV::ParseWAV_fmt(const uint8* data, size_t offset,
   *is_sample_in_float = format_code == kWAVFormatCodeFloat;
 
   // Load channel count.
-  number_of_channels_ =
-      LB::Platform::load_uint16_little_endian(data + offset + 2);
+  number_of_channels_ = load_uint16_little_endian(data + offset + 2);
 
   // Load sample rate.
-  sample_rate_ = static_cast<float>(
-      LB::Platform::load_uint32_little_endian(data + offset + 4));
+  sample_rate_ =
+      static_cast<float>(load_uint32_little_endian(data + offset + 4));
 
   // Skip over:
   // uint32 average byterate
   // uint16 block alignment
 
   // Check sample size, we only support 32 bit floats or 16 bit PCM.
-  uint16 bits_per_sample =
-      LB::Platform::load_uint16_little_endian(data + offset + 14);
+  uint16 bits_per_sample = load_uint16_little_endian(data + offset + 14);
   if ((*is_sample_in_float && bits_per_sample != 32) ||
       (!*is_sample_in_float && bits_per_sample != 16)) {
     DLOG(ERROR) << "Bad bits per sample on WAV. "
