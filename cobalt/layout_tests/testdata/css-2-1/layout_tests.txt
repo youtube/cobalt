@@ -101,6 +101,7 @@
 9-4-2-collapsed-elements-should-reduce-available-width-of-line-box
 9-4-2-long-inline-boxes-should-be-split
 9-4-2-margin-should-not-overflow-line-box
+9-4-2-multiple-inline-boxes-exceeding-width-of-line-box-should-be-split
 9-4-2-unsplittable-inline-box-should-overflow
 9-4-3-relative-positioned-element-percentages-resolved-from-parent
 9-4-3-relative-positioned-elements-are-offset-from-normal-flow
