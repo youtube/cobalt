@@ -253,30 +253,27 @@ scoped_refptr<HTMLHtmlElement> Document::html() const { return html_.get(); }
 
 void Document::SetBody(HTMLBodyElement* body) {
   if (body) {
-    DCHECK(!body_);
+    LOG_IF(ERROR, body_) << "Document contains more than one <body> tags.";
     body_ = base::AsWeakPtr(body);
   } else {
-    DCHECK(body_);
     body_.reset();
   }
 }
 
 void Document::SetHead(HTMLHeadElement* head) {
   if (head) {
-    DCHECK(!head_);
+    LOG_IF(ERROR, head_) << "Document contains more than one <head> tags.";
     head_ = base::AsWeakPtr(head);
   } else {
-    DCHECK(head_);
     head_.reset();
   }
 }
 
 void Document::SetHtml(HTMLHtmlElement* html) {
   if (html) {
-    DCHECK(!html_);
+    LOG_IF(ERROR, html_) << "Document contains more than one <html> tags.";
     html_ = base::AsWeakPtr(html);
   } else {
-    DCHECK(html_);
     html_.reset();
   }
 }
