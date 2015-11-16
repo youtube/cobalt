@@ -303,6 +303,10 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
 
   text_end_position_ = split_start_position;
 
+  // The size results are no longer valid for this box now that it has been
+  // split in two.
+  update_size_results_valid_ = false;
+
   // Update the paragraph end position white space now that this text box has
   // a new end position. The start position white space does not need to be
   // updated as it has not changed.
