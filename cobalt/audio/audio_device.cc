@@ -110,6 +110,16 @@ bool AudioDevice::Impl::PauseRequested() const { return needs_data_; }
 
 bool AudioDevice::Impl::PullFrames(uint32* offset_in_frame,
                                    uint32* total_frames) {
+  // In case offset_in_frame or total_frames is NULL.
+  uint32 dummy_offset_in_frame;
+  uint32 dummy_total_frames;
+  if (!offset_in_frame) {
+    offset_in_frame = &dummy_offset_in_frame;
+  }
+  if (!total_frames) {
+    total_frames = &dummy_total_frames;
+  }
+
   // Assert that we never render more than has been buffered.
   DCHECK_GE(buffered_frame_cursor_, rendered_frame_cursor_);
   *total_frames =
