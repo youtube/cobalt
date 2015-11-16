@@ -86,6 +86,7 @@ void WrapperFactory::RegisterWrappableType(
           wrappable_type, WrappableTypeInfo(class_info, create_function)));
   DCHECK(pib.second)
       << "RegisterWrappableType registered for type more than once.";
+  wrapper_class_infos_.insert(class_info);
 }
 
 
@@ -106,6 +107,12 @@ JSC::JSObject* WrapperFactory::GetWrapper(
   }
   DCHECK(wrapper);
   return wrapper;
+}
+
+bool WrapperFactory::IsWrapper(JSC::JSObject* js_object) const {
+  WrapperClassInfoSet::const_iterator it =
+      wrapper_class_infos_.find(js_object->classInfo());
+  return it != wrapper_class_infos_.end();
 }
 
 const JSC::ClassInfo* WrapperFactory::GetClassInfo(
