@@ -35,6 +35,7 @@
 #include "cobalt/script/javascriptcore/union_type_conversion_forward.h"
 #include "cobalt/script/javascriptcore/wrapper_base.h"
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
+#include "third_party/WebKit/Source/JavaScriptCore/runtime/Error.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSValue.h"
@@ -45,11 +46,33 @@ namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
+const char kNotAnObject[] = "Value is not an object.";
+const char kNotAFunction[] = "Value is not a function.";
+const char kNotNullableType[] = "Value is null but type is not nullable.";
+const char kNotObjectType[] = "Value is not an object.";
+const char kDoesNotImplementInterface[] =
+    "Value does not implement the interface type.";
+
 // Flags that can be used as a bitmask for special conversion behaviour.
 enum ConversionFlags {
   kNoConversionFlags = 0,
   kConversionFlagRestricted = 1 << 0,
+  kConversionFlagNullable = 1 << 1,
+  kConversionFlagTreatNullAsEmptyString = 1 << 2,
+  kConversionFlagTreatUndefinedAsEmptyString = 1 << 3,
+
+  // Valid conversion flags for numeric values.
   kConversionFlagsNumeric = kConversionFlagRestricted,
+
+  // Valid conversion flags for string types.
+  kConversionFlagsString = kConversionFlagTreatNullAsEmptyString |
+                           kConversionFlagTreatUndefinedAsEmptyString,
+
+  // Valid conversion flags for callback functions.
+  kConversionFlagsCallbackFunction = kConversionFlagNullable,
+
+  // Valid conversion flags for objects.
+  kConversionFlagsObject = kConversionFlagNullable,
 };
 
 // Convert std::string in utf8 encoding to WTFString.
@@ -70,26 +93,82 @@ void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
 // implementation.
 template <class T>
 inline T* JSObjectToWrappable(JSC::ExecState* exec_state,
-                              JSC::JSObject* js_object) {
+                              JSC::JSObject* js_object,
+                              ExceptionState* out_exception) {
+  // Assumes we've already checked that null values are acceptable.
   if (!js_object) {
+    return NULL;
+  }
+
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  Wrappable* wrappable = NULL;
+  const JSC::ClassInfo* class_info = NULL;
+  if (js_object == global_object) {
+    // This is the global object, so get the pointer to the global interface
+    // from the JSCGlobalObject.
+    wrappable = global_object->global_interface().get();
+    class_info = &JSCGlobalObject::s_info;
+  } else if (global_object->wrapper_factory()->IsWrapper(js_object)) {
+    // This is a wrapper object, so get the Wrappable from the appropriate
+    // base class.
+    if (js_object->isErrorInstance()) {
+      wrappable = ExceptionBase::GetWrappable(js_object).get();
+    } else {
+      wrappable = InterfaceBase::GetWrappable(js_object).get();
+    }
+    class_info =
+        global_object->wrapper_factory()->GetClassInfo(base::GetTypeId<T>());
+  } else {
+    // This is not a platform object. Return a type error.
+    out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                      kDoesNotImplementInterface);
+    return NULL;
+  }
+
+  // Check that the js_object is the expected class.
+  if (js_object->inherits(class_info)) {
+    return base::polymorphic_downcast<T*>(wrappable);
+  } else {
+    out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                      kDoesNotImplementInterface);
+    return NULL;
+  }
+}
+
+// GetWrappableOrSetException functions will set an exception if the value is
+// not a Wrapper object that corresponds to the Wrappable type T.
+// Additionally, an exception will be set if object is NULL.
+template <class T>
+T* GetWrappableOrSetException(JSC::ExecState* exec_state,
+                              JSC::JSObject* object) {
+  if (!object) {
+    JSC::throwTypeError(exec_state);
     return NULL;
   }
   JSCGlobalObject* global_object =
       JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
-  Wrappable* wrappable = NULL;
-  // If the js_object is in fact the global object, then get the pointer to the
-  // global interface from the JSCGlobalObject. Otherwise, it is a regular
-  // interface and the JSObject inherits from WrapperBase which holds a
-  // reference
-  // to the Wrappable.
-  if (js_object == global_object) {
-    wrappable = global_object->global_interface().get();
-  } else if (js_object->isErrorInstance()) {
-    wrappable = ExceptionBase::GetWrappable(js_object).get();
-  } else {
-    wrappable = InterfaceBase::GetWrappable(js_object).get();
+  JSCExceptionState exception_state(global_object);
+  T* impl = JSObjectToWrappable<T>(exec_state, object, &exception_state);
+  if (exception_state.is_exception_set()) {
+    JSC::throwError(exec_state, exception_state.exception_object());
+    return NULL;
   }
-  return base::polymorphic_downcast<T*>(wrappable);
+  return impl;
+}
+
+template <class T>
+T* GetWrappableOrSetException(JSC::ExecState* exec_state, JSC::JSCell* cell) {
+  // getObject() returns NULL if the cell is not an object.
+  JSC::JSObject* object = cell ? cell->getObject() : NULL;
+  return GetWrappableOrSetException<T>(exec_state, object);
+}
+
+template <class T>
+T* GetWrappableOrSetException(JSC::ExecState* exec_state, JSC::JSValue value) {
+  // getObject() returns NULL if the value is not an object.
+  JSC::JSObject* object = value.getObject();
+  return GetWrappableOrSetException<T>(exec_state, object);
 }
 
 // Overloads of ToJSValue convert different Cobalt types to JSValue.
@@ -256,9 +335,17 @@ inline void FromJSValue(
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
                         int conversion_flags, ExceptionState* out_exception,
                         std::string* out_string) {
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
-      << "No conversion flags supported.";
-  JSValueToString(exec_state, jsvalue, out_string);
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsString, 0)
+      << "Unexpected conversion flags found: ";
+  if (jsvalue.isNull() &&
+      conversion_flags & kConversionFlagTreatNullAsEmptyString) {
+    *out_string = "";
+  } else if (jsvalue.isUndefined() &&
+             conversion_flags & kConversionFlagTreatUndefinedAsEmptyString) {
+    *out_string = "";
+  } else {
+    JSValueToString(exec_state, jsvalue, out_string);
+  }
 }
 
 // JSValue -> object
@@ -266,14 +353,26 @@ template <class T>
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
                         int conversion_flags, ExceptionState* out_exception,
                         scoped_refptr<T>* out_object) {
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
-      << "No conversion flags supported.";
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
+      << "Unexpected conversion flags found.";
+
+  JSC::JSObject* js_object = NULL;
   if (jsvalue.isNull()) {
-    *out_object = NULL;
-    return;
+    if (!(conversion_flags & kConversionFlagNullable)) {
+      out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                        kNotNullableType);
+      return;
+    }
+  } else {
+    // Returns NULL if jsvalue is not an object.
+    js_object = jsvalue.getObject();
+    if (!js_object) {
+      out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                        kNotObjectType);
+      return;
+    }
   }
-  JSC::JSObject* js_object = jsvalue.toObject(exec_state);
-  *out_object = JSObjectToWrappable<T>(exec_state, js_object);
+  *out_object = JSObjectToWrappable<T>(exec_state, js_object, out_exception);
 }
 
 // JSValue -> optional<T>
@@ -281,13 +380,34 @@ template <class T>
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
                         int conversion_flags, ExceptionState* out_exception,
                         base::optional<T>* out_optional) {
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
-      << "No conversion flags supported.";
   if (jsvalue.isNull()) {
+    *out_optional = base::nullopt;
+  } else if (jsvalue.isUndefined()) {
     *out_optional = base::nullopt;
   } else {
     *out_optional = T();
-    FromJSValue(exec_state, jsvalue, conversion_flags, out_exception,
+    FromJSValue(exec_state, jsvalue,
+                conversion_flags & ~kConversionFlagNullable, out_exception,
+                &(out_optional->value()));
+  }
+}
+
+// JSValue -> optional<T>
+template <>
+inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        int conversion_flags, ExceptionState* out_exception,
+                        base::optional<std::string>* out_optional) {
+  if (jsvalue.isNull()) {
+    *out_optional = base::nullopt;
+  } else if (jsvalue.isUndefined() &&
+             !(conversion_flags & kConversionFlagTreatUndefinedAsEmptyString)) {
+    // If TreatUndefinedAs=EmptyString is set, skip the default conversion
+    // of undefined to null.
+    *out_optional = base::nullopt;
+  } else {
+    *out_optional = std::string();
+    FromJSValue(exec_state, jsvalue,
+                conversion_flags & ~kConversionFlagNullable, out_exception,
                 &(out_optional->value()));
   }
 }
@@ -297,10 +417,14 @@ template <class T>
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
                         int conversion_flags, ExceptionState* out_exception,
                         JSCCallbackFunctionHolder<T>* out_callback) {
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsCallbackFunction, 0)
       << "No conversion flags supported.";
   if (jsvalue.isNull()) {
-    // TODO(***REMOVED***): Throw TypeError if callback is not nullable.
+    if (!(conversion_flags & kConversionFlagNullable)) {
+      out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                        kNotNullableType);
+    }
+    // If it is a nullable type, just return.
     return;
   }
 
@@ -310,8 +434,8 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   // http://www.w3.org/TR/WebIDL/#es-callback-function
   // 1. If V is not a Function object, throw a TypeError
   if (!jsvalue.isFunction()) {
-    // TODO(***REMOVED***): Throw TypeError.
-    NOTREACHED();
+    out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                      kNotAFunction);
     return;
   }
 
@@ -327,25 +451,33 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
 inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
                         int conversion_flags, ExceptionState* out_exception,
                         JSCObjectHandleHolder* out_handle) {
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
-      << "No conversion flags supported.";
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
+      << "Unexpected conversion flags found.";
+  JSC::JSObject* js_object = NULL;
   if (jsvalue.isNull()) {
-    // TODO(***REMOVED***): Throw TypeError if callback is not nullable.
+    if (!(conversion_flags & kConversionFlagNullable)) {
+      out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                        kNotNullableType);
+    }
+    // Return here whether an exception was set or not.
     return;
+  } else {
+    // http://www.w3.org/TR/WebIDL/#es-object
+    // 1. If Type(V) is not Object, throw a TypeError
+    js_object = jsvalue.getObject();
+    if (!js_object) {
+      out_exception->SetSimpleException(ExceptionState::kTypeError,
+                                        kNotObjectType);
+      return;
+    }
   }
 
-  // http://www.w3.org/TR/WebIDL/#es-object
-  // 1. If Type(V) is not Object, throw a TypeError
-  if (!jsvalue.isObject()) {
-    out_exception->SetSimpleException(ExceptionState::kTypeError,
-                                      "Not an object");
-    return;
-  }
+  // Null cases should be handled above.
+  DCHECK(js_object);
 
   JSCGlobalObject* global_object =
       JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
-
-  JSCObjectHandle jsc_object_handle(jsvalue.toObject(exec_state));
+  JSCObjectHandle jsc_object_handle(js_object);
   *out_handle = JSCObjectHandleHolder(jsc_object_handle,
                                       global_object->script_object_registry());
 }

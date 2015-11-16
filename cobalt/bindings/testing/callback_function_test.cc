@@ -24,6 +24,7 @@ using ::testing::Invoke;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SaveArg;
+using ::testing::StartsWith;
 using ::testing::_;
 
 namespace cobalt {
@@ -235,6 +236,18 @@ TEST_F(CallbackFunctionTest, GetNullableCallbackAttribute) {
   EXPECT_TRUE(
       EvaluateScript("test.nullableCallbackAttribute == null;", &result));
   EXPECT_STREQ("true", result.c_str());
+}
+
+TEST_F(CallbackFunctionTest, SetNonFunction) {
+  std::string result;
+  EXPECT_FALSE(EvaluateScript("test.callbackAttribute = 5;", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+}
+
+TEST_F(CallbackFunctionTest, SetNullToNonNullable) {
+  std::string result;
+  EXPECT_FALSE(EvaluateScript("test.callbackAttribute = null;", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
 }
 
 }  // namespace testing
