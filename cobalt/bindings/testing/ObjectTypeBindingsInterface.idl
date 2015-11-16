@@ -15,8 +15,8 @@
  */
 
 interface ObjectTypeBindingsInterface {
-  readonly attribute ArbitraryInterface arbitraryObject;
+  attribute ArbitraryInterface arbitraryObject;
   readonly attribute BaseInterface baseInterface;
-  readonly attribute DerivedInterface derivedInterface;
-  attribute object objectProperty;
+  attribute DerivedInterface derivedInterface;
+  attribute object? objectProperty;
 };

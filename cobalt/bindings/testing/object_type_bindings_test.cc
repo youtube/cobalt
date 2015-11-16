@@ -24,6 +24,7 @@
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::Return;
+using ::testing::StartsWith;
 using ::testing::StrictMock;
 
 namespace cobalt {
@@ -210,10 +211,34 @@ TEST_F(ObjectTypeBindingsTest, NullObject) {
 }
 
 TEST_F(ObjectTypeBindingsTest, NonObjectType) {
-  EXPECT_FALSE(EvaluateScript("test.objectProperty = 5;", NULL));
-  EXPECT_FALSE(EvaluateScript("test.objectProperty = false;", NULL));
-  EXPECT_FALSE(EvaluateScript("test.objectProperty = \"string\";", NULL));
-  EXPECT_FALSE(EvaluateScript("test.objectProperty = undefined;", NULL));
+  std::string result;
+  EXPECT_FALSE(EvaluateScript("test.objectProperty = 5;", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+
+  EXPECT_FALSE(EvaluateScript("test.objectProperty = false;", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+
+  EXPECT_FALSE(EvaluateScript("test.objectProperty = \"string\";", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+
+  EXPECT_FALSE(EvaluateScript("test.objectProperty = undefined;", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+}
+
+TEST_F(ObjectTypeBindingsTest, SetNonObject) {
+  std::string result;
+  EXPECT_FALSE(EvaluateScript("test.objectProperty = 5", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+}
+
+TEST_F(ObjectTypeBindingsTest, SetWrongObjectType) {
+  std::string result;
+  EXPECT_FALSE(EvaluateScript("test.arbitraryObject = new Object()", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
+
+  EXPECT_FALSE(
+      EvaluateScript("test.derivedInterface = new BaseInterface()", &result));
+  EXPECT_THAT(result.c_str(), StartsWith("TypeError:"));
 }
 
 }  // namespace testing

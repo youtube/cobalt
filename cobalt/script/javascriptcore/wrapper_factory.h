@@ -38,8 +38,15 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
   void RegisterWrappableType(base::TypeId wrappable_type,
                              const JSC::ClassInfo* class_info,
                              const CreateWrapperFunction& create_function);
+
+  // Gets a Wrapper object for this Wrappable. It may create a new Wrapper.
   JSC::JSObject* GetWrapper(JSCGlobalObject* global_object,
                             const scoped_refptr<Wrappable>& wrappable) const;
+
+  // Returns true if this JSObject is a Wrapper object.
+  bool IsWrapper(JSC::JSObject* js_object) const;
+
+  // Gets the JSC::ClassInfo that corresponds to this Wrappable type.
   const JSC::ClassInfo* GetClassInfo(base::TypeId wrappable_type) const;
 
  private:
@@ -55,8 +62,10 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
     CreateWrapperFunction create_function;
   };
   typedef base::hash_map<base::TypeId, WrappableTypeInfo> WrappableTypeInfoMap;
+  typedef base::hash_set<const JSC::ClassInfo*> WrapperClassInfoSet;
 
   WrappableTypeInfoMap wrappable_type_infos_;
+  WrapperClassInfoSet wrapper_class_infos_;
 };
 
 }  // namespace javascriptcore
