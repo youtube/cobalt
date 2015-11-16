@@ -90,7 +90,7 @@ scoped_ptr<loader::Decoder> Parser::ParseXMLDocumentAsync(
 }
 
 void Parser::ErrorCallback(const std::string& error) {
-  DLOG(WARNING) << "Error in DOM parsing: " << error;
+  LOG(ERROR) << "Error in DOM parsing: " << error;
 }
 
 }  // namespace dom_parser
