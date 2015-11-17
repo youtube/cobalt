@@ -23,28 +23,6 @@ namespace browser {
 const char SplashScreen::Options::kDefaultSplashScreenURL[] =
     "h5vcc-embedded://splash_screen.html";
 
-// Static.
-base::Closure SplashScreen::Create(
-    const WebModule::OnRenderTreeProducedCallback&
-        render_tree_produced_callback,
-    const base::Callback<void(const std::string&)>& error_callback,
-    media::MediaModule* media_module, network::NetworkModule* network_module,
-    const math::Size& window_dimensions,
-    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const SplashScreen::Options& options) {
-  SplashScreen* splash_screen =
-      new SplashScreen(render_tree_produced_callback, error_callback,
-                       media_module, network_module, window_dimensions,
-                       resource_provider, layout_refresh_rate, options);
-
-  return base::Bind(&SplashScreen::Destroy, base::Unretained(splash_screen));
-}
-
-// Static.
-void SplashScreen::Destroy(SplashScreen* splash_screen) {
-  delete splash_screen;
-}
-
 SplashScreen::SplashScreen(
     const WebModule::OnRenderTreeProducedCallback&
         render_tree_produced_callback,
@@ -57,8 +35,6 @@ SplashScreen::SplashScreen(
                   media_module, network_module, window_dimensions,
                   resource_provider, layout_refresh_rate,
                   WebModule::Options("SplashScreenWebModule")) {}
-
-SplashScreen::~SplashScreen() { DLOG(INFO) << "Splash screen destroyed."; }
 
 }  // namespace browser
 }  // namespace cobalt
