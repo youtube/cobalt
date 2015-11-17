@@ -205,7 +205,6 @@ void ContentSecurityPolicy::DidReceiveHeaders(const ResponseHeaders& headers) {
 
 void ContentSecurityPolicy::BindDelegate(Delegate* delegate) {
   delegate_ = delegate;
-  ApplyPolicy();
 }
 
 void ContentSecurityPolicy::DidReceiveHeader(const std::string& header,

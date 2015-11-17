@@ -28,6 +28,7 @@ using ::testing::_;
 using ::testing::HasSubstr;
 using ::testing::Pointee;
 using ::testing::Property;
+using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
 using cobalt::dom::testing::FakeScriptObject;
@@ -95,6 +96,25 @@ class FakeSettings : public dom::DOMSettings {
   GURL base_url() const OVERRIDE { return GURL("http://example.com"); }
 };
 
+class MockCSPDelegate : public dom::CSPDelegate {
+ public:
+  MockCSPDelegate() : dom::CSPDelegate(NULL) {}
+  MOCK_CONST_METHOD1(CanConnectToSource, bool(const GURL&));
+};
+
+// Derive from XMLHttpRequest in order to override its csp_delegate.
+// Normally this would come from the Document via DOMSettings.
+class FakeXmlHttpRequest : public XMLHttpRequest {
+ public:
+  FakeXmlHttpRequest(script::EnvironmentSettings* settings,
+                     dom::CSPDelegate* csp_delegate)
+      : XMLHttpRequest(settings), csp_delegate_(csp_delegate) {}
+  dom::CSPDelegate* csp_delegate() const OVERRIDE { return csp_delegate_; }
+
+ private:
+  dom::CSPDelegate* csp_delegate_;
+};
+
 }  // namespace
 
 class XhrTest : public ::testing::Test {
@@ -135,6 +155,23 @@ TEST_F(XhrTest, Open) {
 
   EXPECT_EQ(XMLHttpRequest::kOpened, xhr_->ready_state());
   EXPECT_EQ(GURL("https://www.google.com"), xhr_->request_url());
+}
+
+TEST_F(XhrTest, OpenFailConnectSrc) {
+  // Verify that opening an XHR to a blocked domain will throw a security
+  // exception.
+  scoped_refptr<script::ScriptException> exception;
+  StrictMock<MockCSPDelegate> csp_delegate;
+  EXPECT_CALL(exception_state_, SetException(_))
+      .WillOnce(SaveArg<0>(&exception));
+
+  xhr_ = new FakeXmlHttpRequest(settings(), &csp_delegate);
+  EXPECT_CALL(csp_delegate, CanConnectToSource(_)).WillOnce(Return(false));
+  xhr_->Open("GET", "https://www.google.com", &exception_state_);
+
+  EXPECT_EQ(dom::DOMException::kSecurityErr,
+            dynamic_cast<dom::DOMException*>(exception.get())->code());
+  EXPECT_EQ(XMLHttpRequest::kUnsent, xhr_->ready_state());
 }
 
 TEST_F(XhrTest, OverrideMimeType) {
