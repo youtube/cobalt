@@ -25,6 +25,7 @@
 #include "base/timer.h"
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/array_buffer_view.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/script/union_type.h"
@@ -142,6 +143,10 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
  protected:
   ~XMLHttpRequest() OVERRIDE;
+
+  // Return the CSP delegate from the Settings object.
+  // virtual for use by tests.
+  virtual dom::CSPDelegate* csp_delegate() const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(XhrTest, GetResponseHeader);
