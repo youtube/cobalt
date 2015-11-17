@@ -20,7 +20,6 @@
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "cobalt/browser/splash_screen.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/keycode.h"
@@ -127,6 +126,7 @@ BrowserModule::BrowserModule(const GURL& url,
       ALLOW_THIS_IN_INITIALIZER_LIST(reload_command_handler_(
           kReloadCommand, base::Bind(&OnReloadMessage, base::Unretained(this)),
           kReloadCommandShortHelp, kReloadCommandLongHelp)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(h5vcc_url_handler_(this, system_window)),
       web_module_options_(options.web_module_options) {
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -181,6 +181,12 @@ void BrowserModule::NavigateInternal(const GURL& url,
                                      const base::Closure& loaded_callback) {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
+  // First try the registered handlers (e.g. for h5vcc://). If one of these
+  // handles the URL, we don't use the web module.
+  if (TryURLHandlers(url)) {
+    return;
+  }
+
   // Reset it explicitly first, so we don't get a memory high-watermark after
   // the second WebModule's construtor runs, but before scoped_ptr::reset() is
   // run.
@@ -192,14 +198,16 @@ void BrowserModule::NavigateInternal(const GURL& url,
   }
 
   // Show a splash screen while we're waiting for the web page to load.
-  base::Closure on_splash_screen_done = SplashScreen::Create(
+  DestroySplashScreen();
+  splash_screen_.reset(new SplashScreen(
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       media_module_.get(), &network_module_,
       math::Size(kInitialWidth, kInitialHeight),
       renderer_module_.pipeline()->GetResourceProvider(),
-      renderer_module_.pipeline()->refresh_rate(), SplashScreen::Options());
-  options.loaded_callbacks.push_back(on_splash_screen_done);
+      renderer_module_.pipeline()->refresh_rate(), SplashScreen::Options()));
+  options.loaded_callbacks.push_back(
+      base::Bind(&BrowserModule::DestroySplashScreen, base::Unretained(this)));
 
   web_module_.reset(new WebModule(
       url,
@@ -260,6 +268,13 @@ void BrowserModule::OnKeyEventProduced(
   if (FilterKeyEvent(event)) {
     web_module_->InjectEvent(event);
   }
+}
+
+void BrowserModule::OnError(const std::string& error) {
+  LOG(ERROR) << error;
+  std::string url_string = "h5vcc://network-failure";
+  url_string += "?retry-url=" + web_module_->url().spec();
+  NavigateInternal(GURL(url_string), base::Closure());
 }
 
 bool BrowserModule::FilterKeyEvent(
@@ -344,6 +359,36 @@ void BrowserModule::StartOrStopTrace() {
     }
   }
 }
+
+void BrowserModule::AddURLHandler(
+    const URLHandler::URLHandlerCallback& callback) {
+  url_handlers_.push_back(callback);
+}
+
+void BrowserModule::RemoveURLHandler(
+    const URLHandler::URLHandlerCallback& callback) {
+  for (URLHandlerCollection::iterator iter = url_handlers_.begin();
+       iter != url_handlers_.end(); ++iter) {
+    if (iter->Equals(callback)) {
+      url_handlers_.erase(iter);
+      return;
+    }
+  }
+}
+
+bool BrowserModule::TryURLHandlers(const GURL& url) {
+  for (URLHandlerCollection::const_iterator iter = url_handlers_.begin();
+       iter != url_handlers_.end(); ++iter) {
+    if (iter->Run(url)) {
+      return true;
+    }
+  }
+
+  // No registered handler handled the URL, let the caller handle it.
+  return false;
+}
+
+void BrowserModule::DestroySplashScreen() { splash_screen_.reset(NULL); }
 
 void BrowserModule::SaveDebugConsoleMode() {
 #if defined(ENABLE_DEBUG_CONSOLE)
