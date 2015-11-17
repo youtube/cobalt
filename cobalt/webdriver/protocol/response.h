@@ -44,8 +44,15 @@ class Response {
     // using an HTTP method that is not supported by the mapped resource.
     kUnknownCommand = 9,
 
+    // An element command failed because the referenced element is no longer
+    // attached to the DOM.
+    kStaleElementReference = 10,
+
     // An unknown server-side error occurred while processing the command.
     kUnknownError = 13,
+
+    // The specified window has been closed, or otherwise couldn't be found.
+    kNoSuchWindow = 23,
 
     // A new session could not be created.
     kSessionNotCreatedException = 33,

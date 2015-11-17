@@ -21,10 +21,12 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/webdriver/dispatcher.h"
+#include "cobalt/webdriver/protocol/capabilities.h"
 #include "cobalt/webdriver/protocol/element_id.h"
 #include "cobalt/webdriver/protocol/server_status.h"
 #include "cobalt/webdriver/protocol/session_id.h"
 #include "cobalt/webdriver/protocol/window_id.h"
+#include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -44,21 +46,6 @@ class WebDriverModule {
   ~WebDriverModule();
 
  private:
-  // Helper functions to get the specified XXXDriver based on the
-  // path variables. If there is no mapping to the driver, an
-  // InvalidParameter response will be sent and NULL returned.
-  SessionDriver* GetSessionDriverOrReturnInvalidResponse(
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      WebDriverDispatcher::CommandResultHandler* result_handler);
-  WindowDriver* GetWindowDriverOrReturnInvalidResponse(
-      SessionDriver* session_driver,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      WebDriverDispatcher::CommandResultHandler* result_handler);
-  ElementDriver* GetElementDriverOrReturnInvalidResponse(
-      WindowDriver* window_driver,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      WebDriverDispatcher::CommandResultHandler* result_handler);
-
   void GetServerStatus(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
@@ -80,42 +67,10 @@ class WebDriverModule {
       const WebDriverDispatcher::PathVariableMap* path_variables,
       scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
 
-  void GetSessionCapabilities(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void GetCurrentWindow(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void GetWindowHandles(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void GetWindowSize(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void GetCurrentUrl(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void Navigate(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void GetTitle(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void FindElement(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
-  void GetElementName(
-      const base::Value* parameters,
-      const WebDriverDispatcher::PathVariableMap* path_variables,
-      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  SessionDriver* GetSessionDriver(const protocol::SessionId& session_id);
+
+  util::CommandResult<protocol::Capabilities> CreateSessionInternal(
+      const protocol::RequestedCapabilities& capabilities);
 
   base::ThreadChecker thread_checker_;
 
@@ -136,6 +91,9 @@ class WebDriverModule {
 
   // The WebDriver server status.
   const protocol::ServerStatus status_;
+
+  base::Callback<SessionDriver*(const protocol::SessionId&)>
+      get_session_driver_;
 };
 
 }  // namespace webdriver

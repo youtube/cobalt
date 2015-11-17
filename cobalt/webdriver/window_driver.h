@@ -30,6 +30,7 @@
 #include "cobalt/webdriver/protocol/search_strategy.h"
 #include "cobalt/webdriver/protocol/size.h"
 #include "cobalt/webdriver/protocol/window_id.h"
+#include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -46,22 +47,25 @@ class WindowDriver {
   const protocol::WindowId& window_id() { return window_id_; }
   ElementDriver* GetElementDriver(const protocol::ElementId& element_id);
 
-  protocol::Size GetWindowSize();
-  std::string GetCurrentUrl();
-  std::string GetTitle();
-  ElementDriver* FindElement(const protocol::SearchStrategy& strategy);
+  util::CommandResult<protocol::Size> GetWindowSize();
+  util::CommandResult<std::string> GetCurrentUrl();
+  util::CommandResult<std::string> GetTitle();
+  util::CommandResult<protocol::ElementId> FindElement(
+      const protocol::SearchStrategy& strategy);
 
  private:
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
   typedef ElementDriverMap::iterator ElementDriverMapIt;
 
-  protocol::ElementId GetUniqueElementId();
+  dom::Window* GetWeak() {
+    DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+    return window_.get();
+  }
 
-  protocol::Size GetWindowSizeInternal();
-  std::string GetCurrentUrlInternal();
-  std::string GetTitleInternal();
-  base::WeakPtr<dom::Element> FindElementInternal(
-      const protocol::SearchStrategy& strategy);
+  protocol::ElementId GetUniqueElementId();
+  protocol::Response::StatusCode FindElementInternal(
+      const protocol::SearchStrategy& strategy,
+      base::WeakPtr<dom::Element>* out_weak_ptr);
 
   base::ThreadChecker thread_checker_;
   protocol::WindowId window_id_;
