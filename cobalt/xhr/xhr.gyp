@@ -21,6 +21,8 @@
       'target_name': 'xhr',
       'type': 'static_library',
       'sources': [
+        'xhr_response_data.cc',
+        'xhr_response_data.h',
         'xml_http_request.cc',
         'xml_http_request.h',
         'xml_http_request_event_target.cc',
@@ -34,6 +36,7 @@
       'target_name': 'xhr_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'xhr_response_data_test.cc',
         'xml_http_request_test.cc',
       ],
       'dependencies': [
