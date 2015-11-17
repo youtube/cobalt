@@ -26,7 +26,9 @@ ArrayBufferView::ArrayBufferView(const scoped_refptr<ArrayBuffer>& buffer,
                                  uint32 byte_offset, uint32 byte_length)
     : buffer_(buffer), byte_offset_(byte_offset), byte_length_(byte_length) {}
 
-void* ArrayBufferView::base_address() const {
+void* ArrayBufferView::base_address() { return buffer_->data() + byte_offset_; }
+
+const void* ArrayBufferView::base_address() const {
   return buffer_->data() + byte_offset_;
 }
 

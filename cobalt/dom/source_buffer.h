@@ -47,7 +47,7 @@ class SourceBuffer : public script::Wrappable {
   double timestamp_offset(script::ExceptionState* exception_state) const;
   void set_timestamp_offset(double offset,
                             script::ExceptionState* exception_state);
-  void Append(const scoped_refptr<Uint8Array>& data,
+  void Append(const scoped_refptr<const Uint8Array>& data,
               script::ExceptionState* exception_state);
   void Abort(script::ExceptionState* exception_state);
 

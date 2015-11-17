@@ -163,13 +163,15 @@ class TypedArray : public ArrayBufferView {
 
   uint32 length() const { return byte_length() / kBytesPerElement; }
 
-  ElementType* data() const {
-    return reinterpret_cast<ElementType*>(base_address());
+  const ElementType* data() const {
+    return reinterpret_cast<const ElementType*>(base_address());
   }
 
   DEFINE_WRAPPABLE_TYPE(TypedArray);
 
  private:
+  ElementType* data() { return reinterpret_cast<ElementType*>(base_address()); }
+
   DISALLOW_COPY_AND_ASSIGN(TypedArray);
 };
 
