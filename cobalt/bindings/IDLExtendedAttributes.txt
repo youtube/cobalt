@@ -81,9 +81,12 @@ TreatNullAs=EmptyString
 # be converted to the empty string rather than the string "undefined".
 TreatUndefinedAs=EmptyString
 
+# Surround the affected code in #if defined(CONDITIONAL_VALUE). Can be applied
+# to interfaces and individual properties.
+Conditional=*
+
 # Not yet supported
 ArrayClass
-Conditional=*
 OverrideBuiltins
 PutForwards=*
 Unforgeable
