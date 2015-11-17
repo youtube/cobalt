@@ -62,12 +62,14 @@ Document::Document(HTMLElementContext* html_element_context,
       implementation_(new DOMImplementation()),
       location_(new Location(options.url)),
       url_(options.url),
+      ALLOW_THIS_IN_INITIALIZER_LIST(csp_delegate_(new CSPDelegate(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           style_sheets_(new cssom::StyleSheetList(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(font_face_cache_(new FontFaceCache(
           html_element_context_ ? html_element_context_->remote_font_cache()
                                 : NULL,
-          base::Bind(&Document::OnFontLoadEvent, base::Unretained(this))))),
+          base::Bind(&Document::OnFontLoadEvent, base::Unretained(this)),
+          csp_delegate_.get()))),
       loading_counter_(0),
       should_dispatch_load_event_(true),
       is_selector_tree_dirty_(true),
@@ -76,8 +78,7 @@ Document::Document(HTMLElementContext* html_element_context,
       are_font_faces_dirty_(true),
       navigation_start_clock_(options.navigation_start_clock),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          default_timeline_(new DocumentTimeline(this, 0))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(csp_delegate_(new CSPDelegate(this))) {
+          default_timeline_(new DocumentTimeline(this, 0))) {
   DCHECK(url_.is_empty() || url_.is_valid());
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
