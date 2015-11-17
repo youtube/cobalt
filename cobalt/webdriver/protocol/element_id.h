@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "base/values.h"
 
 namespace cobalt {
@@ -32,7 +33,7 @@ class ElementId {
   // Convert the ElementId to a WebElement JSON object:
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#WebElement_JSON_Object
   static scoped_ptr<base::Value> ToValue(const ElementId& element_id);
-  static scoped_ptr<ElementId> FromValue(const base::Value* value);
+  static base::optional<ElementId> FromValue(const base::Value* value);
 
   explicit ElementId(const std::string& id) : id_(id) {}
   const std::string& id() const { return id_; }

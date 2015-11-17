@@ -138,28 +138,23 @@ scoped_ptr<base::Value> Capabilities::ToValue(
       kAcceptSslCertsKey);
   writer.TryWriteCapability<&Capabilities::native_events_>(kNativeEventsKey);
 
-  // If there are any additional ones that we don't know about, write those
-  // by merging into the capabilities dictionary.
-  if (capabilities.other_capabilities_) {
-    capabilities_value->MergeDictionary(capabilities.other_capabilities_.get());
-  }
   return capabilities_value.PassAs<base::Value>();
 }
 
-scoped_ptr<Capabilities> Capabilities::FromValue(const base::Value* value) {
+base::optional<Capabilities> Capabilities::FromValue(const base::Value* value) {
   const base::DictionaryValue* value_as_dictionary;
   if (!value->GetAsDictionary(&value_as_dictionary)) {
-    return make_scoped_ptr<Capabilities>(NULL);
+    return base::nullopt;
   }
   // Create a new Capabilities object, and copy the capabilities dictionary
   // from which we will read capabilities
-  scoped_ptr<Capabilities> capabilities(new Capabilities());
+  Capabilities capabilities;
   scoped_ptr<base::DictionaryValue> capabilities_copy(
       value_as_dictionary->DeepCopy());
 
   // Read all the capabilities we know about, and remove handled capabilities
   // from the dictionary.
-  CapabilityReader reader(capabilities.get(), capabilities_copy.get());
+  CapabilityReader reader(&capabilities, capabilities_copy.get());
   reader.TryReadCapability<&Capabilities::browser_name_>(kBrowserNameKey);
   reader.TryReadCapability<&Capabilities::version_>(kVersionKey);
   reader.TryReadCapability<&Capabilities::platform_>(kPlatformKey);
@@ -184,26 +179,20 @@ scoped_ptr<Capabilities> Capabilities::FromValue(const base::Value* value) {
       kAcceptSslCertsKey);
   reader.TryReadCapability<&Capabilities::native_events_>(kNativeEventsKey);
 
-  // If there were some other capabilities that we don't know about, pass
-  // ownership of the remaining capabilities to the Capabilities object.
-  if (!capabilities_copy->empty()) {
-    capabilities->other_capabilities_ = capabilities_copy.Pass();
-  }
-
-  return capabilities.Pass();
+  return capabilities;
 }
 
 
-scoped_ptr<Capabilities> Capabilities::CreateActualCapabilities() {
-  scoped_ptr<Capabilities> capabilities(new Capabilities());
+Capabilities Capabilities::CreateActualCapabilities() {
+  Capabilities capabilities;
   // Set the capabilities that we know we support.
-  capabilities->browser_name_ = "Cobalt";
-  capabilities->version_ = COBALT_VERSION;
+  capabilities.browser_name_ = "Cobalt";
+  capabilities.version_ = COBALT_VERSION;
   // TODO(***REMOVED***): Support platforms other than Linux.
-  capabilities->platform_ = "Linux";
-  capabilities->javascript_enabled_ = true;
-  capabilities->css_selectors_enabled_ = true;
-  return capabilities.Pass();
+  capabilities.platform_ = "Linux";
+  capabilities.javascript_enabled_ = true;
+  capabilities.css_selectors_enabled_ = true;
+  return capabilities;
 }
 
 bool Capabilities::AreCapabilitiesSupported() const {
@@ -211,31 +200,34 @@ bool Capabilities::AreCapabilitiesSupported() const {
   return true;
 }
 
-scoped_ptr<RequestedCapabilities> RequestedCapabilities::FromValue(
+base::optional<RequestedCapabilities> RequestedCapabilities::FromValue(
     const base::Value* value) {
   DCHECK(value);
   const base::DictionaryValue* requested_capabilities_value;
   if (!value->GetAsDictionary(&requested_capabilities_value)) {
-    return make_scoped_ptr<RequestedCapabilities>(NULL);
+    return base::nullopt;
   }
 
-  scoped_ptr<RequestedCapabilities> requested_capabilities(
-      new RequestedCapabilities());
+  base::optional<Capabilities> desired;
   const base::Value* capabilities_value = NULL;
   if (requested_capabilities_value->Get(kDesiredCapabilitiesKey,
                                         &capabilities_value)) {
-    requested_capabilities->desired_ = Capabilities::FromValue(value);
+    desired = Capabilities::FromValue(value);
   }
-  if (!requested_capabilities->desired_) {
-    // Only Required capabilities are optional.
-    return make_scoped_ptr<RequestedCapabilities>(NULL);
+  if (!desired) {
+    // Desired capabilities are required.
+    return base::nullopt;
   }
+  base::optional<Capabilities> required;
   if (requested_capabilities_value->Get(kRequiredCapabilitiesKey,
                                         &capabilities_value)) {
-    requested_capabilities->required_ = Capabilities::FromValue(value);
+    required = Capabilities::FromValue(value);
   }
-
-  return requested_capabilities.Pass();
+  if (required) {
+    return RequestedCapabilities(desired.value(), required.value());
+  } else {
+    return RequestedCapabilities(desired.value());
+  }
 }
 
 
