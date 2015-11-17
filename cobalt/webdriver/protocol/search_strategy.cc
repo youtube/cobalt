@@ -51,24 +51,25 @@ bool GetSearchStrategyFromString(const std::string& strategy_string,
 }
 }  // namespace
 
-scoped_ptr<SearchStrategy> SearchStrategy::FromValue(const base::Value* value) {
+base::optional<SearchStrategy> SearchStrategy::FromValue(
+    const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
-    return make_scoped_ptr<SearchStrategy>(NULL);
+    return base::nullopt;
   }
   std::string using_strategy;
   std::string parameter;
   if (!dictionary_value->GetString(kUsingKey, &using_strategy)) {
-    return make_scoped_ptr<SearchStrategy>(NULL);
+    return base::nullopt;
   }
   if (!dictionary_value->GetString(kValueKey, &parameter)) {
-    return make_scoped_ptr<SearchStrategy>(NULL);
+    return base::nullopt;
   }
   SearchStrategy::Strategy strategy;
   if (!GetSearchStrategyFromString(using_strategy, &strategy)) {
-    return make_scoped_ptr<SearchStrategy>(NULL);
+    return base::nullopt;
   }
-  return make_scoped_ptr(new SearchStrategy(strategy, parameter));
+  return SearchStrategy(strategy, parameter);
 }
 
 }  // namespace protocol

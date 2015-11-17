@@ -20,6 +20,12 @@
 
 namespace cobalt {
 namespace webdriver {
+namespace {
+std::string GetTagName(dom::Element* element) {
+  DCHECK(element);
+  return element->tag_name();
+}
+}  // namespace
 
 ElementDriver::ElementDriver(
     const protocol::ElementId& element_id,
@@ -29,18 +35,12 @@ ElementDriver::ElementDriver(
       element_(element),
       element_message_loop_(message_loop) {}
 
-std::string ElementDriver::GetTagName() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  return util::CallOnMessageLoop(
+util::CommandResult<std::string> ElementDriver::GetTagName() {
+  return util::CallWeakOnMessageLoopAndReturnResult(
       element_message_loop_,
-      base::Bind(&ElementDriver::GetTagNameInternal, base::Unretained(this)));
-}
-
-std::string ElementDriver::GetTagNameInternal() {
-  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
-  // TODO(***REMOVED***): If the element was deleted, return StaleElementReference
-  DCHECK(element_);
-  return element_->tag_name();
+      base::Bind(&ElementDriver::GetWeak, base::Unretained(this)),
+      base::Bind(&::cobalt::webdriver::GetTagName),
+      protocol::Response::kStaleElementReference);
 }
 
 }  // namespace webdriver

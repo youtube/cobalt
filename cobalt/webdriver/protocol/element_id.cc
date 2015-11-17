@@ -29,16 +29,16 @@ scoped_ptr<base::Value> ElementId::ToValue(const ElementId& element_id) {
   return element_object.PassAs<base::Value>();
 }
 
-scoped_ptr<ElementId> ElementId::FromValue(const base::Value* value) {
+base::optional<ElementId> ElementId::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
-    return make_scoped_ptr<ElementId>(NULL);
+    return base::nullopt;
   }
   std::string element_id;
   if (!dictionary_value->GetString(kElementKey, &element_id)) {
-    return make_scoped_ptr<ElementId>(NULL);
+    return base::nullopt;
   }
-  return make_scoped_ptr(new ElementId(element_id));
+  return ElementId(element_id);
 }
 
 }  // namespace protocol
