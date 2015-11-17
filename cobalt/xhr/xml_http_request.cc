@@ -20,6 +20,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event_names.h"
@@ -165,6 +166,14 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
   request_url_ = base_url_.Resolve(url);
   if (!request_url_.is_valid()) {
     DOMException::Raise(DOMException::kSyntaxErr, exception_state);
+    return;
+  }
+
+  dom::CSPDelegate* csp = csp_delegate();
+  if (csp && !csp->CanConnectToSource(request_url_)) {
+    DLOG(WARNING) << "Refused to connect to " << request_url_.spec()
+                  << ". It violates the document's Content Security Policy";
+    DOMException::Raise(DOMException::kSecurityErr, exception_state);
     return;
   }
 
@@ -528,6 +537,15 @@ XMLHttpRequest::~XMLHttpRequest() {
   DCHECK(thread_checker_.CalledOnValidThread());
   dom::Stats::GetInstance()->Remove(this);
   dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
+}
+
+dom::CSPDelegate* XMLHttpRequest::csp_delegate() const {
+  DCHECK(settings_);
+  if (settings_->window() && settings_->window()->document()) {
+    return settings_->window()->document()->csp_delegate();
+  } else {
+    return NULL;
+  }
 }
 
 void XMLHttpRequest::FireProgressEvent(const std::string& event_name) {
