@@ -179,8 +179,9 @@ void HTMLMediaElement::GenerateKeyRequest(
   WebMediaPlayer::MediaKeyException exception;
 
   if (init_data) {
-    exception = player_->GenerateKeyRequest(
-        key_system, init_data.value()->data(), init_data.value()->length());
+    scoped_refptr<const Uint8Array> const_init_data = init_data.value();
+    exception = player_->GenerateKeyRequest(key_system, const_init_data->data(),
+                                            const_init_data->length());
   } else {
     exception = player_->GenerateKeyRequest(key_system, NULL, 0);
   }
@@ -191,7 +192,7 @@ void HTMLMediaElement::GenerateKeyRequest(
 }
 
 void HTMLMediaElement::AddKey(
-    const std::string& key_system, const scoped_refptr<Uint8Array>& key,
+    const std::string& key_system, const scoped_refptr<const Uint8Array>& key,
     const base::optional<scoped_refptr<Uint8Array> >& init_data,
     const base::optional<std::string>& session_id,
     script::ExceptionState* exception_state) {
@@ -218,9 +219,10 @@ void HTMLMediaElement::AddKey(
   WebMediaPlayer::MediaKeyException exception;
 
   if (init_data) {
+    scoped_refptr<const Uint8Array> const_init_data = init_data.value();
     exception = player_->AddKey(
-        key_system, key->data(), key->length(), init_data.value()->data(),
-        init_data.value()->length(), session_id.value_or(""));
+        key_system, key->data(), key->length(), const_init_data->data(),
+        const_init_data->length(), session_id.value_or(""));
   } else {
     exception = player_->AddKey(key_system, key->data(), key->length(), NULL, 0,
                                 session_id.value_or(""));
