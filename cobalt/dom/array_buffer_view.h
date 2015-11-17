@@ -33,7 +33,8 @@ class ArrayBufferView : public script::Wrappable {
   uint32 byte_length() const { return byte_length_; }
 
   // Custom, not in any spec.
-  void* base_address() const;
+  void* base_address();
+  const void* base_address() const;
 
   DEFINE_WRAPPABLE_TYPE(ArrayBufferView);
 

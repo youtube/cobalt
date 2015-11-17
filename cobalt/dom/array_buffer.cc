@@ -54,7 +54,7 @@ ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings,
 }
 
 scoped_refptr<ArrayBuffer> ArrayBuffer::Slice(
-    script::EnvironmentSettings* settings, int start, int end) {
+    script::EnvironmentSettings* settings, int start, int end) const {
   int clamped_start;
   int clamped_end;
   ClampRange(start, end, static_cast<int>(byte_length()), &clamped_start,

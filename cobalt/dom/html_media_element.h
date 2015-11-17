@@ -83,7 +83,7 @@ class HTMLMediaElement : public HTMLElement,
       const base::optional<scoped_refptr<Uint8Array> >& init_data,
       script::ExceptionState* exception_state);
   void AddKey(const std::string& key_system,
-              const scoped_refptr<Uint8Array>& key,
+              const scoped_refptr<const Uint8Array>& key,
               const base::optional<scoped_refptr<Uint8Array> >& init_data,
               const base::optional<std::string>& session_id,
               script::ExceptionState* exception_state);

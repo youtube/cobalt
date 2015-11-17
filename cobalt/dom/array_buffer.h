@@ -34,11 +34,11 @@ class ArrayBuffer : public script::Wrappable {
 
   uint32 byte_length() const { return static_cast<uint32>(size_); }
   scoped_refptr<ArrayBuffer> Slice(script::EnvironmentSettings* settings,
-                                   int begin) {
+                                   int begin) const {
     return Slice(settings, begin, static_cast<int>(byte_length()));
   }
   scoped_refptr<ArrayBuffer> Slice(script::EnvironmentSettings* settings,
-                                   int begin, int end);
+                                   int begin, int end) const;
 
   uint8* data() { return data_.get(); }
   const uint8* data() const { return data_.get(); }
