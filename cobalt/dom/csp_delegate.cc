@@ -30,6 +30,10 @@ CSPDelegate::~CSPDelegate() {}
 
 csp::ContentSecurityPolicy* CSPDelegate::csp() const { return csp_.get(); }
 
+bool CSPDelegate::CanLoadFont(const GURL& url) const {
+  return csp_->AllowFontFromSource(url);
+}
+
 bool CSPDelegate::CanLoadImage(const GURL& url) const {
   return csp_->AllowImageFromSource(url);
 }
