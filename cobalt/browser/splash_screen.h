@@ -19,7 +19,6 @@
 
 #include <string>
 
-#include "base/callback.h"
 #include "cobalt/browser/web_module.h"
 #include "googleurl/src/gurl.h"
 
@@ -28,9 +27,6 @@ namespace browser {
 
 // SplashScreen uses a WebModule to present a splash screen.
 //
-// The class has a single static public method that creates a splash screen
-// and returns a closure to be called when the splash screen is no longer to
-// be shown (e.g. when the thing we're waiting for has loaded).
 class SplashScreen {
  public:
   struct Options {
@@ -39,16 +35,6 @@ class SplashScreen {
     GURL url;
   };
 
-  static base::Closure Create(
-      const WebModule::OnRenderTreeProducedCallback&
-          render_tree_produced_callback,
-      const base::Callback<void(const std::string&)>& error_callback,
-      media::MediaModule* media_module, network::NetworkModule* network_module,
-      const math::Size& window_dimensions,
-      render_tree::ResourceProvider* resource_provider,
-      float layout_refresh_rate, const Options& options);
-
- private:
   SplashScreen(const WebModule::OnRenderTreeProducedCallback&
                    render_tree_produced_callback,
                const base::Callback<void(const std::string&)>& error_callback,
@@ -57,10 +43,8 @@ class SplashScreen {
                const math::Size& window_dimensions,
                render_tree::ResourceProvider* resource_provider,
                float layout_refresh_rate, const Options& options);
-  ~SplashScreen();
 
-  static void Destroy(SplashScreen* splash_screen);
-
+ private:
   WebModule web_module_;
 };
 

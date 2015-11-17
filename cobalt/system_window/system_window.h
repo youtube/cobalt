@@ -17,6 +17,9 @@
 #ifndef SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 #define SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 
+#include <string>
+
+#include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/event_dispatcher.h"
 
@@ -32,9 +35,40 @@ namespace system_window {
 // platform.
 class SystemWindow {
  public:
+  // Enumeration of possible responses for the dialog callback.
+  enum DialogResponse {
+    kDialogPositiveResponse,
+    kDialogNegativeResponse,
+    kDialogCancelResponse
+  };
+
+  // Type of callback to run when user closes a dialog.
+  typedef base::Callback<void(DialogResponse response)> DialogCallback;
+
+  // Type to indicate dialog severity. May be used by the platform-specific
+  // implementation to control aspects of dialog presentation.
+  enum DialogSeverity { kDialogInfo, kDialogWarning, kDialogError };
+
+  // Options structure for dialog creation. It is expected that each platform
+  // will implement a modal dialog with possible support for:
+  // A text message.
+  // An indication of severity: info, warning or error.
+  // 1-3 buttons, where usually 1 = OK, 2 = Yes/No, 3 = Yes/No/Cancel.
+  // A callback indicating the user's response: positive, negative or cancel.
+  struct DialogOptions {
+    DialogOptions() : severity(kDialogInfo), num_buttons(1) {}
+    DialogSeverity severity;
+    int num_buttons;
+    std::string message;
+    DialogCallback callback;
+  };
+
   explicit SystemWindow(base::EventDispatcher* event_dispatcher)
       : event_dispatcher_(event_dispatcher) {}
   virtual ~SystemWindow();
+
+  // Launches a system dialog.
+  virtual void ShowDialog(const DialogOptions& options);
 
   base::EventDispatcher* event_dispatcher() const { return event_dispatcher_; }
 
