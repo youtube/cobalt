@@ -64,7 +64,7 @@ void SourceBuffer::set_timestamp_offset(
   }
 }
 
-void SourceBuffer::Append(const scoped_refptr<Uint8Array>& data,
+void SourceBuffer::Append(const scoped_refptr<const Uint8Array>& data,
                           script::ExceptionState* exception_state) {
   if (!media_source_) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
