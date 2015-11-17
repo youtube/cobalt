@@ -30,6 +30,10 @@ CSPDelegate::~CSPDelegate() {}
 
 csp::ContentSecurityPolicy* CSPDelegate::csp() const { return csp_.get(); }
 
+bool CSPDelegate::CanConnectToSource(const GURL& url) const {
+  return csp_->AllowConnectToSource(url);
+}
+
 bool CSPDelegate::CanLoadFont(const GURL& url) const {
   return csp_->AllowFontFromSource(url);
 }

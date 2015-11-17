@@ -39,8 +39,9 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
 
   csp::ContentSecurityPolicy* csp() const;
 
-  bool CanLoadFont(const GURL& url) const;
-  bool CanLoadImage(const GURL& url) const;
+  virtual bool CanConnectToSource(const GURL& url) const;
+  virtual bool CanLoadFont(const GURL& url) const;
+  virtual bool CanLoadImage(const GURL& url) const;
 
   // From csp::ContentSecurityPolicyDelegate
   GURL url() const OVERRIDE;
