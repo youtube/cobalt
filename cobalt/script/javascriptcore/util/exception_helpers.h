@@ -33,6 +33,8 @@ std::string GetExceptionString(JSC::ExecState* exec_state);
 std::string GetExceptionString(JSC::ExecState* exec_state,
                                JSC::JSValue exception);
 
+std::string GetStackTrace(JSC::ExecState* exec_state);
+
 }  // namespace util
 }  // namespace javascriptcore
 }  // namespace script
