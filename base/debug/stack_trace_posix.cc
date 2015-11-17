@@ -152,7 +152,12 @@ void ProcessBacktrace(void *const *trace,
   // Below part is async-signal unsafe (uses malloc), so execute it only
   // when we are not executing the signal handler.
   if (in_signal_handler == 0) {
+#if defined(__LB_PS3__)
+    scoped_ptr_malloc<char*> trace_symbols(
+        ResolveSymbolsFromHostPS3(trace, size));
+#else
     scoped_ptr_malloc<char*> trace_symbols(backtrace_symbols(trace, size));
+#endif
     if (trace_symbols.get()) {
       for (int i = 0; i < size; ++i) {
         std::string trace_symbol = trace_symbols.get()[i];
