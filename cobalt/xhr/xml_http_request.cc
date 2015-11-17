@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,10 +39,9 @@ using dom::DOMException;
 
 namespace {
 
-// As we are using std::vector<uint8> to store received data internally,
-// allocate 64KB on receiving the first chunk to avoid allocating small buffer
+// Allocate 64KB on receiving the first chunk to avoid allocating small buffer
 // too many times.
-static const size_t kInitialReceivingBufferSize = 64 * 1024;
+const size_t kInitialReceivingBufferSize = 64 * 1024;
 
 const char* s_response_types[] = {
     "",             // kDefault
@@ -126,11 +125,8 @@ void XMLHttpRequest::Abort() {
     HandleRequestError(kAbortError);
   }
   ChangeState(kUnsent);
-  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
-  // Clear |response_body_| as any attempt to retrieve response data in UNSENT
-  // should receive empty data.  Use swap() instead of clear() so the memory
-  // allocated by |response_body_| will be freed.
-  std::vector<uint8>().swap(response_body_);
+
+  response_body_.Clear();
   response_array_buffer_ = NULL;
 }
 
@@ -186,10 +182,7 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
   sent_ = false;
   stop_timeout_ = false;
 
-  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
-  // Use swap() instead of clear() so the memory allocated by |response_body_|
-  // will be freed.
-  std::vector<uint8>().swap(response_body_);
+  response_body_.Clear();
   request_headers_.Clear();
   response_array_buffer_ = NULL;
 
@@ -375,7 +368,8 @@ std::string XMLHttpRequest::response_text(
     return std::string();
   }
 
-  return std::string(response_body_.begin(), response_body_.end());
+  return std::string(response_body_.data(),
+                     response_body_.data() + response_body_.size());
 }
 
 base::optional<std::string> XMLHttpRequest::response_xml(
@@ -469,17 +463,48 @@ void XMLHttpRequest::set_with_credentials(bool with_credentials) {
   NOTIMPLEMENTED();
 }
 
+void XMLHttpRequest::OnResponseStarted(
+    loader::Fetcher* fetcher,
+    const scoped_refptr<net::HttpResponseHeaders>& headers) {
+  UNREFERENCED_PARAMETER(fetcher);
+  DCHECK(thread_checker_.CalledOnValidThread());
+  http_status_ = headers->response_code();
+  http_response_headers_ = headers;
+  // Discard these as required by XHR spec.
+  http_response_headers_->RemoveHeader("Set-Cookie2");
+  http_response_headers_->RemoveHeader("Set-Cookie");
+
+  if (mime_type_override_.length()) {
+    http_response_headers_->RemoveHeader("Content-Type");
+    http_response_headers_->AddHeader(std::string("Content-Type: ") +
+                                      mime_type_override_);
+  }
+
+  DCHECK_EQ(response_body_.size(), 0);
+  const int64 content_length = http_response_headers_->GetContentLength();
+
+  // If we know the eventual content length, allocate the total response body.
+  // Otherwise just reserve a reasonably large initial chunk.
+  size_t bytes_to_reserve = content_length > 0
+                                ? static_cast<size_t>(content_length)
+                                : kInitialReceivingBufferSize;
+  response_body_.Reserve(bytes_to_reserve);
+
+  UpdateProgress();
+  ChangeState(kHeadersReceived);
+}
+
 void XMLHttpRequest::OnReceived(loader::Fetcher* fetcher, const char* data,
                                 size_t size) {
+  UNREFERENCED_PARAMETER(fetcher);
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK_NE(state_, kDone);
-  UNREFERENCED_PARAMETER(fetcher);
-  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
-  // Ensure that we at least allocate |kInitialReceivingBufferSize| bytes for
-  // receiving buffer to avoid multiple small allocations.
-  response_body_.reserve(kInitialReceivingBufferSize);
-  response_body_.insert(response_body_.end(), data, data + size);
-  dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(response_body_.capacity());
+  DCHECK(http_response_headers_) << "OnResponseStarted was not called";
+
+  response_body_.Append(reinterpret_cast<const uint8*>(data), size);
+  ChangeState(kLoading);
+
+  UpdateProgress();
 }
 
 void XMLHttpRequest::OnDone(loader::Fetcher* fetcher) {
@@ -490,46 +515,8 @@ void XMLHttpRequest::OnDone(loader::Fetcher* fetcher) {
     return;
   }
 
-  net::URLFetcher* url_fetcher = net_fetcher_->url_fetcher();
-  http_status_ = url_fetcher->GetResponseCode();
-  http_response_headers_ = url_fetcher->GetResponseHeaders();
-
-  // Discard these as required by XHR spec.
-  http_response_headers_->RemoveHeader("Set-Cookie2");
-  http_response_headers_->RemoveHeader("Set-Cookie");
-
-  if (mime_type_override_.length()) {
-    http_response_headers_->RemoveHeader("Content-Type");
-    http_response_headers_->AddHeader(
-        std::string("Content-Type: ") + mime_type_override_);
-  }
-
-  // TODO(***REMOVED***): We may need to switch to URLRequest so we can
-  // have more control. We can't call most methods on url_fetcher
-  // until it delivers an OnURLFetchComplete() callback.
-  // So we can't really do these state changes any earlier.
-  ChangeState(kHeadersReceived);
-  ChangeState(kLoading);
   ChangeState(kDone);
-
-  // Compute sizes for our final progress event.
-  // This should really be done in OnReceived(), but we don't have
-  // the response headers yet.
-  const int64 content_length = http_response_headers_->GetContentLength();
-  const int64 received_length = static_cast<int64>(response_body_.size());
-  const bool length_computable =
-      content_length > 0 && received_length <= content_length;
-  const uint64 total =
-      length_computable ? static_cast<uint64>(content_length) : 0;
-  FireProgressEvent(dom::EventNames::GetInstance()->progress(),
-                    static_cast<uint64>(received_length), total,
-                    length_computable);
-  FireProgressEvent(dom::EventNames::GetInstance()->load(),
-                    static_cast<uint64>(received_length), total,
-                    length_computable);
-  FireProgressEvent(dom::EventNames::GetInstance()->loadend(),
-                    static_cast<uint64>(received_length), total,
-                    length_computable);
+  UpdateProgress();
 
   // Undo the ref we added in Send()
   AllowGarbageCollection();
@@ -546,7 +533,6 @@ void XMLHttpRequest::OnError(loader::Fetcher* fetcher,
 XMLHttpRequest::~XMLHttpRequest() {
   DCHECK(thread_checker_.CalledOnValidThread());
   dom::Stats::GetInstance()->Remove(this);
-  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
 }
 
 dom::CSPDelegate* XMLHttpRequest::csp_delegate() const {
@@ -634,23 +620,35 @@ scoped_refptr<dom::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
   if (!response_array_buffer_) {
     // The request is done so it is safe to only keep the ArrayBuffer and clear
     // |response_body_|.  As |response_body_| will not be used unless the
-    // request is re-opened.  It is possible to transfer the buffer allocated
-    // inside |response_body_| to |response_array_buffer_| to avoid allocating
-    // and copying data over if fragmentation or performance turns out to be an
-    // issue in future.
+    // request is re-opened.
+    size_t response_size = response_body_.size();
     response_array_buffer_ = new dom::ArrayBuffer(
-        settings_, static_cast<uint32>(response_body_.size()));
-    if (!response_body_.empty()) {
-      memcpy(response_array_buffer_->data(), &response_body_[0],
-             response_body_.size());
-      dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(
-          response_body_.capacity());
-      // Use swap() instead of clear() so the memory allocated by
-      // |response_body_| will be freed.
-      std::vector<uint8>().swap(response_body_);
-    }
+        settings_, response_body_.Pass(), static_cast<uint32>(response_size));
   }
   return response_array_buffer_;
+}
+
+void XMLHttpRequest::UpdateProgress() {
+  DCHECK(http_response_headers_);
+  const int64 content_length = http_response_headers_->GetContentLength();
+  const int64 received_length = static_cast<int64>(response_body_.size());
+  const bool length_computable =
+      content_length > 0 && received_length <= content_length;
+  const uint64 total =
+      length_computable ? static_cast<uint64>(content_length) : 0;
+
+  if (state_ == kDone) {
+    FireProgressEvent(dom::EventNames::GetInstance()->load(),
+                      static_cast<uint64>(received_length), total,
+                      length_computable);
+    FireProgressEvent(dom::EventNames::GetInstance()->loadend(),
+                      static_cast<uint64>(received_length), total,
+                      length_computable);
+  } else {
+    FireProgressEvent(dom::EventNames::GetInstance()->progress(),
+                      static_cast<uint64>(received_length), total,
+                      length_computable);
+  }
 }
 
 void XMLHttpRequest::PreventGarbageCollection() {
