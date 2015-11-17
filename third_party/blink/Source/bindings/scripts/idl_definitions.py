@@ -337,6 +337,10 @@ class IdlInterface(object):
         self.attributes.extend(other.attributes)
         self.constants.extend(other.constants)
         self.operations.extend(other.operations)
+        if other.stringifier:
+            assert not self.stringifier, (
+                'Stringifier exists on merge target and source.')
+            self.stringifier = other.stringifier
 
 
 class IdlException(IdlInterface):
