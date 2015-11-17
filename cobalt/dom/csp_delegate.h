@@ -39,6 +39,7 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
 
   csp::ContentSecurityPolicy* csp() const;
 
+  bool CanLoadFont(const GURL& url) const;
   bool CanLoadImage(const GURL& url) const;
 
   // From csp::ContentSecurityPolicyDelegate
