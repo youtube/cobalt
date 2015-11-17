@@ -236,6 +236,17 @@
                 'symbolize',
               ],
             }],
+            ['target_arch == "ps3" and _toolset == "target"', {
+              # Script for resolving symbols, for use by stack_trace_ps3.cc
+              'copies': [
+                {
+                  'destination': '<(PRODUCT_DIR)',
+                  'files': [
+                    'debug/addr2line_ps3.py',
+                  ],
+                },
+              ],
+            }],
             # toolset can be host or target.
             # (host in the case of e.g. protobuf compiler.)
             # We only want posix_emulation for target builds.
