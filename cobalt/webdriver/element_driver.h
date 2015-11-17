@@ -25,6 +25,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/webdriver/protocol/element_id.h"
+#include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -42,10 +43,13 @@ class ElementDriver {
                 const scoped_refptr<base::MessageLoopProxy>& message_loop);
   const protocol::ElementId& element_id() { return element_id_; }
 
-  std::string GetTagName();
+  util::CommandResult<std::string> GetTagName();
 
  private:
-  std::string GetTagNameInternal();
+  dom::Element* GetWeak() {
+    DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+    return element_.get();
+  }
 
   base::ThreadChecker thread_checker_;
   protocol::ElementId element_id_;

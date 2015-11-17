@@ -33,10 +33,10 @@ class Capabilities {
  public:
   // Convert a Capabilities object to/from a base::Value
   static scoped_ptr<base::Value> ToValue(const Capabilities& capabilities);
-  static scoped_ptr<Capabilities> FromValue(const base::Value* value);
+  static base::optional<Capabilities> FromValue(const base::Value* value);
 
   // Create the actual capabilities of Cobalt's WebDriver implementation.
-  static scoped_ptr<Capabilities> CreateActualCapabilities();
+  static Capabilities CreateActualCapabilities();
 
   // Return true if we support all the capabilities listed here.
   bool AreCapabilitiesSupported() const;
@@ -62,10 +62,6 @@ class Capabilities {
   base::optional<bool> accept_ssl_certs_;
   base::optional<bool> native_events_;
   // TODO(***REMOVED***): Read proxy capability.
-
-  // The client may request other capabilities that we don't know about. Keep
-  // track of them here.
-  scoped_ptr<base::DictionaryValue> other_capabilities_;
 };
 
 // Clients can provide two sets of Capabilities objects - one specifying
@@ -73,15 +69,20 @@ class Capabilities {
 // that the session must have.
 class RequestedCapabilities {
  public:
-  static scoped_ptr<RequestedCapabilities> FromValue(const base::Value* value);
+  static base::optional<RequestedCapabilities> FromValue(
+      const base::Value* value);
 
-  const Capabilities* desired() { return desired_.get(); }
-  const Capabilities* required() { return required_.get(); }
+  const Capabilities& desired() const { return desired_; }
+  const base::optional<Capabilities>& required() const { return required_; }
 
  private:
-  RequestedCapabilities() {}
-  scoped_ptr<Capabilities> desired_;
-  scoped_ptr<Capabilities> required_;
+  explicit RequestedCapabilities(const Capabilities& desired)
+      : desired_(desired) {}
+  RequestedCapabilities(const Capabilities& desired,
+                        const Capabilities& required)
+      : desired_(desired), required_(required) {}
+  Capabilities desired_;
+  base::optional<Capabilities> required_;
 };
 
 }  // namespace protocol

@@ -41,20 +41,39 @@ WindowDriver* SessionDriver::GetWindow(const protocol::WindowId& window_id) {
   }
 }
 
-void SessionDriver::Navigate(const std::string& url) {
+util::CommandResult<protocol::Capabilities> SessionDriver::GetCapabilities() {
+  return util::CommandResult<protocol::Capabilities>(capabilities_);
+}
+
+util::CommandResult<protocol::WindowId>
+SessionDriver::GetCurrentWindowHandle() {
+  return util::CommandResult<protocol::WindowId>(window_driver_->window_id());
+}
+
+util::CommandResult<std::vector<protocol::WindowId> >
+SessionDriver::GetWindowHandles() {
+  typedef util::CommandResult<std::vector<protocol::WindowId> > CommandResult;
+  // There is only one window, so just return a list of that.
+  std::vector<protocol::WindowId> window_handles;
+  window_handles.push_back(window_driver_->window_id());
+  return CommandResult(window_handles);
+}
+
+util::CommandResult<void> SessionDriver::Navigate(const GURL& url) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   protocol::WindowId current_id = window_driver_->window_id();
   base::WaitableEvent finished_event(true, false);
-  navigate_callback_.Run(GURL(url),
-                         base::Bind(&base::WaitableEvent::Signal,
-                                    base::Unretained(&finished_event)));
+  navigate_callback_.Run(url, base::Bind(&base::WaitableEvent::Signal,
+                                         base::Unretained(&finished_event)));
   // TODO(***REMOVED***): Implement timeout logic.
   finished_event.Wait();
   // Create a new WindowDriver using the same ID. Even though we've created a
   // new Window and WindowDriver, it should appear as though the navigation
   // happened within the same window.
   window_driver_ = create_window_driver_callback_.Run(current_id);
+
+  return util::CommandResult<void>(protocol::Response::kSuccess);
 }
 
 protocol::WindowId SessionDriver::GetUniqueWindowId() {

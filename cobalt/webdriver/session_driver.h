@@ -26,7 +26,9 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/protocol/capabilities.h"
 #include "cobalt/webdriver/protocol/session_id.h"
+#include "cobalt/webdriver/util/command_result.h"
 #include "cobalt/webdriver/window_driver.h"
+#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -49,21 +51,21 @@ class SessionDriver {
                 const NavigateCallback& navigate_callback,
                 const CreateWindowDriverCallback& create_window_driver_cb);
   const protocol::SessionId& session_id() const { return session_id_; }
-  const protocol::Capabilities* capabilities() const {
-    return capabilities_.get();
-  }
-
   WindowDriver* GetWindow(const protocol::WindowId& window_id);
   WindowDriver* GetCurrentWindow() { return window_driver_.get(); }
 
-  void Navigate(const std::string& url);
+  util::CommandResult<protocol::Capabilities> GetCapabilities();
+  util::CommandResult<protocol::WindowId> GetCurrentWindowHandle();
+  util::CommandResult<std::vector<protocol::WindowId> > GetWindowHandles();
+
+  util::CommandResult<void> Navigate(const GURL& url);
 
  private:
   protocol::WindowId GetUniqueWindowId();
 
   base::ThreadChecker thread_checker_;
   const protocol::SessionId session_id_;
-  scoped_ptr<protocol::Capabilities> capabilities_;
+  protocol::Capabilities capabilities_;
   NavigateCallback navigate_callback_;
   CreateWindowDriverCallback create_window_driver_callback_;
   int32 next_window_id_;
