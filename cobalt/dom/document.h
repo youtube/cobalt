@@ -268,6 +268,10 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<Location> location_;
   // URL of the document.
   GURL url_;
+
+  // Content Security Policy enforcement for this document.
+  scoped_ptr<CSPDelegate> csp_delegate_;
+
   // List of CSS style sheets.
   scoped_refptr<cssom::StyleSheetList> style_sheets_;
   // List of scripts that will execute in order as soon as possible.
@@ -300,9 +304,6 @@ class Document : public Node, public cssom::MutationObserver {
   const scoped_refptr<base::Clock> navigation_start_clock_;
   base::optional<base::TimeDelta> timeline_sample_time_;
   scoped_refptr<DocumentTimeline> default_timeline_;
-
-  // Content Security Policy enforcement for this document.
-  scoped_ptr<CSPDelegate> csp_delegate_;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   bool partial_layout_is_enabled_;
