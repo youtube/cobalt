@@ -27,6 +27,10 @@
 // stack_trace_android.cc is already compiled via base.gypi
 // stack_trace_xb360.cc is already compiled via base.gypi
 
+#if defined(__LB_PS3__)
+// PS3 has a custom symbol resolver.
+#include "stack_trace_ps3.cc"
+#endif
 #include "stack_trace_posix.cc"
 
 namespace base {
