@@ -17,6 +17,9 @@
 #ifndef BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 #define BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 
+#include <string>
+
+#include "base/message_loop.h"
 #include "cobalt/bindings/testing/window.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_object_proxy.h"
@@ -57,6 +60,8 @@ class BindingsTestBase : public ::testing::Test {
   }
 
  protected:
+  // The message loop is needed by the Timer used in JSCEngineStats.
+  const MessageLoop message_loop_;
   const scoped_ptr<script::EnvironmentSettings> environment_settings_;
   const scoped_ptr<script::JavaScriptEngine> engine_;
   const scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
