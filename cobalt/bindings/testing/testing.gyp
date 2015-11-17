@@ -28,12 +28,14 @@
         'BaseInterface.idl',
         'BooleanTypeTestInterface.idl',
         'CallbackFunctionInterface.idl',
+        'ConditionalInterface.idl',
         'ConstantsInterface.idl',
         'ConstructorInterface.idl',
         'ConstructorWithArgumentsInterface.idl',
         'DOMStringTestInterface.idl',
         'DerivedGetterSetterInterface.idl',
         'DerivedInterface.idl',
+        'DisabledInterface.idl',
         'EnumerationInterface.idl',
         'ExceptionObjectInterface.idl',
         'ExceptionsInterface.idl',
@@ -94,7 +96,18 @@
       'defines': [
         # Avoid WTF LOG macro.
         '__DISABLE_WTF_LOGGING__',
+
+        # Used for testing [Conditional=] extended attribute.
+        'ENABLE_CONDITIONAL_INTERFACE',
+        'ENABLE_CONDITIONAL_PROPERTY',
       ],
+      'all_dependent_settings': {
+        'defines': [
+          # Used for testing [Conditional=] extended attribute.
+          'ENABLE_CONDITIONAL_INTERFACE',
+          'ENABLE_CONDITIONAL_PROPERTY',
+        ],
+      },
       'dependencies': [
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
@@ -109,6 +122,7 @@
       'sources': [
         'boolean_type_bindings_test.cc',
         'callback_function_test.cc',
+        'conditional_attribute_test.cc',
         'constants_bindings_test.cc',
         'constructor_bindings_test.cc',
         'dependent_interface_test.cc',
