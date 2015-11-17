@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/script/union_type.h"
+#include "cobalt/xhr/xhr_response_data.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
 #include "googleurl/src/gurl.h"
 #include "net/http/http_request_headers.h"
@@ -134,6 +135,9 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   void set_with_credentials(bool b);
 
   // loader::Fetcher::Handler interface
+  void OnResponseStarted(
+      loader::Fetcher* fetcher,
+      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
   void OnReceived(loader::Fetcher* fetcher, const char* data,
                   size_t size) OVERRIDE;
   void OnDone(loader::Fetcher* fetcher) OVERRIDE;
@@ -178,6 +182,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   // Return array buffer response body as an ArrayBuffer.
   scoped_refptr<dom::ArrayBuffer> response_array_buffer();
 
+  void UpdateProgress();
+
   // Prevent this object from being destroyed while there are active requests
   // in flight.
   // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#garbage-collection
@@ -202,7 +208,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   scoped_ptr<loader::NetFetcher> net_fetcher_;
   scoped_refptr<net::HttpResponseHeaders> http_response_headers_;
-  std::vector<uint8> response_body_;
+  XhrResponseData response_body_;
   scoped_refptr<dom::ArrayBuffer> response_array_buffer_;
 
   std::string mime_type_override_;
