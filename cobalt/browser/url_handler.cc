@@ -14,19 +14,20 @@
  * limitations under the License.
  */
 
-#include "cobalt/system_window/system_window.h"
+#include "cobalt/browser/url_handler.h"
 
-#include "base/logging.h"
+#include "cobalt/browser/browser_module.h"
 
 namespace cobalt {
-namespace system_window {
+namespace browser {
 
-SystemWindow::~SystemWindow() {}
-
-void SystemWindow::ShowDialog(const SystemWindow::DialogOptions& options) {
-  NOTIMPLEMENTED() << "System dialog not implemented on this platform";
-  DLOG(INFO) << "Message: " << options.message;
+URLHandler::URLHandler(BrowserModule* browser_module,
+                       const URLHandlerCallback& callback)
+    : browser_module_(browser_module), callback_(callback) {
+  browser_module_->AddURLHandler(callback_);
 }
 
-}  // namespace system_window
+URLHandler::~URLHandler() { browser_module_->RemoveURLHandler(callback_); }
+
+}  // namespace browser
 }  // namespace cobalt

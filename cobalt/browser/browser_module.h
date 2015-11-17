@@ -17,11 +17,15 @@
 #ifndef BROWSER_BROWSER_MODULE_H_
 #define BROWSER_BROWSER_MODULE_H_
 
+#include <list>
 #include <string>
 
 #include "cobalt/base/console_commands.h"
 #include "cobalt/browser/debug_console.h"
+#include "cobalt/browser/h5vcc_url_handler.h"
 #include "cobalt/browser/render_tree_combiner.h"
+#include "cobalt/browser/splash_screen.h"
+#include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/h5vcc/h5vcc.h"
@@ -51,6 +55,10 @@ class BrowserModule {
     std::string language;
   };
 
+  // Type for a collection of URL handler callbacks that can potentially handle
+  // a URL before using it to initialize a new WebModule.
+  typedef std::list<URLHandler::URLHandlerCallback> URLHandlerCollection;
+
   BrowserModule(const GURL& url, system_window::SystemWindow* system_window,
                 const Options& options);
   ~BrowserModule();
@@ -65,6 +73,10 @@ class BrowserModule {
   // Reloads the current URL. The current WebModule will be
   // destroyed and replaced with a new one.
   void Reload();
+
+  // Adds/removes a URL handler.
+  void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
+  void RemoveURLHandler(const URLHandler::URLHandlerCallback& callback);
 
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::SessionDriver> CreateSessionDriver(
@@ -114,7 +126,7 @@ class BrowserModule {
   void OnKeyEventProduced(const scoped_refptr<dom::KeyboardEvent>& event);
 
   // Error callback for any error that stops the program.
-  void OnError(const std::string& error) { LOG(ERROR) << error; }
+  void OnError(const std::string& error);
 
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
@@ -131,12 +143,23 @@ class BrowserModule {
 
   void StartOrStopTrace();
 
+  // Tries all registered URL handlers for a URL. Returns true if one of the
+  // handlers handled the URL, false if otherwise.
+  bool TryURLHandlers(const GURL& url);
+
+  // Destroys the splash screen, if currently displayed.
+  void DestroySplashScreen();
+
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::WindowDriver> CreateWindowDriver(
       const webdriver::protocol::WindowId& window_id) {
     return web_module_->CreateWindowDriver(window_id);
   }
 #endif
+
+  // Collection of URL handlers that can potentially handle a URL before
+  // using it to initialize a new WebModule.
+  URLHandlerCollection url_handlers_;
 
   storage::StorageManager storage_manager_;
 
@@ -185,8 +208,15 @@ class BrowserModule {
   // Command handler object for reload command from the debug console.
   base::ConsoleCommandManager::CommandHandler reload_command_handler_;
 
+  // Handler object for h5vcc URLs.
+  H5vccURLHandler h5vcc_url_handler_;
+
   // WebModule options.
   WebModule::Options web_module_options_;
+
+  // The splash screen. The pointer wrapped here should be non-NULL iff
+  // the splash screen is currently displayed.
+  scoped_ptr<SplashScreen> splash_screen_;
 };
 
 }  // namespace browser
