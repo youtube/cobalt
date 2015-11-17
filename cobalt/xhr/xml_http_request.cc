@@ -605,7 +605,9 @@ scoped_refptr<dom::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
   }
   scoped_refptr<dom::ArrayBuffer> array_buffer = new dom::ArrayBuffer(
       settings_, static_cast<uint32>(response_body_.size()));
-  memcpy(array_buffer->data(), &response_body_[0], response_body_.size());
+  if (!response_body_.empty()) {
+    memcpy(array_buffer->data(), &response_body_[0], response_body_.size());
+  }
   return array_buffer;
 }
 
