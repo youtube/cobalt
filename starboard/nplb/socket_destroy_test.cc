@@ -12,26 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
+// Most of the destroy tests are done in the other tests that create sockets.
 
-#include "starboard/file.h"
+#include "starboard/socket.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-#include <unistd.h>
+namespace {
 
-#include "starboard/shared/posix/file_internal.h"
-#include "starboard/shared/posix/handle_eintr.h"
-
-bool SbFileClose(SbFile file) {
-  if (!file) {
-    return false;
-  }
-
-  bool result = false;
-  if (file->descriptor >= 0) {
-    result = !HANDLE_EINTR(close(file->descriptor));
-  }
-
-  delete file;
-
-  return result;
+TEST(SbSocketDestroyTest, RainyDayInvalidSocket) {
+  EXPECT_FALSE(SbSocketDestroy(kSbSocketInvalid));
 }
+
+}  // namespace

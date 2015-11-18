@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_POSIX_FILE_INTERNAL_H_
-#define STARBOARD_SHARED_POSIX_FILE_INTERNAL_H_
+#ifndef STARBOARD_SHARED_POSIX_HANDLE_EINTR_H_
+#define STARBOARD_SHARED_POSIX_HANDLE_EINTR_H_
 
 #include <errno.h>
 
-#include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
 
-struct SbFilePrivate {
-  // The POSIX file descriptor of this file.
-  int descriptor;
-};
+#define HANDLE_EINTR(x)                                 \
+  ({                                                    \
+    typeof(x) __eintr_result__;                         \
+    do {                                                \
+      __eintr_result__ = (x);                           \
+    } while (__eintr_result__ == -1 && errno == EINTR); \
+    __eintr_result__;                                   \
+  })
 
-#endif  // STARBOARD_SHARED_POSIX_FILE_INTERNAL_H_
+#endif  // STARBOARD_SHARED_POSIX_HANDLE_EINTR_H_

@@ -21,6 +21,7 @@
 
 #include "starboard/log.h"
 #include "starboard/shared/posix/file_internal.h"
+#include "starboard/shared/posix/handle_eintr.h"
 
 SbFile SbFileOpen(const char* path,
                   int flags,
