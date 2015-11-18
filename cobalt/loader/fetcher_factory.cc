@@ -31,7 +31,7 @@ namespace cobalt {
 namespace loader {
 namespace {
 
-const char kEmbeddedScheme[] = "embedded";
+const char kEmbeddedScheme[] = "h5vcc-embedded";
 
 bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
   DCHECK(url.is_valid() && url.SchemeIsFile());
