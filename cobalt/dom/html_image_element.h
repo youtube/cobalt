@@ -46,7 +46,7 @@ class HTMLImageElement : public HTMLElement {
   // Web API: HTMLImageElement
   //
   std::string src() const { return GetAttribute("src").value_or(""); }
-  void set_src(const std::string& src);
+  void set_src(const std::string& src) { SetAttribute("src", src); }
 
   // Custom, not in any spec.
   //
@@ -57,10 +57,16 @@ class HTMLImageElement : public HTMLElement {
  private:
   ~HTMLImageElement() OVERRIDE {}
 
+  // From Element.
+  void OnSetAttribute(const std::string& name,
+                      const std::string& value) OVERRIDE;
+  void OnRemoveAttribute(const std::string& name) OVERRIDE;
+
   // From the spec: HTMLImageElement.
   void UpdateImageData();
 
-  void OnImageLoaded();
+  void OnLoadingDone();
+  void OnLoadingError();
 
   scoped_refptr<loader::image::CachedImage> cached_image_;
   scoped_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>

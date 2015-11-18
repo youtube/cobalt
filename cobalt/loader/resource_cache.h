@@ -17,7 +17,9 @@
 #ifndef LOADER_RESOURCE_CACHE_H_
 #define LOADER_RESOURCE_CACHE_H_
 
+#include <list>
 #include <map>
+#include <string>
 
 #include "base/bind.h"
 #include "base/containers/linked_hash_map.h"
@@ -28,8 +30,8 @@
 #include "base/stringprintf.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/console_values.h"
-#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/decoder.h"
+#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
 #include "googleurl/src/gurl.h"
 
@@ -102,9 +104,7 @@ class CachedResource
   // available.
   scoped_refptr<ResourceType> TryGetResource();
 
-  // Helpers for loader.
   bool IsLoading();
-  void StopLoading();
 
   const GURL& url() const { return url_; }
 
@@ -229,14 +229,6 @@ bool CachedResource<CacheType>::IsLoading() {
 }
 
 template <typename CacheType>
-void CachedResource<CacheType>::StopLoading() {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
-  DCHECK(loader_);
-
-  loader_.reset();
-}
-
-template <typename CacheType>
 CachedResource<CacheType>::~CachedResource() {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
@@ -255,8 +247,7 @@ void CachedResource<CacheType>::OnLoadingDone(
 
   resource_ = resource;
 
-  StopLoading();
-
+  loader_.reset();
   RunCallbacks(kOnLoadingDoneCallbackType);
   resource_cache_->NotifyResourceLoaded(this);
 }
@@ -267,8 +258,7 @@ void CachedResource<CacheType>::OnLoadingError(const std::string& error) {
 
   LOG(ERROR) << "Error while loading '" << url_ << "': " << error;
 
-  StopLoading();
-
+  loader_.reset();
   RunCallbacks(kOnLoadingErrorCallbackType);
 }
 
