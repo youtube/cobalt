@@ -328,7 +328,6 @@ base::optional<std::string> XMLHttpRequest::GetResponseHeader(
   // Set-Cookie should be stripped from the response headers in OnDone().
   if (LowerCaseEqualsASCII(header, "set-cookie") ||
       LowerCaseEqualsASCII(header, "set-cookie2")) {
-    NOTREACHED();
     return base::nullopt;
   }
 
