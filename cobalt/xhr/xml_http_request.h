@@ -203,6 +203,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   scoped_ptr<loader::NetFetcher> net_fetcher_;
   scoped_refptr<net::HttpResponseHeaders> http_response_headers_;
   std::vector<uint8> response_body_;
+  scoped_refptr<dom::ArrayBuffer> response_array_buffer_;
 
   std::string mime_type_override_;
   GURL base_url_;

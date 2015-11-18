@@ -39,6 +39,11 @@ using dom::DOMException;
 
 namespace {
 
+// As we are using std::vector<uint8> to store received data internally,
+// allocate 64KB on receiving the first chunk to avoid allocating small buffer
+// too many times.
+static const size_t kInitialReceivingBufferSize = 64 * 1024;
+
 const char* s_response_types[] = {
     "",             // kDefault
     "text",         // kText
@@ -122,10 +127,11 @@ void XMLHttpRequest::Abort() {
   }
   ChangeState(kUnsent);
   dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
-  // Clear response_body_ as any attempt to retrieve response data in UNSENT
+  // Clear |response_body_| as any attempt to retrieve response data in UNSENT
   // should receive empty data.  Use swap() instead of clear() so the memory
-  // allocated by response_body_ will be freed.
+  // allocated by |response_body_| will be freed.
   std::vector<uint8>().swap(response_body_);
+  response_array_buffer_ = NULL;
 }
 
 // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-open()-method
@@ -181,10 +187,11 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
   stop_timeout_ = false;
 
   dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
-  // Use swap() instead of clear() so the memory allocated by response_body_
+  // Use swap() instead of clear() so the memory allocated by |response_body_|
   // will be freed.
   std::vector<uint8>().swap(response_body_);
   request_headers_.Clear();
+  response_array_buffer_ = NULL;
 
   // Check previous state to avoid dispatching readyState event when calling
   // open several times in a row.
@@ -466,8 +473,12 @@ void XMLHttpRequest::set_with_credentials(bool with_credentials) {
 void XMLHttpRequest::OnReceived(loader::Fetcher* fetcher, const char* data,
                                 size_t size) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_NE(state_, kDone);
   UNREFERENCED_PARAMETER(fetcher);
   dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(response_body_.capacity());
+  // Ensure that we at least allocate |kInitialReceivingBufferSize| bytes for
+  // receiving buffer to avoid multiple small allocations.
+  response_body_.reserve(kInitialReceivingBufferSize);
   response_body_.insert(response_body_.end(), data, data + size);
   dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(response_body_.capacity());
 }
@@ -621,12 +632,26 @@ scoped_refptr<dom::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
   if (error_ || state_ != kDone) {
     return NULL;
   }
-  scoped_refptr<dom::ArrayBuffer> array_buffer = new dom::ArrayBuffer(
-      settings_, static_cast<uint32>(response_body_.size()));
-  if (!response_body_.empty()) {
-    memcpy(array_buffer->data(), &response_body_[0], response_body_.size());
+  if (!response_array_buffer_) {
+    // The request is done so it is safe to only keep the ArrayBuffer and clear
+    // |response_body_|.  As |response_body_| will not be used unless the
+    // request is re-opened.  It is possible to transfer the buffer allocated
+    // inside |response_body_| to |response_array_buffer_| to avoid allocating
+    // and copying data over if fragmentation or performance turns out to be an
+    // issue in future.
+    response_array_buffer_ = new dom::ArrayBuffer(
+        settings_, static_cast<uint32>(response_body_.size()));
+    if (!response_body_.empty()) {
+      memcpy(response_array_buffer_->data(), &response_body_[0],
+             response_body_.size());
+      dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(
+          response_body_.capacity());
+      // Use swap() instead of clear() so the memory allocated by
+      // |response_body_| will be freed.
+      std::vector<uint8>().swap(response_body_);
+    }
   }
-  return array_buffer;
+  return response_array_buffer_;
 }
 
 void XMLHttpRequest::PreventGarbageCollection() {
