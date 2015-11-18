@@ -21,7 +21,7 @@ namespace browser {
 
 // Static
 const char SplashScreen::Options::kDefaultSplashScreenURL[] =
-    "embedded://splash_screen.html";
+    "h5vcc-embedded://splash_screen.html";
 
 // Static.
 base::Closure SplashScreen::Create(
