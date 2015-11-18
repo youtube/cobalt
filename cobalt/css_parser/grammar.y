@@ -397,7 +397,7 @@
 %destructor { $$->Release(); } <percentage>
 
 %union { cssom::LengthValue* length; }
-%type <length> length
+%type <length> length positive_length
 %destructor { $$->Release(); } <length>
 
 %union { cssom::RatioValue* ratio; }
@@ -473,8 +473,8 @@
                        overflow_property_value
                        overflow_wrap_property_value
                        padding_side_property_value
-                       padding_width
                        position_property_value
+                       positive_length_percent_property_value
                        scan_media_feature_keyword_value
                        tab_size_property_value
                        text_align_property_value
@@ -978,178 +978,228 @@ identifier_token:
     kIdentifierToken
   // Property names.
   | kAllToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kAllProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kAllProperty));
   }
   | kBackgroundColorToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundColorProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBackgroundColorProperty));
   }
   | kBackgroundImageToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundImageProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBackgroundImageProperty));
   }
   | kBackgroundPositionToken {
-    $$ =
-        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundPositionProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBackgroundPositionProperty));
   }
   | kBackgroundRepeatToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundRepeatProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBackgroundRepeatProperty));
   }
   | kBackgroundSizeToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundSizeProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBackgroundSizeProperty));
   }
   | kBackgroundToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBackgroundProperty));
   }
   | kBorderRadiusToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBorderRadiusProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBorderRadiusProperty));
   }
   | kBottomToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBottomProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBottomProperty));
   }
   | kColorToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kColorProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kColorProperty));
   }
   | kContentToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kContentProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kContentProperty));
   }
   | kDisplayToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kDisplayProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kDisplayProperty));
   }
   | kFontFamilyToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kFontFamilyProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFontFamilyProperty));
   }
   | kFontSizeToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kFontSizeProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFontSizeProperty));
   }
   | kFontWeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kFontWeightProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFontWeightProperty));
   }
   | kHeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kHeightProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kHeightProperty));
   }
   | kLeftToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kLeftProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kLeftProperty));
   }
   | kLineHeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kLineHeightProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kLineHeightProperty));
   }
   | kMarginBottomToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginBottomProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kMarginBottomProperty));
   }
   | kMarginLeftToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginLeftProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kMarginLeftProperty));
   }
   | kMarginRightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginRightProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kMarginRightProperty));
   }
   | kMarginToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kMarginProperty));
   }
   | kMarginTopToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginTopProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kMarginTopProperty));
   }
   | kMaxHeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMaxHeightProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kMaxHeightProperty));
   }
   | kMaxWidthToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMaxWidthProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kMaxWidthProperty));
   }
   | kMinHeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMinHeightProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kMinHeightProperty));
   }
   | kMinWidthToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMinWidthProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kMinWidthProperty));
   }
   | kOpacityToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kOpacityProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kOpacityProperty));
   }
   | kOverflowToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kOverflowProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kOverflowProperty));
   }
   | kOverflowWrapToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kOverflowWrapProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kOverflowWrapProperty));
   }
   | kPaddingBottomToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingBottomProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kPaddingBottomProperty));
   }
   | kPaddingLeftToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingLeftProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kPaddingLeftProperty));
   }
   | kPaddingRightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingRightProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kPaddingRightProperty));
   }
   | kPaddingToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kPaddingProperty));
   }
   | kPaddingTopToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingTopProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kPaddingTopProperty));
   }
   | kPositionToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPositionProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kPositionProperty));
   }
   | kRightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kRightProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kRightProperty));
   }
   | kSrcToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kSrcProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kSrcProperty));
   }
   | kTabSizeToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTabSizeProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTabSizeProperty));
   }
   | kTextAlignToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTextAlignProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTextAlignProperty));
   }
   | kTextIndentToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTextIndentProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTextIndentProperty));
   }
   | kTextOverflowToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTextOverflowProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTextOverflowProperty));
   }
   | kTextTransformToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTextTransformProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTextTransformProperty));
   }
   | kTopToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTopProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTopProperty));
   }
   | kTransformToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransformProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTransformProperty));
   }
   | kTransitionDelayToken {
-    $$ =
-        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionDelayProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTransitionDelayProperty));
   }
   | kTransitionDurationToken {
-    $$ =
-        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionDurationProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTransitionDurationProperty));
   }
   | kTransitionPropertyToken {
-    $$ =
-        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionPropertyProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTransitionPropertyProperty));
   }
   | kTransitionTimingFunctionToken {
     $$ = TrivialStringPiece::FromCString(
-             cssom::GetPropertyName(cssom::kTransitionTimingFunctionProperty));
+            cssom::GetPropertyName(cssom::kTransitionTimingFunctionProperty));
   }
   | kTransitionToken {
-    $$ =
-        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTransitionProperty));
   }
   | kUnicodeRangePropertyToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kUnicodeRangeProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kUnicodeRangeProperty));
   }
   | kVerticalAlignToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kVerticalAlignProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kVerticalAlignProperty));
   }
   | kVisibilityToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kVisibilityProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kVisibilityProperty));
   }
   | kWhiteSpacePropertyToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kWhiteSpaceProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kWhiteSpaceProperty));
   }
   | kWidthToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kWidthProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kWidthProperty));
   }
   | kZIndexToken {
-    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kZIndexProperty));
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kZIndexProperty));
   }
   // Property values.
   | kAbsoluteToken {
@@ -1797,6 +1847,18 @@ length:
   }
   ;
 
+positive_length:
+  length {
+    scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
+    if (length && length->value() < 0) {
+      $$ = NULL;
+      parser_impl->LogWarning(@1, "negative values of length are illegal");
+    } else {
+      $$ = AddRef(length.get());
+    }
+  }
+  ;
+
 // Ratio units.
 //   http://www.w3.org/TR/css3-mediaqueries/#values
 ratio:
@@ -2017,6 +2079,15 @@ length_percent_property_value:
   }
   ;
 
+positive_length_percent_property_value:
+    positive_length {
+    $$ = $1;
+  }
+  | positive_percentage {
+    $$ = $1;
+  }
+  ;
+
 background_property_element:
     color {
     if (!$<background_shorthand_layer>0->background_color) {
@@ -2169,11 +2240,7 @@ color_stop:
     color {
     $$ = new cssom::ColorStop(MakeScopedRefPtrAndRelease($1));
   }
-  | color length {
-    $$ = new cssom::ColorStop(MakeScopedRefPtrAndRelease($1),
-                              MakeScopedRefPtrAndRelease($2));
-  }
-  | color percentage {
+  | color length_percent_property_value {
     $$ = new cssom::ColorStop(MakeScopedRefPtrAndRelease($1),
                               MakeScopedRefPtrAndRelease($2));
   }
@@ -2524,8 +2591,8 @@ font_face_url_src:
   }
   ;
 
-// The syntax for a local font-face reference is a unique font face name enclosed by
-// "local(" and ")".
+// The syntax for a local font-face reference is a unique font face name
+// enclosed by "local(" and ")".
 //   http://www.w3.org/TR/css3-fonts/#descdef-src
 font_face_local_src:
     kLocalFunctionToken maybe_whitespace font_family_specific_name ')'
@@ -2696,8 +2763,7 @@ font_family_property_value:
 // Desired height of glyphs from the font.
 //   http://www.w3.org/TR/css3-fonts/#font-size-prop
 font_size_property_value:
-    length { $$ = $1; }
-  | positive_percentage { $$ = $1; }
+    positive_length_percent_property_value
   | common_values
   ;
 
@@ -2732,16 +2798,7 @@ font_weight_property_value:
 //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
 //   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
 height_property_value:
-    length {
-    scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
-    if (length && length->value() < 0) {
-      $$ = NULL;
-      parser_impl->LogWarning(@1, "negative values of height are illegal");
-    } else {
-      $$ = AddRef(length.get());
-    }
-  }
-  | positive_percentage { $$ = $1; }
+    positive_length_percent_property_value
   | auto
   | common_values
   ;
@@ -2762,23 +2819,14 @@ line_height_property_value:
     kNormalToken maybe_whitespace  {
     $$ = AddRef(cssom::KeywordValue::GetNormal().get());
   }
-  | length {
-    scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
-    if (length && length->value() < 0) {
-      $$ = NULL;
-      parser_impl->LogWarning(@1, "negative values of line-height are illegal");
-    } else {
-      $$ = AddRef(length.get());
-    }
-  }
+  | positive_length {  $$ = $1; }
   | common_values
   ;
 
 // <margin-width> value type.
 //   http://www.w3.org/TR/CSS21/box.html#value-def-margin-width
 margin_width:
-    length { $$ = $1; }
-  | percentage { $$ = $1; }
+    length_percent_property_value
   | auto
   ;
 
@@ -2847,8 +2895,7 @@ margin_property_value:
 // to the container block.
 //   http://www.w3.org/TR/CSS21/visuren.html#position-props
 offset_property_value:
-    length { $$ = $1; }
-  | percentage { $$ = $1; }
+    length_percent_property_value
   | auto
   | common_values
   ;
@@ -2888,35 +2935,14 @@ overflow_wrap_property_value:
   | common_values
   ;
 
-// <padding-width> value type.
+// <padding-width> value type is the same as
+// positive_length_percent_property_value.
 //   http://www.w3.org/TR/CSS21/box.html#value-def-padding-width
-padding_width:
-    length {
-    scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
-    if (length && length->value() < 0) {
-      $$ = NULL;
-      parser_impl->LogWarning(@1, "negative values of padding are illegal");
-    } else {
-      $$ = AddRef(length.get());
-    }
-  }
-  | percentage {
-    scoped_refptr<cssom::PercentageValue> percentage =
-        MakeScopedRefPtrAndRelease($1);
-    if (percentage && percentage->value() < 0) {
-      $$ = NULL;
-      parser_impl->LogWarning(@1, "negative values of padding are illegal");
-    } else {
-      $$ = AddRef(percentage.get());
-    }
-  }
-  ;
-
 // Specifies the width of a top, right, bottom, or left side of the padding area
 // of a box.
 //   http://www.w3.org/TR/CSS21/box.html#padding-properties
 padding_side_property_value:
-    padding_width
+    positive_length_percent_property_value
   | common_values
   ;
 
@@ -2925,7 +2951,7 @@ padding_side_property_value:
 //   http://www.w3.org/TR/CSS21/box.html#padding-properties
 padding_property_value:
     // If there is only one component value, it applies to all sides.
-    padding_width {
+    positive_length_percent_property_value {
     scoped_refptr<cssom::PropertyValue> width =
         MakeScopedRefPtrAndRelease($1);
     $$ = MarginOrPaddingShorthand::TryCreate(
@@ -2933,7 +2959,8 @@ padding_property_value:
   }
     // If there are two values, the top and bottom paddings are set to the first
     // value and the right and left paddings are set to the second.
-  | padding_width padding_width {
+  | positive_length_percent_property_value
+    positive_length_percent_property_value {
     scoped_refptr<cssom::PropertyValue> vertical_width =
         MakeScopedRefPtrAndRelease($1);
     scoped_refptr<cssom::PropertyValue> horizontal_width =
@@ -2944,7 +2971,9 @@ padding_property_value:
   }
     // If there are three values, the top is set to the first value, the left
     // and right are set to the second, and the bottom is set to the third.
-  | padding_width padding_width padding_width {
+  | positive_length_percent_property_value
+    positive_length_percent_property_value
+    positive_length_percent_property_value {
     scoped_refptr<cssom::PropertyValue> top_width =
         MakeScopedRefPtrAndRelease($1);
     scoped_refptr<cssom::PropertyValue> horizontal_width =
@@ -2957,7 +2986,10 @@ padding_property_value:
   }
     // If there are four values, they apply to the top, right, bottom, and left,
     // respectively.
-  | padding_width padding_width padding_width padding_width {
+  | positive_length_percent_property_value
+    positive_length_percent_property_value
+    positive_length_percent_property_value
+    positive_length_percent_property_value {
     scoped_refptr<cssom::PropertyValue> top_width =
         MakeScopedRefPtrAndRelease($1);
     scoped_refptr<cssom::PropertyValue> left_width =
@@ -3534,16 +3566,7 @@ white_space_property_value:
 //   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
 //   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
 width_property_value:
-    length {
-    scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
-    if (length && length->value() < 0) {
-      $$ = NULL;
-      parser_impl->LogWarning(@1, "negative values of width are illegal");
-    } else {
-      $$ = AddRef(length.get());
-    }
-  }
-  | positive_percentage { $$ = $1; }
+    positive_length_percent_property_value
   | auto
   | common_values
   ;
