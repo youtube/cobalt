@@ -12,26 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
+#include "starboard/socket.h"
 
-#include "starboard/file.h"
+#include <errno.h>
+#include <sys/socket.h>
 
-#include <unistd.h>
-
-#include "starboard/shared/posix/file_internal.h"
+#include "starboard/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
+#include "starboard/shared/posix/socket_internal.h"
 
-bool SbFileClose(SbFile file) {
-  if (!file) {
+bool SbSocketIsConnectedAndIdle(SbSocket socket) {
+  if (!SbSocketIsValid(socket)) {
     return false;
   }
 
-  bool result = false;
-  if (file->descriptor >= 0) {
-    result = !HANDLE_EINTR(close(file->descriptor));
+  SB_DCHECK(socket->socket_fd >= 0);
+
+  // To tell if it is really connected and idle, we peek a byte from the
+  // stream. We should get an EAGAIN/EWOULDBLOCK telling us the socket is
+  // waiting for data.
+  char c;
+  int rv = HANDLE_EINTR(recv(socket->socket_fd, &c, 1, MSG_PEEK));
+  if (rv >= 0) {
+    // Either not connected, or not idle.
+    return false;
   }
 
-  delete file;
-
-  return result;
+  return (errno == EAGAIN || errno == EWOULDBLOCK);
 }

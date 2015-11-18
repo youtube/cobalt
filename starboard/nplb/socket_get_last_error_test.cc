@@ -12,26 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
+// The Sunny Day test is used in several other tests as the way to detect if the
+// error is correct, so it is not repeated here.
 
-#include "starboard/file.h"
+#include "starboard/socket.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-#include <unistd.h>
+namespace {
 
-#include "starboard/shared/posix/file_internal.h"
-#include "starboard/shared/posix/handle_eintr.h"
-
-bool SbFileClose(SbFile file) {
-  if (!file) {
-    return false;
-  }
-
-  bool result = false;
-  if (file->descriptor >= 0) {
-    result = !HANDLE_EINTR(close(file->descriptor));
-  }
-
-  delete file;
-
-  return result;
+TEST(SbSocketGetLastErrorTest, RainyDayInvalidSocket) {
+  EXPECT_EQ(kSbSocketErrorFailed, SbSocketGetLastError(kSbSocketInvalid));
 }
+
+}  // namespace

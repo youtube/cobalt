@@ -12,26 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
+#include "starboard/nplb/socket_helpers.h"
+#include "starboard/socket.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-#include "starboard/file.h"
+namespace sbnplb = starboard::nplb;
 
-#include <unistd.h>
+namespace {
 
-#include "starboard/shared/posix/file_internal.h"
-#include "starboard/shared/posix/handle_eintr.h"
-
-bool SbFileClose(SbFile file) {
-  if (!file) {
-    return false;
-  }
-
-  bool result = false;
-  if (file->descriptor >= 0) {
-    result = !HANDLE_EINTR(close(file->descriptor));
-  }
-
-  delete file;
-
-  return result;
+TEST(SbSocketGetLocalInterfaceTest, SunnyDay) {
+  SbSocketAddress address = {0};
+  EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
+  EXPECT_EQ(0, address.port);
+  EXPECT_FALSE(sbnplb::IsUnspecified(&address));
+  EXPECT_FALSE(sbnplb::IsLocalhost(&address));
 }
+
+TEST(SbSocketGetLocalInterfaceTest, RainyDayNull) {
+  EXPECT_FALSE(SbSocketGetLocalInterfaceAddress(NULL));
+}
+
+}  // namespace
