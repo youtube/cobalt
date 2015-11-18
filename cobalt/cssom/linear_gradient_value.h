@@ -47,11 +47,7 @@ class ColorStop {
       : rgba_(rgba), position_(NULL) {}
 
   ColorStop(const scoped_refptr<RGBAColorValue>& rgba,
-            const scoped_refptr<LengthValue>& position)
-      : rgba_(rgba), position_(position) {}
-
-  ColorStop(const scoped_refptr<RGBAColorValue>& rgba,
-            const scoped_refptr<PercentageValue>& position)
+            const scoped_refptr<PropertyValue>& position)
       : rgba_(rgba), position_(position) {}
 
   scoped_refptr<RGBAColorValue> rgba() const { return rgba_; }
