@@ -25,6 +25,8 @@
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
+#include "starboard/socket.h"
+#include "starboard/socket_waiter.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"

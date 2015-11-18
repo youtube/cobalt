@@ -12,26 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
+// SendTo is largely tested with ReceiveFrom, so look there for more invovled
+// tests.
 
-#include "starboard/file.h"
+#include "starboard/socket.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-#include <unistd.h>
+namespace {
 
-#include "starboard/shared/posix/file_internal.h"
-#include "starboard/shared/posix/handle_eintr.h"
-
-bool SbFileClose(SbFile file) {
-  if (!file) {
-    return false;
-  }
-
-  bool result = false;
-  if (file->descriptor >= 0) {
-    result = !HANDLE_EINTR(close(file->descriptor));
-  }
-
-  delete file;
-
-  return result;
+TEST(SbSocketSendToTest, RainyDayInvalidSocket) {
+  char buf[16];
+  int result = SbSocketSendTo(NULL, buf, sizeof(buf), NULL);
+  EXPECT_EQ(-1, result);
 }
+
+}  // namespace

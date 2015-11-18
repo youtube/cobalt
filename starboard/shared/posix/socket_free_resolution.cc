@@ -12,26 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
+#include "starboard/socket.h"
 
-#include "starboard/file.h"
+#include "starboard/log.h"
 
-#include <unistd.h>
-
-#include "starboard/shared/posix/file_internal.h"
-#include "starboard/shared/posix/handle_eintr.h"
-
-bool SbFileClose(SbFile file) {
-  if (!file) {
-    return false;
+void SbSocketFreeResolution(SbSocketResolution* resolution) {
+  if (!resolution) {
+    return;
   }
 
-  bool result = false;
-  if (file->descriptor >= 0) {
-    result = !HANDLE_EINTR(close(file->descriptor));
+  if (resolution->addresses) {
+    delete[] resolution->addresses;
   }
 
-  delete file;
+  if (resolution->canonical_name) {
+    delete[] resolution->canonical_name;
+  }
 
-  return result;
+  delete resolution;
 }

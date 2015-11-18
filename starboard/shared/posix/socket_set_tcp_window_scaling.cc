@@ -12,26 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/platform_file_posix.cc
+#include "starboard/socket.h"
 
-#include "starboard/file.h"
-
-#include <unistd.h>
-
-#include "starboard/shared/posix/file_internal.h"
-#include "starboard/shared/posix/handle_eintr.h"
-
-bool SbFileClose(SbFile file) {
-  if (!file) {
-    return false;
-  }
-
-  bool result = false;
-  if (file->descriptor >= 0) {
-    result = !HANDLE_EINTR(close(file->descriptor));
-  }
-
-  delete file;
-
-  return result;
+bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value) {
+  // This API is not supported in standard POSIX.
+  return false;
 }
