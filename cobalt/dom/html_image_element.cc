@@ -39,15 +39,31 @@ HTMLImageElement::HTMLImageElement(script::EnvironmentSettings* env_settings)
 
 std::string HTMLImageElement::tag_name() const { return kTagName; }
 
-void HTMLImageElement::set_src(const std::string& src) {
-  SetAttribute("src", src);
-  UpdateImageData();
+void HTMLImageElement::OnSetAttribute(const std::string& name,
+                                      const std::string& /* value */) {
+  // A user agent that obtains images immediately must synchronously update the
+  // image data of an img element whenever that element is created with a src
+  // attribute. A user agent that obtains images immediately must also
+  // synchronously update the image data of an img element whenever that element
+  // has its src or crossorigin attribute set, changed, or removed.
+  if (name == "src") {
+    UpdateImageData();
+  }
+}
+
+void HTMLImageElement::OnRemoveAttribute(const std::string& name) {
+  // A user agent that obtains images immediately must synchronously update the
+  // image data of an img element whenever that element is created with a src
+  // attribute. A user agent that obtains images immediately must also
+  // synchronously update the image data of an img element whenever that element
+  // has its src or crossorigin attribute set, changed, or removed.
+  if (name == "src") {
+    UpdateImageData();
+  }
 }
 
 // Algorithm for UpdateTheImageData:
 //   http://www.w3.org/TR/html5/embedded-content-0.html#update-the-image-data
-// TODO(***REMOVED***): This function should be called whenever src is set, changed or
-// removed.
 void HTMLImageElement::UpdateImageData() {
   DCHECK(MessageLoop::current());
 
@@ -56,12 +72,8 @@ void HTMLImageElement::UpdateImageData() {
   // 2. If an instance of the fetching algorithm is still running for this
   // element, then abort that algorithm, discarding any pending tasks generated
   // by that algorithm.
-  if (cached_image_ && cached_image_->IsLoading()) {
-    cached_image_->StopLoading();
-    cached_image_loaded_callback_handler_.reset();
-  }
-
   // 3. Forget the img element's current image data, if any.
+  cached_image_loaded_callback_handler_.reset();
   cached_image_ = NULL;
 
   // 4. If the user agent cannot support images, or its support for images has
@@ -125,21 +137,26 @@ void HTMLImageElement::UpdateImageData() {
   // from the earlier step, with the mode being the current state of the
   // element's crossorigin content attribute, the origin being the origin of the
   // img element's Document, and the default origin behaviour set to taint.
-  base::Closure loaded_callback =
-      base::Bind(&HTMLImageElement::OnImageLoaded, base::Unretained(this));
+  // 13. Not needed by Cobalt.
+  // 14. If the download was successful, fire a simple event named load at the
+  // img element. Otherwise, queue a task to first fire a simple event named
+  // error at the img element.
   cached_image_loaded_callback_handler_.reset(
       new loader::image::CachedImage::OnLoadedCallbackHandler(
-          cached_image_, loaded_callback, base::Closure()));
-
-  // 13. Not needed by Cobalt.
+          cached_image_,
+          base::Bind(&HTMLImageElement::OnLoadingDone, base::Unretained(this)),
+          base::Bind(&HTMLImageElement::OnLoadingError,
+                     base::Unretained(this))));
 }
 
-// Algorithm for OnImageLoaded:
-//   http://www.w3.org/TR/html5/embedded-content-0.html#update-the-image-data
-void HTMLImageElement::OnImageLoaded() {
-  // Fire a simple event named load at the img element.
-  DispatchEvent(new Event("load"));
-  // TODO(***REMOVED***): Reset |cached_image_loaded_callback_handler_| here.
+void HTMLImageElement::OnLoadingDone() { DispatchEvent(new Event("load")); }
+
+void HTMLImageElement::OnLoadingError() {
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(base::IgnoreResult(&HTMLImageElement::DispatchEvent),
+                 base::AsWeakPtr<HTMLImageElement>(this),
+                 make_scoped_refptr(new Event("error"))));
 }
 
 }  // namespace dom
