@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include "starboard/shared/posix/file_internal.h"
+#include "starboard/shared/posix/handle_eintr.h"
 
 int SbFileRead(SbFile file, char* data, int size) {
   if (!file || file->descriptor < 0 || size < 0) {
