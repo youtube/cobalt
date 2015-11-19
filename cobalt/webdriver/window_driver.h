@@ -18,6 +18,7 @@
 #define WEBDRIVER_WINDOW_DRIVER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
@@ -30,6 +31,7 @@
 #include "cobalt/webdriver/protocol/search_strategy.h"
 #include "cobalt/webdriver/protocol/size.h"
 #include "cobalt/webdriver/protocol/window_id.h"
+#include "cobalt/webdriver/util/call_on_message_loop.h"
 #include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
@@ -52,20 +54,33 @@ class WindowDriver {
   util::CommandResult<std::string> GetTitle();
   util::CommandResult<protocol::ElementId> FindElement(
       const protocol::SearchStrategy& strategy);
+  util::CommandResult<std::vector<protocol::ElementId> > FindElements(
+      const protocol::SearchStrategy& strategy);
 
  private:
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
   typedef ElementDriverMap::iterator ElementDriverMapIt;
+  typedef std::vector<base::WeakPtr<dom::Element> > WeakElementVector;
 
   dom::Window* GetWeak() {
     DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
     return window_.get();
   }
 
-  protocol::ElementId GetUniqueElementId();
-  protocol::Response::StatusCode FindElementInternal(
-      const protocol::SearchStrategy& strategy,
-      base::WeakPtr<dom::Element>* out_weak_ptr);
+  // Create a new ElementDriver that wraps this weak_element and return the
+  // ElementId that maps to the new ElementDriver.
+  protocol::ElementId CreateNewElementDriver(
+      const base::WeakPtr<dom::Element>& weak_element);
+
+  // Shared logic between FindElement and FindElements.
+  template <typename T>
+  void FindElementsOrSetError(const protocol::SearchStrategy& strategy,
+                              WeakElementVector* out_weak_elements,
+                              util::CommandResult<T>* out_result);
+
+  // Returns true if window_ is still alive and the search was executed.
+  bool FindElementsInternal(const protocol::SearchStrategy& strategy,
+                            WeakElementVector* out_weak_ptrs);
 
   base::ThreadChecker thread_checker_;
   protocol::WindowId window_id_;
