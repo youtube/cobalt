@@ -376,53 +376,14 @@ void InterpolateVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
     interpolated_value_ = start_keyword_value;
   }
 
-  switch (start_keyword_value->value()) {
-    case KeywordValue::kNone:
-      if (end_value_->GetTypeId() ==
-          base::GetTypeId<TransformFunctionListValue>()) {
-        interpolated_value_ =
-            AnimateTransform(start_keyword_value, end_value_, progress_);
-      }
-      break;
-
-    case KeywordValue::kAbsolute:
-    case KeywordValue::kAuto:
-    case KeywordValue::kBaseline:
-    case KeywordValue::kBlock:
-    case KeywordValue::kBottom:
-    case KeywordValue::kBreakWord:
-    case KeywordValue::kCenter:
-    case KeywordValue::kClip:
-    case KeywordValue::kContain:
-    case KeywordValue::kCover:
-    case KeywordValue::kCursive:
-    case KeywordValue::kEllipsis:
-    case KeywordValue::kFantasy:
-    case KeywordValue::kFixed:
-    case KeywordValue::kHidden:
-    case KeywordValue::kInherit:
-    case KeywordValue::kInitial:
-    case KeywordValue::kInline:
-    case KeywordValue::kInlineBlock:
-    case KeywordValue::kLeft:
-    case KeywordValue::kMiddle:
-    case KeywordValue::kMonospace:
-    case KeywordValue::kNoRepeat:
-    case KeywordValue::kNormal:
-    case KeywordValue::kNoWrap:
-    case KeywordValue::kPre:
-    case KeywordValue::kRelative:
-    case KeywordValue::kRepeat:
-    case KeywordValue::kRight:
-    case KeywordValue::kSansSerif:
-    case KeywordValue::kSerif:
-    case KeywordValue::kStatic:
-    case KeywordValue::kTop:
-    case KeywordValue::kUppercase:
-    case KeywordValue::kVisible:
-    default:
-      NOTREACHED();
-      break;
+  if (start_keyword_value->value() == KeywordValue::kNone) {
+    if (end_value_->GetTypeId() ==
+        base::GetTypeId<TransformFunctionListValue>()) {
+      interpolated_value_ =
+          AnimateTransform(start_keyword_value, end_value_, progress_);
+    }
+  } else {
+    NOTREACHED();
   }
 }
 

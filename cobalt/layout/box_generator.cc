@@ -167,7 +167,9 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       break;
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kAuto:
+    case cssom::KeywordValue::kBackwards:
     case cssom::KeywordValue::kBaseline:
+    case cssom::KeywordValue::kBoth:
     case cssom::KeywordValue::kBottom:
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
@@ -177,8 +179,10 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kFantasy:
+    case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kFixed:
     case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kInfinite:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kLeft:
@@ -361,7 +365,9 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       break;
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kAuto:
+    case cssom::KeywordValue::kBackwards:
     case cssom::KeywordValue::kBaseline:
+    case cssom::KeywordValue::kBoth:
     case cssom::KeywordValue::kBottom:
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
@@ -372,7 +378,9 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kFixed:
+    case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kInfinite:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kLeft:
@@ -465,8 +473,10 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
         break;
       case cssom::KeywordValue::kAbsolute:
       case cssom::KeywordValue::kAuto:
+      case cssom::KeywordValue::kBackwards:
       case cssom::KeywordValue::kBaseline:
       case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kBoth:
       case cssom::KeywordValue::kBottom:
       case cssom::KeywordValue::kBreakWord:
       case cssom::KeywordValue::kCenter:
@@ -477,7 +487,9 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kEllipsis:
       case cssom::KeywordValue::kFantasy:
       case cssom::KeywordValue::kFixed:
+      case cssom::KeywordValue::kForwards:
       case cssom::KeywordValue::kHidden:
+      case cssom::KeywordValue::kInfinite:
       case cssom::KeywordValue::kInherit:
       case cssom::KeywordValue::kInitial:
       case cssom::KeywordValue::kInline:
