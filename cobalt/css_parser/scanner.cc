@@ -1253,6 +1253,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 
     case 9:
       if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kAnimationProperty))) {
+        *property_name_token = kAnimationToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kFontSizeProperty))) {
         *property_name_token = kFontSizeToken;
         return true;
@@ -1418,6 +1423,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
     case 14:
       if (IsEqualToCssIdentifier(
               name.begin,
+              cssom::GetPropertyName(cssom::kAnimationNameProperty))) {
+        *property_name_token = kAnimationNameToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
               cssom::GetPropertyName(cssom::kPaddingBottomProperty))) {
         *property_name_token = kPaddingBottomToken;
         return true;
@@ -1434,14 +1445,22 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kVerticalAlignToken;
         return true;
       }
+      return false;
 
     case 15:
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kAnimationDelayProperty))) {
+        *property_name_token = kAnimationDelayToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(
               name.begin,
               cssom::GetPropertyName(cssom::kBackgroundSizeProperty))) {
         *property_name_token = kBackgroundSizeToken;
         return true;
       }
+      return false;
 
     case 16:
       if (IsEqualToCssIdentifier(
@@ -1483,9 +1502,21 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kTransitionToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kAnimationDurationProperty))) {
+        *property_name_token = kAnimationDurationToken;
+        return true;
+      }
       return false;
 
     case 19:
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kAnimationFillModeProperty))) {
+        *property_name_token = kAnimationFillModeToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(
               name.begin,
               cssom::GetPropertyName(cssom::kBackgroundPositionProperty))) {
@@ -1502,6 +1533,21 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
               name.begin,
               cssom::GetPropertyName(cssom::kTransitionPropertyProperty))) {
         *property_name_token = kTransitionPropertyToken;
+        return true;
+      }
+      return false;
+
+    case 25:
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(
+                              cssom::kAnimationIterationCountProperty))) {
+        *property_name_token = kAnimationIterationCountToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(
+                              cssom::kAnimationTimingFunctionProperty))) {
+        *property_name_token = kAnimationTimingFunctionToken;
         return true;
       }
       return false;
@@ -1566,6 +1612,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kBoldKeywordName)) {
         *property_value_token = kBoldToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kBothKeywordName)) {
+        *property_value_token = kBothToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kClipKeywordName)) {
@@ -1760,8 +1810,16 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kEaseOutToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kForwardsKeywordName)) {
+        *property_value_token = kForwardsToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kEllipsisKeywordName)) {
         *property_value_token = kEllipsisToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kInfiniteKeywordName)) {
+        *property_value_token = kInfiniteToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kStepEndKeywordName)) {
@@ -1783,6 +1841,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       return false;
 
     case 9:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kBackwardsKeywordName)) {
+        *property_value_token = kBackwardsToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kMonospaceKeywordName)) {
         *property_value_token = kMonospaceToken;
         return true;

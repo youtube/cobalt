@@ -179,8 +179,10 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
 
     case KeywordValue::kAbsolute:
     case KeywordValue::kAuto:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -190,8 +192,10 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
+    case KeywordValue::kForwards:
     case KeywordValue::kFixed:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -253,8 +257,10 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -265,7 +271,9 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -337,8 +345,10 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -349,7 +359,9 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -430,8 +442,10 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -442,7 +456,9 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -527,8 +543,10 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -539,7 +557,9 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -623,8 +643,10 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -635,7 +657,9 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -714,8 +738,10 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -726,7 +752,9 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -801,8 +829,10 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -813,7 +843,9 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -913,8 +945,10 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
       break;
     case KeywordValue::kAuto:
     case KeywordValue::kAbsolute:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -925,7 +959,9 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -1054,8 +1090,10 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -1064,7 +1102,9 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -1593,8 +1633,10 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
       break;
     case KeywordValue::kAbsolute:
     case KeywordValue::kAuto:
+    case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
     case KeywordValue::kBottom:
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
@@ -1605,7 +1647,9 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
+    case KeywordValue::kForwards:
     case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
@@ -1815,7 +1859,12 @@ void PromoteToComputedStyle(
             position_offset_provider.computed_position_offset());
         break;
       }
-      case kFontSizeProperty:
+      case kAnimationDelayProperty:
+      case kAnimationDurationProperty:
+      case kAnimationFillModeProperty:
+      case kAnimationIterationCountProperty:
+      case kAnimationNameProperty:
+      case kAnimationTimingFunctionProperty:
       case kBackgroundColorProperty:
       case kBackgroundPositionProperty:
       case kBackgroundRepeatProperty:
@@ -1824,6 +1873,7 @@ void PromoteToComputedStyle(
       case kContentProperty:
       case kDisplayProperty:
       case kFontFamilyProperty:
+      case kFontSizeProperty:
       case kFontStyleProperty:
       case kOpacityProperty:
       case kOverflowProperty:
@@ -1845,6 +1895,7 @@ void PromoteToComputedStyle(
         break;
       case kNoneProperty:
       case kAllProperty:
+      case kAnimationProperty:
       case kBackgroundProperty:
       case kMarginProperty:
       case kPaddingProperty:
@@ -1858,7 +1909,6 @@ void PromoteToComputedStyle(
     }
   }
 }
-
 
 scoped_refptr<CSSStyleDeclarationData> GetComputedStyleOfAnonymousBox(
     const scoped_refptr<const CSSStyleDeclarationData>& parent_computed_style) {

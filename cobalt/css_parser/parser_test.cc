@@ -3323,13 +3323,440 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValue) {
   EXPECT_FALSE(null_value);
 }
 
+TEST_F(ParserTest, ParsesAnimationDurationWithSingleValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-duration: 1s;",
+                                        source_location_);
+
+  scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_duration =
+      dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
+          style->animation_duration().get());
+  EXPECT_TRUE(animation_duration.get());
+  ASSERT_EQ(1, animation_duration->value().size());
+  EXPECT_DOUBLE_EQ(1, animation_duration->value()[0].InSecondsF());
+}
+
+TEST_F(ParserTest, ParsesAnimationDelayWithSingleValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-delay: 1s;",
+                                        source_location_);
+
+  scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_delay =
+      dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
+          style->animation_delay().get());
+  EXPECT_TRUE(animation_delay);
+  ASSERT_EQ(1, animation_delay->value().size());
+  EXPECT_DOUBLE_EQ(1, animation_delay->value()[0].InSecondsF());
+}
+
+TEST_F(ParserTest, ParsesAnimationFillModeWithForwardsValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-fill-mode: forwards;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_fill_mode().get());
+  EXPECT_TRUE(animation_fill_mode);
+  ASSERT_EQ(1, animation_fill_mode->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetForwards(),
+            animation_fill_mode->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesAnimationFillModeWithBackwardsValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-fill-mode: backwards;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_fill_mode().get());
+  EXPECT_TRUE(animation_fill_mode);
+  ASSERT_EQ(1, animation_fill_mode->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetBackwards(),
+            animation_fill_mode->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesAnimationFillModeWithBothValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-fill-mode: both;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_fill_mode().get());
+  EXPECT_TRUE(animation_fill_mode);
+  ASSERT_EQ(1, animation_fill_mode->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetBoth(),
+            animation_fill_mode->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesAnimationFillModeWithListOfValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "animation-fill-mode: forwards, backwards, both, none;",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_fill_mode().get());
+  EXPECT_TRUE(animation_fill_mode);
+  ASSERT_EQ(4, animation_fill_mode->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetForwards(),
+            animation_fill_mode->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetBackwards(),
+            animation_fill_mode->value()[1]);
+  EXPECT_EQ(cssom::KeywordValue::GetBoth(),
+            animation_fill_mode->value()[2]);
+  EXPECT_EQ(cssom::KeywordValue::GetNone(),
+            animation_fill_mode->value()[3]);
+}
+
+TEST_F(ParserTest, ParsesAnimationIterationCountWithIntegerValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-iteration-count: 2;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_iteration_count().get());
+  EXPECT_TRUE(animation_iteration_count);
+  ASSERT_EQ(1, animation_iteration_count->value().size());
+  cssom::NumberValue* number_value =
+      base::polymorphic_downcast<cssom::NumberValue*>(
+          animation_iteration_count->value()[0].get());
+  EXPECT_EQ(2.0f, number_value->value());
+}
+
+TEST_F(ParserTest, ParsesAnimationIterationCountWithInfiniteValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-iteration-count: infinite;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_iteration_count().get());
+  EXPECT_TRUE(animation_iteration_count);
+  ASSERT_EQ(1, animation_iteration_count->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetInfinite(),
+            animation_iteration_count->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesAnimationIterationCountWithMultipleValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "animation-iteration-count: 1, infinite, 0.5;", source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_iteration_count().get());
+  EXPECT_TRUE(animation_iteration_count);
+  ASSERT_EQ(3, animation_iteration_count->value().size());
+  cssom::NumberValue* first_value =
+      base::polymorphic_downcast<cssom::NumberValue*>(
+          animation_iteration_count->value()[0].get());
+  EXPECT_EQ(1.0f, first_value->value());
+  EXPECT_EQ(cssom::KeywordValue::GetInfinite(),
+            animation_iteration_count->value()[1]);
+  cssom::NumberValue* third_value =
+      base::polymorphic_downcast<cssom::NumberValue*>(
+          animation_iteration_count->value()[2].get());
+  EXPECT_EQ(0.5f, third_value->value());
+}
+
+TEST_F(ParserTest, ParsesAnimationNameWithArbitraryName) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-name: foo;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_name =
+      dynamic_cast<cssom::PropertyListValue*>(style->animation_name().get());
+  EXPECT_TRUE(animation_name);
+  ASSERT_EQ(1, animation_name->value().size());
+  cssom::StringValue* name_value =
+      base::polymorphic_downcast<cssom::StringValue*>(
+          animation_name->value()[0].get());
+  EXPECT_EQ("foo", name_value->value());
+}
+
+TEST_F(ParserTest, ParsesAnimationNameWithNone) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-name: none;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_name =
+      dynamic_cast<cssom::PropertyListValue*>(style->animation_name().get());
+  EXPECT_TRUE(animation_name);
+  ASSERT_EQ(1, animation_name->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), animation_name->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesAnimationNameWithMultipleItems) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-name: foo, none, bar;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_name =
+      dynamic_cast<cssom::PropertyListValue*>(style->animation_name().get());
+  EXPECT_TRUE(animation_name);
+  ASSERT_EQ(3, animation_name->value().size());
+  cssom::StringValue* first_value =
+      base::polymorphic_downcast<cssom::StringValue*>(
+          animation_name->value()[0].get());
+  EXPECT_EQ("foo", first_value->value());
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), animation_name->value()[1]);
+  cssom::StringValue* third_value =
+      base::polymorphic_downcast<cssom::StringValue*>(
+          animation_name->value()[2].get());
+  EXPECT_EQ("bar", third_value->value());
+}
+
+namespace {
+scoped_refptr<cssom::TimingFunctionListValue> CreateSingleTimingFunctionValue(
+    const scoped_refptr<cssom::TimingFunction>& timing_function) {
+  scoped_ptr<cssom::TimingFunctionListValue::Builder>
+      expected_result_list_builder(
+          new cssom::TimingFunctionListValue::Builder());
+  expected_result_list_builder->push_back(timing_function);
+  return new cssom::TimingFunctionListValue(
+      expected_result_list_builder.Pass());
+}
+}  // namespace
+
+TEST_F(ParserTest, ParsesAnimationTimingFunction) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-timing-function: linear;",
+                                        source_location_);
+
+  scoped_refptr<cssom::TimingFunctionListValue> animation_timing_function =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->animation_timing_function().get());
+  CHECK_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+           animation_timing_function);
+
+  scoped_refptr<cssom::TimingFunctionListValue> expected_result_list(
+      CreateSingleTimingFunctionValue(
+          new cssom::CubicBezierTimingFunction(0.0f, 0.0f, 1.0f, 1.0f)));
+
+  EXPECT_TRUE(expected_result_list->Equals(*animation_timing_function));
+}
+
+TEST_F(ParserTest, ParsesAnimationShorthandForName) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation: foo;", source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_name =
+      dynamic_cast<cssom::PropertyListValue*>(style->animation_name().get());
+  EXPECT_TRUE(animation_name);
+  ASSERT_EQ(1, animation_name->value().size());
+  cssom::StringValue* name_value =
+      base::polymorphic_downcast<cssom::StringValue*>(
+          animation_name->value()[0].get());
+  EXPECT_EQ("foo", name_value->value());
+}
+
+TEST_F(ParserTest, ParsesAnimationShorthandForDuration) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation: 1s;", source_location_);
+
+  scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_duration =
+      dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
+          style->animation_duration().get());
+  EXPECT_TRUE(animation_duration);
+  ASSERT_EQ(1, animation_duration->value().size());
+  EXPECT_DOUBLE_EQ(1.0f, animation_duration->value()[0].InSecondsF());
+}
+
+TEST_F(ParserTest, ParsesAnimationShorthandForDurationAndDelay) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation: 1s 2s;", source_location_);
+
+  scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_duration =
+      dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
+          style->animation_duration().get());
+  EXPECT_TRUE(animation_duration);
+  ASSERT_EQ(1, animation_duration->value().size());
+  EXPECT_DOUBLE_EQ(1.0f, animation_duration->value()[0].InSecondsF());
+
+  scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_delay =
+      dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
+          style->animation_delay().get());
+  EXPECT_TRUE(animation_delay);
+  ASSERT_EQ(1, animation_delay->value().size());
+  EXPECT_DOUBLE_EQ(2.0f, animation_delay->value()[0].InSecondsF());
+}
+
+TEST_F(ParserTest, ParsesAnimationShorthandForIterationCount) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation: 1.5;", source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_iteration_count().get());
+  EXPECT_TRUE(animation_iteration_count);
+  ASSERT_EQ(1, animation_iteration_count->value().size());
+  cssom::NumberValue* number_value =
+      base::polymorphic_downcast<cssom::NumberValue*>(
+          animation_iteration_count->value()[0].get());
+  EXPECT_EQ(1.5f, number_value->value());
+}
+
+TEST_F(ParserTest, ParsesAnimationShorthandForTimingFunction) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation: linear;", source_location_);
+
+  scoped_refptr<cssom::TimingFunctionListValue> animation_timing_function =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->animation_timing_function().get());
+  CHECK_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+           animation_timing_function);
+
+  scoped_refptr<cssom::TimingFunctionListValue> expected_result_list(
+      CreateSingleTimingFunctionValue(
+          new cssom::CubicBezierTimingFunction(0.0f, 0.0f, 1.0f, 1.0f)));
+
+  EXPECT_TRUE(expected_result_list->Equals(*animation_timing_function));
+}
+
+TEST_F(ParserTest, ParsesAnimationShorthandForFillMode) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation: forwards;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_fill_mode().get());
+  EXPECT_TRUE(animation_fill_mode);
+  ASSERT_EQ(1, animation_fill_mode->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetForwards(),
+            animation_fill_mode->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesAnimationShorthandForAllProperties) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "animation: linear foo 1s 2s 1.5 forwards;", source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_fill_mode().get());
+  EXPECT_TRUE(animation_fill_mode);
+  ASSERT_EQ(1, animation_fill_mode->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetForwards(),
+            animation_fill_mode->value()[0]);
+
+  scoped_refptr<cssom::TimingFunctionListValue> animation_timing_function =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->animation_timing_function().get());
+  CHECK_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+           animation_timing_function);
+
+  scoped_refptr<cssom::TimingFunctionListValue> expected_result_list(
+      CreateSingleTimingFunctionValue(
+          new cssom::CubicBezierTimingFunction(0.0f, 0.0f, 1.0f, 1.0f)));
+
+  EXPECT_TRUE(expected_result_list->Equals(*animation_timing_function));
+
+  scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_iteration_count().get());
+  EXPECT_TRUE(animation_iteration_count);
+  ASSERT_EQ(1, animation_iteration_count->value().size());
+  cssom::NumberValue* number_value =
+      base::polymorphic_downcast<cssom::NumberValue*>(
+          animation_iteration_count->value()[0].get());
+  EXPECT_EQ(1.5f, number_value->value());
+
+  scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_duration =
+      dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
+          style->animation_duration().get());
+  EXPECT_TRUE(animation_duration);
+  ASSERT_EQ(1, animation_duration->value().size());
+  EXPECT_DOUBLE_EQ(1.0f, animation_duration->value()[0].InSecondsF());
+
+  scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_delay =
+      dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
+          style->animation_delay().get());
+  EXPECT_TRUE(animation_delay);
+  ASSERT_EQ(1, animation_delay->value().size());
+  EXPECT_DOUBLE_EQ(2.0f, animation_delay->value()[0].InSecondsF());
+
+  scoped_refptr<cssom::PropertyListValue> animation_name =
+      dynamic_cast<cssom::PropertyListValue*>(style->animation_name().get());
+  EXPECT_TRUE(animation_name);
+  ASSERT_EQ(1, animation_name->value().size());
+  cssom::StringValue* name_value =
+      base::polymorphic_downcast<cssom::StringValue*>(
+          animation_name->value()[0].get());
+  EXPECT_EQ("foo", name_value->value());
+}
+
+TEST_F(ParserTest, ParsesAnimationShorthandForMultipleAnimations) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation: foo 1s 2s, bar 3s 4;",
+                                        source_location_);
+
+  scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_duration =
+      dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
+          style->animation_duration().get());
+  EXPECT_TRUE(animation_duration);
+  ASSERT_EQ(2, animation_duration->value().size());
+  EXPECT_DOUBLE_EQ(1.0f, animation_duration->value()[0].InSecondsF());
+  EXPECT_DOUBLE_EQ(3.0f, animation_duration->value()[1].InSecondsF());
+
+  scoped_refptr<cssom::ListValue<base::TimeDelta> > animation_delay =
+      dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
+          style->animation_delay().get());
+  EXPECT_TRUE(animation_delay);
+  ASSERT_EQ(2, animation_delay->value().size());
+  EXPECT_DOUBLE_EQ(2.0f, animation_delay->value()[0].InSecondsF());
+  EXPECT_DOUBLE_EQ(0.0f, animation_delay->value()[1].InSecondsF());
+
+  scoped_refptr<cssom::PropertyListValue> animation_name =
+      dynamic_cast<cssom::PropertyListValue*>(style->animation_name().get());
+  EXPECT_TRUE(animation_name);
+  ASSERT_EQ(2, animation_name->value().size());
+  cssom::StringValue* first_name_value =
+      base::polymorphic_downcast<cssom::StringValue*>(
+          animation_name->value()[0].get());
+  EXPECT_EQ("foo", first_name_value->value());
+  cssom::StringValue* second_name_value =
+      base::polymorphic_downcast<cssom::StringValue*>(
+          animation_name->value()[1].get());
+  EXPECT_EQ("bar", second_name_value->value());
+
+  scoped_refptr<cssom::PropertyListValue> animation_iteration_count =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_iteration_count().get());
+  EXPECT_TRUE(animation_iteration_count);
+  ASSERT_EQ(2, animation_iteration_count->value().size());
+  cssom::NumberValue* first_number_value =
+      base::polymorphic_downcast<cssom::NumberValue*>(
+          animation_iteration_count->value()[0].get());
+  EXPECT_EQ(1.0f, first_number_value->value());
+  cssom::NumberValue* second_number_value =
+      base::polymorphic_downcast<cssom::NumberValue*>(
+          animation_iteration_count->value()[1].get());
+  EXPECT_EQ(4.0f, second_number_value->value());
+
+  scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_fill_mode().get());
+  EXPECT_TRUE(animation_fill_mode);
+  ASSERT_EQ(2, animation_fill_mode->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetNone(),
+            animation_fill_mode->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetNone(),
+            animation_fill_mode->value()[1]);
+}
+
 TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithSingleValue) {
   scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
       dynamic_cast<cssom::PropertyKeyListValue*>(
           parser_.ParsePropertyValue("transition-property", "color",
                                      source_location_)
               .get());
-  ASSERT_TRUE(property_name_list.get());
+  ASSERT_TRUE(property_name_list);
 
   ASSERT_EQ(1, property_name_list->value().size());
   EXPECT_EQ(cssom::kColorProperty, property_name_list->value()[0]);
@@ -3342,7 +3769,7 @@ TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithMultipleValues) {
                                      "color, transform , background-color",
                                      source_location_)
               .get());
-  ASSERT_TRUE(property_name_list.get());
+  ASSERT_TRUE(property_name_list);
 
   ASSERT_EQ(3, property_name_list->value().size());
   EXPECT_EQ(cssom::kColorProperty, property_name_list->value()[0]);
@@ -3437,16 +3864,6 @@ TEST_F(ParserTest, ParsesTransitionDurationWithSingleValue) {
 }
 
 namespace {
-
-scoped_refptr<cssom::TimingFunctionListValue> CreateSingleTimingFunctionValue(
-    const scoped_refptr<cssom::TimingFunction>& timing_function) {
-  scoped_ptr<cssom::TimingFunctionListValue::Builder>
-      expected_result_list_builder(
-          new cssom::TimingFunctionListValue::Builder());
-  expected_result_list_builder->push_back(timing_function);
-  return new cssom::TimingFunctionListValue(
-      expected_result_list_builder.Pass());
-}
 
 // Returns true if the timing function obtained from parsing the passed in
 // property declaration string is equal to the passed in expected timing
