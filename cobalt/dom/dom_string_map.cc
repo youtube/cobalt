@@ -132,23 +132,28 @@ DOMStringMap::DOMStringMap(const scoped_refptr<Element>& element)
 }
 
 base::optional<std::string> DOMStringMap::AnonymousNamedGetter(
-    const std::string& property_name) {
+    const std::string& property_name, script::ExceptionState* exception_state) {
   base::optional<std::string> attribute_name =
       TryConvertPropertyNameToAttributeName(property_name);
-  // TODO(***REMOVED***): Throw a SyntaxError if attribute name is invalid
-  //               when b/24373797 is fixed.
-  return attribute_name ? element_->GetAttribute(*attribute_name)
-                        : base::nullopt;
+  if (attribute_name) {
+    return element_->GetAttribute(*attribute_name);
+  } else {
+    exception_state->SetSimpleException(script::ExceptionState::kSyntaxError,
+                                        property_name);
+    return base::nullopt;
+  }
 }
 
-void DOMStringMap::AnonymousNamedSetter(const std::string& property_name,
-                                        const std::string& value) {
+void DOMStringMap::AnonymousNamedSetter(
+    const std::string& property_name, const std::string& value,
+    script::ExceptionState* exception_state) {
   base::optional<std::string> attribute_name =
       TryConvertPropertyNameToAttributeName(property_name);
-  // TODO(***REMOVED***): Throw a SyntaxError if attribute name is invalid
-  //               when b/24373797 is fixed.
   if (attribute_name) {
     element_->SetAttribute(*attribute_name, value);
+  } else {
+    exception_state->SetSimpleException(script::ExceptionState::kSyntaxError,
+                                        property_name);
   }
 }
 

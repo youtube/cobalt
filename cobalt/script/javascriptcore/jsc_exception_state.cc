@@ -15,6 +15,8 @@
  */
 #include "cobalt/script/javascriptcore/jsc_exception_state.h"
 
+#include <string>
+
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/Error.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/ErrorInstance.h"
@@ -49,6 +51,9 @@ void JSCExceptionState::SetSimpleException(SimpleExceptionType simple_exception,
       break;
     case kReferenceError:
       exception_ = JSC::createReferenceError(global_object_, error_string);
+      break;
+    case kSyntaxError:
+      exception_ = JSC::createSyntaxError(global_object_, error_string);
       break;
     case kURIError:
       exception_ = JSC::createURIError(global_object_, error_string);
