@@ -150,7 +150,11 @@ WebModule::WebModule(
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 }
 
-WebModule::~WebModule() {}
+WebModule::~WebModule() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  window_->DispatchEvent(new dom::Event("unload"));
+}
 
 void WebModule::InjectEvent(const scoped_refptr<dom::Event>& event) {
   // Repost to this web module's message loop if it was called on another.
@@ -161,7 +165,6 @@ void WebModule::InjectEvent(const scoped_refptr<dom::Event>& event) {
     return;
   }
 
-  DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectEvent()",
                "type", event->type());
   window_->InjectEvent(event);
