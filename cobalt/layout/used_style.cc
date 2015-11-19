@@ -207,8 +207,10 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
       break;
     }
     case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kBackwards:
     case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kBoth:
     case cssom::KeywordValue::kBottom:
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
@@ -218,8 +220,10 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kFantasy:
+    case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kFixed:
     case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kInfinite:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
@@ -287,8 +291,10 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
       break;
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kBackwards:
     case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kBoth:
     case cssom::KeywordValue::kBottom:
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
@@ -297,7 +303,9 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kFixed:
+    case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kInfinite:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
@@ -559,7 +567,9 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     }
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kBackwards:
     case cssom::KeywordValue::kBaseline:
+    case cssom::KeywordValue::kBoth:
     case cssom::KeywordValue::kBottom:
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kBreakWord:
@@ -569,7 +579,9 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kFixed:
+    case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kInfinite:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
@@ -696,8 +708,10 @@ class UsedLengthProvider : public UsedLengthValueProvider {
         break;
 
       case cssom::KeywordValue::kAbsolute:
+      case cssom::KeywordValue::kBackwards:
       case cssom::KeywordValue::kBaseline:
       case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kBoth:
       case cssom::KeywordValue::kBottom:
       case cssom::KeywordValue::kBreakWord:
       case cssom::KeywordValue::kCenter:
@@ -707,8 +721,10 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kCursive:
       case cssom::KeywordValue::kEllipsis:
       case cssom::KeywordValue::kFantasy:
+      case cssom::KeywordValue::kForwards:
       case cssom::KeywordValue::kFixed:
       case cssom::KeywordValue::kHidden:
+      case cssom::KeywordValue::kInfinite:
       case cssom::KeywordValue::kInherit:
       case cssom::KeywordValue::kInitial:
       case cssom::KeywordValue::kInline:
@@ -752,8 +768,10 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
 
       case cssom::KeywordValue::kAuto:
       case cssom::KeywordValue::kAbsolute:
+      case cssom::KeywordValue::kBackwards:
       case cssom::KeywordValue::kBaseline:
       case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kBoth:
       case cssom::KeywordValue::kBottom:
       case cssom::KeywordValue::kBreakWord:
       case cssom::KeywordValue::kCenter:
@@ -763,8 +781,10 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kCursive:
       case cssom::KeywordValue::kEllipsis:
       case cssom::KeywordValue::kFantasy:
+      case cssom::KeywordValue::kForwards:
       case cssom::KeywordValue::kFixed:
       case cssom::KeywordValue::kHidden:
+      case cssom::KeywordValue::kInfinite:
       case cssom::KeywordValue::kInherit:
       case cssom::KeywordValue::kInitial:
       case cssom::KeywordValue::kInline:
