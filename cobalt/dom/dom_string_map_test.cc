@@ -21,9 +21,11 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/script/testing/mock_property_enumerator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using testing::_;
 using testing::StrictMock;
 
 namespace cobalt {
@@ -38,6 +40,7 @@ class DOMStringMapTest : public ::testing::Test {
   scoped_refptr<Document> document_;
   scoped_refptr<Element> element_;
   scoped_refptr<DOMStringMap> dom_string_map_;
+  StrictMock<script::testing::MockExceptionState> exception_state_;
 };
 
 DOMStringMapTest::DOMStringMapTest()
@@ -54,7 +57,7 @@ TEST_F(DOMStringMapTest, InvalidPrefix) {
 
   EXPECT_FALSE(dom_string_map_->CanQueryNamedProperty(""));
 
-  dom_string_map_->AnonymousNamedSetter("", "San Francisco");
+  dom_string_map_->AnonymousNamedSetter("", "San Francisco", &exception_state_);
   EXPECT_EQ(std::string("Los Angeles"), element_->GetAttribute("data"));
 }
 
@@ -67,9 +70,9 @@ TEST_F(DOMStringMapTest, Empty) {
 
   EXPECT_TRUE(dom_string_map_->CanQueryNamedProperty(""));
   EXPECT_EQ(std::string("Los Angeles"),
-            dom_string_map_->AnonymousNamedGetter(""));
+            dom_string_map_->AnonymousNamedGetter("", &exception_state_));
 
-  dom_string_map_->AnonymousNamedSetter("", "San Francisco");
+  dom_string_map_->AnonymousNamedSetter("", "San Francisco", &exception_state_);
   EXPECT_EQ(std::string("San Francisco"), element_->GetAttribute("data-"));
 }
 
@@ -82,9 +85,10 @@ TEST_F(DOMStringMapTest, OneWord) {
 
   EXPECT_TRUE(dom_string_map_->CanQueryNamedProperty("city"));
   EXPECT_EQ(std::string("Los Angeles"),
-            dom_string_map_->AnonymousNamedGetter("city"));
+            dom_string_map_->AnonymousNamedGetter("city", &exception_state_));
 
-  dom_string_map_->AnonymousNamedSetter("city", "San Francisco");
+  dom_string_map_->AnonymousNamedSetter("city", "San Francisco",
+                                        &exception_state_);
   EXPECT_EQ(std::string("San Francisco"), element_->GetAttribute("data-city"));
 }
 
@@ -97,9 +101,11 @@ TEST_F(DOMStringMapTest, MultipleWords) {
 
   EXPECT_TRUE(dom_string_map_->CanQueryNamedProperty("cityOnWesternCoast"));
   EXPECT_EQ(std::string("Los Angeles"),
-            dom_string_map_->AnonymousNamedGetter("cityOnWesternCoast"));
+            dom_string_map_->AnonymousNamedGetter("cityOnWesternCoast",
+                                                  &exception_state_));
 
-  dom_string_map_->AnonymousNamedSetter("cityOnWesternCoast", "San Francisco");
+  dom_string_map_->AnonymousNamedSetter("cityOnWesternCoast", "San Francisco",
+                                        &exception_state_);
   EXPECT_EQ(std::string("San Francisco"),
             element_->GetAttribute("data-city-on-western-coast"));
 }
@@ -113,10 +119,11 @@ TEST_F(DOMStringMapTest, ContainsNonLetterAfterHyphen) {
 
   EXPECT_TRUE(dom_string_map_->CanQueryNamedProperty("cityOn-$westernCoast"));
   EXPECT_EQ(std::string("Los Angeles"),
-            dom_string_map_->AnonymousNamedGetter("cityOn-$westernCoast"));
+            dom_string_map_->AnonymousNamedGetter("cityOn-$westernCoast",
+                                                  &exception_state_));
 
-  dom_string_map_->AnonymousNamedSetter("cityOn-$westernCoast",
-                                        "San Francisco");
+  dom_string_map_->AnonymousNamedSetter("cityOn-$westernCoast", "San Francisco",
+                                        &exception_state_);
   EXPECT_EQ(std::string("San Francisco"),
             element_->GetAttribute("data-city-on-$western-coast"));
 }
@@ -130,9 +137,10 @@ TEST_F(DOMStringMapTest, EndsWithHyphen) {
 
   EXPECT_TRUE(dom_string_map_->CanQueryNamedProperty("city-"));
   EXPECT_EQ(std::string("Los Angeles"),
-            dom_string_map_->AnonymousNamedGetter("city-"));
+            dom_string_map_->AnonymousNamedGetter("city-", &exception_state_));
 
-  dom_string_map_->AnonymousNamedSetter("city-", "San Francisco");
+  dom_string_map_->AnonymousNamedSetter("city-", "San Francisco",
+                                        &exception_state_);
   EXPECT_EQ(std::string("San Francisco"), element_->GetAttribute("data-city-"));
 }
 
@@ -145,11 +153,24 @@ TEST_F(DOMStringMapTest, ContainsMultipleHyphens) {
 
   EXPECT_TRUE(dom_string_map_->CanQueryNamedProperty("california--City"));
   EXPECT_EQ(std::string("Los Angeles"),
-            dom_string_map_->AnonymousNamedGetter("california--City"));
+            dom_string_map_->AnonymousNamedGetter("california--City",
+                                                  &exception_state_));
 
-  dom_string_map_->AnonymousNamedSetter("california--City", "San Francisco");
+  dom_string_map_->AnonymousNamedSetter("california--City", "San Francisco",
+                                        &exception_state_);
   EXPECT_EQ(std::string("San Francisco"),
             element_->GetAttribute("data-california---city"));
+}
+
+TEST_F(DOMStringMapTest, InvalidPropertyName) {
+  EXPECT_CALL(exception_state_,
+              SetSimpleException(script::ExceptionState::kSyntaxError, _));
+  dom_string_map_->AnonymousNamedSetter("hyphen-lowercase", "Los Angeles",
+                                        &exception_state_);
+
+  EXPECT_CALL(exception_state_,
+              SetSimpleException(script::ExceptionState::kSyntaxError, _));
+  dom_string_map_->AnonymousNamedGetter("hyphen-lowercase", &exception_state_);
 }
 
 }  // namespace dom

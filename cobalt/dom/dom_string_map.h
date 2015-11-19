@@ -19,8 +19,9 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/property_enumerator.h"
 #include "cobalt/script/wrappable.h"
 
@@ -43,8 +44,10 @@ class DOMStringMap : public script::Wrappable,
   explicit DOMStringMap(const scoped_refptr<Element>& element);
 
   // Web API: DOMStringMap
-  base::optional<std::string> AnonymousNamedGetter(const std::string& key);
-  void AnonymousNamedSetter(const std::string& key, const std::string& value);
+  base::optional<std::string> AnonymousNamedGetter(
+      const std::string& key, script::ExceptionState* exception_state);
+  void AnonymousNamedSetter(const std::string& key, const std::string& value,
+                            script::ExceptionState* exception_state);
 
   // Custom, not in any spec.
   bool CanQueryNamedProperty(const std::string& key) const;
