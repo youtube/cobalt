@@ -56,6 +56,9 @@ class WindowDriver {
       const protocol::SearchStrategy& strategy);
   util::CommandResult<std::vector<protocol::ElementId> > FindElements(
       const protocol::SearchStrategy& strategy);
+  // Note: The source may be a fairly large string that is being copied around
+  // by value here.
+  util::CommandResult<std::string> GetSource();
 
  private:
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
