@@ -24,6 +24,7 @@
 #include "base/run_loop.h"
 #include "base/string_number_conversions.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/base/localized_strings.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
@@ -130,11 +131,15 @@ Application::Application()
   }
   DLOG(INFO) << "Initial URL: " << url;
 
+  // Get the system language and initialize our localized strings.
+  std::string language =
+      cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage();
+  base::LocalizedStrings::GetInstance()->Initialize(language);
+
   // Create the main components of our browser.
   BrowserModule::Options options;
   options.web_module_options.name = "MainWebModule";
-  options.language =
-      cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage();
+  options.language = language;
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
   system_window_ = system_window::CreateSystemWindow(&event_dispatcher_);
