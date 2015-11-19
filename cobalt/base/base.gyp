@@ -33,6 +33,8 @@
         'fixed_no_free_allocator.h',
         'init_cobalt.cc',
         'init_cobalt.h',
+        'localized_strings.cc',
+        'localized_strings.h',
         'log_message_handler.cc',
         'log_message_handler.h',
         'memory_pool.cc',
@@ -49,10 +51,17 @@
         'type_id.h',
         'unused.h',
       ],
+      'includes': [
+        'copy_i18n_data.gypi',
+      ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/base/base.gyp:base_i18n',
         '<(DEPTH)/cobalt/deprecated/deprecated.gyp:platform_delegate',
+        '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
+      ],
+      'include_dirs': [
+        '<(DEPTH)/third_party/libxml/src/include',
       ],
       'export_dependent_settings': [
         '<(DEPTH)/base/base.gyp:base',
