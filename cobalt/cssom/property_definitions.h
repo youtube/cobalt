@@ -39,6 +39,12 @@ enum PropertyKey {
   kNoneProperty = -1,
 
   // All supported longhand property values are listed here.
+  kAnimationDelayProperty,
+  kAnimationDurationProperty,
+  kAnimationFillModeProperty,
+  kAnimationIterationCountProperty,
+  kAnimationNameProperty,
+  kAnimationTimingFunctionProperty,
   kBackgroundColorProperty,
   kBackgroundImageProperty,
   kBackgroundPositionProperty,
@@ -94,6 +100,7 @@ enum PropertyKey {
   // All other supported property values, such as shorthand property values or
   // aliases are listed here.
   kAllProperty,
+  kAnimationProperty,
   kBackgroundProperty,
   kMarginProperty,
   kPaddingProperty,

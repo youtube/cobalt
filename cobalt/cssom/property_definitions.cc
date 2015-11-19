@@ -40,6 +40,9 @@ namespace cssom {
 namespace {
 
 struct PropertyDefinition {
+  PropertyDefinition()
+      : name(NULL), inherited(kInheritedNo), animatable(kAnimatableNo) {}
+
   const char* name;
   Inherited inherited;
   Animatable animatable;
@@ -57,6 +60,7 @@ struct NonTrivialGlobalVariables {
       Animatable animatable,
       const scoped_refptr<PropertyValue>& initial_value) {
     PropertyDefinition& definition = properties[key];
+    DCHECK(!definition.name) << "Properties can only be defined once.";
     definition.name = name;
     definition.inherited = inherited;
     definition.animatable = animatable;
@@ -90,29 +94,64 @@ CreateTransitionTimingFunctionListWithEase() {
       new TimingFunctionListValue(timing_function_list.Pass()));
 }
 
+// Returns a PropertyListValue with only the single specified value.
+scoped_refptr<PropertyListValue> CreateSinglePropertyListWithValue(
+    const scoped_refptr<PropertyValue>& value) {
+  return new PropertyListValue(
+      make_scoped_ptr(new PropertyListValue::Builder(1, value)));
+}
+
 NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
-  // Inherited: no
-  // Initial: transparent.
-  //   http://www.w3.org/TR/css3-background/#the-background-color
+  // Start by setting all property names to NULL, so we can check that they all
+  // get filled in.
+  for (int i = 0; i < kMaxEveryPropertyKey; ++i) {
+    properties[i].name = NULL;
+  }
+
+  // http://www.w3.org/TR/css3-animations/#animation-delay-property
+  SetPropertyDefinition(kAnimationDelayProperty, "animation-delay",
+                        kInheritedNo, kAnimatableNo,
+                        CreateTimeListWithZeroSeconds());
+
+  // http://www.w3.org/TR/css3-animations/#animation-duration-property
+  SetPropertyDefinition(kAnimationDurationProperty, "animation-duration",
+                        kInheritedNo, kAnimatableNo,
+                        CreateTimeListWithZeroSeconds());
+
+  // http://www.w3.org/TR/css3-animations/#animation-fill-mode-property
+  SetPropertyDefinition(
+      kAnimationFillModeProperty, "animation-fill-mode", kInheritedNo,
+      kAnimatableNo,
+      CreateSinglePropertyListWithValue(KeywordValue::GetNone()));
+
+  // http://www.w3.org/TR/css3-animations/#animation-iteration-count-property
+  SetPropertyDefinition(
+      kAnimationIterationCountProperty, "animation-iteration-count",
+      kInheritedNo, kAnimatableNo,
+      CreateSinglePropertyListWithValue(new NumberValue(1.0f)));
+
+  // http://www.w3.org/TR/css3-animations/#animation-name-property
+  SetPropertyDefinition(
+      kAnimationNameProperty, "animation-name", kInheritedNo, kAnimatableNo,
+      CreateSinglePropertyListWithValue(KeywordValue::GetNone()));
+
+  // http://www.w3.org/TR/css3-animations/#animation-timing-function-property
+  SetPropertyDefinition(kAnimationTimingFunctionProperty,
+                        "animation-timing-function", kInheritedNo,
+                        kAnimatableNo,
+                        CreateTransitionTimingFunctionListWithEase());
+
+  // http://www.w3.org/TR/css3-background/#the-background-color
   SetPropertyDefinition(kBackgroundColorProperty, "background-color",
                         kInheritedNo, kAnimatableYes,
                         new RGBAColorValue(0x00000000));
 
-  // Inherited: no.
-  // Initial: none.
-  //   http://www.w3.org/TR/css3-background/#background-image
-  scoped_ptr<PropertyListValue::Builder> background_image_builder(
-      new PropertyListValue::Builder());
-  background_image_builder->reserve(1);
-  background_image_builder->push_back(KeywordValue::GetNone());
-  scoped_refptr<PropertyListValue> background_image_list(
-      new PropertyListValue(background_image_builder.Pass()));
-  SetPropertyDefinition(kBackgroundImageProperty, "background-image",
-                        kInheritedNo, kAnimatableNo, background_image_list);
+  // http://www.w3.org/TR/css3-background/#background-image
+  SetPropertyDefinition(
+      kBackgroundImageProperty, "background-image", kInheritedNo, kAnimatableNo,
+      CreateSinglePropertyListWithValue(KeywordValue::GetNone()));
 
-  // Inherited: no.
-  // Initial: 0% 0%..
-  //   http://www.w3.org/TR/css3-background/#the-background-position
+  // http://www.w3.org/TR/css3-background/#the-background-position
   scoped_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->reserve(2);
@@ -123,12 +162,10 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kBackgroundPositionProperty, "background-position",
                         kInheritedNo, kAnimatableNo, background_position_list);
 
-  // Inherited: no.
-  // Initial: repeat.
-  //   http://www.w3.org/TR/css3-background/#the-background-repeat
   // The first value is for the horizontal direction, and the second for the
   // vertical one. If only one 'repeat' is given, the second is assumed to be
   // 'repeat'.
+  //   http://www.w3.org/TR/css3-background/#the-background-repeat
   scoped_ptr<PropertyListValue::Builder> background_repeat_builder(
       new PropertyListValue::Builder());
   background_repeat_builder->reserve(2);
@@ -139,12 +176,10 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kBackgroundRepeatProperty, "background-repeat",
                         kInheritedNo, kAnimatableNo, background_repeat_list);
 
-  // Inherited: no.
-  // Initial: auto.
-  //   http://www.w3.org/TR/css3-background/#background-size
   // The first value gives the width of the corresponding image, and the second
   // value gives its height. If only one value is given, the second is assumed
   // to be 'auto'.
+  //   http://www.w3.org/TR/css3-background/#background-size
   scoped_ptr<PropertyListValue::Builder> background_size_builder(
       new PropertyListValue::Builder());
   background_size_builder->reserve(2);
@@ -155,346 +190,240 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kBackgroundSizeProperty, "background-size",
                         kInheritedNo, kAnimatableNo, background_size_list);
 
-  // Inherited: no.
-  // Initial: see individual properties (0).
-  //   http://www.w3.org/TR/css3-background/#the-border-radius
   // Cobalt only support a single length value that applies to all borders.
+  //   http://www.w3.org/TR/css3-background/#the-border-radius
   SetPropertyDefinition(kBorderRadiusProperty, "border-radius", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: auto.
-  //   http://www.w3.org/TR/CSS2/visuren.html#propdef-bottom
+  // http://www.w3.org/TR/CSS2/visuren.html#propdef-bottom
   SetPropertyDefinition(kBottomProperty, "bottom", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // Inherited: yes.
-  // Initial: depends on user agent.
-  //   http://www.w3.org/TR/css3-color/#foreground
   // Opaque black in Chromium and Cobalt.
+  //   http://www.w3.org/TR/css3-color/#foreground
   SetPropertyDefinition(kColorProperty, "color", kInheritedYes, kAnimatableYes,
                         new RGBAColorValue(0x000000ff));
 
-  // Inherited: no.
-  // Initial: normal.
-  //   http://www.w3.org/TR/CSS21/generate.html#content
+  // http://www.w3.org/TR/CSS21/generate.html#content
   SetPropertyDefinition(kContentProperty, "content", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetNormal());
 
-  // Inherited: no.
-  // Initial: inline.
-  //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
+  // http://www.w3.org/TR/CSS21/visuren.html#display-prop
   SetPropertyDefinition(kDisplayProperty, "display", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetInline());
 
-  // Inherited: yes.
-  // Initial: depends on user agent.
-  //   http://www.w3.org/TR/css3-fonts/#font-family-prop
   // Varies by platform in Chromium, Roboto in Cobalt.
-  scoped_ptr<PropertyListValue::Builder> font_family_builder(
-      new PropertyListValue::Builder());
-  font_family_builder->push_back(new StringValue("Roboto"));
-  scoped_refptr<PropertyListValue> font_family_list(
-      new PropertyListValue(font_family_builder.Pass()));
-  SetPropertyDefinition(kFontFamilyProperty, "font-family", kInheritedYes,
-                        kAnimatableNo, font_family_list);
+  //   http://www.w3.org/TR/css3-fonts/#font-family-prop
+  SetPropertyDefinition(
+      kFontFamilyProperty, "font-family", kInheritedYes, kAnimatableNo,
+      CreateSinglePropertyListWithValue(new StringValue("Roboto")));
 
-  // Inherited: yes.
-  // Initial: medium.
-  //   http://www.w3.org/TR/css3-fonts/#font-size-prop
   // "medium" translates to 16px in Chromium.
   // Cobalt does not support keyword sizes, so we simply hardcode 16px.
+  //   http://www.w3.org/TR/css3-fonts/#font-size-prop
   SetPropertyDefinition(kFontSizeProperty, "font-size", kInheritedYes,
                         kAnimatableNo, new LengthValue(16, kPixelsUnit));
 
-  // Inherited: yes.
-  // Initial: normal.
-  //   http://www.w3.org/TR/css3-fonts/#font-style-prop
+  // http://www.w3.org/TR/css3-fonts/#font-style-prop
   SetPropertyDefinition(kFontStyleProperty, "font-style", kInheritedYes,
                         kAnimatableNo, FontStyleValue::GetNormal());
 
-  // Inherited: yes.
-  // Initial: normal.
-  //   http://www.w3.org/TR/css3-fonts/#font-weight-prop
+  // http://www.w3.org/TR/css3-fonts/#font-weight-prop
   SetPropertyDefinition(kFontWeightProperty, "font-weight", kInheritedYes,
                         kAnimatableNo, FontWeightValue::GetNormalAka400());
 
-  // Inherited: no.
-  // Initial: auto.
-  //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
+  // http://www.w3.org/TR/CSS21/visudet.html#the-height-property
   SetPropertyDefinition(kHeightProperty, "height", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // Inherited: no.
-  // Initial: auto.
-  //   http://www.w3.org/TR/CSS2/visuren.html#propdef-left
+  // http://www.w3.org/TR/CSS2/visuren.html#propdef-left
   SetPropertyDefinition(kLeftProperty, "left", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // Inherited: yes.
-  // Initial: normal.
-  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  // http://www.w3.org/TR/CSS21/visudet.html#line-height
   SetPropertyDefinition(kLineHeightProperty, "line-height", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNormal());
 
-  // Inherited: no.
-  // Initial: 0.
-  //   http://www.w3.org/TR/CSS21/box.html#margin-properties
+  // http://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginBottomProperty, "margin-bottom", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: 0.
-  //   http://www.w3.org/TR/CSS21/box.html#margin-properties
+  // http://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginLeftProperty, "margin-left", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: 0.
-  //   http://www.w3.org/TR/CSS21/box.html#margin-properties
+  // http://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginRightProperty, "margin-right", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: 0.
-  //   http://www.w3.org/TR/CSS21/box.html#margin-properties
+  // http://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginTopProperty, "margin-top", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: none.
-  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+  // http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
   SetPropertyDefinition(kMaxHeightProperty, "max-height", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetNone());
 
-  // Inherited: no.
-  // Initial: none.
-  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
+  // http://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
   SetPropertyDefinition(kMaxWidthProperty, "max-width", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetNone());
 
-  // Inherited: no.
-  // Initial: 0.
-  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
+  // http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
   SetPropertyDefinition(kMinHeightProperty, "min-height", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: 0.
-  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
+  // http://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
   SetPropertyDefinition(kMinWidthProperty, "min-width", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: 1.
-  //   http://www.w3.org/TR/css3-color/#opacity
+  // http://www.w3.org/TR/css3-color/#opacity
   SetPropertyDefinition(kOpacityProperty, "opacity", kInheritedNo,
                         kAnimatableYes, new NumberValue(1.0f));
 
-  // Inherited: no.
-  // Initial: visible.
-  //   http://www.w3.org/TR/css-overflow-3/#overflow-properties
+  // http://www.w3.org/TR/css-overflow-3/#overflow-properties
   SetPropertyDefinition(kOverflowProperty, "overflow", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetVisible());
 
-  // Inherited: yes.
-  // Initial: normal.
-  //   http://www.w3.org/TR/css-text-3/#overflow-wrap
+  // http://www.w3.org/TR/css-text-3/#overflow-wrap
   SetPropertyDefinition(kOverflowWrapProperty, "overflow-wrap", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNormal());
 
-  // Inherited: no.
-  // Initial: 0.
-  //   http://www.w3.org/TR/CSS21/box.html#padding-properties
+  // http://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingBottomProperty, "padding-bottom", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: 0.
-  //   http://www.w3.org/TR/CSS21/box.html#padding-properties
+  // http://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingLeftProperty, "padding-left", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: 0.
-  //   http://www.w3.org/TR/CSS21/box.html#padding-properties
+  // http://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingRightProperty, "padding-right", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: 0.
-  //   http://www.w3.org/TR/CSS21/box.html#padding-properties
+  // http://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingTopProperty, "padding-top", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: static.
-  //   http://www.w3.org/TR/css3-positioning/#position-property
+  // http://www.w3.org/TR/css3-positioning/#position-property
   SetPropertyDefinition(kPositionProperty, "position", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetStatic());
 
-  // Inherited: no.
-  // Initial: auto.
-  //   http://www.w3.org/TR/CSS2/visuren.html#propdef-right
+  // http://www.w3.org/TR/CSS2/visuren.html#propdef-right
   SetPropertyDefinition(kRightProperty, "right", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // Inherited: yes.
-  // Initial: 8.
-  //   http://www.w3.org/TR/css-text-3/#tab-size
+  // http://www.w3.org/TR/css-text-3/#tab-size
   SetPropertyDefinition(kTabSizeProperty, "tab-size", kInheritedYes,
                         kAnimatableNo, new IntegerValue(8));
 
-  // Inherited: yes.
-  // Initial: a nameless value that acts as 'left' if 'direction' is 'ltr',
-  // 'right' if 'direction' is 'rtl'.
-  //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
   // TODO(***REMOVED***): Currently this initial value is fixed to be 'left'. Properly
   // set this according to direction.
+  //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
   SetPropertyDefinition(kTextAlignProperty, "text-align", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetLeft());
 
-  // Inherited: yes.
-  // Initial: 0.
-  //   http://www.w3.org/TR/css3-text/#text-indent-property
+  // http://www.w3.org/TR/css3-text/#text-indent-property
   SetPropertyDefinition(kTextIndentProperty, "text-indent", kInheritedYes,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // Inherited: no.
-  // Initial: clip.
-  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  // http://www.w3.org/TR/css3-ui/#propdef-text-overflow
   SetPropertyDefinition(kTextOverflowProperty, "text-overflow", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetClip());
 
-  // Inherited: yes.
-  // Initial: none.
-  //   http://www.w3.org/TR/css3-text/#text-transform-property
+  // http://www.w3.org/TR/css3-text/#text-transform-property
   SetPropertyDefinition(kTextTransformProperty, "text-transform", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNone());
 
-  // Inherited: no.
-  // Initial: auto.
-  //   http://www.w3.org/TR/CSS2/visuren.html#propdef-top
+  // http://www.w3.org/TR/CSS2/visuren.html#propdef-top
   SetPropertyDefinition(kTopProperty, "top", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // Inherited: no.
-  // Initial: none.
-  //   http://www.w3.org/TR/css3-transforms/#transform-property
+  // http://www.w3.org/TR/css3-transforms/#transform-property
   SetPropertyDefinition(kTransformProperty, "transform", kInheritedNo,
                         kAnimatableYes, KeywordValue::GetNone());
 
-  // Inherited: no.
-  // Initial: 0s.
-  //   http://www.w3.org/TR/css3-transitions/#transition-delay-property
+  // http://www.w3.org/TR/css3-transitions/#transition-delay-property
   SetPropertyDefinition(kTransitionDelayProperty, "transition-delay",
                         kInheritedNo, kAnimatableNo,
                         CreateTimeListWithZeroSeconds());
 
-  // Inherited: no.
-  // Initial: 0s.
-  //   http://www.w3.org/TR/css3-transitions/#transition-duration-property
+  // http://www.w3.org/TR/css3-transitions/#transition-duration-property
   SetPropertyDefinition(kTransitionDurationProperty, "transition-duration",
                         kInheritedNo, kAnimatableNo,
                         CreateTimeListWithZeroSeconds());
 
-  // Inherited: no.
-  // Initial: all.
-  //   http://www.w3.org/TR/css3-transitions/#transition-property-property
+  // http://www.w3.org/TR/css3-transitions/#transition-property-property
   SetPropertyDefinition(kTransitionPropertyProperty, "transition-property",
                         kInheritedNo, kAnimatableNo,
                         CreatePropertyKeyListWithAll());
 
-  // Inherited: no.
-  // Initial: ease.
-  //   http://www.w3.org/TR/css3-transitions/#transition-timing-function-property
+  // http://www.w3.org/TR/css3-transitions/#transition-timing-function-property
   SetPropertyDefinition(kTransitionTimingFunctionProperty,
                         "transition-timing-function", kInheritedNo,
                         kAnimatableNo,
                         CreateTransitionTimingFunctionListWithEase());
 
-  // Inherited: no.
-  // Initial: baseline.
-  //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+  // http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
   SetPropertyDefinition(kVerticalAlignProperty, "vertical-align", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetBaseline());
 
-  // Inherited: yes.
-  // Initial: visible.
-  //   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
+  // http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
   SetPropertyDefinition(kVisibilityProperty, "visibility", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetVisible());
 
-  // Inherited: yes.
-  // Initial: normal.
-  //   http://www.w3.org/TR/css3-text/#white-space-property
+  // http://www.w3.org/TR/css3-text/#white-space-property
   SetPropertyDefinition(kWhiteSpaceProperty, "white-space", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNormal());
 
-  // Inherited: no.
-  // Initial: auto.
-  //   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
+  // http://www.w3.org/TR/CSS21/visudet.html#the-width-property
   SetPropertyDefinition(kWidthProperty, "width", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // Inherited: no.
-  // Initial: auto.
-  //   http://www.w3.org/TR/CSS21/visuren.html#z-index
+  // http://www.w3.org/TR/CSS21/visuren.html#z-index
   SetPropertyDefinition(kZIndexProperty, "z-index", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // Inherited: no.
-  // Initial: see individual properties.
-  //   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-property-property
   // This property name can appear as a keyword for the transition-property
   // property.
+  //   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-property-property
   SetPropertyDefinition(kAllProperty, "all", kInheritedNo, kAnimatableNo, NULL);
 
-  // Inherited: no.
-  // Initial: see individual properties.
-  //   http://www.w3.org/TR/css3-background/#the-background
   // This is a shorthand property.
+  //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-shorthand-property
+  SetPropertyDefinition(kAnimationProperty, "animation", kInheritedNo,
+                        kAnimatableNo, NULL);
+
+  // This is a shorthand property.
+  //   http://www.w3.org/TR/css3-background/#the-background
   SetPropertyDefinition(kBackgroundProperty, "background", kInheritedNo,
                         kAnimatableNo, NULL);
 
-  // Inherited: no.
-  // Initial: see individual properties.
-  //   http://www.w3.org/TR/CSS21/box.html#propdef-margin
   // This is a shorthand property.
+  //   http://www.w3.org/TR/CSS21/box.html#propdef-margin
   SetPropertyDefinition(kMarginProperty, "margin", kInheritedNo, kAnimatableNo,
                         NULL);
 
-  // Inherited: no.
-  // Initial: see individual properties.
-  //   http://www.w3.org/TR/CSS21/box.html#propdef-padding
   // This is a shorthand property.
+  //   http://www.w3.org/TR/CSS21/box.html#propdef-padding
   SetPropertyDefinition(kPaddingProperty, "padding", kInheritedNo,
                         kAnimatableNo, NULL);
 
-  // Inherited: N/A.
-  // Initial: N/A.
-  //   http://www.w3.org/TR/css3-fonts/#descdef-src
   // This is a descriptor for @font-face at-rules.
+  //   http://www.w3.org/TR/css3-fonts/#descdef-src
   SetPropertyDefinition(kSrcProperty, "src", kInheritedNo, kAnimatableNo, NULL);
 
-  // Inherited: no.
-  // Initial: see individual properties.
-  //   http://www.w3.org/TR/css3-transitions/#transition-shorthand-property
   // This is a shorthand property.
+  //   http://www.w3.org/TR/css3-transitions/#transition-shorthand-property
   SetPropertyDefinition(kTransitionProperty, "transition", kInheritedNo,
                         kAnimatableNo, NULL);
 
-  // Inherited: N/A.
-  // Initial: U+0-10FFFF.
-  //   http://www.w3.org/TR/css3-fonts/#unicode-range-desc
   // This is a descriptor for @font-face at-rules.
+  //   http://www.w3.org/TR/css3-fonts/#unicode-range-desc
   SetPropertyDefinition(kUnicodeRangeProperty, "unicode-range", kInheritedNo,
                         kAnimatableNo, new UnicodeRangeValue(0, 0x10FFFF));
 
-  // Inherited: yes.
-  // Initial: normal.
-  //   http://www.w3.org/TR/css-text-3/#overflow-wrap
   // This is an alias for kOverflowWrap
+  //   http://www.w3.org/TR/css-text-3/#overflow-wrap
   SetPropertyDefinition(kWordWrapProperty, "word-wrap", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNormal());
 
@@ -731,6 +660,10 @@ PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
 
     case 14:
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAnimationNameProperty))) {
+        return kAnimationNameProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kPaddingBottomProperty))) {
         return kPaddingBottomProperty;
       }
@@ -745,6 +678,10 @@ PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
       return kNoneProperty;
 
     case 15:
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAnimationDelayProperty))) {
+        return kAnimationDelayProperty;
+      }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBackgroundSizeProperty))) {
         return kBackgroundSizeProperty;
@@ -773,7 +710,18 @@ PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
       }
       return kNoneProperty;
 
+    case 18:
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAnimationDurationProperty))) {
+        return kAnimationDurationProperty;
+      }
+      return kNoneProperty;
+
     case 19:
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAnimationFillModeProperty))) {
+        return kAnimationFillModeProperty;
+      }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBackgroundPositionProperty))) {
         return kBackgroundPositionProperty;
@@ -785,6 +733,19 @@ PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTransitionPropertyProperty))) {
         return kTransitionPropertyProperty;
+      }
+      return kNoneProperty;
+
+    case 25:
+      if (LowerCaseEqualsASCII(
+              property_name,
+              GetPropertyName(kAnimationIterationCountProperty))) {
+        return kAnimationIterationCountProperty;
+      }
+      if (LowerCaseEqualsASCII(
+              property_name,
+              GetPropertyName(kAnimationTimingFunctionProperty))) {
+        return kAnimationTimingFunctionProperty;
       }
       return kNoneProperty;
 

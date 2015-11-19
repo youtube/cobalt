@@ -27,8 +27,10 @@ struct KeywordValue::NonTrivialStaticFields {
   NonTrivialStaticFields()
       : absolute_value(new KeywordValue(KeywordValue::kAbsolute)),
         auto_value(new KeywordValue(KeywordValue::kAuto)),
+        backwards_value(new KeywordValue(KeywordValue::kBackwards)),
         baseline_value(new KeywordValue(KeywordValue::kBaseline)),
         block_value(new KeywordValue(KeywordValue::kBlock)),
+        both_value(new KeywordValue(KeywordValue::kBoth)),
         bottom_value(new KeywordValue(KeywordValue::kBottom)),
         break_word_value(new KeywordValue(KeywordValue::kBreakWord)),
         center_value(new KeywordValue(KeywordValue::kCenter)),
@@ -38,8 +40,10 @@ struct KeywordValue::NonTrivialStaticFields {
         cursive_value(new KeywordValue(KeywordValue::kCursive)),
         ellipsis_value(new KeywordValue(KeywordValue::kEllipsis)),
         fantasy_value(new KeywordValue(KeywordValue::kFantasy)),
+        forwards_value(new KeywordValue(KeywordValue::kForwards)),
         fixed_value(new KeywordValue(KeywordValue::kFixed)),
         hidden_value(new KeywordValue(KeywordValue::kHidden)),
+        infinite_value(new KeywordValue(KeywordValue::kInfinite)),
         inherit_value(new KeywordValue(KeywordValue::kInherit)),
         initial_value(new KeywordValue(KeywordValue::kInitial)),
         inline_block_value(new KeywordValue(KeywordValue::kInlineBlock)),
@@ -64,8 +68,10 @@ struct KeywordValue::NonTrivialStaticFields {
 
   const scoped_refptr<KeywordValue> absolute_value;
   const scoped_refptr<KeywordValue> auto_value;
+  const scoped_refptr<KeywordValue> backwards_value;
   const scoped_refptr<KeywordValue> baseline_value;
   const scoped_refptr<KeywordValue> block_value;
+  const scoped_refptr<KeywordValue> both_value;
   const scoped_refptr<KeywordValue> bottom_value;
   const scoped_refptr<KeywordValue> break_word_value;
   const scoped_refptr<KeywordValue> center_value;
@@ -75,8 +81,10 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> cursive_value;
   const scoped_refptr<KeywordValue> ellipsis_value;
   const scoped_refptr<KeywordValue> fantasy_value;
+  const scoped_refptr<KeywordValue> forwards_value;
   const scoped_refptr<KeywordValue> fixed_value;
   const scoped_refptr<KeywordValue> hidden_value;
+  const scoped_refptr<KeywordValue> infinite_value;
   const scoped_refptr<KeywordValue> inherit_value;
   const scoped_refptr<KeywordValue> initial_value;
   const scoped_refptr<KeywordValue> inline_block_value;
@@ -110,7 +118,6 @@ base::LazyInstance<KeywordValue::NonTrivialStaticFields>
 
 }  // namespace
 
-
 const scoped_refptr<KeywordValue>& KeywordValue::GetAbsolute() {
   return non_trivial_static_fields.Get().absolute_value;
 }
@@ -119,12 +126,20 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetAuto() {
   return non_trivial_static_fields.Get().auto_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetBackwards() {
+  return non_trivial_static_fields.Get().backwards_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetBaseline() {
   return non_trivial_static_fields.Get().baseline_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetBlock() {
   return non_trivial_static_fields.Get().block_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetBoth() {
+  return non_trivial_static_fields.Get().both_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetBottom() {
@@ -167,8 +182,16 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetFixed() {
   return non_trivial_static_fields.Get().fixed_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetForwards() {
+  return non_trivial_static_fields.Get().forwards_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetHidden() {
   return non_trivial_static_fields.Get().hidden_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetInfinite() {
+  return non_trivial_static_fields.Get().infinite_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetInherit() {
@@ -265,10 +288,14 @@ std::string KeywordValue::ToString() const {
       return kAbsoluteKeywordName;
     case kAuto:
       return kAutoKeywordName;
+    case kBackwards:
+      return kBackwardsKeywordName;
     case kBaseline:
       return kBaselineKeywordName;
     case kBlock:
       return kBlockKeywordName;
+    case kBoth:
+      return kBothKeywordName;
     case kBottom:
       return kBottomKeywordName;
     case kBreakWord:
@@ -287,10 +314,14 @@ std::string KeywordValue::ToString() const {
       return kEllipsisKeywordName;
     case kFantasy:
       return kFantasyKeywordName;
+    case kForwards:
+      return kForwardsKeywordName;
     case kFixed:
       return kFixedKeywordName;
     case kHidden:
       return kHiddenKeywordName;
+    case kInfinite:
+      return kInfiniteKeywordName;
     case kInherit:
       return kInheritKeywordName;
     case kInitial:

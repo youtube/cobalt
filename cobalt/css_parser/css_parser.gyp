@@ -76,6 +76,8 @@
       'target_name': 'css_parser',
       'type': 'static_library',
       'sources': [
+        'animation_shorthand_property_parse_structures.cc',
+        'animation_shorthand_property_parse_structures.h',
         'background_position_property_parse_structures.cc',
         'background_position_property_parse_structures.h',
         'background_shorthand_property_parse_structures.cc',

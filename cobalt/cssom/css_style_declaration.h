@@ -44,6 +44,29 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   // Web API: CSSStyleDeclaration
   //
+  std::string animation() const;
+  void set_animation(const std::string& animation);
+
+  std::string animation_delay() const;
+  void set_animation_delay(const std::string& animation_delay);
+
+  std::string animation_duration() const;
+  void set_animation_duration(const std::string& animation_duration);
+
+  std::string animation_fill_mode() const;
+  void set_animation_fill_mode(const std::string& animation_fill_mode);
+
+  std::string animation_iteration_count() const;
+  void set_animation_iteration_count(
+      const std::string& animation_iteration_count);
+
+  std::string animation_name() const;
+  void set_animation_name(const std::string& animation_name);
+
+  std::string animation_timing_function() const;
+  void set_animation_timing_function(
+      const std::string& animation_timing_function);
+
   std::string background() const;
   void set_background(const std::string& background);
 
