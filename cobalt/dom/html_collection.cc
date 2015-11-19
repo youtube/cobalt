@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/html_collection.h"
 
+#include <vector>
+
 #include "base/bind.h"
 #include "base/callback.h"
 #include "cobalt/dom/dom_token_list.h"
@@ -48,9 +50,9 @@ class NodeCollection : public HTMLCollection {
                  const Predicate& predicate);
   ~NodeCollection() OVERRIDE {}
 
-  unsigned int length() const OVERRIDE;
+  uint32 length() const OVERRIDE;
 
-  scoped_refptr<Element> Item(unsigned int item) const OVERRIDE;
+  scoped_refptr<Element> Item(uint32 item) const OVERRIDE;
   scoped_refptr<Element> NamedItem(const std::string& name) const OVERRIDE;
 
   bool CanQueryNamedProperty(const std::string& name) const OVERRIDE;
@@ -96,14 +98,13 @@ void NodeCollection<NodeIterator>::MaybeRefreshCollection() const {
 }
 
 template <typename NodeIterator>
-unsigned int NodeCollection<NodeIterator>::length() const {
+uint32 NodeCollection<NodeIterator>::length() const {
   MaybeRefreshCollection();
-  return static_cast<unsigned int>(cached_collection_.size());
+  return static_cast<uint32>(cached_collection_.size());
 }
 
 template <typename NodeIterator>
-scoped_refptr<Element> NodeCollection<NodeIterator>::Item(
-    unsigned int item) const {
+scoped_refptr<Element> NodeCollection<NodeIterator>::Item(uint32 item) const {
   MaybeRefreshCollection();
   if (item < cached_collection_.size()) {
     return cached_collection_[item];
