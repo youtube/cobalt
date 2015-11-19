@@ -107,6 +107,13 @@ class EventTarget : public script::Wrappable,
                               event_listener);
   }
 
+  const EventListenerScriptObject* onunload() {
+    return GetAttributeEventListener(EventNames::GetInstance()->unload());
+  }
+  void set_onunload(const EventListenerScriptObject& event_listener) {
+    SetAttributeEventListener(EventNames::GetInstance()->unload(),
+                              event_listener);
+  }
 
   // Set an event listener assigned as an attribute. Overwrite the existing one
   // if there is any.
