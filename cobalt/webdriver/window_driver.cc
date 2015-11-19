@@ -32,11 +32,13 @@ namespace {
 
 std::string GetCurrentUrl(dom::Window* window) {
   DCHECK(window);
+  DCHECK(window->location());
   return window->location()->href();
 }
 
 std::string GetTitle(dom::Window* window) {
   DCHECK(window);
+  DCHECK(window->document());
   return window->document()->title();
 }
 
@@ -45,6 +47,13 @@ protocol::Size GetWindowSize(dom::Window* window) {
   float width = window->outer_width();
   float height = window->outer_height();
   return protocol::Size(width, height);
+}
+
+std::string GetSource(dom::Window* window) {
+  DCHECK(window);
+  DCHECK(window->document());
+  DCHECK(window->document()->document_element());
+  return window->document()->document_element()->outer_html();
 }
 
 }  // namespace
@@ -131,6 +140,15 @@ WindowDriver::FindElements(const protocol::SearchStrategy& strategy) {
     elements.push_back(CreateNewElementDriver(weak_elements.front()));
   }
   return CommandResult(elements);
+}
+
+util::CommandResult<std::string> WindowDriver::GetSource() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::CallWeakOnMessageLoopAndReturnResult(
+      window_message_loop_,
+      base::Bind(&WindowDriver::GetWeak, base::Unretained(this)),
+      base::Bind(&::cobalt::webdriver::GetSource),
+      protocol::Response::kNoSuchWindow);
 }
 
 protocol::ElementId WindowDriver::CreateNewElementDriver(
