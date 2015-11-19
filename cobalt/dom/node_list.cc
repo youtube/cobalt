@@ -24,11 +24,9 @@ namespace dom {
 
 NodeList::NodeList() { Stats::GetInstance()->Add(this); }
 
-unsigned int NodeList::length() {
-  return static_cast<unsigned int>(collection_.size());
-}
+uint32 NodeList::length() { return static_cast<uint32>(collection_.size()); }
 
-scoped_refptr<Node> NodeList::Item(unsigned int item) {
+scoped_refptr<Node> NodeList::Item(uint32 item) {
   if (item < collection_.size()) {
     return collection_[item];
   }

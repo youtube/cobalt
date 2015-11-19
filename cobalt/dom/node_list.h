@@ -35,9 +35,9 @@ class NodeList : public script::Wrappable {
 
   // Web API: NodeList
   //
-  virtual unsigned int length();
+  virtual uint32 length();
 
-  virtual scoped_refptr<Node> Item(unsigned int item);
+  virtual scoped_refptr<Node> Item(uint32 item);
 
   // Custom, not in any spec.
   //
