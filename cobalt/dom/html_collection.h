@@ -51,9 +51,9 @@ class HTMLCollection : public script::Wrappable {
       const scoped_refptr<const Node>& base, const std::string& name);
 
   // Web API: HTMLCollection
-  virtual unsigned int length() const = 0;
+  virtual uint32 length() const = 0;
 
-  virtual scoped_refptr<Element> Item(unsigned int item) const = 0;
+  virtual scoped_refptr<Element> Item(uint32 item) const = 0;
   virtual scoped_refptr<Element> NamedItem(const std::string& name) const = 0;
 
   // Custom, not in any spec.
