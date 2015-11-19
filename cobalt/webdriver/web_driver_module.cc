@@ -228,6 +228,11 @@ WebDriverModule::WebDriverModule(
           base::Bind(&WindowDriver::GetCurrentUrl)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
+      StringPrintf("/session/%s/source", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::GetSource)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
       StringPrintf("/session/%s/title", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::GetTitle)));
