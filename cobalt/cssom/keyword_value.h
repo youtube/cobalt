@@ -44,6 +44,12 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
     kAuto,
 
+    // "backwards" is a value of "animation-fill-mode" property which causes the
+    // animation results to fill in backwards around the animation's active
+    // duration.
+    //   http://www.w3.org/TR/css3-animations/#animation-fill-mode-property
+    kBackwards,
+
     // "middle" is the default value of "vertical-align" property that indicates
     // that the content should be aligned at the baselines.
     //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
@@ -53,6 +59,12 @@ class KeywordValue : public PropertyValue {
     // to generate a block box.
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     kBlock,
+
+    // "both" is a value of "animation-fill-mode" property which causes the
+    // animation results to fill in forwards and backwards around the
+    // animation's active duration.
+    //   http://www.w3.org/TR/css3-animations/#animation-fill-mode-property
+    kBoth,
 
     // "bottom" is a value of "background-position" property that computes to
     // 100% for the vertical position if one or two values are given, otherwise
@@ -110,6 +122,12 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
     kFixed,
 
+    // "forwards" is a value of "animation-fill-mode" property which causes the
+    // animation results to fill in forwards around the animation's active
+    // duration.
+    //   http://www.w3.org/TR/css3-animations/#animation-fill-mode-property
+    kForwards,
+
     // "hidden" is a value of "overflow" property which indicates that
     // the content is clipped.
     //   http://www.w3.org/TR/CSS21/visufx.html#overflow
@@ -117,6 +135,11 @@ class KeywordValue : public PropertyValue {
     // the generated box is invisible.
     //   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
     kHidden,
+
+    // "infinite" is a value of "animation-iteration-count" property which
+    // causes the animation to loop forever.
+    //   http://www.w3.org/TR/css3-animations/#animation-iteration-count-property
+    kInfinite,
 
     // Applicable to any property, represents a cascaded value of "inherit",
     // which means that, for a given element, the property takes the same
@@ -241,8 +264,10 @@ class KeywordValue : public PropertyValue {
   // Use factory methods below to obtain shared instances.
   static const scoped_refptr<KeywordValue>& GetAbsolute();
   static const scoped_refptr<KeywordValue>& GetAuto();
+  static const scoped_refptr<KeywordValue>& GetBackwards();
   static const scoped_refptr<KeywordValue>& GetBaseline();
   static const scoped_refptr<KeywordValue>& GetBlock();
+  static const scoped_refptr<KeywordValue>& GetBoth();
   static const scoped_refptr<KeywordValue>& GetBottom();
   static const scoped_refptr<KeywordValue>& GetBreakWord();
   static const scoped_refptr<KeywordValue>& GetCenter();
@@ -252,8 +277,10 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetCursive();
   static const scoped_refptr<KeywordValue>& GetEllipsis();
   static const scoped_refptr<KeywordValue>& GetFantasy();
+  static const scoped_refptr<KeywordValue>& GetForwards();
   static const scoped_refptr<KeywordValue>& GetFixed();
   static const scoped_refptr<KeywordValue>& GetHidden();
+  static const scoped_refptr<KeywordValue>& GetInfinite();
   static const scoped_refptr<KeywordValue>& GetInherit();
   static const scoped_refptr<KeywordValue>& GetInitial();
   static const scoped_refptr<KeywordValue>& GetInline();

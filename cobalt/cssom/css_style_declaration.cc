@@ -57,6 +57,73 @@ CSSStyleDeclaration::CSSStyleDeclaration(
   DCHECK(data_.get());
 }
 
+std::string CSSStyleDeclaration::animation() const {
+  NOTIMPLEMENTED();
+  return "";
+}
+
+void CSSStyleDeclaration::set_animation(const std::string& animation) {
+  SetPropertyValueStringByKey(kAnimationProperty, animation);
+}
+
+std::string CSSStyleDeclaration::animation_delay() const {
+  return data_->GetDeclaredPropertyValueStringByKey(kAnimationDelayProperty);
+}
+
+void CSSStyleDeclaration::set_animation_delay(
+    const std::string& animation_delay) {
+  SetPropertyValueStringByKey(kAnimationDelayProperty, animation_delay);
+}
+
+std::string CSSStyleDeclaration::animation_duration() const {
+  return data_->GetDeclaredPropertyValueStringByKey(kAnimationDurationProperty);
+}
+
+void CSSStyleDeclaration::set_animation_duration(
+    const std::string& animation_duration) {
+  SetPropertyValueStringByKey(kAnimationDurationProperty, animation_duration);
+}
+
+std::string CSSStyleDeclaration::animation_fill_mode() const {
+  return data_->GetDeclaredPropertyValueStringByKey(kAnimationFillModeProperty);
+}
+
+void CSSStyleDeclaration::set_animation_fill_mode(
+    const std::string& animation_fill_mode) {
+  SetPropertyValueStringByKey(kAnimationFillModeProperty, animation_fill_mode);
+}
+
+std::string CSSStyleDeclaration::animation_iteration_count() const {
+  return data_->GetDeclaredPropertyValueStringByKey(
+      kAnimationIterationCountProperty);
+}
+
+void CSSStyleDeclaration::set_animation_iteration_count(
+    const std::string& animation_iteration_count) {
+  SetPropertyValueStringByKey(kAnimationIterationCountProperty,
+                              animation_iteration_count);
+}
+
+std::string CSSStyleDeclaration::animation_name() const {
+  return data_->GetDeclaredPropertyValueStringByKey(kAnimationNameProperty);
+}
+
+void CSSStyleDeclaration::set_animation_name(
+    const std::string& animation_name) {
+  SetPropertyValueStringByKey(kAnimationNameProperty, animation_name);
+}
+
+std::string CSSStyleDeclaration::animation_timing_function() const {
+  return data_->GetDeclaredPropertyValueStringByKey(
+      kAnimationTimingFunctionProperty);
+}
+
+void CSSStyleDeclaration::set_animation_timing_function(
+    const std::string& animation_timing_function) {
+  SetPropertyValueStringByKey(kAnimationTimingFunctionProperty,
+                              animation_timing_function);
+}
+
 std::string CSSStyleDeclaration::background() const {
   // In order to implement this properly we must either save the incoming string
   // values when they are being set, or combine the results of getting the
