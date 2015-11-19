@@ -32,6 +32,7 @@ class ExceptionState {
     kTypeError,
     kRangeError,
     kReferenceError,
+    kSyntaxError,
     kURIError
   };
   // IDL for this object must be an exception interface.
