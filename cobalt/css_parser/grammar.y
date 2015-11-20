@@ -3146,7 +3146,8 @@ transform_function:
         cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
     $<transform_functions>0->push_back(new cssom::TranslateFunction(
         cssom::TranslateFunction::kYAxis,
-        AddRef(new cssom::LengthValue(0, cssom::kPixelsUnit))));
+        scoped_refptr<cssom::LengthValue>(
+            new cssom::LengthValue(0, cssom::kPixelsUnit))));
   }
   | kTranslateFunctionToken maybe_whitespace length_percent_property_value comma
     length_percent_property_value ')' maybe_whitespace {
