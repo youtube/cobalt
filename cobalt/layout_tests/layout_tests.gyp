@@ -34,6 +34,10 @@
         'layout_snapshot.h',
         'test_parser.cc',
         'test_parser.h',
+        'test_utils.cc',
+        'test_utils.h',
+        'web_platform_test_parser.cc',
+        'web_platform_test_parser.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -115,5 +119,37 @@
       },
       'includes': [ '../build/deploy.gypi' ],
     },
+    {
+      'target_name': 'web_platform_tests',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'web_platform_tests.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+        # Depend on browser_copy_test_data so that we ensure external tests
+        # files from browser that we link to are available.
+        '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
+        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        'layout_test_utils',
+      ],
+    },
+
+    {
+      'target_name': 'web_platform_tests_deploy',
+      'type': 'none',
+      'dependencies': [
+        'web_platform_tests',
+      ],
+      'variables': {
+        'executable_name': 'web_platform_tests',
+      },
+      'includes': [ '../build/deploy.gypi' ],
+    },
+
   ],
 }
