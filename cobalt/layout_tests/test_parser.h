@@ -21,8 +21,9 @@
 #include <vector>
 
 #include "base/file_path.h"
-#include "googleurl/src/gurl.h"
+#include "base/optional.h"
 #include "cobalt/math/size.h"
+#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace layout_tests {
@@ -37,7 +38,7 @@ FilePath GetTestInputRootDirectory();
 // have been chosen to be output.
 FilePath GetTestOutputRootDirectory();
 
-// Final parsed information about an individual test entry.
+// Final parsed information about an individual Layout Test entry.
 struct TestInfo {
   TestInfo(const FilePath& base_file_path, const GURL& url,
            const base::optional<math::Size>& viewport_size)
