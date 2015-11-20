@@ -22,7 +22,9 @@ namespace cobalt {
 namespace network {
 
 NetworkDelegate::NetworkDelegate(const NetworkDelegate::Options& options)
-    : cookie_policy_(options.cookie_policy), cookies_enabled_(true) {}
+    : cookie_policy_(options.cookie_policy),
+      cookies_enabled_(true),
+      require_https_(options.require_https) {}
 
 NetworkDelegate::~NetworkDelegate() {}
 
@@ -30,10 +32,18 @@ int NetworkDelegate::OnBeforeURLRequest(
     net::URLRequest* request,
     const net::CompletionCallback& callback,
     GURL* new_url) {
-  UNREFERENCED_PARAMETER(request);
   UNREFERENCED_PARAMETER(callback);
   UNREFERENCED_PARAMETER(new_url);
-  return net::OK;
+
+#if defined(COBALT_FORCE_HTTPS)
+  const bool require_https = true;
+#else
+  bool require_https = require_https_;
+#endif
+
+  return require_https && !request->url().SchemeIsSecure()
+             ? net::ERR_DISALLOWED_URL_SCHEME
+             : net::OK;
 }
 
 int NetworkDelegate::OnBeforeSendHeaders(
