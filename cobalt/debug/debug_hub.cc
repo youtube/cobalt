@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#if defined(ENABLE_DEBUG_CONSOLE)
+
 #include "cobalt/debug/debug_hub.h"
 
 #include <set>
@@ -24,9 +26,6 @@
 
 namespace cobalt {
 namespace debug {
-
-#if defined(ENABLE_DEBUG_CONSOLE)
-
 namespace {
 const char kDebugConsoleOffString[] = "off";
 const char kDebugConsoleHudString[] = "hud";
@@ -246,76 +245,7 @@ void DebugHub::SendCommand(const std::string& channel,
   console_command_manager->HandleCommand(channel, message);
 }
 
-#else   // ENABLE_DEBUG_CONSOLE
-
-// Stub implementation when debug not enabled (release builds)
-
-DebugHub::DebugHub(
-    const ExecuteJavascriptCallback& execute_javascript_callback,
-    const Debugger::CreateDebugServerCallback& create_debug_server_callback) {
-  UNREFERENCED_PARAMETER(execute_javascript_callback);
-  UNREFERENCED_PARAMETER(create_debug_server_callback);
-}
-
-DebugHub::~DebugHub() {}
-
-int DebugHub::AddLogMessageCallback(const LogMessageCallbackArg& callback) {
-  UNREFERENCED_PARAMETER(callback);
-  return 0;
-}
-
-void DebugHub::RemoveLogMessageCallback(int callback_id) {
-  UNREFERENCED_PARAMETER(callback_id);
-}
-
-void DebugHub::RemoveAllLogMessageCallbacks() {}
-
-std::string DebugHub::GetConsoleValueNames() const { return ""; }
-
-std::string DebugHub::GetConsoleValue(const std::string& name) const {
-  UNREFERENCED_PARAMETER(name);
-  return "";
-}
-
-void DebugHub::SetDebugConsoleMode(int debug_console_mode) {
-  UNREFERENCED_PARAMETER(debug_console_mode);
-}
-
-int DebugHub::CycleDebugConsoleMode() { return kDebugConsoleOff; }
-
-int DebugHub::GetDebugConsoleMode() const { return kDebugConsoleOff; }
-
-void DebugHub::SetDebugConsoleModeAsString(const std::string& mode_string) {
-  UNREFERENCED_PARAMETER(mode_string);
-}
-
-std::string DebugHub::GetDebugConsoleModeAsString() const { return ""; }
-
-std::string DebugHub::ExecuteJavascript(const std::string& javascript) {
-  UNREFERENCED_PARAMETER(javascript);
-  return "";
-}
-
-std::string DebugHub::GetCommandChannels() const { return ""; }
-
-std::string DebugHub::GetCommandChannelShortHelp(
-    const std::string& channel) const {
-  UNREFERENCED_PARAMETER(channel);
-  return "";
-}
-
-std::string DebugHub::GetCommandChannelLongHelp(
-    const std::string& channel) const {
-  UNREFERENCED_PARAMETER(channel);
-  return "";
-}
-
-void DebugHub::SendCommand(const std::string& channel,
-                           const std::string& message) {
-  UNREFERENCED_PARAMETER(channel);
-  UNREFERENCED_PARAMETER(message);
-}
-#endif  // ENABLE_DEBUG_CONSOLE
-
 }  // namespace debug
 }  // namespace cobalt
+
+#endif  // ENABLE_DEBUG_CONSOLE

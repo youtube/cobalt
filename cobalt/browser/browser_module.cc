@@ -35,10 +35,6 @@ namespace {
 const int kInitialWidth = 1920;
 const int kInitialHeight = 1080;
 
-// Files for the debug console web page are bundled with the executable.
-const char kInitialDebugConsoleUrl[] =
-    "file:///cobalt/browser/debug_console/debug_console.html";
-
 // Name of the channel to listen for trace commands from the debug console.
 const char kTraceCommandChannel[] = "trace";
 
@@ -70,6 +66,10 @@ const char kReloadCommandLongHelp[] =
 #if defined(ENABLE_DEBUG_CONSOLE)
 // Local storage key for the debug console mode.
 const char kDebugConsoleModeKey[] = "debugConsole.mode";
+
+// Files for the debug console web page are bundled with the executable.
+const char kInitialDebugConsoleUrl[] =
+    "file:///cobalt/browser/debug_console/debug_console.html";
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
 void OnNavigateMessage(BrowserModule* browser_module,
@@ -103,7 +103,6 @@ BrowserModule::BrowserModule(const GURL& url,
           base::Bind(&BrowserModule::ExecuteJavascript, base::Unretained(this)),
           base::Bind(&BrowserModule::CreateDebugServer,
                      base::Unretained(this))))),
-#endif  // ENABLE_DEBUG_CONSOLE
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
           GURL(kInitialDebugConsoleUrl),
           base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
@@ -114,6 +113,7 @@ BrowserModule::BrowserModule(const GURL& url,
           renderer_module_.pipeline()->GetResourceProvider(),
           renderer_module_.pipeline()->refresh_rate(),
           WebModule::Options("DebugConsoleWebModule", debug_hub_))),
+#endif  // ENABLE_DEBUG_CONSOLE
       self_message_loop_(MessageLoop::current()),
       ALLOW_THIS_IN_INITIALIZER_LIST(trace_command_handler_(
           kTraceCommandChannel,
@@ -154,12 +154,14 @@ BrowserModule::BrowserModule(const GURL& url,
         keyboard_event_callback, system_window);
   }
 
+#if defined(ENABLE_DEBUG_CONSOLE)
   // Debug console defaults to Off if not specified.
   // Stored preference overrides this, if it exists.
   // Command line setting overrides this, if specified.
   debug_hub_->SetDebugConsoleMode(debug::DebugHub::kDebugConsoleOff);
   LoadDebugConsoleMode();
   SetDebugConsoleModeFromCommandLine();
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Always render the debug console. It will draw nothing if disabled.
   // This setting is ignored if ENABLE_DEBUG_CONSOLE is not defined.
@@ -284,6 +286,7 @@ bool BrowserModule::FilterKeyEvent(
     return false;
   }
 
+#if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // key events.
   if (debug_hub_->GetDebugConsoleMode() >= debug::DebugHub::kDebugConsoleOn) {
@@ -291,6 +294,7 @@ bool BrowserModule::FilterKeyEvent(
       return false;
     }
   }
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   return true;
 }
