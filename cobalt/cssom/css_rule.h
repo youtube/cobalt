@@ -50,6 +50,8 @@ class CSSRule : public script::Wrappable,
     kMediaRule = 4,
     kFontFaceRule = 5,
     kPageRule = 6,
+    kKeyframesRule = 7,
+    kKeyframeRule = 8,
     kMarginRule = 9,
     kNamespaceRule = 10,
   };

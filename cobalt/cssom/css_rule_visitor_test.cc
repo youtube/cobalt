@@ -16,7 +16,11 @@
 
 #include "cobalt/cssom/css_rule_visitor.h"
 
+#include <vector>
+
 #include "cobalt/cssom/css_font_face_rule.h"
+#include "cobalt/cssom/css_keyframe_rule.h"
+#include "cobalt/cssom/css_keyframes_rule.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -30,6 +34,9 @@ class MockCSSRuleVisitor : public CSSRuleVisitor {
   MOCK_METHOD1(VisitCSSStyleRule, void(CSSStyleRule* css_style_rule));
   MOCK_METHOD1(VisitCSSMediaRule, void(CSSMediaRule* css_media_rule));
   MOCK_METHOD1(VisitCSSFontFaceRule, void(CSSFontFaceRule* css_font_face_rule));
+  MOCK_METHOD1(VisitCSSKeyframeRule, void(CSSKeyframeRule* css_keyframe_rule));
+  MOCK_METHOD1(VisitCSSKeyframesRule,
+               void(CSSKeyframesRule* css_keyframes_rule));
 };
 
 TEST(CSSRuleVisitorTest, VisitsCSSStyleRule) {
@@ -50,6 +57,22 @@ TEST(CSSRuleVisitorTest, VisitsCSSFontFaceRule) {
   scoped_refptr<CSSFontFaceRule> rule = new CSSFontFaceRule();
   MockCSSRuleVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitCSSFontFaceRule(rule.get()));
+  rule->Accept(&mock_visitor);
+}
+
+TEST(CSSRuleVisitorTest, VisitsCSSKeyframeRule) {
+  scoped_refptr<CSSKeyframeRule> rule =
+      new CSSKeyframeRule(std::vector<float>(), NULL);
+  MockCSSRuleVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitCSSKeyframeRule(rule.get()));
+  rule->Accept(&mock_visitor);
+}
+
+TEST(CSSRuleVisitorTest, VisitsCSSKeyframesRule) {
+  scoped_refptr<CSSKeyframesRule> rule =
+      new CSSKeyframesRule("dummy-name", NULL);
+  MockCSSRuleVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitCSSKeyframesRule(rule.get()));
   rule->Accept(&mock_visitor);
 }
 

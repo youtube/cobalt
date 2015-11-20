@@ -44,6 +44,8 @@
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_font_face_rule.h"
+#include "cobalt/cssom/css_keyframe_rule.h"
+#include "cobalt/cssom/css_keyframes_rule.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"

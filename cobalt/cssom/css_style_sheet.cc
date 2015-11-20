@@ -53,15 +53,9 @@ class MediaRuleUpdater : public CSSRuleVisitor {
                    const scoped_refptr<PropertyValue>& height)
       : any_condition_value_changed_(false), width_(width), height_(height) {}
 
-  void VisitCSSStyleRule(CSSStyleRule* css_style_rule) OVERRIDE {
-    UNREFERENCED_PARAMETER(css_style_rule);
-    // Do nothing.
-  }
+  void VisitCSSStyleRule(CSSStyleRule* /*css_style_rule*/) OVERRIDE {}
 
-  void VisitCSSFontFaceRule(CSSFontFaceRule* css_font_face_rule) OVERRIDE {
-    UNREFERENCED_PARAMETER(css_font_face_rule);
-    // Do nothing.
-  }
+  void VisitCSSFontFaceRule(CSSFontFaceRule* /*css_font_face_rule*/) OVERRIDE {}
 
   void VisitCSSMediaRule(CSSMediaRule* css_media_rule) OVERRIDE {
     bool condition_value_changed =
@@ -69,6 +63,10 @@ class MediaRuleUpdater : public CSSRuleVisitor {
                                                                  height_);
     any_condition_value_changed_ |= condition_value_changed;
   }
+
+  void VisitCSSKeyframeRule(CSSKeyframeRule* /*css_keyframe_rule*/) OVERRIDE {}
+  void VisitCSSKeyframesRule(
+      CSSKeyframesRule* /*css_keyframes_rule*/) OVERRIDE {}
 
   bool AnyConditionValueChanged() { return any_condition_value_changed_; }
 

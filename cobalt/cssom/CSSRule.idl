@@ -23,6 +23,12 @@ interface CSSRule {
   const unsigned short MEDIA_RULE = 4;
   const unsigned short FONT_FACE_RULE = 5;
   const unsigned short PAGE_RULE = 6;
+
+  // KEYFRAMES_RULE and KEYFRAME_RULE are specified in CSS Animations:
+  //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSRule-interface
+  const unsigned short KEYFRAMES_RULE = 7;
+  const unsigned short KEYFRAME_RULE = 8;
+
   const unsigned short MARGIN_RULE = 9;
   const unsigned short NAMESPACE_RULE = 10;
   readonly attribute unsigned short type;
