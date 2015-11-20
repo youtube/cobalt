@@ -47,6 +47,7 @@ extern const char kEndKeywordName[];
 extern const char kFantasyKeywordName[];
 extern const char kForwardsKeywordName[];
 extern const char kFixedKeywordName[];
+extern const char kFromKeywordName[];
 extern const char kFuchsiaKeywordName[];
 extern const char kGrayKeywordName[];
 extern const char kGreenKeywordName[];

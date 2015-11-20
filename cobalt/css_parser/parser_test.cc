@@ -29,6 +29,8 @@
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_font_face_rule.h"
+#include "cobalt/cssom/css_keyframe_rule.h"
+#include "cobalt/cssom/css_keyframes_rule.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
@@ -3323,6 +3325,62 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValue) {
   EXPECT_FALSE(null_value);
 }
 
+TEST_F(ParserTest, ParsesKeyframesRule) {
+  scoped_refptr<cssom::CSSRule> rule = parser_.ParseRule(
+      "@keyframes foo {"
+      "  from {"
+      "    opacity: 0.25;"
+      "  }"
+      "  25%, 75% {"
+      "    opacity: 0.5;"
+      "  }"
+      "  to {"
+      "    opacity: 0.75;"
+      "  }"
+      "}", source_location_);
+
+  cssom::CSSKeyframesRule* keyframes_rule =
+      dynamic_cast<cssom::CSSKeyframesRule*>(rule.get());
+  ASSERT_TRUE(keyframes_rule);
+  EXPECT_EQ("foo", keyframes_rule->name());
+
+  ASSERT_EQ(3, keyframes_rule->css_rules()->length());
+
+  cssom::CSSKeyframeRule* from_keyframe_rule =
+      dynamic_cast<cssom::CSSKeyframeRule*>(
+          keyframes_rule->css_rules()->Item(0).get());
+  ASSERT_TRUE(from_keyframe_rule);
+  ASSERT_EQ(1, from_keyframe_rule->offsets().size());
+  EXPECT_EQ(0.0f, from_keyframe_rule->offsets()[0]);
+  cssom::NumberValue* from_opacity_value = dynamic_cast<cssom::NumberValue*>(
+      from_keyframe_rule->style()->data()->opacity().get());
+  ASSERT_TRUE(from_opacity_value);
+  EXPECT_EQ(0.25f, from_opacity_value->value());
+
+  cssom::CSSKeyframeRule* mid_keyframe_rule =
+      dynamic_cast<cssom::CSSKeyframeRule*>(
+          keyframes_rule->css_rules()->Item(1).get());
+  ASSERT_TRUE(mid_keyframe_rule);
+  ASSERT_EQ(2, mid_keyframe_rule->offsets().size());
+  EXPECT_FLOAT_EQ(0.25f, mid_keyframe_rule->offsets()[0]);
+  EXPECT_FLOAT_EQ(0.75f, mid_keyframe_rule->offsets()[1]);
+  cssom::NumberValue* mid_opacity_value = dynamic_cast<cssom::NumberValue*>(
+      mid_keyframe_rule->style()->data()->opacity().get());
+  ASSERT_TRUE(mid_opacity_value);
+  EXPECT_EQ(0.5f, mid_opacity_value->value());
+
+  cssom::CSSKeyframeRule* to_keyframe_rule =
+      dynamic_cast<cssom::CSSKeyframeRule*>(
+          keyframes_rule->css_rules()->Item(2).get());
+  ASSERT_TRUE(to_keyframe_rule);
+  ASSERT_EQ(1, to_keyframe_rule->offsets().size());
+  EXPECT_EQ(1.0f, to_keyframe_rule->offsets()[0]);
+  cssom::NumberValue* to_opacity_value = dynamic_cast<cssom::NumberValue*>(
+      to_keyframe_rule->style()->data()->opacity().get());
+  ASSERT_TRUE(to_opacity_value);
+  EXPECT_EQ(0.75f, to_opacity_value->value());
+}
+
 TEST_F(ParserTest, ParsesAnimationDurationWithSingleValue) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("animation-duration: 1s;",
@@ -3387,8 +3445,7 @@ TEST_F(ParserTest, ParsesAnimationFillModeWithBothValue) {
           style->animation_fill_mode().get());
   EXPECT_TRUE(animation_fill_mode);
   ASSERT_EQ(1, animation_fill_mode->value().size());
-  EXPECT_EQ(cssom::KeywordValue::GetBoth(),
-            animation_fill_mode->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetBoth(), animation_fill_mode->value()[0]);
 }
 
 TEST_F(ParserTest, ParsesAnimationFillModeWithListOfValues) {
@@ -3406,10 +3463,8 @@ TEST_F(ParserTest, ParsesAnimationFillModeWithListOfValues) {
             animation_fill_mode->value()[0]);
   EXPECT_EQ(cssom::KeywordValue::GetBackwards(),
             animation_fill_mode->value()[1]);
-  EXPECT_EQ(cssom::KeywordValue::GetBoth(),
-            animation_fill_mode->value()[2]);
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            animation_fill_mode->value()[3]);
+  EXPECT_EQ(cssom::KeywordValue::GetBoth(), animation_fill_mode->value()[2]);
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), animation_fill_mode->value()[3]);
 }
 
 TEST_F(ParserTest, ParsesAnimationIterationCountWithIntegerValue) {
@@ -3744,10 +3799,8 @@ TEST_F(ParserTest, ParsesAnimationShorthandForMultipleAnimations) {
           style->animation_fill_mode().get());
   EXPECT_TRUE(animation_fill_mode);
   ASSERT_EQ(2, animation_fill_mode->value().size());
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            animation_fill_mode->value()[0]);
-  EXPECT_EQ(cssom::KeywordValue::GetNone(),
-            animation_fill_mode->value()[1]);
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), animation_fill_mode->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), animation_fill_mode->value()[1]);
 }
 
 TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithSingleValue) {

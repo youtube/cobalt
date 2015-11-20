@@ -1626,6 +1626,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kEaseToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFromKeywordName)) {
+        *property_value_token = kFromToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kGrayKeywordName)) {
         *property_value_token = kGrayToken;
         return true;
@@ -2791,6 +2795,13 @@ inline bool Scanner::DetectAtTokenAndMaybeChangeParsingMode(
       if (length == 7 && IsEqualToCssIdentifier(name.begin + 2, "mport")) {
         parsing_mode_ = kMediaQueryMode;
         *at_token = kImportToken;
+        return true;
+      }
+      return false;
+
+    case 'k':
+      if (length == 10 && IsEqualToCssIdentifier(name.begin + 2, "eyframes")) {
+        *at_token = kKeyframesToken;
         return true;
       }
       return false;
