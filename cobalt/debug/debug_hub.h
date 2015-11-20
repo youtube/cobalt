@@ -17,6 +17,8 @@
 #ifndef DEBUG_DEBUG_HUB_H_
 #define DEBUG_DEBUG_HUB_H_
 
+#if defined(ENABLE_DEBUG_CONSOLE)
+
 #include <list>
 #include <map>
 #include <string>
@@ -28,9 +30,7 @@
 #include "cobalt/base/log_message_handler.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/debug/debugger.h"
-#if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/debug/system_stats_tracker.h"
-#endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/debug_server.h"
 #include "cobalt/script/script_object.h"
@@ -150,7 +150,6 @@ class DebugHub : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(DebugHub);
 
  private:
-#if defined(ENABLE_DEBUG_CONSOLE)
   // Called by LogMessageHandler for each log message.
   void OnLogMessage(int severity, const char* file, int line,
                     size_t message_start, const std::string& str);
@@ -175,7 +174,6 @@ class DebugHub : public script::Wrappable {
 
   // The current debug console mode
   int debug_console_mode_;
-#endif  // ENABLE_DEBUG_CONSOLE
 
   // Interface to the JavaScript debugger client.
   scoped_refptr<Debugger> debugger_;
@@ -184,4 +182,5 @@ class DebugHub : public script::Wrappable {
 }  // namespace debug
 }  // namespace cobalt
 
+#endif  // ENABLE_DEBUG_CONSOLE
 #endif  // DEBUG_DEBUG_HUB_H_
