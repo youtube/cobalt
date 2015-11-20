@@ -1,0 +1,23 @@
+abort-after-receive.htm,PASS
+abort-after-send.htm,PASS
+# Requires window.stop()
+abort-after-stop.htm,FAIL
+abort-after-timeout.htm,PASS
+# synchronous mode is unsupported
+abort-during-done.htm,FAIL
+abort-during-open.htm,PASS
+abort-during-unsent.htm,PASS
+# Requires .upload
+abort-during-upload.htm,FAIL
+abort-event-abort.htm,PASS
+abort-event-listeners.htm,PASS
+abort-event-loadend.htm,PASS
+# Requires .upload
+abort-event-order.htm,FAIL
+abort-upload-event-abort.htm,FAIL
+abort-upload-event-loadend.htm,FAIL
+# Requires document.cookie support
+anonymous-mode-unsupported.htm,FAIL
+# Unsupported by XHR currently. b/25800310
+data-uri.htm,DISABLE
+event-abort.htm,PASS
