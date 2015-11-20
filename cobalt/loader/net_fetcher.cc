@@ -54,7 +54,8 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
     handler()->OnDone(this);
   } else {
     handler()->OnError(this,
-                       base::StringPrintf("NetFetcher error: %s",
+                       base::StringPrintf("NetFetcher error on %s: %s",
+                                          source->GetURL().spec().c_str(),
                                           net::ErrorToString(status.error())));
   }
 }

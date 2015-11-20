@@ -230,6 +230,7 @@
           # (tracked in b/24171481).
           # Currently enabling it just to make binding happy.
           'ENABLE_TEST_RUNNER',
+          'COBALT_FORCE_HTTPS',
         ],
       }, # end of gold_base
     }, # end of configurations

@@ -16,6 +16,7 @@
 
 #include "cobalt/network/network_module.h"
 
+#include "base/command_line.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
@@ -94,8 +95,13 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
 
   url_request_context_.reset(new URLRequestContext(storage_manager_));
   NetworkDelegate::Options net_options;
-  // TODO(***REMOVED***): Specify any override to the cookie settings
-  // in net_options.
+#if !defined(COBALT_FORCE_HTTPS)
+  if (CommandLine::ForCurrentProcess()->HasSwitch("allow_http")) {
+    DLOG(INFO) << "Allowing insecure HTTP connections";
+    net_options.require_https = false;
+  }
+#endif  // !defined(COBALT_FORCE_HTTPS)
+
   network_delegate_.reset(new NetworkDelegate(net_options));
   url_request_context_->set_http_user_agent_settings(user_agent_.get());
   url_request_context_->set_network_delegate(network_delegate_.get());
