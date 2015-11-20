@@ -271,7 +271,8 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   scoped_ptr<std::string> request_body_text(new std::string());
 
   // Add request body, if appropriate.
-  if (method_ == net::URLFetcher::POST || method_ == net::URLFetcher::PUT) {
+  if ((method_ == net::URLFetcher::POST || method_ == net::URLFetcher::PUT) &&
+      request_body) {
     bool has_content_type =
         request_headers_.HasHeader(net::HttpRequestHeaders::kContentType);
     if (request_body->IsType<std::string>()) {
