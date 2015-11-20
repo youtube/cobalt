@@ -2781,6 +2781,42 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
   EXPECT_FLOAT_EQ(1.5, scale_function->y_factor());
 }
 
+TEST_F(ParserTest, ParsesIsotropicScaleXTransform) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform: scaleX(0.5);",
+                                        source_location_);
+
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_TRUE(transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::ScaleFunction* scale_function =
+      dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
+  ASSERT_TRUE(scale_function);
+  EXPECT_FLOAT_EQ(0.5, scale_function->x_factor());
+  EXPECT_FLOAT_EQ(1.0, scale_function->y_factor());
+}
+
+TEST_F(ParserTest, ParsesIsotropicScaleYTransform) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform: scaleY(20);",
+                                        source_location_);
+
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_TRUE(transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::ScaleFunction* scale_function =
+      dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
+  ASSERT_TRUE(scale_function);
+  EXPECT_FLOAT_EQ(1.0, scale_function->x_factor());
+  EXPECT_FLOAT_EQ(20.0, scale_function->y_factor());
+}
+
 // TODO(***REMOVED***): Test integers, including negative ones.
 // TODO(***REMOVED***): Test reals, including negative ones.
 // TODO(***REMOVED***): Test non-zero lengths without units.
@@ -2801,6 +2837,76 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
   ASSERT_TRUE(scale_function);
   EXPECT_FLOAT_EQ(16, scale_function->x_factor());
   EXPECT_FLOAT_EQ(9, scale_function->y_factor());
+}
+
+TEST_F(ParserTest, Parses2DTranslateTransform) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform: translate(-50%, 30px);",
+                                        source_location_);
+
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_TRUE(transform_list);
+  ASSERT_EQ(2, transform_list->value().size());
+
+  const cssom::TranslateFunction* translate_function_1 =
+      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+  ASSERT_TRUE(translate_function_1);
+
+  ASSERT_EQ(cssom::TranslateFunction::kPercentage,
+            translate_function_1->offset_type());
+  scoped_refptr<cssom::PercentageValue> offset_1 =
+      translate_function_1->offset_as_percentage();
+  EXPECT_FLOAT_EQ(-0.5f, offset_1->value());
+  EXPECT_EQ(cssom::TranslateFunction::kXAxis, translate_function_1->axis());
+
+  const cssom::TranslateFunction* translate_function_2 =
+      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[1]);
+  ASSERT_TRUE(translate_function_2);
+
+  ASSERT_EQ(cssom::TranslateFunction::kLength,
+            translate_function_2->offset_type());
+  scoped_refptr<cssom::LengthValue> offset_2 =
+      translate_function_2->offset_as_length();
+  EXPECT_FLOAT_EQ(30, offset_2->value());
+  EXPECT_EQ(cssom::kPixelsUnit, offset_2->unit());
+  EXPECT_EQ(cssom::TranslateFunction::kYAxis, translate_function_2->axis());
+}
+
+TEST_F(ParserTest, Parses2DTranslateTransformYOmitted) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform: translate(20%);",
+                                        source_location_);
+
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_TRUE(transform_list);
+  ASSERT_EQ(2, transform_list->value().size());
+
+  const cssom::TranslateFunction* translate_function_1 =
+      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+  ASSERT_TRUE(translate_function_1);
+
+  ASSERT_EQ(cssom::TranslateFunction::kPercentage,
+            translate_function_1->offset_type());
+  scoped_refptr<cssom::PercentageValue> offset_1 =
+      translate_function_1->offset_as_percentage();
+  EXPECT_FLOAT_EQ(0.2f, offset_1->value());
+  EXPECT_EQ(cssom::TranslateFunction::kXAxis, translate_function_1->axis());
+
+  const cssom::TranslateFunction* translate_function_2 =
+      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[1]);
+  ASSERT_TRUE(translate_function_2);
+
+  ASSERT_EQ(cssom::TranslateFunction::kLength,
+            translate_function_2->offset_type());
+  scoped_refptr<cssom::LengthValue> offset_2 =
+      translate_function_2->offset_as_length();
+  EXPECT_FLOAT_EQ(0, offset_2->value());
+  EXPECT_EQ(cssom::kPixelsUnit, offset_2->unit());
+  EXPECT_EQ(cssom::TranslateFunction::kYAxis, translate_function_2->axis());
 }
 
 TEST_F(ParserTest, ParsesTranslateXTransformLength) {
@@ -4372,7 +4478,6 @@ TEST_F(ParserTest, ParsesFontFaceUnicodeRangeList) {
   EXPECT_EQ(0x100000, unicode_range3->start());
   EXPECT_EQ(0x10ffff, unicode_range3->end());
 }
-
 
 }  // namespace css_parser
 }  // namespace cobalt

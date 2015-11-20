@@ -1989,9 +1989,21 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
         *known_function_token = kRotateFunctionToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, "scalex")) {
+        *known_function_token = kScaleXFunctionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "scaley")) {
+        *known_function_token = kScaleYFunctionToken;
+        return true;
+      }
       return false;
 
     case 9:
+      if (IsEqualToCssIdentifier(name.begin, "translate")) {
+        *known_function_token = kTranslateFunctionToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, "nth-child")) {
         parsing_mode_ = kNthChildMode;
         *known_function_token = kNthChildFunctionToken;
