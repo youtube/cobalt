@@ -71,7 +71,7 @@ void KeyRepeatFilter::HandleKeyUp(
 }
 
 void KeyRepeatFilter::FireKeyRepeatEvent() {
-  DCHECK(keyboard_event_);
+  keyboard_event_ = CopyKeyboardEventWithRepeat(keyboard_event_);
   DispatchKeyboardEvent(keyboard_event_);
 
   // If |FireKeyRepeatEvent| is triggered for the first time then reset the
@@ -81,6 +81,14 @@ void KeyRepeatFilter::FireKeyRepeatEvent() {
     key_repeat_timer_.Start(FROM_HERE, kRepeatRate, this,
                             &KeyRepeatFilter::FireKeyRepeatEvent);
   }
+}
+
+scoped_refptr<dom::KeyboardEvent> KeyRepeatFilter::CopyKeyboardEventWithRepeat(
+    const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
+  return scoped_refptr<dom::KeyboardEvent>(new dom::KeyboardEvent(
+      keyboard_event->type(), keyboard_event->location(),
+      keyboard_event->modifiers(), keyboard_event->key_code(),
+      keyboard_event->char_code(), true));
 }
 
 }  // namespace input

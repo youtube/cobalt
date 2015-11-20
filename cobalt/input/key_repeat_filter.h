@@ -37,6 +37,8 @@ class KeyRepeatFilter : public KeyEventHandler {
   void HandleKeyUp(const scoped_refptr<dom::KeyboardEvent>& keyboard_event);
 
   void FireKeyRepeatEvent();
+  scoped_refptr<dom::KeyboardEvent> CopyKeyboardEventWithRepeat(
+      const scoped_refptr<dom::KeyboardEvent>& keyboard_event);
 
   scoped_refptr<dom::KeyboardEvent> keyboard_event_;
 
