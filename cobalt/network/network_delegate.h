@@ -34,8 +34,10 @@ class NetworkDelegate : public net::NetworkDelegate {
   struct Options {
     Options()
         : cookie_policy(
-              net::StaticCookiePolicy::BLOCK_SETTING_THIRD_PARTY_COOKIES) {}
+              net::StaticCookiePolicy::BLOCK_SETTING_THIRD_PARTY_COOKIES),
+          require_https(true) {}
     net::StaticCookiePolicy::Type cookie_policy;
+    bool require_https;
   };
 
   explicit NetworkDelegate(const Options& options);
@@ -92,6 +94,7 @@ class NetworkDelegate : public net::NetworkDelegate {
  private:
   net::StaticCookiePolicy::Type cookie_policy_;
   bool cookies_enabled_;
+  bool require_https_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkDelegate);
 };
