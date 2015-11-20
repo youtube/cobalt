@@ -182,11 +182,13 @@ class BrowserModule {
   // into the renderer module.
   scoped_ptr<WebModule> web_module_;
 
+#if defined(ENABLE_DEBUG_CONSOLE)
   // Manages debug communication with the web modules.
   scoped_refptr<debug::DebugHub> debug_hub_;
 
   // Manages a second web module to implement the debug console.
   DebugConsole debug_console_;
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // The browser module runs on this message loop.
   MessageLoop* const self_message_loop_;
