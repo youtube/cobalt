@@ -71,20 +71,24 @@ class WebModule {
     explicit Options(const std::string& name)
         : name(name),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
+#if defined(ENABLE_DEBUG_CONSOLE)
     Options(const std::string& name,
             const scoped_refptr<debug::DebugHub>& initial_debug_hub)
         : name(name),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation),
           debug_hub(initial_debug_hub) {}
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
     explicit Options(const FilePath& extra_web_file_dir)
         : extra_web_file_dir(extra_web_file_dir) {}
 
     std::string name;
     layout::LayoutManager::LayoutTrigger layout_trigger;
-    scoped_refptr<debug::DebugHub> debug_hub;
     // Optional directory to add to the search path for web files (file://).
     FilePath extra_web_file_dir;
     std::vector<base::Closure> loaded_callbacks;
+#if defined(ENABLE_DEBUG_CONSOLE)
+    scoped_refptr<debug::DebugHub> debug_hub;
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

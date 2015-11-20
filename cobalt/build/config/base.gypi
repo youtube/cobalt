@@ -225,11 +225,6 @@
           'COBALT_BUILD_TYPE_GOLD',
           '__LB_SHELL__FOR_RELEASE__',
           'TRACING_DISABLED',
-          # TODO(***REMOVED***): Disable the test runner for Gold build when the
-          # [Conditional] extended attribute is supported
-          # (tracked in b/24171481).
-          # Currently enabling it just to make binding happy.
-          'ENABLE_TEST_RUNNER',
           'COBALT_FORCE_HTTPS',
         ],
       }, # end of gold_base
