@@ -451,6 +451,10 @@ class AsStyleRuleVisitor : public cssom::CSSRuleVisitor {
   void VisitCSSFontFaceRule(
       cssom::CSSFontFaceRule* /*font_face_rule*/) OVERRIDE {}
   void VisitCSSMediaRule(cssom::CSSMediaRule* /*media_rule*/) OVERRIDE {}
+  void VisitCSSKeyframeRule(
+      cssom::CSSKeyframeRule* /*css_keyframe_rule*/) OVERRIDE {}
+  void VisitCSSKeyframesRule(
+      cssom::CSSKeyframesRule* /*css_keyframes_rule*/) OVERRIDE {}
 
   const scoped_refptr<cssom::CSSStyleRule>& maybe_style_rule() const {
     return maybe_style_rule_;
