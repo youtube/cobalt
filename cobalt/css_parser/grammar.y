@@ -310,7 +310,10 @@
 %token kNthOfTypeFunctionToken          // nth-of-type(
 %token kRotateFunctionToken             // rotate(
 %token kScaleFunctionToken              // scale(
+%token kScaleXFunctionToken             // scaleX(
+%token kScaleYFunctionToken             // scaleY(
 %token kStepsFunctionToken              // steps(
+%token kTranslateFunctionToken          // translate(
 %token kTranslateXFunctionToken         // translateX(
 %token kTranslateYFunctionToken         // translateY(
 %token kTranslateZFunctionToken         // translateZ(
@@ -615,7 +618,7 @@
 %destructor { delete $$; } <property_list>
 
 %union { cssom::TransformFunction* transform_function; }
-%type <transform_function> scale_function_parameters transform_function
+%type <transform_function> scale_function_parameters
 %destructor { delete $$; } <transform_function>
 
 %union { cssom::TransformFunctionListValue::Builder* transform_functions; }
@@ -3104,62 +3107,86 @@ transform_function:
   // Specifies an arbitrary affine 2D transformation.
     kMatrixFunctionToken maybe_whitespace number comma number comma number
       comma number comma number comma number ')' maybe_whitespace {
-    $$ = new cssom::MatrixFunction($3, $5, $7, $9, $11, $13);
+    $<transform_functions>0->push_back(
+        new cssom::MatrixFunction($3, $5, $7, $9, $11, $13));
   }
   // Specifies a 2D rotation around the z-axis.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-rotate
   | kRotateFunctionToken maybe_whitespace angle ')'
       maybe_whitespace {
-    $$ = new cssom::RotateFunction($3);
+    $<transform_functions>0->push_back(new cssom::RotateFunction($3));
   }
   // Specifies a 2D scale operation by the scaling vector.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-scale
   | kScaleFunctionToken maybe_whitespace scale_function_parameters ')'
       maybe_whitespace {
-    $$ = $3;
+    $<transform_functions>0->push_back($3);
+  }
+  // Specifies a 2D scale operation using the [sx, 1] scaling vector, where sx
+  // is given as the parameter.
+  //   http://www.w3.org/TR/css3-transforms/#funcdef-scalex
+  | kScaleXFunctionToken maybe_whitespace number ')'
+      maybe_whitespace {
+    $<transform_functions>0->push_back(new cssom::ScaleFunction($3, 1.0f));
+  }
+  // Specifies a 2D scale operation using the [1, sy] scaling vector, where sy
+  // is given as the parameter.
+  //   http://www.w3.org/TR/css3-transforms/#funcdef-scaley
+  | kScaleYFunctionToken maybe_whitespace number ')'
+      maybe_whitespace {
+    $<transform_functions>0->push_back(new cssom::ScaleFunction(1.0f, $3));
+  }
+  // Specifies a 2D translation by the vector [tx, ty], where tx is the first
+  // translation-value parameter and ty is the optional second translation-value
+  // parameter. If <ty> is not provided, ty has zero as a value.
+  //   http://www.w3.org/TR/css3-transforms/#funcdef-translate
+  | kTranslateFunctionToken maybe_whitespace length_percent_property_value ')'
+      maybe_whitespace {
+    $<transform_functions>0->push_back(new cssom::TranslateFunction(
+        cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
+    $<transform_functions>0->push_back(new cssom::TranslateFunction(
+        cssom::TranslateFunction::kYAxis,
+        AddRef(new cssom::LengthValue(0, cssom::kPixelsUnit))));
+  }
+  | kTranslateFunctionToken maybe_whitespace length_percent_property_value comma
+    length_percent_property_value ')' maybe_whitespace {
+    $<transform_functions>0->push_back(new cssom::TranslateFunction(
+        cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
+    $<transform_functions>0->push_back(new cssom::TranslateFunction(
+        cssom::TranslateFunction::kYAxis, MakeScopedRefPtrAndRelease($5)));
   }
   // Specifies a translation by the given amount in the X direction.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatex
   | kTranslateXFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
-    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kXAxis,
-                                      MakeScopedRefPtrAndRelease($3));
+    $<transform_functions>0->push_back(new cssom::TranslateFunction(
+        cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
   }
   // Specifies a translation by the given amount in the Y direction.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatey
   | kTranslateYFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
-    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kYAxis,
-                                      MakeScopedRefPtrAndRelease($3));
+    $<transform_functions>0->push_back(new cssom::TranslateFunction(
+        cssom::TranslateFunction::kYAxis, MakeScopedRefPtrAndRelease($3)));
   }
   // Specifies a 3D translation by the vector [0,0,z] with the given amount
   // in the Z direction.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatez
   | kTranslateZFunctionToken maybe_whitespace length ')'
       maybe_whitespace {
-    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kZAxis,
-                                      MakeScopedRefPtrAndRelease($3));
+    $<transform_functions>0->push_back(new cssom::TranslateFunction(
+        cssom::TranslateFunction::kZAxis, MakeScopedRefPtrAndRelease($3)));
   }
   ;
 
 // One or more transform functions separated by whitespace.
 //   http://www.w3.org/TR/css3-transforms/#typedef-transform-list
 transform_list:
-    transform_function {
+    /* empty */ {
     $$ = new cssom::TransformFunctionListValue::Builder();
-    $$->push_back($1);
   }
   | transform_list transform_function {
     $$ = $1;
-    if ($$) { $$->push_back($2); }
-  }
-  | transform_list error {
-    scoped_ptr<cssom::TransformFunctionListValue::Builder>
-        transform_functions($1);
-    if (transform_functions) {
-      parser_impl->LogWarning(@2, "invalid transform function");
-    }
-    $$ = NULL;
   }
   ;
 
@@ -3173,12 +3200,16 @@ transform_property_value:
   | transform_list {
     scoped_ptr<cssom::TransformFunctionListValue::Builder>
         transform_functions($1);
-    $$ = transform_functions
-        ? AddRef(new cssom::TransformFunctionListValue(
-              transform_functions->Pass()))
-        : NULL;
+    $$ = AddRef(new cssom::TransformFunctionListValue(
+             transform_functions->Pass()));
   }
-  | common_values
+  | transform_list errors {
+    scoped_ptr<cssom::TransformFunctionListValue::Builder>
+        transform_functions($1);
+    parser_impl->LogWarning(@2, "invalid transform function");
+    $$ = NULL;
+  }
+  | common_values_without_errors
   ;
 
 // Determines the vertical alignment of a box.
