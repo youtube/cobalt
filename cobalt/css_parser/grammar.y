@@ -165,6 +165,7 @@
 %token kFantasyToken                    // fantasy
 %token kFixedToken                      // fixed
 %token kForwardsToken                   // forwards
+%token kFromToken                       // from
 %token kFuchsiaToken                    // fuchsia
 %token kGrayToken                       // gray
 %token kGreenToken                      // green
@@ -275,6 +276,7 @@
 
 // @-tokens.
 %token kImportToken                     // @import
+%token kKeyframesToken                  // @keyframes
 %token kPageToken                       // @page
 %token kMediaToken                      // @media
 %token kFontFaceToken                   // @font-face
@@ -600,6 +602,25 @@
 %union { cssom::CSSFontFaceRule* font_face_rule; }
 %type <font_face_rule> at_font_face_rule
 %destructor { $$->Release(); } <font_face_rule>
+
+%union { cssom::CSSKeyframeRule* keyframe_rule; }
+%type <keyframe_rule> keyframe_rule
+%destructor { $$->Release(); } <keyframe_rule>
+
+%union { cssom::CSSKeyframesRule* keyframes_rule; }
+%type <keyframes_rule> at_keyframes_rule
+%destructor { $$->Release(); } <keyframes_rule>
+
+%union { cssom::CSSRuleList* keyframe_rule_list; }
+%type <keyframe_rule_list> keyframe_rule_list
+%destructor { $$->Release(); } <keyframe_rule_list>
+
+%union { float keyframe_offset; }
+%type <keyframe_offset> keyframe_offset
+
+%union { std::vector<float>* keyframe_selector; }
+%type <keyframe_selector> keyframe_selector;
+%destructor { delete $$; } <keyframe_selector>
 
 %union { cssom::CSSFontFaceDeclarationData* font_face_declaration_data; }
 %type <font_face_declaration_data> font_face_declaration_list
@@ -1006,6 +1027,61 @@ media_list:
   }
   ;
 
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// Keyframe Rule and Keyframes Rule
+//   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframeRule-interface
+//   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframesRule-interface
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
+at_keyframes_rule:
+    kKeyframesToken maybe_whitespace kIdentifierToken maybe_whitespace '{'
+    maybe_whitespace keyframe_rule_list '}' maybe_whitespace {
+    $$ = AddRef(new cssom::CSSKeyframesRule($3.ToString(),
+                                            MakeScopedRefPtrAndRelease($7)));
+  }
+  ;
+
+keyframe_rule_list:
+    keyframe_rule {
+    $$ = AddRef(new cssom::CSSRuleList());
+    $$->AppendCSSRule(MakeScopedRefPtrAndRelease($1));
+  }
+  | keyframe_rule_list keyframe_rule {
+    $$ = $1;
+    $$->AppendCSSRule(MakeScopedRefPtrAndRelease($2));
+  }
+  ;
+
+keyframe_rule:
+    keyframe_selector style_declaration_block {
+    scoped_ptr<std::vector<float> > offsets($1);
+
+    $$ = AddRef(new cssom::CSSKeyframeRule(
+        *offsets, MakeScopedRefPtrAndRelease($2)));
+  }
+  ;
+
+keyframe_selector:
+    keyframe_offset {
+    $$ = new std::vector<float>(1, $1);
+  }
+  | keyframe_selector ',' maybe_whitespace keyframe_offset {
+    $$ = $1;
+    $$->push_back($4);
+  }
+  ;
+
+keyframe_offset:
+    kFromToken maybe_whitespace {
+    $$ = 0.0f;
+  }
+  | kToToken maybe_whitespace {
+    $$ = 1.0f;
+  }
+  | kPercentageToken maybe_whitespace {
+    $$ = $1 / 100.0f;
+  }
+  ;
 
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 // Selectors.
@@ -1345,6 +1421,9 @@ identifier_token:
   }
   | kForwardsToken {
     $$ = TrivialStringPiece::FromCString(cssom::kForwardsKeywordName);
+  }
+  | kFromToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFromKeywordName);
   }
   | kFuchsiaToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFuchsiaKeywordName);
@@ -4665,6 +4744,7 @@ rule:
   | qualified_rule { $$ = $1; }
   | at_font_face_rule { $$ = $1; }
   | at_media_rule { $$ = $1; }
+  | at_keyframes_rule { $$ = $1; }
   | invalid_rule { $$ = NULL; }
   ;
 

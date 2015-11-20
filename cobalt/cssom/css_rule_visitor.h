@@ -23,6 +23,8 @@ namespace cssom {
 class CSSStyleRule;
 class CSSMediaRule;
 class CSSFontFaceRule;
+class CSSKeyframeRule;
+class CSSKeyframesRule;
 
 // Type-safe branching on a class hierarchy of CSS selectors,
 // implemented after a classical GoF pattern (see
@@ -33,6 +35,8 @@ class CSSRuleVisitor {
   virtual void VisitCSSStyleRule(CSSStyleRule* css_style_rule) = 0;
   virtual void VisitCSSFontFaceRule(CSSFontFaceRule* css_font_face_rule) = 0;
   virtual void VisitCSSMediaRule(CSSMediaRule* css_media_rule) = 0;
+  virtual void VisitCSSKeyframeRule(CSSKeyframeRule* css_keyframe_rule) = 0;
+  virtual void VisitCSSKeyframesRule(CSSKeyframesRule* css_keyframes_rule) = 0;
 
  protected:
   ~CSSRuleVisitor() {}
