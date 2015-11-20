@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "cobalt/layout_tests/test_parser.h"
+
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/optional.h"
@@ -21,7 +23,6 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "cobalt/base/cobalt_paths.h"
-#include "cobalt/layout_tests/test_parser.h"
 
 namespace cobalt {
 namespace layout_tests {
@@ -61,8 +62,8 @@ FilePath GetTestOutputRootDirectory() {
 
 namespace {
 
-base::optional<TestInfo> ParseTestCaseLine(const FilePath& top_level,
-                                           const std::string& line_string) {
+base::optional<TestInfo> ParseLayoutTestCaseLine(
+    const FilePath& top_level, const std::string& line_string) {
   // Split the line up by commas, of which there may be none.
   std::vector<std::string> test_case_tokens;
   Tokenize(line_string, ",", &test_case_tokens);
@@ -118,7 +119,6 @@ base::optional<TestInfo> ParseTestCaseLine(const FilePath& top_level,
 
 }  // namespace
 
-
 std::vector<TestInfo> EnumerateLayoutTests(const std::string& top_level) {
   FilePath test_dir(GetTestInputRootDirectory().Append(top_level));
   FilePath layout_tests_list_file(
@@ -139,7 +139,7 @@ std::vector<TestInfo> EnumerateLayoutTests(const std::string& top_level) {
     for (std::vector<std::string>::const_iterator iter = line_tokens.begin();
          iter != line_tokens.end(); ++iter) {
       base::optional<TestInfo> parsed_test_info =
-          ParseTestCaseLine(FilePath(top_level), *iter);
+          ParseLayoutTestCaseLine(FilePath(top_level), *iter);
       if (!parsed_test_info) {
         DLOG(WARNING) << "Ignoring invalid test case line: " << iter->c_str();
         continue;
