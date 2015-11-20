@@ -126,7 +126,9 @@ WebModule::WebModule(
       url_(initial_url) {
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
+#if defined(ENABLE_DEBUG_CONSOLE)
   window_->set_debug_hub(options.debug_hub);
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   if (!options.loaded_callbacks.empty()) {
     document_load_observer_.reset(

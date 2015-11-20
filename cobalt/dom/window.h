@@ -179,8 +179,10 @@ class Window : public EventTarget {
   const scoped_refptr<Console>& console() const;
 
   // Handles debug communication with the main and debug console windows.
+#if defined(ENABLE_DEBUG_CONSOLE)
   const scoped_refptr<debug::DebugHub>& debug_hub() const;
   void set_debug_hub(const scoped_refptr<debug::DebugHub>& debug_hub);
+#endif
 
 #if defined(ENABLE_TEST_RUNNER)
   const scoped_refptr<TestRunner>& test_runner() const;
@@ -229,7 +231,9 @@ class Window : public EventTarget {
 
   scoped_refptr<Screen> screen_;
 
+#if defined(ENABLE_DEBUG_CONSOLE)
   scoped_refptr<debug::DebugHub> debug_hub_;
+#endif
 
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;
