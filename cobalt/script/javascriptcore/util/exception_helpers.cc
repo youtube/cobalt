@@ -36,20 +36,32 @@ std::string GetExceptionString(JSC::ExecState* exec_state) {
 
 std::string GetExceptionString(JSC::ExecState* exec_state,
                                JSC::JSValue exception) {
+  JSC::JSGlobalData* global_data = &exec_state->globalData();
+
   WTF::String wtf_exception_string = exception.toWTFString(exec_state);
-  JSC::JSObject* exception_object = exception.toObject(exec_state);
-  int line_number =
-      exception_object->get(exec_state, JSC::Identifier(exec_state, "line"))
-          .toInt32(exec_state);
-  WTF::String source_url =
-      exception_object->get(exec_state, JSC::Identifier(exec_state, "sourceURL"))
-          .toWTFString(exec_state);
   std::string exception_string =
-      base::StringPrintf("%s : %s:%d", wtf_exception_string.utf8().data(),
-                            source_url.utf8().data(),
-                            line_number);
+      exception.toWTFString(exec_state).utf8().data();
   exception_string += "\n";
-  exception_string += GetStackTrace(exec_state);
+
+  JSC::JSObject* exception_object = exception.toObject(exec_state);
+  JSC::JSValue stack_value = exception_object->getDirect(
+      *global_data, global_data->propertyNames->stack);
+  if (stack_value.isString()) {
+    exception_string += stack_value.toWTFString(exec_state).utf8().data();
+  } else {
+    int line_number =
+        exception_object->get(exec_state, JSC::Identifier(exec_state, "line"))
+            .toInt32(exec_state);
+    std::string source_url =
+        exception_object->get(exec_state,
+                              JSC::Identifier(exec_state, "sourceURL"))
+            .toWTFString(exec_state)
+            .utf8()
+            .data();
+    exception_string +=
+        base::StringPrintf("%s:%d", wtf_exception_string.utf8().data(),
+                           source_url.c_str(), line_number);
+  }
   return exception_string;
 }
 
@@ -58,47 +70,21 @@ std::string GetStackTrace(JSC::ExecState* exec) {
 
   JSC::JSLockHolder lock(exec);
 
-  JSC::CallFrame* call_frame = exec->globalData().topCallFrame;
-  if (!call_frame) {
-    return std::string();
-  }
-  int call_frame_count = 0;
+  WTF::Vector<JSC::StackFrame> stack_trace;
+  exec->interpreter()->getStackTrace(&exec->globalData(), stack_trace);
 
-  // TODO(***REMOVED***): Initialize |callee()| in bindings.
-  if (exec->callee()) {
-    if (asObject(exec->callee())->inherits(&JSC::InternalFunction::s_info)) {
-      WTF::String function_name =
-          asInternalFunction(exec->callee())->name(exec);
-      backtrace_stream << "#0 " << function_name.utf8().data() << "() ";
-      ++call_frame_count;
+  for (uint32 i = 0; i < stack_trace.size(); ++i) {
+    WTF::String function_name = stack_trace[i].friendlyFunctionName(exec);
+    WTF::String source_url = stack_trace[i].friendlySourceURL();
+    uint32 line_number = stack_trace[i].friendlyLineNumber();
+    if (i > 0) {
+      backtrace_stream << std::endl;
     }
-  }
-
-  while (true) {
-    DCHECK(call_frame);
-
-    int line_number;
-    intptr_t source_id;
-    WTF::String url_string;
-    JSC::JSValue function;
-    exec->interpreter()->retrieveLastCaller(call_frame, line_number, source_id,
-                                            url_string, function);
-    WTF::String function_name =
-        function ? JSC::jsCast<JSC::JSFunction*>(function)->name(exec)
-                 : "(anonymous function)";
-
-    if (call_frame_count > 0) {
-      backtrace_stream << '\n';
+    backtrace_stream << function_name.utf8().data();
+    if (!source_url.isEmpty()) {
+      backtrace_stream << " @ " << source_url.utf8().data() << ':'
+                       << line_number;
     }
-    backtrace_stream << function_name.utf8().data() << " @ "
-                     << url_string.utf8().data() << ':'
-                     << std::max(0, line_number);
-
-    if (!function) {
-      break;
-    }
-    call_frame = call_frame->callerFrame();
-    ++call_frame_count;
   }
 
   return backtrace_stream.str();
