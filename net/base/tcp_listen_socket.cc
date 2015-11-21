@@ -18,9 +18,11 @@
 #endif
 
 #include "base/logging.h"
+#include "base/optional.h"
 #include "base/sys_byteorder.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
 #include "net/base/winsock_init.h"
 
@@ -31,6 +33,23 @@
 using std::string;
 
 namespace net {
+
+#if defined(OS_STARBOARD)
+namespace {
+base::optional<IPEndPoint> ToIPEndPoint(const string& ip, int port) {
+  if (ip.empty()) {
+    return IPEndPoint::GetForAllInterfaces(port);
+  }
+
+  IPAddressNumber ip_number;
+  if (!ParseIPLiteralToNumber(ip, &ip_number)) {
+    return base::nullopt;
+  }
+
+  return IPEndPoint(ip_number, port);
+}
+}  // namespace
+#endif  // defined(OS_STARBOARD)
 
 // static
 scoped_refptr<TCPListenSocket> TCPListenSocket::CreateAndListen(
@@ -51,6 +70,31 @@ TCPListenSocket::TCPListenSocket(SocketDescriptor s,
 TCPListenSocket::~TCPListenSocket() {}
 
 SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
+#if defined(OS_STARBOARD)
+  SocketDescriptor socket =
+      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+  if (SbSocketIsValid(socket)) {
+    SbSocketSetReuseAddress(socket, true);
+    base::optional<IPEndPoint> endpoint = ToIPEndPoint(ip, port);
+
+    SbSocketAddress sb_address;
+    bool groovy = endpoint ? true : false;
+    if (groovy) {
+      groovy &= endpoint->ToSbSocketAddress(&sb_address);
+    }
+
+    if (groovy) {
+      groovy &= SbSocketBind(socket, &sb_address);
+    }
+
+    if (!groovy) {
+      SbSocketDestroy(socket);
+      return kSbSocketInvalid;
+    }
+  }
+
+  return socket;
+#else  // defined(OS_STARBOARD)
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
@@ -61,15 +105,14 @@ SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
     // Allow rapid reuse.
     static const int kOn = 1;
 #if defined(__LB_XB360__)
-    // TODO(iffy): setsockopt() is defined by winsockx.h to take a char * as
-    // the option value argument, and the compiler won't convert willy-nilly.
-    // Ultimately, we should probably hide winsockx entirely behind
-    // posix_emulation, instead of this strange straddling of Windows and POSIX.
+    // setsockopt() is defined by winsockx.h to take a char * as the option
+    // value argument, and the compiler won't convert willy-nilly. This won't be
+    // a problem with Starboard.
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char*)&kOn, sizeof(kOn));
 #else
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &kOn, sizeof(kOn));
 #endif
-#endif
+#endif  // defined(OS_POSIX)
     sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -88,6 +131,7 @@ SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
     }
   }
   return s;
+#endif  // defined(OS_STARBOARD)
 }
 
 SocketDescriptor TCPListenSocket::CreateAndBindAnyPort(const string& ip,
@@ -95,6 +139,16 @@ SocketDescriptor TCPListenSocket::CreateAndBindAnyPort(const string& ip,
   SocketDescriptor s = CreateAndBind(ip, 0);
   if (s == kInvalidSocket)
     return kInvalidSocket;
+
+#if defined(OS_STARBOARD)
+  SbSocketAddress address;
+  if (!SbSocketGetLocalAddress(s, &address)) {
+    SbSocketDestroy(s);
+    return kSbSocketInvalid;
+  }
+
+  *port = address.port;
+#else  // defined(OS_STARBOARD)
   sockaddr_in addr;
   socklen_t addr_size = sizeof(addr);
   bool failed = getsockname(s, reinterpret_cast<struct sockaddr*>(&addr),
@@ -113,6 +167,7 @@ SocketDescriptor TCPListenSocket::CreateAndBindAnyPort(const string& ip,
     return kInvalidSocket;
   }
   *port = base::NetToHost16(addr.sin_port);
+#endif  // defined(OS_STARBOARD)
   return s;
 }
 

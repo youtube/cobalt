@@ -639,8 +639,13 @@ void InfiniteCache::Worker::StoreData() {
   bool success = WriteData(file);
   base::ClosePlatformFile(file);
   if (success) {
+#if defined(OS_STARBOARD)
+    file_util::CopyFile(temp_file, path_);
+    file_util::Delete(temp_file, false);
+#else
     if (!file_util::ReplaceFile(temp_file, path_))
       file_util::Delete(temp_file, false);
+#endif
   } else {
     LOG(ERROR) << "Failed to write experiment data";
   }

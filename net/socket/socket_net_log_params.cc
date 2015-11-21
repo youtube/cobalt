@@ -37,6 +37,7 @@ Value* NetLogIPEndPointCallback(const IPEndPoint* address,
   return dict;
 }
 
+#if !defined(OS_STARBOARD)
 Value* NetLogSourceAddressCallback(const struct sockaddr* net_address,
                                    socklen_t address_len,
                                    NetLog::LogLevel /* log_level */) {
@@ -45,6 +46,7 @@ Value* NetLogSourceAddressCallback(const struct sockaddr* net_address,
                   NetAddressToStringWithPort(net_address, address_len));
   return dict;
 }
+#endif
 
 }  // namespace
 
@@ -63,10 +65,12 @@ NetLog::ParametersCallback CreateNetLogIPEndPointCallback(
   return base::Bind(&NetLogIPEndPointCallback, address);
 }
 
+#if !defined(OS_STARBOARD)
 NetLog::ParametersCallback CreateNetLogSourceAddressCallback(
     const struct sockaddr* net_address,
     socklen_t address_len) {
   return base::Bind(&NetLogSourceAddressCallback, net_address, address_len);
 }
+#endif
 
 }  // namespace net
