@@ -59,10 +59,11 @@ class RendererBenchmarkRunner {
     renderer::Pipeline::Submission submission_with_callback(
         layout_results.render_tree, layout_results.animations,
         layout_results.layout_time);
-    submission_with_callback.submit_complete_callback = base::Bind(
-        &RendererBenchmarkRunner::OnSubmitComplete, base::Unretained(this));
 
-    renderer_module_.pipeline()->Submit(submission_with_callback);
+    renderer_module_.pipeline()->Submit(
+        submission_with_callback,
+        base::Bind(&RendererBenchmarkRunner::OnSubmitComplete,
+                   base::Unretained(this)));
 
     done_gathering_samples_.Wait();
   }

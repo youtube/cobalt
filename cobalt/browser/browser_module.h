@@ -24,6 +24,7 @@
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
 #include "cobalt/browser/render_tree_combiner.h"
+#include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen.h"
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
@@ -77,6 +78,12 @@ class BrowserModule {
   // Adds/removes a URL handler.
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
   void RemoveURLHandler(const URLHandler::URLHandlerCallback& callback);
+
+#if defined(ENABLE_SCREENSHOT)
+  // Request a screenshot to be written to the specified path. Callback will
+  // be fired after the screenshot has been written to disk.
+  void RequestScreenshot(const FilePath& path, const base::Closure& done_cb);
+#endif
 
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::SessionDriver> CreateSessionDriver(
@@ -209,6 +216,14 @@ class BrowserModule {
 
   // Command handler object for reload command from the debug console.
   base::ConsoleCommandManager::CommandHandler reload_command_handler_;
+
+#if defined(ENABLE_SCREENSHOT)
+  // Command handler object for screenshot command from the debug console.
+  base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
+
+  // Helper object to create screen shots of the last layout tree.
+  scoped_ptr<ScreenShotWriter> screen_shot_writer_;
+#endif
 
   // Handler object for h5vcc URLs.
   H5vccURLHandler h5vcc_url_handler_;
