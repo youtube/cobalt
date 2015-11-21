@@ -8,7 +8,7 @@
           "wss":["auto"]},
  "check_subdomains": true,
  "log_level":"debug",
- "bind_hostname": true,
+ "bind_hostname": false,
  "ssl": {"type": "openssl",
          "encrypt_after_connect": false,
          "openssl": {
