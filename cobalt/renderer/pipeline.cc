@@ -31,9 +31,11 @@ const float kRefreshRate = 60.0f;
 }  // namespace
 
 Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
-                   const scoped_refptr<backend::RenderTarget>& render_target)
+                   const scoped_refptr<backend::RenderTarget>& render_target,
+                   backend::GraphicsContext* graphics_context)
     : rasterizer_created_event_(true, false),
       render_target_(render_target),
+      graphics_context_(graphics_context),
       refresh_rate_(kRefreshRate),
       rasterizer_thread_(base::in_place, "Rasterizer") {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Pipeline()");
@@ -95,16 +97,44 @@ render_tree::ResourceProvider* Pipeline::GetResourceProvider() {
   return rasterizer_->GetResourceProvider();
 }
 
-void Pipeline::Submit(const Submission& render_tree_submission) {
+void Pipeline::Submit(const Submission& render_tree_submission,
+                      const base::Closure& submit_complete_callback) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
   // Execute the actual set of the new render tree on the rasterizer tree.
   rasterizer_thread_->message_loop()->PostTask(
       FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
-                            render_tree_submission));
+                            render_tree_submission, submit_complete_callback));
 }
 
+void Pipeline::RasterizeToRGBAPixels(
+    const Submission& render_tree_submission,
+    const RasterizationCompleteCallback& complete) {
+  if (MessageLoop::current() != rasterizer_thread_->message_loop()) {
+    rasterizer_thread_->message_loop()->PostTask(
+        FROM_HERE,
+        base::Bind(&Pipeline::RasterizeToRGBAPixels, base::Unretained(this),
+                   render_tree_submission, complete));
+    return;
+  }
+  // Create a new target that is the same dimensions as the display target.
+  scoped_refptr<backend::RenderTarget> offscreen_target =
+      graphics_context_->CreateOffscreenRenderTarget(
+          render_target_->GetSurfaceInfo().size);
 
-void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
+  // Rasterize this submission into the newly created target.
+  RasterizeSubmissionToRenderTarget(render_tree_submission, offscreen_target);
+
+  scoped_ptr<backend::Texture> texture =
+      graphics_context_->CreateTextureFromOffscreenRenderTarget(
+          offscreen_target);
+
+  // Load the texture's pixel data into a CPU memory buffer and return it.
+  complete.Run(graphics_context_->GetCopyOfTexturePixelDataAsRGBA(*texture),
+               render_target_->GetSurfaceInfo().size);
+}
+
+void Pipeline::SetNewRenderTree(const Submission& render_tree_submission,
+                                const base::Closure& submit_complete_callback) {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   DCHECK(render_tree_submission.render_tree.get());
 
@@ -119,6 +149,7 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
 
   last_submission_ = render_tree_submission;
   last_submission_render_start_time_ = base::nullopt;
+  last_submission_complete_callback_ = submit_complete_callback;
 
   // Start the rasterization timer if it is not yet started.
   if (!refresh_rate_timer_) {
@@ -160,21 +191,32 @@ void Pipeline::RasterizeCurrentTree() {
   if (!last_submission_render_start_time_) {
     last_submission_render_start_time_ = base::TimeTicks::HighResNow();
   }
-  base::TimeDelta time_from_origin =
-      (base::TimeTicks::HighResNow() - *last_submission_render_start_time_) +
-      last_submission_->time_offset;
 
-  // Animate the last submitted render tree using the last submitted animations.
-  scoped_refptr<Node> animated_render_tree =
-      last_submission_->animations->Apply(
-          last_submission_->render_tree, time_from_origin);
+  // Calculate the time elapsed since rendering for this Submission began.
+  base::TimeDelta time_since_submission =
+      base::TimeTicks::HighResNow() -
+      last_submission_render_start_time_.value();
+
+  Submission submission(last_submission_.value());
+  submission.time_offset += time_since_submission;
+
+  // Rasterize the last submitted render tree.
+  RasterizeSubmissionToRenderTarget(submission, render_target_);
+
+  if (!last_submission_complete_callback_.is_null()) {
+    last_submission_complete_callback_.Run();
+  }
+}
+
+void Pipeline::RasterizeSubmissionToRenderTarget(
+    const Submission& submission,
+    const scoped_refptr<backend::RenderTarget>& render_target) {
+  // Animate the render tree using the submitted animations.
+  scoped_refptr<Node> animated_render_tree = submission.animations->Apply(
+      submission.render_tree, submission.time_offset);
 
   // Rasterize the animated render tree.
-  rasterizer_->Submit(animated_render_tree, render_target_);
-
-  if (!last_submission_->submit_complete_callback.is_null()) {
-    last_submission_->submit_complete_callback.Run();
-  }
+  rasterizer_->Submit(animated_render_tree, render_target);
 }
 
 }  // namespace renderer

@@ -61,7 +61,7 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
     TRACE_EVENT0("cobalt::renderer", "new renderer::Pipeline()");
     pipeline_ = make_scoped_ptr(new renderer::Pipeline(
         base::Bind(options.create_rasterizer_function, graphics_context_.get()),
-        display_->GetRenderTarget()));
+        display_->GetRenderTarget(), graphics_context_.get()));
   }
 }
 

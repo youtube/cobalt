@@ -67,7 +67,7 @@ class RendererPipelineTest : public ::testing::Test {
     submission_count_ = 0;
     start_time_ = base::Time::Now();
     pipeline_.reset(new Pipeline(
-        base::Bind(&CreateMockRasterizer, &submission_count_), NULL));
+        base::Bind(&CreateMockRasterizer, &submission_count_), NULL, NULL));
     refresh_rate_ = pipeline_->refresh_rate();
 
     // We create a render tree here composed of only a single, empty
