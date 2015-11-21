@@ -469,7 +469,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
       request_info_.extra_headers.SetHeader(
           HttpRequestHeaders::kAcceptEncoding, "gzip,deflate");
     } else {
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
       // Include SDCH in acceptable list.
       request_info_.extra_headers.SetHeader(
           HttpRequestHeaders::kAcceptEncoding, "gzip,deflate,sdch");

@@ -1024,7 +1024,20 @@
             ['OS == "starboard"', {
               'dependencies': [
                 '<(DEPTH)/starboard/starboard.gyp:starboard',
-               ],
+              ],
+              'sources!': [
+                'base/file_stream_context_shell.cc',
+                'base/net_util_shell.cc',
+                'udp/udp_socket_shell.cc',
+                '<(lbshell_root)/src/tcp_client_socket_shell.cc',
+              ],
+              'sources': [
+                'base/file_stream_context_starboard.cc',
+                'base/net_util_starboard.cc',
+                'base/platform_mime_util_starboard.cc',
+                'socket/tcp_client_socket_starboard.cc',
+                'udp/udp_socket_starboard.cc',
+              ],
             }],
             ['target_arch=="android"', {
               'sources!': [
@@ -1997,7 +2010,8 @@
         }],
         ['OS=="lb_shell" and target_arch=="android"', {
           'sources!': [
-             'dns/dns_config_service_posix_unittest.cc',
+            'dns/dns_config_service_posix_unittest.cc',
+            'test/python_utils_unittest.cc',
           ],
           'sources/': [
             ['exclude', 'dial/'],

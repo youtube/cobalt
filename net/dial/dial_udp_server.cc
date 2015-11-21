@@ -28,6 +28,9 @@ const char* kDialStRequest = "urn:dial-multiscreen-org:service:dial:1";
 
 // Get the INADDR_ANY address.
 IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
+#if defined(OS_STARBOARD)
+  return IPEndPoint::GetForAllInterfaces(port);
+#else
   SockaddrStorage any_addr;
   struct sockaddr_in *in = (struct sockaddr_in *)any_addr.addr;
   in->sin_family = AF_INET;
@@ -37,6 +40,7 @@ IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
   IPEndPoint addr;
   ignore_result(addr.FromSockAddr(any_addr.addr, any_addr.addr_len));
   return addr;
+#endif  // !defined(OS_STARBOARD)
 }
 
 }  // namespace
@@ -173,4 +177,3 @@ const std::string DialUdpServer::ConstructSearchResponse() const {
 }
 
 } // namespace net
-

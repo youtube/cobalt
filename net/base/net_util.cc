@@ -66,10 +66,10 @@
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
 #endif
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
 #include "grit/net_resources.h"
 #include "net/http/http_content_disposition.h"
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
 #include "unicode/datefmt.h"
 #include "unicode/regex.h"
 #include "unicode/uidna.h"
@@ -77,6 +77,11 @@
 #include "unicode/uniset.h"
 #include "unicode/uscript.h"
 #include "unicode/uset.h"
+
+#if defined(OS_STARBOARD)
+#include "starboard/socket.h"
+#include "starboard/system.h"
+#endif  // defined(OS_STARBOARD)
 
 using base::Time;
 
@@ -1170,12 +1175,12 @@ string16 GetSuggestedFilename(const GURL& url,
   bool overwrite_extension = false;
 
   // Try to extract a filename from content-disposition first.
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
   if (!content_disposition.empty()) {
     HttpContentDisposition header(content_disposition, referrer_charset);
     filename = header.filename();
   }
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
 
   // Then try to use the suggested name.
   if (filename.empty() && !suggested_name.empty())
@@ -1235,7 +1240,7 @@ string16 GetSuggestedFilename(const GURL& url,
 #endif
 }
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
 FilePath GenerateFileName(const GURL& url,
                           const std::string& content_disposition,
                           const std::string& referrer_charset,
@@ -1267,7 +1272,7 @@ FilePath GenerateFileName(const GURL& url,
 
   return generated_name;
 }
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
 
 bool IsPortAllowedByDefault(int port) {
   int array_size = arraysize(kRestrictedPorts);
@@ -1301,6 +1306,9 @@ int SetNonBlocking(int fd) {
 #if defined(OS_WIN)
   unsigned long no_block = 1;
   return ioctlsocket(fd, FIONBIO, &no_block);
+#elif defined(OS_STARBOARD)
+  // All starboard sockets are non-blocking.
+  return 0;
 #elif defined(__LB_XB1__) || defined(__LB_XB360__)
   return -1;
 #elif defined(__LB_SHELL__) && !(defined(__LB_ANDROID__) || defined(__LB_LINUX__))
@@ -1383,6 +1391,35 @@ std::string GetHostAndOptionalPort(const GURL& url) {
   return url.host();
 }
 
+#if defined(OS_STARBOARD)
+bool GetIPAddressFromSbSocketAddress(const SbSocketAddress* address,
+                                     const unsigned char** out_address_data,
+                                     size_t* out_address_len,
+                                     uint16* out_port) {
+  DCHECK(address);
+  DCHECK(out_address_data);
+  DCHECK(out_address_len);
+  if (out_port) {
+    *out_port = address->port;
+  }
+
+  *out_address_data = address->address;
+  switch (address->type) {
+    case kSbSocketAddressTypeIpv4:
+      *out_address_len = kIPv4AddressSize;
+      break;
+    case kSbSocketAddressTypeIpv6:
+      *out_address_len = kIPv6AddressSize;
+      break;
+
+    default:
+      NOTREACHED();
+      break;
+  }
+
+  return true;
+}
+#else  // defined(OS_STARBOARD)
 // Extracts the address and port portions of a sockaddr.
 bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
                               socklen_t sock_addr_len,
@@ -1417,6 +1454,7 @@ bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
 
   return false;  // Unrecognized |sa_family|.
 }
+#endif  // defined(OS_STARBOARD)
 
 std::string IPAddressToString(const uint8* address,
                               size_t address_len) {
@@ -1447,6 +1485,33 @@ std::string IPAddressToStringWithPort(const uint8* address,
   return base::StringPrintf("%s:%d", address_str.c_str(), port);
 }
 
+#if defined(OS_STARBOARD)
+std::string NetAddressToString(const SbSocketAddress* address) {
+  const uint8* address_data;
+  size_t address_len;
+  if (!GetIPAddressFromSbSocketAddress(address, &address_data, &address_len,
+                                       NULL)) {
+    NOTREACHED();
+    return "";
+  }
+
+  return IPAddressToString(address_data, address_len);
+}
+
+std::string NetAddressToStringWithPort(const SbSocketAddress* address) {
+  const uint8* address_data;
+  size_t address_len;
+  uint16 port;
+  if (!GetIPAddressFromSbSocketAddress(address, &address_data, &address_len,
+                                       &port)) {
+    NOTREACHED();
+    return "";
+  }
+
+  return IPAddressToStringWithPort(address_data, address_len, port);
+}
+
+#else   // defined(OS_STARBOARD)
 std::string NetAddressToString(const struct sockaddr* sa,
                                socklen_t sock_addr_len) {
   const uint8* address;
@@ -1471,6 +1536,7 @@ std::string NetAddressToStringWithPort(const struct sockaddr* sa,
   }
   return IPAddressToStringWithPort(address, address_len, port);
 }
+#endif  // defined(OS_STARBOARD)
 
 std::string IPAddressToString(const IPAddressNumber& addr) {
   return IPAddressToString(&addr.front(), addr.size());
@@ -1482,6 +1548,10 @@ std::string IPAddressToStringWithPort(const IPAddressNumber& addr,
 }
 
 std::string GetHostName() {
+#if defined(OS_STARBOARD)
+  NOTIMPLEMENTED();
+  return "";
+#else
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
@@ -1494,6 +1564,7 @@ std::string GetHostName() {
     buffer[0] = '\0';
   }
   return std::string(buffer);
+#endif
 }
 
 void GetIdentityFromURL(const GURL& url,
@@ -1998,7 +2069,7 @@ bool HaveOnlyLoopbackAddresses() {
   // TODO(wtc): implement with the GetAdaptersAddresses function.
   NOTIMPLEMENTED();
   return false;
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) || defined(OS_STARBOARD)
   return false;
 #else
   NOTIMPLEMENTED();

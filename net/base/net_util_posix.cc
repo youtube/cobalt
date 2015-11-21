@@ -4,7 +4,9 @@
 
 #include "net/base/net_util.h"
 
+#if !defined(OS_STARBOARD)
 #include <sys/types.h>
+#endif
 
 #include "base/file_path.h"
 #include "base/logging.h"
@@ -86,8 +88,8 @@ bool GetNetworkList(NetworkInterfaceList* networks) {
     networks->push_back(NetworkInterface(name, address));
   }
   return true;
-#elif defined(__LB_SHELL__)
-  // lbshell doesn't support ifaddrs.
+#elif defined(__LB_SHELL__) || defined(OS_STARBOARD)
+  // LBShell and Starboard don't support ifaddrs.
   NOTIMPLEMENTED();
   return false;
 #else
