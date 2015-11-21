@@ -26,6 +26,7 @@
 #include "base/timer.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
+#include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/rasterizer.h"
 
 namespace cobalt {
@@ -43,13 +44,16 @@ namespace renderer {
 class Pipeline {
  public:
   typedef base::Callback<scoped_ptr<Rasterizer>()> CreateRasterizerFunction;
+  typedef base::Callback<void(scoped_array<uint8>, const math::Size&)>
+      RasterizationCompleteCallback;
 
   // Using the provided rasterizer creation function, a rasterizer will be
   // created within the Pipeline on a separate rasterizer thread.  Thus,
   // the rasterizer created by the provided function should only reference
   // thread safe objects.
   Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
-           const scoped_refptr<backend::RenderTarget>& render_target);
+           const scoped_refptr<backend::RenderTarget>& render_target,
+           backend::GraphicsContext* graphics_context);
   ~Pipeline();
 
   // A package of all information associated with a render tree submission.
@@ -72,17 +76,6 @@ class Pipeline {
           animations(animations),
           time_offset(time_offset) {}
 
-    // Submit a render tree with animations as well as a callback function that
-    // will be called every time the submission is rasterized.
-    Submission(
-        scoped_refptr<render_tree::Node> render_tree,
-        scoped_refptr<render_tree::animations::NodeAnimationsMap> animations,
-        base::TimeDelta time_offset, base::Closure submit_complete_callback)
-        : render_tree(render_tree),
-          animations(animations),
-          time_offset(time_offset),
-          submit_complete_callback(submit_complete_callback) {}
-
     // Maintains the current render tree that is to be rendered next frame.
     scoped_refptr<render_tree::Node> render_tree;
 
@@ -97,15 +90,25 @@ class Pipeline {
     // at the latency between animation creation and submission to render
     // thread.
     base::TimeDelta time_offset;
-
-    // A callback to be run each time a frame submission completes.
-    base::Closure submit_complete_callback;
   };
 
   // Submit a new render tree to the renderer pipeline.  After calling this
   // method, the submitted render tree will be the one rendered by the
-  // rasterizer at the refresh rate.
-  void Submit(const Submission& render_tree_submission);
+  // rasterizer at the refresh rate. If it is non-null,
+  // |submit_complete_callback| will be called every time a frame submission
+  // completes.
+  void Submit(const Submission& render_tree_submission,
+              const base::Closure& submit_complete_callback);
+
+  void Submit(const Submission& render_tree_submission) {
+    Submit(render_tree_submission, base::Closure());
+  }
+
+  // |render_tree_submission| will be rasterized into a new offscreen surface.
+  // The RGBA pixel data will be extracted from this surface, and |complete|
+  // will be called with the pixel data and the dimensions of the image.
+  void RasterizeToRGBAPixels(const Submission& render_tree_submission,
+                             const RasterizationCompleteCallback& complete);
 
   // Returns the rate, in hertz, at which the current render tree is rasterized
   // and submitted to the display.
@@ -123,12 +126,19 @@ class Pipeline {
 
   // Called by Submit() to do the work of actually setting the newly submitted
   // render tree.  This method will be called on the rasterizer thread.
-  void SetNewRenderTree(const Submission& render_tree_submission);
+  void SetNewRenderTree(const Submission& render_tree_submission,
+                        const base::Closure& submit_complete_callback);
 
   // Called at a specified refresh rate (e.g. 60hz) on the rasterizer thread and
   // results in the rasterization of the current tree and submission of it to
   // the render target.
   void RasterizeCurrentTree();
+
+  // Rasterize the animated |render_tree_submission| to |render_target|,
+  // applying the time_offset in the submission to the animations.
+  void RasterizeSubmissionToRenderTarget(
+      const Submission& render_tree_submission,
+      const scoped_refptr<backend::RenderTarget>& render_target);
 
   // This method is executed on the rasterizer thread and is responsible for
   // constructing the rasterizer.
@@ -151,6 +161,8 @@ class Pipeline {
   // The render_target that all submitted render trees will be rasterized to.
   scoped_refptr<backend::RenderTarget> render_target_;
 
+  backend::GraphicsContext* graphics_context_;
+
   // We hold a reference to the last submitted render tree (and auxiliary
   // information) and use that as the target render tree that we will render
   // each frame until a new tree is submitted.
@@ -160,6 +172,10 @@ class Pipeline {
   // This is used to compute the time delta passed to pass the animation
   // functions each frame (and is also offset with time_offset above).
   base::optional<base::TimeTicks> last_submission_render_start_time_;
+
+  // This may be submitted along with last_submission_, and should be called
+  // whenever it is rasterized.
+  base::Closure last_submission_complete_callback_;
 
   // A timer that signals to the rasterizer to rasterize the next frame.
   // It is common for this to be set to 60hz, the refresh rate of most displays.

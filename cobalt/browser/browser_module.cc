@@ -20,6 +20,9 @@
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/path_service.h"
+#include "cobalt/base/cobalt_paths.h"
+#include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/keycode.h"
@@ -63,6 +66,17 @@ const char kReloadCommandLongHelp[] =
     "Destroys the current document and window and creates a new one in its "
     "place that displays the current URL.";
 
+#if defined(ENABLE_SCREENSHOT)
+// Command to reload the current URL.
+const char kScreenshotCommand[] = "screenshot";
+
+// Help strings for the navigate command.
+const char kScreenshotCommandShortHelp[] = "Takes a screenshot.";
+const char kScreenshotCommandLongHelp[] =
+    "Creates a screenshot of the most recent layout tree and writes it "
+    "to disk. Logs the filename of the screenshot to the console when done.";
+#endif
+
 #if defined(ENABLE_DEBUG_CONSOLE)
 // Local storage key for the debug console mode.
 const char kDebugConsoleModeKey[] = "debugConsole.mode";
@@ -86,6 +100,33 @@ void OnReloadMessage(BrowserModule* browser_module,
   UNREFERENCED_PARAMETER(message);
   browser_module->Reload();
 }
+
+#if defined(ENABLE_SCREENSHOT)
+void ScreenshotCompleteCallback(const FilePath& output_path) {
+  DLOG(INFO) << "Screenshot written to " << output_path.value();
+}
+
+void OnScreenshotMessage(BrowserModule* browser_module,
+                         const std::string& message) {
+  UNREFERENCED_PARAMETER(message);
+  FilePath dir;
+  if (!PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &dir)) {
+    NOTREACHED() << "Failed to get debug out directory.";
+  }
+
+  base::Time::Exploded exploded;
+  base::Time::Now().LocalExplode(&exploded);
+  DCHECK(exploded.HasValidValues());
+  std::string screenshot_file_name =
+      StringPrintf("screenshot-%04d-%02d-%02d_%02d-%02d-%02d.png",
+                   exploded.year, exploded.month, exploded.day_of_month,
+                   exploded.hour, exploded.minute, exploded.second);
+
+  FilePath output_path = dir.Append(screenshot_file_name);
+  browser_module->RequestScreenshot(
+      output_path, base::Bind(&ScreenshotCompleteCallback, output_path));
+}
+#endif  // defined(ENABLE_SCREENSHOT)
 }  // namespace
 
 BrowserModule::BrowserModule(const GURL& url,
@@ -126,6 +167,13 @@ BrowserModule::BrowserModule(const GURL& url,
       ALLOW_THIS_IN_INITIALIZER_LIST(reload_command_handler_(
           kReloadCommand, base::Bind(&OnReloadMessage, base::Unretained(this)),
           kReloadCommandShortHelp, kReloadCommandLongHelp)),
+#if defined(ENABLE_SCREENSHOT)
+      ALLOW_THIS_IN_INITIALIZER_LIST(screenshot_command_handler_(
+          kScreenshotCommand,
+          base::Bind(&OnScreenshotMessage, base::Unretained(this)),
+          kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
+      screen_shot_writer_(new ScreenShotWriter(renderer_module_.pipeline())),
+#endif  // defined(ENABLE_SCREENSHOT)
       ALLOW_THIS_IN_INITIALIZER_LIST(h5vcc_url_handler_(this, system_window)),
       web_module_options_(options.web_module_options) {
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
@@ -234,6 +282,13 @@ void BrowserModule::Reload() {
   Navigate(web_module_->url(), base::Closure());
 }
 
+#if defined(ENABLE_SCREENSHOT)
+void BrowserModule::RequestScreenshot(const FilePath& path,
+                                      const base::Closure& done_cb) {
+  screen_shot_writer_->RequestScreenshot(path, done_cb);
+}
+#endif
+
 BrowserModule::~BrowserModule() {}
 
 void BrowserModule::OnRenderTreeProduced(
@@ -242,6 +297,12 @@ void BrowserModule::OnRenderTreeProduced(
   render_tree_combiner_.UpdateMainRenderTree(renderer::Pipeline::Submission(
       layout_results.render_tree, layout_results.animations,
       layout_results.layout_time));
+
+#if defined(ENABLE_SCREENSHOT)
+  screen_shot_writer_->SetLastPipelineSubmission(renderer::Pipeline::Submission(
+      layout_results.render_tree, layout_results.animations,
+      layout_results.layout_time));
+#endif
 }
 
 void BrowserModule::OnDebugConsoleRenderTreeProduced(
