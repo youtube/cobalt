@@ -40,10 +40,12 @@ int NetworkDelegate::OnBeforeURLRequest(
 #else
   bool require_https = require_https_;
 #endif
-
+  // && with a constant is intentional.
+  MSVC_PUSH_DISABLE_WARNING(6239)
   return require_https && !request->url().SchemeIsSecure()
              ? net::ERR_DISALLOWED_URL_SCHEME
              : net::OK;
+  MSVC_POP_WARNING()
 }
 
 int NetworkDelegate::OnBeforeSendHeaders(
