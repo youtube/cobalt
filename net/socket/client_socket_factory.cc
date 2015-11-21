@@ -23,7 +23,7 @@
 #include "net/socket/ssl_client_socket_nss.h"
 #endif
 #include "net/socket/tcp_client_socket.h"
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 #include "net/udp/udp_client_socket.h"
 #endif
 
@@ -83,7 +83,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
       const RandIntCallback& rand_int_cb,
       NetLog* net_log,
       const NetLog::Source& source) OVERRIDE {
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
     return new UDPClientSocket(bind_type, rand_int_cb, net_log, source);
 #else
     return NULL;

@@ -35,6 +35,9 @@
 #if defined(OS_ANDROID) || defined(__LB_ANDROID__)
 #include "base/message_pump_android.h"
 #endif
+#if defined(OS_STARBOARD)
+#include "base/message_pump_io_starboard.h"
+#endif
 #if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #include "base/message_pump_shell.h"
 #endif
@@ -182,8 +185,10 @@ MessageLoop::MessageLoop(Type type)
 // ipc_channel_nacl.cc uses a worker thread to do socket reads currently, and
 // doesn't require extra support for watching file descriptors.
 #define MESSAGE_PUMP_IO new base::MessagePumpDefault();
-#elif(defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || \
-    defined(OS_STARBOARD)
+#elif defined(OS_STARBOARD)
+#define MESSAGE_PUMP_UI new base::MessagePumpShell()
+#define MESSAGE_PUMP_IO new base::MessagePumpIOStarboard()
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #define MESSAGE_PUMP_UI new base::MessagePumpShell()
 #define MESSAGE_PUMP_IO new base::MessagePumpShell()
 #elif defined(OS_POSIX)  // POSIX but not MACOSX.

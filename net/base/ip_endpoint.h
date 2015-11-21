@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/callback_helpers.h"
 #include "base/compiler_specific.h"
 #include "net/base/address_family.h"
 #include "net/base/net_export.h"
@@ -36,6 +37,13 @@ class NET_EXPORT IPEndPoint {
   // Returns the sockaddr family of the address, AF_INET or AF_INET6.
   int GetSockAddrFamily() const;
 
+#if defined(OS_STARBOARD)
+  static IPEndPoint GetForAllInterfaces(int port);
+
+  bool ToSbSocketAddress(SbSocketAddress* out_address) const WARN_UNUSED_RESULT;
+
+  bool FromSbSocketAddress(const SbSocketAddress* address) WARN_UNUSED_RESULT;
+#else
   // Convert to a provided sockaddr struct.
   // |address| is the sockaddr to copy into.  Should be at least
   //    sizeof(struct sockaddr_storage) bytes.
@@ -52,6 +60,7 @@ class NET_EXPORT IPEndPoint {
   // Returns true on success, false on failure.
   bool FromSockAddr(const struct sockaddr* address, socklen_t address_length)
       WARN_UNUSED_RESULT;
+#endif  // defined(OS_STARBOARD)
 
   // Returns value as a string (e.g. "127.0.0.1:80"). Returns empty
   // string if the address is invalid, and cannot not be converted to a

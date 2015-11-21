@@ -9,7 +9,12 @@
 
 #include "base/basictypes.h"
 #include "base/platform_file.h"
+#include "build/build_config.h"
 #include "net/base/net_export.h"
+#if defined(OS_STARBOARD)
+#include "starboard/socket.h"
+#include "starboard/system.h"
+#endif
 
 namespace net {
 
@@ -39,8 +44,27 @@ inline bool IsCertificateError(int error) {
   return error <= ERR_CERT_BEGIN && error > ERR_CERT_END;
 }
 
+#if defined(OS_STARBOARD)
+// Map socket error code to Error.
+NET_EXPORT Error MapSocketError(SbSocketError error);
+
+// Gets the last socket error as a net error.
+SB_C_INLINE Error MapLastSocketError(SbSocket socket) {
+  return MapSocketError(SbSocketGetLastError(socket));
+}
+
+// Map system error code to Error.
+NET_EXPORT Error MapSystemError(SbSystemError error);
+
+// Gets the last system error as a net error.
+SB_C_INLINE Error MapLastSystemError() {
+  return MapSystemError(SbSystemGetLastError());
+}
+
+#else
 // Map system error code to Error.
 NET_EXPORT Error MapSystemError(int os_error);
+#endif
 
 // Returns a list of all the possible net error codes (not counting OK). This
 // is intended for use with UMA histograms that are reporting the result of

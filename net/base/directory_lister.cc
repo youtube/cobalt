@@ -65,6 +65,10 @@ bool CompareDate(const DirectoryLister::DirectoryListerData& a,
     return a.info.ftLastWriteTime.dwHighDateTime >
            b.info.ftLastWriteTime.dwHighDateTime;
   }
+#else
+  // This works on all platforms.
+  return (file_util::FileEnumerator::GetLastModifiedTime(a.info) >
+          file_util::FileEnumerator::GetLastModifiedTime(b.info));
 #endif
 }
 

@@ -26,11 +26,11 @@
 // We need this to declare base::MessagePumpWin::Dispatcher, which we should
 // really just eliminate.
 #include "base/message_pump_win.h"
-#elif (defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || \
-    defined(OS_STARBOARD)
-// TODO(iffy): Abstract enough of what MessagePumps do to implement them by way
-// of Starboard. Until then, we can use this lowest-common denominator that we
-// have used on all released platforms.
+#elif defined(OS_STARBOARD)
+// TODO(iffy): Make a Starboard-based MessagePumpForUI.
+#include "base/message_pump_io_starboard.h"
+#include "base/message_pump_shell.h"
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #include "base/message_pump_shell.h"
 #elif defined(OS_IOS)
 #include "base/message_pump_io_ios.h"
@@ -639,8 +639,15 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
   typedef base::MessagePumpForIO::IOHandler IOHandler;
   typedef base::MessagePumpForIO::IOContext IOContext;
   typedef base::MessagePumpForIO::IOObserver IOObserver;
-#elif (defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || \
-    defined(OS_STARBOARD)
+#elif defined(OS_STARBOARD)
+  typedef base::MessagePumpIOStarboard::Watcher Watcher;
+  typedef base::MessagePumpIOStarboard::SocketWatcher SocketWatcher;
+  typedef base::MessagePumpIOStarboard::IOObserver IOObserver;
+
+  enum Mode{WATCH_READ = base::MessagePumpIOStarboard::WATCH_READ,
+            WATCH_WRITE = base::MessagePumpIOStarboard::WATCH_WRITE,
+            WATCH_READ_WRITE = base::MessagePumpIOStarboard::WATCH_READ_WRITE};
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   typedef base::MessagePumpShell::Watcher Watcher;
   typedef base::MessagePumpShell::FileDescriptorWatcher FileDescriptorWatcher;
   typedef base::MessagePumpShell::IOObserver IOObserver;
@@ -705,8 +712,21 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
     return static_cast<base::MessagePumpForIO*>(pump_.get());
   }
 
-#elif (defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || \
-    defined(OS_STARBOARD)
+#elif defined(OS_STARBOARD)
+  bool Watch(SbSocket socket,
+             bool persistent,
+             int mode,
+             SocketWatcher* controller,
+             Watcher* delegate) {
+    return pump_io()->Watch(socket, persistent, mode, controller, delegate);
+  }
+
+ protected:
+  base::MessagePumpIOStarboard* pump_io() {
+    return static_cast<base::MessagePumpIOStarboard*>(pump_.get());
+  }
+
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   bool WatchSocket(int sock,
                    bool persistent,
                    Mode mode,
