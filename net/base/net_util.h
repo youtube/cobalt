@@ -13,6 +13,9 @@
 #elif defined(OS_POSIX)
 #include <sys/types.h>
 #include <sys/socket.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/socket.h"
+#include "starboard/types.h"
 #endif
 
 #include <list>
@@ -110,6 +113,7 @@ NET_EXPORT std::string GetHostAndPort(const GURL& url);
 // if it is the default for the URL's scheme.
 NET_EXPORT_PRIVATE std::string GetHostAndOptionalPort(const GURL& url);
 
+#if !defined(OS_STARBOARD)
 // Convenience struct for when you need a |struct sockaddr|.
 struct SockaddrStorage {
   SockaddrStorage() : addr_len(sizeof(addr_storage)),
@@ -118,7 +122,16 @@ struct SockaddrStorage {
   socklen_t addr_len;
   struct sockaddr* const addr;
 };
+#endif  // !defined(OS_STARBOARD)
 
+#if defined(OS_STARBOARD)
+// Extracts the IP address and port portions of a SbSocketAddress. |port| is
+// optional, and will not be filled in if NULL.
+bool GetIPAddressFromSbSocketAddress(const SbSocketAddress* address,
+                                     const unsigned char** out_address_data,
+                                     size_t* address_len,
+                                     uint16* out_port);
+#else
 // Extracts the IP address and port portions of a sockaddr. |port| is optional,
 // and will not be filled in if NULL.
 bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
@@ -126,6 +139,7 @@ bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
                               const unsigned char** address,
                               size_t* address_len,
                               uint16* port);
+#endif  // defined(OS_STARBOARD)
 
 // Returns the string representation of an IP address.
 // For example: "192.168.0.1" or "::1".
@@ -138,6 +152,16 @@ NET_EXPORT std::string IPAddressToStringWithPort(const uint8* address,
                                                  size_t address_len,
                                                  uint16 port);
 
+#if defined(OS_STARBOARD)
+// Same as IPAddressToString() but for a SbSocketAddress. This output will not
+// include the IPv6 scope ID.
+NET_EXPORT std::string NetAddressToString(const SbSocketAddress* address);
+
+// Same as IPAddressToStringWithPort() but for a SbSocketAddress. This output
+// will not include the IPv6 scope ID.
+NET_EXPORT std::string NetAddressToStringWithPort(
+    const SbSocketAddress* address);
+#else   // defined(OS_STARBOARD)
 // Same as IPAddressToString() but for a sockaddr. This output will not include
 // the IPv6 scope ID.
 NET_EXPORT std::string NetAddressToString(const struct sockaddr* sa,
@@ -147,6 +171,7 @@ NET_EXPORT std::string NetAddressToString(const struct sockaddr* sa,
 // include the IPv6 scope ID.
 NET_EXPORT std::string NetAddressToStringWithPort(const struct sockaddr* sa,
                                                   socklen_t sock_addr_len);
+#endif  // defined(OS_STARBOARD)
 
 // Same as IPAddressToString() but for an IPAddressNumber.
 NET_EXPORT std::string IPAddressToString(const IPAddressNumber& addr);
@@ -277,7 +302,7 @@ NET_EXPORT string16 GetSuggestedFilename(const GURL& url,
                                          const std::string& mime_type,
                                          const std::string& default_name);
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
 // Similar to GetSuggestedFilename(), but returns a FilePath.
 NET_EXPORT FilePath GenerateFileName(const GURL& url,
                                      const std::string& content_disposition,
@@ -320,8 +345,13 @@ NET_EXPORT_PRIVATE bool IsPortAllowedByFtp(int port);
 // |explicitly_allowed_ports_|.
 NET_EXPORT_PRIVATE bool IsPortAllowedByOverride(int port);
 
+#if defined(OS_STARBOARD)
+// Set socket to non-blocking mode
+NET_EXPORT int SetNonBlocking(SbSocket socket);
+#else   // defined(OS_STARBOARD)
 // Set socket to non-blocking mode
 NET_EXPORT int SetNonBlocking(int fd);
+#endif  // defined(OS_STARBOARD)
 
 // Formats the host in |url| and appends it to |output|.  The host formatter
 // takes the same accept languages component as ElideURL().
@@ -483,12 +513,14 @@ NET_EXPORT_PRIVATE bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
                                               const IPAddressNumber& ip_prefix,
                                               size_t prefix_length_in_bits);
 
+#if !defined(OS_STARBOARD)
 // Retuns the port field of the |sockaddr|.
 const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
                                        socklen_t address_len);
 // Returns the value of port in |sockaddr| (in host byte ordering).
 NET_EXPORT_PRIVATE int GetPortFromSockaddr(const struct sockaddr* address,
                                            socklen_t address_len);
+#endif
 
 // Returns true if |host| is one of the names (e.g. "localhost") or IP
 // addresses (IPv4 127.0.0.0/8 or IPv6 ::1) that indicate a loopback.

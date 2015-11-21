@@ -11,10 +11,13 @@
 #include <winsock2.h>
 #elif defined(OS_POSIX)
 #include <netinet/in.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/memory.h"
 #endif
 
 namespace net {
 
+#if !defined(OS_STARBOARD)
 namespace {
 // By definition, socklen_t is large enough to hold both sizes.
 const socklen_t kSockaddrInSize = sizeof(struct sockaddr_in);
@@ -22,6 +25,7 @@ const socklen_t kSockaddrInSize = sizeof(struct sockaddr_in);
 const socklen_t kSockaddrIn6Size = sizeof(struct sockaddr_in6);
 #endif
 }
+#endif
 
 IPEndPoint::IPEndPoint() : port_(0) {}
 
@@ -60,6 +64,51 @@ int IPEndPoint::GetSockAddrFamily() const {
   }
 }
 
+#if defined(OS_STARBOARD)
+// static
+IPEndPoint IPEndPoint::GetForAllInterfaces(int port) {
+  // Directly construct the 0.0.0.0 address with the given port.
+  IPAddressNumber address(4);
+  address.assign(4, 0);
+  return IPEndPoint(address, port);
+}
+
+bool IPEndPoint::ToSbSocketAddress(SbSocketAddress* out_address) const {
+  DCHECK(out_address);
+  out_address->port = port_;
+  SbMemorySet(out_address->address, 0, sizeof(out_address->address));
+  switch (GetFamily()) {
+    case ADDRESS_FAMILY_IPV4:
+      out_address->type = kSbSocketAddressTypeIpv4;
+      SbMemoryCopy(&out_address->address, &address_[0], kIPv4AddressSize);
+      break;
+    case ADDRESS_FAMILY_IPV6:
+      out_address->type = kSbSocketAddressTypeIpv6;
+      SbMemoryCopy(&out_address->address, &address_[0], kIPv6AddressSize);
+      break;
+    default:
+      NOTREACHED();
+      return false;
+  }
+  return true;
+}
+
+bool IPEndPoint::FromSbSocketAddress(const SbSocketAddress* address) {
+  DCHECK(address);
+
+  const uint8* address_data;
+  size_t address_len;
+  uint16 port;
+  if (!GetIPAddressFromSbSocketAddress(address, &address_data, &address_len,
+                                       &port)) {
+    return false;
+  }
+
+  address_.assign(address_data, address_data + address_len);
+  port_ = port;
+  return true;
+}
+#else  // defined(OS_STARBOARD)
 bool IPEndPoint::ToSockAddr(struct sockaddr* address,
                             socklen_t* address_length) const {
   DCHECK(address);
@@ -112,6 +161,7 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* sock_addr,
   port_ = port;
   return true;
 }
+#endif  // defined(OS_STARBOARD)
 
 std::string IPEndPoint::ToString() const {
   return IPAddressToStringWithPort(address_, port_);

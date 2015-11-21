@@ -35,11 +35,14 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "net/base/net_export.h"
 #include "net/base/ip_endpoint.h"
 
 #if defined(OS_POSIX)
 typedef int SocketDescriptor;
+#elif defined(OS_STARBOARD)
+typedef SbSocket SocketDescriptor;
 #endif
 
 namespace net {
@@ -48,6 +51,9 @@ class NET_EXPORT UDPListenSocket
     : public base::RefCountedThreadSafe<UDPListenSocket>
 #if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
     , public base::steel::ObjectWatcher::Delegate
+#elif defined(OS_STARBOARD)
+      ,
+      public MessageLoopForIO::Watcher
 #endif
 {
  public:
@@ -90,6 +96,10 @@ class NET_EXPORT UDPListenSocket
 #if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   virtual void OnObjectSignaled(int object) OVERRIDE;
   base::steel::ObjectWatcher watcher_;
+#elif defined(OS_STARBOARD)
+  void OnSocketReadyToRead(SbSocket /*socket*/) OVERRIDE;
+  void OnSocketReadyToWrite(SbSocket /*socket*/) OVERRIDE {}
+  MessageLoopForIO::SocketWatcher watcher_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(UDPListenSocket);
@@ -97,4 +107,3 @@ class NET_EXPORT UDPListenSocket
 
 }
 #endif // NET_BASE_DATAGRAM_LISTEN_SOCKET_H_
-

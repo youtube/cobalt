@@ -26,6 +26,9 @@
 #include "base/win/object_watcher.h"
 #elif defined(COBALT)
 #include "base/object_watcher_shell.h"
+#if defined(OS_STARBOARD)
+#include "starboard/socket.h"
+#endif
 #elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #include "object_watcher_shell.h"
 #elif defined(OS_POSIX)
@@ -39,6 +42,8 @@
 
 #if defined(OS_POSIX)
 typedef int SocketDescriptor;
+#elif defined(OS_STARBOARD)
+typedef SbSocket SocketDescriptor;
 #else
 typedef SOCKET SocketDescriptor;
 #endif
@@ -51,6 +56,8 @@ class NET_EXPORT StreamListenSocket
     : public base::RefCountedThreadSafe<StreamListenSocket>,
 #if defined(OS_WIN)
       public base::win::ObjectWatcher::Delegate {
+#elif defined(OS_STARBOARD)
+      public MessageLoopForIO::Watcher {
 #elif defined(COBALT)
       public base::ObjectWatcher::Delegate {
 #elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
@@ -125,6 +132,13 @@ class NET_EXPORT StreamListenSocket
   virtual void OnObjectSignaled(HANDLE object);
   base::win::ObjectWatcher watcher_;
   HANDLE socket_event_;
+#elif defined(OS_STARBOARD)
+  // Called by MessagePumpIoStarboard when the socket is ready to do I/O.
+  void OnSocketReadyToRead(SbSocket fd) OVERRIDE;
+  void OnSocketReadyToWrite(SbSocket fd) OVERRIDE;
+  WaitState wait_state_;
+  // The socket's SbSocketWaiter wrapper.
+  MessageLoopForIO::SocketWatcher watcher_;
 #elif defined(COBALT)
   virtual void OnObjectSignaled(int object);
   base::ObjectWatcher watcher_;

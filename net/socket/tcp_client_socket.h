@@ -10,6 +10,8 @@
 
 #if defined(OS_WIN)
 #include "net/socket/tcp_client_socket_win.h"
+#elif defined(OS_STARBOARD)
+#include "net/socket/tcp_client_socket_starboard.h"
 #elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #include "tcp_client_socket_shell.h"
 #elif defined(OS_POSIX)
@@ -23,6 +25,8 @@ namespace net {
 typedef TCPClientSocketWin TCPClientSocket;
 #elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 typedef TCPClientSocketShell TCPClientSocket;
+#elif defined(OS_STARBOARD)
+typedef TCPClientSocketStarboard TCPClientSocket;
 #elif defined(OS_POSIX)
 typedef TCPClientSocketLibevent TCPClientSocket;
 #endif

@@ -617,6 +617,8 @@
               'debug/stack_trace_starboard.cc',
               'file_util_starboard.cc',
               'guid_starboard.cc',
+              'message_pump_io_starboard.cc',
+              'message_pump_io_starboard.h',
               'message_pump_shell.cc',
               'message_pump_shell.h',
               'object_watcher_shell.cc',
