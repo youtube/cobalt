@@ -4,12 +4,17 @@
 
 #include "net/dial/dial_udp_socket_factory.h"
 
+#if !defined(OS_STARBOARD)
 #include <arpa/inet.h>
+#endif
 
+#include "base/logging.h"
 #include "net/base/net_util.h"
 #include "net/base/ip_endpoint.h"
 #include "net/udp/udp_listen_socket.h"
-#include "lb_network_helpers.h"
+#if defined(OS_STARBOARD)
+#include "starboard/socket.h"
+#endif
 
 namespace net {
 
@@ -30,6 +35,25 @@ bool NativeBind(const SocketDescriptor s, const IPEndPoint& address) {
 
   if (0 != ::bind(s, addr.addr, addr.addr_len)) {
     PLOG(ERROR) << "Failed to bind address: " << address.ToString();
+    return false;
+  }
+  return true;
+}
+#elif defined(OS_STARBOARD)
+SocketDescriptor NativeCreateUdpSocket(int family) {
+  return SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolUdp);
+}
+
+bool NativeBind(const SocketDescriptor s, const IPEndPoint& address) {
+  SbSocketAddress sb_address;
+  if (!address.ToSbSocketAddress(&sb_address)) {
+    DLOG(ERROR) << "Failed to convert address: " << address.ToString();
+    return false;
+  }
+
+  SbSocketError error = SbSocketBind(s, &sb_address);
+  if (error != kSbSocketOk) {
+    DLOG(ERROR) << "Failed to bind address: " << address.ToString();
     return false;
   }
   return true;

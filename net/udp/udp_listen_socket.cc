@@ -29,10 +29,14 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/sys_byteorder.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
 #include "net/base/net_util.h"
+#if defined(OS_STARBOARD)
+#include "starboard/socket.h"
+#endif
 
 #if defined(__LB_SHELL__)
 #include "lb_network_helpers.h"
@@ -43,6 +47,9 @@ namespace net {
 #if defined(OS_POSIX)
 const SocketDescriptor UDPListenSocket::kInvalidSocket = -1;
 const int UDPListenSocket::kSocketError = -1;
+#elif defined(OS_STARBOARD)
+const SocketDescriptor UDPListenSocket::kInvalidSocket = kSbSocketInvalid;
+const int UDPListenSocket::kSocketError = kSbSocketErrorFailed;
 #endif
 
 // 64kB is the max UDP packet size, but we don't need that
@@ -71,20 +78,43 @@ void UDPListenSocket::Close() {
 void UDPListenSocket::CloseSocket(SocketDescriptor s) {
   if (s != kInvalidSocket) {
     UnwatchSocket();
+#if defined(OS_STARBOARD)
+    SbSocketDestroy(s);
+#else
     LB::Platform::close_socket(s);
+#endif
   }
 }
 
-void UDPListenSocket::SendTo(const IPEndPoint& address, const std::string& str) {
+void UDPListenSocket::SendTo(const IPEndPoint& address,
+                             const std::string& str) {
   SendTo(address, str.data(), static_cast<int>(str.length()));
 }
 
-void UDPListenSocket::SendTo(const IPEndPoint& address, const char* bytes,
-                                  int len) {
+void UDPListenSocket::SendTo(const IPEndPoint& address,
+                             const char* bytes,
+                             int len) {
+#if defined(OS_STARBOARD)
+  SbSocketAddress dst_addr;
+  if (!address.ToSbSocketAddress(&dst_addr)) {
+    DLOG(ERROR) << "Failed to convert IPEndPoint to SbSocketAddress. "
+                << address.ToString();
+    return;
+  }
+
+  len = std::min(len, kUdpMaxPacketSize);
+  int sent = SbSocketSendTo(socket_, bytes, len, &dst_addr);
+  if (sent != len) {
+    DLOG(ERROR) << "SbSocketSendTo failed: errno== "
+                << SbSocketGetLastError(socket_);
+    send_error_ = true;
+  }
+#else   // defined(OS_STARBOARD)
   SockaddrStorage dst_addr;
   bool ret = address.ToSockAddr(dst_addr.addr, &dst_addr.addr_len);
   if (!ret) {
-    LOG(ERROR) << "Failed to convert IPEndPoint to sockaddr. " << address.ToString();
+    LOG(ERROR) << "Failed to convert IPEndPoint to sockaddr. "
+               << address.ToString();
     return;
   }
 
@@ -97,6 +127,7 @@ void UDPListenSocket::SendTo(const IPEndPoint& address, const char* bytes,
     LOG(ERROR) << "sendto failed: errno== " << errno;
     send_error_ = true;
   }
+#endif  // defined(OS_STARBOARD)
 }
 
 void UDPListenSocket::Read() {
@@ -104,6 +135,31 @@ void UDPListenSocket::Read() {
     // +1 for null termination
     buffer_.reset(new char[kUdpMaxPacketSize + 1]);
   }
+
+#if defined(OS_STARBOARD)
+  do {
+    SbSocketAddress src_addr;
+    int len = SbSocketReceiveFrom(socket_, buffer_.get(), kUdpMaxPacketSize,
+                                  &src_addr);
+    if (len <= 0) {
+      SbSocketError error = SbSocketGetLastError(socket_);
+      if (error != kSbSocketPending) {
+        DLOG(WARNING) << "SbSocketReceiveFrom failed: " << std::hex << error;
+      }
+      return;
+    }
+
+    DCHECK_LE(len, kUdpMaxPacketSize);
+    IPEndPoint address;
+    if (!address.FromSbSocketAddress(&src_addr)) {
+      DLOG(ERROR) << "Failed to convert SbSocketAddress to IPEndPoint.";
+      return;
+    }
+
+    buffer_[len] = '\0';  // Doesn't hurt to be careful!
+    socket_delegate_->DidRead(this, buffer_.get(), len, &address);
+  } while (true);
+#else   // defined(OS_STARBOARD)
   int len;
   do {
     SockaddrStorage src_addr;
@@ -133,21 +189,31 @@ void UDPListenSocket::Read() {
       socket_delegate_->DidRead(this, buffer_.get(), len, &address);
     }
   } while (true);
+#endif  // defined(OS_STARBOARD)
 }
 
 void UDPListenSocket::WatchSocket() {
-#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+#if defined(OS_STARBOARD)
+  MessageLoopForIO::current()->Watch(
+      socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   watcher_.StartWatching(socket_, base::MessagePumpShell::WATCH_READ, this);
 #endif
 }
 
 void UDPListenSocket::UnwatchSocket() {
-#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+#if defined(OS_STARBOARD)
+  watcher_.StopWatchingSocket();
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   watcher_.StopWatching();
 #endif
 }
 
-#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+#if defined(OS_STARBOARD)
+void UDPListenSocket::OnSocketReadyToRead(SbSocket /*socket*/) {
+  Read();
+}
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 void UDPListenSocket::OnObjectSignaled(int object) {
   // Object watcher removes the object when it gets signaled, so start watching
   // again.

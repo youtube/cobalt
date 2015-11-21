@@ -37,6 +37,8 @@
 
 #if defined(OS_POSIX)
 #include <errno.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/system.h"
 #endif
 
 class FilePath;
@@ -47,7 +49,7 @@ class IOBuffer;
 
 #if defined(OS_WIN)
 class FileStream::Context : public MessageLoopForIO::IOHandler {
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
 class FileStream::Context {
 #endif
  public:
@@ -62,7 +64,7 @@ class FileStream::Context {
           int open_flags);
 #if defined(OS_WIN)
   virtual ~Context();
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   ~Context();
 #endif
 
@@ -122,6 +124,8 @@ class FileStream::Context {
     ERROR_BAD_FILE = ERROR_INVALID_HANDLE
 #elif defined(OS_POSIX)
     ERROR_BAD_FILE = EBADF
+#elif defined(OS_STARBOARD)
+    ERROR_BAD_FILE = kSbFileErrorFailed
 #endif
   };
 
@@ -177,6 +181,12 @@ class FileStream::Context {
   int GetLastErrno() { return errno; }
   void OnAsyncFileOpened() {}
   void CancelIo(base::PlatformFile) {}
+#elif defined(OS_STARBOARD)
+  int GetLastErrno() const {
+    return SbSystemGetLastError();
+  }
+  void OnAsyncFileOpened() {}
+  void CancelIo(base::PlatformFile) {}
 #endif
 
   ////////////////////////////////////////////////////////////////////////////
@@ -197,7 +207,7 @@ class FileStream::Context {
   virtual void OnIOCompleted(MessageLoopForIO::IOContext* context,
                              DWORD bytes_read,
                              DWORD error) OVERRIDE;
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   // ReadFileImpl() is a simple wrapper around read() that handles EINTR
   // signals and calls RecordAndMapError() to map errno to net error codes.
   int64 ReadFileImpl(scoped_refptr<IOBuffer> buf, int buf_len);
@@ -227,4 +237,3 @@ class FileStream::Context {
 }  // namespace net
 
 #endif  // NET_BASE_FILE_STREAM_CONTEXT_H_
-

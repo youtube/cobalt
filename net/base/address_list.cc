@@ -57,6 +57,29 @@ AddressList AddressList::CreateFromIPAddressList(
   return list;
 }
 
+#if defined(OS_STARBOARD)
+// static
+AddressList AddressList::CreateFromSbSocketResolution(
+    const SbSocketResolution* resolution) {
+  DCHECK(resolution);
+  AddressList list;
+  if (resolution->canonical_name) {
+    list.set_canonical_name(std::string(resolution->canonical_name));
+  }
+
+  for (int i = 0; i < resolution->address_count; ++i) {
+    IPEndPoint end_point;
+    if (end_point.FromSbSocketAddress(&resolution->addresses[i])) {
+      list.push_back(end_point);
+      continue;
+    }
+
+    DLOG(WARNING) << "Failure to convert resolution address #" << i;
+  }
+
+  return list;
+}
+#else   // defined(OS_STARBOARD)
 // static
 AddressList AddressList::CreateFromAddrinfo(const struct addrinfo* head) {
   DCHECK(head);
@@ -73,6 +96,7 @@ AddressList AddressList::CreateFromAddrinfo(const struct addrinfo* head) {
   }
   return list;
 }
+#endif  // defined(OS_STARBOARD)
 
 // static
 AddressList AddressList::CopyWithPort(const AddressList& list, uint16 port) {

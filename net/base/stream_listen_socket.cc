@@ -15,6 +15,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "net/base/net_errors.h"
+#elif defined(OS_STARBOARD)
+#include "starboard/socket.h"
 #endif
 
 #include "base/logging.h"
@@ -59,6 +61,9 @@ const int StreamListenSocket::kSocketError = SOCKET_ERROR;
 #elif defined(OS_POSIX)
 const SocketDescriptor StreamListenSocket::kInvalidSocket = -1;
 const int StreamListenSocket::kSocketError = -1;
+#elif defined(OS_STARBOARD)
+const SocketDescriptor StreamListenSocket::kInvalidSocket = kSbSocketInvalid;
+const int StreamListenSocket::kSocketError = -1;
 #endif
 
 StreamListenSocket::StreamListenSocket(SocketDescriptor s,
@@ -72,6 +77,8 @@ StreamListenSocket::StreamListenSocket(SocketDescriptor s,
   // TODO(ibrar): error handling in case of socket_event_ == WSA_INVALID_EVENT.
   WatchSocket(NOT_WAITING);
 #elif defined(OS_POSIX)
+  wait_state_ = NOT_WAITING;
+#elif defined(OS_STARBOARD)
   wait_state_ = NOT_WAITING;
 #endif
 }
@@ -98,6 +105,16 @@ void StreamListenSocket::Send(const string& str, bool append_linefeed) {
 }
 
 int StreamListenSocket::GetLocalAddress(IPEndPoint* address) {
+#if defined(OS_STARBOARD)
+  SbSocketAddress sb_address;
+  if (!SbSocketGetLocalAddress(socket_, &sb_address)) {
+    return ERR_FAILED;
+  }
+  if (!address->FromSbSocketAddress(&sb_address)) {
+    return ERR_FAILED;
+  }
+  return OK;
+#else  // defined(OS_STARBOARD)
   SockaddrStorage storage;
   if (getsockname(socket_, storage.addr, &storage.addr_len)) {
 #if defined(OS_WIN)
@@ -110,10 +127,15 @@ int StreamListenSocket::GetLocalAddress(IPEndPoint* address) {
   if (!address->FromSockAddr(storage.addr, storage.addr_len))
     return ERR_FAILED;
   return OK;
+#endif  // defined(OS_STARBOARD)
 }
 
 SocketDescriptor StreamListenSocket::AcceptSocket() {
+#if defined(OS_STARBOARD)
+  SocketDescriptor conn = SbSocketAccept(socket_);
+#else
   SocketDescriptor conn = HANDLE_EINTR(accept(socket_, NULL, NULL));
+#endif
   if (conn == kInvalidSocket)
     LOG(ERROR) << "Error accepting connection.";
   else
@@ -125,11 +147,16 @@ void StreamListenSocket::SendInternal(const char* bytes, int len) {
   char* send_buf = const_cast<char *>(bytes);
   int len_left = len;
   while (true) {
+#if defined(OS_STARBOARD)
+    int sent = SbSocketReceiveFrom(socket_, send_buf, len_left, NULL);
+#else
     int sent = HANDLE_EINTR(
         send(socket_, send_buf, len_left, kDefaultMsgFlags));
+#endif
     if (sent == len_left) {  // A shortcut to avoid extraneous checks.
       break;
     }
+
     // __LB_SHELL__: In some consoles |sent| might return the actual error code,
     // and so can be even lower than the native |kSocketError|.
     COMPILE_ASSERT(kSocketError < 0, native_socket_error_should_be_negative);
@@ -137,6 +164,9 @@ void StreamListenSocket::SendInternal(const char* bytes, int len) {
 #if defined(OS_WIN)
       if (WSAGetLastError() != WSAEWOULDBLOCK) {
         LOG(ERROR) << "send failed: WSAGetLastError()==" << WSAGetLastError();
+#elif defined(OS_STARBOARD)
+      if (SbSocketGetLastError(socket_) != kSbSocketPending) {
+        LOG(ERROR) << "send failed: error = " << SbSocketGetLastError(socket_);
 #elif defined(__LB_SHELL__)
       if (!LB::Platform::NetWouldBlock()) {
         LOG(ERROR) << "send failed: errno==" << LB::Platform::net_errno();
@@ -159,6 +189,10 @@ void StreamListenSocket::SendInternal(const char* bytes, int len) {
 }
 
 void StreamListenSocket::Listen() {
+#if defined(OS_STARBOARD)
+  SbSocketListen(socket_);
+  WatchSocket(WAITING_ACCEPT);
+#else  // defined(OS_STARBOARD)
   int backlog = 10;  // TODO(erikkay): maybe don't allow any backlog?
   if (listen(socket_, backlog) == -1) {
     // TODO(erikkay): error handling.
@@ -168,10 +202,29 @@ void StreamListenSocket::Listen() {
 #if defined(OS_POSIX)
   WatchSocket(WAITING_ACCEPT);
 #endif
+#endif  // defined(OS_STARBOARD)
 }
 
 void StreamListenSocket::Read() {
   char buf[kReadBufSize + 1];  // +1 for null termination.
+#if defined(OS_STARBOARD)
+  int len;
+  do {
+    len = SbSocketReceiveFrom(socket_, buf, kReadBufSize, NULL);
+    if (len < 0) {
+      SbSocketError error = SbSocketGetLastError(socket_);
+      break;
+    }
+    if (len == 0) {
+      Close();
+    } else {
+      DCHECK_LT(0, len);
+      DCHECK_GE(kReadBufSize, len);
+      buf[len] = 0;  // We already create a buffer with +1 length.
+      socket_delegate_->DidRead(this, buf, len);
+    }
+  } while (len == kReadBufSize);
+#else  // defined(OS_STARBOARD)
   int len;
   do {
     len = HANDLE_EINTR(recv(socket_, buf, kReadBufSize, kDefaultMsgFlags));
@@ -211,10 +264,11 @@ void StreamListenSocket::Read() {
       socket_delegate_->DidRead(this, buf, len);
     }
   } while (len == kReadBufSize);
+#endif  // defined(OS_STARBOARD)
 }
 
 void StreamListenSocket::Close() {
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_STARBOARD)
   if (wait_state_ == NOT_WAITING)
     return;
   wait_state_ = NOT_WAITING;
@@ -228,6 +282,8 @@ void StreamListenSocket::CloseSocket(SocketDescriptor s) {
     UnwatchSocket();
 #if defined(OS_WIN)
     closesocket(s);
+#elif defined(OS_STARBOARD)
+    SbSocketDestroy(s);
 #elif defined(__LB_SHELL__)
     LB::Platform::close_socket(s);
 #elif defined(OS_POSIX)
@@ -240,6 +296,10 @@ void StreamListenSocket::WatchSocket(WaitState state) {
 #if defined(OS_WIN)
   WSAEventSelect(socket_, socket_event_, FD_ACCEPT | FD_CLOSE | FD_READ);
   watcher_.StartWatching(socket_event_, this);
+#elif defined(OS_STARBOARD)
+  MessageLoopForIO::current()->Watch(
+      socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);
+  wait_state_ = state;
 #elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   watcher_.StartWatching(socket_, base::MessagePumpShell::WATCH_READ, this);
   wait_state_ = state;
@@ -254,6 +314,8 @@ void StreamListenSocket::WatchSocket(WaitState state) {
 void StreamListenSocket::UnwatchSocket() {
 #if defined(OS_WIN)
   watcher_.StopWatching();
+#elif defined(OS_STARBOARD)
+  watcher_.StopWatchingSocket();
 #elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   watcher_.StopWatching();
 #elif defined(OS_POSIX)
@@ -316,6 +378,30 @@ void StreamListenSocket::OnObjectSignaled(int object) {
       NOTREACHED();
       break;
   }
+}
+#elif defined(OS_STARBOARD)
+void StreamListenSocket::OnSocketReadyToRead(SbSocket socket) {
+  switch (wait_state_) {
+    case WAITING_ACCEPT:
+      Accept();
+      break;
+    case WAITING_READ:
+      if (reads_paused_) {
+        has_pending_reads_ = true;
+      } else {
+        Read();
+      }
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
+}
+
+void StreamListenSocket::OnSocketReadyToWrite(SbSocket socket) {
+  // SbSocketWaiter callback, we don't listen for write events so we shouldn't
+  // ever reach here.
+  NOTREACHED();
 }
 #elif defined(OS_POSIX)
 void StreamListenSocket::OnFileCanReadWithoutBlocking(int fd) {

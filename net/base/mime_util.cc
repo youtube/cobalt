@@ -222,7 +222,7 @@ bool MimeUtil::GetMimeTypeFromExtensionHelper(const FilePath::StringType& ext,
 
 #if defined(OS_WIN)
   string ext_narrow_str = WideToUTF8(ext);
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   const string& ext_narrow_str = ext;
 #endif
   const char* mime_type;
