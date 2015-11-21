@@ -277,6 +277,11 @@ WebDriverModule::WebDriverModule(
                                           kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::GetTagName)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet, StringPrintf("/session/%s/element/%s/displayed",
+                                          kSessionIdVariable, kElementId),
+      element_command_factory->GetCommandHandler(
+          base::Bind(&ElementDriver::IsDisplayed)));
 
   // The WebDriver API implementation will be called on the HTTP server thread.
   thread_checker_.DetachFromThread();

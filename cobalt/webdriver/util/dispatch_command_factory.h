@@ -50,6 +50,12 @@ scoped_ptr<base::Value> ToValue(const std::string& value) {
   return make_scoped_ptr<base::Value>(new base::StringValue(value));
 }
 
+// Template specialization for bool.
+template <>
+scoped_ptr<base::Value> ToValue(const bool& value) {
+  return make_scoped_ptr<base::Value>(new base::FundamentalValue(value));
+}
+
 template <typename R>
 scoped_ptr<base::Value> ToValue(const CommandResult<R>& command_result) {
   return ToValue(command_result.result());
