@@ -238,12 +238,14 @@
       'variables' : {
         'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,
+        'enable_screenshot': 1,
       },
     },
     {
       'variables' : {
         'cobalt_copy_debug_console': 0,
         'cobalt_copy_test_data': 0,
+        'enable_screenshot': 0,
       },
     }],
   ],

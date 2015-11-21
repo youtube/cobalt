@@ -61,6 +61,35 @@
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        'screen_shot_writer',
+      ],
+    },
+
+    {
+      # This target provides functionality for creating screenshots of a
+      # render tree and writing it to disk.
+      'target_name': 'screen_shot_writer',
+      'type': 'static_library',
+      'variables': {
+        # This target includes non-Cobalt code that produces pendantic
+        # warnings as errors.
+        'cobalt_code': 0,
+      },
+      'conditions': [
+        ['enable_screenshot==1', {
+          'sources': [
+            'screen_shot_writer.h',
+            'screen_shot_writer.cc',
+          ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/base/base.gyp:base',
+            '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/skia.gyp:skia',
+            '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
+          ],
+          'all_dependent_settings': {
+            'defines': [ 'ENABLE_SCREENSHOT', ],
+          },
+        }],
       ],
     },
 
