@@ -14,14 +14,9 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/benchmark_stat_names.h"
-
-namespace cobalt {
-namespace dom {
-
-const char kBenchmarkStatUpdateComputedStyles[] = "UpdateComputedStyle";
-const char kBenchmarkStatUpdateMatchingRules[] = "UpdateMatchingRules";
-const char kBenchmarkStatUpdateSelectorTree[] = "UpdateSelectorTree";
-
-}  // namespace dom
-}  // namespace cobalt
+// The completion of a CSS Animation generates a corresponding DOM Event.
+//   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-events
+interface AnimationEvent : Event {
+  readonly attribute DOMString animationName;
+  readonly attribute float elapsedTime;
+};

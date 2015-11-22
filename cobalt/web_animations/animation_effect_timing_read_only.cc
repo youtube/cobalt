@@ -63,7 +63,8 @@ AnimationEffectTimingReadOnly::Data::GetPhase(
     return kBeforePhase;
   }
 
-  if (*local_time < delay_ + duration_) {
+  if (iterations_ == std::numeric_limits<double>::infinity() ||
+      *local_time < delay_ + active_duration()) {
     return kActivePhase;
   }
 
@@ -72,7 +73,10 @@ AnimationEffectTimingReadOnly::Data::GetPhase(
 
 base::TimeDelta AnimationEffectTimingReadOnly::Data::time_until_after_phase(
     base::TimeDelta local_time) const {
-  return (delay_ + duration_) - local_time;
+  if (iterations_ == std::numeric_limits<double>::infinity()) {
+    return base::TimeDelta::Max();
+  }
+  return (delay_ + active_duration()) - local_time;
 }
 
 namespace {
@@ -97,15 +101,23 @@ AnimationEffectTimingReadOnly::Data::ComputeActiveTimeFromLocalTime(
     const base::optional<base::TimeDelta>& local_time) const {
   Phase phase = GetPhase(local_time);
 
-  // TODO(***REMOVED***): Implement fill mode.  As-is, a fill mode of 'both' is
-  //               assumed.
   switch (phase) {
     case kBeforePhase:
-      return base::TimeDelta();
+      if (fill_ == AnimationEffectTimingReadOnly::kBackwards ||
+          fill_ == AnimationEffectTimingReadOnly::kBoth) {
+        return base::TimeDelta();
+      } else {
+        return base::nullopt;
+      }
     case kActivePhase:
       return *local_time - delay_;
     case kAfterPhase:
-      return active_duration();
+      if (fill_ == AnimationEffectTimingReadOnly::kForwards ||
+          fill_ == AnimationEffectTimingReadOnly::kBoth) {
+        return active_duration();
+      } else {
+        return base::nullopt;
+      }
     case kNoPhase:
       return base::nullopt;
   }

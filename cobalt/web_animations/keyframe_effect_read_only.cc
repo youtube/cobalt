@@ -300,12 +300,17 @@ KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue(
   double interval_distance =
       (iteration_progress - start_offset) / (end_offset - start_offset);
 
+  // NOT IN SPEC. This seems missing from the specification, but this is the
+  //              place where per-keyframe timing functions should be applied.
+  float scaled_interval_distance = interval_endpoints.first->easing->Evaluate(
+      static_cast<float>(interval_distance));
+
   // 16. Return the result of applying the interpolation procedure defined by
   //     the animation behavior of the target property, to the values of the
   //     target property specified on the two keyframes in interval endpoints
   //     taking the first such value as V_start and the second as V_end and
   //     using interval distance as the interpolation parameter p.
-  return InterpolatePropertyValue(static_cast<float>(interval_distance),
+  return InterpolatePropertyValue(scaled_interval_distance,
                                   interval_endpoints.first->value,
                                   interval_endpoints.second->value);
 }
