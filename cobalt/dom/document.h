@@ -18,12 +18,14 @@
 #define DOM_DOCUMENT_H_
 
 #include <deque>
+#include <map>
 #include <string>
 
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/string_piece.h"
 #include "cobalt/base/clock.h"
+#include "cobalt/cssom/css_keyframes_rule.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
@@ -186,6 +188,12 @@ class Document : public Node, public cssom::MutationObserver {
 
   cssom::SelectorTree* selector_tree() { return &selector_tree_; }
 
+  // Returns a mapping from keyframes name to CSSKeyframesRule.  This can be
+  // used to quickly lookup the @keyframes rule given a string identifier.
+  const cssom::CSSKeyframesRule::NameMap& keyframes_map() const {
+    return keyframes_map_;
+  }
+
   // These functions are for setting weak references to certain elements in the
   // document.
   void SetBody(HTMLBodyElement* body);
@@ -240,6 +248,12 @@ class Document : public Node, public cssom::MutationObserver {
   void UpdateFontFaces(
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
+  // Scans the user agent style sheet and all style sheets in the document's
+  // style sheet list and compiles/updates a set of all declared CSS
+  // keyframes used to define CSS Animations.
+  void UpdateKeyframes(
+      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
+
   // Manages the clock used by Web Animations.
   //     http://www.w3.org/TR/web-animations
   // This clock is also used for requestAnimationFrame() callbacks, according
@@ -281,6 +295,8 @@ class Document : public Node, public cssom::MutationObserver {
   std::deque<HTMLScriptElement*> scripts_to_be_executed_;
   // The font face cache for this document.
   scoped_ptr<FontFaceCache> font_face_cache_;
+  // A mapping from keyframes declaration names to their parsed structure.
+  cssom::CSSKeyframesRule::NameMap keyframes_map_;
   // The number of ongoing loadings.
   int loading_counter_;
   // Whether the load event should be dispatched when loading counter hits zero.
@@ -291,6 +307,7 @@ class Document : public Node, public cssom::MutationObserver {
   bool is_rule_matching_result_dirty_;
   bool is_computed_style_dirty_;
   bool are_font_faces_dirty_;
+  bool are_keyframes_dirty_;
 
   // Weak references to the certain elements in the document.
   base::WeakPtr<HTMLBodyElement> body_;

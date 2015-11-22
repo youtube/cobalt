@@ -25,8 +25,9 @@ namespace web_animations {
 namespace {
 AnimationEffectTimingReadOnly::Data CreateCanonicalTimingData() {
   return AnimationEffectTimingReadOnly::Data(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 0.2,
-      1.0, base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.2, 1.0,
+      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
 }
 }  // namespace
 
@@ -108,8 +109,9 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 TEST(AnimationEffectTimingReadOnlyDataTests,
      IterationTimeIsZeroIfDurationIsZero) {
   AnimationEffectTimingReadOnly::Data timing(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 0.2,
-      1.0, base::TimeDelta::FromSeconds(0), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.2, 1.0,
+      base::TimeDelta::FromSeconds(0), cssom::TimingFunction::GetLinear());
 
   base::optional<base::TimeDelta> iteration_time =
       timing.ComputeIterationTimeFromScaledActiveTime(
@@ -122,8 +124,9 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 TEST(AnimationEffectTimingReadOnlyDataTests,
      IterationTimeIsDurationIfAtEndOfIterations) {
   AnimationEffectTimingReadOnly::Data timing(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 0.2,
-      0.8, base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.2, 0.8,
+      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
 
   base::optional<base::TimeDelta> iteration_time =
       timing.ComputeIterationTimeFromScaledActiveTime(
@@ -158,8 +161,9 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 TEST(AnimationEffectTimingReadOnlyDataTests,
      CurrentIterationIsFloorOfIterationStartIfActiveTimeIsZero) {
   AnimationEffectTimingReadOnly::Data timing(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 3.5,
-      0.8, base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 3.5, 0.8,
+      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
 
   base::TimeDelta active_time = base::TimeDelta();
   base::TimeDelta scaled_active_time =
@@ -177,7 +181,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 TEST(AnimationEffectTimingReadOnlyDataTests,
      CurrentIterationIsInfinityIfDurationIsZeroAndIterationCountIsInfinity) {
   AnimationEffectTimingReadOnly::Data timing(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 3.5,
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 3.5,
       std::numeric_limits<double>::infinity(), base::TimeDelta(),
       cssom::TimingFunction::GetLinear());
 
@@ -197,8 +202,9 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 TEST(AnimationEffectTimingReadOnlyDataTests,
      CurrentIterationIsCeilMinusOneOfCountPlusStartIfDurationIsZero) {
   AnimationEffectTimingReadOnly::Data timing(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 3.5,
-      0.8, base::TimeDelta(), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 3.5, 0.8, base::TimeDelta(),
+      cssom::TimingFunction::GetLinear());
 
   base::TimeDelta active_time(base::TimeDelta::FromSecondsD(1.0));
   base::TimeDelta scaled_active_time =
@@ -216,8 +222,9 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 TEST(AnimationEffectTimingReadOnlyDataTests,
      CurrentIterationIsCountPlusStartMinusOneIfIterationTimeIsDuration) {
   AnimationEffectTimingReadOnly::Data timing(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 0.2,
-      0.8, base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.2, 0.8,
+      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
 
   // This active time is chosen such that the resulting iteration_time will
   // be equal to the effect timing's duration.
@@ -239,8 +246,9 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 TEST(AnimationEffectTimingReadOnlyDataTests,
      CurrentIterationIsFloorOfScaledActiveTimeDividedByDuration) {
   AnimationEffectTimingReadOnly::Data timing(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 0.0,
-      3.0, base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.0, 3.0,
+      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
 
   base::TimeDelta active_time(base::TimeDelta::FromSecondsD(4.5));
   base::TimeDelta scaled_active_time =
@@ -278,8 +286,9 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 TEST(AnimationEffectTimingReadOnlyDataTests,
      TransformedTimeIsDirectedTimeIfDurationIsInfinity) {
   AnimationEffectTimingReadOnly::Data timing(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 0.0,
-      3.0, base::TimeDelta::Max(), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.0, 3.0, base::TimeDelta::Max(),
+      cssom::TimingFunction::GetLinear());
 
   base::optional<base::TimeDelta> transformed_time =
       timing.ComputeTransformedTimeFromDirectedTime(
@@ -292,8 +301,9 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 TEST(AnimationEffectTimingReadOnlyDataTests,
      TransformedTimeIsZeroIfDurationIsZero) {
   AnimationEffectTimingReadOnly::Data timing(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 0.0,
-      3.0, base::TimeDelta(), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.0, 3.0, base::TimeDelta(),
+      cssom::TimingFunction::GetLinear());
 
   base::optional<base::TimeDelta> transformed_time =
       timing.ComputeTransformedTimeFromDirectedTime(
@@ -318,8 +328,9 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 TEST(AnimationEffectTimingReadOnlyDataTests,
      TransformedTimeIsEqualToTimingFunctionResultTimesDuration) {
   AnimationEffectTimingReadOnly::Data timing(
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1), 0.2,
-      1.0, base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetEase());
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.2, 1.0,
+      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetEase());
 
   base::optional<base::TimeDelta> transformed_time =
       timing.ComputeTransformedTimeFromDirectedTime(

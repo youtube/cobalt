@@ -57,8 +57,11 @@ void AnimateNode(
     const web_animations::BakedAnimationSet& animations,
     const scoped_refptr<cssom::CSSStyleDeclarationData>& base_style,
     typename T::Builder* node_builder, base::TimeDelta time_elapsed) {
-  animations.Apply(time_elapsed, base_style);
-  apply_style_function.Run(base_style, node_builder);
+  scoped_refptr<cssom::CSSStyleDeclarationData> animated_style =
+      new cssom::CSSStyleDeclarationData();
+  animated_style->AssignFrom(*base_style);
+  animations.Apply(time_elapsed, animated_style);
+  apply_style_function.Run(animated_style, node_builder);
 }
 
 // If animations exist, this function will add an animation which represents
