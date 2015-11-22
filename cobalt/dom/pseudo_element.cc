@@ -29,7 +29,10 @@ PseudoElement::PseudoElement(HTMLElement* parent_element)
   computed_style_state_->set_animations(animations_);
 
   transitions_adapter_.emplace(new DOMAnimatable(this));
-  transitions_.emplace(&transitions_adapter_.value());
+  css_transitions_.emplace(&transitions_adapter_.value());
+
+  animations_adapter_.emplace(new DOMAnimatable(this));
+  css_animations_.emplace(&animations_adapter_.value());
 }
 
 }  // namespace dom

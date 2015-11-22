@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/html_element.h"
 
+#include <map>
+
 #include "base/string_number_conversions.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/cascaded_style.h"
@@ -313,9 +315,11 @@ PromoteMatchingRulesToComputedStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
     const base::TimeDelta& style_change_event_time,
-    cssom::TransitionSet* transitions,
+    cssom::TransitionSet* css_transitions,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-        previous_computed_style) {
+        previous_computed_style,
+    cssom::AnimationSet* css_animations,
+    const cssom::CSSKeyframesRule::NameMap& keyframes_map) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style =
       new cssom::CSSStyleDeclarationData();
 
@@ -346,12 +350,14 @@ PromoteMatchingRulesToComputedStyle(
   if (previous_computed_style) {
     // Now that we have updated our computed style, compare it to the previous
     // style and see if we need to adjust our animations.
-    transitions->UpdateTransitions(style_change_event_time,
-                                   *previous_computed_style, *computed_style);
+    css_transitions->UpdateTransitions(
+        style_change_event_time, *previous_computed_style, *computed_style);
   }
+  // Update the set of currently running animations.
+  css_animations->Update(style_change_event_time, *computed_style,
+                         keyframes_map);
 
   return computed_style;
-  // Cache the results of the computed style calculation.
 }
 
 bool NewComputedStyleInvalidatesLayoutBoxes(
@@ -419,8 +425,9 @@ void HTMLElement::UpdateComputedStyle(
   scoped_refptr<cssom::CSSStyleDeclarationData> new_computed_style =
       PromoteMatchingRulesToComputedStyle(
           matching_rules(), &property_key_to_base_url_map, style_->data(),
-          parent_computed_style, style_change_event_time, &transitions_,
-          computed_style());
+          parent_computed_style, style_change_event_time, &css_transitions_,
+          computed_style(), &css_animations_,
+          owner_document()->keyframes_map());
 
   // If there is no previous computed style, there should also be no layout
   // boxes, and nothing has to be invalidated.
@@ -446,8 +453,10 @@ void HTMLElement::UpdateComputedStyle(
               pseudo_elements_[pseudo_element_type]->matching_rules(),
               &property_key_to_base_url_map, style_->data(), computed_style(),
               style_change_event_time,
-              pseudo_elements_[pseudo_element_type]->transitions(),
-              pseudo_elements_[pseudo_element_type]->computed_style());
+              pseudo_elements_[pseudo_element_type]->css_transitions(),
+              pseudo_elements_[pseudo_element_type]->computed_style(),
+              pseudo_elements_[pseudo_element_type]->css_animations(),
+              owner_document()->keyframes_map());
 
       if (!invalidate_layout_boxes &&
           pseudo_elements_[pseudo_element_type]->computed_style() &&
@@ -517,7 +526,10 @@ HTMLElement::HTMLElement(Document* document)
       computed_style_state_(new cssom::ComputedStyleState()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           transitions_adapter_(new DOMAnimatable(this))),
-      transitions_(&transitions_adapter_),
+      css_transitions_(&transitions_adapter_),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          animations_adapter_(new DOMAnimatable(this))),
+      css_animations_(&animations_adapter_),
       matching_rules_valid_(false) {
   computed_style_state_->set_animations(animations());
   style_->set_mutation_observer(this);
@@ -531,7 +543,10 @@ HTMLElement::HTMLElement(Document* document, const std::string& tag_name)
       computed_style_state_(new cssom::ComputedStyleState()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           transitions_adapter_(new DOMAnimatable(this))),
-      transitions_(&transitions_adapter_),
+      css_transitions_(&transitions_adapter_),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          animations_adapter_(new DOMAnimatable(this))),
+      css_animations_(&animations_adapter_),
       matching_rules_valid_(false) {
   computed_style_state_->set_animations(animations());
   style_->set_mutation_observer(this);

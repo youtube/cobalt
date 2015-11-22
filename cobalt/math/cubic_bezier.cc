@@ -43,16 +43,26 @@ static double bezier_interp(double x1, double x2, double x) {
 
   x1 = std::min(std::max(x1, 0.0), 1.0);
   x2 = std::min(std::max(x2, 0.0), 1.0);
-  x = std::min(std::max(x, 0.0), 1.0);
 
-  // We're just going to do bisection for now (for simplicity), but we could
-  // easily do some newton steps if this turns out to be a bottleneck.
+  // We use Newton's Method to solve this problem, since x can be outside of
+  // the range [0, 1] and the bisection method can only search within a finite
+  // range.  We fall back to the bisection method for a single step if the
+  // derivative of the function is smaller than the step size at that step,
+  // implying instability.
   double t = 0.0;
   double step = 1.0;
   for (int i = 0; i < MAX_STEPS; ++i, step *= 0.5) {
     const double error = eval_bezier(x1, x2, t) - x;
     if (std::abs(error) < kBezierEpsilon) break;
-    t += error > 0.0 ? -step : step;
+
+    const double derivative = eval_bezier_derivative(x1, x2, t);
+
+    if (std::abs(derivative) < step) {
+      t += error > 0.0 ? -step : step;
+    } else {
+      const double newton_step = -error / derivative;
+      t += newton_step;
+    }
   }
 
   // We should have terminated the above loop because we got close to x, not

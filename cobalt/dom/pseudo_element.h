@@ -19,9 +19,11 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/cssom/animation_set.h"
 #include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_transition_set.h"
+#include "cobalt/dom/css_animations_adapter.h"
 #include "cobalt/dom/css_transitions_adapter.h"
 
 namespace cobalt {
@@ -62,7 +64,9 @@ class PseudoElement {
 
   cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
 
-  cssom::TransitionSet* transitions() { return &transitions_.value(); }
+  cssom::TransitionSet* css_transitions() { return &css_transitions_.value(); }
+  cssom::AnimationSet* css_animations() { return &css_animations_.value(); }
+
   const scoped_refptr<web_animations::AnimationSet>& animations() {
     return animations_;
   }
@@ -78,7 +82,10 @@ class PseudoElement {
   scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
 
   base::optional<CSSTransitionsAdapter> transitions_adapter_;
-  base::optional<cssom::TransitionSet> transitions_;
+  base::optional<cssom::TransitionSet> css_transitions_;
+
+  base::optional<CSSAnimationsAdapter> animations_adapter_;
+  base::optional<cssom::AnimationSet> css_animations_;
 
   cssom::RulesWithCascadePriority matching_rules_;
 

@@ -4730,6 +4730,12 @@ qualified_rule: style_rule;
 
 invalid_rule:
     error ';' maybe_whitespace { parser_impl->LogWarning(@1, "invalid rule"); }
+  | error maybe_whitespace kIdentifierToken maybe_whitespace '{'
+    maybe_whitespace keyframe_rule_list '}' maybe_whitespace {
+      scoped_refptr<cssom::CSSRuleList> unused_rule_list =
+          MakeScopedRefPtrAndRelease($7);
+      parser_impl->LogWarning(@1, "invalid rule");
+    }
   | error style_declaration_block {
     scoped_refptr<cssom::CSSStyleDeclaration> unused_style =
         MakeScopedRefPtrAndRelease($2);
