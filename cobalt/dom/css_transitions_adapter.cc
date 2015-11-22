@@ -21,6 +21,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_animatable.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/pseudo_element.h"
 #include "cobalt/dom/transition_event.h"
@@ -51,8 +52,9 @@ void CSSTransitionsAdapter::OnTransitionStarted(
   // transition.
   scoped_refptr<web_animations::AnimationEffectTimingReadOnly> timing_input(
       new web_animations::AnimationEffectTimingReadOnly(
-          transition.delay(), base::TimeDelta(), 0.0, 1.0,
-          transition.duration(), transition.timing_function()));
+          transition.delay(), base::TimeDelta(),
+          web_animations::AnimationEffectTimingReadOnly::kBoth, 0.0, 1.0,
+          transition.duration(), cssom::TimingFunction::GetLinear()));
 
   // Setup a KeyframeEffect with 2 keyframes, a start and end frame that hold
   // the start and end transition property values.  In general keyframes can
@@ -61,6 +63,7 @@ void CSSTransitionsAdapter::OnTransitionStarted(
   std::vector<web_animations::Keyframe::Data> frames;
 
   web_animations::Keyframe::Data start_frame(0.0);
+  start_frame.set_easing(transition.timing_function());
   start_frame.AddPropertyValue(transition.target_property(),
                                transition.start_value());
   frames.push_back(start_frame);
@@ -112,14 +115,13 @@ void CSSTransitionsAdapter::OnTransitionRemoved(
   animation_map_.erase(found);
 }
 
-
 void CSSTransitionsAdapter::HandleAnimationEnterAfterPhase(
     const cssom::Transition& transition) {
   // An animation corresponding to a transition has entered the "after phase",
   // so we should correspondingly fire the transitionend event.
   //   https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-transitions-events
   animatable_->GetEventTarget()->DispatchEvent(new TransitionEvent(
-      "transitionend", transition.target_property(),
+      EventNames::GetInstance()->transitionend(), transition.target_property(),
       static_cast<float>(transition.duration().InMillisecondsF())));
 }
 

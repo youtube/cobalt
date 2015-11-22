@@ -118,7 +118,8 @@ void Animation::UpdatePendingTasks() {
         base::TimeDelta::FromMillisecondsD(*local_time_in_ms);
     base::TimeDelta time_to_after_phase =
         effect_->timing()->data().time_until_after_phase(local_time);
-    if (time_to_after_phase >= base::TimeDelta()) {
+    if (time_to_after_phase >= base::TimeDelta() &&
+        time_to_after_phase != base::TimeDelta::Max()) {
       // Setup the "upon entering the after phase" event to fire at the
       // specified timeline time.
       on_enter_after_phase_ = timeline_->QueueTask(

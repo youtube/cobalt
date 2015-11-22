@@ -44,6 +44,7 @@
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/keyframes_map_updater.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
@@ -76,6 +77,7 @@ Document::Document(HTMLElementContext* html_element_context,
       is_rule_matching_result_dirty_(true),
       is_computed_style_dirty_(true),
       are_font_faces_dirty_(true),
+      are_keyframes_dirty_(true),
       navigation_start_clock_(options.navigation_start_clock),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           default_timeline_(new DocumentTimeline(this, 0))) {
@@ -340,6 +342,7 @@ void Document::OnCSSMutation() {
   is_rule_matching_result_dirty_ = true;
   is_computed_style_dirty_ = true;
   are_font_faces_dirty_ = true;
+  are_keyframes_dirty_ = true;
 
   RecordMutation();
 }
@@ -465,6 +468,7 @@ void Document::UpdateComputedStyles(
   TRACE_EVENT0("cobalt::dom", "Document::UpdateComputedStyles()");
 
   UpdateMatchingRules(root_computed_style, user_agent_style_sheet);
+  UpdateKeyframes(user_agent_style_sheet);
 
   if (is_computed_style_dirty_) {
     // Determine the official time that this style change event took place. This
@@ -488,11 +492,22 @@ void Document::UpdateComputedStyles(
 void Document::UpdateFontFaces(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
   if (are_font_faces_dirty_) {
-    TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateFontFaces);
+    TRACE_EVENT0("cobalt::layout", "Document::UpdateFontFaces()");
     FontFaceCacheUpdater font_face_updater(url_, font_face_cache_.get());
     font_face_updater.ProcessCSSStyleSheet(user_agent_style_sheet);
     font_face_updater.ProcessStyleSheetList(style_sheets());
     are_font_faces_dirty_ = false;
+  }
+}
+
+void Document::UpdateKeyframes(
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+  if (are_keyframes_dirty_) {
+    TRACE_EVENT0("cobalt::layout", "Document::UpdateKeyframes()");
+    KeyframesMapUpdater keyframes_map_updater(&keyframes_map_);
+    keyframes_map_updater.ProcessCSSStyleSheet(user_agent_style_sheet);
+    keyframes_map_updater.ProcessStyleSheetList(style_sheets());
+    are_keyframes_dirty_ = false;
   }
 }
 
