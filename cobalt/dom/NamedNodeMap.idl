@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+// https://dom.spec.whatwg.org/#interface-namednodemap
 interface NamedNodeMap {
   readonly attribute unsigned long length;
   getter Attr? item(unsigned long index);
+  getter Attr? getNamedItem(DOMString name);
 };
