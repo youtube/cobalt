@@ -109,6 +109,17 @@ scoped_refptr<Attr> NamedNodeMap::RemoveNamedItem(const std::string& name) {
   return previous_attribute;
 }
 
+bool NamedNodeMap::CanQueryNamedProperty(const std::string& name) const {
+  return element_->HasAttribute(name);
+}
+
+void NamedNodeMap::EnumerateNamedProperties(
+    script::PropertyEnumerator* enumerator) const {
+  for (size_t i = 0; i < attribute_names_.size(); ++i) {
+    enumerator->AddProperty(attribute_names_[i]);
+  }
+}
+
 void NamedNodeMap::SetAttributeInternal(const std::string& name,
                                         const std::string& value) {
   // If this a new name, add to it to the name vector.

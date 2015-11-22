@@ -18,12 +18,13 @@
 #define DOM_NAMED_NODE_MAP_H_
 
 #include <string>
+#include <vector>
 
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/script/property_enumerator.h"
 #include "cobalt/script/wrappable.h"
-
 
 namespace cobalt {
 namespace dom {
@@ -60,6 +61,8 @@ class NamedNodeMap : public script::Wrappable,
 
   // Custom, not in any spec.
   //
+  bool CanQueryNamedProperty(const std::string& name) const;
+  void EnumerateNamedProperties(script::PropertyEnumerator* enumerator) const;
   void SetAttributeInternal(const std::string& name, const std::string& value);
   void RemoveAttributeInternal(const std::string& name);
 
