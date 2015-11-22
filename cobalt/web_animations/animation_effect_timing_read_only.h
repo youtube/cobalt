@@ -38,17 +38,21 @@ namespace web_animations {
 // duration, etc...
 class AnimationEffectTimingReadOnly : public script::Wrappable {
  public:
+  enum FillMode { kNone, kForwards, kBackwards, kBoth };
+
   AnimationEffectTimingReadOnly(
       const base::TimeDelta& delay, const base::TimeDelta& end_delay,
-      double iteration_start, double iterations,
+      FillMode fill, double iteration_start, double iterations,
       const base::TimeDelta& duration,
       const scoped_refptr<cssom::TimingFunction>& easing)
-      : data_(delay, end_delay, iteration_start, iterations, duration, easing) {
-  }
+      : data_(delay, end_delay, fill, iteration_start, iterations, duration,
+              easing) {}
 
   double delay() const { return data_.delay().InMillisecondsF(); }
 
   double end_delay() const { return data_.end_delay().InMillisecondsF(); }
+
+  FillMode fill() const { return data_.fill(); }
 
   double iteration_start() const { return data_.iteration_start(); }
 
@@ -72,11 +76,12 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
           iterations_(1.0),
           easing_(cssom::TimingFunction::GetLinear()) {}
     Data(const base::TimeDelta& delay, const base::TimeDelta& end_delay,
-         double iteration_start, double iterations,
-         const base::TimeDelta& duration,
+         AnimationEffectTimingReadOnly::FillMode fill, double iteration_start,
+         double iterations, const base::TimeDelta& duration,
          const scoped_refptr<cssom::TimingFunction>& easing)
         : delay_(delay),
           end_delay_(end_delay),
+          fill_(fill),
           iteration_start_(iteration_start),
           iterations_(iterations),
           duration_(duration),
@@ -84,6 +89,7 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
 
     base::TimeDelta delay() const { return delay_; }
     base::TimeDelta end_delay() const { return end_delay_; }
+    AnimationEffectTimingReadOnly::FillMode fill() const { return fill_; }
     double iteration_start() const { return iteration_start_; }
     double iterations() const { return iterations_; }
     base::TimeDelta duration() const { return duration_; }
@@ -142,6 +148,7 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
     // delay_ here is sometimes referred to in the specs as "start delay".
     base::TimeDelta delay_;
     base::TimeDelta end_delay_;
+    AnimationEffectTimingReadOnly::FillMode fill_;
     double iteration_start_;
     // iterations_ here is sometimes referred to in the specs as
     // "iteration count".

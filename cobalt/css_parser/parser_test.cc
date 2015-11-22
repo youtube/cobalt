@@ -3337,7 +3337,8 @@ TEST_F(ParserTest, ParsesKeyframesRule) {
       "  to {"
       "    opacity: 0.75;"
       "  }"
-      "}", source_location_);
+      "}",
+      source_location_);
 
   cssom::CSSKeyframesRule* keyframes_rule =
       dynamic_cast<cssom::CSSKeyframesRule*>(rule.get());

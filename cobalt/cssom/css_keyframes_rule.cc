@@ -16,14 +16,22 @@
 
 #include "cobalt/cssom/css_keyframes_rule.h"
 
+#include <algorithm>
+#include <set>
+
+#include "cobalt/cssom/css_keyframe_rule.h"
 #include "cobalt/cssom/css_rule_visitor.h"
+#include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/style_sheet_list.h"
 
 namespace cobalt {
 namespace cssom {
 
 CSSKeyframesRule::CSSKeyframesRule(const std::string& name,
                                    const scoped_refptr<CSSRuleList>& css_rules)
-    : name_(name), css_rules_(css_rules) {}
+    : name_(name), css_rules_(css_rules) {
+  UpdateSortedKeyframes();
+}
 
 std::string CSSKeyframesRule::css_text() const {
   NOTIMPLEMENTED();
@@ -50,6 +58,44 @@ void CSSKeyframesRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
 }
 
 CSSKeyframesRule::~CSSKeyframesRule() {}
+
+namespace {
+class OffsetComparator {
+ public:
+  bool operator()(const CSSKeyframesRule::KeyframeInfo& lhs,
+                  const CSSKeyframesRule::KeyframeInfo& rhs) const {
+    return lhs.offset < rhs.offset;
+  }
+};
+}  // namespace
+
+void CSSKeyframesRule::UpdateSortedKeyframes() {
+  if (!css_rules_) {
+    sorted_keyframes_.clear();
+    return;
+  }
+
+  // Use a set to construct a list of keyframes sorted by offset, and then
+  // when finished finalize the results into sorted_keyframes_ for easy
+  // access later.
+  std::set<KeyframeInfo, OffsetComparator> sorted_keyframe_set;
+
+  for (unsigned int i = 0; i < css_rules_->length(); ++i) {
+    CSSKeyframeRule* keyframe_rule =
+        base::polymorphic_downcast<CSSKeyframeRule*>(css_rules_->Item(i).get());
+
+    const std::vector<float>& offsets = keyframe_rule->offsets();
+    for (unsigned int j = 0; j < offsets.size(); ++j) {
+      KeyframeInfo keyframe;
+      keyframe.offset = offsets[j];
+      keyframe.style = keyframe_rule->style()->data();
+      sorted_keyframe_set.insert(keyframe);
+    }
+  }
+
+  sorted_keyframes_ = std::vector<KeyframeInfo>(sorted_keyframe_set.begin(),
+                                                sorted_keyframe_set.end());
+}
 
 }  // namespace cssom
 }  // namespace cobalt

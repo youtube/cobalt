@@ -16,9 +16,13 @@
 
 // http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animationeffecttimingreadonly-interface
 
+// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-fillmode-enumeration
+enum FillMode { "none", "forwards", "backwards", "both" };
+
 interface AnimationEffectTimingReadOnly {
   readonly attribute double delay;
   readonly attribute double endDelay;
+  readonly attribute FillMode fill;
   readonly attribute double iterationStart;
   readonly attribute unrestricted double iterations;
   readonly attribute (unrestricted double or DOMString) duration;

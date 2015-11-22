@@ -23,6 +23,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/string_piece.h"
+#include "cobalt/cssom/animation_set.h"
 #include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -30,6 +31,7 @@
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/dom/css_animations_adapter.h"
 #include "cobalt/dom/css_transitions_adapter.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/layout_boxes.h"
@@ -244,7 +246,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
 
   dom::CSSTransitionsAdapter transitions_adapter_;
-  cssom::TransitionSet transitions_;
+  cssom::TransitionSet css_transitions_;
+
+  dom::CSSAnimationsAdapter animations_adapter_;
+  cssom::AnimationSet css_animations_;
 
   // The following fields are used in rule matching.
   cssom::RulesWithCascadePriority matching_rules_;

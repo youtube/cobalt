@@ -17,11 +17,14 @@
 #ifndef CSSOM_CSS_KEYFRAMES_RULE_H_
 #define CSSOM_CSS_KEYFRAMES_RULE_H_
 
+#include <map>
 #include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_rule_list.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -35,6 +38,8 @@ class CSSStyleSheet;
 //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframesRule-interface
 class CSSKeyframesRule : public CSSRule {
  public:
+  typedef std::map<std::string, scoped_refptr<CSSKeyframesRule> > NameMap;
+
   CSSKeyframesRule(const std::string& name,
                    const scoped_refptr<CSSRuleList>& css_rules);
 
@@ -52,6 +57,18 @@ class CSSKeyframesRule : public CSSRule {
   // Custom, not in any spec.
   //
 
+  // The KeyframeInfo struct represents the same data as is found in each
+  // CSSKeyframeRule object within the css_rules_ list, but the data stored here
+  // is simplified and there is only one entry per offset.
+  struct KeyframeInfo {
+    float offset;
+    scoped_refptr<const CSSStyleDeclarationData> style;
+  };
+  // A list of keyframes sorted by offset.
+  const std::vector<KeyframeInfo>& sorted_keyframes() const {
+    return sorted_keyframes_;
+  }
+
   // From CSSRule.
   void Accept(CSSRuleVisitor* visitor) OVERRIDE;
   void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
@@ -60,12 +77,16 @@ class CSSKeyframesRule : public CSSRule {
 
  private:
   ~CSSKeyframesRule() OVERRIDE;
+  void UpdateSortedKeyframes();
 
   // The unprocessed key text.
   std::string name_;
 
   // The list of CSSKeyframeRule objects that define the keyframes.
   scoped_refptr<CSSRuleList> css_rules_;
+
+  // A list of keyframes sorted by offset.
+  std::vector<KeyframeInfo> sorted_keyframes_;
 };
 
 }  // namespace cssom
