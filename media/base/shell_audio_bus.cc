@@ -78,7 +78,6 @@ ShellAudioBus::ShellAudioBus(size_t channels,
                               aligned_per_channel_size_in_bytes * i);
     }
   }
-  ZeroAllFrames();
 }
 
 ShellAudioBus::ShellAudioBus(size_t frames, const std::vector<float*>& samples)
@@ -92,8 +91,6 @@ ShellAudioBus::ShellAudioBus(size_t frames, const std::vector<float*>& samples)
   for (size_t i = 0; i < samples.size(); ++i) {
     channel_data_.push_back(reinterpret_cast<uint8*>(samples[i]));
   }
-
-  ZeroAllFrames();
 }
 
 ShellAudioBus::ShellAudioBus(size_t channels, size_t frames, float* samples)
@@ -104,8 +101,6 @@ ShellAudioBus::ShellAudioBus(size_t channels, size_t frames, float* samples)
   DCHECK_GT(channels_, 0);
 
   channel_data_.push_back(reinterpret_cast<uint8*>(samples));
-
-  ZeroAllFrames();
 }
 
 ShellAudioBus::ShellAudioBus(size_t frames, const std::vector<int16*>& samples)
@@ -119,8 +114,6 @@ ShellAudioBus::ShellAudioBus(size_t frames, const std::vector<int16*>& samples)
   for (size_t i = 0; i < samples.size(); ++i) {
     channel_data_.push_back(reinterpret_cast<uint8*>(samples[i]));
   }
-
-  ZeroAllFrames();
 }
 
 ShellAudioBus::ShellAudioBus(size_t channels, size_t frames, int16* samples)
@@ -131,8 +124,6 @@ ShellAudioBus::ShellAudioBus(size_t channels, size_t frames, int16* samples)
   DCHECK_GT(channels_, 0);
 
   channel_data_.push_back(reinterpret_cast<uint8*>(samples));
-
-  ZeroAllFrames();
 }
 
 size_t ShellAudioBus::GetSampleSizeInBytes() const {
