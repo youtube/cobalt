@@ -83,7 +83,12 @@ class BrowserModule {
 #if defined(ENABLE_SCREENSHOT)
   // Request a screenshot to be written to the specified path. Callback will
   // be fired after the screenshot has been written to disk.
-  void RequestScreenshot(const FilePath& path, const base::Closure& done_cb);
+  void RequestScreenshotToFile(const FilePath& path,
+                               const base::Closure& done_cb);
+
+  // Request a screenshot to an in-memory buffer.
+  void RequestScreenshotToBuffer(
+      const ScreenShotWriter::PNGEncodeCompleteCallback& screenshot_ready);
 #endif
 
 #if defined(ENABLE_WEBDRIVER)
