@@ -123,7 +123,7 @@ void OnScreenshotMessage(BrowserModule* browser_module,
                    exploded.hour, exploded.minute, exploded.second);
 
   FilePath output_path = dir.Append(screenshot_file_name);
-  browser_module->RequestScreenshot(
+  browser_module->RequestScreenshotToFile(
       output_path, base::Bind(&ScreenshotCompleteCallback, output_path));
 }
 #endif  // defined(ENABLE_SCREENSHOT)
@@ -283,9 +283,15 @@ void BrowserModule::Reload() {
 }
 
 #if defined(ENABLE_SCREENSHOT)
-void BrowserModule::RequestScreenshot(const FilePath& path,
-                                      const base::Closure& done_cb) {
+void BrowserModule::RequestScreenshotToFile(const FilePath& path,
+                                            const base::Closure& done_cb) {
   screen_shot_writer_->RequestScreenshot(path, done_cb);
+}
+
+void BrowserModule::RequestScreenshotToBuffer(
+    const ScreenShotWriter::PNGEncodeCompleteCallback&
+        encode_complete_callback) {
+  screen_shot_writer_->RequestScreenshotToMemory(encode_complete_callback);
 }
 #endif
 

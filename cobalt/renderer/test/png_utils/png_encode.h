@@ -18,6 +18,7 @@
 #define RENDERER_TEST_PNG_UTILS_PNG_ENCODE_H_
 
 #include "base/file_path.h"
+#include "base/memory/scoped_ptr.h"
 
 namespace cobalt {
 namespace renderer {
@@ -27,6 +28,11 @@ namespace png_utils {
 // Encodes RGBA8 formatted pixel data to a PNG file on disk.
 void EncodeRGBAToPNG(const FilePath& png_file_path, const uint8_t* pixel_data,
                      int width, int height, int pitch_in_bytes);
+
+// Encodes RGBA8 formatted pixel data to an in memory buffer.
+scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
+                                       int height, int pitch_in_bytes,
+                                       size_t* out_size);
 
 }  // namespace png_utils
 }  // namespace test
