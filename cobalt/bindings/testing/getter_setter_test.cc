@@ -15,10 +15,14 @@
  */
 
 #include "base/stringprintf.h"
-#include "cobalt/bindings/testing/anonymous_getter_setter_interface.h"
+#include "cobalt/bindings/testing/anonymous_indexed_getter_interface.h"
+#include "cobalt/bindings/testing/anonymous_named_getter_interface.h"
+#include "cobalt/bindings/testing/anonymous_named_indexed_getter_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/derived_getter_setter_interface.h"
-#include "cobalt/bindings/testing/getter_setter_interface.h"
+#include "cobalt/bindings/testing/indexed_getter_interface.h"
+#include "cobalt/bindings/testing/named_getter_interface.h"
+#include "cobalt/bindings/testing/named_indexed_getter_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -33,11 +37,18 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef InterfaceBindingsTest<GetterSetterInterface> GetterSetterBindingsTest;
-typedef InterfaceBindingsTest<AnonymousGetterSetterInterface>
-    AnonymousGetterSetterBindingsTest;
+typedef InterfaceBindingsTest<AnonymousIndexedGetterInterface>
+    AnonymousIndexedGetterBindingsTest;
+typedef InterfaceBindingsTest<AnonymousNamedIndexedGetterInterface>
+    AnonymousNamedIndexedGetterBindingsTest;
+typedef InterfaceBindingsTest<AnonymousNamedGetterInterface>
+    AnonymousNamedGetterBindingsTest;
 typedef InterfaceBindingsTest<DerivedGetterSetterInterface>
     DerivedGetterSetterBindingsTest;
+typedef InterfaceBindingsTest<IndexedGetterInterface> IndexedGetterBindingsTest;
+typedef InterfaceBindingsTest<NamedGetterInterface> NamedGetterBindingsTest;
+typedef InterfaceBindingsTest<NamedIndexedGetterInterface>
+    NamedIndexedGetterBindingsTest;
 
 class NamedPropertiesEnumerator {
  public:
@@ -55,7 +66,7 @@ class NamedPropertiesEnumerator {
 };
 }  // namespace
 
-TEST_F(GetterSetterBindingsTest, IndexedGetter) {
+TEST_F(IndexedGetterBindingsTest, IndexedGetter) {
   InSequence dummy;
 
   std::string result;
@@ -69,7 +80,7 @@ TEST_F(GetterSetterBindingsTest, IndexedGetter) {
   EXPECT_STREQ("6", result.c_str());
 }
 
-TEST_F(GetterSetterBindingsTest, IndexedGetterOutOfRange) {
+TEST_F(IndexedGetterBindingsTest, IndexedGetterOutOfRange) {
   InSequence dummy;
 
   std::string result;
@@ -82,7 +93,7 @@ TEST_F(GetterSetterBindingsTest, IndexedGetterOutOfRange) {
   EXPECT_STREQ("20", result.c_str());
 }
 
-TEST_F(GetterSetterBindingsTest, IndexedSetter) {
+TEST_F(IndexedGetterBindingsTest, IndexedSetter) {
   InSequence dummy;
 
   EXPECT_CALL(test_mock(), length()).WillOnce(Return(10));
@@ -93,7 +104,7 @@ TEST_F(GetterSetterBindingsTest, IndexedSetter) {
   EXPECT_TRUE(EvaluateScript("test.indexedSetter(4, 100);", NULL));
 }
 
-TEST_F(GetterSetterBindingsTest, IndexedSetterOutOfRange) {
+TEST_F(IndexedGetterBindingsTest, IndexedSetterOutOfRange) {
   InSequence dummy;
 
   EXPECT_CALL(test_mock(), length()).WillOnce(Return(1));
@@ -104,7 +115,7 @@ TEST_F(GetterSetterBindingsTest, IndexedSetterOutOfRange) {
   EXPECT_TRUE(EvaluateScript("test.indexedSetter(4, 100);", NULL));
 }
 
-TEST_F(GetterSetterBindingsTest, NamedGetter) {
+TEST_F(NamedGetterBindingsTest, NamedGetter) {
   InSequence dummy;
 
   std::string result;
@@ -121,7 +132,7 @@ TEST_F(GetterSetterBindingsTest, NamedGetter) {
   EXPECT_STREQ("foo", result.c_str());
 }
 
-TEST_F(GetterSetterBindingsTest, NamedGetterUnsupportedName) {
+TEST_F(NamedGetterBindingsTest, NamedGetterUnsupportedName) {
   InSequence dummy;
 
   std::string result;
@@ -131,15 +142,7 @@ TEST_F(GetterSetterBindingsTest, NamedGetterUnsupportedName) {
   EXPECT_STREQ("undefined", result.c_str());
 }
 
-TEST_F(GetterSetterBindingsTest, NamedGetterDoesNotShadowBuiltIns) {
-  InSequence dummy;
-
-  std::string result;
-  EXPECT_TRUE(EvaluateScript("test[\"toString\"]();", &result));
-  EXPECT_STREQ("[object GetterSetterInterface]", result.c_str());
-}
-
-TEST_F(GetterSetterBindingsTest, NamedSetter) {
+TEST_F(NamedGetterBindingsTest, NamedSetter) {
   InSequence dummy;
 
   EXPECT_CALL(test_mock(), NamedSetter(std::string("foo"), std::string("bar")));
@@ -149,38 +152,30 @@ TEST_F(GetterSetterBindingsTest, NamedSetter) {
   EXPECT_TRUE(EvaluateScript("test.namedSetter(\"foo\", \"bar\");", NULL));
 }
 
-TEST_F(AnonymousGetterSetterBindingsTest, EnumerateIndexedProperties) {
-  std::string result;
-  EXPECT_CALL(test_mock(), length()).Times(5).WillRepeatedly(Return(4));
-  EXPECT_CALL(test_mock(), EnumerateNamedProperties(_));
-  EXPECT_TRUE(
-      EvaluateScript("var properties = [];"
-                     "for (p in test) { properties.push(p); }"
-                     "properties;",
-                     &result));
+TEST_F(NamedGetterBindingsTest, IndexConvertsToNamedProperty) {
+  InSequence dummy;
 
-  EXPECT_STREQ("0,1,2,3,length", result.c_str());
-}
-
-TEST_F(AnonymousGetterSetterBindingsTest, EnumerateNamedProperties) {
-  NamedPropertiesEnumerator enumerator(4);
+  EXPECT_CALL(test_mock(), NamedSetter(std::string("5"), std::string("bar")));
+  EXPECT_TRUE(EvaluateScript("test[5] = \"bar\";", NULL));
 
   std::string result;
-  EXPECT_CALL(test_mock(), length()).WillOnce(Return(0));
-  EXPECT_CALL(test_mock(), EnumerateNamedProperties(_))
-      .WillOnce(Invoke(&enumerator,
-                       &NamedPropertiesEnumerator::EnumerateNamedProperties));
-  EXPECT_TRUE(
-      EvaluateScript("var properties = [];"
-                     "for (p in test) { properties.push(p); }"
-                     "properties;",
-                     &result));
-
-  EXPECT_STREQ("property_a,property_b,property_c,property_d,length",
-               result.c_str());
+  EXPECT_CALL(test_mock(), CanQueryNamedProperty(std::string("5")))
+      .WillOnce(Return(true));
+  EXPECT_CALL(test_mock(), NamedGetter(std::string("5")))
+      .WillOnce(Return(std::string("bar")));
+  EXPECT_TRUE(EvaluateScript("test[5];", &result));
+  EXPECT_STREQ("bar", result.c_str());
 }
 
-TEST_F(AnonymousGetterSetterBindingsTest, EnumeratedPropertiesOrdering) {
+TEST_F(NamedIndexedGetterBindingsTest, NamedGetterDoesNotShadowBuiltIns) {
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test[\"toString\"]();", &result));
+  EXPECT_STREQ("[object NamedIndexedGetterInterface]", result.c_str());
+}
+
+TEST_F(AnonymousNamedIndexedGetterBindingsTest, EnumeratedPropertiesOrdering) {
   NamedPropertiesEnumerator enumerator(2);
 
   std::string result;
@@ -199,7 +194,35 @@ TEST_F(AnonymousGetterSetterBindingsTest, EnumeratedPropertiesOrdering) {
   EXPECT_STREQ("0,1,property_a,property_b,length", result.c_str());
 }
 
-TEST_F(AnonymousGetterSetterBindingsTest, IndexedGetter) {
+TEST_F(AnonymousIndexedGetterBindingsTest, EnumerateIndexedProperties) {
+  std::string result;
+  EXPECT_CALL(test_mock(), length()).Times(5).WillRepeatedly(Return(4));
+  EXPECT_TRUE(
+      EvaluateScript("var properties = [];"
+                     "for (p in test) { properties.push(p); }"
+                     "properties;",
+                     &result));
+
+  EXPECT_STREQ("0,1,2,3,length", result.c_str());
+}
+
+TEST_F(AnonymousNamedGetterBindingsTest, EnumerateNamedProperties) {
+  NamedPropertiesEnumerator enumerator(4);
+
+  std::string result;
+  EXPECT_CALL(test_mock(), EnumerateNamedProperties(_))
+      .WillOnce(Invoke(&enumerator,
+                       &NamedPropertiesEnumerator::EnumerateNamedProperties));
+  EXPECT_TRUE(
+      EvaluateScript("var properties = [];"
+                     "for (p in test) { properties.push(p); }"
+                     "properties;",
+                     &result));
+
+  EXPECT_STREQ("property_a,property_b,property_c,property_d", result.c_str());
+}
+
+TEST_F(AnonymousIndexedGetterBindingsTest, IndexedGetter) {
   InSequence dummy;
 
   std::string result;
@@ -213,7 +236,7 @@ TEST_F(AnonymousGetterSetterBindingsTest, IndexedGetter) {
   EXPECT_TRUE(EvaluateScript("test[10];", NULL));
 }
 
-TEST_F(AnonymousGetterSetterBindingsTest, IndexedSetter) {
+TEST_F(AnonymousIndexedGetterBindingsTest, IndexedSetter) {
   InSequence dummy;
 
   EXPECT_CALL(test_mock(), length()).WillOnce(Return(10));
@@ -225,7 +248,7 @@ TEST_F(AnonymousGetterSetterBindingsTest, IndexedSetter) {
   EXPECT_TRUE(EvaluateScript("test[10] = 100;", NULL));
 }
 
-TEST_F(AnonymousGetterSetterBindingsTest, NamedGetter) {
+TEST_F(AnonymousNamedGetterBindingsTest, NamedGetter) {
   InSequence dummy;
 
   std::string result;
@@ -237,7 +260,7 @@ TEST_F(AnonymousGetterSetterBindingsTest, NamedGetter) {
   EXPECT_STREQ("bar", result.c_str());
 }
 
-TEST_F(AnonymousGetterSetterBindingsTest, NamedGetterUnsupportedName) {
+TEST_F(AnonymousNamedGetterBindingsTest, NamedGetterUnsupportedName) {
   InSequence dummy;
 
   std::string result;
@@ -247,7 +270,7 @@ TEST_F(AnonymousGetterSetterBindingsTest, NamedGetterUnsupportedName) {
   EXPECT_STREQ("undefined", result.c_str());
 }
 
-TEST_F(AnonymousGetterSetterBindingsTest, NamedSetter) {
+TEST_F(AnonymousNamedGetterBindingsTest, NamedSetter) {
   InSequence dummy;
 
   EXPECT_CALL(test_mock(),
