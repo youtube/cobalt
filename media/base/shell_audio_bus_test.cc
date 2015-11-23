@@ -176,8 +176,6 @@ TEST_F(ShellAudioBusTest, ConstructorWithAllocation) {
     EXPECT_EQ(reinterpret_cast<intptr_t>(samples) %
                   ShellAudioBus::kChannelAlignmentInBytes,
               0);
-    EXPECT_TRUE(
-        VerifyValues(reinterpret_cast<const float*>(samples), kFrames, 0.f));
   }
 }
 
@@ -188,7 +186,6 @@ TEST_F(ShellAudioBusTest, ConstructorWithoutAllocation) {
   const float* samples =
       reinterpret_cast<const float*>(audio_bus_->interleaved_data());
   EXPECT_EQ(samples, guarded_buffers_->GetBuffer<float>(0));
-  EXPECT_TRUE(VerifyValues(samples, kFrames, 0.f));
   EXPECT_TRUE(guarded_buffers_->VerifyGuardBytes());
 
   CreateAudioBus<int16>(ShellAudioBus::kPlanar);
@@ -198,7 +195,6 @@ TEST_F(ShellAudioBusTest, ConstructorWithoutAllocation) {
     const int16* samples =
         reinterpret_cast<const int16*>(audio_bus_->planar_data(channel));
     EXPECT_EQ(samples, guarded_buffers_->GetBuffer<int16>(channel));
-    EXPECT_TRUE(VerifyValues(samples, kFrames, static_cast<int16>(0)));
   }
   EXPECT_TRUE(guarded_buffers_->VerifyGuardBytes());
 }
@@ -300,6 +296,7 @@ TEST_F(ShellAudioBusTest, AssignWithSameSampleTypeAndStorageType) {
   {
     ShellAudioBus source(kChannels, kFrames / 2, ShellAudioBus::kFloat32,
                          ShellAudioBus::kInterleaved);
+    source.ZeroAllFrames();
     audio_bus_->Assign(source);
     EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<float>(0),
                              kFrames / 2 * kChannels, 0.f));
@@ -312,6 +309,7 @@ TEST_F(ShellAudioBusTest, AssignWithSameSampleTypeAndStorageType) {
   {
     ShellAudioBus source(kChannels, kFrames, ShellAudioBus::kFloat32,
                          ShellAudioBus::kInterleaved);
+    source.ZeroAllFrames();
     audio_bus_->Assign(source);
     EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<float>(0),
                              kFrames * kChannels, 0.f));
@@ -321,6 +319,7 @@ TEST_F(ShellAudioBusTest, AssignWithSameSampleTypeAndStorageType) {
   {
     ShellAudioBus source(kChannels, kFrames * 2, ShellAudioBus::kFloat32,
                          ShellAudioBus::kInterleaved);
+    source.ZeroAllFrames();
     audio_bus_->Assign(source);
     EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<float>(0),
                              kFrames * kChannels, 0.f));
@@ -334,6 +333,7 @@ TEST_F(ShellAudioBusTest, AssignWithSameSampleTypeAndStorageType) {
     {
       ShellAudioBus source(kChannels, kFrames / 2, ShellAudioBus::kInt16,
                            ShellAudioBus::kPlanar);
+      source.ZeroAllFrames();
       audio_bus_->Assign(source);
       EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<int16>(channel),
                                kFrames / 2, static_cast<int16>(0)));
@@ -346,6 +346,7 @@ TEST_F(ShellAudioBusTest, AssignWithSameSampleTypeAndStorageType) {
     {
       ShellAudioBus source(kChannels, kFrames, ShellAudioBus::kInt16,
                            ShellAudioBus::kPlanar);
+      source.ZeroAllFrames();
       audio_bus_->Assign(source);
       EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<int16>(channel),
                                kFrames, static_cast<int16>(0)));
@@ -355,6 +356,7 @@ TEST_F(ShellAudioBusTest, AssignWithSameSampleTypeAndStorageType) {
     {
       ShellAudioBus source(kChannels, kFrames * 2, ShellAudioBus::kInt16,
                            ShellAudioBus::kPlanar);
+      source.ZeroAllFrames();
       audio_bus_->Assign(source);
       EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<int16>(channel),
                                kFrames, static_cast<int16>(0)));
@@ -369,6 +371,7 @@ TEST_F(ShellAudioBusTest, AssignWithDifferentSampleTypesAndStorageTypes) {
   {
     ShellAudioBus source(kChannels, kFrames / 2, ShellAudioBus::kInt16,
                          ShellAudioBus::kPlanar);
+    source.ZeroAllFrames();
     audio_bus_->Assign(source);
     EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<float>(0),
                              kFrames / 2 * kChannels, 0.f));
@@ -381,6 +384,7 @@ TEST_F(ShellAudioBusTest, AssignWithDifferentSampleTypesAndStorageTypes) {
   {
     ShellAudioBus source(kChannels, kFrames, ShellAudioBus::kInt16,
                          ShellAudioBus::kPlanar);
+    source.ZeroAllFrames();
     audio_bus_->Assign(source);
     EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<float>(0),
                              kFrames * kChannels, 0.f));
@@ -390,6 +394,7 @@ TEST_F(ShellAudioBusTest, AssignWithDifferentSampleTypesAndStorageTypes) {
   {
     ShellAudioBus source(kChannels, kFrames * 2, ShellAudioBus::kInt16,
                          ShellAudioBus::kPlanar);
+    source.ZeroAllFrames();
     audio_bus_->Assign(source);
     EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<float>(0),
                              kFrames * kChannels, 0.f));
@@ -403,6 +408,7 @@ TEST_F(ShellAudioBusTest, AssignWithDifferentSampleTypesAndStorageTypes) {
     {
       ShellAudioBus source(kChannels, kFrames / 2, ShellAudioBus::kFloat32,
                            ShellAudioBus::kInterleaved);
+      source.ZeroAllFrames();
       audio_bus_->Assign(source);
       EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<int16>(channel),
                                kFrames / 2, static_cast<int16>(0)));
@@ -415,6 +421,7 @@ TEST_F(ShellAudioBusTest, AssignWithDifferentSampleTypesAndStorageTypes) {
     {
       ShellAudioBus source(kChannels, kFrames, ShellAudioBus::kFloat32,
                            ShellAudioBus::kInterleaved);
+      source.ZeroAllFrames();
       audio_bus_->Assign(source);
       EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<int16>(channel),
                                kFrames, static_cast<int16>(0)));
@@ -424,6 +431,7 @@ TEST_F(ShellAudioBusTest, AssignWithDifferentSampleTypesAndStorageTypes) {
     {
       ShellAudioBus source(kChannels, kFrames * 2, ShellAudioBus::kFloat32,
                            ShellAudioBus::kInterleaved);
+      source.ZeroAllFrames();
       audio_bus_->Assign(source);
       EXPECT_TRUE(VerifyValues(guarded_buffers_->GetBuffer<int16>(channel),
                                kFrames, static_cast<int16>(0)));
