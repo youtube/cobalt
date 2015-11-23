@@ -161,8 +161,9 @@ Application::Application()
   if (command_line->HasSwitch(switches::kEnableWebDriver)) {
     int webdriver_port = GetWebDriverPort();
     web_driver_module_.reset(new webdriver::WebDriverModule(
-        webdriver_port,
-        base::Bind(&BrowserModule::CreateSessionDriver,
+        webdriver_port, base::Bind(&BrowserModule::CreateSessionDriver,
+                                   base::Unretained(browser_module_.get())),
+        base::Bind(&BrowserModule::RequestScreenshotToBuffer,
                    base::Unretained(browser_module_.get())),
         base::Bind(&Application::Quit, base::Unretained(this))));
   }

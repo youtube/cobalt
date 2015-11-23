@@ -17,7 +17,10 @@
 #ifndef WEBDRIVER_WEB_DRIVER_MODULE_H_
 #define WEBDRIVER_WEB_DRIVER_MODULE_H_
 
+#include <string>
+
 #include "base/callback.h"
+#include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/webdriver/dispatcher.h"
@@ -40,8 +43,13 @@ class WebDriverModule {
  public:
   typedef base::Callback<scoped_ptr<SessionDriver>(const protocol::SessionId&)>
       CreateSessionDriverCB;
+  typedef base::Callback<void(scoped_array<uint8>, size_t)>
+      ScreenshotCompleteCallback;
+  typedef base::Callback<void(const ScreenshotCompleteCallback&)>
+      GetScreenshotFunction;
   WebDriverModule(int server_port,
                   const CreateSessionDriverCB& create_session_driver_cb,
+                  const GetScreenshotFunction& get_screenshot_function,
                   const base::Closure& shutdown_cb);
   ~WebDriverModule();
 
@@ -62,6 +70,10 @@ class WebDriverModule {
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
       scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  void RequestScreenshot(
+      const base::Value* parameters,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
   void Shutdown(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
@@ -72,10 +84,15 @@ class WebDriverModule {
   util::CommandResult<protocol::Capabilities> CreateSessionInternal(
       const protocol::RequestedCapabilities& capabilities);
 
+  util::CommandResult<std::string> RequestScreenshotInternal();
+
   base::ThreadChecker thread_checker_;
 
   // Create a new WebDriver session through this callback.
   CreateSessionDriverCB create_session_driver_cb_;
+
+  // Request a screenshot to be created and written to a file.
+  GetScreenshotFunction get_screenshot_function_;
 
   // Callback to shut down the application.
   base::Closure shutdown_cb_;
