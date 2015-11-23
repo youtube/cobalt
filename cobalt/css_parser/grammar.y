@@ -3481,12 +3481,12 @@ animation_fill_mode_list_element:
 comma_separated_animation_fill_mode_list:
       animation_fill_mode_list_element {
       $$ = new cssom::PropertyListValue::Builder();
-      $$->push_back($1);
+      $$->push_back(MakeScopedRefPtrAndRelease($1));
     }
     | comma_separated_animation_fill_mode_list comma
           animation_fill_mode_list_element {
       $$ = $1;
-      $$->push_back($3);
+      $$->push_back(MakeScopedRefPtrAndRelease($3));
     }
     | errors {
       parser_impl->LogError(
@@ -3520,12 +3520,12 @@ animation_iteration_count_list_element:
 comma_separated_animation_iteration_count_list:
     animation_iteration_count_list_element {
     $$ = new cssom::PropertyListValue::Builder();
-    $$->push_back($1);
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
   }
   | comma_separated_animation_iteration_count_list comma
         animation_iteration_count_list_element {
     $$ = $1;
-    $$->push_back($3);
+    $$->push_back(MakeScopedRefPtrAndRelease($3));
   }
   | errors {
     parser_impl->LogError(
@@ -3558,12 +3558,12 @@ animation_name_list_element:
 comma_separated_animation_name_list:
     animation_name_list_element {
     $$ = new cssom::PropertyListValue::Builder();
-    $$->push_back($1);
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
   }
   | comma_separated_animation_name_list comma
         animation_name_list_element {
     $$ = $1;
-    $$->push_back($3);
+    $$->push_back(MakeScopedRefPtrAndRelease($3));
   }
   | errors {
     parser_impl->LogError(
@@ -3593,8 +3593,7 @@ animation_timing_function_property_value: timing_function_list_property_value;
 single_animation_element:
     kIdentifierToken maybe_whitespace {
     if (!$<single_animation>0->name) {
-      $<single_animation>0->name =
-          AddRef(new cssom::StringValue($1.ToString()));
+      $<single_animation>0->name = new cssom::StringValue($1.ToString());
     } else {
       parser_impl->LogWarning(
           @1, "animation-name value declared twice in animation.");
@@ -3602,7 +3601,7 @@ single_animation_element:
   }
   | animation_fill_mode_list_element {
     if (!$<single_animation>0->fill_mode) {
-      $<single_animation>0->fill_mode = $1;
+      $<single_animation>0->fill_mode = MakeScopedRefPtrAndRelease($1);
     } else {
       parser_impl->LogWarning(
           @1, "animation-fill-mode value declared twice in animation.");
@@ -3610,7 +3609,7 @@ single_animation_element:
   }
   | animation_iteration_count_list_element {
     if (!$<single_animation>0->iteration_count) {
-      $<single_animation>0->iteration_count = $1;
+      $<single_animation>0->iteration_count = MakeScopedRefPtrAndRelease($1);
     } else {
       parser_impl->LogWarning(
           @1, "animation-iteration-count value declared twice in animation.");
