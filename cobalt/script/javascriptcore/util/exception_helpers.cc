@@ -59,8 +59,7 @@ std::string GetExceptionString(JSC::ExecState* exec_state,
             .utf8()
             .data();
     exception_string +=
-        base::StringPrintf("%s:%d", wtf_exception_string.utf8().data(),
-                           source_url.c_str(), line_number);
+        base::StringPrintf("%s:%d", source_url.c_str(), line_number);
   }
   return exception_string;
 }
