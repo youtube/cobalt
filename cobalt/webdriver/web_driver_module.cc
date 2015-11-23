@@ -19,7 +19,9 @@
 #include <string>
 #include <vector>
 
+#include "base/base64.h"
 #include "base/bind.h"
+#include "base/file_util.h"
 #include "base/values.h"
 #include "cobalt/webdriver/dispatcher.h"
 #include "cobalt/webdriver/protocol/capabilities.h"
@@ -135,12 +137,30 @@ ElementDriver* LookUpElementDriverOrReturnInvalidResponse(
   return element_driver;
 }
 
+// Helper struct for getting a PNG screenshot synchronously.
+struct ScreenshotResultContext {
+  ScreenshotResultContext() : num_bytes(0), complete_event(true, false) {}
+  scoped_array<uint8> png_data;
+  size_t num_bytes;
+  base::WaitableEvent complete_event;
+};
+
+// Callback function to be called when PNG encoding is complete.
+void OnPNGEncodeComplete(ScreenshotResultContext* context,
+                         scoped_array<uint8> png_data, size_t num_bytes) {
+  context->png_data = png_data.Pass();
+  context->num_bytes = num_bytes;
+  context->complete_event.Signal();
+}
+
 }  // namespace
 
 WebDriverModule::WebDriverModule(
     int server_port, const CreateSessionDriverCB& create_session_driver_cb,
+    const GetScreenshotFunction& get_screenshot_function,
     const base::Closure& shutdown_cb)
     : create_session_driver_cb_(create_session_driver_cb),
+      get_screenshot_function_(get_screenshot_function),
       shutdown_cb_(shutdown_cb),
       webdriver_dispatcher_(new WebDriverDispatcher()) {
   get_session_driver_ =
@@ -190,6 +210,10 @@ WebDriverModule::WebDriverModule(
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kDelete, StringPrintf("/session/%s", kSessionIdVariable),
       base::Bind(&WebDriverModule::DeleteSession, base::Unretained(this)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/screenshot", kSessionIdVariable),
+      base::Bind(&WebDriverModule::RequestScreenshot, base::Unretained(this)));
 
   // Session commands.
   webdriver_dispatcher_->RegisterCommand(
@@ -276,7 +300,6 @@ SessionDriver* WebDriverModule::GetSessionDriver(
   return NULL;
 }
 
-
 // https://code.google.com/p/selenium/wiki/JsonWireProtocol#/status
 void WebDriverModule::GetServerStatus(
     const base::Value* parameters,
@@ -327,7 +350,6 @@ void WebDriverModule::CreateSession(
                                  result_handler.get());
 }
 
-
 // https://code.google.com/p/selenium/wiki/JsonWireProtocol#DELETE_/session/:sessionId
 void WebDriverModule::DeleteSession(
     const base::Value* parameters,
@@ -348,6 +370,25 @@ void WebDriverModule::DeleteSession(
   // If the session doesn't exist, then this is a no-op.
   result_handler->SendResult(base::nullopt, protocol::Response::kSuccess,
                              scoped_ptr<base::Value>());
+}
+
+// https://code.google.com/p/selenium/wiki/JsonWireProtocol#/session/:sessionId/screenshot
+void WebDriverModule::RequestScreenshot(
+    const base::Value* parameters,
+    const WebDriverDispatcher::PathVariableMap* path_variables,
+    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
+      base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
+      path_variables, result_handler.get());
+  if (session_driver) {
+    typedef util::CommandResult<std::string> CommandResult;
+
+    CommandResult result = RequestScreenshotInternal();
+    util::internal::ReturnResponse(session_driver->session_id(), result,
+                                   result_handler.get());
+  }
 }
 
 void WebDriverModule::Shutdown(
@@ -390,5 +431,35 @@ WebDriverModule::CreateSessionInternal(
 
   return session_->GetCapabilities();
 }
+
+util::CommandResult<std::string> WebDriverModule::RequestScreenshotInternal() {
+  typedef util::CommandResult<std::string> CommandResult;
+
+  // Request the screenshot and wait for the PNG data.
+  ScreenshotResultContext context;
+  get_screenshot_function_.Run(
+      base::Bind(&OnPNGEncodeComplete, base::Unretained(&context)));
+  context.complete_event.Wait();
+
+  if (context.num_bytes == 0 || !context.png_data.get()) {
+    return CommandResult(protocol::Response::kUnknownError,
+                         "Failed to take screenshot.");
+  }
+
+  // Encode the PNG data as a base64 encoded string.
+  std::string encoded;
+  {
+    // base64 encode the contents of the file to be returned to the client.
+    if (!base::Base64Encode(
+            base::StringPiece(reinterpret_cast<char*>(context.png_data.get()),
+                              context.num_bytes),
+            &encoded)) {
+      return CommandResult(protocol::Response::kUnknownError,
+                           "Failed to base64 encode screenshot file contents.");
+    }
+  }
+  return CommandResult(encoded);
+}
+
 }  // namespace webdriver
 }  // namespace cobalt

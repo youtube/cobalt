@@ -32,6 +32,9 @@ namespace browser {
 // File I/O is performed on a dedicated thread.
 class ScreenShotWriter {
  public:
+  typedef base::Callback<void(scoped_array<uint8>, size_t)>
+      PNGEncodeCompleteCallback;
+
   // Constructs a new ScreenShotWriter that will create offscreen render targets
   // through |graphics_context|, and submit the most recent Pipeline::Submission
   // to |pipeline| to be rasterized.
@@ -43,6 +46,11 @@ class ScreenShotWriter {
   void RequestScreenshot(const FilePath& output_path,
                          const base::Closure& complete);
 
+  // Creates a screenshot from the most recently submitted Pipeline::Submission
+  // and converts it to a PNG. |callback| will be called with the PNG data and
+  // the number of bytes in the array.
+  void RequestScreenshotToMemory(const PNGEncodeCompleteCallback& callback);
+
   // This should be called whenever a new render tree is produced. The render
   // tree that is submitted here is the one that will be rasterized when a
   // screenshot is requested.
@@ -52,9 +60,19 @@ class ScreenShotWriter {
  private:
   // Callback function that will be fired from the rasterizer thread when
   // rasterization of |last_submission_| is complete.
+  // After converting the |pixel_data| to an in-memory PNG,
+  // |encode_complete_callback| will be called.
   void RasterizationComplete(
-      const FilePath& output_path, const base::Closure& complete_cb,
+      const PNGEncodeCompleteCallback& encode_complete_callback,
       scoped_array<uint8> pixel_data, const math::Size& dimensions);
+
+  // Callback function that will be fired from the RasterizationComplete
+  // callback when PNG encoding is complete.
+  // |write_complete_cb| will be called when |png_data| has been completely
+  // written to |output_path|.
+  void EncodingComplete(const FilePath& output_path,
+                        const base::Closure& write_complete_cb,
+                        scoped_array<uint8> png_data, size_t num_bytes);
 
   renderer::Pipeline* pipeline_;
   base::optional<renderer::Pipeline::Submission> last_submission_;
