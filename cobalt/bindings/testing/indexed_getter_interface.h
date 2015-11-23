@@ -14,35 +14,27 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
-#define BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
+#ifndef BINDINGS_TESTING_INDEXED_GETTER_INTERFACE_H_
+#define BINDINGS_TESTING_INDEXED_GETTER_INTERFACE_H_
 
-#include <string>
-
-#include "cobalt/bindings/testing/named_indexed_getter_interface.h"
+#include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {
 namespace bindings {
 namespace testing {
 
-class DerivedGetterSetterInterface : public NamedIndexedGetterInterface {
+class IndexedGetterInterface : public script::Wrappable {
  public:
   MOCK_METHOD0(length, uint32_t());
-  MOCK_METHOD1(DerivedIndexedGetter, uint32_t(uint32_t));
-  MOCK_METHOD2(DerivedIndexedSetter, void(uint32_t, uint32_t));
-  MOCK_METHOD1(AnonymousNamedGetter, std::string(const std::string&));
-  MOCK_METHOD2(AnonymousNamedSetter,
-               void(const std::string&, const std::string&));
-  MOCK_METHOD0(property_on_derived_class, bool());
-  MOCK_METHOD1(set_property_on_derived_class, void(bool));
-  MOCK_METHOD0(OperationOnDerivedClass, void());
+  MOCK_METHOD1(IndexedGetter, uint32_t(uint32_t));
+  MOCK_METHOD2(IndexedSetter, void(uint32_t, uint32_t));
 
-  DEFINE_WRAPPABLE_TYPE(DerivedGetterSetterInterface);
+  DEFINE_WRAPPABLE_TYPE(IndexedGetterInterface);
 };
 
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
+#endif  // BINDINGS_TESTING_INDEXED_GETTER_INTERFACE_H_
