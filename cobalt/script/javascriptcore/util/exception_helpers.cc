@@ -46,7 +46,7 @@ std::string GetExceptionString(JSC::ExecState* exec_state,
   JSC::JSObject* exception_object = exception.toObject(exec_state);
   JSC::JSValue stack_value = exception_object->getDirect(
       *global_data, global_data->propertyNames->stack);
-  if (stack_value.isString()) {
+  if (!stack_value.isEmpty() && stack_value.isString()) {
     exception_string += stack_value.toWTFString(exec_state).utf8().data();
   } else {
     int line_number =
