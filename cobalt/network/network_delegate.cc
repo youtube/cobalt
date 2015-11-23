@@ -21,10 +21,11 @@
 namespace cobalt {
 namespace network {
 
-NetworkDelegate::NetworkDelegate(const NetworkDelegate::Options& options)
-    : cookie_policy_(options.cookie_policy),
+NetworkDelegate::NetworkDelegate(net::StaticCookiePolicy::Type cookie_policy,
+                                 bool require_https)
+    : cookie_policy_(cookie_policy),
       cookies_enabled_(true),
-      require_https_(options.require_https) {}
+      require_https_(require_https) {}
 
 NetworkDelegate::~NetworkDelegate() {}
 
@@ -40,12 +41,15 @@ int NetworkDelegate::OnBeforeURLRequest(
 #else
   bool require_https = require_https_;
 #endif
-  // && with a constant is intentional.
-  MSVC_PUSH_DISABLE_WARNING(6239)
-  return require_https && !request->url().SchemeIsSecure()
-             ? net::ERR_DISALLOWED_URL_SCHEME
-             : net::OK;
-  MSVC_POP_WARNING()
+
+  if (!require_https) {
+    return net::OK;
+  } else if (request->url().SchemeIsSecure() ||
+             request->url().SchemeIs("data")) {
+    return net::OK;
+  } else {
+    return net::ERR_DISALLOWED_URL_SCHEME;
+  }
 }
 
 int NetworkDelegate::OnBeforeSendHeaders(
