@@ -153,11 +153,14 @@ void ProcessBacktrace(void *const *trace,
   // when we are not executing the signal handler.
   if (in_signal_handler == 0) {
 #if defined(__LB_PS3__)
-    scoped_ptr_malloc<char*> trace_symbols(
-        ResolveSymbolsFromHostPS3(trace, size));
+    std::string symbols;
+    bool success = ResolveSymbolsFromHostPS3(trace, size, &symbols);
+    if (success && symbols.length() > 0) {
+      handler->HandleOutput(symbols.c_str());
+      printed = true;
+    }
 #else
     scoped_ptr_malloc<char*> trace_symbols(backtrace_symbols(trace, size));
-#endif
     if (trace_symbols.get()) {
       for (int i = 0; i < size; ++i) {
         std::string trace_symbol = trace_symbols.get()[i];
@@ -168,6 +171,7 @@ void ProcessBacktrace(void *const *trace,
 
       printed = true;
     }
+#endif
   }
 
   if (!printed) {
