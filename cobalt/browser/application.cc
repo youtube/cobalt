@@ -140,6 +140,15 @@ Application::Application()
   BrowserModule::Options options;
   options.web_module_options.name = "MainWebModule";
   options.language = language;
+  options.network_module_options.preferred_language = language;
+
+#if !defined(COBALT_FORCE_HTTPS)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kAllowHttp)) {
+    DLOG(INFO) << "Allowing insecure HTTP connections";
+    options.network_module_options.require_https = false;
+  }
+#endif  // !defined(COBALT_FORCE_HTTPS)
+
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
   system_window_ = system_window::CreateSystemWindow(&event_dispatcher_);

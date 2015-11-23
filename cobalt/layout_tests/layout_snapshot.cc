@@ -55,7 +55,11 @@ browser::WebModule::LayoutResults SnapshotURL(
   base::RunLoop run_loop;
 
   // Setup WebModule's auxiliary components.
-  network::NetworkModule network_module;
+  network::NetworkModule::Options net_options;
+  // Some layout tests test Content Security Policy; allow HTTP so we
+  // don't interfere.
+  net_options.require_https = false;
+  network::NetworkModule network_module(net_options);
 
   // We do not support a media module in this mode.
   scoped_ptr<media::MediaModule> stub_media_module(
