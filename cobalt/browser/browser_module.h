@@ -50,6 +50,7 @@ class BrowserModule {
   // All browser subcomponent options should have default constructors that
   // setup reasonable default options.
   struct Options {
+    network::NetworkModule::Options network_module_options;
     renderer::RendererModule::Options renderer_module_options;
     storage::StorageManager::Options storage_manager_options;
     WebModule::Options web_module_options;

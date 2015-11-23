@@ -33,16 +33,19 @@ void OnDestroy(scoped_ptr<URLRequestContext> /* url_request_context */,
                scoped_ptr<NetworkDelegate> /* network_delegate */) {}
 }  // namespace
 
-NetworkModule::NetworkModule()
-    : storage_manager_(NULL), preferred_language_("en-US") {
+NetworkModule::NetworkModule() : storage_manager_(NULL) {
+  Initialize(NULL /* event_dispatcher */);
+}
+
+NetworkModule::NetworkModule(const Options& options)
+    : storage_manager_(NULL), options_(options) {
   Initialize(NULL /* event_dispatcher */);
 }
 
 NetworkModule::NetworkModule(storage::StorageManager* storage_manager,
                              base::EventDispatcher* event_dispatcher,
-                             const std::string& preferred_language)
-    : storage_manager_(storage_manager),
-      preferred_language_(preferred_language) {
+                             const Options& options)
+    : storage_manager_(storage_manager), options_(options) {
   Initialize(event_dispatcher);
 }
 
@@ -65,7 +68,7 @@ NetworkModule::~NetworkModule() {
 void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
   thread_.reset(new base::Thread("NetworkModule"));
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
-  user_agent_.reset(new UserAgent(preferred_language_));
+  user_agent_.reset(new UserAgent(options_.preferred_language));
 
   network_system_ = NetworkSystem::Create(event_dispatcher);
 
@@ -94,15 +97,8 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   DCHECK(message_loop_proxy()->BelongsToCurrentThread());
 
   url_request_context_.reset(new URLRequestContext(storage_manager_));
-  NetworkDelegate::Options net_options;
-#if !defined(COBALT_FORCE_HTTPS)
-  if (CommandLine::ForCurrentProcess()->HasSwitch("allow_http")) {
-    DLOG(INFO) << "Allowing insecure HTTP connections";
-    net_options.require_https = false;
-  }
-#endif  // !defined(COBALT_FORCE_HTTPS)
-
-  network_delegate_.reset(new NetworkDelegate(net_options));
+  network_delegate_.reset(
+      new NetworkDelegate(options_.cookie_policy, options_.require_https));
   url_request_context_->set_http_user_agent_settings(user_agent_.get());
   url_request_context_->set_network_delegate(network_delegate_.get());
   creation_event->Signal();

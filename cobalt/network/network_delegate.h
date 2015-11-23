@@ -31,16 +31,8 @@ namespace network {
 // is used to specify a cookie policy.
 class NetworkDelegate : public net::NetworkDelegate {
  public:
-  struct Options {
-    Options()
-        : cookie_policy(
-              net::StaticCookiePolicy::BLOCK_SETTING_THIRD_PARTY_COOKIES),
-          require_https(true) {}
-    net::StaticCookiePolicy::Type cookie_policy;
-    bool require_https;
-  };
-
-  explicit NetworkDelegate(const Options& options);
+  NetworkDelegate(net::StaticCookiePolicy::Type cookie_policy,
+                  bool require_https);
   ~NetworkDelegate() OVERRIDE;
 
   // For debugging, we allow blocking all cookies.
