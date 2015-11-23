@@ -28,6 +28,7 @@
 #include "cobalt/network/url_request_context_getter.h"
 #include "cobalt/network/user_agent.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/static_cookie_policy.h"
 
 namespace base {
 class WaitableEvent;
@@ -46,12 +47,24 @@ class NetworkSystem;
 // a URL request context. This is owned by BrowserModule.
 class NetworkModule {
  public:
+  struct Options {
+    Options()
+        : cookie_policy(
+              net::StaticCookiePolicy::BLOCK_SETTING_THIRD_PARTY_COOKIES),
+          require_https(true),
+          preferred_language("en-US") {}
+    net::StaticCookiePolicy::Type cookie_policy;
+    bool require_https;
+    std::string preferred_language;
+  };
+
   // Default constructor, for use by unit tests.
   NetworkModule();
+  explicit NetworkModule(const Options& options);
   // Constructor for production use.
   NetworkModule(storage::StorageManager* storage_manager,
                 base::EventDispatcher* event_dispatcher,
-                const std::string& preferred_language);
+                const Options& options);
   ~NetworkModule();
 
   URLRequestContext* url_request_context() const {
@@ -61,7 +74,9 @@ class NetworkModule {
     return network_delegate_.get();
   }
   const std::string& user_agent() const { return user_agent_->user_agent(); }
-  const std::string& preferred_language() const { return preferred_language_; }
+  const std::string& preferred_language() const {
+    return options_.preferred_language;
+  }
   scoped_refptr<URLRequestContextGetter> url_request_context_getter() const {
     return url_request_context_getter_;
   }
@@ -81,9 +96,8 @@ class NetworkModule {
   scoped_refptr<URLRequestContextGetter> url_request_context_getter_;
   scoped_ptr<NetworkDelegate> network_delegate_;
   scoped_ptr<UserAgent> user_agent_;
-  std::string preferred_language_;
   scoped_ptr<NetworkSystem> network_system_;
-
+  Options options_;
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);
 };
 

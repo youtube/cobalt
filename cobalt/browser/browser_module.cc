@@ -137,7 +137,7 @@ BrowserModule::BrowserModule(const GURL& url,
       media_module_(media::MediaModule::Create(
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_, system_window->event_dispatcher(),
-                      options.language),
+                      options.network_module_options),
       render_tree_combiner_(renderer_module_.pipeline()),
 #if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_hub_(new debug::DebugHub(

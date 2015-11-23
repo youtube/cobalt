@@ -21,9 +21,32 @@ namespace browser {
 namespace switches {
 
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
+// Allow insecure HTTP network connections.
+const char kAllowHttp[] = "allow_http";
+
+// Switches different debug console modes: on | hud | off
+const char kDebugConsoleMode[] = "debug_console";
+
+// Create WebDriver server.
+const char kEnableWebDriver[] = "enable_webdriver";
+
+// Additional base directory for accessing web files via file://.
+const char kExtraWebFileDir[] = "web_file_path";
+
 // Setting this switch defines the startup URL that Cobalt will use.  If no
 // value is set, a default URL will be used.
 const char kInitialURL[] = "url";
+
+// If this flag is set, input will be continuously generated randomly instead of
+// taken from an external input device (like a controller).
+const char kInputFuzzer[] = "input_fuzzer";
+
+// Switches partial layout: on | off
+const char kPartialLayout[] = "partial_layout";
+
+// If this flag is set, Cobalt will automatically shutdown after the specified
+// number of seconds have passed.
+const char kShutdownAfter[] = "shutdown_after";
 
 // If this is set, then a trace (see base/debug/trace_eventh.h) is started on
 // Cobalt startup.  A value must also be specified for this switch, which is
@@ -32,28 +55,9 @@ const char kInitialURL[] = "url";
 // "timed_trace.json" in the log output directory.
 const char kTimedTrace[] = "timed_trace";
 
-// If this flag is set, input will be continuously generated randomly instead of
-// taken from an external input device (like a controller).
-const char kInputFuzzer[] = "input_fuzzer";
-
-// If this flag is set, Cobalt will automatically shutdown after the specified
-// number of seconds have passed.
-const char kShutdownAfter[] = "shutdown_after";
-
-// Switches different debug console modes: on | hud | off
-const char kDebugConsoleMode[] = "debug_console";
-
-// Switches partial layout: on | off
-const char kPartialLayout[] = "partial_layout";
-
-// Create WebDriver server.
-const char kEnableWebDriver[] = "enable_webdriver";
-
 // Port that the WebDriver server should be listening on.
 const char kWebDriverPort[] = "webdriver_port";
 
-// Additional base directory for accessing web files via file://.
-const char kExtraWebFileDir[] = "web_file_path";
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
 }  // namespace switches
