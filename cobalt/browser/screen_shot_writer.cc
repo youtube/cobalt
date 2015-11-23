@@ -17,19 +17,20 @@
 #include "cobalt/browser/screen_shot_writer.h"
 
 #include "base/bind.h"
+#include "base/file_util.h"
 #include "cobalt/renderer/backend/surface_info.h"
 #include "cobalt/renderer/test/png_utils/png_encode.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkPixelRef.h"
 
-using cobalt::renderer::test::png_utils::EncodeRGBAToPNG;
+using cobalt::renderer::test::png_utils::EncodeRGBAToBuffer;
 
 namespace cobalt {
 namespace browser {
 namespace {
-void WriteRGBAPixelsToPNG(scoped_array<uint8> pixel_data,
-                          const math::Size& dimensions,
-                          const FilePath& output_file) {
+scoped_array<uint8> WriteRGBAPixelsToPNG(scoped_array<uint8> pixel_data,
+                                         const math::Size& dimensions,
+                                         size_t* out_num_bytes) {
   // Given a chunk of memory formatted as RGBA8 with pitch = width * 4, this
   // function will wrap that memory in a SkBitmap that does *not* own the
   // pixels and return that.
@@ -42,9 +43,9 @@ void WriteRGBAPixelsToPNG(scoped_array<uint8> pixel_data,
       dimensions.width() * kRGBABytesPerPixel);
 
   // No conversion needed here, simply write out the pixels as is.
-  EncodeRGBAToPNG(output_file,
-                  static_cast<uint8_t*>(bitmap.pixelRef()->pixels()),
-                  bitmap.width(), bitmap.height(), bitmap.rowBytes());
+  return EncodeRGBAToBuffer(static_cast<uint8_t*>(bitmap.pixelRef()->pixels()),
+                            bitmap.width(), bitmap.height(), bitmap.rowBytes(),
+                            out_num_bytes);
 }
 }  // namespace
 
@@ -58,14 +59,21 @@ ScreenShotWriter::ScreenShotWriter(renderer::Pipeline* pipeline)
 
 void ScreenShotWriter::RequestScreenshot(const FilePath& output_path,
                                          const base::Closure& complete) {
+  RequestScreenshotToMemory(base::Bind(&ScreenShotWriter::EncodingComplete,
+                                       base::Unretained(this), output_path,
+                                       complete));
+}
+
+void ScreenShotWriter::RequestScreenshotToMemory(
+    const PNGEncodeCompleteCallback& callback) {
+  DCHECK(!callback.is_null());
   DCHECK(last_submission_);
   renderer::Pipeline::Submission submission(last_submission_.value());
   submission.time_offset +=
       base::TimeTicks::HighResNow() - last_submission_time_;
   pipeline_->RasterizeToRGBAPixels(
-      submission,
-      base::Bind(&ScreenShotWriter::RasterizationComplete,
-                 base::Unretained(this), output_path, complete));
+      submission, base::Bind(&ScreenShotWriter::RasterizationComplete,
+                             base::Unretained(this), callback));
 }
 
 void ScreenShotWriter::SetLastPipelineSubmission(
@@ -76,22 +84,35 @@ void ScreenShotWriter::SetLastPipelineSubmission(
 }
 
 void ScreenShotWriter::RasterizationComplete(
-    const FilePath& output_path, const base::Closure& complete_cb,
+    const PNGEncodeCompleteCallback& encode_complete_callback,
     scoped_array<uint8> pixel_data, const math::Size& dimensions) {
   if (MessageLoop::current() != screenshot_thread_.message_loop()) {
     screenshot_thread_.message_loop()->PostTask(
-        FROM_HERE,
-        base::Bind(&ScreenShotWriter::RasterizationComplete,
-                   base::Unretained(this), output_path, complete_cb,
-                   base::Passed(&pixel_data), dimensions));
+        FROM_HERE, base::Bind(&ScreenShotWriter::RasterizationComplete,
+                              base::Unretained(this), encode_complete_callback,
+                              base::Passed(&pixel_data), dimensions));
     return;
   }
+  size_t num_bytes;
+  scoped_array<uint8> png_data =
+      WriteRGBAPixelsToPNG(pixel_data.Pass(), dimensions, &num_bytes);
+
+  encode_complete_callback.Run(png_data.Pass(), num_bytes);
+}
+
+void ScreenShotWriter::EncodingComplete(const FilePath& output_path,
+                                        const base::Closure& complete_callback,
+                                        scoped_array<uint8> png_data,
+                                        size_t num_bytes) {
+  DCHECK_EQ(MessageLoop::current(), screenshot_thread_.message_loop());
   // Blocking write to output_path.
-  WriteRGBAPixelsToPNG(pixel_data.Pass(), dimensions, output_path);
+  int bytes_written = file_util::WriteFile(
+      output_path, reinterpret_cast<char*>(png_data.get()), num_bytes);
+  DLOG_IF(ERROR, bytes_written != num_bytes) << "Error writing PNG to file.";
 
   // Notify the caller that the screenshot is complete.
-  if (!complete_cb.is_null()) {
-    complete_cb.Run();
+  if (!complete_callback.is_null()) {
+    complete_callback.Run();
   }
 }
 

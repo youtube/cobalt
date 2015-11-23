@@ -16,6 +16,8 @@
 
 #include "cobalt/renderer/test/png_utils/png_encode.h"
 
+#include <vector>
+
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "third_party/libpng/png.h"
@@ -26,22 +28,38 @@ namespace test {
 namespace png_utils {
 
 namespace {
-void png_write_row_callback(void*, uint32_t, int) {
-  // no-op
+// Write PNG data to a vector to simplify memory management.
+typedef std::vector<png_byte> PNGByteVector;
+
+void PNGWriteFunction(png_structp png_ptr, png_bytep data, png_size_t length) {
+  PNGByteVector* out_buffer =
+      reinterpret_cast<PNGByteVector*>(png_get_io_ptr(png_ptr));
+  // Append the data to the array using pointers to the beginning and end of the
+  // buffer as the first and last iterators.
+  out_buffer->insert(out_buffer->end(), data, data + length);
 }
-}
+}  // namespace
 
 void EncodeRGBAToPNG(const FilePath& png_file_path, const uint8_t* pixel_data,
                      int width, int height, int pitch_in_bytes) {
-  // FILE pointers are used here because that is the interface that libpng
-  // expects.
-  FILE* fp = file_util::OpenFile(png_file_path, "wb");
-
-  if (!fp) {
-    DLOG(ERROR) << "Unable to open file: " << png_file_path.value().c_str();
+  // Write the PNG to an in-memory buffer and then write it to disk.
+  size_t size;
+  scoped_array<uint8> buffer =
+      EncodeRGBAToBuffer(pixel_data, width, height, pitch_in_bytes, &size);
+  if (!buffer || size == 0) {
+    DLOG(ERROR) << "Failed to encode PNG.";
     return;
   }
 
+  int bytes_written = file_util::WriteFile(
+      png_file_path, reinterpret_cast<char*>(buffer.get()), size);
+  DLOG_IF(ERROR, bytes_written != size) << "Error writing PNG to file.";
+}
+
+// Encodes RGBA8 formatted pixel data to an in memory buffer.
+scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
+                                       int height, int pitch_in_bytes,
+                                       size_t* out_size) {
   // Initialize png library and headers for writing.
   png_structp png =
       png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -54,15 +72,17 @@ void EncodeRGBAToPNG(const FilePath& png_file_path, const uint8_t* pixel_data,
   // yo libpng, 1980 called, they want their longjmp() back....
   if (setjmp(png->jmpbuf)) {
     png_destroy_write_struct(&png, &info);
-    file_util::CloseFile(fp);
     NOTREACHED() << "libpng encountered an error during processing.";
+    return scoped_array<uint8>();
   }
 
-  // Turn on the write callback.
-  png_set_write_status_fn(
-      png, (void (*)(png_struct*, png_uint_32, int))png_write_row_callback);
-  // Set up png library for writing to file.
-  png_init_io(png, fp);
+  // Structure into which png data will be written.
+  PNGByteVector png_buffer;
+
+  // Set the write callback. Don't set the flush function, since there's no
+  // need for buffered IO when writing to memory.
+  png_set_write_fn(png, &png_buffer, &PNGWriteFunction, NULL);
+
   // Stuff and then write png header.
   png_set_IHDR(png, info, width, height,
                8,  // 8 bits per color channel.
@@ -79,7 +99,14 @@ void EncodeRGBAToPNG(const FilePath& png_file_path, const uint8_t* pixel_data,
 
   png_write_end(png, NULL);
   png_destroy_write_struct(&png, &info);
-  file_util::CloseFile(fp);
+
+  size_t num_bytes = png_buffer.size() * sizeof(PNGByteVector::value_type);
+  *out_size = num_bytes;
+
+  // Copy the memory from the buffer to a scoped_array to return to the caller.
+  scoped_array<uint8> out_buffer(new uint8[num_bytes]);
+  memcpy(out_buffer.get(), &(png_buffer[0]), num_bytes);
+  return out_buffer.Pass();
 }
 
 }  // namespace png_utils
