@@ -14,35 +14,36 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
-#define BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
+#ifndef BINDINGS_TESTING_ANONYMOUS_NAMED_INDEXED_GETTER_INTERFACE_H_
+#define BINDINGS_TESTING_ANONYMOUS_NAMED_INDEXED_GETTER_INTERFACE_H_
 
 #include <string>
 
-#include "cobalt/bindings/testing/named_indexed_getter_interface.h"
+#include "cobalt/script/property_enumerator.h"
+#include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {
 namespace bindings {
 namespace testing {
 
-class DerivedGetterSetterInterface : public NamedIndexedGetterInterface {
+class AnonymousNamedIndexedGetterInterface : public script::Wrappable {
  public:
   MOCK_METHOD0(length, uint32_t());
-  MOCK_METHOD1(DerivedIndexedGetter, uint32_t(uint32_t));
-  MOCK_METHOD2(DerivedIndexedSetter, void(uint32_t, uint32_t));
+  MOCK_METHOD1(AnonymousIndexedGetter, uint32_t(uint32_t));
+  MOCK_METHOD2(AnonymousIndexedSetter, void(uint32_t, uint32_t));
   MOCK_METHOD1(AnonymousNamedGetter, std::string(const std::string&));
   MOCK_METHOD2(AnonymousNamedSetter,
                void(const std::string&, const std::string&));
-  MOCK_METHOD0(property_on_derived_class, bool());
-  MOCK_METHOD1(set_property_on_derived_class, void(bool));
-  MOCK_METHOD0(OperationOnDerivedClass, void());
 
-  DEFINE_WRAPPABLE_TYPE(DerivedGetterSetterInterface);
+  MOCK_METHOD1(CanQueryNamedProperty, bool(const std::string&));
+  MOCK_METHOD1(EnumerateNamedProperties, void(script::PropertyEnumerator*));
+
+  DEFINE_WRAPPABLE_TYPE(AnonymousNamedIndexedGetterInterface);
 };
 
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
+#endif  // BINDINGS_TESTING_ANONYMOUS_NAMED_INDEXED_GETTER_INTERFACE_H_

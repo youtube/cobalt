@@ -23,7 +23,9 @@
     # be an implementation declared in a header that lives in the same
     # directory of each IDL.
     'source_idl_files': [
-        'AnonymousGetterSetterInterface.idl',
+        'AnonymousIndexedGetterInterface.idl',
+        'AnonymousNamedGetterInterface.idl',
+        'AnonymousNamedIndexedGetterInterface.idl',
         'ArbitraryInterface.idl',
         'BaseInterface.idl',
         'BooleanTypeTestInterface.idl',
@@ -40,9 +42,11 @@
         'ExceptionObjectInterface.idl',
         'ExceptionsInterface.idl',
         'ExtendedIDLAttributesInterface.idl',
-        'GetterSetterInterface.idl',
         'GlobalInterfaceParent.idl',
+        'IndexedGetterInterface.idl',
         'NamedConstructorInterface.idl',
+        'NamedGetterInterface.idl',
+        'NamedIndexedGetterInterface.idl',
         'NoConstructorInterface.idl',
         'NoInterfaceObjectInterface.idl',
         'NullableTypesTestInterface.idl',
