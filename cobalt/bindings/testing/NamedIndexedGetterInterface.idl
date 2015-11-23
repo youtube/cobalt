@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-interface DerivedGetterSetterInterface : NamedIndexedGetterInterface {
+interface NamedIndexedGetterInterface {
   readonly attribute unsigned long length;
-  getter unsigned long derivedIndexedGetter(unsigned long index);
-  setter void derivedIndexedSetter(unsigned long index, unsigned long value);
+  getter unsigned long indexedGetter(unsigned long index);
+  setter void indexedSetter(unsigned long index, unsigned long value);
+  getter DOMString namedGetter(DOMString name);
+  setter void namedSetter(DOMString name, DOMString value);
 
-  getter DOMString (DOMString name);
-  setter void (DOMString name, DOMString value);
-
-  attribute boolean propertyOnDerivedClass;
-  void operationOnDerivedClass();
+  // DerivedGetterSetterInterface inherits from this class.
+  // These properties are used to check that named getters/setters do not
+  // override these properties
+  attribute boolean propertyOnBaseClass;
+  void operationOnBaseClass();
 };
