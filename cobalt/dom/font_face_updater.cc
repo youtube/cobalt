@@ -47,9 +47,13 @@ class FontFaceProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
   explicit FontFaceProvider(const GURL& base_url) : base_url_(base_url) {}
 
+  void VisitFontStyle(cssom::FontStyleValue* font_style) OVERRIDE;
+  void VisitFontWeight(cssom::FontWeightValue* font_weight) OVERRIDE;
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+  void VisitLocalSrc(cssom::LocalSrcValue* local_src) OVERRIDE;
   void VisitPropertyList(cssom::PropertyListValue* property_list) OVERRIDE;
   void VisitString(cssom::StringValue* percentage) OVERRIDE;
+  void VisitUnicodeRange(cssom::UnicodeRangeValue* unicode_range) OVERRIDE;
   void VisitUrlSrc(cssom::UrlSrcValue* url_src) OVERRIDE;
   void VisitURL(cssom::URLValue* url) OVERRIDE;
 
@@ -65,6 +69,17 @@ class FontFaceProvider : public cssom::NotReachedPropertyValueVisitor {
 
   DISALLOW_COPY_AND_ASSIGN(FontFaceProvider);
 };
+
+void FontFaceProvider::VisitFontStyle(cssom::FontStyleValue* /*font_style*/) {
+  NOTIMPLEMENTED()
+      << "FontFaceProvider::FontStyleValue support not implemented yet.";
+}
+
+void FontFaceProvider::VisitFontWeight(
+    cssom::FontWeightValue* /*font_weight*/) {
+  NOTIMPLEMENTED()
+      << "FontFaceProvider::UnicodeRange support not implemented yet.";
+}
 
 void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
@@ -118,6 +133,11 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   }
 }
 
+void FontFaceProvider::VisitLocalSrc(cssom::LocalSrcValue* /*local_src*/) {
+  NOTIMPLEMENTED() << "FontFaceProvider::LocalSrc support not implemented yet.";
+}
+
+
 void FontFaceProvider::VisitPropertyList(
     cssom::PropertyListValue* property_list) {
   if (property_list->value().size() > 0) {
@@ -127,6 +147,12 @@ void FontFaceProvider::VisitPropertyList(
 
 void FontFaceProvider::VisitString(cssom::StringValue* string) {
   font_family_ = string->value();
+}
+
+void FontFaceProvider::VisitUnicodeRange(
+    cssom::UnicodeRangeValue* /*unicode_range*/) {
+  NOTIMPLEMENTED()
+      << "FontFaceProvider::UnicodeRange support not implemented yet.";
 }
 
 // Check for a supported format. If no format hints are supplied, then the user
