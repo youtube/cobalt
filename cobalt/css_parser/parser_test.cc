@@ -1532,6 +1532,78 @@ TEST_F(ParserTest, ParsesBackgroundPositionOneValue) {
             background_position_list->value()[1]);
 }
 
+TEST_F(ParserTest, ParsesBackgroundPositionCenterLeft) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-position: center left;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_TRUE(background_position_list);
+  EXPECT_EQ(2, background_position_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
+            background_position_list->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetLeft(),
+            background_position_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundPositionRightCenter) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-position: right center;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_TRUE(background_position_list);
+  EXPECT_EQ(2, background_position_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetRight(),
+            background_position_list->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
+            background_position_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundPositionCenterCenter) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-position: center center;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_TRUE(background_position_list);
+  EXPECT_EQ(2, background_position_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
+            background_position_list->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
+            background_position_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundPositionValueCenter) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-position: 20px center;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_TRUE(background_position_list);
+  EXPECT_EQ(2, background_position_list->value().size());
+
+  scoped_refptr<cssom::LengthValue> length = dynamic_cast<cssom::LengthValue*>(
+      background_position_list->value()[0].get());
+  ASSERT_TRUE(length);
+  EXPECT_FLOAT_EQ(20, length->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length->unit());
+
+  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
+            background_position_list->value()[1]);
+}
+
 TEST_F(ParserTest, ParsesBackgroundPositionBottomRight) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("background-position: bottom right;",
