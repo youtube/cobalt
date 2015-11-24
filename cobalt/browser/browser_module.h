@@ -67,13 +67,8 @@ class BrowserModule {
 
   const std::string& GetUserAgent() { return network_module_.user_agent(); }
 
-  // Requests navigation to the specified URL. The current WebModule will be
-  // destroyed and replaced with a new one. Once the onload event is fired,
-  // the callback will be fired if it's non-null.
-  void Navigate(const GURL& url, const base::Closure& loaded_callback);
-
-  // Reloads the current URL. The current WebModule will be
-  // destroyed and replaced with a new one.
+  // Navigation related functions.
+  void Navigate(const GURL& url);
   void Reload();
 
   // Adds/removes a URL handler.
@@ -103,10 +98,13 @@ class BrowserModule {
 #endif  // ENABLE_DEBUG_CONSOLE
 
  private:
-  // Internal Navigate function. Replaces the current WebModule with a new
-  // one that is displaying the specified URL. After navigation, calls the
-  // callback if it is not null.
-  void NavigateInternal(const GURL& url, const base::Closure& loaded_callback);
+  // Internal Navigation function and its internal verison. Replaces the current
+  // WebModule with a new one that is displaying the specified URL. After
+  // navigation, calls the callback if it is not null.
+  void NavigateWithCallback(const GURL& url,
+                            const base::Closure& loaded_callback);
+  void NavigateWithCallbackInternal(const GURL& url,
+                                    const base::Closure& loaded_callback);
 
   // Glue function to deal with the production of the main render tree,
   // and will manage handing it off to the renderer.
