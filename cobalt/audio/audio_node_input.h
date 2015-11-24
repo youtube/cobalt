@@ -18,12 +18,16 @@
 #define AUDIO_AUDIO_NODE_INPUT_H_
 
 #include <set>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/audio/audio_buffer.h"
+#include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace audio {
 
+class AudioNode;
 class AudioNodeOutput;
 
 // This represents the input feeding into the AudioNode.
@@ -34,13 +38,23 @@ class AudioNodeOutput;
 // number can change depending on the connection(s) made to the input. If the
 // input has no connections, then it has one channel which is silent.
 class AudioNodeInput : public base::RefCountedThreadSafe<AudioNodeInput> {
+  typedef ::media::ShellAudioBus ShellAudioBus;
+
  public:
+  explicit AudioNodeInput(AudioNode* owner_node) : owner_node_(owner_node) {}
+
   void Connect(AudioNodeOutput* output);
   void Disconnect(AudioNodeOutput* output);
 
   void DisconnectAll();
 
+  // For each input, an AudioNode performs a mixing of all connections to that
+  // input. FillAudioBus() performs that action. In the case of multiple
+  // connections, it sums the result into |audio_bus|.
+  void FillAudioBus(ShellAudioBus* audio_bus, bool* silence);
+
  private:
+  AudioNode* const owner_node_;
   std::set<AudioNodeOutput*> outputs_;
 };
 

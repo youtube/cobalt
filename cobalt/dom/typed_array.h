@@ -166,12 +166,11 @@ class TypedArray : public ArrayBufferView {
   const ElementType* data() const {
     return reinterpret_cast<const ElementType*>(base_address());
   }
+  ElementType* data() { return reinterpret_cast<ElementType*>(base_address()); }
 
   DEFINE_WRAPPABLE_TYPE(TypedArray);
 
  private:
-  ElementType* data() { return reinterpret_cast<ElementType*>(base_address()); }
-
   DISALLOW_COPY_AND_ASSIGN(TypedArray);
 };
 
