@@ -17,6 +17,8 @@
 #ifndef WEBDRIVER_SESSION_DRIVER_H_
 #define WEBDRIVER_SESSION_DRIVER_H_
 
+#if defined(ENABLE_WEBDRIVER)
+
 #include <string>
 #include <vector>
 
@@ -75,4 +77,5 @@ class SessionDriver {
 }  // namespace webdriver
 }  // namespace cobalt
 
+#endif  // defined(ENABLE_WEBDRIVER)
 #endif  // WEBDRIVER_SESSION_DRIVER_H_
