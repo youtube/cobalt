@@ -48,18 +48,6 @@ GURL GetURLFromBaseFilePath(const FilePath& base_file_path) {
 
 }  // namespace
 
-FilePath GetTestInputRootDirectory() {
-  FilePath dir_source_root;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &dir_source_root));
-  return dir_source_root.Append(GetDirSourceRootRelativePath());
-}
-
-FilePath GetTestOutputRootDirectory() {
-  FilePath dir_cobalt_test_out;
-  PathService::Get(cobalt::paths::DIR_COBALT_TEST_OUT, &dir_cobalt_test_out);
-  return dir_cobalt_test_out.Append(GetDirSourceRootRelativePath());
-}
-
 namespace {
 
 base::optional<TestInfo> ParseLayoutTestCaseLine(
