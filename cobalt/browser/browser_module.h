@@ -20,6 +20,7 @@
 #include <list>
 #include <string>
 
+#include "cobalt/account/account_manager.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
@@ -183,6 +184,9 @@ class BrowserModule {
 
   // Sets up the network component for requesting internet resources.
   network::NetworkModule network_module_;
+
+  // Manages user account (e.g. PSN on PS3).
+  scoped_ptr<account::AccountManager> account_manager_;
 
   // Manages the two render trees, combines and renders them.
   RenderTreeCombiner render_tree_combiner_;

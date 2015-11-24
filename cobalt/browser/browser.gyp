@@ -41,6 +41,7 @@
         'web_module.h',
       ],
       'dependencies': [
+        '<(DEPTH)/cobalt/account/account.gyp:account',
         '<(DEPTH)/cobalt/audio/audio.gyp:audio',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/bindings/browser.gyp:bindings',
