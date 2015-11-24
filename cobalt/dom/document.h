@@ -21,6 +21,7 @@
 #include <map>
 #include <string>
 
+#include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/string_piece.h"
@@ -31,6 +32,7 @@
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/document_timeline.h"
 #include "cobalt/dom/event.h"
+#include "cobalt/dom/location.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/script/exception_state.h"
@@ -81,12 +83,15 @@ class Document : public Node, public cssom::MutationObserver {
     Options() {}
     explicit Options(const GURL& url_value) : url(url_value) {}
     Options(const GURL& url_value,
-            const scoped_refptr<base::Clock>& navigation_start_clock_value)
+            const scoped_refptr<base::Clock>& navigation_start_clock_value,
+            const base::Callback<void(const GURL&)>& navigation_callback)
         : url(url_value),
-          navigation_start_clock(navigation_start_clock_value) {}
+          navigation_start_clock(navigation_start_clock_value),
+          navigation_callback(navigation_callback) {}
 
     GURL url;
     scoped_refptr<base::Clock> navigation_start_clock;
+    base::Callback<void(const GURL&)> navigation_callback;
   };
 
   Document(HTMLElementContext* html_element_context, const Options& options);
@@ -99,8 +104,8 @@ class Document : public Node, public cssom::MutationObserver {
   // Web API: Document
   //
   scoped_refptr<DOMImplementation> implementation();
-  const std::string& url() const { return url_.spec(); }
-  const std::string& document_uri() const { return url_.spec(); }
+  const std::string& url() const { return location_->url().spec(); }
+  const std::string& document_uri() const { return location_->url().spec(); }
 
   scoped_refptr<Element> document_element();
   std::string title() const;
@@ -163,7 +168,8 @@ class Document : public Node, public cssom::MutationObserver {
 
   scoped_refptr<Node> Duplicate() const OVERRIDE {
     return new Document(html_element_context_,
-                        Options(url_, navigation_start_clock_));
+                        Options(location_->url(), navigation_start_clock_,
+                                location_->navigation_callback()));
   }
 
   // Custom, not in any spec.
@@ -176,7 +182,7 @@ class Document : public Node, public cssom::MutationObserver {
 
   FontFaceCache* font_face_cache() const { return font_face_cache_.get(); }
 
-  const GURL& url_as_gurl() const { return url_; }
+  const GURL& url_as_gurl() const { return location_->url(); }
 
   scoped_refptr<HTMLHtmlElement> html() const;
 
@@ -283,8 +289,6 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<DOMImplementation> implementation_;
   // Associated location object.
   scoped_refptr<Location> location_;
-  // URL of the document.
-  GURL url_;
 
   // Content Security Policy enforcement for this document.
   scoped_ptr<CSPDelegate> csp_delegate_;

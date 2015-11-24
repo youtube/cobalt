@@ -88,6 +88,7 @@ class Window : public EventTarget {
          script::ScriptRunner* script_runner,
          MediaSource::Registry* media_source_registry, const GURL& url,
          const std::string& user_agent, const std::string& language,
+         const base::Callback<void(const GURL&)> navigation_callback,
          const base::Callback<void(const std::string&)>& error_callback);
 
   // Web API: Window
