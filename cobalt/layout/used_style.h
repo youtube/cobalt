@@ -23,7 +23,8 @@
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/transform_matrix.h"
-#include "cobalt/dom/font_face_cache.h"
+#include "cobalt/dom/font_cache.h"
+#include "cobalt/dom/font_list.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
@@ -50,29 +51,56 @@ class ContainingBlock;
 
 class UsedStyleProvider {
  public:
-  UsedStyleProvider(render_tree::ResourceProvider* resource_provider,
-                    loader::image::ImageCache* image_cache,
-                    dom::FontFaceCache* font_face_cache);
+  UsedStyleProvider(loader::image::ImageCache* image_cache,
+                    dom::FontCache* font_cache);
 
-  scoped_refptr<render_tree::Font> GetUsedFont(
+  scoped_refptr<dom::FontList> GetUsedFontList(
       const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
       const scoped_refptr<cssom::PropertyValue>& font_size_refptr,
       const scoped_refptr<cssom::PropertyValue>& font_style_refptr,
-      const scoped_refptr<cssom::PropertyValue>& font_weight_refptr,
-      bool* maybe_is_preferred_font_loading) const;
+      const scoped_refptr<cssom::PropertyValue>& font_weight_refptr);
 
-  scoped_refptr<render_tree::Image> ResolveURLToImage(const GURL& url) const;
+  scoped_refptr<render_tree::Image> ResolveURLToImage(const GURL& url);
 
   bool has_image_cache(const loader::image::ImageCache* image_cache) const {
     return image_cache == image_cache_;
   }
 
  private:
-  render_tree::ResourceProvider* const resource_provider_;
-  loader::image::ImageCache* const image_cache_;
-  dom::FontFaceCache* const font_face_cache_;
+  // Called after layout is completed so that it can perform any necessary
+  // cleanup. Its primary current purpose is making a request to the font cache
+  // to remove any font lists that are no longer being referenced by boxes.
+  void CleanupAfterLayout();
 
+  loader::image::ImageCache* const image_cache_;
+  dom::FontCache* const font_cache_;
+
+  // |font_list_key_| is retained in between lookups so that the font names
+  // vector will not need to allocate elements each time that it is populated.
+  dom::FontListKey font_list_key_;
+
+  // The last_font member variables are used to speed up |GetUsedFontList()|.
+  // Around 85% of the time in ***REMOVED***, the current font list matches the last
+  // font list, so immediately comparing the current font list's properties
+  // against the last font list's properties, prior to updating the font list
+  // key and performing a font cache lookup, results in a significant
+  // performance improvement.
+  scoped_refptr<cssom::PropertyValue> last_font_family_refptr_;
+  scoped_refptr<cssom::PropertyValue> last_font_style_refptr_;
+  scoped_refptr<cssom::PropertyValue> last_font_weight_refptr_;
+  scoped_refptr<dom::FontList> last_font_list_;
+
+  friend class UsedStyleProviderLayoutScope;
   DISALLOW_COPY_AND_ASSIGN(UsedStyleProvider);
+};
+
+class UsedStyleProviderLayoutScope {
+ public:
+  explicit UsedStyleProviderLayoutScope(UsedStyleProvider* used_style_provider);
+  ~UsedStyleProviderLayoutScope();
+
+ private:
+  UsedStyleProvider* const used_style_provider_;
 };
 
 render_tree::ColorRGBA GetUsedColor(
@@ -82,11 +110,11 @@ class UsedBackgroundNodeProvider
     : public cssom::NotReachedPropertyValueVisitor {
  public:
   UsedBackgroundNodeProvider(
-      const UsedStyleProvider* used_style_provider,
       const math::SizeF& frame_size,
       const scoped_refptr<cssom::PropertyValue>& background_size,
       const scoped_refptr<cssom::PropertyValue>& background_position,
-      const scoped_refptr<cssom::PropertyValue>& background_repeat);
+      const scoped_refptr<cssom::PropertyValue>& background_repeat,
+      UsedStyleProvider* used_style_provider);
 
   void VisitAbsoluteURL(cssom::AbsoluteURLValue* url_value) OVERRIDE;
 
@@ -95,11 +123,11 @@ class UsedBackgroundNodeProvider
   }
 
  private:
-  const UsedStyleProvider* const used_style_provider_;
   const math::SizeF frame_size_;
   const scoped_refptr<cssom::PropertyValue> background_size_;
   const scoped_refptr<cssom::PropertyValue> background_position_;
   const scoped_refptr<cssom::PropertyValue> background_repeat_;
+  UsedStyleProvider* const used_style_provider_;
 
   scoped_refptr<render_tree::Node> background_node_;
 

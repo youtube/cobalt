@@ -26,16 +26,20 @@ HTMLElementContext::HTMLElementContext(
     Parser* dom_parser, media::WebMediaPlayerFactory* web_media_player_factory,
     script::ScriptRunner* script_runner,
     MediaSource::Registry* media_source_registry,
+    render_tree::ResourceProvider* resource_provider,
     loader::image::ImageCache* image_cache,
-    loader::font::RemoteFontCache* remote_font_cache)
+    loader::font::RemoteFontCache* remote_font_cache,
+    const std::string& language)
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
       dom_parser_(dom_parser),
       web_media_player_factory_(web_media_player_factory),
       script_runner_(script_runner),
       media_source_registry_(media_source_registry),
+      resource_provider_(resource_provider),
       image_cache_(image_cache),
       remote_font_cache_(remote_font_cache),
+      language_(language),
       sync_load_thread_("Synchronous Load"),
       html_element_factory_(new HTMLElementFactory()) {
   sync_load_thread_.Start();

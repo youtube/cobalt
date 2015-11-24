@@ -5,3 +5,4 @@ nested-block-boxes-should-close-active-paragraph
 numbers-should-have-weak-directionality-1
 numbers-should-have-weak-directionality-2
 numbers-should-have-weak-directionality-3
+whitespace-should-be-handled-properly-with-bidirectional-text

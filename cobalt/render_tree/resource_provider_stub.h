@@ -79,6 +79,8 @@ class FontStub : public Font {
     UNREFERENCED_PARAMETER(data);
   }
 
+  TypefaceId GetTypefaceId() const OVERRIDE { return 0; }
+
   math::RectF GetBounds(const std::string& text) const OVERRIDE {
     FontMetrics font_metrics = GetFontMetrics();
     return math::RectF(
@@ -96,7 +98,12 @@ class FontStub : public Font {
   scoped_refptr<render_tree::Font> CloneWithSize(
       float font_size) const OVERRIDE {
     UNREFERENCED_PARAMETER(font_size);
-    return NULL;
+    return make_scoped_refptr(new FontStub(NULL, 0));
+  }
+
+  bool HasCharacter(int32 character) const OVERRIDE {
+    UNREFERENCED_PARAMETER(character);
+    return true;
   }
 
  private:
@@ -138,16 +145,31 @@ class ResourceProviderStub : public ResourceProvider {
     return scoped_refptr<Image>();
   }
 
-  scoped_refptr<Font> GetPreInstalledFont(const char* font_family_name,
-                                          FontStyle font_style,
-                                          float font_size) OVERRIDE {
+  bool HasLocalFontFamily(const char* font_family_name) const OVERRIDE {
+    UNREFERENCED_PARAMETER(font_family_name);
+    return true;
+  }
+
+  scoped_refptr<Font> GetLocalFont(const char* font_family_name,
+                                   FontStyle font_style,
+                                   float font_size) OVERRIDE {
     UNREFERENCED_PARAMETER(font_family_name);
     UNREFERENCED_PARAMETER(font_style);
     UNREFERENCED_PARAMETER(font_size);
     return make_scoped_refptr(new FontStub(NULL, 0));
   }
 
-  scoped_refptr<render_tree::Font> CreateFontFromRawData(
+  scoped_refptr<Font> GetCharacterFallbackFont(
+      int32 utf32_character, FontStyle font_style, float font_size,
+      const std::string& language) OVERRIDE {
+    UNREFERENCED_PARAMETER(utf32_character);
+    UNREFERENCED_PARAMETER(font_style);
+    UNREFERENCED_PARAMETER(font_size);
+    UNREFERENCED_PARAMETER(language);
+    return make_scoped_refptr(new FontStub(NULL, 0));
+  }
+
+  scoped_refptr<Font> CreateFontFromRawData(
       scoped_ptr<RawFontDataVector> raw_data,
       std::string* error_string) OVERRIDE {
     UNREFERENCED_PARAMETER(raw_data);

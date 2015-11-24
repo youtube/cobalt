@@ -17,6 +17,9 @@
 #ifndef RENDER_TREE_RESOURCE_PROVIDER_H_
 #define RENDER_TREE_RESOURCE_PROVIDER_H_
 
+#include <string>
+#include <vector>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/font.h"
@@ -78,11 +81,25 @@ class ResourceProvider {
       scoped_ptr<RawImageMemory> raw_image_memory,
       const MultiPlaneImageDataDescriptor& descriptor) = 0;
 
-  // Given a set of font information, this method will return a font pre-loaded
-  // on the system that fits the specified font parameters.
-  virtual scoped_refptr<Font> GetPreInstalledFont(const char* font_family_name,
-                                                  FontStyle font_style,
-                                                  float font_size) = 0;
+  // Given a font family name, this method returns whether or not a local font
+  // matching the name exists.
+  virtual bool HasLocalFontFamily(const char* font_family_name) const = 0;
+
+  // Given a set of font information, this method returns the locally available
+  // font that best fits the specified font parameters. In the case where no
+  // font is found that matches the font family name, the default font is
+  // returned.
+  virtual scoped_refptr<Font> GetLocalFont(const char* font_family_name,
+                                           FontStyle font_style,
+                                           float font_size) = 0;
+
+  // Given a UTF-32 character, a set of font information, and a language, this
+  // method returns the best-fit locally available fallback font that provides a
+  // glyph for the specified character. In the case where no fallback font is
+  // found that supports the character, the default font is returned.
+  virtual scoped_refptr<Font> GetCharacterFallbackFont(
+      int32 utf32_character, FontStyle font_style, float font_size,
+      const std::string& language) = 0;
 
   // Given raw font data in either TrueType, OpenType or WOFF data formats, this
   // method creates and returns a new font. The font is not cached by the

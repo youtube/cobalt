@@ -27,7 +27,7 @@ namespace layout {
 
 InlineContainerBox::InlineContainerBox(
     const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-    const UsedStyleProvider* used_style_provider)
+    UsedStyleProvider* used_style_provider)
     : ContainerBox(computed_style_state, used_style_provider),
       should_collapse_leading_white_space_(false),
       should_collapse_trailing_white_space_(false),
@@ -36,11 +36,11 @@ InlineContainerBox::InlineContainerBox(
       is_collapsed_(false),
       justifies_line_existence_(false),
       baseline_offset_from_margin_box_top_(0),
-      used_font_(used_style_provider->GetUsedFont(
+      used_font_(used_style_provider->GetUsedFontList(
           computed_style_state->style()->font_family(),
           computed_style_state->style()->font_size(),
           computed_style_state->style()->font_style(),
-          computed_style_state->style()->font_weight(), NULL)) {}
+          computed_style_state->style()->font_weight())) {}
 
 InlineContainerBox::~InlineContainerBox() {}
 

@@ -28,20 +28,18 @@ namespace layout {
 
 TextBox::TextBox(
     const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-    const UsedStyleProvider* used_style_provider,
     const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
-    int32 text_end_position, bool triggers_line_break)
+    int32 text_end_position, bool triggers_line_break,
+    UsedStyleProvider* used_style_provider)
     : Box(computed_style_state, used_style_provider),
       paragraph_(paragraph),
       text_start_position_(text_start_position),
       text_end_position_(text_end_position),
-      is_preferred_font_loading_(false),
-      used_font_(used_style_provider->GetUsedFont(
+      used_font_(used_style_provider->GetUsedFontList(
           computed_style_state->style()->font_family(),
           computed_style_state->style()->font_size(),
           computed_style_state->style()->font_style(),
-          computed_style_state->style()->font_weight(),
-          &is_preferred_font_loading_)),
+          computed_style_state->style()->font_weight())),
       text_has_leading_white_space_(false),
       text_has_trailing_white_space_(false),
       should_collapse_leading_white_space_(false),
@@ -82,10 +80,6 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   set_margin_top(0);
   set_margin_right(0);
   set_margin_bottom(0);
-
-  if (!space_width_) {
-    space_width_ = used_font_->GetBounds(" ").width();
-  }
 
   float non_collapsible_text_width =
       HasNonCollapsibleText()
@@ -217,24 +211,39 @@ void TextBox::RenderAndAnimateContent(
   DCHECK_EQ(0, border_top_width() + padding_top());
 
   // Only add the text node to the render tree if it actually has content and
-  // the preferred font isn't loading. The font is treated as transparent if
-  // the preferred font is currently being downloaded:
-  // "In cases where textual content is loaded before downloadable fonts are
-  // available, user agents may... render text transparently with fallback fonts
-  // to avoid a flash of text using a fallback font."
+  // a font isn't loading. The font is treated as transparent if a font is
+  // currently being downloaded: "In cases where textual content is loaded
+  // before downloadable fonts are available, user agents may... render text
+  // transparently with fallback fonts to avoid a flash of text using a fallback
+  // font."
   //   http://www.w3.org/TR/css3-fonts/#font-face-loading
-  if (HasNonCollapsibleText() && !is_preferred_font_loading_) {
+  if (HasNonCollapsibleText() && !used_font_->HasLoadingFont()) {
     render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
     // Only render the text if it is not completely transparent.
     if (used_color.a() > 0.0f) {
-      // The render tree API considers text coordinates to be a position of
-      // a baseline, offset the text node accordingly.
-      border_node_builder->AddChild(
-          new render_tree::TextNode(GetNonCollapsibleText(), used_font_,
-                                    used_color),
-          math::TranslateMatrix(GetLeadingWhiteSpaceWidth(),
-                                *baseline_offset_from_top_));
+      std::string text = GetNonCollapsibleText();
+      dom::FontRunList font_run_list;
+      used_font_->GenerateFontRunList(text, &font_run_list);
+
+      float leading_width = GetLeadingWhiteSpaceWidth();
+
+      for (size_t i = 0; i < font_run_list.size(); ++i) {
+        const dom::FontRun& font_run = font_run_list[i];
+
+        std::string font_string =
+            text.substr(font_run.start_position, font_run.length);
+
+        // The render tree API considers text coordinates to be a position of
+        // a baseline, offset the text node accordingly.
+        border_node_builder->AddChild(
+            new render_tree::TextNode(font_string, font_run.font, used_color),
+            math::TranslateMatrix(leading_width, *baseline_offset_from_top_));
+
+        if (i < font_run_list.size() - 1) {
+          leading_width += font_run.font->GetBounds(font_string).width();
+        }
+      }
     }
   }
 }
@@ -313,8 +322,8 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   UpdateTextHasTrailingWhiteSpace();
 
   scoped_refptr<Box> box_after_split(new TextBox(
-      computed_style_state(), used_style_provider(), paragraph_,
-      split_start_position, split_end_position, triggers_line_break_));
+      computed_style_state(), paragraph_, split_start_position,
+      split_end_position, triggers_line_break_, used_style_provider()));
 
   // TODO(***REMOVED***): Set the text width of the box after split to
   //               |text_width_ - pre_split_width| to save a call
@@ -328,11 +337,13 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
 }
 
 float TextBox::GetLeadingWhiteSpaceWidth() const {
-  return HasLeadingWhiteSpace() ? *space_width_ : 0;
+  return HasLeadingWhiteSpace() ? used_font_->GetSpaceWidth() : 0;
 }
 
 float TextBox::GetTrailingWhiteSpaceWidth() const {
-  return HasTrailingWhiteSpace() && HasNonCollapsibleText() ? *space_width_ : 0;
+  return HasTrailingWhiteSpace() && HasNonCollapsibleText()
+             ? used_font_->GetSpaceWidth()
+             : 0;
 }
 
 int32 TextBox::GetNonCollapsibleTextStartPosition() const {

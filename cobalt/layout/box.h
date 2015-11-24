@@ -98,7 +98,7 @@ class Box : public base::RefCounted<Box> {
   };
 
   Box(const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-      const UsedStyleProvider* used_style_provider);
+      UsedStyleProvider* used_style_provider);
   virtual ~Box();
 
   // Computed style contains CSS values from the last stage of processing
@@ -315,7 +315,7 @@ class Box : public base::RefCounted<Box> {
   void UpdateCrossReferences(ContainerBox* fixed_containing_block);
 
  protected:
-  const UsedStyleProvider* used_style_provider() const {
+  UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
   }
 
@@ -457,7 +457,7 @@ class Box : public base::RefCounted<Box> {
   // object owned
   // by the HTML Element from which this box is derived.
   const scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
-  const UsedStyleProvider* const used_style_provider_;
+  UsedStyleProvider* const used_style_provider_;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
   std::string generating_html_;

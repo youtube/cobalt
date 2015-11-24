@@ -23,13 +23,13 @@ namespace layout {
 
 AnonymousBlockBox::AnonymousBlockBox(
     const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-    const UsedStyleProvider* used_style_provider)
+    UsedStyleProvider* used_style_provider)
     : BlockContainerBox(computed_style_state, used_style_provider),
-      used_font_(used_style_provider->GetUsedFont(
+      used_font_(used_style_provider->GetUsedFontList(
           computed_style_state->style()->font_family(),
           computed_style_state->style()->font_size(),
           computed_style_state->style()->font_style(),
-          computed_style_state->style()->font_weight(), NULL)) {}
+          computed_style_state->style()->font_weight())) {}
 
 Box::Level AnonymousBlockBox::GetLevel() const { return kBlockLevel; }
 

@@ -111,7 +111,7 @@ WebModule::WebModule(
       window_(new dom::Window(
           window_dimensions.width(), window_dimensions.height(),
           css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-          image_cache_.get(), remote_font_cache_.get(),
+          resource_provider, image_cache_.get(), remote_font_cache_.get(),
           &local_storage_database_, media_module, execution_state_.get(),
           script_runner_.get(), &media_source_registry_, initial_url,
           network_module->user_agent(), network_module->preferred_language(),
@@ -120,9 +120,10 @@ WebModule::WebModule(
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, &media_source_registry_,
           javascript_engine_.get(), global_object_proxy_.get())),
-      layout_manager_(window_.get(), resource_provider,
-                      render_tree_produced_callback, css_parser_.get(),
-                      options.layout_trigger, layout_refresh_rate),
+      layout_manager_(window_.get(), render_tree_produced_callback,
+                      css_parser_.get(), options.layout_trigger,
+                      layout_refresh_rate,
+                      network_module->preferred_language()),
       url_(initial_url) {
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
