@@ -237,8 +237,9 @@ void WebModule::OnPartialLayoutConsoleCommandReceived(
 scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
     const webdriver::protocol::WindowId& window_id) {
   // This may be called from a thread other than web_module_message_loop_.
-  return make_scoped_ptr(new webdriver::WindowDriver(
-      window_id, window_weak_, self_message_loop_->message_loop_proxy()));
+  return make_scoped_ptr(
+      new webdriver::WindowDriver(window_id, window_weak_, global_object_proxy_,
+                                  self_message_loop_->message_loop_proxy()));
 }
 #endif
 

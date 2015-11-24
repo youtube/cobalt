@@ -18,17 +18,86 @@
 
 #include <utility>
 
+#include "base/file_path.h"
+#include "base/file_util.h"
+#include "base/lazy_instance.h"
+#include "base/path_service.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/source_code.h"
 #include "cobalt/webdriver/util/call_on_message_loop.h"
 
 namespace cobalt {
 namespace webdriver {
 namespace {
+// Path to the script to initialize the script execution harness.
+const char kWebDriverInitScriptPath[] = "webdriver/webdriver-init.js";
+
+// Wrapper around a scoped_refptr<script::SourceCode> instance. The script
+// at kWebDriverInitScriptPath will be loaded from disk and a new
+// script::SourceCode will be created.
+class LazySourceLoader {
+ public:
+  LazySourceLoader() {
+    FilePath exe_path;
+    if (!PathService::Get(base::DIR_EXE, &exe_path)) {
+      NOTREACHED() << "Failed to get EXE path.";
+      return;
+    }
+    FilePath script_path = exe_path.Append(kWebDriverInitScriptPath);
+    std::string script_contents;
+    if (!file_util::ReadFileToString(script_path, &script_contents)) {
+      NOTREACHED() << "Failed to read script contents.";
+      return;
+    }
+    source_code_ = script::SourceCode::CreateSourceCode(
+        script_contents.c_str(),
+        base::SourceLocation(kWebDriverInitScriptPath, 1, 1));
+  }
+  const scoped_refptr<script::SourceCode>& source_code() {
+    return source_code_;
+  }
+
+ private:
+  scoped_refptr<script::SourceCode> source_code_;
+};
+
+// The script only needs to be loaded once, so allow it to persist as a
+// LazyInstance and be shared amongst different WindowDriver instances.
+base::LazyInstance<LazySourceLoader> lazy_source_loader =
+    LAZY_INSTANCE_INITIALIZER;
+
+scoped_refptr<ScriptExecutor> CreateScriptExecutor(
+    ScriptExecutor::ElementMapping* element_mapping,
+    const scoped_refptr<script::GlobalObjectProxy>& global_object_proxy) {
+  // This could be NULL if there was an error loading the harness source from
+  // disk.
+  scoped_refptr<script::SourceCode> source =
+      lazy_source_loader.Get().source_code();
+  if (!source) {
+    return NULL;
+  }
+
+  // Create a new ScriptExecutor and bind it to the global object.
+  scoped_refptr<ScriptExecutor> script_executor =
+      new ScriptExecutor(element_mapping);
+  global_object_proxy->Bind("webdriverExecutor", script_executor);
+
+  // Evaluate the harness initialization script.
+  std::string result;
+  if (!global_object_proxy->EvaluateScript(source, &result)) {
+    return NULL;
+  }
+
+  // The initialization script should have set this.
+  DCHECK(script_executor->execute_script_harness());
+  return script_executor;
+}
 
 std::string GetCurrentUrl(dom::Window* window) {
   DCHECK(window);
@@ -61,16 +130,30 @@ std::string GetSource(dom::Window* window) {
 WindowDriver::WindowDriver(
     const protocol::WindowId& window_id,
     const base::WeakPtr<dom::Window>& window,
+    const scoped_refptr<script::GlobalObjectProxy>& global_object,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : window_id_(window_id),
       window_(window),
+      global_object_proxy_(global_object),
       window_message_loop_(message_loop),
       element_driver_map_deleter_(&element_drivers_),
       next_element_id_(0) {}
 
+WindowDriver::~WindowDriver() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+}
+
 ElementDriver* WindowDriver::GetElementDriver(
     const protocol::ElementId& element_id) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  if (base::MessageLoopProxy::current() != window_message_loop_) {
+    // It's expected that the WebDriver thread is the only other thread to call
+    // this function.
+    DCHECK(thread_checker_.CalledOnValidThread());
+    return util::CallOnMessageLoop(window_message_loop_,
+        base::Bind(&WindowDriver::GetElementDriver, base::Unretained(this),
+                   element_id));
+  }
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
   ElementDriverMap::iterator it = element_drivers_.find(element_id.id());
   if (it != element_drivers_.end()) {
     return it->second;
@@ -108,38 +191,18 @@ util::CommandResult<std::string> WindowDriver::GetTitle() {
 util::CommandResult<protocol::ElementId> WindowDriver::FindElement(
     const protocol::SearchStrategy& strategy) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  typedef util::CommandResult<protocol::ElementId> CommandResult;
 
-  CommandResult error_result;
-  WeakElementVector weak_elements;
-  // Even though we only need the first match, just find all and return the
-  // first one.
-  FindElementsOrSetError(strategy, &weak_elements, &error_result);
-  if (weak_elements.empty()) {
-    return error_result;
-  }
-
-  protocol::ElementId id = CreateNewElementDriver(weak_elements.front());
-  return CommandResult(id);
+  return util::CallOnMessageLoop(window_message_loop_,
+      base::Bind(&WindowDriver::FindElementsInternal<protocol::ElementId>,
+                 base::Unretained(this), strategy));
 }
 
 util::CommandResult<std::vector<protocol::ElementId> >
 WindowDriver::FindElements(const protocol::SearchStrategy& strategy) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  typedef util::CommandResult<std::vector<protocol::ElementId> > CommandResult;
-
-  CommandResult error_result;
-  WeakElementVector weak_elements;
-  FindElementsOrSetError(strategy, &weak_elements, &error_result);
-  if (weak_elements.empty()) {
-    return error_result;
-  }
-
-  std::vector<protocol::ElementId> elements;
-  for (size_t i = 0; i < weak_elements.size(); ++i) {
-    elements.push_back(CreateNewElementDriver(weak_elements.front()));
-  }
-  return CommandResult(elements);
+  return util::CallOnMessageLoop(window_message_loop_,
+      base::Bind(&WindowDriver::FindElementsInternal<ElementIdVector>,
+                 base::Unretained(this), strategy));
 }
 
 util::CommandResult<std::string> WindowDriver::GetSource() {
@@ -151,9 +214,31 @@ util::CommandResult<std::string> WindowDriver::GetSource() {
       protocol::Response::kNoSuchWindow);
 }
 
+util::CommandResult<protocol::ScriptResult> WindowDriver::Execute(
+    const protocol::Script& script) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  // Poke the lazy loader so we don't hit the disk on window_message_loop_.
+  lazy_source_loader.Get();
+  return util::CallOnMessageLoop(
+      window_message_loop_, base::Bind(&WindowDriver::ExecuteScriptInternal,
+                                       base::Unretained(this), script));
+}
+
+protocol::ElementId WindowDriver::ElementToId(
+    const scoped_refptr<dom::Element>& element) {
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  return CreateNewElementDriver(base::AsWeakPtr(element.get()));
+}
+
+scoped_refptr<dom::Element> WindowDriver::IdToElement(
+    const protocol::ElementId& id) {
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  return make_scoped_refptr(GetElementDriver(id)->GetWeakElement());
+}
+
 protocol::ElementId WindowDriver::CreateNewElementDriver(
     const base::WeakPtr<dom::Element>& weak_element) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
 
   protocol::ElementId element_id(
       base::StringPrintf("element-%d", next_element_id_++));
@@ -167,49 +252,24 @@ protocol::ElementId WindowDriver::CreateNewElementDriver(
   return element_id;
 }
 
-// This function is called from FindElements and FindElement.
-// Calls FindElementsInternal on the Window's message loop. If that call fails
-// because the window_ has been deleted, it will set kNoSuchWindow. If the
-// element can't be found it will set kNoSuchElement. Otherwise, it simply
-// returns without setting an error.
-template <typename T>
-void WindowDriver::FindElementsOrSetError(
-    const protocol::SearchStrategy& strategy,
-    WeakElementVector* out_weak_elements, util::CommandResult<T>* out_result) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  typedef util::CommandResult<T> CommandResult;
-
-  bool success = util::CallOnMessageLoop(
-      window_message_loop_,
-      base::Bind(&WindowDriver::FindElementsInternal, base::Unretained(this),
-                 strategy, out_weak_elements));
-  if (!success) {
-    *out_result = CommandResult(protocol::Response::kNoSuchWindow);
-  }
-  if (out_weak_elements->empty()) {
-    *out_result = CommandResult(protocol::Response::kNoSuchElement);
-  }
-}
-
 // Internal logic for FindElement and FindElements that must be run on the
 // Window's message loop.
-// Returns true if window_ is still valid, implying that the search could be
-// executed.
-// The search result are populated in |out_weak_ptrs|.
-bool WindowDriver::FindElementsInternal(
-    const protocol::SearchStrategy& strategy,
-    WeakElementVector* out_weak_ptrs) {
+template <typename T>
+util::CommandResult<T> WindowDriver::FindElementsInternal(
+    const protocol::SearchStrategy& strategy) {
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  typedef util::CommandResult<T> CommandResult;
   if (!window_) {
-    return false;
+    return CommandResult(protocol::Response::kNoSuchWindow);
   }
+  ElementVector found_elements;
   switch (strategy.strategy()) {
     case protocol::SearchStrategy::kClassName: {
       scoped_refptr<dom::HTMLCollection> collection =
           window_->document()->GetElementsByClassName(strategy.parameter());
       if (collection) {
         for (uint32 i = 0; i < collection->length(); ++i) {
-          out_weak_ptrs->push_back(base::AsWeakPtr(collection->Item(i).get()));
+          found_elements.push_back(collection->Item(i).get());
         }
       }
       break;
@@ -221,7 +281,7 @@ bool WindowDriver::FindElementsInternal(
         for (uint32 i = 0; i < node_list->length(); ++i) {
           scoped_refptr<dom::Element> element = node_list->Item(i)->AsElement();
           if (element) {
-            out_weak_ptrs->push_back(base::AsWeakPtr(element.get()));
+            found_elements.push_back(element.get());
           }
         }
       }
@@ -230,7 +290,75 @@ bool WindowDriver::FindElementsInternal(
     default:
       NOTIMPLEMENTED();
   }
-  return true;
+  if (found_elements.empty()) {
+    return CommandResult(protocol::Response::kNoSuchElement);
+  }
+  CommandResult result;
+  PopulateFindResults(found_elements, &result);
+  return result;
+}
+
+void WindowDriver::PopulateFindResults(const ElementVector& found_elements,
+    util::CommandResult<protocol::ElementId>* out_result) {
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  DCHECK(!found_elements.empty());
+  typedef util::CommandResult<protocol::ElementId> CommandResult;
+
+  // Grab the first result from the list and return it.
+  protocol::ElementId id = CreateNewElementDriver(
+      base::AsWeakPtr(found_elements.front().get()));
+  *out_result = CommandResult(id);
+}
+
+void WindowDriver::PopulateFindResults(const ElementVector& found_elements,
+    util::CommandResult<std::vector<protocol::ElementId> >* out_result) {
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  DCHECK(!found_elements.empty());
+  typedef util::CommandResult<ElementIdVector> CommandResult;
+
+  // Create a new ElementDriver for each result and return it.
+  ElementIdVector id_vector;
+  for (int i = 0; i < found_elements.size(); ++i) {
+    protocol::ElementId id = CreateNewElementDriver(
+        base::AsWeakPtr(found_elements[i].get()));
+    id_vector.push_back(id);
+  }
+
+  *out_result = CommandResult(id_vector);
+}
+
+util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
+    const protocol::Script& script) {
+  typedef util::CommandResult<protocol::ScriptResult> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  if (!window_) {
+    return CommandResult(protocol::Response::kNoSuchWindow);
+  }
+
+  // Lazily initialize this the first time we need to run a script. It must be
+  // initialized on window_message_loop_. It can persist across multiple calls
+  // to execute script, but must be destroyed along with the associated
+  // global object, thus with the WindowDriver.
+  if (!script_executor_) {
+    scoped_refptr<ScriptExecutor> script_executor =
+        CreateScriptExecutor(this, global_object_proxy_);
+    if (!script_executor) {
+      DLOG(INFO) << "Failed to create ScriptExecutor.";
+      return CommandResult(protocol::Response::kUnknownError);
+    }
+    script_executor_ = base::AsWeakPtr(script_executor.get());
+  }
+
+  DLOG(INFO) << "Executing: " << script.function_body();
+  DLOG(INFO) << "Arguments: " << script.argument_array();
+
+  base::optional<std::string> script_result = script_executor_->Execute(
+      script.function_body(), script.argument_array());
+  if (script_result) {
+    return CommandResult(protocol::ScriptResult(script_result.value()));
+  } else {
+    return CommandResult(protocol::Response::kJavaScriptError);
+  }
 }
 
 }  // namespace webdriver

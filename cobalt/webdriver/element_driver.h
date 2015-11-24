@@ -30,6 +30,8 @@
 namespace cobalt {
 namespace webdriver {
 
+class WindowDriver;
+
 // ElementDriver could be considered a WebElement as described in the WebDriver
 // spec.
 // https://code.google.com/p/selenium/wiki/JsonWireProtocol#WebElement
@@ -47,15 +49,16 @@ class ElementDriver {
   util::CommandResult<bool> IsDisplayed();
 
  private:
-  dom::Element* GetWeak() {
-    DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
-    return element_.get();
-  }
+  // Get the dom::Element* that this ElementDriver wraps. This must be called
+  // on |element_message_loop_|.
+  dom::Element* GetWeakElement();
 
   base::ThreadChecker thread_checker_;
   protocol::ElementId element_id_;
   base::WeakPtr<dom::Element> element_;
   scoped_refptr<base::MessageLoopProxy> element_message_loop_;
+
+  friend class WindowDriver;
 };
 
 }  // namespace webdriver
