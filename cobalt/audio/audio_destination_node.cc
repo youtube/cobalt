@@ -37,15 +37,14 @@ AudioDestinationNode::AudioDestinationNode(AudioContext* context)
       max_channel_count_(kMaxChannelCount),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           audio_device_(static_cast<int>(channel_count(NULL)), this)) {
-  AddInput(new AudioNodeInput());
+  AddInput(new AudioNodeInput(this));
 }
 
-void AudioDestinationNode::FillAudioBuffer(
-    int32 /*number_of_frames*/,
-    std::vector<std::vector<float> >* /*audio_buffer*/, bool* silence) {
-  // TODO(***REMOVED***): Pull the audio data from AudioBufferSourceNode and fill this
-  // audio buffer.
-  *silence = true;
+void AudioDestinationNode::FillAudioBus(ShellAudioBus* audio_bus,
+                                        bool* silence) {
+  // Destination node only has one input.
+  DCHECK_EQ(number_of_inputs(), 1u);
+  Input(0)->FillAudioBus(audio_bus, silence);
 }
 
 }  // namespace audio

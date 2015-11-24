@@ -16,29 +16,84 @@
 
 #include "cobalt/audio/audio_buffer_source_node.h"
 
+#include <algorithm>
+
 #include "cobalt/audio/audio_node_output.h"
 
 namespace cobalt {
 namespace audio {
 
+typedef ::media::ShellAudioBus ShellAudioBus;
+
 // numberOfInputs  : 0
 // numberOfOutputs : 1
 AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* context)
-    : AudioNode(context), start_time_(0), end_time_(0) {
-  AddOutput(new AudioNodeOutput());
+    : AudioNode(context), state_(kNone), read_index_(0) {
+  AddOutput(new AudioNodeOutput(this));
 }
 
-void AudioBufferSourceNode::Start(double when, double offset) {
-  Start(when, offset, 0);
+void AudioBufferSourceNode::Start(double when, double offset,
+                                  script::ExceptionState* exception_state) {
+  Start(when, offset, 0, exception_state);
 }
 
-// TODO(***REMOVED***): Fully implement start and stop method.
-void AudioBufferSourceNode::Start(double when, double /*offset*/,
-                                  double /*duration*/) {
-  start_time_ = when;
+// TODO(***REMOVED***): Fully implement start and stop method. The starting time is
+// based on the current time of AudioContext. We only support start at 0
+// currently.
+void AudioBufferSourceNode::Start(double when, double offset, double duration,
+                                  script::ExceptionState* exception_state) {
+  DCHECK_EQ(when, 0);
+  DCHECK_EQ(offset, 0);
+  DCHECK_EQ(duration, 0);
+
+  if (state_ != kNone) {
+    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+                             exception_state);
+    return;
+  }
+  state_ = kStarted;
 }
 
-void AudioBufferSourceNode::Stop(double when) { end_time_ = when; }
+void AudioBufferSourceNode::Stop(double when,
+                                 script::ExceptionState* exception_state) {
+  DCHECK_EQ(when, 0);
+
+  if (state_ != kStarted) {
+    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+                             exception_state);
+    return;
+  }
+  state_ = kStoped;
+}
+
+scoped_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
+    int32 number_of_frames) {
+  if (state_ != kStarted || !buffer_ || buffer_->length() == read_index_) {
+    return scoped_ptr<ShellAudioBus>();
+  }
+
+  DCHECK_GT(number_of_frames, 0);
+  int32 frames_to_end = buffer_->length() - read_index_;
+  number_of_frames = std::min(number_of_frames, frames_to_end);
+
+  size_t channels = static_cast<size_t>(buffer_->number_of_channels());
+
+  std::vector<float*> audio_buffer;
+  for (size_t i = 0; i < channels; ++i) {
+    scoped_refptr<dom::Float32Array> buffer_data =
+        buffer_->GetChannelData(static_cast<uint32>(i), NULL);
+    scoped_refptr<dom::Float32Array> sub_array = buffer_data->Subarray(
+        NULL, read_index_, read_index_ + number_of_frames);
+    audio_buffer.push_back(sub_array->data());
+  }
+
+  read_index_ += number_of_frames;
+
+  scoped_ptr<ShellAudioBus> audio_bus(
+      new ShellAudioBus(static_cast<size_t>(number_of_frames), audio_buffer));
+
+  return audio_bus.Pass();
+}
 
 }  // namespace audio
 }  // namespace cobalt

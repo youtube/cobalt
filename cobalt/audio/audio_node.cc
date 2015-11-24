@@ -51,6 +51,11 @@ void AudioNode::set_channel_count(uint32 channel_count,
     return;
   }
 
+  // TODO(***REMOVED***): Check if this AudioNode is destination when setting the
+  // channel count. If it is destination, channel count may be set to any
+  // non-zero value less than or equal to max channel count of the destination.
+  // An INDEX_SIZE_ERR exception MUST be thrown if this value is not within the
+  // valid range.
   channel_count_ = channel_count;
 }
 
@@ -115,6 +120,22 @@ void AudioNode::AddOutput(const scoped_refptr<AudioNodeOutput>& output) {
   DCHECK(output);
 
   outputs_.push_back(output);
+}
+
+AudioNodeInput* AudioNode::Input(int32 index) const {
+  size_t input_index = static_cast<size_t>(index);
+  if (input_index < inputs_.size()) {
+    return inputs_[input_index].get();
+  }
+  return NULL;
+}
+
+AudioNodeOutput* AudioNode::Output(int32 index) const {
+  size_t output_index = static_cast<size_t>(index);
+  if (output_index < outputs_.size()) {
+    return outputs_[output_index].get();
+  }
+  return NULL;
 }
 
 }  // namespace audio

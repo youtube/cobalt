@@ -49,5 +49,31 @@
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
       ],
     },
+
+    {
+      'target_name': 'audio_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'audio_node_input_output_test.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/audio/audio.gyp:audio',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+    },
+
+    {
+      'target_name': 'audio_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'audio_test',
+      ],
+      'variables': {
+        'executable_name': 'audio_test',
+      },
+      'includes': [ '../build/deploy.gypi' ],
+    },
   ],
 }

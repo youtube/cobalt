@@ -17,8 +17,11 @@
 #ifndef AUDIO_AUDIO_BUFFER_SOURCE_NODE_H_
 #define AUDIO_AUDIO_BUFFER_SOURCE_NODE_H_
 
+#include <vector>
+
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_node.h"
+#include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace audio {
@@ -28,6 +31,8 @@ namespace audio {
 // degree of scheduling flexibility (can playback in rhythmically perfect ways).
 //   http://www.w3.org/TR/webaudio/#AudioBufferSourceNode
 class AudioBufferSourceNode : public AudioNode {
+  typedef ::media::ShellAudioBus ShellAudioBus;
+
  public:
   explicit AudioBufferSourceNode(AudioContext* context);
 
@@ -40,12 +45,21 @@ class AudioBufferSourceNode : public AudioNode {
   }
 
   // The Start method is used to schedule a sound to playback at an exact time.
-  void Start(double when, double offset);
-  void Start(double when, double offset, double duration);
+  // The parameters are used to define the time to start playing based on the
+  // context's timeline. (0 or a time less than the context's current time means
+  // "now"). The parameters are in seconds.
+  void Start(double when, double offset,
+             script::ExceptionState* exception_state);
+  void Start(double when, double offset, double duration,
+             script::ExceptionState* exception_state);
 
   // The Stop method is used to schedule a sound to stop playback at an exact
-  // time.
-  void Stop(double when);
+  // time. |when| is the time to stop playing based on the context's timeline.
+  // (0 or a time less than the context's current time means "now").
+  // If it hasn't been set explicitly, then the sound will not stop playing
+  // or will stop when the end of the AudioBuffer has been reached.
+  // The parameter is in seconds.
+  void Stop(double when, script::ExceptionState* exception_state);
 
   // A property used to set the EventHandler for the ended event that is
   // dispatched to AudioBufferSourceNode node types. When the playback of the
@@ -59,22 +73,25 @@ class AudioBufferSourceNode : public AudioNode {
                               event_listener);
   }
 
+  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
+      int32 number_of_frames) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(AudioBufferSourceNode);
 
  private:
+  enum State {
+    kNone,
+    kStarted,
+    kStoped,
+  };
+
   scoped_refptr<AudioBuffer> buffer_;
 
-  // |start_time_| is the time to start playing based on the context's timeline.
-  // (0 or a time less than the context's current time means "now").
-  // In seconds.
-  double start_time_;
+  State state_;
 
-  // |end_time_| is the time to stop playing based on the context's timeline.
-  // (0 or a time less than the context's current time means "now").
-  // If it hasn't been set explicitly, then the sound will not stop playing
-  // or will stop when the end of the AudioBuffer has been reached.
-  // In seconds.
-  double end_time_;
+  // |read_index_| is a sample-frame index into out buffer representing the
+  // current playback position.
+  int32 read_index_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioBufferSourceNode);
 };

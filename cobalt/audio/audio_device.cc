@@ -46,6 +46,8 @@ class AudioDevice::Impl : public ::media::ShellAudioStream {
   AudioBus* GetAudioBus() OVERRIDE;
 
  private:
+  typedef ::media::ShellAudioBus ShellAudioBus;
+
   int GetAudioHardwareSampleRate();
 
   void FillOutputAudioBus();
@@ -58,7 +60,7 @@ class AudioDevice::Impl : public ::media::ShellAudioStream {
   bool needs_data_;
 
   // Buffer the audio data which is pulled from upper level.
-  std::vector<std::vector<float> > render_buffers_;
+  ShellAudioBus audio_bus_;
 
   RenderCallback* render_callback_;
 
@@ -70,6 +72,9 @@ AudioDevice::Impl::Impl(int32 number_of_channels, RenderCallback* callback)
     : rendered_frame_cursor_(0),
       buffered_frame_cursor_(0),
       needs_data_(true),
+      audio_bus_(static_cast<size_t>(number_of_channels),
+                 static_cast<size_t>(kRenderBufferSizeFrames),
+                 ShellAudioBus::kFloat32, ShellAudioBus::kPlanar),
       render_callback_(callback) {
   DCHECK_GT(number_of_channels, 0);
   DCHECK(media::ShellAudioStreamer::Instance()->GetConfig().interleaved())
@@ -94,10 +99,7 @@ AudioDevice::Impl::Impl(int32 number_of_channels, RenderCallback* callback)
   output_audio_bus_ =
       AudioBus::Create(1, kFramesPerChannel * number_of_channels);
 
-  render_buffers_.resize(static_cast<size_t>(number_of_channels));
-  for (size_t i = 0; i < static_cast<size_t>(number_of_channels); ++i) {
-    render_buffers_[i].resize(kRenderBufferSizeFrames);
-  }
+  audio_bus_.ZeroAllFrames();
 
   media::ShellAudioStreamer::Instance()->AddStream(this);
 }
@@ -128,8 +130,7 @@ bool AudioDevice::Impl::PullFrames(uint32* offset_in_frame,
   if ((kFramesPerChannel - *total_frames) >= kRenderBufferSizeFrames) {
     // Fill our temporary buffer with PCM float samples.
     bool silence = false;
-    render_callback_->FillAudioBuffer(kRenderBufferSizeFrames, &render_buffers_,
-                                      &silence);
+    render_callback_->FillAudioBus(&audio_bus_, &silence);
 
     if (!silence) {
       FillOutputAudioBus();
@@ -179,19 +180,14 @@ void AudioDevice::Impl::FillOutputAudioBus() {
   output_buffer += channel_offset * audio_parameters_.channels();
 
   for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-    for (size_t c = 0; c < static_cast<size_t>(audio_parameters_.channels());
-         ++c) {
-      *output_buffer = render_buffers_[c][i];
+    for (size_t c = 0; c < audio_bus_.channels(); ++c) {
+      *output_buffer = audio_bus_.GetFloat32Sample(c, i);
       ++output_buffer;
     }
   }
 
-  // Clear the data in the render buffers.
-  for (size_t c = 0; c < static_cast<size_t>(audio_parameters_.channels());
-       ++c) {
-    memset(&render_buffers_[c][0], 0,
-           render_buffers_[c].size() * sizeof(float));
-  }
+  // Clear the data in audio bus.
+  audio_bus_.ZeroAllFrames();
 }
 
 // AudioDevice.
