@@ -23,6 +23,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/string_number_conversions.h"
+#include "cobalt/account/account_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/browser/switches.h"
@@ -155,6 +156,12 @@ Application::Application()
   browser_module_.reset(new BrowserModule(url, system_window_.get(), options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 
+  // Register our callback for events from the account manager.
+  account_event_callback_ =
+      base::Bind(&Application::OnAccountEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(account::AccountEvent::TypeId(),
+                                     account_event_callback_);
+
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -171,7 +178,13 @@ Application::Application()
 #endif  // ENABLE_WEBDRIVER
 }
 
-Application::~Application() { DCHECK(!message_loop_.is_running()); }
+Application::~Application() {
+  DCHECK(!message_loop_.is_running());
+
+  // Unregister our callback for account manager events.
+  event_dispatcher_.RemoveEventCallback(account::AccountEvent::TypeId(),
+                                        account_event_callback_);
+}
 
 void Application::Quit() {
   if (MessageLoop::current() == &message_loop_) {
@@ -204,6 +217,17 @@ void Application::Run() {
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
   run_loop.Run();
+}
+
+void Application::OnAccountEvent(const base::Event* event) {
+  const account::AccountEvent* account_event =
+      base::polymorphic_downcast<const account::AccountEvent*>(event);
+  if (account_event->type() == account::AccountEvent::kSignedIn) {
+    DLOG(INFO) << "Got signed in event!";
+  } else if (account_event->type() == account::AccountEvent::kSignedOut) {
+    DLOG(INFO) << "Got signed out event!";
+    browser_module_->Navigate(GURL("h5vcc://signed-out"));
+  }
 }
 
 }  // namespace browser

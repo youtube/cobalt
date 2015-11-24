@@ -53,6 +53,9 @@ class Application {
   base::Closure quit_closure_;
 
  protected:
+  // Called to handle an event from the account manager.
+  void OnAccountEvent(const base::Event* event);
+
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
 
@@ -63,6 +66,8 @@ class Application {
 
   // Main components of the Cobalt browser application.
   scoped_ptr<BrowserModule> browser_module_;
+
+  base::EventCallback account_event_callback_;
 
 #if defined(ENABLE_WEBDRIVER)
   // WebDriver implementation with embedded HTTP server.
