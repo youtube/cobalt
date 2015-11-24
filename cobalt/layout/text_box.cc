@@ -352,7 +352,8 @@ bool TextBox::HasNonCollapsibleText() const {
 
 std::string TextBox::GetNonCollapsibleText() const {
   return paragraph_->RetrieveUtf8SubString(GetNonCollapsibleTextStartPosition(),
-                                           GetNonCollapsibleTextEndPosition());
+                                           GetNonCollapsibleTextEndPosition(),
+                                           Paragraph::kVisualTextOrder);
 }
 
 }  // namespace layout
