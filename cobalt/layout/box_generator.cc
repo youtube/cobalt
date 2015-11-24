@@ -166,6 +166,8 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       // Leave |replaced_box_| NULL.
       break;
     case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kAlternate:
+    case cssom::KeywordValue::kAlternateReverse:
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kBackwards:
     case cssom::KeywordValue::kBaseline:
@@ -194,6 +196,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
+    case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kSansSerif:
     case cssom::KeywordValue::kSerif:
@@ -364,6 +367,8 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       // Leave |container_box_| NULL.
       break;
     case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kAlternate:
+    case cssom::KeywordValue::kAlternateReverse:
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kBackwards:
     case cssom::KeywordValue::kBaseline:
@@ -392,6 +397,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
+    case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kSansSerif:
     case cssom::KeywordValue::kSerif:
@@ -472,6 +478,8 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
         is_element_generated_ = false;
         break;
       case cssom::KeywordValue::kAbsolute:
+      case cssom::KeywordValue::kAlternate:
+      case cssom::KeywordValue::kAlternateReverse:
       case cssom::KeywordValue::kAuto:
       case cssom::KeywordValue::kBackwards:
       case cssom::KeywordValue::kBaseline:
@@ -502,6 +510,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kPre:
       case cssom::KeywordValue::kRelative:
       case cssom::KeywordValue::kRepeat:
+      case cssom::KeywordValue::kReverse:
       case cssom::KeywordValue::kRight:
       case cssom::KeywordValue::kSansSerif:
       case cssom::KeywordValue::kSerif:

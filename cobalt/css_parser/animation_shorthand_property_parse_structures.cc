@@ -35,6 +35,13 @@ base::TimeDelta GetInitialDelay() {
       ->value()[0];
 }
 
+scoped_refptr<cssom::PropertyValue> GetInitialDirection() {
+  return base::polymorphic_downcast<const cssom::PropertyListValue*>(
+             cssom::GetPropertyInitialValue(cssom::kAnimationDirectionProperty)
+                 .get())
+      ->value()[0];
+}
+
 base::TimeDelta GetInitialDuration() {
   return base::polymorphic_downcast<const cssom::TimeListValue*>(
              cssom::GetPropertyInitialValue(cssom::kAnimationDurationProperty)
@@ -77,6 +84,10 @@ scoped_refptr<cssom::TimingFunction> GetInitialTimingFunction() {
 void SingleAnimationShorthand::ReplaceNullWithInitialValues() {
   if (!delay) {
     delay = GetInitialDelay();
+  }
+
+  if (!direction) {
+    direction = GetInitialDirection();
   }
 
   if (!duration) {

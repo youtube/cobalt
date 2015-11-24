@@ -39,14 +39,15 @@ namespace web_animations {
 class AnimationEffectTimingReadOnly : public script::Wrappable {
  public:
   enum FillMode { kNone, kForwards, kBackwards, kBoth };
+  enum PlaybackDirection { kNormal, kReverse, kAlternate, kAlternateReverse };
 
   AnimationEffectTimingReadOnly(
       const base::TimeDelta& delay, const base::TimeDelta& end_delay,
       FillMode fill, double iteration_start, double iterations,
-      const base::TimeDelta& duration,
+      const base::TimeDelta& duration, PlaybackDirection direction,
       const scoped_refptr<cssom::TimingFunction>& easing)
       : data_(delay, end_delay, fill, iteration_start, iterations, duration,
-              easing) {}
+              direction, easing) {}
 
   double delay() const { return data_.delay().InMillisecondsF(); }
 
@@ -59,6 +60,8 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
   double iterations() const { return data_.iterations(); }
 
   double duration() const { return data_.duration().InMillisecondsF(); }
+
+  PlaybackDirection direction() const { return data_.direction(); }
 
   std::string easing() const {
     NOTIMPLEMENTED();
@@ -78,6 +81,7 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
     Data(const base::TimeDelta& delay, const base::TimeDelta& end_delay,
          AnimationEffectTimingReadOnly::FillMode fill, double iteration_start,
          double iterations, const base::TimeDelta& duration,
+         PlaybackDirection direction,
          const scoped_refptr<cssom::TimingFunction>& easing)
         : delay_(delay),
           end_delay_(end_delay),
@@ -85,6 +89,7 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
           iteration_start_(iteration_start),
           iterations_(iterations),
           duration_(duration),
+          direction_(direction),
           easing_(easing) {}
 
     base::TimeDelta delay() const { return delay_; }
@@ -93,6 +98,7 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
     double iteration_start() const { return iteration_start_; }
     double iterations() const { return iterations_; }
     base::TimeDelta duration() const { return duration_; }
+    PlaybackDirection direction() const { return direction_; }
     const scoped_refptr<cssom::TimingFunction> easing() const {
       return easing_;
     }
@@ -155,6 +161,7 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
     double iterations_;
     // Note that the specs refer to duration here as "iteration duration".
     base::TimeDelta duration_;
+    PlaybackDirection direction_;
     scoped_refptr<cssom::TimingFunction> easing_;
   };
 

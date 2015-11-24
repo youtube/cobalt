@@ -37,6 +37,15 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
     kAbsolute,
 
+    // "alternate" is a possible value of the "animation-direction" property.
+    //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
+    kAlternate,
+
+    // "alternate-reverse" is a possible value of the "animation-direction"
+    // property.
+    //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
+    kAlternateReverse,
+
     // "auto" is a value of "width" and "height" properties which indicates
     // that used value of these properties depends on the values of other
     // properties.
@@ -217,6 +226,10 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/css3-background/#background-repeat
     kRepeat,
 
+    // "reverse" is a possible value of the "animation-direction" property.
+    //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
+    kReverse,
+
     // "right" is a value of "text-align" property that indicates that the
     // content should be aligned horizontally to the right.
     //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
@@ -263,6 +276,8 @@ class KeywordValue : public PropertyValue {
   // saving memory an explicit instantiation of this class is disallowed.
   // Use factory methods below to obtain shared instances.
   static const scoped_refptr<KeywordValue>& GetAbsolute();
+  static const scoped_refptr<KeywordValue>& GetAlternate();
+  static const scoped_refptr<KeywordValue>& GetAlternateReverse();
   static const scoped_refptr<KeywordValue>& GetAuto();
   static const scoped_refptr<KeywordValue>& GetBackwards();
   static const scoped_refptr<KeywordValue>& GetBaseline();
@@ -295,6 +310,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetPre();
   static const scoped_refptr<KeywordValue>& GetRelative();
   static const scoped_refptr<KeywordValue>& GetRepeat();
+  static const scoped_refptr<KeywordValue>& GetReverse();
   static const scoped_refptr<KeywordValue>& GetRight();
   static const scoped_refptr<KeywordValue>& GetSansSerif();
   static const scoped_refptr<KeywordValue>& GetSerif();

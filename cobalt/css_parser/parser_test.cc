@@ -3408,6 +3408,60 @@ TEST_F(ParserTest, ParsesAnimationDelayWithSingleValue) {
   EXPECT_DOUBLE_EQ(1, animation_delay->value()[0].InSecondsF());
 }
 
+TEST_F(ParserTest, ParsesAnimationDirectionWithNormalValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-direction: normal;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_direction =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_direction().get());
+  EXPECT_TRUE(animation_direction);
+  ASSERT_EQ(1, animation_direction->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetNormal(), animation_direction->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesAnimationDirectionWithReverseValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-direction: reverse;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_direction =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_direction().get());
+  EXPECT_TRUE(animation_direction);
+  ASSERT_EQ(1, animation_direction->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetReverse(), animation_direction->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesAnimationDirectionWithAlternateValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-direction: alternate;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_direction =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_direction().get());
+  EXPECT_TRUE(animation_direction);
+  ASSERT_EQ(1, animation_direction->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetAlternate(),
+            animation_direction->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesAnimationDirectionWithAlternateReverseValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "animation-direction: alternate-reverse;", source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_direction =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_direction().get());
+  EXPECT_TRUE(animation_direction);
+  ASSERT_EQ(1, animation_direction->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetAlternateReverse(),
+            animation_direction->value()[0]);
+}
+
 TEST_F(ParserTest, ParsesAnimationFillModeWithForwardsValue) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("animation-fill-mode: forwards;",
@@ -3623,6 +3677,19 @@ TEST_F(ParserTest, ParsesAnimationShorthandForDuration) {
   EXPECT_DOUBLE_EQ(1.0f, animation_duration->value()[0].InSecondsF());
 }
 
+TEST_F(ParserTest, ParsesAnimationShorthandForDirection) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation: reverse;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_direction =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_direction().get());
+  EXPECT_TRUE(animation_direction);
+  ASSERT_EQ(1, animation_direction->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetReverse(), animation_direction->value()[0]);
+}
+
 TEST_F(ParserTest, ParsesAnimationShorthandForDurationAndDelay) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("animation: 1s 2s;", source_location_);
@@ -3691,7 +3758,8 @@ TEST_F(ParserTest, ParsesAnimationShorthandForFillMode) {
 TEST_F(ParserTest, ParsesAnimationShorthandForAllProperties) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList(
-          "animation: linear foo 1s 2s 1.5 forwards;", source_location_);
+          "animation: linear foo 1s 2s 1.5 forwards alternate;",
+          source_location_);
 
   scoped_refptr<cssom::PropertyListValue> animation_fill_mode =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -3745,6 +3813,14 @@ TEST_F(ParserTest, ParsesAnimationShorthandForAllProperties) {
       base::polymorphic_downcast<cssom::StringValue*>(
           animation_name->value()[0].get());
   EXPECT_EQ("foo", name_value->value());
+
+  scoped_refptr<cssom::PropertyListValue> animation_direction =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_direction().get());
+  EXPECT_TRUE(animation_direction);
+  ASSERT_EQ(1, animation_direction->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetAlternate(),
+            animation_direction->value()[0]);
 }
 
 TEST_F(ParserTest, ParsesAnimationShorthandForMultipleAnimations) {
