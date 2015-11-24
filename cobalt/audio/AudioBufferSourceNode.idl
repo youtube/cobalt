@@ -19,9 +19,10 @@
 interface AudioBufferSourceNode : AudioNode {
   attribute AudioBuffer? buffer;
 
-  void start(optional double when = 0, optional double offset = 0,
-             optional double duration);
-  void stop(optional double when = 0);
+  [RaisesException] void start(optional double when = 0,
+                               optional double offset = 0,
+                               optional double duration);
+  [RaisesException] void stop(optional double when = 0);
 
   attribute EventHandler onended;
 };
