@@ -17,6 +17,7 @@
 #include "cobalt/media/fetcher_buffered_data_source.h"
 
 #include <algorithm>
+#include <string>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
@@ -120,8 +121,13 @@ void FetcherBufferedDataSource::OnResponseStarted(
         headers &&
         headers->GetContentRange(&first_byte_position, &last_byte_position,
                                  &instance_length);
-    if (is_range_valid && first_byte_position >= 0) {
-      first_byte_offset = static_cast<uint64>(first_byte_position);
+    if (is_range_valid) {
+      if (first_byte_position >= 0) {
+        first_byte_offset = static_cast<uint64>(first_byte_position);
+      }
+      if (!total_size_of_resource_ && instance_length > 0) {
+        total_size_of_resource_ = static_cast<uint64>(instance_length);
+      }
     }
   }
 
@@ -280,7 +286,7 @@ void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
 
   // Fulfill the read request now if we have the data.
   if (position >= buffer_offset_ &&
-      position + size < buffer_offset_ + buffer_.GetLength()) {
+      position + size <= buffer_offset_ + buffer_.GetLength()) {
     // All data is available
     size_t bytes_peeked;
     buffer_.Peek(data, size, position - buffer_offset_, &bytes_peeked);
