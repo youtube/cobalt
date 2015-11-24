@@ -14,32 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef H5VCC_H5VCC_ACCOUNT_INFO_H_
-#define H5VCC_H5VCC_ACCOUNT_INFO_H_
-
-#include <string>
-
-#include "cobalt/account/account_manager.h"
-#include "cobalt/script/wrappable.h"
+#include "cobalt/account/account_manager_stub.h"
 
 namespace cobalt {
-namespace h5vcc {
+namespace account {
 
-class H5vccAccountInfo : public script::Wrappable {
- public:
-  explicit H5vccAccountInfo(account::AccountManager* account_manager);
-  std::string avatar_url() const;
-  std::string username() const;
-  std::string user_id() const;
+// Static.
+scoped_ptr<AccountManager> AccountManager::Create(
+    base::EventDispatcher* event_dispatcher) {
+  UNREFERENCED_PARAMETER(event_dispatcher);
+  scoped_ptr<AccountManager> account_manager(new AccountManagerStub());
+  return account_manager.Pass();
+}
 
-  DEFINE_WRAPPABLE_TYPE(H5vccAccountInfo);
-
- private:
-  account::AccountManager* account_manager_;
-  DISALLOW_COPY_AND_ASSIGN(H5vccAccountInfo);
-};
-
-}  // namespace h5vcc
+}  // namespace account
 }  // namespace cobalt
-
-#endif  // H5VCC_H5VCC_ACCOUNT_INFO_H_

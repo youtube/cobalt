@@ -74,17 +74,23 @@ std::string GetH5vccUrlQueryParam(const GURL& url, const std::string& name) {
 
 const char kH5vccScheme[] = "h5vcc";
 const char kNetworkFailure[] = "network-failure";
+const char kSignedOut[] = "signed-out";
 const char kRetryParam[] = "retry-url";
 const char kNetworkFailureMessageId[] = "UNABLE_TO_CONTACT_YOUTUBE";
 const char kNetworkFailureMessageFallback[] = "Unable to contact YouTube";
+const char kSignedOutMessageId[] = "OFFLINE_MESSAGE_1";
+const char kSignedOutMessageFallback[] =
+    "You are signed out of PSN. To use YouTube, you need to sign in to PSN.";
 }  // namespace
 
 H5vccURLHandler::H5vccURLHandler(BrowserModule* browser_module,
-                                 system_window::SystemWindow* system_window)
+                                 system_window::SystemWindow* system_window,
+                                 account::AccountManager* account_manager)
     : ALLOW_THIS_IN_INITIALIZER_LIST(URLHandler(
           browser_module,
           base::Bind(&H5vccURLHandler::HandleURL, base::Unretained(this)))),
-      system_window_(system_window) {}
+      system_window_(system_window),
+      account_manager_(account_manager) {}
 
 bool H5vccURLHandler::HandleURL(const GURL& url) {
   bool was_handled = false;
@@ -93,6 +99,8 @@ bool H5vccURLHandler::HandleURL(const GURL& url) {
     const std::string type = GetH5vccUrlType(url);
     if (type == kNetworkFailure) {
       was_handled = HandleNetworkFailure();
+    } else if (type == kSignedOut) {
+      was_handled = HandleSignedOut();
     } else {
       LOG(WARNING) << "Unknown h5vcc URL type: " << type;
     }
@@ -111,6 +119,17 @@ bool H5vccURLHandler::HandleNetworkFailure() {
   return true;
 }
 
+bool H5vccURLHandler::HandleSignedOut() {
+  system_window::SystemWindow::DialogOptions dialog_options;
+  dialog_options.message = base::LocalizedStrings::GetInstance()->GetString(
+      kSignedOutMessageId, kSignedOutMessageFallback);
+  dialog_options.num_buttons = 1;
+  dialog_options.callback = base::Bind(
+      &H5vccURLHandler::OnSignedOutDialogResponse, base::Unretained(this));
+  system_window_->ShowDialog(dialog_options);
+  return true;
+}
+
 void H5vccURLHandler::OnNetworkFailureDialogResponse(
     system_window::SystemWindow::DialogResponse response) {
   UNREFERENCED_PARAMETER(response);
@@ -121,6 +140,12 @@ void H5vccURLHandler::OnNetworkFailureDialogResponse(
       browser_module()->Navigate(GURL(retry_url));
     }
   }
+}
+
+void H5vccURLHandler::OnSignedOutDialogResponse(
+    system_window::SystemWindow::DialogResponse response) {
+  UNREFERENCED_PARAMETER(response);
+  account_manager_->StartSignIn();
 }
 
 }  // namespace browser

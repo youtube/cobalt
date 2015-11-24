@@ -14,35 +14,28 @@
  * limitations under the License.
  */
 
-#include "cobalt/h5vcc/h5vcc_account_info.h"
+#ifndef ACCOUNT_ACCOUNT_MANAGER_STUB_H_
+#define ACCOUNT_ACCOUNT_MANAGER_STUB_H_
 
 #include "cobalt/account/account_manager.h"
 
+#include <string>
+
 namespace cobalt {
-namespace h5vcc {
+namespace account {
 
-H5vccAccountInfo::H5vccAccountInfo(account::AccountManager* account_manager)
-    : account_manager_(account_manager) {}
+class AccountManagerStub : public AccountManager {
+ public:
+  AccountManagerStub();
+  ~AccountManagerStub() OVERRIDE;
+  std::string GetAvatarURL() OVERRIDE;
+  void StartSignIn() OVERRIDE;
 
-std::string H5vccAccountInfo::avatar_url() const {
-  if (account_manager_) {
-    DLOG(INFO) << "Got avatar URL: " << account_manager_->GetAvatarURL();
-    return account_manager_->GetAvatarURL();
-  }
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AccountManagerStub);
+};
 
-  DLOG(WARNING) << "Account manager is NULL";
-  return "";
-}
-
-std::string H5vccAccountInfo::username() const {
-  NOTIMPLEMENTED();
-  return "";
-}
-
-std::string H5vccAccountInfo::user_id() const {
-  NOTIMPLEMENTED();
-  return "";
-}
-
-}  // namespace h5vcc
+}  // namespace account
 }  // namespace cobalt
+
+#endif  // ACCOUNT_ACCOUNT_MANAGER_STUB_H_

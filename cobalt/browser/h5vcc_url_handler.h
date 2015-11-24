@@ -17,6 +17,7 @@
 #ifndef BROWSER_H5VCC_URL_HANDLER_H_
 #define BROWSER_H5VCC_URL_HANDLER_H_
 
+#include "cobalt/account/account_manager.h"
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/system_window/system_window.h"
 
@@ -29,18 +30,23 @@ namespace browser {
 class H5vccURLHandler : public URLHandler {
  public:
   explicit H5vccURLHandler(BrowserModule* browser_module,
-                           system_window::SystemWindow* system_window);
+                           system_window::SystemWindow* system_window,
+                           account::AccountManager* account_manager);
   ~H5vccURLHandler() {}
 
  private:
   bool HandleURL(const GURL& url);
   bool HandleNetworkFailure();
+  bool HandleSignedOut();
 
   // Dialog response handlers.
   void OnNetworkFailureDialogResponse(
       system_window::SystemWindow::DialogResponse response);
+  void OnSignedOutDialogResponse(
+      system_window::SystemWindow::DialogResponse response);
 
   system_window::SystemWindow* system_window_;
+  account::AccountManager* account_manager_;
   GURL url_;
 };
 
