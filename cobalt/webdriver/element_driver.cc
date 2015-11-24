@@ -116,15 +116,20 @@ ElementDriver::ElementDriver(
 util::CommandResult<std::string> ElementDriver::GetTagName() {
   return util::CallWeakOnMessageLoopAndReturnResult(
       element_message_loop_,
-      base::Bind(&ElementDriver::GetWeak, base::Unretained(this)),
+      base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&::cobalt::webdriver::GetTagName),
       protocol::Response::kStaleElementReference);
+}
+
+dom::Element* ElementDriver::GetWeakElement() {
+  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  return element_.get();
 }
 
 util::CommandResult<bool> ElementDriver::IsDisplayed() {
   return util::CallWeakOnMessageLoopAndReturnResult(
       element_message_loop_,
-      base::Bind(&ElementDriver::GetWeak, base::Unretained(this)),
+      base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&::cobalt::webdriver::IsDisplayed),
       protocol::Response::kStaleElementReference);
 }
