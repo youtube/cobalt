@@ -138,6 +138,8 @@ BrowserModule::BrowserModule(const GURL& url,
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_, system_window->event_dispatcher(),
                       options.network_module_options),
+      account_manager_(
+          account::AccountManager::Create(system_window->event_dispatcher())),
       render_tree_combiner_(renderer_module_.pipeline()),
 #if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_hub_(new debug::DebugHub(
@@ -174,7 +176,8 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
       screen_shot_writer_(new ScreenShotWriter(renderer_module_.pipeline())),
 #endif  // defined(ENABLE_SCREENSHOT)
-      ALLOW_THIS_IN_INITIALIZER_LIST(h5vcc_url_handler_(this, system_window)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          h5vcc_url_handler_(this, system_window, account_manager_.get())),
       web_module_options_(options.web_module_options) {
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -285,6 +288,7 @@ void BrowserModule::NavigateWithCallbackInternal(
 
   h5vcc::H5vcc::Settings h5vcc_settings;
   h5vcc_settings.network_module = &network_module_;
+  h5vcc_settings.account_manager = account_manager_.get();
   web_module_->window()->set_h5vcc(new h5vcc::H5vcc(h5vcc_settings));
 }
 

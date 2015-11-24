@@ -29,8 +29,9 @@ namespace h5vcc {
 class H5vcc : public dom::H5vccStub {
  public:
   struct Settings {
-    Settings() : network_module(NULL) {}
+    Settings() : network_module(NULL), account_manager(NULL) {}
     network::NetworkModule* network_module;
+    account::AccountManager* account_manager;
   };
 
   explicit H5vcc(const Settings& config);
