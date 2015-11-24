@@ -13,6 +13,8 @@
 # limitations under the License.
 
 {
+  'includes': [ '../build/contents_dir.gypi' ],
+
   'targets': [
     {
       'target_name': 'webdriver',
@@ -35,9 +37,13 @@
             'protocol/server_status.cc',
             'protocol/server_status.h',
             'protocol/session_id.h',
+            'protocol/script.cc',
+            'protocol/script.h',
             'protocol/size.cc',
             'protocol/size.h',
             'protocol/window_id.h',
+            'script_executor.h',
+            'script_executor.cc',
             'server.cc',
             'server.h',
             'session_driver.cc',
@@ -47,6 +53,7 @@
             'window_driver.cc',
             'window_driver.h',
           ],
+          'defines': [ 'ENABLE_WEBDRIVER', ],
           'all_dependent_settings': {
             'defines': [ 'ENABLE_WEBDRIVER', ],
           },
@@ -56,6 +63,23 @@
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/net/net.gyp:http_server',
+        'copy_webdriver_data',
+      ],
+    },
+    {
+      'target_name': 'copy_webdriver_data',
+      'type': 'none',
+      'copies': [
+        {
+          'destination': '<(static_contents_output_data_dir)/webdriver',
+          'conditions': [
+            ['enable_webdriver==1', {
+              'files': ['content/webdriver-init.js'],
+            }, {
+              'files': [],
+            }],
+          ],
+        },
       ],
     },
   ],
