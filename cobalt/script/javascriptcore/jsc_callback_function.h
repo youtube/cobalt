@@ -2,7 +2,6 @@
 //     pump.py jsc_callback_function.h.pump
 // DO NOT EDIT BY HAND!!!
 
-
 /*
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
@@ -26,6 +25,7 @@
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/util/exception_helpers.h"
+#include "cobalt/script/logging_exception_state.h"
 #include "cobalt/script/script_object.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 
@@ -43,7 +43,15 @@
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
-
+namespace internal {
+// Helper template functions for Callback functions' return values before being
+// returned to Cobalt.
+// Converts the return value from JavaScript into the correct Cobalt type, or
+// sets the exception bit if conversion fails.
+template <typename R>
+inline CallbackResult<R> ConvertReturnValue(JSC::ExecState* exec_state,
+                                            JSC::JSValue jsvalue);
+}
 // First, we forward declare the Callback class template. This informs the
 // compiler that the template only has 1 type parameter which is the base
 // CallbackFunction template class with parameters.
@@ -59,7 +67,7 @@ class JSCCallbackFunction<R(void)>
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
       : callable_(callable) { DCHECK(callable_); }
 
-  R Run()
+  CallbackResult<R> Run()
       const OVERRIDE {
     DCHECK(callable_);
     JSCGlobalObject* global_object =
@@ -79,12 +87,17 @@ class JSCCallbackFunction<R(void)>
     JSC::JSValue retval =
         JSC::call(exec_state, callable_, call_type, call_data, this_value,
             args);
+    CallbackResult<R> callback_result;
     if (exec_state->hadException()) {
       DLOG(WARNING) << "Exception in callback: "
                     << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
+      callback_result.exception = true;
+    } else {
+      callback_result = internal::ConvertReturnValue<R>(exec_state, retval);
     }
+    return callback_result;
   }
 
   JSC::JSFunction* callable() const { return callable_; }
@@ -100,7 +113,7 @@ class JSCCallbackFunction<R(A1)>
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
       : callable_(callable) { DCHECK(callable_); }
 
-  R Run(
+  CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1)
       const OVERRIDE {
     DCHECK(callable_);
@@ -122,12 +135,17 @@ class JSCCallbackFunction<R(A1)>
     JSC::JSValue retval =
         JSC::call(exec_state, callable_, call_type, call_data, this_value,
             args);
+    CallbackResult<R> callback_result;
     if (exec_state->hadException()) {
       DLOG(WARNING) << "Exception in callback: "
                     << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
+      callback_result.exception = true;
+    } else {
+      callback_result = internal::ConvertReturnValue<R>(exec_state, retval);
     }
+    return callback_result;
   }
 
   JSC::JSFunction* callable() const { return callable_; }
@@ -143,7 +161,7 @@ class JSCCallbackFunction<R(A1, A2)>
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
       : callable_(callable) { DCHECK(callable_); }
 
-  R Run(
+  CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2)
       const OVERRIDE {
@@ -167,12 +185,17 @@ class JSCCallbackFunction<R(A1, A2)>
     JSC::JSValue retval =
         JSC::call(exec_state, callable_, call_type, call_data, this_value,
             args);
+    CallbackResult<R> callback_result;
     if (exec_state->hadException()) {
       DLOG(WARNING) << "Exception in callback: "
                     << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
+      callback_result.exception = true;
+    } else {
+      callback_result = internal::ConvertReturnValue<R>(exec_state, retval);
     }
+    return callback_result;
   }
 
   JSC::JSFunction* callable() const { return callable_; }
@@ -188,7 +211,7 @@ class JSCCallbackFunction<R(A1, A2, A3)>
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
       : callable_(callable) { DCHECK(callable_); }
 
-  R Run(
+  CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3)
@@ -214,12 +237,17 @@ class JSCCallbackFunction<R(A1, A2, A3)>
     JSC::JSValue retval =
         JSC::call(exec_state, callable_, call_type, call_data, this_value,
             args);
+    CallbackResult<R> callback_result;
     if (exec_state->hadException()) {
       DLOG(WARNING) << "Exception in callback: "
                     << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
+      callback_result.exception = true;
+    } else {
+      callback_result = internal::ConvertReturnValue<R>(exec_state, retval);
     }
+    return callback_result;
   }
 
   JSC::JSFunction* callable() const { return callable_; }
@@ -235,7 +263,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
       : callable_(callable) { DCHECK(callable_); }
 
-  R Run(
+  CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
@@ -263,12 +291,17 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
     JSC::JSValue retval =
         JSC::call(exec_state, callable_, call_type, call_data, this_value,
             args);
+    CallbackResult<R> callback_result;
     if (exec_state->hadException()) {
       DLOG(WARNING) << "Exception in callback: "
                     << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
+      callback_result.exception = true;
+    } else {
+      callback_result = internal::ConvertReturnValue<R>(exec_state, retval);
     }
+    return callback_result;
   }
 
   JSC::JSFunction* callable() const { return callable_; }
@@ -285,7 +318,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
       : callable_(callable) { DCHECK(callable_); }
 
-  R Run(
+  CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
@@ -315,12 +348,17 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
     JSC::JSValue retval =
         JSC::call(exec_state, callable_, call_type, call_data, this_value,
             args);
+    CallbackResult<R> callback_result;
     if (exec_state->hadException()) {
       DLOG(WARNING) << "Exception in callback: "
                     << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
+      callback_result.exception = true;
+    } else {
+      callback_result = internal::ConvertReturnValue<R>(exec_state, retval);
     }
+    return callback_result;
   }
 
   JSC::JSFunction* callable() const { return callable_; }
@@ -337,7 +375,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
       : callable_(callable) { DCHECK(callable_); }
 
-  R Run(
+  CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
@@ -369,12 +407,17 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
     JSC::JSValue retval =
         JSC::call(exec_state, callable_, call_type, call_data, this_value,
             args);
+    CallbackResult<R> callback_result;
     if (exec_state->hadException()) {
       DLOG(WARNING) << "Exception in callback: "
                     << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
+      callback_result.exception = true;
+    } else {
+      callback_result = internal::ConvertReturnValue<R>(exec_state, retval);
     }
+    return callback_result;
   }
 
   JSC::JSFunction* callable() const { return callable_; }
@@ -391,7 +434,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
   explicit JSCCallbackFunction(JSC::JSFunction* callable)
       : callable_(callable) { DCHECK(callable_); }
 
-  R Run(
+  CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
@@ -425,12 +468,17 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
     JSC::JSValue retval =
         JSC::call(exec_state, callable_, call_type, call_data, this_value,
             args);
+    CallbackResult<R> callback_result;
     if (exec_state->hadException()) {
       DLOG(WARNING) << "Exception in callback: "
                     << util::GetExceptionString(exec_state);
 
       exec_state->clearException();
+      callback_result.exception = true;
+    } else {
+      callback_result = internal::ConvertReturnValue<R>(exec_state, retval);
     }
+    return callback_result;
   }
 
   JSC::JSFunction* callable() const { return callable_; }
