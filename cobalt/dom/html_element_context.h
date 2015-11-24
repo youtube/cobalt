@@ -17,6 +17,8 @@
 #ifndef DOM_HTML_ELEMENT_CONTEXT_H_
 #define DOM_HTML_ELEMENT_CONTEXT_H_
 
+#include <string>
+
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "cobalt/cssom/css_parser.h"
@@ -43,8 +45,10 @@ class HTMLElementContext {
                      media::WebMediaPlayerFactory* web_media_player_factory,
                      script::ScriptRunner* script_runner,
                      MediaSource::Registry* media_source_registry,
+                     render_tree::ResourceProvider* resource_provider,
                      loader::image::ImageCache* image_cache,
-                     loader::font::RemoteFontCache* remote_font_cache);
+                     loader::font::RemoteFontCache* remote_font_cache,
+                     const std::string& language);
   ~HTMLElementContext();
 
   loader::FetcherFactory* fetcher_factory() { return fetcher_factory_; }
@@ -62,11 +66,17 @@ class HTMLElementContext {
     return media_source_registry_;
   }
 
+  render_tree::ResourceProvider* resource_provider() const {
+    return resource_provider_;
+  }
+
   loader::image::ImageCache* image_cache() const { return image_cache_; }
 
   loader::font::RemoteFontCache* remote_font_cache() const {
     return remote_font_cache_;
   }
+
+  const std::string& language() const { return language_; }
 
   base::Thread* sync_load_thread() { return &sync_load_thread_; }
 
@@ -81,8 +91,10 @@ class HTMLElementContext {
   media::WebMediaPlayerFactory* const web_media_player_factory_;
   script::ScriptRunner* const script_runner_;
   MediaSource::Registry* const media_source_registry_;
+  render_tree::ResourceProvider* resource_provider_;
   loader::image::ImageCache* const image_cache_;
   loader::font::RemoteFontCache* const remote_font_cache_;
+  const std::string language_;
 
   base::Thread sync_load_thread_;
   scoped_ptr<HTMLElementFactory> html_element_factory_;

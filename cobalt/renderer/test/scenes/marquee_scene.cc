@@ -86,7 +86,7 @@ RenderTreeWithAnimations CreateMarqueeScene(
 
   // Load a font for use with text rendering.
   const float kFontSize = 40.0f;
-  scoped_refptr<Font> test_font = resource_provider->GetPreInstalledFont(
+  scoped_refptr<Font> test_font = resource_provider->GetLocalFont(
       "Roboto", render_tree::kNormal, kFontSize);
 
   // Use information about the string we are rendering to properly position

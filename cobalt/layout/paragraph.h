@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/font_list.h"
 #include "cobalt/render_tree/font.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
 
@@ -89,14 +90,13 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // of the portion of the substring coming before |break_position|.
   //
   // Returns false if no usable break position was found.
-  bool CalculateBreakPosition(const scoped_refptr<render_tree::Font>& used_font,
+  bool CalculateBreakPosition(const scoped_refptr<dom::FontList>& used_font,
                               int32 start_position, int32 end_position,
                               float available_width, bool allow_overflow,
                               OverflowWrap overflow_wrap, int32* break_position,
                               float* break_width);
-  float CalculateSubStringWidth(
-      const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
-      int32 end_position) const;
+  float CalculateSubStringWidth(const scoped_refptr<dom::FontList>& used_font,
+                                int32 start_position, int32 end_position) const;
 
   std::string RetrieveUtf8SubString(int32 start_position,
                                     int32 end_position) const;
@@ -126,15 +126,15 @@ class Paragraph : public base::RefCounted<Paragraph> {
   typedef std::vector<BidiLevelRun> BidiLevelRuns;
 
   void CalculateCharacterBreakPosition(
-      const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+      const scoped_refptr<dom::FontList>& used_font, int32 start_position,
       int32 end_position, float available_width, bool allow_overflow,
       int32* break_position, float* break_width);
   void CalculateSoftWrapBreakPosition(
-      const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+      const scoped_refptr<dom::FontList>& used_font, int32 start_position,
       int32 end_position, float available_width, bool allow_overflow,
       int32* break_position, float* break_width);
   bool TryIncludeSegmentWithinAvailableWidth(
-      const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+      const scoped_refptr<dom::FontList>& used_font, int32 start_position,
       int32 end_position, float available_width, bool* allow_overflow,
       int32* break_position, float* break_width);
 

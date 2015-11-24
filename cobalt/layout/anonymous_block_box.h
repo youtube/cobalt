@@ -17,9 +17,9 @@
 #ifndef LAYOUT_ANONYMOUS_BLOCK_BOX_H_
 #define LAYOUT_ANONYMOUS_BLOCK_BOX_H_
 
+#include "cobalt/dom/font_list.h"
 #include "cobalt/layout/block_container_box.h"
 #include "cobalt/layout/box.h"
-#include "cobalt/render_tree/font.h"
 
 namespace cobalt {
 namespace layout {
@@ -32,7 +32,7 @@ class AnonymousBlockBox : public BlockContainerBox {
  public:
   AnonymousBlockBox(
       const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-      const UsedStyleProvider* used_style_provider);
+      UsedStyleProvider* used_style_provider);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
@@ -63,7 +63,7 @@ class AnonymousBlockBox : public BlockContainerBox {
 
  private:
   // A font used for text width and line height calculations.
-  const scoped_refptr<render_tree::Font> used_font_;
+  const scoped_refptr<dom::FontList> used_font_;
 };
 
 }  // namespace layout

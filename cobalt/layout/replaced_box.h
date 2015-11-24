@@ -41,12 +41,12 @@ class ReplacedBox : public Box {
 
   ReplacedBox(
       const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-      const UsedStyleProvider* used_style_provider,
       const ReplaceImageCB& replace_image_cb,
       const scoped_refptr<Paragraph>& paragraph, int32 text_position,
       const base::optional<float>& maybe_intrinsic_width,
       const base::optional<float>& maybe_intrinsic_height,
-      const base::optional<float>& maybe_intrinsic_ratio);
+      const base::optional<float>& maybe_intrinsic_ratio,
+      UsedStyleProvider* used_style_provider);
 
   // From |Box|.
   scoped_refptr<Box> TrySplitAt(float available_width,

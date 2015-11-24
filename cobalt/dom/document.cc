@@ -35,8 +35,8 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
-#include "cobalt/dom/font_face_cache.h"
-#include "cobalt/dom/font_face_cache_updater.h"
+#include "cobalt/dom/font_cache.h"
+#include "cobalt/dom/font_face_updater.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
@@ -65,11 +65,15 @@ Document::Document(HTMLElementContext* html_element_context,
       ALLOW_THIS_IN_INITIALIZER_LIST(csp_delegate_(new CSPDelegate(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           style_sheets_(new cssom::StyleSheetList(this))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(font_face_cache_(new FontFaceCache(
+      ALLOW_THIS_IN_INITIALIZER_LIST(font_cache_(new FontCache(
+          html_element_context_ ? html_element_context_->resource_provider()
+                                : NULL,
           html_element_context_ ? html_element_context_->remote_font_cache()
                                 : NULL,
           base::Bind(&Document::OnFontLoadEvent, base::Unretained(this)),
-          csp_delegate_.get()))),
+          csp_delegate_.get(),
+          html_element_context_ ? html_element_context_->language()
+                                : "en-US"))),
       loading_counter_(0),
       should_dispatch_load_event_(true),
       is_selector_tree_dirty_(true),
@@ -491,9 +495,8 @@ void Document::UpdateComputedStyles(
 void Document::UpdateFontFaces(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
   if (are_font_faces_dirty_) {
-    TRACE_EVENT0("cobalt::layout", "Document::UpdateFontFaces()");
-    FontFaceCacheUpdater font_face_updater(location_->url(),
-                                           font_face_cache_.get());
+    TRACE_EVENT0("cobalt::dom", "Document::UpdateFontFaces()");
+    FontFaceUpdater font_face_updater(location_->url(), font_cache_.get());
     font_face_updater.ProcessCSSStyleSheet(user_agent_style_sheet);
     font_face_updater.ProcessStyleSheetList(style_sheets());
     are_font_faces_dirty_ = false;

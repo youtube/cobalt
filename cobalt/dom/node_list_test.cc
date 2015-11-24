@@ -27,7 +27,8 @@ namespace dom {
 class NodeListTest : public ::testing::Test {
  protected:
   NodeListTest()
-      : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+      : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                              NULL, ""),
         document_(new Document(&html_element_context_, Document::Options())) {}
 
   ~NodeListTest() OVERRIDE {}
