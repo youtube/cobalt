@@ -7,7 +7,6 @@ $$
 
 $$ This should be no larger than MAX_ARITY in base/bind.h.pump.
 $var MAX_ARITY = 7
-
 /*
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
@@ -40,6 +39,19 @@ $var MAX_ARITY = 7
 namespace cobalt {
 namespace script {
 
+template <typename R>
+struct CallbackResult {
+  CallbackResult() : result(R()), exception(false) {}
+  R result;
+  bool exception;
+};
+
+template <>
+struct CallbackResult<void> {
+  CallbackResult() : exception(false) {}
+  bool exception;
+};
+
 // First, we forward declare the CallbackFunction class template. This informs
 // the compiler that the template only has 1 type parameter which is the
 // function signature that the CallbackFunction is representing.
@@ -65,7 +77,9 @@ class CallbackFunction<R($for ARG , [[A$(ARG)]])> {
   typedef R Signature($for ARG , [[A$(ARG)]]);
 ]]
 
-  virtual R Run($for ARG ,[[
+  typedef CallbackResult<R> ReturnValue;
+
+  virtual CallbackResult<R> Run($for ARG ,[[
 
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const = 0;
@@ -73,7 +87,6 @@ class CallbackFunction<R($for ARG , [[A$(ARG)]])> {
  protected:
   virtual ~CallbackFunction() {}
 };
-
 
 ]]
 
