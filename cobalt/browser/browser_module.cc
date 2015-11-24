@@ -91,7 +91,7 @@ void OnNavigateMessage(BrowserModule* browser_module,
   GURL url(message);
   DLOG_IF(WARNING, !url.is_valid()) << "Invalid URL: " << message;
   if (url.is_valid()) {
-    browser_module->Navigate(url, base::Closure());
+    browser_module->Navigate(url);
   }
 }
 
@@ -216,19 +216,31 @@ BrowserModule::BrowserModule(const GURL& url,
   // TODO(***REMOVED***) Render tree combiner should probably be refactored.
   render_tree_combiner_.set_render_debug_console(true);
 
-  NavigateInternal(url, base::Closure());
+  NavigateWithCallbackInternal(url, base::Closure());
 }
 
-void BrowserModule::Navigate(const GURL& url,
-                             const base::Closure& loaded_callback) {
+BrowserModule::~BrowserModule() {}
+
+void BrowserModule::Navigate(const GURL& url) {
+  // Do not check message loop, it'll be dealt with in the following function.
+  NavigateWithCallback(url, base::Closure());
+}
+
+void BrowserModule::Reload() {
+  // Do not check message loop, it'll be dealt with in the following function.
+  NavigateWithCallback(web_module_->url(), base::Closure());
+}
+
+void BrowserModule::NavigateWithCallback(const GURL& url,
+                                         const base::Closure& loaded_callback) {
   // Always post this as a task in case this is being called from the WebModule.
   self_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&BrowserModule::NavigateInternal,
+      FROM_HERE, base::Bind(&BrowserModule::NavigateWithCallbackInternal,
                             base::Unretained(this), url, loaded_callback));
 }
 
-void BrowserModule::NavigateInternal(const GURL& url,
-                                     const base::Closure& loaded_callback) {
+void BrowserModule::NavigateWithCallbackInternal(
+    const GURL& url, const base::Closure& loaded_callback) {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
   // First try the registered handlers (e.g. for h5vcc://). If one of these
@@ -243,6 +255,9 @@ void BrowserModule::NavigateInternal(const GURL& url,
   web_module_.reset(NULL);
 
   WebModule::Options options(web_module_options_);
+
+  options.navigation_callback =
+      base::Bind(&BrowserModule::Navigate, base::Unretained(this));
   if (!loaded_callback.is_null()) {
     options.loaded_callbacks.push_back(loaded_callback);
   }
@@ -273,15 +288,6 @@ void BrowserModule::NavigateInternal(const GURL& url,
   web_module_->window()->set_h5vcc(new h5vcc::H5vcc(h5vcc_settings));
 }
 
-void BrowserModule::Reload() {
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&BrowserModule::Reload, base::Unretained(this)));
-    return;
-  }
-  Navigate(web_module_->url(), base::Closure());
-}
-
 #if defined(ENABLE_SCREENSHOT)
 void BrowserModule::RequestScreenshotToFile(const FilePath& path,
                                             const base::Closure& done_cb) {
@@ -294,8 +300,6 @@ void BrowserModule::RequestScreenshotToBuffer(
   screen_shot_writer_->RequestScreenshotToMemory(encode_complete_callback);
 }
 #endif
-
-BrowserModule::~BrowserModule() {}
 
 void BrowserModule::OnRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
@@ -343,7 +347,7 @@ void BrowserModule::OnError(const std::string& error) {
   LOG(ERROR) << error;
   std::string url_string = "h5vcc://network-failure";
   url_string += "?retry-url=" + web_module_->url().spec();
-  NavigateInternal(GURL(url_string), base::Closure());
+  NavigateWithCallbackInternal(GURL(url_string), base::Closure());
 }
 
 bool BrowserModule::FilterKeyEvent(
@@ -494,8 +498,9 @@ bool BrowserModule::SetDebugConsoleModeFromCommandLine() {
 #if defined(ENABLE_WEBDRIVER)
 scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
     const webdriver::protocol::SessionId& session_id) {
-  return make_scoped_ptr(new webdriver::SessionDriver(session_id,
-      base::Bind(&BrowserModule::Navigate, base::Unretained(this)),
+  return make_scoped_ptr(new webdriver::SessionDriver(
+      session_id,
+      base::Bind(&BrowserModule::NavigateWithCallback, base::Unretained(this)),
       base::Bind(&BrowserModule::CreateWindowDriver, base::Unretained(this))));
 }
 #endif

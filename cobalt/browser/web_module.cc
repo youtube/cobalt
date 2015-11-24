@@ -115,7 +115,7 @@ WebModule::WebModule(
           &local_storage_database_, media_module, execution_state_.get(),
           script_runner_.get(), &media_source_registry_, initial_url,
           network_module->user_agent(), network_module->preferred_language(),
-          error_callback)),
+          options.navigation_callback, error_callback)),
       window_weak_(base::AsWeakPtr(window_.get())),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, &media_source_registry_,

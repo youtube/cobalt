@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/window.h"
 
+#include "base/bind.h"
+#include "base/callback.h"
 #include "base/message_loop.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/local_storage_database.h"
@@ -49,6 +51,7 @@ class WindowTest : public ::testing::Test {
             1920, 1080, css_parser_.get(), dom_parser_.get(),
             fetcher_factory_.get(), NULL, NULL, &local_storage_database_,
             stub_media_module_.get(), NULL, NULL, NULL, url_, "", "en-US",
+            base::Callback<void(const GURL &)>(),
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)))) {}
 

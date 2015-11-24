@@ -118,7 +118,7 @@ void H5vccURLHandler::OnNetworkFailureDialogResponse(
   if (retry_url.length() > 0) {
     GURL url(retry_url);
     if (url.is_valid()) {
-      browser_module()->Navigate(GURL(retry_url), base::Closure());
+      browser_module()->Navigate(GURL(retry_url));
     }
   }
 }

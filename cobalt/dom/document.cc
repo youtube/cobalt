@@ -61,8 +61,7 @@ Document::Document(HTMLElementContext* html_element_context,
     : ALLOW_THIS_IN_INITIALIZER_LIST(Node(this)),
       html_element_context_(html_element_context),
       implementation_(new DOMImplementation()),
-      location_(new Location(options.url)),
-      url_(options.url),
+      location_(new Location(options.url, options.navigation_callback)),
       ALLOW_THIS_IN_INITIALIZER_LIST(csp_delegate_(new CSPDelegate(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           style_sheets_(new cssom::StyleSheetList(this))),
@@ -81,7 +80,7 @@ Document::Document(HTMLElementContext* html_element_context,
       navigation_start_clock_(options.navigation_start_clock),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           default_timeline_(new DocumentTimeline(this, 0))) {
-  DCHECK(url_.is_empty() || url_.is_valid());
+  DCHECK(options.url.is_empty() || options.url.is_valid());
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   partial_layout_is_enabled_ = true;
@@ -493,7 +492,8 @@ void Document::UpdateFontFaces(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
   if (are_font_faces_dirty_) {
     TRACE_EVENT0("cobalt::layout", "Document::UpdateFontFaces()");
-    FontFaceCacheUpdater font_face_updater(url_, font_face_cache_.get());
+    FontFaceCacheUpdater font_face_updater(location_->url(),
+                                           font_face_cache_.get());
     font_face_updater.ProcessCSSStyleSheet(user_agent_style_sheet);
     font_face_updater.ProcessStyleSheetList(style_sheets());
     are_font_faces_dirty_ = false;

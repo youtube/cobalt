@@ -69,6 +69,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                script::ScriptRunner* script_runner,
                MediaSource::Registry* media_source_registry, const GURL& url,
                const std::string& user_agent, const std::string& language,
+               const base::Callback<void(const GURL&)> navigation_callback,
                const base::Callback<void(const std::string&)>& error_callback)
     : width_(width),
       height_(height),
@@ -79,8 +80,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       performance_(new Performance(new base::SystemMonotonicClock())),
       document_(new Document(
           html_element_context_.get(),
-          Document::Options(
-              url, performance_->timing()->GetNavigationStartClock()))),
+          Document::Options(url,
+                            performance_->timing()->GetNavigationStartClock(),
+                            navigation_callback))),
       document_loader_(new loader::Loader(
           base::Bind(&loader::FetcherFactory::CreateFetcher,
                      base::Unretained(fetcher_factory), url),
