@@ -113,6 +113,12 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kInheritedNo, kAnimatableNo,
                         CreateTimeListWithZeroSeconds());
 
+  // http://www.w3.org/TR/css3-animations/#animation-direction-property
+  SetPropertyDefinition(
+      kAnimationDirectionProperty, "animation-direction", kInheritedNo,
+      kAnimatableNo,
+      CreateSinglePropertyListWithValue(KeywordValue::GetNormal()));
+
   // http://www.w3.org/TR/css3-animations/#animation-duration-property
   SetPropertyDefinition(kAnimationDurationProperty, "animation-duration",
                         kInheritedNo, kAnimatableNo,
@@ -718,6 +724,10 @@ PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
       return kNoneProperty;
 
     case 19:
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAnimationDirectionProperty))) {
+        return kAnimationDirectionProperty;
+      }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kAnimationFillModeProperty))) {
         return kAnimationFillModeProperty;

@@ -178,6 +178,8 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
     case KeywordValue::kAuto:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
@@ -209,6 +211,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -257,6 +260,8 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
@@ -288,6 +293,7 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -345,6 +351,8 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
@@ -376,6 +384,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -442,6 +451,8 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
@@ -473,6 +484,7 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -543,6 +555,8 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
@@ -573,6 +587,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -643,6 +658,8 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
@@ -674,6 +691,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -738,6 +756,8 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
@@ -769,6 +789,7 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -829,6 +850,8 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
@@ -859,6 +882,7 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -943,8 +967,10 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kNone:
       computed_background_image_ = keyword;
       break;
-    case KeywordValue::kAuto:
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
+    case KeywordValue::kAuto:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
@@ -975,6 +1001,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -1090,6 +1117,8 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
       break;
 
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
@@ -1119,6 +1148,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -1632,6 +1662,8 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
       computed_transform_list_ = keyword;
       break;
     case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
     case KeywordValue::kAuto:
     case KeywordValue::kBackwards:
     case KeywordValue::kBaseline:
@@ -1663,6 +1695,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
@@ -1860,6 +1893,7 @@ void PromoteToComputedStyle(
         break;
       }
       case kAnimationDelayProperty:
+      case kAnimationDirectionProperty:
       case kAnimationDurationProperty:
       case kAnimationFillModeProperty:
       case kAnimationIterationCountProperty:
