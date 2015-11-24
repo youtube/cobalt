@@ -51,6 +51,9 @@ class Response {
     // An unknown server-side error occurred while processing the command.
     kUnknownError = 13,
 
+    // An error occurred while executing user supplied JavaScript.
+    kJavaScriptError = 17,
+
     // The specified window has been closed, or otherwise couldn't be found.
     kNoSuchWindow = 23,
 

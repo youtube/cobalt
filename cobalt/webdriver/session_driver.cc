@@ -63,6 +63,9 @@ util::CommandResult<void> SessionDriver::Navigate(const GURL& url) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   protocol::WindowId current_id = window_driver_->window_id();
+  // Destroy the window_driver here to ensure there are no handles to anything
+  // that will be destroyed when navigating.
+  window_driver_.reset();
   base::WaitableEvent finished_event(true, false);
   navigate_callback_.Run(url, base::Bind(&base::WaitableEvent::Signal,
                                          base::Unretained(&finished_event)));
