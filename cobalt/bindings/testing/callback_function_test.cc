@@ -39,25 +39,55 @@ TEST_F(CallbackFunctionTest, ScriptCallbackCanBeCalledFromC) {
   std::string result;
   EXPECT_TRUE(EvaluateScript("var was_called = false;", NULL));
 
-  typedef ScriptObjectOwner<script::ScriptObject<
-      CallbackFunctionInterface::VoidFunction> > FunctionOwner;
+  typedef CallbackFunctionInterface::VoidFunction FunctionType;
+  typedef ScriptObjectOwner<script::ScriptObject<FunctionType> > FunctionOwner;
   FunctionOwner function_owner(&test_mock());
   EXPECT_CALL(test_mock(), TakesVoidFunction(_))
       .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
   EXPECT_TRUE(EvaluateScript(
       "test.takesVoidFunction(function() { was_called = true });", NULL));
   ASSERT_TRUE(function_owner.IsSet());
-  function_owner.reference().value().Run();
+  FunctionType::ReturnValue value = function_owner.reference().value().Run();
+  ASSERT_FALSE(value.exception);
   EXPECT_TRUE(EvaluateScript("was_called;", &result));
   EXPECT_STREQ("true", result.c_str());
+}
+
+TEST_F(CallbackFunctionTest, ScriptCallbackWithReturnValue) {
+  typedef CallbackFunctionInterface::FunctionThatReturnsString FunctionType;
+  typedef ScriptObjectOwner<script::ScriptObject<FunctionType> > FunctionOwner;
+  FunctionOwner function_owner(&test_mock());
+  EXPECT_CALL(test_mock(), TakesFunctionThatReturnsString(_))
+      .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
+  EXPECT_TRUE(EvaluateScript(
+      "test.takesFunctionThatReturnsString(function() { return \"foo\"; });",
+      NULL));
+  ASSERT_TRUE(function_owner.IsSet());
+  FunctionType::ReturnValue value = function_owner.reference().value().Run();
+  ASSERT_FALSE(value.exception);
+  EXPECT_STREQ("foo", value.result.c_str());
+}
+
+TEST_F(CallbackFunctionTest, ScriptCallbackWithException) {
+  typedef CallbackFunctionInterface::FunctionThatReturnsString FunctionType;
+  typedef ScriptObjectOwner<script::ScriptObject<FunctionType> > FunctionOwner;
+  FunctionOwner function_owner(&test_mock());
+  EXPECT_CALL(test_mock(), TakesFunctionThatReturnsString(_))
+      .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
+  EXPECT_TRUE(EvaluateScript(
+      "test.takesFunctionThatReturnsString(function() { throw \"error\"; });",
+      NULL));
+  ASSERT_TRUE(function_owner.IsSet());
+  FunctionType::ReturnValue value = function_owner.reference().value().Run();
+  ASSERT_TRUE(value.exception);
 }
 
 TEST_F(CallbackFunctionTest, ScriptFunctionIsNotGarbageCollected) {
   std::string result;
   EXPECT_TRUE(EvaluateScript("var num_called = 0;", NULL));
 
-  typedef ScriptObjectOwner<script::ScriptObject<
-      CallbackFunctionInterface::VoidFunction> > FunctionOwner;
+  typedef CallbackFunctionInterface::VoidFunction FunctionType;
+  typedef ScriptObjectOwner<script::ScriptObject<FunctionType> > FunctionOwner;
   FunctionOwner function_owner(&test_mock());
   EXPECT_CALL(test_mock(), TakesVoidFunction(_))
       .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
@@ -65,14 +95,16 @@ TEST_F(CallbackFunctionTest, ScriptFunctionIsNotGarbageCollected) {
       "test.takesVoidFunction(function() { num_called++ });", NULL));
   ASSERT_TRUE(function_owner.IsSet());
 
-  function_owner.reference().value().Run();
+  FunctionType::ReturnValue value = function_owner.reference().value().Run();
+  ASSERT_FALSE(value.exception);
   EXPECT_TRUE(EvaluateScript("num_called == 1;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   engine_->CollectGarbage();
 
   // Call it once more to ensure the function has not been garbage collected.
-  function_owner.reference().value().Run();
+  value = function_owner.reference().value().Run();
+  ASSERT_FALSE(value.exception);
   EXPECT_TRUE(EvaluateScript("num_called == 2;", &result));
   EXPECT_STREQ("true", result.c_str());
 }
@@ -82,8 +114,8 @@ TEST_F(CallbackFunctionTest, CallbackWithOneParameter) {
   EXPECT_TRUE(EvaluateScript("var callback_value;", NULL));
 
   // Store a handle to the callback passed from script.
-  typedef ScriptObjectOwner<script::ScriptObject<
-      CallbackFunctionInterface::FunctionWithOneParameter> > FunctionOwner;
+  typedef CallbackFunctionInterface::FunctionWithOneParameter FunctionType;
+  typedef ScriptObjectOwner<script::ScriptObject<FunctionType> > FunctionOwner;
   FunctionOwner function_owner(&test_mock());
   EXPECT_CALL(test_mock(), TakesFunctionWithOneParameter(_))
       .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
@@ -94,7 +126,8 @@ TEST_F(CallbackFunctionTest, CallbackWithOneParameter) {
   ASSERT_TRUE(function_owner.IsSet());
 
   // Run the callback, and check that the value was passed through to script.
-  function_owner.reference().value().Run(5);
+  FunctionType::ReturnValue value = function_owner.reference().value().Run(5);
+  ASSERT_FALSE(value.exception);
   EXPECT_TRUE(EvaluateScript("callback_value;", &result));
   EXPECT_STREQ("5", result.c_str());
 }
@@ -106,8 +139,8 @@ TEST_F(CallbackFunctionTest, CallbackWithSeveralParameters) {
   EXPECT_TRUE(EvaluateScript("var value3;", NULL));
 
   // Store a handle to the callback passed from script.
-  typedef ScriptObjectOwner<script::ScriptObject<
-      CallbackFunctionInterface::FunctionWithSeveralParameters> > FunctionOwner;
+  typedef CallbackFunctionInterface::FunctionWithSeveralParameters FunctionType;
+  typedef ScriptObjectOwner<script::ScriptObject<FunctionType> > FunctionOwner;
   FunctionOwner function_owner(&test_mock());
   EXPECT_CALL(test_mock(), TakesFunctionWithSeveralParameters(_))
       .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
@@ -121,7 +154,9 @@ TEST_F(CallbackFunctionTest, CallbackWithSeveralParameters) {
   // Execute the callback
   scoped_refptr<ArbitraryInterface> some_object =
       new ::testing::StrictMock<ArbitraryInterface>();
-  function_owner.reference().value().Run(3.14, "some string", some_object);
+  FunctionType::ReturnValue value =
+      function_owner.reference().value().Run(3.14, "some string", some_object);
+  ASSERT_FALSE(value.exception);
 
   // Verify that each parameter got passed to script as expected.
   EXPECT_TRUE(EvaluateScript("value1;", &result));
@@ -141,9 +176,9 @@ TEST_F(CallbackFunctionTest, CallbackWithNullableParameters) {
   EXPECT_TRUE(EvaluateScript("var value3;", NULL));
 
   // Store a handle to the callback passed from script.
-  typedef ScriptObjectOwner<script::ScriptObject<
-      CallbackFunctionInterface::FunctionWithNullableParameters> >
-      FunctionOwner;
+  typedef CallbackFunctionInterface::FunctionWithNullableParameters
+      FunctionType;
+  typedef ScriptObjectOwner<script::ScriptObject<FunctionType> > FunctionOwner;
   FunctionOwner function_owner(&test_mock());
   EXPECT_CALL(test_mock(), TakesFunctionWithNullableParameters(_))
       .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
@@ -155,7 +190,9 @@ TEST_F(CallbackFunctionTest, CallbackWithNullableParameters) {
   ASSERT_TRUE(function_owner.IsSet());
 
   // Execute the callback
-  function_owner.reference().value().Run(base::nullopt, base::nullopt, NULL);
+  FunctionType::ReturnValue value = function_owner.reference().value().Run(
+      base::nullopt, base::nullopt, NULL);
+  ASSERT_FALSE(value.exception);
 
   // Verify that each parameter got passed to script as expected.
   EXPECT_TRUE(EvaluateScript("value1;", &result));
@@ -174,8 +211,8 @@ TEST_F(CallbackFunctionTest, CallbackAttribute) {
   std::string result;
   EXPECT_TRUE(EvaluateScript("var num_called = 0;", NULL));
 
-  typedef ScriptObjectOwner<script::ScriptObject<
-      CallbackFunctionInterface::VoidFunction> > FunctionOwner;
+  typedef CallbackFunctionInterface::VoidFunction FunctionType;
+  typedef ScriptObjectOwner<script::ScriptObject<FunctionType> > FunctionOwner;
   FunctionOwner function_owner(&test_mock());
   EXPECT_CALL(test_mock(), set_callback_attribute(_))
       .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));
@@ -186,7 +223,8 @@ TEST_F(CallbackFunctionTest, CallbackAttribute) {
   ASSERT_TRUE(function_owner.IsSet());
 
   // Execute the callback
-  function_owner.reference().value().Run();
+  FunctionType::ReturnValue value = function_owner.reference().value().Run();
+  ASSERT_FALSE(value.exception);
   EXPECT_TRUE(EvaluateScript("num_called;", &result));
   EXPECT_STREQ("1", result.c_str());
 
@@ -211,8 +249,8 @@ TEST_F(CallbackFunctionTest, SetNullableCallbackAttribute) {
   InSequence in_sequence_dummy;
 
   std::string result;
-  typedef ScriptObjectOwner<script::ScriptObject<
-      CallbackFunctionInterface::VoidFunction> > FunctionOwner;
+  typedef CallbackFunctionInterface::VoidFunction FunctionType;
+  typedef ScriptObjectOwner<script::ScriptObject<FunctionType> > FunctionOwner;
   FunctionOwner function_owner(&test_mock());
   EXPECT_CALL(test_mock(), set_nullable_callback_attribute(_))
       .WillOnce(Invoke(&function_owner, &FunctionOwner::TakeOwnership));

@@ -7,7 +7,6 @@ $$
 
 $$ Maximum number of different member types in a union.
 $var MAX_MEMBERS = 4
-
 /*
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
@@ -71,6 +70,12 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
     NOTREACHED();
     return;
   }
+  // Typedef for readability.
+
+$for TYPE [[
+  typedef ::cobalt::script::internal::UnionTypeTraits<T$(TYPE)> UnionTypeTraitsT$(TYPE);
+
+]]
 
   // Forward declare all potential types
 
@@ -97,10 +102,10 @@ $for TYPE [[
 
 
 $for TYPE [[
-    if (internal::UnionTypeTraits<T$(TYPE)>::is_interface_type &&
+    if (UnionTypeTraitsT$(TYPE)::is_interface_type &&
         js_cell->inherits(
             wrapper_factory->GetClassInfo(
-                internal::UnionTypeTraits<T$(TYPE)>::GetTypeID()))) {
+                UnionTypeTraitsT$(TYPE)::GetTypeID()))) {
       FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
       *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
       return;
@@ -119,7 +124,7 @@ $for TYPE [[
   if (jsvalue.isBoolean()) {
 $for TYPE [[
 
-    if (internal::UnionTypeTraits<T$(TYPE)>::is_boolean_type) {
+    if (UnionTypeTraitsT$(TYPE)::is_boolean_type) {
       FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
       *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
       return;
@@ -134,7 +139,7 @@ $for TYPE [[
   if (jsvalue.isNumber()) {
 $for TYPE [[
 
-    if (internal::UnionTypeTraits<T$(TYPE)>::is_numeric_type) {
+    if (UnionTypeTraitsT$(TYPE)::is_numeric_type) {
       FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
       *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
       return;
@@ -148,7 +153,7 @@ $for TYPE [[
   if (jsvalue.isString()) {
 $for TYPE [[
 
-    if (internal::UnionTypeTraits<T$(TYPE)>::is_string_type) {
+    if (UnionTypeTraitsT$(TYPE)::is_string_type) {
       FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
       *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
       return;
@@ -161,7 +166,7 @@ $for TYPE [[
   // V to that numeric type.
 $for TYPE [[
 
-  if (internal::UnionTypeTraits<T$(TYPE)>::is_numeric_type) {
+  if (UnionTypeTraitsT$(TYPE)::is_numeric_type) {
     FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
     *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
     return;
@@ -173,7 +178,7 @@ $for TYPE [[
   // boolean.
 $for TYPE [[
 
-  if (internal::UnionTypeTraits<T$(TYPE)>::is_boolean_type) {
+  if (UnionTypeTraitsT$(TYPE)::is_boolean_type) {
     FromJSValue(exec_state, jsvalue, conversion_flags, exception_state, &t$(TYPE));
     *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
     return;
