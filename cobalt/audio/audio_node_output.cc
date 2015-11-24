@@ -17,10 +17,13 @@
 #include "cobalt/audio/audio_node_output.h"
 
 #include "base/logging.h"
+#include "cobalt/audio/audio_node.h"
 #include "cobalt/audio/audio_node_input.h"
 
 namespace cobalt {
 namespace audio {
+
+typedef ::media::ShellAudioBus ShellAudioBus;
 
 void AudioNodeOutput::AddInput(AudioNodeInput* input) {
   DCHECK(input);
@@ -39,6 +42,12 @@ void AudioNodeOutput::DisconnectAll() {
     AudioNodeInput* input = *inputs_.begin();
     input->Disconnect(this);
   }
+}
+
+scoped_ptr<ShellAudioBus> AudioNodeOutput::PassAudioBusFromSource(
+    int32 number_of_frames) {
+  // Pull audio buffer from its owner node.
+  return owner_node_->PassAudioBusFromSource(number_of_frames).Pass();
 }
 
 }  // namespace audio

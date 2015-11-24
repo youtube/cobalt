@@ -18,24 +18,35 @@
 #define AUDIO_AUDIO_NODE_OUTPUT_H_
 
 #include <set>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/audio/audio_buffer.h"
+#include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace audio {
 
+class AudioNode;
 class AudioNodeInput;
 
 // This represents the output coming out of the AudioNode.
 // It may be connected to one or more AudioNodeInputs.
 class AudioNodeOutput : public base::RefCountedThreadSafe<AudioNodeOutput> {
+  typedef ::media::ShellAudioBus ShellAudioBus;
+
  public:
+  explicit AudioNodeOutput(AudioNode* owner_node) : owner_node_(owner_node) {}
+
   void AddInput(AudioNodeInput* input);
   void RemoveInput(AudioNodeInput* input);
 
   void DisconnectAll();
 
+  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32 number_of_frames);
+
  private:
+  AudioNode* const owner_node_;
   std::set<AudioNodeInput*> inputs_;
 };
 
