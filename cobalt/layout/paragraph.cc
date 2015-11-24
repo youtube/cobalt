@@ -150,11 +150,26 @@ float Paragraph::CalculateSubStringWidth(
 
 std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
                                              int32 end_position) const {
+  return RetrieveUtf8SubString(start_position, end_position, kLogicalTextOrder);
+}
+
+std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
+                                             int32 end_position,
+                                             TextOrder text_order) const {
   std::string utf8_sub_string;
 
   if (start_position < end_position) {
     icu::UnicodeString unicode_sub_string =
         unicode_text_.tempSubStringBetween(start_position, end_position);
+
+    // Odd bidi levels signify RTL directionality. If the text is being
+    // retrieved in visual order and has RTL directionality, then reverse the
+    // text.
+    if (text_order == kVisualTextOrder &&
+        GetBidiLevel(start_position) % 2 == 1) {
+      unicode_sub_string.reverse();
+    }
+
     unicode_sub_string.toUTF8String(utf8_sub_string);
   }
 

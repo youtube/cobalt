@@ -17,6 +17,7 @@
 #ifndef LAYOUT_PARAGRAPH_H_
 #define LAYOUT_PARAGRAPH_H_
 
+#include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
@@ -68,6 +69,11 @@ class Paragraph : public base::RefCounted<Paragraph> {
     kUppercaseTextTransform,
   };
 
+  enum TextOrder {
+    kLogicalTextOrder,
+    kVisualTextOrder,
+  };
+
   Paragraph(icu::BreakIterator* line_break_iterator,
             BaseDirection base_direction);
 
@@ -91,8 +97,11 @@ class Paragraph : public base::RefCounted<Paragraph> {
   float CalculateSubStringWidth(
       const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
       int32 end_position) const;
+
   std::string RetrieveUtf8SubString(int32 start_position,
                                     int32 end_position) const;
+  std::string RetrieveUtf8SubString(int32 start_position, int32 end_position,
+                                    TextOrder text_order) const;
 
   BaseDirection GetBaseDirection() const;
   int GetBidiLevel(int32 position) const;
