@@ -1,0 +1,3 @@
+5-2-use-first-available-listed-font-family
+5-2-use-specified-font-family-if-available
+5-2-use-system-fallback-if-no-matching-family-is-found

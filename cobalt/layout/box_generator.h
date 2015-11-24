@@ -50,7 +50,7 @@ class BoxGenerator : public dom::NodeVisitor {
  public:
   BoxGenerator(const scoped_refptr<const cssom::CSSStyleDeclarationData>&
                    parent_computed_style,
-               const UsedStyleProvider* used_style_provider,
+               UsedStyleProvider* used_style_provider,
                icu::BreakIterator* line_break_iterator,
                scoped_refptr<Paragraph>* paragraph);
   ~BoxGenerator();
@@ -74,7 +74,7 @@ class BoxGenerator : public dom::NodeVisitor {
 
   const scoped_refptr<const cssom::CSSStyleDeclarationData>
       parent_computed_style_;
-  const UsedStyleProvider* const used_style_provider_;
+  UsedStyleProvider* const used_style_provider_;
   icu::BreakIterator* const line_break_iterator_;
   scoped_refptr<Paragraph>* paragraph_;
 

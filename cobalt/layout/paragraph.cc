@@ -74,8 +74,9 @@ int32 Paragraph::AppendUtf8String(const std::string& utf8_string,
     icu::UnicodeString unicode_string =
         icu::UnicodeString::fromUTF8(utf8_string);
     if (transform == kUppercaseTextTransform) {
-      // TODO(***REMOVED***): Pass in locale
-      unicode_string.toUpper();
+      UErrorCode error_code;
+      unicode_string.toUpper(
+          line_break_iterator_->getLocaleID(ULOC_VALID_LOCALE, error_code));
     }
 
     unicode_text_ += unicode_string;
@@ -100,7 +101,7 @@ int32 Paragraph::AppendCodePoint(CodePoint code_point) {
 }
 
 bool Paragraph::CalculateBreakPosition(
-    const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+    const scoped_refptr<dom::FontList>& used_font, int32 start_position,
     int32 end_position, float available_width, bool allow_overflow,
     OverflowWrap overflow_wrap, int32* break_position, float* break_width) {
   DCHECK(is_closed_);
@@ -141,7 +142,7 @@ bool Paragraph::CalculateBreakPosition(
 }
 
 float Paragraph::CalculateSubStringWidth(
-    const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+    const scoped_refptr<dom::FontList>& used_font, int32 start_position,
     int32 end_position) const {
   std::string utf8_sub_string =
       RetrieveUtf8SubString(start_position, end_position);
@@ -212,7 +213,7 @@ void Paragraph::Close() {
 bool Paragraph::IsClosed() const { return is_closed_; }
 
 void Paragraph::CalculateCharacterBreakPosition(
-    const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+    const scoped_refptr<dom::FontList>& used_font, int32 start_position,
     int32 end_position, float available_width, bool allow_overflow,
     int32* break_position, float* break_width) {
   // Iterate through characters, beginning from the passed in start position.
@@ -235,7 +236,7 @@ void Paragraph::CalculateCharacterBreakPosition(
 }
 
 void Paragraph::CalculateSoftWrapBreakPosition(
-    const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+    const scoped_refptr<dom::FontList>& used_font, int32 start_position,
     int32 end_position, float available_width, bool allow_overflow,
     int32* break_position, float* break_width) {
   // Iterate through soft wrap locations, beginning from the passed in start
@@ -254,7 +255,7 @@ void Paragraph::CalculateSoftWrapBreakPosition(
 }
 
 bool Paragraph::TryIncludeSegmentWithinAvailableWidth(
-    const scoped_refptr<render_tree::Font>& used_font, int32 segment_start,
+    const scoped_refptr<dom::FontList>& used_font, int32 segment_start,
     int32 segment_end, float available_width, bool* allow_overflow,
     int32* break_position, float* break_width) {
   // Add the width of the segment encountered to the total, until reaching one

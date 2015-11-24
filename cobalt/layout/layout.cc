@@ -42,6 +42,11 @@ RenderTreeWithAnimations Layout(
     icu::BreakIterator* line_break_iterator) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
 
+  // Layout-related cleanup is performed on the UsedStyleProvider in this
+  // object's destructor.
+  UsedStyleProviderLayoutScope used_style_provider_layout_scope(
+      used_style_provider);
+
   scoped_refptr<dom::Document> document = window->document();
 
   // Update the computed style of all elements in the DOM, if necessary.

@@ -53,8 +53,9 @@ class HTMLElementFactoryTest : public ::testing::Test {
         html_element_context_(
             &fetcher_factory_, &stub_css_parser_, dom_parser_.get(),
             NULL /* web_media_player_factory */, &stub_script_runner_,
-            NULL /* media_source_registry */, NULL /* image_cache */,
-            NULL /* remote_font_cache */),
+            NULL /* media_source_registry */, NULL /* resource_provider */,
+            NULL /* image_cache */, NULL /* remote_font_cache */,
+            "" /* language */),
         document_(new Document(&html_element_context_, Document::Options())) {}
   ~HTMLElementFactoryTest() OVERRIDE {}
 

@@ -80,6 +80,7 @@ class Window : public EventTarget {
 
   Window(int width, int height, cssom::CSSParser* css_parser,
          Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
+         render_tree::ResourceProvider* resource_provider,
          loader::image::ImageCache* image_cache,
          loader::font::RemoteFontCache* remote_font_cache,
          LocalStorageDatabase* local_storage_database,

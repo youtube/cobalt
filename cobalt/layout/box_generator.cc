@@ -65,7 +65,7 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
 BoxGenerator::BoxGenerator(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
-    const UsedStyleProvider* used_style_provider,
+    UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     scoped_refptr<Paragraph>* paragraph)
     : parent_computed_style_(parent_computed_style),
@@ -108,20 +108,20 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
  public:
   ReplacedBoxGenerator(
       const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-      const UsedStyleProvider* used_style_provider,
       const ReplacedBox::ReplaceImageCB& replace_image_cb,
       const scoped_refptr<Paragraph>& paragraph, int32 text_position,
       const base::optional<float>& maybe_intrinsic_width,
       const base::optional<float>& maybe_intrinsic_height,
-      const base::optional<float>& maybe_intrinsic_ratio)
+      const base::optional<float>& maybe_intrinsic_ratio,
+      UsedStyleProvider* used_style_provider)
       : computed_style_state_(computed_style_state),
-        used_style_provider_(used_style_provider),
         replace_image_cb_(replace_image_cb),
         paragraph_(paragraph),
         text_position_(text_position),
         maybe_intrinsic_width_(maybe_intrinsic_width),
         maybe_intrinsic_height_(maybe_intrinsic_height),
-        maybe_intrinsic_ratio_(maybe_intrinsic_ratio) {}
+        maybe_intrinsic_ratio_(maybe_intrinsic_ratio),
+        used_style_provider_(used_style_provider) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
 
@@ -129,13 +129,13 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
 
  private:
   const scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
-  const UsedStyleProvider* const used_style_provider_;
   const ReplacedBox::ReplaceImageCB replace_image_cb_;
   const scoped_refptr<Paragraph> paragraph_;
   const int32 text_position_;
   const base::optional<float> maybe_intrinsic_width_;
   const base::optional<float> maybe_intrinsic_height_;
   const base::optional<float> maybe_intrinsic_ratio_;
+  UsedStyleProvider* const used_style_provider_;
 
   scoped_refptr<ReplacedBox> replaced_box_;
 };
@@ -146,9 +146,9 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     // Generate a block-level replaced box.
     case cssom::KeywordValue::kBlock:
       replaced_box_ = make_scoped_refptr(new BlockLevelReplacedBox(
-          computed_style_state_, used_style_provider_, replace_image_cb_,
-          paragraph_, text_position_, maybe_intrinsic_width_,
-          maybe_intrinsic_height_, maybe_intrinsic_ratio_));
+          computed_style_state_, replace_image_cb_, paragraph_, text_position_,
+          maybe_intrinsic_width_, maybe_intrinsic_height_,
+          maybe_intrinsic_ratio_, used_style_provider_));
       break;
     // Generate an inline-level replaced box. There is no need to distinguish
     // between inline replaced elements and inline-block replaced elements
@@ -157,9 +157,9 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
       replaced_box_ = make_scoped_refptr(new InlineLevelReplacedBox(
-          computed_style_state_, used_style_provider_, replace_image_cb_,
-          paragraph_, text_position_, maybe_intrinsic_width_,
-          maybe_intrinsic_height_, maybe_intrinsic_ratio_));
+          computed_style_state_, replace_image_cb_, paragraph_, text_position_,
+          maybe_intrinsic_width_, maybe_intrinsic_height_,
+          maybe_intrinsic_ratio_, used_style_provider_));
       break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -229,9 +229,10 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // based on the video frame. This allows to avoid relayout while playing
   // adaptive videos.
   ReplacedBoxGenerator replaced_box_generator(
-      video_element->computed_style_state(), used_style_provider_,
+      video_element->computed_style_state(),
       base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider()),
-      *paragraph_, text_position, base::nullopt, base::nullopt, base::nullopt);
+      *paragraph_, text_position, base::nullopt, base::nullopt, base::nullopt,
+      used_style_provider_);
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =
@@ -267,7 +268,7 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
 
   ContainerBoxGenerator(
       const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-      const UsedStyleProvider* used_style_provider,
+      UsedStyleProvider* used_style_provider,
       icu::BreakIterator* line_break_iterator,
       scoped_refptr<Paragraph>* paragraph, dom::HTMLElement* html_element)
       : computed_style_state_(computed_style_state),
@@ -286,7 +287,7 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   void CreateScopedParagraph(CloseParagraph close_prior_paragraph);
 
   const scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
-  const UsedStyleProvider* const used_style_provider_;
+  UsedStyleProvider* const used_style_provider_;
   icu::BreakIterator* const line_break_iterator_;
 
   scoped_refptr<Paragraph>* paragraph_;
@@ -353,8 +354,8 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
               Paragraph::kObjectReplacementCharacterCodePoint);
 
       container_box_ = make_scoped_refptr(new InlineLevelBlockContainerBox(
-          computed_style_state_, used_style_provider_, *paragraph_,
-          text_position));
+          computed_style_state_, *paragraph_, text_position,
+          used_style_provider_));
 
       // The inline block creates a new paragraph, which the old paragraph
       // flows around. Create a new paragraph, which will close with the end
@@ -702,9 +703,9 @@ void BoxGenerator::Visit(dom::Text* text) {
         (*paragraph_)->AppendUtf8String(modifiable_text, transform);
     int32 text_end_position = (*paragraph_)->GetTextEndPosition();
 
-    boxes_.push_back(new TextBox(computed_style_state, used_style_provider_,
-                                 *paragraph_, text_start_position,
-                                 text_end_position, generates_newline));
+    boxes_.push_back(new TextBox(computed_style_state, *paragraph_,
+                                 text_start_position, text_end_position,
+                                 generates_newline, used_style_provider_));
 
     // Newline sequences should be transformed into a preserved line feed.
     //   http://www.w3.org/TR/css3-text/#line-break-transform

@@ -27,7 +27,7 @@ namespace layout {
 
 BlockFormattingBlockContainerBox::BlockFormattingBlockContainerBox(
     const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-    const UsedStyleProvider* used_style_provider)
+    UsedStyleProvider* used_style_provider)
     : BlockContainerBox(computed_style_state, used_style_provider) {}
 
 bool BlockFormattingBlockContainerBox::TryAddChild(
@@ -103,7 +103,7 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
 
 BlockLevelBlockContainerBox::BlockLevelBlockContainerBox(
     const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-    const UsedStyleProvider* used_style_provider)
+    UsedStyleProvider* used_style_provider)
     : BlockFormattingBlockContainerBox(computed_style_state,
                                        used_style_provider) {}
 
@@ -121,8 +121,8 @@ void BlockLevelBlockContainerBox::DumpClassName(std::ostream* stream) const {
 
 InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
     const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-    const UsedStyleProvider* used_style_provider,
-    const scoped_refptr<Paragraph>& paragraph, int32 text_position)
+    const scoped_refptr<Paragraph>& paragraph, int32 text_position,
+    UsedStyleProvider* used_style_provider)
     : BlockFormattingBlockContainerBox(computed_style_state,
                                        used_style_provider),
       paragraph_(paragraph),

@@ -17,8 +17,8 @@
 #ifndef LAYOUT_INLINE_CONTAINER_BOX_H_
 #define LAYOUT_INLINE_CONTAINER_BOX_H_
 
+#include "cobalt/dom/font_list.h"
 #include "cobalt/layout/container_box.h"
-#include "cobalt/render_tree/font.h"
 
 namespace cobalt {
 namespace layout {
@@ -40,7 +40,7 @@ class InlineContainerBox : public ContainerBox {
  public:
   InlineContainerBox(
       const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-      const UsedStyleProvider* used_style_provider);
+      UsedStyleProvider* used_style_provider);
   ~InlineContainerBox() OVERRIDE;
 
   // From |Box|.
@@ -92,7 +92,7 @@ class InlineContainerBox : public ContainerBox {
   bool justifies_line_existence_;
   float baseline_offset_from_margin_box_top_;
   // A font used for text width and line height calculations.
-  const scoped_refptr<render_tree::Font> used_font_;
+  const scoped_refptr<dom::FontList> used_font_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineContainerBox);
 };

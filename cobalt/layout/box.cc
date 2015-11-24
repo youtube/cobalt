@@ -47,7 +47,7 @@ namespace cobalt {
 namespace layout {
 
 Box::Box(const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-         const UsedStyleProvider* used_style_provider)
+         UsedStyleProvider* used_style_provider)
     : computed_style_state_(computed_style_state),
       used_style_provider_(used_style_provider),
       parent_(NULL),
@@ -476,10 +476,9 @@ void Box::RenderAndAnimateBackgroundImage(
     }
 
     UsedBackgroundNodeProvider background_node_provider(
-        used_style_provider_, GetPaddingBoxSize(),
-        computed_style()->background_size(),
+        GetPaddingBoxSize(), computed_style()->background_size(),
         computed_style()->background_position(),
-        computed_style()->background_repeat());
+        computed_style()->background_repeat(), used_style_provider_);
     (*image_iterator)->Accept(&background_node_provider);
     scoped_refptr<render_tree::Node> background_node =
         background_node_provider.background_node();
