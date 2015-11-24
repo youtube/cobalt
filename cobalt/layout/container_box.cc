@@ -26,7 +26,7 @@ namespace layout {
 
 ContainerBox::ContainerBox(
     const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-    const UsedStyleProvider* used_style_provider)
+    UsedStyleProvider* used_style_provider)
     : Box(computed_style_state, used_style_provider),
       update_size_results_valid_(false) {}
 

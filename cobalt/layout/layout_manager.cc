@@ -38,10 +38,9 @@ namespace layout {
 class LayoutManager::Impl : public dom::DocumentObserver {
  public:
   Impl(const scoped_refptr<dom::Window>& window,
-       render_tree::ResourceProvider* resource_provider,
        const OnRenderTreeProducedCallback& on_render_tree_produced,
        cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
-       float layout_refresh_rate);
+       float layout_refresh_rate, const std::string& language);
   ~Impl();
 
   // From dom::DocumentObserver.
@@ -109,14 +108,13 @@ scoped_refptr<cssom::CSSStyleSheet> ParseUserAgentStyleSheet(
 
 LayoutManager::Impl::Impl(
     const scoped_refptr<dom::Window>& window,
-    render_tree::ResourceProvider* resource_provider,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
     cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
-    float layout_refresh_rate)
+    float layout_refresh_rate, const std::string& language)
     : window_(window),
-      used_style_provider_(new UsedStyleProvider(
-          resource_provider, window->html_element_context()->image_cache(),
-          window->document()->font_face_cache())),
+      used_style_provider_(
+          new UsedStyleProvider(window->html_element_context()->image_cache(),
+                                window->document()->font_cache())),
       on_render_tree_produced_callback_(on_render_tree_produced),
       user_agent_style_sheet_(ParseUserAgentStyleSheet(css_parser)),
       layout_trigger_(layout_trigger),
@@ -126,7 +124,7 @@ LayoutManager::Impl::Impl(
 
   UErrorCode status = U_ZERO_ERROR;
   line_break_iterator_ = make_scoped_ptr(icu::BreakIterator::createLineInstance(
-      icu::Locale::getDefault(), status));
+      icu::Locale::createCanonical(language.c_str()), status));
   DCHECK(U_SUCCESS(status));
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -263,12 +261,11 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 
 LayoutManager::LayoutManager(
     const scoped_refptr<dom::Window>& window,
-    render_tree::ResourceProvider* resource_provider,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
     cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
-    float layout_refresh_rate)
-    : impl_(new Impl(window, resource_provider, on_render_tree_produced,
-                     css_parser, layout_trigger, layout_refresh_rate)) {}
+    float layout_refresh_rate, const std::string& language)
+    : impl_(new Impl(window, on_render_tree_produced, css_parser,
+                     layout_trigger, layout_refresh_rate, language)) {}
 
 LayoutManager::~LayoutManager() {}
 

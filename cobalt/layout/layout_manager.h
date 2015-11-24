@@ -17,6 +17,8 @@
 #ifndef LAYOUT_LAYOUT_MANAGER_H_
 #define LAYOUT_LAYOUT_MANAGER_H_
 
+#include <string>
+
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_parser.h"
@@ -65,10 +67,9 @@ class LayoutManager {
   };
 
   LayoutManager(const scoped_refptr<dom::Window>& window,
-                render_tree::ResourceProvider* resource_provider,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
                 cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
-                float layout_refresh_rate);
+                float layout_refresh_rate, const std::string& language);
   ~LayoutManager();
 
  private:

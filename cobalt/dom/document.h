@@ -45,7 +45,7 @@ class Attr;
 class CSPDelegate;
 class DOMImplementation;
 class Element;
-class FontFaceCache;
+class FontCache;
 class HTMLBodyElement;
 class HTMLCollection;
 class HTMLElement;
@@ -180,7 +180,7 @@ class Document : public Node, public cssom::MutationObserver {
     return html_element_context_;
   }
 
-  FontFaceCache* font_face_cache() const { return font_face_cache_.get(); }
+  FontCache* font_cache() const { return font_cache_.get(); }
 
   const GURL& url_as_gurl() const { return location_->url(); }
 
@@ -297,8 +297,8 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<cssom::StyleSheetList> style_sheets_;
   // List of scripts that will execute in order as soon as possible.
   std::deque<HTMLScriptElement*> scripts_to_be_executed_;
-  // The font face cache for this document.
-  scoped_ptr<FontFaceCache> font_face_cache_;
+  // The font cache for this document.
+  scoped_ptr<FontCache> font_cache_;
   // A mapping from keyframes declaration names to their parsed structure.
   cssom::CSSKeyframesRule::NameMap keyframes_map_;
   // The number of ongoing loadings.

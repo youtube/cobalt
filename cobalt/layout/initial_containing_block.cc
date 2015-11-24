@@ -118,7 +118,7 @@ scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
     const scoped_refptr<cssom::CSSStyleDeclarationData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
-    const UsedStyleProvider* used_style_provider) {
+    UsedStyleProvider* used_style_provider) {
   TRACE_EVENT0("cobalt::layout", "CreateInitialContainingBlock");
 
   // The background color and image style may need to be propagated up from the

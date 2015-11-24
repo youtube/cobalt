@@ -39,7 +39,8 @@ class DOMTokenListTest : public ::testing::Test {
 };
 
 DOMTokenListTest::DOMTokenListTest()
-    : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) {
+    : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                            NULL, "") {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_, Document::Options());
 }

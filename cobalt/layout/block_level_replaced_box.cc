@@ -23,15 +23,15 @@ namespace layout {
 
 BlockLevelReplacedBox::BlockLevelReplacedBox(
     const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-    const UsedStyleProvider* used_style_provider,
     const ReplaceImageCB& replace_image_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
     const base::optional<float>& maybe_intrinsic_width,
     const base::optional<float>& maybe_intrinsic_height,
-    const base::optional<float>& maybe_intrinsic_ratio)
-    : ReplacedBox(computed_style_state, used_style_provider, replace_image_cb,
-                  paragraph, text_position, maybe_intrinsic_width,
-                  maybe_intrinsic_height, maybe_intrinsic_ratio) {}
+    const base::optional<float>& maybe_intrinsic_ratio,
+    UsedStyleProvider* used_style_provider)
+    : ReplacedBox(computed_style_state, replace_image_cb, paragraph,
+                  text_position, maybe_intrinsic_width, maybe_intrinsic_height,
+                  maybe_intrinsic_ratio, used_style_provider) {}
 
 Box::Level BlockLevelReplacedBox::GetLevel() const { return kBlockLevel; }
 

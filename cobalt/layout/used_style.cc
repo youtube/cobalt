@@ -267,18 +267,15 @@ void UsedBackgroundSizeScaleProvider::VisitPercentage(
 //   http://www.w3.org/TR/css3-fonts/#font-family-prop
 class UsedFontFamilyProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
-  typedef std::vector<std::string> FontFamilyList;
-
-  UsedFontFamilyProvider() {}
+  explicit UsedFontFamilyProvider(std::vector<std::string>* family_names)
+      : family_names_(family_names) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
   void VisitPropertyList(cssom::PropertyListValue* property_list) OVERRIDE;
   void VisitString(cssom::StringValue* percentage) OVERRIDE;
 
-  const FontFamilyList& font_families() const { return font_families_; }
-
  private:
-  FontFamilyList font_families_;
+  std::vector<std::string>* family_names_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedFontFamilyProvider);
 };
@@ -290,7 +287,7 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kSansSerif:
     case cssom::KeywordValue::kSerif:
-      font_families_.push_back(keyword->ToString());
+      family_names_->push_back(keyword->ToString());
       break;
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kAlternate:
@@ -337,72 +334,101 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 
 void UsedFontFamilyProvider::VisitPropertyList(
     cssom::PropertyListValue* property_list) {
-  for (size_t i = 0; i < property_list->value().size(); ++i) {
+  size_t size = property_list->value().size();
+  family_names_->reserve(size);
+  for (size_t i = 0; i < size; ++i) {
     property_list->value()[i]->Accept(this);
   }
 }
 
 void UsedFontFamilyProvider::VisitString(cssom::StringValue* string) {
-  font_families_.push_back(string->value());
+  family_names_->push_back(string->value());
 }
 
 }  // namespace
 
-UsedStyleProvider::UsedStyleProvider(
-    render_tree::ResourceProvider* resource_provider,
-    loader::image::ImageCache* image_cache, dom::FontFaceCache* font_face_cache)
-    : resource_provider_(resource_provider),
-      image_cache_(image_cache),
-      font_face_cache_(font_face_cache) {}
+UsedStyleProvider::UsedStyleProvider(loader::image::ImageCache* image_cache,
+                                     dom::FontCache* font_cache)
+    : image_cache_(image_cache), font_cache_(font_cache) {}
 
-scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
+scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
     const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
     const scoped_refptr<cssom::PropertyValue>& font_size_refptr,
     const scoped_refptr<cssom::PropertyValue>& font_style_refptr,
-    const scoped_refptr<cssom::PropertyValue>& font_weight_refptr,
-    bool* maybe_is_preferred_font_loading) const {
-  UsedFontFamilyProvider font_family_provider;
-  font_family_refptr->Accept(&font_family_provider);
-  const UsedFontFamilyProvider::FontFamilyList& font_family_list =
-      font_family_provider.font_families();
-  // TODO(***REMOVED***): This will be modified to return the list of fonts soon.
-  std::string font_family_name =
-      font_family_list.size() > 0 ? font_family_list[0] : "Roboto";
-
-  cssom::LengthValue* font_size =
+    const scoped_refptr<cssom::PropertyValue>& font_weight_refptr) {
+  // Grab the font size prior to making the last font comparisons. The reason
+  // that font size does not use the same property value comparisons as the
+  // the rest of the properties is that the mechanism for generating a computed
+  // font size results in numerous font size property values with the same
+  // underlying size. Comparing the font size property pointer results in many
+  // font lists with identical values incorrectly being treated as different.
+  // This issue does not occur with the other font properties.
+  cssom::LengthValue* font_size_length =
       base::polymorphic_downcast<cssom::LengthValue*>(font_size_refptr.get());
-  DCHECK_EQ(cssom::kPixelsUnit, font_size->unit());
+  DCHECK_EQ(cssom::kPixelsUnit, font_size_length->unit());
+  float font_size = font_size_length->value();
+
+  // Check if the last font list matches the current font list. If it does, then
+  // it can simply be returned.
+  if (last_font_list_ != NULL && last_font_list_->size() == font_size &&
+      last_font_family_refptr_.get() == font_family_refptr.get() &&
+      last_font_style_refptr_.get() == font_style_refptr.get() &&
+      last_font_weight_refptr_.get() == font_weight_refptr.get()) {
+    return last_font_list_;
+  }
+
+  // Populate the font list key
+  font_list_key_.family_names.clear();
+  UsedFontFamilyProvider font_family_provider(&font_list_key_.family_names);
+  font_family_refptr->Accept(&font_family_provider);
+
   cssom::FontStyleValue* font_style =
       base::polymorphic_downcast<cssom::FontStyleValue*>(
           font_style_refptr.get());
   cssom::FontWeightValue* font_weight =
       base::polymorphic_downcast<cssom::FontWeightValue*>(
           font_weight_refptr.get());
-  render_tree::FontStyle render_tree_font_style =
-      ConvertFontWeightToRenderTreeFontStyle(font_style->value(),
-                                             font_weight->value());
+  font_list_key_.style = ConvertFontWeightToRenderTreeFontStyle(
+      font_style->value(), font_weight->value());
 
-  // Attempt to retrieve a font by font family name from the font face cache.
-  // This potentially will trigger a load of a remote font, in which case the
-  // font won't be available until later.
-  scoped_refptr<render_tree::Font> font_face_font =
-      font_face_cache_->TryGetFont(font_family_name,
-                                   maybe_is_preferred_font_loading);
+  font_list_key_.size = font_size;
 
-  // If the font face cache did return a font, then clone it with the proper
-  // size.
-  if (font_face_font) {
-    return font_face_font->CloneWithSize(font_size->value());
-    // Otherwise, request the font from the resource provider.
-  } else {
-    return resource_provider_->GetPreInstalledFont(
-        font_family_name.c_str(), render_tree_font_style, font_size->value());
-  }
+  // Update the last font properties and grab the new last font list from the
+  // font cache. In the case where it did not previously exist, the font cache
+  // will create it.
+  last_font_family_refptr_ = font_family_refptr;
+  last_font_style_refptr_ = font_style_refptr;
+  last_font_weight_refptr_ = font_weight_refptr;
+  last_font_list_ = font_cache_->GetFontList(font_list_key_);
+
+  return last_font_list_;
 }
 
 scoped_refptr<render_tree::Image> UsedStyleProvider::ResolveURLToImage(
-    const GURL& url) const {
+    const GURL& url) {
   return image_cache_->CreateCachedResource(url)->TryGetResource();
+}
+
+void UsedStyleProvider::CleanupAfterLayout() {
+  // Clear out the last font properties prior to requesting that the font cache
+  // remove unused font lists. The reason for this is that the font cache will
+  // remove any font lists where it holds the exclusive reference, and the
+  // |last_font_list_| could potentially hold a second reference, thereby
+  // interfering with the removal.
+  last_font_family_refptr_ = NULL;
+  last_font_style_refptr_ = NULL;
+  last_font_weight_refptr_ = NULL;
+  last_font_list_ = NULL;
+
+  font_cache_->RemoveUnusedFontLists();
+}
+
+UsedStyleProviderLayoutScope::UsedStyleProviderLayoutScope(
+    UsedStyleProvider* used_style_provider)
+    : used_style_provider_(used_style_provider) {}
+
+UsedStyleProviderLayoutScope::~UsedStyleProviderLayoutScope() {
+  used_style_provider_->CleanupAfterLayout();
 }
 
 render_tree::ColorRGBA GetUsedColor(
@@ -413,15 +439,16 @@ render_tree::ColorRGBA GetUsedColor(
 }
 
 UsedBackgroundNodeProvider::UsedBackgroundNodeProvider(
-    const UsedStyleProvider* used_style_provider, const math::SizeF& frame_size,
+    const math::SizeF& frame_size,
     const scoped_refptr<cssom::PropertyValue>& background_size,
     const scoped_refptr<cssom::PropertyValue>& background_position,
-    const scoped_refptr<cssom::PropertyValue>& background_repeat)
-    : used_style_provider_(used_style_provider),
-      frame_size_(frame_size),
+    const scoped_refptr<cssom::PropertyValue>& background_repeat,
+    UsedStyleProvider* used_style_provider)
+    : frame_size_(frame_size),
       background_size_(background_size),
       background_position_(background_position),
-      background_repeat_(background_repeat) {}
+      background_repeat_(background_repeat),
+      used_style_provider_(used_style_provider) {}
 
 void UsedBackgroundNodeProvider::VisitAbsoluteURL(
     cssom::AbsoluteURLValue* url_value) {

@@ -21,6 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/font_list.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"
 #include "cobalt/render_tree/font.h"
@@ -35,9 +36,9 @@ namespace layout {
 class TextBox : public Box {
  public:
   TextBox(const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-          const UsedStyleProvider* used_style_provider,
           const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
-          int32 text_end_position, bool triggers_line_break);
+          int32 text_end_position, bool triggers_line_break,
+          UsedStyleProvider* used_style_provider);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
@@ -117,11 +118,8 @@ class TextBox : public Box {
   // ends.
   int32 text_end_position_;
 
-  // Flag to track whether or not the preferred font is being downloaded. If
-  // this is the case, the text is hidden.
-  bool is_preferred_font_loading_;
   // A font used for text width and line height calculations.
-  const scoped_refptr<render_tree::Font> used_font_;
+  const scoped_refptr<dom::FontList> used_font_;
 
   // Whitespace tracking.
   bool text_has_leading_white_space_;
@@ -133,8 +131,6 @@ class TextBox : public Box {
   // additional sibling boxes to be added to a new line.
   bool triggers_line_break_;
 
-  // A width of the space character in the used font, measured during layout.
-  base::optional<float> space_width_;
   // A vertical offset of the baseline relatively to the origin of the text box.
   base::optional<float> baseline_offset_from_top_;
 

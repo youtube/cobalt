@@ -42,7 +42,7 @@ scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
     const scoped_refptr<cssom::CSSStyleDeclarationData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
-    const UsedStyleProvider* used_style_provider);
+    UsedStyleProvider* used_style_provider);
 
 }  // namespace layout
 }  // namespace cobalt

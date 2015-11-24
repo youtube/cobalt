@@ -16,9 +16,12 @@
 
 #include "cobalt/render_tree/node_visitor.h"
 
+#include <string>
+
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
+#include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
@@ -100,6 +103,8 @@ namespace {
 
 class DummyFont : public Font {
  public:
+  cobalt::render_tree::TypefaceId GetTypefaceId() const OVERRIDE { return 0; }
+
   cobalt::math::RectF GetBounds(const std::string& text) const OVERRIDE {
     UNREFERENCED_PARAMETER(text);
     return cobalt::math::RectF();
@@ -114,6 +119,11 @@ class DummyFont : public Font {
   scoped_refptr<Font> CloneWithSize(float font_size) const OVERRIDE {
     UNREFERENCED_PARAMETER(font_size);
     return NULL;
+  }
+
+  bool HasCharacter(int32 utf32_character) const OVERRIDE {
+    UNREFERENCED_PARAMETER(utf32_character);
+    return 0;
   }
 };
 

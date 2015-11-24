@@ -145,6 +145,10 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     CSSConditional3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-conditional")));
+// Custom CSS Font 3 (http://www.w3.org/TR/css3-fonts/) test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSS3FontsLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-fonts")));
 // Custom incremental layout test cases.
 INSTANTIATE_TEST_CASE_P(
     IncrementalLayoutLayoutTests, LayoutTest,
