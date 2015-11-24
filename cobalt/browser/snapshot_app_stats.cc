@@ -104,7 +104,7 @@ CValsMap GetAllCValValues() {
 // so that they can be analyzed by humans and inserted into a database where
 // the values can be graphed.
 void DoStatsSnapshot(cobalt::browser::Application* application) {
-  Output("---Results Start Here---\n");
+  Output("---Benchmark Results Start---\n");
   Output("{\n");
   Output("  \"LiveKabukiAfter%dSecondsStatsSnapshot\": {\n", kSecondsToWait);
 
@@ -126,6 +126,7 @@ void DoStatsSnapshot(cobalt::browser::Application* application) {
 
   Output("  }\n");
   Output("}\n");
+  Output("---Benchmark Results End---\n");
 
   application->Quit();
 }
