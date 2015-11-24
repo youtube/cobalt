@@ -26,6 +26,9 @@ namespace cssom {
 struct KeywordValue::NonTrivialStaticFields {
   NonTrivialStaticFields()
       : absolute_value(new KeywordValue(KeywordValue::kAbsolute)),
+        alternate_value(new KeywordValue(KeywordValue::kAlternate)),
+        alternate_reverse_value(
+            new KeywordValue(KeywordValue::kAlternateReverse)),
         auto_value(new KeywordValue(KeywordValue::kAuto)),
         backwards_value(new KeywordValue(KeywordValue::kBackwards)),
         baseline_value(new KeywordValue(KeywordValue::kBaseline)),
@@ -58,6 +61,7 @@ struct KeywordValue::NonTrivialStaticFields {
         pre_value(new KeywordValue(KeywordValue::kPre)),
         relative_value(new KeywordValue(KeywordValue::kRelative)),
         repeat_value(new KeywordValue(KeywordValue::kRepeat)),
+        reverse_value(new KeywordValue(KeywordValue::kReverse)),
         right_value(new KeywordValue(KeywordValue::kRight)),
         sans_serif_value(new KeywordValue(KeywordValue::kSansSerif)),
         serif_value(new KeywordValue(KeywordValue::kSerif)),
@@ -67,6 +71,8 @@ struct KeywordValue::NonTrivialStaticFields {
         visible_value(new KeywordValue(KeywordValue::kVisible)) {}
 
   const scoped_refptr<KeywordValue> absolute_value;
+  const scoped_refptr<KeywordValue> alternate_value;
+  const scoped_refptr<KeywordValue> alternate_reverse_value;
   const scoped_refptr<KeywordValue> auto_value;
   const scoped_refptr<KeywordValue> backwards_value;
   const scoped_refptr<KeywordValue> baseline_value;
@@ -99,6 +105,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> pre_value;
   const scoped_refptr<KeywordValue> relative_value;
   const scoped_refptr<KeywordValue> repeat_value;
+  const scoped_refptr<KeywordValue> reverse_value;
   const scoped_refptr<KeywordValue> right_value;
   const scoped_refptr<KeywordValue> sans_serif_value;
   const scoped_refptr<KeywordValue> serif_value;
@@ -120,6 +127,14 @@ base::LazyInstance<KeywordValue::NonTrivialStaticFields>
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetAbsolute() {
   return non_trivial_static_fields.Get().absolute_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetAlternate() {
+  return non_trivial_static_fields.Get().alternate_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetAlternateReverse() {
+  return non_trivial_static_fields.Get().alternate_reverse_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetAuto() {
@@ -250,6 +265,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetRepeat() {
   return non_trivial_static_fields.Get().repeat_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetReverse() {
+  return non_trivial_static_fields.Get().reverse_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetRight() {
   return non_trivial_static_fields.Get().right_value;
 }
@@ -286,6 +305,10 @@ std::string KeywordValue::ToString() const {
   switch (value_) {
     case kAbsolute:
       return kAbsoluteKeywordName;
+    case kAlternate:
+      return kAlternateKeywordName;
+    case kAlternateReverse:
+      return kAlternateReverseKeywordName;
     case kAuto:
       return kAutoKeywordName;
     case kBackwards:
@@ -350,6 +373,8 @@ std::string KeywordValue::ToString() const {
       return kRelativeKeywordName;
     case kRepeat:
       return kRepeatKeywordName;
+    case kReverse:
+      return kReverseKeywordName;
     case kRight:
       return kRightKeywordName;
     case kSansSerif:

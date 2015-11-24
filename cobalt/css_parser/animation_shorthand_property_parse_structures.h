@@ -37,6 +37,7 @@ struct SingleAnimationShorthand {
   void ReplaceNullWithInitialValues();
 
   base::optional<base::TimeDelta> delay;
+  scoped_refptr<cssom::PropertyValue> direction;
   base::optional<base::TimeDelta> duration;
   scoped_refptr<cssom::PropertyValue> fill_mode;
   scoped_refptr<cssom::PropertyValue> iteration_count;
@@ -50,6 +51,7 @@ struct SingleAnimationShorthand {
 struct AnimationShorthandBuilder {
   AnimationShorthandBuilder()
       : delay_list_builder(new cssom::TimeListValue::Builder()),
+        direction_list_builder(new cssom::PropertyListValue::Builder()),
         duration_list_builder(new cssom::TimeListValue::Builder()),
         fill_mode_list_builder(new cssom::PropertyListValue::Builder()),
         iteration_count_list_builder(new cssom::PropertyListValue::Builder()),
@@ -58,6 +60,7 @@ struct AnimationShorthandBuilder {
             new cssom::TimingFunctionListValue::Builder()) {}
 
   scoped_ptr<cssom::TimeListValue::Builder> delay_list_builder;
+  scoped_ptr<cssom::PropertyListValue::Builder> direction_list_builder;
   scoped_ptr<cssom::TimeListValue::Builder> duration_list_builder;
   scoped_ptr<cssom::PropertyListValue::Builder> fill_mode_list_builder;
   scoped_ptr<cssom::PropertyListValue::Builder> iteration_count_list_builder;
@@ -68,6 +71,7 @@ struct AnimationShorthandBuilder {
 
 struct AnimationShorthand {
   scoped_refptr<cssom::PropertyValue> delay_list;
+  scoped_refptr<cssom::PropertyValue> direction_list;
   scoped_refptr<cssom::PropertyValue> duration_list;
   scoped_refptr<cssom::PropertyValue> fill_mode_list;
   scoped_refptr<cssom::PropertyValue> iteration_count_list;

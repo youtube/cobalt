@@ -192,11 +192,46 @@ base::optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeDirectedTimeFromIterationTime(
     const base::optional<base::TimeDelta>& iteration_time,
     const base::optional<double>& current_iteration) const {
-  // TODO(***REMOVED***): Support playback direction:
-  //   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#direction-control
-  UNREFERENCED_PARAMETER(current_iteration);
+  // 1.  If the iteration time is unresolved, return unresolved.
+  if (!iteration_time) return base::nullopt;
+  DCHECK(current_iteration);
 
-  return iteration_time;
+  enum SimpleDirection { kForwards, kReverse };
+  SimpleDirection current_direction;
+
+  // 2.  Calculate the current direction using the first matching condition from
+  //     the following list:
+  if (direction_ == AnimationEffectTimingReadOnly::kNormal) {
+    // If playback direction is normal,
+    current_direction = kForwards;
+  } else if (direction_ == AnimationEffectTimingReadOnly::kReverse) {
+    // If playback direction is reverse,
+    current_direction = kReverse;
+  } else {
+    // Otherwise,
+    // 2.1.  Let d be the current iteration.
+    double d = *current_iteration;
+    if (d == std::numeric_limits<double>::infinity()) {
+      current_direction = kForwards;
+    } else {
+      // 2.2.  If playback direction is alternate-reverse increment d by 1.
+      if (direction_ == AnimationEffectTimingReadOnly::kAlternateReverse) {
+        d += 1;
+      }
+      // 2.4.  If d % 2 == 0, let the current direction be forwards, otherwise
+      //       let the current direction be reverse.
+      if (static_cast<int>(d) % 2 == 0) {
+        current_direction = kForwards;
+      } else {
+        current_direction = kReverse;
+      }
+    }
+  }
+
+  // 3.  If the current direction is forwards then return the iteration time.
+  //     Otherwise, return the iteration duration - iteration time.
+  return current_direction == kForwards ? *iteration_time
+                                        : duration_ - *iteration_time;
 }
 
 // http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-transformed-time

@@ -60,6 +60,26 @@ Animation::FillMode GetFillMode(size_t index, PropertyValue* list_value) {
   }
 }
 
+Animation::PlaybackDirection GetDirection(size_t index,
+                                          PropertyValue* list_value) {
+  PropertyValue* value =
+      base::polymorphic_downcast<PropertyListValue*>(list_value)
+          ->get_item_modulo_size(static_cast<int>(index));
+
+  if (value == KeywordValue::GetNormal()) {
+    return Animation::kNormal;
+  } else if (value == KeywordValue::GetReverse()) {
+    return Animation::kReverse;
+  } else if (value == KeywordValue::GetAlternate()) {
+    return Animation::kAlternate;
+  } else if (value == KeywordValue::GetAlternateReverse()) {
+    return Animation::kAlternateReverse;
+  } else {
+    NOTREACHED();
+    return Animation::kNormal;
+  }
+}
+
 float GetIterationCount(size_t index, PropertyValue* list_value) {
   PropertyValue* value =
       base::polymorphic_downcast<PropertyListValue*>(list_value)
@@ -146,6 +166,7 @@ void AnimationSet::Update(
                     GetTimeValue(i, style.animation_duration()),
                     GetFillMode(i, style.animation_fill_mode()),
                     GetIterationCount(i, style.animation_iteration_count()),
+                    GetDirection(i, style.animation_direction()),
                     GetTimingFunction(i, style.animation_timing_function()))))
             .first;
     if (event_handler_) {
