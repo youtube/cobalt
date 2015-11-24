@@ -1513,6 +1513,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
     case 19:
       if (IsEqualToCssIdentifier(
               name.begin,
+              cssom::GetPropertyName(cssom::kAnimationDirectionProperty))) {
+        *property_name_token = kAnimationDirectionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
               cssom::GetPropertyName(cssom::kAnimationFillModeProperty))) {
         *property_name_token = kAnimationFillModeToken;
         return true;
@@ -1795,6 +1801,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kObliqueToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kReverseKeywordName)) {
+        *property_value_token = kReverseToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kVisibleKeywordName)) {
         *property_value_token = kVisibleToken;
         return true;
@@ -1845,6 +1855,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       return false;
 
     case 9:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kAlternateKeywordName)) {
+        *property_value_token = kAlternateToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kBackwardsKeywordName)) {
         *property_value_token = kBackwardsToken;
         return true;
@@ -1892,6 +1906,14 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
     case 12:
       if (IsEqualToCssIdentifier(name.begin, cssom::kInlineBlockKeywordName)) {
         *property_value_token = kInlineBlockToken;
+        return true;
+      }
+      return false;
+
+    case 17:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kAlternateReverseKeywordName)) {
+        *property_value_token = kAlternateReverseToken;
         return true;
       }
       return false;

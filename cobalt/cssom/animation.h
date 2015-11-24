@@ -42,10 +42,19 @@ class Animation {
     kBoth,
   };
 
+  // Determines what direction the animation should play in.
+  enum PlaybackDirection {
+    kNormal,
+    kReverse,
+    kAlternate,
+    kAlternateReverse,
+  };
+
   Animation(const std::string& name,
             const scoped_refptr<CSSKeyframesRule>& keyframes,
             base::TimeDelta start_time, base::TimeDelta delay,
             base::TimeDelta duration, FillMode fill_mode, float iteration_count,
+            PlaybackDirection direction,
             const scoped_refptr<TimingFunction>& timing_function)
       : name_(name),
         keyframes_(keyframes),
@@ -54,6 +63,7 @@ class Animation {
         duration_(duration),
         fill_mode_(fill_mode),
         iteration_count_(iteration_count),
+        direction_(direction),
         timing_function_(timing_function) {}
 
   // Returns the 'animation-name' property value.
@@ -79,6 +89,9 @@ class Animation {
   // Returns the 'animation-iteration-count' property value.
   float iteration_count() const { return iteration_count_; }
 
+  // Returns the 'animation-direction' property value.
+  PlaybackDirection direction() const { return direction_; }
+
   // Returns the 'animation-timing-function' property value.
   const scoped_refptr<TimingFunction>& timing_function() const {
     return timing_function_;
@@ -92,6 +105,7 @@ class Animation {
   base::TimeDelta duration_;
   FillMode fill_mode_;
   float iteration_count_;
+  PlaybackDirection direction_;
   scoped_refptr<TimingFunction> timing_function_;
 };
 

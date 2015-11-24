@@ -62,6 +62,25 @@ web_animations::AnimationEffectTimingReadOnly::FillMode CSSToWebFillMode(
   return web_animations::AnimationEffectTimingReadOnly::kNone;
 }
 
+// Convert a cssom::Animation::PlaybackDirection enum value to a
+// web_animations::AnimationEffectTimingReadOnly::PlaybackDirection value.
+web_animations::AnimationEffectTimingReadOnly::PlaybackDirection
+CSSToWebDirection(cssom::Animation::PlaybackDirection css_direction) {
+  switch (css_direction) {
+    case cssom::Animation::kNormal:
+      return web_animations::AnimationEffectTimingReadOnly::kNormal;
+    case cssom::Animation::kReverse:
+      return web_animations::AnimationEffectTimingReadOnly::kReverse;
+    case cssom::Animation::kAlternate:
+      return web_animations::AnimationEffectTimingReadOnly::kAlternate;
+    case cssom::Animation::kAlternateReverse:
+      return web_animations::AnimationEffectTimingReadOnly::kAlternateReverse;
+  }
+
+  NOTREACHED();
+  return web_animations::AnimationEffectTimingReadOnly::kNormal;
+}
+
 scoped_refptr<cssom::TimingFunction> GetTimingFunctionFromKeyframePropertyValue(
     const scoped_refptr<cssom::PropertyValue>& value) {
   // An 'animation-timing-function' specified as a property value in a keyframe
@@ -141,6 +160,7 @@ void CSSAnimationsAdapter::OnAnimationStarted(
           css_animation.delay(), base::TimeDelta(),
           CSSToWebFillMode(css_animation.fill_mode()), 0.0,
           css_animation.iteration_count(), css_animation.duration(),
+          CSSToWebDirection(css_animation.direction()),
           cssom::TimingFunction::GetLinear()));
 
   // Construct the web_animations keyframe data from the CSS Animations keyframe

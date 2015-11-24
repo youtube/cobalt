@@ -22,6 +22,8 @@ namespace cssom {
 
 // Lower-case names of CSS keywords used as property values.
 extern const char kAbsoluteKeywordName[];
+extern const char kAlternateKeywordName[];
+extern const char kAlternateReverseKeywordName[];
 extern const char kAquaKeywordName[];
 extern const char kAutoKeywordName[];
 extern const char kBackwardsKeywordName[];
@@ -45,8 +47,8 @@ extern const char kEaseOutKeywordName[];
 extern const char kEllipsisKeywordName[];
 extern const char kEndKeywordName[];
 extern const char kFantasyKeywordName[];
-extern const char kForwardsKeywordName[];
 extern const char kFixedKeywordName[];
+extern const char kForwardsKeywordName[];
 extern const char kFromKeywordName[];
 extern const char kFuchsiaKeywordName[];
 extern const char kGrayKeywordName[];
@@ -78,6 +80,7 @@ extern const char kRelativeKeywordName[];
 extern const char kRepeatKeywordName[];
 extern const char kRepeatXKeywordName[];
 extern const char kRepeatYKeywordName[];
+extern const char kReverseKeywordName[];
 extern const char kRightKeywordName[];
 extern const char kSansSerifKeywordName[];
 extern const char kSerifKeywordName[];

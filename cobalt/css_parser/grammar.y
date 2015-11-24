@@ -74,6 +74,7 @@
 //          to |identifier_token| rule below.
 %token kAllToken                              // all
 %token kAnimationDelayToken                   // animation-delay
+%token kAnimationDirectionToken               // animation-direction
 %token kAnimationDurationToken                // animation-duration
 %token kAnimationFillModeToken                // animation-fill-mode
 %token kAnimationIterationCountToken          // animation-iteration-count
@@ -141,6 +142,8 @@
 // WARNING: Every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kAbsoluteToken                   // absolute
+%token kAlternateToken                  // alternate
+%token kAlternateReverseToken           // alternate-reverse
 %token kAquaToken                       // aqua
 %token kAutoToken                       // auto
 %token kBackwardsToken                  // backwards
@@ -196,6 +199,7 @@
 %token kRepeatXToken                    // repeat-x
 %token kRepeatYToken                    // repeat-y
 %token kRelativeToken                   // relative
+%token kReverseToken                    // reverse
 // %token kRightToken                   // right - also property name token
 %token kSansSerifToken                  // sans-serif
 %token kSerifToken                      // serif
@@ -450,6 +454,8 @@
 // exposed by cssom::CSSStyleDeclaration (semantics is always preserved).
 %union { cssom::PropertyValue* property_value; }
 %type <property_value> animation_delay_property_value
+                       animation_direction_list_element
+                       animation_direction_property_value
                        animation_duration_property_value
                        animation_fill_mode_list_element
                        animation_fill_mode_property_value
@@ -665,6 +671,7 @@
 
 %union { cssom::PropertyListValue::Builder* property_list; }
 %type <property_list> background_size_property_list
+                      comma_separated_animation_direction_list
                       comma_separated_animation_fill_mode_list
                       comma_separated_animation_iteration_count_list
                       comma_separated_animation_name_list
@@ -1101,6 +1108,10 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kAnimationDelayProperty));
   }
+  | kAnimationDirectionToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kAnimationDirectionProperty));
+  }
   | kAnimationDurationToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kAnimationDurationProperty));
@@ -1349,6 +1360,12 @@ identifier_token:
   | kAbsoluteToken {
     $$ = TrivialStringPiece::FromCString(cssom::kAbsoluteKeywordName);
   }
+  | kAlternateToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kAlternateKeywordName);
+  }
+  | kAlternateReverseToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kAlternateReverseKeywordName);
+  }
   | kAquaToken {
     $$ = TrivialStringPiece::FromCString(cssom::kAquaKeywordName);
   }
@@ -1511,6 +1528,9 @@ identifier_token:
   }
   | kRelativeToken {
     $$ = TrivialStringPiece::FromCString(cssom::kRelativeKeywordName);
+  }
+  | kReverseToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kReverseKeywordName);
   }
   | kSansSerifToken {
     $$ = TrivialStringPiece::FromCString(cssom::kSansSerifKeywordName);
@@ -3534,6 +3554,51 @@ timing_function_list_property_value:
 //  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-delay-property
 animation_delay_property_value: time_list_property_value;
 
+// The 'animation-direction' property defines which direction time should flow
+// given the current iteration number.
+//  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
+animation_direction_list_element:
+    kNormalToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNormal().get());
+  }
+  | kReverseToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetReverse().get());
+  }
+  | kAlternateToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAlternate().get());
+  }
+  | kAlternateReverseToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAlternateReverse().get());
+  }
+  ;
+
+comma_separated_animation_direction_list:
+    animation_direction_list_element {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+  }
+  | comma_separated_animation_direction_list comma
+        animation_direction_list_element {
+    $$ = $1;
+    $$->push_back(MakeScopedRefPtrAndRelease($3));
+  }
+  | errors {
+    parser_impl->LogError(
+        @1, "unsupported property value for animation-direction");
+    $$ = NULL;
+  }
+  ;
+
+animation_direction_property_value:
+    comma_separated_animation_direction_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> direction_list($1);
+    $$ = direction_list
+         ? AddRef(new cssom::PropertyListValue(direction_list.Pass()))
+         : NULL;
+  }
+  | common_values_without_errors
+  ;
+
 // The 'animation-duration' property defines the length of time that an
 // animation takes to complete one cycle.
 //  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-duration-property
@@ -3543,46 +3608,46 @@ animation_duration_property_value: time_list_property_value;
 // animation outside the time it is executing.
 //  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-fill-mode-property
 animation_fill_mode_list_element:
-      kNoneToken maybe_whitespace {
-      $$ = AddRef(cssom::KeywordValue::GetNone().get());
-    }
-    | kForwardsToken maybe_whitespace {
-      $$ = AddRef(cssom::KeywordValue::GetForwards().get());
-    }
-    | kBackwardsToken maybe_whitespace {
-      $$ = AddRef(cssom::KeywordValue::GetBackwards().get());
-    }
-    | kBothToken maybe_whitespace {
-      $$ = AddRef(cssom::KeywordValue::GetBoth().get());
-    }
-    ;
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | kForwardsToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetForwards().get());
+  }
+  | kBackwardsToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetBackwards().get());
+  }
+  | kBothToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetBoth().get());
+  }
+  ;
 
 comma_separated_animation_fill_mode_list:
-      animation_fill_mode_list_element {
-      $$ = new cssom::PropertyListValue::Builder();
-      $$->push_back(MakeScopedRefPtrAndRelease($1));
-    }
-    | comma_separated_animation_fill_mode_list comma
-          animation_fill_mode_list_element {
-      $$ = $1;
-      $$->push_back(MakeScopedRefPtrAndRelease($3));
-    }
-    | errors {
-      parser_impl->LogError(
-          @1, "unsupported property value for animation-fill-mode");
-      $$ = NULL;
-    }
-    ;
+    animation_fill_mode_list_element {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+  }
+  | comma_separated_animation_fill_mode_list comma
+        animation_fill_mode_list_element {
+    $$ = $1;
+    $$->push_back(MakeScopedRefPtrAndRelease($3));
+  }
+  | errors {
+    parser_impl->LogError(
+        @1, "unsupported property value for animation-fill-mode");
+    $$ = NULL;
+  }
+  ;
 
 animation_fill_mode_property_value:
-      comma_separated_animation_fill_mode_list {
-      scoped_ptr<cssom::PropertyListValue::Builder> fill_mode_list($1);
-      $$ = fill_mode_list
-           ? AddRef(new cssom::PropertyListValue(fill_mode_list.Pass()))
-           : NULL;
-    }
-    | common_values_without_errors
-    ;
+    comma_separated_animation_fill_mode_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> fill_mode_list($1);
+    $$ = fill_mode_list
+         ? AddRef(new cssom::PropertyListValue(fill_mode_list.Pass()))
+         : NULL;
+  }
+  | common_values_without_errors
+  ;
 
 // The 'animation-iteration-count' property specifies the number of times an
 // animation cycle is played.
@@ -3678,6 +3743,14 @@ single_animation_element:
           @1, "animation-name value declared twice in animation.");
     }
   }
+  | animation_direction_list_element {
+    if (!$<single_animation>0->direction) {
+      $<single_animation>0->direction = MakeScopedRefPtrAndRelease($1);
+    } else {
+      parser_impl->LogWarning(
+          @1, "animation-direction value declared twice in animation.");
+    }
+  }
   | animation_fill_mode_list_element {
     if (!$<single_animation>0->fill_mode) {
       $<single_animation>0->fill_mode = MakeScopedRefPtrAndRelease($1);
@@ -3748,6 +3821,8 @@ comma_separated_animation_list:
 
       animation_builder->delay_list_builder->push_back(
           *single_animation->delay);
+      animation_builder->direction_list_builder->push_back(
+          single_animation->direction);
       animation_builder->duration_list_builder->push_back(
           *single_animation->duration);
       animation_builder->fill_mode_list_builder->push_back(
@@ -3770,6 +3845,7 @@ comma_separated_animation_list:
       single_animation->ReplaceNullWithInitialValues();
 
       $$->delay_list_builder->push_back(*single_animation->delay);
+      $$->direction_list_builder->push_back(single_animation->direction);
       $$->duration_list_builder->push_back(*single_animation->duration);
       $$->fill_mode_list_builder->push_back(single_animation->fill_mode);
       $$->iteration_count_list_builder->push_back(
@@ -3791,6 +3867,8 @@ animation_property_value:
 
     animation->delay_list = new cssom::TimeListValue(
         animation_builder->delay_list_builder.Pass());
+    animation->direction_list = new cssom::PropertyListValue(
+        animation_builder->direction_list_builder.Pass());
     animation->duration_list = new cssom::TimeListValue(
         animation_builder->duration_list_builder.Pass());
     animation->fill_mode_list = new cssom::PropertyListValue(
@@ -3809,6 +3887,7 @@ animation_property_value:
     // is a shorthand for.
     scoped_ptr<AnimationShorthand> animation(new AnimationShorthand());
     animation->delay_list = $1;
+    animation->direction_list = $1;
     animation->duration_list = $1;
     animation->fill_mode_list = $1;
     animation->iteration_count_list = $1;
@@ -4130,6 +4209,12 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kAnimationDirectionToken maybe_whitespace colon
+      animation_direction_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kAnimationDirectionProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kAnimationDurationToken maybe_whitespace colon
       animation_duration_property_value maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kAnimationDurationProperty,
@@ -4173,6 +4258,10 @@ maybe_declaration:
         PropertyDeclaration::PropertyKeyValuePair(
             cssom::kAnimationDelayProperty,
             animation->delay_list));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kAnimationDirectionProperty,
+            animation->direction_list));
     property_declaration->property_values.push_back(
         PropertyDeclaration::PropertyKeyValuePair(
             cssom::kAnimationDurationProperty,

@@ -20,6 +20,8 @@ namespace cobalt {
 namespace cssom {
 
 const char kAbsoluteKeywordName[] = "absolute";
+const char kAlternateKeywordName[] = "alternate";
+const char kAlternateReverseKeywordName[] = "alternate-reverse";
 const char kAquaKeywordName[] = "aqua";
 const char kAutoKeywordName[] = "auto";
 const char kBackwardsKeywordName[] = "backwards";
@@ -76,6 +78,7 @@ const char kRelativeKeywordName[] = "relative";
 const char kRepeatKeywordName[] = "repeat";
 const char kRepeatXKeywordName[] = "repeat-x";
 const char kRepeatYKeywordName[] = "repeat-y";
+const char kReverseKeywordName[] = "reverse";
 const char kRightKeywordName[] = "right";
 const char kSansSerifKeywordName[] = "sans-serif";
 const char kSerifKeywordName[] = "serif";

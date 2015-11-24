@@ -75,6 +75,16 @@ void CSSStyleDeclaration::set_animation_delay(
   SetPropertyValueStringByKey(kAnimationDelayProperty, animation_delay);
 }
 
+std::string CSSStyleDeclaration::animation_direction() const {
+  return data_->GetDeclaredPropertyValueStringByKey(
+      kAnimationDirectionProperty);
+}
+
+void CSSStyleDeclaration::set_animation_direction(
+    const std::string& animation_direction) {
+  SetPropertyValueStringByKey(kAnimationDirectionProperty, animation_direction);
+}
+
 std::string CSSStyleDeclaration::animation_duration() const {
   return data_->GetDeclaredPropertyValueStringByKey(kAnimationDurationProperty);
 }
