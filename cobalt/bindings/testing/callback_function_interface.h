@@ -17,6 +17,8 @@
 #ifndef BINDINGS_TESTING_CALLBACK_FUNCTION_INTERFACE_H_
 #define BINDINGS_TESTING_CALLBACK_FUNCTION_INTERFACE_H_
 
+#include <string>
+
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
@@ -32,6 +34,7 @@ namespace testing {
 class CallbackFunctionInterface : public script::Wrappable {
  public:
   typedef script::CallbackFunction<void()> VoidFunction;
+  typedef script::CallbackFunction<std::string()> FunctionThatReturnsString;
   typedef script::CallbackFunction<void(int32_t)> FunctionWithOneParameter;
   typedef script::CallbackFunction<void(
       double, const std::string&, const scoped_refptr<ArbitraryInterface>&)>
@@ -42,6 +45,8 @@ class CallbackFunctionInterface : public script::Wrappable {
 
   MOCK_METHOD1(TakesVoidFunction,
                void(const script::ScriptObject<VoidFunction>&));
+  MOCK_METHOD1(TakesFunctionThatReturnsString,
+               void(const script::ScriptObject<FunctionThatReturnsString>&));
   MOCK_METHOD1(TakesFunctionWithOneParameter,
                void(const script::ScriptObject<FunctionWithOneParameter>&));
   MOCK_METHOD1(

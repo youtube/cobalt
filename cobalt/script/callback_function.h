@@ -2,7 +2,6 @@
 //     pump.py callback_function.h.pump
 // DO NOT EDIT BY HAND!!!
 
-
 /*
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
@@ -35,6 +34,19 @@
 namespace cobalt {
 namespace script {
 
+template <typename R>
+struct CallbackResult {
+  CallbackResult() : result(R()), exception(false) {}
+  R result;
+  bool exception;
+};
+
+template <>
+struct CallbackResult<void> {
+  CallbackResult() : exception(false) {}
+  bool exception;
+};
+
 // First, we forward declare the CallbackFunction class template. This informs
 // the compiler that the template only has 1 type parameter which is the
 // function signature that the CallbackFunction is representing.
@@ -47,30 +59,34 @@ template <typename R>
 class CallbackFunction<R(void)> {
  public:
   typedef R Signature(void);
-  virtual R Run()
+  typedef CallbackResult<R> ReturnValue;
+
+  virtual CallbackResult<R> Run()
       const = 0;
 
  protected:
   virtual ~CallbackFunction() {}
 };
-
 template <typename R, typename A1>
 class CallbackFunction<R(A1)> {
  public:
   typedef R Signature(A1);
-  virtual R Run(
+  typedef CallbackResult<R> ReturnValue;
+
+  virtual CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1)
       const = 0;
 
  protected:
   virtual ~CallbackFunction() {}
 };
-
 template <typename R, typename A1, typename A2>
 class CallbackFunction<R(A1, A2)> {
  public:
   typedef R Signature(A1, A2);
-  virtual R Run(
+  typedef CallbackResult<R> ReturnValue;
+
+  virtual CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2)
       const = 0;
@@ -78,12 +94,13 @@ class CallbackFunction<R(A1, A2)> {
  protected:
   virtual ~CallbackFunction() {}
 };
-
 template <typename R, typename A1, typename A2, typename A3>
 class CallbackFunction<R(A1, A2, A3)> {
  public:
   typedef R Signature(A1, A2, A3);
-  virtual R Run(
+  typedef CallbackResult<R> ReturnValue;
+
+  virtual CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3)
@@ -92,12 +109,13 @@ class CallbackFunction<R(A1, A2, A3)> {
  protected:
   virtual ~CallbackFunction() {}
 };
-
 template <typename R, typename A1, typename A2, typename A3, typename A4>
 class CallbackFunction<R(A1, A2, A3, A4)> {
  public:
   typedef R Signature(A1, A2, A3, A4);
-  virtual R Run(
+  typedef CallbackResult<R> ReturnValue;
+
+  virtual CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
@@ -107,13 +125,14 @@ class CallbackFunction<R(A1, A2, A3, A4)> {
  protected:
   virtual ~CallbackFunction() {}
 };
-
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-          typename A5>
+    typename A5>
 class CallbackFunction<R(A1, A2, A3, A4, A5)> {
  public:
   typedef R Signature(A1, A2, A3, A4, A5);
-  virtual R Run(
+  typedef CallbackResult<R> ReturnValue;
+
+  virtual CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
@@ -124,13 +143,14 @@ class CallbackFunction<R(A1, A2, A3, A4, A5)> {
  protected:
   virtual ~CallbackFunction() {}
 };
-
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-          typename A5, typename A6>
+    typename A5, typename A6>
 class CallbackFunction<R(A1, A2, A3, A4, A5, A6)> {
  public:
   typedef R Signature(A1, A2, A3, A4, A5, A6);
-  virtual R Run(
+  typedef CallbackResult<R> ReturnValue;
+
+  virtual CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
@@ -142,13 +162,14 @@ class CallbackFunction<R(A1, A2, A3, A4, A5, A6)> {
  protected:
   virtual ~CallbackFunction() {}
 };
-
 template <typename R, typename A1, typename A2, typename A3, typename A4,
-          typename A5, typename A6, typename A7>
+    typename A5, typename A6, typename A7>
 class CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> {
  public:
   typedef R Signature(A1, A2, A3, A4, A5, A6, A7);
-  virtual R Run(
+  typedef CallbackResult<R> ReturnValue;
+
+  virtual CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
@@ -161,7 +182,6 @@ class CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> {
  protected:
   virtual ~CallbackFunction() {}
 };
-
 
 }  // namespace script
 }  // namespace cobalt

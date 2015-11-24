@@ -16,6 +16,7 @@
 
 interface CallbackFunctionInterface {
   void takesVoidFunction(VoidFunction cb);
+  void takesFunctionThatReturnsString(FunctionThatReturnsString cb);
   void takesFunctionWithOneParameter(FunctionWithOneParameter cb);
   void takesFunctionWithSeveralParameters(FunctionWithSeveralParameters cb);
   void takesFunctionWithNullableParameters(FunctionWithNullableParameters cb);
@@ -25,6 +26,7 @@ interface CallbackFunctionInterface {
 };
 
 callback VoidFunction = void();
+callback FunctionThatReturnsString = DOMString();
 callback FunctionWithOneParameter = void(long param);
 callback FunctionWithSeveralParameters = void(double param1, DOMString param2, ArbitraryInterface param3);
 callback FunctionWithNullableParameters = void(boolean? param1, DOMString? param2, ArbitraryInterface? param3);
