@@ -17,10 +17,164 @@
 #include "cobalt/audio/audio_node_input.h"
 
 #include "base/logging.h"
+#include "cobalt/audio/audio_node.h"
 #include "cobalt/audio/audio_node_output.h"
 
 namespace cobalt {
 namespace audio {
+
+namespace {
+
+typedef ::media::ShellAudioBus ShellAudioBus;
+
+void MixAudioBufferBasedOnInterpretation(
+    const float* speaker, const float* discrete,
+    const AudioNode::ChannelInterpretation& interpretation,
+    ShellAudioBus* source, ShellAudioBus* output_audio_data) {
+  const float* kMatrix =
+      interpretation == AudioNode::kSpeakers ? speaker : discrete;
+  size_t array_size = source->channels() * output_audio_data->channels();
+  std::vector<float> matrix(kMatrix, kMatrix + array_size);
+  output_audio_data->Mix(*source, matrix);
+}
+
+// "discrete" channel interpretation: up-mix by filling channels until they run
+// out then zero out remaining channels. Down-mix by filling as many channels as
+// possible, then dropping remaining channels.
+// "speakers" channel interpretation: use the below spec. In cases where the
+// number of channels do not match any of these basic speaker layouts, revert to
+// "discrete".
+// Up down mix equations for mono, stereo, quad, 5.1:
+//   http://www.w3.org/TR/webaudio/#ChannelLayouts
+void MixAudioBuffer(const AudioNode::ChannelInterpretation& interpretation,
+                    ShellAudioBus* source, ShellAudioBus* output_audio_data) {
+  DCHECK_GT(source->channels(), 0u);
+  DCHECK_GT(output_audio_data->channels(), 0u);
+  DCHECK(interpretation == AudioNode::kSpeakers ||
+         interpretation == AudioNode::kDiscrete)
+      << interpretation;
+
+  if (output_audio_data->channels() == source->channels()) {
+    output_audio_data->Mix(*source);
+  } else if (source->channels() == 1 && output_audio_data->channels() == 2) {
+    // 1 -> 2: up-mix from mono to stereo.
+    //
+    // output.L = input;
+    // output.R = input;
+    const float kMonoToStereoMatrixSpeaker[] = {
+        1.0f,  // 1.0 * input
+        1.0f,  // 1.0 * input
+    };
+
+    const float kMonoToStereoMatrixDiscrete[] = {
+        1.0f,  // 1.0 * input
+        0.0f,  // 0.0 * input
+    };
+
+    MixAudioBufferBasedOnInterpretation(
+        kMonoToStereoMatrixSpeaker, kMonoToStereoMatrixDiscrete, interpretation,
+        source, output_audio_data);
+  } else if (source->channels() == 4 && output_audio_data->channels() == 2) {
+    // 4 -> 2: down-mix from quad to stereo.
+    //
+    // output.L = 0.5 * (input.L + input.SL);
+    // output.R = 0.5 * (input.R + input.SR);
+    const float kQuadToStereoMatrixSpeaker[] = {
+        0.5f, 0.0f, 0.5f, 0.0f,  // 0.5 * L + 0.0 * R + 0.5 * SL + 0.0 * SR
+        0.0f, 0.5f, 0.0f, 0.5f,  // 0.0 * L + 0.5 * R + 0.0 * SL + 0.5 * SR
+    };
+
+    const float kQuadToStereoMatrixDiscrete[] = {
+        1.0f, 0.0f, 0.0f, 0.0f,  // 1.0 * L + 0.0 * R + 0.0 * SL + 0.0 * SR
+        0.0f, 1.0f, 0.0f, 0.0f,  // 0.0 * L + 1.0 * R + 0.0 * SL + 0.0 * SR
+    };
+
+    MixAudioBufferBasedOnInterpretation(
+        kQuadToStereoMatrixSpeaker, kQuadToStereoMatrixDiscrete, interpretation,
+        source, output_audio_data);
+  } else if (source->channels() == 6 && output_audio_data->channels() == 2) {
+    // 5.1 -> 2: down-mix from 5.1 to stereo.
+    //
+    // output.L = L + 0.7071 * (input.C + input.SL)
+    // output.R = R + 0.7071 * (input.C + input.SR)
+    const float kFivePointOneToStereoMatrixSpeaker[] = {
+        // 1.0 * L + 0.0 * R + 0.7071 * C + 0.0 * LFE + 0.7071 * SL + 0.0 * SR
+        1.0f, 0.0f, 0.7071f, 0.0f, 0.7071f, 0.0f,
+        // 0.0 * L + 1.0 * R + 0.7071 * C + 0.0 * LFE + 0.0 * SL + 0.7071 * SR
+        0.0f, 1.0f, 0.7071f, 0.0f, 0.0f, 0.7071f,
+    };
+
+    const float kFivePointOneToStereoMatrixDiscrete[] = {
+        // 1.0 * L + 0.0 * R + 0.0 * C + 0.0 * LFE + 0.0 * SL + 0.0 * SR
+        1.f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        // 0.0 * L + 1.0 * R + 0.0 * C + 0.0 * LFE + 0.0 * SL + 0.0 * SR
+        0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    };
+
+    MixAudioBufferBasedOnInterpretation(
+        kFivePointOneToStereoMatrixSpeaker, kFivePointOneToStereoMatrixDiscrete,
+        interpretation, source, output_audio_data);
+  } else if (source->channels() == 2 && output_audio_data->channels() == 1) {
+    // 2 -> 1: down-mix from stereo to mono.
+    //
+    // output = 0.5 * (input.L + input.R);
+    const float kStereoToMonoSpeaker[] = {
+        0.5f, 0.5f,  // 0.5 * L + 0.5 * R
+    };
+
+    const float kStereoToMonoDiscrete[] = {
+        1.0f, 0.0f,  // 1.0 * L + 0.0 * R
+    };
+
+    MixAudioBufferBasedOnInterpretation(kStereoToMonoSpeaker,
+                                        kStereoToMonoDiscrete, interpretation,
+                                        source, output_audio_data);
+  } else if (source->channels() == 4 && output_audio_data->channels() == 1) {
+    // 4 -> 1: down-mix from quad to mono.
+    //
+    // output = 0.25 * (input.L + input.R + input.SL + input.SR);
+    const float kQuadToMonoSpeaker[] = {
+        // 0.25 * L + 0.25 * R + 0.25 * SL + 0.25 * SR
+        0.25f, 0.25f, 0.25f, 0.25f,
+    };
+
+    const float kQuadToMonoDiscrete[] = {
+        // 1.0 * L + 0.0 * R + 0.0 * SL + 0.0 * SR
+        1.0f, 0.0f, 0.0f, 0.0f,
+    };
+
+    MixAudioBufferBasedOnInterpretation(kQuadToMonoSpeaker, kQuadToMonoDiscrete,
+                                        interpretation, source,
+                                        output_audio_data);
+  } else if (source->channels() == 6 && output_audio_data->channels() == 1) {
+    // 5.1 -> 1: down-mix from 5.1 to mono.
+    //
+    // output = 0.7071 * (input.L + input.R) + input.C + 0.5 * (input.SL +
+    // input.SR)
+    const float kFivePointOneToMonoSpeaker[] = {
+        // 0.7071 * L + 0.7071 * R + 1.0 * C + 0.0 * LFE + 0.5 * SL + 0.5 * SR
+        0.7071f, 0.7071f, 1.0f, 0.0f, 0.5f, 0.5f,
+    };
+
+    const float kFivePointOneToMonoDiscrete[] = {
+        // 1.0 * L + 0.0 * R + 0.0 * C + 0.0 * LFE + 0.0 * SL + 0.0 * SR
+        1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    };
+
+    MixAudioBufferBasedOnInterpretation(
+        kFivePointOneToMonoSpeaker, kFivePointOneToMonoDiscrete, interpretation,
+        source, output_audio_data);
+  } else {
+    // TODO(***REMOVED***): Implement the case which the number of channels do not
+    // match any of those basic speaker layouts. In this case, use "discrete"
+    // channel layout.
+    NOTREACHED() << "The combination of source channels: " << source->channels()
+                 << " and output channels: " << output_audio_data->channels()
+                 << " is not supported.";
+  }
+}
+
+}  // namespace
 
 void AudioNodeInput::Connect(AudioNodeOutput* output) {
   DCHECK(output);
@@ -52,6 +206,29 @@ void AudioNodeInput::DisconnectAll() {
   while (!outputs_.empty()) {
     AudioNodeOutput* output = *outputs_.begin();
     Disconnect(output);
+  }
+}
+
+void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
+                                  bool* silence) {
+  *silence = true;
+
+  // TODO(***REMOVED***): Consider computing computedNumberOfChannels and do up-mix or
+  // down-mix base on computedNumberOfChannels. The current implementation
+  // is based on the fact that the channelCountMode is max.
+  DCHECK_EQ(owner_node_->channel_count_mode(), AudioNode::kMax);
+  // Pull audio buffer from connected audio input. When an input is connected
+  // from one or more AudioNode outputs. Fan-in is supported.
+  for (std::set<AudioNodeOutput*>::iterator iter = outputs_.begin();
+       iter != outputs_.end(); ++iter) {
+    scoped_ptr<ShellAudioBus> audio_bus = (*iter)->PassAudioBusFromSource(
+        static_cast<int32>(output_audio_bus->frames()));
+
+    if (audio_bus) {
+      MixAudioBuffer(owner_node_->channel_interpretation(), audio_bus.get(),
+                     output_audio_bus);
+      *silence = false;
+    }
   }
 }
 

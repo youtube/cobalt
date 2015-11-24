@@ -23,6 +23,7 @@
 #include "cobalt/audio/audio_node_output.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event_target.h"
+#include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace audio {
@@ -42,6 +43,8 @@ class AudioContext;
 // (if it has any).
 //   http://www.w3.org/TR/webaudio/#AudioNode-section
 class AudioNode : public dom::EventTarget {
+  typedef ::media::ShellAudioBus ShellAudioBus;
+
  public:
   enum ChannelCountMode {
     kMax,
@@ -110,11 +113,18 @@ class AudioNode : public dom::EventTarget {
   // Disconnects an AudioNode's output.
   void Disconnect(uint32 output, script::ExceptionState* exception_state);
 
+  // TODO(***REMOVED***): Support wrapping ShellAudioBus into another ShellAudioBus.
+  virtual scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
+      int32 number_of_frames) = 0;
+
   DEFINE_WRAPPABLE_TYPE(AudioNode);
 
  protected:
   void AddInput(const scoped_refptr<AudioNodeInput>& input);
   void AddOutput(const scoped_refptr<AudioNodeOutput>& output);
+
+  AudioNodeInput* Input(int32 index) const;
+  AudioNodeOutput* Output(int32 index) const;
 
  private:
   typedef std::vector<scoped_refptr<AudioNodeInput> > AudioNodeInputVector;

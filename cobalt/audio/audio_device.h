@@ -21,6 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace audio {
@@ -29,9 +30,8 @@ class AudioDevice {
  public:
   class RenderCallback {
    public:
-    virtual void FillAudioBuffer(int32 number_of_frames,
-                                 std::vector<std::vector<float> >* audio_buffer,
-                                 bool* silence) = 0;
+    typedef ::media::ShellAudioBus ShellAudioBus;
+    virtual void FillAudioBus(ShellAudioBus* audio_buffer, bool* silence) = 0;
 
    protected:
     ~RenderCallback() {}

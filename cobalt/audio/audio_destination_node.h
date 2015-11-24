@@ -21,6 +21,7 @@
 
 #include "cobalt/audio/audio_device.h"
 #include "cobalt/audio/audio_node.h"
+#include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
 namespace audio {
@@ -34,6 +35,8 @@ namespace audio {
 //   http://www.w3.org/TR/webaudio/#AudioDestinationNode
 class AudioDestinationNode : public AudioNode,
                              public AudioDevice::RenderCallback {
+  typedef ::media::ShellAudioBus ShellAudioBus;
+
  public:
   explicit AudioDestinationNode(AudioContext* context);
 
@@ -43,9 +46,15 @@ class AudioDestinationNode : public AudioNode,
   // to.
   uint32 max_channel_count() const { return max_channel_count_; }
 
-  void FillAudioBuffer(int32 number_of_frames,
-                       std::vector<std::vector<float> >* audio_buffer,
-                       bool* silence) OVERRIDE;
+  // From AudioNode.
+  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
+      int32 /*number_of_frames*/) OVERRIDE {
+    NOTREACHED();
+    return scoped_ptr<ShellAudioBus>();
+  }
+
+  // From AudioDevice::RenderCallback.
+  void FillAudioBus(ShellAudioBus* audio_bus, bool* silence) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(AudioDestinationNode);
 
