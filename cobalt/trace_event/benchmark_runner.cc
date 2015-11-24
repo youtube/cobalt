@@ -40,7 +40,7 @@ PRINTF_FORMAT(1, 2) void Output(const char* fmt, ...) {
 }
 
 void JsonPrint(const BenchmarkResultsMap& benchmarks) {
-  Output("---Results Start Here---\n");
+  Output("---Benchmark Results Start---\n");
   scoped_ptr<base::DictionaryValue> compilation(new base::DictionaryValue);
   for (BenchmarkResultsMap::const_iterator benchmark = benchmarks.begin();
        benchmark != benchmarks.end(); ++benchmark) {
@@ -79,6 +79,8 @@ void JsonPrint(const BenchmarkResultsMap& benchmarks) {
   base::JSONWriter::WriteWithOptions(
       compilation.get(), base::JSONWriter::OPTIONS_PRETTY_PRINT, &print_string);
   Output("%s", print_string.c_str());
+
+  Output("---Benchmark Results End---\n");
 }
 }  // namespace
 
