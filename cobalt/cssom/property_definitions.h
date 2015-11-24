@@ -40,6 +40,7 @@ enum PropertyKey {
 
   // All supported longhand property values are listed here.
   kAnimationDelayProperty,
+  kAnimationDirectionProperty,
   kAnimationDurationProperty,
   kAnimationFillModeProperty,
   kAnimationIterationCountProperty,

@@ -54,7 +54,9 @@ void CSSTransitionsAdapter::OnTransitionStarted(
       new web_animations::AnimationEffectTimingReadOnly(
           transition.delay(), base::TimeDelta(),
           web_animations::AnimationEffectTimingReadOnly::kBoth, 0.0, 1.0,
-          transition.duration(), cssom::TimingFunction::GetLinear()));
+          transition.duration(),
+          web_animations::AnimationEffectTimingReadOnly::kNormal,
+          cssom::TimingFunction::GetLinear()));
 
   // Setup a KeyframeEffect with 2 keyframes, a start and end frame that hold
   // the start and end transition property values.  In general keyframes can

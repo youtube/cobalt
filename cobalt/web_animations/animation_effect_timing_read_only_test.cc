@@ -27,7 +27,8 @@ AnimationEffectTimingReadOnly::Data CreateCanonicalTimingData() {
   return AnimationEffectTimingReadOnly::Data(
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 0.2, 1.0,
-      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(2), AnimationEffectTimingReadOnly::kNormal,
+      cssom::TimingFunction::GetLinear());
 }
 }  // namespace
 
@@ -111,7 +112,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   AnimationEffectTimingReadOnly::Data timing(
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 0.2, 1.0,
-      base::TimeDelta::FromSeconds(0), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(0), AnimationEffectTimingReadOnly::kNormal,
+      cssom::TimingFunction::GetLinear());
 
   base::optional<base::TimeDelta> iteration_time =
       timing.ComputeIterationTimeFromScaledActiveTime(
@@ -126,7 +128,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   AnimationEffectTimingReadOnly::Data timing(
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 0.2, 0.8,
-      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(2), AnimationEffectTimingReadOnly::kNormal,
+      cssom::TimingFunction::GetLinear());
 
   base::optional<base::TimeDelta> iteration_time =
       timing.ComputeIterationTimeFromScaledActiveTime(
@@ -163,7 +166,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   AnimationEffectTimingReadOnly::Data timing(
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 3.5, 0.8,
-      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(2), AnimationEffectTimingReadOnly::kNormal,
+      cssom::TimingFunction::GetLinear());
 
   base::TimeDelta active_time = base::TimeDelta();
   base::TimeDelta scaled_active_time =
@@ -184,6 +188,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 3.5,
       std::numeric_limits<double>::infinity(), base::TimeDelta(),
+      AnimationEffectTimingReadOnly::kNormal,
       cssom::TimingFunction::GetLinear());
 
   base::TimeDelta active_time(base::TimeDelta::FromSecondsD(1.0));
@@ -204,6 +209,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   AnimationEffectTimingReadOnly::Data timing(
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 3.5, 0.8, base::TimeDelta(),
+      AnimationEffectTimingReadOnly::kNormal,
       cssom::TimingFunction::GetLinear());
 
   base::TimeDelta active_time(base::TimeDelta::FromSecondsD(1.0));
@@ -224,7 +230,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   AnimationEffectTimingReadOnly::Data timing(
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 0.2, 0.8,
-      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(2), AnimationEffectTimingReadOnly::kNormal,
+      cssom::TimingFunction::GetLinear());
 
   // This active time is chosen such that the resulting iteration_time will
   // be equal to the effect timing's duration.
@@ -248,7 +255,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   AnimationEffectTimingReadOnly::Data timing(
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 0.0, 3.0,
-      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetLinear());
+      base::TimeDelta::FromSeconds(2), AnimationEffectTimingReadOnly::kNormal,
+      cssom::TimingFunction::GetLinear());
 
   base::TimeDelta active_time(base::TimeDelta::FromSecondsD(4.5));
   base::TimeDelta scaled_active_time =
@@ -264,13 +272,109 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
 }
 
 TEST(AnimationEffectTimingReadOnlyDataTests,
-     DirectTimeIsUnresolvedIfIterationTimeIsUnresolved) {
+     DirectedTimeIsUnresolvedIfIterationTimeIsUnresolved) {
   AnimationEffectTimingReadOnly::Data timing = CreateCanonicalTimingData();
 
   base::optional<base::TimeDelta> directed_time =
       timing.ComputeDirectedTimeFromIterationTime(base::nullopt, base::nullopt);
 
   EXPECT_FALSE(directed_time);
+}
+
+TEST(AnimationEffectTimingReadOnlyDataTests,
+     DirectedTimeIsIterationTimeForForwardsDirection) {
+  AnimationEffectTimingReadOnly::Data timing(
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.0, 4.0,
+      base::TimeDelta::FromSeconds(1), AnimationEffectTimingReadOnly::kNormal,
+      cssom::TimingFunction::GetLinear());
+
+  base::optional<base::TimeDelta> directed_time =
+      timing.ComputeDirectedTimeFromIterationTime(
+          base::TimeDelta::FromSecondsD(0.25), 0.0);
+
+  ASSERT_TRUE(directed_time);
+  EXPECT_EQ(0.25, directed_time->InSecondsF());
+}
+
+TEST(AnimationEffectTimingReadOnlyDataTests,
+     DirectedTimeIsDurationMinusIterationTimeForReverseDirection) {
+  AnimationEffectTimingReadOnly::Data timing(
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.0, 4.0,
+      base::TimeDelta::FromSeconds(1), AnimationEffectTimingReadOnly::kReverse,
+      cssom::TimingFunction::GetLinear());
+
+  base::optional<base::TimeDelta> directed_time =
+      timing.ComputeDirectedTimeFromIterationTime(
+          base::TimeDelta::FromSecondsD(0.25), 0.0);
+
+  ASSERT_TRUE(directed_time);
+  EXPECT_EQ(0.75, directed_time->InSecondsF());
+}
+
+TEST(AnimationEffectTimingReadOnlyDataTests,
+     DirectedTimeAlternatesForAlternateDirection) {
+  AnimationEffectTimingReadOnly::Data timing(
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.0, 4.0,
+      base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kAlternate,
+      cssom::TimingFunction::GetLinear());
+
+  base::optional<base::TimeDelta> directed_time =
+      timing.ComputeDirectedTimeFromIterationTime(
+          base::TimeDelta::FromSecondsD(0.25), 0.0);
+
+  ASSERT_TRUE(directed_time);
+  EXPECT_EQ(0.25, directed_time->InSecondsF());
+
+  directed_time = timing.ComputeDirectedTimeFromIterationTime(
+      base::TimeDelta::FromSecondsD(0.25), 1.0);
+
+  ASSERT_TRUE(directed_time);
+  EXPECT_EQ(0.75, directed_time->InSecondsF());
+}
+
+TEST(AnimationEffectTimingReadOnlyDataTests,
+     DirectedTimeAlternatesForAlternateReverseDirection) {
+  AnimationEffectTimingReadOnly::Data timing(
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.0, 4.0,
+      base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kAlternateReverse,
+      cssom::TimingFunction::GetLinear());
+
+  base::optional<base::TimeDelta> directed_time =
+      timing.ComputeDirectedTimeFromIterationTime(
+          base::TimeDelta::FromSecondsD(0.25), 0.0);
+
+  ASSERT_TRUE(directed_time);
+  EXPECT_EQ(0.75, directed_time->InSecondsF());
+
+  directed_time = timing.ComputeDirectedTimeFromIterationTime(
+      base::TimeDelta::FromSecondsD(0.25), 1.0);
+
+  ASSERT_TRUE(directed_time);
+  EXPECT_EQ(0.25, directed_time->InSecondsF());
+}
+
+TEST(AnimationEffectTimingReadOnlyDataTests,
+     DirectedTimeIsIterationTimeForCurrentIterationOfInfinity) {
+  AnimationEffectTimingReadOnly::Data timing(
+      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kBoth, 0.0,
+      std::numeric_limits<double>::infinity(), base::TimeDelta::FromSeconds(1),
+      AnimationEffectTimingReadOnly::kAlternate,
+      cssom::TimingFunction::GetLinear());
+
+  base::optional<base::TimeDelta> directed_time =
+      timing.ComputeDirectedTimeFromIterationTime(
+          base::TimeDelta::FromSecondsD(0.25),
+          std::numeric_limits<double>::infinity());
+
+  ASSERT_TRUE(directed_time);
+  EXPECT_EQ(0.25, directed_time->InSecondsF());
 }
 
 TEST(AnimationEffectTimingReadOnlyDataTests,
@@ -288,6 +392,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   AnimationEffectTimingReadOnly::Data timing(
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 0.0, 3.0, base::TimeDelta::Max(),
+      AnimationEffectTimingReadOnly::kNormal,
       cssom::TimingFunction::GetLinear());
 
   base::optional<base::TimeDelta> transformed_time =
@@ -303,6 +408,7 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   AnimationEffectTimingReadOnly::Data timing(
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 0.0, 3.0, base::TimeDelta(),
+      AnimationEffectTimingReadOnly::kNormal,
       cssom::TimingFunction::GetLinear());
 
   base::optional<base::TimeDelta> transformed_time =
@@ -330,7 +436,8 @@ TEST(AnimationEffectTimingReadOnlyDataTests,
   AnimationEffectTimingReadOnly::Data timing(
       base::TimeDelta::FromSeconds(1), base::TimeDelta::FromSeconds(1),
       AnimationEffectTimingReadOnly::kBoth, 0.2, 1.0,
-      base::TimeDelta::FromSeconds(2), cssom::TimingFunction::GetEase());
+      base::TimeDelta::FromSeconds(2), AnimationEffectTimingReadOnly::kNormal,
+      cssom::TimingFunction::GetEase());
 
   base::optional<base::TimeDelta> transformed_time =
       timing.ComputeTransformedTimeFromDirectedTime(

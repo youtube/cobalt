@@ -50,6 +50,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string animation_delay() const;
   void set_animation_delay(const std::string& animation_delay);
 
+  std::string animation_direction() const;
+  void set_animation_direction(const std::string& animation_direction);
+
   std::string animation_duration() const;
   void set_animation_duration(const std::string& animation_duration);
 

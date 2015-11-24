@@ -22,8 +22,11 @@ interface CSSStyleDeclaration {
   // TODO(b/24749043): Replace this list with __camel_cased_attribute.
   [TreatNullAs=EmptyString] attribute DOMString animation;
   [TreatNullAs=EmptyString] attribute DOMString animationDelay;
+  [TreatNullAs=EmptyString] attribute DOMString animationDirection;
   [TreatNullAs=EmptyString] attribute DOMString animationDuration;
   [TreatNullAs=EmptyString] attribute DOMString animationFillMode;
+  [TreatNullAs=EmptyString] attribute DOMString animationIterationCount;
+  [TreatNullAs=EmptyString] attribute DOMString animationName;
   [TreatNullAs=EmptyString] attribute DOMString animationTimingFunction;
   [TreatNullAs=EmptyString] attribute DOMString background;
   [TreatNullAs=EmptyString] attribute DOMString backgroundColor;
