@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/logging.h"
 #include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"
@@ -34,10 +35,16 @@ namespace dom {
 class Location : public script::Wrappable {
  public:
   explicit Location(const GURL& url);
+  Location(const GURL& url,
+           const base::Callback<void(const GURL&)>& navigation_callback);
 
   // Web API: Location
   //
-  void Assign(const std::string& url);
+  // NOTE(***REMOVED***): Assign is implemented using Replace, which means navigation
+  // history is not preserved.
+  void Assign(const std::string& url) { Replace(url); }
+
+  void Replace(const std::string& url);
 
   void Reload();
 
@@ -67,14 +74,23 @@ class Location : public script::Wrappable {
   std::string search() const;
   void set_search(const std::string& search);
 
+  // Custom, not in any spec.
+  //
+  const GURL& url() const { return url_; }
+  const base::Callback<void(const GURL&)>& navigation_callback() const {
+    return navigation_callback_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(Location);
 
  private:
   ~Location() OVERRIDE {}
 
-  void AssignInternal(const GURL& url);
+  void Navigate(const GURL& url);
 
   GURL url_;
+  base::Callback<void(const GURL&)> navigation_callback_;
+
   url_parse::Component empty_component_;
   GURL::Replacements remove_ref_;
 
