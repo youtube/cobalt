@@ -17,6 +17,7 @@
 #ifndef RENDER_TREE_FONT_H_
 #define RENDER_TREE_FONT_H_
 
+#include <string>
 #include <vector>
 
 #include "base/logging.h"
@@ -52,7 +53,10 @@ enum FontStyle {
   kBold,
   kItalic,
   kBoldItalic,
+  kFontStyleCount,
 };
+
+typedef uint32_t TypefaceId;
 
 // The Font class is an abstract base class representing all information
 // required by the rasterizer to determine the font metrics for a given
@@ -63,6 +67,10 @@ enum FontStyle {
 // to a rasterizer-specific type through base::Downcast().
 class Font : public base::RefCountedThreadSafe<Font> {
  public:
+  // Returns the font typeface's id, which is guaranteed to be unique among the
+  // typefaces registered with the font's resource provider.
+  virtual TypefaceId GetTypefaceId() const = 0;
+
   // Returns the bounding box for a given text string.  The size is guaranteed
   // to be consistent with |text| in this font, including the possible spaces
   // around the glyphs in the characters.  While left is always zero, note that
@@ -84,6 +92,10 @@ class Font : public base::RefCountedThreadSafe<Font> {
   // Returns a clone of the font, with the font size of the clone set to the
   // passed in value.
   virtual scoped_refptr<Font> CloneWithSize(float font_size) const = 0;
+
+  // Returns whether or not the font provides a glyph for a given UTF-32
+  // character.
+  virtual bool HasCharacter(int32 utf32_character) const = 0;
 
  protected:
   virtual ~Font() {}

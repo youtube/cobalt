@@ -64,7 +64,7 @@ RenderTreeWithAnimations CreateScalingTextScene(
 
   // Load a font for use with text rendering.
   const float kBaseFontSize = 20.0f;
-  scoped_refptr<Font> font = resource_provider->GetPreInstalledFont(
+  scoped_refptr<Font> font = resource_provider->GetLocalFont(
       "Roboto", render_tree::kNormal, kBaseFontSize);
 
   // Add the actual text node to our composition.
