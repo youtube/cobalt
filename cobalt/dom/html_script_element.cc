@@ -21,6 +21,7 @@
 #include "base/bind.h"
 #include "base/string_util.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/sync_loader.h"
@@ -51,6 +52,14 @@ void HTMLScriptElement::OnInsertedIntoDocument() {
   if (!is_parser_inserted_) {
     Prepare();
   }
+  // TODO(***REMOVED***): Remove the following code once we support Promise.
+  // See b/25387308 for more details.
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
+                 base::AsWeakPtr<HTMLScriptElement>(this),
+                 make_scoped_refptr(new Event(
+                     EventNames::GetInstance()->readystatechange()))));
 }
 
 void HTMLScriptElement::OnParserStartTag(
@@ -149,9 +158,10 @@ void HTMLScriptElement::Prepare() {
 
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        base::Bind(base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
-                   base::AsWeakPtr<HTMLScriptElement>(this),
-                   make_scoped_refptr(new Event("error"))));
+        base::Bind(
+            base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
+            base::AsWeakPtr<HTMLScriptElement>(this),
+            make_scoped_refptr(new Event(EventNames::GetInstance()->error()))));
     return;
   }
 
@@ -165,9 +175,10 @@ void HTMLScriptElement::Prepare() {
 
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        base::Bind(base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
-                   base::AsWeakPtr<HTMLScriptElement>(this),
-                   make_scoped_refptr(new Event("error"))));
+        base::Bind(
+            base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
+            base::AsWeakPtr<HTMLScriptElement>(this),
+            make_scoped_refptr(new Event(EventNames::GetInstance()->error()))));
     return;
   }
 
@@ -228,11 +239,11 @@ void HTMLScriptElement::Prepare() {
 
         // If the script is from an external file, fire a simple event named
         // load at the script element.
-        DispatchEvent(new Event("load"));
+        DispatchEvent(new Event(EventNames::GetInstance()->load()));
       } else {
         // Executing the script block must just consist of firing a simple event
         // named error at the element.
-        DispatchEvent(new Event("error"));
+        DispatchEvent(new Event(EventNames::GetInstance()->error()));
       }
     } break;
     case 4: {
@@ -383,7 +394,7 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
 
   // Executing the script block must just consist of firing a simple event
   // named error at the element.
-  DispatchEvent(new Event("error"));
+  DispatchEvent(new Event(EventNames::GetInstance()->error()));
 
   switch (load_option_) {
     case 4: {
@@ -432,13 +443,14 @@ void HTMLScriptElement::Execute(const std::string& content,
   // Otherwise, the script is internal; queue a task to fire a simple event
   // named load at the script element.
   if (is_external) {
-    DispatchEvent(new Event("load"));
+    DispatchEvent(new Event(EventNames::GetInstance()->load()));
   } else {
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        base::Bind(base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
-                   base::AsWeakPtr<HTMLScriptElement>(this),
-                   make_scoped_refptr(new Event("load"))));
+        base::Bind(
+            base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
+            base::AsWeakPtr<HTMLScriptElement>(this),
+            make_scoped_refptr(new Event(EventNames::GetInstance()->load()))));
   }
 }
 
