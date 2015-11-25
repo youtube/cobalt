@@ -17,8 +17,6 @@
 #ifndef CSSOM_CSS_FONT_FACE_DECLARATION_DATA_H_
 #define CSSOM_CSS_FONT_FACE_DECLARATION_DATA_H_
 
-#include <string>
-
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_declaration_data.h"
@@ -34,14 +32,15 @@ class CSSFontFaceDeclarationData : public CSSDeclarationData {
   CSSFontFaceDeclarationData();
 
   // From CSSDeclarationData
-  scoped_refptr<const PropertyValue> GetPropertyValue(
-      const std::string& property_name) OVERRIDE;
+  scoped_refptr<PropertyValue> GetPropertyValue(PropertyKey key) const OVERRIDE;
   void SetPropertyValueAndImportance(
-      const std::string& property_name,
-      const scoped_refptr<PropertyValue>& property_value,
+      PropertyKey key, const scoped_refptr<PropertyValue>& property_value,
       bool important) OVERRIDE {
     UNREFERENCED_PARAMETER(important);
-    SetPropertyValue(property_name, property_value);
+    SetPropertyValue(key, property_value);
+  }
+  void ClearPropertyValueAndImportance(PropertyKey key) OVERRIDE {
+    SetPropertyValue(key, NULL);
   }
 
   // Web API: CSSFontFaceRule
@@ -71,14 +70,13 @@ class CSSFontFaceDeclarationData : public CSSDeclarationData {
 
   // Rest of public methods.
 
-  void SetPropertyValue(const std::string& property_name,
+  void SetPropertyValue(PropertyKey key,
                         const scoped_refptr<PropertyValue>& property_value);
 
   void AssignFrom(const CSSFontFaceDeclarationData& rhs);
 
  private:
-  scoped_refptr<PropertyValue>* GetPropertyValueReference(
-      const std::string& property_name);
+  scoped_refptr<PropertyValue>* GetPropertyValueReference(PropertyKey key);
 
   scoped_refptr<PropertyValue> family_;
   scoped_refptr<PropertyValue> src_;

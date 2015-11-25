@@ -44,8 +44,21 @@ TEST(CSSStylePropertyDefinitionsTest, LongHandPropertiesKeyLookup) {
   for (int key = 0; key < kMaxLonghandPropertyKey + 1; ++key) {
     const char *name = GetPropertyName(static_cast<PropertyKey>(key));
     ASSERT_TRUE(name);
-    PropertyKey looked_up_key = GetLonghandPropertyKey(name);
+    PropertyKey looked_up_key = GetPropertyKey(name);
     ASSERT_NE(looked_up_key, kNoneProperty);
+    ASSERT_FALSE(IsShorthandProperty(looked_up_key));
+    ASSERT_EQ(key, looked_up_key);
+  }
+}
+
+TEST(CSSStylePropertyDefinitionsTest, ShortHandPropertiesKeyLookup) {
+  for (int key = kFirstShorthandPropertyKey; key < kMaxShorthandPropertyKey + 1;
+       ++key) {
+    const char *name = GetPropertyName(static_cast<PropertyKey>(key));
+    ASSERT_TRUE(name);
+    PropertyKey looked_up_key = GetPropertyKey(name);
+    ASSERT_NE(looked_up_key, kNoneProperty);
+    ASSERT_TRUE(IsShorthandProperty(looked_up_key));
     ASSERT_EQ(key, looked_up_key);
   }
 }
