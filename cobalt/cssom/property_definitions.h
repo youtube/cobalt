@@ -18,6 +18,7 @@
 #define CSSOM_PROPERTY_DEFINITIONS_H_
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -30,7 +31,7 @@ namespace cobalt {
 namespace cssom {
 
 // WARNING: When adding a new property, add a SetPropertyDefinition() entry in
-// NonTrivialGlobalVariables(), and add an entry in GetLonghandPropertyKey().
+// NonTrivialGlobalVariables(), and add an entry in GetPropertyKey().
 // The property may also need to be added to a Web API idl file, with a
 // corresponding getter and setter implementation.
 // Additionally, support may need to be added in the css_parser module.
@@ -101,15 +102,20 @@ enum PropertyKey {
   // All other supported property values, such as shorthand property values or
   // aliases are listed here.
   kAllProperty,
-  kAnimationProperty,
+  kSrcProperty,           // property for @font-face at-rule
+  kUnicodeRangeProperty,  // property for @font-face at-rule
+  kWordWrapProperty,      // alias for kOverflowWrap
+
+  // Shorthand properties
+  kFirstShorthandPropertyKey,
+  kAnimationProperty = kFirstShorthandPropertyKey,
   kBackgroundProperty,
   kMarginProperty,
   kPaddingProperty,
-  kSrcProperty,  // property for @font-face at-rule
   kTransitionProperty,
-  kUnicodeRangeProperty,  // property for @font-face at-rule
-  kWordWrapProperty,      // alias for kOverflowWrap
-  kMaxEveryPropertyKey = kWordWrapProperty,
+  kMaxShorthandPropertyKey = kTransitionProperty,
+
+  kMaxEveryPropertyKey = kMaxShorthandPropertyKey,
 };
 
 enum Inherited {
@@ -138,7 +144,15 @@ Animatable GetPropertyAnimatable(PropertyKey key);
 typedef std::vector<PropertyKey> AnimatablePropertyList;
 const AnimatablePropertyList& GetAnimatableProperties();
 
-PropertyKey GetLonghandPropertyKey(const std::string& property_name);
+PropertyKey GetPropertyKey(const std::string& property_name);
+
+bool IsShorthandProperty(PropertyKey key);
+
+// While we don't need LonghandPropertySet to be sorted, we use std::set here
+// instead of base::hash_set because Linux gives a compiler error when iterating
+// over hash_set values of enum type.
+typedef std::set<PropertyKey> LonghandPropertySet;
+const LonghandPropertySet& ExpandShorthandProperty(PropertyKey key);
 
 }  // namespace cssom
 }  // namespace cobalt

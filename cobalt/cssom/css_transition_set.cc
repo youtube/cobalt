@@ -90,8 +90,8 @@ void TransitionSet::UpdateTransitions(
            animatable_properties.begin();
        iter != animatable_properties.end(); ++iter) {
     UpdateTransitionForProperty(
-        *iter, current_time, source_computed_style.GetPropertyValueByKey(*iter),
-        destination_computed_style.GetPropertyValueByKey(*iter),
+        *iter, current_time, source_computed_style.GetPropertyValue(*iter),
+        destination_computed_style.GetPropertyValue(*iter),
         destination_computed_style);
   }
 }

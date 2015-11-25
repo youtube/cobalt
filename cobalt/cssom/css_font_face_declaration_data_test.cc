@@ -29,19 +29,17 @@ TEST(CSSFontFaceDeclarationDataTest, FamilySettersAndGettersAreConsistent) {
       new CSSFontFaceDeclarationData();
 
   EXPECT_FALSE(font_face->family());
-  EXPECT_FALSE(
-      font_face->GetPropertyValue(GetPropertyName(kFontFamilyProperty)));
+  EXPECT_FALSE(font_face->GetPropertyValue(kFontFamilyProperty));
 
   font_face->set_family(KeywordValue::GetInitial());
   EXPECT_EQ(KeywordValue::GetInitial(), font_face->family());
   EXPECT_EQ(KeywordValue::GetInitial(),
-            font_face->GetPropertyValue(GetPropertyName(kFontFamilyProperty)));
+            font_face->GetPropertyValue(kFontFamilyProperty));
 
-  font_face->SetPropertyValue(GetPropertyName(kFontFamilyProperty),
-                              KeywordValue::GetInherit());
+  font_face->SetPropertyValue(kFontFamilyProperty, KeywordValue::GetInherit());
   EXPECT_EQ(KeywordValue::GetInherit(), font_face->family());
   EXPECT_EQ(KeywordValue::GetInherit(),
-            font_face->GetPropertyValue(GetPropertyName(kFontFamilyProperty)));
+            font_face->GetPropertyValue(kFontFamilyProperty));
 }
 
 TEST(CSSFontFaceDeclarationDataTest, SrcSettersAndGettersAreConsistent) {
@@ -49,18 +47,17 @@ TEST(CSSFontFaceDeclarationDataTest, SrcSettersAndGettersAreConsistent) {
       new CSSFontFaceDeclarationData();
 
   EXPECT_FALSE(font_face->src());
-  EXPECT_FALSE(font_face->GetPropertyValue(GetPropertyName(kSrcProperty)));
+  EXPECT_FALSE(font_face->GetPropertyValue(kSrcProperty));
 
   font_face->set_src(KeywordValue::GetInitial());
   EXPECT_EQ(KeywordValue::GetInitial(), font_face->src());
   EXPECT_EQ(KeywordValue::GetInitial(),
-            font_face->GetPropertyValue(GetPropertyName(kSrcProperty)));
+            font_face->GetPropertyValue(kSrcProperty));
 
-  font_face->SetPropertyValue(GetPropertyName(kSrcProperty),
-                              KeywordValue::GetInherit());
+  font_face->SetPropertyValue(kSrcProperty, KeywordValue::GetInherit());
   EXPECT_EQ(KeywordValue::GetInherit(), font_face->src());
   EXPECT_EQ(KeywordValue::GetInherit(),
-            font_face->GetPropertyValue(GetPropertyName(kSrcProperty)));
+            font_face->GetPropertyValue(kSrcProperty));
 }
 
 TEST(CSSFontFaceDeclarationDataTest, StyleSettersAndGettersAreConsistent) {
@@ -68,18 +65,17 @@ TEST(CSSFontFaceDeclarationDataTest, StyleSettersAndGettersAreConsistent) {
       new CSSFontFaceDeclarationData();
 
   EXPECT_TRUE(font_face->style());
-  EXPECT_TRUE(font_face->GetPropertyValue(GetPropertyName(kFontStyleProperty)));
+  EXPECT_TRUE(font_face->GetPropertyValue(kFontStyleProperty));
 
   font_face->set_style(KeywordValue::GetInitial());
   EXPECT_EQ(KeywordValue::GetInitial(), font_face->style());
   EXPECT_EQ(KeywordValue::GetInitial(),
-            font_face->GetPropertyValue(GetPropertyName(kFontStyleProperty)));
+            font_face->GetPropertyValue(kFontStyleProperty));
 
-  font_face->SetPropertyValue(GetPropertyName(kFontStyleProperty),
-                              KeywordValue::GetInherit());
+  font_face->SetPropertyValue(kFontStyleProperty, KeywordValue::GetInherit());
   EXPECT_EQ(KeywordValue::GetInherit(), font_face->style());
   EXPECT_EQ(KeywordValue::GetInherit(),
-            font_face->GetPropertyValue(GetPropertyName(kFontStyleProperty)));
+            font_face->GetPropertyValue(kFontStyleProperty));
 }
 
 TEST(CSSFontFaceDeclarationDataTest, WeightSettersAndGettersAreConsistent) {
@@ -87,19 +83,17 @@ TEST(CSSFontFaceDeclarationDataTest, WeightSettersAndGettersAreConsistent) {
       new CSSFontFaceDeclarationData();
 
   EXPECT_TRUE(font_face->weight());
-  EXPECT_TRUE(
-      font_face->GetPropertyValue(GetPropertyName(kFontWeightProperty)));
+  EXPECT_TRUE(font_face->GetPropertyValue(kFontWeightProperty));
 
   font_face->set_weight(KeywordValue::GetInitial());
   EXPECT_EQ(KeywordValue::GetInitial(), font_face->weight());
   EXPECT_EQ(KeywordValue::GetInitial(),
-            font_face->GetPropertyValue(GetPropertyName(kFontWeightProperty)));
+            font_face->GetPropertyValue(kFontWeightProperty));
 
-  font_face->SetPropertyValue(GetPropertyName(kFontWeightProperty),
-                              KeywordValue::GetInherit());
+  font_face->SetPropertyValue(kFontWeightProperty, KeywordValue::GetInherit());
   EXPECT_EQ(KeywordValue::GetInherit(), font_face->weight());
   EXPECT_EQ(KeywordValue::GetInherit(),
-            font_face->GetPropertyValue(GetPropertyName(kFontWeightProperty)));
+            font_face->GetPropertyValue(kFontWeightProperty));
 }
 
 TEST(CSSFontFaceDeclarationDataTest,
@@ -108,21 +102,18 @@ TEST(CSSFontFaceDeclarationDataTest,
       new CSSFontFaceDeclarationData();
 
   EXPECT_FALSE(font_face->unicode_range());
-  EXPECT_FALSE(
-      font_face->GetPropertyValue(GetPropertyName(kUnicodeRangeProperty)));
+  EXPECT_FALSE(font_face->GetPropertyValue(kUnicodeRangeProperty));
 
   font_face->set_unicode_range(KeywordValue::GetInitial());
   EXPECT_EQ(KeywordValue::GetInitial(), font_face->unicode_range());
-  EXPECT_EQ(
-      KeywordValue::GetInitial(),
-      font_face->GetPropertyValue(GetPropertyName(kUnicodeRangeProperty)));
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            font_face->GetPropertyValue(kUnicodeRangeProperty));
 
-  font_face->SetPropertyValue(GetPropertyName(kUnicodeRangeProperty),
+  font_face->SetPropertyValue(kUnicodeRangeProperty,
                               KeywordValue::GetInherit());
   EXPECT_EQ(KeywordValue::GetInherit(), font_face->unicode_range());
-  EXPECT_EQ(
-      KeywordValue::GetInherit(),
-      font_face->GetPropertyValue(GetPropertyName(kUnicodeRangeProperty)));
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            font_face->GetPropertyValue(kUnicodeRangeProperty));
 }
 
 }  // namespace cssom

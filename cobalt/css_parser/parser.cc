@@ -310,9 +310,9 @@ void ParserImpl::ParsePropertyIntoDeclarationData(
     return;
   }
 
-  // TODO(***REMOVED***): Handle shorthand properties (b/24818917).
   if (input_.empty()) {
-    declaration_data->SetPropertyValueAndImportance(property_name, NULL, false);
+    declaration_data->ClearPropertyValueAndImportance(
+        cssom::GetPropertyKey(property_name));
     return;
   }
 

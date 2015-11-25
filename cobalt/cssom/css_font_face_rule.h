@@ -71,7 +71,7 @@ class CSSFontFaceRule : public CSSRule {
 
   scoped_refptr<const CSSFontFaceDeclarationData> data() const { return data_; }
 
-  std::string GetPropertyValue(const std::string& property_name);
+  std::string GetPropertyValue(PropertyKey key);
   void SetPropertyValue(const std::string& property_name,
                         const std::string& property_value);
 

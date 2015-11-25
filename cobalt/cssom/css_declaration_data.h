@@ -17,9 +17,8 @@
 #ifndef CSSOM_CSS_DECLARATION_DATA_H_
 #define CSSOM_CSS_DECLARATION_DATA_H_
 
-#include <string>
-
 #include "base/memory/ref_counted.h"
+#include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -32,11 +31,12 @@ namespace cssom {
 class CSSDeclarationData
     : public base::RefCountedThreadSafe<CSSDeclarationData> {
  public:
-  virtual scoped_refptr<const PropertyValue> GetPropertyValue(
-      const std::string& property_name) = 0;
+  virtual scoped_refptr<PropertyValue> GetPropertyValue(
+      PropertyKey key) const = 0;
+  virtual void ClearPropertyValueAndImportance(PropertyKey key) = 0;
   virtual void SetPropertyValueAndImportance(
-      const std::string& property_name,
-      const scoped_refptr<PropertyValue>& property_value, bool important) = 0;
+      PropertyKey key, const scoped_refptr<PropertyValue>& property_value,
+      bool important) = 0;
 
  protected:
   virtual ~CSSDeclarationData() {}
