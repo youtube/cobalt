@@ -15,6 +15,7 @@
  */
 
 #include "cobalt/web_animations/baked_animation_set.h"
+
 #include "cobalt/web_animations/animation_effect_read_only.h"
 
 namespace cobalt {
