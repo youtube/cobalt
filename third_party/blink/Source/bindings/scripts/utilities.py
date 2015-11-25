@@ -26,6 +26,7 @@ KNOWN_COMPONENTS = frozenset(
         'h5vcc',
         'testing',
         'web_animations',
+        'webdriver',
         'xhr',
     ])
 
