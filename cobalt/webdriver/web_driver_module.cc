@@ -293,6 +293,23 @@ WebDriverModule::WebDriverModule(
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::IsDisplayed)));
 
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/log/types", kSessionIdVariable),
+      base::Bind(&WebDriverModule::LogTypesCommand, base::Unretained(this)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/timeouts", kSessionIdVariable),
+      base::Bind(&WebDriverModule::IgnoreCommand, base::Unretained(this)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/timeouts/async_script", kSessionIdVariable),
+      base::Bind(&WebDriverModule::IgnoreCommand, base::Unretained(this)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/timeouts/implicit_wait", kSessionIdVariable),
+      base::Bind(&WebDriverModule::IgnoreCommand, base::Unretained(this)));
+
   // The WebDriver API implementation will be called on the HTTP server thread.
   thread_checker_.DetachFromThread();
 
@@ -415,6 +432,28 @@ void WebDriverModule::Shutdown(
   // It's expected that the application will terminate, so it's okay to
   // leave the request hanging.
   shutdown_cb_.Run();
+}
+
+void WebDriverModule::LogTypesCommand(
+    const base::Value* parameters,
+    const WebDriverDispatcher::PathVariableMap* path_variables,
+    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+  // TODO(***REMOVED***): Implement logging for WebDriver.
+  return result_handler->SendResult(
+      protocol::SessionId(kWebDriverSessionId),
+      protocol::Response::kSuccess,
+      make_scoped_ptr<base::Value>(new base::ListValue()));
+}
+
+void WebDriverModule::IgnoreCommand(
+    const base::Value* parameters,
+    const WebDriverDispatcher::PathVariableMap* path_variables,
+    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+  // TODO(***REMOVED***): Hook up and implement timeouts.
+  return result_handler->SendResult(
+      protocol::SessionId(kWebDriverSessionId),
+      protocol::Response::kSuccess,
+      make_scoped_ptr(base::Value::CreateNullValue()));
 }
 
 util::CommandResult<protocol::Capabilities>
