@@ -132,11 +132,9 @@ void CSSFontFaceRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
   set_parent_style_sheet(style_sheet);
 }
 
-std::string CSSFontFaceRule::GetPropertyValue(
-    const std::string& property_name) {
-  return data_->GetPropertyValue(property_name)
-             ? data_->GetPropertyValue(property_name)->ToString()
-             : "";
+std::string CSSFontFaceRule::GetPropertyValue(PropertyKey key) {
+  return data_->GetPropertyValue(key) ? data_->GetPropertyValue(key)->ToString()
+                                      : "";
 }
 
 void CSSFontFaceRule::SetPropertyValue(const std::string& property_name,
