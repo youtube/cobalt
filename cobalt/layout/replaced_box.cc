@@ -161,7 +161,17 @@ void ReplacedBox::UpdateContentSizeAndMargins(
       computed_style(), layout_params.containing_block_size, NULL);
   base::optional<float> maybe_height = GetUsedHeightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
+  base::optional<float> maybe_left = GetUsedLeftIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
+  base::optional<float> maybe_top = GetUsedTopIfNotAuto(
+      computed_style(), layout_params.containing_block_size);
 
+  if (IsAbsolutelyPositioned()) {
+    // TODO(***REMOVED***): Implement CSS section 10.3.8, see
+    // http://www.w3.org/TR/CSS21/visudet.html#abs-replaced-width.
+    set_left(maybe_left.value_or(0.0f));
+    set_top(maybe_top.value_or(0.0f));
+  }
   if (!maybe_width) {
     if (!maybe_height) {
       if (maybe_intrinsic_width_) {
