@@ -35,6 +35,12 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+
+const char kStyleAttributeName[] = "style";
+
+}  // namespace
+
 Element::Element(Document* document)
     : Node(document), animations_(new web_animations::AnimationSet()) {}
 
@@ -105,10 +111,20 @@ base::optional<std::string> Element::GetAttribute(
   // 2. Return the value of the attribute in element's attribute list whose
   //    namespace is namespace and local name is localName, if it has one, and
   //    null otherwise.
-  AttributeMap::const_iterator iter = attribute_map_.find(attr_name);
-  if (iter != attribute_map_.end()) {
-    return iter->second;
+  switch (attr_name.size()) {
+    case 5:
+      if (attr_name == kStyleAttributeName) {
+        return GetStyleAttribute();
+      }
+    // fall-through if not style attribute name
+    default: {
+      AttributeMap::const_iterator iter = attribute_map_.find(attr_name);
+      if (iter != attribute_map_.end()) {
+        return iter->second;
+      }
+    }
   }
+
   return base::nullopt;
 }
 
@@ -130,13 +146,25 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   //    value is value, and then append this attribute to the context object and
   //    terminate these steps.
   // 5. Change attribute from context object to value.
-  AttributeMap::iterator attribute_iterator = attribute_map_.find(attr_name);
-  if (attribute_iterator != attribute_map_.end() &&
-      attribute_iterator->second == value) {
-    // Attribute did not change.
-    return;
+  switch (attr_name.size()) {
+    case 5:
+      if (attr_name == kStyleAttributeName) {
+        SetStyleAttribute(value);
+        break;
+      }
+    // fall-through if not style attribute name
+    default: {
+      AttributeMap::iterator attribute_iterator =
+          attribute_map_.find(attr_name);
+      if (attribute_iterator != attribute_map_.end() &&
+          attribute_iterator->second == value) {
+        // Attribute did not change.
+        return;
+      }
+      attribute_map_[attr_name] = value;
+      break;
+    }
   }
-  attribute_map_[attr_name] = value;
 
   // Custom, not in any spec.
   // Check for specific attributes that require additional caching and update
@@ -175,11 +203,22 @@ void Element::RemoveAttribute(const std::string& name) {
 
   // 2. Remove the first attribute from the context object whose name is name,
   //    if any.
-  AttributeMap::iterator iter = attribute_map_.find(attr_name);
-  if (iter == attribute_map_.end()) {
-    return;
+  switch (attr_name.size()) {
+    case 5:
+      if (attr_name == kStyleAttributeName) {
+        RemoveStyleAttribute();
+        break;
+      }
+    // fall-through if not style attribute name
+    default: {
+      AttributeMap::iterator iter = attribute_map_.find(attr_name);
+      if (iter == attribute_map_.end()) {
+        return;
+      }
+      attribute_map_.erase(iter);
+      break;
+    }
   }
-  attribute_map_.erase(iter);
 
   // Custom, not in any spec.
   // Check for specific attributes that require additional caching and update
@@ -389,6 +428,22 @@ bool Element::HasFocus() {
     return false;
   }
   return owner_document()->active_element() == this;
+}
+
+base::optional<std::string> Element::GetStyleAttribute() const {
+  AttributeMap::const_iterator iter = attribute_map_.find(kStyleAttributeName);
+  if (iter != attribute_map_.end()) {
+    return iter->second;
+  }
+  return base::nullopt;
+}
+
+void Element::SetStyleAttribute(const std::string& value) {
+  attribute_map_[kStyleAttributeName] = value;
+}
+
+void Element::RemoveStyleAttribute() {
+  attribute_map_.erase(kStyleAttributeName);
 }
 
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }

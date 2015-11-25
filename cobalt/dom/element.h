@@ -149,6 +149,13 @@ class Element : public Node {
   }
   virtual void OnParserEndTag() {}
 
+  // Used to ensure that the style attribute value reflects the style
+  // declaration.
+  //   http://www.w3.org/TR/html5/dom.html#the-style-attribute
+  virtual base::optional<std::string> GetStyleAttribute() const;
+  virtual void SetStyleAttribute(const std::string& value);
+  virtual void RemoveStyleAttribute();
+
   virtual scoped_refptr<HTMLElement> AsHTMLElement();
 
   const scoped_refptr<web_animations::AnimationSet>& animations() {
