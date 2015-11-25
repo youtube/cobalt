@@ -53,7 +53,7 @@ DebugHub::~DebugHub() {
       log_message_handler_callback_id_);
 }
 
-void DebugHub::OnLogMessage(int severity, const char* file, int line,
+bool DebugHub::OnLogMessage(int severity, const char* file, int line,
                             size_t message_start, const std::string& str) {
   // Use a lock here and in the other methods, as callbacks may be added by
   // multiple web modules on different threads, and log messages may be
@@ -70,6 +70,8 @@ void DebugHub::OnLogMessage(int severity, const char* file, int line,
         FROM_HERE, base::Bind(&DebugHub::LogMessageTo, this, it->first,
                               severity, file, line, message_start, str));
   }
+  // Don't suppress the log message.
+  return false;
 }
 
 void DebugHub::LogMessageTo(int id, int severity, const char* file, int line,

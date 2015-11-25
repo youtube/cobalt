@@ -17,7 +17,11 @@
 #ifndef LAYOUT_TESTS_TEST_UTILS_H_
 #define LAYOUT_TESTS_TEST_UTILS_H_
 
+#include <string>
+
 #include "base/file_path.h"
+#include "base/hash_tables.h"
+#include "cobalt/base/log_message_handler.h"
 
 namespace cobalt {
 namespace layout_tests {
@@ -32,6 +36,21 @@ FilePath GetTestInputRootDirectory();
 // have been chosen to be output.
 FilePath GetTestOutputRootDirectory();
 
+class LogFilter {
+ public:
+  LogFilter();
+  ~LogFilter();
+  void Add(const std::string& s);
+
+ private:
+  bool OnLogMessage(int severity, const char* file, int line,
+                    size_t message_start, const std::string& str);
+
+  base::hash_set<std::string> filtered_strings_;
+  base::LogMessageHandler::CallbackId callback_id_;
+
+  DISALLOW_COPY_AND_ASSIGN(LogFilter);
+};
 }  // namespace layout_tests
 }  // namespace cobalt
 

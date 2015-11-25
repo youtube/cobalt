@@ -151,7 +151,7 @@ class DebugHub : public script::Wrappable {
 
  private:
   // Called by LogMessageHandler for each log message.
-  void OnLogMessage(int severity, const char* file, int line,
+  bool OnLogMessage(int severity, const char* file, int line,
                     size_t message_start, const std::string& str);
   // Called by OnLogMessage. This shall be run on the same message loop as
   // the one on which the LogMessageCallback was registered.

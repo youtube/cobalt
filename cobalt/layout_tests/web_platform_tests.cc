@@ -23,6 +23,7 @@
 #include "base/run_loop.h"
 #include "base/values.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/layout_tests/test_utils.h"
 #include "cobalt/layout_tests/web_platform_test_parser.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/media_module_stub.h"
@@ -44,11 +45,32 @@ enum TestStatus {
   kNotrun,
 };
 
+std::string TestStatusToString(int status) {
+  switch (status) {
+    case kPass:
+      return "PASS";
+    case kFail:
+      return "FAIL";
+    case kTimeout:
+      return "TIMEOUT";
+    case kNotrun:
+      return "NOTRUN";
+  }
+  NOTREACHED();
+  return "FAIL";
+}
+
 struct TestResult {
   std::string name;
   int status;
   std::string message;
   std::string stack;
+};
+
+const char* kLogSuppressions[] = {
+    "<link> has unsupported rel value: help.",
+    "<link> has unsupported rel value: author.",
+    "synchronous XHR is not supported",
 };
 
 // Called when layout completes and results have been produced.  We use this
@@ -70,6 +92,11 @@ void WebModuleErrorCallback(base::RunLoop* run_loop, const std::string& error) {
 }
 
 std::string RunWebPlatformTest(const std::string& url) {
+  LogFilter log_filter;
+  for (size_t i = 0; i < arraysize(kLogSuppressions); ++i) {
+    log_filter.Add(kLogSuppressions[i]);
+  }
+
   // Setup a message loop for the current thread since we will be constructing
   // a WebModule, which requires a message loop to exist for the current
   // thread.
@@ -148,7 +175,7 @@ bool ParseResults(const std::string& json_results) {
     if (it->status != kPass) {
       any_failure = true;
       DLOG(INFO) << "Test \"" << it->name << "\" failed with status "
-                 << it->status;
+                 << TestStatusToString(it->status);
       if (!it->message.empty()) {
         DLOG(INFO) << it->message;
       }
