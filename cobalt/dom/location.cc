@@ -19,17 +19,11 @@
 namespace cobalt {
 namespace dom {
 
-Location::Location(const GURL& url) : url_(url) {
-  empty_component_.len = 0;
-  remove_ref_.SetRef("", empty_component_);
-}
+Location::Location(const GURL& url) : url_(url) {}
 
 Location::Location(const GURL& url,
                    const base::Callback<void(const GURL&)>& navigation_callback)
-    : url_(url), navigation_callback_(navigation_callback) {
-  empty_component_.len = 0;
-  remove_ref_.SetRef("", empty_component_);
-}
+    : url_(url), navigation_callback_(navigation_callback) {}
 
 void Location::Replace(const std::string& url) {
   // When the replace(url) method is invoked, the UA must resolve the argument,
@@ -57,11 +51,11 @@ std::string Location::protocol() const {
 }
 
 void Location::set_protocol(const std::string& protocol) {
-  url_parse::Component comp;
-  comp.len = static_cast<int>(protocol.length());
-  GURL::Replacements repl;
-  repl.SetScheme(protocol.c_str(), comp);
-  GURL new_url = url_.ReplaceComponents(repl);
+  url_parse::Component component;
+  component.len = static_cast<int>(protocol.length());
+  GURL::Replacements replacements;
+  replacements.SetScheme(protocol.c_str(), component);
+  GURL new_url = url_.ReplaceComponents(replacements);
   Navigate(new_url);
 }
 
@@ -74,16 +68,16 @@ std::string Location::host() const {
 
 void Location::set_host(const std::string& host) {
   GURL url(host);
-  GURL::Replacements repl;
+  GURL::Replacements replacements;
   url_parse::Component comp_host;
   comp_host.len = static_cast<int>(url.host().length());
-  repl.SetHost(url.host().c_str(), comp_host);
+  replacements.SetHost(url.host().c_str(), comp_host);
   if (url.has_port()) {
     url_parse::Component comp_port;
     comp_port.len = static_cast<int>(url.port().length());
-    repl.SetPort(url.port().c_str(), comp_port);
+    replacements.SetPort(url.port().c_str(), comp_port);
   }
-  GURL new_url = url_.ReplaceComponents(repl);
+  GURL new_url = url_.ReplaceComponents(replacements);
   Navigate(new_url);
 }
 
@@ -92,11 +86,11 @@ std::string Location::hostname() const {
 }
 
 void Location::set_hostname(const std::string& hostname) {
-  url_parse::Component comp;
-  comp.len = static_cast<int>(hostname.length());
-  GURL::Replacements repl;
-  repl.SetHost(hostname.c_str(), comp);
-  GURL new_url = url_.ReplaceComponents(repl);
+  url_parse::Component component;
+  component.len = static_cast<int>(hostname.length());
+  GURL::Replacements replacements;
+  replacements.SetHost(hostname.c_str(), component);
+  GURL new_url = url_.ReplaceComponents(replacements);
   Navigate(new_url);
 }
 
@@ -105,11 +99,11 @@ std::string Location::port() const {
 }
 
 void Location::set_port(const std::string& port) {
-  url_parse::Component comp;
-  comp.len = static_cast<int>(port.length());
-  GURL::Replacements repl;
-  repl.SetPort(port.c_str(), comp);
-  GURL new_url = url_.ReplaceComponents(repl);
+  url_parse::Component component;
+  component.len = static_cast<int>(port.length());
+  GURL::Replacements replacements;
+  replacements.SetPort(port.c_str(), component);
+  GURL new_url = url_.ReplaceComponents(replacements);
   Navigate(new_url);
 }
 
@@ -118,11 +112,11 @@ std::string Location::pathname() const {
 }
 
 void Location::set_pathname(const std::string& pathname) {
-  url_parse::Component comp;
-  comp.len = static_cast<int>(pathname.length());
-  GURL::Replacements repl;
-  repl.SetPath(pathname.c_str(), comp);
-  GURL new_url = url_.ReplaceComponents(repl);
+  url_parse::Component component;
+  component.len = static_cast<int>(pathname.length());
+  GURL::Replacements replacements;
+  replacements.SetPath(pathname.c_str(), component);
+  GURL new_url = url_.ReplaceComponents(replacements);
   Navigate(new_url);
 }
 
@@ -131,11 +125,11 @@ std::string Location::hash() const {
 }
 
 void Location::set_hash(const std::string& hash) {
-  url_parse::Component comp;
-  comp.len = static_cast<int>(hash.length());
-  GURL::Replacements repl;
-  repl.SetRef(hash.c_str(), comp);
-  GURL new_url = url_.ReplaceComponents(repl);
+  url_parse::Component component;
+  component.len = static_cast<int>(hash.length());
+  GURL::Replacements replacements;
+  replacements.SetRef(hash.c_str(), component);
+  GURL new_url = url_.ReplaceComponents(replacements);
   Navigate(new_url);
 }
 
@@ -144,17 +138,33 @@ std::string Location::search() const {
 }
 
 void Location::set_search(const std::string& search) {
-  url_parse::Component comp;
-  comp.len = static_cast<int>(search.length());
-  GURL::Replacements repl;
-  repl.SetQuery(search.c_str(), comp);
-  GURL new_url = url_.ReplaceComponents(repl);
+  url_parse::Component component;
+  component.len = static_cast<int>(search.length());
+  GURL::Replacements replacements;
+  replacements.SetQuery(search.c_str(), component);
+  GURL new_url = url_.ReplaceComponents(replacements);
   Navigate(new_url);
 }
 
+// Algorithm for Navigate:
+//   http://www.w3.org/TR/html5/browsers.html#navigate
 void Location::Navigate(const GURL& url) {
-  if (url.ReplaceComponents(remove_ref_) ==
-      url_.ReplaceComponents(remove_ref_)) {
+  // 7. Fragment identifiers: Apply the URL parser algorithm to the absolute URL
+  // of the new resource and the address of the active document of the browsing
+  // context being navigated. If all the components of the resulting parsed
+  // URLs, ignoring any fragment components, are identical, and the new resource
+  // is to be fetched using HTTP GET or equivalent, and the parsed URL of the
+  // new resource has a fragment component that is not null (even if it is
+  // empty), then navigate to that fragment identifier and abort these steps.
+  // NOTE(***REMOVED***): This means, if the new url doesn't have hash, we should
+  // always navigate to the new url, even if it is the same as the current one.
+  url_parse::Component component;
+  component.len = 0;
+  GURL::Replacements replacements;
+  replacements.SetRef("", component);
+  if (url.ReplaceComponents(replacements) ==
+          url_.ReplaceComponents(replacements) &&
+      url.has_ref()) {
     url_ = url;
     // TODO(***REMOVED***): Fire "hashchange" event at the window object.
   } else {
