@@ -366,18 +366,27 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
   return new_html_element;
 }
 
-void HTMLElement::OnParserStartTag(
-    const base::SourceLocation& opening_tag_location) {
-  UNREFERENCED_PARAMETER(opening_tag_location);
-  base::optional<std::string> style_attribute = GetAttribute("style");
-  if (style_attribute) {
-    style_->set_css_text(*style_attribute);
-  }
+base::optional<std::string> HTMLElement::GetStyleAttribute() const {
+  base::optional<std::string> value = Element::GetStyleAttribute();
+  return value.value_or(style_->css_text());
+}
+
+void HTMLElement::SetStyleAttribute(const std::string& value) {
+  style_->set_css_text(value);
+  Element::SetStyleAttribute(value);
+}
+
+void HTMLElement::RemoveStyleAttribute() {
+  style_->set_css_text("");
+  Element::RemoveStyleAttribute();
 }
 
 void HTMLElement::OnCSSMutation() {
   // Invalidate the computed style of this node.
   computed_style_valid_ = false;
+
+  // Remove the style attribute value from the Element.
+  Element::RemoveStyleAttribute();
 
   owner_document()->OnElementInlineStyleMutation();
 }
