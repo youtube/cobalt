@@ -91,9 +91,6 @@ class Location : public script::Wrappable {
   GURL url_;
   base::Callback<void(const GURL&)> navigation_callback_;
 
-  url_parse::Component empty_component_;
-  GURL::Replacements remove_ref_;
-
   DISALLOW_COPY_AND_ASSIGN(Location);
 };
 
