@@ -31,6 +31,11 @@ std::string GetTagName(dom::Element* element) {
   return element->tag_name();
 }
 
+std::string GetVisibleText(dom::Element* element) {
+  DCHECK(element);
+  return element->text_content().value_or("");
+}
+
 bool IsHidden(dom::Element* element) {
   base::optional<std::string> display_property =
       element->GetAttribute("display");
@@ -118,6 +123,14 @@ util::CommandResult<std::string> ElementDriver::GetTagName() {
       element_message_loop_,
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&::cobalt::webdriver::GetTagName),
+      protocol::Response::kStaleElementReference);
+}
+
+util::CommandResult<std::string> ElementDriver::GetText() {
+  return util::CallWeakOnMessageLoopAndReturnResult(
+      element_message_loop_,
+      base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
+      base::Bind(&::cobalt::webdriver::GetVisibleText),
       protocol::Response::kStaleElementReference);
 }
 
