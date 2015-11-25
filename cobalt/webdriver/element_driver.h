@@ -46,6 +46,7 @@ class ElementDriver {
   const protocol::ElementId& element_id() { return element_id_; }
 
   util::CommandResult<std::string> GetTagName();
+  util::CommandResult<std::string> GetText();
   util::CommandResult<bool> IsDisplayed();
 
  private:
