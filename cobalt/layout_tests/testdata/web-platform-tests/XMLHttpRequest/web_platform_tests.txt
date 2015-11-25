@@ -1,10 +1,14 @@
+# XMLHttpRequest tests.
+# All 'sync' tests are unsupported.
+# Anything with multiple windows or workers is disabled.
+#
 abort-after-receive.htm,PASS
 abort-after-send.htm,PASS
 # Requires window.stop()
 abort-after-stop.htm,FAIL
 abort-after-timeout.htm,PASS
-# synchronous mode is unsupported
-abort-during-done.htm,FAIL
+# synchronous
+abort-during-done.htm,QUIET
 abort-during-open.htm,PASS
 abort-during-unsent.htm,PASS
 # Requires .upload
@@ -21,3 +25,212 @@ anonymous-mode-unsupported.htm,FAIL
 # Unsupported by XHR currently. b/25800310
 data-uri.htm,DISABLE
 event-abort.htm,PASS
+event-error.html,PASS
+event-loadend.htm,PASS
+event-load.htm,PASS
+event-loadstart.htm,PASS
+event-progress.htm,PASS
+event-readystatechange-loaded.htm,PASS
+event-timeout.htm,PASS
+# Needs .upload
+event-upload-progress-crossorigin.sub.htm,FAIL
+# Needs .upload
+event-upload-progress.htm,FAIL
+# FormData is not implemented
+FormData-append.html,FAIL
+# FormData, Blob is not implemented
+formdata-blob.htm,FAIL
+# FormData is not implemented
+formdata.htm,FAIL
+getallresponseheaders-cookies.htm,PASS
+getallresponseheaders-status.htm,PASS
+getresponseheader-case-insensitive.htm,PASS
+getresponseheader-chunked-trailer.htm,PASS
+getresponseheader-cookies-and-more.htm,PASS
+getresponseheader-error-state.htm,PASS
+getresponseheader-server-date.htm,PASS
+getresponseheader-special-characters.htm,FAIL
+getresponseheader-unsent-opened-state.htm,PASS
+# parser fails to parse: script[type=text\/plain] {}
+interfaces.html,DISABLE
+open-after-abort.htm,PASS
+open-after-setrequestheader.htm,PASS
+open-during-abort.htm,PASS
+open-method-bogus.htm,PASS
+open-method-case-insensitive.htm,QUIET
+open-method-case-sensitive.htm,QUIET
+open-method-insecure.htm,PASS
+open-method-responsetype-set-sync.htm,QUIET
+open-open-send.htm,PASS
+open-open-sync-send.htm,QUIET
+open-referer.htm,FAIL
+open-send-open.htm,PASS
+# Synchronous
+open-sync-open-send.htm,QUIET
+open-url-about-blank-window.htm,QUIET
+open-url-base.htm,FAIL
+open-url-base-inserted-after-open.htm,QUIET
+open-url-base-inserted.htm,FAIL
+open-url-bogus.htm,FAIL
+# Check failed: IsStringUTF8()
+open-url-encoding.htm,DISABLE
+# Synchronous
+open-url-fragment.htm,QUIET
+# Multi-window is completely unsupported.
+open-url-javascript-window-2.htm,DISABLE
+open-url-javascript-window.htm,DISABLE
+open-url-multi-window-2.htm,DISABLE
+open-url-multi-window-3.htm,DISABLE
+open-url-multi-window-4.htm,DISABLE
+open-url-multi-window-5.htm,DISABLE
+open-url-multi-window.htm,DISABLE
+open-url-worker-origin.htm,DISABLE
+open-url-worker-simple.htm,DISABLE
+# Synchronous
+open-user-password-non-same-origin.htm,QUIET
+overridemimetype-done-state.htm,PASS
+# Check failed: IsStringUTF8()
+overridemimetype-headers-received-state-force-shiftjis.htm,DISABLE
+overridemimetype-invalid-mime-type.htm,FAIL
+overridemimetype-loading-state.htm,PASS
+overridemimetype-open-state-force-utf-8.htm,PASS
+overridemimetype-open-state-force-xml.htm,FAIL
+# Check failed: IsStringUTF8()
+overridemimetype-unsent-state-force-shiftjis.htm,DISABLE
+preserve-ua-header-on-redirect.htm,FAIL
+progress-events-response-data-gzip.htm,PASS
+response-data-arraybuffer.htm,PASS
+response-data-blob.htm,FAIL
+# Synchronous
+response-data-deflate.htm,QUIET
+# Synchronous
+response-data-gzip.htm,QUIET
+response-data-progress.htm,PASS
+response-invalid-responsetype.htm,PASS
+response-json.htm,FAIL
+# Synchronous
+response-method.htm,QUIET
+# Check failed: IsStringUTF8()
+responsetext-decoding.htm,DISABLE
+responseText-status.html,PASS
+# Synchronous
+responsetype.html,QUIET
+responsexml-basic.htm,QUIET
+responsexml-document-properties.htm,FAIL
+responsexml-media-type.htm,FAIL
+responsexml-non-document-types.htm,FAIL
+# Synchronous
+responsexml-non-well-formed.htm,QUIET
+security-consideration.sub.html,FAIL
+# Synchronous
+send-accept.htm,QUIET
+# Synchronous
+send-accept-language.htm,QUIET
+# Synchronous
+send-after-setting-document-domain.htm,QUIET
+send-authentication-basic-cors.htm,PASS
+# Synchronous
+send-authentication-basic-cors-not-enabled.htm,QUIET
+send-authentication-basic.htm,QUIET
+send-authentication-basic-repeat-no-args.htm,QUIET
+send-authentication-basic-setrequestheader-existing-session.htm,QUIET
+send-authentication-basic-setrequestheader.htm,QUIET
+send-authentication-competing-names-passwords.htm,QUIET
+send-authentication-cors-basic-setrequestheader.htm,QUIET
+send-authentication-existing-session-manual.htm,FAIL
+# Synchronous
+send-authentication-prompt-2-manual.htm,QUIET
+send-authentication-prompt-manual.htm,QUIET
+send-conditional.htm,QUIET
+send-content-type-charset.htm,QUIET
+send-content-type-string.htm,QUIET
+send-data-arraybuffer.htm,FAIL
+send-data-blob.htm,FAIL
+send-data-es-object.htm,FAIL
+send-data-formdata.htm,FAIL
+send-data-unexpected-tostring.htm,FAIL
+# Synchronous
+send-entity-body-basic.htm,QUIET
+send-entity-body-document-bogus.htm,QUIET
+# SyntaxError: Unexpected EOF
+send-entity-body-document.htm,FAIL
+send-entity-body-empty.htm,QUIET
+# Requires .upload
+send-entity-body-get-head-async.htm,FAIL
+send-entity-body-get-head.htm,QUIET
+send-entity-body-none.htm,QUIET
+# Requires .upload
+send-network-error-async-events.sub.htm,FAIL
+# Synchronous
+send-network-error-sync-events.sub.htm,QUIET
+send-non-same-origin.sub.htm,QUIET
+send-no-response-event-loadend.htm,PASS
+send-no-response-event-loadstart.htm,PASS
+# Requires .upload
+send-no-response-event-order.htm,FAIL
+# Check failed : IsStringUTF8()
+send-receive-utf16.htm,DISABLE
+send-redirect-bogus.htm,PASS
+send-redirect-bogus-sync.htm,FAIL
+send-redirect.htm,PASS
+send-redirect-infinite.htm,PASS
+send-redirect-infinite-sync.htm,QUIET
+send-redirect-no-location.htm,FAIL
+send-redirect-to-cors.htm,FAIL
+send-redirect-to-non-cors.htm,PASS
+send-response-event-order.htm,FAIL
+send-response-upload-event-loadend.htm,FAIL
+send-response-upload-event-loadstart.htm,FAIL
+send-response-upload-event-progress.htm,FAIL
+send-send.htm,PASS
+send-sync-blocks-async.htm,QUIET
+send-sync-no-response-event-loadend.htm,QUIET
+send-sync-no-response-event-load.htm,QUIET
+send-sync-no-response-event-order.htm,QUIET
+send-sync-response-event-order.htm,QUIET
+send-sync-timeout.htm,QUIET
+send-timeout-events.htm,FAIL
+# Infinite loop?
+send-usp.html,DISABLE
+setrequestheader-after-send.htm,PASS
+# Synchronous
+setrequestheader-allow-empty-value.htm,QUIET
+setrequestheader-allow-whitespace-in-value.htm,QUIET
+setrequestheader-before-open.htm,PASS
+setrequestheader-bogus-name.htm,FAIL
+setrequestheader-bogus-value.htm,FAIL
+setrequestheader-case-insensitive.htm,FAIL
+# Synchronous
+setrequestheader-content-type.htm,QUIET
+setrequestheader-header-allowed.htm,QUIET
+setrequestheader-header-forbidden.htm,QUIET
+setrequestheader-open-setrequestheader.htm,FAIL
+status-async.htm,FAIL
+status-basic.htm,QUIET
+status-error.htm,PASS
+# Flaky.
+timeout-cors-async.htm,DISABLE
+timeout-sync.htm,QUIET
+xmlhttprequest-basic.htm,PASS
+xmlhttprequest-eventtarget.htm,PASS
+xmlhttprequest-network-error.htm,PASS
+xmlhttprequest-network-error-sync.htm,QUIET
+# Not sure why these fail. Seems to break the harness.
+xmlhttprequest-timeout-aborted.html,FAIL
+xmlhttprequest-timeout-abortedonmain.html,FAIL
+xmlhttprequest-timeout-overridesexpires.html,FAIL
+xmlhttprequest-timeout-overrides.html,FAIL
+xmlhttprequest-timeout-simple.html,FAIL
+# Synchronous
+xmlhttprequest-timeout-synconmain.html,QUIET
+xmlhttprequest-timeout-twice.html,QUIET
+# Workers are disabled.
+xmlhttprequest-timeout-worker-aborted.html,DISABLE
+xmlhttprequest-timeout-worker-overridesexpires.html,DISABLE
+xmlhttprequest-timeout-worker-overrides.html,DISABLE
+xmlhttprequest-timeout-worker-simple.html,DISABLE
+xmlhttprequest-timeout-worker-synconworker.html,DISABLE
+xmlhttprequest-timeout-worker-twice.html,DISABLE
+xmlhttprequest-unsent.htm,PASS
+# Synchronous
+XMLHttpRequest-withCredentials.html,QUIET
