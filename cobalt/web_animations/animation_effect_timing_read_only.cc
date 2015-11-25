@@ -249,8 +249,10 @@ AnimationEffectTimingReadOnly::Data::ComputeTransformedTimeFromDirectedTime(
   }
 
   DCHECK(easing_);
-  double scaled_progress = static_cast<double>(
-      easing_->Evaluate(static_cast<float>(unscaled_progress)));
+  double scaled_progress = easing_ != cssom::TimingFunction::GetLinear()
+                               ? static_cast<double>(easing_->Evaluate(
+                                     static_cast<float>(unscaled_progress)))
+                               : unscaled_progress;
 
   return ScaleTime(duration_, scaled_progress);
 }

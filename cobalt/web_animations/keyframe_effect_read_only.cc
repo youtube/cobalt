@@ -302,8 +302,11 @@ KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue(
 
   // NOT IN SPEC. This seems missing from the specification, but this is the
   //              place where per-keyframe timing functions should be applied.
-  float scaled_interval_distance = interval_endpoints.first->easing->Evaluate(
-      static_cast<float>(interval_distance));
+  float scaled_interval_distance =
+      interval_endpoints.first->easing != cssom::TimingFunction::GetLinear()
+          ? interval_endpoints.first->easing->Evaluate(
+                static_cast<float>(interval_distance))
+          : static_cast<float>(interval_distance);
 
   // 16. Return the result of applying the interpolation procedure defined by
   //     the animation behavior of the target property, to the values of the

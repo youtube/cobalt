@@ -109,6 +109,8 @@ void Pipeline::Submit(const Submission& render_tree_submission,
 void Pipeline::RasterizeToRGBAPixels(
     const Submission& render_tree_submission,
     const RasterizationCompleteCallback& complete) {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeToRGBAPixels()");
+
   if (MessageLoop::current() != rasterizer_thread_->message_loop()) {
     rasterizer_thread_->message_loop()->PostTask(
         FROM_HERE,
@@ -211,6 +213,8 @@ void Pipeline::RasterizeCurrentTree() {
 void Pipeline::RasterizeSubmissionToRenderTarget(
     const Submission& submission,
     const scoped_refptr<backend::RenderTarget>& render_target) {
+  TRACE_EVENT0("cobalt::renderer",
+               "Pipeline::RasterizeSubmissionToRenderTarget()");
   // Animate the render tree using the submitted animations.
   scoped_refptr<Node> animated_render_tree = submission.animations->Apply(
       submission.render_tree, submission.time_offset);
