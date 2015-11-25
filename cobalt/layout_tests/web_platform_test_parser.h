@@ -25,12 +25,22 @@ namespace layout_tests {
 
 // Final parsed information about an individual WebPlatform test entry.
 struct WebPlatformTestInfo {
+  enum ExpectedState {
+    // Test should pass.
+    kExpectedPass,
+    // Test is currently known to fail due to a bug.
+    kExpectedFail,
+    // Feature under test is unsupported, so failure is expected.
+    // No expectation this will ever be fixed, so don't log the JS errors.
+    // But we shouldn't crash.
+    kExpectedFailQuiet,
+    // Test crashes or takes too long, etc., so don't run it at all.
+    kExpectedDisable,
+  };
   // URL of the web-platform-tests test case to run.
   std::string url;
 
-  // Whether the test is expected to pass or fail. Some tests should never pass
-  // as they test intentionally unsupported features, but we want to not crash.
-  bool expected_success;
+  ExpectedState expectation;
 };
 
 // Define operator<< so that this test parameter can be printed by gtest if
