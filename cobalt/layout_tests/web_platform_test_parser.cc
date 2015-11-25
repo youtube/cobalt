@@ -26,12 +26,38 @@
 namespace cobalt {
 namespace layout_tests {
 
-std::ostream& operator<<(std::ostream& out,
-                         const WebPlatformTestInfo& test_info) {
-  return out << test_info.url;
+namespace {
+
+std::string ExpectationToString(WebPlatformTestInfo::ExpectedState state) {
+  switch (state) {
+    case WebPlatformTestInfo::kExpectedPass:
+      return "PASS";
+    case WebPlatformTestInfo::kExpectedFail:
+      return "FAIL";
+    case WebPlatformTestInfo::kExpectedFailQuiet:
+      return "FAIL (QUIET)";
+    case WebPlatformTestInfo::kExpectedDisable:
+      return "DISABLE";
+  }
+  NOTREACHED();
+  return "FAIL";
 }
 
-namespace {
+WebPlatformTestInfo::ExpectedState StringToExpectation(
+    const std::string& lower_case_string) {
+  if (LowerCaseEqualsASCII(lower_case_string, "pass")) {
+    return WebPlatformTestInfo::kExpectedPass;
+  } else if (LowerCaseEqualsASCII(lower_case_string, "fail")) {
+    return WebPlatformTestInfo::kExpectedFail;
+  } else if (LowerCaseEqualsASCII(lower_case_string, "quiet")) {
+    return WebPlatformTestInfo::kExpectedFailQuiet;
+  } else if (LowerCaseEqualsASCII(lower_case_string, "disable")) {
+    return WebPlatformTestInfo::kExpectedDisable;
+  } else {
+    NOTREACHED() << "Invalid test expectation " << lower_case_string;
+    return WebPlatformTestInfo::kExpectedFail;
+  }
+}
 
 base::optional<WebPlatformTestInfo> ParseWebPlatformTestCaseLine(
     const std::string& line_string) {
@@ -46,20 +72,25 @@ base::optional<WebPlatformTestInfo> ParseWebPlatformTestCaseLine(
   TrimWhitespaceASCII(test_case_tokens[1], TRIM_ALL, &test_case_tokens[1]);
 
   std::string test_expect = StringToLowerASCII(test_case_tokens[1]);
-  if (test_expect == "disable") {
+  WebPlatformTestInfo::ExpectedState expectation =
+      StringToExpectation(test_expect);
+  if (expectation == WebPlatformTestInfo::kExpectedDisable) {
     return base::nullopt;
+  } else {
+    WebPlatformTestInfo test_info;
+    test_info.url = test_case_tokens[0];
+    test_info.expectation = expectation;
+    return test_info;
   }
-  if (test_expect != "pass" && test_expect != "fail") {
-    DLOG(WARNING) << "Invalid test expectation " << test_expect;
-  }
-
-  WebPlatformTestInfo test_info;
-  test_info.url = test_case_tokens[0];
-  test_info.expected_success = test_expect == "pass";
-  return test_info;
 }
 
 }  // namespace
+
+std::ostream& operator<<(std::ostream& out,
+                         const WebPlatformTestInfo& test_info) {
+  return out << test_info.url
+             << " Expected: " << ExpectationToString(test_info.expectation);
+}
 
 std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
     const std::string& top_level) {
