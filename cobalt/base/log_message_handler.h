@@ -37,16 +37,19 @@ namespace base {
 // can be used to remove the callback later if necessary.
 //
 // By default, log messages are still sent to the regular log destinations
-// after the callbacks (if any) have been invoked. This can be changed by
-// calling the SetSuppressLogOutput method.
+// after the callbacks (if any) have been invoked. This can be changed globally
+// by calling the SetSuppressLogOutput() method.
+// Callbacks can individually suppress messages as well, by returning true
+// that they have handled the message.
 //
 // This class is designed to be a singleton, instanced only through the methods
 // of the base::Singleton class. For example,
 // LogMessageHandler::GetInstance()->AddCallback(...)
 class LogMessageHandler {
  public:
-  // Type for callback function.
-  typedef Callback<void(int severity, const char* file, int line,
+  // Type for callback function. Return true to suppress the message, false
+  // to continue dispatch to the default handler.
+  typedef Callback<bool(int severity, const char* file, int line,
                         size_t message_start, const std::string& str)>
       OnLogMessageCallback;
 

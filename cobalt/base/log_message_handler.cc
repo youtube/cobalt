@@ -53,12 +53,15 @@ bool LogMessageHandler::OnLogMessage(int severity, const char* file, int line,
   LogMessageHandler* instance = GetInstance();
   AutoLock auto_lock(instance->lock_);
 
+  bool suppress = instance->suppress_log_output_;
   for (CallbackMap::const_iterator it = instance->callbacks_.begin();
        it != instance->callbacks_.end(); ++it) {
-    it->second.Run(severity, file, line, message_start, str);
+    if (it->second.Run(severity, file, line, message_start, str)) {
+      suppress = true;
+    }
   }
 
-  return instance->suppress_log_output_;
+  return suppress;
 }
 
 void LogMessageHandler::SetSuppressLogOutput(bool suppress_log_output) {
