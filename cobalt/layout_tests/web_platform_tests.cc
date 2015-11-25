@@ -91,7 +91,7 @@ void WebModuleErrorCallback(base::RunLoop* run_loop, const std::string& error) {
   MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
 }
 
-std::string RunWebPlatformTest(const std::string& url) {
+std::string RunWebPlatformTest(const GURL& url) {
   LogFilter log_filter;
   for (size_t i = 0; i < arraysize(kLogSuppressions); ++i) {
     log_filter.Add(kLogSuppressions[i]);
@@ -100,12 +100,6 @@ std::string RunWebPlatformTest(const std::string& url) {
   // Setup a message loop for the current thread since we will be constructing
   // a WebModule, which requires a message loop to exist for the current
   // thread.
-  std::string test_server =
-      CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          "web-platform-test-server");
-  if (test_server.empty()) {
-    test_server = "http://cobalt-build.***REMOVED***:8000";
-  }
   MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
 
   const math::Size kDefaultViewportSize(640, 360);
@@ -129,14 +123,13 @@ std::string RunWebPlatformTest(const std::string& url) {
   base::optional<browser::WebModule::LayoutResults> results;
   base::RunLoop run_loop;
 
-  GURL test_url = GURL(test_server).Resolve(url);
   // Create the WebModule and wait for a layout to occur.
   browser::WebModule web_module(
-      test_url,
+      url,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop),
       base::Bind(&WebModuleErrorCallback, &run_loop), stub_media_module.get(),
-      &network_module, kDefaultViewportSize, &resource_provider,
-      60.0f, web_module_options);
+      &network_module, kDefaultViewportSize, &resource_provider, 60.0f,
+      web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";
@@ -145,17 +138,23 @@ std::string RunWebPlatformTest(const std::string& url) {
   return output;
 }
 
-bool ParseResults(const std::string& json_results) {
+std::vector<TestResult> ParseResults(const std::string& json_results) {
+  std::vector<TestResult> test_results;
+
   scoped_ptr<base::Value> root;
   base::JSONReader reader;
   root.reset(reader.ReadToValue(json_results));
+  if (!root) {
+    // Unparseable JSON, or empty string.
+    return test_results;
+  }
+
   base::DictionaryValue* root_as_dict;
   EXPECT_EQ(true, root->GetAsDictionary(&root_as_dict));
 
   base::ListValue* test_list;
   EXPECT_EQ(true, root_as_dict->GetList("tests", &test_list));
 
-  std::vector<TestResult> test_results;
   for (size_t i = 0; i < test_list->GetSize(); ++i) {
     TestResult result;
     base::DictionaryValue* test_dict;
@@ -168,23 +167,44 @@ bool ParseResults(const std::string& json_results) {
     test_dict->GetString("stack", &result.stack);
     test_results.push_back(result);
   }
+  return test_results;
+}
 
-  bool any_failure = false;
-  for (std::vector<TestResult>::const_iterator it = test_results.begin();
-       it != test_results.end(); ++it) {
+// Return true if the test results match the expectation.
+bool HandleResults(const std::vector<TestResult>& results,
+                   WebPlatformTestInfo::ExpectedState expectation) {
+  bool any_failure = results.size() == 0;
+
+  for (std::vector<TestResult>::const_iterator it = results.begin();
+       it != results.end(); ++it) {
     if (it->status != kPass) {
       any_failure = true;
-      DLOG(INFO) << "Test \"" << it->name << "\" failed with status "
-                 << TestStatusToString(it->status);
-      if (!it->message.empty()) {
-        DLOG(INFO) << it->message;
-      }
-      if (!it->stack.empty()) {
-        DLOG(INFO) << it->stack;
+      // If the test failed, and we're not ignoring it, print out all
+      // the info we have.
+      // For "Quiet" tests, we only care that we didn't crash, so suppress
+      // the output.
+      if (expectation != WebPlatformTestInfo::kExpectedFailQuiet) {
+        DLOG(INFO) << "Test \"" << it->name << "\" failed with status "
+                   << TestStatusToString(it->status);
+        if (!it->message.empty()) {
+          DLOG(INFO) << it->message;
+        }
+        if (!it->stack.empty()) {
+          // Stack looks better all on separate lines.
+          DLOG(INFO) << std::endl << it->stack;
+        }
       }
     }
   }
-  return any_failure;
+
+  if (any_failure && expectation == WebPlatformTestInfo::kExpectedPass) {
+    return false;
+  } else if (!any_failure &&
+             expectation != WebPlatformTestInfo::kExpectedPass) {
+    return false;
+  } else {
+    return true;
+  }
 }
 
 }  // namespace
@@ -193,11 +213,19 @@ class WebPlatformTest : public ::testing::TestWithParam<WebPlatformTestInfo> {};
 TEST_P(WebPlatformTest, WebPlatformTest) {
   // Output the name of the current input file so that it is visible in test
   // output.
+  std::string test_server =
+      CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          "web-platform-test-server");
+  if (test_server.empty()) {
+    test_server = "http://cobalt-build.***REMOVED***:8000";
+  }
+  GURL test_url = GURL(test_server).Resolve(GetParam().url);
+
   std::cout << "(" << GetParam() << ")" << std::endl;
 
-  std::string json_results = RunWebPlatformTest(GetParam().url);
-  bool any_failure = ParseResults(json_results);
-  EXPECT_TRUE(any_failure != GetParam().expected_success);
+  std::string json_results = RunWebPlatformTest(test_url);
+  std::vector<TestResult> results = ParseResults(json_results);
+  EXPECT_EQ(true, HandleResults(results, GetParam().expectation));
 }
 
 // Disable on Windows until network stack is implemented.
