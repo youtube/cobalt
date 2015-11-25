@@ -15,6 +15,7 @@
  */
 
 #include "cobalt/web_animations/animation_set.h"
+
 #include "cobalt/web_animations/keyframe_effect_read_only.h"
 
 namespace cobalt {
