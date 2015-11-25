@@ -50,8 +50,8 @@ struct PropertyDeclaration {
     for (PropertyKeyValuePairList::const_iterator iter =
              property_values.begin();
          iter != property_values.end(); ++iter) {
-      declaration_data->SetPropertyValueAndImportance(
-          GetPropertyName(iter->key), iter->value, is_important);
+      declaration_data->SetPropertyValueAndImportance(iter->key, iter->value,
+                                                      is_important);
     }
   }
 

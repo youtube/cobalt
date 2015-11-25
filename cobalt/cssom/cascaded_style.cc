@@ -70,7 +70,7 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
       if (!(cascade_precedences[key]) ||
           *(cascade_precedences[key]) < *precedence) {
         cascade_precedences[key] = *precedence;
-        style->SetPropertyValueByKey(key, property_value_iterator.ConstValue());
+        style->SetPropertyValue(key, property_value_iterator.ConstValue());
 
         if (kBackgroundImageProperty == key) {
           DCHECK(property_key_to_base_url_map);

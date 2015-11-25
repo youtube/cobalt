@@ -40,18 +40,18 @@ void CSSFontFaceDeclarationData::AssignFrom(
   set_unicode_range(rhs.unicode_range());
 }
 
-scoped_refptr<const PropertyValue> CSSFontFaceDeclarationData::GetPropertyValue(
-    const std::string& property_name) {
+scoped_refptr<PropertyValue> CSSFontFaceDeclarationData::GetPropertyValue(
+    PropertyKey key) const {
   scoped_refptr<PropertyValue>* property_value_reference =
-      GetPropertyValueReference(property_name);
+      const_cast<CSSFontFaceDeclarationData*>(this)
+          ->GetPropertyValueReference(key);
   return property_value_reference ? *property_value_reference : NULL;
 }
 
 void CSSFontFaceDeclarationData::SetPropertyValue(
-    const std::string& property_name,
-    const scoped_refptr<PropertyValue>& property_value) {
+    PropertyKey key, const scoped_refptr<PropertyValue>& property_value) {
   scoped_refptr<PropertyValue>* property_value_reference =
-      GetPropertyValueReference(property_name);
+      GetPropertyValueReference(key);
   if (property_value_reference) {
     *property_value_reference = property_value;
   } else {
@@ -62,42 +62,21 @@ void CSSFontFaceDeclarationData::SetPropertyValue(
 }
 
 scoped_refptr<PropertyValue>*
-CSSFontFaceDeclarationData::GetPropertyValueReference(
-    const std::string& property_name) {
-  switch (property_name.size()) {
-    case 3:
-      if (LowerCaseEqualsASCII(property_name, GetPropertyName(kSrcProperty))) {
-        return &src_;
-      }
-      return NULL;
-
-    case 10:
-      if (LowerCaseEqualsASCII(property_name,
-                               GetPropertyName(kFontStyleProperty))) {
-        return &style_;
-      }
-      return NULL;
-
-    case 11:
-      if (LowerCaseEqualsASCII(property_name,
-                               GetPropertyName(kFontFamilyProperty))) {
-        return &family_;
-      }
-      if (LowerCaseEqualsASCII(property_name,
-                               GetPropertyName(kFontWeightProperty))) {
-        return &weight_;
-      }
-      return NULL;
-
-    case 13:
-      if (LowerCaseEqualsASCII(property_name,
-                               GetPropertyName(kUnicodeRangeProperty))) {
-        return &unicode_range_;
-      }
-      return NULL;
-
-    default:
-      return NULL;
+CSSFontFaceDeclarationData::GetPropertyValueReference(PropertyKey key) {
+  // A large if-statement is used here instead of a switch statement so that
+  // we can avoid a warning for not explicitly enumerating every property value.
+  if (key == kSrcProperty) {
+    return &src_;
+  } else if (key == kFontStyleProperty) {
+    return &style_;
+  } else if (key == kFontFamilyProperty) {
+    return &family_;
+  } else if (key == kFontWeightProperty) {
+    return &weight_;
+  } else if (key == kUnicodeRangeProperty) {
+    return &unicode_range_;
+  } else {
+    return NULL;
   }
 }
 

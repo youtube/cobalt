@@ -47,6 +47,7 @@ struct PropertyDefinition {
   Inherited inherited;
   Animatable animatable;
   scoped_refptr<PropertyValue> initial_value;
+  LonghandPropertySet longhand_properties;
 };
 
 struct NonTrivialGlobalVariables {
@@ -59,12 +60,24 @@ struct NonTrivialGlobalVariables {
       PropertyKey key, const char* name, Inherited inherited,
       Animatable animatable,
       const scoped_refptr<PropertyValue>& initial_value) {
+    DCHECK_LT(kNoneProperty, key);
     PropertyDefinition& definition = properties[key];
     DCHECK(!definition.name) << "Properties can only be defined once.";
     definition.name = name;
     definition.inherited = inherited;
     definition.animatable = animatable;
     definition.initial_value = initial_value;
+  }
+
+  void SetShorthandPropertyDefinition(
+      PropertyKey key, const char* name,
+      const LonghandPropertySet& longhand_properties) {
+    DCHECK_LE(kFirstShorthandPropertyKey, key);
+    DCHECK_GE(kMaxShorthandPropertyKey, key);
+    PropertyDefinition& definition = properties[key];
+    DCHECK(!definition.name) << "Properties can only be defined once.";
+    definition.name = name;
+    definition.longhand_properties = longhand_properties;
   }
 
   // Computes a set of animatable property to allow fast iteration through
@@ -102,12 +115,6 @@ scoped_refptr<PropertyListValue> CreateSinglePropertyListWithValue(
 }
 
 NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
-  // Start by setting all property names to NULL, so we can check that they all
-  // get filled in.
-  for (int i = 0; i < kMaxEveryPropertyKey; ++i) {
-    properties[i].name = NULL;
-  }
-
   // http://www.w3.org/TR/css3-animations/#animation-delay-property
   SetPropertyDefinition(kAnimationDelayProperty, "animation-delay",
                         kInheritedNo, kAnimatableNo,
@@ -394,35 +401,6 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   //   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-property-property
   SetPropertyDefinition(kAllProperty, "all", kInheritedNo, kAnimatableNo, NULL);
 
-  // This is a shorthand property.
-  //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-shorthand-property
-  SetPropertyDefinition(kAnimationProperty, "animation", kInheritedNo,
-                        kAnimatableNo, NULL);
-
-  // This is a shorthand property.
-  //   http://www.w3.org/TR/css3-background/#the-background
-  SetPropertyDefinition(kBackgroundProperty, "background", kInheritedNo,
-                        kAnimatableNo, NULL);
-
-  // This is a shorthand property.
-  //   http://www.w3.org/TR/CSS21/box.html#propdef-margin
-  SetPropertyDefinition(kMarginProperty, "margin", kInheritedNo, kAnimatableNo,
-                        NULL);
-
-  // This is a shorthand property.
-  //   http://www.w3.org/TR/CSS21/box.html#propdef-padding
-  SetPropertyDefinition(kPaddingProperty, "padding", kInheritedNo,
-                        kAnimatableNo, NULL);
-
-  // This is a descriptor for @font-face at-rules.
-  //   http://www.w3.org/TR/css3-fonts/#descdef-src
-  SetPropertyDefinition(kSrcProperty, "src", kInheritedNo, kAnimatableNo, NULL);
-
-  // This is a shorthand property.
-  //   http://www.w3.org/TR/css3-transitions/#transition-shorthand-property
-  SetPropertyDefinition(kTransitionProperty, "transition", kInheritedNo,
-                        kAnimatableNo, NULL);
-
   // This is a descriptor for @font-face at-rules.
   //   http://www.w3.org/TR/css3-fonts/#unicode-range-desc
   SetPropertyDefinition(kUnicodeRangeProperty, "unicode-range", kInheritedNo,
@@ -432,6 +410,61 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   //   http://www.w3.org/TR/css-text-3/#overflow-wrap
   SetPropertyDefinition(kWordWrapProperty, "word-wrap", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNormal());
+
+  //   http://www.w3.org/TR/css3-fonts/#descdef-src
+  SetPropertyDefinition(kSrcProperty, "src", kInheritedNo, kAnimatableNo, NULL);
+
+  // Shorthand properties.
+
+  //   http://www.w3.org/TR/css3-background/#the-background
+  LonghandPropertySet background_longhand_properties;
+  background_longhand_properties.insert(kBackgroundColorProperty);
+  background_longhand_properties.insert(kBackgroundImageProperty);
+  background_longhand_properties.insert(kBackgroundPositionProperty);
+  background_longhand_properties.insert(kBackgroundRepeatProperty);
+  background_longhand_properties.insert(kBackgroundSizeProperty);
+  SetShorthandPropertyDefinition(kBackgroundProperty, "background",
+                                 background_longhand_properties);
+
+  //   http://www.w3.org/TR/CSS21/box.html#propdef-margin
+  LonghandPropertySet margin_longhand_properties;
+  margin_longhand_properties.insert(kMarginBottomProperty);
+  margin_longhand_properties.insert(kMarginLeftProperty);
+  margin_longhand_properties.insert(kMarginRightProperty);
+  margin_longhand_properties.insert(kMarginTopProperty);
+  SetShorthandPropertyDefinition(kMarginProperty, "margin",
+                                 margin_longhand_properties);
+
+  //   http://www.w3.org/TR/CSS21/box.html#propdef-padding
+  LonghandPropertySet padding_longhand_properties;
+  padding_longhand_properties.insert(kPaddingBottomProperty);
+  padding_longhand_properties.insert(kPaddingLeftProperty);
+  padding_longhand_properties.insert(kPaddingRightProperty);
+  padding_longhand_properties.insert(kPaddingTopProperty);
+  SetShorthandPropertyDefinition(kPaddingProperty, "padding",
+                                 padding_longhand_properties);
+
+  //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-shorthand-property
+  LonghandPropertySet animation_longhand_properties;
+  animation_longhand_properties.insert(kAnimationDelayProperty);
+  animation_longhand_properties.insert(kAnimationDirectionProperty);
+  animation_longhand_properties.insert(kAnimationDurationProperty);
+  animation_longhand_properties.insert(kAnimationFillModeProperty);
+  animation_longhand_properties.insert(kAnimationIterationCountProperty);
+  animation_longhand_properties.insert(kAnimationNameProperty);
+  animation_longhand_properties.insert(kAnimationTimingFunctionProperty);
+  SetShorthandPropertyDefinition(kAnimationProperty, "animation",
+                                 animation_longhand_properties);
+
+  //   http://www.w3.org/TR/css3-transitions/#transition-shorthand-property
+
+  LonghandPropertySet transition_longhand_properties;
+  transition_longhand_properties.insert(kTransitionDelayProperty);
+  transition_longhand_properties.insert(kTransitionDurationProperty);
+  transition_longhand_properties.insert(kTransitionPropertyProperty);
+  transition_longhand_properties.insert(kTransitionTimingFunctionProperty);
+  SetShorthandPropertyDefinition(kTransitionProperty, "transition",
+                                 transition_longhand_properties);
 
   CompileSetOfAnimatableProperties();
 }
@@ -456,6 +489,7 @@ const char* GetPropertyName(PropertyKey key) {
 }
 
 const scoped_refptr<PropertyValue>& GetPropertyInitialValue(PropertyKey key) {
+  DCHECK(!IsShorthandProperty(key));
   DCHECK_GT(key, kNoneProperty);
   DCHECK_LE(key, kMaxEveryPropertyKey);
   const scoped_refptr<PropertyValue>& initial_value =
@@ -464,22 +498,33 @@ const scoped_refptr<PropertyValue>& GetPropertyInitialValue(PropertyKey key) {
 }
 
 Inherited GetPropertyInheritance(PropertyKey key) {
+  DCHECK(!IsShorthandProperty(key));
   DCHECK_GT(key, kNoneProperty);
   DCHECK_LE(key, kMaxEveryPropertyKey);
   return non_trivial_global_variables.Get().properties[key].inherited;
 }
 
 Animatable GetPropertyAnimatable(PropertyKey key) {
+  DCHECK(!IsShorthandProperty(key));
   DCHECK_GT(key, kNoneProperty);
   DCHECK_LE(key, kMaxEveryPropertyKey);
   return non_trivial_global_variables.Get().properties[key].animatable;
+}
+
+bool IsShorthandProperty(PropertyKey key) {
+  return key >= kFirstShorthandPropertyKey && key <= kMaxShorthandPropertyKey;
+}
+
+const LonghandPropertySet& ExpandShorthandProperty(PropertyKey key) {
+  DCHECK(IsShorthandProperty(key));
+  return non_trivial_global_variables.Get().properties[key].longhand_properties;
 }
 
 const AnimatablePropertyList& GetAnimatableProperties() {
   return non_trivial_global_variables.Get().animatable_properties;
 }
 
-PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
+PropertyKey GetPropertyKey(const std::string& property_name) {
   switch (property_name.size()) {
     case 3:
       if (LowerCaseEqualsASCII(property_name, GetPropertyName(kTopProperty))) {
@@ -517,6 +562,10 @@ PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
                                GetPropertyName(kHeightProperty))) {
         return kHeightProperty;
       }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kMarginProperty))) {
+        return kMarginProperty;
+      }
       return kNoneProperty;
 
     case 7:
@@ -531,6 +580,10 @@ PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kOpacityProperty))) {
         return kOpacityProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kPaddingProperty))) {
+        return kPaddingProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kZIndexProperty))) {
@@ -555,6 +608,10 @@ PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
 
     case 9:
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kAnimationProperty))) {
+        return kAnimationProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontSizeProperty))) {
         return kFontSizeProperty;
       }
@@ -574,6 +631,10 @@ PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
 
     case 10:
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBackgroundProperty))) {
+        return kBackgroundProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontStyleProperty))) {
         return kFontStyleProperty;
       }
@@ -592,6 +653,10 @@ PropertyKey GetLonghandPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTextAlignProperty))) {
         return kTextAlignProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kTransitionProperty))) {
+        return kTransitionProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kVisibilityProperty))) {
