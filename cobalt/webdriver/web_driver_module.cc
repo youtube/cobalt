@@ -283,6 +283,11 @@ WebDriverModule::WebDriverModule(
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::GetTagName)));
   webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet, StringPrintf("/session/%s/element/%s/text",
+                                          kSessionIdVariable, kElementId),
+      element_command_factory->GetCommandHandler(
+          base::Bind(&ElementDriver::GetText)));
+  webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet, StringPrintf("/session/%s/element/%s/displayed",
                                           kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
