@@ -20,7 +20,9 @@
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/css_declaration_data.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/testing/mock_css_parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/html_body_element.h"
@@ -28,15 +30,34 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/layout_boxes.h"
 #include "cobalt/dom/named_node_map.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::Return;
+using ::testing::_;
 
 namespace cobalt {
 namespace dom {
 
 namespace {
+
+// Useful for using base::Bind() along with GMock actions.
+ACTION_P(InvokeCallback0, callback) {
+  UNREFERENCED_PARAMETER(args);
+  UNREFERENCED_PARAMETER(arg0);
+  UNREFERENCED_PARAMETER(arg1);
+  UNREFERENCED_PARAMETER(arg2);
+  UNREFERENCED_PARAMETER(arg3);
+  UNREFERENCED_PARAMETER(arg4);
+  UNREFERENCED_PARAMETER(arg5);
+  UNREFERENCED_PARAMETER(arg6);
+  UNREFERENCED_PARAMETER(arg7);
+  UNREFERENCED_PARAMETER(arg8);
+  UNREFERENCED_PARAMETER(arg9);
+  callback.Run();
+}
+
+const char kFooBarDeclarationString[] = "foo: bar;";
+const char kDisplayInlineDeclarationString[] = "display: inline;";
 
 class MockLayoutBoxes : public dom::LayoutBoxes {
  public:
@@ -81,8 +102,8 @@ scoped_refptr<HTMLElement> GetFirstChildAtDepth(
 class HTMLElementTest : public ::testing::Test {
  protected:
   HTMLElementTest()
-      : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, ""),
+      : html_element_context_(NULL, &css_parser_, NULL, NULL, NULL, NULL, NULL,
+                              NULL, NULL, ""),
         document_(new Document(&html_element_context_, Document::Options())) {}
   ~HTMLElementTest() OVERRIDE {}
 
@@ -91,6 +112,7 @@ class HTMLElementTest : public ::testing::Test {
   scoped_refptr<HTMLElement> CreateHTMLElementTreeWithMockLayoutBoxes(
       const char* null_terminated_element_names[]);
 
+  cssom::testing::MockCSSParser css_parser_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
   MessageLoop message_loop_;
@@ -565,6 +587,109 @@ TEST_F(HTMLElementTest, OffsetHeight) {
               GetBorderEdgeHeight())
       .WillOnce(Return(10.0f));
   EXPECT_FLOAT_EQ(html_element->offset_height(), 10.0f);
+}
+
+TEST_F(HTMLElementTest, SetAttributeMatchesGetAttribute) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  html_element->SetAttribute("foo", "bar");
+  EXPECT_EQ(1, html_element->attributes()->length());
+  EXPECT_EQ("bar", html_element->GetAttribute("foo").value());
+}
+
+TEST_F(HTMLElementTest, SetAttributeStyleSetsElementStyle) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  scoped_refptr<cssom::CSSStyleDeclarationData> style(
+      new cssom::CSSStyleDeclarationData());
+  EXPECT_CALL(css_parser_, ParseStyleDeclarationList("", _))
+      .WillOnce(Return(style));
+  html_element->SetAttribute("style", "");
+  EXPECT_EQ(style, html_element->style()->data());
+}
+
+TEST_F(HTMLElementTest, SetAttributeStyleReplacesExistingElementStyle) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  scoped_refptr<cssom::CSSStyleDeclarationData> style(
+      new cssom::CSSStyleDeclarationData());
+  EXPECT_CALL(css_parser_,
+              ParseStyleDeclarationList(kDisplayInlineDeclarationString, _))
+      .WillOnce(Return(style));
+  html_element->SetAttribute("style", kDisplayInlineDeclarationString);
+  style->set_display(cssom::KeywordValue::GetInline());
+  EXPECT_EQ(style, html_element->style()->data());
+  EXPECT_EQ(kDisplayInlineDeclarationString,
+            html_element->GetAttribute("style").value());
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> new_style(
+      new cssom::CSSStyleDeclarationData());
+  EXPECT_CALL(css_parser_,
+              ParseStyleDeclarationList(kFooBarDeclarationString, _))
+      .WillOnce(Return(new_style));
+  html_element->SetAttribute("style", kFooBarDeclarationString);
+  EXPECT_EQ(1, html_element->attributes()->length());
+  EXPECT_EQ(new_style, html_element->style()->data());
+  EXPECT_EQ(kFooBarDeclarationString,
+            html_element->GetAttribute("style").value());
+}
+
+TEST_F(HTMLElementTest, GetAttributeStyleMatchesSetAttributeStyle) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  scoped_refptr<cssom::CSSStyleDeclarationData> style(
+      new cssom::CSSStyleDeclarationData());
+  EXPECT_CALL(css_parser_,
+              ParseStyleDeclarationList(kFooBarDeclarationString, _))
+      .WillOnce(Return(style));
+  html_element->SetAttribute("style", kFooBarDeclarationString);
+  EXPECT_EQ(1, html_element->attributes()->length());
+  EXPECT_EQ(kFooBarDeclarationString,
+            html_element->GetAttribute("style").value());
+}
+
+TEST_F(HTMLElementTest,
+       GetAttributeStyleDoesNotMatchSetAttributeStyleAfterStyleMutation) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  scoped_refptr<cssom::CSSStyleDeclarationData> style(
+      new cssom::CSSStyleDeclarationData());
+  EXPECT_CALL(css_parser_,
+              ParseStyleDeclarationList(kFooBarDeclarationString, _))
+      .WillOnce(Return(style));
+  html_element->SetAttribute("style", kFooBarDeclarationString);
+  EXPECT_EQ(1, html_element->attributes()->length());
+  EXPECT_CALL(css_parser_, ParsePropertyIntoDeclarationData("display", "inline",
+                                                            _, style.get()))
+      .WillOnce(InvokeCallback0(base::Bind(
+          &cssom::CSSStyleDeclarationData::set_display,
+          base::Unretained(style.get()), cssom::KeywordValue::GetInline())));
+  html_element->style()->SetPropertyValue("display", "inline");
+
+  EXPECT_NE(kFooBarDeclarationString,
+            html_element->GetAttribute("style").value());
+}
+
+TEST_F(HTMLElementTest,
+       GetAttributeStyleMatchesSerializedStyleAfterStyleMutation) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  scoped_refptr<cssom::CSSStyleDeclarationData> style(
+      new cssom::CSSStyleDeclarationData());
+  EXPECT_CALL(css_parser_,
+              ParseStyleDeclarationList(kFooBarDeclarationString, _))
+      .WillOnce(Return(style));
+  html_element->SetAttribute("style", kFooBarDeclarationString);
+  EXPECT_EQ(1, html_element->attributes()->length());
+  EXPECT_CALL(css_parser_, ParsePropertyIntoDeclarationData("display", "inline",
+                                                            _, style.get()))
+      .WillOnce(InvokeCallback0(base::Bind(
+          &cssom::CSSStyleDeclarationData::set_display,
+          base::Unretained(style.get()), cssom::KeywordValue::GetInline())));
+  html_element->style()->SetPropertyValue("display", "inline");
+
+  EXPECT_EQ(kDisplayInlineDeclarationString,
+            html_element->GetAttribute("style").value());
 }
 
 TEST_F(HTMLElementTest, Duplicate) {

@@ -23,6 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/cssom/animation_set.h"
 #include "cobalt/cssom/computed_style_state.h"
@@ -118,9 +119,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   scoped_refptr<Node> Duplicate() const OVERRIDE;
 
   // Custom, not in any spec: Element.
-  void OnParserStartTag(
-      const base::SourceLocation& opening_tag_location) OVERRIDE;
   scoped_refptr<HTMLElement> AsHTMLElement() OVERRIDE { return this; }
+
+  base::optional<std::string> GetStyleAttribute() const OVERRIDE;
+  void SetStyleAttribute(const std::string& value) OVERRIDE;
+  void RemoveStyleAttribute() OVERRIDE;
 
   // Custom, not in any spec.
   //
