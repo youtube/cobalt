@@ -79,6 +79,8 @@ void FetcherBufferedDataSource::Stop(const base::Closure& callback) {
     if (!pending_read_cb_.is_null()) {
       base::ResetAndReturn(&pending_read_cb_).Run(0);
     }
+    // From this moment on, any call to Read() should be treated as an error.
+    error_occured_ = true;
   }
 
   // We cannot post the callback using the MessageLoop as we share the
