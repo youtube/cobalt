@@ -27,8 +27,6 @@ ShellDataSourceReader::ShellDataSourceReader()
     , file_size_(-1)
     , read_has_failed_(false)
     , last_bytes_read_(0) {
-  blocking_read_cb_ = base::Bind(&ShellDataSourceReader::BlockingReadCompleted,
-                                 this);
 }
 
 ShellDataSourceReader::~ShellDataSourceReader() {
@@ -52,11 +50,10 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8 *data) {
   }
 
   int total_bytes_read = 0;
-  while (size > 0) {
-    data_source_->Read(position,
-                       size,
-                       data,
-                       blocking_read_cb_);
+  while (size > 0 && !read_has_failed_) {
+    data_source_->Read(
+        position, size, data,
+        base::Bind(&ShellDataSourceReader::BlockingReadCompleted, this));
 
     // wait for callback on read completion
     blocking_read_event_.Wait();
@@ -84,16 +81,13 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8 *data) {
     data += last_bytes_read_;
   }
 
+  if (read_has_failed_) {
+    return kReadError;
+  }
   return total_bytes_read;
 }
 
 void ShellDataSourceReader::Stop(const base::Closure& callback) {
-  // 0 signals EOS or stop on unblock
-  last_bytes_read_ = 0;
-  blocking_read_event_.Signal();
-  // subsequent reads should report as failure
-  read_has_failed_ = true;
-  blocking_read_cb_.Reset();
   if (data_source_) {
     // stop the data source, it can call the callback
     data_source_->Stop(callback);

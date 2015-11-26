@@ -63,7 +63,6 @@ class ShellDataSourceReader
   base::WaitableEvent blocking_read_event_;
   int64 file_size_;
   bool read_has_failed_;
-  DataSource::ReadCB blocking_read_cb_;
   int last_bytes_read_;  // protected implicitly by blocking_read_event_
 };
 
