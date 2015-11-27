@@ -165,15 +165,24 @@ ShellPulseAudioContext::~ShellPulseAudioContext() {
 bool ShellPulseAudioContext::Initialize() {
   mainloop_ = pa_mainloop_new();
   context_ = pa_context_new(pa_mainloop_get_api(mainloop_), "ShellPulseAudio");
-  pa_context_connect(context_, NULL, pa_context_flags_t(), NULL);
 
-  // Wait until the context is ready.
+  // Set the state callback. This will be called from with pa_mainloop_iterate.
   int pa_ready = kInitial;
   pa_context_set_state_callback(context_, StateCallback, &pa_ready);
 
+  // Try to connect to the context, or return on failure.
+  if (pa_context_connect(context_, NULL, pa_context_flags_t(), NULL) < 0) {
+    DLOG(ERROR) << "Error connecting to context.";
+    return false;
+  }
+
+  // Wait until the context is ready.
   while (pa_ready == kInitial) {
     pa_mainloop_iterate(mainloop_, 1, NULL);
   }
+
+  // Clear the state callback.
+  pa_context_set_state_callback(context_, NULL, NULL);
 
   if (pa_ready == kReady) {
     base::Thread::Options options;
