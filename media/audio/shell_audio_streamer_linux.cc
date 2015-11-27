@@ -70,9 +70,13 @@ bool ShellAudioStreamerLinux::AddStream(ShellAudioStream* stream) {
   base::AutoLock lock(streams_lock_);
 
   if (pulse_audio_context_ == NULL) {
-    pulse_audio_context_ = new ShellPulseAudioContext;
+    pulse_audio_context_.reset(new ShellPulseAudioContext());
     bool result = pulse_audio_context_->Initialize();
-    DCHECK(result);
+    if (result) {
+      pulse_audio_context_.reset();
+      DLOG(WARNING) << "Failed to initialize pulse audio.";
+      return false;
+    }
   }
 
   // other basic checks, it is assumed that the decoder or renderer algorithm
@@ -85,7 +89,7 @@ bool ShellAudioStreamerLinux::AddStream(ShellAudioStream* stream) {
   const AudioParameters& audio_parameters = stream->GetAudioParameters();
   const int sample_rate = audio_parameters.sample_rate();
 
-  streams_[stream] = new PulseAudioHost(pulse_audio_context_, stream,
+  streams_[stream] = new PulseAudioHost(pulse_audio_context_.get(), stream,
                                         sample_rate, params.channels());
 
   return true;
@@ -101,8 +105,7 @@ void ShellAudioStreamerLinux::RemoveStream(ShellAudioStream* stream) {
   streams_.erase(it);
 
   if (streams_.empty()) {
-    delete pulse_audio_context_;
-    pulse_audio_context_ = NULL;
+    pulse_audio_context_.reset();
   }
 }
 
@@ -120,11 +123,12 @@ bool ShellAudioStreamerLinux::SetVolume(ShellAudioStream* stream,
 }
 
 ShellAudioStreamerLinux::ShellAudioStreamerLinux()
-    : pulse_audio_context_(NULL) {
+    : streams_value_deleter_(&streams_) {
   instance = this;
 }
 
 ShellAudioStreamerLinux::~ShellAudioStreamerLinux() {
+  DCHECK(streams_.empty());
   instance = NULL;
 }
 

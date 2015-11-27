@@ -19,6 +19,8 @@
 
 #include <map>
 
+#include "base/memory/scoped_ptr.h"
+#include "base/stl_util.h"
 #include "base/synchronization/lock.h"
 #include "media/audio/shell_audio_streamer.h"
 #include "media/audio/shell_pulse_audio.h"
@@ -42,8 +44,9 @@ class ShellAudioStreamerLinux : public ShellAudioStreamer {
  private:
   typedef std::map<ShellAudioStream*, PulseAudioHost*> StreamMap;
   StreamMap streams_;
+  scoped_ptr<ShellPulseAudioContext> pulse_audio_context_;
+  STLValueDeleter<StreamMap> streams_value_deleter_;
   mutable base::Lock streams_lock_;
-  ShellPulseAudioContext* pulse_audio_context_;
 
   DISALLOW_COPY_AND_ASSIGN(ShellAudioStreamerLinux);
 };
