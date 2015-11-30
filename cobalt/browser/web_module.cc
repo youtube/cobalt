@@ -36,9 +36,6 @@ namespace {
 const uint32 kImageCacheCapacity = 32U * 1024 * 1024;
 const uint32 kRemoteFontCacheCapacity = 5U * 1024 * 1024;
 
-// Prefix applied to local storage keys.
-const char kLocalStoragePrefix[] = "cobalt.webModule";
-
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 // Help string for the 'partial_layout' command.
 const char kPartialLayoutCommandShortHelp[] =
@@ -127,9 +124,7 @@ WebModule::WebModule(
       url_(initial_url) {
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
-#if defined(ENABLE_DEBUG_CONSOLE)
-  window_->set_debug_hub(options.debug_hub);
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+  InjectCustomWindowAttributes(options.injected_window_attributes);
 
   if (!options.loaded_callbacks.empty()) {
     document_load_observer_.reset(
@@ -200,24 +195,6 @@ void WebModule::ExecuteJavascriptInternal(
   got_result->Signal();
 }
 
-std::string WebModule::GetItemInLocalStorage(const std::string& key) {
-  std::string long_key = std::string(kLocalStoragePrefix) + "." + key;
-  base::optional<std::string> result =
-      window_->local_storage()->GetItem(long_key);
-  if (result) {
-    return result.value();
-  }
-  // Key wasn't found.
-  DLOG(WARNING) << "Key \"" << long_key << "\" not found in local storage.";
-  return "";
-}
-
-void WebModule::SetItemInLocalStorage(const std::string& key,
-                                      const std::string& value) {
-  std::string long_key = std::string(kLocalStoragePrefix) + "." + key;
-  window_->local_storage()->SetItem(long_key, value);
-}
-
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 void WebModule::OnPartialLayoutConsoleCommandReceived(
     const std::string& message) {
@@ -250,6 +227,16 @@ scoped_ptr<script::DebugServer> WebModule::CreateDebugServer() {
       global_object_proxy_, self_message_loop_->message_loop_proxy());
 }
 #endif  // ENABLE_DEBUG_CONSOLE
+
+void WebModule::InjectCustomWindowAttributes(
+    const Options::InjectedWindowAttributes& attributes) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  for (Options::InjectedWindowAttributes::const_iterator iter =
+           attributes.begin();
+       iter != attributes.end(); ++iter) {
+    global_object_proxy_->Bind(iter->first, iter->second.Run());
+  }
+}
 
 }  // namespace browser
 }  // namespace cobalt

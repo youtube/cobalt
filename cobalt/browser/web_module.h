@@ -22,13 +22,13 @@
 
 #include "base/callback.h"
 #include "base/file_path.h"
+#include "base/hash_tables.h"
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/css_parser/parser.h"
-#include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/media_source.h"
@@ -59,40 +59,53 @@ namespace browser {
 // when it calls the on_render_tree_produced_ callback (provided upon
 // construction).
 // It is expected that all components internal to WebModule will operate on
-// the same thread.
+// the same thread.  While it is not currently the case, it is expected that in
+// the future, each WebModule will create and host its own private thread upon
+// which all subcomponents will run.  Therefore all public methods must be
+// thread-safe and callable from any thread.  This necessarily implies that
+// details contained within WebModule, such as the DOM, are intentionally kept
+// private, since these structures expect to be accessed from only one thread.
 class WebModule {
  public:
-  // All browser subcomponent options should have default constructors that
-  // setup reasonable default options.
   struct Options {
+    typedef base::Callback<scoped_refptr<script::Wrappable>()>
+        CreateObjectFunction;
+    typedef base::hash_map<std::string, CreateObjectFunction>
+        InjectedWindowAttributes;
+
+    // All optional parameters defined in this structure should have their
+    // values
+    // initialized in the default constructor to useful defaults.
     Options()
         : name("WebModule"),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
 
-    explicit Options(const std::string& name)
-        : name(name),
-          layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
-
-#if defined(ENABLE_DEBUG_CONSOLE)
-    Options(const std::string& name,
-            const scoped_refptr<debug::DebugHub>& initial_debug_hub)
-        : name(name),
-          layout_trigger(layout::LayoutManager::kOnDocumentMutation),
-          debug_hub(initial_debug_hub) {}
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-
-    explicit Options(const FilePath& extra_web_file_dir)
-        : extra_web_file_dir(extra_web_file_dir) {}
-
+    // The name of the WebModule.  This is useful for debugging purposes as in
+    // the case where multiple WebModule objects exist, it can be used to
+    // differentiate which objects belong to which WebModule.  It is used
+    // to name some CVals.
     std::string name;
+
+    // The LayoutTrigger parameter dictates when a layout should be triggered.
+    // Tests will often set this up so that layouts are only performed when
+    // we specifically request them to be.
     layout::LayoutManager::LayoutTrigger layout_trigger;
+
     // Optional directory to add to the search path for web files (file://).
     FilePath extra_web_file_dir;
+
+    // The navigation_callback functor will be called when JavaScript internal
+    // to the WebModule reqeusts a page navigation, e.g. by modifying
+    // 'window.location.href'.
     base::Callback<void(const GURL&)> navigation_callback;
+
+    // A list of callbacks to be called once the web page finishes loading.
     std::vector<base::Closure> loaded_callbacks;
-#if defined(ENABLE_DEBUG_CONSOLE)
-    scoped_refptr<debug::DebugHub> debug_hub;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+    // injected_window_attributes contains a map of attributes to be injected
+    // into the WebModule's window object upon construction.  This provides
+    // a mechanism to inject custom APIs into the WebModule object.
+    InjectedWindowAttributes injected_window_attributes;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -106,7 +119,7 @@ class WebModule {
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
-            float layout_refresh_rate, const Options& options);
+            float layout_refresh_rate, const Options& options = Options());
   ~WebModule();
 
   // Call this to inject an event into the web module which will ultimately make
@@ -124,10 +137,6 @@ class WebModule {
   // Returns the URL of the current Document. This getter is threadsafe.
   GURL url() const { return url_; }
 
-  // Methods to get and set items in the local storage of this web module.
-  std::string GetItemInLocalStorage(const std::string& key);
-  void SetItemInLocalStorage(const std::string& key, const std::string& value);
-
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that
   // is owned by this WebModule instance.
@@ -142,6 +151,11 @@ class WebModule {
 
  private:
   class DocumentLoadedObserver;
+
+  // Injects a list of custom window attributes into the WebModule's window
+  // object.
+  void InjectCustomWindowAttributes(
+      const Options::InjectedWindowAttributes& attributes);
 
   // Called by ExecuteJavascript, if that method is called from a different
   // message loop to the one this WebModule is running on. Sets the result

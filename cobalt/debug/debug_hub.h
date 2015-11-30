@@ -72,6 +72,10 @@ class DebugHub : public script::Wrappable {
       const std::string& script_utf8,
       const base::SourceLocation& script_location)> ExecuteJavascriptCallback;
 
+  // Function signature to call when we need to query for the Hud visibility
+  // mode.
+  typedef base::Callback<int()> GetHudModeCallback;
+
   // Type for stored callback info.
   // We store the message loop from which the callback was registered,
   // so we can run the callback on the same loop.
@@ -84,7 +88,7 @@ class DebugHub : public script::Wrappable {
     scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
   };
 
-  // Debug console modes.
+  // Debug console visibility modes.
   static const int kDebugConsoleOff = 0;
   static const int kDebugConsoleHud = 1;
   static const int kDebugConsoleOn = 2;
@@ -98,6 +102,7 @@ class DebugHub : public script::Wrappable {
   static const int kLogFatal = logging::LOG_FATAL;
 
   DebugHub(
+      const GetHudModeCallback& get_hud_mode_callback,
       const ExecuteJavascriptCallback& execute_javascript_callback,
       const Debugger::CreateDebugServerCallback& create_debug_server_callback);
   ~DebugHub();
@@ -113,9 +118,6 @@ class DebugHub : public script::Wrappable {
   // AddLogMessageCallback.
   void RemoveLogMessageCallback(int id);
 
-  // Removes all registered callbacks connected to this DebugHub.
-  void RemoveAllLogMessageCallbacks();
-
   // Gets the collection of available CVal names as an alphabetically ordered,
   // space-separated list.
   std::string GetConsoleValueNames() const;
@@ -124,13 +126,6 @@ class DebugHub : public script::Wrappable {
   std::string GetConsoleValue(const std::string& name) const;
 
   int GetDebugConsoleMode() const;
-  void SetDebugConsoleMode(int debug_console_mode);
-  int CycleDebugConsoleMode();
-
-  // Convenience methods to get/set debug console mode as string.
-  // This supports command line options and persistent local storage.
-  std::string GetDebugConsoleModeAsString() const;
-  void SetDebugConsoleModeAsString(const std::string& mode_string);
 
   // Executes JavaScript in the main web module.
   std::string ExecuteJavascript(const std::string& javascript);
@@ -160,6 +155,9 @@ class DebugHub : public script::Wrappable {
 
   typedef std::map<int, LogMessageCallbackInfo*> LogMessageCallbacks;
 
+  // A function that we can call to query the Hud visibility mode.
+  const GetHudModeCallback get_hud_mode_callback_;
+
   // The callback to run to execute some JS.
   const ExecuteJavascriptCallback execute_javascript_callback_;
 
@@ -171,9 +169,6 @@ class DebugHub : public script::Wrappable {
 
   // Maintains a collection of CVals continuously updated with system stats.
   SystemStatsTracker system_stats_tracker;
-
-  // The current debug console mode
-  int debug_console_mode_;
 
   // Interface to the JavaScript debugger client.
   scoped_refptr<Debugger> debugger_;
