@@ -104,6 +104,16 @@ TEST_F(IndexedGetterBindingsTest, IndexedSetter) {
   EXPECT_TRUE(EvaluateScript("test.indexedSetter(4, 100);", NULL));
 }
 
+TEST_F(IndexedGetterBindingsTest, IndexedDeleter) {
+  EXPECT_CALL(test_mock(), length()).WillOnce(Return(10));
+  EXPECT_TRUE(EvaluateScript("delete test[4];", NULL));
+}
+
+TEST_F(IndexedGetterBindingsTest, IndexedDeleterOutOfRange) {
+  EXPECT_CALL(test_mock(), length()).WillOnce(Return(1));
+  EXPECT_TRUE(EvaluateScript("delete test[4];", NULL));
+}
+
 TEST_F(IndexedGetterBindingsTest, IndexedSetterOutOfRange) {
   InSequence dummy;
 
@@ -150,6 +160,38 @@ TEST_F(NamedGetterBindingsTest, NamedSetter) {
 
   EXPECT_CALL(test_mock(), NamedSetter(std::string("foo"), std::string("bar")));
   EXPECT_TRUE(EvaluateScript("test.namedSetter(\"foo\", \"bar\");", NULL));
+}
+
+TEST_F(NamedGetterBindingsTest, NamedDeleter) {
+  InSequence dummy;
+
+  EXPECT_CALL(test_mock(), CanQueryNamedProperty(std::string("foo")))
+      .WillOnce(Return(true));
+  EXPECT_CALL(test_mock(), NamedDeleter(std::string("foo")));
+  EXPECT_TRUE(EvaluateScript("delete test.foo;", NULL));
+
+  EXPECT_CALL(test_mock(), NamedDeleter(std::string("bar")));
+  EXPECT_TRUE(EvaluateScript("test.namedDeleter(\"bar\");", NULL));
+}
+
+TEST_F(NamedGetterBindingsTest, NamedDeleterUnsupportedName) {
+  InSequence dummy;
+
+  EXPECT_CALL(test_mock(), CanQueryNamedProperty(std::string("foo")))
+      .WillOnce(Return(false));
+  EXPECT_TRUE(EvaluateScript("delete test.foo;", NULL));
+
+  EXPECT_CALL(test_mock(), NamedDeleter(std::string("bar")));
+  EXPECT_TRUE(EvaluateScript("test.namedDeleter(\"bar\");", NULL));
+}
+
+TEST_F(NamedGetterBindingsTest, NamedDeleterIndexProperty) {
+  InSequence dummy;
+
+  EXPECT_CALL(test_mock(), CanQueryNamedProperty(std::string("1")))
+      .WillOnce(Return(true));
+  EXPECT_CALL(test_mock(), NamedDeleter(std::string("1")));
+  EXPECT_TRUE(EvaluateScript("delete test[1];", NULL));
 }
 
 TEST_F(NamedGetterBindingsTest, IndexConvertsToNamedProperty) {
