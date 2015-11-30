@@ -17,7 +17,10 @@
 #ifndef INPUT_KEY_REPEAT_FILTER_H_
 #define INPUT_KEY_REPEAT_FILTER_H_
 
+#include <string>
+
 #include "base/timer.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/input/key_event_handler.h"
 
 namespace cobalt {
@@ -35,14 +38,16 @@ class KeyRepeatFilter : public KeyEventHandler {
  private:
   void HandleKeyDown(const scoped_refptr<dom::KeyboardEvent>& keyboard_event);
   void HandleKeyUp(const scoped_refptr<dom::KeyboardEvent>& keyboard_event);
-
   void FireKeyRepeatEvent();
-  scoped_refptr<dom::KeyboardEvent> CopyKeyboardEventWithRepeat(
-      const scoped_refptr<dom::KeyboardEvent>& keyboard_event);
-
-  scoped_refptr<dom::KeyboardEvent> keyboard_event_;
 
   base::RepeatingTimer<KeyRepeatFilter> key_repeat_timer_;
+
+  // Information needed to reconstruct the keyboard event.
+  std::string keyboard_event_type_;
+  dom::KeyboardEvent::KeyLocationCode keyboard_event_location_;
+  unsigned int keyboard_event_modifiers_;
+  int keyboard_event_key_code_;
+  int keyboard_event_char_code_;
 };
 
 }  // namespace input
