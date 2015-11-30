@@ -22,7 +22,6 @@
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
 
-
 namespace cobalt {
 namespace deprecated {
 
@@ -91,6 +90,8 @@ PlatformDelegate::PlatformDelegate() {
 }
 
 std::string PlatformDelegate::GetSystemLanguage() { return "en-US"; }
+
+bool PlatformDelegate::AreKeysReversed() const { return false; }
 
 PlatformDelegate::~PlatformDelegate() {}
 

@@ -44,6 +44,12 @@ class COBALT_EXPORT PlatformDelegate {
   // Example: "en-US" or "de"
   virtual std::string GetSystemLanguage();
 
+  // Some platforms swap the meaning of the 'Enter' and 'Back' keys in
+  // certain regions.
+  virtual bool AreKeysReversed() const;
+
+  virtual std::string GetPlatformName() const = 0;
+
   const std::string& dir_source_root() const { return dir_source_root_; }
   const std::string& game_content_path() const { return game_content_path_; }
   const std::string& screenshot_output_path() const {
