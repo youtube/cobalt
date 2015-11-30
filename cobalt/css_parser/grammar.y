@@ -2977,6 +2977,7 @@ font_style_property_value:
   | kObliqueToken maybe_whitespace {
     $$ = AddRef(cssom::FontStyleValue::GetOblique().get());
   }
+  | common_values
   ;
 
 // The weight of glyphs in the font, their degree of blackness
@@ -4131,6 +4132,7 @@ white_space_property_value:
   | kPreToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetPre().get());
   }
+  | common_values
   ;
 
 // Specifies the content width of boxes.
