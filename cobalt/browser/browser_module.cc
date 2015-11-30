@@ -77,15 +77,6 @@ const char kScreenshotCommandLongHelp[] =
     "to disk. Logs the filename of the screenshot to the console when done.";
 #endif
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-// Local storage key for the debug console mode.
-const char kDebugConsoleModeKey[] = "debugConsole.mode";
-
-// Files for the debug console web page are bundled with the executable.
-const char kInitialDebugConsoleUrl[] =
-    "file:///cobalt/browser/debug_console/debug_console.html";
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-
 void OnNavigateMessage(BrowserModule* browser_module,
                        const std::string& message) {
   GURL url(message);
@@ -141,22 +132,6 @@ BrowserModule::BrowserModule(const GURL& url,
       account_manager_(
           account::AccountManager::Create(system_window->event_dispatcher())),
       render_tree_combiner_(renderer_module_.pipeline()),
-#if defined(ENABLE_DEBUG_CONSOLE)
-      ALLOW_THIS_IN_INITIALIZER_LIST(debug_hub_(new debug::DebugHub(
-          base::Bind(&BrowserModule::ExecuteJavascript, base::Unretained(this)),
-          base::Bind(&BrowserModule::CreateDebugServer,
-                     base::Unretained(this))))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
-          GURL(kInitialDebugConsoleUrl),
-          base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
-                     base::Unretained(this)),
-          base::Bind(&BrowserModule::OnError, base::Unretained(this)),
-          media_module_.get(), &network_module_,
-          math::Size(kInitialWidth, kInitialHeight),
-          renderer_module_.pipeline()->GetResourceProvider(),
-          renderer_module_.pipeline()->refresh_rate(),
-          WebModule::Options("DebugConsoleWebModule", debug_hub_))),
-#endif  // ENABLE_DEBUG_CONSOLE
       self_message_loop_(MessageLoop::current()),
       ALLOW_THIS_IN_INITIALIZER_LIST(trace_command_handler_(
           kTraceCommandChannel,
@@ -206,12 +181,16 @@ BrowserModule::BrowserModule(const GURL& url,
   }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  // Debug console defaults to Off if not specified.
-  // Stored preference overrides this, if it exists.
-  // Command line setting overrides this, if specified.
-  debug_hub_->SetDebugConsoleMode(debug::DebugHub::kDebugConsoleOff);
-  LoadDebugConsoleMode();
-  SetDebugConsoleModeFromCommandLine();
+  debug_console_.reset(new DebugConsole(
+      base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
+                 base::Unretained(this)),
+      base::Bind(&BrowserModule::OnError, base::Unretained(this)),
+      media_module_.get(), &network_module_,
+      math::Size(kInitialWidth, kInitialHeight),
+      renderer_module_.pipeline()->GetResourceProvider(),
+      renderer_module_.pipeline()->refresh_rate(),
+      base::Bind(&BrowserModule::ExecuteJavascript, base::Unretained(this)),
+      base::Bind(&BrowserModule::CreateDebugServer, base::Unretained(this))));
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Always render the debug console. It will draw nothing if disabled.
@@ -270,10 +249,9 @@ void BrowserModule::NavigateWithCallbackInternal(
   splash_screen_.reset(new SplashScreen(
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
-      media_module_.get(), &network_module_,
-      math::Size(kInitialWidth, kInitialHeight),
+      &network_module_, math::Size(kInitialWidth, kInitialHeight),
       renderer_module_.pipeline()->GetResourceProvider(),
-      renderer_module_.pipeline()->refresh_rate(), SplashScreen::Options()));
+      renderer_module_.pipeline()->refresh_rate()));
   options.loaded_callbacks.push_back(
       base::Bind(&BrowserModule::DestroySplashScreen, base::Unretained(this)));
 
@@ -364,8 +342,8 @@ bool BrowserModule::FilterKeyEvent(
 #if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // key events.
-  if (debug_hub_->GetDebugConsoleMode() >= debug::DebugHub::kDebugConsoleOn) {
-    if (!debug_console_.FilterKeyEvent(event)) {
+  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+    if (!debug_console_->FilterKeyEvent(event)) {
       return false;
     }
   }
@@ -383,9 +361,7 @@ bool BrowserModule::FilterKeyEventForHotkeys(
       (event->ctrl_key() && event->key_code() == dom::keycode::kO)) {
     if (event->type() == dom::EventNames::GetInstance()->keydown()) {
       // Ctrl+O toggles the debug console display.
-      debug_hub_->CycleDebugConsoleMode();
-      // Persist the new debug console mode to web local storage.
-      SaveDebugConsoleMode();
+      debug_console_->CycleMode();
     }
     return false;
   }
@@ -468,36 +444,6 @@ bool BrowserModule::TryURLHandlers(const GURL& url) {
 }
 
 void BrowserModule::DestroySplashScreen() { splash_screen_.reset(NULL); }
-
-void BrowserModule::SaveDebugConsoleMode() {
-#if defined(ENABLE_DEBUG_CONSOLE)
-  const std::string mode_string = debug_hub_->GetDebugConsoleModeAsString();
-  debug_console_.web_module().SetItemInLocalStorage(kDebugConsoleModeKey,
-                                                    mode_string);
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-}
-
-void BrowserModule::LoadDebugConsoleMode() {
-#if defined(ENABLE_DEBUG_CONSOLE)
-  const std::string mode_string =
-      debug_console_.web_module().GetItemInLocalStorage(kDebugConsoleModeKey);
-  debug_hub_->SetDebugConsoleModeAsString(mode_string);
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-}
-
-bool BrowserModule::SetDebugConsoleModeFromCommandLine() {
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kDebugConsoleMode)) {
-    const std::string debug_console_mode_string =
-        command_line->GetSwitchValueASCII(switches::kDebugConsoleMode);
-    debug_hub_->SetDebugConsoleModeAsString(debug_console_mode_string);
-    return true;
-  }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
-
-  return false;
-}
 
 #if defined(ENABLE_WEBDRIVER)
 scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(

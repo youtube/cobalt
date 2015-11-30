@@ -27,14 +27,17 @@ SplashScreen::SplashScreen(
     const WebModule::OnRenderTreeProducedCallback&
         render_tree_produced_callback,
     const base::Callback<void(const std::string&)>& error_callback,
-    media::MediaModule* media_module, network::NetworkModule* network_module,
-    const math::Size& window_dimensions,
+    network::NetworkModule* network_module, const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const SplashScreen::Options& options)
-    : web_module_(options.url, render_tree_produced_callback, error_callback,
-                  media_module, network_module, window_dimensions,
-                  resource_provider, layout_refresh_rate,
-                  WebModule::Options("SplashScreenWebModule")) {}
+    const SplashScreen::Options& options) {
+  WebModule::Options web_module_options;
+  web_module_options.name = "SplashScreenWebModule";
+
+  web_module_.reset(new WebModule(
+      options.url, render_tree_produced_callback, error_callback,
+      &stub_media_module_, network_module, window_dimensions, resource_provider,
+      layout_refresh_rate, web_module_options));
+}
 
 }  // namespace browser
 }  // namespace cobalt
