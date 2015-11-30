@@ -2300,12 +2300,44 @@ TEST_F(ParserTest, ParsesFontSize) {
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
 }
 
-TEST_F(ParserTest, ParsesFontStyle) {
+TEST_F(ParserTest, ParsesNormalFontStyle) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-style: normal;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::FontStyleValue::GetNormal(), style->font_style());
+}
+
+TEST_F(ParserTest, ParsesItalicFontStyle) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("font-style: italic;",
                                         source_location_);
 
   EXPECT_EQ(cssom::FontStyleValue::GetItalic(), style->font_style());
+}
+
+TEST_F(ParserTest, ParsesObliqueFontStyle) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-style: oblique;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::FontStyleValue::GetOblique(), style->font_style());
+}
+
+TEST_F(ParserTest, ParsesInheritFontStyle) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-style: inherit;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->font_style());
+}
+
+TEST_F(ParserTest, ParsesInitialFontStyle) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-style: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->font_style());
 }
 
 TEST_F(ParserTest, ParsesNormalFontWeight) {
@@ -3329,6 +3361,22 @@ TEST_F(ParserTest, ParsesPreWhiteSpace) {
       parser_.ParseStyleDeclarationList("white-space: pre;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetPre(), style->white_space());
+}
+
+TEST_F(ParserTest, ParsesInheritWhiteSpace) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("white-space: inherit;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->white_space());
+}
+
+TEST_F(ParserTest, ParsesInitialWhiteSpace) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("white-space: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->white_space());
 }
 
 TEST_F(ParserTest, ParsesWidth) {
