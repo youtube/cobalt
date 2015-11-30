@@ -46,14 +46,32 @@ struct FontMetrics {
   float x_height;
 };
 
-// Used as a parameter to GetSystemFont() to describe the font style the
-// caller is seeking.
-enum FontStyle {
-  kNormal,
-  kBold,
-  kItalic,
-  kBoldItalic,
-  kFontStyleCount,
+// Used as a parameter to GetLocalFont() and GetCharacterFallbackFont() to
+// describe the font style the caller is seeking.
+struct FontStyle {
+  enum Weight {
+    kThinWeight = 100,
+    kExtraLightWeight = 200,
+    kLightWeight = 300,
+    kNormalWeight = 400,
+    kMediumWeight = 500,
+    kSemiBoldWeight = 600,
+    kBoldWeight = 700,
+    kExtraBoldWeight = 800,
+    kBlackWeight = 900
+  };
+
+  enum Slant {
+    kUprightSlant,
+    kItalicSlant,
+  };
+
+  FontStyle() : weight(kNormalWeight), slant(kUprightSlant) {}
+  FontStyle(Weight font_weight, Slant font_slant)
+      : weight(font_weight), slant(font_slant) {}
+
+  Weight weight;
+  Slant slant;
 };
 
 typedef uint32_t TypefaceId;

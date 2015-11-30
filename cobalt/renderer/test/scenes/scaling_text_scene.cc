@@ -34,6 +34,7 @@ using cobalt::math::TranslateMatrix;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Font;
+using cobalt::render_tree::FontStyle;
 using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::TextNode;
 using cobalt::render_tree::animations::Animation;
@@ -64,8 +65,8 @@ RenderTreeWithAnimations CreateScalingTextScene(
 
   // Load a font for use with text rendering.
   const float kBaseFontSize = 20.0f;
-  scoped_refptr<Font> font = resource_provider->GetLocalFont(
-      "Roboto", render_tree::kNormal, kBaseFontSize);
+  scoped_refptr<Font> font =
+      resource_provider->GetLocalFont("Roboto", FontStyle(), kBaseFontSize);
 
   // Add the actual text node to our composition.
   CompositionNode::Builder text_collection_builder;

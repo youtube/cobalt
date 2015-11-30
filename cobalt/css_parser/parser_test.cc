@@ -2355,6 +2355,70 @@ TEST_F(ParserTest, ParsesBoldFontWeight) {
   EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(), style->font_weight());
 }
 
+TEST_F(ParserTest, Parses100FontWeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-weight: 100;", source_location_);
+
+  EXPECT_EQ(cssom::FontWeightValue::GetThinAka100(), style->font_weight());
+}
+
+TEST_F(ParserTest, Parses200FontWeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-weight: 200;", source_location_);
+
+  EXPECT_EQ(cssom::FontWeightValue::GetExtraLightAka200(),
+            style->font_weight());
+}
+
+TEST_F(ParserTest, Parses300FontWeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-weight: 300;", source_location_);
+
+  EXPECT_EQ(cssom::FontWeightValue::GetLightAka300(), style->font_weight());
+}
+
+TEST_F(ParserTest, Parses400FontWeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-weight: 400;", source_location_);
+
+  EXPECT_EQ(cssom::FontWeightValue::GetNormalAka400(), style->font_weight());
+}
+
+TEST_F(ParserTest, Parses500FontWeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-weight: 500;", source_location_);
+
+  EXPECT_EQ(cssom::FontWeightValue::GetMediumAka500(), style->font_weight());
+}
+
+TEST_F(ParserTest, Parses600FontWeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-weight: 600;", source_location_);
+
+  EXPECT_EQ(cssom::FontWeightValue::GetSemiBoldAka600(), style->font_weight());
+}
+
+TEST_F(ParserTest, Parses700FontWeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-weight: 700;", source_location_);
+
+  EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(), style->font_weight());
+}
+
+TEST_F(ParserTest, Parses800FontWeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-weight: 800;", source_location_);
+
+  EXPECT_EQ(cssom::FontWeightValue::GetExtraBoldAka800(), style->font_weight());
+}
+
+TEST_F(ParserTest, Parses900FontWeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font-weight: 900;", source_location_);
+
+  EXPECT_EQ(cssom::FontWeightValue::GetBlackAka900(), style->font_weight());
+}
+
 TEST_F(ParserTest, ParsesHeight) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("height: 100px;", source_location_);

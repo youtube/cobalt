@@ -33,6 +33,7 @@ using cobalt::render_tree::Brush;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Font;
+using cobalt::render_tree::FontStyle;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::ResourceProvider;
@@ -86,8 +87,8 @@ RenderTreeWithAnimations CreateMarqueeScene(
 
   // Load a font for use with text rendering.
   const float kFontSize = 40.0f;
-  scoped_refptr<Font> test_font = resource_provider->GetLocalFont(
-      "Roboto", render_tree::kNormal, kFontSize);
+  scoped_refptr<Font> test_font =
+      resource_provider->GetLocalFont("Roboto", FontStyle(), kFontSize);
 
   // Use information about the string we are rendering to properly position
   // it in the vertical center of the screen and far enough offscreen that
