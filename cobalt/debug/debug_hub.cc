@@ -26,19 +26,15 @@
 
 namespace cobalt {
 namespace debug {
-namespace {
-const char kDebugConsoleOffString[] = "off";
-const char kDebugConsoleHudString[] = "hud";
-const char kDebugConsoleOnString[] = "on";
-}  // namespace
 
 DebugHub::DebugHub(
+    const GetHudModeCallback& get_hud_mode_callback,
     const ExecuteJavascriptCallback& execute_javascript_callback,
     const Debugger::CreateDebugServerCallback& create_debug_server_callback)
-    : execute_javascript_callback_(execute_javascript_callback),
+    : get_hud_mode_callback_(get_hud_mode_callback),
+      execute_javascript_callback_(execute_javascript_callback),
       next_log_message_callback_id_(0),
       log_message_callbacks_deleter_(&log_message_callbacks_),
-      debug_console_mode_(kDebugConsoleOff),
       debugger_(new Debugger(create_debug_server_callback)) {
   // Get log output while still making it available elsewhere.
   const base::LogMessageHandler::OnLogMessageCallback on_log_message_callback =
@@ -102,15 +98,6 @@ void DebugHub::RemoveLogMessageCallback(int callback_id) {
   }
 }
 
-void DebugHub::RemoveAllLogMessageCallbacks() {
-  base::AutoLock auto_lock(lock_);
-  for (LogMessageCallbacks::iterator it = log_message_callbacks_.begin();
-       it != log_message_callbacks_.end(); ++it) {
-    delete it->second;
-  }
-  log_message_callbacks_.clear();
-}
-
 // TODO(***REMOVED***) - This function should be modified to return an array of
 // strings instead of a single space-separated string, once the bindings
 // support return of a string array.
@@ -148,40 +135,8 @@ std::string DebugHub::GetConsoleValue(const std::string& name) const {
   return ret;
 }
 
-int DebugHub::GetDebugConsoleMode() const { return debug_console_mode_; }
-
-void DebugHub::SetDebugConsoleMode(int debug_console_mode) {
-  debug_console_mode_ = debug_console_mode;
-}
-
-int DebugHub::CycleDebugConsoleMode() {
-  debug_console_mode_ = (debug_console_mode_ + 1) % kDebugConsoleNumModes;
-  return debug_console_mode_;
-}
-
-void DebugHub::SetDebugConsoleModeAsString(const std::string& mode_string) {
-  if (mode_string == kDebugConsoleOffString) {
-    SetDebugConsoleMode(kDebugConsoleOff);
-  } else if (mode_string == kDebugConsoleHudString) {
-    SetDebugConsoleMode(kDebugConsoleHud);
-  } else if (mode_string == kDebugConsoleOnString) {
-    SetDebugConsoleMode(kDebugConsoleOn);
-  } else {
-    DLOG(WARNING) << "Debug console mode \"" << mode_string
-                  << "\" not recognized.";
-  }
-}
-
-std::string DebugHub::GetDebugConsoleModeAsString() const {
-  switch (debug_console_mode_) {
-    case kDebugConsoleHud:
-      return kDebugConsoleHudString;
-    case kDebugConsoleOn:
-      return kDebugConsoleOnString;
-    case kDebugConsoleOff:
-    default:
-      return kDebugConsoleOffString;
-  }
+int DebugHub::GetDebugConsoleMode() const {
+  return get_hud_mode_callback_.Run();
 }
 
 std::string DebugHub::ExecuteJavascript(const std::string& javascript) {
