@@ -36,6 +36,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/lbshell/build/projects/steel_build_id.gyp:steel_build_id',
       ],
       'include_dirs': [
         # For steel_build_id.h
