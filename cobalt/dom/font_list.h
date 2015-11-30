@@ -111,19 +111,24 @@ class FontListFont {
 // The key used for maps with a |FontList| value. It is also used for
 // initializing the member variables of a |FontList| object.
 struct FontListKey {
-  FontListKey() : style(render_tree::FontStyle::kNormal), size(0) {}
+  FontListKey() : size(0) {}
 
   bool operator<(const FontListKey& rhs) const {
     if (size < rhs.size) {
       return true;
-    } else if (size == rhs.size) {
-      if (style < rhs.style) {
-        return true;
-      } else if (style == rhs.style) {
-        return family_names < rhs.family_names;
-      }
+    } else if (rhs.size < size) {
+      return false;
+    } else if (style.weight < rhs.style.weight) {
+      return true;
+    } else if (rhs.style.weight < style.weight) {
+      return false;
+    } else if (style.slant < rhs.style.slant) {
+      return true;
+    } else if (rhs.style.slant < style.slant) {
+      return false;
+    } else {
+      return family_names < rhs.family_names;
     }
-    return false;
   }
 
   std::vector<std::string> family_names;

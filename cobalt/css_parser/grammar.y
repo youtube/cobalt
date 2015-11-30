@@ -2990,6 +2990,40 @@ font_weight_property_value:
   | kBoldToken maybe_whitespace {
     $$ = AddRef(cssom::FontWeightValue::GetBoldAka700().get());
   }
+  | positive_integer {
+    switch ($1) {
+      case 100:
+        $$ = AddRef(cssom::FontWeightValue::GetThinAka100().get());
+        break;
+      case 200:
+        $$ = AddRef(cssom::FontWeightValue::GetExtraLightAka200().get());
+        break;
+      case 300:
+        $$ = AddRef(cssom::FontWeightValue::GetLightAka300().get());
+        break;
+      case 400:
+        $$ = AddRef(cssom::FontWeightValue::GetNormalAka400().get());
+        break;
+      case 500:
+        $$ = AddRef(cssom::FontWeightValue::GetMediumAka500().get());
+        break;
+      case 600:
+        $$ = AddRef(cssom::FontWeightValue::GetSemiBoldAka600().get());
+        break;
+      case 700:
+        $$ = AddRef(cssom::FontWeightValue::GetBoldAka700().get());
+        break;
+      case 800:
+        $$ = AddRef(cssom::FontWeightValue::GetExtraBoldAka800().get());
+        break;
+      case 900:
+        $$ = AddRef(cssom::FontWeightValue::GetBlackAka900().get());
+        break;
+      default:
+        parser_impl->LogError(@1, "unsupported property value for font-weight");
+        $$ = NULL;
+    }
+  }
   | common_values
   ;
 
