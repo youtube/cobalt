@@ -25,7 +25,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/crypto.h"
 #include "cobalt/dom/event_target.h"
@@ -184,12 +183,6 @@ class Window : public EventTarget {
   //
   const scoped_refptr<Console>& console() const;
 
-  // Handles debug communication with the main and debug console windows.
-#if defined(ENABLE_DEBUG_CONSOLE)
-  const scoped_refptr<debug::DebugHub>& debug_hub() const;
-  void set_debug_hub(const scoped_refptr<debug::DebugHub>& debug_hub);
-#endif
-
 #if defined(ENABLE_TEST_RUNNER)
   const scoped_refptr<TestRunner>& test_runner() const;
 #endif  // ENABLE_TEST_RUNNER
@@ -241,10 +234,6 @@ class Window : public EventTarget {
   scoped_refptr<Storage> session_storage_;
 
   scoped_refptr<Screen> screen_;
-
-#if defined(ENABLE_DEBUG_CONSOLE)
-  scoped_refptr<debug::DebugHub> debug_hub_;
-#endif
 
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;

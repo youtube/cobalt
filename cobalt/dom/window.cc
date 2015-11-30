@@ -172,16 +172,6 @@ const scoped_refptr<Performance>& Window::performance() const {
 
 const scoped_refptr<Console>& Window::console() const { return console_; }
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-const scoped_refptr<debug::DebugHub>& Window::debug_hub() const {
-  return debug_hub_;
-}
-
-void Window::set_debug_hub(const scoped_refptr<debug::DebugHub>& debug_hub) {
-  debug_hub_ = debug_hub;
-}
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-
 #if defined(ENABLE_TEST_RUNNER)
 const scoped_refptr<TestRunner>& Window::test_runner() const {
   return test_runner_;
@@ -232,16 +222,7 @@ void Window::SetSynchronousLayoutCallback(
   document_->set_synchronous_layout_callback(synchronous_layout_callback);
 }
 
-Window::~Window() {
-#if defined(ENABLE_DEBUG_CONSOLE)
-  // If we are a DebugHub owner, remove all callbacks from it so that the
-  // DebugHub does not retain pointers to anything in the Window context
-  // which is about to be destroyed.
-  if (debug_hub_) {
-    debug_hub_->RemoveAllLogMessageCallbacks();
-  }
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-}
+Window::~Window() {}
 
 }  // namespace dom
 }  // namespace cobalt

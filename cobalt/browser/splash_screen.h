@@ -19,7 +19,9 @@
 
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/media/media_module_stub.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -38,14 +40,14 @@ class SplashScreen {
   SplashScreen(const WebModule::OnRenderTreeProducedCallback&
                    render_tree_produced_callback,
                const base::Callback<void(const std::string&)>& error_callback,
-               media::MediaModule* media_module,
                network::NetworkModule* network_module,
                const math::Size& window_dimensions,
                render_tree::ResourceProvider* resource_provider,
-               float layout_refresh_rate, const Options& options);
+               float layout_refresh_rate, const Options& options = Options());
 
  private:
-  WebModule web_module_;
+  media::MediaModuleStub stub_media_module_;
+  scoped_ptr<WebModule> web_module_;
 };
 
 }  // namespace browser

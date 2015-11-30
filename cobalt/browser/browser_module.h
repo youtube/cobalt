@@ -117,10 +117,6 @@ class BrowserModule {
   void OnDebugConsoleRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
 
-  // Sets the debug console mode if specified on the command-line.
-  // Returns true if the debug console mode was set, false otherwise.
-  bool SetDebugConsoleModeFromCommandLine();
-
   // Calls the ExecuteJavascript for the current WebModule.
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location) {
@@ -130,7 +126,6 @@ class BrowserModule {
   // Saves/loads the debug console mode to/from local storage so we can
   // persist the user's preference.
   void SaveDebugConsoleMode();
-  void LoadDebugConsoleMode();
 
   // Glue function to deal with the production of an input event from the
   // input device, and manage handing it off to the web module for
@@ -198,11 +193,8 @@ class BrowserModule {
   scoped_ptr<WebModule> web_module_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  // Manages debug communication with the web modules.
-  scoped_refptr<debug::DebugHub> debug_hub_;
-
   // Manages a second web module to implement the debug console.
-  DebugConsole debug_console_;
+  scoped_ptr<DebugConsole> debug_console_;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // The browser module runs on this message loop.
