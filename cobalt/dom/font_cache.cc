@@ -106,14 +106,14 @@ FontCache::FontCharacterMap* FontCache::GetFontCharacterMap(
 
 render_tree::TypefaceId FontCache::GetCharacterFallbackTypefaceId(
     int32 utf32_character, render_tree::FontStyle style, float size) {
+  CharacterFallbackTypefaceKey fallback_key(utf32_character, style);
+
   // Grab the fallback character map for the specified style and attempt to
   // lookup the character. If it's already in the map, just return the
   // associated typeface id.
-  CharacterFallbackTypefaceMap& character_fallback_map =
-      character_fallback_typeface_map_[style];
   CharacterFallbackTypefaceMap::iterator fallback_iterator =
-      character_fallback_map.find(utf32_character);
-  if (fallback_iterator != character_fallback_map.end()) {
+      character_fallback_typeface_map_.find(fallback_key);
+  if (fallback_iterator != character_fallback_typeface_map_.end()) {
     return fallback_iterator->second;
   }
 
@@ -125,7 +125,7 @@ render_tree::TypefaceId FontCache::GetCharacterFallbackTypefaceId(
 
   // Map the character to the typeface id of the returned font.
   render_tree::TypefaceId typeface_id = fallback_font->GetTypefaceId();
-  character_fallback_map[utf32_character] = typeface_id;
+  character_fallback_typeface_map_[fallback_key] = typeface_id;
 
   // Check to see if the typeface id already maps to a font. If it doesn't, then
   // add the mapping. After this function is called, the typeface to font

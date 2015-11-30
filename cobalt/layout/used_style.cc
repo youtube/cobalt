@@ -57,28 +57,47 @@ struct BackgroundImageTransformData {
   math::Matrix3F composition_node_transform_matrix;
 };
 
-render_tree::FontStyle ConvertFontWeightToRenderTreeFontStyle(
+render_tree::FontStyle ConvertCSSOMFontValuesToRenderTreeFontStyle(
     cssom::FontStyleValue::Value style, cssom::FontWeightValue::Value weight) {
-  if (style == cssom::FontStyleValue::kNormal &&
-      weight == cssom::FontWeightValue::kNormalAka400) {
-    return render_tree::kNormal;
+  render_tree::FontStyle::Weight font_weight;
+  switch (weight) {
+    case cssom::FontWeightValue::kThinAka100:
+      font_weight = render_tree::FontStyle::kThinWeight;
+      break;
+    case cssom::FontWeightValue::kExtraLightAka200:
+      font_weight = render_tree::FontStyle::kExtraLightWeight;
+      break;
+    case cssom::FontWeightValue::kLightAka300:
+      font_weight = render_tree::FontStyle::kLightWeight;
+      break;
+    case cssom::FontWeightValue::kNormalAka400:
+      font_weight = render_tree::FontStyle::kNormalWeight;
+      break;
+    case cssom::FontWeightValue::kMediumAka500:
+      font_weight = render_tree::FontStyle::kMediumWeight;
+      break;
+    case cssom::FontWeightValue::kSemiBoldAka600:
+      font_weight = render_tree::FontStyle::kSemiBoldWeight;
+      break;
+    case cssom::FontWeightValue::kBoldAka700:
+      font_weight = render_tree::FontStyle::kBoldWeight;
+      break;
+    case cssom::FontWeightValue::kExtraBoldAka800:
+      font_weight = render_tree::FontStyle::kExtraBoldWeight;
+      break;
+    case cssom::FontWeightValue::kBlackAka900:
+      font_weight = render_tree::FontStyle::kBlackWeight;
+      break;
+    default:
+      font_weight = render_tree::FontStyle::kNormalWeight;
   }
 
-  if (style == cssom::FontStyleValue::kItalic &&
-      weight == cssom::FontWeightValue::kBoldAka700) {
-    return render_tree::kBoldItalic;
-  }
+  render_tree::FontStyle::Slant font_slant =
+      style == cssom::FontStyleValue::kItalic
+          ? render_tree::FontStyle::kItalicSlant
+          : render_tree::FontStyle::kUprightSlant;
 
-  if (style == cssom::FontStyleValue::kItalic) {
-    return render_tree::kItalic;
-  }
-
-  if (weight == cssom::FontWeightValue::kBoldAka700) {
-    return render_tree::kBold;
-  }
-
-  NOTREACHED() << "Not supported style: " << style << ", weight: " << weight;
-  return render_tree::kNormal;
+  return render_tree::FontStyle(font_weight, font_slant);
 }
 
 BackgroundImageTransformData GetImageTransformationData(
@@ -388,7 +407,7 @@ scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
   cssom::FontWeightValue* font_weight =
       base::polymorphic_downcast<cssom::FontWeightValue*>(
           font_weight_refptr.get());
-  font_list_key_.style = ConvertFontWeightToRenderTreeFontStyle(
+  font_list_key_.style = ConvertCSSOMFontValuesToRenderTreeFontStyle(
       font_style->value(), font_weight->value());
 
   font_list_key_.size = font_size;
