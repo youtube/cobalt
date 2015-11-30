@@ -28,6 +28,7 @@ class PlatformDelegateStarboard : public PlatformDelegate {
  public:
   PlatformDelegateStarboard();
   ~PlatformDelegateStarboard() OVERRIDE;
+  std::string GetPlatformName() const OVERRIDE { return "Starboard"; }
 };
 
 PlatformDelegateStarboard::PlatformDelegateStarboard() {}
