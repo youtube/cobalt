@@ -17,4 +17,5 @@
 interface NamedGetterInterface {
   getter DOMString namedGetter(DOMString name);
   setter void namedSetter(DOMString name, DOMString value);
+  deleter void namedDeleter(DOMString name);
 };

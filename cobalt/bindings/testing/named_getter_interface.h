@@ -31,6 +31,7 @@ class NamedGetterInterface : public script::Wrappable {
  public:
   MOCK_METHOD1(NamedGetter, std::string(const std::string&));
   MOCK_METHOD2(NamedSetter, void(const std::string&, const std::string&));
+  MOCK_METHOD1(NamedDeleter, std::string(const std::string&));
 
   MOCK_METHOD1(CanQueryNamedProperty, bool(const std::string&));
   MOCK_METHOD1(EnumerateNamedProperties, void(script::PropertyEnumerator*));
