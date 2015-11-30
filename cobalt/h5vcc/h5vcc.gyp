@@ -37,6 +37,10 @@
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
       ],
+      'include_dirs': [
+        # For steel_build_id.h
+        '<(SHARED_INTERMEDIATE_DIR)',
+      ],
     },
 
     {

@@ -56,6 +56,7 @@ class PlatformDelegateWin : public PlatformDelegate {
  public:
   PlatformDelegateWin();
   ~PlatformDelegateWin() OVERRIDE;
+  std::string GetPlatformName() const OVERRIDE { return "Windows"; }
 };
 
 PlatformDelegateWin::PlatformDelegateWin() {
