@@ -204,7 +204,7 @@ setrequestheader-case-insensitive.htm,FAIL
 setrequestheader-content-type.htm,QUIET
 setrequestheader-header-allowed.htm,QUIET
 setrequestheader-header-forbidden.htm,QUIET
-setrequestheader-open-setrequestheader.htm,FAIL
+setrequestheader-open-setrequestheader.htm,PASS
 status-async.htm,FAIL
 status-basic.htm,QUIET
 status-error.htm,PASS
