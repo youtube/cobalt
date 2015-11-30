@@ -20,6 +20,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 
 #include "base/callback.h"
 #include "cobalt/dom/font_list.h"
@@ -50,6 +51,29 @@ class CSPDelegate;
 //     caching of that information for subsequent lookups.
 class FontCache {
  public:
+  struct CharacterFallbackTypefaceKey {
+    CharacterFallbackTypefaceKey(int32 key_character,
+                                 const render_tree::FontStyle& key_style)
+        : character(key_character), style(key_style) {}
+
+    bool operator<(const CharacterFallbackTypefaceKey& rhs) const {
+      if (character < rhs.character) {
+        return true;
+      } else if (rhs.character < character) {
+        return false;
+      } else if (style.weight < rhs.style.weight) {
+        return true;
+      } else if (rhs.style.weight < style.weight) {
+        return false;
+      } else {
+        return style.slant < rhs.style.slant;
+      }
+    }
+
+    int32 character;
+    render_tree::FontStyle style;
+  };
+
   // Font list related
   typedef std::map<FontListKey, scoped_refptr<FontList> > FontListMap;
 
@@ -65,7 +89,8 @@ class FontCache {
   // Character fallback related
   typedef std::map<render_tree::TypefaceId, scoped_refptr<render_tree::Font> >
       FallbackTypefaceToFontMap;
-  typedef std::map<int32, render_tree::TypefaceId> CharacterFallbackTypefaceMap;
+  typedef std::map<CharacterFallbackTypefaceKey, render_tree::TypefaceId>
+      CharacterFallbackTypefaceMap;
 
   FontCache(render_tree::ResourceProvider* resource_provider,
             loader::font::RemoteFontCache* remote_font_cache,
@@ -182,11 +207,7 @@ class FontCache {
   // can be used to provide copies of the font at any desired size, without
   // requiring an additional request of the resource provider for each newly
   // encountered size.
-  // NOTE: Because different styles of the same character can potentially map to
-  // different typefaces, an array of typeface maps separated by font style are
-  // used to differentiate the styles while still providing rapid lookup.
-  CharacterFallbackTypefaceMap
-      character_fallback_typeface_map_[render_tree::FontStyle::kFontStyleCount];
+  CharacterFallbackTypefaceMap character_fallback_typeface_map_;
   FallbackTypefaceToFontMap fallback_typeface_to_font_map_;
 };
 
