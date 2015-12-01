@@ -83,17 +83,6 @@ bool IsForbiddenMethod(const std::string& method) {
   return false;
 }
 
-void ConfigureSendRequest(const net::HttpRequestHeaders& request_headers,
-                          scoped_ptr<std::string> request_body,
-                          net::URLFetcher* url_fetcher) {
-  url_fetcher->SetExtraRequestHeaders(request_headers.ToString());
-  if (request_body->size()) {
-    // If applicable, the request body Content-Type is already set in
-    // request_headers.
-    url_fetcher->SetUploadData("", *request_body);
-  }
-}
-
 }  // namespace
 
 XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
@@ -268,7 +257,7 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   PreventGarbageCollection();
   FireProgressEvent(dom::EventNames::GetInstance()->loadstart());
 
-  scoped_ptr<std::string> request_body_text(new std::string());
+  std::string request_body_text;
 
   // Add request body, if appropriate.
   if ((method_ == net::URLFetcher::POST || method_ == net::URLFetcher::PUT) &&
@@ -276,7 +265,7 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
     bool has_content_type =
         request_headers_.HasHeader(net::HttpRequestHeaders::kContentType);
     if (request_body->IsType<std::string>()) {
-      request_body_text->assign(request_body->AsType<std::string>());
+      request_body_text.assign(request_body->AsType<std::string>());
       if (!has_content_type) {
         // We're assuming that request_body is UTF-8 encoded.
         request_headers_.SetHeader(net::HttpRequestHeaders::kContentType,
@@ -287,21 +276,13 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
           request_body->AsType<scoped_refptr<dom::ArrayBufferView> >();
       if (view->byte_length()) {
         const char* start = reinterpret_cast<const char*>(view->base_address());
-        request_body_text->assign(start + view->byte_offset(),
-                                  view->byte_length());
+        request_body_text.assign(start + view->byte_offset(),
+                                 view->byte_length());
       }
     }
   }
 
-  network::NetworkModule* network_module =
-      settings_->fetcher_factory()->network_module();
-  loader::NetFetcher::Options net_options;
-  net_options.request_method = method_;
-  net_options.setup_callback =
-      base::Bind(&ConfigureSendRequest, request_headers_,
-                 base::Passed(&request_body_text));
-  net_fetcher_.reset(
-      new loader::NetFetcher(request_url_, this, network_module, net_options));
+  StartRequest(request_body_text);
 
   // Start the timeout timer running, if applicable.
   send_start_time_ = base::Time::Now();
@@ -464,13 +445,16 @@ void XMLHttpRequest::set_with_credentials(bool with_credentials) {
   NOTIMPLEMENTED();
 }
 
-void XMLHttpRequest::OnResponseStarted(
-    loader::Fetcher* fetcher,
-    const scoped_refptr<net::HttpResponseHeaders>& headers) {
-  UNREFERENCED_PARAMETER(fetcher);
+void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  http_status_ = headers->response_code();
-  http_response_headers_ = headers;
+  http_status_ = source->GetResponseCode();
+  // TODO(***REMOVED***): Handle the NULL response headers case.
+  DCHECK(source->GetResponseHeaders());
+  // Copy the response headers from the fetcher. It's not safe for us to
+  // modify the existing ones as they may be in use on the network thread.
+  http_response_headers_ =
+      new net::HttpResponseHeaders(source->GetResponseHeaders()->raw_headers());
+
   // Discard these as required by XHR spec.
   http_response_headers_->RemoveHeader("Set-Cookie2");
   http_response_headers_->RemoveHeader("Set-Cookie");
@@ -495,40 +479,35 @@ void XMLHttpRequest::OnResponseStarted(
   ChangeState(kHeadersReceived);
 }
 
-void XMLHttpRequest::OnReceived(loader::Fetcher* fetcher, const char* data,
-                                size_t size) {
-  UNREFERENCED_PARAMETER(fetcher);
+void XMLHttpRequest::OnURLFetchDownloadData(
+    const net::URLFetcher* source, scoped_ptr<std::string> download_data) {
+  UNREFERENCED_PARAMETER(source);
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK_NE(state_, kDone);
-  DCHECK(http_response_headers_) << "OnResponseStarted was not called";
-
-  response_body_.Append(reinterpret_cast<const uint8*>(data), size);
+  response_body_.Append(reinterpret_cast<const uint8*>(download_data->data()),
+                        download_data->size());
   ChangeState(kLoading);
 
   UpdateProgress();
 }
 
-void XMLHttpRequest::OnDone(loader::Fetcher* fetcher) {
+void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  UNREFERENCED_PARAMETER(fetcher);
-  stop_timeout_ = true;
-  if (error_) {
-    return;
+  const net::URLRequestStatus& status = source->GetStatus();
+  if (status.is_success()) {
+    stop_timeout_ = true;
+    if (error_) {
+      return;
+    }
+
+    ChangeState(kDone);
+    UpdateProgress();
+
+    // Undo the ref we added in Send()
+    AllowGarbageCollection();
+  } else {
+    HandleRequestError(kNetworkError);
   }
-
-  ChangeState(kDone);
-  UpdateProgress();
-
-  // Undo the ref we added in Send()
-  AllowGarbageCollection();
-}
-
-void XMLHttpRequest::OnError(loader::Fetcher* fetcher,
-                             const std::string& error) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  UNREFERENCED_PARAMETER(fetcher);
-  UNREFERENCED_PARAMETER(error);
-  HandleRequestError(kNetworkError);
 }
 
 XMLHttpRequest::~XMLHttpRequest() {
@@ -558,7 +537,7 @@ void XMLHttpRequest::FireProgressEvent(const std::string& event_name,
 
 void XMLHttpRequest::TerminateRequest() {
   error_ = true;
-  net_fetcher_.reset(NULL);
+  url_fetcher_.reset(NULL);
 }
 
 void XMLHttpRequest::HandleRequestError(
@@ -680,6 +659,24 @@ void XMLHttpRequest::AllowGarbageCollection() {
   settings_->javascript_engine()->ReportExtraMemoryCost(
       response_body_.capacity());
   settings_->global_object()->AllowGarbageCollection(make_scoped_refptr(this));
+}
+
+void XMLHttpRequest::StartRequest(const std::string& request_body) {
+  network::NetworkModule* network_module =
+      settings_->fetcher_factory()->network_module();
+  url_fetcher_.reset(net::URLFetcher::Create(request_url_, method_, this));
+  url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
+  // Don't cache the response, just send it to us in OnURLFetchDownloadData().
+  url_fetcher_->DiscardResponse();
+  // Don't retry, let the caller deal with it.
+  url_fetcher_->SetAutomaticallyRetryOn5xx(false);
+  url_fetcher_->SetExtraRequestHeaders(request_headers_.ToString());
+  if (request_body.size()) {
+    // If applicable, the request body Content-Type is already set in
+    // request_headers.
+    url_fetcher_->SetUploadData("", request_body);
+  }
+  url_fetcher_->Start();
 }
 
 }  // namespace xhr
