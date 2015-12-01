@@ -114,20 +114,5 @@ TEST_F(FetcherFactoryTest, MultipleCreations) {
   EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());
 }
 
-TEST_F(FetcherFactoryTest, FetcherWithRange) {
-  // Having a RunLoop ensures that any callback created by the Fetcher
-  // will be able to run. We then quit the message loop in the
-  // StubFetcherHandler when either OnDone() or OnError() has occurred.
-  base::RunLoop run_loop;
-  StubFetcherHandler stub_fetcher_handler(&run_loop);
-
-  fetcher_ = fetcher_factory_.CreateFetcherWithRange(
-      GURL("file:///nonempty-url-1"), 100, 10, &stub_fetcher_handler);
-  EXPECT_TRUE(fetcher_);
-
-  run_loop.Run();
-  EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());
-}
-
 }  // namespace loader
 }  // namespace cobalt
