@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/keyboard_event.h"
 
+#include <string>
+
 #include "base/logging.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/keycode.h"

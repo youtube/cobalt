@@ -30,6 +30,7 @@
 #include "cobalt/dom/node_list.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/source_code.h"
+#include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/util/call_on_message_loop.h"
 
 namespace cobalt {
@@ -224,6 +225,19 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::Execute(
                                        base::Unretained(this), script));
 }
 
+util::CommandResult<void> WindowDriver::SendKeys(const protocol::Keys& keys) {
+  // Translate the keys into KeyboardEvents. Don't reset modifiers.
+  scoped_ptr<Keyboard::KeyboardEventVector> events(
+      new Keyboard::KeyboardEventVector());
+  Keyboard::TranslateToKeyEvents(keys.utf8_keys(), Keyboard::kKeepModifiers,
+                                 events.get());
+  // Dispatch the keyboard events.
+  return util::CallOnMessageLoop(
+      window_message_loop_,
+      base::Bind(&WindowDriver::SendKeysInternal, base::Unretained(this),
+                 base::Passed(&events)));
+}
+
 protocol::ElementId WindowDriver::ElementToId(
     const scoped_refptr<dom::Element>& element) {
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
@@ -359,6 +373,21 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
   } else {
     return CommandResult(protocol::Response::kJavaScriptError);
   }
+}
+
+util::CommandResult<void> WindowDriver::SendKeysInternal(
+    scoped_ptr<KeyboardEventVector> events) {
+  typedef util::CommandResult<void> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  if (!window_) {
+    return CommandResult(protocol::Response::kNoSuchWindow);
+  }
+
+  for (size_t i = 0; i < events->size(); ++i) {
+    // InjectEvent will send to the focused element.
+    window_->InjectEvent((*events)[i]);
+  }
+  return CommandResult(protocol::Response::kSuccess);
 }
 
 }  // namespace webdriver

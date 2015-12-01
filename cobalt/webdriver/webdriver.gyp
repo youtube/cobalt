@@ -26,10 +26,14 @@
             'dispatcher.h',
             'element_driver.cc',
             'element_driver.h',
+            'keyboard.cc',
+            'keyboard.h',
             'protocol/capabilities.cc',
             'protocol/capabilities.h',
             'protocol/element_id.cc',
             'protocol/element_id.h',
+            'protocol/keys.cc',
+            'protocol/keys.h',
             'protocol/response.cc',
             'protocol/response.h',
             'protocol/search_strategy.cc',
@@ -66,6 +70,27 @@
         'copy_webdriver_data',
       ],
     },
+
+    {
+      'target_name': 'webdriver_test',
+      'type': '<(gtest_target_type)',
+      'conditions': [
+        ['enable_webdriver==1', {
+          'sources': [
+            'keyboard_test.cc',
+          ],
+        }],
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        'webdriver',
+      ],
+    },
+
     {
       'target_name': 'copy_webdriver_data',
       'type': 'none',

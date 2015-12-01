@@ -30,14 +30,14 @@ class UIEventWithKeyState : public UIEvent {
  public:
   // Web API: KeyboardEvent, MouseEvent
   //
-  static const unsigned int kNoModifier = 0;
-  static const unsigned int kAltKey = 1 << 0;
-  static const unsigned int kCtrlKey = 1 << 1;
-  static const unsigned int kMetaKey = 1 << 2;
-  static const unsigned int kShiftKey = 1 << 3;
+  static const uint32 kNoModifier = 0;
+  static const uint32 kAltKey = 1 << 0;
+  static const uint32 kCtrlKey = 1 << 1;
+  static const uint32 kMetaKey = 1 << 2;
+  static const uint32 kShiftKey = 1 << 3;
 
-  unsigned int modifiers() const { return modifiers_; }
-  void set_modifiers(unsigned int modifiers) { modifiers_ = modifiers; }
+  uint32 modifiers() const { return modifiers_; }
+  void set_modifiers(uint32 modifiers) { modifiers_ = modifiers; }
 
   bool alt_key() const { return (modifiers_ & kAltKey) != 0; }
   bool ctrl_key() const { return (modifiers_ & kCtrlKey) != 0; }
@@ -48,12 +48,12 @@ class UIEventWithKeyState : public UIEvent {
 
  protected:
   UIEventWithKeyState(const std::string& type, Bubbles bubbles,
-                      Cancelable cancelable, unsigned int modifiers)
+                      Cancelable cancelable, uint32 modifiers)
       : UIEvent(type, bubbles, cancelable), modifiers_(modifiers) {}
 
   ~UIEventWithKeyState() OVERRIDE {}
 
-  unsigned int modifiers_;
+  uint32 modifiers_;
 };
 
 }  // namespace dom
