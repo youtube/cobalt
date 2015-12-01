@@ -114,7 +114,7 @@ class LineBox {
   float baseline_offset_from_top() const { return baseline_offset_from_top_; }
 
  private:
-  float GetAvailableWidth();
+  float GetAvailableWidth() const;
   void UpdateSizePreservingTrailingWhiteSpace(Box* child_box);
   bool ShouldCollapseLeadingWhiteSpaceInNextChildBox() const;
   void CollapseTrailingWhiteSpace();
