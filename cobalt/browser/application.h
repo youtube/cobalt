@@ -57,6 +57,9 @@ class Application {
   // Called to handle an event from the account manager.
   void OnAccountEvent(const base::Event* event);
 
+  // Called to handle a network event.
+  void OnNetworkEvent(const base::Event* event);
+
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
 
@@ -71,7 +74,9 @@ class Application {
   // Main components of the Cobalt browser application.
   scoped_ptr<BrowserModule> browser_module_;
 
+  // Event callbacks.
   base::EventCallback account_event_callback_;
+  base::EventCallback network_event_callback_;
 
 #if defined(ENABLE_WEBDRIVER)
   // WebDriver implementation with embedded HTTP server.
