@@ -21,12 +21,42 @@
 namespace cobalt {
 namespace render_tree {
 
+namespace {
+
+class BrushCloner : public BrushVisitor {
+ public:
+  virtual ~BrushCloner() {}
+
+  void Visit(const SolidColorBrush* solid_color_brush) OVERRIDE {
+    cloned_.reset(new SolidColorBrush(*solid_color_brush));
+  }
+
+  void Visit(const LinearGradientBrush* linear_gradient_brush) OVERRIDE {
+    cloned_.reset(new LinearGradientBrush(*linear_gradient_brush));
+  }
+
+  scoped_ptr<Brush> PassClone() { return cloned_.Pass(); }
+
+ private:
+  scoped_ptr<Brush> cloned_;
+};
+
+}  // namespace
+
 void SolidColorBrush::Accept(BrushVisitor* visitor) const {
   visitor->Visit(this);
 }
 
 void LinearGradientBrush::Accept(BrushVisitor* visitor) const {
   visitor->Visit(this);
+}
+
+scoped_ptr<Brush> CloneBrush(const Brush* brush) {
+  DCHECK(brush);
+
+  BrushCloner cloner;
+  brush->Accept(&cloner);
+  return cloner.PassClone();
 }
 
 }  // namespace render_tree

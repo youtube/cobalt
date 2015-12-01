@@ -203,6 +203,24 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kBackgroundSizeProperty, "background-size",
                         kInheritedNo, kAnimatableNo, background_size_list);
 
+  // This sets the foreground color of the border specified by the border-style
+  // property.
+  //   http://www.w3.org/TR/css3-background/#border-color
+  SetPropertyDefinition(kBorderColorProperty, "border-color", kInheritedNo,
+                        kAnimatableYes, KeywordValue::GetCurrentColor());
+
+  //   http://www.w3.org/TR/css3-background/#border-style
+  SetPropertyDefinition(kBorderStyleProperty, "border-style", kInheritedNo,
+                        kAnimatableNo, KeywordValue::GetNone());
+
+  //  Initial: medium.
+  // According to the spec., make the thickness depend on the 'medium' font
+  // size: one choice might be 1, 3, & 5px (thin, medium, and thick) when the
+  // 'medium' font size is 17 px or less.
+  //   http://www.w3.org/TR/css3-background/#border-width
+  SetPropertyDefinition(kBorderWidthProperty, "border-width", kInheritedNo,
+                        kAnimatableNo, new LengthValue(3, kPixelsUnit));
+
   // Cobalt only support a single length value that applies to all borders.
   //   http://www.w3.org/TR/css3-background/#the-border-radius
   SetPropertyDefinition(kBorderRadiusProperty, "border-radius", kInheritedNo,
@@ -426,6 +444,14 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBackgroundProperty, "background",
                                  background_longhand_properties);
 
+  //   http://www.w3.org/TR/css3-background/#border
+  LonghandPropertySet border_longhand_properties;
+  border_longhand_properties.insert(kBorderColorProperty);
+  border_longhand_properties.insert(kBorderStyleProperty);
+  border_longhand_properties.insert(kBorderWidthProperty);
+  SetShorthandPropertyDefinition(kBorderProperty, "border",
+                                 border_longhand_properties);
+
   //   http://www.w3.org/TR/CSS21/box.html#propdef-margin
   LonghandPropertySet margin_longhand_properties;
   margin_longhand_properties.insert(kMarginBottomProperty);
@@ -457,7 +483,6 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                                  animation_longhand_properties);
 
   //   http://www.w3.org/TR/css3-transitions/#transition-shorthand-property
-
   LonghandPropertySet transition_longhand_properties;
   transition_longhand_properties.insert(kTransitionDelayProperty);
   transition_longhand_properties.insert(kTransitionDurationProperty);
@@ -554,6 +579,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       return kNoneProperty;
 
     case 6:
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderProperty))) {
+        return kBorderProperty;
+      }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBottomProperty))) {
         return kBottomProperty;
@@ -697,6 +726,18 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
 
     case 12:
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderColorProperty))) {
+        return kBorderColorProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderStyleProperty))) {
+        return kBorderStyleProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderWidthProperty))) {
+        return kBorderWidthProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kMarginRightProperty))) {
         return kMarginRightProperty;
       }
@@ -835,7 +876,7 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
     default:
       return kNoneProperty;
   }
-}
+}  // NOLINT(readability/fn_size)
 
 }  // namespace cssom
 }  // namespace cobalt

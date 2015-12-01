@@ -88,7 +88,11 @@
 %token kBackgroundRepeatToken                 // background-repeat
 %token kBackgroundSizeToken                   // background-size
 %token kBackgroundToken                       // background
+%token kBorderToken                           // border
+%token kBorderColorToken                      // border-color
 %token kBorderRadiusToken                     // border-radius
+%token kBorderStyleToken                      // border-style
+%token kBorderWidthToken                      // border-width
 %token kBottomToken                           // bottom
 %token kColorToken                            // color
 %token kContentToken                          // content
@@ -205,6 +209,7 @@
 %token kSansSerifToken                  // sans-serif
 %token kSerifToken                      // serif
 %token kSilverToken                     // silver
+%token kSolidToken                      // solid
 %token kStartToken                      // start
 %token kStaticToken                     // static
 %token kStepEndToken                    // step-end
@@ -475,7 +480,10 @@
                        background_repeat_property_value
                        background_size_property_list_element
                        background_size_property_value
+                       border_color_property_value
                        border_radius_property_value
+                       border_style_property_value
+                       border_width_property_value
                        color_property_value
                        common_values
                        common_values_without_errors
@@ -493,6 +501,7 @@
                        height_property_value
                        length_percent_property_value
                        line_height_property_value
+                       line_style
                        linear_gradient_params
                        margin_side_property_value
                        margin_width
@@ -738,6 +747,10 @@
 %union { BackgroundPositionInfo* background_position_info; }
 %type <background_position_info> background_position_property_list
 %destructor { delete $$; } <background_position_info>
+
+%union { BorderShorthand* border_shorthand; }
+%type <border_shorthand> border_property_value border_property_list
+%destructor { delete $$; } <border_shorthand>
 
 %%
 
@@ -1161,9 +1174,25 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kBackgroundProperty));
   }
+  | kBorderToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBorderProperty));
+  }
+  | kBorderColorToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBorderColorProperty));
+  }
   | kBorderRadiusToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kBorderRadiusProperty));
+  }
+  | kBorderStyleToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBorderStyleProperty));
+  }
+  | kBorderWidthToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBorderWidthProperty));
   }
   | kBottomToken {
     $$ = TrivialStringPiece::FromCString(
@@ -1541,6 +1570,9 @@ identifier_token:
   }
   | kSilverToken {
     $$ = TrivialStringPiece::FromCString(cssom::kSilverKeywordName);
+  }
+  | kSolidToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kSolidKeywordName);
   }
   | kStartToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStartKeywordName);
@@ -2723,6 +2755,99 @@ background_size_property_value:
   }
   | kCoverToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetCover().get());
+  }
+  ;
+
+// 'border-color' sets the foreground color of the border specified by the
+// border-style properties.
+//   http://www.w3.org/TR/css3-background/#border-color
+border_color_property_value:
+    color  { $$ = $1; }
+  | common_values
+  ;
+
+//   http://www.w3.org/TR/css3-background/#ltline-stylegt
+line_style:
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | kHiddenToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetHidden().get());
+  }
+  | kSolidToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetSolid().get());
+  }
+  ;
+
+// 'border-style' sets the style of the border, unless there is a border-image.
+//   http://www.w3.org/TR/css3-background/#border-style
+border_style_property_value:
+    line_style
+  | common_values
+  ;
+
+// 'border-width' sets the thickness of the border.
+//   http://www.w3.org/TR/css3-background/#border-width
+border_width_property_value:
+    positive_length  { $$ = $1; }
+  | common_values
+  ;
+
+// border_property_element represents a component of a single border property.
+// It uses $0 to access its parent's BorderShorthand object and build it, so it
+// should always be used to the right of a border shorthand object.
+border_property_element:
+    color {
+    if (!$<border_shorthand>0->border_color) {
+      $<border_shorthand>0->border_color = MakeScopedRefPtrAndRelease($1);
+    } else {
+      parser_impl->LogError(
+          @1, "border-color value declared twice in border.");
+    }
+  }
+  | line_style {
+    if (!$<border_shorthand>0->border_style) {
+      $<border_shorthand>0->border_style = MakeScopedRefPtrAndRelease($1);
+    } else {
+      parser_impl->LogError(
+          @1, "border-style value declared twice in border.");
+    }
+  }
+  | positive_length {
+    if (!$<border_shorthand>0->border_width) {
+      $<border_shorthand>0->border_width = MakeScopedRefPtrAndRelease($1);
+    } else {
+      parser_impl->LogError(
+          @1, "border-width value declared twice in border.");
+    }
+  }
+  ;
+
+border_property_list:
+    /* empty */ {
+    $$ = new BorderShorthand();
+  }
+  | border_property_list border_property_element {
+    $$ = $1;
+  }
+  ;
+
+// TODO(***REMOVED***): Support border-image.
+// The border can either be a predefined style (solid line, double line, dotted
+// line, pseudo-3D border, etc.) or it can be an image. In the former case,
+// various properties define the style ('border-style'), color ('border-color'),
+// and thickness ('border-width') of the border.
+//   http://www.w3.org/TR/css3-background/#borders
+border_property_value:
+    border_property_list
+  | common_values_without_errors {
+    // Replicate the common value into each of the properties that border is a
+    // shorthand for.
+    scoped_ptr<BorderShorthand> border(new BorderShorthand());
+    border->border_color = $1;
+    border->border_style = $1;
+    border->border_width = $1;
+    $$ = border.release();
   }
   ;
 
@@ -4383,9 +4508,48 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kBorderToken maybe_whitespace colon border_property_value
+      maybe_important {
+    scoped_ptr<BorderShorthand> border($4);
+    DCHECK(border);
+
+    scoped_ptr<PropertyDeclaration> property_declaration(
+        new PropertyDeclaration($5));
+
+    // Unpack the border shorthand property values.
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kBorderColorProperty, border->border_color));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kBorderStyleProperty, border->border_style));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kBorderWidthProperty, border->border_width));
+
+    $$ = property_declaration.release();
+  }
+  | kBorderColorToken maybe_whitespace colon border_color_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBorderColorProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kBorderRadiusToken maybe_whitespace colon border_radius_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kBorderRadiusProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kBorderStyleToken maybe_whitespace colon border_style_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBorderStyleProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kBorderWidthToken maybe_whitespace colon border_width_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBorderWidthProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
