@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/window.h"
 
+#include <algorithm>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "cobalt/dom/console.h"
@@ -146,6 +148,9 @@ scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 
 int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
                        int timeout) {
+  DLOG_IF(WARNING, timeout < 0)
+      << "Window::SetTimeout received negative timeout: " << timeout;
+  timeout = std::max(timeout, 0);
   return window_timers_->SetTimeout(handler, timeout);
 }
 
@@ -153,6 +158,9 @@ void Window::ClearTimeout(int handle) { window_timers_->ClearTimeout(handle); }
 
 int Window::SetInterval(const WindowTimers::TimerCallbackArg& handler,
                         int timeout) {
+  DLOG_IF(WARNING, timeout < 0)
+      << "Window::SetInterval received negative timeout: " << timeout;
+  timeout = std::max(timeout, 0);
   return window_timers_->SetInterval(handler, timeout);
 }
 
