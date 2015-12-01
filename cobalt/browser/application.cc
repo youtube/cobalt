@@ -28,6 +28,7 @@
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/deprecated/platform_delegate.h"
+#include "cobalt/network/network_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
 
@@ -158,11 +159,15 @@ Application::Application()
                                           account_manager_.get(), options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 
-  // Register our callback for events from the account manager.
+  // Register event callbacks.
   account_event_callback_ =
       base::Bind(&Application::OnAccountEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(account::AccountEvent::TypeId(),
                                      account_event_callback_);
+  network_event_callback_ =
+      base::Bind(&Application::OnNetworkEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(network::NetworkEvent::TypeId(),
+                                     network_event_callback_);
 
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
@@ -183,9 +188,11 @@ Application::Application()
 Application::~Application() {
   DCHECK(!message_loop_.is_running());
 
-  // Unregister our callback for account manager events.
+  // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(account::AccountEvent::TypeId(),
                                         account_event_callback_);
+  event_dispatcher_.RemoveEventCallback(network::NetworkEvent::TypeId(),
+                                        network_event_callback_);
 }
 
 void Application::Quit() {
@@ -232,6 +239,14 @@ void Application::OnAccountEvent(const base::Event* event) {
   } else if (account_event->type() == account::AccountEvent::kSignedOut) {
     DLOG(INFO) << "Got signed out event.";
     browser_module_->Navigate(GURL("h5vcc://signed-out"));
+  }
+}
+
+void Application::OnNetworkEvent(const base::Event* event) {
+  const network::NetworkEvent* network_event =
+      base::polymorphic_downcast<const network::NetworkEvent*>(event);
+  if (network_event->type() == network::NetworkEvent::kDisconnection) {
+    browser_module_->Navigate(GURL("h5vcc://network-failure"));
   }
 }
 
