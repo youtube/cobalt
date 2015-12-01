@@ -44,6 +44,9 @@ class AccountManager {
   // Initiate user sign-in (e.g. open a sign-in dialog)
   virtual void StartSignIn() = 0;
 
+  // Is access by the currently signed-in user restricted by age?
+  virtual bool IsAgeRestricted() = 0;
+
  protected:
   AccountManager() {}
 

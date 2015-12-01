@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "base/message_loop.h"
+#include "cobalt/account/account_manager.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/system_window/system_window.h"
@@ -63,6 +64,9 @@ class Application {
   // This routes event callbacks, and provides a native window handle
   // on desktop systems.
   scoped_ptr<system_window::SystemWindow> system_window_;
+
+  // Account manager with platform-specific implementation (e.g. PSN on PS3).
+  scoped_ptr<account::AccountManager> account_manager_;
 
   // Main components of the Cobalt browser application.
   scoped_ptr<BrowserModule> browser_module_;

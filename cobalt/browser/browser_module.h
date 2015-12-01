@@ -62,6 +62,7 @@ class BrowserModule {
   typedef std::list<URLHandler::URLHandlerCallback> URLHandlerCollection;
 
   BrowserModule(const GURL& url, system_window::SystemWindow* system_window,
+                account::AccountManager* account_manager,
                 const Options& options);
   ~BrowserModule();
 
@@ -178,9 +179,6 @@ class BrowserModule {
 
   // Sets up the network component for requesting internet resources.
   network::NetworkModule network_module_;
-
-  // Manages user account (e.g. PSN on PS3).
-  scoped_ptr<account::AccountManager> account_manager_;
 
   // Manages the two render trees, combines and renders them.
   RenderTreeCombiner render_tree_combiner_;

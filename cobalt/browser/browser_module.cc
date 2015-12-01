@@ -130,6 +130,7 @@ scoped_refptr<script::Wrappable> CreateH5VCC(
 
 BrowserModule::BrowserModule(const GURL& url,
                              system_window::SystemWindow* system_window,
+                             account::AccountManager* account_manager,
                              const Options& options)
     : storage_manager_(options.storage_manager_options),
       renderer_module_(system_window, options.renderer_module_options),
@@ -137,8 +138,6 @@ BrowserModule::BrowserModule(const GURL& url,
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_, system_window->event_dispatcher(),
                       options.network_module_options),
-      account_manager_(
-          account::AccountManager::Create(system_window->event_dispatcher())),
       render_tree_combiner_(renderer_module_.pipeline()),
       self_message_loop_(MessageLoop::current()),
       ALLOW_THIS_IN_INITIALIZER_LIST(trace_command_handler_(
@@ -160,13 +159,13 @@ BrowserModule::BrowserModule(const GURL& url,
       screen_shot_writer_(new ScreenShotWriter(renderer_module_.pipeline())),
 #endif  // defined(ENABLE_SCREENSHOT)
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          h5vcc_url_handler_(this, system_window, account_manager_.get())),
+          h5vcc_url_handler_(this, system_window, account_manager)),
       web_module_options_(options.web_module_options) {
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
   h5vcc_settings.network_module = &network_module_;
-  h5vcc_settings.account_manager = account_manager_.get();
+  h5vcc_settings.account_manager = account_manager;
   web_module_options_.injected_window_attributes["h5vcc"] =
       base::Bind(&CreateH5VCC, h5vcc_settings);
 
