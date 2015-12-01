@@ -50,7 +50,14 @@ void InputDeviceManagerFuzzer::OnNextEvent() {
   // an event based on that.
   int rand_key_event_index =
       static_cast<int>(base::RandGenerator(sample_events_.size()));
-  keyboard_event_callback_.Run(sample_events_[rand_key_event_index]);
+  scoped_refptr<dom::KeyboardEvent> sample_event =
+      sample_events_[rand_key_event_index];
+  scoped_refptr<dom::KeyboardEvent> duplicated_event(new dom::KeyboardEvent(
+      sample_event->type(), sample_event->location(), sample_event->modifiers(),
+      sample_event->key_code(), sample_event->char_code(),
+      sample_event->repeat()));
+
+  keyboard_event_callback_.Run(duplicated_event);
 }
 
 }  // namespace input
