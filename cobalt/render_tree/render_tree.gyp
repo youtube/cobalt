@@ -25,6 +25,7 @@
       'target_name': 'render_tree',
       'type': 'static_library',
       'sources': [
+        'border.cc',
         'border.h',
         'border_radiuses.h',
         'brush.cc',

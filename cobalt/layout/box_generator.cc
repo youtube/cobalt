@@ -200,6 +200,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kFantasy:
@@ -222,6 +223,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kSansSerif:
     case cssom::KeywordValue::kSerif:
+    case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
@@ -394,6 +396,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kEllipsis:
@@ -417,6 +420,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kSansSerif:
     case cssom::KeywordValue::kSerif:
+    case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
@@ -507,6 +511,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kClip:
       case cssom::KeywordValue::kContain:
       case cssom::KeywordValue::kCover:
+      case cssom::KeywordValue::kCurrentColor:
       case cssom::KeywordValue::kCursive:
       case cssom::KeywordValue::kEllipsis:
       case cssom::KeywordValue::kFantasy:
@@ -530,6 +535,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kRight:
       case cssom::KeywordValue::kSansSerif:
       case cssom::KeywordValue::kSerif:
+      case cssom::KeywordValue::kSolid:
       case cssom::KeywordValue::kStatic:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:

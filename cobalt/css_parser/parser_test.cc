@@ -2010,6 +2010,80 @@ TEST_F(ParserTest, ParsesBackgroundSizeOnePercentageOneAuto) {
             background_size_list->value()[1].get());
 }
 
+TEST_F(ParserTest, ParsesBorderWidthColorStyle) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border: .5em #fff solid;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_width().get());
+  ASSERT_TRUE(border_width);
+  EXPECT_FLOAT_EQ(0.5f, border_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_width->unit());
+
+  scoped_refptr<cssom::RGBAColorValue> border_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_color().get());
+  ASSERT_TRUE(border_color);
+  EXPECT_EQ(0xffffffff, border_color->value());
+
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_style());
+}
+
+TEST_F(ParserTest, ParsesBorderColorWidth) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border: gray 20px;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_width().get());
+  ASSERT_TRUE(border_width);
+  EXPECT_FLOAT_EQ(20, border_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_width->unit());
+
+  scoped_refptr<cssom::RGBAColorValue> border_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_color().get());
+  ASSERT_TRUE(border_color);
+  EXPECT_EQ(0x808080FF, border_color->value());
+}
+
+TEST_F(ParserTest, ParsesSingleBorderColor) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-color: rgba(0, 0, 0, .8);",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> border_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_color().get());
+  ASSERT_TRUE(border_color);
+  EXPECT_EQ(0x000000cc, border_color->value());
+}
+
+TEST_F(ParserTest, ParsesSingleBorderWidth) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-width: .8em;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_width().get());
+  ASSERT_TRUE(border_width);
+  EXPECT_FLOAT_EQ(0.8f, border_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_width->unit());
+}
+
+TEST_F(ParserTest, ParsesSingleBorderStyleSolid) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-style: solid;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_style());
+}
+
+TEST_F(ParserTest, ParsesSingleBorderStyleHidden) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-style: hidden;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetHidden(), style->border_style());
+}
+
 TEST_F(ParserTest, ParsesBorderRadius) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("border-radius: 0.2em;",
