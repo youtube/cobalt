@@ -268,7 +268,7 @@ void DemuxerHelper::CreateDemuxer(
 
   scoped_refptr<FetcherBufferedDataSource> data_source(
       new FetcherBufferedDataSource(media_message_loop, video_url,
-                                    fetcher_factory));
+                                    fetcher_factory->network_module()));
   scoped_refptr<Demuxer> demuxer =
       new ::media::ShellDemuxer(media_message_loop, data_source);
   demuxer->Initialize(
