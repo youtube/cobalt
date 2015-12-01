@@ -21,6 +21,8 @@
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
+#include "base/string_number_conversions.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 
 namespace cobalt {
@@ -30,7 +32,7 @@ namespace {
 
 // This function can be posted to a message loop to destroy a fetcher on the
 // particular message loop.
-void DestroyFetcher(scoped_ptr<loader::Fetcher> fetcher) {
+void DestroyFetcher(scoped_ptr<net::URLFetcher> fetcher) {
   fetcher.reset();  // Explicitly destroy the fetcher.
 }
 
@@ -38,10 +40,10 @@ void DestroyFetcher(scoped_ptr<loader::Fetcher> fetcher) {
 
 FetcherBufferedDataSource::FetcherBufferedDataSource(
     const scoped_refptr<base::MessageLoopProxy>& message_loop, const GURL& url,
-    loader::FetcherFactory* fetcher_factory)
+    network::NetworkModule* network_module)
     : message_loop_(message_loop),
       url_(url),
-      fetcher_factory_(fetcher_factory),
+      network_module_(network_module),
       buffer_(kBufferCapacity),
       buffer_offset_(0),
       error_occured_(false),
@@ -53,7 +55,7 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
       pending_read_data_(NULL) {
   DCHECK(message_loop_);
   DCHECK(!url.path().empty());
-  DCHECK(fetcher_factory);
+  DCHECK(network_module);
 }
 
 FetcherBufferedDataSource::~FetcherBufferedDataSource() {
@@ -102,16 +104,27 @@ bool FetcherBufferedDataSource::GetSize(int64* size_out) {
   return *size_out != kInvalidSize;
 }
 
-void FetcherBufferedDataSource::OnResponseStarted(
-    Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
+void FetcherBufferedDataSource::OnURLFetchResponseStarted(
+    const net::URLFetcher* source) {
   DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(headers);
 
   base::AutoLock auto_lock(lock_);
-
-  if (fetcher_ != fetcher || error_occured_) {
+  DCHECK_EQ(fetcher_.get(), source);
+  if (error_occured_) {
     return;
   }
+  if (!source->GetStatus().is_success()) {
+    // The error will be handled on OnURLFetchComplete()
+    error_occured_ = true;
+    return;
+  } else if (source->GetResponseCode() == -1) {
+    // Could be a file URL, so we won't expect headers.
+    return;
+  }
+
+  scoped_refptr<net::HttpResponseHeaders> headers =
+      source->GetResponseHeaders();
+  DCHECK(headers);
 
   uint64 first_byte_offset = 0;
 
@@ -141,17 +154,18 @@ void FetcherBufferedDataSource::OnResponseStarted(
   }
 }
 
-void FetcherBufferedDataSource::OnReceived(Fetcher* fetcher, const char* data,
-                                           size_t size) {
+void FetcherBufferedDataSource::OnURLFetchDownloadData(
+    const net::URLFetcher* source, scoped_ptr<std::string> download_data) {
+  UNREFERENCED_PARAMETER(source);
   DCHECK(message_loop_->BelongsToCurrentThread());
-
+  size_t size = download_data->size();
   if (size == 0) {
     return;
   }
-
+  const uint8* data = reinterpret_cast<const uint8*>(download_data->data());
   base::AutoLock auto_lock(lock_);
-
-  if (fetcher_ != fetcher || error_occured_) {
+  DCHECK_EQ(fetcher_.get(), source);
+  if (error_occured_) {
     return;
   }
 
@@ -208,40 +222,30 @@ void FetcherBufferedDataSource::OnReceived(Fetcher* fetcher, const char* data,
   ProcessPendingRead_Locked();
 }
 
-void FetcherBufferedDataSource::OnDone(Fetcher* fetcher) {
+void FetcherBufferedDataSource::OnURLFetchComplete(
+    const net::URLFetcher* source) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
-
-  if (fetcher_ != fetcher || error_occured_) {
+  DCHECK_EQ(fetcher_.get(), source);
+  if (error_occured_) {
     return;
   }
-
-  if (total_size_of_resource_ && last_request_size_ != 0) {
-    total_size_of_resource_ = buffer_offset_ + buffer_.GetLength();
+  const net::URLRequestStatus& status = source->GetStatus();
+  if (status.is_success()) {
+    if (total_size_of_resource_ && last_request_size_ != 0) {
+      total_size_of_resource_ = buffer_offset_ + buffer_.GetLength();
+    }
+  } else {
+    LOG(ERROR)
+        << "FetcherBufferedDataSource::OnURLFetchComplete called with error "
+        << status.error();
+    error_occured_ = true;
+    buffer_.Clear();
   }
 
   fetcher_.reset();
 
-  ProcessPendingRead_Locked();
-}
-
-void FetcherBufferedDataSource::OnError(Fetcher* fetcher,
-                                        const std::string& error) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
-
-  LOG(ERROR) << "FetcherBufferedDataSource::OnError() called with error "
-             << error;
-
-  base::AutoLock auto_lock(lock_);
-
-  if (fetcher_ != fetcher) {
-    return;
-  }
-
-  error_occured_ = true;
-  buffer_.Clear();
-  fetcher_.reset();
   ProcessPendingRead_Locked();
 }
 
@@ -251,10 +255,16 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
   base::AutoLock auto_lock(lock_);
   DCHECK_GE(static_cast<int64>(last_request_offset_), 0);
   DCHECK_GE(static_cast<int64>(last_request_size_), 0);
-  fetcher_ = fetcher_factory_->CreateFetcherWithRange(
-      url_, static_cast<int64>(last_request_offset_),
-      static_cast<int64>(last_request_size_), this);
-  DCHECK(fetcher_);
+
+  fetcher_.reset(net::URLFetcher::Create(url_, net::URLFetcher::GET, this));
+  fetcher_->SetRequestContext(network_module_->url_request_context_getter());
+  fetcher_->DiscardResponse();
+
+  std::string range_request =
+      "Range: bytes=" + base::Uint64ToString(last_request_offset_) + "-" +
+      base::Uint64ToString(last_request_offset_ + last_request_size_ - 1);
+  fetcher_->AddExtraRequestHeader(range_request);
+  fetcher_->Start();
 }
 
 void FetcherBufferedDataSource::Read_Locked(uint64 position, uint64 size,
