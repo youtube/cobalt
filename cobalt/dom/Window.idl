@@ -29,8 +29,6 @@
   //
   readonly attribute Console console;
   [Conditional=ENABLE_TEST_RUNNER] readonly attribute TestRunner testRunner;
-  // h5vcc is used to expose various parts of the app to Javascript.
-  readonly attribute H5vcc h5vcc;
 };
 Window implements GlobalCrypto;
 Window implements GlobalEventHandlers;

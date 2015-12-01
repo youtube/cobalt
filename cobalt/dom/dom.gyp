@@ -94,7 +94,6 @@
         'font_face_updater.h',
         'font_list.cc',
         'font_list.h',
-        'h5vcc_stub.h',
         'history.cc',
         'history.h',
         'html_anchor_element.cc',
