@@ -106,6 +106,8 @@ class UsedStyleProviderLayoutScope {
 render_tree::ColorRGBA GetUsedColor(
     const scoped_refptr<cssom::PropertyValue>& color_refptr);
 
+float GetUsedLength(const scoped_refptr<cssom::PropertyValue>& length_refptr);
+
 class UsedBackgroundNodeProvider
     : public cssom::NotReachedPropertyValueVisitor {
  public:

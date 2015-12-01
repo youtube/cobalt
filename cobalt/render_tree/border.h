@@ -18,11 +18,11 @@
 #define RENDER_TREE_BORDER_H_
 
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/math/rect_f.h"
+#include "cobalt/render_tree/brush.h"
 
 namespace cobalt {
 namespace render_tree {
-
-class Brush;
 
 // A style of a border segment.
 enum BorderStyle {
@@ -34,13 +34,20 @@ enum BorderStyle {
 
 // Style properties for one of four sides of a border around a rectangle.
 struct BorderSide {
+  explicit BorderSide(const BorderSide& that);
+  BorderSide(float width, BorderStyle style, const ColorRGBA& color);
+
   float width;
   BorderStyle style;
-  scoped_ptr<Brush> brush;
+  ColorRGBA color;
 };
 
 // A border around a rectangle.
 struct Border {
+  explicit Border(const BorderSide& border_side);
+  Border(const BorderSide& left, const BorderSide& right, const BorderSide& top,
+         const BorderSide& bottom);
+
   BorderSide left;
   BorderSide right;
   BorderSide top;
