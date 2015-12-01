@@ -142,6 +142,8 @@ Application::Application()
   options.web_module_options.name = "MainWebModule";
   options.language = language;
   options.network_module_options.preferred_language = language;
+  // User can specify an extra search path entry for files loaded via file://.
+  options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
 
 #if !defined(COBALT_FORCE_HTTPS)
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kAllowHttp)) {
@@ -150,10 +152,10 @@ Application::Application()
   }
 #endif  // !defined(COBALT_FORCE_HTTPS)
 
-  // User can specify an extra search path entry for files loaded via file://.
-  options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
   system_window_ = system_window::CreateSystemWindow(&event_dispatcher_);
-  browser_module_.reset(new BrowserModule(url, system_window_.get(), options));
+  account_manager_ = account::AccountManager::Create(&event_dispatcher_);
+  browser_module_.reset(new BrowserModule(url, system_window_.get(),
+                                          account_manager_.get(), options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 
   // Register our callback for events from the account manager.
@@ -223,9 +225,12 @@ void Application::OnAccountEvent(const base::Event* event) {
   const account::AccountEvent* account_event =
       base::polymorphic_downcast<const account::AccountEvent*>(event);
   if (account_event->type() == account::AccountEvent::kSignedIn) {
-    DLOG(INFO) << "Got signed in event!";
+    DLOG(INFO) << "Got signed in event, checking for age restriction.";
+    if (account_manager_->IsAgeRestricted()) {
+      browser_module_->Navigate(GURL("h5vcc://age-restricted"));
+    }
   } else if (account_event->type() == account::AccountEvent::kSignedOut) {
-    DLOG(INFO) << "Got signed out event!";
+    DLOG(INFO) << "Got signed out event.";
     browser_module_->Navigate(GURL("h5vcc://signed-out"));
   }
 }
