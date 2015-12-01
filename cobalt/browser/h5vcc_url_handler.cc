@@ -75,12 +75,18 @@ std::string GetH5vccUrlQueryParam(const GURL& url, const std::string& name) {
 const char kH5vccScheme[] = "h5vcc";
 const char kNetworkFailure[] = "network-failure";
 const char kSignedOut[] = "signed-out";
+const char kAgeRestricted[] = "age-restricted";
+
 const char kRetryParam[] = "retry-url";
+
 const char kNetworkFailureMessageId[] = "UNABLE_TO_CONTACT_YOUTUBE";
 const char kNetworkFailureMessageFallback[] = "Unable to contact YouTube";
 const char kSignedOutMessageId[] = "OFFLINE_MESSAGE_1";
 const char kSignedOutMessageFallback[] =
     "You are signed out of PSN. To use YouTube, you need to sign in to PSN.";
+const char kAgeRestrictedMessageId[] = "AGE_RESTRICTED";
+const char kAgeRestrictedMessageFallback[] =
+    "YouTube is not intended for use by children under 13.";
 }  // namespace
 
 H5vccURLHandler::H5vccURLHandler(BrowserModule* browser_module,
@@ -101,6 +107,8 @@ bool H5vccURLHandler::HandleURL(const GURL& url) {
       was_handled = HandleNetworkFailure();
     } else if (type == kSignedOut) {
       was_handled = HandleSignedOut();
+    } else if (type == kAgeRestricted) {
+      was_handled = HandleAgeRestricted();
     } else {
       LOG(WARNING) << "Unknown h5vcc URL type: " << type;
     }
@@ -126,6 +134,15 @@ bool H5vccURLHandler::HandleSignedOut() {
   dialog_options.num_buttons = 1;
   dialog_options.callback = base::Bind(
       &H5vccURLHandler::OnSignedOutDialogResponse, base::Unretained(this));
+  system_window_->ShowDialog(dialog_options);
+  return true;
+}
+
+bool H5vccURLHandler::HandleAgeRestricted() {
+  system_window::SystemWindow::DialogOptions dialog_options;
+  dialog_options.message = base::LocalizedStrings::GetInstance()->GetString(
+      kAgeRestrictedMessageId, kAgeRestrictedMessageFallback);
+  dialog_options.num_buttons = 0;
   system_window_->ShowDialog(dialog_options);
   return true;
 }

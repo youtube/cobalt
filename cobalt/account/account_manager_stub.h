@@ -30,6 +30,7 @@ class AccountManagerStub : public AccountManager {
   ~AccountManagerStub() OVERRIDE;
   std::string GetAvatarURL() OVERRIDE;
   void StartSignIn() OVERRIDE;
+  bool IsAgeRestricted() OVERRIDE;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(AccountManagerStub);

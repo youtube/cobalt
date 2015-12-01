@@ -29,5 +29,7 @@ std::string AccountManagerStub::GetAvatarURL() { return ""; }
 
 void AccountManagerStub::StartSignIn() {}
 
+bool AccountManagerStub::IsAgeRestricted() { return false; }
+
 }  // namespace account
 }  // namespace cobalt
