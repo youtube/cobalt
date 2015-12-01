@@ -275,6 +275,11 @@ WebDriverModule::WebDriverModule(
       StringPrintf("/session/%s/elements", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::FindElements)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/keys", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::SendKeys)));
 
   // Element commands.
   webdriver_dispatcher_->RegisterCommand(
@@ -292,6 +297,11 @@ WebDriverModule::WebDriverModule(
                                           kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::IsDisplayed)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost, StringPrintf("/session/%s/element/%s/value",
+                                           kSessionIdVariable, kElementId),
+      element_command_factory->GetCommandHandler(
+          base::Bind(&ElementDriver::SendKeys)));
 
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,

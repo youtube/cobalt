@@ -18,13 +18,17 @@
 #define WEBDRIVER_ELEMENT_DRIVER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/webdriver/protocol/element_id.h"
+#include "cobalt/webdriver/protocol/keys.h"
 #include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
@@ -48,11 +52,17 @@ class ElementDriver {
   util::CommandResult<std::string> GetTagName();
   util::CommandResult<std::string> GetText();
   util::CommandResult<bool> IsDisplayed();
+  util::CommandResult<void> SendKeys(const protocol::Keys& keys);
 
  private:
+  typedef std::vector<scoped_refptr<dom::KeyboardEvent> > KeyboardEventVector;
+
   // Get the dom::Element* that this ElementDriver wraps. This must be called
   // on |element_message_loop_|.
   dom::Element* GetWeakElement();
+
+  util::CommandResult<void> SendKeysInternal(
+      scoped_ptr<KeyboardEventVector> keyboard_events);
 
   base::ThreadChecker thread_checker_;
   protocol::ElementId element_id_;
