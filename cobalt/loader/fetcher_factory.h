@@ -36,11 +36,6 @@ class FetcherFactory {
                  const FilePath& extra_search_dir);
   scoped_ptr<Fetcher> CreateFetcher(
       const GURL& url, Fetcher::Handler* handler);
-  scoped_ptr<Fetcher> CreateFetcherWithRange(const GURL& url,
-                                             int64 start_offset,
-                                             int64 bytes_to_read,
-                                             Fetcher::Handler* handler);
-
   network::NetworkModule* network_module() const { return network_module_; }
 
  private:

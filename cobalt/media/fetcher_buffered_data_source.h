@@ -17,14 +17,18 @@
 #ifndef MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
 #define MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
 
+#include <string>
+
 #include "base/circular_buffer_shell.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
-#include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/network/network_module.h"
 #include "googleurl/src/gurl.h"
 #include "media/player/buffered_data_source.h"
+#include "net/url_request/url_fetcher.h"
+#include "net/url_request/url_fetcher_delegate.h"
 
 namespace cobalt {
 namespace media {
@@ -32,7 +36,7 @@ namespace media {
 // TODO(***REMOVED***): This class requires a large block of memory.  Consider to
 // use ShellBufferFactory for its memory if possible to avoid possible OOM.
 
-// A BufferedDataSource based on loader::Fetcher that can be used to retrieve
+// A BufferedDataSource based on URLFetcher that can be used to retrieve
 // progressive videos from both local and network sources.
 // It uses a fixed size circular buffer so we may not be able to store all data
 // into this buffer.  It is based on the following assumptions/strategies:
@@ -48,7 +52,7 @@ namespace media {
 // 4. It assumes that the server supports range request.
 // 5. All data stored are continuous.
 class FetcherBufferedDataSource : public ::media::BufferedDataSource,
-                                  private loader::Fetcher::Handler {
+                                  private net::URLFetcherDelegate {
  public:
   static const uint32 kBackwardBytes = 1024 * 1024;
   static const uint32 kForwardBytes = 3 * 1024 * 1024;
@@ -59,7 +63,7 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   // we use the message_loop passed in to create and destroy Fetchers.
   FetcherBufferedDataSource(
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
-      const GURL& url, loader::FetcherFactory* fetcher_factory);
+      const GURL& url, network::NetworkModule* network_module);
   ~FetcherBufferedDataSource() OVERRIDE;
 
   // DataSource methods.
@@ -71,15 +75,13 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   void SetBitrate(int bitrate) OVERRIDE { UNREFERENCED_PARAMETER(bitrate); }
 
  private:
-  typedef loader::Fetcher Fetcher;
+  // net::URLFetcherDelegate methods
+  void OnURLFetchResponseStarted(const net::URLFetcher* source) OVERRIDE;
+  bool ShouldSendDownloadData() OVERRIDE { return true; }
+  void OnURLFetchDownloadData(const net::URLFetcher* source,
+                              scoped_ptr<std::string> download_data) OVERRIDE;
+  void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
 
-  // Fetcher::Handler methods.
-  void OnResponseStarted(
-      Fetcher* fetcher,
-      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
-  void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE;
-  void OnDone(Fetcher* fetcher) OVERRIDE;
-  void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE;
   void CreateNewFetcher();
   void Read_Locked(uint64 position, uint64 size, uint8* data,
                    const ReadCB& read_cb);
@@ -89,8 +91,8 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   base::Lock lock_;
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   GURL url_;
-  loader::FetcherFactory* fetcher_factory_;
-  scoped_ptr<Fetcher> fetcher_;
+  network::NetworkModule* network_module_;
+  scoped_ptr<net::URLFetcher> fetcher_;
 
   // |buffer_| stores a continuous block of data of target resource starts from
   // |buffer_offset_|.  When the target resource can be fit into |buffer_|,
