@@ -42,9 +42,6 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
    public:
     Options() : request_method(net::URLFetcher::GET) {}
     net::URLFetcher::RequestType request_method;
-    // If provided, this callback will be called before Start() is called on the
-    // url_fetcher_.
-    base::Callback<void(net::URLFetcher* url_fetcher)> setup_callback;
   };
 
   NetFetcher(const GURL& url, Handler* handler,
