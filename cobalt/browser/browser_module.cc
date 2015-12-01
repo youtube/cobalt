@@ -21,11 +21,13 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "base/stl_util.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/keycode.h"
+#include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 
@@ -118,6 +120,12 @@ void OnScreenshotMessage(BrowserModule* browser_module,
       output_path, base::Bind(&ScreenshotCompleteCallback, output_path));
 }
 #endif  // defined(ENABLE_SCREENSHOT)
+
+scoped_refptr<script::Wrappable> CreateH5VCC(
+    const h5vcc::H5vcc::Settings& settings) {
+  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
+}
+
 }  // namespace
 
 BrowserModule::BrowserModule(const GURL& url,
@@ -154,6 +162,14 @@ BrowserModule::BrowserModule(const GURL& url,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           h5vcc_url_handler_(this, system_window, account_manager_.get())),
       web_module_options_(options.web_module_options) {
+  // Setup our main web module to have the H5VCC API injected into it.
+  DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
+  h5vcc::H5vcc::Settings h5vcc_settings;
+  h5vcc_settings.network_module = &network_module_;
+  h5vcc_settings.account_manager = account_manager_.get();
+  web_module_options_.injected_window_attributes["h5vcc"] =
+      base::Bind(&CreateH5VCC, h5vcc_settings);
+
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
@@ -263,11 +279,6 @@ void BrowserModule::NavigateWithCallbackInternal(
       math::Size(kInitialWidth, kInitialHeight),
       renderer_module_.pipeline()->GetResourceProvider(),
       renderer_module_.pipeline()->refresh_rate(), options));
-
-  h5vcc::H5vcc::Settings h5vcc_settings;
-  h5vcc_settings.network_module = &network_module_;
-  h5vcc_settings.account_manager = account_manager_.get();
-  web_module_->window()->set_h5vcc(new h5vcc::H5vcc(h5vcc_settings));
 }
 
 #if defined(ENABLE_SCREENSHOT)
