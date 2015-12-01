@@ -38,6 +38,7 @@ class H5vccURLHandler : public URLHandler {
   bool HandleURL(const GURL& url);
   bool HandleNetworkFailure();
   bool HandleSignedOut();
+  bool HandleAgeRestricted();
 
   // Dialog response handlers.
   void OnNetworkFailureDialogResponse(
