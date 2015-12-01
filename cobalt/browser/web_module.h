@@ -126,15 +126,13 @@ class WebModule {
   // its way to the appropriate object in DOM.
   void InjectEvent(const scoped_refptr<dom::Event>& event);
 
-  // Call this to execute Javascript code in this web module.
+  // Call this to execute Javascript code in this web module.  The calling
+  // thread will block until the JavaScript has executed and the output results
+  // are available.
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location);
 
-  // TODO(***REMOVED***): Window should not be exposed through WebModule in this way as
-  // it may not be thread-safe.
-  scoped_refptr<dom::Window> window() const { return window_; }
-
-  // Returns the URL of the current Document. This getter is threadsafe.
+  // Returns the URL of the current Document.
   GURL url() const { return url_; }
 
 #if defined(ENABLE_WEBDRIVER)
