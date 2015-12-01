@@ -31,6 +31,7 @@ namespace keycode {
 // Order by the value.
 enum {
   kUnknown = 0,
+  kCancel = 0x03,
   kBack = 0x08,
   kTab = 0x09,
   kBacktab = 0x0A,

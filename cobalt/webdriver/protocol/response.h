@@ -48,6 +48,10 @@ class Response {
     // attached to the DOM.
     kStaleElementReference = 10,
 
+    // An element command could not be completed because the element is not
+    // visible on the page.
+    kElementNotVisible = 11,
+
     // An unknown server-side error occurred while processing the command.
     kUnknownError = 13,
 

@@ -24,13 +24,16 @@
 
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/stl_util.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/element_driver.h"
+#include "cobalt/webdriver/protocol/keys.h"
 #include "cobalt/webdriver/protocol/script.h"
 #include "cobalt/webdriver/protocol/search_strategy.h"
 #include "cobalt/webdriver/protocol/size.h"
@@ -68,12 +71,14 @@ class WindowDriver : private ScriptExecutor::ElementMapping {
   util::CommandResult<std::string> GetSource();
   util::CommandResult<protocol::ScriptResult> Execute(
       const protocol::Script& script);
+  util::CommandResult<void> SendKeys(const protocol::Keys& keys);
 
  private:
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
   typedef ElementDriverMap::iterator ElementDriverMapIt;
   typedef std::vector<scoped_refptr<dom::Element> > ElementVector;
   typedef std::vector<protocol::ElementId> ElementIdVector;
+  typedef std::vector<scoped_refptr<dom::KeyboardEvent> > KeyboardEventVector;
 
   // ScriptExecutor::ElementMapping implementation.
   protocol::ElementId ElementToId(
@@ -106,6 +111,9 @@ class WindowDriver : private ScriptExecutor::ElementMapping {
 
   util::CommandResult<protocol::ScriptResult> ExecuteScriptInternal(
       const protocol::Script& script);
+
+  util::CommandResult<void> SendKeysInternal(
+      scoped_ptr<KeyboardEventVector> keyboard_events);
 
   const protocol::WindowId window_id_;
 
