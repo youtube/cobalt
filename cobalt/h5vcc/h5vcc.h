@@ -17,16 +17,16 @@
 #ifndef H5VCC_H5VCC_H_
 #define H5VCC_H5VCC_H_
 
-#include "cobalt/dom/h5vcc_stub.h"
 #include "cobalt/h5vcc/h5vcc_account_info.h"
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
 #include "cobalt/h5vcc/h5vcc_storage.h"
 #include "cobalt/h5vcc/h5vcc_system.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace h5vcc {
 
-class H5vcc : public dom::H5vccStub {
+class H5vcc : public script::Wrappable {
  public:
   struct Settings {
     Settings() : network_module(NULL), account_manager(NULL) {}
