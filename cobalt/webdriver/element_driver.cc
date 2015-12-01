@@ -21,6 +21,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/util/call_on_message_loop.h"
 
 namespace cobalt {
@@ -134,17 +135,55 @@ util::CommandResult<std::string> ElementDriver::GetText() {
       protocol::Response::kStaleElementReference);
 }
 
-dom::Element* ElementDriver::GetWeakElement() {
-  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
-  return element_.get();
-}
-
 util::CommandResult<bool> ElementDriver::IsDisplayed() {
   return util::CallWeakOnMessageLoopAndReturnResult(
       element_message_loop_,
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
       base::Bind(&::cobalt::webdriver::IsDisplayed),
       protocol::Response::kStaleElementReference);
+}
+
+util::CommandResult<void> ElementDriver::SendKeys(const protocol::Keys& keys) {
+  typedef util::CommandResult<void> CommandResult;
+
+  // Translate the keys into KeyboardEvents. Reset modifiers.
+  scoped_ptr<Keyboard::KeyboardEventVector> events(
+      new Keyboard::KeyboardEventVector());
+  Keyboard::TranslateToKeyEvents(keys.utf8_keys(), Keyboard::kReleaseModifiers,
+                                 events.get());
+  // Dispatch the keyboard events.
+  return util::CallOnMessageLoop(
+      element_message_loop_,
+      base::Bind(&ElementDriver::SendKeysInternal, base::Unretained(this),
+                 base::Passed(&events)));
+}
+
+dom::Element* ElementDriver::GetWeakElement() {
+  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  return element_.get();
+}
+
+util::CommandResult<void> ElementDriver::SendKeysInternal(
+    scoped_ptr<KeyboardEventVector> events) {
+  typedef util::CommandResult<void> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  if (!element_) {
+    return CommandResult(protocol::Response::kStaleElementReference);
+  }
+  // First ensure that the element is displayed, and return an error if not.
+  if (!::cobalt::webdriver::IsDisplayed(element_.get())) {
+    return CommandResult(protocol::Response::kElementNotVisible);
+  }
+
+  for (size_t i = 0; i < events->size(); ++i) {
+    // Check each iteration in case the element was deleted as a result of
+    // some action.
+    if (!element_) {
+      return CommandResult(protocol::Response::kStaleElementReference);
+    }
+    element_->DispatchEvent((*events)[i]);
+  }
+  return CommandResult(protocol::Response::kSuccess);
 }
 
 }  // namespace webdriver
