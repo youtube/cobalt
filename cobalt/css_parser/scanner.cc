@@ -1189,6 +1189,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 
     case 6:
       if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kBorderProperty))) {
+        *property_name_token = kBorderToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kBottomProperty))) {
         *property_name_token = kBottomToken;
         return true;
@@ -1367,6 +1372,24 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 12:
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderColorProperty))) {
+        *property_name_token = kBorderColorToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderStyleProperty))) {
+        *property_name_token = kBorderStyleToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderWidthProperty))) {
+        *property_name_token = kBorderWidthToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(
               name.begin,
               cssom::GetPropertyName(cssom::kMarginRightProperty))) {
@@ -1693,6 +1716,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kSerifKeywordName)) {
         *property_value_token = kSerifToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kSolidKeywordName)) {
+        *property_value_token = kSolidToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kStartKeywordName)) {

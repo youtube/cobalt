@@ -82,6 +82,7 @@
         'background_position_property_parse_structures.h',
         'background_shorthand_property_parse_structures.cc',
         'background_shorthand_property_parse_structures.h',
+        'border_shorthand_property_parse_structures.h',
         'margin_or_padding_shorthand.cc',
         'margin_or_padding_shorthand.h',
         'parser.cc',

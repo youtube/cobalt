@@ -190,6 +190,38 @@ void CSSStyleDeclaration::set_background_size(
   SetPropertyValueStringByKey(kBackgroundSizeProperty, background_size);
 }
 
+std::string CSSStyleDeclaration::border() const {
+  return data_->GetDeclaredPropertyValueString(kBorderProperty);
+}
+
+void CSSStyleDeclaration::set_border(const std::string& border) {
+  SetPropertyValueStringByKey(kBorderProperty, border);
+}
+
+std::string CSSStyleDeclaration::border_color() const {
+  return data_->GetDeclaredPropertyValueString(kBorderColorProperty);
+}
+
+void CSSStyleDeclaration::set_border_color(const std::string& border_color) {
+  SetPropertyValueStringByKey(kBorderColorProperty, border_color);
+}
+
+std::string CSSStyleDeclaration::border_style() const {
+  return data_->GetDeclaredPropertyValueString(kBorderStyleProperty);
+}
+
+void CSSStyleDeclaration::set_border_style(const std::string& border_style) {
+  SetPropertyValueStringByKey(kBorderStyleProperty, border_style);
+}
+
+std::string CSSStyleDeclaration::border_width() const {
+  return data_->GetDeclaredPropertyValueString(kBorderWidthProperty);
+}
+
+void CSSStyleDeclaration::set_border_width(const std::string& border_width) {
+  SetPropertyValueStringByKey(kBorderWidthProperty, border_width);
+}
+
 std::string CSSStyleDeclaration::border_radius() const {
   return data_->GetDeclaredPropertyValueString(kBorderRadiusProperty);
 }

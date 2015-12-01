@@ -20,15 +20,13 @@
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/render_tree/border.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/movable.h"
 #include "cobalt/render_tree/node.h"
 
 namespace cobalt {
 namespace render_tree {
-
-// TODO(***REMOVED***): Define the border, don't forget no border case.
-class Border;
 
 // TODO(***REMOVED***): Define border radiuses.
 class BorderRadiuses;
@@ -43,7 +41,10 @@ class RectNode : public Node {
    public:
     DECLARE_AS_MOVABLE(Builder);
 
+    Builder(const math::SizeF& size, scoped_ptr<Border> border);
     Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush);
+    Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush,
+            scoped_ptr<Border> border);
     explicit Builder(const Builder& other);
     explicit Builder(Moved moved);
 
@@ -53,10 +54,22 @@ class RectNode : public Node {
     // A solid or gradient brush to fill the rectangle with.
     // This can be null if a background brush is not specified.
     scoped_ptr<Brush> background_brush;
+
+    // A border arounds a RectNode.
+    scoped_ptr<Border> border;
   };
 
+  RectNode(const math::SizeF& size, scoped_ptr<Border> border)
+      : data_(size, border.Pass()) {
+    DCheckData(data_);
+  }
   RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush)
       : data_(size, background_brush.Pass()) {
+    DCheckData(data_);
+  }
+  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush,
+           scoped_ptr<Border> border)
+      : data_(size, background_brush.Pass(), border.Pass()) {
     DCheckData(data_);
   }
   explicit RectNode(const Builder& builder) : data_(builder) {
@@ -72,7 +85,9 @@ class RectNode : public Node {
   const Builder& data() const { return data_; }
 
  private:
-  void DCheckData(const Builder& data) { DCHECK(data.background_brush); }
+  void DCheckData(const Builder& data) {
+    DCHECK(data.background_brush || data.border);
+  }
 
   const Builder data_;
 };

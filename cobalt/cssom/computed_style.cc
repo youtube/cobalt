@@ -68,6 +68,44 @@ scoped_refptr<LengthValue> ProvideAbsoluteLength(
   }
 }
 
+// Computed value: absolute length;
+//                 '0' if the border style is 'none' or 'hidden'.
+//   http://www.w3.org/TR/css3-background/#border-width
+class ComputedBorderWidthProvider : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedBorderWidthProvider(const LengthValue* computed_font_size,
+                                       const PropertyValue* border_style);
+
+  void VisitLength(LengthValue* length) OVERRIDE;
+
+  const scoped_refptr<PropertyValue>& computed_border_width() const {
+    return computed_border_width_;
+  }
+
+ private:
+  const LengthValue* computed_font_size_;
+  const PropertyValue* border_style_;
+
+  scoped_refptr<PropertyValue> computed_border_width_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedBorderWidthProvider);
+};
+
+ComputedBorderWidthProvider::ComputedBorderWidthProvider(
+    const LengthValue* computed_font_size, const PropertyValue* border_style)
+    : computed_font_size_(computed_font_size), border_style_(border_style) {}
+
+void ComputedBorderWidthProvider::VisitLength(LengthValue* specified_length) {
+  if (border_style_ == cssom::KeywordValue::GetNone().get() ||
+      border_style_ == cssom::KeywordValue::GetHidden().get()) {
+    computed_border_width_ = new LengthValue(0, cssom::kPixelsUnit);
+  } else {
+    DCHECK_EQ(border_style_, cssom::KeywordValue::GetSolid().get());
+    computed_border_width_ =
+        ProvideAbsoluteLength(specified_length, computed_font_size_);
+  }
+}
+
 // Computed value: numeric weight value.
 //   http://www.w3.org/TR/css3-fonts/#font-weight-prop
 class ComputedFontWeightProvider : public NotReachedPropertyValueVisitor {
@@ -191,6 +229,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
@@ -215,6 +254,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -272,6 +312,7 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
@@ -297,6 +338,7 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -363,6 +405,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
@@ -388,6 +431,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -463,6 +507,7 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
@@ -488,6 +533,7 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -568,6 +614,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kContain:
     case KeywordValue::kCover:
     case KeywordValue::kCursive:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
@@ -591,6 +638,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -670,6 +718,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
@@ -695,6 +744,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -768,6 +818,7 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
@@ -793,6 +844,7 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -862,6 +914,7 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
@@ -886,6 +939,7 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -981,6 +1035,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
@@ -1005,6 +1060,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -1127,6 +1183,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
     case KeywordValue::kClip:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
@@ -1152,6 +1209,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -1675,6 +1733,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
     case KeywordValue::kFantasy:
@@ -1699,6 +1758,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kRight:
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -1756,10 +1816,28 @@ void PromoteToComputedStyle(
     specified_style->set_background_position(computed_background_position);
   }
 
+  // The border color is always computed, even when the value is not declared
+  // because the inital value of 'currentColor' is not a computed property
+  // value.
+  if (specified_style->border_color() == KeywordValue::GetCurrentColor()) {
+    // The computed value of the 'currentColor' keyword is the computed
+    // value of the 'color' property.
+    specified_style->set_border_color(specified_style->color());
+  }
+
   for (CSSStyleDeclarationData::PropertyValueIterator property_value_iterator =
            specified_style->BeginPropertyValueIterator();
        !property_value_iterator.Done(); property_value_iterator.Next()) {
     switch (property_value_iterator.Key()) {
+      case kBorderWidthProperty: {
+        ComputedBorderWidthProvider border_width_provider(
+            font_size_provider.computed_font_size().get(),
+            specified_style->border_style().get());
+        property_value_iterator.Value()->Accept(&border_width_provider);
+        property_value_iterator.SetValue(
+            border_width_provider.computed_border_width());
+        break;
+      }
       case kFontWeightProperty: {
         ComputedFontWeightProvider font_weight_provider;
         property_value_iterator.Value()->Accept(&font_weight_provider);
@@ -1902,7 +1980,9 @@ void PromoteToComputedStyle(
       case kBackgroundColorProperty:
       case kBackgroundPositionProperty:
       case kBackgroundRepeatProperty:
+      case kBorderColorProperty:
       case kBorderRadiusProperty:
+      case kBorderStyleProperty:
       case kColorProperty:
       case kContentProperty:
       case kDisplayProperty:
@@ -1931,6 +2011,7 @@ void PromoteToComputedStyle(
       case kAllProperty:
       case kAnimationProperty:
       case kBackgroundProperty:
+      case kBorderProperty:
       case kMarginProperty:
       case kPaddingProperty:
       case kSrcProperty:

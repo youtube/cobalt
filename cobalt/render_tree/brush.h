@@ -18,12 +18,12 @@
 #define RENDER_TREE_BRUSH_H_
 
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/render_tree/brush_visitor.h"
 #include "cobalt/render_tree/color_rgba.h"
 
 namespace cobalt {
 namespace render_tree {
-
-class BrushVisitor;
 
 // A base class of all render tree brushes.
 class Brush {
@@ -54,6 +54,8 @@ class LinearGradientBrush : public Brush {
 
   // TODO(***REMOVED***): Define linear gradient.
 };
+
+scoped_ptr<Brush> CloneBrush(const Brush* brush);
 
 }  // namespace render_tree
 }  // namespace cobalt

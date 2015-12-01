@@ -22,43 +22,37 @@
 namespace cobalt {
 namespace render_tree {
 
-RectNode::Builder::Builder(
-    const math::SizeF& size, scoped_ptr<Brush> background_brush)
+RectNode::Builder::Builder(const math::SizeF& size, scoped_ptr<Border> border)
+    : size(size), border(border.Pass()) {}
+
+RectNode::Builder::Builder(const math::SizeF& size,
+                           scoped_ptr<Brush> background_brush)
     : size(size), background_brush(background_brush.Pass()) {}
 
-namespace {
-
-class BrushCloner : public BrushVisitor {
- public:
-  virtual ~BrushCloner() {}
-
-  void Visit(const SolidColorBrush* solid_color_brush) OVERRIDE {
-    cloned_.reset(new SolidColorBrush(*solid_color_brush));
-  }
-
-  void Visit(const LinearGradientBrush* linear_gradient_brush) OVERRIDE {
-    cloned_.reset(new LinearGradientBrush(*linear_gradient_brush));
-  }
-
-  scoped_ptr<Brush> PassClone() { return cloned_.Pass(); }
-
- private:
-  scoped_ptr<Brush> cloned_;
-};
-
-}  // namespace
+RectNode::Builder::Builder(const math::SizeF& size,
+                           scoped_ptr<Brush> background_brush,
+                           scoped_ptr<Border> border)
+    : size(size),
+      background_brush(background_brush.Pass()),
+      border(border.Pass()) {}
 
 RectNode::Builder::Builder(const Builder& other) {
   size = other.size;
 
-  BrushCloner cloner;
-  other.background_brush->Accept(&cloner);
-  background_brush = cloner.PassClone();
+  if (other.background_brush) {
+    background_brush = CloneBrush(other.background_brush.get());
+  }
+
+  if (other.border) {
+    border.reset(new Border(other.border->left, other.border->right,
+                            other.border->top, other.border->bottom));
+  }
 }
 
 RectNode::Builder::Builder(Moved moved)
     : size(moved->size),
-      background_brush(moved->background_brush.Pass()) {}
+      background_brush(moved->background_brush.Pass()),
+      border(moved->border.Pass()) {}
 
 void RectNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 

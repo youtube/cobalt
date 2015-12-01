@@ -110,6 +110,12 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/css3-background/#the-background-size
     kCover,
 
+    // "currentColor" is the initial value of "border-color" property.
+    // CSS3 extends the color value to include the 'currentColor' keyword
+    // to allow its use with all properties that accept a <color> value.
+    //   http://www.w3.org/TR/css3-color/#currentcolor
+    kCurrentColor,
+
     // "cursive" is a value of "font_family" property which indicates a generic
     // font family using a more informal script style.
     //   http://www.w3.org/TR/css3-fonts/#generic-font-families
@@ -246,6 +252,11 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/css3-fonts/#generic-font-families
     kSerif,
 
+    // "solid" is a value of "border-style" property which indicates a single
+    // line segment.
+    //   http://www.w3.org/TR/css3-background/#border-style
+    kSolid,
+
     // "static" is a value of "position" property which indicates that a box
     // is laid out according to the normal flow.
     //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
@@ -289,6 +300,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetClip();
   static const scoped_refptr<KeywordValue>& GetContain();
   static const scoped_refptr<KeywordValue>& GetCover();
+  static const scoped_refptr<KeywordValue>& GetCurrentColor();
   static const scoped_refptr<KeywordValue>& GetCursive();
   static const scoped_refptr<KeywordValue>& GetEllipsis();
   static const scoped_refptr<KeywordValue>& GetFantasy();
@@ -314,6 +326,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetRight();
   static const scoped_refptr<KeywordValue>& GetSansSerif();
   static const scoped_refptr<KeywordValue>& GetSerif();
+  static const scoped_refptr<KeywordValue>& GetSolid();
   static const scoped_refptr<KeywordValue>& GetStatic();
   static const scoped_refptr<KeywordValue>& GetTop();
   static const scoped_refptr<KeywordValue>& GetUppercase();
