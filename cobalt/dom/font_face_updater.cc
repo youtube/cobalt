@@ -83,6 +83,7 @@ void FontFaceProvider::VisitFontWeight(
 
 void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
+    case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kMonospace:
@@ -124,6 +125,7 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kSolid:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
@@ -136,7 +138,6 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 void FontFaceProvider::VisitLocalSrc(cssom::LocalSrcValue* /*local_src*/) {
   NOTIMPLEMENTED() << "FontFaceProvider::LocalSrc support not implemented yet.";
 }
-
 
 void FontFaceProvider::VisitPropertyList(
     cssom::PropertyListValue* property_list) {

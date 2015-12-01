@@ -22,6 +22,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
@@ -30,11 +31,14 @@
 #include "cobalt/layout/render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
+#include "cobalt/render_tree/border.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/rect_node.h"
 
+using cobalt::render_tree::Border;
+using cobalt::render_tree::Brush;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::FilterNode;
 using cobalt::render_tree::OpacityFilter;
@@ -280,12 +284,42 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 namespace {
-void SetupRectNodeFromStyle(
+void SetupBackgroundNodeFromStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
     RectNode::Builder* rect_node_builder) {
   rect_node_builder->background_brush =
       scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
           GetUsedColor(style->background_color())));
+}
+
+Border CreateBorderFromStyle(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style) {
+  DCHECK_EQ(style->border_style(), cssom::KeywordValue::GetSolid());
+  // TODO(***REMOVED***): Use the border color, border width and border style of 4
+  // directions.
+  render_tree::BorderSide left(GetUsedLength(style->border_width()),
+                               render_tree::kBorderStyleSolid,
+                               GetUsedColor(style->border_color()));
+
+  render_tree::BorderSide right(GetUsedLength(style->border_width()),
+                                render_tree::kBorderStyleSolid,
+                                GetUsedColor(style->border_color()));
+
+  render_tree::BorderSide top(GetUsedLength(style->border_width()),
+                              render_tree::kBorderStyleSolid,
+                              GetUsedColor(style->border_color()));
+
+  render_tree::BorderSide bottom(GetUsedLength(style->border_width()),
+                                 render_tree::kBorderStyleSolid,
+                                 GetUsedColor(style->border_color()));
+
+  return Border(left, right, top, bottom);
+}
+
+void SetupBorderNodeFromStyle(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    RectNode::Builder* rect_node_builder) {
+  *rect_node_builder->border = CreateBorderFromStyle(style);
 }
 }  // namespace
 
@@ -366,10 +400,19 @@ void Box::UpdateCrossReferencesWithContext(
 }
 
 void Box::UpdateBorders() {
-  // TODO(***REMOVED***): Calculate used values of border widths.
-  NOTIMPLEMENTED() << "Borders are not implemented yet.";
+  // If the border style is none or hidden, border color and width are ignored.
+  if (computed_style()->border_style() == cssom::KeywordValue::GetNone() ||
+      computed_style()->border_style() == cssom::KeywordValue::GetHidden()) {
+    border_insets_ = math::InsetsF();
+    return;
+  }
 
-  border_insets_ = math::InsetsF();
+  // TODO(***REMOVED***): Use the border width of the four directions.
+  float width = base::polymorphic_downcast<const cssom::LengthValue*>(
+                    computed_style()->border_width().get())
+                    ->value();
+
+  border_insets_.SetInsets(width, width, width, width);
 }
 
 void Box::UpdatePaddings(const LayoutParams& layout_params) {
@@ -461,10 +504,36 @@ void SetupFilterNodeFromStyle(
 }  // namespace
 
 void Box::RenderAndAnimateBorder(
-    CompositionNode::Builder* /*border_node_builder*/,
-    NodeAnimationsMap::Builder* /*node_animations_map_builder*/) const {
-  // TODO(***REMOVED***): Render the border.
-  NOTIMPLEMENTED() << "Borders are not implemented yet.";
+    CompositionNode::Builder* border_node_builder,
+    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+  // If the border style is none or hidden, border color and width are ignored.
+  if (computed_style()->border_style() == cssom::KeywordValue::GetNone() ||
+      computed_style()->border_style() == cssom::KeywordValue::GetHidden() ||
+      GetBorderBoxSize().GetArea() == 0) {
+    return;
+  }
+
+  bool border_color_transparent =
+      GetUsedColor(computed_style()->border_color()).a() == 0.0f;
+  bool border_color_animated =
+      animations()->IsPropertyAnimated(cssom::kBorderColorProperty);
+  bool border_width_animated =
+      animations()->IsPropertyAnimated(cssom::kBorderWidthProperty);
+  if (!border_color_transparent || border_color_animated ||
+      border_width_animated) {
+    scoped_ptr<Border> border(
+        new Border(CreateBorderFromStyle(computed_style())));
+    RectNode::Builder rect_node_builder(GetBorderBoxSize(), border.Pass());
+
+    scoped_refptr<RectNode> border_node(new RectNode(rect_node_builder.Pass()));
+    border_node_builder->AddChild(border_node, math::Matrix3F::Identity());
+
+    if (border_color_animated || border_width_animated) {
+      AddAnimations<RectNode>(base::Bind(&SetupBorderNodeFromStyle),
+                              *computed_style_state(), border_node,
+                              node_animations_map_builder);
+    }
+  }
 }
 
 void Box::RenderAndAnimateBackgroundColor(
@@ -481,7 +550,7 @@ void Box::RenderAndAnimateBackgroundColor(
   if (!background_color_transparent || background_color_animated) {
     RectNode::Builder rect_node_builder(GetPaddingBoxSize(),
                                         scoped_ptr<render_tree::Brush>());
-    SetupRectNodeFromStyle(computed_style(), &rect_node_builder);
+    SetupBackgroundNodeFromStyle(computed_style(), &rect_node_builder);
     if (rect_node_builder.size.GetArea() != 0) {
       scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
       border_node_builder->AddChild(
@@ -491,7 +560,7 @@ void Box::RenderAndAnimateBackgroundColor(
       // TODO(***REMOVED***) Investigate if we could pass computed_style_state_ instead
       // here.
       if (background_color_animated) {
-        AddAnimations<RectNode>(base::Bind(&SetupRectNodeFromStyle),
+        AddAnimations<RectNode>(base::Bind(&SetupBackgroundNodeFromStyle),
                                 *computed_style_state(), rect_node,
                                 node_animations_map_builder);
       }

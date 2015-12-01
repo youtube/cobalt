@@ -40,6 +40,7 @@ struct KeywordValue::NonTrivialStaticFields {
         clip_value(new KeywordValue(KeywordValue::kClip)),
         contain_value(new KeywordValue(KeywordValue::kContain)),
         cover_value(new KeywordValue(KeywordValue::kCover)),
+        current_color_value(new KeywordValue(KeywordValue::kCurrentColor)),
         cursive_value(new KeywordValue(KeywordValue::kCursive)),
         ellipsis_value(new KeywordValue(KeywordValue::kEllipsis)),
         fantasy_value(new KeywordValue(KeywordValue::kFantasy)),
@@ -65,6 +66,7 @@ struct KeywordValue::NonTrivialStaticFields {
         right_value(new KeywordValue(KeywordValue::kRight)),
         sans_serif_value(new KeywordValue(KeywordValue::kSansSerif)),
         serif_value(new KeywordValue(KeywordValue::kSerif)),
+        solid_value(new KeywordValue(KeywordValue::kSolid)),
         static_value(new KeywordValue(KeywordValue::kStatic)),
         top_value(new KeywordValue(KeywordValue::kTop)),
         uppercase_value(new KeywordValue(KeywordValue::kUppercase)),
@@ -84,6 +86,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> clip_value;
   const scoped_refptr<KeywordValue> contain_value;
   const scoped_refptr<KeywordValue> cover_value;
+  const scoped_refptr<KeywordValue> current_color_value;
   const scoped_refptr<KeywordValue> cursive_value;
   const scoped_refptr<KeywordValue> ellipsis_value;
   const scoped_refptr<KeywordValue> fantasy_value;
@@ -109,6 +112,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> right_value;
   const scoped_refptr<KeywordValue> sans_serif_value;
   const scoped_refptr<KeywordValue> serif_value;
+  const scoped_refptr<KeywordValue> solid_value;
   const scoped_refptr<KeywordValue> static_value;
   const scoped_refptr<KeywordValue> top_value;
   const scoped_refptr<KeywordValue> uppercase_value;
@@ -179,6 +183,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetContain() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetCover() {
   return non_trivial_static_fields.Get().cover_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetCurrentColor() {
+  return non_trivial_static_fields.Get().current_color_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetCursive() {
@@ -281,6 +289,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetSerif() {
   return non_trivial_static_fields.Get().serif_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetSolid() {
+  return non_trivial_static_fields.Get().solid_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetStatic() {
   return non_trivial_static_fields.Get().static_value;
 }
@@ -331,6 +343,8 @@ std::string KeywordValue::ToString() const {
       return kContainKeywordName;
     case kCover:
       return kCoverKeywordName;
+    case kCurrentColor:
+      return kCurrentColorKeywordName;
     case kCursive:
       return kCursiveKeywordName;
     case kEllipsis:
@@ -381,6 +395,8 @@ std::string KeywordValue::ToString() const {
       return kSansSerifKeywordName;
     case kSerif:
       return kSerifKeywordName;
+    case kSolid:
+      return kSolidKeywordName;
     case kStatic:
       return kStaticKeywordName;
     case kTop:
