@@ -72,7 +72,7 @@ bool ShellAudioStreamerLinux::AddStream(ShellAudioStream* stream) {
   if (pulse_audio_context_ == NULL) {
     pulse_audio_context_.reset(new ShellPulseAudioContext());
     bool result = pulse_audio_context_->Initialize();
-    if (result) {
+    if (!result) {
       pulse_audio_context_.reset();
       DLOG(WARNING) << "Failed to initialize pulse audio.";
       return false;
