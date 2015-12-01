@@ -73,17 +73,10 @@ PlatformDelegateWin::PlatformDelegateWin() {
   dir_source_root_ = exe_dir + "\\content\\dir_source_root";
 
   // Set screenshot_output_path.
-#if defined(__LB_SHELL__ENABLE_SCREENSHOT__)
   screenshot_output_path_ = exe_dir + "\\content\\logs";
-  _mkdir(screenshot_output_path_.c_str());
-#endif
 
   // Set logging_output_path.
-#if defined(__LB_SHELL__FORCE_LOGGING__) || \
-    defined(__LB_SHELL__ENABLE_CONSOLE__)
   logging_output_path_ = exe_dir + "\\content\\logs";
-  _mkdir(logging_output_path_.c_str());
-#endif
 
   // Set tmp_path.
   GetTempPathA(MAX_PATH, path_buffer);
