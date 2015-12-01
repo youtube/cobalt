@@ -19,6 +19,7 @@
 #include <limits>
 
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/layout/math.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/text_node.h"
@@ -85,8 +86,10 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
       HasNonCollapsibleText()
           ? used_font_->GetBounds(GetNonCollapsibleText()).width()
           : 0;
-  set_width(GetLeadingWhiteSpaceWidth() + non_collapsible_text_width +
-            GetTrailingWhiteSpaceWidth());
+  float width = RoundToFixedPointPrecision(GetLeadingWhiteSpaceWidth() +
+                                           non_collapsible_text_width +
+                                           GetTrailingWhiteSpaceWidth());
+  set_width(width);
 
   if (!baseline_offset_from_top_) {
     UsedLineHeightProvider used_line_height_provider(
