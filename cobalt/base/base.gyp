@@ -37,6 +37,8 @@
         'localized_strings.h',
         'log_message_handler.cc',
         'log_message_handler.h',
+        'math.cc',
+        'math.h',
         'memory_pool.cc',
         'memory_pool.h',
         'pointer_arithmetic.h',

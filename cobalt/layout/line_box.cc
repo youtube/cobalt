@@ -187,7 +187,7 @@ bool LineBox::IsCollapsed() const {
   return !first_non_collapsed_child_box_index_;
 }
 
-float LineBox::GetAvailableWidth() {
+float LineBox::GetAvailableWidth() const {
   return layout_params_.containing_block_size.width() - shrink_to_fit_width_;
 }
 
@@ -351,12 +351,9 @@ void LineBox::UpdateChildBoxLeftPositions() {
     // So do not shift child boxes when the inline-level boxes already overflow,
     // also do not shift if text-align is "left".
   } else if (text_align_ == cssom::KeywordValue::GetCenter()) {
-    horizontal_offset_due_alignment =
-        (layout_params_.containing_block_size.width() - shrink_to_fit_width_) /
-        2;
+    horizontal_offset_due_alignment = GetAvailableWidth() / 2;
   } else if (text_align_ == cssom::KeywordValue::GetRight()) {
-    horizontal_offset_due_alignment =
-        layout_params_.containing_block_size.width() - shrink_to_fit_width_;
+    horizontal_offset_due_alignment = GetAvailableWidth();
   } else {
     NOTREACHED() << "Unknown value of \"text-align\".";
   }
