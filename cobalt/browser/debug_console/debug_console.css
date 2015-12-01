@@ -1,5 +1,5 @@
 body {
-    background-color: rgba(0, 0, 0, 0.005)
+  background-color: rgba(0, 0, 0, 0.005)
 }
 
 #hud {
@@ -13,6 +13,7 @@ body {
   border: 2px solid #FFFFFF;
   outline: #FFFFFF solid 2px;
   padding: 1% 2% 0% 2%;
+  font-family: monospace;
 }
 
 #consoleFrame {
@@ -42,6 +43,7 @@ body {
 #messageContainer {
   position: absolute;
   bottom: 0;
+  font-family: monospace;
 }
 
 #in {
@@ -54,4 +56,5 @@ body {
   color: #FFFFFF;
   white-space: pre;
   padding: 1% 2% 1% 2%;
+  font-family: monospace;
 }
