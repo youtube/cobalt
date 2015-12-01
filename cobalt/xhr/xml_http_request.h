@@ -35,6 +35,7 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_fetcher.h"
+#include "net/url_request/url_fetcher_delegate.h"
 
 namespace cobalt {
 namespace dom {
@@ -48,7 +49,7 @@ class EnvironmentSettings;
 namespace xhr {
 
 class XMLHttpRequest : public XMLHttpRequestEventTarget,
-                       loader::Fetcher::Handler {
+                       net::URLFetcherDelegate {
  public:
   // Note: This is expected to be a DOMSettings object, but we declare it as
   // EnvironmentSettings so that JSC doesn't need to know about dom.
@@ -134,14 +135,12 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   bool with_credentials() const { return with_credentials_; }
   void set_with_credentials(bool b);
 
-  // loader::Fetcher::Handler interface
-  void OnResponseStarted(
-      loader::Fetcher* fetcher,
-      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
-  void OnReceived(loader::Fetcher* fetcher, const char* data,
-                  size_t size) OVERRIDE;
-  void OnDone(loader::Fetcher* fetcher) OVERRIDE;
-  void OnError(loader::Fetcher* fetcher, const std::string& error) OVERRIDE;
+  // net::URLFetcherDelegate interface
+  void OnURLFetchResponseStarted(const net::URLFetcher* source) OVERRIDE;
+  void OnURLFetchDownloadData(const net::URLFetcher* source,
+                              scoped_ptr<std::string> download_data) OVERRIDE;
+  void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
+  bool ShouldSendDownloadData() OVERRIDE { return true; }
 
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequest);
 
@@ -189,6 +188,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#garbage-collection
   void PreventGarbageCollection();
   void AllowGarbageCollection();
+  void StartRequest(const std::string& request_body);
 
   // Accessors / mutators for testing.
   const GURL& request_url() const { return request_url_; }
@@ -206,7 +206,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   base::ThreadChecker thread_checker_;
 
-  scoped_ptr<loader::NetFetcher> net_fetcher_;
+  scoped_ptr<net::URLFetcher> url_fetcher_;
   scoped_refptr<net::HttpResponseHeaders> http_response_headers_;
   XhrResponseData response_body_;
   scoped_refptr<dom::ArrayBuffer> response_array_buffer_;
