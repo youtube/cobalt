@@ -90,27 +90,39 @@ base::optional<int> GetDebugConsoleModeFromCommandLine() {
 
 // Returns the path of the temporary file used to store debug console visibility
 // mode preferences.
-FilePath GetDebugConsoleModeStoragePath() {
-  FilePath dir;
-  CHECK(PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &dir));
-  return dir.Append("last_debug_console_mode.txt");
+bool GetDebugConsoleModeStoragePath(FilePath* out_file_path) {
+  DCHECK(out_file_path);
+  if (PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, out_file_path)) {
+    *out_file_path = out_file_path->Append("last_debug_console_mode.txt");
+    return true;
+  } else {
+    return false;
+  }
 }
 
 // Saves the specified visibility mode preferences to disk so that they can
-// be restored in another session.
+// be restored in another session.  Since this functionality is not critical,
+// we silently do nothing if there is a failure.
 void SaveModeToPreferences(int mode) {
   std::string mode_string = DebugConsoleModeIntToString(mode);
-  file_util::WriteFile(GetDebugConsoleModeStoragePath(), mode_string.c_str(),
-                       static_cast<int>(mode_string.size()));
+  FilePath preferences_file;
+  if (GetDebugConsoleModeStoragePath(&preferences_file)) {
+      file_util::WriteFile(preferences_file, mode_string.c_str(),
+                           static_cast<int>(mode_string.size()));
+  }
 }
 
-// Load debug console visibility mode preferences from disk.
+// Load debug console visibility mode preferences from disk.  Since this
+// functionality is not critical, we silently do nothing if there is a failure.
 base::optional<int> LoadModeFromPreferences() {
   std::string saved_contents;
-  if (file_util::ReadFileToString(GetDebugConsoleModeStoragePath(),
-                                  &saved_contents)) {
-    return DebugConsoleModeStringToInt(saved_contents);
+  FilePath preferences_file;
+  if (GetDebugConsoleModeStoragePath(&preferences_file)) {
+    if (file_util::ReadFileToString(preferences_file, &saved_contents)) {
+      return DebugConsoleModeStringToInt(saved_contents);
+    }
   }
+
   return base::nullopt;
 }
 
