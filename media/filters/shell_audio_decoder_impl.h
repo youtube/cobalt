@@ -26,7 +26,6 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
-#include "media/filters/shell_audio_decoder.h"
 
 // set me to 1 to save decoded audio output to disk for debugging
 #define __SAVE_DECODER_OUTPUT__ 0
@@ -87,7 +86,7 @@ class ShellRawAudioDecoder {
 // keep return EOS buffer.  So the decoder will stop reading quickly.  Once no
 // callback is in progress, it will be destroyed automatically because there is
 // no reference to it.
-class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
+class MEDIA_EXPORT ShellAudioDecoderImpl : public AudioDecoder {
  public:
   ShellAudioDecoderImpl(
       const scoped_refptr<base::MessageLoopProxy>& message_loop,

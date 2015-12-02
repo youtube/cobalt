@@ -27,10 +27,9 @@
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_video_frame_provider.h"
 #include "media/base/video_frame.h"
-#include "media/filters/shell_video_decoder.h"
 #include "media/filters/chunk_demuxer.h"
+#include "media/filters/shell_demuxer.h"
 #include "media/filters/video_renderer_base.h"
-#include "media/player/filter_helpers.h"
 #include "media/player/web_media_player_proxy.h"
 
 namespace {
@@ -129,16 +128,15 @@ static void LogMediaSourceError(const scoped_refptr<MediaLog>& media_log,
 
 WebMediaPlayerImpl::WebMediaPlayerImpl(
     WebMediaPlayerClient* client,
-    base::WeakPtr<WebMediaPlayerDelegate> delegate,
-    FilterCollection* collection,
-    AudioRendererSink* audio_renderer_sink,
-    MessageLoopFactory* message_loop_factory,
-    MediaLog* media_log)
+    scoped_ptr<FilterCollection> collection,
+    const scoped_refptr<AudioRendererSink>& audio_renderer_sink,
+    scoped_ptr<MessageLoopFactory> message_loop_factory,
+    const scoped_refptr<MediaLog>& media_log)
     : network_state_(WebMediaPlayer::kNetworkStateEmpty),
       ready_state_(WebMediaPlayer::kReadyStateHaveNothing),
       main_loop_(MessageLoop::current()),
-      filter_collection_(collection),
-      message_loop_factory_(message_loop_factory),
+      filter_collection_(collection.Pass()),
+      message_loop_factory_(message_loop_factory.Pass()),
       paused_(true),
       seeking_(false),
       playback_rate_(0.0f),
@@ -146,13 +144,15 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       pending_seek_seconds_(0.0f),
       client_(client),
       proxy_(new WebMediaPlayerProxy(main_loop_->message_loop_proxy(), this)),
-      delegate_(delegate),
       media_log_(media_log),
       incremented_externally_allocated_memory_(false),
       audio_renderer_sink_(audio_renderer_sink),
       is_local_source_(false),
       supports_save_(true),
       starting_(false) {
+  DCHECK_EQ(filter_collection_->GetAudioDecoders()->size(), 1);
+  DCHECK_EQ(filter_collection_->GetVideoDecoders()->size(), 1);
+
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_CREATED));
 
@@ -183,28 +183,16 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   filter_collection_->AddVideoRenderer(video_renderer);
   proxy_->set_frame_provider(video_renderer);
 
-#if defined(__LB_SHELL__)
-#if !defined(LB_USE_SHELL_PIPELINE)
-  AudioRendererSink* audio_sink =
-      ShellAudioSink::Create(ShellAudioStreamer::Instance());
-  filter_collection_->AddAudioRenderer(ShellAudioRenderer::Create(
-      audio_sink, set_decryptor_ready_cb, pipeline_message_loop));
-#endif  // !defined(LB_USE_SHELL_PIPELINE)
-#else
-  // Create default audio renderer using the null sink if no sink was provided.
-  if (!audio_renderer_sink)
-    audio_renderer_sink = new NullAudioSink();
-
-  filter_collection_->AddAudioRenderer(
-      new AudioRendererImpl(audio_renderer_sink, set_decryptor_ready_cb));
-#endif
-
 #if defined(LB_USE_SHELL_PIPELINE)
   // The size passed to CreatePunchOutFrame is used to pass the natural size
   // of the video to the pipeline. On XB1 the pipeline gets the natural size of
   // the video from the MediaEngine so we set this to gfx::Size() to avoid
   // propagating the frame size through the media stack.
   punch_out_video_frame_ = VideoFrame::CreatePunchOutFrame(gfx::Size());
+#else   // !defined(LB_USE_SHELL_PIPELINE)
+  DCHECK(audio_renderer_sink);
+  filter_collection_->AddAudioRenderer(ShellAudioRenderer::Create(
+      audio_renderer_sink, set_decryptor_ready_cb, pipeline_message_loop));
 #endif  // defined(LB_USE_SHELL_PIPELINE)
 }
 
@@ -216,9 +204,6 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   Destroy();
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_DESTROYED));
-
-  if (delegate_)
-    delegate_->PlayerGone(this);
 
   // Finally tell the |main_loop_| we don't want to be notified of destruction
   // event.
@@ -289,8 +274,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
       BIND_TO_RENDER_LOOP_2(&WebMediaPlayerImpl::OnNeedKey, "", ""),
       base::Bind(&LogMediaSourceError, media_log_));
 
-  BuildMediaSourceCollection(
-      chunk_demuxer_, message_loop, filter_collection_.get());
+  filter_collection_->SetDemuxer(chunk_demuxer_);
   supports_save_ = false;
   StartPipeline();
 }
@@ -317,9 +301,8 @@ void WebMediaPlayerImpl::LoadProgressive(
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
-  BuildDefaultCollection(proxy_->data_source(),
-                         message_loop,
-                         filter_collection_.get());
+  filter_collection_->SetDemuxer(
+      new ShellDemuxer(message_loop, proxy_->data_source()));
 
   StartPipeline();
 }
@@ -338,9 +321,6 @@ void WebMediaPlayerImpl::Play() {
   pipeline_->SetPlaybackRate(playback_rate_);
 
   media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::PLAY));
-
-  if (delegate_)
-    delegate_->DidPlay(this);
 }
 
 void WebMediaPlayerImpl::Pause() {
@@ -354,9 +334,6 @@ void WebMediaPlayerImpl::Pause() {
   paused_time_ = pipeline_->GetMediaTime();
 
   media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::PAUSE));
-
-  if (delegate_)
-    delegate_->DidPause(this);
 }
 
 bool WebMediaPlayerImpl::SupportsFullscreen() const {

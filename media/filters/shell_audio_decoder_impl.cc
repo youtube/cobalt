@@ -56,17 +56,6 @@ bool ValidateConfig(const AudioDecoderConfig& config) {
 }  // namespace
 
 //==============================================================================
-// Static ShellAudioDecoder Methods
-//
-
-// static
-ShellAudioDecoder* ShellAudioDecoder::Create(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop) {
-  return new ShellAudioDecoderImpl(message_loop,
-                                   base::Bind(&ShellRawAudioDecoder::Create));
-}
-
-//==============================================================================
 // ShellAudioDecoderImpl
 //
 ShellAudioDecoderImpl::ShellAudioDecoderImpl(
