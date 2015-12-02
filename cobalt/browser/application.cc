@@ -60,18 +60,22 @@ int GetWebDriverPort() {
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 #endif  // ENABLE_WEBDRIVER
 
-std::string GetInitialURL() {
+GURL GetInitialURL() {
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
-  // Allow the user to override the default initial URL via a command line
-  // parameter.
+  // Allow the user to override the default URL via a command line parameter.
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInitialURL)) {
-    return command_line->GetSwitchValueASCII(switches::kInitialURL);
+    GURL url = GURL(command_line->GetSwitchValueASCII(switches::kInitialURL));
+    if (url.is_valid()) {
+      return url;
+    } else {
+      DLOG(INFO) << "URL from parameter is not valid, using default URL.";
+    }
   }
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
-  static const char kDefaultInitialURL[] = "https://youtube.com/tv";
-  return std::string(kDefaultInitialURL);
+  static const char kDefaultURL[] = "https://youtube.com/tv";
+  return GURL(kDefaultURL);
 }
 
 base::TimeDelta GetTimedTraceDuration() {
@@ -126,12 +130,9 @@ Application::Application()
         FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
   }
 
-  GURL url = GURL(GetInitialURL());
-  if (!url.is_valid()) {
-    DLOG(INFO) << "Initial URL is not valid, using empty URL.";
-    url = GURL();
-  }
-  DLOG(INFO) << "Initial URL: " << url;
+  // Get the initial URL.
+  GURL initial_url = GetInitialURL();
+  DLOG(INFO) << "Initial URL: " << initial_url;
 
   // Get the system language and initialize our localized strings.
   std::string language =
@@ -155,7 +156,7 @@ Application::Application()
 
   system_window_ = system_window::CreateSystemWindow(&event_dispatcher_);
   account_manager_ = account::AccountManager::Create(&event_dispatcher_);
-  browser_module_.reset(new BrowserModule(url, system_window_.get(),
+  browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),
                                           account_manager_.get(), options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 

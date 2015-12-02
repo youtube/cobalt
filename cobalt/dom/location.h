@@ -20,7 +20,6 @@
 #include <string>
 
 #include "base/callback.h"
-#include "base/logging.h"
 #include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"
 
@@ -29,8 +28,6 @@ namespace dom {
 
 // Each Document object in a browsing context's session history is associated
 // with a unique instance of a Location object.
-// Currently we only allow the change of the URL's hash, through the href setter
-// or hash setter.
 //   http://www.w3.org/TR/html5/browsers.html#the-location-interface
 class Location : public script::Wrappable {
  public:
