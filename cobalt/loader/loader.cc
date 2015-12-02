@@ -65,9 +65,9 @@ Loader::Loader(
       fetcher_to_decoder_adaptor_(
           new FetcherToDecoderAdapter(decoder_.get(), error_callback)),
       fetcher_(fetcher_creator.Run(fetcher_to_decoder_adaptor_.get())) {
-  DCHECK(fetcher_);
   DCHECK(decoder_);
   DCHECK(!error_callback.is_null());
+  DCHECK(fetcher_);
 }
 
 Loader::~Loader() {}
