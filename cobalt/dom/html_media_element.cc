@@ -465,6 +465,7 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
+  player_.reset();
   player_ =
       html_element_context()->web_media_player_factory()->CreateWebMediaPlayer(
           this);
@@ -1327,7 +1328,6 @@ void HTMLMediaElement::KeyNeeded(const std::string& key_system,
       key_system, session_id,
       new Uint8Array(NULL, init_data, init_data_length, NULL)));
 }
-
 
 void HTMLMediaElement::SetSourceState(MediaSource::ReadyState ready_state) {
   if (!media_source_) {
