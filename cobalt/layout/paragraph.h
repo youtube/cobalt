@@ -65,14 +65,14 @@ class Paragraph : public base::RefCounted<Paragraph> {
     kSoftWrapOverflowWrap,
   };
 
-  enum TextTransform {
-    kNoTextTransform,
-    kUppercaseTextTransform,
-  };
-
   enum TextOrder {
     kLogicalTextOrder,
     kVisualTextOrder,
+  };
+
+  enum TextTransform {
+    kNoTextTransform,
+    kUppercaseTextTransform,
   };
 
   Paragraph(icu::BreakIterator* line_break_iterator,
