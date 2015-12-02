@@ -23,12 +23,10 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "cobalt/cssom/cascade_priority.h"
-#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
-#include "cobalt/layout/embedded_resources.h"  // Generated file.
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
@@ -40,8 +38,8 @@ class LayoutManager::Impl : public dom::DocumentObserver {
  public:
   Impl(const scoped_refptr<dom::Window>& window,
        const OnRenderTreeProducedCallback& on_render_tree_produced,
-       cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
-       float layout_refresh_rate, const std::string& language);
+       LayoutTrigger layout_trigger, float layout_refresh_rate,
+       const std::string& language);
   ~Impl();
 
   // From dom::DocumentObserver.
@@ -61,7 +59,6 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   const scoped_refptr<dom::Window> window_;
   const scoped_ptr<UsedStyleProvider> used_style_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
-  const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
   const LayoutTrigger layout_trigger_;
 
   // This flag indicates whether or not we should do a re-layout.  The flag
@@ -85,46 +82,16 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   DISALLOW_COPY_AND_ASSIGN(Impl);
 };
 
-namespace {
-
-scoped_refptr<cssom::CSSStyleSheet> ParseUserAgentStyleSheet(
-    cssom::CSSParser* css_parser) {
-  const char kUserAgentStyleSheetFileName[] = "user_agent_style_sheet.css";
-
-  // Parse the user agent style sheet from the given file that was compiled
-  // into a header and included.  We embed it in the binary via C++ header file
-  // so that we can avoid the time it would take to perform a disk read
-  // when constructing the LayoutManager.  The cost of doing this is that
-  // we end up with the contents of the file in memory at all times, even
-  // after it is parsed here.
-  GeneratedResourceMap resource_map;
-  LayoutEmbeddedResources::GenerateMap(resource_map);
-  FileContents html_css_file_contents =
-      resource_map[kUserAgentStyleSheetFileName];
-
-  scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet =
-      css_parser->ParseStyleSheet(
-          std::string(
-              reinterpret_cast<const char*>(html_css_file_contents.data),
-              static_cast<size_t>(html_css_file_contents.size)),
-          base::SourceLocation(kUserAgentStyleSheetFileName, 1, 1));
-  user_agent_style_sheet->set_origin(cssom::kNormalUserAgent);
-  return user_agent_style_sheet;
-}
-
-}  // namespace
-
 LayoutManager::Impl::Impl(
     const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
-    cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
-    float layout_refresh_rate, const std::string& language)
+    LayoutTrigger layout_trigger, float layout_refresh_rate,
+    const std::string& language)
     : window_(window),
       used_style_provider_(
           new UsedStyleProvider(window->html_element_context()->image_cache(),
                                 window->document()->font_cache())),
       on_render_tree_produced_callback_(on_render_tree_produced),
-      user_agent_style_sheet_(ParseUserAgentStyleSheet(css_parser)),
       layout_trigger_(layout_trigger),
       layout_dirty_(true),
       layout_timer_(true, true) {
@@ -233,8 +200,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     // any transitioning elements adjusted during the animation callback will
     // transition from their previously set value.
     document->UpdateComputedStyles(
-        CreateInitialContainingBlockComputedStyle(window_),
-        user_agent_style_sheet_);
+        CreateInitialContainingBlockComputedStyle(window_));
   }
 
   // Note that according to:
@@ -252,9 +218,9 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
     }
 
-    RenderTreeWithAnimations render_tree_with_animations = layout::Layout(
-        window_, user_agent_style_sheet_, used_style_provider_.get(),
-        line_break_iterator_.get(), &initial_containing_block_);
+    RenderTreeWithAnimations render_tree_with_animations =
+        layout::Layout(window_, used_style_provider_.get(),
+                       line_break_iterator_.get(), &initial_containing_block_);
     bool run_on_render_tree_produced_callback = true;
 #if defined(ENABLE_TEST_RUNNER)
     if (layout_trigger_ == kTestRunnerMode &&
@@ -279,10 +245,10 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 LayoutManager::LayoutManager(
     const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
-    cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
-    float layout_refresh_rate, const std::string& language)
-    : impl_(new Impl(window, on_render_tree_produced, css_parser,
-                     layout_trigger, layout_refresh_rate, language)) {}
+    LayoutTrigger layout_trigger, float layout_refresh_rate,
+    const std::string& language)
+    : impl_(new Impl(window, on_render_tree_produced, layout_trigger,
+                     layout_refresh_rate, language)) {}
 
 LayoutManager::~LayoutManager() {}
 
