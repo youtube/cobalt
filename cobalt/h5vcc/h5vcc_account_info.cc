@@ -25,23 +25,18 @@ H5vccAccountInfo::H5vccAccountInfo(account::AccountManager* account_manager)
     : account_manager_(account_manager) {}
 
 std::string H5vccAccountInfo::avatar_url() const {
-  if (account_manager_) {
-    DLOG(INFO) << "Got avatar URL: " << account_manager_->GetAvatarURL();
-    return account_manager_->GetAvatarURL();
-  }
-
-  DLOG(WARNING) << "Account manager is NULL";
-  return "";
+  DCHECK(account_manager_);
+  return account_manager_->GetAvatarURL();
 }
 
 std::string H5vccAccountInfo::username() const {
-  NOTIMPLEMENTED();
-  return "";
+  DCHECK(account_manager_);
+  return account_manager_->GetUsername();
 }
 
 std::string H5vccAccountInfo::user_id() const {
-  NOTIMPLEMENTED();
-  return "";
+  DCHECK(account_manager_);
+  return account_manager_->GetUserId();
 }
 
 }  // namespace h5vcc
