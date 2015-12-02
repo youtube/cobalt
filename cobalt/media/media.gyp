@@ -30,6 +30,7 @@
         'fetcher_buffered_data_source.cc',
         'fetcher_buffered_data_source.h',
         'media_module.h',
+        'media_module.cc',
         'media_module_<(actual_target_arch).cc',
         'media_module_stub.cc',
         'media_module_stub.h',
