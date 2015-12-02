@@ -15,6 +15,7 @@
  */
 
 // https://www.khronos.org/registry/typedarray/specs/latest/#8
+
 [
   Constructor(ArrayBuffer buffer, optional unsigned long byteOffset,
               optional unsigned long byteLength),

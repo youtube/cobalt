@@ -164,7 +164,7 @@ float Box::GetBorderBoxLeftEdge() const {
 }
 
 float Box::GetBorderBoxTopEdge() const {
-  return GetMarginBoxTopEdge() + margin_right();
+  return GetMarginBoxTopEdge() + margin_top();
 }
 
 float Box::GetPaddingBoxWidth() const {
@@ -663,7 +663,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     return css_transform_node;
   }
 
-  if (computed_style()->transform() != cssom::KeywordValue::GetNone()) {
+  if (IsTransformed()) {
     // Combine layout transform and CSS transform.
     *border_node_transform =
         *border_node_transform *

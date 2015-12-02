@@ -16,22 +16,23 @@
 
 // https://www.khronos.org/registry/typedarray/specs/latest/#7
 // Only the subset required by Cobalt is implemented.
+
 [
-    Constructor(unsigned long length),
-    Constructor(Float32Array array),
-    Constructor(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length),
-    ConstructorCallWith=EnvironmentSettings,
-    RaisesException=Constructor
+  Constructor(unsigned long length),
+  Constructor(Float32Array array),
+  Constructor(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length),
+  ConstructorCallWith=EnvironmentSettings,
+  RaisesException=Constructor
 ]
 interface Float32Array : ArrayBufferView {
-    const unsigned long BYTES_PER_ELEMENT = 4;
+  const unsigned long BYTES_PER_ELEMENT = 4;
 
-    readonly attribute unsigned long length;
+  readonly attribute unsigned long length;
 
-    getter unrestricted float get(unsigned long index);
-    setter void set(unsigned long index, unrestricted float value);
+  getter unrestricted float get(unsigned long index);
+  setter void set(unsigned long index, unrestricted float value);
 
-    // Return a new Float32Array that is a view on top of this one.
-    // Contains this[start]..this[end]. end defaults to length if unspecified.
-    [CallWith=EnvironmentSettings] Float32Array subarray(long start, optional long end);
+  // Return a new Float32Array that is a view on top of this one.
+  // Contains this[start]..this[end]. end defaults to length if unspecified.
+  [CallWith=EnvironmentSettings] Float32Array subarray(long start, optional long end);
 };
