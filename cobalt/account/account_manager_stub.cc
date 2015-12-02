@@ -27,6 +27,10 @@ AccountManagerStub::~AccountManagerStub() {}
 
 std::string AccountManagerStub::GetAvatarURL() { return ""; }
 
+std::string AccountManagerStub::GetUsername() { return ""; }
+
+std::string AccountManagerStub::GetUserId() { return ""; }
+
 void AccountManagerStub::StartSignIn() {}
 
 bool AccountManagerStub::IsAgeRestricted() { return false; }
