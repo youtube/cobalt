@@ -68,15 +68,19 @@ Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element);
 
 class CombinatorMatcher : public cssom::CombinatorVisitor {
  public:
-  explicit CombinatorMatcher(Element* element) : element_(element) {
+  CombinatorMatcher(Element* element,
+                    cssom::CompoundSelector* previous_selector)
+      : element_(element), previous_selector_(previous_selector) {
     DCHECK(element);
+    DCHECK(previous_selector);
   }
 
   // Child combinator describes a childhood relationship between two elements.
   //   http://www.w3.org/TR/selectors4/#child-combinators
-  void VisitChildCombinator(cssom::ChildCombinator* child_combinator) OVERRIDE {
-    element_ = MatchSelectorAndElement(child_combinator->selector(),
-                                       element_->parent_element());
+  void VisitChildCombinator(
+      cssom::ChildCombinator* /*child_combinator*/) OVERRIDE {
+    element_ =
+        MatchSelectorAndElement(previous_selector_, element_->parent_element());
   }
 
   // Next-sibling combinator describes that the elements represented by the two
@@ -85,8 +89,8 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
   // element represented by the second one.
   //   http://www.w3.org/TR/selectors4/#adjacent-sibling-combinators
   void VisitNextSiblingCombinator(
-      cssom::NextSiblingCombinator* next_sibling_combinator) OVERRIDE {
-    element_ = MatchSelectorAndElement(next_sibling_combinator->selector(),
+      cssom::NextSiblingCombinator* /*next_sibling_combinator*/) OVERRIDE {
+    element_ = MatchSelectorAndElement(previous_selector_,
                                        element_->previous_element_sibling());
   }
 
@@ -94,11 +98,10 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
   // another element in the document tree.
   //   http://www.w3.org/TR/selectors4/#descendant-combinators
   void VisitDescendantCombinator(
-      cssom::DescendantCombinator* descendant_combinator) OVERRIDE {
+      cssom::DescendantCombinator* /*descendant_combinator*/) OVERRIDE {
     do {
       element_ = element_->parent_element();
-      Element* element =
-          MatchSelectorAndElement(descendant_combinator->selector(), element_);
+      Element* element = MatchSelectorAndElement(previous_selector_, element_);
       if (element) {
         element_ = element;
         return;
@@ -112,12 +115,11 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
   // necessarily immediately) the element represented by the second one.
   //   http://www.w3.org/TR/selectors4/#general-sibling-combinators
   void VisitFollowingSiblingCombinator(
-      cssom::FollowingSiblingCombinator* following_sibling_combinator)
+      cssom::FollowingSiblingCombinator* /*following_sibling_combinator*/)
       OVERRIDE {
     do {
       element_ = element_->previous_element_sibling();
-      Element* element = MatchSelectorAndElement(
-          following_sibling_combinator->selector(), element_);
+      Element* element = MatchSelectorAndElement(previous_selector_, element_);
       if (element) {
         element_ = element;
         return;
@@ -129,6 +131,7 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
 
  private:
   Element* element_;
+  cssom::CompoundSelector* previous_selector_;
   DISALLOW_COPY_AND_ASSIGN(CombinatorMatcher);
 };
 
@@ -258,21 +261,35 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // by combinators.
   //   http://www.w3.org/TR/selectors4/#complex
   void VisitComplexSelector(cssom::ComplexSelector* complex_selector) OVERRIDE {
-    // Match the element against the last adjacent selector.
-    element_ =
-        MatchSelectorAndElement(complex_selector->first_selector(), element_);
+    // Match against the last compound selector.
+    cssom::CompoundSelector* last_selector =
+        complex_selector->combinators().empty()
+            ? complex_selector->first_selector()
+            : complex_selector->combinators().back()->selector();
+    element_ = MatchSelectorAndElement(last_selector, element_);
     if (!element_) {
       return;
     }
 
-    // Iterate through all the combinators and advance the pointer. If any of
-    // the combinators doesn't match, the complex selector doesn't match.
+    // Iterate through all the combinators.
     for (cssom::Combinators::const_reverse_iterator combinator_iterator =
              complex_selector->combinators().rbegin();
          combinator_iterator != complex_selector->combinators().rend();
          ++combinator_iterator) {
-      CombinatorMatcher combinator_matcher(element_);
-      (*combinator_iterator)->Accept(&combinator_matcher);
+      cssom::Combinator* combinator = *combinator_iterator;
+
+      // Get the previous selector to the left of the combinator.
+      cssom::Combinators::const_reverse_iterator previous_combinator_iterator =
+          combinator_iterator;
+      previous_combinator_iterator++;
+      cssom::CompoundSelector* previous_selector =
+          previous_combinator_iterator == complex_selector->combinators().rend()
+              ? complex_selector->first_selector()
+              : (*previous_combinator_iterator)->selector();
+
+      // Match and advance the pointer to the element.
+      CombinatorMatcher combinator_matcher(element_, previous_selector);
+      combinator->Accept(&combinator_matcher);
       element_ = combinator_matcher.element();
       if (!element_) {
         return;
