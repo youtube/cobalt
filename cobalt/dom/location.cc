@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/location.h"
 
+#include "base/logging.h"
+
 namespace cobalt {
 namespace dom {
 
@@ -31,9 +33,7 @@ void Location::Replace(const std::string& url) {
   // that is successful, navigate the browsing context to the specified url with
   // replacement enabled and exceptions enabled.
   GURL new_url = url_.Resolve(url);
-  if (new_url.is_valid()) {
-    Navigate(new_url);
-  }
+  Navigate(new_url);
 }
 
 void Location::Reload() {
@@ -149,6 +149,12 @@ void Location::set_search(const std::string& search) {
 // Algorithm for Navigate:
 //   http://www.w3.org/TR/html5/browsers.html#navigate
 void Location::Navigate(const GURL& url) {
+  // Custom, not in any spec.
+  if (!url.is_valid()) {
+    DLOG(INFO) << "URL is not valid, aborting the navigation.";
+    return;
+  }
+
   // 7. Fragment identifiers: Apply the URL parser algorithm to the absolute URL
   // of the new resource and the address of the active document of the browsing
   // context being navigated. If all the components of the resulting parsed
