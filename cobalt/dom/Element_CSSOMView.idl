@@ -18,14 +18,10 @@
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
 
 partial interface Element {
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getboundingclientrect
+  DOMRectList getClientRects();
   DOMRect getBoundingClientRect();
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
   readonly attribute double clientTop;
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
   readonly attribute double clientLeft;
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
   readonly attribute double clientWidth;
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
   readonly attribute double clientHeight;
 };

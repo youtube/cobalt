@@ -18,7 +18,7 @@
 #define DOM_LAYOUT_BOXES_H_
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/dom_rect.h"
+#include "cobalt/dom/dom_rect_list.h"
 
 namespace cobalt {
 namespace dom {
@@ -45,8 +45,9 @@ class LayoutBoxes {
   // and
   // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface.
 
-  // Returns the rectangle bounding all child boxes after transformation.
-  virtual scoped_refptr<DOMRect> GetBoundingClientRect() const = 0;
+  // Returns a DOMRectList object containing a list of DOMRect objects in
+  // content order describing the bounding border boxes.
+  virtual scoped_refptr<dom::DOMRectList> GetClientRects() const = 0;
 
   // Returns true if the container box level is inline.
   virtual bool IsInlineLevel() const = 0;
