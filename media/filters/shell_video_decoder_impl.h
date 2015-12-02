@@ -23,8 +23,8 @@
 #include "base/threading/thread.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/shell_buffer_factory.h"
+#include "media/base/video_decoder.h"
 #include "media/base/video_decoder_config.h"
-#include "media/filters/shell_video_decoder.h"
 
 namespace media {
 
@@ -61,7 +61,7 @@ class ShellRawVideoDecoder {
   DISALLOW_COPY_AND_ASSIGN(ShellRawVideoDecoder);
 };
 
-class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
+class MEDIA_EXPORT ShellVideoDecoderImpl : public VideoDecoder {
  public:
   ShellVideoDecoderImpl(
       const scoped_refptr<base::MessageLoopProxy>& message_loop);

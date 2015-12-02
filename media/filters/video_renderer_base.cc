@@ -23,7 +23,6 @@
 #include "base/stringprintf.h"
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_media_statistics.h"
-#include "media/filters/shell_video_decoder.h"
 #endif
 
 namespace media {
@@ -783,13 +782,13 @@ void VideoRendererBase::UpdateUnderflowStatusToDecoder_Locked() {
   DCHECK(message_loop_->BelongsToCurrentThread());
   lock_.AssertAcquired();
 
-  ShellVideoDecoder* shell_video_decoder =
-      static_cast<ShellVideoDecoder*>(decoder_.get());
-  if (!shell_video_decoder) { return; }
+  if (!decoder_) {
+    return;
+  }
   if (state_ != kPlaying) {
     // If we are not playing, inform the decoder that we have enough frames so
     // it will decode in high quality.
-    shell_video_decoder->HaveEnoughFrames();
+    decoder_->HaveEnoughFrames();
     return;
   }
 
@@ -817,9 +816,9 @@ void VideoRendererBase::UpdateUnderflowStatusToDecoder_Locked() {
       std::max(maximum_frames_cached_ - kUnderflowAdjustment, 0));
 
   if (NumFrames_Locked() < underflow_threshold) {
-    shell_video_decoder->NearlyUnderflow();
+    decoder_->NearlyUnderflow();
   } else {
-    shell_video_decoder->HaveEnoughFrames();
+    decoder_->HaveEnoughFrames();
   }
 }
 

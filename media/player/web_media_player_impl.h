@@ -104,12 +104,12 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // When calling this, the |audio_source_provider| and
   // |audio_renderer_sink| arguments should be the same object.
 
-  WebMediaPlayerImpl(WebMediaPlayerClient* client,
-                     base::WeakPtr<WebMediaPlayerDelegate> delegate,
-                     FilterCollection* collection,
-                     AudioRendererSink* audio_renderer_sink,
-                     MessageLoopFactory* message_loop_factory,
-                     MediaLog* media_log);
+  WebMediaPlayerImpl(
+      WebMediaPlayerClient* client,
+      scoped_ptr<FilterCollection> collection,
+      const scoped_refptr<AudioRendererSink>& audio_renderer_sink,
+      scoped_ptr<MessageLoopFactory> message_loop_factory,
+      const scoped_refptr<MediaLog>& media_log);
   ~WebMediaPlayerImpl() OVERRIDE;
 
   void LoadMediaSource() OVERRIDE;
@@ -321,8 +321,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayerClient* client_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
-
-  base::WeakPtr<WebMediaPlayerDelegate> delegate_;
 
   scoped_refptr<MediaLog> media_log_;
 

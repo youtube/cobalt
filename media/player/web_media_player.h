@@ -252,25 +252,6 @@ class WebMediaPlayerClient {
   ~WebMediaPlayerClient() {}
 };
 
-// An interface to allow a WebMediaPlayerImpl to communicate changes of state
-// to objects that need to know.
-class WebMediaPlayerDelegate : base::SupportsWeakPtr<WebMediaPlayerDelegate> {
- public:
-  WebMediaPlayerDelegate() {}
-
-  // The specified player started playing media.
-  virtual void DidPlay(WebMediaPlayer* /* player */) {}
-
-  // The specified player stopped playing media.
-  virtual void DidPause(WebMediaPlayer* /* player */) {}
-
-  // The specified player was destroyed. Do not call any methods on it.
-  virtual void PlayerGone(WebMediaPlayer* /* player */) {}
-
- protected:
-  ~WebMediaPlayerDelegate() {}
-};
-
 }  // namespace media
 
 MSVC_POP_WARNING()
