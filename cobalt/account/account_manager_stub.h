@@ -29,6 +29,8 @@ class AccountManagerStub : public AccountManager {
   AccountManagerStub();
   ~AccountManagerStub() OVERRIDE;
   std::string GetAvatarURL() OVERRIDE;
+  std::string GetUsername() OVERRIDE;
+  std::string GetUserId() OVERRIDE;
   void StartSignIn() OVERRIDE;
   bool IsAgeRestricted() OVERRIDE;
 
