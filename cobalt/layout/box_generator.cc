@@ -698,6 +698,14 @@ void BoxGenerator::Visit(dom::Text* text) {
     if (computed_style_state->style()->white_space() !=
         cssom::KeywordValue::GetPre()) {
       CollapseWhiteSpace(&modifiable_text);
+
+      // If the paragraph hasn't been started yet and the text only consists of
+      // a collapsible space, then return without creating the box. The leading
+      // spaces in a line box are collapsed, so this box would be collapsed
+      // away during the layout.
+      if ((*paragraph_)->GetTextEndPosition() == 0 && modifiable_text == " ") {
+        return;
+      }
     }
 
     // TODO(***REMOVED***): Determine which transitions to propagate to the text box,

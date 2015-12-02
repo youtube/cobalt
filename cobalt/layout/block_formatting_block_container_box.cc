@@ -40,14 +40,11 @@ void BlockFormattingBlockContainerBox::AddChild(
     const scoped_refptr<Box>& child_box) {
   switch (child_box->GetLevel()) {
     case kBlockLevel:
-      if (!child_box->IsAbsolutelyPositioned() ||
-          GetLastChildAsAnonymousBlockBox() == NULL) {
-        // A block formatting context required, simply add a child.
+      if (!child_box->IsAbsolutelyPositioned()) {
         PushBackDirectChild(child_box);
         break;
       }
-      // Fall through if child is out-of-flow and follows an inline-level
-      // sibling.
+    // Fall through if child is out-of-flow.
 
     case kInlineLevel:
       // An inline formatting context required,
