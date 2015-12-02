@@ -21,7 +21,6 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/loader/image/image_cache.h"
@@ -68,8 +67,8 @@ class LayoutManager {
 
   LayoutManager(const scoped_refptr<dom::Window>& window,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
-                cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
-                float layout_refresh_rate, const std::string& language);
+                LayoutTrigger layout_trigger, float layout_refresh_rate,
+                const std::string& language);
   ~LayoutManager();
 
  private:
