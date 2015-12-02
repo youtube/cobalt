@@ -16,22 +16,23 @@
 
 // https://www.khronos.org/registry/typedarray/specs/latest/#7
 // Only the subset required by Cobalt is implemented.
+
 [
-    Constructor(unsigned long length),
-    Constructor(Float64Array array),
-    Constructor(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length),
-    ConstructorCallWith=EnvironmentSettings,
-    RaisesException=Constructor
+  Constructor(unsigned long length),
+  Constructor(Float64Array array),
+  Constructor(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length),
+  ConstructorCallWith=EnvironmentSettings,
+  RaisesException=Constructor
 ]
 interface Float64Array : ArrayBufferView {
-    const unsigned long BYTES_PER_ELEMENT = 8;
+  const unsigned long BYTES_PER_ELEMENT = 8;
 
-    readonly attribute unsigned long length;
+  readonly attribute unsigned long length;
 
-    getter unrestricted double get(unsigned long index);
-    setter void set(unsigned long index, unrestricted double value);
+  getter unrestricted double get(unsigned long index);
+  setter void set(unsigned long index, unrestricted double value);
 
-    // Return a new Float64Array that is a view on top of this one.
-    // Contains this[start]..this[end]. end defaults to length if unspecified.
-    [CallWith=EnvironmentSettings] Float64Array subarray(long start, optional long end);
+  // Return a new Float64Array that is a view on top of this one.
+  // Contains this[start]..this[end]. end defaults to length if unspecified.
+  [CallWith=EnvironmentSettings] Float64Array subarray(long start, optional long end);
 };

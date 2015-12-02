@@ -161,8 +161,7 @@ math::Vector2dF GetOffsetFromContainingBlockToParent(Box* child_box) {
     // We should not determine a used position through a transform, as
     // rectangles may not remain rectangles past it, and thus obtaining
     // a position may be misleading.
-    DCHECK_EQ(cssom::KeywordValue::GetNone(),
-              ancestor_box->computed_style()->transform());
+    DCHECK(!ancestor_box->IsTransformed());
 
     relative_position += ancestor_box->GetContentBoxOffsetFromMarginBox();
     relative_position +=
@@ -302,8 +301,7 @@ math::Vector2dF GetOffsetFromContainingBlockToStackingContext(Box* child_box) {
     // We should not determine a used position through a transform, as
     // rectangles may not remain rectangles past it, and thus obtaining
     // a position may be misleading.
-    DCHECK_EQ(cssom::KeywordValue::GetNone(),
-              current_box->computed_style()->transform());
+    DCHECK(!current_box->IsTransformed());
 
     relative_position += current_box->GetContentBoxOffsetFromMarginBox();
     relative_position += current_box->margin_box_offset_from_containing_block();
@@ -330,8 +328,7 @@ math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
     // We should not determine a used position through a transform, as
     // rectangles may not remain rectangles past it, and thus obtaining
     // a position may be misleading.
-    DCHECK_EQ(cssom::KeywordValue::GetNone(),
-              current_box->computed_style()->transform());
+    DCHECK(!current_box->IsTransformed());
 
     relative_position += current_box->GetContentBoxOffsetFromMarginBox();
     relative_position += current_box->margin_box_offset_from_containing_block();

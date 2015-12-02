@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/dom_rect.h"
+#include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/layout_boxes.h"
 #include "cobalt/layout/box.h"
 
@@ -36,7 +36,7 @@ class LayoutBoxes : public dom::LayoutBoxes {
   //
   Type type() const OVERRIDE;
 
-  scoped_refptr<dom::DOMRect> GetBoundingClientRect() const OVERRIDE;
+  scoped_refptr<dom::DOMRectList> GetClientRects() const OVERRIDE;
   bool IsInlineLevel() const OVERRIDE;
 
   float GetBorderEdgeLeft() const OVERRIDE;

@@ -16,11 +16,14 @@
 
 #include "cobalt/dom/element.h"
 
+#include <algorithm>
+
 #include "base/string_util.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_rect.h"
+#include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_collection.h"
@@ -31,6 +34,7 @@
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace dom {
@@ -271,14 +275,61 @@ scoped_refptr<HTMLCollection> Element::GetElementsByClassName(
   return HTMLCollection::CreateWithElementsByClassName(this, class_name);
 }
 
+namespace {
+
+// Returns the bounding rectangle of the given DOMrect. A DOMRect can have a
+// negative width or height. This function ensures that the width and height of
+// the returned rectangle are positive, allowing RectF::Union() to function
+// correctly.
+math::RectF GetBoundingRectangle(const scoped_refptr<DOMRect>& dom_rect) {
+  math::RectF bounding_rectangle;
+  // This handles the case where DOMRect::width() or DOMRect::height() can be
+  // negative.
+  float dom_rect_x2 = dom_rect->x() + dom_rect->width();
+  float rect_x = std::min(dom_rect->x(), dom_rect_x2);
+  bounding_rectangle.set_x(rect_x);
+  bounding_rectangle.set_width(std::max(dom_rect->x(), dom_rect_x2) - rect_x);
+  float dom_rect_y2 = dom_rect->y() + dom_rect->height();
+  float rect_y = std::min(dom_rect->y(), dom_rect_y2);
+  bounding_rectangle.set_y(rect_y);
+  bounding_rectangle.set_height(std::max(dom_rect->y(), dom_rect_y2) - rect_y);
+  return bounding_rectangle;
+}
+
+}  // namespace
+
 // Algorithm for getBoundingClientRect:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getboundingclientrect
 scoped_refptr<DOMRect> Element::GetBoundingClientRect() {
   // 1. Let list be the result of invoking getClientRects() on the same element
   // this method was invoked on.
+  scoped_refptr<DOMRectList> list = GetClientRects();
   // 2. If the list is empty return a DOMRect object whose x, y, width and
   // height members are zero.
-  return make_scoped_refptr(new DOMRect());
+  if (list->length() == 0) {
+    return make_scoped_refptr(new DOMRect());
+  }
+  // 3. Otherwise, return a DOMRect object describing the smallest rectangle
+  // that includes the first rectangle in list and all of the remaining
+  // rectangles of which the height or width is not zero.
+  math::RectF bounding_rect = GetBoundingRectangle(list->Item(0));
+
+  for (unsigned int item_number = 1; item_number < list->length();
+       ++item_number) {
+    const scoped_refptr<DOMRect>& box_rect = list->Item(item_number);
+    if (box_rect->height() != 0.0f || box_rect->width() != 0.0f) {
+      bounding_rect.Union(GetBoundingRectangle(box_rect));
+    }
+  }
+  return make_scoped_refptr(new DOMRect(bounding_rect));
+}
+
+// Algorithm for GetClientRects:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
+scoped_refptr<DOMRectList> Element::GetClientRects() {
+  // 1. If the element on which it was invoked does not have an associated
+  // layout box return an empty DOMRectList object and stop this algorithm.
+  return make_scoped_refptr(new DOMRectList());
 }
 
 // Algorithm for client_top:

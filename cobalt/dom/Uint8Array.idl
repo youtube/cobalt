@@ -16,28 +16,28 @@
 
 // https://www.khronos.org/registry/typedarray/specs/latest/#7.1
 [
-    Constructor(unsigned long length),
-    Constructor(Uint8Array array),
-    Constructor(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length),
-    ConstructorCallWith=EnvironmentSettings,
-    RaisesException=Constructor
+  Constructor(unsigned long length),
+  Constructor(Uint8Array array),
+  Constructor(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length),
+  ConstructorCallWith=EnvironmentSettings,
+  RaisesException=Constructor
 ]
 interface Uint8Array : ArrayBufferView {
-    const unsigned long BYTES_PER_ELEMENT = 1;
+  const unsigned long BYTES_PER_ELEMENT = 1;
 
-    readonly attribute unsigned long length;
+  readonly attribute unsigned long length;
 
-    getter octet get(unsigned long index);
-    setter void set(unsigned long index, octet value);
+  getter octet get(unsigned long index);
+  setter void set(unsigned long index, octet value);
 
-    // TODO(***REMOVED***): When arrays or sequences are supported, support
-    // them here.
-    //void set(sequence<long> array, optional unsigned long offset);
+  // TODO(***REMOVED***): When arrays or sequences are supported, support
+  // them here.
+  //void set(sequence<long> array, optional unsigned long offset);
 
-    // Copy items into this array from source, starting at this[offset].
-    [RaisesException] void set(Uint8Array source, optional unsigned long offset);
+  // Copy items into this array from source, starting at this[offset].
+  [RaisesException] void set(Uint8Array source, optional unsigned long offset);
 
-    // Return a new Uint8Array that is a view on top of this one.
-    // Contains this[start]..this[end]. end defaults to length if unspecified.
-    [CallWith=EnvironmentSettings] Uint8Array subarray(long start, optional long end);
+  // Return a new Uint8Array that is a view on top of this one.
+  // Contains this[start]..this[end]. end defaults to length if unspecified.
+  [CallWith=EnvironmentSettings] Uint8Array subarray(long start, optional long end);
 };
