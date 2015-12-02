@@ -41,6 +41,13 @@ class AccountManager {
   // Get the avatar URL associated with the account, if any.
   virtual std::string GetAvatarURL() = 0;
 
+  // Get the username associated with the account. Due to restrictions on
+  // some platforms, this may return the user ID or an empty string.
+  virtual std::string GetUsername() = 0;
+
+  // Get the user ID associated with the account.
+  virtual std::string GetUserId() = 0;
+
   // Initiate user sign-in (e.g. open a sign-in dialog)
   virtual void StartSignIn() = 0;
 
