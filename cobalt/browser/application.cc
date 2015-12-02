@@ -74,7 +74,7 @@ GURL GetInitialURL() {
   }
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
-  static const char kDefaultURL[] = "https://youtube.com/tv";
+  static const char kDefaultURL[] = "https://www.youtube.com/tv";
   return GURL(kDefaultURL);
 }
 
