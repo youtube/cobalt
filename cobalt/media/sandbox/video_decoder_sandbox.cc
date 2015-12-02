@@ -54,7 +54,7 @@ class VideoDecoderSandbox {
     DCHECK(stream);
 
     demuxer_ = demuxer;
-    decoder_ = ShellVideoDecoderImpl::Create(base::MessageLoopProxy::current());
+    decoder_ = new ShellVideoDecoderImpl(base::MessageLoopProxy::current());
     decoder_->Initialize(
         stream,
         Bind(&VideoDecoderSandbox::VideoDecoderReadyCB, Unretained(this)),
