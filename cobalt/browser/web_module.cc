@@ -118,8 +118,7 @@ WebModule::WebModule(
           fetcher_factory_.get(), window_, &media_source_registry_,
           javascript_engine_.get(), global_object_proxy_.get())),
       layout_manager_(window_.get(), render_tree_produced_callback,
-                      css_parser_.get(), options.layout_trigger,
-                      layout_refresh_rate,
+                      options.layout_trigger, layout_refresh_rate,
                       network_module->preferred_language()),
       url_(initial_url) {
   global_object_proxy_->CreateGlobalObject(window_,

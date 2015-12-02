@@ -83,7 +83,8 @@ Document::Document(HTMLElementContext* html_element_context,
       are_keyframes_dirty_(true),
       navigation_start_clock_(options.navigation_start_clock),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          default_timeline_(new DocumentTimeline(this, 0))) {
+          default_timeline_(new DocumentTimeline(this, 0))),
+      user_agent_style_sheet_(options.user_agent_style_sheet) {
   DCHECK(options.url.is_empty() || options.url.is_valid());
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
@@ -435,8 +436,7 @@ void UpdateSelectorTreeFromCSSStyleSheet(
 }  // namespace
 
 void Document::UpdateMatchingRules(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style) {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
   DCHECK(html());
 
@@ -446,10 +446,10 @@ void Document::UpdateMatchingRules(
     scoped_refptr<cssom::PropertyValue> width(root_computed_style->width());
     scoped_refptr<cssom::PropertyValue> height(root_computed_style->height());
 
-    if (user_agent_style_sheet) {
-      user_agent_style_sheet->EvaluateMediaRules(width, height);
+    if (user_agent_style_sheet_) {
+      user_agent_style_sheet_->EvaluateMediaRules(width, height);
       UpdateSelectorTreeFromCSSStyleSheet(&selector_tree_,
-                                          user_agent_style_sheet);
+                                          user_agent_style_sheet_);
     }
 
     for (unsigned int style_sheet_index = 0;
@@ -474,12 +474,11 @@ void Document::UpdateMatchingRules(
 }
 
 void Document::UpdateComputedStyles(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style) {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateComputedStyles()");
 
-  UpdateMatchingRules(root_computed_style, user_agent_style_sheet);
-  UpdateKeyframes(user_agent_style_sheet);
+  UpdateMatchingRules(root_computed_style);
+  UpdateKeyframes();
 
   if (is_computed_style_dirty_) {
     // Determine the official time that this style change event took place. This
@@ -497,26 +496,24 @@ void Document::UpdateComputedStyles(
     is_computed_style_dirty_ = false;
   }
 
-  UpdateFontFaces(user_agent_style_sheet);
+  UpdateFontFaces();
 }
 
-void Document::UpdateFontFaces(
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+void Document::UpdateFontFaces() {
   if (are_font_faces_dirty_) {
     TRACE_EVENT0("cobalt::dom", "Document::UpdateFontFaces()");
     FontFaceUpdater font_face_updater(location_->url(), font_cache_.get());
-    font_face_updater.ProcessCSSStyleSheet(user_agent_style_sheet);
+    font_face_updater.ProcessCSSStyleSheet(user_agent_style_sheet_);
     font_face_updater.ProcessStyleSheetList(style_sheets());
     are_font_faces_dirty_ = false;
   }
 }
 
-void Document::UpdateKeyframes(
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+void Document::UpdateKeyframes() {
   if (are_keyframes_dirty_) {
     TRACE_EVENT0("cobalt::layout", "Document::UpdateKeyframes()");
     KeyframesMapUpdater keyframes_map_updater(&keyframes_map_);
-    keyframes_map_updater.ProcessCSSStyleSheet(user_agent_style_sheet);
+    keyframes_map_updater.ProcessCSSStyleSheet(user_agent_style_sheet_);
     keyframes_map_updater.ProcessStyleSheetList(style_sheets());
     are_keyframes_dirty_ = false;
   }

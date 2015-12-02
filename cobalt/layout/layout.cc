@@ -36,7 +36,6 @@ namespace layout {
 
 RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::Window>& window,
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
@@ -53,8 +52,7 @@ RenderTreeWithAnimations Layout(
   scoped_refptr<cssom::CSSStyleDeclarationData> initial_containing_block_style =
       CreateInitialContainingBlockComputedStyle(window);
 
-  document->UpdateComputedStyles(initial_containing_block_style,
-                                 user_agent_style_sheet);
+  document->UpdateComputedStyles(initial_containing_block_style);
 
   // Create initial containing block.
   *initial_containing_block = CreateInitialContainingBlock(

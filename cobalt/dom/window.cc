@@ -20,6 +20,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "cobalt/cssom/user_agent_style_sheet.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
@@ -83,9 +84,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       performance_(new Performance(new base::SystemMonotonicClock())),
       document_(new Document(
           html_element_context_.get(),
-          Document::Options(url,
-                            performance_->timing()->GetNavigationStartClock(),
-                            navigation_callback))),
+          Document::Options(
+              url, performance_->timing()->GetNavigationStartClock(),
+              navigation_callback, ParseUserAgentStyleSheet(css_parser)))),
       document_loader_(new loader::Loader(
           base::Bind(&loader::FetcherFactory::CreateFetcher,
                      base::Unretained(fetcher_factory), url),

@@ -84,14 +84,17 @@ class Document : public Node, public cssom::MutationObserver {
     explicit Options(const GURL& url_value) : url(url_value) {}
     Options(const GURL& url_value,
             const scoped_refptr<base::Clock>& navigation_start_clock_value,
-            const base::Callback<void(const GURL&)>& navigation_callback)
+            const base::Callback<void(const GURL&)>& navigation_callback,
+            const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet)
         : url(url_value),
           navigation_start_clock(navigation_start_clock_value),
-          navigation_callback(navigation_callback) {}
+          navigation_callback(navigation_callback),
+          user_agent_style_sheet(user_agent_style_sheet) {}
 
     GURL url;
     scoped_refptr<base::Clock> navigation_start_clock;
     base::Callback<void(const GURL&)> navigation_callback;
+    scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet;
   };
 
   Document(HTMLElementContext* html_element_context, const Options& options);
@@ -167,9 +170,10 @@ class Document : public Node, public cssom::MutationObserver {
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
   scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new Document(html_element_context_,
-                        Options(location_->url(), navigation_start_clock_,
-                                location_->navigation_callback()));
+    return new Document(
+        html_element_context_,
+        Options(location_->url(), navigation_start_clock_,
+                location_->navigation_callback(), user_agent_style_sheet_));
   }
 
   // Custom, not in any spec.
@@ -241,24 +245,20 @@ class Document : public Node, public cssom::MutationObserver {
   // Those selectors that are supported are implemented after Selectors Level 4.
   //   http://www.w3.org/TR/selectors4/
   void UpdateMatchingRules(
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
-      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
+      const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style);
 
   // Updates the computed styles of all of this document's HTML elements.
   void UpdateComputedStyles(
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
-      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
+      const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style);
 
   // Scans the user agent style sheet and all style sheets in the document's
   // style sheet list and updates the font faces available in the document.
-  void UpdateFontFaces(
-      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
+  void UpdateFontFaces();
 
   // Scans the user agent style sheet and all style sheets in the document's
   // style sheet list and compiles/updates a set of all declared CSS
   // keyframes used to define CSS Animations.
-  void UpdateKeyframes(
-      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
+  void UpdateKeyframes();
 
   // Manages the clock used by Web Animations.
   //     http://www.w3.org/TR/web-animations
@@ -340,6 +340,8 @@ class Document : public Node, public cssom::MutationObserver {
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   base::Closure synchronous_layout_callback_;
+
+  scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
 };
 
 }  // namespace dom
