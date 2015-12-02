@@ -16,11 +16,6 @@
 #include "media/base/decryptor_client.h"
 #include "media/base/pipeline.h"
 #include "media/filters/chunk_demuxer.h"
-#if defined(__LB_SHELL__)
-#include "media/filters/shell_video_decoder.h"
-#else
-#include "media/filters/ffmpeg_video_decoder.h"
-#endif
 #include "media/filters/skcanvas_video_renderer.h"
 #include "media/player/buffered_data_source.h"
 #include "ui/gfx/rect.h"
@@ -36,8 +31,6 @@ namespace media {
 class VideoFrame;
 class VideoRendererBase;
 class WebMediaPlayerImpl;
-
-typedef ShellVideoDecoder VideoDecoderType;
 
 // Acts as a thread proxy between the various threads used for multimedia and
 // the render thread that WebMediaPlayerImpl is running on.

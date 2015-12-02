@@ -33,16 +33,6 @@
 namespace media {
 
 //==============================================================================
-// Static ShellVideoDecoder Methods
-//
-
-// static
-ShellVideoDecoder* ShellVideoDecoder::Create(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop) {
-  return new ShellVideoDecoderImpl(message_loop);
-}
-
-//==============================================================================
 // ShellVideoDecoderImpl
 //
 
