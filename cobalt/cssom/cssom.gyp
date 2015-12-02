@@ -207,6 +207,8 @@
         'unicode_range_value.h',
         'unsupported_pseudo_class.cc',
         'unsupported_pseudo_class.h',
+        'user_agent_style_sheet.cc',
+        'user_agent_style_sheet.h',
         'url_src_value.cc',
         'url_src_value.h',
         'url_value.cc',
@@ -216,7 +218,46 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        'embed_resources_as_header_files',
       ],
+    },
+
+    {
+      # This target takes all files in the embedded_resources directory (e.g.
+      # the user agent style sheet) and embeds them as header files for
+      # inclusion into the binary.
+      'target_name': 'embed_resources_as_header_files',
+      'type': 'none',
+      # Because we generate a header, we must set the hard_dependency flag.
+      'hard_dependency': 1,
+      'variables': {
+        'script_path': '<(DEPTH)/lbshell/build/generate_data_header.py',
+        'output_path': '<(SHARED_INTERMEDIATE_DIR)/cobalt/cssom/embedded_resources.h',
+        'input_directory': 'embedded_resources',
+      },
+      'sources': [
+        '<(input_directory)/user_agent_style_sheet.css',
+      ],
+      'actions': [
+        {
+          'action_name': 'embed_resources_as_header_files',
+          'inputs': [
+            '<(script_path)',
+            '<@(_sources)',
+          ],
+          'outputs': [
+            '<(output_path)',
+          ],
+          'action': ['python', '<(script_path)', 'CSSOMEmbeddedResources', '<(input_directory)', '<(output_path)'],
+          'message': 'Embedding cssom resources in "<(input_directory)" into header file, "<(output_path)".',
+          'msvs_cygwin_shell': 1,
+        },
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(SHARED_INTERMEDIATE_DIR)',
+        ],
+      },
     },
   ],
 }

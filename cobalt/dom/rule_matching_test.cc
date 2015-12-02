@@ -70,7 +70,7 @@ void RuleMatchingTest::MatchRules(Element* element) {
 
   document_->style_sheets()->Append(css_style_sheet_);
 
-  document_->UpdateMatchingRules(empty_style_, NULL);
+  document_->UpdateMatchingRules(empty_style_);
 
   matching_rules_ = html_element->matching_rules();
 
