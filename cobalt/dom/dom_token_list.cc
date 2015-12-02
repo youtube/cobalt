@@ -26,23 +26,6 @@
 
 namespace cobalt {
 namespace dom {
-namespace {
-
-struct NonTrivialStaticFields {
-  NonTrivialStaticFields() {}
-
-  const std::string empty_string;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
-};
-
-// |non_trivial_static_fields| will be lazily created on the first time it's
-// accessed.
-base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
-    LAZY_INSTANCE_INITIALIZER;
-
-}  // namespace
 
 DOMTokenList::DOMTokenList(Element* element, const std::string& attr_name)
     : element_(base::AsWeakPtr(element)),
@@ -181,7 +164,7 @@ const std::string& DOMTokenList::NonNullItem(unsigned int index) const {
   // 1. If index is equal to or greater than the number of tokens in tokens,
   //    return an empty string rather than NULL.
   if (index >= tokens_.size()) {
-    return non_trivial_static_fields.Get().empty_string;
+    return EmptyString();
   }
 
   // 2. Return the indexth token in tokens.
