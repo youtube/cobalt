@@ -15,7 +15,7 @@
  */
 
 [
-    Constructor(optional DOMString data = ""),
-    ConstructorCallWith=EnvironmentSettings
+  Constructor(optional DOMString data = ""),
+  ConstructorCallWith=EnvironmentSettings
 ]
 interface Comment : CharacterData {};
