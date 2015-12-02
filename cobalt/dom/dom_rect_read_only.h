@@ -31,6 +31,7 @@ class DOMRectReadOnly : public script::Wrappable {
  public:
   DOMRectReadOnly(float x, float y, float width, float height)
       : rect_(x, y, width, height) {}
+  explicit DOMRectReadOnly(const math::RectF& rect) : rect_(rect) {}
 
   // Web API: DOMRectReadOnly
   //

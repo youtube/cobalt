@@ -27,9 +27,47 @@ LayoutBoxes::~LayoutBoxes() {}
 
 LayoutBoxes::Type LayoutBoxes::type() const { return kLayoutLayoutBoxes; }
 
-scoped_refptr<dom::DOMRect> LayoutBoxes::GetBoundingClientRect() const {
-  // TODO(***REMOVED***): Implement algorithm for GetBoundingClientRect().
-  return make_scoped_refptr(new dom::DOMRect());
+// Algorithm for GetClientRects:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
+scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
+  // 1. If the element on which it was invoked does not have an associated
+  // layout box return an empty DOMRectList object and stop this algorithm.
+
+  // 2. If the element has an associated SVG layout box return a DOMRectList
+  // object containing a single DOMRect object that describes the bounding box
+  // of the element as defined by the SVG specification, applying the transforms
+  // that apply to the element and its ancestors.
+
+  // 3. Return a DOMRectList object containing a list of DOMRect objects in
+  // content order describing the bounding border boxes (including those with a
+  // height or width of zero) with the following constraints:
+  //  . Apply the transforms that apply to the element and its ancestors.
+  //  . If the element on which the method was invoked has a computed value for
+  //    the 'display' property of 'table' or 'inline-table' include both the
+  //    table box and the caption box, if any, but not the anonymous container
+  //    box.
+  //  . Replace each anonymous block box with its child box(es) and repeat this
+  //    until no anonymous block boxes are left in the final list.
+
+  scoped_refptr<dom::DOMRectList> dom_rect_list(new dom::DOMRectList());
+  for (Boxes::const_iterator box_iterator = boxes_.begin();
+       box_iterator != boxes_.end(); ++box_iterator) {
+    Box* box = *box_iterator;
+    scoped_refptr<dom::DOMRect> dom_rect(new dom::DOMRect());
+
+    // TODO(***REMOVED***): Take transforms into account and recurse into anonymous
+    // block boxes. ***REMOVED*** currently doesn't rely on GetClientRects() to do
+    // that. Tracked in b/25983085.
+
+    dom_rect->set_x(box->GetBorderBoxLeftEdge());
+    dom_rect->set_y(box->GetBorderBoxTopEdge());
+    math::SizeF box_size = box->GetBorderBoxSize();
+    dom_rect->set_width(box_size.width());
+    dom_rect->set_height(box_size.height());
+    dom_rect_list->AppendDOMRect(dom_rect);
+  }
+
+  return dom_rect_list;
 }
 
 bool LayoutBoxes::IsInlineLevel() const {

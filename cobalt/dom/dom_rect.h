@@ -28,6 +28,7 @@ namespace dom {
 class DOMRect : public DOMRectReadOnly {
  public:
   DOMRect() : DOMRectReadOnly(0.0f, 0.0f, 0.0f, 0.0f) {}
+  explicit DOMRect(const math::RectF& rect) : DOMRectReadOnly(rect) {}
   explicit DOMRect(float x) : DOMRectReadOnly(x, 0.0f, 0.0f, 0.0f) {}
   DOMRect(float x, float y) : DOMRectReadOnly(x, y, 0.0f, 0.0f) {}
   DOMRect(float x, float y, float width) : DOMRectReadOnly(x, y, width, 0.0f) {}

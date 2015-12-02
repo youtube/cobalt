@@ -32,6 +32,7 @@ namespace cobalt {
 namespace dom {
 
 class DOMRect;
+class DOMRectList;
 class DOMTokenList;
 class HTMLCollection;
 class HTMLElement;
@@ -95,7 +96,8 @@ class Element : public Node {
   // Web API: CSSOM View Module: Extensions to the Element Interface (partial
   // interface)
   //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
-  virtual scoped_refptr<DOMRect> GetBoundingClientRect();
+  scoped_refptr<DOMRect> GetBoundingClientRect();
+  virtual scoped_refptr<DOMRectList> GetClientRects();
   virtual float client_top();
   virtual float client_left();
   virtual float client_width();

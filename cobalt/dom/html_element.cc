@@ -31,7 +31,6 @@
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_animatable.h"
-#include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/dom_string_map.h"
 #include "cobalt/dom/focus_event.h"
 #include "cobalt/dom/html_anchor_element.h"
@@ -108,16 +107,20 @@ void HTMLElement::Blur() {
   }
 }
 
-// Algorithm for getBoundingClientRect:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getboundingclientrect
-scoped_refptr<DOMRect> HTMLElement::GetBoundingClientRect() {
+// Algorithm for GetClientRects:
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
+scoped_refptr<DOMRectList> HTMLElement::GetClientRects() {
   DCHECK(owner_document());
   owner_document()->DoSynchronousLayout();
 
-  if (layout_boxes_) {
-    return layout_boxes_->GetBoundingClientRect();
+  // 1. If the element on which it was invoked does not have an associated
+  // layout box return an empty DOMRectList object and stop this algorithm.
+  if (!layout_boxes_) {
+    return make_scoped_refptr(new DOMRectList());
   }
-  return make_scoped_refptr(new DOMRect());
+
+  // The remaining steps are implemented in LayoutBoxes::GetClientRects().
+  return layout_boxes_->GetClientRects();
 }
 
 // Algorithm for client_top:

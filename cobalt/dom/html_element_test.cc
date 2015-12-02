@@ -24,7 +24,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/dom_rect.h"
+#include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_element_context.h"
@@ -62,7 +62,7 @@ const char kDisplayInlineDeclarationString[] = "display: inline;";
 class MockLayoutBoxes : public dom::LayoutBoxes {
  public:
   MOCK_CONST_METHOD0(type, Type());
-  MOCK_CONST_METHOD0(GetBoundingClientRect, scoped_refptr<dom::DOMRect>());
+  MOCK_CONST_METHOD0(GetClientRects, scoped_refptr<dom::DOMRectList>());
 
   MOCK_CONST_METHOD0(IsInlineLevel, bool());
 

@@ -31,6 +31,7 @@
         'document_type_test.cc',
         'dom_implementation_test.cc',
         'dom_parser_test.cc',
+        'dom_rect_list_test.cc',
         'dom_string_map_test.cc',
         'dom_token_list_test.cc',
         'element_test.cc',

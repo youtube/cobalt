@@ -17,13 +17,13 @@
 // https://www.khronos.org/registry/typedarray/specs/latest/
 
 [
-    Constructor(unsigned long length),
-    ConstructorCallWith=EnvironmentSettings
+  Constructor(unsigned long length),
+  ConstructorCallWith=EnvironmentSettings
 ]
 interface ArrayBuffer {
-    readonly attribute unsigned long byteLength;
-    [CallWith=EnvironmentSettings] ArrayBuffer slice(long begin, optional long end);
+  readonly attribute unsigned long byteLength;
+  [CallWith=EnvironmentSettings] ArrayBuffer slice(long begin, optional long end);
 
-    // TODO(***REMOVED***): Do we need to support this?
-    // static boolean isView(any value);
+  // TODO(***REMOVED***): Do we need to support this?
+  // static boolean isView(any value);
 };

@@ -35,7 +35,7 @@
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/css_animations_adapter.h"
 #include "cobalt/dom/css_transitions_adapter.h"
-#include "cobalt/dom/dom_rect.h"
+#include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/layout_boxes.h"
 #include "cobalt/dom/pseudo_element.h"
@@ -100,7 +100,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Web API: CSSOM View Module: Extensions to the Element Interface (partial
   // interface)
   //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
-  scoped_refptr<DOMRect> GetBoundingClientRect() OVERRIDE;
+  scoped_refptr<DOMRectList> GetClientRects() OVERRIDE;
   float client_top() OVERRIDE;
   float client_left() OVERRIDE;
   float client_width() OVERRIDE;

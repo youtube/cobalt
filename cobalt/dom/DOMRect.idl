@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-// From Geometry Interfaces Module.
-//   http://www.w3.org/TR/2014/CR-geometry-1-20141125/#dom-domrect
+// http://www.w3.org/TR/2014/CR-geometry-1-20141125/#dom-domrect
 
 [
-    Constructor(),
-    Constructor(unrestricted double x),
-    Constructor(unrestricted double x, unrestricted double y),
-    Constructor(unrestricted double x, unrestricted double y,
-                unrestricted double width),
-    Constructor(unrestricted double x, unrestricted double y,
-                unrestricted double width, unrestricted double height),
-    Exposed=(Window)
+  Constructor(),
+  Constructor(unrestricted double x),
+  Constructor(unrestricted double x, unrestricted double y),
+  Constructor(unrestricted double x, unrestricted double y,
+              unrestricted double width),
+  Constructor(unrestricted double x, unrestricted double y,
+              unrestricted double width, unrestricted double height),
+  Exposed=(Window)
 ]
 interface DOMRect : DOMRectReadOnly {
-    inherit attribute unrestricted double x;
-    inherit attribute unrestricted double y;
-    inherit attribute unrestricted double width;
-    inherit attribute unrestricted double height;
+  inherit attribute unrestricted double x;
+  inherit attribute unrestricted double y;
+  inherit attribute unrestricted double width;
+  inherit attribute unrestricted double height;
 };
