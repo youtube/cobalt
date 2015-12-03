@@ -167,7 +167,7 @@ class InterfaceInfoCollector(object):
         })
         self.union_types = set()
         self.root_path = root_directory
-
+        self.referenced_from_partial_interfaces = defaultdict(lambda: set())
     def add_paths_to_partials_dict(self, partial_interface_name, full_path,
                                    this_include_path=None):
         paths_dict = self.partial_interface_files[partial_interface_name]
@@ -216,6 +216,8 @@ class InterfaceInfoCollector(object):
             # We don't create interface_info for partial interfaces, but
             # adds paths to another dict.
             self.add_paths_to_partials_dict(definition.name, full_path, this_include_path)
+            referenced_from_interface = get_put_forward_interfaces_from_definition(definition)
+            self.referenced_from_partial_interfaces[definition.name].update(referenced_from_interface)
             return
 
         # 'implements' statements can be included in either the file for the
@@ -248,6 +250,7 @@ class InterfaceInfoCollector(object):
             # Can't pickle defaultdict, convert to dict
             # FIXME: this should be included in get_component_info.
             'partial_interface_files': dict(self.partial_interface_files),
+            'partial_interface_referenced_interfaces': dict(self.referenced_from_partial_interfaces),
         }
 
     def get_component_info_as_dict(self):

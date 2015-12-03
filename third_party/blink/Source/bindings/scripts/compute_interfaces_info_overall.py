@@ -99,6 +99,10 @@ INHERITED_EXTENDED_ATTRIBUTES = set([
 # Main variable (filled in and exported)
 interfaces_info = {}
 
+# Interfaces referenced from partial interfaces to be merged into the full
+# interface.
+interfaces_referenced_from_partial_interfaces = {}
+
 # Auxiliary variables (not visible to future build steps)
 partial_interface_files = defaultdict(lambda: {
     'full_paths': [],
@@ -220,6 +224,16 @@ def compute_interfaces_info_overall(info_individuals):
         # We thus need to update or append if already present
         dict_of_dicts_of_lists_update_or_append(
                 partial_interface_files, info['partial_interface_files'])
+
+        interfaces_referenced_from_partial_interfaces.update(
+                info['partial_interface_referenced_interfaces'])
+
+    # Append interfaces referenced from partial interfaces into the full
+    # interface's list of partial interfaces
+    for interface_name, referenced_interfaces in interfaces_referenced_from_partial_interfaces.items():
+        interface_info = interfaces_info[interface_name]
+        interface_info['referenced_interfaces'].extend(referenced_interfaces)
+
 
     # Record inheritance information individually
     for interface_name, interface_info in interfaces_info.iteritems():
