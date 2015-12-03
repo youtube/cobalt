@@ -46,6 +46,7 @@ class PulseAudioHost : public ShellPulseAudioStream::Host {
   };
 
   ShellPulseAudioContext* pulse_audio_context_;
+  int channels_;
   uint32 played_frames_;  // frames played by the audio driver
   uint32 written_frames_;  // frames written to the audio driver
   StreamState state_;
@@ -135,7 +136,8 @@ ShellAudioStreamerLinux::~ShellAudioStreamerLinux() {
 PulseAudioHost::PulseAudioHost(ShellPulseAudioContext* pulse_audio_context,
                                ShellAudioStream* stream,
                                int rate, int channels)
-    : pulse_audio_context_(pulse_audio_context),
+    : channels_(channels),
+      pulse_audio_context_(pulse_audio_context),
       played_frames_(0),
       written_frames_(0),
       state_(STATE_PAUSED),
@@ -162,8 +164,8 @@ void PulseAudioHost::RequestFrame(size_t length, WriteFunc write) {
     frame_consumed = frames_played - played_frames_;
   played_frames_ += frame_consumed;
 
-  // each frame is 16 bytes (FLTLE * 2 channels)
-  const int kBytesPerFrame = sizeof(float) * 2;
+  // Our samples are in floats.
+  const int kBytesPerFrame = sizeof(float) * channels_;
   DCHECK_EQ(length % kBytesPerFrame, 0);
   length /= kBytesPerFrame;
   const AudioBus* audio_bus = lb_audio_stream_->GetAudioBus();
@@ -175,12 +177,12 @@ void PulseAudioHost::RequestFrame(size_t length, WriteFunc write) {
     frame_pulled = played_frames_ + frame_pulled - written_frames_;
     frame_pulled = std::min<size_t>(frame_pulled, length);
 
-    uint32 frames = audio_bus->frames() / 2;
+    uint32 frames = audio_bus->frames() / channels_;
     uint32 frame_offset = written_frames_ % frames;
 
     uint32 frame_to_write =
         std::min<size_t>(frame_pulled, frames - frame_offset);
-    const float* buffer = audio_bus->channel(0) + frame_offset * 2;
+    const float* buffer = audio_bus->channel(0) + frame_offset * channels_;
     write.Run(reinterpret_cast<const uint8*>(buffer),
               frame_to_write * kBytesPerFrame);
     written_frames_ += frame_to_write;
