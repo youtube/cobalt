@@ -344,7 +344,11 @@ void ShellAudioDecoderImpl::OnBufferDecoded(
   } else if (status == ShellRawAudioDecoder::NEED_MORE_DATA) {
     DCHECK_EQ(status, ShellRawAudioDecoder::NEED_MORE_DATA);
     DCHECK(!buffer);
-    TryToReadFromDemuxerStream();
+    if (reset_cb_.is_null()) {
+      TryToReadFromDemuxerStream();
+    } else {
+      Reset(base::ResetAndReturn(&reset_cb_));
+    }
     return;
   }
 
