@@ -77,6 +77,8 @@ class Location : public script::Wrappable {
   const base::Callback<void(const GURL&)>& navigation_callback() const {
     return navigation_callback_;
   }
+  // Overwrite the URL without doing any navigation.
+  void set_url(const GURL& url) { url_ = url; }
 
   DEFINE_WRAPPABLE_TYPE(Location);
 

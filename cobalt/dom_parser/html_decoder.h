@@ -53,6 +53,9 @@ class HTMLDecoder : public loader::Decoder {
   ~HTMLDecoder();
 
   // From Decoder.
+  void OnResponseStarted(
+      loader::Fetcher* fetcher,
+      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
 
@@ -60,7 +63,7 @@ class HTMLDecoder : public loader::Decoder {
   // This subclass is responsible for providing the handlers for the interface
   // of libxml2's SAX parser.
   scoped_ptr<LibxmlHTMLParserWrapper> libxml_html_parser_wrapper_;
-
+  scoped_refptr<dom::Document> document_;
   base::ThreadChecker thread_checker_;
   const base::Closure done_callback_;
 
