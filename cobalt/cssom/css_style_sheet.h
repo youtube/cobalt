@@ -27,6 +27,7 @@
 #include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/style_sheet.h"
+#include "cobalt/math/size.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -92,8 +93,7 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   void set_origin(Origin origin) { origin_ = origin; }
 
   // This performs a recalculation of the media rule expressions, if needed.
-  void EvaluateMediaRules(const scoped_refptr<PropertyValue>& width,
-                          const scoped_refptr<PropertyValue>& height);
+  void EvaluateMediaRules(const math::Size& viewport_size);
 
   // Should be called when a media rule is added or modified. It sets a flag
   // that is reset in EvaluateMediaRules().
@@ -121,8 +121,7 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
 
   // This stores the most recent media parameters, used to detect when they
   // change, which will require a re-evaluation of the media rule expressions.
-  scoped_refptr<PropertyValue> previous_media_width_;
-  scoped_refptr<PropertyValue> previous_media_height_;
+  base::optional<math::Size> previous_media_viewport_size_;
 
   // Origin of this style sheet.
   Origin origin_;

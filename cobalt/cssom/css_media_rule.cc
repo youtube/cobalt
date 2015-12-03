@@ -66,11 +66,10 @@ void CSSMediaRule::Accept(CSSRuleVisitor* visitor) {
 }
 
 bool CSSMediaRule::EvaluateConditionValueAndReturnIfChanged(
-    const scoped_refptr<PropertyValue>& width,
-    const scoped_refptr<PropertyValue>& height) {
+    const math::Size& viewport_size) {
   bool condition_value = true;
   if (media_list_) {
-    condition_value = media_list_->EvaluateConditionValue(width, height);
+    condition_value = media_list_->EvaluateConditionValue(viewport_size);
   }
   return SetConditionValueAndTestIfChanged(condition_value);
 }
