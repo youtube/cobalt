@@ -23,6 +23,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_condition_rule.h"
+#include "cobalt/math/size.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -64,8 +65,7 @@ class CSSMediaRule : public CSSConditionRule {
   // Evaluates the condition expression and caches the resulting condition
   // value. Returns true if the cached condition value has changed.
   bool EvaluateConditionValueAndReturnIfChanged(
-      const scoped_refptr<PropertyValue>& width,
-      const scoped_refptr<PropertyValue>& height);
+      const math::Size& viewport_size);
 
   // This method can be used to setup the parent style sheet.
   void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;

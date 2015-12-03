@@ -2089,7 +2089,7 @@ positive_length:
 //   http://www.w3.org/TR/css3-mediaqueries/#values
 ratio:
     positive_integer '/' maybe_whitespace positive_integer {
-    $$ = AddRef(new cssom::RatioValue($1, $4));
+    $$ = AddRef(new cssom::RatioValue(math::Rational($1, $4)));
   }
   ;
 

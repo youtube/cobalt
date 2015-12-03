@@ -441,19 +441,16 @@ void UpdateSelectorTreeFromCSSStyleSheet(
 
 void Document::UpdateMediaRules() {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateMediaRules()");
-  if (root_computed_style_) {
-    scoped_refptr<cssom::PropertyValue> width(root_computed_style_->width());
-    scoped_refptr<cssom::PropertyValue> height(root_computed_style_->height());
-
+  if (viewport_size_) {
     if (user_agent_style_sheet_) {
-      user_agent_style_sheet_->EvaluateMediaRules(width, height);
+      user_agent_style_sheet_->EvaluateMediaRules(*viewport_size_);
     }
     for (unsigned int style_sheet_index = 0;
          style_sheet_index < style_sheets_->length(); ++style_sheet_index) {
       scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
           style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
 
-      css_style_sheet->EvaluateMediaRules(width, height);
+      css_style_sheet->EvaluateMediaRules(*viewport_size_);
     }
   }
 }

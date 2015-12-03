@@ -196,7 +196,8 @@ TEST(PropertyValueVisitorTest, VisitsPropertyListValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsRatioValue) {
-  scoped_refptr<RatioValue> ratio_value = new RatioValue(1280, 720);
+  scoped_refptr<RatioValue> ratio_value =
+      new RatioValue(math::Rational(1280, 720));
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitRatio(ratio_value.get()));
   ratio_value->Accept(&mock_visitor);

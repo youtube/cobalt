@@ -49,9 +49,8 @@ namespace {
 
 class MediaRuleUpdater : public CSSRuleVisitor {
  public:
-  MediaRuleUpdater(const scoped_refptr<PropertyValue>& width,
-                   const scoped_refptr<PropertyValue>& height)
-      : any_condition_value_changed_(false), width_(width), height_(height) {}
+  explicit MediaRuleUpdater(const math::Size& viewport_size)
+      : any_condition_value_changed_(false), viewport_size_(viewport_size) {}
 
   void VisitCSSStyleRule(CSSStyleRule* /*css_style_rule*/) OVERRIDE {}
 
@@ -59,8 +58,8 @@ class MediaRuleUpdater : public CSSRuleVisitor {
 
   void VisitCSSMediaRule(CSSMediaRule* css_media_rule) OVERRIDE {
     bool condition_value_changed =
-        css_media_rule->EvaluateConditionValueAndReturnIfChanged(width_,
-                                                                 height_);
+        css_media_rule->EvaluateConditionValueAndReturnIfChanged(
+            viewport_size_);
     any_condition_value_changed_ |= condition_value_changed;
   }
 
@@ -72,8 +71,7 @@ class MediaRuleUpdater : public CSSRuleVisitor {
 
  private:
   bool any_condition_value_changed_;
-  const scoped_refptr<PropertyValue>& width_;
-  const scoped_refptr<PropertyValue>& height_;
+  math::Size viewport_size_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaRuleUpdater);
 };
@@ -135,9 +133,7 @@ void CSSStyleSheet::set_css_rules(
   }
 }
 
-void CSSStyleSheet::EvaluateMediaRules(
-    const scoped_refptr<PropertyValue>& width,
-    const scoped_refptr<PropertyValue>& height) {
+void CSSStyleSheet::EvaluateMediaRules(const math::Size& viewport_size) {
   // If the media rules change, we have to do an update.
   bool should_update_media_rules = media_rules_changed_;
   media_rules_changed_ = false;
@@ -148,9 +144,8 @@ void CSSStyleSheet::EvaluateMediaRules(
 
   // If the media parameters change, we have to do an update.
   if (!should_update_media_rules) {
-    if (!width || !previous_media_width_ ||
-        width->Equals(*previous_media_width_) || !height ||
-        !previous_media_height_ || height->Equals(*previous_media_height_)) {
+    if (!previous_media_viewport_size_ ||
+        viewport_size != *previous_media_viewport_size_) {
       should_update_media_rules = true;
     }
   }
@@ -158,13 +153,12 @@ void CSSStyleSheet::EvaluateMediaRules(
   if (should_update_media_rules) {
     // Evaluate the media rule conditions, and signal a css mutation if any
     // condition values have changed.
-    MediaRuleUpdater media_rule_updater(width, height);
+    MediaRuleUpdater media_rule_updater(viewport_size);
     css_rule_list_->Accept(&media_rule_updater);
     if (media_rule_updater.AnyConditionValueChanged()) {
       OnCSSMutation();
     }
-    previous_media_width_ = width;
-    previous_media_height_ = height;
+    previous_media_viewport_size_ = viewport_size;
   }
 }
 

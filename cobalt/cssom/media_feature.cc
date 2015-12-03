@@ -30,13 +30,6 @@ namespace cobalt {
 namespace cssom {
 namespace {
 
-int getLengthInPixels(const scoped_refptr<PropertyValue>& property_refptr) {
-  LengthValue* length =
-      base::polymorphic_downcast<LengthValue*>(property_refptr.get());
-  DCHECK_EQ(length->unit(), kPixelsUnit);
-  return math::ToRoundedInt(length->value());
-}
-
 // The constants below are for the media features that are constant for Cobalt.
 
 // The 'color-index' media feature describes the number of entries in the color
@@ -85,14 +78,8 @@ MediaFeature::MediaFeature(int name, const scoped_refptr<PropertyValue>& value)
       value_(value),
       operator_(kEquals) {}
 
-bool MediaFeature::CompareAspectRatio(
-    const scoped_refptr<PropertyValue>& media_width_refptr,
-    const scoped_refptr<PropertyValue>& media_height_refptr) {
-  int media_width = getLengthInPixels(media_width_refptr);
-  int media_height = getLengthInPixels(media_height_refptr);
-  scoped_refptr<RatioValue> media_ratio(
-      new RatioValue(media_width, media_height));
-
+bool MediaFeature::CompareAspectRatio(const math::Size& viewport_size) {
+  math::Rational media_ratio(viewport_size.width(), viewport_size.height());
   RatioValue* specified_ratio =
       base::polymorphic_downcast<RatioValue*>(value_.get());
 
@@ -100,11 +87,11 @@ bool MediaFeature::CompareAspectRatio(
     case kNonZero:
       return true;
     case kEquals:
-      return *specified_ratio == *media_ratio;
+      return specified_ratio->value() == media_ratio;
     case kMinimum:
-      return *specified_ratio <= *media_ratio;
+      return specified_ratio->value() <= media_ratio;
     case kMaximum:
-      return *specified_ratio >= *media_ratio;
+      return specified_ratio->value() >= media_ratio;
   }
   NOTREACHED();
   return false;
@@ -128,42 +115,37 @@ bool MediaFeature::CompareIntegerValue(int media_value) {
   return false;
 }
 
-bool MediaFeature::CompareLengthValue(
-    const scoped_refptr<PropertyValue>& media_value_refptr) {
-  LengthValue* media_value =
-      base::polymorphic_downcast<LengthValue*>(media_value_refptr.get());
-  LengthValue* specified_value =
-      base::polymorphic_downcast<LengthValue*>(value_.get());
+bool MediaFeature::CompareLengthValue(int length_in_pixels) {
+  if (operator_ == kNonZero) {
+    return 0 != length_in_pixels;
+  } else {
+    LengthValue* specified_value =
+        base::polymorphic_downcast<LengthValue*>(value_.get());
+    // TODO(***REMOVED***): Support 'em' units for media features.
+    //                http://www.w3.org/TR/css3-mediaqueries/#units
+    DCHECK_EQ(kPixelsUnit, specified_value->unit());
 
-  switch (operator_) {
-    case kNonZero: {
-      return 0.0f != media_value->value();
+    switch (operator_) {
+      case kEquals:
+        return specified_value->value() == static_cast<float>(length_in_pixels);
+      case kMinimum:
+        return specified_value->value() <= static_cast<float>(length_in_pixels);
+      case kMaximum:
+        return specified_value->value() >= static_cast<float>(length_in_pixels);
+      case kNonZero:
+        break;
     }
-    case kEquals:
-      return *specified_value == *media_value;
-    case kMinimum:
-      return *specified_value <= *media_value;
-    case kMaximum:
-      return *specified_value >= *media_value;
+    NOTREACHED();
+    return false;
   }
-  NOTREACHED();
-  return false;
 }
 
-bool MediaFeature::CompareOrientation(
-    const scoped_refptr<PropertyValue>& media_width_refptr,
-    const scoped_refptr<PropertyValue>& media_height_refptr) {
+bool MediaFeature::CompareOrientation(const math::Size& viewport_size) {
   MediaFeatureKeywordValue* specified_value =
       base::polymorphic_downcast<MediaFeatureKeywordValue*>(value_.get());
 
-  LengthValue* media_width_value =
-      base::polymorphic_downcast<LengthValue*>(media_width_refptr.get());
-  DCHECK_EQ(media_width_value->unit(), kPixelsUnit);
-  LengthValue* media_height_value =
-      base::polymorphic_downcast<LengthValue*>(media_height_refptr.get());
-  DCHECK_EQ(media_height_value->unit(), kPixelsUnit);
   MediaFeatureKeywordValue::Value media_value =
-      *media_height_value >= *media_width_value
+      viewport_size.height() >= viewport_size.width()
           ? MediaFeatureKeywordValue::kPortrait
           : MediaFeatureKeywordValue::kLandscape;
 
@@ -181,23 +163,14 @@ bool MediaFeature::CompareOrientation(
   return false;
 }
 
-bool MediaFeature::CompareResolution(
-    const scoped_refptr<PropertyValue>& media_width_refptr,
-    const scoped_refptr<PropertyValue>& media_height_refptr) {
+bool MediaFeature::CompareResolution(const math::Size& viewport_size) {
   ResolutionValue* specified_value =
       base::polymorphic_downcast<ResolutionValue*>(value_.get());
 
-  LengthValue* media_width_value =
-      base::polymorphic_downcast<LengthValue*>(media_width_refptr.get());
-  DCHECK_EQ(media_width_value->unit(), kPixelsUnit);
-  LengthValue* media_height_value =
-      base::polymorphic_downcast<LengthValue*>(media_height_refptr.get());
-  DCHECK_EQ(media_height_value->unit(), kPixelsUnit);
-
-  float media_dpi =
-      sqrtf(media_width_value->value() * media_width_value->value() +
-            media_height_value->value() * media_height_value->value()) /
-      kScreenDiagonalInInches;
+  float media_dpi = sqrtf(static_cast<float>(
+                        viewport_size.width() * viewport_size.width() +
+                        viewport_size.height() * viewport_size.height())) /
+                    kScreenDiagonalInInches;
 
   switch (operator_) {
     case kNonZero:
@@ -231,40 +204,37 @@ bool MediaFeature::CompareScan() {
   return false;
 }
 
-bool MediaFeature::EvaluateConditionValue(
-    const scoped_refptr<PropertyValue>& width_refptr,
-    const scoped_refptr<PropertyValue>& height_refptr) {
+bool MediaFeature::EvaluateConditionValue(const math::Size& viewport_size) {
   switch (name_) {
     case kInvalidFeature:
       break;
     case kAspectRatioMediaFeature:
     case kDeviceAspectRatioMediaFeature:
-      return CompareAspectRatio(width_refptr, height_refptr);
+      return CompareAspectRatio(viewport_size);
     case kColorIndexMediaFeature:
       return CompareIntegerValue(kColorIndexMediaFeatureValue);
     case kColorMediaFeature:
       return CompareIntegerValue(kColorMediaFeatureValue);
     case kDeviceHeightMediaFeature:
     case kHeightMediaFeature:
-      return CompareLengthValue(height_refptr);
+      return CompareLengthValue(viewport_size.height());
     case kDeviceWidthMediaFeature:
     case kWidthMediaFeature:
-      return CompareLengthValue(width_refptr);
+      return CompareLengthValue(viewport_size.width());
     case kGridMediaFeature:
       return CompareIntegerValue(kGridMediaFeatureValue);
     case kMonochromeMediaFeature:
       return CompareIntegerValue(kMonochromeMediaFeatureValue);
     case kOrientationMediaFeature:
-      return CompareOrientation(width_refptr, height_refptr);
+      return CompareOrientation(viewport_size);
     case kResolutionMediaFeature:
-      return CompareResolution(width_refptr, height_refptr);
+      return CompareResolution(viewport_size);
     case kScanMediaFeature:
       return CompareScan();
   }
   NOTREACHED();
   return false;
 }
-
 
 }  // namespace cssom
 }  // namespace cobalt

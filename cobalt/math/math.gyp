@@ -36,6 +36,7 @@
         'r_tree.h',
         'r_tree_base.cc',
         'r_tree_base.h',
+        'rational.h',
         'rect.cc',
         'rect.h',
         'rect_base.h',
