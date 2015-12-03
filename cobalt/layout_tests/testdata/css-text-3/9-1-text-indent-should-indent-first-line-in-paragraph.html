@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!--
+ | The text-indent property should only be applied to the first
+ | formatted line in a block.
+ |   http://www.w3.org/TR/css3-text/#text-indent-property
+ -->
+<html>
+<head>
+  <style>
+    p {
+      width: 320px;
+      font-family: Roboto;
+      font-weight: normal;
+      font-size: 20px;
+    }
+    .indent {
+      text-indent: 3em;
+    }
+  </style>
+</head>
+<body>
+  <p class="indent">In my younger and more vulnerable years</p>
+  <p>In my younger and more vulnerable years</p>
+</body>
+</html>

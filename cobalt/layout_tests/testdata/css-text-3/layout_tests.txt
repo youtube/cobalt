@@ -16,3 +16,8 @@
 6-2-words-should-not-be-breakable-with-word-wrap-break-word-if-not-first-on-line
 7-1-text-align-should-not-double-shift-contents-of-inline-container-box
 7-1-text-align-should-not-impact-spacing-between-boxes
+9-1-negative-indent-should-indent-first-line-in-paragraph-to-the-left
+9-1-negative-text-indent-should-indent-nested-inline-block-to-the-left
+9-1-text-indent-should-indent-first-line-in-paragraph
+9-1-text-indent-should-indent-nested-inline-block
+9-1-text-indent-should-not-indent-nested-span
