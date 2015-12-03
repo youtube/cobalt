@@ -1084,6 +1084,73 @@ TEST_F(ParserTest, ParsesBackgroundWithTransparent) {
   EXPECT_EQ(0x00000000, background_color->value());
 }
 
+TEST_F(ParserTest, ParsesBackgroundWithLinearGradient) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "background: linear-gradient(rgba(0,0,0,0.56), rgba(0,0,0,0.9));",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::LinearGradientValue> linear_gradient_value =
+      dynamic_cast<cssom::LinearGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_FALSE(linear_gradient_value->angle_in_radians());
+  EXPECT_EQ(cssom::LinearGradientValue::kBottom,
+            *linear_gradient_value->side_or_corner());
+
+  const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
+      linear_gradient_value->color_stop_list();
+  EXPECT_EQ(2, color_stop_list_value->size());
+
+  float color_list[2] = {0x0000008E, 0x000000E5};
+
+  for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
+    const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_TRUE(color);
+    EXPECT_EQ(color_list[i], color->value());
+    EXPECT_FALSE(color_stop_value->position());
+  }
+}
+
+TEST_F(ParserTest, ParsesBackgroundWithLinearGradientContainsTransparent) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "background: linear-gradient(to bottom, rgba(0,0,0,0.56), "
+          "rgba(0,0,0,0.9), transparent);",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::LinearGradientValue> linear_gradient_value =
+      dynamic_cast<cssom::LinearGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_FALSE(linear_gradient_value->angle_in_radians());
+  EXPECT_EQ(cssom::LinearGradientValue::kBottom,
+            *linear_gradient_value->side_or_corner());
+
+  const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
+      linear_gradient_value->color_stop_list();
+  EXPECT_EQ(3, color_stop_list_value->size());
+
+  float color_list[3] = {0x0000008E, 0x000000E5, 0x00000000};
+
+  for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
+    const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_TRUE(color);
+    EXPECT_EQ(color_list[i], color->value());
+    EXPECT_FALSE(color_stop_value->position());
+  }
+}
+
 TEST_F(ParserTest, ParsesBackgroundColor) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("background-color: #fff;",
