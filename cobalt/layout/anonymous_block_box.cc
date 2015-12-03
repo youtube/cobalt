@@ -80,7 +80,8 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
       new InlineFormattingContext(
           computed_style()->line_height(), used_font_->GetFontMetrics(),
           child_layout_params, computed_style()->text_align(),
-          computed_style()->white_space()));
+          computed_style()->white_space(),
+          GetUsedLength(computed_style()->text_indent())));
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end();) {

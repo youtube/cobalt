@@ -86,13 +86,13 @@ scoped_refptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
 
 void InlineContainerBox::UpdateContentSizeAndMargins(
     const LayoutParams& layout_params) {
-  // Lay out child boxes as a one line without width constraints and white space
+  // Lay out child boxes as one line without width constraints and white space
   // trimming.
   LineBox line_box(
       0, computed_style()->line_height(), used_font_->GetFontMetrics(),
       should_collapse_leading_white_space_,
       should_collapse_trailing_white_space_, layout_params,
-      cssom::KeywordValue::GetLeft(), cssom::KeywordValue::GetNormal());
+      cssom::KeywordValue::GetLeft(), cssom::KeywordValue::GetNormal(), 0);
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {

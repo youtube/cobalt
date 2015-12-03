@@ -353,7 +353,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kTextAlignProperty, "text-align", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetLeft());
 
-  // http://www.w3.org/TR/css3-text/#text-indent-property
+  // http://www.w3.org/TR/CSS21/text.html#propdef-text-indent
   SetPropertyDefinition(kTextIndentProperty, "text-indent", kInheritedYes,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 

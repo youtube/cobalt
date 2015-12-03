@@ -35,7 +35,8 @@ LineBox::LineBox(float top,
                  bool should_collapse_trailing_white_space,
                  const LayoutParams& layout_params,
                  const scoped_refptr<cssom::PropertyValue>& text_align,
-                 const scoped_refptr<cssom::PropertyValue>& white_space)
+                 const scoped_refptr<cssom::PropertyValue>& white_space,
+                 float indent_offset)
     : top_(top),
       line_height_(line_height),
       font_metrics_(font_metrics),
@@ -47,9 +48,10 @@ LineBox::LineBox(float top,
       is_text_wrapping_disabled_(white_space ==
                                      cssom::KeywordValue::GetNoWrap() ||
                                  white_space == cssom::KeywordValue::GetPre()),
+      indent_offset_(indent_offset),
       at_end_(false),
       line_exists_(false),
-      shrink_to_fit_width_(0),
+      shrink_to_fit_width_(indent_offset_),
       height_(0),
       baseline_offset_from_top_(0) {}
 
@@ -358,10 +360,13 @@ void LineBox::UpdateChildBoxLeftPositions() {
     NOTREACHED() << "Unknown value of \"text-align\".";
   }
 
-  // Set used value of "left" of the child boxes according to the value
-  // of "text-align", vaguely specified by
+  // Set the first child box position to the indent offset, which is treated as
+  // a margin applied to the start edge of the line box, specified by
+  // http://www.w3.org/TR/CSS21/text.html#propdef-text-indent,
+  // and offset this position by the the value calculated from "text-align",
+  // which is vaguely specified by
   // http://www.w3.org/TR/CSS21/text.html#propdef-text-align.
-  float child_box_left = horizontal_offset_due_alignment;
+  float child_box_left = indent_offset_ + horizontal_offset_due_alignment;
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
