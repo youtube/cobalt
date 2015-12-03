@@ -99,7 +99,7 @@ NodeDispatchEventTest::NodeDispatchEventTest()
                             NULL, "") {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 
-  document_ = new Document(&html_element_context_, Document::Options());
+  document_ = new Document(&html_element_context_);
 
   grand_parent_ = new FakeNode(document_);
   parent_ = grand_parent_->AppendChild(new FakeNode(document_));
