@@ -17,13 +17,23 @@
 #ifndef LOADER_DECODER_H_
 #define LOADER_DECODER_H_
 
+#include "net/http/http_response_headers.h"
+
 namespace cobalt {
 namespace loader {
+
+class Fetcher;
 
 class Decoder {
  public:
   Decoder() {}
   virtual ~Decoder() {}
+
+  // A loader may want to signal the beginning of a decode and can send
+  // the HTTP headers, if this was a network request.
+  virtual void OnResponseStarted(
+      Fetcher* /*fetcher*/,
+      const scoped_refptr<net::HttpResponseHeaders>& /*headers*/) {}
 
   // This is the interface that chunks of bytes can be sent in to be decoded.
   virtual void DecodeChunk(const char* data, size_t size) = 0;

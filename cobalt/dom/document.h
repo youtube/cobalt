@@ -297,6 +297,8 @@ class Document : public Node, public cssom::MutationObserver {
     return root_computed_style_;
   }
 
+  void NotifyUrlChanged(const GURL& url);
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
