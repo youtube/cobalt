@@ -316,6 +316,25 @@ void Document::SetActiveElement(Element* active_element) {
 
 void Document::IncreaseLoadingCounter() { ++loading_counter_; }
 
+void Document::DispatchOnLoadEvent() {
+  TRACE_EVENT0("cobalt::dom", "Document::DispatchOnLoadEvent()");
+
+  // Update the current timeline sample time and then update computed styles
+  // before dispatching the onload event.  This guarantees that computed styles
+  // have been calculated before JavaScript executes onload event handlers,
+  // which may wish to start a CSS Transition (requiring that computed values
+  // previously exist).
+  SampleTimelineTime();
+  UpdateComputedStyles();
+
+  // Dispatch the document's onload event.
+  DispatchEvent(new Event("load"));
+
+  // After all JavaScript OnLoad event handlers have executed, signal to let
+  // any Document observers know that a load event has occurred.
+  SignalOnLoadToObservers();
+}
+
 void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent(
     bool load_succeeded) {
   if (!load_succeeded) {
@@ -330,14 +349,7 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent(
       should_dispatch_load_event_ = false;
 
       MessageLoop::current()->PostTask(
-          FROM_HERE, base::Bind(base::IgnoreResult(&Document::DispatchEvent),
-                                base::AsWeakPtr<Document>(this),
-                                make_scoped_refptr(new Event("load"))));
-
-      // After all JavaScript OnLoad event handlers have executed, signal to any
-      // Document observers know that a load event has occurred.
-      MessageLoop::current()->PostTask(
-          FROM_HERE, base::Bind(&Document::SignalOnLoadToObservers,
+          FROM_HERE, base::Bind(&Document::DispatchOnLoadEvent,
                                 base::AsWeakPtr<Document>(this)));
     }
   }
