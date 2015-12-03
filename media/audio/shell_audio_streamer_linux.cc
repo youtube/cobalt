@@ -34,20 +34,22 @@ ShellAudioStreamerLinux* instance = NULL;
 class PulseAudioHost : public ShellPulseAudioStream::Host {
  public:
   PulseAudioHost(ShellPulseAudioContext* pulse_audio_context,
-                 ShellAudioStream* stream, int rate, int channels);
+                 ShellAudioStream* stream,
+                 int rate,
+                 int channels);
   ~PulseAudioHost();
   virtual void RequestFrame(size_t length, WriteFunc write) OVERRIDE;
 
  private:
   enum StreamState {
     STATE_INVALID,
-    STATE_PAUSED,    // Voice is paused, will play when unpaused
-    STATE_RUNNING,   // Voice is playing, reading new data when possible
+    STATE_PAUSED,   // Voice is paused, will play when unpaused
+    STATE_RUNNING,  // Voice is playing, reading new data when possible
   };
 
   ShellPulseAudioContext* pulse_audio_context_;
   int channels_;
-  uint32 played_frames_;  // frames played by the audio driver
+  uint32 played_frames_;   // frames played by the audio driver
   uint32 written_frames_;  // frames written to the audio driver
   StreamState state_;
   ShellAudioStream* lb_audio_stream_;
@@ -61,10 +63,9 @@ ShellAudioStreamer::Config ShellAudioStreamerLinux::GetConfig() const {
       initial_rebuffering_frames_per_channel * 8;
   const uint32 max_hardware_channels = 2;
 
-  return Config(Config::INTERLEAVED,
-      initial_rebuffering_frames_per_channel,
-      sink_buffer_size_in_frames_per_channel,
-      max_hardware_channels, sizeof(float)  /* bytes_per_sample */);
+  return Config(Config::INTERLEAVED, initial_rebuffering_frames_per_channel,
+                sink_buffer_size_in_frames_per_channel, max_hardware_channels,
+                sizeof(float) /* bytes_per_sample */);
 }
 
 bool ShellAudioStreamerLinux::AddStream(ShellAudioStream* stream) {
@@ -135,7 +136,8 @@ ShellAudioStreamerLinux::~ShellAudioStreamerLinux() {
 
 PulseAudioHost::PulseAudioHost(ShellPulseAudioContext* pulse_audio_context,
                                ShellAudioStream* stream,
-                               int rate, int channels)
+                               int rate,
+                               int channels)
     : channels_(channels),
       pulse_audio_context_(pulse_audio_context),
       played_frames_(0),

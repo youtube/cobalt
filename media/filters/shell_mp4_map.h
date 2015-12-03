@@ -63,9 +63,9 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   bool GetKeyframe(uint64 timestamp, uint32& sample_out);
 
   // pass 0 as cache_size_entries to force caching of the entire map.
-  bool SetAtom(uint32 four_cc, // fourCC code ascii code as big-endian uint32
-               uint64 offset,  // offset of atom body in file
-               uint64 size,    // total size of atom in bytes
+  bool SetAtom(uint32 four_cc,  // fourCC code ascii code as big-endian uint32
+               uint64 offset,   // offset of atom body in file
+               uint64 size,     // total size of atom in bytes
                uint32 cache_size_entries,  // num of entries to cache in memory
                const uint8* atom);         // pointer to atom body start
 
@@ -115,9 +115,9 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   // caculated from entry_number / cache_size_entries.
   class TableCache : public base::RefCountedThreadSafe<TableCache> {
    public:
-    TableCache(uint64 table_offset, // byte offset of start of table in file
-               uint32 entry_count,  // number of entries in table
-               uint32 entry_size,   // size in bytes of each entry in table
+    TableCache(uint64 table_offset,  // byte offset of start of table in file
+               uint32 entry_count,   // number of entries in table
+               uint32 entry_size,    // size in bytes of each entry in table
                uint32 cache_size_entries,  // number of entries to cache in mem
                scoped_refptr<ShellDataSourceReader> reader);  // reader to use
 
@@ -136,16 +136,16 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
 
    private:
     friend class base::RefCountedThreadSafe<TableCache>;
-    uint32 entry_size_;           // size of entry in bytes
-    uint32 entry_count_;          // size of table in entries
-    uint32 cache_size_entries_;   // max number of entries to fit in memory
-    uint64 table_offset_;         // offset of table in stream
+    uint32 entry_size_;          // size of entry in bytes
+    uint32 entry_count_;         // size of table in entries
+    uint32 cache_size_entries_;  // max number of entries to fit in memory
+    uint64 table_offset_;        // offset of table in stream
     scoped_refptr<ShellDataSourceReader> reader_;  // means to read more table
 
     // current cache state
     scoped_refptr<ShellScopedArray> cache_;  // the cached part of the table
-    uint32 cache_first_entry_number_;    // first table entry number in cache
-    uint32 cache_entry_count_;           // number of valid entries in cache
+    uint32 cache_first_entry_number_;  // first table entry number in cache
+    uint32 cache_entry_count_;         // number of valid entries in cache
   };
 
   scoped_refptr<ShellDataSourceReader> reader_;
@@ -180,8 +180,8 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   // ==== stsc - chunk-number to samples-per-chunk
   scoped_refptr<TableCache> stsc_;
   uint32 stsc_first_chunk_;  // first chunk of the current sample size range
-  uint32 stsc_first_chunk_sample_; // sum of samples of all prev chunk ranges
-  uint32 stsc_samples_per_chunk_;  // current samples-per-chunk in this range
+  uint32 stsc_first_chunk_sample_;  // sum of samples of all prev chunk ranges
+  uint32 stsc_samples_per_chunk_;   // current samples-per-chunk in this range
   uint32 stsc_next_first_chunk_;  // the chunk number the next region begins in
   uint32 stsc_next_first_chunk_sample_;  // sample number next region begins in
   uint32 stsc_table_index_;  // the index in the table of the current range
@@ -196,12 +196,12 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
 
   // ==== stts - run-length sample number to time duration
   scoped_refptr<TableCache> stts_;
-  uint32 stts_first_sample_;  // first sample of the current duration range
+  uint32 stts_first_sample_;       // first sample of the current duration range
   uint64 stts_first_sample_time_;  // sum of all durations of previous ranges
-  uint32 stts_sample_duration_;  // current duration of samples in this range
+  uint32 stts_sample_duration_;    // current duration of samples in this range
   uint32 stts_next_first_sample_;  // first sample number of next range
   uint64 stts_next_first_sample_time_;  // first timestamp of next range
-  uint32 stts_table_index_;  // index in the table of the next entry
+  uint32 stts_table_index_;             // index in the table of the next entry
   std::vector<uint32> stts_samples_;
   std::vector<uint64> stts_timestamps_;
 

@@ -33,12 +33,11 @@
 
 namespace media {
 
-ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer,
-                                       Type type)
-    : demuxer_(demuxer)
-    , type_(type)
-    , last_buffer_timestamp_(kNoTimestamp())
-    , stopped_(false) {
+ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer, Type type)
+    : demuxer_(demuxer),
+      type_(type),
+      last_buffer_timestamp_(kNoTimestamp()),
+      stopped_(false) {
   TRACE_EVENT0("media_stack", "ShellDemuxerStream::ShellDemuxerStream()");
   DCHECK(demuxer_);
 }
@@ -173,8 +172,8 @@ void ShellDemuxerStream::Stop() {
   buffer_queue_.clear();
   last_buffer_timestamp_ = kNoTimestamp();
   // fulfill any pending callbacks with EOS buffers set to end timestamp
-  for (ReadQueue::iterator it = read_queue_.begin();
-       it != read_queue_.end(); ++it) {
+  for (ReadQueue::iterator it = read_queue_.begin(); it != read_queue_.end();
+       ++it) {
     TRACE_EVENT0("media_stack", "ShellDemuxerStream::Stop() EOS sent.");
     it->Run(DemuxerStream::kOk,
             scoped_refptr<DecoderBuffer>(
@@ -190,22 +189,21 @@ void ShellDemuxerStream::Stop() {
 ShellDemuxer::ShellDemuxer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const scoped_refptr<DataSource>& data_source)
-    : message_loop_(message_loop)
-    , host_(NULL)
-    , blocking_thread_("ShellDemuxerBlockingThread")
-    , data_source_(data_source)
-    , stopped_(false)
-    , flushing_(false)
-    , audio_reached_eos_(false)
-    , video_reached_eos_(false) {
+    : message_loop_(message_loop),
+      host_(NULL),
+      blocking_thread_("ShellDemuxerBlockingThread"),
+      data_source_(data_source),
+      stopped_(false),
+      flushing_(false),
+      audio_reached_eos_(false),
+      video_reached_eos_(false) {
   DCHECK(data_source_);
   DCHECK(message_loop_);
   reader_ = new ShellDataSourceReader();
   reader_->SetDataSource(data_source_);
 }
 
-ShellDemuxer::~ShellDemuxer() {
-}
+ShellDemuxer::~ShellDemuxer() {}
 
 void ShellDemuxer::Initialize(DemuxerHost* host,
                               const PipelineStatusCB& status_cb) {
@@ -288,8 +286,8 @@ void ShellDemuxer::ParseConfigDone(const PipelineStatusCB& status_cb,
 
 void ShellDemuxer::Request(DemuxerStream::Type type) {
   // post task to our blocking thread
-  blocking_thread_.message_loop_proxy()->PostTask(FROM_HERE,
-      base::Bind(&ShellDemuxer::RequestTask, this, type));
+  blocking_thread_.message_loop_proxy()->PostTask(
+      FROM_HERE, base::Bind(&ShellDemuxer::RequestTask, this, type));
 }
 
 void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
@@ -338,8 +336,7 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   // AllocateBuffer will return false if the requested size is larger
   // than the maximum limit for a single buffer.
   if (!ShellBufferFactory::Instance()->AllocateBuffer(
-      au->GetMaxSize(),
-      base::Bind(&ShellDemuxer::BufferAllocated, this))) {
+          au->GetMaxSize(), base::Bind(&ShellDemuxer::BufferAllocated, this))) {
     DLOG(ERROR) << "buffer allocation failed.";
     host_->OnDemuxerError(PIPELINE_ERROR_COULD_NOT_RENDER);
     return;
@@ -349,8 +346,8 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
 // callback from ShellBufferAllocated, post a task to the blocking thread
 void ShellDemuxer::BufferAllocated(scoped_refptr<DecoderBuffer> buffer) {
   if (!stopped_) {
-    blocking_thread_.message_loop_proxy()->PostTask(FROM_HERE,
-        base::Bind(&ShellDemuxer::DownloadTask, this, buffer));
+    blocking_thread_.message_loop_proxy()->PostTask(
+        FROM_HERE, base::Bind(&ShellDemuxer::DownloadTask, this, buffer));
   }
 }
 
@@ -362,9 +359,9 @@ void ShellDemuxer::DownloadTask(scoped_refptr<DecoderBuffer> buffer) {
 
   const char* ALLOW_UNUSED event_type =
       requested_au_->GetType() == DemuxerStream::AUDIO ? "audio" : "video";
-  TRACE_EVENT2("media_stack", "ShellDemuxer::DownloadTask()",
-               "type", event_type,
-               "timestamp", requested_au_->GetTimestamp().InMicroseconds());
+  TRACE_EVENT2("media_stack", "ShellDemuxer::DownloadTask()", "type",
+               event_type, "timestamp",
+               requested_au_->GetTimestamp().InMicroseconds());
   // do nothing if stopped
   if (stopped_) {
     DLOG(INFO) << "aborting download task, stopped";
@@ -409,7 +406,7 @@ void ShellDemuxer::DownloadTask(scoped_refptr<DecoderBuffer> buffer) {
           video_demuxer_stream_->GetBufferedRanges()));
   // Notify host of each disjoint range.
   for (size_t i = 0; i < buffered.size(); ++i) {
-     host_->AddBufferedTimeRange(buffered.start(i), buffered.end(i));
+    host_->AddBufferedTimeRange(buffered.start(i), buffered.end(i));
   }
 
   IssueNextRequestTask();
@@ -457,7 +454,7 @@ void ShellDemuxer::IssueNextRequestTask() {
   }
 }
 
-void ShellDemuxer::Stop(const base::Closure &callback) {
+void ShellDemuxer::Stop(const base::Closure& callback) {
   DCHECK(MessageLoopBelongsToCurrentThread());
   // set our internal stop flag, to not treat read failures as
   // errors anymore but as a natural part of stopping
@@ -473,23 +470,26 @@ void ShellDemuxer::DataSourceStopped(const base::Closure& callback) {
   blocking_thread_.Stop();
 
   // tell downstream we've stopped
-  if (audio_demuxer_stream_) audio_demuxer_stream_->Stop();
-  if (video_demuxer_stream_) video_demuxer_stream_->Stop();
+  if (audio_demuxer_stream_)
+    audio_demuxer_stream_->Stop();
+  if (video_demuxer_stream_)
+    video_demuxer_stream_->Stop();
 
   callback.Run();
 }
 
 void ShellDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
-  blocking_thread_.message_loop()->PostTask(FROM_HERE,
+  blocking_thread_.message_loop()->PostTask(
+      FROM_HERE,
       base::Bind(&ShellDemuxer::SeekTask, this, time, BindToCurrentLoop(cb)));
 }
 
 // runs on blocking thread
 void ShellDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
-  TRACE_EVENT1("media_stack", "ShellDemuxer::SeekTask()",
-               "timestamp", time.InMicroseconds());
-  DLOG(INFO) << base::StringPrintf(
-      "seek to: %" PRId64" ms", time.InMilliseconds());
+  TRACE_EVENT1("media_stack", "ShellDemuxer::SeekTask()", "timestamp",
+               time.InMicroseconds());
+  DLOG(INFO) << base::StringPrintf("seek to: %" PRId64 " ms",
+                                   time.InMilliseconds());
   // clear any enqueued buffers on demuxer streams
   audio_demuxer_stream_->FlushBuffers();
   video_demuxer_stream_->FlushBuffers();

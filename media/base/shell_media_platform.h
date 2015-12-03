@@ -77,9 +77,7 @@ class MEDIA_EXPORT ShellMediaPlatform {
   }
   // Total number of video frames which are populating in the pipeline.
   // You can expect more memory usage and less jitter by increasing this.
-  virtual int GetMaxVideoFrames() const {
-    return limits::kMaxVideoFrames;
-  }
+  virtual int GetMaxVideoFrames() const { return limits::kMaxVideoFrames; }
 
   // This function is called before the decoder buffer leaves the demuxer and
   // is being sent to the media pipeline for decrypting and decoding. The
@@ -107,20 +105,20 @@ class MEDIA_EXPORT ShellMediaPlatform {
 }  // namespace media
 
 #define REGISTER_SHELL_MEDIA_PLATFORM(ClassName) \
-    namespace media {                            \
-    void ShellMediaPlatform::Initialize() {      \
-      DCHECK(!Instance());                       \
-      SetInstance(new ClassName);                \
-      ShellBufferFactory::Initialize();          \
-      Instance()->InternalInitialize();          \
-    }                                            \
-    void ShellMediaPlatform::Terminate() {       \
-      DCHECK(Instance());                        \
-      Instance()->InternalTerminate();           \
-      ShellBufferFactory::Terminate();           \
-      delete Instance();                         \
-      SetInstance(NULL);                         \
-    }                                            \
+  namespace media {                              \
+  void ShellMediaPlatform::Initialize() {        \
+    DCHECK(!Instance());                         \
+    SetInstance(new ClassName);                  \
+    ShellBufferFactory::Initialize();            \
+    Instance()->InternalInitialize();            \
+  }                                              \
+  void ShellMediaPlatform::Terminate() {         \
+    DCHECK(Instance());                          \
+    Instance()->InternalTerminate();             \
+    ShellBufferFactory::Terminate();             \
+    delete Instance();                           \
+    SetInstance(NULL);                           \
+  }                                              \
   }  // namespace media
 
 #endif  // MEDIA_BASE_SHELL_MEDIA_PLATFORM_H_

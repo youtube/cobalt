@@ -26,16 +26,16 @@ namespace media {
 // to support easy python parsing, all values should be in hex, and all
 // names should be prefixed with one of ObjectId,Event,or State.
 
-static const uint32 kObjectIdBufferFactory = 0x62756672;          // 'bufr'
-static const uint32 kObjectIdDemuxer = 0x646d7578;                // 'dmux'
-static const uint32 kObjectIdAudioDemuxerStream = 0x75617364;     // 'dsau'
-static const uint32 kObjectIdVideoDemuxerStream = 0x69767364;     // 'dsvi'
-static const uint32 kObjectIdAudioDecoder = 0x61646563;           // 'adec'
-static const uint32 kObjectIdAudioRenderer = 0x61726e64;          // 'arnd'
-static const uint32 kObjectIdAudioSink = 0x6b6e6973;              // 'sink'
-static const uint32 kObjectIdVideoDecoder = 0x76646563;           // 'vdec'
-static const uint32 kObjectIdVideoRenderer = 0x76726e64;          // 'vrnd'
-static const uint32 kObjectIdGraphics = 0x67726166;               // 'graf'
+static const uint32 kObjectIdBufferFactory = 0x62756672;       // 'bufr'
+static const uint32 kObjectIdDemuxer = 0x646d7578;             // 'dmux'
+static const uint32 kObjectIdAudioDemuxerStream = 0x75617364;  // 'dsau'
+static const uint32 kObjectIdVideoDemuxerStream = 0x69767364;  // 'dsvi'
+static const uint32 kObjectIdAudioDecoder = 0x61646563;        // 'adec'
+static const uint32 kObjectIdAudioRenderer = 0x61726e64;       // 'arnd'
+static const uint32 kObjectIdAudioSink = 0x6b6e6973;           // 'sink'
+static const uint32 kObjectIdVideoDecoder = 0x76646563;        // 'vdec'
+static const uint32 kObjectIdVideoRenderer = 0x76726e64;       // 'vrnd'
+static const uint32 kObjectIdGraphics = 0x67726166;            // 'graf'
 
 static const uint32 kEventArrayAllocationError = 0x61796572;      // 'ayer'
 static const uint32 kEventArrayAllocationDeferred = 0x61797774;   // 'aywt'
@@ -88,9 +88,9 @@ static const uint32 kEventWebKitComposite = 0x776b6365;           // 'wkce'
 // instead of timestamp the following state flags log individual pipeline
 // state information.
 // two uint32s of buffer queue size and read cb queue size
-static const uint32 kStateDemuxerStreamQueues = 0x73657571;      // 'ques'
+static const uint32 kStateDemuxerStreamQueues = 0x73657571;  // 'ques'
 // one uint32 either zero or one depending on state, and a zero
-static const uint32 kStateDemuxerStreamBuffering = 0x66667562;   // 'buff'
+static const uint32 kStateDemuxerStreamBuffering = 0x66667562;  // 'buff'
 
 }  // namespace media
 

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #ifndef MEDIA_FILTERS_SHELL_AUDIO_RENDERER_IMPL_H_
 #define MEDIA_FILTERS_SHELL_AUDIO_RENDERER_IMPL_H_
 
@@ -199,4 +200,3 @@ class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
 }  // namespace media
 
 #endif  // MEDIA_FILTERS_SHELL_AUDIO_RENDERER_IMPL_H_
-

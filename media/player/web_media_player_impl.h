@@ -69,7 +69,8 @@
 #if (defined(__LB_XB1__) && !defined(COBALT_WIN)) || defined(__LB_XB360__)
 #define LB_USE_SHELL_PIPELINE
 #define LB_SKIP_SEEK_REQUEST_NEAR_END
-#endif  // (defined(__LB_XB1__) && !defined(COBALT_WIN)) || defined(__LB_XB360__)
+#endif  // (defined(__LB_XB1__) && !defined(COBALT_WIN)) ||
+        // defined(__LB_XB360__)
 
 #if defined(LB_USE_SHELL_PIPELINE)
 #include "chromium/media/base/shell_pipeline.h"

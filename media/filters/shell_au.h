@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #ifndef MEDIA_FILTERS_SHELL_AU_H_
 #define MEDIA_FILTERS_SHELL_AU_H_
 
@@ -39,14 +40,21 @@ class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
 
   static scoped_refptr<ShellAU> CreateEndOfStreamAU(Type type,
                                                     TimeDelta timestamp);
-  static scoped_refptr<ShellAU> CreateAudioAU(
-      uint64 offset, size_t size, size_t prepend_size,
-      bool is_keyframe, TimeDelta timestamp, TimeDelta duration,
-      ShellParser* parser);
-  static scoped_refptr<ShellAU> CreateVideoAU(
-      uint64 offset, size_t size, size_t prepend_size,
-      uint8 length_of_nalu_size, bool is_keyframe, TimeDelta timestamp,
-      TimeDelta duration, ShellParser* parser);
+  static scoped_refptr<ShellAU> CreateAudioAU(uint64 offset,
+                                              size_t size,
+                                              size_t prepend_size,
+                                              bool is_keyframe,
+                                              TimeDelta timestamp,
+                                              TimeDelta duration,
+                                              ShellParser* parser);
+  static scoped_refptr<ShellAU> CreateVideoAU(uint64 offset,
+                                              size_t size,
+                                              size_t prepend_size,
+                                              uint8 length_of_nalu_size,
+                                              bool is_keyframe,
+                                              TimeDelta timestamp,
+                                              TimeDelta duration,
+                                              ShellParser* parser);
 
   virtual bool IsEndOfStream() const = 0;
   virtual bool IsValid() const = 0;
@@ -75,4 +83,3 @@ class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
 }  // namespace media
 
 #endif  // MEDIA_FILTERS_SHELL_AU_H_
-

@@ -20,18 +20,22 @@
 
 namespace media {
 
-ShellVideoDataAllocator::YV12Param::YV12Param(
-    int decoded_width, int decoded_height, const gfx::Rect& visible_rect)
+ShellVideoDataAllocator::YV12Param::YV12Param(int decoded_width,
+                                              int decoded_height,
+                                              const gfx::Rect& visible_rect)
     : decoded_width_(decoded_width),
       decoded_height_(decoded_height),
-      visible_rect_(visible_rect) {
-}
+      visible_rect_(visible_rect) {}
 
 #if defined(__LB_PS4__)
 
-ShellVideoDataAllocator::YV12Param::YV12Param(
-    int width, int height, int y_pitch, int uv_pitch,
-    uint8* y_data, uint8* u_data, uint8* v_data)
+ShellVideoDataAllocator::YV12Param::YV12Param(int width,
+                                              int height,
+                                              int y_pitch,
+                                              int uv_pitch,
+                                              uint8* y_data,
+                                              uint8* u_data,
+                                              uint8* v_data)
     : decoded_width_(width),
       decoded_height_(height),
       y_pitch_(y_pitch),
@@ -47,13 +51,14 @@ ShellVideoDataAllocator::YV12Param::YV12Param(
   DCHECK(v_data);
 }
 
-ShellVideoDataAllocator::NV12Param::NV12Param(
-    int width, int height, int y_pitch, const gfx::Rect& visible_rect)
+ShellVideoDataAllocator::NV12Param::NV12Param(int width,
+                                              int height,
+                                              int y_pitch,
+                                              const gfx::Rect& visible_rect)
     : decoded_width_(width),
       decoded_height_(height),
       y_pitch_(y_pitch),
-      visible_rect_(visible_rect) {
-}
+      visible_rect_(visible_rect) {}
 
 #endif  // defined(__LB_PS4__)
 

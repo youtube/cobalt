@@ -22,13 +22,12 @@ namespace media {
 
 ShellRBSPStream::ShellRBSPStream(const uint8* nalu_buffer,
                                  size_t nalu_buffer_size)
-    : nalu_buffer_(nalu_buffer)
-    , nalu_buffer_size_(nalu_buffer_size)
-    , nalu_buffer_byte_offset_(0)
-    , current_nalu_byte_(0)
-    , number_consecutive_zeros_(0)
-    , rbsp_bit_offset_(0) {
-}
+    : nalu_buffer_(nalu_buffer),
+      nalu_buffer_size_(nalu_buffer_size),
+      nalu_buffer_byte_offset_(0),
+      current_nalu_byte_(0),
+      number_consecutive_zeros_(0),
+      rbsp_bit_offset_(0) {}
 
 // read unsigned Exp-Golomb coded integer, ISO 14496-10 Section 9.1
 bool ShellRBSPStream::ReadUEV(uint32& uev_out) {
@@ -52,7 +51,7 @@ bool ShellRBSPStream::ReadUEV(uint32& uev_out) {
   return true;
 }
 
-  // read signed Exp-Golomb coded integer, ISO 14496-10 Section 9.1
+// read signed Exp-Golomb coded integer, ISO 14496-10 Section 9.1
 bool ShellRBSPStream::ReadSEV(int32& sev_out) {
   // we start off by reading an unsigned Exp-Golomb coded number
   uint32 uev = 0;

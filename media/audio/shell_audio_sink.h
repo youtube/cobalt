@@ -48,9 +48,8 @@ class AudioSinkSettings {
 
 // platform-specific implementation of an audio endpoint. In PS3 terms this
 // object owns a libmixer Channel Strip.
-class MEDIA_EXPORT ShellAudioSink
-    : NON_EXPORTED_BASE(public AudioRendererSink),
-      NON_EXPORTED_BASE(public ShellAudioStream) {
+class MEDIA_EXPORT ShellAudioSink : NON_EXPORTED_BASE(public AudioRendererSink),
+                                    NON_EXPORTED_BASE(public ShellAudioStream) {
  public:
   ShellAudioSink(ShellAudioStreamer* audio_streamer);
   virtual ~ShellAudioSink();

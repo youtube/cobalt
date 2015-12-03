@@ -77,7 +77,8 @@ ShellAudioDecoderImpl::~ShellAudioDecoderImpl() {
 
 void ShellAudioDecoderImpl::Initialize(
     const scoped_refptr<DemuxerStream>& stream,
-    const PipelineStatusCB& status_cb, const StatisticsCB& statistics_cb) {
+    const PipelineStatusCB& status_cb,
+    const StatisticsCB& statistics_cb) {
   TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::Initialize()");
 
   DCHECK(stream);
@@ -95,14 +96,12 @@ void ShellAudioDecoderImpl::Initialize(
     return;
   }
 
-  samples_per_second_= config.samples_per_second();
+  samples_per_second_ = config.samples_per_second();
   num_channels_ = ChannelLayoutToChannelCount(config.channel_layout());
 
 #if __SAVE_DECODER_OUTPUT__
-  test_probe_.Initialize("shell_audio_decoder_probe.wav",
-                         num_channels_,
-                         config.samples_per_second(),
-                         bits_per_channel(),
+  test_probe_.Initialize("shell_audio_decoder_probe.wav", num_channels_,
+                         config.samples_per_second(), bits_per_channel(),
                          bits_per_channel() == sizeof(float));  // use_floats?
   test_probe_.CloseAfter(30 * 1000);
 #endif
@@ -130,14 +129,14 @@ void ShellAudioDecoderImpl::Read(const AudioDecoder::ReadCB& read_cb) {
   // This may be called from another thread (H/W audio thread) so redirect
   // this request to the decoder's message loop
   if (!message_loop_->BelongsToCurrentThread()) {
-    message_loop_->PostTask(FROM_HERE, base::Bind(
-        &ShellAudioDecoderImpl::Read, this, read_cb));
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&ShellAudioDecoderImpl::Read, this, read_cb));
     return;
   }
 
   DCHECK(demuxer_stream_);  // Initialize() has been called.
   DCHECK(!read_cb.is_null());
-  DCHECK(read_cb_.is_null());  // No Read() in progress.
+  DCHECK(read_cb_.is_null());   // No Read() in progress.
   DCHECK(reset_cb_.is_null());  //  No Reset() in progress.
 
   if (queued_buffers_.empty()) {
@@ -178,8 +177,8 @@ void ShellAudioDecoderImpl::Reset(const base::Closure& reset_cb) {
   TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::Reset()");
 
   if (!message_loop_->BelongsToCurrentThread()) {
-    message_loop_->PostTask(FROM_HERE, base::Bind(
-        &ShellAudioDecoderImpl::Reset, this, reset_cb));
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&ShellAudioDecoderImpl::Reset, this, reset_cb));
     return;
   }
 
@@ -221,25 +220,26 @@ void ShellAudioDecoderImpl::TryToReadFromDemuxerStream() {
                    "ShellAudioDecoderImpl::TryToReadFromDemuxerStream() EOS");
       DCHECK(eos_buffer_);
       message_loop_->PostTask(
-          FROM_HERE, base::Bind(&ShellAudioDecoderImpl::OnDemuxerRead,
-                                this, DemuxerStream::kOk, eos_buffer_));
+          FROM_HERE, base::Bind(&ShellAudioDecoderImpl::OnDemuxerRead, this,
+                                DemuxerStream::kOk, eos_buffer_));
     } else {
       TRACE_EVENT0("media_stack",
                    "ShellAudioDecoderImpl::TryToReadFromDemuxerStream() Read");
-      demuxer_stream_->Read(
-          BindToCurrentLoop(base::Bind(&ShellAudioDecoderImpl::OnDemuxerRead,
-                                       this)));
+      demuxer_stream_->Read(BindToCurrentLoop(
+          base::Bind(&ShellAudioDecoderImpl::OnDemuxerRead, this)));
     }
   }
 }
 
 void ShellAudioDecoderImpl::OnDemuxerRead(
-    DemuxerStream::Status status, const scoped_refptr<DecoderBuffer>& buffer) {
+    DemuxerStream::Status status,
+    const scoped_refptr<DecoderBuffer>& buffer) {
   TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::OnDemuxerRead()");
 
   if (!message_loop_->BelongsToCurrentThread()) {
-    message_loop_->PostTask(FROM_HERE, base::Bind(
-        &ShellAudioDecoderImpl::OnDemuxerRead, this, status, buffer));
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&ShellAudioDecoderImpl::OnDemuxerRead, this,
+                              status, buffer));
     return;
   }
 
@@ -254,8 +254,7 @@ void ShellAudioDecoderImpl::OnDemuxerRead(
   if (kEnableUnderflowTest) {
     static const TimeDelta kTimeBetweenUnderflow =
         TimeDelta::FromMilliseconds(27293);
-    static const TimeDelta kTimeToUnderflow =
-        TimeDelta::FromMilliseconds(4837);
+    static const TimeDelta kTimeToUnderflow = TimeDelta::FromMilliseconds(4837);
     static Time last_hit;
 
     if (status == DemuxerStream::kOk && !buffer->IsEndOfStream() &&
@@ -264,13 +263,14 @@ void ShellAudioDecoderImpl::OnDemuxerRead(
     }
     if (Time::Now() - last_hit > kTimeBetweenUnderflow + kTimeToUnderflow) {
       last_hit = Time::Now();
-      message_loop_->PostDelayedTask(FROM_HERE, base::Bind(
-          &ShellAudioDecoderImpl::OnDemuxerRead, this, status, buffer),
+      message_loop_->PostDelayedTask(
+          FROM_HERE, base::Bind(&ShellAudioDecoderImpl::OnDemuxerRead, this,
+                                status, buffer),
           kTimeToUnderflow);
       return;
     }
   }
-#endif // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
   DCHECK(demuxer_read_and_decode_in_progress_);
 
@@ -311,9 +311,9 @@ void ShellAudioDecoderImpl::OnBufferDecoded(
     ShellRawAudioDecoder::DecodeStatus status,
     const scoped_refptr<DecoderBuffer>& buffer) {
   if (!message_loop_->BelongsToCurrentThread()) {
-    message_loop_->PostTask(FROM_HERE,
-                            base::Bind(&ShellAudioDecoderImpl::OnBufferDecoded,
-                                       this, status, buffer));
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&ShellAudioDecoderImpl::OnBufferDecoded, this,
+                              status, buffer));
     return;
   }
 

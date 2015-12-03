@@ -86,10 +86,14 @@ class SampleTable {
  public:
   // All ranges are inclusive at both ends.
   // Set range of composition timestamp to [0, 0] to disable ctts.
-  SampleTable(unsigned int seed, int num_of_samples,
-              int min_sample_size, int max_sample_size,
-              int min_samples_per_chunk, int max_samples_per_chunk,
-              int min_key_frame_gap, int max_key_frame_gap,
+  SampleTable(unsigned int seed,
+              int num_of_samples,
+              int min_sample_size,
+              int max_sample_size,
+              int min_samples_per_chunk,
+              int max_samples_per_chunk,
+              int min_key_frame_gap,
+              int max_key_frame_gap,
               int min_sample_decode_timestamp_offset,
               int max_sample_decode_timestamp_offset,
               int min_sample_composition_timestamp_offset,
@@ -123,14 +127,15 @@ class SampleTable {
           i == 0 ? 0 : samples_[i - 1].dts + samples_[i - 1].dts_duration;
       samples_[i].dts_duration =
           RandomRange(min_sample_decode_timestamp_offset,
-                      max_sample_decode_timestamp_offset);;
+                      max_sample_decode_timestamp_offset);
+      ;
       samples_[i].cts = samples_[i].dts +
-          RandomRange(min_sample_composition_timestamp_offset,
-                      max_sample_composition_timestamp_offset);
+                        RandomRange(min_sample_composition_timestamp_offset,
+                                    max_sample_composition_timestamp_offset);
       if (!remaining_sample_in_chunk) {
         ++current_chunk_index;
-        remaining_sample_in_chunk = RandomRange(min_samples_per_chunk,
-                                                max_samples_per_chunk);
+        remaining_sample_in_chunk =
+            RandomRange(min_samples_per_chunk, max_samples_per_chunk);
       }
 
       if (i >= next_key_frame) {
@@ -221,9 +226,10 @@ class SampleTable {
   void Dump() const {
     std::stringstream ss;
     uint32 boxes[] = {kAtomType_stsz, kAtomType_stco, kAtomType_co64,
-        kAtomType_stsc, kAtomType_ctts, kAtomType_stts, kAtomType_stss};
-    const char* names[] = {"stsz", "stco", "co64", "stsc", "ctts", "stts",
-        "stss"};
+                      kAtomType_stsc, kAtomType_ctts, kAtomType_stts,
+                      kAtomType_stss};
+    const char* names[] = {"stsz", "stco", "co64", "stsc",
+                           "ctts", "stts", "stss"};
     for (uint32 i = 0; i < sizeof(boxes) / sizeof(*boxes); ++i) {
       ss << "\n======================== " << names[i]
          << " ========================\n";
@@ -275,9 +281,12 @@ class SampleTable {
 
     for (SampleVector::const_iterator iter = samples_.begin();
          iter != samples_.end(); ++iter) {
-      if (!iter->is_key_frame) all_key_frames = false;
-      if (iter->dts != iter->cts) all_ctts_offset_is_zero = false;
-      if (iter->size != samples_[0].size) all_sample_has_same_size = false;
+      if (!iter->is_key_frame)
+        all_key_frames = false;
+      if (iter->dts != iter->cts)
+        all_ctts_offset_is_zero = false;
+      if (iter->size != samples_[0].size)
+        all_sample_has_same_size = false;
     }
 
     // populate the stsz box: 4 bytes flags + 4 bytes default size
@@ -310,7 +319,7 @@ class SampleTable {
     uint32 chunk_offset = samples_[0].offset;
     int current_chunk_index = -1;
     for (SampleVector::const_iterator iter = samples_.begin();
-           iter != samples_.end(); ++iter) {
+         iter != samples_.end(); ++iter) {
       if (current_chunk_index != iter->chunk_index) {
         current_chunk_index = iter->chunk_index;
         stco_.resize(stco_.size() + kEntrySize_stco);
@@ -378,7 +387,7 @@ class SampleTable {
     std::vector<uint8_t> garbage;
     garbage.reserve(kGarbageSize);
     for (int i = 0; i < kGarbageSize; ++i)
-         garbage.push_back(RandomRange(0xef, 0xfe));
+      garbage.push_back(RandomRange(0xef, 0xfe));
     combined_.insert(combined_.end(), garbage.begin(), garbage.end());
     combined_.insert(combined_.end(), stsz_.begin(), stsz_.end());
     combined_.insert(combined_.end(), garbage.begin(), garbage.end());
@@ -430,30 +439,29 @@ class ShellMP4MapTest : public testing::Test {
     ShellBufferFactory::Terminate();
   }
 
-  void ResetMap() {
-    map_ = new ShellMP4Map(reader_);
-  }
+  void ResetMap() { map_ = new ShellMP4Map(reader_); }
 
-  void CreateTestSampleTable(
-      unsigned int seed, int num_of_samples,
-      int min_sample_size, int max_sample_size,
-      int min_samples_per_chunk, int max_samples_per_chunk,
-      int min_key_frame_gap, int max_key_frame_gap,
-      int min_sample_decode_timestamp_offset,
-      int max_sample_decode_timestamp_offset,
-      int min_sample_composition_timestamp_offset,
-      int max_sample_composition_timestamp_offset) {
+  void CreateTestSampleTable(unsigned int seed,
+                             int num_of_samples,
+                             int min_sample_size,
+                             int max_sample_size,
+                             int min_samples_per_chunk,
+                             int max_samples_per_chunk,
+                             int min_key_frame_gap,
+                             int max_key_frame_gap,
+                             int min_sample_decode_timestamp_offset,
+                             int max_sample_decode_timestamp_offset,
+                             int min_sample_composition_timestamp_offset,
+                             int max_sample_composition_timestamp_offset) {
     sample_table_.reset(new SampleTable(
         seed, num_of_samples, min_sample_size, max_sample_size,
-        min_samples_per_chunk, max_samples_per_chunk,
-        min_key_frame_gap, max_key_frame_gap,
-        min_sample_decode_timestamp_offset,
+        min_samples_per_chunk, max_samples_per_chunk, min_key_frame_gap,
+        max_key_frame_gap, min_sample_decode_timestamp_offset,
         max_sample_decode_timestamp_offset,
         min_sample_composition_timestamp_offset,
         max_sample_composition_timestamp_offset));
     ON_CALL(*reader_, BlockingRead(_, _, _))
-        .WillByDefault(Invoke(sample_table_.get(),
-                              &SampleTable::BlockingRead));
+        .WillByDefault(Invoke(sample_table_.get(), &SampleTable::BlockingRead));
   }
 
   void SetTestTable(uint32 four_cc, uint32 cache_size_entries) {
@@ -482,8 +490,8 @@ TEST_F(ShellMP4MapTest, SetAtomWithZeroDefaultSize) {
 // ==== GetSize() Tests ========================================================
 
 TEST_F(ShellMP4MapTest, GetSizeWithDefaultSize) {
-  CreateTestSampleTable(100, 1000, 0xb0df00d, 0xb0df00d,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(100, 1000, 0xb0df00d, 0xb0df00d, 5, 10, 5, 10, 10, 20,
+                        10, 20);
   sample_table_->ClearReadStatistics();
 
   for (int i = 13; i < 21; ++i) {
@@ -505,8 +513,8 @@ TEST_F(ShellMP4MapTest, GetSizeWithDefaultSize) {
 
 TEST_F(ShellMP4MapTest, GetSizeIterationWithHugeCache) {
   for (int max_sample_size = 10; max_sample_size < 20; ++max_sample_size) {
-    CreateTestSampleTable(200 + max_sample_size, 1000, 10, max_sample_size,
-                          5, 10, 5, 10, 10, 20, 10, 20);
+    CreateTestSampleTable(200 + max_sample_size, 1000, 10, max_sample_size, 5,
+                          10, 5, 10, 10, 20, 10, 20);
     for (int i = 1500; i < 10000; i = i * 2 + 1) {
       ResetMap();
       sample_table_->ClearReadStatistics();
@@ -532,8 +540,8 @@ TEST_F(ShellMP4MapTest, GetSizeIterationWithHugeCache) {
 
 TEST_F(ShellMP4MapTest, GetSizeIterationTinyCache) {
   for (int max_sample_size = 10; max_sample_size < 20; ++max_sample_size) {
-    CreateTestSampleTable(300 + max_sample_size, 1000, 10, max_sample_size,
-                          5, 10, 5, 10, 10, 20, 10, 20);
+    CreateTestSampleTable(300 + max_sample_size, 1000, 10, max_sample_size, 5,
+                          10, 5, 10, 10, 20, 10, 20);
     for (int i = 5; i < 12; ++i) {
       ResetMap();
       SetTestTable(kAtomType_stsz, i);
@@ -557,8 +565,7 @@ TEST_F(ShellMP4MapTest, GetSizeIterationTinyCache) {
 }
 
 TEST_F(ShellMP4MapTest, GetSizeRandomAccess) {
-  CreateTestSampleTable(101, 2000, 20, 24,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(101, 2000, 20, 24, 5, 10, 5, 10, 10, 20, 10, 20);
   for (int i = 24; i < 27; ++i) {
     ResetMap();
     SetTestTable(kAtomType_stsz, i);
@@ -581,8 +588,8 @@ TEST_F(ShellMP4MapTest, GetSizeRandomAccess) {
 
     // now seek well past the end, this query should fail but not break
     // subsequent queries or issue a recache
-    ASSERT_FALSE(map_->GetSize(sample_table_->sample_count(),
-                               map_reported_size));
+    ASSERT_FALSE(
+        map_->GetSize(sample_table_->sample_count(), map_reported_size));
 
     // a query back within the first table should not cause recache
     ASSERT_TRUE(map_->GetSize(10, map_reported_size));
@@ -609,8 +616,8 @@ TEST_F(ShellMP4MapTest, GetSizeRandomAccess) {
 
 TEST_F(ShellMP4MapTest, GetOffsetIterationHugeCache) {
   for (int coindex = 0; coindex < 2; ++coindex) {
-    CreateTestSampleTable(102 + coindex, 1000, 20, 25,
-                          5, 10, 5, 10, 10, 20, 10, 20);
+    CreateTestSampleTable(102 + coindex, 1000, 20, 25, 5, 10, 5, 10, 10, 20, 10,
+                          20);
     ResetMap();
     SetTestTable(kAtomType_stsz, 1000);
     SetTestTable(kAtomType_stsc, 1000);
@@ -632,8 +639,7 @@ TEST_F(ShellMP4MapTest, GetOffsetIterationHugeCache) {
 
 TEST_F(ShellMP4MapTest, GetOffsetIterationTinyCache) {
   for (int coindex = 0; coindex < 2; ++coindex) {
-    CreateTestSampleTable(103, 30, 20, 25,
-                          5, 10, 5, 10, 10, 20, 10, 20);
+    CreateTestSampleTable(103, 30, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
     for (int i = 1; i < 12; ++i) {
       ResetMap();
       SetTestTable(kAtomType_stsz, i);
@@ -650,8 +656,8 @@ TEST_F(ShellMP4MapTest, GetOffsetIterationTinyCache) {
 
       // calls to sample numbers outside file range should fail non-fatally
       uint64 failed_offset;
-      ASSERT_FALSE(map_->GetOffset(sample_table_->sample_count(),
-                                   failed_offset));
+      ASSERT_FALSE(
+          map_->GetOffset(sample_table_->sample_count(), failed_offset));
     }
   }
 }
@@ -660,8 +666,7 @@ TEST_F(ShellMP4MapTest, GetOffsetIterationTinyCache) {
 // through the stsc.
 TEST_F(ShellMP4MapTest, GetOffsetRandomAccessHugeCache) {
   for (int coindex = 0; coindex < 2; ++coindex) {
-    CreateTestSampleTable(104, 300, 20, 25,
-                          5, 10, 5, 10, 10, 20, 10, 20);
+    CreateTestSampleTable(104, 300, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
     ResetMap();
     SetTestTable(kAtomType_stsz, 300);
     SetTestTable(kAtomType_stsc, 300);
@@ -681,8 +686,7 @@ TEST_F(ShellMP4MapTest, GetOffsetRandomAccessHugeCache) {
 // offsets.
 TEST_F(ShellMP4MapTest, GetOffsetRandomAccessTinyCache) {
   for (int coindex = 0; coindex < 2; ++coindex) {
-    CreateTestSampleTable(105, 300, 20, 25,
-                          5, 10, 5, 10, 10, 20, 10, 20);
+    CreateTestSampleTable(105, 300, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
     ResetMap();
     SetTestTable(kAtomType_stsz, 7);
     SetTestTable(kAtomType_stsc, 7);
@@ -735,8 +739,7 @@ TEST_F(ShellMP4MapTest, GetOffsetRandomAccessTinyCache) {
 
 TEST_F(ShellMP4MapTest, GetOffsetRandomAccessWithDefaultSize) {
   for (int coindex = 0; coindex < 2; ++coindex) {
-    CreateTestSampleTable(106, 300, 20, 20,
-                          5, 10, 5, 10, 10, 20, 10, 20);
+    CreateTestSampleTable(106, 300, 20, 20, 5, 10, 5, 10, 10, 20, 10, 20);
     ResetMap();
     SetTestTable(kAtomType_stsz, 7);
     SetTestTable(kAtomType_stsc, 7);
@@ -772,8 +775,7 @@ TEST_F(ShellMP4MapTest, GetOffsetRandomAccessWithDefaultSize) {
 // ==== GetDuration() Tests ====================================================
 
 TEST_F(ShellMP4MapTest, GetDurationIteration) {
-  CreateTestSampleTable(107, 60, 20, 25,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(107, 60, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
   ResetMap();
   SetTestTable(kAtomType_stts, 2);
 
@@ -786,13 +788,12 @@ TEST_F(ShellMP4MapTest, GetDurationIteration) {
 
   // entries past end of table should fail
   uint32 failed_duration = 0;
-  ASSERT_FALSE(map_->GetDuration(sample_table_->sample_count(),
-                                 failed_duration));
+  ASSERT_FALSE(
+      map_->GetDuration(sample_table_->sample_count(), failed_duration));
 }
 
 TEST_F(ShellMP4MapTest, GetDurationRandomAccess) {
-  CreateTestSampleTable(108, 60, 20, 25,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(108, 60, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
   ResetMap();
   SetTestTable(kAtomType_stts, 3);
 
@@ -810,8 +811,8 @@ TEST_F(ShellMP4MapTest, GetDurationRandomAccess) {
   ASSERT_EQ(map_reported_duration, table_duration);
 
   // sample just past end should fail
-  ASSERT_FALSE(map_->GetDuration(sample_table_->sample_count(),
-                                 map_reported_duration));
+  ASSERT_FALSE(
+      map_->GetDuration(sample_table_->sample_count(), map_reported_duration));
 
   // but shouldn't break other sample lookups
   ASSERT_TRUE(map_->GetDuration(2, map_reported_duration));
@@ -829,8 +830,7 @@ TEST_F(ShellMP4MapTest, GetDurationRandomAccess) {
 // ==== GetTimestamp() Tests ===================================================
 
 TEST_F(ShellMP4MapTest, GetTimestampIterationNoCompositionTime) {
-  CreateTestSampleTable(109, 60, 20, 25,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(109, 60, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
   ResetMap();
   SetTestTable(kAtomType_stts, 7);
 
@@ -843,13 +843,12 @@ TEST_F(ShellMP4MapTest, GetTimestampIterationNoCompositionTime) {
 
   // entries past end of table should fail
   uint64 failed_timestamp = 0;
-  ASSERT_FALSE(map_->GetTimestamp(sample_table_->sample_count(),
-                                  failed_timestamp));
+  ASSERT_FALSE(
+      map_->GetTimestamp(sample_table_->sample_count(), failed_timestamp));
 }
 
 TEST_F(ShellMP4MapTest, GetTimestampRandomAccessNoCompositionTime) {
-  CreateTestSampleTable(110, 60, 20, 25,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(110, 60, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
   ResetMap();
   SetTestTable(kAtomType_stts, 10);
 
@@ -864,8 +863,8 @@ TEST_F(ShellMP4MapTest, GetTimestampRandomAccessNoCompositionTime) {
 
   // check a failed entry
   uint64 failed_timestamp = 0;
-  ASSERT_FALSE(map_->GetTimestamp(sample_table_->sample_count() * 2,
-                                  failed_timestamp));
+  ASSERT_FALSE(
+      map_->GetTimestamp(sample_table_->sample_count() * 2, failed_timestamp));
 
   // should still be able to recover with valid input, this time skip by 21s
   // backward through the file 21 times
@@ -879,8 +878,7 @@ TEST_F(ShellMP4MapTest, GetTimestampRandomAccessNoCompositionTime) {
 }
 
 TEST_F(ShellMP4MapTest, GetTimestampIteration) {
-  CreateTestSampleTable(111, 300, 20, 25,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(111, 300, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
   for (int i = 1; i < 20; ++i) {
     ResetMap();
     SetTestTable(kAtomType_ctts, i);
@@ -901,8 +899,7 @@ TEST_F(ShellMP4MapTest, GetTimestampIteration) {
 }
 
 TEST_F(ShellMP4MapTest, GetTimestampRandomAccess) {
-  CreateTestSampleTable(112, 300, 20, 25,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(112, 300, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
   for (int i = 1; i < 20; ++i) {
     ResetMap();
     SetTestTable(kAtomType_ctts, i);
@@ -944,8 +941,8 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeNoKeyframeTable) {
 }
 
 TEST_F(ShellMP4MapTest, GetIsKeyframeIteration) {
-  CreateTestSampleTable(113, 1000, 0xb0df00d, 0xb0df00d,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(113, 1000, 0xb0df00d, 0xb0df00d, 5, 10, 5, 10, 10, 20,
+                        10, 20);
   ResetMap();
   sample_table_->ClearReadStatistics();
   SetTestTable(kAtomType_stss, sample_table_->keyframe_count() / 2 + 5);
@@ -959,8 +956,8 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeIteration) {
 }
 
 TEST_F(ShellMP4MapTest, GetIsKeyframeRandomAccess) {
-  CreateTestSampleTable(114, 1000, 0xb0df00d, 0xb0df00d,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(114, 1000, 0xb0df00d, 0xb0df00d, 5, 10, 5, 10, 10, 20,
+                        10, 20);
   ResetMap();
   sample_table_->ClearReadStatistics();
   SetTestTable(kAtomType_stss, sample_table_->keyframe_count() / 2 + 5);
@@ -1030,8 +1027,7 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeRandomAccess) {
 // every frame should be returned as a keyframe. This tests if our computation
 // of timestamps => sample numbers is equivalent to sample numbers => timestamps
 TEST_F(ShellMP4MapTest, GetKeyframeNoKeyframeTableIteration) {
-  CreateTestSampleTable(115, 30, 20, 25,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(115, 30, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
   ResetMap();
   SetTestTable(kAtomType_stts, 7);
 
@@ -1048,8 +1044,7 @@ TEST_F(ShellMP4MapTest, GetKeyframeNoKeyframeTableIteration) {
 }
 
 TEST_F(ShellMP4MapTest, GetKeyframeNoKeyframeTableRandomAccess) {
-  CreateTestSampleTable(116, 30, 20, 25,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(116, 30, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
   ResetMap();
   SetTestTable(kAtomType_stts, 5);
 
@@ -1083,8 +1078,7 @@ TEST_F(ShellMP4MapTest, GetKeyframeNoKeyframeTableRandomAccess) {
 
 // GetKeyframe is not normally called iteratively, so we test random access
 TEST_F(ShellMP4MapTest, GetKeyframe) {
-  CreateTestSampleTable(117, 60, 20, 25,
-                        5, 10, 5, 10, 10, 20, 10, 20);
+  CreateTestSampleTable(117, 60, 20, 25, 5, 10, 5, 10, 10, 20, 10, 20);
   ResetMap();
   SetTestTable(kAtomType_stss, 3);
   SetTestTable(kAtomType_stts, 7);

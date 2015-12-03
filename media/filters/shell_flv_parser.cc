@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "media/filters/shell_flv_parser.h"
 
 #include <inttypes.h>
@@ -29,7 +30,8 @@ static const uint32 kFLV = 0x00464c56;
 // FLV configuration, such as the AVCConfigRecord and the AudioSpecificConfig,
 // should proceed any actual encoded data, and should be in the top of the file.
 // This constant describes how far into the file we're willing to traverse
-// without encountering metadata or encoded video keyframe data before giving up.
+// without encountering metadata or encoded video keyframe data before giving
+// up.
 static const uint64 kMetadataMaxBytes = 4 * 1024 * 1024;
 
 static const uint8 kAudioTagType = 8;
@@ -70,8 +72,8 @@ static const int kAMF0NumberLength = 9;
 // static
 scoped_refptr<ShellParser> ShellFLVParser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
-    const uint8 *construction_header,
-    const PipelineStatusCB &status_cb) {
+    const uint8* construction_header,
+    const PipelineStatusCB& status_cb) {
   // look for "FLV" string at top of file, mask off LSB
   uint32 FLV = LB::Platform::load_uint32_big_endian(construction_header) >> 8;
   if (FLV != kFLV) {
@@ -89,37 +91,32 @@ scoped_refptr<ShellParser> ShellFLVParser::Construct(
   // add four bytes to skip over PreviousTagSize0
   data_offset += 4;
   // construct and return an FLV parser
-  return scoped_refptr<ShellParser>(new ShellFLVParser(reader,
-                                                       data_offset));
+  return scoped_refptr<ShellParser>(new ShellFLVParser(reader, data_offset));
 }
 
-ShellFLVParser::ShellFLVParser(
-    scoped_refptr<ShellDataSourceReader> reader,
-    uint32 tag_start_offset)
-    : ShellAVCParser(reader)
-    , tag_offset_(tag_start_offset)
-    , at_end_of_file_(false) {
-}
+ShellFLVParser::ShellFLVParser(scoped_refptr<ShellDataSourceReader> reader,
+                               uint32 tag_start_offset)
+    : ShellAVCParser(reader),
+      tag_offset_(tag_start_offset),
+      at_end_of_file_(false) {}
 
-ShellFLVParser::~ShellFLVParser() {
-}
+ShellFLVParser::~ShellFLVParser() {}
 
 bool ShellFLVParser::ParseConfig() {
   // traverse file until we either reach the limit of bytes we're willing to
   // parse of config info or we've encountered actual keyframe video data.
-  while (tag_offset_ < kMetadataMaxBytes &&
-         time_to_byte_map_.size() == 0) {
-     if (!ParseNextTag()) {
-       return false;
-     }
+  while (tag_offset_ < kMetadataMaxBytes && time_to_byte_map_.size() == 0) {
+    if (!ParseNextTag()) {
+      return false;
+    }
   }
 
   // We may have a valid duration by now and the reader may know the
   // length of the file in bytes, see if we can extrapolate a bitrate from
   // this.
   if (duration_ != kInfiniteDuration() && reader_->FileSize() > 0) {
-    bits_per_second_ = (uint32)(((reader_->FileSize() * 8000ULL) /
-                                (duration_.InMilliseconds())));
+    bits_per_second_ = (uint32)(
+        ((reader_->FileSize() * 8000ULL) / (duration_.InMilliseconds())));
   }
 
   return true;
@@ -195,9 +192,9 @@ bool ShellFLVParser::SeekTo(base::TimeDelta timestamp) {
   if (seek_byte_offset != tag_offset_) {
     JumpParserTo(seek_byte_offset);
   }
-  DLOG(INFO) << base::StringPrintf(
-      "flv parser seeking to timestamp: %" PRId64" chose keyframe at %d",
-      timestamp.InMilliseconds(), seek_timestamp);
+  DLOG(INFO) << base::StringPrintf("flv parser seeking to timestamp: %" PRId64
+                                   " chose keyframe at %d",
+                                   timestamp.InMilliseconds(), seek_timestamp);
   return true;
 }
 
@@ -206,7 +203,7 @@ scoped_refptr<ShellAU> ShellFLVParser::GetNextAudioAU() {
   // only 2 to calculate a duration.
   while (next_audio_aus_.size() < 2) {
     if (!ParseNextTag()) {
-      return  NULL;
+      return NULL;
     }
   }
   // There should always be 2 AUs in the queue now, even if they are both EOS.
@@ -221,8 +218,7 @@ scoped_refptr<ShellAU> ShellFLVParser::GetNextAudioAU() {
     au->SetDuration(next_audio_aus_.front()->GetTimestamp() -
                     au->GetTimestamp());
   } else {
-    DLOG(ERROR) <<
-        "out of order audio timestamps encountered on FLV parsing.";
+    DLOG(ERROR) << "out of order audio timestamps encountered on FLV parsing.";
   }
   return au;
 }
@@ -257,9 +253,8 @@ bool ShellFLVParser::ParseNextTag() {
   int bytes_read = 0;
   if (!at_end_of_file_) {
     // get previous tag size and header for next one
-    bytes_read = reader_->BlockingRead(tag_offset_,
-                                       kTagDownloadSize,
-                                       tag_buffer);
+    bytes_read =
+        reader_->BlockingRead(tag_offset_, kTagDownloadSize, tag_buffer);
   }
 
   // if that was the last tag in the stream detect the EOS and return. This
@@ -267,12 +262,10 @@ bool ShellFLVParser::ParseNextTag() {
   if (bytes_read < kTagDownloadSize) {
     at_end_of_file_ = true;
     // Normal termination of an FLV. Enqueue EOS AUs in both streams.
-    next_video_aus_.push_back(
-        ShellAU::CreateEndOfStreamAU(DemuxerStream::VIDEO,
-                                     video_track_duration_));
-    next_audio_aus_.push_back(
-        ShellAU::CreateEndOfStreamAU(DemuxerStream::AUDIO,
-                                     audio_track_duration_));
+    next_video_aus_.push_back(ShellAU::CreateEndOfStreamAU(
+        DemuxerStream::VIDEO, video_track_duration_));
+    next_audio_aus_.push_back(ShellAU::CreateEndOfStreamAU(
+        DemuxerStream::AUDIO, audio_track_duration_));
     return true;
   }
 
@@ -283,36 +276,29 @@ bool ShellFLVParser::ParseNextTag() {
       LB::Platform::load_uint32_big_endian(tag_buffer + 1) >> 8;
 
   // extract timestamp, wonky byte order comes from the standard
-  int32 timestamp = tag_buffer[4] << 16
-                  | tag_buffer[5] << 8
-                  | tag_buffer[6]
-                  | tag_buffer[7] << 24;
+  int32 timestamp = tag_buffer[4] << 16 | tag_buffer[5] << 8 | tag_buffer[6] |
+                    tag_buffer[7] << 24;
 
   // choose which tag type to parse
   bool parse_result = true;
   uint8* tag_body = tag_buffer + kTagSize;
   switch (tag_buffer[0]) {
     case kAudioTagType:
-      parse_result = ParseAudioDataTag(tag_body,
-                                       tag_data_size,
-                                       timestamp);
+      parse_result = ParseAudioDataTag(tag_body, tag_data_size, timestamp);
       break;
 
     case kVideoTagType:
-      parse_result = ParseVideoDataTag(tag_body,
-                                       tag_data_size,
-                                       timestamp);
+      parse_result = ParseVideoDataTag(tag_body, tag_data_size, timestamp);
       break;
 
     case kScriptDataObjectTagType:
-      parse_result = ParseScriptDataObjectTag(tag_body,
-                                              tag_data_size,
-                                              timestamp);
+      parse_result =
+          ParseScriptDataObjectTag(tag_body, tag_data_size, timestamp);
       break;
 
     default:
       DLOG(WARNING) << base::StringPrintf("unsupported FLV TagType %d",
-          tag_buffer[0]);
+                                          tag_buffer[0]);
       break;
   }
 
@@ -399,8 +385,7 @@ bool ShellFLVParser::ParseVideoDataTag(uint8* tag,
   if (tag[1] == kAVCPacketTypeSequenceHeader) {  // video config info
     // AVC config record, download and parse
     return DownloadAndParseAVCConfigRecord(
-        tag_offset_ + kTagSize + kVideoTagSize,
-        size);
+        tag_offset_ + kTagSize + kVideoTagSize, size);
   } else if (tag[1] == kAVCPacketTypeNALU) {  // raw AVC data
     // should we add this to our keyframe map?
     bool is_keyframe = (tag[0] & 0xf0) == 0x10;
@@ -425,23 +410,17 @@ bool ShellFLVParser::ParseVideoDataTag(uint8* tag,
       video_track_duration_ = ts;
     }
 
-    size_t prepend_size = CalculatePrependSize(DemuxerStream::VIDEO,
-                                               is_keyframe);
+    size_t prepend_size =
+        CalculatePrependSize(DemuxerStream::VIDEO, is_keyframe);
     scoped_refptr<ShellAU> au = ShellAU::CreateVideoAU(
-        tag_offset_ + kTagSize + kVideoTagSize + avc_tag_offset,
-        avc_data_size,
-        prepend_size,
-        nal_header_size_,
-        is_keyframe,
-        ts,
-        kInfiniteDuration(),
+        tag_offset_ + kTagSize + kVideoTagSize + avc_tag_offset, avc_data_size,
+        prepend_size, nal_header_size_, is_keyframe, ts, kInfiniteDuration(),
         this);
     // enqueue data tag
     next_video_aus_.push_back(au);
   }
   return true;
 }
-
 
 // FLV SCRIPTDATA tags are in serialized typically in Action Message Format 0 as
 // a collection of key/value pairs terminated by a special code. We only wish to
@@ -455,9 +434,8 @@ bool ShellFLVParser::ParseScriptDataObjectTag(uint8* tag,
   if (!script_buffer || !script_buffer->Get()) {
     return false;
   }
-  int bytes_read = reader_->BlockingRead(tag_offset_ + kTagSize,
-                                         size,
-                                         script_buffer->Get());
+  int bytes_read =
+      reader_->BlockingRead(tag_offset_ + kTagSize, size, script_buffer->Get());
   DCHECK_LE(size, static_cast<uint32>(std::numeric_limits<int32>::max()));
   if (bytes_read < static_cast<int>(size)) {
     return false;
@@ -519,8 +497,8 @@ bool ShellFLVParser::ExtractAMF0Number(scoped_refptr<ShellScopedArray> amf0,
     // advance pointer past the number type to the number itself
     match_offset++;
     // load big-endian double as uint, then cast to correct type
-    uint64 num_as_uint = LB::Platform::load_uint64_big_endian(
-        search_buffer + match_offset);
+    uint64 num_as_uint =
+        LB::Platform::load_uint64_big_endian(search_buffer + match_offset);
     *number_out = *((double*)(&num_as_uint));
     return true;
   }

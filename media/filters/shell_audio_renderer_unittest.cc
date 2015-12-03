@@ -41,8 +41,13 @@ namespace media {
 class ShellAudioRendererTest : public ::testing::Test {
  public:
   ShellAudioRendererTest()
-      : audio_decoder_config_(kCodecVorbis, 32, CHANNEL_LAYOUT_MONO, 44100,
-                              NULL, 0, false),
+      : audio_decoder_config_(kCodecVorbis,
+                              32,
+                              CHANNEL_LAYOUT_MONO,
+                              44100,
+                              NULL,
+                              0,
+                              false),
         sink_(new NiceMock<MockAudioRendererSink>),
         demuxer_stream_(new NiceMock<MockDemuxerStream>),
         decoder_(new NiceMock<MockAudioDecoder>) {
@@ -54,14 +59,11 @@ class ShellAudioRendererTest : public ::testing::Test {
     ON_CALL(*demuxer_stream_, audio_decoder_config())
         .WillByDefault(ReturnRef(audio_decoder_config_));
 
-    ON_CALL(*decoder_, bits_per_channel())
-        .WillByDefault(Return(32));
+    ON_CALL(*decoder_, bits_per_channel()).WillByDefault(Return(32));
     ON_CALL(*decoder_, channel_layout())
         .WillByDefault(Return(CHANNEL_LAYOUT_MONO));
-    ON_CALL(*decoder_, samples_per_second())
-        .WillByDefault(Return(44100));
-    ON_CALL(*decoder_, Reset(_))
-        .WillByDefault(RunCallback<0>());
+    ON_CALL(*decoder_, samples_per_second()).WillByDefault(Return(44100));
+    ON_CALL(*decoder_, Reset(_)).WillByDefault(RunCallback<0>());
   }
 
   MOCK_METHOD1(OnPipelineStatus, void(PipelineStatus));
@@ -77,13 +79,9 @@ class ShellAudioRendererTest : public ::testing::Test {
     CHECK(current_time <= max_time);
   }
 
-  void InitializeWithoutWaitForPendingTasks() {
-    Initialize(false);
-  }
+  void InitializeWithoutWaitForPendingTasks() { Initialize(false); }
 
-  void InitializeAndWaitForPendingTasks() {
-    Initialize(true);
-  }
+  void InitializeAndWaitForPendingTasks() { Initialize(true); }
 
   void Preroll() {
     renderer_->Preroll(base::TimeDelta(),
@@ -104,9 +102,7 @@ class ShellAudioRendererTest : public ::testing::Test {
     FinishPendingTasks();
   }
 
-  void FinishPendingTasks() {
-    message_loop_.RunUntilIdle();
-  }
+  void FinishPendingTasks() { message_loop_.RunUntilIdle(); }
 
  private:
   void Initialize(bool wait_until_finished) {
@@ -119,7 +115,8 @@ class ShellAudioRendererTest : public ::testing::Test {
     }
     AudioRenderer::AudioDecoderList decoders;
     decoders.push_back(decoder_);
-    renderer_->Initialize(demuxer_stream_, decoders,
+    renderer_->Initialize(
+        demuxer_stream_, decoders,
         base::Bind(&ShellAudioRendererTest::OnPipelineStatus,
                    base::Unretained(this)),
         base::Bind(&ShellAudioRendererTest::OnPipelineStatistics,
@@ -128,12 +125,9 @@ class ShellAudioRendererTest : public ::testing::Test {
                    base::Unretained(this)),
         base::Bind(&ShellAudioRendererTest::OnAudioTimeCallback,
                    base::Unretained(this)),
-        base::Bind(&ShellAudioRendererTest::OnEnded,
-                   base::Unretained(this)),
-        base::Bind(&ShellAudioRendererTest::OnDisabled,
-                   base::Unretained(this)),
-        base::Bind(&ShellAudioRendererTest::OnError,
-                   base::Unretained(this)));
+        base::Bind(&ShellAudioRendererTest::OnEnded, base::Unretained(this)),
+        base::Bind(&ShellAudioRendererTest::OnDisabled, base::Unretained(this)),
+        base::Bind(&ShellAudioRendererTest::OnError, base::Unretained(this)));
     if (wait_until_finished) {
       FinishPendingTasks();
     }

@@ -34,7 +34,7 @@ namespace media {
 // asynchronous reading to this object it will need its own thread and a
 // callback queue.
 class ShellDataSourceReader
-  : public base::RefCountedThreadSafe<ShellDataSourceReader> {
+    : public base::RefCountedThreadSafe<ShellDataSourceReader> {
  public:
   static const int kReadError;
 
@@ -65,7 +65,6 @@ class ShellDataSourceReader
   bool read_has_failed_;
   int last_bytes_read_;  // protected implicitly by blocking_read_event_
 };
-
 
 }  // namespace media
 

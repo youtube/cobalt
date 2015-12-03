@@ -65,8 +65,8 @@ const int kMaximumPendingBuffers = 8;
 
 }  // namespace
 
-InterleavedSincResampler::InterleavedSincResampler(
-    double io_sample_rate_ratio, int channel_count)
+InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
+                                                   int channel_count)
     : io_sample_rate_ratio_(io_sample_rate_ratio),
       virtual_source_idx_(0),
       buffer_primed_(false),
@@ -149,8 +149,8 @@ void InterleavedSincResampler::InitializeKernel() {
 
       // Compute Blackman window, matching the offset of the sinc().
       double x = (i - subsample_offset) / kKernelSize;
-      double window = kA0 - kA1 * cos(2.0 * M_PI * x) + kA2
-          * cos(4.0 * M_PI * x);
+      double window =
+          kA0 - kA1 * cos(2.0 * M_PI * x) + kA2 * cos(4.0 * M_PI * x);
 
       // Window the sinc() function and store at the correct offset.
       kernel_storage_.get()[i + offset_idx * kKernelSize] = sinc * window;
@@ -210,8 +210,8 @@ bool InterleavedSincResampler::Resample(float* destination, int frames) {
       // Figure out how much to weight each kernel's "convolution".
       double kernel_interpolation_factor = virtual_offset_idx - offset_idx;
       for (int i = 0; i < channel_count_; ++i) {
-          *destination++ = Convolve(input_ptr + i, k1, k2,
-                                    kernel_interpolation_factor);
+        *destination++ =
+            Convolve(input_ptr + i, k1, k2, kernel_interpolation_factor);
       }
 
       // Advance the virtual index.
@@ -311,9 +311,10 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
   DCHECK_EQ(frames, 0);
 }
 
-float InterleavedSincResampler::Convolve(
-    const float* input_ptr, const float* k1, const float* k2,
-    double kernel_interpolation_factor) {
+float InterleavedSincResampler::Convolve(const float* input_ptr,
+                                         const float* k1,
+                                         const float* k2,
+                                         double kernel_interpolation_factor) {
   float sum1 = 0;
   float sum2 = 0;
 
@@ -328,7 +329,7 @@ float InterleavedSincResampler::Convolve(
 
   // Linearly interpolate the two "convolutions".
   return (1.0 - kernel_interpolation_factor) * sum1 +
-      kernel_interpolation_factor * sum2;
+         kernel_interpolation_factor * sum2;
 }
 
 }  // namespace media
