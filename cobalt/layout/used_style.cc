@@ -462,10 +462,10 @@ render_tree::ColorRGBA GetUsedColor(
 }
 
 float GetUsedLength(const scoped_refptr<cssom::PropertyValue>& length_refptr) {
-  cssom::LengthValue* color =
+  cssom::LengthValue* length =
       base::polymorphic_downcast<cssom::LengthValue*>(length_refptr.get());
-  DCHECK_EQ(color->unit(), cssom::kPixelsUnit);
-  return color->value();
+  DCHECK_EQ(length->unit(), cssom::kPixelsUnit);
+  return length->value();
 }
 
 UsedBackgroundNodeProvider::UsedBackgroundNodeProvider(

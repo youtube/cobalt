@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!--
+ | The text-indent property should only be applied to the first
+ | formatted line in a block, which also applies to inline-blocks.
+ |   http://www.w3.org/TR/css3-text/#text-indent-property
+ -->
+<html>
+<head>
+  <style>
+    p {
+      width: 320px;
+      font-family: Roboto;
+      font-weight: normal;
+      font-size: 20px;
+    }
+    span {
+      display: inline-block;
+    }
+    .indent {
+      text-indent: 3em;
+    }
+  </style>
+</head>
+<body>
+  <p>In my <span class="indent">BLOCK</span> younger and more vulnerable years</p>
+  <p>In my <span>BLOCK</span> younger and more vulnerable years</p>
+</body>
+</html>
