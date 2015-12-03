@@ -37,6 +37,7 @@ class AudioNodeOutput : public base::RefCountedThreadSafe<AudioNodeOutput> {
 
  public:
   explicit AudioNodeOutput(AudioNode* owner_node) : owner_node_(owner_node) {}
+  ~AudioNodeOutput();
 
   void AddInput(AudioNodeInput* input);
   void RemoveInput(AudioNodeInput* input);

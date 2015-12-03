@@ -17,6 +17,7 @@
 #include "cobalt/audio/audio_node_input.h"
 
 #include "base/logging.h"
+#include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_node.h"
 #include "cobalt/audio/audio_node_output.h"
 
@@ -176,7 +177,15 @@ void MixAudioBuffer(const AudioNode::ChannelInterpretation& interpretation,
 
 }  // namespace
 
+AudioNodeInput::~AudioNodeInput() {
+  owner_node_->context()->AssertLocked();
+
+  DCHECK(outputs_.empty());
+}
+
 void AudioNodeInput::Connect(AudioNodeOutput* output) {
+  owner_node_->context()->AssertLocked();
+
   DCHECK(output);
 
   // There can only be one connection between a given output of one specific
@@ -191,6 +200,8 @@ void AudioNodeInput::Connect(AudioNodeOutput* output) {
 }
 
 void AudioNodeInput::Disconnect(AudioNodeOutput* output) {
+  owner_node_->context()->AssertLocked();
+
   DCHECK(output);
 
   if (outputs_.find(output) == outputs_.end()) {
@@ -203,6 +214,8 @@ void AudioNodeInput::Disconnect(AudioNodeOutput* output) {
 }
 
 void AudioNodeInput::DisconnectAll() {
+  owner_node_->context()->AssertLocked();
+
   while (!outputs_.empty()) {
     AudioNodeOutput* output = *outputs_.begin();
     Disconnect(output);
@@ -211,6 +224,9 @@ void AudioNodeInput::DisconnectAll() {
 
 void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
                                   bool* silence) {
+  // This is called by Audio thread.
+  owner_node_->context()->AssertLocked();
+
   *silence = true;
 
   // TODO(***REMOVED***): Consider computing computedNumberOfChannels and do up-mix or

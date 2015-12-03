@@ -35,14 +35,13 @@ class AudioBufferSourceNode : public AudioNode {
 
  public:
   explicit AudioBufferSourceNode(AudioContext* context);
+  ~AudioBufferSourceNode();
 
   // Web API: AudioBufferSourceNode
   //
   // Represents the audio asset to be played.
   const scoped_refptr<AudioBuffer>& buffer() const { return buffer_; }
-  void set_buffer(const scoped_refptr<AudioBuffer>& buffer) {
-    buffer_ = buffer;
-  }
+  void set_buffer(const scoped_refptr<AudioBuffer>& buffer);
 
   // The Start method is used to schedule a sound to playback at an exact time.
   // The parameters are used to define the time to start playing based on the
