@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "base/optional.h"
+#include "base/synchronization/lock.h"
 #include "cobalt/audio/async_audio_decoder.h"
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_buffer_source_node.h"
@@ -52,6 +53,23 @@ class AudioContext : public dom::EventTarget {
   typedef script::CallbackFunction<void()> DecodeErrorCallback;
   typedef script::ScriptObject<DecodeErrorCallback> DecodeErrorCallbackArg;
   typedef DecodeErrorCallbackArg::Reference DecodeErrorCallbackReference;
+
+  class AutoLocker {
+   public:
+    explicit AutoLocker(AudioContext* context) : context_(context) {
+      DCHECK(context_);
+      context_->lock_.Acquire();
+    }
+
+    ~AutoLocker() {
+      context_->AssertLocked();
+      context_->lock_.Release();
+    }
+
+   private:
+    const AudioContext* context_;
+    DISALLOW_COPY_AND_ASSIGN(AutoLocker);
+  };
 
   AudioContext();
 
@@ -91,6 +109,9 @@ class AudioContext : public dom::EventTarget {
   // Creates an AudioBufferSourceNode.
   scoped_refptr<AudioBufferSourceNode> CreateBufferSource();
 
+  // Assert that the |lock_| is acquired.
+  void AssertLocked() const { lock_.AssertAcquired(); }
+
   DEFINE_WRAPPABLE_TYPE(AudioContext);
 
  private:
@@ -124,9 +145,12 @@ class AudioContext : public dom::EventTarget {
   float sample_rate_;
   double current_time_;
 
-  scoped_refptr<AudioDestinationNode> destination_;
+  // TODO(***REMOVED***): Remove this lock and synchronize the JavaScript calls with
+  // filling audio bus calls from ShellAudioStreamer.
+  mutable base::Lock lock_;
 
   AsyncAudioDecoder audio_decoder_;
+  scoped_refptr<AudioDestinationNode> destination_;
 
   // The main message loop.
   scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
