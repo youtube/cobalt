@@ -34,18 +34,22 @@ namespace {
 const size_t kSampleSizeInBytes = sizeof(float);
 
 struct QueuedAudioBuffer {
-//  AudioDecoder::Status status;  // status is used to represent decode errors
+  //  AudioDecoder::Status status;  // status is used to represent decode errors
   scoped_refptr<DecoderBuffer> buffer;
 };
 
-bool IsEndOfStream(int result, int decoded_size,
+bool IsEndOfStream(int result,
+                   int decoded_size,
                    scoped_refptr<DecoderBuffer> buffer) {
   return result == 0 && decoded_size == 0 && buffer->IsEndOfStream();
 }
 
-void ResampleToInterleavedFloat(int source_sample_format, int channel_layout,
-                                int sample_rate, int samples_per_channel,
-                                uint8** input_buffer, uint8* output_buffer) {
+void ResampleToInterleavedFloat(int source_sample_format,
+                                int channel_layout,
+                                int sample_rate,
+                                int samples_per_channel,
+                                uint8** input_buffer,
+                                uint8* output_buffer) {
   AVAudioResampleContext* context = avresample_alloc_context();
   DCHECK(context);
 
@@ -60,15 +64,14 @@ void ResampleToInterleavedFloat(int source_sample_format, int channel_layout,
   int result = avresample_open(context);
   DCHECK(!result);
 
-  int samples_resampled = avresample_convert(
-      context, &output_buffer, 1024, samples_per_channel, input_buffer, 0,
-      samples_per_channel);
+  int samples_resampled =
+      avresample_convert(context, &output_buffer, 1024, samples_per_channel,
+                         input_buffer, 0, samples_per_channel);
   DCHECK_EQ(samples_resampled, samples_per_channel);
 
   avresample_close(context);
   av_free(context);
 }
-
 
 class ShellRawAudioDecoderLinux : public ShellRawAudioDecoder {
  public:
@@ -131,13 +134,14 @@ ShellRawAudioDecoderLinux::~ShellRawAudioDecoderLinux() {
 }
 
 void ShellRawAudioDecoderLinux::Decode(
-    const scoped_refptr<DecoderBuffer>& buffer, const DecodeCB& decoder_cb) {
+    const scoped_refptr<DecoderBuffer>& buffer,
+    const DecodeCB& decoder_cb) {
   if (buffer && !buffer->IsEndOfStream()) {
     if (last_input_timestamp_ == kNoTimestamp()) {
       last_input_timestamp_ = buffer->GetTimestamp();
     } else if (buffer->GetTimestamp() != kNoTimestamp()) {
       DCHECK_GE(buffer->GetTimestamp().ToInternalValue(),
-               last_input_timestamp_.ToInternalValue());
+                last_input_timestamp_.ToInternalValue());
       last_input_timestamp_ = buffer->GetTimestamp();
     }
   }
@@ -172,17 +176,16 @@ bool ShellRawAudioDecoderLinux::UpdateConfig(const AudioDecoderConfig& config) {
     return false;
   }
 
-  if (codec_context_ &&
-      (bits_per_channel_ != config.bits_per_channel() ||
-       channel_layout_ != config.channel_layout() ||
-       samples_per_second_ != config.samples_per_second())) {
+  if (codec_context_ && (bits_per_channel_ != config.bits_per_channel() ||
+                         channel_layout_ != config.channel_layout() ||
+                         samples_per_second_ != config.samples_per_second())) {
     DVLOG(1) << "Unsupported config change :";
-    DVLOG(1) << "\tbits_per_channel : " << bits_per_channel_
-             << " -> " << config.bits_per_channel();
-    DVLOG(1) << "\tchannel_layout : " << channel_layout_
-             << " -> " << config.channel_layout();
-    DVLOG(1) << "\tsample_rate : " << samples_per_second_
-             << " -> " << config.samples_per_second();
+    DVLOG(1) << "\tbits_per_channel : " << bits_per_channel_ << " -> "
+             << config.bits_per_channel();
+    DVLOG(1) << "\tchannel_layout : " << channel_layout_ << " -> "
+             << config.channel_layout();
+    DVLOG(1) << "\tsample_rate : " << samples_per_second_ << " -> "
+             << config.samples_per_second();
     return false;
   }
 
@@ -231,8 +234,7 @@ bool ShellRawAudioDecoderLinux::UpdateConfig(const AudioDecoderConfig& config) {
     DLOG(INFO) << "Supported formats:";
     const AVSampleFormat* fmt;
     for (fmt = codec_context_->codec->sample_fmts; *fmt != -1; ++fmt) {
-      DLOG(INFO) << "  " << *fmt
-                 << " (" << av_get_sample_fmt_name(*fmt) << ")";
+      DLOG(INFO) << "  " << *fmt << " (" << av_get_sample_fmt_name(*fmt) << ")";
     }
   }
 
@@ -269,7 +271,8 @@ void ShellRawAudioDecoderLinux::ResetTimestampState() {
 }
 
 void ShellRawAudioDecoderLinux::RunDecodeLoop(
-    const scoped_refptr<DecoderBuffer>& input, bool skip_eos_append) {
+    const scoped_refptr<DecoderBuffer>& input,
+    bool skip_eos_append) {
   AVPacket packet;
   av_init_packet(&packet);
   packet.data = input->GetWritableData();
@@ -278,8 +281,8 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
   do {
     avcodec_get_frame_defaults(av_frame_);
     int frame_decoded = 0;
-    int result = avcodec_decode_audio4(
-        codec_context_, av_frame_, &frame_decoded, &packet);
+    int result = avcodec_decode_audio4(codec_context_, av_frame_,
+                                       &frame_decoded, &packet);
     DCHECK_GE(result, 0);
 
     // Update packet size and data pointer in case we need to call the decoder
@@ -321,8 +324,8 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
       output->SetTimestamp(output_timestamp_helper_->GetTimestamp());
       output->SetDuration(
           output_timestamp_helper_->GetDuration(decoded_audio_size));
-      output_timestamp_helper_->AddBytes(
-          decoded_audio_size / codec_context_->channels);
+      output_timestamp_helper_->AddBytes(decoded_audio_size /
+                                         codec_context_->channels);
     } else if (IsEndOfStream(result, decoded_audio_size, input) &&
                !skip_eos_append) {
       DCHECK_EQ(packet.size, 0);
@@ -332,7 +335,7 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
     }
 
     if (output) {
-      QueuedAudioBuffer queue_entry = { output };
+      QueuedAudioBuffer queue_entry = {output};
       queued_audio_.push_back(queue_entry);
     }
 

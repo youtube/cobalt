@@ -37,8 +37,8 @@ class ShellBufferFactory;
 
 // A simple scoped array class designed to re-use the memory allocated by
 // ShellBufferFactory. If needed would be trivial to make generic.
-class MEDIA_EXPORT ShellScopedArray :
-    public base::RefCountedThreadSafe<ShellScopedArray> {
+class MEDIA_EXPORT ShellScopedArray
+    : public base::RefCountedThreadSafe<ShellScopedArray> {
  public:
   uint8* Get() { return array_; }
   size_t Size() { return size_; }
@@ -109,8 +109,8 @@ class MEDIA_EXPORT ShellBufferFactory
   base::Lock lock_;
 
   // queue of pending buffer allocation requests and their sizes
-  typedef std::list<std::pair<AllocCB,
-                              scoped_refptr<DecoderBuffer> > > AllocList;
+  typedef std::list<std::pair<AllocCB, scoped_refptr<DecoderBuffer> > >
+      AllocList;
   AllocList pending_allocs_;
 
   // event used for blocking calls for array allocation

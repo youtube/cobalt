@@ -23,14 +23,12 @@ namespace media {
 const int ShellDataSourceReader::kReadError = DataSource::kReadError;
 
 ShellDataSourceReader::ShellDataSourceReader()
-    : blocking_read_event_(false, false)
-    , file_size_(-1)
-    , read_has_failed_(false)
-    , last_bytes_read_(0) {
-}
+    : blocking_read_event_(false, false),
+      file_size_(-1),
+      read_has_failed_(false),
+      last_bytes_read_(0) {}
 
-ShellDataSourceReader::~ShellDataSourceReader() {
-}
+ShellDataSourceReader::~ShellDataSourceReader() {}
 
 void ShellDataSourceReader::SetDataSource(
     scoped_refptr<DataSource> data_source) {
@@ -38,7 +36,7 @@ void ShellDataSourceReader::SetDataSource(
 }
 
 // currently only single-threaded reads supported
-int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8 *data) {
+int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
   // read failures are unrecoverable, all subsequent reads will also fail
   if (read_has_failed_) {
     return kReadError;

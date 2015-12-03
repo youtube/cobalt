@@ -29,7 +29,6 @@
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
 
-
 namespace media {
 
 //==============================================================================
@@ -38,10 +37,9 @@ namespace media {
 
 ShellVideoDecoderImpl::ShellVideoDecoderImpl(
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
-    : state_(kUninitialized)
-    , media_pipeline_message_loop_(message_loop)
-    , decoder_thread_("Video Decoder") {
-}
+    : state_(kUninitialized),
+      media_pipeline_message_loop_(message_loop),
+      decoder_thread_("Video Decoder") {}
 
 ShellVideoDecoderImpl::~ShellVideoDecoderImpl() {
   DCHECK(!decoder_thread_.IsRunning());  // It should be stopped in Stop().
@@ -101,11 +99,7 @@ void ShellVideoDecoderImpl::Read(const ReadCB& read_cb) {
   TRACE_EVENT0("media_stack", "ShellVideoDecoderImpl::DoRead()");
   if (!decoder_thread_.message_loop_proxy()->BelongsToCurrentThread()) {
     decoder_thread_.message_loop_proxy()->PostTask(
-        FROM_HERE,
-        base::Bind(
-            &ShellVideoDecoderImpl::Read,
-            this,
-            read_cb));
+        FROM_HERE, base::Bind(&ShellVideoDecoderImpl::Read, this, read_cb));
     return;
   }
 
@@ -140,10 +134,10 @@ void ShellVideoDecoderImpl::ReadFromDemuxerStream() {
   DCHECK(decoder_thread_.message_loop_proxy()->BelongsToCurrentThread());
   DCHECK_NE(state_, kDecodeFinished);
 
-  media_pipeline_message_loop_->PostTask(FROM_HERE, base::Bind(
-      &DemuxerStream::Read, demuxer_stream_,
-      BindToCurrentLoop(
-          base::Bind(&ShellVideoDecoderImpl::BufferReady, this))));
+  media_pipeline_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&DemuxerStream::Read, demuxer_stream_,
+                            BindToCurrentLoop(base::Bind(
+                                &ShellVideoDecoderImpl::BufferReady, this))));
 }
 
 void ShellVideoDecoderImpl::BufferReady(
@@ -230,7 +224,8 @@ void ShellVideoDecoderImpl::DecodeBuffer(
   DCHECK_NE(state_, kUninitialized);
   DCHECK_NE(state_, kDecodeFinished);
   DCHECK(buffer);
-  if (buffer_to_decode_) DCHECK_EQ(buffer_to_decode_, buffer);
+  if (buffer_to_decode_)
+    DCHECK_EQ(buffer_to_decode_, buffer);
 
   buffer_to_decode_ = buffer;
 
@@ -273,9 +268,9 @@ void ShellVideoDecoderImpl::DecodeCallback(
     if (frame) {
       base::ResetAndReturn(&read_cb_).Run(kOk, frame);
     } else {
-      decoder_thread_.message_loop_proxy()->PostTask(FROM_HERE,
-          base::Bind(&ShellVideoDecoderImpl::DecodeBuffer, this,
-                     buffer_to_decode_));
+      decoder_thread_.message_loop_proxy()->PostTask(
+          FROM_HERE, base::Bind(&ShellVideoDecoderImpl::DecodeBuffer, this,
+                                buffer_to_decode_));
     }
     return;
   }
@@ -314,11 +309,7 @@ void ShellVideoDecoderImpl::Reset(const base::Closure& closure) {
   TRACE_EVENT0("media_stack", "ShellVideoDecoderImpl::Reset()");
   if (!decoder_thread_.message_loop_proxy()->BelongsToCurrentThread()) {
     decoder_thread_.message_loop_proxy()->PostTask(
-        FROM_HERE,
-        base::Bind(
-            &ShellVideoDecoderImpl::Reset,
-            this,
-            closure));
+        FROM_HERE, base::Bind(&ShellVideoDecoderImpl::Reset, this, closure));
     return;
   }
 

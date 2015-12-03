@@ -40,8 +40,13 @@ bool AreSamplesSame(float sample1, float sample2) {
 
 // Function to provide the audio data of a single channel indicated by
 // |channel_index| inside a multi channel audio stream to SincResampler.
-void ReadCB(const float* source, const int source_size, int channel_index,
-            int channel_count, int* offset, float* destination, int samples) {
+void ReadCB(const float* source,
+            const int source_size,
+            int channel_index,
+            int channel_count,
+            int* offset,
+            float* destination,
+            int samples) {
   int samples_to_copy = std::min(source_size - *offset, samples);
   samples -= samples_to_copy;
 
@@ -60,16 +65,11 @@ class TestBuffer : public Buffer {
   TestBuffer(const void* data, int data_size)
       : Buffer(base::TimeDelta(), base::TimeDelta()),
         data_(static_cast<const uint8*>(data)),
-        data_size_(data_size) {
-  }
+        data_size_(data_size) {}
 
-  const uint8* GetData() const OVERRIDE {
-    return data_;
-  }
+  const uint8* GetData() const OVERRIDE { return data_; }
 
-  int GetDataSize() const OVERRIDE {
-    return data_size_;
-  }
+  int GetDataSize() const OVERRIDE { return data_size_; }
 
  private:
   const uint8* data_;
@@ -147,8 +147,7 @@ TEST(InterleavedSincResamplerTest, ResampleSingleChannel) {
 
   int offset = 0;
   SincResampler sinc_resampler(
-      kResampleRatio,
-      base::Bind(ReadCB, input, kInputFrames, 0, 1, &offset));
+      kResampleRatio, base::Bind(ReadCB, input, kInputFrames, 0, 1, &offset));
   InterleavedSincResampler interleaved_resampler(kResampleRatio, 1);
 
   interleaved_resampler.QueueBuffer(new TestBuffer(input, sizeof(input)));
@@ -162,8 +161,8 @@ TEST(InterleavedSincResamplerTest, ResampleSingleChannel) {
       interleaved_resampler.Resample(interleaved_output, kOutputFrames));
 
   for (int i = 0; i < kOutputFrames; ++i) {
-    ASSERT_TRUE(AreSamplesSame(non_interleaved_output[i],
-                               interleaved_output[i]));
+    ASSERT_TRUE(
+        AreSamplesSame(non_interleaved_output[i], interleaved_output[i]));
   }
 }
 
@@ -228,8 +227,8 @@ TEST(InterleavedSincResamplerTest, Benchmark) {
   int total_output_frames = 0;
 
   for (int i = 0; i < kNumberOfIterations; ++i) {
-    interleaved_resampler.QueueBuffer(new TestBuffer(&input[0],
-                                      sizeof(float) * input.size()));
+    interleaved_resampler.QueueBuffer(
+        new TestBuffer(&input[0], sizeof(float) * input.size()));
     if (interleaved_resampler.Resample(&interleaved_output[0], kOutputFrames)) {
       total_output_frames += kOutputFrames;
     }
@@ -237,16 +236,17 @@ TEST(InterleavedSincResamplerTest, Benchmark) {
 
   double total_time_c_ms =
       (base::TimeTicks::HighResNow() - start).InMillisecondsF();
-  printf("Benchmarking InterleavedSincResampler in %d channels for %d "
-         "iterations took %.4gms.\n:\n", kChannelCount, kNumberOfIterations,
-         total_time_c_ms);
+  printf(
+      "Benchmarking InterleavedSincResampler in %d channels for %d "
+      "iterations took %.4gms.\n:\n",
+      kChannelCount, kNumberOfIterations, total_time_c_ms);
 
   start = base::TimeTicks::HighResNow();
 
   int offset = 0;
   SincResampler sinc_resampler(
-      kResampleRatio, base::Bind(ReadCB, &input[0], kInputFrames, 0, 1,
-      &offset));
+      kResampleRatio,
+      base::Bind(ReadCB, &input[0], kInputFrames, 0, 1, &offset));
 
   while (total_output_frames > 0) {
     sinc_resampler.Resample(&interleaved_output[0], kOutputFrames);
@@ -259,8 +259,10 @@ TEST(InterleavedSincResamplerTest, Benchmark) {
   }
 
   total_time_c_ms = (base::TimeTicks::HighResNow() - start).InMillisecondsF();
-  printf("Benchmarking SincResampler with one channel for %d iterations took "
-         "%.4gms.\n:\n", kNumberOfIterations, total_time_c_ms);
+  printf(
+      "Benchmarking SincResampler with one channel for %d iterations took "
+      "%.4gms.\n:\n",
+      kNumberOfIterations, total_time_c_ms);
 }
 
 }  // namespace media

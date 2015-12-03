@@ -57,8 +57,8 @@ int AudioSinkSettings::channels() const {
 
 int AudioSinkSettings::per_channel_frames(AudioBus* audio_bus) const {
   return audio_bus->frames() * sizeof(float) /
-      (config_.interleaved() ? channels() : 1) /
-      (audio_parameters_.bits_per_sample() / 8);
+         (config_.interleaved() ? channels() : 1) /
+         (audio_parameters_.bits_per_sample() / 8);
 }
 
 // static
@@ -67,13 +67,13 @@ ShellAudioSink* ShellAudioSink::Create(ShellAudioStreamer* audio_streamer) {
 }
 
 ShellAudioSink::ShellAudioSink(ShellAudioStreamer* audio_streamer)
-    : render_callback_(NULL)
-    , pause_requested_(true)
-    , rebuffering_(true)
-    , rebuffer_num_frames_(0)
-    , render_frame_cursor_(0)
-    , output_frame_cursor_(0)
-    , audio_streamer_(audio_streamer) {
+    : render_callback_(NULL),
+      pause_requested_(true),
+      rebuffering_(true),
+      rebuffer_num_frames_(0),
+      render_frame_cursor_(0),
+      output_frame_cursor_(0),
+      audio_streamer_(audio_streamer) {
   buffer_factory_ = ShellBufferFactory::Instance();
 }
 
@@ -119,9 +119,9 @@ void ShellAudioSink::Initialize(const AudioParameters& params,
         1, settings_.channels() * per_channel_size_in_float,
         s_audio_sink_buffer.get());
   } else {
-    audio_bus_ = AudioBus::WrapMemory(
-        settings_.channels(), per_channel_size_in_float,
-        s_audio_sink_buffer.get());
+    audio_bus_ =
+        AudioBus::WrapMemory(settings_.channels(), per_channel_size_in_float,
+                             s_audio_sink_buffer.get());
   }
 
   if (!audio_bus_) {
@@ -192,9 +192,8 @@ void ShellAudioSink::ResumeAfterUnderflow(bool buffer_more_audio) {
   if (!buffer_more_audio)
     return;
 
-  rebuffer_num_frames_ =
-      std::min<int>(rebuffer_num_frames_ * 2,
-                    settings_.per_channel_frames(audio_bus_.get()));
+  rebuffer_num_frames_ = std::min<int>(
+      rebuffer_num_frames_ * 2, settings_.per_channel_frames(audio_bus_.get()));
 }
 
 bool ShellAudioSink::PauseRequested() const {
@@ -208,8 +207,10 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   DCHECK(render_callback_);
 
   uint32_t dummy_offset_in_frame, dummy_total_frames;
-  if (!offset_in_frame) offset_in_frame = &dummy_offset_in_frame;
-  if (!total_frames) total_frames = &dummy_total_frames;
+  if (!offset_in_frame)
+    offset_in_frame = &dummy_offset_in_frame;
+  if (!total_frames)
+    total_frames = &dummy_total_frames;
 
   *total_frames = render_frame_cursor_ - output_frame_cursor_;
   uint32 free_frames =
@@ -220,8 +221,8 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   if (free_frames >= mp4::AAC::kSamplesPerFrame) {
     SetupRenderAudioBus();
 
-    int frames_rendered = render_callback_->Render(renderer_audio_bus_.get(),
-                                                   buffered_time);
+    int frames_rendered =
+        render_callback_->Render(renderer_audio_bus_.get(), buffered_time);
     // 0 indicates the read is still pending. Positive number is # of frames
     // rendered, negative number indicates an error.
     if (frames_rendered > 0) {
@@ -235,8 +236,8 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
       free_frames -= frames_rendered;
     }
   } else {
-    // We don't need new data from the renderer, but this will ping the
-    // renderer and update the timer
+// We don't need new data from the renderer, but this will ping the
+// renderer and update the timer
 #if defined(__LB_WIIU__) || defined(__LB_PS4__)
     // TODO(***REMOVED***) : Either remove this or make it generic across all
     // platforms.
@@ -311,25 +312,28 @@ void ShellAudioSink::SetupRenderAudioBus() {
   // calculate the offset into the buffer where we'd like to store these data
   if (streamer_config_.interleaved()) {
     uint8* channel_data = reinterpret_cast<uint8*>(audio_bus_->channel(0));
-    uint8* channel_offset = channel_data + render_frame_position *
-        audio_parameters_.bits_per_sample() / 8 * settings_.channels();
+    uint8* channel_offset = channel_data +
+                            render_frame_position *
+                                audio_parameters_.bits_per_sample() / 8 *
+                                settings_.channels();
     // setup the AudioBus to pass to the renderer
     renderer_audio_bus_->SetChannelData(
         0, reinterpret_cast<float*>(channel_offset));
-    renderer_audio_bus_->set_frames(
-        requested_frames * audio_parameters_.bits_per_sample() / 8 /
-        sizeof(float) * settings_.channels());
+    renderer_audio_bus_->set_frames(requested_frames *
+                                    audio_parameters_.bits_per_sample() / 8 /
+                                    sizeof(float) * settings_.channels());
   } else {
     for (int i = 0; i < audio_bus_->channels(); ++i) {
       uint8* channel_data = reinterpret_cast<uint8*>(audio_bus_->channel(i));
-      uint8* channel_offset = channel_data + render_frame_position *
-          audio_parameters_.bits_per_sample() / 8;
+      uint8* channel_offset =
+          channel_data +
+          render_frame_position * audio_parameters_.bits_per_sample() / 8;
       renderer_audio_bus_->SetChannelData(
           i, reinterpret_cast<float*>(channel_offset));
     }
-    renderer_audio_bus_->set_frames(
-        requested_frames * audio_parameters_.bits_per_sample() / 8 /
-        sizeof(float));
+    renderer_audio_bus_->set_frames(requested_frames *
+                                    audio_parameters_.bits_per_sample() / 8 /
+                                    sizeof(float));
   }
 }
 

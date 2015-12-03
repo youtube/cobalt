@@ -105,8 +105,8 @@ ShellMediaStatistics& ShellMediaStatistics::Instance() {
 
 void ShellMediaStatistics::Reset(bool include_global_stats) {
   start_ = base::Time::Now();
-  int items_to_reset = include_global_stats ? arraysize(stats_) :
-                                              STAT_TYPE_START_OF_GLOBAL_STAT;
+  int items_to_reset =
+      include_global_stats ? arraysize(stats_) : STAT_TYPE_START_OF_GLOBAL_STAT;
   for (int i = 0; i < items_to_reset; ++i) {
     // We deliberately not reset current_ so its value can be kept after reset.
     stats_[i].times_ = 0;
@@ -117,9 +117,7 @@ void ShellMediaStatistics::Reset(bool include_global_stats) {
 }
 
 ShellScopedMediaStat::ShellScopedMediaStat(ShellMediaStatistics::StatType type)
-  : type_(type),
-    start_(base::Time::Now()) {
-}
+    : type_(type), start_(base::Time::Now()) {}
 
 ShellScopedMediaStat::~ShellScopedMediaStat() {
   ShellMediaStatistics::Instance().record(type_, base::Time::Now() - start_);

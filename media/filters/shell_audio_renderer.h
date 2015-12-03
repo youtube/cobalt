@@ -25,8 +25,8 @@
 namespace media {
 
 class MEDIA_EXPORT ShellAudioRenderer
-    : public AudioRenderer
-    , public media::AudioRendererSink::RenderCallback {
+    : public AudioRenderer,
+      public media::AudioRendererSink::RenderCallback {
  public:
   // platform-specific factory method
   static ShellAudioRenderer* Create(
@@ -39,7 +39,7 @@ class MEDIA_EXPORT ShellAudioRenderer
   // ======== Filter Implementation
 
  protected:
-  virtual ~ShellAudioRenderer() { }
+  virtual ~ShellAudioRenderer() {}
 };
 
 }  // namespace media

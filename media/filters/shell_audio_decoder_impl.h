@@ -40,14 +40,14 @@ class ShellRawAudioDecoder {
  public:
   enum DecodeStatus {
     BUFFER_DECODED,  // Successfully decoded audio data.
-    NEED_MORE_DATA  // Need more data to produce decoded audio data.
+    NEED_MORE_DATA   // Need more data to produce decoded audio data.
   };
   typedef media::DecoderBuffer DecoderBuffer;
   typedef media::AudioDecoderConfig AudioDecoderConfig;
   typedef base::Callback<scoped_ptr<ShellRawAudioDecoder>(
-                             const AudioDecoderConfig& config)> Creator;
-  typedef base::Callback<void (DecodeStatus,
-                               const scoped_refptr<DecoderBuffer>&)> DecodeCB;
+      const AudioDecoderConfig& config)> Creator;
+  typedef base::Callback<void(DecodeStatus,
+                              const scoped_refptr<DecoderBuffer>&)> DecodeCB;
 
   virtual ~ShellRawAudioDecoder() {}
   virtual int GetBytesPerSample() const = 0;

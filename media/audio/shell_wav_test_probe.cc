@@ -41,15 +41,15 @@ static const uint32 kWav_data = 0x64617461;
 namespace media {
 
 ShellWavTestProbe::ShellWavTestProbe()
-    : wav_file_(NULL)
-    , form_wav_length_bytes_(kWavTotalHeaderLength - 8)
-    , format_code_(0)
-    , channels_(0)
-    , samples_per_second_(0)
-    , bits_per_sample_(0)
-    , bytes_per_frame_(0)
-    , closed_(true)
-    , close_after_ms_(0) {}
+    : wav_file_(NULL),
+      form_wav_length_bytes_(kWavTotalHeaderLength - 8),
+      format_code_(0),
+      channels_(0),
+      samples_per_second_(0),
+      bits_per_sample_(0),
+      bytes_per_frame_(0),
+      closed_(true),
+      close_after_ms_(0) {}
 
 void ShellWavTestProbe::Initialize(const char* file_name,
                                    int channel_count,
@@ -126,8 +126,7 @@ void ShellWavTestProbe::WriteHeader() {
   // subformat guid, 16 bytes, first two bytes are format code again, rest
   // are a magic number 00 00 00 00 10 00   80 00 00 aa 00 38 9b 71
   uint64 magic_msd = ((uint64)format_code_ << 48) | 0x0000000000001000;
-  LB::Platform::store_uint64_big_endian(magic_msd,
-                                        wav_header_buffer_ + 44);
+  LB::Platform::store_uint64_big_endian(magic_msd, wav_header_buffer_ + 44);
   LB::Platform::store_uint64_big_endian(0x800000aa00389b71,
                                         wav_header_buffer_ + 52);
   // start the data chunk with "data" header
@@ -177,8 +176,10 @@ void ShellWavTestProbe::AddData(const uint8* data,
 void ShellWavTestProbe::AddDataLittleEndian(const uint8* data,
                                             uint32 length,
                                             uint64 timestamp) {
-  if (closed_) return;
-  if (!length) return;
+  if (closed_)
+    return;
+  if (!length)
+    return;
 
   fwrite(data, 1, length, wav_file_);
   fflush(wav_file_);
@@ -190,7 +191,8 @@ void ShellWavTestProbe::AddDataLittleEndian(const uint8* data,
     if (timestamp == 0) {
       // guess at timestamp based on total file size
       timestamp = (((uint64)form_wav_length_bytes_ -
-                   (uint64)(kWavTotalHeaderLength - 8)) * 1000ULL) /
+                    (uint64)(kWavTotalHeaderLength - 8)) *
+                   1000ULL) /
                   (uint64)(samples_per_second_ * bytes_per_frame_);
     }
     if (timestamp > close_after_ms_) {
@@ -204,13 +206,12 @@ void ShellWavTestProbe::AddData(const scoped_refptr<Buffer>& buffer) {
   if (buffer->GetTimestamp() != kNoTimestamp()) {
     timestamp = buffer->GetTimestamp().InMilliseconds();
   }
-  AddData(buffer->GetData(),
-          buffer->GetDataSize(),
-          timestamp);
+  AddData(buffer->GetData(), buffer->GetDataSize(), timestamp);
 }
 
 void ShellWavTestProbe::Close() {
-  if (closed_) return;
+  if (closed_)
+    return;
 
   closed_ = true;
   // write the header again now that we know the lengths

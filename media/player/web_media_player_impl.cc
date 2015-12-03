@@ -174,12 +174,10 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
                                       base::Unretained(decryptor_.get()));
 
   // Create default video renderer.
-  scoped_refptr<VideoRendererBase> video_renderer =
-      new VideoRendererBase(pipeline_message_loop,
-                            set_decryptor_ready_cb,
-                            base::Bind(&WebMediaPlayerProxy::Repaint, proxy_),
-                            BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetOpaque),
-                            true);
+  scoped_refptr<VideoRendererBase> video_renderer = new VideoRendererBase(
+      pipeline_message_loop, set_decryptor_ready_cb,
+      base::Bind(&WebMediaPlayerProxy::Repaint, proxy_),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetOpaque), true);
   filter_collection_->AddVideoRenderer(video_renderer);
   proxy_->set_frame_provider(video_renderer);
 
@@ -748,11 +746,10 @@ static void ReportMediaKeyExceptionToUMA(const std::string& method,
   MediaKeyException result_id = MediaKeyExceptionForUMA(e);
   DCHECK_NE(result_id, kUnknownResultId) << e;
   base::LinearHistogram::FactoryGet(
-      kMediaEme + KeySystemNameForUMA(key_system) + "." + method,
-      1,
-      kMaxMediaKeyException,
-      kMaxMediaKeyException + 1,
-      base::Histogram::kUmaTargetedHistogramFlag)->Add(result_id);
+      kMediaEme + KeySystemNameForUMA(key_system) + "." + method, 1,
+      kMaxMediaKeyException, kMaxMediaKeyException + 1,
+      base::Histogram::kUmaTargetedHistogramFlag)
+      ->Add(result_id);
 }
 
 WebMediaPlayer::MediaKeyException WebMediaPlayerImpl::GenerateKeyRequest(
@@ -785,8 +782,8 @@ WebMediaPlayerImpl::GenerateKeyRequestInternal(const std::string& key_system,
   // TODO(xhwang): We assume all streams are from the same container (thus have
   // the same "type") for now. In the future, the "type" should be passed down
   // from the application.
-  if (!decryptor_->GenerateKeyRequest(
-          key_system, init_data_type_, init_data, init_data_length)) {
+  if (!decryptor_->GenerateKeyRequest(key_system, init_data_type_, init_data,
+                                      init_data_length)) {
     current_key_system_.clear();
     return WebMediaPlayer::kMediaKeyExceptionKeySystemNotSupported;
   }
@@ -828,8 +825,8 @@ WebMediaPlayer::MediaKeyException WebMediaPlayerImpl::AddKeyInternal(
            << base::HexEncode(init_data, static_cast<size_t>(init_data_length))
            << " [" << session_id << "]";
 
-  decryptor_->AddKey(
-      key_system, key, key_length, init_data, init_data_length, session_id);
+  decryptor_->AddKey(key_system, key, key_length, init_data, init_data_length,
+                     session_id);
   return WebMediaPlayer::kMediaKeyExceptionNoError;
 }
 
@@ -942,10 +939,8 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error) {
       base::Histogram::FactoryGet(
           (kMediaEme + KeySystemNameForUMA(current_key_system_) +
            ".DecryptError"),
-          1,
-          1000000,
-          50,
-          base::Histogram::kUmaTargetedHistogramFlag)->Add(1);
+          1, 1000000, 50, base::Histogram::kUmaTargetedHistogramFlag)
+          ->Add(1);
       // TODO(xhwang): Change to use NetworkStateDecryptError once it's added in
       // Webkit (see http://crbug.com/124486).
       SetNetworkState(WebMediaPlayer::kNetworkStateDecodeError);
@@ -991,11 +986,9 @@ void WebMediaPlayerImpl::OnKeyAdded(const std::string& key_system,
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   base::Histogram::FactoryGet(
-      kMediaEme + KeySystemNameForUMA(key_system) + ".KeyAdded",
-      1,
-      1000000,
-      50,
-      base::Histogram::kUmaTargetedHistogramFlag)->Add(1);
+      kMediaEme + KeySystemNameForUMA(key_system) + ".KeyAdded", 1, 1000000, 50,
+      base::Histogram::kUmaTargetedHistogramFlag)
+      ->Add(1);
 
   GetClient()->KeyAdded(key_system, session_id);
 }
@@ -1020,8 +1013,8 @@ void WebMediaPlayerImpl::OnNeedKey(const std::string& key_system,
   if (init_data_type_.empty())
     init_data_type_ = type;
 
-  GetClient()->KeyNeeded(
-      key_system, session_id, init_data.get(), init_data_size);
+  GetClient()->KeyNeeded(key_system, session_id, init_data.get(),
+                         init_data_size);
 }
 
 // TODO(***REMOVED***) : Eliminate the duplicated enums.
@@ -1044,15 +1037,13 @@ void WebMediaPlayerImpl::OnKeyError(const std::string& key_system,
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   base::LinearHistogram::FactoryGet(
-      kMediaEme + KeySystemNameForUMA(key_system) + ".KeyError",
-      1,
-      Decryptor::kMaxKeyError,
-      Decryptor::kMaxKeyError + 1,
-      base::Histogram::kUmaTargetedHistogramFlag)->Add(error_code);
+      kMediaEme + KeySystemNameForUMA(key_system) + ".KeyError", 1,
+      Decryptor::kMaxKeyError, Decryptor::kMaxKeyError + 1,
+      base::Histogram::kUmaTargetedHistogramFlag)
+      ->Add(error_code);
 
   GetClient()->KeyError(
-      key_system,
-      session_id,
+      key_system, session_id,
       static_cast<WebMediaPlayerClient::MediaKeyErrorCode>(error_code),
       system_code);
 }
@@ -1063,11 +1054,9 @@ void WebMediaPlayerImpl::OnKeyMessage(const std::string& key_system,
                                       const GURL& default_url) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
-  GetClient()->KeyMessage(key_system,
-                          session_id,
+  GetClient()->KeyMessage(key_system, session_id,
                           reinterpret_cast<const uint8*>(message.data()),
-                          message.size(),
-                          default_url.spec());
+                          message.size(), default_url.spec());
 }
 
 void WebMediaPlayerImpl::SetOpaque(bool opaque) {
@@ -1084,8 +1073,7 @@ void WebMediaPlayerImpl::NotifyDownloading(bool is_downloading) {
     SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
   media_log_->AddEvent(
       media_log_->CreateBooleanEvent(MediaLogEvent::NETWORK_ACTIVITY_SET,
-                                     "is_downloading_data",
-                                     is_downloading));
+                                     "is_downloading_data", is_downloading));
 }
 
 void WebMediaPlayerImpl::StartPipeline() {

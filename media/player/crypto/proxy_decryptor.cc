@@ -27,11 +27,9 @@
 namespace media {
 
 ProxyDecryptor::ProxyDecryptor(DecryptorClient* decryptor_client)
-    : client_(decryptor_client) {
-}
+    : client_(decryptor_client) {}
 
-ProxyDecryptor::~ProxyDecryptor() {
-}
+ProxyDecryptor::~ProxyDecryptor() {}
 
 // TODO(xhwang): Support multiple decryptor notification request (e.g. from
 // video and audio decoders). The current implementation is okay for the current
@@ -76,8 +74,8 @@ bool ProxyDecryptor::GenerateKeyRequest(const std::string& key_system,
     }
   }
 
-  if (!decryptor_->GenerateKeyRequest(
-          key_system, type, init_data, init_data_length)) {
+  if (!decryptor_->GenerateKeyRequest(key_system, type, init_data,
+                                      init_data_length)) {
     decryptor_.reset();
     return false;
   }
@@ -101,8 +99,8 @@ void ProxyDecryptor::AddKey(const std::string& key_system,
 #endif
 
   // WebMediaPlayerImpl ensures GenerateKeyRequest() has been called.
-  decryptor_->AddKey(
-      key_system, key, key_length, init_data, init_data_length, session_id);
+  decryptor_->AddKey(key_system, key, key_length, init_data, init_data_length,
+                     session_id);
 }
 
 void ProxyDecryptor::CancelKeyRequest(const std::string& key_system,

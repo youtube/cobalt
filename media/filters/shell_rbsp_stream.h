@@ -50,7 +50,8 @@ class ShellRBSPStream {
 
  private:
   // advance by one byte through the NALU buffer, respecting the encoding of
-  // 00 00 03 => 00 00. Updates the state of current_nalu_byte_ to the new value.
+  // 00 00 03 => 00 00. Updates the state of current_nalu_byte_ to the new
+  // value.
   // returns fale if we have moved past the end of the buffer.
   bool ConsumeNALUByte();
   // return single bit in the LSb from the RBSP stream. Bits are read from MSb
@@ -66,7 +67,6 @@ class ShellRBSPStream {
   // location of rbsp bit cursor within current_nalu_byte_
   size_t rbsp_bit_offset_;
 };
-
 };
 
 #endif  // MEDIA_FILTERS_SHELL_RBSP_STREAM_H_

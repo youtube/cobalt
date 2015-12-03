@@ -35,7 +35,7 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
   // Determine stream type, construct appropriate parser object, and return.
   static scoped_refptr<ShellParser> Construct(
       scoped_refptr<ShellDataSourceReader> reader,
-      const PipelineStatusCB &status_cb);
+      const PipelineStatusCB& status_cb);
   explicit ShellParser(scoped_refptr<ShellDataSourceReader> reader);
 
   // Seek through the file looking for audio and video configuration info,
@@ -63,12 +63,8 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
   virtual base::TimeDelta Duration() { return duration_; }
   // bits per second of media, if known, otherwise 0
   virtual uint32 BitsPerSecond() { return bits_per_second_; }
-  virtual const AudioDecoderConfig& AudioConfig() {
-    return audio_config_;
-  }
-  virtual const VideoDecoderConfig& VideoConfig() {
-    return video_config_;
-  }
+  virtual const AudioDecoderConfig& AudioConfig() { return audio_config_; }
+  virtual const VideoDecoderConfig& VideoConfig() { return video_config_; }
 
  protected:
   // only allow RefCountedThreadSafe to delete us

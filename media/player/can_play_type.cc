@@ -40,7 +40,7 @@ bool ContainsAAC51(const std::vector<std::string>& codecs) {
 bool HasAAC51HardwareSupport() {
 #if defined(__LB_XB1__) || defined(__LB_XB360__)
   return false;
-#else  // defined(__LB_XB1__) || defined(__LB_XB360__)
+#else   // defined(__LB_XB1__) || defined(__LB_XB360__)
   ShellAudioStreamer* streamer = ShellAudioStreamer::Instance();
   DCHECK(streamer);
 
@@ -111,8 +111,8 @@ std::string CanPlayType(const std::string& content_type,
     bool strip_suffix = !IsStrictMediaMimeType(mime_type);
     ParseCodecString(codecs, &strict_codecs, strip_suffix);
 
-    if (!IsSupportedKeySystemWithMediaMimeType(
-            mime_type, strict_codecs, key_system)) {
+    if (!IsSupportedKeySystemWithMediaMimeType(mime_type, strict_codecs,
+                                               key_system)) {
       return kNotSupported;
     }
 

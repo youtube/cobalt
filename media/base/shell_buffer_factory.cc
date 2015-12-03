@@ -16,7 +16,7 @@
 
 #include "media/base/shell_buffer_factory.h"
 
-#include <malloc.h> // for memalign
+#include <malloc.h>  // for memalign
 
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
@@ -29,11 +29,8 @@ namespace media {
 
 // ==== ShellScopedArray =======================================================
 
-ShellScopedArray::ShellScopedArray(
-    uint8* reusable_buffer,
-    size_t size)
-    : array_(reusable_buffer)
-    , size_(size) {
+ShellScopedArray::ShellScopedArray(uint8* reusable_buffer, size_t size)
+    : array_(reusable_buffer), size_(size) {
   if (array_) {
     // Retain a reference to the buffer factory, to ensure that we do not
     // outlive it.
@@ -60,11 +57,9 @@ void ShellBufferFactory::Initialize() {
   }
 }
 
-bool ShellBufferFactory::AllocateBuffer(
-    size_t size,
-    AllocCB cb) {
-  TRACE_EVENT1("media_stack", "ShellBufferFactory::AllocateBuffer()",
-               "size", size);
+bool ShellBufferFactory::AllocateBuffer(size_t size, AllocCB cb) {
+  TRACE_EVENT1("media_stack", "ShellBufferFactory::AllocateBuffer()", "size",
+               size);
   // Zero-size buffers are allocation error, allocate an EOS buffer explicity
   // with the provided EOS method.
   if (size == 0) {
@@ -85,7 +80,8 @@ bool ShellBufferFactory::AllocateBuffer(
       uint8* bytes = Allocate_Locked(size);
       if (bytes) {
         instant_buffer = new DecoderBuffer(bytes, size);
-        TRACE_EVENT0("media_stack",
+        TRACE_EVENT0(
+            "media_stack",
             "ShellBufferFactory::AllocateBuffer() finished allocation.");
         DCHECK(!instant_buffer->IsEndOfStream());
       }
@@ -108,12 +104,13 @@ bool ShellBufferFactory::AllocateBuffer(
 
 scoped_refptr<DecoderBuffer> ShellBufferFactory::AllocateBufferNow(
     size_t size) {
-  TRACE_EVENT1("media_stack", "ShellBufferFactory::AllocateBufferNow()",
-               "size", size);
+  TRACE_EVENT1("media_stack", "ShellBufferFactory::AllocateBufferNow()", "size",
+               size);
   // Zero-size buffers are allocation error, allocate an EOS buffer explicity
   // with the provided EOS method.
   if (size == 0) {
-    TRACE_EVENT0("media_stack",
+    TRACE_EVENT0(
+        "media_stack",
         "ShellBufferFactory::AllocateBufferNow() failed as size is 0.");
     return NULL;
   }
@@ -121,7 +118,8 @@ scoped_refptr<DecoderBuffer> ShellBufferFactory::AllocateBufferNow(
   base::AutoLock lock(lock_);
   uint8* bytes = Allocate_Locked(size);
   if (!bytes) {
-    TRACE_EVENT0("media_stack",
+    TRACE_EVENT0(
+        "media_stack",
         "ShellBufferFactory::AllocateBufferNow() failed as size is too large.");
     return NULL;
   }
@@ -148,8 +146,8 @@ uint8* ShellBufferFactory::AllocateNow(size_t size) {
 }
 
 scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(size_t size) {
-  TRACE_EVENT1("media_stack", "ShellBufferFactory::AllocateArray()",
-               "size", size);
+  TRACE_EVENT1("media_stack", "ShellBufferFactory::AllocateArray()", "size",
+               size);
   uint8* allocated_bytes = NULL;
   if (size == 0) {
     TRACE_EVENT0("media_stack",
@@ -161,7 +159,8 @@ scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(size_t size) {
     base::AutoLock lock(lock_);
     // there should not already be somebody waiting on an array
     if (array_requested_size_ > 0) {
-      TRACE_EVENT0("media_stack",
+      TRACE_EVENT0(
+          "media_stack",
           "ShellBufferFactory::AllocateArray() failed as another allocation is"
           " in progress.");
       NOTREACHED() << "Max one thread blocking on array allocation at a time.";
@@ -174,7 +173,8 @@ scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(size_t size) {
       array_requested_size_ = size;
     }
   } else {  // oversized requests always fail instantly.
-    TRACE_EVENT0("media_stack",
+    TRACE_EVENT0(
+        "media_stack",
         "ShellBufferFactory::AllocateArray() failed as size is too large.");
     return NULL;
   }
@@ -240,8 +240,8 @@ void ShellBufferFactory::Reclaim(uint8* p) {
         TRACE_EVENT1("media_stack",
                      "ShellBufferFactory::Reclaim() finished allocation.",
                      "size", size);
-        finished_allocs.push_back(std::make_pair(
-            pending_allocs_.front().first, alloc_buff));
+        finished_allocs.push_back(
+            std::make_pair(pending_allocs_.front().first, alloc_buff));
         pending_allocs_.pop_front();
       } else {
         service_buffers = false;
@@ -269,10 +269,9 @@ void ShellBufferFactory::Terminate() {
 }
 
 ShellBufferFactory::ShellBufferFactory()
-    : array_allocation_event_(false, false)
-    , array_requested_size_(0)
-    , array_allocation_(NULL) {
-}
+    : array_allocation_event_(false, false),
+      array_requested_size_(0),
+      array_allocation_(NULL) {}
 
 // Will be called when all ShellBuffers have been deleted AND instance_ has
 // been set to NULL.

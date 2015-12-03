@@ -29,7 +29,7 @@ const int ShellParser::kInitialHeaderSize = 9;
 // static
 scoped_refptr<ShellParser> ShellParser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
-    const PipelineStatusCB &status_cb) {
+    const PipelineStatusCB& status_cb) {
   scoped_refptr<ShellParser> parser;
 
   // download first 16 bytes of stream to determine file type and extract basic
@@ -42,14 +42,10 @@ scoped_refptr<ShellParser> ShellParser::Construct(
   }
 
   // attempt to construct mp4 parser from this header
-  parser = ShellMP4Parser::Construct(reader,
-                                     header,
-                                     status_cb);
+  parser = ShellMP4Parser::Construct(reader, header, status_cb);
   // ok, attempt FLV
   if (!parser) {
-    parser = ShellFLVParser::Construct(reader,
-                                       header,
-                                       status_cb);
+    parser = ShellFLVParser::Construct(reader, header, status_cb);
   }
   // no additional supported container formats, set error and return
   if (!parser) {
@@ -61,17 +57,12 @@ scoped_refptr<ShellParser> ShellParser::Construct(
 }
 
 ShellParser::ShellParser(scoped_refptr<ShellDataSourceReader> reader)
-    : reader_(reader)
-    , duration_(kInfiniteDuration())
-    , bits_per_second_(0) {
-}
+    : reader_(reader), duration_(kInfiniteDuration()), bits_per_second_(0) {}
 
-ShellParser::~ShellParser() {
-}
+ShellParser::~ShellParser() {}
 
 bool ShellParser::IsConfigComplete() {
-  return (video_config_.IsValidConfig()) &&
-         (audio_config_.IsValidConfig()) &&
+  return (video_config_.IsValidConfig()) && (audio_config_.IsValidConfig()) &&
          (duration_ != kInfiniteDuration());
 }
 

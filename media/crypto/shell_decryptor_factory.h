@@ -31,12 +31,12 @@ namespace media {
 class MEDIA_EXPORT ShellDecryptorFactory {
  public:
   // Creates a decryptor.  Returns NULL on failure.
-  typedef base::Callback<media::Decryptor *(media::DecryptorClient *)> CreateCB;
+  typedef base::Callback<media::Decryptor*(media::DecryptorClient*)> CreateCB;
 
   static bool Supports(const std::string& key_system);
 
-  static Decryptor *Create(const std::string& key_system,
-                           DecryptorClient *client);
+  static Decryptor* Create(const std::string& key_system,
+                           DecryptorClient* client);
 
   static void RegisterDecryptor(const std::string& key_system,
                                 const CreateCB& create_cb);
