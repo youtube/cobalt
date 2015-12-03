@@ -564,6 +564,11 @@ void URLFetcherCore::OnResponseStarted(URLRequest* request) {
     total_response_bytes_ = request_->GetExpectedContentSize();
 
 #if defined(COBALT)
+    // We update this earlier than OnReadCompleted(), so that the delegate
+    // can know about it if they call GetURL() in any callback.
+    if (!stopped_on_redirect_) {
+      url_ = request_->url();
+    }
     InformDelegateResponseStarted();
 #endif  // defined(COBALT)
   }
@@ -588,9 +593,11 @@ void URLFetcherCore::OnReadCompleted(URLRequest* request,
                                      int bytes_read) {
   DCHECK(request == request_);
   DCHECK(network_task_runner_->BelongsToCurrentThread());
-
-  if (!stopped_on_redirect_)
+#if !defined(COBALT)
+  if (!stopped_on_redirect_) {
     url_ = request->url();
+  }
+#endif
   URLRequestThrottlerManager* throttler_manager =
       request->context()->throttler_manager();
   if (throttler_manager) {
