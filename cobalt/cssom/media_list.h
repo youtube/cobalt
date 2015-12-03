@@ -22,6 +22,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/math/size.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -57,10 +58,7 @@ class MediaList : public script::Wrappable {
   //
   void Append(const scoped_refptr<MediaQuery>& media_query);
 
-  bool EvaluateConditionValueFromFloat(float width, float height);
-
-  bool EvaluateConditionValue(const scoped_refptr<PropertyValue>& width,
-                              const scoped_refptr<PropertyValue>& height);
+  bool EvaluateConditionValue(const math::Size& viewport_size);
 
   DEFINE_WRAPPABLE_TYPE(MediaList);
 

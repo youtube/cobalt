@@ -33,82 +33,68 @@ TEST(MediaFeatureTest, AspectRatioNonZeroShouldEvaluateTrue) {
       new MediaFeature(kAspectRatioMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, AspectRatioEqualsShouldEvaluateTrue) {
-  scoped_refptr<RatioValue> property(new RatioValue(16, 9));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(16, 9)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kAspectRatioMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, AspectRatioEqualsShouldEvaluateFalse) {
-  scoped_refptr<RatioValue> property(new RatioValue(16, 9));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(16, 9)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kAspectRatioMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(640, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(480, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(640, 480)));
 }
 
 TEST(MediaFeatureTest, AspectRatioMinimumShouldEvaluateTrue) {
-  scoped_refptr<RatioValue> property(new RatioValue(4, 3));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(4, 3)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kAspectRatioMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, AspectRatioMinimumShouldEvaluateFalse) {
-  scoped_refptr<RatioValue> property(new RatioValue(16, 9));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(16, 9)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kAspectRatioMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(640, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(480, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(640, 480)));
 }
 
 TEST(MediaFeatureTest, AspectRatioMaximumShouldEvaluateTrue) {
-  scoped_refptr<RatioValue> property(new RatioValue(16, 9));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(16, 9)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kAspectRatioMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(640, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(480, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(640, 480)));
 }
 
 TEST(MediaFeatureTest, AspectRatioMaximumShouldEvaluateFalse) {
-  scoped_refptr<RatioValue> property(new RatioValue(4, 3));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(4, 3)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kAspectRatioMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, ColorIndexNonZeroShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorIndexMediaFeature));
   media_feature->set_operator(kNonZero);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorIndexEqualsShouldEvaluateTrue) {
@@ -116,7 +102,7 @@ TEST(MediaFeatureTest, ColorIndexEqualsShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorIndexMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorIndexEqualsShouldEvaluateFalse) {
@@ -124,7 +110,7 @@ TEST(MediaFeatureTest, ColorIndexEqualsShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorIndexMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorIndexMinimumShouldEvaluateTrue) {
@@ -132,7 +118,7 @@ TEST(MediaFeatureTest, ColorIndexMinimumShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorIndexMediaFeature, property));
   media_feature->set_operator(kMinimum);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorIndexMinimumShouldEvaluateFalse) {
@@ -140,7 +126,7 @@ TEST(MediaFeatureTest, ColorIndexMinimumShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorIndexMediaFeature, property));
   media_feature->set_operator(kMinimum);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorIndexMaximumShouldEvaluateTrue) {
@@ -148,14 +134,14 @@ TEST(MediaFeatureTest, ColorIndexMaximumShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorIndexMediaFeature, property));
   media_feature->set_operator(kMaximum);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorNonZeroShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorMediaFeature));
   media_feature->set_operator(kNonZero);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorEqualsShouldEvaluateTrue) {
@@ -163,7 +149,7 @@ TEST(MediaFeatureTest, ColorEqualsShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorEqualsShouldEvaluateFalse) {
@@ -171,7 +157,7 @@ TEST(MediaFeatureTest, ColorEqualsShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorMinimumShouldEvaluateTrue) {
@@ -179,7 +165,7 @@ TEST(MediaFeatureTest, ColorMinimumShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorMediaFeature, property));
   media_feature->set_operator(kMinimum);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorMinimumShouldEvaluateFalse) {
@@ -187,7 +173,7 @@ TEST(MediaFeatureTest, ColorMinimumShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorMediaFeature, property));
   media_feature->set_operator(kMinimum);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorMaximumShouldEvaluateTrue) {
@@ -195,7 +181,7 @@ TEST(MediaFeatureTest, ColorMaximumShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorMediaFeature, property));
   media_feature->set_operator(kMaximum);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ColorMaximumShouldEvaluateFalse) {
@@ -203,7 +189,7 @@ TEST(MediaFeatureTest, ColorMaximumShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kColorMediaFeature, property));
   media_feature->set_operator(kMaximum);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, DeviceAspectRatioNonZeroShouldEvaluateTrue) {
@@ -211,75 +197,61 @@ TEST(MediaFeatureTest, DeviceAspectRatioNonZeroShouldEvaluateTrue) {
       new MediaFeature(kDeviceAspectRatioMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, DeviceAspectRatioEqualsShouldEvaluateTrue) {
-  scoped_refptr<RatioValue> property(new RatioValue(16, 9));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(16, 9)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kDeviceAspectRatioMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, DeviceAspectRatioEqualsShouldEvaluateFalse) {
-  scoped_refptr<RatioValue> property(new RatioValue(16, 9));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(16, 9)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kDeviceAspectRatioMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(640, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(480, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(640, 480)));
 }
 
 TEST(MediaFeatureTest, DeviceAspectRatioMinimumShouldEvaluateTrue) {
-  scoped_refptr<RatioValue> property(new RatioValue(4, 3));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(4, 3)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kDeviceAspectRatioMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, DeviceAspectRatioMinimumShouldEvaluateFalse) {
-  scoped_refptr<RatioValue> property(new RatioValue(16, 9));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(16, 9)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kDeviceAspectRatioMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(640, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(480, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(640, 480)));
 }
 
 TEST(MediaFeatureTest, DeviceAspectRatioMaximumShouldEvaluateTrue) {
-  scoped_refptr<RatioValue> property(new RatioValue(16, 9));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(16, 9)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kDeviceAspectRatioMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(640, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(480, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(640, 480)));
 }
 
 TEST(MediaFeatureTest, DeviceAspectRatioMaximumShouldEvaluateFalse) {
-  scoped_refptr<RatioValue> property(new RatioValue(4, 3));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(4, 3)));
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kDeviceAspectRatioMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, DeviceHeightNonZeroShouldEvaluateTrue) {
@@ -287,17 +259,15 @@ TEST(MediaFeatureTest, DeviceHeightNonZeroShouldEvaluateTrue) {
       new MediaFeature(kDeviceHeightMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 1080)));
 }
 
-TEST(MediaFeatureTest, DeviceHeightNonZeroShouldEvaluateFalse) {
+TEST(MediaFeatureTest, DeviceHeightZeroShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kDeviceHeightMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> height(new LengthValue(0, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, DeviceHeightEqualsShouldEvaluateTrue) {
@@ -306,8 +276,7 @@ TEST(MediaFeatureTest, DeviceHeightEqualsShouldEvaluateTrue) {
       new MediaFeature(kDeviceHeightMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 1080)));
 }
 
 TEST(MediaFeatureTest, DeviceHeightEqualsShouldEvaluateFalse) {
@@ -316,8 +285,7 @@ TEST(MediaFeatureTest, DeviceHeightEqualsShouldEvaluateFalse) {
       new MediaFeature(kDeviceHeightMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> height(new LengthValue(480, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 480)));
 }
 
 TEST(MediaFeatureTest, DeviceHeightMinimumShouldEvaluateTrue) {
@@ -326,8 +294,7 @@ TEST(MediaFeatureTest, DeviceHeightMinimumShouldEvaluateTrue) {
       new MediaFeature(kDeviceHeightMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 1080)));
 }
 
 TEST(MediaFeatureTest, DeviceHeightMinimumShouldEvaluateFalse) {
@@ -336,8 +303,7 @@ TEST(MediaFeatureTest, DeviceHeightMinimumShouldEvaluateFalse) {
       new MediaFeature(kDeviceHeightMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> height(new LengthValue(720, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 720)));
 }
 
 TEST(MediaFeatureTest, DeviceHeightMaximumShouldEvaluateTrue) {
@@ -346,8 +312,7 @@ TEST(MediaFeatureTest, DeviceHeightMaximumShouldEvaluateTrue) {
       new MediaFeature(kDeviceHeightMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> height(new LengthValue(480, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 480)));
 }
 
 TEST(MediaFeatureTest, DeviceHeightMaximumShouldEvaluateFalse) {
@@ -356,8 +321,7 @@ TEST(MediaFeatureTest, DeviceHeightMaximumShouldEvaluateFalse) {
       new MediaFeature(kDeviceHeightMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 1080)));
 }
 
 TEST(MediaFeatureTest, DeviceWidthNonZeroShouldEvaluateTrue) {
@@ -365,8 +329,7 @@ TEST(MediaFeatureTest, DeviceWidthNonZeroShouldEvaluateTrue) {
       new MediaFeature(kDeviceWidthMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 0)));
 }
 
 TEST(MediaFeatureTest, DeviceWidthNonZeroShouldEvaluateFalse) {
@@ -374,8 +337,7 @@ TEST(MediaFeatureTest, DeviceWidthNonZeroShouldEvaluateFalse) {
       new MediaFeature(kDeviceWidthMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> width(new LengthValue(0, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, DeviceWidthEqualsShouldEvaluateTrue) {
@@ -384,8 +346,7 @@ TEST(MediaFeatureTest, DeviceWidthEqualsShouldEvaluateTrue) {
       new MediaFeature(kDeviceWidthMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 0)));
 }
 
 TEST(MediaFeatureTest, DeviceWidthEqualsShouldEvaluateFalse) {
@@ -394,8 +355,7 @@ TEST(MediaFeatureTest, DeviceWidthEqualsShouldEvaluateFalse) {
       new MediaFeature(kDeviceWidthMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(640, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(640, 0)));
 }
 
 TEST(MediaFeatureTest, DeviceWidthMinimumShouldEvaluateTrue) {
@@ -404,8 +364,7 @@ TEST(MediaFeatureTest, DeviceWidthMinimumShouldEvaluateTrue) {
       new MediaFeature(kDeviceWidthMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 0)));
 }
 
 TEST(MediaFeatureTest, DeviceWidthMinimumShouldEvaluateFalse) {
@@ -414,8 +373,7 @@ TEST(MediaFeatureTest, DeviceWidthMinimumShouldEvaluateFalse) {
       new MediaFeature(kDeviceWidthMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1280, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1280, 0)));
 }
 
 TEST(MediaFeatureTest, DeviceWidthMaximumShouldEvaluateTrue) {
@@ -424,8 +382,7 @@ TEST(MediaFeatureTest, DeviceWidthMaximumShouldEvaluateTrue) {
       new MediaFeature(kDeviceWidthMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(640, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(640, 0)));
 }
 
 TEST(MediaFeatureTest, DeviceWidthMaximumShouldEvaluateFalse) {
@@ -434,15 +391,14 @@ TEST(MediaFeatureTest, DeviceWidthMaximumShouldEvaluateFalse) {
       new MediaFeature(kDeviceWidthMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1920, 0)));
 }
 
 TEST(MediaFeatureTest, GridNonZeroShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kGridMediaFeature));
   media_feature->set_operator(kNonZero);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, GridEqualsShouldEvaluateTrue) {
@@ -450,7 +406,7 @@ TEST(MediaFeatureTest, GridEqualsShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kGridMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, GridEqualsShouldEvaluateFalse) {
@@ -458,7 +414,7 @@ TEST(MediaFeatureTest, GridEqualsShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kGridMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, GridMinimumShouldEvaluateTrue) {
@@ -466,7 +422,7 @@ TEST(MediaFeatureTest, GridMinimumShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kGridMediaFeature, property));
   media_feature->set_operator(kMinimum);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, GridMinimumShouldEvaluateFalse) {
@@ -474,7 +430,7 @@ TEST(MediaFeatureTest, GridMinimumShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kGridMediaFeature, property));
   media_feature->set_operator(kMinimum);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, GridMaximumShouldEvaluateTrue) {
@@ -482,7 +438,7 @@ TEST(MediaFeatureTest, GridMaximumShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kGridMediaFeature, property));
   media_feature->set_operator(kMaximum);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, HeightNonZeroShouldEvaluateTrue) {
@@ -490,8 +446,7 @@ TEST(MediaFeatureTest, HeightNonZeroShouldEvaluateTrue) {
       new MediaFeature(kHeightMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 1080)));
 }
 
 TEST(MediaFeatureTest, HeightNonZeroShouldEvaluateFalse) {
@@ -499,8 +454,7 @@ TEST(MediaFeatureTest, HeightNonZeroShouldEvaluateFalse) {
       new MediaFeature(kHeightMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> height(new LengthValue(0, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, HeightEqualsShouldEvaluateTrue) {
@@ -509,8 +463,7 @@ TEST(MediaFeatureTest, HeightEqualsShouldEvaluateTrue) {
       new MediaFeature(kHeightMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 1080)));
 }
 
 TEST(MediaFeatureTest, HeightEqualsShouldEvaluateFalse) {
@@ -519,8 +472,7 @@ TEST(MediaFeatureTest, HeightEqualsShouldEvaluateFalse) {
       new MediaFeature(kHeightMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> height(new LengthValue(480, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 480)));
 }
 
 TEST(MediaFeatureTest, HeightMinimumShouldEvaluateTrue) {
@@ -529,8 +481,7 @@ TEST(MediaFeatureTest, HeightMinimumShouldEvaluateTrue) {
       new MediaFeature(kHeightMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 1080)));
 }
 
 TEST(MediaFeatureTest, HeightMinimumShouldEvaluateFalse) {
@@ -539,8 +490,7 @@ TEST(MediaFeatureTest, HeightMinimumShouldEvaluateFalse) {
       new MediaFeature(kHeightMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> height(new LengthValue(720, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 720)));
 }
 
 TEST(MediaFeatureTest, HeightMaximumShouldEvaluateTrue) {
@@ -549,8 +499,7 @@ TEST(MediaFeatureTest, HeightMaximumShouldEvaluateTrue) {
       new MediaFeature(kHeightMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> height(new LengthValue(480, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 480)));
 }
 
 TEST(MediaFeatureTest, HeightMaximumShouldEvaluateFalse) {
@@ -559,15 +508,14 @@ TEST(MediaFeatureTest, HeightMaximumShouldEvaluateFalse) {
       new MediaFeature(kHeightMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 1080)));
 }
 
 TEST(MediaFeatureTest, MonochromeNonZeroShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kMonochromeMediaFeature));
   media_feature->set_operator(kNonZero);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, MonochromeEqualsShouldEvaluateTrue) {
@@ -575,7 +523,7 @@ TEST(MediaFeatureTest, MonochromeEqualsShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kMonochromeMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, MonochromeEqualsShouldEvaluateFalse) {
@@ -583,7 +531,7 @@ TEST(MediaFeatureTest, MonochromeEqualsShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kMonochromeMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, MonochromeMinimumShouldEvaluateTrue) {
@@ -592,7 +540,7 @@ TEST(MediaFeatureTest, MonochromeMinimumShouldEvaluateTrue) {
       new MediaFeature(kMonochromeMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, MonochromeMinimumShouldEvaluateFalse) {
@@ -600,7 +548,7 @@ TEST(MediaFeatureTest, MonochromeMinimumShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kMonochromeMediaFeature, property));
   media_feature->set_operator(kMinimum);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, MonochromeMaximumShouldEvaluateTrue) {
@@ -608,7 +556,7 @@ TEST(MediaFeatureTest, MonochromeMaximumShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kMonochromeMediaFeature, property));
   media_feature->set_operator(kMaximum);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, OrientationNonZeroShouldEvaluateTrue) {
@@ -618,9 +566,7 @@ TEST(MediaFeatureTest, OrientationNonZeroShouldEvaluateTrue) {
       new MediaFeature(kOrientationMediaFeature, property));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, OrientationEqualsShouldEvaluateTrue) {
@@ -630,9 +576,7 @@ TEST(MediaFeatureTest, OrientationEqualsShouldEvaluateTrue) {
       new MediaFeature(kOrientationMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, OrientationEqualsShouldEvaluateFalse) {
@@ -642,9 +586,7 @@ TEST(MediaFeatureTest, OrientationEqualsShouldEvaluateFalse) {
       new MediaFeature(kOrientationMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, ResolutionNonZeroShouldEvaluateTrue) {
@@ -652,9 +594,7 @@ TEST(MediaFeatureTest, ResolutionNonZeroShouldEvaluateTrue) {
       new MediaFeature(kResolutionMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, ResolutionNonZeroShouldEvaluateFalse) {
@@ -662,9 +602,7 @@ TEST(MediaFeatureTest, ResolutionNonZeroShouldEvaluateFalse) {
       new MediaFeature(kResolutionMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> width(new LengthValue(0, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(0, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ResolutionEqualsShouldEvaluateTrue) {
@@ -673,9 +611,7 @@ TEST(MediaFeatureTest, ResolutionEqualsShouldEvaluateTrue) {
       new MediaFeature(kResolutionMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(5500, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(0, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(5500, 0)));
 }
 
 TEST(MediaFeatureTest, ResolutionEqualsShouldEvaluateFalse) {
@@ -684,9 +620,7 @@ TEST(MediaFeatureTest, ResolutionEqualsShouldEvaluateFalse) {
       new MediaFeature(kResolutionMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, ResolutionMinimumShouldEvaluateTrue) {
@@ -695,9 +629,7 @@ TEST(MediaFeatureTest, ResolutionMinimumShouldEvaluateTrue) {
       new MediaFeature(kResolutionMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, ResolutionMinimumShouldEvaluateFalse) {
@@ -706,9 +638,7 @@ TEST(MediaFeatureTest, ResolutionMinimumShouldEvaluateFalse) {
       new MediaFeature(kResolutionMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, ResolutionMaximumShouldEvaluateTrue) {
@@ -717,9 +647,7 @@ TEST(MediaFeatureTest, ResolutionMaximumShouldEvaluateTrue) {
       new MediaFeature(kResolutionMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, ResolutionMaximumShouldEvaluateFalse) {
@@ -728,9 +656,7 @@ TEST(MediaFeatureTest, ResolutionMaximumShouldEvaluateFalse) {
       new MediaFeature(kResolutionMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, height));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
 }
 
 TEST(MediaFeatureTest, ScanNonZeroShouldEvaluateTrue) {
@@ -739,7 +665,7 @@ TEST(MediaFeatureTest, ScanNonZeroShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kScanMediaFeature, property));
   media_feature->set_operator(kNonZero);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ScanEqualsShouldEvaluateTrue) {
@@ -748,7 +674,7 @@ TEST(MediaFeatureTest, ScanEqualsShouldEvaluateTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kScanMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, ScanEqualsShouldEvaluateFalse) {
@@ -757,7 +683,7 @@ TEST(MediaFeatureTest, ScanEqualsShouldEvaluateFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kScanMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, WidthNonZeroShouldEvaluateTrue) {
@@ -765,8 +691,7 @@ TEST(MediaFeatureTest, WidthNonZeroShouldEvaluateTrue) {
       new MediaFeature(kWidthMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 0)));
 }
 
 TEST(MediaFeatureTest, WidthNonZeroShouldEvaluateFalse) {
@@ -774,8 +699,7 @@ TEST(MediaFeatureTest, WidthNonZeroShouldEvaluateFalse) {
       new MediaFeature(kWidthMediaFeature));
   media_feature->set_operator(kNonZero);
 
-  scoped_refptr<LengthValue> width(new LengthValue(0, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaFeatureTest, WidthEqualsShouldEvaluateTrue) {
@@ -784,8 +708,7 @@ TEST(MediaFeatureTest, WidthEqualsShouldEvaluateTrue) {
       new MediaFeature(kWidthMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 0)));
 }
 
 TEST(MediaFeatureTest, WidthEqualsShouldEvaluateFalse) {
@@ -794,8 +717,7 @@ TEST(MediaFeatureTest, WidthEqualsShouldEvaluateFalse) {
       new MediaFeature(kWidthMediaFeature, property));
   media_feature->set_operator(kEquals);
 
-  scoped_refptr<LengthValue> width(new LengthValue(640, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(640, 0)));
 }
 
 TEST(MediaFeatureTest, WidthMinimumShouldEvaluateTrue) {
@@ -804,8 +726,7 @@ TEST(MediaFeatureTest, WidthMinimumShouldEvaluateTrue) {
       new MediaFeature(kWidthMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 0)));
 }
 
 TEST(MediaFeatureTest, WidthMinimumShouldEvaluateFalse) {
@@ -814,8 +735,7 @@ TEST(MediaFeatureTest, WidthMinimumShouldEvaluateFalse) {
       new MediaFeature(kWidthMediaFeature, property));
   media_feature->set_operator(kMinimum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1280, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1280, 0)));
 }
 
 TEST(MediaFeatureTest, WidthMaximumShouldEvaluateTrue) {
@@ -824,8 +744,7 @@ TEST(MediaFeatureTest, WidthMaximumShouldEvaluateTrue) {
       new MediaFeature(kWidthMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(640, kPixelsUnit));
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(640, 0)));
 }
 
 TEST(MediaFeatureTest, WidthMaximumShouldEvaluateFalse) {
@@ -834,8 +753,7 @@ TEST(MediaFeatureTest, WidthMaximumShouldEvaluateFalse) {
       new MediaFeature(kWidthMediaFeature, property));
   media_feature->set_operator(kMaximum);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(width, NULL));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1920, 0)));
 }
 
 }  // namespace cssom

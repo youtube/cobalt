@@ -20,6 +20,8 @@
 
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/media_query.h"
+#include "cobalt/math/safe_integer_conversions.h"
+#include "cobalt/math/size.h"
 
 namespace cobalt {
 namespace dom {
@@ -37,8 +39,9 @@ bool MediaQueryList::matches() const {
   if (!media_list_ || !screen_) {
     return false;
   }
-  return media_list_->EvaluateConditionValueFromFloat(screen_->avail_width(),
-                                                      screen_->avail_height());
+  return media_list_->EvaluateConditionValue(
+      math::Size(math::ToRoundedInt(screen_->avail_width()),
+                 math::ToRoundedInt(screen_->avail_height())));
 }
 
 MediaQueryList::~MediaQueryList() {}
