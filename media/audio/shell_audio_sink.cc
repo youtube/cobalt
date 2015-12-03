@@ -236,13 +236,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
       free_frames -= frames_rendered;
     }
   } else {
-// We don't need new data from the renderer, but this will ping the
-// renderer and update the timer
-#if defined(__LB_WIIU__) || defined(__LB_PS4__)
-    // TODO(***REMOVED***) : Either remove this or make it generic across all
-    // platforms.
     render_callback_->Render(NULL, buffered_time);
-#endif
   }
 
   bool buffer_full = free_frames < mp4::AAC::kSamplesPerFrame;
