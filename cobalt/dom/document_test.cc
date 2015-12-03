@@ -72,8 +72,7 @@ DocumentTest::~DocumentTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(DocumentTest, Create) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   ASSERT_TRUE(document);
 
   EXPECT_EQ(Node::kDocumentNode, document->node_type());
@@ -97,14 +96,12 @@ TEST_F(DocumentTest, Duplicate) {
 }
 
 TEST_F(DocumentTest, IsNotXMLDocument) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   EXPECT_FALSE(document->IsXMLDocument());
 }
 
 TEST_F(DocumentTest, DocumentElement) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   EXPECT_EQ(NULL, document->document_element());
 
   scoped_refptr<Text> text = new Text(document, "test_text");
@@ -115,8 +112,7 @@ TEST_F(DocumentTest, DocumentElement) {
 }
 
 TEST_F(DocumentTest, CreateElement) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   scoped_refptr<Element> element = document->CreateElement("element");
 
   EXPECT_EQ(Node::kElementNode, element->node_type());
@@ -132,8 +128,7 @@ TEST_F(DocumentTest, CreateElement) {
 }
 
 TEST_F(DocumentTest, CreateTextNode) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   scoped_refptr<Text> text = document->CreateTextNode("test_text");
 
   EXPECT_EQ(Node::kTextNode, text->node_type());
@@ -145,8 +140,7 @@ TEST_F(DocumentTest, CreateTextNode) {
 TEST_F(DocumentTest, CreateEvent) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   // Create an Event, the name is case insensitive.
   scoped_refptr<Event> event = document->CreateEvent("EvEnT", &exception_state);
 
@@ -164,20 +158,17 @@ TEST_F(DocumentTest, CreateEvent) {
 }
 
 TEST_F(DocumentTest, GetElementsByClassName) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   testing::TestGetElementsByClassName(document);
 }
 
 TEST_F(DocumentTest, GetElementsByTagName) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   testing::TestGetElementsByTagName(document);
 }
 
 TEST_F(DocumentTest, GetElementById) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
 
   // Construct a tree:
   // document
@@ -209,8 +200,7 @@ TEST_F(DocumentTest, OwnerDocument) {
   // document
   //   element1
   //     element2
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   scoped_refptr<Node> element1 = new Element(document);
   scoped_refptr<Node> element2 = new Element(document);
 
@@ -229,20 +219,17 @@ TEST_F(DocumentTest, OwnerDocument) {
 }
 
 TEST_F(DocumentTest, Implementation) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   EXPECT_TRUE(document->implementation());
 }
 
 TEST_F(DocumentTest, Location) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   EXPECT_TRUE(document->location());
 }
 
 TEST_F(DocumentTest, StyleSheets) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
 
   scoped_refptr<HTMLElement> element1 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
@@ -287,8 +274,7 @@ TEST_F(DocumentTest, StyleSheets) {
 }
 
 TEST_F(DocumentTest, QuerySelector) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   document->AppendChild(document->CreateElement("div"));
   document->AppendChild(document->CreateElement("div"));
   EXPECT_FALSE(document->QuerySelector("span"));
@@ -297,8 +283,7 @@ TEST_F(DocumentTest, QuerySelector) {
 }
 
 TEST_F(DocumentTest, QuerySelectorAll) {
-  scoped_refptr<Document> document =
-      new Document(&html_element_context_, Document::Options());
+  scoped_refptr<Document> document = new Document(&html_element_context_);
   document->AppendChild(document->CreateElement("div"));
   document->AppendChild(document->CreateElement("div"));
   scoped_refptr<NodeList> result = document->QuerySelectorAll("span");

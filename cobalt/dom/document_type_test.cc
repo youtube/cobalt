@@ -28,7 +28,7 @@ class DocumentTypeTest : public ::testing::Test {
   DocumentTypeTest()
       : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                               NULL, ""),
-        document_(new Document(&html_element_context_, Document::Options())) {}
+        document_(new Document(&html_element_context_)) {}
   ~DocumentTypeTest() OVERRIDE {}
 
   HTMLElementContext html_element_context_;

@@ -41,9 +41,8 @@ class RuleMatchingTest : public ::testing::Test {
         dom_parser_(new dom_parser::Parser()),
         html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
                               NULL, NULL, NULL, NULL, NULL, ""),
-        document_(new Document(&html_element_context_, Document::Options())),
-        root_(document_->CreateElement("html")->AsHTMLElement()),
-        empty_style_(new cssom::CSSStyleDeclarationData()) {
+        document_(new Document(&html_element_context_)),
+        root_(document_->CreateElement("html")->AsHTMLElement()) {
     document_->AppendChild(root_);
   }
 
@@ -56,7 +55,6 @@ class RuleMatchingTest : public ::testing::Test {
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
   scoped_refptr<HTMLElement> root_;
-  scoped_refptr<cssom::CSSStyleDeclarationData> empty_style_;
 
   scoped_refptr<cssom::CSSStyleSheet> css_style_sheet_;
   cssom::RulesWithCascadePriority* matching_rules_;
@@ -70,7 +68,7 @@ void RuleMatchingTest::MatchRules(Element* element) {
 
   document_->style_sheets()->Append(css_style_sheet_);
 
-  document_->UpdateMatchingRules(empty_style_);
+  document_->UpdateMatchingRules();
 
   matching_rules_ = html_element->matching_rules();
 
