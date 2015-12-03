@@ -35,6 +35,14 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
       : decoder_(decoder), error_callback_(error_callback) {}
 
   // From Fetcher::Handler.
+  void OnResponseStarted(
+      Fetcher* fetcher,
+      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE {
+    if (headers) {
+      decoder_->OnResponseStarted(fetcher, headers);
+    }
+  }
+
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE {
     UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);

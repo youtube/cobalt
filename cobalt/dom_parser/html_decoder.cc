@@ -17,6 +17,7 @@
 #include "cobalt/dom_parser/html_decoder.h"
 
 #include "cobalt/dom_parser/libxml_html_parser_wrapper.h"
+#include "cobalt/loader/net_fetcher.h"
 
 namespace cobalt {
 namespace dom_parser {
@@ -31,9 +32,24 @@ HTMLDecoder::HTMLDecoder(
     : libxml_html_parser_wrapper_(
           new LibxmlHTMLParserWrapper(document, parent_node, reference_node,
                                       input_location, error_callback)),
+      document_(document),
       done_callback_(done_callback) {}
 
 HTMLDecoder::~HTMLDecoder() {}
+
+void HTMLDecoder::OnResponseStarted(
+    loader::Fetcher* fetcher,
+    const scoped_refptr<net::HttpResponseHeaders>& headers) {
+  DCHECK(headers);
+  // Only NetFetchers can call this, since only they have
+  // the response headers.
+  loader::NetFetcher* net_fetcher =
+      base::polymorphic_downcast<loader::NetFetcher*>(fetcher);
+  net::URLFetcher* url_fetcher = net_fetcher->url_fetcher();
+  if (url_fetcher->GetURL() != url_fetcher->GetOriginalURL()) {
+    document_->NotifyUrlChanged(url_fetcher->GetURL());
+  }
+}
 
 void HTMLDecoder::DecodeChunk(const char* data, size_t size) {
   DCHECK(thread_checker_.CalledOnValidThread());

@@ -351,6 +351,8 @@ void Document::DoSynchronousLayout() {
   }
 }
 
+void Document::NotifyUrlChanged(const GURL& url) { location_->set_url(url); }
+
 void Document::OnCSSMutation() {
   // Something in the document's CSS rules has been modified, but we don't know
   // what, so set the flag indicating that rule matching needs to be done.
