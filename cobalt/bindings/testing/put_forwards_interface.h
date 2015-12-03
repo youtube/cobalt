@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_ARBITRARY_INTERFACE_H_
-#define BINDINGS_TESTING_ARBITRARY_INTERFACE_H_
+#ifndef BINDINGS_TESTING_PUT_FORWARDS_INTERFACE_H_
+#define BINDINGS_TESTING_PUT_FORWARDS_INTERFACE_H_
 
-#include <string>
-
+#include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -26,17 +25,15 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
-class ArbitraryInterface : public script::Wrappable {
+class PutForwardsInterface : public script::Wrappable {
  public:
-  MOCK_METHOD0(ArbitraryFunction, void());
-  MOCK_METHOD0(arbitrary_property, std::string());
-  MOCK_METHOD1(set_arbitrary_property, void(std::string));
+  MOCK_METHOD0(forwarding_attribute, scoped_refptr<ArbitraryInterface>());
 
-  DEFINE_WRAPPABLE_TYPE(ArbitraryInterface);
+  DEFINE_WRAPPABLE_TYPE(PutForwardsInterface);
 };
 
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_ARBITRARY_INTERFACE_H_
+#endif  // BINDINGS_TESTING_PUT_FORWARDS_INTERFACE_H_
