@@ -322,6 +322,8 @@ class Document : public Node, public cssom::MutationObserver {
   ~Document() OVERRIDE;
 
  private:
+  void DispatchOnLoadEvent();
+
   // Reference to HTML element context.
   HTMLElementContext* const html_element_context_;
   // Associated DOM implementation object.
