@@ -41,16 +41,14 @@ std::string MediaQuery::media_query() {
   return "";
 }
 
-bool MediaQuery::EvaluateConditionValue(
-    const scoped_refptr<PropertyValue>& width,
-    const scoped_refptr<PropertyValue>& height) {
+bool MediaQuery::EvaluateConditionValue(const math::Size& viewport_size) {
   if (!evaluated_media_type_) {
     return false;
   }
   if (media_features_) {
     for (MediaFeatures::iterator it = media_features_->begin();
          it != media_features_->end(); ++it) {
-      if (!(*it)->EvaluateConditionValue(width, height)) {
+      if (!(*it)->EvaluateConditionValue(viewport_size)) {
         return false;
       }
     }

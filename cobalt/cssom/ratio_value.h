@@ -25,6 +25,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
+#include "cobalt/math/rational.h"
 
 namespace cobalt {
 namespace cssom {
@@ -37,34 +38,22 @@ class PropertyValueVisitor;
 //   http://www.w3.org/TR/css3-mediaqueries/#aspect-ratio
 class RatioValue : public PropertyValue {
  public:
-  RatioValue(int numerator, int denominator)
-      : numerator_(numerator), denominator_(denominator) {
-    DCHECK_GE(numerator, 1);
-    DCHECK_GE(denominator, 1);
+  explicit RatioValue(const math::Rational& value) : value_(value) {
+    DCHECK_LE(1, value_.numerator());
+    DCHECK_LE(1, value_.denominator());
   }
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
-  int numerator() const { return numerator_; }
-  int denominator() const { return denominator_; }
+  const math::Rational& value() const { return value_; }
 
   std::string ToString() const OVERRIDE {
-    return base::StringPrintf("%d/%d", numerator_, denominator_);
+    return base::StringPrintf("%d/%d", value_.numerator(),
+                              value_.denominator());
   }
 
   bool operator==(const RatioValue& other) const {
-    return static_cast<int64>(numerator_) * other.denominator_ ==
-           static_cast<int64>(denominator_) * other.numerator_;
-  }
-
-  bool operator>=(const RatioValue& other) const {
-    return static_cast<int64>(numerator_) * other.denominator_ >=
-           static_cast<int64>(denominator_) * other.numerator_;
-  }
-
-  bool operator<=(const RatioValue& other) const {
-    return static_cast<int64>(numerator_) * other.denominator_ <=
-           static_cast<int64>(denominator_) * other.numerator_;
+    return value_ == other.value_;
   }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(RatioValue);
@@ -72,8 +61,7 @@ class RatioValue : public PropertyValue {
  private:
   ~RatioValue() OVERRIDE {}
 
-  const int numerator_;
-  const int denominator_;
+  const math::Rational& value_;
 
   DISALLOW_COPY_AND_ASSIGN(RatioValue);
 };

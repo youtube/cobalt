@@ -220,15 +220,15 @@ TEST(PropertyValueIsEqualTest, PropertyNameListsAreNotEqual) {
 }
 
 TEST(PropertyValueIsEqualTest, RatioValuesAreEqual) {
-  scoped_refptr<RatioValue> value_a(new RatioValue(16, 9));
-  scoped_refptr<RatioValue> value_b(new RatioValue(16, 9));
+  scoped_refptr<RatioValue> value_a(new RatioValue(math::Rational(16, 9)));
+  scoped_refptr<RatioValue> value_b(new RatioValue(math::Rational(16, 9)));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, RatioValuesAreNotEqual) {
-  scoped_refptr<RatioValue> value_a(new RatioValue(16, 9));
-  scoped_refptr<RatioValue> value_b(new RatioValue(4, 3));
+  scoped_refptr<RatioValue> value_a(new RatioValue(math::Rational(16, 9)));
+  scoped_refptr<RatioValue> value_b(new RatioValue(math::Rational(4, 3)));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
@@ -460,7 +460,6 @@ TEST(PropertyValueIsEqualTest, TranslateFunctionsAreNotEqual) {
   EXPECT_FALSE(function_a.Equals(function_b));
   EXPECT_FALSE(function_b.Equals(function_c));
 }
-
 
 TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
   TransformFunctionListValue::Builder transform_list_a;

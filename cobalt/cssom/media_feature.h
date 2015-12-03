@@ -22,6 +22,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/media_feature_names.h"
+#include "cobalt/math/size.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -50,9 +51,7 @@ class MediaFeature : public script::Wrappable {
 
   // When given the media values for width and height, returns true if the media
   // query expression is true.
-  bool EvaluateConditionValue(
-      const scoped_refptr<PropertyValue>& width_refptr,
-      const scoped_refptr<PropertyValue>& height_refptr);
+  bool EvaluateConditionValue(const math::Size& viewport_size);
 
  private:
   // The 'aspect-ratio' media feature is defined as the ratio of the value of
@@ -60,8 +59,7 @@ class MediaFeature : public script::Wrappable {
   //   http://www.w3.org/TR/css3-mediaqueries/#aspect-ratio
   // Returns true if the media query expression for aspect ratio is true for the
   // given media values.
-  bool CompareAspectRatio(const scoped_refptr<PropertyValue>& width_refptr,
-                          const scoped_refptr<PropertyValue>& height_refptr);
+  bool CompareAspectRatio(const math::Size& viewport_size);
 
   // Returns true if the media query expression for an integer value is true for
   // the given media value.
@@ -69,20 +67,18 @@ class MediaFeature : public script::Wrappable {
 
   // Returns true if the media query expression for a length value is true for
   // the given media value.
-  bool CompareLengthValue(const scoped_refptr<PropertyValue>& value_refptr);
+  bool CompareLengthValue(int length_in_pixels);
 
   // The 'orientation' media feature is 'portrait' when the value of the
   // 'height' media feature is greater than or equal to the value of the 'width'
   // media feature. Otherwise 'orientation' is 'landscape'.
   //   http://www.w3.org/TR/css3-mediaqueries/#orientation
-  bool CompareOrientation(const scoped_refptr<PropertyValue>& width_refptr,
-                          const scoped_refptr<PropertyValue>& height_refptr);
+  bool CompareOrientation(const math::Size& viewport_size);
 
   // The 'resolution' media feature describes the resolution of the output
   // device, i.e. the density of the pixels.
   //   http://www.w3.org/TR/css3-mediaqueries/#resolution
-  bool CompareResolution(const scoped_refptr<PropertyValue>& width_refptr,
-                         const scoped_refptr<PropertyValue>& height_refptr);
+  bool CompareResolution(const math::Size& viewport_size);
 
   // The 'scan' media feature describes the scanning process of "tv" output
   // devices.

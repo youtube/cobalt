@@ -79,20 +79,10 @@ void MediaList::Append(const scoped_refptr<MediaQuery>& media_query) {
   media_queries_.push_back(media_query);
 }
 
-bool MediaList::EvaluateConditionValueFromFloat(float width, float height) {
-  scoped_refptr<LengthValue> width_property(
-      new LengthValue(width, kPixelsUnit));
-  scoped_refptr<LengthValue> height_property(
-      new LengthValue(height, kPixelsUnit));
-  return EvaluateConditionValue(width_property, height_property);
-}
-
-bool MediaList::EvaluateConditionValue(
-    const scoped_refptr<PropertyValue>& width,
-    const scoped_refptr<PropertyValue>& height) {
+bool MediaList::EvaluateConditionValue(const math::Size& viewport_size) {
   for (MediaQueries::iterator it = media_queries_.begin();
        it != media_queries_.end(); ++it) {
-    if ((*it)->EvaluateConditionValue(width, height)) {
+    if ((*it)->EvaluateConditionValue(viewport_size)) {
       return true;
     }
   }
