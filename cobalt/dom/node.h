@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/event_target.h"

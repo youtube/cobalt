@@ -403,7 +403,14 @@ Node::Node(Document* document)
   Stats::GetInstance()->Add(this);
 }
 
-Node::~Node() { Stats::GetInstance()->Remove(this); }
+Node::~Node() {
+  Node* node = last_child_;
+  while (node) {
+    node->next_sibling_ = NULL;
+    node = node->previous_sibling_;
+  }
+  Stats::GetInstance()->Remove(this);
+}
 
 void Node::OnInsertedIntoDocument() {
   DCHECK(node_document_);
