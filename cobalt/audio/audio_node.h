@@ -92,9 +92,7 @@ class AudioNode : public dom::EventTarget {
   const ChannelCountMode& channel_count_mode() const {
     return channel_count_mode_;
   }
-  void set_channel_count_mode(const ChannelCountMode& channel_count_mode) {
-    channel_count_mode_ = channel_count_mode;
-  }
+  void set_channel_count_mode(const ChannelCountMode& channel_count_mode);
 
   // Determines how individual channels will be treated when up-mixing and
   // down-mixing connections to any inputs to the node. This attribute has no
@@ -103,9 +101,7 @@ class AudioNode : public dom::EventTarget {
     return channel_interpretation_;
   }
   void set_channel_interpretation(
-      const ChannelInterpretation& channel_interpretation) {
-    channel_interpretation_ = channel_interpretation;
-  }
+      const ChannelInterpretation& channel_interpretation);
 
   // Connects the AudioNode to another AudioNode.
   void Connect(const scoped_refptr<AudioNode>& destination, uint32 output,
@@ -122,6 +118,9 @@ class AudioNode : public dom::EventTarget {
  protected:
   void AddInput(const scoped_refptr<AudioNodeInput>& input);
   void AddOutput(const scoped_refptr<AudioNodeOutput>& output);
+
+  void RemoveAllInputs();
+  void RemoveAllOutputs();
 
   AudioNodeInput* Input(int32 index) const;
   AudioNodeOutput* Output(int32 index) const;
