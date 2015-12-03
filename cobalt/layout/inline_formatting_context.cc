@@ -29,12 +29,14 @@ InlineFormattingContext::InlineFormattingContext(
     const render_tree::FontMetrics& font_metrics,
     const LayoutParams& layout_params,
     const scoped_refptr<cssom::PropertyValue>& text_align,
-    const scoped_refptr<cssom::PropertyValue>& white_space)
+    const scoped_refptr<cssom::PropertyValue>& white_space,
+    float text_indent_offset)
     : line_height_(line_height),
       font_metrics_(font_metrics),
       layout_params_(layout_params),
       text_align_(text_align),
       white_space_(white_space),
+      text_indent_offset_(text_indent_offset),
       line_count_(0),
       preferred_min_width_(0) {
   CreateLineBox();
@@ -111,12 +113,17 @@ void InlineFormattingContext::CreateLineBox() {
     DestroyLineBox();
   }
 
+  // "'Text-indent' only affects a line if it is the first formatted line of an
+  // element."
+  //   http://www.w3.org/TR/CSS21/text.html#propdef-text-indent
+  float line_indent_offset = line_count_ == 0 ? text_indent_offset_ : 0;
+
   // Line boxes are stacked with no vertical separation and they never
   // overlap.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  line_box_ = make_scoped_ptr(
-      new LineBox(auto_height(), line_height_, font_metrics_, true, true,
-                  layout_params_, text_align_, white_space_));
+  line_box_ = make_scoped_ptr(new LineBox(
+      auto_height(), line_height_, font_metrics_, true, true, layout_params_,
+      text_align_, white_space_, line_indent_offset));
 }
 
 void InlineFormattingContext::DestroyLineBox() {
