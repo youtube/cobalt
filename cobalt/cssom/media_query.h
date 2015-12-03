@@ -21,8 +21,9 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/media_feature.h"
+#include "cobalt/math/size.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -42,8 +43,7 @@ class MediaQuery : public script::Wrappable {
   //
   std::string media_query();
 
-  bool EvaluateConditionValue(const scoped_refptr<PropertyValue>& width,
-                              const scoped_refptr<PropertyValue>& height);
+  bool EvaluateConditionValue(const math::Size& viewport_size);
 
   DEFINE_WRAPPABLE_TYPE(MediaQuery);
 

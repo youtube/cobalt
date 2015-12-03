@@ -76,68 +76,68 @@ TEST(MediaListTest, EvaluateMediaQueryFalse) {
   scoped_refptr<MediaList> media_list(new MediaList());
 
   media_list->Append(media_query);
-  EXPECT_FALSE(media_list->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_list->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaListTest, EvaluateMediaQueryTrue) {
   scoped_refptr<MediaQuery> media_query(new MediaQuery(true));
-  EXPECT_TRUE(media_query->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_query->EvaluateConditionValue(math::Size(0, 0)));
 
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query);
-  EXPECT_TRUE(media_list->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_list->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaListTest, EvaluateMediaQueriesFalseAndFalse) {
   scoped_refptr<MediaQuery> media_query_1(new MediaQuery(false));
-  EXPECT_FALSE(media_query_1->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_query_1->EvaluateConditionValue(math::Size(0, 0)));
 
   scoped_refptr<MediaQuery> media_query_2(new MediaQuery(false));
-  EXPECT_FALSE(media_query_2->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_query_2->EvaluateConditionValue(math::Size(0, 0)));
 
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query_1);
   media_list->Append(media_query_2);
-  EXPECT_FALSE(media_list->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_list->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaListTest, EvaluateMediaQueriesFalseAndTrue) {
   scoped_refptr<MediaQuery> media_query_1(new MediaQuery(false));
-  EXPECT_FALSE(media_query_1->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_query_1->EvaluateConditionValue(math::Size(0, 0)));
 
   scoped_refptr<MediaQuery> media_query_2(new MediaQuery(true));
-  EXPECT_TRUE(media_query_2->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_query_2->EvaluateConditionValue(math::Size(0, 0)));
 
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query_1);
   media_list->Append(media_query_2);
-  EXPECT_TRUE(media_list->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_list->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaListTest, EvaluateMediaQueriesTrueAndFalse) {
   scoped_refptr<MediaQuery> media_query_1(new MediaQuery(true));
-  EXPECT_TRUE(media_query_1->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_query_1->EvaluateConditionValue(math::Size(0, 0)));
 
   scoped_refptr<MediaQuery> media_query_2(new MediaQuery(false));
-  EXPECT_FALSE(media_query_2->EvaluateConditionValue(NULL, NULL));
+  EXPECT_FALSE(media_query_2->EvaluateConditionValue(math::Size(0, 0)));
 
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query_1);
   media_list->Append(media_query_2);
-  EXPECT_TRUE(media_list->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_list->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 TEST(MediaListTest, EvaluateMediaQueriesTrueAndTrue) {
   scoped_refptr<MediaQuery> media_query_1(new MediaQuery(true));
-  EXPECT_TRUE(media_query_1->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_query_1->EvaluateConditionValue(math::Size(0, 0)));
 
   scoped_refptr<MediaQuery> media_query_2(new MediaQuery(true));
-  EXPECT_TRUE(media_query_2->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_query_2->EvaluateConditionValue(math::Size(0, 0)));
 
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query_1);
   media_list->Append(media_query_2);
-  EXPECT_TRUE(media_list->EvaluateConditionValue(NULL, NULL));
+  EXPECT_TRUE(media_list->EvaluateConditionValue(math::Size(0, 0)));
 }
 
 }  // namespace cssom

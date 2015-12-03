@@ -155,7 +155,7 @@ TEST(PropertyValueToStringTest, PropertyKeyListValue) {
 }
 
 TEST(PropertyValueToStringTest, RatioValue) {
-  scoped_refptr<RatioValue> property(new RatioValue(16, 9));
+  scoped_refptr<RatioValue> property(new RatioValue(math::Rational(16, 9)));
   EXPECT_EQ(property->ToString(), "16/9");
 }
 
@@ -286,7 +286,6 @@ TEST(PropertyValueToStringTest, URLValue) {
   scoped_refptr<URLValue> property(new URLValue("foo.png"));
   EXPECT_EQ(property->ToString(), "url(foo.png)");
 }
-
 
 }  // namespace cssom
 }  // namespace cobalt

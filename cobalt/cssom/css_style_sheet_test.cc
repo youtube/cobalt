@@ -110,17 +110,14 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaRuleAddition) {
   // A CSSMediaRule with no expression always evaluates to true.
   scoped_refptr<CSSMediaRule> rule = new CSSMediaRule();
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(0);
-  css_style_sheet_->EvaluateMediaRules(width, height);
+  css_style_sheet_->EvaluateMediaRules(math::Size(1920, 1080));
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
   rule_list->AppendCSSRule(rule);
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  css_style_sheet_->EvaluateMediaRules(width, height);
+  css_style_sheet_->EvaluateMediaRules(math::Size(1920, 1080));
 }
 
 TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedForAddingFalseMediaRule) {
@@ -137,11 +134,8 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedForAddingFalseMediaRule) {
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
   rule_list->AppendCSSRule(rule);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(0);
-  css_style_sheet_->EvaluateMediaRules(width, height);
+  css_style_sheet_->EvaluateMediaRules(math::Size(1920, 1080));
 }
 
 TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaValueChanges) {
@@ -169,30 +163,25 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaValueChanges) {
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
   css_style_sheet_->css_rules()->AppendCSSRule(rule);
 
-  scoped_refptr<LengthValue> width(new LengthValue(1920, kPixelsUnit));
-  scoped_refptr<LengthValue> height(new LengthValue(1080, kPixelsUnit));
-
   // This should result in a call to OnCSSMutation(), because the added media
   // rule evaluates to true, so its rule list needs to be traversed for the next
   // rule matching.
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  css_style_sheet_->EvaluateMediaRules(width, height);
+  css_style_sheet_->EvaluateMediaRules(math::Size(1920, 1080));
 
   // This should not result in a call to OnCSSMutation(), because changing the
   // width to 1280 does not change the CSSMediaRule condition.
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(0);
-  width = new LengthValue(1280, kPixelsUnit);
-  css_style_sheet_->EvaluateMediaRules(width, height);
+  css_style_sheet_->EvaluateMediaRules(math::Size(1280, 1080));
 
   // This should result in a call to OnCSSMutation(), because changing the width
   // to 640 makes the CSSMediaRule condition change. The display orientation is
   // now Portrait instead of Landscape.
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  width = new LengthValue(640, kPixelsUnit);
-  css_style_sheet_->EvaluateMediaRules(width, height);
+  css_style_sheet_->EvaluateMediaRules(math::Size(640, 1080));
 }
 
 }  // namespace cssom
