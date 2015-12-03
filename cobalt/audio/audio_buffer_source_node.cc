@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_node_output.h"
 
 namespace cobalt {
@@ -32,6 +33,20 @@ AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* context)
   AddOutput(new AudioNodeOutput(this));
 }
 
+AudioBufferSourceNode::~AudioBufferSourceNode() {
+  AudioContext::AutoLocker lock(context());
+
+  DCHECK_EQ(number_of_inputs(), 0u);
+  RemoveAllOutputs();
+}
+
+void AudioBufferSourceNode::set_buffer(
+    const scoped_refptr<AudioBuffer>& buffer) {
+  AudioContext::AutoLocker lock(context());
+
+  buffer_ = buffer;
+}
+
 void AudioBufferSourceNode::Start(double when, double offset,
                                   script::ExceptionState* exception_state) {
   Start(when, offset, 0, exception_state);
@@ -42,6 +57,8 @@ void AudioBufferSourceNode::Start(double when, double offset,
 // currently.
 void AudioBufferSourceNode::Start(double when, double offset, double duration,
                                   script::ExceptionState* exception_state) {
+  AudioContext::AutoLocker lock(context());
+
   DCHECK_EQ(when, 0);
   DCHECK_EQ(offset, 0);
   DCHECK_EQ(duration, 0);
@@ -56,6 +73,8 @@ void AudioBufferSourceNode::Start(double when, double offset, double duration,
 
 void AudioBufferSourceNode::Stop(double when,
                                  script::ExceptionState* exception_state) {
+  AudioContext::AutoLocker lock(context());
+
   DCHECK_EQ(when, 0);
 
   if (state_ != kStarted) {
@@ -68,6 +87,9 @@ void AudioBufferSourceNode::Stop(double when,
 
 scoped_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
     int32 number_of_frames) {
+  // This is called by Audio thread.
+  context()->AssertLocked();
+
   if (state_ != kStarted || !buffer_ || buffer_->length() == read_index_) {
     return scoped_ptr<ShellAudioBus>();
   }

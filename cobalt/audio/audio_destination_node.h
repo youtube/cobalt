@@ -39,6 +39,7 @@ class AudioDestinationNode : public AudioNode,
 
  public:
   explicit AudioDestinationNode(AudioContext* context);
+  ~AudioDestinationNode();
 
   // Web API: AudioDestinationNode
   //

@@ -17,6 +17,7 @@
 #include "cobalt/audio/audio_node_output.h"
 
 #include "base/logging.h"
+#include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_node.h"
 #include "cobalt/audio/audio_node_input.h"
 
@@ -25,19 +26,31 @@ namespace audio {
 
 typedef ::media::ShellAudioBus ShellAudioBus;
 
+AudioNodeOutput::~AudioNodeOutput() {
+  owner_node_->context()->AssertLocked();
+
+  DCHECK(inputs_.empty());
+}
+
 void AudioNodeOutput::AddInput(AudioNodeInput* input) {
+  owner_node_->context()->AssertLocked();
+
   DCHECK(input);
 
   inputs_.insert(input);
 }
 
 void AudioNodeOutput::RemoveInput(AudioNodeInput* input) {
+  owner_node_->context()->AssertLocked();
+
   DCHECK(input);
 
   inputs_.erase(input);
 }
 
 void AudioNodeOutput::DisconnectAll() {
+  owner_node_->context()->AssertLocked();
+
   while (!inputs_.empty()) {
     AudioNodeInput* input = *inputs_.begin();
     input->Disconnect(this);
@@ -46,6 +59,9 @@ void AudioNodeOutput::DisconnectAll() {
 
 scoped_ptr<ShellAudioBus> AudioNodeOutput::PassAudioBusFromSource(
     int32 number_of_frames) {
+  // This is called by Audio thread.
+  owner_node_->context()->AssertLocked();
+
   // Pull audio buffer from its owner node.
   return owner_node_->PassAudioBusFromSource(number_of_frames).Pass();
 }
