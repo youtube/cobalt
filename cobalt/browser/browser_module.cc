@@ -375,13 +375,6 @@ bool BrowserModule::FilterKeyEventForHotkeys(
     }
     return false;
   }
-
-  if (event->key_code() == dom::keycode::kF3) {
-    if (event->type() == dom::EventNames::GetInstance()->keydown()) {
-      StartOrStopTrace();
-    }
-    return false;
-  }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   return true;
