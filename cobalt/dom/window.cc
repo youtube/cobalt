@@ -86,7 +86,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           html_element_context_.get(),
           Document::Options(
               url, performance_->timing()->GetNavigationStartClock(),
-              navigation_callback, ParseUserAgentStyleSheet(css_parser)))),
+              navigation_callback, ParseUserAgentStyleSheet(css_parser),
+              math::Size(width_, height_)))),
       document_loader_(new loader::Loader(
           base::Bind(&loader::FetcherFactory::CreateFetcher,
                      base::Unretained(fetcher_factory), url),

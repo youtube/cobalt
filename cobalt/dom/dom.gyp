@@ -188,6 +188,8 @@
         'progress_event.h',
         'pseudo_element.cc',
         'pseudo_element.h',
+        'root_computed_style.cc',
+        'root_computed_style.h',
         'rule_matching.cc',
         'rule_matching.h',
         'screen.h',
