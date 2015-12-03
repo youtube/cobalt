@@ -44,8 +44,8 @@ class ShellFLVParser : public ShellAVCParser {
   virtual bool SeekTo(base::TimeDelta timestamp) OVERRIDE;
 
  protected:
-   scoped_refptr<ShellAU> GetNextAudioAU();
-   scoped_refptr<ShellAU> GetNextVideoAU();
+  scoped_refptr<ShellAU> GetNextAudioAU();
+  scoped_refptr<ShellAU> GetNextVideoAU();
 
   // Advance by one tag through the FLV. If encountering a keyframe, update the
   // time-to-byte map. If a regular video or audio data tag, update the next tag

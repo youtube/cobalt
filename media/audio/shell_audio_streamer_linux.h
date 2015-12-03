@@ -38,8 +38,7 @@ class ShellAudioStreamerLinux : public ShellAudioStreamer {
   virtual bool AddStream(ShellAudioStream* stream) OVERRIDE;
   virtual void RemoveStream(ShellAudioStream* stream) OVERRIDE;
   virtual bool HasStream(ShellAudioStream* stream) const OVERRIDE;
-  virtual bool SetVolume(ShellAudioStream* stream, double volume)
-      OVERRIDE;
+  virtual bool SetVolume(ShellAudioStream* stream, double volume) OVERRIDE;
 
  private:
   typedef std::map<ShellAudioStream*, PulseAudioHost*> StreamMap;

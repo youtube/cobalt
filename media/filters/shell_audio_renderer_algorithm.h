@@ -28,7 +28,7 @@ class Buffer;
 // implementation.
 class MEDIA_EXPORT AudioRendererAlgorithm {
  public:
-   // returns a platform-specific AudioRendererAlgorithm implementation
+  // returns a platform-specific AudioRendererAlgorithm implementation
   static AudioRendererAlgorithm* Create();
 
   // Call prior to Initialize() to validate configuration.  Returns false if the

@@ -48,7 +48,9 @@ class MEDIA_EXPORT InterleavedSincResampler {
   bool HasEnoughData(int frames_to_resample) const;
   void Read(float* destination, int frames);
 
-  float Convolve(const float* input_ptr, const float* k1, const float* k2,
+  float Convolve(const float* input_ptr,
+                 const float* k1,
+                 const float* k2,
                  double kernel_interpolation_factor);
 
   // The ratio of input / output sample rates.

@@ -44,7 +44,8 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
 
   class YV12Param {
    public:
-    YV12Param(int decoded_width, int decoded_height,
+    YV12Param(int decoded_width,
+              int decoded_height,
               const gfx::Rect& visible_rect);
 
 #if defined(__LB_PS4__)
@@ -52,8 +53,13 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
     // the same memory block controlled by the accompanied FrameBuffer passed to
     // CreateYV12Frame. The decoded size and visible rect are assumed to be the
     // same. It is only used on PS4 for decoding vp9 frames.
-    YV12Param(int width, int height, int y_pitch, int uv_pitch,
-              uint8* y_data, uint8* u_data, uint8* v_data);
+    YV12Param(int width,
+              int height,
+              int y_pitch,
+              int uv_pitch,
+              uint8* y_data,
+              uint8* u_data,
+              uint8* v_data);
     int y_pitch() const { return y_pitch_; }
     int uv_pitch() const { return uv_pitch_; }
     uint8* y_data() const { return y_data_; }
@@ -75,7 +81,7 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
     uint8* y_data_;
     uint8* u_data_;
     uint8* v_data_;
-#endif   // defined(__LB_PS4__)
+#endif  // defined(__LB_PS4__)
 
     gfx::Rect visible_rect_;
   };
@@ -84,7 +90,9 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
   // Only used on PS4 for its hardware AVC decoder.
   class NV12Param {
    public:
-    NV12Param(int decoded_width, int decoded_height, int y_pitch,
+    NV12Param(int decoded_width,
+              int decoded_height,
+              int y_pitch,
               const gfx::Rect& visible_rect);
 
     int decoded_width() const { return decoded_width_; }
@@ -103,16 +111,18 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
   ShellVideoDataAllocator() {}
 
   // Allocate a buffer to store the video frame to be decoded.
-  virtual scoped_refptr<FrameBuffer> AllocateFrameBuffer(
-      size_t size, size_t alignment) = 0;
+  virtual scoped_refptr<FrameBuffer> AllocateFrameBuffer(size_t size,
+                                                         size_t alignment) = 0;
   virtual scoped_refptr<VideoFrame> CreateYV12Frame(
-      const scoped_refptr<FrameBuffer>& frame_buffer, const YV12Param& param,
+      const scoped_refptr<FrameBuffer>& frame_buffer,
+      const YV12Param& param,
       const base::TimeDelta& timestamp) = 0;
 #if defined(__LB_PS4__)
   // The system AVC decoder on PS4 only supports NV12 output. They are perfectly
   // aligned for rendering as texture though.
   virtual scoped_refptr<VideoFrame> CreateNV12Frame(
-      const scoped_refptr<FrameBuffer>& frame_buffer, const NV12Param& param,
+      const scoped_refptr<FrameBuffer>& frame_buffer,
+      const NV12Param& param,
       const base::TimeDelta& timestamp) = 0;
 #endif  // defined(__LB_PS4__)
 

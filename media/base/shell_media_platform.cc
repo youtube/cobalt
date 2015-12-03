@@ -30,8 +30,7 @@ ShellMediaPlatform* ShellMediaPlatform::Instance() {
 }
 
 // static
-void ShellMediaPlatform::SetInstance(
-    ShellMediaPlatform* shell_media_platform) {
+void ShellMediaPlatform::SetInstance(ShellMediaPlatform* shell_media_platform) {
   s_shell_media_platform_ = shell_media_platform;
 }
 

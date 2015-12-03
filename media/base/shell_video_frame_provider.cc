@@ -69,9 +69,8 @@ const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
         max_delay_in_microseconds_ = media_time.InMicroseconds() - frame_time;
       DLOG_IF(WARNING, kLogFrameDrops)
           << "dropped one frame with timestamp "
-          << frames_[0]->GetTimestamp().InMicroseconds()
-          << " at media time " << media_time.InMicroseconds()
-          << " total dropped " << dropped_frames_
+          << frames_[0]->GetTimestamp().InMicroseconds() << " at media time "
+          << media_time.InMicroseconds() << " total dropped " << dropped_frames_
           << " frames with a max delay of " << max_delay_in_microseconds_
           << " ms";
     }

@@ -27,11 +27,9 @@ namespace media {
 
 class ShellRBSPStreamTest : public testing::Test {
  protected:
-  ShellRBSPStreamTest() {
-  }
+  ShellRBSPStreamTest() {}
 
-  virtual ~ShellRBSPStreamTest() {
-  }
+  virtual ~ShellRBSPStreamTest() {}
 
   // Given num encode the value in signed exp-golomb syntax and push
   // the value on the provided bitlist
@@ -143,8 +141,8 @@ class ShellRBSPStreamTest : public testing::Test {
     // alright we can make the final output buffer
     scoped_array<uint8> buf(new uint8[bytelist.size()]);
     int index = 0;
-    for (std::list<uint8>::iterator it = bytelist.begin();
-         it != bytelist.end(); it++) {
+    for (std::list<uint8>::iterator it = bytelist.begin(); it != bytelist.end();
+         it++) {
       buf[index] = *it;
       index++;
     }
@@ -169,14 +167,14 @@ TEST_F(ShellRBSPStreamTest, ReadUEV) {
   }
   // convert to buffer
   size_t fib_buffer_size = 0;
-  scoped_array<uint8> fib_buffer = SerializeToBuffer(
-      fibbits, true, fib_buffer_size);
+  scoped_array<uint8> fib_buffer =
+      SerializeToBuffer(fibbits, true, fib_buffer_size);
   size_t fib_buffer_no_sequence_size;
-  scoped_array<uint8> fib_buffer_no_sequence = SerializeToBuffer(
-      fibbits, false, fib_buffer_no_sequence_size);
+  scoped_array<uint8> fib_buffer_no_sequence =
+      SerializeToBuffer(fibbits, false, fib_buffer_no_sequence_size);
   ShellRBSPStream fib_stream(fib_buffer.get(), fib_buffer_size);
   ShellRBSPStream fib_stream_no_sequence(fib_buffer_no_sequence.get(),
-      fib_buffer_no_sequence_size);
+                                         fib_buffer_no_sequence_size);
   // deserialize the same sequence from both buffers
   uint32 uev = 0;
   uint32 uev_n = 0;
@@ -225,11 +223,11 @@ TEST_F(ShellRBSPStreamTest, ReadSEV) {
   }
   // convert to buffers
   size_t lucas_seq_buffer_size = 0;
-  scoped_array<uint8> lucas_seq_buffer = SerializeToBuffer(
-      lucasbits, true, lucas_seq_buffer_size);
+  scoped_array<uint8> lucas_seq_buffer =
+      SerializeToBuffer(lucasbits, true, lucas_seq_buffer_size);
   size_t lucas_deseq_buffer_size = 0;
-  scoped_array<uint8> lucas_deseq_buffer = SerializeToBuffer(
-      lucasbits, false, lucas_deseq_buffer_size);
+  scoped_array<uint8> lucas_deseq_buffer =
+      SerializeToBuffer(lucasbits, false, lucas_deseq_buffer_size);
   ShellRBSPStream lucas_seq_stream(lucas_seq_buffer.get(),
                                    lucas_seq_buffer_size);
   ShellRBSPStream lucas_deseq_stream(lucas_deseq_buffer.get(),
@@ -266,29 +264,28 @@ TEST_F(ShellRBSPStreamTest, ReadSEV) {
 }
 
 static const uint8 kTestRBSPExpGolombTooBig[] = {
-  // 15 leading zeros, should be fine
-  // 0000000000000001010101010101010
-  //  = 2^15 - 1  + read_bits(010101010101010)
-  //  = 32768 - 1 + 10922 = 43689 unsigned, 21845 signed
-  // 0000 0000 0000 0001 0101 0101 0101 010+0 (first 0 of next number)
-     0x00,     0x01,     0x55,     0x54,
-  // 31 leading zeros, should be fine
-  // 000000000000000000000000000000010000000000000000000000000000001
-  //  = 2^31 - 1 + 1 = 2147483648 unsigned, -1073741824 signed
-  // 0 appended on to last byte
-  // 0000 0000 0000 0000 0000 0000 0000 0010 0000 0000 0000 0000 0000 0000
-     0x00,     0x00,0x03,0x00,     0x02,     0x00,     0x00,     0x00,0x03,
-  // 0000 01+00 (first 2 zeros of next number)
-     0x04,
-  // 32 leading zeros, should not be ok
-  // 00000000000000000000000000000000111111111111111111111111111111111
-  // = 2^32 - 1 + 2^32 = 2^33 - 1 = 8589934591
-  // 00 appended on to last byte
-  // 0000 0000 0000 0000 0000 0000 0000 0011 1111 1111 1111 1111 1111 1111
-     0x00,     0x00,     0x00,0x03,0x03,     0xff,     0xff,     0xff,
-  // 1111 111+0 (to complete the byte)
-     0xfe
-};
+    // 15 leading zeros, should be fine
+    // 0000000000000001010101010101010
+    //  = 2^15 - 1  + read_bits(010101010101010)
+    //  = 32768 - 1 + 10922 = 43689 unsigned, 21845 signed
+    // 0000 0000 0000 0001 0101 0101 0101 010+0 (first 0 of next number)
+    0x00, 0x01, 0x55, 0x54,
+    // 31 leading zeros, should be fine
+    // 000000000000000000000000000000010000000000000000000000000000001
+    //  = 2^31 - 1 + 1 = 2147483648 unsigned, -1073741824 signed
+    // 0 appended on to last byte
+    // 0000 0000 0000 0000 0000 0000 0000 0010 0000 0000 0000 0000 0000 0000
+    0x00, 0x00, 0x03, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03,
+    // 0000 01+00 (first 2 zeros of next number)
+    0x04,
+    // 32 leading zeros, should not be ok
+    // 00000000000000000000000000000000111111111111111111111111111111111
+    // = 2^32 - 1 + 2^32 = 2^33 - 1 = 8589934591
+    // 00 appended on to last byte
+    // 0000 0000 0000 0000 0000 0000 0000 0011 1111 1111 1111 1111 1111 1111
+    0x00, 0x00, 0x00, 0x03, 0x03, 0xff, 0xff, 0xff,
+    // 1111 111+0 (to complete the byte)
+    0xfe};
 
 TEST_F(ShellRBSPStreamTest, ReadUEVTooLarge) {
   // construct a stream from the supplied test data
@@ -331,13 +328,13 @@ TEST_F(ShellRBSPStreamTest, ReadBit) {
   }
   // build the buffer with sequence bits and without
   size_t sequence_buff_size = 0;
-  scoped_array<uint8> sequence_buff = SerializeToBuffer(
-      padded_ones, true, sequence_buff_size);
+  scoped_array<uint8> sequence_buff =
+      SerializeToBuffer(padded_ones, true, sequence_buff_size);
   ShellRBSPStream seq_stream(sequence_buff.get(), sequence_buff_size);
 
   size_t desequence_buff_size = 0;
-  scoped_array<uint8> desequence_buff = SerializeToBuffer(
-      padded_ones, false, desequence_buff_size);
+  scoped_array<uint8> desequence_buff =
+      SerializeToBuffer(padded_ones, false, desequence_buff_size);
   ShellRBSPStream deseq_stream(desequence_buff.get(), desequence_buff_size);
   for (std::list<bool>::iterator it = padded_ones.begin();
        it != padded_ones.end(); ++it) {
@@ -398,12 +395,12 @@ TEST_F(ShellRBSPStreamTest, ReadByte) {
     }
   }
   size_t zseqbuff_size = 0;
-  scoped_array<uint8> zseqbuff = SerializeToBuffer(
-      zero_field, true, zseqbuff_size);
+  scoped_array<uint8> zseqbuff =
+      SerializeToBuffer(zero_field, true, zseqbuff_size);
   ShellRBSPStream zseq_stream(zseqbuff.get(), zseqbuff_size);
   size_t zdseqbuff_size = 0;
-  scoped_array<uint8> zdseqbuff = SerializeToBuffer(
-      zero_field, false, zdseqbuff_size);
+  scoped_array<uint8> zdseqbuff =
+      SerializeToBuffer(zero_field, false, zdseqbuff_size);
   ShellRBSPStream zdseq_stream(zdseqbuff.get(), zdseqbuff_size);
   for (int i = 0; i < 24; ++i) {
     // read the leading 1 bit
@@ -464,8 +461,8 @@ TEST_F(ShellRBSPStreamTest, ReadBits) {
     seventeen_ones.push_back(true);
   }
   size_t seventeen_ones_size = 0;
-  scoped_array<uint8> seventeen_ones_buff = SerializeToBuffer(
-      seventeen_ones, false, seventeen_ones_size);
+  scoped_array<uint8> seventeen_ones_buff =
+      SerializeToBuffer(seventeen_ones, false, seventeen_ones_size);
   ShellRBSPStream seventeen_ones_stream(seventeen_ones_buff.get(),
                                         seventeen_ones_size);
   uint32 seventeen_ones_word = 0;
@@ -507,8 +504,8 @@ TEST_F(ShellRBSPStreamTest, SkipBytes) {
   size_t nines_size = 0;
   scoped_array<uint8> nines_buff = SerializeToBuffer(nines, true, nines_size);
   size_t nines_deseq_size = 0;
-  scoped_array<uint8> nines_deseq_buff = SerializeToBuffer(nines, false,
-      nines_deseq_size);
+  scoped_array<uint8> nines_deseq_buff =
+      SerializeToBuffer(nines, false, nines_deseq_size);
   ShellRBSPStream nines_stream(nines_buff.get(), nines_size);
   ShellRBSPStream nines_deseq_stream(nines_deseq_buff.get(), nines_deseq_size);
   // iterate through streams, skipping in one and reading in the other, always
@@ -544,11 +541,11 @@ TEST_F(ShellRBSPStreamTest, SkipBytes) {
     run_length.push_back(true);
   }
   size_t run_length_size = 0;
-  scoped_array<uint8> run_length_buff = SerializeToBuffer(
-      run_length, true, run_length_size);
+  scoped_array<uint8> run_length_buff =
+      SerializeToBuffer(run_length, true, run_length_size);
   size_t run_length_deseq_size = 0;
-  scoped_array<uint8> run_length_deseq_buff = SerializeToBuffer(
-      run_length, false, run_length_deseq_size);
+  scoped_array<uint8> run_length_deseq_buff =
+      SerializeToBuffer(run_length, false, run_length_deseq_size);
   ShellRBSPStream run_length_stream(run_length_buff.get(), run_length_size);
   ShellRBSPStream run_length_deseq_stream(run_length_deseq_buff.get(),
                                           run_length_deseq_size);
@@ -597,7 +594,8 @@ TEST_F(ShellRBSPStreamTest, SkipBytes) {
 
 TEST_F(ShellRBSPStreamTest, SkipBits) {
   std::list<bool> one_ohs;
-  // encode one 1, followed by one zero, followed by 2 1s, followed by 2 zeros, etc
+  // encode one 1, followed by one zero, followed by 2 1s, followed by 2 zeros,
+  // etc
   for (int i = 1; i <= 64; ++i) {
     for (int j = 0; j < i; ++j) {
       one_ohs.push_back(true);
@@ -607,11 +605,11 @@ TEST_F(ShellRBSPStreamTest, SkipBits) {
     }
   }
   size_t skip_ones_size = 0;
-  scoped_array<uint8> skip_ones_buff = SerializeToBuffer(
-      one_ohs, true, skip_ones_size);
+  scoped_array<uint8> skip_ones_buff =
+      SerializeToBuffer(one_ohs, true, skip_ones_size);
   size_t skip_ohs_size = 0;
-  scoped_array<uint8> skip_ohs_buff = SerializeToBuffer(
-      one_ohs, false, skip_ohs_size);
+  scoped_array<uint8> skip_ohs_buff =
+      SerializeToBuffer(one_ohs, false, skip_ohs_size);
   ShellRBSPStream skip_ones(skip_ones_buff.get(), skip_ones_size);
   ShellRBSPStream skip_ohs(skip_ohs_buff.get(), skip_ohs_size);
   for (int i = 1; i < 64; ++i) {

@@ -31,17 +31,17 @@ namespace media {
 class ShellRawVideoDecoder {
  public:
   enum DecodeStatus {
-    FRAME_DECODED,  // Successfully decoded a frame.
-    NEED_MORE_DATA,  // Need more data to decode the next frame.
+    FRAME_DECODED,           // Successfully decoded a frame.
+    NEED_MORE_DATA,          // Need more data to decode the next frame.
     RETRY_WITH_SAME_BUFFER,  // Retry later with the same input. Note that in
                              // this case the decoder may still return a valid
                              // buffered frame.
-    FATAL_ERROR  // Decoder encounters fatal error, abort playback.
+    FATAL_ERROR              // Decoder encounters fatal error, abort playback.
   };
   typedef media::DecoderBuffer DecoderBuffer;
   typedef media::VideoDecoderConfig VideoDecoderConfig;
   typedef media::VideoFrame VideoFrame;
-  typedef base::Callback<void (DecodeStatus, const scoped_refptr<VideoFrame>&)>
+  typedef base::Callback<void(DecodeStatus, const scoped_refptr<VideoFrame>&)>
       DecodeCB;
 
   ShellRawVideoDecoder() {}
@@ -55,7 +55,8 @@ class ShellRawVideoDecoder {
   virtual void HaveEnoughFrames() {}
 
   static ShellRawVideoDecoder* Create(const VideoDecoderConfig& config,
-                                      Decryptor* decryptor, bool was_encrypted);
+                                      Decryptor* decryptor,
+                                      bool was_encrypted);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ShellRawVideoDecoder);

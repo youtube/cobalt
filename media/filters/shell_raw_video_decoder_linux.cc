@@ -163,8 +163,7 @@ class ShellRawVideoDecoderLinux : public ShellRawVideoDecoder {
 };
 
 ShellRawVideoDecoderLinux::ShellRawVideoDecoderLinux()
-    : codec_context_(NULL),
-      av_frame_(NULL) {
+    : codec_context_(NULL), av_frame_(NULL) {
   EnsureFfmpegInitialized();
 }
 
@@ -173,7 +172,8 @@ ShellRawVideoDecoderLinux::~ShellRawVideoDecoderLinux() {
 }
 
 void ShellRawVideoDecoderLinux::Decode(
-    const scoped_refptr<DecoderBuffer>& buffer, const DecodeCB& decode_cb) {
+    const scoped_refptr<DecoderBuffer>& buffer,
+    const DecodeCB& decode_cb) {
   DCHECK(buffer);
   DCHECK(!decode_cb.is_null());
 
@@ -185,10 +185,8 @@ void ShellRawVideoDecoderLinux::Decode(
   packet.pts = buffer->GetTimestamp().InMilliseconds();
 
   int frame_decoded = 0;
-  int result = avcodec_decode_video2(codec_context_,
-                                     av_frame_,
-                                     &frame_decoded,
-                                     &packet);
+  int result =
+      avcodec_decode_video2(codec_context_, av_frame_, &frame_decoded, &packet);
   DCHECK_GE(result, 0);
   if (frame_decoded == 0) {
     decode_cb.Run(NEED_MORE_DATA, NULL);
@@ -313,8 +311,7 @@ void ShellRawVideoDecoderLinux::ReleaseResource() {
 
 int ShellRawVideoDecoderLinux::GetVideoBuffer(AVCodecContext* codec_context,
                                               AVFrame* frame) {
-  VideoFrame::Format format = PixelFormatToVideoFormat(
-      codec_context->pix_fmt);
+  VideoFrame::Format format = PixelFormatToVideoFormat(codec_context->pix_fmt);
   if (format == VideoFrame::INVALID)
     return AVERROR(EINVAL);
   DCHECK_EQ(format, VideoFrame::YV12);
@@ -358,8 +355,8 @@ int ShellRawVideoDecoderLinux::GetVideoBuffer(AVCodecContext* codec_context,
   frame->opaque = NULL;
   frame_buffer.swap(reinterpret_cast<FrameBuffer**>(&frame->opaque));
   frame->type = FF_BUFFER_TYPE_USER;
-  frame->pkt_pts = codec_context->pkt ? codec_context->pkt->pts :
-                                        AV_NOPTS_VALUE;
+  frame->pkt_pts =
+      codec_context->pkt ? codec_context->pkt->pts : AV_NOPTS_VALUE;
   frame->width = codec_context->width;
   frame->height = codec_context->height;
   frame->format = codec_context->pix_fmt;
@@ -381,10 +378,11 @@ void ShellRawVideoDecoderLinux::ReleaseVideoBuffer(AVCodecContext*,
 }  // namespace
 
 ShellRawVideoDecoder* ShellRawVideoDecoder::Create(
-    const VideoDecoderConfig& config, Decryptor* decryptor,
+    const VideoDecoderConfig& config,
+    Decryptor* decryptor,
     bool was_encrypted) {
-  DCHECK_EQ(config.codec(), kCodecH264)
-      << "Video codec " << config.codec() << " is not supported.";
+  DCHECK_EQ(config.codec(), kCodecH264) << "Video codec " << config.codec()
+                                        << " is not supported.";
   scoped_ptr<ShellRawVideoDecoder> decoder(new ShellRawVideoDecoderLinux);
   if (decoder->UpdateConfig(config))
     return decoder.release();

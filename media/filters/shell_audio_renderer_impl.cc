@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "media/filters/shell_audio_renderer_impl.h"
 
 #include "base/bind.h"
@@ -34,22 +35,23 @@ namespace media {
 
 // static
 ShellAudioRenderer* ShellAudioRenderer::Create(
-    AudioRendererSink* sink, const SetDecryptorReadyCB& set_decryptor_ready_cb,
+    AudioRendererSink* sink,
+    const SetDecryptorReadyCB& set_decryptor_ready_cb,
     const scoped_refptr<base::MessageLoopProxy>& message_loop) {
-  return new ShellAudioRendererImpl(
-      sink, set_decryptor_ready_cb, message_loop);
+  return new ShellAudioRendererImpl(sink, set_decryptor_ready_cb, message_loop);
 }
 
 ShellAudioRendererImpl::ShellAudioRendererImpl(
-    AudioRendererSink* sink, const SetDecryptorReadyCB& set_decryptor_ready_cb,
+    AudioRendererSink* sink,
+    const SetDecryptorReadyCB& set_decryptor_ready_cb,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
-    : sink_(sink)
-    , set_decryptor_ready_cb_(set_decryptor_ready_cb)
-    , message_loop_(message_loop)
-    , state_(kUninitialized)
-    , end_of_stream_state_(kWaitingForEOS)
-    , decoded_audio_bus_(NULL)
-    , decode_complete_(false) {
+    : sink_(sink),
+      set_decryptor_ready_cb_(set_decryptor_ready_cb),
+      message_loop_(message_loop),
+      state_(kUninitialized),
+      end_of_stream_state_(kWaitingForEOS),
+      decoded_audio_bus_(NULL),
+      decode_complete_(false) {
   DCHECK(message_loop_ != NULL);
 }
 
@@ -59,7 +61,7 @@ ShellAudioRendererImpl::~ShellAudioRendererImpl() {
   DCHECK(state_ == kUninitialized || state_ == kStopped);
 }
 
-void ShellAudioRendererImpl::Play(const base::Closure &callback) {
+void ShellAudioRendererImpl::Play(const base::Closure& callback) {
   TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::Play()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPaused);
@@ -77,11 +79,10 @@ void ShellAudioRendererImpl::DoPlay() {
   }
 }
 
-void ShellAudioRendererImpl::Pause(const base::Closure &callback) {
+void ShellAudioRendererImpl::Pause(const base::Closure& callback) {
   TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::Pause()");
   DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(state_ == kPlaying || state_ == kUnderflow ||
-         state_ == kRebuffering);
+  DCHECK(state_ == kPlaying || state_ == kUnderflow || state_ == kRebuffering);
   sink_->Pause(false);
 
   state_ = kPaused;
@@ -92,7 +93,7 @@ void ShellAudioRendererImpl::Pause(const base::Closure &callback) {
   }
 }
 
-void ShellAudioRendererImpl::Flush(const base::Closure &callback) {
+void ShellAudioRendererImpl::Flush(const base::Closure& callback) {
   TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::Flush()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPaused);
@@ -107,14 +108,12 @@ void ShellAudioRendererImpl::Flush(const base::Closure &callback) {
   decoder_->Reset(callback);
 }
 
-void ShellAudioRendererImpl::Stop(const base::Closure &callback) {
+void ShellAudioRendererImpl::Stop(const base::Closure& callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Called by the Decoder once it finishes resetting
   base::Closure reset_complete_cb =
-      base::Bind(&ShellAudioRendererImpl::OnDecoderReset,
-                 this,
-                 callback);
+      base::Bind(&ShellAudioRendererImpl::OnDecoderReset, this, callback);
 
   switch (state_) {
     case kUninitialized:
@@ -136,8 +135,8 @@ void ShellAudioRendererImpl::Stop(const base::Closure &callback) {
       {
         base::AutoLock lock(renderer_cb_lock_);
         // Called when the sink is no longer requesting audio
-        renderer_idle_cb_ = BindToCurrentLoop(base::Bind(
-            &AudioDecoder::Reset, decoder_, reset_complete_cb));
+        renderer_idle_cb_ = BindToCurrentLoop(
+            base::Bind(&AudioDecoder::Reset, decoder_, reset_complete_cb));
       }
       break;
     }
@@ -207,14 +206,11 @@ void ShellAudioRendererImpl::Initialize(
   decoded_audio_bus_ = NULL;
   decode_complete_ = false;
 
-  scoped_ptr<AudioDecoderSelector> decoder_selector(
-      new AudioDecoderSelector(base::MessageLoopProxy::current(),
-                               decoders,
-                               set_decryptor_ready_cb_));
+  scoped_ptr<AudioDecoderSelector> decoder_selector(new AudioDecoderSelector(
+      base::MessageLoopProxy::current(), decoders, set_decryptor_ready_cb_));
   AudioDecoderSelector* decoder_selector_ptr = decoder_selector.get();
   decoder_selector_ptr->SelectAudioDecoder(
-      stream,
-      statistics_cb,
+      stream, statistics_cb,
       base::Bind(&ShellAudioRendererImpl::OnDecoderSelected, this,
                  base::Passed(&decoder_selector)));
 }
@@ -251,12 +247,10 @@ void ShellAudioRendererImpl::OnDecoderSelected(
   decrypting_demuxer_stream_ = decrypting_demuxer_stream;
 
   // construct audio parameters for the sink
-  audio_parameters_ = AudioParameters(
-      AudioParameters::AUDIO_PCM_LOW_LATENCY,
-      channel_layout,
-      decoder_->samples_per_second(),
-      decoder_->bits_per_channel(),
-      mp4::AAC::kSamplesPerFrame);
+  audio_parameters_ =
+      AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY, channel_layout,
+                      decoder_->samples_per_second(),
+                      decoder_->bits_per_channel(), mp4::AAC::kSamplesPerFrame);
 
   state_ = kPaused;
 
@@ -269,16 +263,15 @@ void ShellAudioRendererImpl::OnDecoderSelected(
   init_cb_.Run(PIPELINE_OK);
 }
 
-void ShellAudioRendererImpl::Preroll(
-    base::TimeDelta time,
-    const PipelineStatusCB& callback) {
-  message_loop_->PostTask(FROM_HERE,
+void ShellAudioRendererImpl::Preroll(base::TimeDelta time,
+                                     const PipelineStatusCB& callback) {
+  message_loop_->PostTask(
+      FROM_HERE,
       base::Bind(&ShellAudioRendererImpl::DoPreroll, this, time, callback));
 }
 
-void ShellAudioRendererImpl::DoPreroll(
-    base::TimeDelta time,
-    const PipelineStatusCB& callback) {
+void ShellAudioRendererImpl::DoPreroll(base::TimeDelta time,
+                                       const PipelineStatusCB& callback) {
   // Stop() can be called immediately after Preroll() which will set the state
   // to kStopping or kStopped. We shouldn't continue the preroll process in this
   // case.
@@ -315,10 +308,9 @@ void ShellAudioRendererImpl::DoUnderflow() {
 // called by the Pipeline to indicate that it has processed the underflow
 // we announced, and that we should begin rebuffering
 void ShellAudioRendererImpl::ResumeAfterUnderflow(bool buffer_more_audio) {
-  message_loop_->PostTask(FROM_HERE,
-      base::Bind(&ShellAudioRendererImpl::DoResumeAfterUnderflow,
-                 this,
-                 buffer_more_audio));
+  message_loop_->PostTask(
+      FROM_HERE, base::Bind(&ShellAudioRendererImpl::DoResumeAfterUnderflow,
+                            this, buffer_more_audio));
 }
 
 void ShellAudioRendererImpl::DoResumeAfterUnderflow(bool buffer_more_audio) {
@@ -332,8 +324,8 @@ void ShellAudioRendererImpl::DoResumeAfterUnderflow(bool buffer_more_audio) {
 }
 
 void ShellAudioRendererImpl::SinkFull() {
-  message_loop_->PostTask(FROM_HERE,
-      base::Bind(&ShellAudioRendererImpl::DoSinkFull, this));
+  message_loop_->PostTask(
+      FROM_HERE, base::Bind(&ShellAudioRendererImpl::DoSinkFull, this));
 }
 
 void ShellAudioRendererImpl::DoSinkFull() {
@@ -353,8 +345,8 @@ void ShellAudioRendererImpl::DoSinkFull() {
 
 void ShellAudioRendererImpl::SinkUnderflow() {
   // This will be called by the Audio Renderer thread
-  message_loop_->PostTask(FROM_HERE,
-      base::Bind(&ShellAudioRendererImpl::DoUnderflow, this));
+  message_loop_->PostTask(
+      FROM_HERE, base::Bind(&ShellAudioRendererImpl::DoUnderflow, this));
 }
 
 void ShellAudioRendererImpl::SetVolume(float volume) {
@@ -421,7 +413,8 @@ void ShellAudioRendererImpl::DecodedAudioReady(
       // that case and ERROR for all others
       state_ = kPaused;
       PipelineStatus pipeline_status = status == AudioDecoder::kAborted
-          ? PIPELINE_OK : PIPELINE_ERROR_DECODE;
+                                           ? PIPELINE_OK
+                                           : PIPELINE_ERROR_DECODE;
       base::ResetAndReturn(&preroll_cb_).Run(pipeline_status);
     }
   }
@@ -511,7 +504,7 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
           }
           frames_rendered = mp4::AAC::kSamplesPerFrame;
           uint64_t silence_ms = mp4::AAC::kSamplesPerFrame * 1000 /
-              audio_parameters_.sample_rate();
+                                audio_parameters_.sample_rate();
           silence_rendered_ += base::TimeDelta::FromMilliseconds(silence_ms);
         }
       }

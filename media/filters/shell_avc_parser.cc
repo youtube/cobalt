@@ -32,15 +32,10 @@ static const int kAVCConfigMinSize = 8;
 // lower five bits of first byte in SPS should be 7
 static const uint8 kSPSNALType = 7;
 
-ShellAVCParser::ShellAVCParser(
-    scoped_refptr<ShellDataSourceReader> reader)
-    : ShellParser(reader)
-    , nal_header_size_(0)
-    , video_prepend_size_(0) {
-}
+ShellAVCParser::ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader)
+    : ShellParser(reader), nal_header_size_(0), video_prepend_size_(0) {}
 
-ShellAVCParser::~ShellAVCParser() {
-}
+ShellAVCParser::~ShellAVCParser() {}
 
 bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
                              scoped_refptr<DecoderBuffer> buffer) {
@@ -62,7 +57,7 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
     // We use raw AAC instead of ADTS on XB1.
     DCHECK(audio_prepend_.empty());
     return true;
-#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
+#endif                           // defined(__LB_XB1__) || defined(__LB_XB360__)
     if (audio_prepend_.empty())  // valid ADTS header not available
       return false;
     // audio, need to copy ADTS header and then add buffer size
@@ -94,8 +89,7 @@ bool ShellAVCParser::DownloadAndParseAVCConfigRecord(uint64 offset,
   // memory available to the media stack, in which case we skip it.
   if (!record_buffer || !record_buffer->Get()) {
     DLOG(WARNING) << base::StringPrintf(
-        "insufficient memory to download AVCConfigRecord of %d bytes",
-        size);
+        "insufficient memory to download AVCConfigRecord of %d bytes", size);
     return false;
   }
   int bytes_read = reader_->BlockingRead(offset, size, record_buffer->Get());
@@ -134,11 +128,9 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
   // seq_parameter_set_id
   sps_rbsp.ReadUEV(disposable_uev);
   // skip profile-specific encoding information if there
-  if (profile_idc == 100 || profile_idc == 103 ||
-      profile_idc == 110 || profile_idc == 122 ||
-      profile_idc == 244 || profile_idc == 44 ||
-      profile_idc == 83 || profile_idc == 86 ||
-      profile_idc == 118) {
+  if (profile_idc == 100 || profile_idc == 103 || profile_idc == 110 ||
+      profile_idc == 122 || profile_idc == 244 || profile_idc == 44 ||
+      profile_idc == 83 || profile_idc == 86 || profile_idc == 118) {
     uint32 chroma_format_idc = 0;
     if (!sps_rbsp.ReadUEV(chroma_format_idc)) {
       DLOG(WARNING) << "failure reading chroma_format_idc from sps RBSP";
@@ -157,8 +149,8 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
     // seq_scaling_matrix_present_flag
     uint8 seq_scaling_matrix_present_flag = 0;
     if (!sps_rbsp.ReadBit(seq_scaling_matrix_present_flag)) {
-      DLOG(ERROR) <<
-          "failure reading seq_scaling_matrix_present_flag from sps RBSP";
+      DLOG(ERROR)
+          << "failure reading seq_scaling_matrix_present_flag from sps RBSP";
       return false;
     }
     if (seq_scaling_matrix_present_flag) {
@@ -187,12 +179,11 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
     // num_ref_frames_in_pic_order_cnt_cycle
     uint32 num_ref_frames_in_pic_order_cnt_cycle = 0;
     if (!sps_rbsp.ReadUEV(num_ref_frames_in_pic_order_cnt_cycle)) {
-      DLOG(ERROR) <<
-          "failure reading num_ref_frames_in_pic_order_cnt_cycle from sps";
+      DLOG(ERROR)
+          << "failure reading num_ref_frames_in_pic_order_cnt_cycle from sps";
       return false;
     }
-    for (uint32 i = 0;
-         i < num_ref_frames_in_pic_order_cnt_cycle; ++i) {
+    for (uint32 i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; ++i) {
       sps_rbsp.ReadSEV(disposable_sev);
     }
   }
@@ -215,8 +206,8 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
   // pic_height_in_map_units_minus1
   uint32 pic_height_in_map_units_minus1 = 0;
   if (!sps_rbsp.ReadUEV(pic_height_in_map_units_minus1)) {
-    DLOG(ERROR) <<
-        "failure reading pic_height_in_map_uints_minus1 from sps RBSP";
+    DLOG(ERROR)
+        << "failure reading pic_height_in_map_uints_minus1 from sps RBSP";
     return false;
   }
   uint8 frame_mbs_only_flag = 0;
@@ -224,9 +215,8 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
     DLOG(ERROR) << "failure reading frame_mbs_only_flag from sps RBSP";
     return false;
   }
-  uint32 height = (2 - (uint32)frame_mbs_only_flag)
-                  * (pic_height_in_map_units_minus1 + 1)
-                  * 16;
+  uint32 height = (2 - (uint32)frame_mbs_only_flag) *
+                  (pic_height_in_map_units_minus1 + 1) * 16;
   if (!frame_mbs_only_flag) {
     sps_rbsp.SkipBits(1);
   }
@@ -291,10 +281,8 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
   int visible_width = width - (crop_left + crop_right);
   int visible_height = height - (crop_top + crop_bottom);
   record_out->coded_size = gfx::Size(width, height),
-  record_out->visible_rect =  gfx::Rect(crop_left,
-                                        crop_top,
-                                        visible_width,
-                                        visible_height),
+  record_out->visible_rect =
+      gfx::Rect(crop_left, crop_top, visible_width, visible_height),
   record_out->natural_size = gfx::Size(visible_width, visible_height);
   record_out->num_ref_frames = num_ref_frames;
   return true;
@@ -302,18 +290,14 @@ bool ShellAVCParser::ParseSPS(const uint8* sps,
 
 bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   if (size < kAVCConfigMinSize) {
-    DLOG(ERROR) << base::StringPrintf(
-        "AVC config record bad size: %d",
-        size);
+    DLOG(ERROR) << base::StringPrintf("AVC config record bad size: %d", size);
     return false;
   }
 
   // get the NALU header size
   nal_header_size_ = (buffer[4] & 0x03) + 1;
   // validate size, needs to be 1, 2 or 4 bytes only
-  if (nal_header_size_ != 4 &&
-      nal_header_size_ != 2 &&
-      nal_header_size_ != 1) {
+  if (nal_header_size_ != 4 && nal_header_size_ != 2 && nal_header_size_ != 1) {
     return false;
   }
   // AVCConfigRecords contain a variable number of SPS NALU
@@ -340,8 +324,8 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
       return false;
     }
     // extract 2-byte size of this SPS
-    size_t sps_size = LB::Platform::load_uint16_big_endian(
-        buffer + record_offset);
+    size_t sps_size =
+        LB::Platform::load_uint16_big_endian(buffer + record_offset);
     // advance past the 2-byte size record
     record_offset += 2;
     // see if we jumped over record size
@@ -359,8 +343,8 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
     record_offset += sps_size;
   }
   if (!have_valid_sps) {
-    DLOG(WARNING) <<
-        "unable to parse a suitable SPS. Perhaps increase max size?";
+    DLOG(WARNING)
+        << "unable to parse a suitable SPS. Perhaps increase max size?";
     return false;
   }
   // we don't strictly require a PPS, so we're even willing to accept that
@@ -384,13 +368,13 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
         return false;
       }
       // extract 2-byte size of this PPS
-      size_t pps_size = LB::Platform::load_uint16_big_endian(
-          buffer + record_offset);
+      size_t pps_size =
+          LB::Platform::load_uint16_big_endian(buffer + record_offset);
       record_offset += 2;
       // see if there's actually room for this record in the buffer
       if (record_offset + pps_size > size) {
-        DLOG(WARNING) <<
-            "ran out of AVCConfig record while scanning PPS blocks.";
+        DLOG(WARNING)
+            << "ran out of AVCConfig record while scanning PPS blocks.";
         return false;
       }
       if (!have_valid_pps) {
@@ -410,11 +394,9 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   // we can now initialize our video decoder config
   video_config_.Initialize(
       kCodecH264,
-      H264PROFILE_MAIN,             // profile is ignored currently
-      VideoFrame::NATIVE_TEXTURE,   // we always decode directly to texture
-      sps_record.coded_size,
-      sps_record.visible_rect,
-      sps_record.natural_size,
+      H264PROFILE_MAIN,            // profile is ignored currently
+      VideoFrame::NATIVE_TEXTURE,  // we always decode directly to texture
+      sps_record.coded_size, sps_record.visible_rect, sps_record.natural_size,
       // no extra data needed
       NULL, 0,
       // is not currently encrypted
@@ -422,10 +404,8 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
       // ignore stats for now
       false);
 
-  return BuildAnnexBPrepend(buffer + usable_sps_offset,
-                            usable_sps_size,
-                            buffer + usable_pps_offset,
-                            usable_pps_size);
+  return BuildAnnexBPrepend(buffer + usable_sps_offset, usable_sps_size,
+                            buffer + usable_pps_offset, usable_pps_size);
 }
 
 bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps,
@@ -491,18 +471,15 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
 #endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
 
   audio_config_.Initialize(kCodecAAC,
-                           16,   // AAC is always 16 bit
+                           16,  // AAC is always 16 bit
                            aac.channel_layout(),
                            aac.GetOutputSamplesPerSecond(false),
 #if defined(__LB_XB1__) || defined(__LB_XB360__)
-                           &aac.raw_data().front(),
-                           aac.raw_data().size(),
-#else  // defined(__LB_XB1__) || defined(__LB_XB360__)
-                           NULL,
-                           0,
+                           &aac.raw_data().front(), aac.raw_data().size(),
+#else   // defined(__LB_XB1__) || defined(__LB_XB360__)
+                           NULL, 0,
 #endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
-                           false,
-                           false);
+                           false, false);
 }
 
 size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,

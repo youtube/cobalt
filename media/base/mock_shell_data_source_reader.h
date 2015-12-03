@@ -24,7 +24,7 @@ namespace media {
 
 class MockShellDataSourceReader : public ShellDataSourceReader {
  public:
-  MockShellDataSourceReader() { }
+  MockShellDataSourceReader() {}
 
   // ShellDataSourceReader implementation
   MOCK_METHOD1(SetDataSource, void(scoped_refptr<DataSource>));
@@ -35,6 +35,5 @@ class MockShellDataSourceReader : public ShellDataSourceReader {
 };
 
 }  // namespace media
-
 
 #endif  // MEDIA_BASE_MOCK_SHELL_DATA_SOURCE_READER_H_

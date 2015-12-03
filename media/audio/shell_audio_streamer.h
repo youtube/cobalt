@@ -54,10 +54,7 @@ class ShellAudioStreamer {
    public:
     static const uint32 kInvalidSampleRate = 0;
 
-    enum StorageMode {
-      INTERLEAVED,
-      PLANAR
-    };
+    enum StorageMode { INTERLEAVED, PLANAR };
 
     Config() : valid_(false) {}
 
@@ -66,16 +63,15 @@ class ShellAudioStreamer {
     Config(StorageMode storage_mode,
            uint32 initial_rebuffering_frames_per_channel,
            uint32 sink_buffer_size_in_frames_per_channel,
-           uint32 max_hardware_channels, uint32 bytes_per_sample,
+           uint32 max_hardware_channels,
+           uint32 bytes_per_sample,
            uint32 native_output_sample_rate = kInvalidSampleRate)
         : valid_(true),
           interleaved_(storage_mode == INTERLEAVED),
           initial_rebuffering_frames_per_channel_(
-              initial_rebuffering_frames_per_channel
-          ),
+              initial_rebuffering_frames_per_channel),
           sink_buffer_size_in_frames_per_channel_(
-              sink_buffer_size_in_frames_per_channel
-          ),
+              sink_buffer_size_in_frames_per_channel),
           max_hardware_channels_(max_hardware_channels),
           bytes_per_sample_(bytes_per_sample),
           native_output_sample_rate_(native_output_sample_rate) {
@@ -140,7 +136,7 @@ class ShellAudioStreamer {
   };
 
   ShellAudioStreamer() {}
-  virtual ~ShellAudioStreamer() {};
+  virtual ~ShellAudioStreamer(){};
 
   // The only instance of the platform specific audio streamer. It becomes
   // valid after calling Initialize and become NULL after calling Terminate.

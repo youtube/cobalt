@@ -28,8 +28,8 @@ bool ShellDecryptorFactory::Supports(const std::string& key_system) {
 }
 
 // static
-Decryptor *ShellDecryptorFactory::Create(const std::string& key_system,
-                                         DecryptorClient *client) {
+Decryptor* ShellDecryptorFactory::Create(const std::string& key_system,
+                                         DecryptorClient* client) {
   DecryptorRegistry::iterator it = registry_.find(key_system);
   if (it == registry_.end()) {
     return NULL;
