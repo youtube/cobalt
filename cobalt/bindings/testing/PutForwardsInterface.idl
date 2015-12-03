@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-[Constructor]
-interface ArbitraryInterface {
-  void arbitraryFunction();
-  attribute DOMString arbitraryProperty;
+interface PutForwardsInterface {
+  [PutForwards=arbitraryProperty]
+  readonly attribute ArbitraryInterface forwardingAttribute;
 };
