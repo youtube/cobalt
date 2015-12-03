@@ -31,35 +31,6 @@
 namespace cobalt {
 namespace layout {
 
-scoped_refptr<cssom::CSSStyleDeclarationData>
-CreateInitialContainingBlockComputedStyle(
-    const scoped_refptr<dom::Window>& window) {
-  scoped_refptr<cssom::CSSStyleDeclarationData>
-      initial_containing_block_computed_style =
-          new cssom::CSSStyleDeclarationData();
-  // Although the specification is silent about that, we override the otherwise
-  // transparent background color of the initial containing block to ensure that
-  // we always fill the entire viewport.
-  initial_containing_block_computed_style->set_background_color(
-      new cssom::RGBAColorValue(0xffffffff));
-  initial_containing_block_computed_style->set_display(
-      cssom::KeywordValue::GetBlock());
-  initial_containing_block_computed_style->set_height(new cssom::LengthValue(
-      static_cast<float>(window->inner_height()), cssom::kPixelsUnit));
-  initial_containing_block_computed_style->set_width(new cssom::LengthValue(
-      static_cast<float>(window->inner_width()), cssom::kPixelsUnit));
-
-  // For the root element, which has no parent element, the inherited value is
-  // the initial value of the property.
-  //   http://www.w3.org/TR/css-cascade-3/#inheriting
-  scoped_refptr<const cssom::CSSStyleDeclarationData> root_style =
-      new cssom::CSSStyleDeclarationData();
-  PromoteToComputedStyle(initial_containing_block_computed_style, root_style,
-                         NULL);
-
-  return initial_containing_block_computed_style;
-}
-
 // Conditionally copies the background property. Returns true if anything is
 // copied.
 // The background color is copied if it is not transparent

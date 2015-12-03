@@ -24,8 +24,8 @@ namespace dom {
 
 class XMLDocument : public Document {
  public:
-  XMLDocument() : Document(NULL, Document::Options()) {}
-  explicit XMLDocument(const Options& options) : Document(NULL, options) {}
+  explicit XMLDocument(const Options& options = Options())
+      : Document(NULL, options) {}
 
   // Custom, not in any spec: Node.
   scoped_refptr<Node> Duplicate() const OVERRIDE {

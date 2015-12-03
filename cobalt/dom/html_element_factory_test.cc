@@ -56,7 +56,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
             NULL /* media_source_registry */, NULL /* resource_provider */,
             NULL /* image_cache */, NULL /* remote_font_cache */,
             "" /* language */),
-        document_(new Document(&html_element_context_, Document::Options())) {}
+        document_(new Document(&html_element_context_)) {}
   ~HTMLElementFactoryTest() OVERRIDE {}
 
   loader::FetcherFactory fetcher_factory_;

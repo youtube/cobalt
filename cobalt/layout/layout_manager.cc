@@ -199,8 +199,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     // Update our computed style before running animation callbacks, so that
     // any transitioning elements adjusted during the animation callback will
     // transition from their previously set value.
-    document->UpdateComputedStyles(
-        CreateInitialContainingBlockComputedStyle(window_));
+    document->UpdateComputedStyles();
   }
 
   // Note that according to:
@@ -219,7 +218,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     }
 
     RenderTreeWithAnimations render_tree_with_animations =
-        layout::Layout(window_, used_style_provider_.get(),
+        layout::Layout(window_->document(), used_style_provider_.get(),
                        line_break_iterator_.get(), &initial_containing_block_);
     bool run_on_render_tree_produced_callback = true;
 #if defined(ENABLE_TEST_RUNNER)
