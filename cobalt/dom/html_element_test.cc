@@ -104,7 +104,7 @@ class HTMLElementTest : public ::testing::Test {
   HTMLElementTest()
       : html_element_context_(NULL, &css_parser_, NULL, NULL, NULL, NULL, NULL,
                               NULL, NULL, ""),
-        document_(new Document(&html_element_context_, Document::Options())) {}
+        document_(new Document(&html_element_context_)) {}
   ~HTMLElementTest() OVERRIDE {}
 
   // This creates simple DOM tree with mock layout boxes for all elements except

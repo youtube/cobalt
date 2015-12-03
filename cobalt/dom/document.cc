@@ -49,6 +49,7 @@
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/dom/root_computed_style.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
@@ -86,6 +87,9 @@ Document::Document(HTMLElementContext* html_element_context,
           default_timeline_(new DocumentTimeline(this, 0))),
       user_agent_style_sheet_(options.user_agent_style_sheet) {
   DCHECK(options.url.is_empty() || options.url.is_valid());
+  if (options.viewport_size) {
+    SetViewport(*options.viewport_size);
+  }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   partial_layout_is_enabled_ = true;
@@ -435,19 +439,35 @@ void UpdateSelectorTreeFromCSSStyleSheet(
 
 }  // namespace
 
-void Document::UpdateMatchingRules(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style) {
+void Document::UpdateMediaRules() {
+  TRACE_EVENT0("cobalt::dom", "Document::UpdateMediaRules()");
+  if (root_computed_style_) {
+    scoped_refptr<cssom::PropertyValue> width(root_computed_style_->width());
+    scoped_refptr<cssom::PropertyValue> height(root_computed_style_->height());
+
+    if (user_agent_style_sheet_) {
+      user_agent_style_sheet_->EvaluateMediaRules(width, height);
+    }
+    for (unsigned int style_sheet_index = 0;
+         style_sheet_index < style_sheets_->length(); ++style_sheet_index) {
+      scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
+          style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
+
+      css_style_sheet->EvaluateMediaRules(width, height);
+    }
+  }
+}
+
+void Document::UpdateMatchingRules() {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
   DCHECK(html());
 
   if (is_selector_tree_dirty_) {
     TRACE_EVENT0("cobalt::dom", kBenchmarkStatUpdateSelectorTree);
 
-    scoped_refptr<cssom::PropertyValue> width(root_computed_style->width());
-    scoped_refptr<cssom::PropertyValue> height(root_computed_style->height());
+    UpdateMediaRules();
 
     if (user_agent_style_sheet_) {
-      user_agent_style_sheet_->EvaluateMediaRules(width, height);
       UpdateSelectorTreeFromCSSStyleSheet(&selector_tree_,
                                           user_agent_style_sheet_);
     }
@@ -457,7 +477,6 @@ void Document::UpdateMatchingRules(
       scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
           style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
 
-      css_style_sheet->EvaluateMediaRules(width, height);
       UpdateSelectorTreeFromCSSStyleSheet(&selector_tree_, css_style_sheet);
     }
 
@@ -473,11 +492,10 @@ void Document::UpdateMatchingRules(
   }
 }
 
-void Document::UpdateComputedStyles(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style) {
+void Document::UpdateComputedStyles() {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateComputedStyles()");
 
-  UpdateMatchingRules(root_computed_style);
+  UpdateMatchingRules();
   UpdateKeyframes();
 
   if (is_computed_style_dirty_) {
@@ -490,7 +508,7 @@ void Document::UpdateComputedStyles(
         base::TimeDelta::FromMillisecondsD(*default_timeline_->current_time());
 
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateComputedStyles);
-    html()->UpdateComputedStyleRecursively(root_computed_style,
+    html()->UpdateComputedStyleRecursively(root_computed_style_,
                                            style_change_event_time, true);
 
     is_computed_style_dirty_ = false;
@@ -548,6 +566,13 @@ void Document::SetPartialLayout(const std::string& mode_string) {
   }
 }
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+void Document::SetViewport(const math::Size& viewport_size) {
+  viewport_size_ = viewport_size;
+  root_computed_style_ = CreateRootComputedStyle(*viewport_size_);
+  is_computed_style_dirty_ = true;
+  is_selector_tree_dirty_ = true;
+}
 
 Document::~Document() {
   // Ensure that all outstanding weak ptrs become invalid.

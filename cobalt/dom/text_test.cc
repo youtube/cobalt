@@ -43,7 +43,7 @@ TextTest::TextTest()
     : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                             NULL, "") {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
-  document_ = new Document(&html_element_context_, Document::Options());
+  document_ = new Document(&html_element_context_);
 }
 
 TextTest::~TextTest() {

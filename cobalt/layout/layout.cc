@@ -35,7 +35,7 @@ namespace cobalt {
 namespace layout {
 
 RenderTreeWithAnimations Layout(
-    const scoped_refptr<dom::Window>& window,
+    const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
@@ -46,17 +46,12 @@ RenderTreeWithAnimations Layout(
   UsedStyleProviderLayoutScope used_style_provider_layout_scope(
       used_style_provider);
 
-  scoped_refptr<dom::Document> document = window->document();
-
   // Update the computed style of all elements in the DOM, if necessary.
-  scoped_refptr<cssom::CSSStyleDeclarationData> initial_containing_block_style =
-      CreateInitialContainingBlockComputedStyle(window);
-
-  document->UpdateComputedStyles(initial_containing_block_style);
+  document->UpdateComputedStyles();
 
   // Create initial containing block.
   *initial_containing_block = CreateInitialContainingBlock(
-      initial_containing_block_style, document, used_style_provider);
+      document->root_computed_style(), document, used_style_provider);
 
   // Generate boxes.
   {

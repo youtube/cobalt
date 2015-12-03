@@ -24,6 +24,7 @@
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/cssom/css_keyframes_rule.h"
@@ -35,6 +36,7 @@
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/dom/rule_matching.h"
+#include "cobalt/math/size.h"
 #include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
 
@@ -85,19 +87,23 @@ class Document : public Node, public cssom::MutationObserver {
     Options(const GURL& url_value,
             const scoped_refptr<base::Clock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
-            const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet)
+            const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet,
+            const base::optional<math::Size>& viewport_size)
         : url(url_value),
           navigation_start_clock(navigation_start_clock_value),
           navigation_callback(navigation_callback),
-          user_agent_style_sheet(user_agent_style_sheet) {}
+          user_agent_style_sheet(user_agent_style_sheet),
+          viewport_size(viewport_size) {}
 
     GURL url;
     scoped_refptr<base::Clock> navigation_start_clock;
     base::Callback<void(const GURL&)> navigation_callback;
     scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet;
+    base::optional<math::Size> viewport_size;
   };
 
-  Document(HTMLElementContext* html_element_context, const Options& options);
+  Document(HTMLElementContext* html_element_context,
+           const Options& options = Options());
 
   // Web API: Node
   //
@@ -170,10 +176,10 @@ class Document : public Node, public cssom::MutationObserver {
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
   scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new Document(
-        html_element_context_,
-        Options(location_->url(), navigation_start_clock_,
-                location_->navigation_callback(), user_agent_style_sheet_));
+    return new Document(html_element_context_,
+                        Options(location_->url(), navigation_start_clock_,
+                                location_->navigation_callback(),
+                                user_agent_style_sheet_, viewport_size_));
   }
 
   // Custom, not in any spec.
@@ -244,12 +250,12 @@ class Document : public Node, public cssom::MutationObserver {
   //   http://***REMOVED***cobalt-css#heading=h.s82z8u3l3se
   // Those selectors that are supported are implemented after Selectors Level 4.
   //   http://www.w3.org/TR/selectors4/
-  void UpdateMatchingRules(
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style);
+  void UpdateMatchingRules();
+
+  void UpdateMediaRules();
 
   // Updates the computed styles of all of this document's HTML elements.
-  void UpdateComputedStyles(
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style);
+  void UpdateComputedStyles();
 
   // Scans the user agent style sheet and all style sheets in the document's
   // style sheet list and updates the font faces available in the document.
@@ -282,6 +288,13 @@ class Document : public Node, public cssom::MutationObserver {
   void set_synchronous_layout_callback(
       const base::Closure& synchronous_layout_callback) {
     synchronous_layout_callback_ = synchronous_layout_callback;
+  }
+
+  void SetViewport(const math::Size& viewport_size);
+
+  const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style()
+      const {
+    return root_computed_style_;
   }
 
   DEFINE_WRAPPABLE_TYPE(Document);
@@ -342,6 +355,9 @@ class Document : public Node, public cssom::MutationObserver {
   base::Closure synchronous_layout_callback_;
 
   scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
+
+  base::optional<math::Size> viewport_size_;
+  scoped_refptr<cssom::CSSStyleDeclarationData> root_computed_style_;
 };
 
 }  // namespace dom
