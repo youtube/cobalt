@@ -54,13 +54,6 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
   if (IsResponseCodeSuccess(source->GetResponseCode())) {
     handler()->OnResponseStarted(this, source->GetResponseHeaders());
-  } else {
-    handler()->OnError(
-        this, base::StringPrintf("NetFetcher error on %s: response code %d",
-                                 source->GetURL().spec().c_str(),
-                                 source->GetResponseCode()));
-    // Cancel/destroy the fetcher on any error.
-    url_fetcher_.reset();
   }
 }
 
@@ -83,8 +76,9 @@ bool NetFetcher::ShouldSendDownloadData() { return true; }
 
 void NetFetcher::OnURLFetchDownloadData(const net::URLFetcher* source,
                                         scoped_ptr<std::string> download_data) {
-  UNREFERENCED_PARAMETER(source);
-  handler()->OnReceived(this, download_data->data(), download_data->length());
+  if (IsResponseCodeSuccess(source->GetResponseCode())) {
+    handler()->OnReceived(this, download_data->data(), download_data->length());
+  }
 }
 
 NetFetcher::~NetFetcher() { DCHECK(thread_checker_.CalledOnValidThread()); }
