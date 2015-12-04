@@ -49,9 +49,9 @@ class SourceListTest : public ::testing::Test {
     GURL secure_url("https://example.test/image.png");
     csp_delegate_.reset(new CSPDelegate(secure_url));
     csp_->BindDelegate(csp_delegate_.get());
-    // Call DidReceiveHeader() with unimportant values, for the side-effect of
+    // Call OnReceiveHeader() with unimportant values, for the side-effect of
     // CSP creating the 'self' policy, which the test relies on.
-    csp_->DidReceiveHeader("", kHeaderTypeEnforce, kHeaderSourceMeta);
+    csp_->OnReceiveHeader("", kHeaderTypeEnforce, kHeaderSourceMeta);
   }
 
   scoped_ptr<ContentSecurityPolicy> csp_;
