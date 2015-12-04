@@ -33,6 +33,7 @@
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/element_driver.h"
+#include "cobalt/webdriver/element_mapping.h"
 #include "cobalt/webdriver/protocol/keys.h"
 #include "cobalt/webdriver/protocol/script.h"
 #include "cobalt/webdriver/protocol/search_strategy.h"
@@ -49,7 +50,7 @@ namespace webdriver {
 // WebDriver commands that interact with a Window, such as:
 //     /session/:sessionId/window/:windowHandle/size
 // will map to a method on this class.
-class WindowDriver : private ScriptExecutor::ElementMapping {
+class WindowDriver : private ElementMapping {
  public:
   WindowDriver(const protocol::WindowId& window_id,
                const base::WeakPtr<dom::Window>& window,
@@ -76,7 +77,6 @@ class WindowDriver : private ScriptExecutor::ElementMapping {
  private:
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
   typedef ElementDriverMap::iterator ElementDriverMapIt;
-  typedef std::vector<scoped_refptr<dom::Element> > ElementVector;
   typedef std::vector<protocol::ElementId> ElementIdVector;
   typedef std::vector<scoped_refptr<dom::KeyboardEvent> > KeyboardEventVector;
 
@@ -100,14 +100,6 @@ class WindowDriver : private ScriptExecutor::ElementMapping {
   template <typename T>
   util::CommandResult<T> FindElementsInternal(
       const protocol::SearchStrategy& strategy);
-
-  // Populate the CommandResult object with the results of FindElementsInternal.
-  void PopulateFindResults(const ElementVector& found_elements,
-      util::CommandResult<protocol::ElementId>* out_result);
-
-  // Populate the CommandResult object with the results of FindElementsInternal.
-  void PopulateFindResults(const ElementVector& found_elements,
-      util::CommandResult<std::vector<protocol::ElementId> >* out_result);
 
   util::CommandResult<protocol::ScriptResult> ExecuteScriptInternal(
       const protocol::Script& script);

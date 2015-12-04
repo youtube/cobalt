@@ -48,6 +48,8 @@
             'protocol/window_id.h',
             'script_executor.h',
             'script_executor.cc',
+            'search.cc',
+            'search.h',
             'server.cc',
             'server.h',
             'session_driver.cc',

@@ -25,12 +25,11 @@
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/location.h"
-#include "cobalt/dom/node_list.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/source_code.h"
 #include "cobalt/webdriver/keyboard.h"
+#include "cobalt/webdriver/search.h"
 #include "cobalt/webdriver/util/call_on_message_loop.h"
 
 namespace cobalt {
@@ -74,7 +73,7 @@ base::LazyInstance<LazySourceLoader> lazy_source_loader =
     LAZY_INSTANCE_INITIALIZER;
 
 scoped_refptr<ScriptExecutor> CreateScriptExecutor(
-    ScriptExecutor::ElementMapping* element_mapping,
+    ElementMapping* element_mapping,
     const scoped_refptr<script::GlobalObjectProxy>& global_object_proxy) {
   // This could be NULL if there was an error loading the harness source from
   // disk.
@@ -258,8 +257,8 @@ protocol::ElementId WindowDriver::CreateNewElementDriver(
       base::StringPrintf("element-%d", next_element_id_++));
   std::pair<ElementDriverMapIt, bool> pair_it =
       element_drivers_.insert(std::make_pair(
-          element_id.id(),
-          new ElementDriver(element_id, weak_element, window_message_loop_)));
+          element_id.id(), new ElementDriver(element_id, weak_element, this,
+                                             window_message_loop_)));
   DCHECK(pair_it.second)
       << "An ElementDriver was already mapped to the element id: "
       << element_id.id();
@@ -276,69 +275,8 @@ util::CommandResult<T> WindowDriver::FindElementsInternal(
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
-  ElementVector found_elements;
-  switch (strategy.strategy()) {
-    case protocol::SearchStrategy::kClassName: {
-      scoped_refptr<dom::HTMLCollection> collection =
-          window_->document()->GetElementsByClassName(strategy.parameter());
-      if (collection) {
-        for (uint32 i = 0; i < collection->length(); ++i) {
-          found_elements.push_back(collection->Item(i).get());
-        }
-      }
-      break;
-    }
-    case protocol::SearchStrategy::kCssSelector: {
-      scoped_refptr<dom::NodeList> node_list =
-          window_->document()->QuerySelectorAll(strategy.parameter());
-      if (node_list) {
-        for (uint32 i = 0; i < node_list->length(); ++i) {
-          scoped_refptr<dom::Element> element = node_list->Item(i)->AsElement();
-          if (element) {
-            found_elements.push_back(element.get());
-          }
-        }
-      }
-      break;
-    }
-    default:
-      NOTIMPLEMENTED();
-  }
-  if (found_elements.empty()) {
-    return CommandResult(protocol::Response::kNoSuchElement);
-  }
-  CommandResult result;
-  PopulateFindResults(found_elements, &result);
-  return result;
-}
-
-void WindowDriver::PopulateFindResults(const ElementVector& found_elements,
-    util::CommandResult<protocol::ElementId>* out_result) {
-  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
-  DCHECK(!found_elements.empty());
-  typedef util::CommandResult<protocol::ElementId> CommandResult;
-
-  // Grab the first result from the list and return it.
-  protocol::ElementId id = CreateNewElementDriver(
-      base::AsWeakPtr(found_elements.front().get()));
-  *out_result = CommandResult(id);
-}
-
-void WindowDriver::PopulateFindResults(const ElementVector& found_elements,
-    util::CommandResult<std::vector<protocol::ElementId> >* out_result) {
-  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
-  DCHECK(!found_elements.empty());
-  typedef util::CommandResult<ElementIdVector> CommandResult;
-
-  // Create a new ElementDriver for each result and return it.
-  ElementIdVector id_vector;
-  for (int i = 0; i < found_elements.size(); ++i) {
-    protocol::ElementId id = CreateNewElementDriver(
-        base::AsWeakPtr(found_elements[i].get()));
-    id_vector.push_back(id);
-  }
-
-  *out_result = CommandResult(id_vector);
+  return Search::FindElementsUnderNode<T>(strategy, window_->document().get(),
+                                          this);
 }
 
 util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
