@@ -24,6 +24,7 @@ namespace audio {
 AudioContext::AudioContext()
     : sample_rate_(0.0f),
       current_time_(0.0f),
+      audio_lock_(new AudioLock()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           destination_(new AudioDestinationNode(this))),
       main_message_loop_(base::MessageLoopProxy::current()) {

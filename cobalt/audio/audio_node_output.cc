@@ -27,13 +27,13 @@ namespace audio {
 typedef ::media::ShellAudioBus ShellAudioBus;
 
 AudioNodeOutput::~AudioNodeOutput() {
-  owner_node_->context()->AssertLocked();
+  owner_node_->audio_lock()->AssertLocked();
 
   DCHECK(inputs_.empty());
 }
 
 void AudioNodeOutput::AddInput(AudioNodeInput* input) {
-  owner_node_->context()->AssertLocked();
+  owner_node_->audio_lock()->AssertLocked();
 
   DCHECK(input);
 
@@ -41,7 +41,7 @@ void AudioNodeOutput::AddInput(AudioNodeInput* input) {
 }
 
 void AudioNodeOutput::RemoveInput(AudioNodeInput* input) {
-  owner_node_->context()->AssertLocked();
+  owner_node_->audio_lock()->AssertLocked();
 
   DCHECK(input);
 
@@ -49,7 +49,7 @@ void AudioNodeOutput::RemoveInput(AudioNodeInput* input) {
 }
 
 void AudioNodeOutput::DisconnectAll() {
-  owner_node_->context()->AssertLocked();
+  owner_node_->audio_lock()->AssertLocked();
 
   while (!inputs_.empty()) {
     AudioNodeInput* input = *inputs_.begin();
@@ -60,7 +60,7 @@ void AudioNodeOutput::DisconnectAll() {
 scoped_ptr<ShellAudioBus> AudioNodeOutput::PassAudioBusFromSource(
     int32 number_of_frames) {
   // This is called by Audio thread.
-  owner_node_->context()->AssertLocked();
+  owner_node_->audio_lock()->AssertLocked();
 
   // Pull audio buffer from its owner node.
   return owner_node_->PassAudioBusFromSource(number_of_frames).Pass();
