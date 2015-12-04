@@ -178,13 +178,13 @@ void MixAudioBuffer(const AudioNode::ChannelInterpretation& interpretation,
 }  // namespace
 
 AudioNodeInput::~AudioNodeInput() {
-  owner_node_->context()->AssertLocked();
+  owner_node_->audio_lock()->AssertLocked();
 
   DCHECK(outputs_.empty());
 }
 
 void AudioNodeInput::Connect(AudioNodeOutput* output) {
-  owner_node_->context()->AssertLocked();
+  owner_node_->audio_lock()->AssertLocked();
 
   DCHECK(output);
 
@@ -200,7 +200,7 @@ void AudioNodeInput::Connect(AudioNodeOutput* output) {
 }
 
 void AudioNodeInput::Disconnect(AudioNodeOutput* output) {
-  owner_node_->context()->AssertLocked();
+  owner_node_->audio_lock()->AssertLocked();
 
   DCHECK(output);
 
@@ -214,7 +214,7 @@ void AudioNodeInput::Disconnect(AudioNodeOutput* output) {
 }
 
 void AudioNodeInput::DisconnectAll() {
-  owner_node_->context()->AssertLocked();
+  owner_node_->audio_lock()->AssertLocked();
 
   while (!outputs_.empty()) {
     AudioNodeOutput* output = *outputs_.begin();
@@ -225,7 +225,7 @@ void AudioNodeInput::DisconnectAll() {
 void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
                                   bool* silence) {
   // This is called by Audio thread.
-  owner_node_->context()->AssertLocked();
+  owner_node_->audio_lock()->AssertLocked();
 
   *silence = true;
 
