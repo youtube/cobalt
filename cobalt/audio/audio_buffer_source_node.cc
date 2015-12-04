@@ -34,7 +34,7 @@ AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* context)
 }
 
 AudioBufferSourceNode::~AudioBufferSourceNode() {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   DCHECK_EQ(number_of_inputs(), 0u);
   RemoveAllOutputs();
@@ -42,7 +42,7 @@ AudioBufferSourceNode::~AudioBufferSourceNode() {
 
 void AudioBufferSourceNode::set_buffer(
     const scoped_refptr<AudioBuffer>& buffer) {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   buffer_ = buffer;
 }
@@ -57,7 +57,7 @@ void AudioBufferSourceNode::Start(double when, double offset,
 // currently.
 void AudioBufferSourceNode::Start(double when, double offset, double duration,
                                   script::ExceptionState* exception_state) {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   DCHECK_EQ(when, 0);
   DCHECK_EQ(offset, 0);
@@ -73,7 +73,7 @@ void AudioBufferSourceNode::Start(double when, double offset, double duration,
 
 void AudioBufferSourceNode::Stop(double when,
                                  script::ExceptionState* exception_state) {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   DCHECK_EQ(when, 0);
 
@@ -88,7 +88,7 @@ void AudioBufferSourceNode::Stop(double when,
 scoped_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
     int32 number_of_frames) {
   // This is called by Audio thread.
-  context()->AssertLocked();
+  audio_lock()->AssertLocked();
 
   if (state_ != kStarted || !buffer_ || buffer_->length() == read_index_) {
     return scoped_ptr<ShellAudioBus>();

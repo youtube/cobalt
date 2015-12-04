@@ -28,6 +28,7 @@
 namespace cobalt {
 namespace audio {
 
+class AudioLock;
 class AudioContext;
 
 // AudioNodes are the building blocks of an AudioContext. This interface
@@ -113,6 +114,8 @@ class AudioNode : public dom::EventTarget {
   virtual scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
       int32 number_of_frames) = 0;
 
+  AudioLock* audio_lock() const { return audio_lock_.get(); }
+
   DEFINE_WRAPPABLE_TYPE(AudioNode);
 
  protected:
@@ -133,6 +136,8 @@ class AudioNode : public dom::EventTarget {
   AudioNodeOutputVector outputs_;
 
   AudioContext* audio_context_;
+
+  scoped_refptr<AudioLock> audio_lock_;
 
   // Channel up-mixing and down-mixing rules for all inputs.
   uint32 channel_count_;

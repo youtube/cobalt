@@ -34,6 +34,37 @@
 namespace cobalt {
 namespace audio {
 
+// TODO(***REMOVED***): Remove this lock and synchronize the JavaScript calls with
+// filling audio bus calls from ShellAudioStreamer.
+class AudioLock : public base::RefCountedThreadSafe<AudioLock> {
+ public:
+  class AutoLock {
+   public:
+    explicit AutoLock(AudioLock* audio_lock) : audio_lock_(audio_lock) {
+      DCHECK(audio_lock_);
+      audio_lock_->lock_.Acquire();
+    }
+
+    ~AutoLock() {
+      audio_lock_->AssertLocked();
+      audio_lock_->lock_.Release();
+    }
+
+   private:
+    const AudioLock* audio_lock_;
+  };
+
+  AudioLock() {}
+
+  // Assert that the |lock_| is acquired.
+  void AssertLocked() const { lock_.AssertAcquired(); }
+
+ private:
+  mutable base::Lock lock_;
+
+  DISALLOW_COPY_AND_ASSIGN(AudioLock);
+};
+
 // This represents a set of AudioNode objects and their connections. It allows
 // for arbitrary routing of signals to the AudioDestinationNode (what the user
 // ultimately hears). Nodes are created from the cotnext and are then connected
@@ -53,23 +84,6 @@ class AudioContext : public dom::EventTarget {
   typedef script::CallbackFunction<void()> DecodeErrorCallback;
   typedef script::ScriptObject<DecodeErrorCallback> DecodeErrorCallbackArg;
   typedef DecodeErrorCallbackArg::Reference DecodeErrorCallbackReference;
-
-  class AutoLocker {
-   public:
-    explicit AutoLocker(AudioContext* context) : context_(context) {
-      DCHECK(context_);
-      context_->lock_.Acquire();
-    }
-
-    ~AutoLocker() {
-      context_->AssertLocked();
-      context_->lock_.Release();
-    }
-
-   private:
-    const AudioContext* context_;
-    DISALLOW_COPY_AND_ASSIGN(AutoLocker);
-  };
 
   AudioContext();
 
@@ -109,8 +123,7 @@ class AudioContext : public dom::EventTarget {
   // Creates an AudioBufferSourceNode.
   scoped_refptr<AudioBufferSourceNode> CreateBufferSource();
 
-  // Assert that the |lock_| is acquired.
-  void AssertLocked() const { lock_.AssertAcquired(); }
+  const scoped_refptr<AudioLock>& audio_lock() const { return audio_lock_; }
 
   DEFINE_WRAPPABLE_TYPE(AudioContext);
 
@@ -145,9 +158,7 @@ class AudioContext : public dom::EventTarget {
   float sample_rate_;
   double current_time_;
 
-  // TODO(***REMOVED***): Remove this lock and synchronize the JavaScript calls with
-  // filling audio bus calls from ShellAudioStreamer.
-  mutable base::Lock lock_;
+  scoped_refptr<AudioLock> audio_lock_;
 
   AsyncAudioDecoder audio_decoder_;
   scoped_refptr<AudioDestinationNode> destination_;
