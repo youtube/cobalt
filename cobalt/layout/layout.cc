@@ -34,13 +34,12 @@
 namespace cobalt {
 namespace layout {
 
-RenderTreeWithAnimations Layout(
+void UpdateComputedStylesAndLayoutBoxTree(
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
-  TRACE_EVENT0("cobalt::layout", "Layout()");
-
+  TRACE_EVENT0("cobalt::layout", "UpdateComputedStylesAndLayoutBoxTree()");
   // Layout-related cleanup is performed on the UsedStyleProvider in this
   // object's destructor.
   UsedStyleProviderLayoutScope used_style_provider_layout_scope(
@@ -96,6 +95,17 @@ RenderTreeWithAnimations Layout(
     (*initial_containing_block)->set_top(0);
     (*initial_containing_block)->UpdateSize(LayoutParams());
   }
+}
+
+RenderTreeWithAnimations Layout(
+    const scoped_refptr<dom::Document>& document,
+    UsedStyleProvider* used_style_provider,
+    icu::BreakIterator* line_break_iterator,
+    scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
+  TRACE_EVENT0("cobalt::layout", "Layout()");
+  UpdateComputedStylesAndLayoutBoxTree(document, used_style_provider,
+                                       line_break_iterator,
+                                       initial_containing_block);
 
   // Add to render tree.
   render_tree::animations::NodeAnimationsMap::Builder
