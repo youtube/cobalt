@@ -104,6 +104,10 @@ class Pipeline {
     Submit(render_tree_submission, base::Closure());
   }
 
+  // Clears the currently submitted render tree submission and waits for the
+  // pipeline to be flushed before returning.
+  void Clear();
+
   // |render_tree_submission| will be rasterized into a new offscreen surface.
   // The RGBA pixel data will be extracted from this surface, and |complete|
   // will be called with the pixel data and the dimensions of the image.
@@ -128,6 +132,9 @@ class Pipeline {
   // render tree.  This method will be called on the rasterizer thread.
   void SetNewRenderTree(const Submission& render_tree_submission,
                         const base::Closure& submit_complete_callback);
+
+  // Clears the current render tree and calls the callback when this is done.
+  void ClearCurrentRenderTree(const base::Closure& clear_complete_callback);
 
   // Called at a specified refresh rate (e.g. 60hz) on the rasterizer thread and
   // results in the rasterization of the current tree and submission of it to
