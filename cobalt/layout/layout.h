@@ -49,6 +49,13 @@ struct RenderTreeWithAnimations {
   scoped_refptr<render_tree::animations::NodeAnimationsMap> animations;
 };
 
+// Update the computed styles, then generate and layout the box tree.
+void UpdateComputedStylesAndLayoutBoxTree(
+    const scoped_refptr<dom::Document>& document,
+    UsedStyleProvider* used_style_provider,
+    icu::BreakIterator* line_break_iterator,
+    scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block);
+
 // Main entry point to the layout engine.
 // Produces the render tree (along with corresponding animations) which is a
 // result of recursive layout of the given HTML element.

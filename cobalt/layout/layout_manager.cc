@@ -155,10 +155,10 @@ void LayoutManager::Impl::OnMutation() {
 }
 
 void LayoutManager::Impl::DoSynchronousLayout() {
-  // TOOD(***REMOVED***): At this time, just the layout boxes are needed, so
-  // producing the render tree should be delayed until it's needed. Tracked in
-  // b/25887489.
-  DoLayoutAndProduceRenderTree();
+  TRACE_EVENT0("cobalt::layout", "LayoutManager::Impl::DoSynchronousLayout()");
+  layout::UpdateComputedStylesAndLayoutBoxTree(
+      window_->document(), used_style_provider_.get(),
+      line_break_iterator_.get(), &initial_containing_block_);
 }
 
 #if defined(ENABLE_TEST_RUNNER)
