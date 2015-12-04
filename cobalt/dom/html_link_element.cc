@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
@@ -54,6 +55,7 @@ void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
 // Algorithm for Obtain:
 //   http://www.w3.org/TR/html5/document-metadata.html#concept-link-obtain
 void HTMLLinkElement::Obtain() {
+  TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::Obtain()");
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(MessageLoop::current());
@@ -95,6 +97,7 @@ void HTMLLinkElement::Obtain() {
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK_EQ(rel(), "stylesheet");
+  TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       html_element_context()->css_parser()->ParseStyleSheet(
@@ -125,6 +128,7 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
 
 void HTMLLinkElement::OnLoadingError(const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingError()");
 
   LOG(ERROR) << error;
 
