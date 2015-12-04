@@ -19,6 +19,7 @@
 #include <deque>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/string_util.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/event_names.h"
@@ -98,6 +99,7 @@ void HTMLScriptElement::Prepare() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(MessageLoop::current());
   DCHECK(!loader_);
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::Prepare()");
 
   // If the script element is marked as having "already started", then the user
   // agent must abort these steps at this point. The script is not executed.
@@ -304,11 +306,13 @@ void HTMLScriptElement::Prepare() {
 }
 
 void HTMLScriptElement::OnSyncLoadingDone(const std::string& content) {
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingDone()");
   content_ = content;
   is_sync_load_successful_ = true;
 }
 
 void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingError()");
   LOG(ERROR) << error;
 }
 
@@ -316,6 +320,7 @@ void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
 //   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingDone()");
   if (!document_) {
     return;
   }
@@ -386,6 +391,7 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
 //   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingError(const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingError()");
   if (!document_) {
     return;
   }
@@ -426,6 +432,7 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
 void HTMLScriptElement::Execute(const std::string& content,
                                 const base::SourceLocation& script_location,
                                 bool is_external) {
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::Execute()");
   // Since error is already handled, it is guaranteed the load is successful.
 
   // 1. 2. 3. Not needed by Cobalt.
