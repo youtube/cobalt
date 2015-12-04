@@ -24,12 +24,13 @@ namespace audio {
 
 AudioNode::AudioNode(AudioContext* context)
     : audio_context_(context),
+      audio_lock_(context->audio_lock()),
       channel_count_(2),
       channel_count_mode_(AudioNode::kMax),
       channel_interpretation_(AudioNode::kSpeakers) {}
 
 AudioNode::~AudioNode() {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   RemoveAllInputs();
   RemoveAllOutputs();
@@ -37,7 +38,7 @@ AudioNode::~AudioNode() {
 
 void AudioNode::set_channel_count(uint32 channel_count,
                                   script::ExceptionState* exception_state) {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   // If this value is set to zero, the implementation MUST throw a
   // NOT_SUPPORTED_ERR exception.
@@ -57,14 +58,14 @@ void AudioNode::set_channel_count(uint32 channel_count,
 
 void AudioNode::set_channel_count_mode(
     const ChannelCountMode& channel_count_mode) {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   channel_count_mode_ = channel_count_mode;
 }
 
 void AudioNode::set_channel_interpretation(
     const ChannelInterpretation& channel_interpretation) {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   channel_interpretation_ = channel_interpretation;
 }
@@ -72,7 +73,7 @@ void AudioNode::set_channel_interpretation(
 void AudioNode::Connect(const scoped_refptr<AudioNode>& destination,
                         uint32 output, uint32 input,
                         script::ExceptionState* exception_state) {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   // The destination parameter is the AudioNode to connect to.
   if (!destination) {
@@ -108,7 +109,7 @@ void AudioNode::Connect(const scoped_refptr<AudioNode>& destination,
 
 void AudioNode::Disconnect(uint32 output,
                            script::ExceptionState* exception_state) {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   // The output parameter is an index describing which output of the AudioNode
   // to disconnect. If the output parameter is out-of-bounds, an INDEX_SIZE_ERR
@@ -125,7 +126,7 @@ void AudioNode::Disconnect(uint32 output,
 }
 
 void AudioNode::AddInput(const scoped_refptr<AudioNodeInput>& input) {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   DCHECK(input);
 
@@ -133,7 +134,7 @@ void AudioNode::AddInput(const scoped_refptr<AudioNodeInput>& input) {
 }
 
 void AudioNode::AddOutput(const scoped_refptr<AudioNodeOutput>& output) {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   DCHECK(output);
 
@@ -141,7 +142,7 @@ void AudioNode::AddOutput(const scoped_refptr<AudioNodeOutput>& output) {
 }
 
 void AudioNode::RemoveAllInputs() {
-  context()->AssertLocked();
+  audio_lock()->AssertLocked();
 
   while (!inputs_.empty()) {
     scoped_refptr<AudioNodeInput> input = inputs_.back();
@@ -151,7 +152,7 @@ void AudioNode::RemoveAllInputs() {
 }
 
 void AudioNode::RemoveAllOutputs() {
-  context()->AssertLocked();
+  audio_lock()->AssertLocked();
 
   while (!outputs_.empty()) {
     scoped_refptr<AudioNodeOutput> output = outputs_.back();
@@ -161,7 +162,7 @@ void AudioNode::RemoveAllOutputs() {
 }
 
 AudioNodeInput* AudioNode::Input(int32 index) const {
-  context()->AssertLocked();
+  audio_lock()->AssertLocked();
 
   size_t input_index = static_cast<size_t>(index);
   if (input_index < inputs_.size()) {
@@ -171,7 +172,7 @@ AudioNodeInput* AudioNode::Input(int32 index) const {
 }
 
 AudioNodeOutput* AudioNode::Output(int32 index) const {
-  context()->AssertLocked();
+  audio_lock()->AssertLocked();
 
   size_t output_index = static_cast<size_t>(index);
   if (output_index < outputs_.size()) {

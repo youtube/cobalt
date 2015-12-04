@@ -43,7 +43,7 @@ AudioDestinationNode::AudioDestinationNode(AudioContext* context)
 }
 
 AudioDestinationNode::~AudioDestinationNode() {
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   DCHECK_EQ(number_of_outputs(), 0u);
   RemoveAllInputs();
@@ -52,7 +52,7 @@ AudioDestinationNode::~AudioDestinationNode() {
 void AudioDestinationNode::FillAudioBus(ShellAudioBus* audio_bus,
                                         bool* silence) {
   // This is called by Audio thread.
-  AudioContext::AutoLocker lock(context());
+  AudioLock::AutoLock lock(audio_lock());
 
   // Destination node only has one input.
   DCHECK_EQ(number_of_inputs(), 1u);
