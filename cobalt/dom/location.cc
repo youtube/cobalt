@@ -151,9 +151,11 @@ void Location::set_search(const std::string& search) {
 void Location::Navigate(const GURL& url) {
   // Custom, not in any spec.
   if (!url.is_valid()) {
-    DLOG(INFO) << "URL is not valid, aborting the navigation.";
+    DLOG(INFO) << "URL " << url << " is not valid, aborting the navigation.";
     return;
   }
+
+  DLOG(INFO) << "Navigating to " << url;
 
   // 7. Fragment identifiers: Apply the URL parser algorithm to the absolute URL
   // of the new resource and the address of the active document of the browsing
