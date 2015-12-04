@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/csp_delegate.h"
@@ -66,6 +67,7 @@ void HTMLImageElement::OnRemoveAttribute(const std::string& name) {
 //   http://www.w3.org/TR/html5/embedded-content-0.html#update-the-image-data
 void HTMLImageElement::UpdateImageData() {
   DCHECK(MessageLoop::current());
+  TRACE_EVENT0("cobalt::dom", "HTMLImageElement::UpdateImageData()");
 
   // 1. Not needed by Cobalt.
 
@@ -147,16 +149,27 @@ void HTMLImageElement::UpdateImageData() {
           base::Bind(&HTMLImageElement::OnLoadingDone, base::Unretained(this)),
           base::Bind(&HTMLImageElement::OnLoadingError,
                      base::Unretained(this))));
+  owner_document()->IncreaseLoadingCounter();
 }
 
-void HTMLImageElement::OnLoadingDone() { DispatchEvent(new Event("load")); }
+void HTMLImageElement::OnLoadingDone() {
+  TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingDone()");
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(base::IgnoreResult(&HTMLImageElement::DispatchEvent),
+                 base::AsWeakPtr<HTMLImageElement>(this),
+                 make_scoped_refptr(new Event("load"))));
+  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+}
 
 void HTMLImageElement::OnLoadingError() {
+  TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingError()");
   MessageLoop::current()->PostTask(
       FROM_HERE,
       base::Bind(base::IgnoreResult(&HTMLImageElement::DispatchEvent),
                  base::AsWeakPtr<HTMLImageElement>(this),
                  make_scoped_refptr(new Event("error"))));
+  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
 }
 
 }  // namespace dom
