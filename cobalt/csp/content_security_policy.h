@@ -129,9 +129,9 @@ class ContentSecurityPolicy {
 
   void BindDelegate(Delegate* delegate);
 
-  void DidReceiveHeaders(const ResponseHeaders& headers);
-  void DidReceiveHeader(const std::string& header, HeaderType header_type,
-                        HeaderSource header_source);
+  void OnReceiveHeaders(const ResponseHeaders& headers);
+  void OnReceiveHeader(const std::string& header, HeaderType header_type,
+                       HeaderSource header_source);
 
   bool UrlMatchesSelf(const GURL& url) const;
   bool SchemeMatchesSelf(const GURL& url) const;

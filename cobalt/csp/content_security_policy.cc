@@ -190,7 +190,7 @@ ContentSecurityPolicy::ContentSecurityPolicy()
 
 ContentSecurityPolicy::~ContentSecurityPolicy() {}
 
-void ContentSecurityPolicy::DidReceiveHeaders(const ResponseHeaders& headers) {
+void ContentSecurityPolicy::OnReceiveHeaders(const ResponseHeaders& headers) {
   DCHECK(delegate_);
   if (!headers.content_security_policy().empty()) {
     AddPolicyFromHeaderValue(headers.content_security_policy(),
@@ -207,9 +207,9 @@ void ContentSecurityPolicy::BindDelegate(Delegate* delegate) {
   delegate_ = delegate;
 }
 
-void ContentSecurityPolicy::DidReceiveHeader(const std::string& header,
-                                             HeaderType type,
-                                             HeaderSource source) {
+void ContentSecurityPolicy::OnReceiveHeader(const std::string& header,
+                                            HeaderType type,
+                                            HeaderSource source) {
   DCHECK(delegate_);
   AddPolicyFromHeaderValue(header, type, source);
   ApplyPolicy();
