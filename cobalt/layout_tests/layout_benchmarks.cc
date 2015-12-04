@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "base/logging.h"
 #include "base/string_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/base/event_dispatcher.h"
@@ -38,10 +37,8 @@ namespace {
 // the skipping of the first frame to avoid the first frame outlier.
 class RendererBenchmarkRunner {
  public:
-  explicit RendererBenchmarkRunner(int samples_to_gather)
-      : samples_to_gather_(samples_to_gather),
-        submits_completed_(0),
-        done_gathering_samples_(true, false),
+  RendererBenchmarkRunner()
+      : done_gathering_samples_(true, false),
         system_window_(system_window::CreateSystemWindow(&event_dispatcher_)),
         renderer_module_(system_window_.get(),
                          renderer::RendererModule::Options()) {}
@@ -53,8 +50,11 @@ class RendererBenchmarkRunner {
   }
 
   // Run the renderer benchmarks and perform the measurements.
-  void RunBenchmarks(const browser::WebModule::LayoutResults& layout_results) {
-    base::debug::TraceLog::GetInstance()->SetEnabled(false);
+  void RunBenchmarks(const browser::WebModule::LayoutResults& layout_results,
+                     int samples_to_gather) {
+    // Initialize our per-RunBenchmarks() state.
+    samples_to_gather_ = samples_to_gather;
+    done_gathering_samples_.Reset();
 
     renderer::Pipeline::Submission submission_with_callback(
         layout_results.render_tree, layout_results.animations,
@@ -66,6 +66,8 @@ class RendererBenchmarkRunner {
                    base::Unretained(this)));
 
     done_gathering_samples_.Wait();
+
+    renderer_module_.pipeline()->Clear();
   }
 
  private:
@@ -73,19 +75,16 @@ class RendererBenchmarkRunner {
   // to count how many frames have been submitted so we know when to stop (via
   // the signaling of the done_gathering_samples_ event).
   void OnSubmitComplete() {
-    base::debug::TraceLog::GetInstance()->SetEnabled(true);
-
-    ++submits_completed_;
+    --samples_to_gather_;
 
     // We wait for samples_to_gather + 1 submits to complete because we actually
     // want samples_to_gather, but we skipped the first submit.
-    if (submits_completed_ >= samples_to_gather_ + 1) {
+    if (samples_to_gather_ <= 0) {
       done_gathering_samples_.Signal();
     }
   }
 
-  const int samples_to_gather_;
-  int submits_completed_;
+  int samples_to_gather_;
   base::WaitableEvent done_gathering_samples_;
   base::EventDispatcher event_dispatcher_;
 
@@ -107,32 +106,55 @@ class LayoutBenchmark : public trace_event::Benchmark {
   std::vector<trace_event::Benchmark::Result> CompileResults() OVERRIDE;
 
  private:
+  typedef base::hash_map<std::string, double> IntermediateResultsMap;
+  typedef base::hash_map<std::string, std::vector<double> >
+      FinalResultsSampleMap;
+
+  void OnIterationComplete();
   static std::string FilePathToBenchmarkName(const FilePath& filepath);
 
   TestInfo test_info_;
-  typedef base::hash_map<std::string, std::vector<double> > SampleMap;
-  SampleMap samples_;
+
+  // During each iteration, we accumulate intermediate results by *adding*
+  // task times together.  Only when the iteration is complete do we consider
+  // our result a sample.
+  IntermediateResultsMap intermediate_results_;
+
+  // A list of accumulated intermediate results.  The vectors in this map are
+  // pushed to at the end of each iteration.
+  FinalResultsSampleMap layout_samples_;
+  FinalResultsSampleMap renderer_samples_;
+
+  // Is this our first iteration?
+  bool first_iteration_;
+
+  // We setup the renderer benchmark runner first so that we can gain access
+  // to the resource provider and so that we can also benchmark the rendering
+  // of the layed out web pages.
+  RendererBenchmarkRunner renderer_benchmark_runner_;
 };
 
 LayoutBenchmark::LayoutBenchmark(const TestInfo& test_info)
-    : test_info_(test_info) {
+    : test_info_(test_info), first_iteration_(true) {
   // Setup the name's benchmark based on the test entry file path.
   set_name(FilePathToBenchmarkName(test_info_.base_file_path));
+  set_num_iterations(10, base::Bind(&LayoutBenchmark::OnIterationComplete,
+                                    base::Unretained(this)));
 
   // Define the set of event names that we would like to watch for by
   // initializing their map entries to the default constructed values (e.g.
   // std::vector<double>()).
-  samples_[layout::kBenchmarkStatLayout];
-  samples_[dom::kBenchmarkStatUpdateSelectorTree];
-  samples_[dom::kBenchmarkStatUpdateMatchingRules];
-  samples_[dom::kBenchmarkStatUpdateComputedStyles];
-  samples_[layout::kBenchmarkStatBoxGeneration];
-  samples_[layout::kBenchmarkStatUpdateCrossReferences];
-  samples_[layout::kBenchmarkStatUpdateUsedSizes];
-  samples_[layout::kBenchmarkStatRenderAndAnimate];
-  samples_["NodeAnimationsMap::Apply()"];
-  samples_["VisitRenderTree"];
-  samples_["Skia Flush"];
+  layout_samples_[layout::kBenchmarkStatLayout];
+  layout_samples_[dom::kBenchmarkStatUpdateSelectorTree];
+  layout_samples_[dom::kBenchmarkStatUpdateMatchingRules];
+  layout_samples_[dom::kBenchmarkStatUpdateComputedStyles];
+  layout_samples_[layout::kBenchmarkStatBoxGeneration];
+  layout_samples_[layout::kBenchmarkStatUpdateCrossReferences];
+  layout_samples_[layout::kBenchmarkStatUpdateUsedSizes];
+  layout_samples_[layout::kBenchmarkStatRenderAndAnimate];
+  renderer_samples_["NodeAnimationsMap::Apply()"];
+  renderer_samples_["VisitRenderTree"];
+  renderer_samples_["Skia Flush"];
 }
 
 std::string LayoutBenchmark::FilePathToBenchmarkName(const FilePath& filepath) {
@@ -146,15 +168,7 @@ std::string LayoutBenchmark::FilePathToBenchmarkName(const FilePath& filepath) {
 }
 
 void LayoutBenchmark::Experiment() {
-  // Get rid of all log output so we only see benchmark results.
-  logging::SetMinLogLevel(100);
-
   MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
-
-  // We setup the renderer benchmark runner first so that we can gain access
-  // to the resource provider.
-  const int kRendererSampleCount = 60;
-  RendererBenchmarkRunner renderer_benchmark_runner(kRendererSampleCount);
 
   // We prepare a layout_results variable where we place the results from each
   // layout.  We will then use the final layout_results as input to the renderer
@@ -166,39 +180,27 @@ void LayoutBenchmark::Experiment() {
                                  ? *test_info_.viewport_size
                                  : kDefaultViewportSize;
 
-  // Set up a WebModule, load the URL and trigger layout multiple times and get
-  // layout benchmark results.  We start with tracing disabled so that we can
-  // skip the first layout, which is typically an outlier.
-  base::debug::TraceLog::GetInstance()->SetEnabled(false);
-  const int kLayoutSampleCount = 10;
-  for (int i = 0; i < kLayoutSampleCount + 1; ++i) {
-    // Load and layout the scene.
-    layout_results =
-        SnapshotURL(test_info_.url, viewport_size,
-                    renderer_benchmark_runner.GetResourceProvider());
-
-    if (i == 0) {
-      // Enable tracing after the first (outlier) layout is completed.
-      base::debug::TraceLog::GetInstance()->SetEnabled(true);
-    }
-  }
+  // Set up a WebModule, load the URL and trigger layout to get layout benchmark
+  // results.
+  layout_results =
+      SnapshotURL(test_info_.url, viewport_size,
+                  renderer_benchmark_runner_.GetResourceProvider());
 
   // Finally run the renderer benchmarks to acquire performance data on
   // rendering.
-  renderer_benchmark_runner.RunBenchmarks(*layout_results);
+  renderer_benchmark_runner_.RunBenchmarks(*layout_results, 60);
 }
 
 namespace {
 
-// Return true if the event has a kBenchmarkStatNonMeasuredLayout ancestor
-// event, which is true for events generated during a layout triggered from
-// |TestRunnner::DoNonMeasuredLayout|.
-bool HasNonMeasuredLayoutAncestorEvent(
-    const scoped_refptr<trace_event::EventParser::ScopedEvent>& event) {
+// Return true if the event has an ancestor with the specified named event.
+bool HasAncestorEvent(
+    const scoped_refptr<trace_event::EventParser::ScopedEvent>& event,
+    const std::string& ancestor_event_string) {
   scoped_refptr<trace_event::EventParser::ScopedEvent> ancestor_event =
       event->parent();
   while (ancestor_event) {
-    if (ancestor_event->name() == layout::kBenchmarkStatNonMeasuredLayout) {
+    if (ancestor_event->name() == ancestor_event_string) {
       break;
     }
     ancestor_event = ancestor_event->parent();
@@ -211,16 +213,77 @@ bool HasNonMeasuredLayoutAncestorEvent(
 
 void LayoutBenchmark::AnalyzeTraceEvent(
     const scoped_refptr<trace_event::EventParser::ScopedEvent>& event) {
-  SampleMap::iterator found = samples_.find(event->name());
-  if (found != samples_.end() && !HasNonMeasuredLayoutAncestorEvent(event)) {
-    found->second.push_back(event->in_scope_duration()->InSecondsF());
+  // Check if this is a layout sample.
+  if (event->name() == layout::kBenchmarkStatNonMeasuredLayout) {
+    // If this is a layout that should not be measured, use that as a signal
+    // that we are measuring partial layout, and clear out all measured data
+    // so far and start fresh for the eventual measured layout.
+    intermediate_results_.clear();
+    return;
   }
+
+  FinalResultsSampleMap::iterator found_layout =
+      layout_samples_.find(event->name());
+  if (found_layout != layout_samples_.end() &&
+      !HasAncestorEvent(event, layout::kBenchmarkStatNonMeasuredLayout)) {
+    if (!ContainsKey(intermediate_results_, found_layout->first)) {
+      intermediate_results_[found_layout->first] = 0;
+    }
+
+    double event_duration = event->in_scope_duration()->InSecondsF();
+    intermediate_results_[found_layout->first] += event_duration;
+
+    if (event->name() != layout::kBenchmarkStatLayout &&
+        !HasAncestorEvent(event, layout::kBenchmarkStatLayout)) {
+      // If the event (which we have specifically requested to include in
+      // the benchmark results) does not fall under the scope of the official
+      // layout event, artificially increase the tracked layout time to include
+      // it.  This way events can occur at any time, and the scoped layout
+      // event still gives us a way to measure unaccounted for time that we
+      // know is devoted to layout.
+      intermediate_results_[layout::kBenchmarkStatLayout] += event_duration;
+    }
+  }
+
+  FinalResultsSampleMap::iterator found_renderer =
+      renderer_samples_.find(event->name());
+  if (found_renderer != renderer_samples_.end()) {
+    found_renderer->second.push_back(event->in_scope_duration()->InSecondsF());
+  }
+}
+
+void LayoutBenchmark::OnIterationComplete() {
+  // Skip recording the results of the first iteration, since a few things
+  // may have been lazily initialized and we'd like to avoid recording that.
+  if (first_iteration_) {
+    for (FinalResultsSampleMap::iterator iter = renderer_samples_.begin();
+         iter != renderer_samples_.end(); ++iter) {
+      iter->second.clear();
+    }
+  } else {
+    // Save our finalized intermediate results into our finalized results, and
+    // then clear out our intermediate results for the next iteration.
+    for (FinalResultsSampleMap::iterator iter = layout_samples_.begin();
+         iter != layout_samples_.end(); ++iter) {
+      if (ContainsKey(intermediate_results_, iter->first)) {
+        iter->second.push_back(intermediate_results_[iter->first]);
+      }
+    }
+  }
+
+  first_iteration_ = false;
+  intermediate_results_.clear();
 }
 
 std::vector<trace_event::Benchmark::Result> LayoutBenchmark::CompileResults() {
   std::vector<trace_event::Benchmark::Result> results;
-  for (SampleMap::iterator iter = samples_.begin(); iter != samples_.end();
-       ++iter) {
+  for (FinalResultsSampleMap::iterator iter = layout_samples_.begin();
+       iter != layout_samples_.end(); ++iter) {
+    results.push_back(trace_event::Benchmark::Result(
+        iter->first + " in-scope duration in seconds", iter->second));
+  }
+  for (FinalResultsSampleMap::iterator iter = renderer_samples_.begin();
+       iter != renderer_samples_.end(); ++iter) {
     results.push_back(trace_event::Benchmark::Result(
         iter->first + " in-scope duration in seconds", iter->second));
   }
@@ -229,19 +292,24 @@ std::vector<trace_event::Benchmark::Result> LayoutBenchmark::CompileResults() {
 
 class LayoutBenchmarkCreator : public trace_event::BenchmarkCreator {
  public:
-  ScopedVector<trace_event::Benchmark> CreateBenchmarks() OVERRIDE {
-    ScopedVector<trace_event::Benchmark> benchmarks;
+  std::vector<CreateBenchmarkFunction> GetBenchmarkCreators() OVERRIDE {
+    std::vector<CreateBenchmarkFunction> benchmarks;
 
     std::vector<TestInfo> benchmark_infos = EnumerateLayoutTests("benchmarks");
     for (std::vector<TestInfo>::const_iterator iter = benchmark_infos.begin();
          iter != benchmark_infos.end(); ++iter) {
-      benchmarks.push_back(new LayoutBenchmark(*iter));
+      benchmarks.push_back(
+          base::Bind(&LayoutBenchmarkCreator::CreateLayoutBenchmark, *iter));
     }
 
-    return benchmarks.Pass();
+    return benchmarks;
   }
 
  private:
+  static scoped_ptr<trace_event::Benchmark> CreateLayoutBenchmark(
+      const TestInfo& test_info) {
+    return scoped_ptr<trace_event::Benchmark>(new LayoutBenchmark(test_info));
+  }
 };
 LayoutBenchmarkCreator g_benchmark_creator;
 

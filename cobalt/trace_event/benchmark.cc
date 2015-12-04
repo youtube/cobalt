@@ -15,6 +15,9 @@
  */
 
 #include "cobalt/trace_event/benchmark.h"
+
+#include "base/logging.h"
+#include "base/stringprintf.h"
 #include "cobalt/trace_event/scoped_event_parser_trace.h"
 
 namespace cobalt {
@@ -38,15 +41,21 @@ void BenchmarkRegistrar::RegisterBenchmarkCreator(
 }
 
 BenchmarkResultsMap BenchmarkRegistrar::ExecuteBenchmarks() {
+  // Get rid of all log output so we only see benchmark results.
+  logging::SetMinLogLevel(100);
+
   BenchmarkResultsMap result;
 
   for (RegistererList::iterator iter = benchmark_registerers_.begin();
        iter != benchmark_registerers_.end(); ++iter) {
-    ScopedVector<Benchmark> benchmarks = (*iter)->CreateBenchmarks();
+    std::vector<BenchmarkCreator::CreateBenchmarkFunction> benchmark_creators =
+        (*iter)->GetBenchmarkCreators();
 
-    for (ScopedVector<Benchmark>::iterator iter = benchmarks.begin();
-         iter != benchmarks.end(); ++iter) {
-      result[(*iter)->name()] = ExecuteBenchmark(*iter);
+    for (std::vector<BenchmarkCreator::CreateBenchmarkFunction>::iterator iter =
+             benchmark_creators.begin();
+         iter != benchmark_creators.end(); ++iter) {
+      scoped_ptr<Benchmark> benchmark = iter->Run();
+      result[benchmark->name()] = ExecuteBenchmark(benchmark.get());
     }
   }
 
@@ -55,11 +64,23 @@ BenchmarkResultsMap BenchmarkRegistrar::ExecuteBenchmarks() {
 
 std::vector<Benchmark::Result> BenchmarkRegistrar::ExecuteBenchmark(
     Benchmark* benchmark) {
-  {
-    ScopedEventParserTrace event_watcher(
-        base::Bind(&Benchmark::AnalyzeTraceEvent, base::Unretained(benchmark)),
-        FilePath("benchmark_" + benchmark->name() + ".json"));
-    benchmark->Experiment();
+  for (int i = 0; i < benchmark->num_iterations(); ++i) {
+    {
+      std::string filename_iteration_postfix =
+          benchmark->num_iterations() > 1 ? base::StringPrintf("_%d", i)
+                                          : std::string("");
+
+      ScopedEventParserTrace event_watcher(
+          base::Bind(&Benchmark::AnalyzeTraceEvent,
+                     base::Unretained(benchmark)),
+          FilePath("benchmark_" + benchmark->name() +
+                   filename_iteration_postfix + ".json"));
+      benchmark->Experiment();
+    }
+
+    if (!benchmark->on_iteration_complete().is_null()) {
+      benchmark->on_iteration_complete().Run();
+    }
   }
 
   return benchmark->CompileResults();

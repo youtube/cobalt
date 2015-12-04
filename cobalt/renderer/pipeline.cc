@@ -106,6 +106,17 @@ void Pipeline::Submit(const Submission& render_tree_submission,
                             render_tree_submission, submit_complete_callback));
 }
 
+void Pipeline::Clear() {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::Clear()");
+  base::WaitableEvent wait_event(true, false);
+  rasterizer_thread_->message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&Pipeline::ClearCurrentRenderTree, base::Unretained(this),
+                 base::Bind(&base::WaitableEvent::Signal,
+                            base::Unretained(&wait_event))));
+  wait_event.Wait();
+}
+
 void Pipeline::RasterizeToRGBAPixels(
     const Submission& render_tree_submission,
     const RasterizationCompleteCallback& complete) {
@@ -178,6 +189,23 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission,
         base::Bind(&Pipeline::RasterizeCurrentTree, base::Unretained(this)),
         true);
     refresh_rate_timer_->Reset();
+  }
+}
+
+void Pipeline::ClearCurrentRenderTree(
+    const base::Closure& clear_complete_callback) {
+  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  if (last_submission_) {
+    TRACE_EVENT_FLOW_END0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
+                          last_submission_->render_tree.get());
+    last_submission_ = base::nullopt;
+  }
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::ClearCurrentRenderTree()");
+
+  refresh_rate_timer_ = base::nullopt;
+
+  if (!clear_complete_callback.is_null()) {
+    clear_complete_callback.Run();
   }
 }
 
