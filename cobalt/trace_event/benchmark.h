@@ -17,9 +17,9 @@
 #ifndef TRACE_EVENT_BENCHMARK_H_
 #define TRACE_EVENT_BENCHMARK_H_
 
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
@@ -84,6 +84,7 @@ namespace trace_event {
 // BenchmarkRegistrar.
 class Benchmark {
  public:
+  Benchmark() : num_iterations_(1) {}
   virtual ~Benchmark() {}
 
   struct Result {
@@ -112,11 +113,23 @@ class Benchmark {
   // The name of the benchmark.  This will be set when the benchmark is
   // registered with the BenchmarkRegistrar.
   const std::string& name() const { return name_; }
-
   void set_name(const std::string& name) { name_ = name; }
+
+  int num_iterations() const { return num_iterations_; }
+  const base::Closure& on_iteration_complete() const {
+    return on_iteration_complete_;
+  }
+
+  void set_num_iterations(int num_iterations,
+                          const base::Closure& on_iteration_complete) {
+    num_iterations_ = num_iterations;
+    on_iteration_complete_ = on_iteration_complete;
+  }
 
  private:
   std::string name_;
+  int num_iterations_;
+  base::Closure on_iteration_complete_;
 };
 
 typedef std::map<std::string, std::vector<Benchmark::Result> >
@@ -160,11 +173,13 @@ class BenchmarkRegistrar {
 // call that the benchmark's name is specified.
 class BenchmarkCreator {
  public:
+  typedef base::Callback<scoped_ptr<Benchmark>()> CreateBenchmarkFunction;
+
   BenchmarkCreator() {
     BenchmarkRegistrar::GetInstance()->RegisterBenchmarkCreator(this);
   }
 
-  virtual ScopedVector<Benchmark> CreateBenchmarks() = 0;
+  virtual std::vector<CreateBenchmarkFunction> GetBenchmarkCreators() = 0;
 };
 
 // Measurement types allow one to specify to the SIMPLE_BENCHMARK interface
@@ -193,12 +208,22 @@ enum MeasurementType {
 #define TRACE_EVENT_REGISTER_BENCHMARK(benchmark)                              \
   class benchmark##Registerer : public cobalt::trace_event::BenchmarkCreator { \
    public:                                                                     \
-    ScopedVector<cobalt::trace_event::Benchmark> CreateBenchmarks() OVERRIDE { \
-      cobalt::trace_event::Benchmark* single_benchmark = new benchmark();      \
+    typedef std::vector<                                                       \
+        cobalt::trace_event::BenchmarkCreator::CreateBenchmarkFunction>        \
+        BenchmarkCreatorList;                                                  \
+    BenchmarkCreatorList GetBenchmarkCreators() OVERRIDE {                     \
+      BenchmarkCreatorList benchmark_list_of_one;                              \
+      benchmark_list_of_one.push_back(base::Bind(&CreateAndSetupBenchmark));   \
+      return benchmark_list_of_one;                                            \
+    }                                                                          \
+                                                                               \
+   private:                                                                    \
+    static scoped_ptr<cobalt::trace_event::Benchmark>                          \
+    CreateAndSetupBenchmark() {                                                \
+      scoped_ptr<cobalt::trace_event::Benchmark> single_benchmark(             \
+          new benchmark());                                                    \
       single_benchmark->set_name(#benchmark);                                  \
-      ScopedVector<cobalt::trace_event::Benchmark> benchmark_list_of_one;      \
-      benchmark_list_of_one.push_back(single_benchmark);                       \
-      return benchmark_list_of_one.Pass();                                     \
+      return single_benchmark.Pass();                                          \
     }                                                                          \
   };                                                                           \
   benchmark##Registerer g_##benchmark##benchmark_registerer;
