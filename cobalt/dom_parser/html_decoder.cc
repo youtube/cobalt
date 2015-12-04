@@ -16,6 +16,8 @@
 
 #include "cobalt/dom_parser/html_decoder.h"
 
+#include "cobalt/csp/content_security_policy.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom_parser/libxml_html_parser_wrapper.h"
 #include "cobalt/loader/net_fetcher.h"
 
@@ -49,6 +51,9 @@ void HTMLDecoder::OnResponseStarted(
   if (url_fetcher->GetURL() != url_fetcher->GetOriginalURL()) {
     document_->NotifyUrlChanged(url_fetcher->GetURL());
   }
+
+  csp::ResponseHeaders csp_headers(headers);
+  document_->csp_delegate()->csp()->OnReceiveHeaders(csp_headers);
 }
 
 void HTMLDecoder::DecodeChunk(const char* data, size_t size) {
