@@ -22,6 +22,7 @@
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/webdriver/keyboard.h"
+#include "cobalt/webdriver/search.h"
 #include "cobalt/webdriver/util/call_on_message_loop.h"
 
 namespace cobalt {
@@ -113,10 +114,11 @@ bool IsDisplayed(dom::Element* element) {
 
 ElementDriver::ElementDriver(
     const protocol::ElementId& element_id,
-    const base::WeakPtr<dom::Element>& element,
+    const base::WeakPtr<dom::Element>& element, ElementMapping* element_mapping,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : element_id_(element_id),
       element_(element),
+      element_mapping_(element_mapping),
       element_message_loop_(message_loop) {}
 
 util::CommandResult<std::string> ElementDriver::GetTagName() {
@@ -158,6 +160,22 @@ util::CommandResult<void> ElementDriver::SendKeys(const protocol::Keys& keys) {
                  base::Passed(&events)));
 }
 
+util::CommandResult<protocol::ElementId> ElementDriver::FindElement(
+    const protocol::SearchStrategy& strategy) {
+  return util::CallOnMessageLoop(
+      element_message_loop_,
+      base::Bind(&ElementDriver::FindElementsInternal<protocol::ElementId>,
+                 base::Unretained(this), strategy));
+}
+
+util::CommandResult<std::vector<protocol::ElementId> >
+ElementDriver::FindElements(const protocol::SearchStrategy& strategy) {
+  return util::CallOnMessageLoop(
+      element_message_loop_,
+      base::Bind(&ElementDriver::FindElementsInternal<ElementIdVector>,
+                 base::Unretained(this), strategy));
+}
+
 dom::Element* ElementDriver::GetWeakElement() {
   DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
   return element_.get();
@@ -184,6 +202,19 @@ util::CommandResult<void> ElementDriver::SendKeysInternal(
     element_->DispatchEvent((*events)[i]);
   }
   return CommandResult(protocol::Response::kSuccess);
+}
+
+// Shared logic between FindElement and FindElements.
+template <typename T>
+util::CommandResult<T> ElementDriver::FindElementsInternal(
+    const protocol::SearchStrategy& strategy) {
+  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  typedef util::CommandResult<T> CommandResult;
+  if (!element_) {
+    return CommandResult(protocol::Response::kStaleElementReference);
+  }
+  return Search::FindElementsUnderNode<T>(strategy, element_.get(),
+                                          element_mapping_);
 }
 
 }  // namespace webdriver
