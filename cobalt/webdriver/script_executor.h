@@ -28,6 +28,7 @@
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/webdriver/element_mapping.h"
 #include "cobalt/webdriver/protocol/element_id.h"
 
 namespace cobalt {
@@ -42,15 +43,6 @@ class ScriptExecutor :
       const std::string&, const std::string&)> ExecuteFunctionCallback;
   typedef script::ScriptObject<ExecuteFunctionCallback>
       ExecuteFunctionCallbackHolder;
-
-  class ElementMapping {
-   public:
-    virtual protocol::ElementId ElementToId(
-        const scoped_refptr<dom::Element>& element) = 0;
-    virtual scoped_refptr<dom::Element> IdToElement(
-        const protocol::ElementId& id) = 0;
-    virtual ~ElementMapping() {}
-  };
 
   explicit ScriptExecutor(ElementMapping* mapping)
       : element_mapping_(mapping) {}
