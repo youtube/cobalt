@@ -27,8 +27,10 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/keyboard_event.h"
+#include "cobalt/webdriver/element_mapping.h"
 #include "cobalt/webdriver/protocol/element_id.h"
 #include "cobalt/webdriver/protocol/keys.h"
+#include "cobalt/webdriver/protocol/search_strategy.h"
 #include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
@@ -46,6 +48,7 @@ class ElementDriver {
  public:
   ElementDriver(const protocol::ElementId& element_id,
                 const base::WeakPtr<dom::Element>& element,
+                ElementMapping* element_mapping,
                 const scoped_refptr<base::MessageLoopProxy>& message_loop);
   const protocol::ElementId& element_id() { return element_id_; }
 
@@ -53,9 +56,14 @@ class ElementDriver {
   util::CommandResult<std::string> GetText();
   util::CommandResult<bool> IsDisplayed();
   util::CommandResult<void> SendKeys(const protocol::Keys& keys);
+  util::CommandResult<protocol::ElementId> FindElement(
+      const protocol::SearchStrategy& strategy);
+  util::CommandResult<std::vector<protocol::ElementId> > FindElements(
+      const protocol::SearchStrategy& strategy);
 
  private:
   typedef std::vector<scoped_refptr<dom::KeyboardEvent> > KeyboardEventVector;
+  typedef std::vector<protocol::ElementId> ElementIdVector;
 
   // Get the dom::Element* that this ElementDriver wraps. This must be called
   // on |element_message_loop_|.
@@ -64,9 +72,16 @@ class ElementDriver {
   util::CommandResult<void> SendKeysInternal(
       scoped_ptr<KeyboardEventVector> keyboard_events);
 
-  base::ThreadChecker thread_checker_;
+  // Shared logic between FindElement and FindElements.
+  template <typename T>
+  util::CommandResult<T> FindElementsInternal(
+      const protocol::SearchStrategy& strategy);
+
   protocol::ElementId element_id_;
+
+  // These should only be accessed from |element_message_loop_|.
   base::WeakPtr<dom::Element> element_;
+  ElementMapping* element_mapping_;
   scoped_refptr<base::MessageLoopProxy> element_message_loop_;
 
   friend class WindowDriver;
