@@ -26,6 +26,7 @@
 #include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/layout/math.h"
 #include "cobalt/math/insets_f.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
@@ -344,13 +345,13 @@ class Box : public base::RefCounted<Box> {
   // of |UpdateContentSizeAndMargins| method.
   float margin_left() const { return margin_insets_.left(); }
   void set_margin_left(float margin_left) {
-    margin_insets_.set_left(margin_left);
+    margin_insets_.set_left(RoundToFixedPointPrecision(margin_left));
   }
   float margin_top() const { return margin_insets_.top(); }
   void set_margin_top(float margin_top) { margin_insets_.set_top(margin_top); }
   float margin_right() const { return margin_insets_.right(); }
   void set_margin_right(float margin_right) {
-    margin_insets_.set_right(margin_right);
+    margin_insets_.set_right(RoundToFixedPointPrecision(margin_right));
   }
   float margin_bottom() const { return margin_insets_.bottom(); }
   void set_margin_bottom(float margin_bottom) {
