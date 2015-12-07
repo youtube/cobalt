@@ -22,7 +22,7 @@
 //   4. Wake up, if signaled to do so.
 //   5. If ready to exit, go to 7.
 //   6. Add and remove SbSockets to and from the SbSocketWaiter, and go to 2.
-//   7. Else, destroy its SbSocketWaiter and exit.
+//   7. Destroy its SbSocketWaiter and exit.
 //
 // If another thread wants to queue immediate or schedule future work on the I/O
 // thread, it needs to call SbSocketWaiterWakeUp() on the SbSocketWaiter after
@@ -128,19 +128,27 @@ SB_EXPORT bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket);
 // be called on the thread that waits on this waiter.
 SB_EXPORT void SbSocketWaiterWait(SbSocketWaiter waiter);
 
-// Behaves the same as SbSocketWaiterWait, but exits on its own after at least
-// |duration| has passed, or until SbSocketWaiterWakeUp() is called, whichever
-// comes first. Note that it may wait longer than |duration|, for example if the
-// timeout expires while a callback is being fired. This should only be called
-// on the thread that waits on this waiter.
+// Behaves the same as SbSocketWaiterWait(), waking up when
+// SbSocketWaiterWakeUp(), but also exits on its own after at least |duration|
+// has passed, whichever comes first. Note that, as with SbThreadSleep(), it may
+// wait longer than |duration|. For example if the timeout expires while a
+// callback is being fired. This should only be called on the thread that waits
+// on this waiter.
 SB_EXPORT void SbSocketWaiterWaitTimed(SbSocketWaiter waiter, SbTime duration);
 
-// Wakes up |waiter|, if it is being waited on. Can be called from a
-// SbSocketWaiterCallback to wake up its own waiter. Can also be called from
-// another thread at any time. In either case, the waiter will exit the wait
-// after the next callback returns. Does nothing if |waiter| is not currently
-// waiting.
-SB_EXPORT bool SbSocketWaiterWakeUp(SbSocketWaiter waiter);
+// Wakes up |waiter| once. Can be called from a SbSocketWaiterCallback to wake
+// up its own waiter. Can also be called from another thread at any time, it's
+// the only thread-safe waiter function. In either case, the waiter will exit
+// the next wait gracefully, first completing any in-progress callback.
+//
+// For every time this function is called, it will cause the waiter to wake up
+// one time. This is true whether the waiter is currently waiting or not. If not
+// waiting, it will just take affect immediately the next time the waiter
+// waits. The number of wake-ups accumulate and are only consumed by waiting and
+// getting woken up. e.g. If you call this function 7 times, then
+// SbSocketWaiterWait() and WaitTimed() will not block the next 7 times they are
+// called.
+SB_EXPORT void SbSocketWaiterWakeUp(SbSocketWaiter waiter);
 
 #ifdef __cplusplus
 }  // extern "C"

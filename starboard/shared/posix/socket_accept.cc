@@ -55,5 +55,6 @@ SbSocket SbSocketAccept(SbSocket socket) {
   result->address_type = socket->address_type;
   result->socket_fd = socket_fd;
   result->error = kSbSocketOk;
+  result->waiter = kSbSocketWaiterInvalid;
   return result;
 }

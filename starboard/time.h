@@ -67,6 +67,9 @@ static const SbTime kSbTimeHour = kSbTimeMinute * 60;
 // One day in SbTime units (microseconds).
 static const SbTime kSbTimeDay = kSbTimeHour * 24;
 
+// The maximum value of an SbTime.
+static const SbTime kSbTimeMax = kSbInt64Max;
+
 // A term that can be added to an SbTime to convert it into the number of
 // microseconds since the POSIX epoch.
 static const SbTime kSbTimeToPosixDelta =

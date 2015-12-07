@@ -123,7 +123,7 @@ SB_C_INLINE bool SbThreadIsValidAffinity(SbThreadAffinity affinity) {
   return affinity != kSbThreadNoAffinity;
 }
 
-// Returns whether the given thread handle is valid.
+// Returns whether the given thread local variable key is valid.
 SB_C_INLINE bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
   return key != kSbThreadLocalKeyInvalid;
 }
@@ -212,6 +212,11 @@ SB_EXPORT void* SbThreadGetLocalValue(SbThreadLocalKey key);
 // local storage. Returns whether |key| is valid and has not already been
 // destroyed.
 SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value);
+
+// Returns whether |thread| is the current thread.
+SB_C_INLINE bool SbThreadIsCurrent(SbThread thread) {
+  return SbThreadGetCurrent() == thread;
+}
 
 #ifdef __cplusplus
 }  // extern "C"

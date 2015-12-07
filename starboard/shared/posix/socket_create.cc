@@ -78,5 +78,6 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
   result->address_type = address_type;
   result->socket_fd = socket_fd;
   result->error = kSbSocketOk;
+  result->waiter = kSbSocketWaiterInvalid;
   return result;
 }

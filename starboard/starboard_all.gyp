@@ -18,6 +18,8 @@
 {
   'targets': [
     {
+      # Note that this target must be in a separate GYP file from starboard.gyp,
+      # or else it produces a GYP file loop (which is not allowed by GYP).
       'target_name': 'starboard_all',
       'type': 'none',
       'dependencies': [

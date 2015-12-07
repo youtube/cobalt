@@ -98,6 +98,14 @@
   } while (0)
 #endif
 
+// Causes the annotated (at the end) function to generate a warning if the
+// result is not accessed.
+#if defined(COMPILER_GCC)
+#define SB_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+#define SB_WARN_UNUSED_RESULT
+#endif
+
 // Declares a function as overriding a virtual function on compilers that
 // support it.
 #if defined(COMPILER_MSVC)
