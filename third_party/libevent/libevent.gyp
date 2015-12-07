@@ -33,6 +33,32 @@
             'HAVE_CONFIG_H',
           ],
           'conditions': [
+            # Starboard could be any other underlying platform, so we use
+            # target_arch to tell the difference. Libevent is itself a platform
+            # abstraction library, so Starboard depends on it to implement its
+            # SbSocketWaiter API. This means the Libevent is below the Starboard
+            # platform abstraction line.
+            [ 'OS == "starboard"', {
+              'conditions': [
+                [ 'target_arch == "linux"', {
+                  'defines': [
+                    'SB_LIBEVENT_LINUX',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'SB_LIBEVENT_LINUX',
+                    ],
+                  },
+                  'sources': [ 'epoll.c', 'epoll_sub.c' ],
+                  'include_dirs': [ 'linux' ],
+                  'link_settings': {
+                    'libraries': [
+                      '-lrt',
+                    ],
+                  },
+                }],
+              ],
+            }],
             # libevent has platform-specific implementation files.  Since its
             # native build uses autoconf, platform-specific config.h files are
             # provided and live in platform-specific directories.
