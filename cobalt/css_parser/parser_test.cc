@@ -3709,6 +3709,54 @@ TEST_F(ParserTest, ParsesKeyframesRule) {
   EXPECT_EQ(0.75f, to_opacity_value->value());
 }
 
+TEST_F(ParserTest, IgnoresOtherBrowserKeyframesRules) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: invalid rule"));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:2:1: warning: invalid rule"));
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
+      "@-webkit-keyframes foo1 {"
+      "  from {"
+      "    opacity: 0.6;"
+      "  }"
+      "  to {"
+      "    opacity: 0.8;"
+      "  }"
+      "}\n"
+      "@-o-keyframes foo2 {"
+      "  from {"
+      "    opacity: 0.3;"
+      "  }"
+      "  to {"
+      "    opacity: 0.4;"
+      "  }"
+      "}\n"
+      "@keyframes foo3 {"
+      "  from {"
+      "    opacity: 0.25;"
+      "  }"
+      "  25%, 75% {"
+      "    opacity: 0.5;"
+      "  }"
+      "  to {"
+      "    opacity: 0.75;"
+      "  }"
+      "}",
+      source_location_);
+
+  ASSERT_TRUE(style_sheet);
+  EXPECT_EQ(1, style_sheet->css_rules()->length());
+
+  cssom::CSSKeyframesRule* keyframes_rule =
+      dynamic_cast<cssom::CSSKeyframesRule*>(
+          style_sheet->css_rules()->Item(0).get());
+  ASSERT_TRUE(keyframes_rule);
+  EXPECT_EQ("foo3", keyframes_rule->name());
+
+  ASSERT_EQ(3, keyframes_rule->css_rules()->length());
+}
+
 TEST_F(ParserTest, ParsesAnimationDurationWithSingleValue) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("animation-duration: 1s;",
