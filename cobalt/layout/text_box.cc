@@ -84,12 +84,11 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
 
   float non_collapsible_text_width =
       HasNonCollapsibleText()
-          ? used_font_->GetBounds(GetNonCollapsibleText()).width()
+          ? RoundToFixedPointPrecision(
+                used_font_->GetBounds(GetNonCollapsibleText()).width())
           : 0;
-  float width = RoundToFixedPointPrecision(GetLeadingWhiteSpaceWidth() +
-                                           non_collapsible_text_width +
-                                           GetTrailingWhiteSpaceWidth());
-  set_width(width);
+  set_width(GetLeadingWhiteSpaceWidth() + non_collapsible_text_width +
+            GetTrailingWhiteSpaceWidth());
 
   if (!baseline_offset_from_top_) {
     UsedLineHeightProvider used_line_height_provider(
@@ -340,12 +339,14 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
 }
 
 float TextBox::GetLeadingWhiteSpaceWidth() const {
-  return HasLeadingWhiteSpace() ? used_font_->GetSpaceWidth() : 0;
+  return HasLeadingWhiteSpace()
+             ? RoundToFixedPointPrecision(used_font_->GetSpaceWidth())
+             : 0;
 }
 
 float TextBox::GetTrailingWhiteSpaceWidth() const {
   return HasTrailingWhiteSpace() && HasNonCollapsibleText()
-             ? used_font_->GetSpaceWidth()
+             ? RoundToFixedPointPrecision(used_font_->GetSpaceWidth())
              : 0;
 }
 
