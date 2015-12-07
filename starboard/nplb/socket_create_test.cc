@@ -65,7 +65,7 @@ TEST(SbSocketCreateTest, ATonOfTcpIpv4) {
 }
 
 TEST(SbSocketCreateTest, ManyTcpIpv4AtOnce) {
-  const int kMany = 32;
+  const int kMany = 128;
   SbSocket sockets[kMany] = {0};
   for (int i = 0; i < kMany; ++i) {
     sockets[i] = SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
