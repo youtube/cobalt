@@ -110,6 +110,9 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
 
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(fetcher_.get(), source);
+  if (fetcher_.get() != source) {
+    return;
+  }
   if (error_occured_) {
     return;
   }
@@ -164,7 +167,9 @@ void FetcherBufferedDataSource::OnURLFetchDownloadData(
   }
   const uint8* data = reinterpret_cast<const uint8*>(download_data->data());
   base::AutoLock auto_lock(lock_);
-  DCHECK_EQ(fetcher_.get(), source);
+  if (fetcher_.get() != source) {
+    return;
+  }
   if (error_occured_) {
     return;
   }
@@ -227,7 +232,9 @@ void FetcherBufferedDataSource::OnURLFetchComplete(
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
-  DCHECK_EQ(fetcher_.get(), source);
+  if (fetcher_.get() != source) {
+    return;
+  }
   if (error_occured_) {
     return;
   }
