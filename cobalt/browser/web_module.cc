@@ -113,7 +113,7 @@ WebModule::WebModule(
           script_runner_.get(), &media_source_registry_, initial_url,
           network_module->user_agent(), network_module->preferred_language(),
           options.navigation_callback, error_callback,
-          network_module ? network_module->cookie_jar() : NULL)),
+          network_module->cookie_jar())),
       window_weak_(base::AsWeakPtr(window_.get())),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, &media_source_registry_,
