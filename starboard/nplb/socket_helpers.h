@@ -16,6 +16,9 @@
 #define STARBOARD_NBLP_SOCKET_HELPERS_H_
 
 #include "starboard/socket.h"
+#include "starboard/socket_waiter.h"
+#include "starboard/time.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
@@ -72,6 +75,38 @@ typedef struct ConnectedTrio {
 // on the given port. If anything fails, adds a failure and returns three
 // invalid sockets.
 ConnectedTrio CreateAndConnect(int port, SbTime timeout);
+
+// Waits on the given waiter, and returns the elapsed time.
+SbTimeMonotonic TimedWait(SbSocketWaiter waiter);
+
+// Waits on the given waiter, and returns the elapsed time.
+SbTimeMonotonic TimedWaitTimed(SbSocketWaiter waiter, SbTime timeout);
+
+// Waits on the given waiter, and checks that it blocked between [lower, upper).
+inline void WaitShouldBlockBetween(SbSocketWaiter waiter,
+                                   SbTime lower,
+                                   SbTime upper) {
+  SbTime time = TimedWait(waiter);
+  EXPECT_GT(upper, time);
+  EXPECT_LE(lower, time);
+}
+
+// Waits on the given waiter, and checks that it did not block for very long.
+inline void WaitShouldNotBlock(SbSocketWaiter waiter) {
+  WaitShouldBlockBetween(waiter, 0, kSbTimeSecond / 50);
+}
+
+// Waits on the given waiter, and checks that it did not block for the given
+// timeout.
+inline void TimedWaitShouldNotBlock(SbSocketWaiter waiter, SbTime timeout) {
+  EXPECT_GT(timeout, TimedWaitTimed(waiter, timeout));
+}
+
+// Waits on the given waiter, and checks that it did block for at least the
+// given timeout.
+inline void TimedWaitShouldBlock(SbSocketWaiter waiter, SbTime timeout) {
+  EXPECT_LE(timeout, TimedWaitTimed(waiter, timeout));
+}
 
 }  // namespace nplb
 }  // namespace starboard

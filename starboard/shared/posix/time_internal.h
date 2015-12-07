@@ -53,9 +53,15 @@ inline void ToTimespec(struct timespec* out_time, int64_t time_us) {
 
 // Converts a timeval (relative to POSIX epoch) into microseconds since the
 // Windows epoch (1601).
-inline int64_t FromTimeval(struct timeval* time) {
+inline int64_t FromTimeval(const struct timeval* time) {
   return SbTimeFromPosix(FromSeconds(static_cast<int64_t>(time->tv_sec)) +
                          time->tv_usec);
+}
+
+// Converts a number of microseconds into a timeval.
+inline void ToTimevalDuration(int64_t microseconds, struct timeval* out_time) {
+  out_time->tv_sec = microseconds / kSbTimeSecond;
+  out_time->tv_usec = microseconds % kSbTimeSecond;
 }
 
 // Converts a time_t (relative to POSIX epoch) into microseconds since the
