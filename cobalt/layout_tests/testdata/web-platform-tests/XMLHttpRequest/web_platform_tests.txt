@@ -20,8 +20,7 @@ abort-event-loadend.htm,PASS
 abort-event-order.htm,FAIL
 abort-upload-event-abort.htm,FAIL
 abort-upload-event-loadend.htm,FAIL
-# Requires document.cookie support
-anonymous-mode-unsupported.htm,FAIL
+anonymous-mode-unsupported.htm,PASS
 # Unsupported by XHR currently. b/25800310
 data-uri.htm,DISABLE
 event-abort.htm,PASS

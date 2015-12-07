@@ -27,6 +27,7 @@
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/base/clock.h"
+#include "cobalt/cookies/cookie_jar.h"
 #include "cobalt/cssom/css_keyframes_rule.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/selector_tree.h"
@@ -88,18 +89,21 @@ class Document : public Node, public cssom::MutationObserver {
             const scoped_refptr<base::Clock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
             const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet,
-            const base::optional<math::Size>& viewport_size)
+            const base::optional<math::Size>& viewport_size,
+            cookies::CookieJar* cookie_jar)
         : url(url_value),
           navigation_start_clock(navigation_start_clock_value),
           navigation_callback(navigation_callback),
           user_agent_style_sheet(user_agent_style_sheet),
-          viewport_size(viewport_size) {}
+          viewport_size(viewport_size),
+          cookie_jar(cookie_jar) {}
 
     GURL url;
     scoped_refptr<base::Clock> navigation_start_clock;
     base::Callback<void(const GURL&)> navigation_callback;
     scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet;
     base::optional<math::Size> viewport_size;
+    cookies::CookieJar* cookie_jar;
   };
 
   Document(HTMLElementContext* html_element_context,
@@ -166,6 +170,10 @@ class Document : public Node, public cssom::MutationObserver {
     return default_timeline_;
   }
 
+  // http://www.w3.org/TR/html5/dom.html#dom-document-cookie
+  void set_cookie(const std::string& cookie);
+  std::string cookie() const;
+
   // Custom, not in any spec: Node.
   //
   bool IsDocument() const OVERRIDE { return true; }
@@ -176,10 +184,11 @@ class Document : public Node, public cssom::MutationObserver {
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
   scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new Document(html_element_context_,
-                        Options(location_->url(), navigation_start_clock_,
-                                location_->navigation_callback(),
-                                user_agent_style_sheet_, viewport_size_));
+    return new Document(
+        html_element_context_,
+        Options(location_->url(), navigation_start_clock_,
+                location_->navigation_callback(), user_agent_style_sheet_,
+                viewport_size_, cookie_jar_));
   }
 
   // Custom, not in any spec.
@@ -344,7 +353,7 @@ class Document : public Node, public cssom::MutationObserver {
   ObserverList<DocumentObserver> observers_;
   // Selector Tree.
   cssom::SelectorTree selector_tree_;
-
+  cookies::CookieJar* cookie_jar_;
   // The document's latest sample from the global clock, used for updating
   // animations.
   const scoped_refptr<base::Clock> navigation_start_clock_;
