@@ -23,6 +23,7 @@
 #include "base/object_watcher_shell.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/event_dispatcher.h"
+#include "cobalt/network/cookie_jar_impl.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/url_request_context.h"
 #include "cobalt/network/url_request_context_getter.h"
@@ -84,6 +85,7 @@ class NetworkModule {
     return thread_->message_loop_proxy();
   }
   storage::StorageManager* storage_manager() const { return storage_manager_; }
+  cookies::CookieJar* cookie_jar() const { return cookie_jar_.get(); }
 
  private:
   void Initialize(base::EventDispatcher* event_dispatcher);
@@ -97,7 +99,9 @@ class NetworkModule {
   scoped_ptr<NetworkDelegate> network_delegate_;
   scoped_ptr<UserAgent> user_agent_;
   scoped_ptr<NetworkSystem> network_system_;
+  scoped_ptr<cookies::CookieJar> cookie_jar_;
   Options options_;
+
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);
 };
 
