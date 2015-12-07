@@ -225,6 +225,10 @@ class BrowserModule {
   // Handler object for h5vcc URLs.
   H5vccURLHandler h5vcc_url_handler_;
 
+  // Store the initial URL in case we need to retry it after a top-level
+  // navigation failure.
+  GURL initial_url_;
+
   // WebModule options.
   WebModule::Options web_module_options_;
 
