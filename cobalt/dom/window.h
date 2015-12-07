@@ -24,6 +24,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
+#include "cobalt/cookies/cookie_jar.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/crypto.h"
@@ -89,7 +90,8 @@ class Window : public EventTarget {
          MediaSource::Registry* media_source_registry, const GURL& url,
          const std::string& user_agent, const std::string& language,
          const base::Callback<void(const GURL&)> navigation_callback,
-         const base::Callback<void(const std::string&)>& error_callback);
+         const base::Callback<void(const std::string&)>& error_callback,
+         cookies::CookieJar* cookie_jar);
 
   // Web API: Window
   //

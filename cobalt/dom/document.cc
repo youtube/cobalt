@@ -90,6 +90,7 @@ Document::Document(HTMLElementContext* html_element_context,
   if (options.viewport_size) {
     SetViewport(*options.viewport_size);
   }
+  cookie_jar_ = options.cookie_jar;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   partial_layout_is_enabled_ = true;
@@ -253,6 +254,21 @@ scoped_refptr<NodeList> Document::QuerySelectorAll(
     const std::string& selectors) {
   return QuerySelectorAllInternal(selectors,
                                   html_element_context()->css_parser());
+}
+
+void Document::set_cookie(const std::string& cookie) {
+  if (cookie_jar_) {
+    cookie_jar_->SetCookie(url_as_gurl(), cookie);
+  }
+}
+
+std::string Document::cookie() const {
+  if (cookie_jar_) {
+    return cookie_jar_->GetCookies(url_as_gurl());
+  } else {
+    DLOG(WARNING) << "Document has no cookie jar";
+    return "";
+  }
 }
 
 void Document::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
