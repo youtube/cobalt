@@ -38,6 +38,14 @@ FileFetcher::FileFetcher(const FilePath& file_path, Handler* handler,
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
   DCHECK_GT(buffer_size_, 0);
 
+  // Ensure the request does not attempt to navigate outside the whitelisted
+  // directory.
+  if (file_path_.ReferencesParent()) {
+    handler->OnError(this, PlatformFileErrorToString(
+                               base::PLATFORM_FILE_ERROR_ACCESS_DENIED));
+    return;
+  }
+
   // Try fetching the file from each search path entry in turn.
   // Start at the beginning. On failure, we'll try the next path entry,
   // and so on until we open the file or reach the end of the search path.
