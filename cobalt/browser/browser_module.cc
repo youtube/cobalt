@@ -160,6 +160,7 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif  // defined(ENABLE_SCREENSHOT)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           h5vcc_url_handler_(this, system_window, account_manager)),
+      initial_url_(url),
       web_module_options_(options.web_module_options) {
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
@@ -338,7 +339,15 @@ void BrowserModule::OnKeyEventProduced(
 void BrowserModule::OnError(const std::string& error) {
   LOG(ERROR) << error;
   std::string url_string = "h5vcc://network-failure";
-  url_string += "?retry-url=" + web_module_->url().spec();
+
+  // Retry the current URL. If there is no web module (this can happen in
+  // certain cases), use the default URL.
+  if (web_module_) {
+    url_string += "?retry-url=" + web_module_->url().spec();
+  } else {
+    url_string += "?retry-url=" + initial_url_.spec();
+  }
+
   NavigateWithCallbackInternal(GURL(url_string), base::Closure());
 }
 
