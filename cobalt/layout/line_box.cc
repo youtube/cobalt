@@ -21,6 +21,7 @@
 
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/box.h"
+#include "cobalt/layout/math.h"
 #include "cobalt/layout/used_style.h"
 
 namespace cobalt {
@@ -190,7 +191,8 @@ bool LineBox::IsCollapsed() const {
 }
 
 float LineBox::GetAvailableWidth() const {
-  return layout_params_.containing_block_size.width() - shrink_to_fit_width_;
+  return RoundToFixedPointPrecision(
+      layout_params_.containing_block_size.width() - shrink_to_fit_width_);
 }
 
 void LineBox::UpdateSizePreservingTrailingWhiteSpace(Box* child_box) {
