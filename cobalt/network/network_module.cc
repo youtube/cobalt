@@ -29,7 +29,8 @@ namespace network {
 namespace {
 // Do-nothing callback, intended to release these resources
 // on the IO thread. Called during NetworkModule destruction.
-void OnDestroy(scoped_ptr<URLRequestContext> /* url_request_context */,
+void OnDestroy(scoped_ptr<cookies::CookieJar> /* cookie_jar*/,
+               scoped_ptr<URLRequestContext> /* url_request_context */,
                scoped_ptr<NetworkDelegate> /* network_delegate */) {}
 }  // namespace
 
@@ -57,7 +58,8 @@ NetworkModule::~NetworkModule() {
   // multiplexer.)
   url_request_context_getter_ = NULL;
   message_loop_proxy()->PostTask(
-      FROM_HERE, base::Bind(&OnDestroy, base::Passed(&url_request_context_),
+      FROM_HERE, base::Bind(&OnDestroy, base::Passed(&cookie_jar_),
+                            base::Passed(&url_request_context_),
                             base::Passed(&network_delegate_)));
   // This will run the above task, and then stop the thread.
   thread_.reset(NULL);
@@ -101,6 +103,7 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
       new NetworkDelegate(options_.cookie_policy, options_.require_https));
   url_request_context_->set_http_user_agent_settings(user_agent_.get());
   url_request_context_->set_network_delegate(network_delegate_.get());
+  cookie_jar_.reset(new CookieJarImpl(url_request_context_->cookie_store()));
   creation_event->Signal();
 }
 

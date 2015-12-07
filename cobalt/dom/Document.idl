@@ -29,6 +29,7 @@ interface Document : Node {
 
   [NewObject] Text createTextNode(DOMString data);
   [NewObject, RaisesException] Event createEvent(DOMString interfaceName);
+  attribute DOMString cookie;
 };
 
 Document implements GlobalEventHandlers;
