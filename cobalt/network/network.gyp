@@ -24,6 +24,8 @@
       'type': 'static_library',
       'sources': [
         '<(actual_target_arch)/network_system.cc',
+        'cookie_jar_impl.cc',
+        'cookie_jar_impl.h',
         'network_delegate.cc',
         'network_delegate.h',
         'network_event.h',
@@ -41,6 +43,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/cookies/cookies.gyp:cookies',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/net/net.gyp:net',
       ],

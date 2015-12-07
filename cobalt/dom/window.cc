@@ -74,7 +74,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                MediaSource::Registry* media_source_registry, const GURL& url,
                const std::string& user_agent, const std::string& language,
                const base::Callback<void(const GURL&)> navigation_callback,
-               const base::Callback<void(const std::string&)>& error_callback)
+               const base::Callback<void(const std::string&)>& error_callback,
+               cookies::CookieJar* cookie_jar)
     : width_(width),
       height_(height),
       html_element_context_(new HTMLElementContext(
@@ -87,7 +88,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           Document::Options(
               url, performance_->timing()->GetNavigationStartClock(),
               navigation_callback, ParseUserAgentStyleSheet(css_parser),
-              math::Size(width_, height_)))),
+              math::Size(width_, height_), cookie_jar))),
       document_loader_(new loader::Loader(
           base::Bind(&loader::FetcherFactory::CreateFetcher,
                      base::Unretained(fetcher_factory), url),
