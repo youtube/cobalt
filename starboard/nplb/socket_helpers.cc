@@ -15,6 +15,7 @@
 #include "starboard/nplb/socket_helpers.h"
 
 #include "starboard/socket.h"
+#include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -198,6 +199,19 @@ ConnectedTrio CreateAndConnect(int port, SbTime timeout) {
   }
 
   return {listen_socket, client_socket, server_socket};
+}
+
+SbTimeMonotonic TimedWait(SbSocketWaiter waiter) {
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  SbSocketWaiterWait(waiter);
+  return SbTimeGetMonotonicNow() - start;
+}
+
+// Waits on the given waiter, and returns the elapsed time.
+SbTimeMonotonic TimedWaitTimed(SbSocketWaiter waiter, SbTime timeout) {
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  SbSocketWaiterWaitTimed(waiter, timeout);
+  return SbTimeGetMonotonicNow() - start;
 }
 
 }  // namespace nplb

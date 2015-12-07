@@ -21,6 +21,7 @@
 
 #include "starboard/shared/internal_only.h"
 #include "starboard/socket.h"
+#include "starboard/socket_waiter.h"
 #include "starboard/types.h"
 
 struct SbSocketPrivate {
@@ -35,13 +36,16 @@ struct SbSocketPrivate {
 
   // The last error that occurred on this socket, or kSbSocketOk.
   SbSocketError error;
+
+  // The waiter this socket is registered with, or kSbSocketWaiterInvalid.
+  SbSocketWaiter waiter;
 };
 
 namespace starboard {
 namespace shared {
 namespace posix {
 
-// Translastes an errno from a socket call into an SbSocketError.
+// Translates an errno from a socket call into an SbSocketError.
 SbSocketError TranslateSocketErrno(int error);
 
 // Sets a boolean socket option, doing all appropriate checks.

@@ -16,11 +16,14 @@
 # cobalt/build/config/base.gypi
 {
   'defines': [
-    # The canonical way to detect Starboard is #if defined(STARBOARD).
+    # The canonical way to detect Starboard is #if defined(STARBOARD). This
+    # should be defined both when building Starboard itself, and when building
+    # any other source file in a Starboard-based project.
     'STARBOARD',
 
-    # There doesn't appear to be any way to do string concatenation with
-    # the / character to specify an include file, so we have to do the
+    # There doesn't appear to be any way to use the C preprocessor to do string
+    # concatenation with the / character. This prevents us from using the
+    # preprocessor to assemble an include file path, so we have to do the
     # concatenation here in GYP.
     # http://stackoverflow.com/questions/29601786/c-preprocessor-building-a-path-string
     'STARBOARD_ATOMIC_INCLUDE="starboard/<(target_arch)/atomic.h"',
