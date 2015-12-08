@@ -478,8 +478,10 @@
                        background_position_property_value
                        background_repeat_element
                        background_repeat_property_value
+                       background_repeat_property_value_without_common_values
                        background_size_property_list_element
                        background_size_property_value
+                       background_size_property_value_without_common_values
                        border_color_property_value
                        border_radius_property_value
                        border_style_property_value
@@ -531,6 +533,7 @@
                        transition_timing_function_property_value
                        unicode_range_property_value
                        url
+                       validated_background_position_property
                        vertical_align_property_value
                        visibility_property_value
                        white_space_property_value
@@ -689,7 +692,6 @@
                       comma_separated_font_face_src_list
                       comma_separated_font_family_name_list
                       comma_separated_unicode_range_list
-                      validated_background_position_property
 %destructor { delete $$; } <property_list>
 
 %union { cssom::TransformFunction* transform_function; }
@@ -2347,13 +2349,14 @@ maybe_background_size_property_value:
     /* empty */ {
     $$ = NULL;
   }
-  | '/' maybe_whitespace background_size_property_value {
+  | '/' maybe_whitespace background_size_property_value_without_common_values {
     $$ = $3;
   }
   ;
 
 background_position_and_size_shorthand_property_value:
-    background_position_property_value maybe_background_size_property_value {
+    validated_background_position_property
+    maybe_background_size_property_value {
     scoped_ptr<BackgroundShorthandLayer> shorthand_layer(
         new BackgroundShorthandLayer());
 
@@ -2367,7 +2370,7 @@ background_position_and_size_shorthand_property_value:
   ;
 
 background_repeat_shorthand_property_value:
-    background_repeat_property_value {
+    background_repeat_property_value_without_common_values {
     scoped_ptr<BackgroundShorthandLayer> shorthand_layer(
         new BackgroundShorthandLayer());
     shorthand_layer->background_repeat = MakeScopedRefPtrAndRelease($1);
@@ -2635,26 +2638,32 @@ background_position_property_list:
 validated_background_position_property:
     background_position_property_list {
     scoped_ptr<BackgroundPositionInfo> position_info($1);
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value;
+
     if (!position_info) {
-      $$ = NULL;
+      // No-ops.
     } else if (position_info->background_position_builder()->size() == 1) {
       // If only one value is specified, the second value is assumed to be
       // 'center'.
       position_info->PushBackElement(cssom::KeywordValue::GetCenter().get());
-      $$ = new cssom::PropertyListValue::Builder(
-          *position_info->background_position_builder());
+      property_value.reset(new cssom::PropertyListValue::Builder(
+          *position_info->background_position_builder()));
     } else if (position_info->background_position_builder()->size() == 2 &&
                !position_info->IsBackgroundPositionValidOnSizeTwo()) {
       parser_impl->LogWarning(@1, "invalid background position value");
-      $$ = NULL;
+      // No-ops.
     } else {
       DCHECK_GE(position_info->background_position_builder()->size(),
                 static_cast<size_t>(2));
       DCHECK_LE(position_info->background_position_builder()->size(),
                 static_cast<size_t>(4));
-      $$ = new cssom::PropertyListValue::Builder(
-          *position_info->background_position_builder());
+      property_value.reset(new cssom::PropertyListValue::Builder(
+          *position_info->background_position_builder()));
     }
+
+    $$ = property_value
+         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         : NULL;
   }
   ;
 
@@ -2663,12 +2672,8 @@ validated_background_position_property:
 // positioning area.
 //   http://www.w3.org/TR/css3-background/#the-background-position
 background_position_property_value:
-    validated_background_position_property {
-    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
-    $$ = property_value
-         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
-         : NULL;
-  }
+    validated_background_position_property
+  | common_values
   ;
 
 // Specifies how background images are tiled after they have been sized and
@@ -2683,7 +2688,7 @@ background_repeat_element:
   }
   ;
 
-background_repeat_property_value:
+background_repeat_property_value_without_common_values:
     background_repeat_element {
     scoped_ptr<cssom::PropertyListValue::Builder> builder(
         new cssom::PropertyListValue::Builder());
@@ -2718,6 +2723,11 @@ background_repeat_property_value:
   }
   ;
 
+background_repeat_property_value:
+    background_repeat_property_value_without_common_values
+  | common_values
+  ;
+
 background_size_property_list_element:
     length { $$ = $1; }
   | positive_percentage { $$ = $1; }
@@ -2743,7 +2753,7 @@ background_size_property_list:
 
 // Specifies the size of the background images.
 //   http://www.w3.org/TR/css3-background/#the-background-size
-background_size_property_value:
+background_size_property_value_without_common_values:
     background_size_property_list {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
     $$ = property_value
@@ -2756,6 +2766,11 @@ background_size_property_value:
   | kCoverToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetCover().get());
   }
+  ;
+
+background_size_property_value:
+    background_size_property_value_without_common_values
+  | common_values
   ;
 
 // 'border-color' sets the foreground color of the border specified by the
