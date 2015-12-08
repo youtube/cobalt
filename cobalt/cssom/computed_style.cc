@@ -2008,6 +2008,7 @@ void PromoteToComputedStyle(
       case kVerticalAlignProperty:
       case kVisibilityProperty:
       case kWhiteSpaceProperty:
+      case kWordWrapProperty:
       case kZIndexProperty:
         // Nothing.
         break;
@@ -2016,12 +2017,12 @@ void PromoteToComputedStyle(
       case kAnimationProperty:
       case kBackgroundProperty:
       case kBorderProperty:
+      case kFontProperty:
       case kMarginProperty:
       case kPaddingProperty:
       case kSrcProperty:
       case kTransitionProperty:
       case kUnicodeRangeProperty:
-      case kWordWrapProperty:
       default:
         NOTREACHED();
         break;

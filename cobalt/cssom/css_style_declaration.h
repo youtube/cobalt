@@ -115,6 +115,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string display() const;
   void set_display(const std::string& display);
 
+  std::string font() const;
+  void set_font(const std::string& font);
+
   std::string font_family() const;
   void set_font_family(const std::string& font_family);
 
