@@ -36,7 +36,7 @@ class ExecutionStateImpl : public ExecutionState {
 };
 
 std::string ExecutionStateImpl::GetStackTrace() const {
-  return global_object_proxy_->GetStackTrace();
+  return StackTraceToString(global_object_proxy_->GetStackTrace());
 }
 
 }  // namespace
