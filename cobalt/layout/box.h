@@ -157,11 +157,13 @@ class Box : public base::RefCounted<Box> {
   //               (for in-flow boxes), or a nearest positioned ancestor's
   //               padding edge (for out-of-flow boxes).
   void set_left(float left) {
-    margin_box_offset_from_containing_block_.set_x(left);
+    margin_box_offset_from_containing_block_.set_x(
+        RoundToFixedPointPrecision(left));
   }
   float left() const { return margin_box_offset_from_containing_block_.x(); }
   void set_top(float top) {
-    margin_box_offset_from_containing_block_.set_y(top);
+    margin_box_offset_from_containing_block_.set_y(
+        RoundToFixedPointPrecision(top));
   }
   float top() const { return margin_box_offset_from_containing_block_.y(); }
 
@@ -348,14 +350,16 @@ class Box : public base::RefCounted<Box> {
     margin_insets_.set_left(RoundToFixedPointPrecision(margin_left));
   }
   float margin_top() const { return margin_insets_.top(); }
-  void set_margin_top(float margin_top) { margin_insets_.set_top(margin_top); }
+  void set_margin_top(float margin_top) {
+    margin_insets_.set_top(RoundToFixedPointPrecision(margin_top));
+  }
   float margin_right() const { return margin_insets_.right(); }
   void set_margin_right(float margin_right) {
     margin_insets_.set_right(RoundToFixedPointPrecision(margin_right));
   }
   float margin_bottom() const { return margin_insets_.bottom(); }
   void set_margin_bottom(float margin_bottom) {
-    margin_insets_.set_bottom(margin_bottom);
+    margin_insets_.set_bottom(RoundToFixedPointPrecision(margin_bottom));
   }
 
   // Border box read-only accessors.
@@ -374,8 +378,12 @@ class Box : public base::RefCounted<Box> {
   //
   // Used values of "width" and "height" properties are set by overriders
   // of |UpdateContentSizeAndMargins| method.
-  void set_width(float width) { content_size_.set_width(width); }
-  void set_height(float height) { content_size_.set_height(height); }
+  void set_width(float width) {
+    content_size_.set_width(RoundToFixedPointPrecision(width));
+  }
+  void set_height(float height) {
+    content_size_.set_height(RoundToFixedPointPrecision(height));
+  }
 
   // Used to determine whether this box justifies the existence of a line,
   // as per:
