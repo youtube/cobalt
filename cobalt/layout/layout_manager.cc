@@ -113,18 +113,22 @@ LayoutManager::Impl::Impl(
     window_->test_runner()->set_trigger_layout_callback(
         base::Bind(&LayoutManager::Impl::DoTestRunnerLayoutCallback,
                    base::Unretained(this)));
-  } else {
-#else
-  {
-#endif  // ENABLE_TEST_RUNNER
   }
+#endif  // ENABLE_TEST_RUNNER
 }
 
 LayoutManager::Impl::~Impl() { window_->document()->RemoveObserver(this); }
 
 void LayoutManager::Impl::OnLoad() {
-  // Start the layout timer.
-  StartLayoutTimer();
+#if defined(ENABLE_TEST_RUNNER)
+  if (layout_trigger_ != kTestRunnerMode) {
+#else
+  {
+#endif
+    // Start the layout timer.  If the TestRunner is active, then we do not
+    // start a timer as the TestRunner will drive the triggering of layouts.
+    StartLayoutTimer();
+  }
 
 #if defined(ENABLE_TEST_RUNNER)
   if (layout_trigger_ == kTestRunnerMode &&
