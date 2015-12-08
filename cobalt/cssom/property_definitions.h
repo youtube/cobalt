@@ -114,6 +114,7 @@ enum PropertyKey {
   kAnimationProperty = kFirstShorthandPropertyKey,
   kBackgroundProperty,
   kBorderProperty,
+  kFontProperty,
   kMarginProperty,
   kPaddingProperty,
   kTransitionProperty,

@@ -455,6 +455,15 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBorderProperty, "border",
                                  border_longhand_properties);
 
+  //   http://www.w3.org/TR/css3-fonts/#font-prop
+  LonghandPropertySet font_longhand_properties;
+  font_longhand_properties.insert(kFontStyleProperty);
+  font_longhand_properties.insert(kFontWeightProperty);
+  font_longhand_properties.insert(kFontSizeProperty);
+  font_longhand_properties.insert(kFontFamilyProperty);
+  SetShorthandPropertyDefinition(kFontProperty, "font",
+                                 font_longhand_properties);
+
   //   http://www.w3.org/TR/CSS21/box.html#propdef-margin
   LonghandPropertySet margin_longhand_properties;
   margin_longhand_properties.insert(kMarginBottomProperty);
@@ -561,6 +570,9 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       return kNoneProperty;
 
     case 4:
+      if (LowerCaseEqualsASCII(property_name, GetPropertyName(kFontProperty))) {
+        return kFontProperty;
+      }
       if (LowerCaseEqualsASCII(property_name, GetPropertyName(kLeftProperty))) {
         return kLeftProperty;
       }
