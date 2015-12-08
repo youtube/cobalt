@@ -16,7 +16,7 @@
 
 #include "cobalt/script/javascriptcore/util/exception_helpers.h"
 
-#include <sstream>
+#include <algorithm>
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
@@ -64,29 +64,32 @@ std::string GetExceptionString(JSC::ExecState* exec_state,
   return exception_string;
 }
 
-std::string GetStackTrace(JSC::ExecState* exec) {
-  std::stringstream backtrace_stream;
-
+std::vector<StackFrame> GetStackTrace(JSC::ExecState* exec, int max_frames) {
+  std::vector<StackFrame> stack_frames;
   JSC::JSLockHolder lock(exec);
 
   WTF::Vector<JSC::StackFrame> stack_trace;
   exec->interpreter()->getStackTrace(&exec->globalData(), stack_trace);
-
-  for (uint32 i = 0; i < stack_trace.size(); ++i) {
+  if (max_frames == 0) {
+    max_frames = static_cast<int>(stack_trace.size());
+  } else {
+    max_frames = std::min(max_frames, static_cast<int>(stack_trace.size()));
+  }
+  for (int i = 0; i < max_frames; ++i) {
     WTF::String function_name = stack_trace[i].friendlyFunctionName(exec);
     WTF::String source_url = stack_trace[i].friendlySourceURL();
     uint32 line_number = stack_trace[i].friendlyLineNumber();
-    if (i > 0) {
-      backtrace_stream << std::endl;
-    }
-    backtrace_stream << function_name.utf8().data();
-    if (!source_url.isEmpty()) {
-      backtrace_stream << " @ " << source_url.utf8().data() << ':'
-                       << line_number;
-    }
-  }
 
-  return backtrace_stream.str();
+    StackFrame sf;
+    sf.function_name = function_name.utf8().data();
+    if (!source_url.isEmpty()) {
+      sf.source_url = source_url.utf8().data();
+    }
+    sf.line_number = line_number;
+    sf.column_number = 0;
+    stack_frames.push_back(sf);
+  }
+  return stack_frames;
 }
 
 }  // namespace util
