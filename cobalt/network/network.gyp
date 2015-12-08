@@ -26,6 +26,8 @@
         '<(actual_target_arch)/network_system.cc',
         'cookie_jar_impl.cc',
         'cookie_jar_impl.h',
+        'net_poster.cc',
+        'net_poster.h',
         'network_delegate.cc',
         'network_delegate.h',
         'network_event.h',
