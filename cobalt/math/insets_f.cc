@@ -20,7 +20,12 @@ InsetsF::~InsetsF() {}
 
 std::string InsetsF::ToString() const {
   // Print members in the same order of the constructor parameters.
-  return base::StringPrintf("%f,%f,%f,%f", left(), top(), right(), bottom());
+  if (left() == top() && left() == right() && left() == bottom()) {
+    return base::StringPrintf("%.7g", left());
+  } else {
+    return base::StringPrintf("%.7g,%.7g,%.7g,%.7g", left(), top(), right(),
+                              bottom());
+  }
 }
 
 }  // namespace math
