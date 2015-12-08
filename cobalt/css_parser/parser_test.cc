@@ -2871,6 +2871,16 @@ TEST_F(ParserTest, ParsesLineHeightInEm) {
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, line_height->unit());
 }
 
+TEST_F(ParserTest, ParsesLineHeightPercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("line-height: 220%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> line_height =
+      dynamic_cast<cssom::PercentageValue*>(style->line_height().get());
+  ASSERT_TRUE(line_height);
+  EXPECT_FLOAT_EQ(2.2f, line_height->value());
+}
+
 TEST_F(ParserTest, ParsesMarginWith1Value) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("margin: auto;", source_location_);

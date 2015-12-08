@@ -3326,7 +3326,7 @@ line_height_property_value:
     kNormalToken maybe_whitespace  {
     $$ = AddRef(cssom::KeywordValue::GetNormal().get());
   }
-  | positive_length {  $$ = $1; }
+  | positive_length_percent_property_value {  $$ = $1; }
   | common_values
   ;
 

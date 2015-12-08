@@ -731,5 +731,27 @@ TEST(PromoteToComputedStyle, MinWidthPercentageInNegativeWidthBlockIsZero) {
   EXPECT_EQ(cssom::kPixelsUnit, computed_min_width->unit());
 }
 
+TEST(PromoteToComputedStyle, LineHeightPercentageIsRelativeToFontSize) {
+  // The computed value of the property is this percentage multiplied by the
+  // element's computed font size. Negative values are illegal.
+  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+  computed_style->set_font_size(
+      new cssom::LengthValue(100, cssom::kPixelsUnit));
+  computed_style->set_line_height(new PercentageValue(0.75f));
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  cssom::LengthValue* computed_line_height =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          computed_style->line_height().get());
+  EXPECT_EQ(75, computed_line_height->value());
+  EXPECT_EQ(cssom::kPixelsUnit, computed_line_height->unit());
+}
+
 }  // namespace cssom
 }  // namespace cobalt
