@@ -36,6 +36,7 @@ class ScriptRunner {
 
   virtual std::string Execute(const std::string& script_utf8,
                               const base::SourceLocation& script_location) = 0;
+  virtual GlobalObjectProxy* GetGlobalObjectProxy() const { return NULL; }
   virtual ~ScriptRunner() {}
 };
 
