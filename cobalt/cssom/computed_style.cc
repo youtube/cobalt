@@ -1431,7 +1431,10 @@ void ComputedBackgroundPositionProvider::
     scoped_refptr<PropertyValue> current_value =
         property_list_value->value()[i];
 
-    if (current_value->GetTypeId() == base::GetTypeId<KeywordValue>()) {
+    if (current_value->GetTypeId() == base::GetTypeId<CalcValue>()) {
+      // Inherited value could be a CalcValue type and it is already resolved.
+      (*position_builder)[i] = current_value;
+    } else if (current_value->GetTypeId() == base::GetTypeId<KeywordValue>()) {
       FillPositionBuilderFromOriginAndOffset(current_value, NULL,
                                              position_builder);
     } else {
