@@ -187,6 +187,7 @@ class ComputedLineHeightProvider : public NotReachedPropertyValueVisitor {
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLength(LengthValue* length) OVERRIDE;
+  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
 
   const scoped_refptr<PropertyValue>& computed_line_height() const {
     return computed_line_height_;
@@ -207,6 +208,14 @@ ComputedLineHeightProvider::ComputedLineHeightProvider(
 void ComputedLineHeightProvider::VisitLength(LengthValue* specified_length) {
   computed_line_height_ =
       ProvideAbsoluteLength(specified_length, computed_font_size_);
+}
+
+void ComputedLineHeightProvider::VisitPercentage(PercentageValue* percentage) {
+  // The computed value of the property is this percentage multiplied by the
+  // element's computed font size. Negative values are illegal.
+  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  computed_line_height_ = new LengthValue(
+      computed_font_size_->value() * percentage->value(), kPixelsUnit);
 }
 
 void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
