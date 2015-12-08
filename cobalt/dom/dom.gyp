@@ -195,6 +195,8 @@
         'screen.h',
         'script_event_listener.cc',
         'script_event_listener.h',
+        'security_policy_violation_event.cc',
+        'security_policy_violation_event.h',
         'serializer.cc',
         'serializer.h',
         'source_buffer.cc',
@@ -234,12 +236,13 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/cookies/cookies.gyp:cookies',
         '<(DEPTH)/cobalt/csp/csp.gyp:csp',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/cobalt/debug/debug.gyp:debug',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/media/media.gyp:media',
+        # Interface layer to avoid directly depending on network.
+        '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:web_animations',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',

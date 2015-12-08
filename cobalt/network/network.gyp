@@ -45,7 +45,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/cookies/cookies.gyp:cookies',
+        '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/net/net.gyp:net',
       ],

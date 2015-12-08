@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "cobalt/network/network_module.h"
 #include "net/base/net_errors.h"
 
 namespace cobalt {
