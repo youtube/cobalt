@@ -1807,18 +1807,6 @@ void PromoteToComputedStyle(
     specified_style->set_font_size(font_size);
   }
 
-  // The background_position property is always computed, even when the value
-  // is not declared because the initial value of '0% 0%' is not a computed
-  // property value.
-  ComputedBackgroundPositionProvider background_position_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->background_position()->Accept(&background_position_provider);
-  const scoped_refptr<PropertyValue>& computed_background_position =
-      background_position_provider.computed_background_position();
-  if (computed_background_position) {
-    specified_style->set_background_position(computed_background_position);
-  }
-
   // The border color is always computed, even when the value is not declared
   // because the inital value of 'currentColor' is not a computed property
   // value.
@@ -1832,6 +1820,20 @@ void PromoteToComputedStyle(
            specified_style->BeginPropertyValueIterator();
        !property_value_iterator.Done(); property_value_iterator.Next()) {
     switch (property_value_iterator.Key()) {
+      case kBackgroundPositionProperty: {
+        ComputedBackgroundPositionProvider background_position_provider(
+            font_size_provider.computed_font_size().get());
+        specified_style->background_position()->Accept(
+            &background_position_provider);
+        const scoped_refptr<PropertyValue>& computed_background_position =
+            background_position_provider.computed_background_position();
+        if (computed_background_position) {
+          specified_style->set_background_position(
+              computed_background_position);
+        }
+
+        break;
+      }
       case kBorderWidthProperty: {
         ComputedBorderWidthProvider border_width_provider(
             font_size_provider.computed_font_size().get(),
@@ -1981,7 +1983,6 @@ void PromoteToComputedStyle(
       case kAnimationNameProperty:
       case kAnimationTimingFunctionProperty:
       case kBackgroundColorProperty:
-      case kBackgroundPositionProperty:
       case kBackgroundRepeatProperty:
       case kBorderColorProperty:
       case kBorderRadiusProperty:

@@ -18,6 +18,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/string_util.h"
+#include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/integer_value.h"
@@ -168,8 +169,10 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   scoped_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->reserve(2);
-  background_position_builder->push_back(new PercentageValue(0.0f));
-  background_position_builder->push_back(new PercentageValue(0.0f));
+  background_position_builder->push_back(
+      new CalcValue(new PercentageValue(0.0f)));
+  background_position_builder->push_back(
+      new CalcValue(new PercentageValue(0.0f)));
   scoped_refptr<PropertyListValue> background_position_list(
       new PropertyListValue(background_position_builder.Pass()));
   SetPropertyDefinition(kBackgroundPositionProperty, "background-position",
