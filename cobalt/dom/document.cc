@@ -63,6 +63,7 @@ Document::Document(HTMLElementContext* html_element_context,
       html_element_context_(html_element_context),
       implementation_(new DOMImplementation()),
       location_(new Location(options.url, options.navigation_callback)),
+      net_poster_factory_(options.net_poster_factory),
       ALLOW_THIS_IN_INITIALIZER_LIST(csp_delegate_(new CSPDelegate(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           style_sheets_(new cssom::StyleSheetList(this))),
@@ -91,6 +92,7 @@ Document::Document(HTMLElementContext* html_element_context,
     SetViewport(*options.viewport_size);
   }
   cookie_jar_ = options.cookie_jar;
+  net_poster_factory_ = options.net_poster_factory;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   partial_layout_is_enabled_ = true;
