@@ -3257,10 +3257,10 @@ font_property_value:
     // Font shorthand properties without a non-normal weight value.
     scoped_ptr<FontShorthand> font($1);
 
-    font->font_size = $2;
+    font->font_size = MakeScopedRefPtrAndRelease($2);
 
     scoped_ptr<cssom::PropertyListValue::Builder> builder($3);
-    font->font_family = AddRef(new cssom::PropertyListValue(builder.Pass()));
+    font->font_family = new cssom::PropertyListValue(builder.Pass());
 
     $$ = font.release();
   }
@@ -3274,16 +3274,16 @@ font_property_value:
     scoped_ptr<FontShorthand> font($1);
 
     if (!font->font_weight) {
-      font->font_weight = $2;
+      font->font_weight = MakeScopedRefPtrAndRelease($2);
     } else {
       parser_impl->LogWarning(
           @1, "font-weight value declared twice in font.");
     }
 
-    font->font_size = $3;
+    font->font_size = MakeScopedRefPtrAndRelease($3);
 
     scoped_ptr<cssom::PropertyListValue::Builder> builder($4);
-    font->font_family = AddRef(new cssom::PropertyListValue(builder.Pass()));
+    font->font_family = new cssom::PropertyListValue(builder.Pass());
 
     $$ = font.release();
   }
@@ -3295,6 +3295,7 @@ font_property_value:
     font->font_weight = $1;
     font->font_size = $1;
     font->font_family = $1;
+    $1->Release();
 
     $$ = font.release();
   }
@@ -4729,28 +4730,30 @@ maybe_declaration:
     scoped_ptr<FontShorthand> font($4);
     DCHECK(font);
 
-    font->ReplaceNullWithInitialValues();
-
     scoped_ptr<PropertyDeclaration> property_declaration(
         new PropertyDeclaration($5));
 
-    // Unpack the font shorthand property values.
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kFontStyleProperty,
-            font->font_style));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kFontWeightProperty,
-            font->font_weight));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kFontSizeProperty,
-            font->font_size));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kFontFamilyProperty,
-            font->font_family));
+    if (!font->error) {
+      font->ReplaceNullWithInitialValues();
+
+      // Unpack the font shorthand property values.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kFontStyleProperty,
+              font->font_style));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kFontWeightProperty,
+              font->font_weight));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kFontSizeProperty,
+              font->font_size));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kFontFamilyProperty,
+              font->font_family));
+    }
 
     $$ = property_declaration.release();
   }
