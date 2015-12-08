@@ -1349,6 +1349,22 @@ TEST_F(ParserTest, ParsesBackgroundColorWithKeywordYellow) {
   EXPECT_EQ(0xFFFF00FF, background_color->value());
 }
 
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordInitial) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->background_color());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorWithKeywordInherit) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: inherit;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_color());
+}
+
 TEST_F(ParserTest, ParsesBackgroundImageNone) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("background-image: none;",
@@ -1360,6 +1376,14 @@ TEST_F(ParserTest, ParsesBackgroundImageNone) {
   EXPECT_EQ(1, background_image_list->value().size());
 
   EXPECT_EQ(cssom::KeywordValue::GetNone(), background_image_list->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageInitial) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-image: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->background_image());
 }
 
 TEST_F(ParserTest, ParsesBackgroundImageInherit) {
@@ -1874,6 +1898,22 @@ TEST_F(ParserTest, ParsesBackgroundPositionLengthAndPercentage) {
   EXPECT_FLOAT_EQ(0.7f, percentage_value_right->value());
 }
 
+TEST_F(ParserTest, ParsesBackgroundPositionWithKeywordInitial) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-position: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->background_position());
+}
+
+TEST_F(ParserTest, ParsesBackgroundPositionWithKeywordInherit) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-position: inherit;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_position());
+}
+
 TEST_F(ParserTest, ParsesBackgroundRepeatNoRepeat) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("background-repeat: no-repeat;",
@@ -1957,6 +1997,22 @@ TEST_F(ParserTest, ParsesBackgroundRepeatRepeatY) {
 
   EXPECT_EQ(cssom::KeywordValue::GetRepeat(),
             background_repeat_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundRepeatWithKeywordInitial) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-repeat: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->background_repeat());
+}
+
+TEST_F(ParserTest, ParsesBackgroundRepeatWithKeywordInherit) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-repeat: inherit;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_repeat());
 }
 
 TEST_F(ParserTest, ParsesBackgroundSizeContain) {
@@ -2075,6 +2131,22 @@ TEST_F(ParserTest, ParsesBackgroundSizeOnePercentageOneAuto) {
 
   EXPECT_EQ(cssom::KeywordValue::GetAuto(),
             background_size_list->value()[1].get());
+}
+
+TEST_F(ParserTest, ParsesBackgroundSizeWithKeywordInitial) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-size: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->background_size());
+}
+
+TEST_F(ParserTest, ParsesBackgroundSizeWithKeywordInherit) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-size: inherit;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_size());
 }
 
 TEST_F(ParserTest, ParsesBorderWidthColorStyle) {
