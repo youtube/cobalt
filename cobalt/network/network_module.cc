@@ -16,6 +16,7 @@
 
 #include "cobalt/network/network_module.h"
 
+#include "base/bind.h"
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
@@ -29,7 +30,7 @@ namespace network {
 namespace {
 // Do-nothing callback, intended to release these resources
 // on the IO thread. Called during NetworkModule destruction.
-void OnDestroy(scoped_ptr<cookies::CookieJar> /* cookie_jar*/,
+void OnDestroy(scoped_ptr<network_bridge::CookieJar> /* cookie_jar*/,
                scoped_ptr<URLRequestContext> /* url_request_context */,
                scoped_ptr<NetworkDelegate> /* network_delegate */) {}
 }  // namespace
@@ -65,6 +66,10 @@ NetworkModule::~NetworkModule() {
   thread_.reset(NULL);
   object_watch_multiplexer_.reset(NULL);
   network_system_.reset(NULL);
+}
+
+network_bridge::NetPosterFactory NetworkModule::net_poster_factory() {
+  return base::Bind(&NetworkModule::CreateNetPoster, base::Unretained(this));
 }
 
 void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
@@ -105,6 +110,11 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   url_request_context_->set_network_delegate(network_delegate_.get());
   cookie_jar_.reset(new CookieJarImpl(url_request_context_->cookie_store()));
   creation_event->Signal();
+}
+
+scoped_ptr<network_bridge::NetPoster> NetworkModule::CreateNetPoster() {
+  scoped_ptr<network_bridge::NetPoster> ret(new NetPoster(this));
+  return ret.Pass();
 }
 
 }  // namespace network

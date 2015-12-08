@@ -24,7 +24,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
-#include "cobalt/cookies/cookie_jar.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/crypto.h"
@@ -32,6 +31,8 @@
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/parser.h"
+#include "cobalt/network_bridge/cookie_jar.h"
+#include "cobalt/network_bridge/net_poster.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
@@ -91,7 +92,8 @@ class Window : public EventTarget {
          const std::string& user_agent, const std::string& language,
          const base::Callback<void(const GURL&)> navigation_callback,
          const base::Callback<void(const std::string&)>& error_callback,
-         cookies::CookieJar* cookie_jar);
+         network_bridge::CookieJar* cookie_jar,
+         const network_bridge::NetPosterFactory& net_poster_factory);
 
   // Web API: Window
   //

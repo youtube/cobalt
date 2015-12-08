@@ -14,47 +14,38 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_NET_POSTER_H_
-#define NETWORK_NET_POSTER_H_
+#ifndef NETWORK_BRIDGE_NET_POSTER_H_
+#define NETWORK_BRIDGE_NET_POSTER_H_
 
 #include <string>
 
-#include "base/memory/scoped_vector.h"
-#include "base/threading/thread_checker.h"
-#include "cobalt/network_bridge/net_poster.h"
+#include "base/callback.h"
+#include "base/memory/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
-#include "net/url_request/url_fetcher.h"
-#include "net/url_request/url_fetcher_delegate.h"
 
 namespace cobalt {
-namespace network {
-class NetworkModule;
+namespace network_bridge {
 
 // Simple class to manage some fire-and-forget POST requests.
-class NetPoster : public network_bridge::NetPoster, net::URLFetcherDelegate {
+class NetPoster {
  public:
-  explicit NetPoster(NetworkModule* network_module);
-  ~NetPoster();
+  NetPoster();
+  virtual ~NetPoster();
 
   // POST the given data to the URL. No notification will be given if this
   // succeeds or fails.
   // content_type should reflect the mime type of data, e.g. "application/json".
   // data is the data to upload. May be empty.
-  void Send(const GURL& url, const std::string& content_type,
-            const std::string& data) OVERRIDE;
+  virtual void Send(const GURL& url, const std::string& content_type,
+                    const std::string& data) = 0;
 
  private:
-  // From net::URLFetcherDelegate
-  void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
-
-  NetworkModule* network_module_;
-  ScopedVector<net::URLFetcher> fetchers_;
-  base::ThreadChecker thread_checker_;
-
   DISALLOW_COPY_AND_ASSIGN(NetPoster);
 };
 
-}  // namespace network
+typedef base::Callback<scoped_ptr<NetPoster>()> NetPosterFactory;
+
+}  // namespace network_bridge
 }  // namespace cobalt
 
-#endif  // NETWORK_NET_POSTER_H_
+#endif  // NETWORK_BRIDGE_NET_POSTER_H_
