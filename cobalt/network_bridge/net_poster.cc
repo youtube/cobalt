@@ -14,32 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_COOKIE_JAR_IMPL_H_
-#define NETWORK_COOKIE_JAR_IMPL_H_
-
-#include <string>
-
-#include "base/compiler_specific.h"
-#include "cobalt/network_bridge/cookie_jar.h"
-#include "net/cookies/cookie_store.h"
+#include "cobalt/network_bridge/net_poster.h"
 
 namespace cobalt {
-namespace network {
+namespace network_bridge {
 
-class CookieJarImpl : public network_bridge::CookieJar {
- public:
-  explicit CookieJarImpl(net::CookieStore* cookie_store);
+NetPoster::NetPoster() {}
+NetPoster::~NetPoster() {}
 
-  std::string GetCookies(const GURL& origin) OVERRIDE;
-  void SetCookie(const GURL& origin, const std::string& cookie_line) OVERRIDE;
-
- private:
-  net::CookieStore* cookie_store_;
-
-  DISALLOW_COPY_AND_ASSIGN(CookieJarImpl);
-};
-
-}  // namespace network
+}  // namespace network_bridge
 }  // namespace cobalt
-
-#endif  // NETWORK_COOKIE_JAR_IMPL_H_

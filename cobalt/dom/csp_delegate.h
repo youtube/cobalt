@@ -20,7 +20,9 @@
 #include <string>
 #include <vector>
 
+#include "base/hash_tables.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/network_bridge/net_poster.h"
 
 namespace cobalt {
 namespace dom {
@@ -54,8 +56,13 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
   void SetReferrerPolicy(csp::ReferrerPolicy policy) OVERRIDE;
 
  private:
+  void SendViolationReports(const std::vector<std::string>& endpoints,
+                            const std::string& report);
+
   Document* document_;
   scoped_ptr<csp::ContentSecurityPolicy> csp_;
+  base::hash_set<uint32> violation_reports_sent_;
+  scoped_ptr<network_bridge::NetPoster> net_poster_;
 
   DISALLOW_COPY_AND_ASSIGN(CSPDelegate);
 };

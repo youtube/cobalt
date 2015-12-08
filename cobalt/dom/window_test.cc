@@ -28,6 +28,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/media_module_stub.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/network_bridge/net_poster.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -50,14 +51,14 @@ class WindowTest : public ::testing::Test {
         local_storage_database_(NULL),
         stub_media_module_(new media::MediaModuleStub()),
         url_("about:blank"),
-        window_(new Window(1920, 1080, css_parser_.get(), dom_parser_.get(),
-                           fetcher_factory_.get(), NULL, NULL, NULL,
-                           &local_storage_database_, stub_media_module_.get(),
-                           NULL, NULL, NULL, url_, "", "en-US",
-                           base::Callback<void(const GURL &)>(),
-                           base::Bind(&MockErrorCallback::Run,
-                                      base::Unretained(&mock_error_callback_)),
-                           NULL)) {}
+        window_(new Window(
+            1920, 1080, css_parser_.get(), dom_parser_.get(),
+            fetcher_factory_.get(), NULL, NULL, NULL, &local_storage_database_,
+            stub_media_module_.get(), NULL, NULL, NULL, url_, "", "en-US",
+            base::Callback<void(const GURL &)>(),
+            base::Bind(&MockErrorCallback::Run,
+                       base::Unretained(&mock_error_callback_)),
+            NULL, base::Callback<scoped_ptr<network_bridge::NetPoster>()>())) {}
 
   ~WindowTest() OVERRIDE {}
 
