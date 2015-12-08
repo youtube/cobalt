@@ -33,6 +33,9 @@ class ScriptRunnerImpl : public ScriptRunner {
 
   std::string Execute(const std::string& script_utf8,
                       const base::SourceLocation& script_location) OVERRIDE;
+  GlobalObjectProxy* GetGlobalObjectProxy() const OVERRIDE {
+    return global_object_proxy_;
+  }
 
  private:
   scoped_refptr<GlobalObjectProxy> global_object_proxy_;

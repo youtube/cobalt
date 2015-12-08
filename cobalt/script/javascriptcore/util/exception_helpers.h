@@ -18,6 +18,9 @@
 #define SCRIPT_JAVASCRIPTCORE_UTIL_EXCEPTION_HELPERS_H_
 
 #include <string>
+#include <vector>
+
+#include "cobalt/script/stack_frame.h"
 
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/interpreter/CallFrame.h"
@@ -33,7 +36,10 @@ std::string GetExceptionString(JSC::ExecState* exec_state);
 std::string GetExceptionString(JSC::ExecState* exec_state,
                                JSC::JSValue exception);
 
-std::string GetStackTrace(JSC::ExecState* exec_state);
+// Retrieve stack frame information. Set max_frames to 0 to get all
+// available, or non-0 to limit the number of frames returned.
+std::vector<StackFrame> GetStackTrace(JSC::ExecState* exec_state,
+                                      int max_frames);
 
 }  // namespace util
 }  // namespace javascriptcore
