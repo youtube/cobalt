@@ -408,21 +408,24 @@ void Box::UpdateBorders() {
   }
 
   // TODO(***REMOVED***): Use the border width of the four directions.
-  float width = base::polymorphic_downcast<const cssom::LengthValue*>(
-                    computed_style()->border_width().get())
-                    ->value();
+  float width = RoundToFixedPointPrecision(
+      base::polymorphic_downcast<const cssom::LengthValue*>(
+          computed_style()->border_width().get())
+          ->value());
 
   border_insets_.SetInsets(width, width, width, width);
 }
 
 void Box::UpdatePaddings(const LayoutParams& layout_params) {
   padding_insets_.SetInsets(
-      GetUsedPaddingLeft(computed_style(), layout_params.containing_block_size),
-      GetUsedPaddingTop(computed_style(), layout_params.containing_block_size),
-      GetUsedPaddingRight(computed_style(),
-                          layout_params.containing_block_size),
-      GetUsedPaddingBottom(computed_style(),
-                           layout_params.containing_block_size));
+      RoundToFixedPointPrecision(GetUsedPaddingLeft(
+          computed_style(), layout_params.containing_block_size)),
+      RoundToFixedPointPrecision(GetUsedPaddingTop(
+          computed_style(), layout_params.containing_block_size)),
+      RoundToFixedPointPrecision(GetUsedPaddingRight(
+          computed_style(), layout_params.containing_block_size)),
+      RoundToFixedPointPrecision(GetUsedPaddingBottom(
+          computed_style(), layout_params.containing_block_size)));
 }
 
 void Box::SetupAsPositionedChild(ContainerBox* containing_block,
