@@ -262,6 +262,15 @@ void CSSStyleDeclaration::set_display(const std::string& display) {
   SetPropertyValueStringByKey(kDisplayProperty, display);
 }
 
+std::string CSSStyleDeclaration::font() const {
+  NOTIMPLEMENTED();
+  return "";
+}
+
+void CSSStyleDeclaration::set_font(const std::string& font) {
+  SetPropertyValueStringByKey(kFontProperty, font);
+}
+
 std::string CSSStyleDeclaration::font_family() const {
   return data_->GetDeclaredPropertyValueString(kFontFamilyProperty);
 }

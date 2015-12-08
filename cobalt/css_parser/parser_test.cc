@@ -2343,6 +2343,214 @@ TEST_F(ParserTest, ParsesNoneDisplay) {
   EXPECT_EQ(cssom::KeywordValue::GetNone(), style->display());
 }
 
+TEST_F(ParserTest, ParsesFontShorthandInherit) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font: inherit;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->font_style());
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->font_weight());
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->font_size());
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->font_family());
+}
+
+TEST_F(ParserTest, ParsesFontShorthandInitial) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font: initial;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->font_style());
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->font_weight());
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->font_size());
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->font_family());
+}
+
+TEST_F(ParserTest, ParsesFontShorthandSizeFamily) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "font: 50px 'Roboto', Noto, sans-serif;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->font_style());
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->font_weight());
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(style->font_size().get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(50, font_size->value());
+  EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 3);
+
+  scoped_refptr<cssom::StringValue> font_family_name_1 =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(0).get());
+  ASSERT_TRUE(font_family_name_1);
+  EXPECT_EQ("Roboto", font_family_name_1->value());
+
+  scoped_refptr<cssom::StringValue> font_family_name_2 =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(1).get());
+  ASSERT_TRUE(font_family_name_2);
+  EXPECT_EQ("Noto", font_family_name_2->value());
+
+  EXPECT_EQ(cssom::KeywordValue::GetSansSerif(),
+            font_family_list->get_item_modulo_size(2));
+}
+
+TEST_F(ParserTest, ParsesFontShorthandStyleSizeFamily) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font: italic 50em Noto;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::FontStyleValue::GetItalic(), style->font_style());
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->font_weight());
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(style->font_size().get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(50, font_size->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, font_size->unit());
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 1);
+
+  scoped_refptr<cssom::StringValue> font_family_name =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(0).get());
+  ASSERT_TRUE(font_family_name);
+  EXPECT_EQ("Noto", font_family_name->value());
+}
+
+TEST_F(ParserTest, ParsesFontShorthandWeightSizeFamily) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font: bold 10em sans-serif;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->font_style());
+  EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(), style->font_weight());
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(style->font_size().get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(10, font_size->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, font_size->unit());
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 1);
+
+  EXPECT_EQ(cssom::KeywordValue::GetSansSerif(),
+            font_family_list->get_item_modulo_size(0));
+}
+
+TEST_F(ParserTest, ParsesFontShorthandStyleWeightSizeFamily) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font: italic 300 50px 'Roboto';",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::FontStyleValue::GetItalic(), style->font_style());
+  EXPECT_EQ(cssom::FontWeightValue::GetLightAka300(), style->font_weight());
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(style->font_size().get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(50, font_size->value());
+  EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 1);
+
+  scoped_refptr<cssom::StringValue> font_family_name =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(0).get());
+  ASSERT_TRUE(font_family_name);
+  EXPECT_EQ("Roboto", font_family_name->value());
+}
+
+TEST_F(ParserTest, ParsesFontShorthandStyleNormal) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font: normal 600 50px Roboto;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::FontStyleValue::GetNormal(), style->font_style());
+  EXPECT_EQ(cssom::FontWeightValue::GetSemiBoldAka600(), style->font_weight());
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(style->font_size().get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(50, font_size->value());
+  EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 1);
+
+  scoped_refptr<cssom::StringValue> font_family_name =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(0).get());
+  ASSERT_TRUE(font_family_name);
+  EXPECT_EQ("Roboto", font_family_name->value());
+}
+
+TEST_F(ParserTest, ParsesFontShorthandWeightNormal) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font: italic normal 50px Roboto;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::FontStyleValue::GetItalic(), style->font_style());
+  EXPECT_EQ(cssom::FontWeightValue::GetNormalAka400(), style->font_weight());
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(style->font_size().get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(50, font_size->value());
+  EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 1);
+
+  scoped_refptr<cssom::StringValue> font_family_name =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(0).get());
+  ASSERT_TRUE(font_family_name);
+  EXPECT_EQ("Roboto", font_family_name->value());
+}
+
+TEST_F(ParserTest, ParsesFontShorthandStyleWeightNormal) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("font: normal normal 50px Roboto;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::FontStyleValue::GetNormal(), style->font_style());
+  EXPECT_EQ(cssom::FontWeightValue::GetNormalAka400(), style->font_weight());
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(style->font_size().get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(50, font_size->value());
+  EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
+
+  scoped_refptr<cssom::PropertyListValue> font_family_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->font_family().get());
+  ASSERT_TRUE(font_family_list);
+  EXPECT_EQ(font_family_list->value().size(), 1);
+
+  scoped_refptr<cssom::StringValue> font_family_name =
+      dynamic_cast<cssom::StringValue*>(
+          font_family_list->get_item_modulo_size(0).get());
+  ASSERT_TRUE(font_family_name);
+  EXPECT_EQ("Roboto", font_family_name->value());
+}
+
 TEST_F(ParserTest, ParsesFontFamilyInherit) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("font-family: inherit;",

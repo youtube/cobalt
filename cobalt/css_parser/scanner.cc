@@ -1163,6 +1163,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 
     case 4:
       if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFontProperty))) {
+        *property_name_token = kFontToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kLeftProperty))) {
         *property_name_token = kLeftToken;
         return true;

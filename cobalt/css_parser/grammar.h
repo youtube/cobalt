@@ -38,6 +38,7 @@
 #include "cobalt/css_parser/background_position_property_parse_structures.h"
 #include "cobalt/css_parser/background_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/border_shorthand_property_parse_structures.h"
+#include "cobalt/css_parser/font_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/transition_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/css_parser/trivial_type_pairs.h"

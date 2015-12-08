@@ -97,6 +97,7 @@
 %token kColorToken                            // color
 %token kContentToken                          // content
 %token kDisplayToken                          // display
+%token kFontToken                             // font
 %token kFontFamilyToken                       // font-family
 %token kFontSizeToken                         // font-size
 %token kFontStyleToken                        // font-style
@@ -498,7 +499,9 @@
                        font_family_name
                        font_family_property_value
                        font_size_property_value
+                       font_style_exclusive_property_value
                        font_style_property_value
+                       font_weight_exclusive_property_value
                        font_weight_property_value
                        height_property_value
                        length_percent_property_value
@@ -556,6 +559,12 @@
 %union { AnimationShorthand* animation; }
 %type <animation> animation_property_value
 %destructor { delete $$; } <animation>
+
+%union { FontShorthand* font; }
+%type <font> font_property_value
+             optional_font_value_list
+             non_empty_optional_font_value_list
+%destructor { delete $$; } <font>
 
 %union { TransitionShorthand* transition; }
 %type <transition> transition_property_value
@@ -1211,6 +1220,10 @@ identifier_token:
   | kDisplayToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kDisplayProperty));
+  }
+  | kFontToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kFontProperty));
   }
   | kFontFamilyToken {
     $$ = TrivialStringPiece::FromCString(
@@ -3105,29 +3118,31 @@ font_size_property_value:
   | common_values
   ;
 
-// The 'font-style' property allows italic or oblique faces to be selected.
-//   http://www.w3.org/TR/css3-fonts/#font-style-prop
-font_style_property_value:
+// All acceptable 'font-style' property values, excluding 'normal', 'inherit'
+// and 'initial'.
+font_style_exclusive_property_value:
     kItalicToken maybe_whitespace {
     $$ = AddRef(cssom::FontStyleValue::GetItalic().get());
-  }
-  | kNormalToken maybe_whitespace {
-    $$ = AddRef(cssom::FontStyleValue::GetNormal().get());
   }
   | kObliqueToken maybe_whitespace {
     $$ = AddRef(cssom::FontStyleValue::GetOblique().get());
   }
+  ;
+
+// The 'font-style' property allows italic or oblique faces to be selected.
+//   http://www.w3.org/TR/css3-fonts/#font-style-prop
+font_style_property_value:
+    font_style_exclusive_property_value
+  | kNormalToken maybe_whitespace {
+    $$ = AddRef(cssom::FontStyleValue::GetNormal().get());
+  }
   | common_values
   ;
 
-// The weight of glyphs in the font, their degree of blackness
-// or stroke thickness.
-//   http://www.w3.org/TR/css3-fonts/#font-weight-prop
-font_weight_property_value:
-    kNormalToken maybe_whitespace {
-    $$ = AddRef(cssom::FontWeightValue::GetNormalAka400().get());
-  }
-  | kBoldToken maybe_whitespace {
+// All acceptable 'font-weight' property values, excluding 'normal', 'inherit'
+// and 'initial'.
+font_weight_exclusive_property_value:
+    kBoldToken maybe_whitespace {
     $$ = AddRef(cssom::FontWeightValue::GetBoldAka700().get());
   }
   | positive_integer {
@@ -3164,7 +3179,125 @@ font_weight_property_value:
         $$ = NULL;
     }
   }
+  ;
+
+// The weight of glyphs in the font, their degree of blackness
+// or stroke thickness.
+//   http://www.w3.org/TR/css3-fonts/#font-weight-prop
+font_weight_property_value:
+    font_weight_exclusive_property_value
+  | kNormalToken maybe_whitespace {
+    $$ = AddRef(cssom::FontWeightValue::GetNormalAka400().get());
+  }
   | common_values
+  ;
+
+// Optional font element represents a single optional font shorthand value.
+// It uses $0 to access its parent's FontShorthand object and build it, so it
+// should always be used to the right of an optional_font_value_list. Note that
+// outside of being set via the second normal token, font weight, while
+// optional, is handled separately. This is due to Bison having parsing
+// conflicts with differentiating a number (which is an allowable font weight
+// value) followed by a token as either two optional font elements or the font
+// size followed by the font family. As a result, the recommended ordering is
+// required and font weight must come after font style.
+optional_font_element:
+    font_style_exclusive_property_value {
+    if (!$<font>0->font_style) {
+      $<font>0->font_style = MakeScopedRefPtrAndRelease($1);
+    } else {
+      parser_impl->LogWarning(
+          @1, "font-style value declared twice in font.");
+    }
+  }
+  | kNormalToken maybe_whitespace {
+    // The normal token is treated as representing font style if it is
+    // encountered before the style is set. Otherwise, it is treated as the
+    // font weight.
+    if (!$<font>0->font_style) {
+      $<font>0->font_style =
+        AddRef(cssom::FontStyleValue::GetNormal().get());
+    } else if (!$<font>0->font_weight) {
+      $<font>0->font_weight =
+        AddRef(cssom::FontWeightValue::GetNormalAka400().get());
+    } else {
+      parser_impl->LogWarning(
+        @1, "too many font values declared in font.");
+    }
+  }
+  | error maybe_whitespace {
+    parser_impl->LogError(@1, "unsupported property value for font");
+    $<font>0->error = true;
+  }
+  ;
+
+optional_font_value_list:
+    /* empty */ {
+    // Initialize the result, to be filled in by
+    // non_empty_optional_font_value_list
+    $$ = new FontShorthand();
+  }
+  | non_empty_optional_font_value_list
+  ;
+
+non_empty_optional_font_value_list:
+    optional_font_value_list optional_font_element {
+    // Propagate the list from our parent.
+    // optional_font_element will have already taken care of adding itself
+    // to the list via $0.
+    $$ = $1;
+  }
+  ;
+
+// Font shorthand property.
+//   http://www.w3.org/TR/css3-fonts/#font-prop
+font_property_value:
+    optional_font_value_list positive_length_percent_property_value
+        comma_separated_font_family_name_list {
+    // Font shorthand properties without a non-normal weight value.
+    scoped_ptr<FontShorthand> font($1);
+
+    font->font_size = $2;
+
+    scoped_ptr<cssom::PropertyListValue::Builder> builder($3);
+    font->font_family = AddRef(new cssom::PropertyListValue(builder.Pass()));
+
+    $$ = font.release();
+  }
+  | optional_font_value_list font_weight_exclusive_property_value
+        positive_length_percent_property_value
+        comma_separated_font_family_name_list {
+    // Font shorthand properties with a non-normal weight value. This and the
+    // preceding without expression are not simply combined into a single
+    // maybe_font_weight_exclusive_property_value as a result of Bison having
+    // parsing conflicts when the weight value appears in that form.
+    scoped_ptr<FontShorthand> font($1);
+
+    if (!font->font_weight) {
+      font->font_weight = $2;
+    } else {
+      parser_impl->LogWarning(
+          @1, "font-weight value declared twice in font.");
+    }
+
+    font->font_size = $3;
+
+    scoped_ptr<cssom::PropertyListValue::Builder> builder($4);
+    font->font_family = AddRef(new cssom::PropertyListValue(builder.Pass()));
+
+    $$ = font.release();
+  }
+  | common_values_without_errors {
+    // Replicate the common value into each of the properties that font
+    // is a shorthand for.
+    scoped_ptr<FontShorthand> font(new FontShorthand());
+    font->font_style = $1;
+    font->font_weight = $1;
+    font->font_size = $1;
+    font->font_family = $1;
+
+    $$ = font.release();
+  }
   ;
 
 // Specifies the content height of boxes.
@@ -4591,6 +4724,35 @@ maybe_declaration:
     $$ = $4 ? new PropertyDeclaration(cssom::kDisplayProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
+  }
+  | kFontToken maybe_whitespace colon font_property_value maybe_important {
+    scoped_ptr<FontShorthand> font($4);
+    DCHECK(font);
+
+    font->ReplaceNullWithInitialValues();
+
+    scoped_ptr<PropertyDeclaration> property_declaration(
+        new PropertyDeclaration($5));
+
+    // Unpack the font shorthand property values.
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kFontStyleProperty,
+            font->font_style));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kFontWeightProperty,
+            font->font_weight));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kFontSizeProperty,
+            font->font_size));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kFontFamilyProperty,
+            font->font_family));
+
+    $$ = property_declaration.release();
   }
   | kFontFamilyToken maybe_whitespace colon font_family_property_value
       maybe_important {
