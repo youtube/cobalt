@@ -97,7 +97,9 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    line_box.BeginUpdateRectAndMaybeOverflow(child_box);
+    if (!child_box->IsAbsolutelyPositioned()) {
+      line_box.BeginUpdateRectAndMaybeOverflow(child_box);
+    }
   }
   line_box.EndUpdates();
 
