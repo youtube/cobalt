@@ -637,6 +637,7 @@
               'sys_string_conversions_starboard.cc',
               'system_monitor/system_monitor_starboard.cc',
               'threading/platform_thread_starboard.cc',
+              'threading/thread_checker_impl_atomic.cc',
               'threading/thread_local_starboard.cc',
               'threading/thread_local_storage_starboard.cc',
               'threading/worker_pool_starboard.cc',
@@ -655,6 +656,9 @@
               # Tricky to support cross-platform, and not used by Cobalt.
               'scoped_native_library.cc',
               'scoped_native_library.h',
+
+              # We use thread_checker_impl_atomic.cc instead.
+              'threading/thread_checker_impl.cc',
             ],
             'conditions': [
               ['target_arch!="linux" and target_arch!="android"', {
