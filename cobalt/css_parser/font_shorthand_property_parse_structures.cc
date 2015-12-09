@@ -28,7 +28,6 @@ void FontShorthand::ReplaceNullWithInitialValues() {
   DCHECK(font_size);
   DCHECK(font_family);
 
-
   if (!font_style) {
     font_style = cssom::KeywordValue::GetInitial();
   }
