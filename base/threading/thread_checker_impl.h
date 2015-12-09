@@ -32,7 +32,7 @@ class BASE_EXPORT ThreadCheckerImpl {
  private:
   void EnsureThreadIdAssigned() const;
 
-#if defined COBALT
+#if defined(COBALT) || defined(OS_STARBOARD)
   // Don't use a mutex since the number of mutexes is limited on some platforms.
   mutable base::subtle::Atomic32 valid_thread_id_;
 #else
