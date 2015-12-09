@@ -23,7 +23,6 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
-#include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_html_element.h"
