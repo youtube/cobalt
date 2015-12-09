@@ -68,3 +68,5 @@
 4-0-border-set-using-border-width-border-color-and-border-style-with-empty-content
 4-0-border-style-hidden-with-only-background-color
 4-0-border-width-with-solid-border-style
+4-0-different-border-styles-with-different-border-widths
+4-0-different-border-widths-with-solid-border-style

@@ -209,20 +209,55 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // This sets the foreground color of the border specified by the border-style
   // property.
   //   http://www.w3.org/TR/css3-background/#border-color
-  SetPropertyDefinition(kBorderColorProperty, "border-color", kInheritedNo,
-                        kAnimatableYes, KeywordValue::GetCurrentColor());
+  SetPropertyDefinition(kBorderTopColorProperty, "border-top-color",
+                        kInheritedNo, kAnimatableYes,
+                        KeywordValue::GetCurrentColor());
+
+  SetPropertyDefinition(kBorderRightColorProperty, "border-right-color",
+                        kInheritedNo, kAnimatableYes,
+                        KeywordValue::GetCurrentColor());
+
+  SetPropertyDefinition(kBorderBottomColorProperty, "border-bottom-color",
+                        kInheritedNo, kAnimatableYes,
+                        KeywordValue::GetCurrentColor());
+
+  SetPropertyDefinition(kBorderLeftColorProperty, "border-left-color",
+                        kInheritedNo, kAnimatableYes,
+                        KeywordValue::GetCurrentColor());
 
   //   http://www.w3.org/TR/css3-background/#border-style
-  SetPropertyDefinition(kBorderStyleProperty, "border-style", kInheritedNo,
-                        kAnimatableNo, KeywordValue::GetNone());
+  SetPropertyDefinition(kBorderTopStyleProperty, "border-top-style",
+                        kInheritedNo, kAnimatableNo, KeywordValue::GetNone());
+
+  SetPropertyDefinition(kBorderRightStyleProperty, "border-right-style",
+                        kInheritedNo, kAnimatableNo, KeywordValue::GetNone());
+
+  SetPropertyDefinition(kBorderBottomStyleProperty, "border-bottom-style",
+                        kInheritedNo, kAnimatableNo, KeywordValue::GetNone());
+
+  SetPropertyDefinition(kBorderLeftStyleProperty, "border-left-style",
+                        kInheritedNo, kAnimatableNo, KeywordValue::GetNone());
 
   //  Initial: medium.
   // According to the spec., make the thickness depend on the 'medium' font
   // size: one choice might be 1, 3, & 5px (thin, medium, and thick) when the
   // 'medium' font size is 17 px or less.
   //   http://www.w3.org/TR/css3-background/#border-width
-  SetPropertyDefinition(kBorderWidthProperty, "border-width", kInheritedNo,
-                        kAnimatableNo, new LengthValue(3, kPixelsUnit));
+  SetPropertyDefinition(kBorderTopWidthProperty, "border-top-width",
+                        kInheritedNo, kAnimatableNo,
+                        new LengthValue(3, kPixelsUnit));
+
+  SetPropertyDefinition(kBorderRightWidthProperty, "border-right-width",
+                        kInheritedNo, kAnimatableNo,
+                        new LengthValue(3, kPixelsUnit));
+
+  SetPropertyDefinition(kBorderBottomWidthProperty, "border-bottom-width",
+                        kInheritedNo, kAnimatableNo,
+                        new LengthValue(3, kPixelsUnit));
+
+  SetPropertyDefinition(kBorderLeftWidthProperty, "border-left-width",
+                        kInheritedNo, kAnimatableNo,
+                        new LengthValue(3, kPixelsUnit));
 
   // Cobalt only support a single length value that applies to all borders.
   //   http://www.w3.org/TR/css3-background/#the-border-radius
@@ -447,6 +482,33 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBackgroundProperty, "background",
                                  background_longhand_properties);
 
+  //    http://www.w3.org/TR/css3-background/#border-color
+  LonghandPropertySet border_color_longhand_properties;
+  border_color_longhand_properties.insert(kBorderTopColorProperty);
+  border_color_longhand_properties.insert(kBorderRightColorProperty);
+  border_color_longhand_properties.insert(kBorderBottomColorProperty);
+  border_color_longhand_properties.insert(kBorderLeftColorProperty);
+  SetShorthandPropertyDefinition(kBorderColorProperty, "border-color",
+                                 border_color_longhand_properties);
+
+  //    http://www.w3.org/TR/css3-background/#border-style
+  LonghandPropertySet border_style_longhand_properties;
+  border_style_longhand_properties.insert(kBorderTopStyleProperty);
+  border_style_longhand_properties.insert(kBorderRightStyleProperty);
+  border_style_longhand_properties.insert(kBorderBottomStyleProperty);
+  border_style_longhand_properties.insert(kBorderLeftStyleProperty);
+  SetShorthandPropertyDefinition(kBorderStyleProperty, "border-style",
+                                 border_style_longhand_properties);
+
+  //   http://www.w3.org/TR/css3-background/#border-width
+  LonghandPropertySet border_width_longhand_properties;
+  border_width_longhand_properties.insert(kBorderTopWidthProperty);
+  border_width_longhand_properties.insert(kBorderRightWidthProperty);
+  border_width_longhand_properties.insert(kBorderBottomWidthProperty);
+  border_width_longhand_properties.insert(kBorderLeftWidthProperty);
+  SetShorthandPropertyDefinition(kBorderWidthProperty, "border-width",
+                                 border_width_longhand_properties);
+
   //   http://www.w3.org/TR/css3-background/#border
   LonghandPropertySet border_longhand_properties;
   border_longhand_properties.insert(kBorderColorProperty);
@@ -454,6 +516,34 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   border_longhand_properties.insert(kBorderWidthProperty);
   SetShorthandPropertyDefinition(kBorderProperty, "border",
                                  border_longhand_properties);
+
+  LonghandPropertySet border_top_longhand_properties;
+  border_top_longhand_properties.insert(kBorderTopColorProperty);
+  border_top_longhand_properties.insert(kBorderTopStyleProperty);
+  border_top_longhand_properties.insert(kBorderTopWidthProperty);
+  SetShorthandPropertyDefinition(kBorderTopProperty, "border-top",
+                                 border_top_longhand_properties);
+
+  LonghandPropertySet border_right_longhand_properties;
+  border_right_longhand_properties.insert(kBorderRightColorProperty);
+  border_right_longhand_properties.insert(kBorderRightStyleProperty);
+  border_right_longhand_properties.insert(kBorderRightWidthProperty);
+  SetShorthandPropertyDefinition(kBorderRightProperty, "border-right",
+                                 border_right_longhand_properties);
+
+  LonghandPropertySet border_bottom_longhand_properties;
+  border_bottom_longhand_properties.insert(kBorderBottomColorProperty);
+  border_bottom_longhand_properties.insert(kBorderBottomStyleProperty);
+  border_bottom_longhand_properties.insert(kBorderBottomWidthProperty);
+  SetShorthandPropertyDefinition(kBorderBottomProperty, "border-bottom",
+                                 border_bottom_longhand_properties);
+
+  LonghandPropertySet border_left_longhand_properties;
+  border_left_longhand_properties.insert(kBorderLeftColorProperty);
+  border_left_longhand_properties.insert(kBorderLeftStyleProperty);
+  border_left_longhand_properties.insert(kBorderLeftWidthProperty);
+  SetShorthandPropertyDefinition(kBorderLeftProperty, "border-left",
+                                 border_left_longhand_properties);
 
   //   http://www.w3.org/TR/css3-fonts/#font-prop
   LonghandPropertySet font_longhand_properties;
@@ -504,7 +594,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                                  transition_longhand_properties);
 
   CompileSetOfAnimatableProperties();
-}
+}  // NOLINT(readability/fn_size)
 
 void NonTrivialGlobalVariables::CompileSetOfAnimatableProperties() {
   for (int i = 0; i < kMaxEveryPropertyKey + 1; ++i) {
@@ -679,6 +769,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kBackgroundProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderTopProperty))) {
+        return kBorderTopProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontStyleProperty))) {
         return kFontStyleProperty;
       }
@@ -709,6 +803,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       return kNoneProperty;
 
     case 11:
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderLeftProperty))) {
+        return kBorderLeftProperty;
+      }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontFamilyProperty))) {
         return kFontFamilyProperty;
@@ -745,6 +843,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kBorderColorProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderRightProperty))) {
+        return kBorderRightProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBorderStyleProperty))) {
         return kBorderStyleProperty;
       }
@@ -763,6 +865,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       return kNoneProperty;
 
     case 13:
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderBottomProperty))) {
+        return kBorderBottomProperty;
+      }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBorderRadiusProperty))) {
         return kBorderRadiusProperty;
@@ -821,6 +927,18 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kBackgroundColorProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderTopColorProperty))) {
+        return kBorderTopColorProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderTopStyleProperty))) {
+        return kBorderTopStyleProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderTopWidthProperty))) {
+        return kBorderTopWidthProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBackgroundImageProperty))) {
         return kBackgroundImageProperty;
       }
@@ -835,12 +953,36 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
                                GetPropertyName(kBackgroundRepeatProperty))) {
         return kBackgroundRepeatProperty;
       }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderLeftColorProperty))) {
+        return kBorderLeftColorProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderLeftStyleProperty))) {
+        return kBorderLeftStyleProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderLeftWidthProperty))) {
+        return kBorderLeftWidthProperty;
+      }
       return kNoneProperty;
 
     case 18:
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kAnimationDurationProperty))) {
         return kAnimationDurationProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderRightColorProperty))) {
+        return kBorderRightColorProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderRightStyleProperty))) {
+        return kBorderRightStyleProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderRightWidthProperty))) {
+        return kBorderRightWidthProperty;
       }
       return kNoneProperty;
 
@@ -856,6 +998,18 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBackgroundPositionProperty))) {
         return kBackgroundPositionProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderBottomColorProperty))) {
+        return kBorderBottomColorProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderBottomStyleProperty))) {
+        return kBorderBottomStyleProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderBottomWidthProperty))) {
+        return kBorderBottomWidthProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTransitionDurationProperty))) {

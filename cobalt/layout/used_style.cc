@@ -1057,6 +1057,34 @@ base::optional<float> GetUsedMarginBottomIfNotAuto(
   return used_length_provider.used_length();
 }
 
+float GetUsedBorderLeft(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style) {
+  return base::polymorphic_downcast<const cssom::LengthValue*>(
+             computed_style->border_left_width().get())
+      ->value();
+}
+
+float GetUsedBorderTop(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style) {
+  return base::polymorphic_downcast<const cssom::LengthValue*>(
+             computed_style->border_top_width().get())
+      ->value();
+}
+
+float GetUsedBorderRight(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style) {
+  return base::polymorphic_downcast<const cssom::LengthValue*>(
+             computed_style->border_right_width().get())
+      ->value();
+}
+
+float GetUsedBorderBottom(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style) {
+  return base::polymorphic_downcast<const cssom::LengthValue*>(
+             computed_style->border_bottom_width().get())
+      ->value();
+}
+
 float GetUsedPaddingLeft(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const math::SizeF& containing_block_size) {

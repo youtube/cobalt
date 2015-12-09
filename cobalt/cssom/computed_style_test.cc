@@ -581,7 +581,7 @@ TEST(PromoteToComputedStyle, BorderRadiusEmToPixel) {
 TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
-  computed_style->set_border_color(cssom::KeywordValue::GetCurrentColor());
+  computed_style->set_border_left_color(cssom::KeywordValue::GetCurrentColor());
   computed_style->set_color(cssom::RGBAColorValue::GetAqua());
 
   scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
@@ -590,7 +590,7 @@ TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
 
   scoped_refptr<cssom::RGBAColorValue> border_color =
       dynamic_cast<cssom::RGBAColorValue*>(
-          computed_style->border_color().get());
+          computed_style->border_left_color().get());
   ASSERT_TRUE(border_color);
   EXPECT_EQ(0x00FFFFFF, border_color->value());
 }
@@ -598,28 +598,29 @@ TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
 TEST(PromoteToComputedStyle, BorderWidthWithBorderStyleNone) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
-  computed_style->set_border_style(cssom::KeywordValue::GetNone());
-  computed_style->set_border_width(
+  computed_style->set_border_top_style(cssom::KeywordValue::GetNone());
+  computed_style->set_border_top_width(
       new cssom::LengthValue(2, cssom::kFontSizesAkaEmUnit));
 
   scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
       new cssom::CSSStyleDeclarationData());
   PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
 
-  scoped_refptr<cssom::LengthValue> border_width =
-      dynamic_cast<cssom::LengthValue*>(computed_style->border_width().get());
-  ASSERT_TRUE(border_width);
-  EXPECT_EQ(0, border_width->value());
-  EXPECT_EQ(cssom::kPixelsUnit, border_width->unit());
+  scoped_refptr<cssom::LengthValue> border_top_width =
+      dynamic_cast<cssom::LengthValue*>(
+          computed_style->border_top_width().get());
+  ASSERT_TRUE(border_top_width);
+  EXPECT_EQ(0, border_top_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_top_width->unit());
 }
 
 TEST(PromoteToComputedStyle, BorderWidthInEmShouldBeComputedAfterFontSize) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
-  computed_style->set_border_style(cssom::KeywordValue::GetSolid());
+  computed_style->set_border_left_style(cssom::KeywordValue::GetSolid());
   computed_style->set_font_size(
       new cssom::LengthValue(2, cssom::kFontSizesAkaEmUnit));
-  computed_style->set_border_width(
+  computed_style->set_border_left_width(
       new cssom::LengthValue(2, cssom::kFontSizesAkaEmUnit));
 
   scoped_refptr<cssom::CSSStyleDeclarationData> parent_computed_style(
@@ -628,10 +629,11 @@ TEST(PromoteToComputedStyle, BorderWidthInEmShouldBeComputedAfterFontSize) {
       new cssom::LengthValue(100, cssom::kPixelsUnit));
   PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
 
-  scoped_refptr<cssom::LengthValue> border_width =
-      dynamic_cast<cssom::LengthValue*>(computed_style->border_width().get());
-  EXPECT_EQ(400, border_width->value());
-  EXPECT_EQ(cssom::kPixelsUnit, border_width->unit());
+  scoped_refptr<cssom::LengthValue> border_left_width =
+      dynamic_cast<cssom::LengthValue*>(
+          computed_style->border_left_width().get());
+  EXPECT_EQ(400, border_left_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_left_width->unit());
 }
 
 TEST(PromoteToComputedStyle, HeightPercentageInUnspecifiedHeightBlockIsAuto) {
