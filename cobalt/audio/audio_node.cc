@@ -126,7 +126,7 @@ void AudioNode::Disconnect(uint32 output,
 }
 
 void AudioNode::AddInput(const scoped_refptr<AudioNodeInput>& input) {
-  AudioLock::AutoLock lock(audio_lock());
+  audio_lock()->AssertLocked();
 
   DCHECK(input);
 
@@ -134,7 +134,7 @@ void AudioNode::AddInput(const scoped_refptr<AudioNodeInput>& input) {
 }
 
 void AudioNode::AddOutput(const scoped_refptr<AudioNodeOutput>& output) {
-  AudioLock::AutoLock lock(audio_lock());
+  audio_lock()->AssertLocked();
 
   DCHECK(output);
 
