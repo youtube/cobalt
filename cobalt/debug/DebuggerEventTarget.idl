@@ -14,20 +14,14 @@
  * limitations under the License.
  */
 
-// Custom interface to communicate with the debugger, modeled after
-// chrome.debugger extension API.
-// https://developer.chrome.com/extensions/debugger
+// Custom interface to dispatch events from debugger.
+// Based on Chrome's debugger event target:
+// https://developer.chrome.com/extensions/debugger#event-onEvent
 
 [
   Conditional=ENABLE_DEBUG_CONSOLE
-] interface Debugger {
-
-  void attach(AttachCallback cb);
-  void detach(AttachCallback cb);
-  void sendCommand(DOMString method, DOMString jsonParams, CommandCallback cb);
-
-  readonly attribute DebuggerEventTarget onEvent;
+] interface DebuggerEventTarget {
+    void addListener(DebuggerEventCallback callback);
 };
 
-callback AttachCallback = void();
-callback CommandCallback = void(DOMString? response);
+callback DebuggerEventCallback = void(DOMString method, DOMString? json_params);

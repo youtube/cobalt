@@ -29,12 +29,12 @@
 #include "cobalt/browser/splash_screen.h"
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/debug/debug_server.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/renderer/renderer_module.h"
-#include "cobalt/script/debug_server.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "cobalt/webdriver/session_driver.h"
@@ -93,8 +93,11 @@ class BrowserModule {
 #endif
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  scoped_ptr<script::DebugServer> CreateDebugServer() {
-    return web_module_->CreateDebugServer();
+  scoped_ptr<debug::DebugServer> CreateDebugServer(
+      const debug::DebugServer::OnEventCallback& on_event_callback,
+      const debug::DebugServer::OnDetachCallback& on_detach_callback) {
+    return web_module_->CreateDebugServer(on_event_callback,
+                                          on_detach_callback);
   }
 #endif  // ENABLE_DEBUG_CONSOLE
 
