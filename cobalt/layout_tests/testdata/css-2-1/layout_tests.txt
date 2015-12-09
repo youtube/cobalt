@@ -15,7 +15,8 @@
 10-3-3-one-auto-should-follow-from-equality
 10-3-4-block-level-replaced-box-margins-should-be-calculated-as-for-non-replaced-box
 10-3-4-block-level-replaced-box-width-should-be-calculated-as-for-inline-replaced-box
-10-3-7-absolute-element-children-are-shrink-to-fit
+10-3-7-absolute-element-children-with-br-elements-should-shrink-to-fit
+10-3-7-absolute-element-children-should-shrink-to-fit
 10-3-7-absolute-position-elements-solve-for-height-when-top-and-bottom-are-specified
 10-3-7-absolute-position-elements-solve-for-width-when-left-and-right-are-specified
 10-3-7-left-and-top-position-absolute-elements-relative-to-their-containing-block
@@ -25,6 +26,7 @@
 10-3-7-some-of-left-and-width-and-right-are-auto
 10-3-9-auto-margin-should-become-zero-in-inline-block-non-replaced-elements
 10-3-9-child-width-should-be-calculated-after-width-of-inline-block-parent
+10-3-9-inline-block-non-replaced-and-br-elements-with-auto-width-should-shrink-to-fit
 10-3-9-inline-block-non-replaced-elements-with-auto-width-should-shrink-to-fit
 10-3-9-shrink-to-fit-width-should-not-depend-on-text-align
 10-4-min-height-and-max-height-limit-box-size
@@ -80,6 +82,7 @@
 9-2-1-block-level-boxes-should-participate-in-block-formatting-context
 9-2-1-descendant-boxes-should-be-nested-in-ascendant-box
 9-2-2-inline-level-boxes-should-participate-in-inline-formatting-context
+9-2-4-display-none-on-br-element-should-not-generate-line-break
 9-2-4-display-none-should-not-be-overridable
 9-2-4-display-none-should-not-generate-box
 9-3-1-fixed-position-elements-are-contained-by-transformed-elements
@@ -99,9 +102,11 @@
 9-3-2-absolute-position-elements-with-implicit-width-can-be-positioned-with-bottom-length
 9-3-2-absolute-position-elements-with-implicit-width-can-be-positioned-with-right-length
 9-4-2-collapsed-elements-should-reduce-available-width-of-line-box
+9-4-2-inline-boxes-should-split-at-br-elements
 9-4-2-long-inline-boxes-should-be-split
 9-4-2-margin-should-not-overflow-line-box
 9-4-2-multiple-inline-boxes-exceeding-width-of-line-box-should-be-split
+9-4-2-nested-inline-boxes-should-split-at-br-elements
 9-4-2-unsplittable-inline-box-should-overflow
 9-4-3-relative-positioned-element-percentages-resolved-from-parent
 9-4-3-relative-positioned-elements-are-offset-from-normal-flow
