@@ -26,7 +26,6 @@
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
-#include "cobalt/cssom/specified_style.h"
 #include "cobalt/cssom/url_value.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,7 +40,6 @@ TEST(PromoteToComputedStyle, FontWeightShouldBeBoldAsSpecified) {
   scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
       new cssom::CSSStyleDeclarationData());
 
-  PromoteToSpecifiedStyle(computed_style, parent_computed_style);
   PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
 
   EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(),
@@ -59,7 +57,6 @@ TEST(PromoteToComputedStyle, FontSizeInEmShouldBeRelativeToInheritedValue) {
   parent_computed_style->set_font_size(
       new cssom::LengthValue(100, cssom::kPixelsUnit));
 
-  PromoteToSpecifiedStyle(computed_style, parent_computed_style);
   PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
 
   cssom::LengthValue* computed_font_size =
@@ -77,7 +74,6 @@ TEST(PromoteToComputedStyle, FontSizeInPixelsShouldBeLeftAsSpecified) {
   scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
       new cssom::CSSStyleDeclarationData());
 
-  PromoteToSpecifiedStyle(computed_style, parent_computed_style);
   PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
 
   cssom::LengthValue* computed_font_size =
@@ -95,7 +91,6 @@ TEST(PromoteToComputedStyle, NormalLineHeightShouldBeLeftAsSpecified) {
   scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
       new cssom::CSSStyleDeclarationData());
 
-  PromoteToSpecifiedStyle(computed_style, parent_computed_style);
   PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
 
   EXPECT_EQ(cssom::KeywordValue::GetNormal(), computed_style->line_height());
@@ -114,7 +109,6 @@ TEST(PromoteToComputedStyle, LineHeightInEmShouldBeComputedAfterFontSize) {
   parent_computed_style->set_font_size(
       new cssom::LengthValue(100, cssom::kPixelsUnit));
 
-  PromoteToSpecifiedStyle(computed_style, parent_computed_style);
   PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
 
   cssom::LengthValue* computed_line_height =
@@ -137,7 +131,6 @@ TEST(PromoteToComputedStyle, TextIndentInEmShouldBeComputedAfterFontSize) {
   parent_computed_style->set_font_size(
       new cssom::LengthValue(100, cssom::kPixelsUnit));
 
-  PromoteToSpecifiedStyle(computed_style, parent_computed_style);
   PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
 
   cssom::LengthValue* computed_text_indent =
