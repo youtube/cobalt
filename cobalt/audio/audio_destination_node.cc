@@ -35,10 +35,11 @@ const uint32 kMaxChannelCount = 2;
 // numberOfInputs  : 1
 // numberOfOutputs : 0
 AudioDestinationNode::AudioDestinationNode(AudioContext* context)
-    : AudioNode(context),
-      max_channel_count_(kMaxChannelCount),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          audio_device_(static_cast<int>(channel_count(NULL)), this)) {
+    : AudioNode(context), max_channel_count_(kMaxChannelCount) {
+  AudioLock::AutoLock lock(audio_lock());
+
+  audio_device_.reset(
+      new AudioDevice(static_cast<int>(channel_count(NULL)), this));
   AddInput(new AudioNodeInput(this));
 }
 
