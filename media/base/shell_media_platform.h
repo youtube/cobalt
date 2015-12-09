@@ -62,7 +62,9 @@ class MEDIA_EXPORT ShellMediaPlatform {
     return NULL;
   }
 
-  virtual ShellVideoFrameProvider* GetVideoFrameProvider() { return NULL; }
+  virtual scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() {
+    return NULL;
+  }
 
   // Total number of video frames which are populating in the pipeline when
   // prerolling.
