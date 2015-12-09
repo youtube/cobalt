@@ -30,7 +30,7 @@ namespace layout {
 TextBox::TextBox(
     const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
     const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
-    int32 text_end_position, bool triggers_line_break,
+    int32 text_end_position, bool has_trailing_line_break,
     UsedStyleProvider* used_style_provider)
     : Box(computed_style_state, used_style_provider),
       paragraph_(paragraph),
@@ -45,7 +45,7 @@ TextBox::TextBox(
       text_has_trailing_white_space_(false),
       should_collapse_leading_white_space_(false),
       should_collapse_trailing_white_space_(false),
-      triggers_line_break_(triggers_line_break),
+      has_trailing_line_break_(has_trailing_line_break),
       update_size_results_valid_(false) {
   DCHECK(text_start_position_ <= text_end_position_);
 
@@ -169,7 +169,7 @@ void TextBox::SetShouldCollapseTrailingWhiteSpace(
 
 bool TextBox::IsCollapsed() const {
   return !HasLeadingWhiteSpace() && !HasTrailingWhiteSpace() &&
-         !HasNonCollapsibleText();
+         !HasNonCollapsibleText() && !has_trailing_line_break_;
 }
 
 bool TextBox::HasLeadingWhiteSpace() const {
@@ -185,10 +185,10 @@ bool TextBox::HasTrailingWhiteSpace() const {
 }
 
 bool TextBox::JustifiesLineExistence() const {
-  return HasNonCollapsibleText() || triggers_line_break_;
+  return HasNonCollapsibleText() || has_trailing_line_break_;
 }
 
-bool TextBox::DoesTriggerLineBreak() const { return triggers_line_break_; }
+bool TextBox::HasTrailingLineBreak() const { return has_trailing_line_break_; }
 
 bool TextBox::AffectsBaselineInBlockFormattingContext() const {
   NOTREACHED() << "Should only be called in a block formatting context.";
@@ -293,24 +293,21 @@ bool TextBox::WhiteSpaceStyleAllowsWrapping() {
 }
 
 void TextBox::UpdateTextHasLeadingWhiteSpace() {
-  if (WhiteSpaceStyleAllowsCollapsing()) {
-    text_has_leading_white_space_ =
-        text_start_position_ != text_end_position_ &&
-        paragraph_->IsSpace(text_start_position_);
-  }
+  text_has_leading_white_space_ = text_start_position_ != text_end_position_ &&
+                                  paragraph_->IsSpace(text_start_position_) &&
+                                  WhiteSpaceStyleAllowsCollapsing();
 }
 
 void TextBox::UpdateTextHasTrailingWhiteSpace() {
-  if (WhiteSpaceStyleAllowsCollapsing()) {
-    text_has_trailing_white_space_ =
-        text_start_position_ != text_end_position_ &&
-        paragraph_->IsSpace(text_end_position_ - 1);
-  }
+  text_has_trailing_white_space_ =
+      !has_trailing_line_break_ && text_start_position_ != text_end_position_ &&
+      paragraph_->IsSpace(text_end_position_ - 1) &&
+      WhiteSpaceStyleAllowsCollapsing();
 }
 
 scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   int32 split_end_position = text_end_position_;
-  DCHECK_LE(split_start_position, split_end_position);
+  DCHECK_LT(split_start_position, split_end_position);
 
   text_end_position_ = split_start_position;
 
@@ -318,14 +315,9 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   // split in two.
   update_size_results_valid_ = false;
 
-  // Update the paragraph end position white space now that this text box has
-  // a new end position. The start position white space does not need to be
-  // updated as it has not changed.
-  UpdateTextHasTrailingWhiteSpace();
-
   scoped_refptr<Box> box_after_split(new TextBox(
       computed_style_state(), paragraph_, split_start_position,
-      split_end_position, triggers_line_break_, used_style_provider()));
+      split_end_position, has_trailing_line_break_, used_style_provider()));
 
   // TODO(***REMOVED***): Set the text width of the box after split to
   //               |text_width_ - pre_split_width| to save a call
@@ -333,7 +325,12 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
 
   // Pass the line break trigger on to the sibling that retains the trailing
   // portion of the text and reset the value for this text box.
-  triggers_line_break_ = false;
+  has_trailing_line_break_ = false;
+
+  // Update the paragraph end position white space now that this text box has
+  // a new end position. The start position white space does not need to be
+  // updated as it has not changed.
+  UpdateTextHasTrailingWhiteSpace();
 
   return box_after_split;
 }

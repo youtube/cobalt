@@ -263,9 +263,9 @@ class Box : public base::RefCounted<Box> {
   // treated as not existing for any other purpose.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   virtual bool JustifiesLineExistence() const = 0;
-  // Returns true if the box triggers a line break, disallowing later sibling
-  // boxes on the same line.
-  virtual bool DoesTriggerLineBreak() const = 0;
+  // Whether or not the box or its last descendant has a trailing line break,
+  // disallowing additional boxes on the same line.
+  virtual bool HasTrailingLineBreak() const { return false; }
   // Boxes that don't establish a baseline (such as empty blocks or lines)
   // should not affect the baseline calculation in the block formatting context.
   virtual bool AffectsBaselineInBlockFormattingContext() const = 0;
