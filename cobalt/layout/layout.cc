@@ -19,7 +19,6 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element_context.h"
