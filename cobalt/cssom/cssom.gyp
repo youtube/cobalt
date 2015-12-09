@@ -176,8 +176,6 @@
         'simple_selector.h',
         'specificity.cc',
         'specificity.h',
-        'specified_style.cc',
-        'specified_style.h',
         'string_value.cc',
         'string_value.h',
         'style_sheet.cc',
