@@ -30,6 +30,8 @@ typedef ::media::ShellAudioBus ShellAudioBus;
 // numberOfOutputs : 1
 AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* context)
     : AudioNode(context), state_(kNone), read_index_(0) {
+  AudioLock::AutoLock lock(audio_lock());
+
   AddOutput(new AudioNodeOutput(this));
 }
 

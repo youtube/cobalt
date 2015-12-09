@@ -62,7 +62,7 @@ class AudioDestinationNode : public AudioNode,
  private:
   uint32 max_channel_count_;
 
-  AudioDevice audio_device_;
+  scoped_ptr<AudioDevice> audio_device_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioDestinationNode);
 };
