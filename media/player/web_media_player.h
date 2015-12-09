@@ -129,7 +129,9 @@ class WebMediaPlayer {
   virtual unsigned GetAudioDecodedByteCount() const = 0;
   virtual unsigned GetVideoDecodedByteCount() const = 0;
 
-  virtual ShellVideoFrameProvider* GetVideoFrameProvider() { return NULL; }
+  virtual scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() {
+    return NULL;
+  }
   virtual scoped_refptr<VideoFrame> GetCurrentFrame() { return 0; }
   // We no longer need PutCurrentFrame as the the video frame returned from
   // GetCurrentFrame() is now a scoped_refptr.

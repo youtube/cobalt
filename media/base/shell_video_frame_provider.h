@@ -28,14 +28,13 @@
 namespace media {
 
 // TODO(***REMOVED***) : Remove Shell prefix.
-// TODO(***REMOVED***) : Pass a MediaTimeCB instead of calling GetCurrentTime() on
-//                   Pipeline directly.
 // The ShellVideoFrameProvider manages the backlog for video frames. It has the
 // following functionalities:
 // 1. It caches the video frames ready to be displayed.
 // 2. It decides which frame to be displayed at the current time.
 // 3. It removes frames that will no longer be displayed.
-class ShellVideoFrameProvider {
+class ShellVideoFrameProvider
+    : public base::RefCountedThreadSafe<ShellVideoFrameProvider> {
  public:
   ShellVideoFrameProvider();
 
@@ -78,6 +77,8 @@ class ShellVideoFrameProvider {
   int dropped_frames_;
   int max_delay_in_microseconds_;
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+
+  DISALLOW_COPY_AND_ASSIGN(ShellVideoFrameProvider);
 };
 
 }  // namespace media
