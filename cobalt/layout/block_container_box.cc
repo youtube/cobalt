@@ -274,7 +274,7 @@ bool BlockContainerBox::JustifiesLineExistence() const {
 }
 
 bool BlockContainerBox::DoesTriggerLineBreak() const {
-  DCHECK_EQ(kInlineLevel, GetLevel());
+  DCHECK(GetLevel() == kInlineLevel || IsAbsolutelyPositioned());
   return false;
 }
 
