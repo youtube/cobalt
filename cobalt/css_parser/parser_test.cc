@@ -2149,39 +2149,108 @@ TEST_F(ParserTest, ParsesBackgroundSizeWithKeywordInherit) {
   EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_size());
 }
 
-TEST_F(ParserTest, ParsesBorderWidthColorStyle) {
+TEST_F(ParserTest, ParsesBorderWithWidthColorAndStyle) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("border: .5em #fff solid;",
                                         source_location_);
 
-  scoped_refptr<cssom::LengthValue> border_width =
-      dynamic_cast<cssom::LengthValue*>(style->border_width().get());
-  ASSERT_TRUE(border_width);
-  EXPECT_FLOAT_EQ(0.5f, border_width->value());
-  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_width->unit());
+  scoped_refptr<cssom::LengthValue> border_left_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_left_width().get());
+  ASSERT_TRUE(border_left_width);
+  EXPECT_FLOAT_EQ(0.5f, border_left_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_left_width->unit());
 
-  scoped_refptr<cssom::RGBAColorValue> border_color =
-      dynamic_cast<cssom::RGBAColorValue*>(style->border_color().get());
-  ASSERT_TRUE(border_color);
-  EXPECT_EQ(0xffffffff, border_color->value());
+  scoped_refptr<cssom::LengthValue> border_right_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_right_width().get());
+  ASSERT_TRUE(border_right_width);
+  EXPECT_FLOAT_EQ(0.5f, border_right_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_right_width->unit());
 
-  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_style());
+  scoped_refptr<cssom::LengthValue> border_top_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_top_width().get());
+  ASSERT_TRUE(border_top_width);
+  EXPECT_FLOAT_EQ(0.5f, border_top_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_bottom_width().get());
+  ASSERT_TRUE(border_bottom_width);
+  EXPECT_FLOAT_EQ(0.5f, border_bottom_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_width->unit());
+
+  scoped_refptr<cssom::RGBAColorValue> border_left_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_left_color().get());
+  ASSERT_TRUE(border_left_color);
+  EXPECT_EQ(0xffffffff, border_left_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_right_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_right_color().get());
+  ASSERT_TRUE(border_right_color);
+  EXPECT_EQ(0xffffffff, border_right_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_top_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_top_color().get());
+  ASSERT_TRUE(border_top_color);
+  EXPECT_EQ(0xffffffff, border_top_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_bottom_color().get());
+  ASSERT_TRUE(border_bottom_color);
+  EXPECT_EQ(0xffffffff, border_bottom_color->value());
+
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_left_style());
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_right_style());
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_top_style());
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_bottom_style());
 }
 
 TEST_F(ParserTest, ParsesBorderColorWidth) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("border: gray 20px;", source_location_);
 
-  scoped_refptr<cssom::LengthValue> border_width =
-      dynamic_cast<cssom::LengthValue*>(style->border_width().get());
-  ASSERT_TRUE(border_width);
-  EXPECT_FLOAT_EQ(20, border_width->value());
-  EXPECT_EQ(cssom::kPixelsUnit, border_width->unit());
+  scoped_refptr<cssom::LengthValue> border_top_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_top_width().get());
+  ASSERT_TRUE(border_top_width);
+  EXPECT_FLOAT_EQ(20.0f, border_top_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_top_width->unit());
 
-  scoped_refptr<cssom::RGBAColorValue> border_color =
-      dynamic_cast<cssom::RGBAColorValue*>(style->border_color().get());
-  ASSERT_TRUE(border_color);
-  EXPECT_EQ(0x808080FF, border_color->value());
+  scoped_refptr<cssom::LengthValue> border_right_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_right_width().get());
+  ASSERT_TRUE(border_right_width);
+  EXPECT_FLOAT_EQ(20.0f, border_right_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_right_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_bottom_width().get());
+  ASSERT_TRUE(border_bottom_width);
+  EXPECT_FLOAT_EQ(20.0f, border_bottom_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_bottom_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_left_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_left_width().get());
+  ASSERT_TRUE(border_left_width);
+  EXPECT_FLOAT_EQ(20.0f, border_left_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_left_width->unit());
+
+  scoped_refptr<cssom::RGBAColorValue> border_top_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_top_color().get());
+  ASSERT_TRUE(border_top_color);
+  EXPECT_EQ(0x808080FF, border_top_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_right_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_right_color().get());
+  ASSERT_TRUE(border_right_color);
+  EXPECT_EQ(0x808080FF, border_right_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_bottom_color().get());
+  ASSERT_TRUE(border_bottom_color);
+  EXPECT_EQ(0x808080FF, border_bottom_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_left_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_left_color().get());
+  ASSERT_TRUE(border_left_color);
+  EXPECT_EQ(0x808080FF, border_left_color->value());
 }
 
 TEST_F(ParserTest, ParsesSingleBorderColor) {
@@ -2189,10 +2258,150 @@ TEST_F(ParserTest, ParsesSingleBorderColor) {
       parser_.ParseStyleDeclarationList("border-color: rgba(0, 0, 0, .8);",
                                         source_location_);
 
-  scoped_refptr<cssom::RGBAColorValue> border_color =
-      dynamic_cast<cssom::RGBAColorValue*>(style->border_color().get());
-  ASSERT_TRUE(border_color);
-  EXPECT_EQ(0x000000cc, border_color->value());
+  scoped_refptr<cssom::RGBAColorValue> border_left_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_left_color().get());
+  ASSERT_TRUE(border_left_color);
+  EXPECT_EQ(0x000000cc, border_left_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_right_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_right_color().get());
+  ASSERT_TRUE(border_right_color);
+  EXPECT_EQ(0x000000cc, border_right_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_top_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_top_color().get());
+  ASSERT_TRUE(border_top_color);
+  EXPECT_EQ(0x000000cc, border_top_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_bottom_color().get());
+  ASSERT_TRUE(border_bottom_color);
+  EXPECT_EQ(0x000000cc, border_bottom_color->value());
+}
+
+TEST_F(ParserTest, ParsesBorderColorWithTwoValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-color: #fff rgba(0, 0, 0, .8);",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> border_top_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_top_color().get());
+  ASSERT_TRUE(border_top_color);
+  EXPECT_EQ(0xFFFFFFFF, border_top_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_right_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_right_color().get());
+  ASSERT_TRUE(border_right_color);
+  EXPECT_EQ(0x000000cc, border_right_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_bottom_color().get());
+  ASSERT_TRUE(border_bottom_color);
+  EXPECT_EQ(0xFFFFFFFF, border_bottom_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_left_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_left_color().get());
+  ASSERT_TRUE(border_left_color);
+  EXPECT_EQ(0x000000cc, border_left_color->value());
+}
+
+TEST_F(ParserTest, ParsesBorderColorWithThreeValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-color: #fff rgba(0, 0, 0, .8) rgba(0,0,0,0.9);",
+          source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> border_top_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_top_color().get());
+  ASSERT_TRUE(border_top_color);
+  EXPECT_EQ(0xFFFFFFFF, border_top_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_right_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_right_color().get());
+  ASSERT_TRUE(border_right_color);
+  EXPECT_EQ(0x000000cc, border_right_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_bottom_color().get());
+  ASSERT_TRUE(border_bottom_color);
+  EXPECT_EQ(0x000000E5, border_bottom_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_left_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_left_color().get());
+  ASSERT_TRUE(border_left_color);
+  EXPECT_EQ(0x000000cc, border_left_color->value());
+}
+
+TEST_F(ParserTest, ParsesBorderColorWithFourValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-color: #fff rgba(0, 0, 0, .8) rgba(0,0,0,0.9) "
+          "rgba(0,0,0,0.56);",
+          source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> border_top_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_top_color().get());
+  ASSERT_TRUE(border_top_color);
+  EXPECT_EQ(0xFFFFFFFF, border_top_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_right_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_right_color().get());
+  ASSERT_TRUE(border_right_color);
+  EXPECT_EQ(0x000000CC, border_right_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_bottom_color().get());
+  ASSERT_TRUE(border_bottom_color);
+  EXPECT_EQ(0x000000E5, border_bottom_color->value());
+
+  scoped_refptr<cssom::RGBAColorValue> border_left_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_left_color().get());
+  ASSERT_TRUE(border_left_color);
+  EXPECT_EQ(0x0000008E, border_left_color->value());
+}
+
+TEST_F(ParserTest, ParsesBorderTopColor) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-top-color: rgba(0, 0, 0, .8);",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> border_top_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_top_color().get());
+  ASSERT_TRUE(border_top_color);
+  EXPECT_EQ(0x000000cc, border_top_color->value());
+}
+
+TEST_F(ParserTest, ParsesBorderRightColor) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-right-color: rgba(0, 0, 0, .8);", source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> border_right_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_right_color().get());
+  ASSERT_TRUE(border_right_color);
+  EXPECT_EQ(0x000000cc, border_right_color->value());
+}
+
+TEST_F(ParserTest, ParsesBorderBottomColor) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-bottom-color: rgba(0, 0, 0, .8);", source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_bottom_color().get());
+  ASSERT_TRUE(border_bottom_color);
+  EXPECT_EQ(0x000000cc, border_bottom_color->value());
+}
+
+TEST_F(ParserTest, ParsesBorderLeftColor) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-left-color: rgba(0, 0, 0, .8);",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> border_left_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_left_color().get());
+  ASSERT_TRUE(border_left_color);
+  EXPECT_EQ(0x000000cc, border_left_color->value());
 }
 
 TEST_F(ParserTest, ParsesSingleBorderWidth) {
@@ -2200,11 +2409,167 @@ TEST_F(ParserTest, ParsesSingleBorderWidth) {
       parser_.ParseStyleDeclarationList("border-width: .8em;",
                                         source_location_);
 
-  scoped_refptr<cssom::LengthValue> border_width =
-      dynamic_cast<cssom::LengthValue*>(style->border_width().get());
-  ASSERT_TRUE(border_width);
-  EXPECT_FLOAT_EQ(0.8f, border_width->value());
-  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_width->unit());
+  scoped_refptr<cssom::LengthValue> border_top_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_top_width().get());
+  ASSERT_TRUE(border_top_width);
+  EXPECT_FLOAT_EQ(0.8f, border_top_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_right_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_right_width().get());
+  ASSERT_TRUE(border_right_width);
+  EXPECT_FLOAT_EQ(0.8f, border_right_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_right_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_bottom_width().get());
+  ASSERT_TRUE(border_bottom_width);
+  EXPECT_FLOAT_EQ(0.8f, border_bottom_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_left_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_left_width().get());
+  ASSERT_TRUE(border_left_width);
+  EXPECT_FLOAT_EQ(0.8f, border_left_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_left_width->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderWidthWithTwoValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-width: .8em 20px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_top_width().get());
+  ASSERT_TRUE(border_top_width);
+  EXPECT_FLOAT_EQ(0.8f, border_top_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_right_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_right_width().get());
+  ASSERT_TRUE(border_right_width);
+  EXPECT_FLOAT_EQ(20.0f, border_right_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_right_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_bottom_width().get());
+  ASSERT_TRUE(border_bottom_width);
+  EXPECT_FLOAT_EQ(0.8f, border_bottom_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_left_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_left_width().get());
+  ASSERT_TRUE(border_left_width);
+  EXPECT_FLOAT_EQ(20.0f, border_left_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_left_width->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderWidthWithThreeValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-width: .8em 20px 30px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_top_width().get());
+  ASSERT_TRUE(border_top_width);
+  EXPECT_FLOAT_EQ(0.8f, border_top_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_right_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_right_width().get());
+  ASSERT_TRUE(border_right_width);
+  EXPECT_FLOAT_EQ(20.0f, border_right_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_right_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_bottom_width().get());
+  ASSERT_TRUE(border_bottom_width);
+  EXPECT_FLOAT_EQ(30.0f, border_bottom_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_bottom_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_left_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_left_width().get());
+  ASSERT_TRUE(border_left_width);
+  EXPECT_FLOAT_EQ(20.0f, border_left_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_left_width->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderWidthWithFourValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-width: .8em 20px 30px .5em;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_top_width().get());
+  ASSERT_TRUE(border_top_width);
+  EXPECT_FLOAT_EQ(0.8f, border_top_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_right_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_right_width().get());
+  ASSERT_TRUE(border_right_width);
+  EXPECT_FLOAT_EQ(20.0f, border_right_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_right_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_bottom_width().get());
+  ASSERT_TRUE(border_bottom_width);
+  EXPECT_FLOAT_EQ(30.0f, border_bottom_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_bottom_width->unit());
+
+  scoped_refptr<cssom::LengthValue> border_left_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_left_width().get());
+  ASSERT_TRUE(border_left_width);
+  EXPECT_FLOAT_EQ(0.5f, border_left_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_left_width->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderTopWidth) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-top-width: .8em;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_top_width().get());
+  ASSERT_TRUE(border_top_width);
+  EXPECT_FLOAT_EQ(0.8f, border_top_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_width->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderBottomWidth) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-bottom-width: 35px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_bottom_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_bottom_width().get());
+  ASSERT_TRUE(border_bottom_width);
+  EXPECT_FLOAT_EQ(35.0f, border_bottom_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_bottom_width->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderLeftWidth) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-left-width: 20px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_left_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_left_width().get());
+  ASSERT_TRUE(border_left_width);
+  EXPECT_FLOAT_EQ(20.0f, border_left_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_left_width->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderRightWidth) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-right-width: .4em;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_right_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_right_width().get());
+  ASSERT_TRUE(border_right_width);
+  EXPECT_FLOAT_EQ(0.4f, border_right_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_right_width->unit());
 }
 
 TEST_F(ParserTest, ParsesSingleBorderStyleSolid) {
@@ -2212,7 +2577,10 @@ TEST_F(ParserTest, ParsesSingleBorderStyleSolid) {
       parser_.ParseStyleDeclarationList("border-style: solid;",
                                         source_location_);
 
-  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_style());
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_left_style());
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_right_style());
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_top_style());
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_bottom_style());
 }
 
 TEST_F(ParserTest, ParsesSingleBorderStyleHidden) {
@@ -2220,7 +2588,90 @@ TEST_F(ParserTest, ParsesSingleBorderStyleHidden) {
       parser_.ParseStyleDeclarationList("border-style: hidden;",
                                         source_location_);
 
-  EXPECT_EQ(cssom::KeywordValue::GetHidden(), style->border_style());
+  EXPECT_EQ(cssom::KeywordValue::GetHidden(), style->border_left_style());
+  EXPECT_EQ(cssom::KeywordValue::GetHidden(), style->border_right_style());
+  EXPECT_EQ(cssom::KeywordValue::GetHidden(), style->border_top_style());
+  EXPECT_EQ(cssom::KeywordValue::GetHidden(), style->border_bottom_style());
+}
+
+TEST_F(ParserTest, ParsesBorderTop) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-top: 1px solid #777;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_top_width().get());
+  ASSERT_TRUE(border_top_width);
+  EXPECT_FLOAT_EQ(1.0f, border_top_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_top_width->unit());
+
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_top_style());
+
+  scoped_refptr<cssom::RGBAColorValue> border_top_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_top_color().get());
+  ASSERT_TRUE(border_top_color);
+  EXPECT_EQ(0x777777FF, border_top_color->value());
+}
+
+TEST_F(ParserTest, ParsesBorderBottom) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-bottom: 1em solid "
+          "rgba(255, 255, 255, .2);",
+          source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_bottom_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_bottom_width().get());
+  ASSERT_TRUE(border_bottom_width);
+  EXPECT_FLOAT_EQ(1.0f, border_bottom_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_width->unit());
+
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_bottom_style());
+
+  scoped_refptr<cssom::RGBAColorValue> border_bottom_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_bottom_color().get());
+  ASSERT_TRUE(border_bottom_color);
+  EXPECT_EQ(0xFFFFFF33, border_bottom_color->value());
+}
+
+TEST_F(ParserTest, ParsesBorderLeft) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-left: .7em solid transparent;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_left_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_left_width().get());
+  ASSERT_TRUE(border_left_width);
+  EXPECT_FLOAT_EQ(0.7f, border_left_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_left_width->unit());
+
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_left_style());
+
+  scoped_refptr<cssom::RGBAColorValue> border_left_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_left_color().get());
+  ASSERT_TRUE(border_left_color);
+  EXPECT_EQ(0x00000000, border_left_color->value());
+}
+
+TEST_F(ParserTest, ParsesBorderRight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-right: .1em solid "
+          "rgba(255, 255, 255, .2);",
+          source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_right_width =
+      dynamic_cast<cssom::LengthValue*>(style->border_right_width().get());
+  ASSERT_TRUE(border_right_width);
+  EXPECT_FLOAT_EQ(0.1f, border_right_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_right_width->unit());
+
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_right_style());
+
+  scoped_refptr<cssom::RGBAColorValue> border_right_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->border_right_color().get());
+  ASSERT_TRUE(border_right_color);
+  EXPECT_EQ(0xFFFFFF33, border_right_color->value());
 }
 
 TEST_F(ParserTest, ParsesBorderRadiusLength) {

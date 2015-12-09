@@ -292,26 +292,48 @@ void SetupBackgroundNodeFromStyle(
           GetUsedColor(style->background_color())));
 }
 
+bool IsBorderStyleNoneOrHidden(
+    const scoped_refptr<cssom::PropertyValue>& border_style) {
+  if (border_style == cssom::KeywordValue::GetNone() ||
+      border_style == cssom::KeywordValue::GetHidden()) {
+    return true;
+  }
+  return false;
+}
+
+render_tree::BorderStyle GetRenderTreeBorderStyle(
+    const scoped_refptr<cssom::PropertyValue>& border_style) {
+  render_tree::BorderStyle render_tree_border_style =
+      render_tree::kBorderStyleNone;
+  if (!IsBorderStyleNoneOrHidden(border_style)) {
+    DCHECK_EQ(border_style, cssom::KeywordValue::GetSolid());
+    render_tree_border_style = render_tree::kBorderStyleSolid;
+  }
+
+  return render_tree_border_style;
+}
+
 Border CreateBorderFromStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& style) {
-  DCHECK_EQ(style->border_style(), cssom::KeywordValue::GetSolid());
-  // TODO(***REMOVED***): Use the border color, border width and border style of 4
-  // directions.
-  render_tree::BorderSide left(GetUsedLength(style->border_width()),
-                               render_tree::kBorderStyleSolid,
-                               GetUsedColor(style->border_color()));
+  render_tree::BorderSide left(
+      GetUsedLength(style->border_left_width()),
+      GetRenderTreeBorderStyle(style->border_left_style()),
+      GetUsedColor(style->border_left_color()));
 
-  render_tree::BorderSide right(GetUsedLength(style->border_width()),
-                                render_tree::kBorderStyleSolid,
-                                GetUsedColor(style->border_color()));
+  render_tree::BorderSide right(
+      GetUsedLength(style->border_right_width()),
+      GetRenderTreeBorderStyle(style->border_right_style()),
+      GetUsedColor(style->border_right_color()));
 
-  render_tree::BorderSide top(GetUsedLength(style->border_width()),
-                              render_tree::kBorderStyleSolid,
-                              GetUsedColor(style->border_color()));
+  render_tree::BorderSide top(
+      GetUsedLength(style->border_top_width()),
+      GetRenderTreeBorderStyle(style->border_top_style()),
+      GetUsedColor(style->border_top_color()));
 
-  render_tree::BorderSide bottom(GetUsedLength(style->border_width()),
-                                 render_tree::kBorderStyleSolid,
-                                 GetUsedColor(style->border_color()));
+  render_tree::BorderSide bottom(
+      GetUsedLength(style->border_bottom_width()),
+      GetRenderTreeBorderStyle(style->border_bottom_style()),
+      GetUsedColor(style->border_bottom_color()));
 
   return Border(left, right, top, bottom);
 }
@@ -400,20 +422,19 @@ void Box::UpdateCrossReferencesWithContext(
 }
 
 void Box::UpdateBorders() {
-  // If the border style is none or hidden, border color and width are ignored.
-  if (computed_style()->border_style() == cssom::KeywordValue::GetNone() ||
-      computed_style()->border_style() == cssom::KeywordValue::GetHidden()) {
+  if (IsBorderStyleNoneOrHidden(computed_style()->border_left_style()) &&
+      IsBorderStyleNoneOrHidden(computed_style()->border_top_style()) &&
+      IsBorderStyleNoneOrHidden(computed_style()->border_right_style()) &&
+      IsBorderStyleNoneOrHidden(computed_style()->border_bottom_style())) {
     border_insets_ = math::InsetsF();
     return;
   }
 
-  // TODO(***REMOVED***): Use the border width of the four directions.
-  float width = RoundToFixedPointPrecision(
-      base::polymorphic_downcast<const cssom::LengthValue*>(
-          computed_style()->border_width().get())
-          ->value());
-
-  border_insets_.SetInsets(width, width, width, width);
+  border_insets_.SetInsets(
+      RoundToFixedPointPrecision(GetUsedBorderLeft(computed_style())),
+      RoundToFixedPointPrecision(GetUsedBorderTop(computed_style())),
+      RoundToFixedPointPrecision(GetUsedBorderRight(computed_style())),
+      RoundToFixedPointPrecision(GetUsedBorderBottom(computed_style())));
 }
 
 void Box::UpdatePaddings(const LayoutParams& layout_params) {
@@ -504,38 +525,44 @@ void SetupFilterNodeFromStyle(
   }
 }
 
+bool AreAllBordersTransparent(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style) {
+  return (GetUsedColor(style->border_left_color()).a() == 0.0f) &&
+         (GetUsedColor(style->border_right_color()).a() == 0.0f) &&
+         (GetUsedColor(style->border_top_color()).a() == 0.0f) &&
+         (GetUsedColor(style->border_bottom_color()).a() == 0.0f);
+}
+
+bool HasAnimatedBorder(const web_animations::AnimationSet* animation_set) {
+  return animation_set->IsPropertyAnimated(cssom::kBorderTopColorProperty) ||
+         animation_set->IsPropertyAnimated(cssom::kBorderRightColorProperty) ||
+         animation_set->IsPropertyAnimated(cssom::kBorderBottomColorProperty) ||
+         animation_set->IsPropertyAnimated(cssom::kBorderLeftColorProperty);
+}
+
 }  // namespace
 
 void Box::RenderAndAnimateBorder(
     CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
-  // If the border style is none or hidden, border color and width are ignored.
-  if (computed_style()->border_style() == cssom::KeywordValue::GetNone() ||
-      computed_style()->border_style() == cssom::KeywordValue::GetHidden() ||
-      GetBorderBoxSize().GetArea() == 0) {
+  // If the border is absent or all borders are transparent, there is no need
+  // to render border.
+  if (GetBorderBoxSize() == GetPaddingBoxSize() ||
+      AreAllBordersTransparent(computed_style())) {
     return;
   }
 
-  bool border_color_transparent =
-      GetUsedColor(computed_style()->border_color()).a() == 0.0f;
-  bool border_color_animated =
-      animations()->IsPropertyAnimated(cssom::kBorderColorProperty);
-  bool border_width_animated =
-      animations()->IsPropertyAnimated(cssom::kBorderWidthProperty);
-  if (!border_color_transparent || border_color_animated ||
-      border_width_animated) {
-    scoped_ptr<Border> border(
-        new Border(CreateBorderFromStyle(computed_style())));
-    RectNode::Builder rect_node_builder(GetBorderBoxSize(), border.Pass());
+  scoped_ptr<Border> border(
+      new Border(CreateBorderFromStyle(computed_style())));
+  RectNode::Builder rect_node_builder(GetBorderBoxSize(), border.Pass());
 
-    scoped_refptr<RectNode> border_node(new RectNode(rect_node_builder.Pass()));
-    border_node_builder->AddChild(border_node, math::Matrix3F::Identity());
+  scoped_refptr<RectNode> border_node(new RectNode(rect_node_builder.Pass()));
+  border_node_builder->AddChild(border_node, math::Matrix3F::Identity());
 
-    if (border_color_animated || border_width_animated) {
+  if (HasAnimatedBorder(animations())) {
       AddAnimations<RectNode>(base::Bind(&SetupBorderNodeFromStyle),
                               *computed_style_state(), border_node,
                               node_animations_map_builder);
-    }
   }
 }
 

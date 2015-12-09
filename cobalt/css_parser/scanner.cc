@@ -1297,13 +1297,18 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 
     case 10:
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::GetPropertyName(cssom::kFontStyleProperty))) {
-        *property_name_token = kFontStyleToken;
+              name.begin, cssom::GetPropertyName(cssom::kBackgroundProperty))) {
+        *property_name_token = kBackgroundToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::GetPropertyName(cssom::kBackgroundProperty))) {
-        *property_name_token = kBackgroundToken;
+              name.begin, cssom::GetPropertyName(cssom::kBorderTopProperty))) {
+        *property_name_token = kBorderTopToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFontStyleProperty))) {
+        *property_name_token = kFontStyleToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
@@ -1339,6 +1344,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 11:
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kBorderLeftProperty))) {
+        *property_name_token = kBorderLeftToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kFontFamilyProperty))) {
         *property_name_token = kFontFamilyToken;
@@ -1379,6 +1389,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
     case 12:
       if (IsEqualToCssIdentifier(
               name.begin,
+              cssom::GetPropertyName(cssom::kBorderRightProperty))) {
+        *property_name_token = kBorderRightToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
               cssom::GetPropertyName(cssom::kBorderColorProperty))) {
         *property_name_token = kBorderColorToken;
         return true;
@@ -1410,6 +1426,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 13:
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderBottomProperty))) {
+        *property_name_token = kBorderBottomToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(
               name.begin,
               cssom::GetPropertyName(cssom::kBorderRadiusProperty))) {
@@ -1505,6 +1527,24 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(
               name.begin,
+              cssom::GetPropertyName(cssom::kBorderTopColorProperty))) {
+        *property_name_token = kBorderTopColorToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderTopStyleProperty))) {
+        *property_name_token = kBorderTopStyleToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderTopWidthProperty))) {
+        *property_name_token = kBorderTopWidthToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
               cssom::GetPropertyName(cssom::kTransitionDelayProperty))) {
         *property_name_token = kTransitionDelayToken;
         return true;
@@ -1512,6 +1552,24 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 17:
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderLeftColorProperty))) {
+        *property_name_token = kBorderLeftColorToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderLeftStyleProperty))) {
+        *property_name_token = kBorderLeftStyleToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderLeftWidthProperty))) {
+        *property_name_token = kBorderLeftWidthToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, "-webkit-transform")) {
         *property_name_token = kTransformToken;
         return true;
@@ -1536,6 +1594,24 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kAnimationDurationToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderRightColorProperty))) {
+        *property_name_token = kBorderRightColorToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderRightStyleProperty))) {
+        *property_name_token = kBorderRightStyleToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderRightWidthProperty))) {
+        *property_name_token = kBorderRightWidthToken;
+        return true;
+      }
       return false;
 
     case 19:
@@ -1555,6 +1631,24 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
               name.begin,
               cssom::GetPropertyName(cssom::kBackgroundPositionProperty))) {
         *property_name_token = kBackgroundPositionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderBottomColorProperty))) {
+        *property_name_token = kBorderBottomColorToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderBottomStyleProperty))) {
+        *property_name_token = kBorderBottomStyleToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderBottomWidthProperty))) {
+        *property_name_token = kBorderBottomWidthToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
