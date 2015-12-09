@@ -29,6 +29,7 @@
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/debug/debug_server.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/media_source.h"
@@ -40,7 +41,6 @@
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/script/debug_server.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
@@ -144,7 +144,9 @@ class WebModule {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Create a new debug server that interacts with this web module.
-  scoped_ptr<script::DebugServer> CreateDebugServer();
+  scoped_ptr<debug::DebugServer> CreateDebugServer(
+      const debug::DebugServer::OnEventCallback& on_event_callback,
+      const debug::DebugServer::OnDetachCallback& on_detach_callback);
 #endif  // ENABLE_DEBUG_CONSOLE
 
  private:
