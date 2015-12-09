@@ -22,6 +22,8 @@
 namespace cobalt {
 namespace dom {
 
+using ::media::ShellVideoFrameProvider;
+
 const char HTMLVideoElement::kTagName[] = "video";
 
 HTMLVideoElement::HTMLVideoElement(Document* document)
@@ -71,7 +73,8 @@ uint32 HTMLVideoElement::video_height() const {
   return static_cast<uint32>(player()->GetNaturalSize().height());
 }
 
-::media::ShellVideoFrameProvider* HTMLVideoElement::GetVideoFrameProvider() {
+scoped_refptr<ShellVideoFrameProvider>
+HTMLVideoElement::GetVideoFrameProvider() {
   DCHECK(thread_checker_.CalledOnValidThread());
   return player() ? player()->GetVideoFrameProvider() : NULL;
 }

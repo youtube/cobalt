@@ -48,7 +48,7 @@ using ::media::VideoFrame;
 namespace {
 
 scoped_refptr<render_tree::Image> GetVideoFrame(
-    ShellVideoFrameProvider* frame_provider) {
+    const scoped_refptr<ShellVideoFrameProvider>& frame_provider) {
   scoped_refptr<VideoFrame> video_frame =
       frame_provider ? frame_provider->GetCurrentFrame() : NULL;
   if (video_frame && video_frame->texture_id()) {
