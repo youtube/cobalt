@@ -24,8 +24,6 @@
         'js_object_cache.h',
         'jsc_debugger.cc',
         'jsc_debugger.h',
-        'jsc_debug_server.cc',
-        'jsc_debug_server.h',
         'jsc_engine.cc',
         'jsc_engine.h',
         'jsc_event_listener_callable.cc',

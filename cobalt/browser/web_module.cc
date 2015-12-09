@@ -221,10 +221,13 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 #endif
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-scoped_ptr<script::DebugServer> WebModule::CreateDebugServer() {
-  // This may be called from a thread other than web_module_message_loop_.
-  return script::DebugServer::CreateDebugServer(
-      global_object_proxy_, self_message_loop_->message_loop_proxy());
+scoped_ptr<debug::DebugServer> WebModule::CreateDebugServer(
+    const debug::DebugServer::OnEventCallback& on_event_callback,
+    const debug::DebugServer::OnDetachCallback& on_detach_callback) {
+  // This may be called from a thread other than self_message_loop_.
+  return scoped_ptr<debug::DebugServer>(new debug::DebugServer(
+      global_object_proxy_, self_message_loop_->message_loop_proxy(),
+      on_event_callback, on_detach_callback));
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 
