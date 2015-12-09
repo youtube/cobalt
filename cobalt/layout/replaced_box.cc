@@ -98,8 +98,6 @@ bool ReplacedBox::IsCollapsed() const { return false; }
 
 bool ReplacedBox::JustifiesLineExistence() const { return true; }
 
-bool ReplacedBox::DoesTriggerLineBreak() const { return false; }
-
 bool ReplacedBox::AffectsBaselineInBlockFormattingContext() const {
   return false;
 }

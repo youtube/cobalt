@@ -60,7 +60,7 @@ class TextBox : public Box {
   bool IsCollapsed() const OVERRIDE;
 
   bool JustifiesLineExistence() const OVERRIDE;
-  bool DoesTriggerLineBreak() const OVERRIDE;
+  bool HasTrailingLineBreak() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
   float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
@@ -129,7 +129,7 @@ class TextBox : public Box {
 
   // Specifies whether this text box ends the line it is on, forcing any
   // additional sibling boxes to be added to a new line.
-  bool triggers_line_break_;
+  bool has_trailing_line_break_;
 
   // A vertical offset of the baseline relatively to the origin of the text box.
   base::optional<float> baseline_offset_from_top_;

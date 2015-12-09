@@ -40,6 +40,8 @@ class AnonymousBlockBox : public BlockContainerBox {
 
   void SplitBidiLevelRuns() OVERRIDE;
 
+  bool HasTrailingLineBreak() const OVERRIDE;
+
   // From |ContainerBox|.
 
   // This method should never be called, instead all children have to be added

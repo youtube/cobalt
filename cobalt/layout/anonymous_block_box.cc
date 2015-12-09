@@ -52,6 +52,10 @@ void AnonymousBlockBox::SplitBidiLevelRuns() {
   }
 }
 
+bool AnonymousBlockBox::HasTrailingLineBreak() const {
+  return !child_boxes().empty() && child_boxes().back()->HasTrailingLineBreak();
+}
+
 bool AnonymousBlockBox::TryAddChild(const scoped_refptr<Box>& /*child_box*/) {
   NOTREACHED();
   return false;

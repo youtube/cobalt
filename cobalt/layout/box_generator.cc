@@ -25,6 +25,7 @@
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
+#include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/text.h"
@@ -115,13 +116,22 @@ void BoxGenerator::Visit(dom::Element* element) {
       return;
     }
   }
+
   scoped_refptr<dom::HTMLVideoElement> video_element =
       html_element->AsHTMLVideoElement();
   if (video_element) {
     VisitVideoElement(video_element);
-  } else {
-    VisitNonReplacedElement(html_element);
+    return;
   }
+
+  scoped_refptr<dom::HTMLBRElement> br_element =
+      html_element->AsHTMLBRElement();
+  if (br_element) {
+    VisitBrElement(br_element);
+    return;
+  }
+
+  VisitNonReplacedElement(html_element);
 }
 
 namespace {
@@ -279,6 +289,27 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // The content of replaced elements is not considered in the CSS rendering
   // model.
   //   http://www.w3.org/TR/CSS21/conform.html#replaced-element
+}
+
+void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
+  // If the br element has "display: none", then it has no effect on the layout.
+  if (br_element->computed_style()->display() ==
+      cssom::KeywordValue::GetNone()) {
+    return;
+  }
+
+  DCHECK(*paragraph_);
+  int32 text_position = (*paragraph_)->GetTextEndPosition();
+
+  scoped_refptr<TextBox> br_text_box =
+      new TextBox(br_element->computed_style_state(), *paragraph_,
+                  text_position, text_position, true, used_style_provider_);
+
+#ifdef COBALT_BOX_DUMP_ENABLED
+  br_text_box->SetGeneratingNode(br_element);
+#endif  // COBALT_BOX_DUMP_ENABLED
+
+  boxes_.push_back(br_text_box);
 }
 
 namespace {
@@ -466,11 +497,17 @@ void BoxGenerator::AppendChildBoxToLine(const scoped_refptr<Box>& child_box) {
       base::polymorphic_downcast<ContainerBox*>(boxes_.back().get());
 
   if (!last_container_box->TryAddChild(child_box)) {
-    boxes_.push_back(child_box);
-
     scoped_refptr<ContainerBox> next_container_box =
         last_container_box->TrySplitAtEnd();
     DCHECK(next_container_box);
+
+    // Attempt to add the box to the next container before adding it to the top
+    // level. In the case where a line break was blocking the add in the last
+    // container, the child should successfully go into the next container.
+    if (!next_container_box->TryAddChild(child_box)) {
+      boxes_.push_back(child_box);
+    }
+
     boxes_.push_back(next_container_box);
   }
 }
