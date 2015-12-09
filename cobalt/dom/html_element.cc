@@ -27,7 +27,6 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/selector_tree.h"
-#include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_animatable.h"
@@ -509,17 +508,13 @@ PromoteMatchingRulesToComputedStyle(
   cssom::PromoteToCascadedStyle(computed_style, matching_rules,
                                 property_key_to_base_url_map);
 
-  // Up to this point many properties may lack a value. Perform defaulting
-  // in order to ensure that every property has a value. Resolve "initial" and
-  // "inherit" keywords, initialize properties with missing or semantically
-  // invalid values with default values.
-  cssom::PromoteToSpecifiedStyle(computed_style, parent_computed_style);
-
-  // Lastly, absolutize the values, if possible. Convert length units and
-  // percentages into pixels, convert color keywords into RGB triplets,
-  // and so on. For certain properties, like "font-family", computed value is
-  // the same as specified value. Declarations that cannot be absolutized
-  // easily, like "width: auto;", will be resolved during layout.
+  // Lastly, absolutize the values, if possible. Start by resolving "initial"
+  // and "inherit" keywords (which gives us what the specification refers to
+  // as "specified style").  Then, convert length units and percentages into
+  // pixels, convert color keywords into RGB triplets, and so on.  For certain
+  // properties, like "font-family", computed value is the same as specified
+  // value. Declarations that cannot be absolutized easily, like "width: auto;",
+  // will be resolved during layout.
   cssom::PromoteToComputedStyle(computed_style, parent_computed_style,
                                 property_key_to_base_url_map);
 
