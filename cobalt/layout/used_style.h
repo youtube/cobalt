@@ -298,6 +298,14 @@ base::optional<float> GetUsedMarginRightIfNotAuto(
 base::optional<float> GetUsedMarginBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const math::SizeF& containing_block_size);
+float GetUsedBorderLeft(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style);
+float GetUsedBorderTop(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style);
+float GetUsedBorderRight(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style);
+float GetUsedBorderBottom(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style);
 float GetUsedPaddingLeft(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const math::SizeF& containing_block_size);
