@@ -1836,19 +1836,6 @@ class CalculateComputedStyleContext {
       const CSSStyleDeclarationData::PropertyValueIterator&
           property_value_iterator);
 
-  // Helper function to determine if the computed style implies absolute
-  // positioning.
-  bool IsAbsolutelyPositioned();
-
-  // Helper function to return the computed font size.
-  LengthValue* GetFontSize();
-
-  // Helper function to return the computed border style.
-  PropertyValue* GetBorderStyle();
-
-  // Helper function to return the computed color.
-  PropertyValue* GetColor();
-
  private:
   // Immediately promote the specified property key to computed value (if
   // necessary).
@@ -1872,6 +1859,24 @@ class CalculateComputedStyleContext {
   void OnComputedStyleCalculated(const scoped_refptr<PropertyValue>& value,
                                  PropertyKey key);
 
+  // Helper function to determine if the computed style implies absolute
+  // positioning.
+  bool IsAbsolutelyPositioned();
+
+  // Helper function to return the computed font size.
+  LengthValue* GetFontSize();
+
+  // Helper function to return the computed border style for an edge based on
+  // border width properties.
+  PropertyValue* GetBorderStyleBasedOnWidth(PropertyKey key);
+  PropertyValue* GetBorderBottomStyle();
+  PropertyValue* GetBorderLeftStyle();
+  PropertyValue* GetBorderRightStyle();
+  PropertyValue* GetBorderTopStyle();
+
+  // Helper function to return the computed color.
+  PropertyValue* GetColor();
+
   // The style that, during the scope of CalculateComputedStyleContext, is
   // promoted from being a cascaded style to a computed style.
   CSSStyleDeclarationData* cascaded_style_;
@@ -1887,7 +1892,10 @@ class CalculateComputedStyleContext {
   // Cached computed values for a small specific set of properties that other
   // properties computed style calculations depend upon.  These are lazily
   // computed.
-  scoped_refptr<PropertyValue> computed_border_style_;
+  scoped_refptr<PropertyValue> computed_border_bottom_style_;
+  scoped_refptr<PropertyValue> computed_border_left_style_;
+  scoped_refptr<PropertyValue> computed_border_right_style_;
+  scoped_refptr<PropertyValue> computed_border_top_style_;
   scoped_refptr<PropertyValue> computed_color_;
   scoped_refptr<PropertyValue> computed_font_size_;
   scoped_refptr<PropertyValue> computed_position_;
@@ -1931,13 +1939,54 @@ LengthValue* CalculateComputedStyleContext::GetFontSize() {
   return base::polymorphic_downcast<LengthValue*>(computed_font_size_.get());
 }
 
-PropertyValue* CalculateComputedStyleContext::GetBorderStyle() {
-  if (!computed_border_style_) {
-    ComputeValue(kBorderStyleProperty);
+PropertyValue* CalculateComputedStyleContext::GetBorderStyleBasedOnWidth(
+    PropertyKey key) {
+  if (key == kBorderBottomWidthProperty) {
+    return GetBorderBottomStyle();
+  } else if (key == kBorderLeftWidthProperty) {
+    return GetBorderLeftStyle();
+  } else if (key == kBorderRightWidthProperty) {
+    return GetBorderRightStyle();
+  } else {
+    DCHECK_EQ(key, kBorderTopWidthProperty);
+    return GetBorderTopStyle();
+  }
+}
+
+PropertyValue* CalculateComputedStyleContext::GetBorderBottomStyle() {
+  if (!computed_border_bottom_style_) {
+    ComputeValue(kBorderBottomStyleProperty);
   }
 
-  DCHECK(computed_border_style_);
-  return computed_border_style_.get();
+  DCHECK(computed_border_bottom_style_);
+  return computed_border_bottom_style_.get();
+}
+
+PropertyValue* CalculateComputedStyleContext::GetBorderLeftStyle() {
+  if (!computed_border_left_style_) {
+    ComputeValue(kBorderLeftStyleProperty);
+  }
+
+  DCHECK(computed_border_left_style_);
+  return computed_border_left_style_.get();
+}
+
+PropertyValue* CalculateComputedStyleContext::GetBorderRightStyle() {
+  if (!computed_border_right_style_) {
+    ComputeValue(kBorderRightStyleProperty);
+  }
+
+  DCHECK(computed_border_right_style_);
+  return computed_border_right_style_.get();
+}
+
+PropertyValue* CalculateComputedStyleContext::GetBorderTopStyle() {
+  if (!computed_border_top_style_) {
+    ComputeValue(kBorderTopStyleProperty);
+  }
+
+  DCHECK(computed_border_top_style_);
+  return computed_border_top_style_.get();
 }
 
 PropertyValue* CalculateComputedStyleContext::GetColor() {
@@ -1992,16 +2041,23 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
         property_value_iterator.SetValue(computed_background_position);
       }
     } break;
-    case kBorderColorProperty: {
+    case kBorderBottomColorProperty:
+    case kBorderLeftColorProperty:
+    case kBorderRightColorProperty:
+    case kBorderTopColorProperty: {
       if (property_value_iterator.Value() == KeywordValue::GetCurrentColor()) {
         // The computed value of the 'currentColor' keyword is the computed
         // value of the 'color' property.
         property_value_iterator.SetValue(GetColor());
       }
     } break;
-    case kBorderWidthProperty: {
-      ComputedBorderWidthProvider border_width_provider(GetFontSize(),
-                                                        GetBorderStyle());
+    case kBorderBottomWidthProperty:
+    case kBorderLeftWidthProperty:
+    case kBorderRightWidthProperty:
+    case kBorderTopWidthProperty: {
+      ComputedBorderWidthProvider border_width_provider(
+          GetFontSize(),
+          GetBorderStyleBasedOnWidth(property_value_iterator.Key()));
       property_value_iterator.Value()->Accept(&border_width_provider);
       property_value_iterator.SetValue(
           border_width_provider.computed_border_width());
@@ -2152,7 +2208,10 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kAnimationTimingFunctionProperty:
     case kBackgroundColorProperty:
     case kBackgroundRepeatProperty:
-    case kBorderStyleProperty:
+    case kBorderBottomStyleProperty:
+    case kBorderLeftStyleProperty:
+    case kBorderRightStyleProperty:
+    case kBorderTopStyleProperty:
     case kColorProperty:
     case kContentProperty:
     case kFontFamilyProperty:
@@ -2180,7 +2239,14 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kAllProperty:
     case kAnimationProperty:
     case kBackgroundProperty:
+    case kBorderBottomProperty:
+    case kBorderColorProperty:
+    case kBorderLeftProperty:
     case kBorderProperty:
+    case kBorderRightProperty:
+    case kBorderStyleProperty:
+    case kBorderTopProperty:
+    case kBorderWidthProperty:
     case kFontProperty:
     case kMarginProperty:
     case kPaddingProperty:
@@ -2202,8 +2268,17 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kPositionProperty:
       computed_position_ = value;
       break;
-    case kBorderStyleProperty:
-      computed_border_style_ = value;
+    case kBorderBottomStyleProperty:
+      computed_border_bottom_style_ = value;
+      break;
+    case kBorderLeftStyleProperty:
+      computed_border_left_style_ = value;
+      break;
+    case kBorderRightStyleProperty:
+      computed_border_right_style_ = value;
+      break;
+    case kBorderTopStyleProperty:
+      computed_border_top_style_ = value;
       break;
     case kColorProperty:
       computed_color_ = value;
@@ -2224,9 +2299,22 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kBackgroundProperty:
     case kBackgroundRepeatProperty:
     case kBackgroundSizeProperty:
+    case kBorderBottomProperty:
+    case kBorderBottomColorProperty:
+    case kBorderBottomWidthProperty:
     case kBorderColorProperty:
-    case kBorderProperty:
+    case kBorderLeftProperty:
+    case kBorderLeftColorProperty:
+    case kBorderLeftWidthProperty:
     case kBorderRadiusProperty:
+    case kBorderRightProperty:
+    case kBorderRightColorProperty:
+    case kBorderRightWidthProperty:
+    case kBorderStyleProperty:
+    case kBorderTopProperty:
+    case kBorderTopColorProperty:
+    case kBorderTopWidthProperty:
+    case kBorderProperty:
     case kBorderWidthProperty:
     case kBottomProperty:
     case kContentProperty:
