@@ -14,46 +14,87 @@
  * limitations under the License.
  */
 
+#if defined(ENABLE_DEBUG_CONSOLE)
+
 #include "cobalt/debug/debugger.h"
+
+#include "base/json/json_writer.h"
+#include "base/values.h"
 
 namespace cobalt {
 namespace debug {
 
 Debugger::Debugger(
     const CreateDebugServerCallback& create_debug_server_callback)
-    : create_debug_server_callback_(create_debug_server_callback) {}
+    : create_debug_server_callback_(create_debug_server_callback),
+      on_event_(new DebuggerEventTarget()) {}
 
 Debugger::~Debugger() {}
 
 void Debugger::Attach(const AttachCallbackArg& callback) {
-  DLOG(INFO) << "Debugger::Attach";
   debug_server_.reset();
-  debug_server_ = create_debug_server_callback_.Run();
+  debug_server_ = create_debug_server_callback_.Run(
+      base::Bind(&Debugger::OnEvent, base::Unretained(this)),
+      base::Bind(&Debugger::OnDetach, base::Unretained(this)));
   AttachCallbackArg::Reference callback_reference(this, callback);
   callback_reference.value().Run();
 }
 
 void Debugger::Detach(const AttachCallbackArg& callback) {
-  DLOG(INFO) << "Debugger::Detach";
   debug_server_.reset();
   AttachCallbackArg::Reference callback_reference(this, callback);
   callback_reference.value().Run();
 }
 
 void Debugger::SendCommand(const std::string& method,
-                           const script::OpaqueHandleHolder& params,
-                           const CommandCallbackArg& callback) {
-  UNREFERENCED_PARAMETER(params);
-  UNREFERENCED_PARAMETER(callback);
-
+                           const std::string& json_params,
+                           const CommandCallbackArg& callback) const {
   if (!debug_server_) {
-    DLOG(WARNING) << "Debugger is not connected - call attach first.";
+    scoped_ptr<base::DictionaryValue> response(new base::DictionaryValue);
+    response->SetString("error.message",
+                        "Debugger is not connected - call attach first.");
+    std::string json_response;
+    base::JSONWriter::Write(response.get(), &json_response);
+    CommandCallbackArg::Reference callback_ref(this, callback);
+    callback_ref.value().Run(json_response);
     return;
   }
 
-  DLOG(INFO) << "Debugger::SendCommand";
-  DLOG(INFO) << "method: " << method;
+  scoped_refptr<CommandCallbackInfo> callback_info(
+      new CommandCallbackInfo(this, callback));
+  debug_server_->SendCommand(
+      method, json_params,
+      base::Bind(&Debugger::OnCommandResponse, this, callback_info));
 }
 
+void Debugger::OnCommandResponse(
+    const scoped_refptr<CommandCallbackInfo>& callback_info,
+    const base::optional<std::string>& response) const {
+  // Run the script callback on the message loop the command was sent from.
+  callback_info->message_loop_proxy->PostTask(
+      FROM_HERE,
+      base::Bind(&Debugger::RunCommandCallback, this, callback_info, response));
+}
+
+void Debugger::OnEvent(const std::string& method,
+                       const base::optional<std::string>& response) const {
+  // Pass to the onEvent handler. The handler will notify the JavaScript
+  // listener on the message loop the listener was registered on.
+  on_event_->DispatchEvent(method, response);
+}
+
+void Debugger::OnDetach(const std::string& reason) const {
+  NOTIMPLEMENTED() << "Debugger detached: " + reason;
+}
+
+void Debugger::RunCommandCallback(
+    const scoped_refptr<CommandCallbackInfo>& callback_info,
+    base::optional<std::string> response) const {
+  DCHECK_EQ(base::MessageLoopProxy::current(),
+            callback_info->message_loop_proxy);
+  callback_info->callback.value().Run(response);
+}
 }  // namespace debug
 }  // namespace cobalt
+
+#endif  // ENABLE_DEBUG_CONSOLE

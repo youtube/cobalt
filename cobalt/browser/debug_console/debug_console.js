@@ -10,6 +10,8 @@ var commandInput = null;
 var debug = null;
 // Shorthand reference for the debug object.
 var d = null;
+// Handles communication with the debugger.
+var debuggerClient = null;
 
 function createMessageLog() {
   var messageContainer = document.getElementById('messageContainer');
@@ -28,6 +30,10 @@ function createConsoleValues() {
   consoleValues = new ConsoleValues();
   var loadResult = consoleValues.loadActiveSet();
   printToMessageLog(messageLog.INTERACTIVE, loadResult);
+}
+
+function createDebuggerClient() {
+  debuggerClient = new DebuggerClient();
 }
 
 function showBlockElem(elem, doShow) {
@@ -215,6 +221,7 @@ function addLogMessageCallback() {
 function start() {
   createCommandInput();
   createMessageLog();
+  createDebuggerClient();
   showConsole(false);
   createConsoleValues();
   initDebugCommands();

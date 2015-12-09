@@ -20,11 +20,11 @@
       'target_name': 'script',
       'type': 'static_library',
       'sources': [
-        'debug_server.h',
         'event_listener_callable.h',
         'execution_state.cc',
         'execution_state.h',
         'global_object_proxy.h',
+        'javascript_debugger_interface.h',
         'script_runner.cc',
         'script_runner.h',
         'source_code.h',
