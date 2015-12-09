@@ -171,7 +171,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // TODO(***REMOVED***) : Investigate if we should make ShellVideoFrameProvider
   // into a non-singleton class to support play back multiple videos
   // concurrently.
-  ShellVideoFrameProvider* GetVideoFrameProvider() OVERRIDE;
+  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() OVERRIDE;
   // TODO(***REMOVED***) : Remove Get/PutCurrentFrame.
   scoped_refptr<VideoFrame> GetCurrentFrame() OVERRIDE;
   void PutCurrentFrame(const scoped_refptr<VideoFrame>& video_frame) OVERRIDE;
