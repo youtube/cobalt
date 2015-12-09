@@ -81,7 +81,7 @@ function initDebugCommands() {
       'Remember to enclose the name of the object in quotes.';
 
   debug.debugger = function() {
-    return debugHub.debugger;
+    return debuggerClient;
   }
   debug.debugger.shortHelp =
       'Get the debugger client';
