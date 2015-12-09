@@ -254,9 +254,9 @@ void LineBox::BeginUpdatePosition(Box* child_box) {
     last_non_collapsed_child_box_index_ = child_boxes_.size();
   }
 
-  // If this child triggers a line break, then we've reached the end of this
+  // If this child has a trailing line break, then we've reached the end of this
   // line. Nothing more can be added to it.
-  if (child_box->DoesTriggerLineBreak()) {
+  if (child_box->HasTrailingLineBreak()) {
     at_end_ = true;
   }
 

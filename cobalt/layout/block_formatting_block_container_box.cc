@@ -82,7 +82,11 @@ BlockFormattingBlockContainerBox::GetLastChildAsAnonymousBlockBox() {
 AnonymousBlockBox*
 BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
   AnonymousBlockBox* anonymous_block_box = GetLastChildAsAnonymousBlockBox();
-  if (anonymous_block_box == NULL) {
+  // If either the last box is not an anonymous block box, or the anonymous
+  // block box already has a trailing line break and can't accept any additional
+  // children, then create a new anonymous block box.
+  if (anonymous_block_box == NULL ||
+      anonymous_block_box->HasTrailingLineBreak()) {
     // TODO(***REMOVED***): Determine which animations to propagate to the
     //               anonymous block box, instead of none at all.
     scoped_refptr<cssom::ComputedStyleState> computed_style_state =

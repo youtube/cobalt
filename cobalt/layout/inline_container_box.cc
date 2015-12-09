@@ -57,9 +57,9 @@ bool InlineContainerBox::TryAddChild(const scoped_refptr<Box>& child_box) {
       // Fall through if out-of-flow.
 
     case kInlineLevel:
-      // If the inline container box already triggers a line break, then no
+      // If the inline container box already contains a line break, then no
       // additional children can be added to it.
-      if (DoesTriggerLineBreak()) {
+      if (HasTrailingLineBreak()) {
         return false;
       }
 
@@ -327,9 +327,8 @@ bool InlineContainerBox::JustifiesLineExistence() const {
   return justifies_line_existence_;
 }
 
-bool InlineContainerBox::DoesTriggerLineBreak() const {
-  return !child_boxes().empty() &&
-         (*child_boxes().rbegin())->DoesTriggerLineBreak();
+bool InlineContainerBox::HasTrailingLineBreak() const {
+  return !child_boxes().empty() && child_boxes().back()->HasTrailingLineBreak();
 }
 
 bool InlineContainerBox::AffectsBaselineInBlockFormattingContext() const {
