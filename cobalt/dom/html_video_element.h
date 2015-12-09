@@ -17,6 +17,8 @@
 #ifndef DOM_HTML_VIDEO_ELEMENT_H_
 #define DOM_HTML_VIDEO_ELEMENT_H_
 
+#include <string>
+
 #include "cobalt/dom/html_media_element.h"
 #include "media/base/shell_video_frame_provider.h"
 
@@ -27,6 +29,8 @@ namespace dom {
 //   http://www.w3.org/TR/html5/embedded-content-0.html#the-video-element
 class HTMLVideoElement : public HTMLMediaElement {
  public:
+  typedef ::media::ShellVideoFrameProvider ShellVideoFrameProvider;
+
   static const char kTagName[];
 
   explicit HTMLVideoElement(Document* document);
@@ -52,7 +56,7 @@ class HTMLVideoElement : public HTMLMediaElement {
   // TODO(***REMOVED***): ShellVideoFrameProvider is guaranteed to be long live and
   // thread safe. However, it is actually a singleton internally. We should find
   // a better way to support concurrent video playbacks.
-  ::media::ShellVideoFrameProvider* GetVideoFrameProvider();
+  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider();
 
   DEFINE_WRAPPABLE_TYPE(HTMLVideoElement);
 
