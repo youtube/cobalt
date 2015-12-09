@@ -66,6 +66,7 @@ class BoxGenerator : public dom::NodeVisitor {
 
  private:
   void VisitVideoElement(dom::HTMLVideoElement* video_element);
+  void VisitBrElement(dom::HTMLBRElement* br_element);
   void VisitNonReplacedElement(dom::HTMLElement* html_element);
 
   void AppendChildBoxToLine(const scoped_refptr<Box>& child_box);

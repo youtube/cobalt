@@ -62,7 +62,7 @@ class InlineContainerBox : public ContainerBox {
   bool IsCollapsed() const OVERRIDE;
 
   bool JustifiesLineExistence() const OVERRIDE;
-  bool DoesTriggerLineBreak() const OVERRIDE;
+  bool HasTrailingLineBreak() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
   float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
