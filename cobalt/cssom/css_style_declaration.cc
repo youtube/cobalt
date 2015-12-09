@@ -191,35 +191,207 @@ void CSSStyleDeclaration::set_background_size(
 }
 
 std::string CSSStyleDeclaration::border() const {
-  return data_->GetDeclaredPropertyValueString(kBorderProperty);
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other border properties.
+  NOTIMPLEMENTED();
+  return "";
 }
 
 void CSSStyleDeclaration::set_border(const std::string& border) {
   SetPropertyValueStringByKey(kBorderProperty, border);
 }
 
+std::string CSSStyleDeclaration::border_bottom() const {
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other border bottom properties.
+  NOTIMPLEMENTED();
+  return "";
+}
+
+void CSSStyleDeclaration::set_border_bottom(const std::string& border_bottom) {
+  SetPropertyValueStringByKey(kBorderBottomProperty, border_bottom);
+}
+
+std::string CSSStyleDeclaration::border_left() const {
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other border left properties.
+  NOTIMPLEMENTED();
+  return "";
+}
+
+void CSSStyleDeclaration::set_border_left(const std::string& border_left) {
+  SetPropertyValueStringByKey(kBorderLeftProperty, border_left);
+}
+
+std::string CSSStyleDeclaration::border_right() const {
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other border right properties.
+  NOTIMPLEMENTED();
+  return "";
+}
+
+void CSSStyleDeclaration::set_border_right(const std::string& border_right) {
+  SetPropertyValueStringByKey(kBorderRightProperty, border_right);
+}
+
+std::string CSSStyleDeclaration::border_top() const {
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other border top properties.
+  NOTIMPLEMENTED();
+  return "";
+}
+
+void CSSStyleDeclaration::set_border_top(const std::string& border_top) {
+  SetPropertyValueStringByKey(kBorderTopProperty, border_top);
+}
+
 std::string CSSStyleDeclaration::border_color() const {
-  return data_->GetDeclaredPropertyValueString(kBorderColorProperty);
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other border color properties.
+  NOTIMPLEMENTED();
+  return "";
 }
 
 void CSSStyleDeclaration::set_border_color(const std::string& border_color) {
   SetPropertyValueStringByKey(kBorderColorProperty, border_color);
 }
 
+std::string CSSStyleDeclaration::border_top_color() const {
+  return data_->GetDeclaredPropertyValueString(kBorderTopColorProperty);
+}
+
+void CSSStyleDeclaration::set_border_top_color(
+    const std::string& border_top_color) {
+  SetPropertyValueStringByKey(kBorderTopColorProperty, border_top_color);
+}
+
+std::string CSSStyleDeclaration::border_right_color() const {
+  return data_->GetDeclaredPropertyValueString(kBorderRightColorProperty);
+}
+
+void CSSStyleDeclaration::set_border_right_color(
+    const std::string& border_right_color) {
+  SetPropertyValueStringByKey(kBorderRightColorProperty, border_right_color);
+}
+
+std::string CSSStyleDeclaration::border_bottom_color() const {
+  return data_->GetDeclaredPropertyValueString(kBorderBottomColorProperty);
+}
+
+void CSSStyleDeclaration::set_border_bottom_color(
+    const std::string& border_bottom_color) {
+  SetPropertyValueStringByKey(kBorderBottomColorProperty, border_bottom_color);
+}
+
+std::string CSSStyleDeclaration::border_left_color() const {
+  return data_->GetDeclaredPropertyValueString(kBorderLeftColorProperty);
+}
+
+void CSSStyleDeclaration::set_border_left_color(
+    const std::string& border_left_color) {
+  SetPropertyValueStringByKey(kBorderLeftColorProperty, border_left_color);
+}
+
 std::string CSSStyleDeclaration::border_style() const {
-  return data_->GetDeclaredPropertyValueString(kBorderStyleProperty);
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other border style properties.
+  NOTIMPLEMENTED();
+  return "";
 }
 
 void CSSStyleDeclaration::set_border_style(const std::string& border_style) {
   SetPropertyValueStringByKey(kBorderStyleProperty, border_style);
 }
 
+std::string CSSStyleDeclaration::border_top_style() const {
+  return data_->GetDeclaredPropertyValueString(kBorderTopStyleProperty);
+}
+
+void CSSStyleDeclaration::set_border_top_style(
+    const std::string& border_top_style) {
+  SetPropertyValueStringByKey(kBorderTopStyleProperty, border_top_style);
+}
+
+std::string CSSStyleDeclaration::border_right_style() const {
+  return data_->GetDeclaredPropertyValueString(kBorderRightStyleProperty);
+}
+
+void CSSStyleDeclaration::set_border_right_style(
+    const std::string& border_right_style) {
+  SetPropertyValueStringByKey(kBorderRightStyleProperty, border_right_style);
+}
+
+std::string CSSStyleDeclaration::border_bottom_style() const {
+  return data_->GetDeclaredPropertyValueString(kBorderBottomStyleProperty);
+}
+
+void CSSStyleDeclaration::set_border_bottom_style(
+    const std::string& border_bottom_style) {
+  SetPropertyValueStringByKey(kBorderBottomStyleProperty, border_bottom_style);
+}
+
+std::string CSSStyleDeclaration::border_left_style() const {
+  return data_->GetDeclaredPropertyValueString(kBorderLeftStyleProperty);
+}
+
+void CSSStyleDeclaration::set_border_left_style(
+    const std::string& border_left_style) {
+  SetPropertyValueStringByKey(kBorderLeftStyleProperty, border_left_style);
+}
+
 std::string CSSStyleDeclaration::border_width() const {
-  return data_->GetDeclaredPropertyValueString(kBorderWidthProperty);
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other border width properties.
+  NOTIMPLEMENTED();
+  return "";
 }
 
 void CSSStyleDeclaration::set_border_width(const std::string& border_width) {
   SetPropertyValueStringByKey(kBorderWidthProperty, border_width);
+}
+
+std::string CSSStyleDeclaration::border_top_width() const {
+  return data_->GetDeclaredPropertyValueString(kBorderTopWidthProperty);
+}
+
+void CSSStyleDeclaration::set_border_top_width(
+    const std::string& border_top_width) {
+  SetPropertyValueStringByKey(kBorderTopWidthProperty, border_top_width);
+}
+
+std::string CSSStyleDeclaration::border_right_width() const {
+  return data_->GetDeclaredPropertyValueString(kBorderRightWidthProperty);
+}
+
+void CSSStyleDeclaration::set_border_right_width(
+    const std::string& border_right_width) {
+  SetPropertyValueStringByKey(kBorderRightWidthProperty, border_right_width);
+}
+
+std::string CSSStyleDeclaration::border_bottom_width() const {
+  return data_->GetDeclaredPropertyValueString(kBorderBottomWidthProperty);
+}
+
+void CSSStyleDeclaration::set_border_bottom_width(
+    const std::string& border_bottom_width) {
+  SetPropertyValueStringByKey(kBorderBottomWidthProperty, border_bottom_width);
+}
+
+std::string CSSStyleDeclaration::border_left_width() const {
+  return data_->GetDeclaredPropertyValueString(kBorderLeftWidthProperty);
+}
+
+void CSSStyleDeclaration::set_border_left_width(
+    const std::string& border_left_width) {
+  SetPropertyValueStringByKey(kBorderLeftWidthProperty, border_left_width);
 }
 
 std::string CSSStyleDeclaration::border_radius() const {

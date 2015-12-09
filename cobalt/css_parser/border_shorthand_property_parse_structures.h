@@ -30,6 +30,18 @@ struct BorderShorthand {
   scoped_refptr<cssom::PropertyValue> border_width;
 };
 
+// This helps parsing and verifying syntax of border color/style/width shorthand
+// property values.
+struct BorderShorthandToLonghand {
+  void Assign4BordersBasedOnPropertyList(
+      const scoped_refptr<cssom::PropertyValue>& property_list);
+
+  scoped_refptr<cssom::PropertyValue> border_top;
+  scoped_refptr<cssom::PropertyValue> border_right;
+  scoped_refptr<cssom::PropertyValue> border_bottom;
+  scoped_refptr<cssom::PropertyValue> border_left;
+};
+
 }  // namespace css_parser
 }  // namespace cobalt
 

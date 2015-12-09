@@ -91,14 +91,62 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string border() const;
   void set_border(const std::string& border);
 
+  std::string border_bottom() const;
+  void set_border_bottom(const std::string& border_bottom);
+
+  std::string border_left() const;
+  void set_border_left(const std::string& border_left);
+
+  std::string border_right() const;
+  void set_border_right(const std::string& border_right);
+
+  std::string border_top() const;
+  void set_border_top(const std::string& border_top);
+
   std::string border_color() const;
   void set_border_color(const std::string& border_color);
+
+  std::string border_top_color() const;
+  void set_border_top_color(const std::string& border_top_color);
+
+  std::string border_right_color() const;
+  void set_border_right_color(const std::string& border_right_color);
+
+  std::string border_bottom_color() const;
+  void set_border_bottom_color(const std::string& border_bottom_color);
+
+  std::string border_left_color() const;
+  void set_border_left_color(const std::string& border_left_color);
 
   std::string border_style() const;
   void set_border_style(const std::string& border_style);
 
+  std::string border_top_style() const;
+  void set_border_top_style(const std::string& border_top_style);
+
+  std::string border_right_style() const;
+  void set_border_right_style(const std::string& border_right_style);
+
+  std::string border_bottom_style() const;
+  void set_border_bottom_style(const std::string& border_bottom_style);
+
+  std::string border_left_style() const;
+  void set_border_left_style(const std::string& border_left_style);
+
   std::string border_width() const;
   void set_border_width(const std::string& border_width);
+
+  std::string border_top_width() const;
+  void set_border_top_width(const std::string& border_top_width);
+
+  std::string border_right_width() const;
+  void set_border_right_width(const std::string& border_right_width);
+
+  std::string border_bottom_width() const;
+  void set_border_bottom_width(const std::string& border_bottom_width);
+
+  std::string border_left_width() const;
+  void set_border_left_width(const std::string& border_left_width);
 
   std::string border_radius() const;
   void set_border_radius(const std::string& border_radius);
