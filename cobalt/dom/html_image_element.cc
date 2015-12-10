@@ -100,6 +100,7 @@ void HTMLImageElement::UpdateImageData() {
     }
 
     if (!owner_document()->csp_delegate()->CanLoadImage(selected_source)) {
+      PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
       return;
     }
 
@@ -113,11 +114,7 @@ void HTMLImageElement::UpdateImageData() {
     cached_image_ = html_element_context()->image_cache()->CreateCachedResource(
         selected_source);
     if (cached_image_->TryGetResource()) {
-      MessageLoop::current()->PostTask(
-          FROM_HERE,
-          base::Bind(base::IgnoreResult(&HTMLImageElement::DispatchEvent),
-                     base::AsWeakPtr<HTMLImageElement>(this),
-                     make_scoped_refptr(new Event("load"))));
+      PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->load());
       return;
     }
   } else {
@@ -125,11 +122,7 @@ void HTMLImageElement::UpdateImageData() {
     // 10. If selected source is null, then set the element to the broken state,
     // queue a task to fire a simple event named error at the img element, and
     // abort these steps.
-    MessageLoop::current()->PostTask(
-        FROM_HERE,
-        base::Bind(base::IgnoreResult(&HTMLImageElement::DispatchEvent),
-                   base::AsWeakPtr<HTMLImageElement>(this),
-                   make_scoped_refptr(new Event("error"))));
+    PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
     return;
   }
 
@@ -154,21 +147,13 @@ void HTMLImageElement::UpdateImageData() {
 
 void HTMLImageElement::OnLoadingDone() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingDone()");
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(base::IgnoreResult(&HTMLImageElement::DispatchEvent),
-                 base::AsWeakPtr<HTMLImageElement>(this),
-                 make_scoped_refptr(new Event("load"))));
+  PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->load());
   owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
 }
 
 void HTMLImageElement::OnLoadingError() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingError()");
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(base::IgnoreResult(&HTMLImageElement::DispatchEvent),
-                 base::AsWeakPtr<HTMLImageElement>(this),
-                 make_scoped_refptr(new Event("error"))));
+  PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
   owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
 }
 
