@@ -4,16 +4,41 @@
 
 #include "net/base/tcp_listen_socket_unittest.h"
 
+#if !defined(OS_STARBOARD)
 #include <fcntl.h>
 #include <sys/types.h>
+#endif
 
 #include "base/bind.h"
+#if !defined(OS_STARBOARD)
 #include "base/posix/eintr_wrapper.h"
+#endif
 #include "base/sys_byteorder.h"
 #include "net/base/net_util.h"
 #include "testing/platform_test.h"
+#if defined(OS_STARBOARD)
+#include "starboard/socket.h"
+#endif
 
 namespace net {
+
+namespace {
+int SocketReceive(SocketDescriptor socket, char* buffer, int size) {
+#if defined(OS_STARBOARD)
+  return SbSocketReceiveFrom(socket, buffer, size, NULL);
+#else  // defined(OS_STARBOARD)
+  return HANDLE_EINTR(recv(socket, buffer, size, 0));
+#endif  // defined(OS_STARBOARD)
+}
+
+int SocketSend(SocketDescriptor socket, const char* buffer, int size) {
+#if defined(OS_STARBOARD)
+  return SbSocketSendTo(socket, buffer, size, NULL);
+#else  // defined(OS_STARBOARD)
+  return HANDLE_EINTR(send(socket, buffer, size, 0));
+#endif  // defined(OS_STARBOARD)
+}
+}  // namespace
 
 const int TCPListenSocketTester::kTestPort = 9999;
 
@@ -47,6 +72,16 @@ void TCPListenSocketTester::SetUp() {
   ASSERT_EQ(ACTION_LISTEN, last_action_.type());
 
   // verify the connect/accept and setup test_socket_
+#if defined(OS_STARBOARD)
+  test_socket_ = SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+  ASSERT_NE(StreamListenSocket::kInvalidSocket, test_socket_);
+  SbSocketAddress address = {0};
+  address.type = kSbSocketAddressTypeIpv4;
+  address.address[0] = 127;
+  address.address[3] = 1;
+  address.port = kTestPort;
+  int ret = SbSocketConnect(test_socket_, &address);
+#else   // defined(OS_STARBOARD)
   test_socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   ASSERT_NE(StreamListenSocket::kInvalidSocket, test_socket_);
   struct sockaddr_in client;
@@ -56,6 +91,7 @@ void TCPListenSocketTester::SetUp() {
   int ret = HANDLE_EINTR(
       connect(test_socket_, reinterpret_cast<sockaddr*>(&client),
               sizeof(client)));
+#endif  // defined(OS_STARBOARD)
 #if defined(OS_POSIX)
   // The connect() call may be interrupted by a signal. When connect()
   // is retried on EINTR, it fails with EISCONN.
@@ -75,6 +111,8 @@ void TCPListenSocketTester::TearDown() {
   ASSERT_EQ(0, closesocket(test_socket_));
 #elif defined(OS_POSIX)
   ASSERT_EQ(0, HANDLE_EINTR(close(test_socket_)));
+#elif defined(OS_STARBOARD)
+  ASSERT_EQ(0, SbSocketDestroy(test_socket_));
 #endif
   NextAction();
   ASSERT_EQ(ACTION_CLOSE, last_action_.type());
@@ -107,7 +145,7 @@ int TCPListenSocketTester::ClearTestSocket() {
   char buf[kReadBufSize];
   int len_ret = 0;
   do {
-    int len = HANDLE_EINTR(recv(test_socket_, buf, kReadBufSize, 0));
+    int len = SocketReceive(test_socket_, buf, kReadBufSize);
     if (len == StreamListenSocket::kSocketError || len == 0) {
       break;
     } else {
@@ -176,8 +214,7 @@ void TCPListenSocketTester::TestServerSend() {
   char buf[buf_len+1];
   unsigned recv_len = 0;
   while (recv_len < strlen(kHelloWorld)) {
-    int r = HANDLE_EINTR(recv(test_socket_,
-                              buf + recv_len, buf_len - recv_len, 0));
+    int r = SocketReceive(test_socket_, buf + recv_len, buf_len - recv_len);
     ASSERT_GE(r, 0);
     recv_len += static_cast<unsigned>(r);
     if (!r)
@@ -207,8 +244,8 @@ void TCPListenSocketTester::TestServerSendMultiple() {
   for (int i = 0; i < send_count; ++i) {
     unsigned recv_len = 0;
     while (recv_len < buf_len-1) {
-      int r = HANDLE_EINTR(recv(test_socket_,
-                                buf + recv_len, buf_len - 1 - recv_len, 0));
+      int r =
+          SocketReceive(test_socket_, buf + recv_len, buf_len - 1 - recv_len);
       ASSERT_GE(r, 0);
       recv_len += static_cast<unsigned>(r);
       if (!r)
@@ -222,9 +259,10 @@ void TCPListenSocketTester::TestServerSendMultiple() {
 bool TCPListenSocketTester::Send(SocketDescriptor sock,
                                  const std::string& str) {
   int len = static_cast<int>(str.length());
-  int send_len = HANDLE_EINTR(send(sock, str.data(), len, 0));
+  int send_len = SocketSend(sock, str.data(), len);
+
   if (send_len == StreamListenSocket::kSocketError) {
-    LOG(ERROR) << "send failed: " << errno;
+    PLOG(ERROR) << "send failed";
     return false;
   } else if (send_len != len) {
     return false;

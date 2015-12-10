@@ -73,6 +73,29 @@ TEST_F(IPEndPointTest, Copy) {
   }
 }
 
+#if defined(OS_STARBOARD)
+TEST_F(IPEndPointTest, ToFromSbSocketAddress) {
+  for (int index = 0; index < test_count; ++index) {
+    IPEndPoint ip_endpoint(tests[index].ip_address, index);
+
+    if (tests[index].ipv6)
+      continue;
+
+    // Convert to a SbSocketAddress.
+    SbSocketAddress sb_address;
+    EXPECT_TRUE(ip_endpoint.ToSbSocketAddress(&sb_address));
+
+    // Basic verification.
+    EXPECT_EQ(ip_endpoint.port(), sb_address.port);
+
+    // And convert back to an IPEndPoint.
+    IPEndPoint ip_endpoint2;
+    EXPECT_TRUE(ip_endpoint2.FromSbSocketAddress(&sb_address));
+    EXPECT_EQ(ip_endpoint.port(), ip_endpoint2.port());
+    EXPECT_EQ(ip_endpoint.address(), ip_endpoint2.address());
+  }
+}
+#else  // defined(OS_STARBOARD)
 TEST_F(IPEndPointTest, ToFromSockAddr) {
   for (int index = 0; index < test_count; ++index) {
     IPEndPoint ip_endpoint(tests[index].ip_address, index);
@@ -123,6 +146,7 @@ TEST_F(IPEndPointTest, FromSockAddrBufTooSmall) {
   struct sockaddr* sockaddr = reinterpret_cast<struct sockaddr*>(&addr);
   EXPECT_FALSE(ip_endpoint.FromSockAddr(sockaddr, sizeof(addr) - 1));
 }
+#endif  // defined(OS_STARBOARD)
 
 TEST_F(IPEndPointTest, Equality) {
   for (int index = 0; index < test_count; ++index) {

@@ -1302,13 +1302,16 @@ bool IsPortAllowedByOverride(int port) {
   return g_explicitly_allowed_ports.Get().count(port) > 0;
 }
 
+#if defined(OS_STARBOARD)
+int SetNonBlocking(SbSocket fd) {
+  // All Starboard sockets are created non-blocking.
+  return 0;
+}
+#else  // defined(OS_STARBOARD)
 int SetNonBlocking(int fd) {
 #if defined(OS_WIN)
   unsigned long no_block = 1;
   return ioctlsocket(fd, FIONBIO, &no_block);
-#elif defined(OS_STARBOARD)
-  // All starboard sockets are non-blocking.
-  return 0;
 #elif defined(__LB_XB1__) || defined(__LB_XB360__)
   return -1;
 #elif defined(__LB_SHELL__) && !(defined(__LB_ANDROID__) || defined(__LB_LINUX__))
@@ -1321,6 +1324,7 @@ int SetNonBlocking(int fd) {
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif
 }
+#endif  // defined(OS_STARBOARD)
 
 bool ParseHostAndPort(std::string::const_iterator host_and_port_begin,
                       std::string::const_iterator host_and_port_end,

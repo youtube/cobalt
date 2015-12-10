@@ -281,6 +281,7 @@
           ],
           'sources': [
             'base_paths_starboard.cc',
+            'test/test_file_util_starboard.cc',
           ],
         }],  # OS=="starboard"
         ['OS == "lb_shell" or OS == "starboard"', {

@@ -3142,9 +3142,11 @@ TEST_F(URLRequestTestHTTP, PostFileTest) {
     URLRequest r(test_server_.GetURL("echo"), &d, &default_context_);
     r.set_method("POST");
 
+#if !defined(OS_STARBOARD)
     FilePath dir;
     PathService::Get(base::DIR_EXE, &dir);
     file_util::SetCurrentDirectory(dir);
+#endif
 
     ScopedVector<UploadElementReader> element_readers;
 

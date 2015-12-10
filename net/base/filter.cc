@@ -10,7 +10,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/mime_util.h"
 
-#if !defined (__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
 #include "net/base/sdch_filter.h"
 #else
 // LB_SHELL doesn't use SDCH. But sdch_filter includes
@@ -207,7 +207,7 @@ void Filter::FixupEncodingTypes(
     }
   }
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
   // If the request was for SDCH content, then we might need additional fixups.
   if (!filter_context.IsSdchResponse()) {
     // It was not an SDCH request, so we'll just record stats.
@@ -357,7 +357,7 @@ Filter* Filter::InitGZipFilter(FilterType type_id, int buffer_size) {
   return gz_filter->InitDecoding(type_id) ? gz_filter.release() : NULL;
 }
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
 // static
 Filter* Filter::InitSdchFilter(FilterType type_id,
                                const FilterContext& filter_context,
@@ -380,7 +380,7 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
     case FILTER_TYPE_GZIP:
       first_filter.reset(InitGZipFilter(type_id, buffer_size));
       break;
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
     case FILTER_TYPE_SDCH:
     case FILTER_TYPE_SDCH_POSSIBLE:
       first_filter.reset(InitSdchFilter(type_id, filter_context, buffer_size));

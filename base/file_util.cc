@@ -312,14 +312,9 @@ bool ContainsPath(const FilePath &parent, const FilePath& child) {
   FilePath abs_parent = FilePath(parent);
   FilePath abs_child = FilePath(child);
 
-#if defined(OS_STARBOARD)
-  if (!abs_parent.IsAbsolute() || !abs_child.IsAbsolute())
-    return false;
-#else
   if (!file_util::AbsolutePath(&abs_parent) ||
       !file_util::AbsolutePath(&abs_child))
     return false;
-#endif
 
 #if defined(OS_WIN)
   // file_util::AbsolutePath() does not flatten case on Windows, so we must do
