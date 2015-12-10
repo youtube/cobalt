@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+#ifndef RENDERER_BACKEND_EGL_TEXTURE_DATA_PBO_H_
+#define RENDERER_BACKEND_EGL_TEXTURE_DATA_PBO_H_
+
+#if defined(GLES3_SUPPORTED)
+
 #include <GLES3/gl3.h>
 
 #include "base/memory/scoped_ptr.h"
@@ -21,9 +26,6 @@
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/surface_info.h"
 #include "cobalt/renderer/backend/texture.h"
-
-#ifndef RENDERER_BACKEND_EGL_TEXTURE_DATA_PBO_H_
-#define RENDERER_BACKEND_EGL_TEXTURE_DATA_PBO_H_
 
 namespace cobalt {
 namespace renderer {
@@ -105,5 +107,7 @@ class RawTextureMemoryPBO : public RawTextureMemoryEGL {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // defined(GLES3_SUPPORTED)
 
 #endif  // RENDERER_BACKEND_EGL_TEXTURE_DATA_PBO_H_
