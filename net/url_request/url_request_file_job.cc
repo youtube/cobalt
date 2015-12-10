@@ -76,7 +76,7 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
     return new URLRequestErrorJob(request, network_delegate, ERR_ACCESS_DENIED);
   }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   // Jail the file path to a specific folder.
   FilePath jail_path;
   PathService::Get(base::DIR_EXE, &jail_path);
@@ -98,7 +98,7 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
   if (is_file &&
       file_util::EndsWithSeparator(file_path) &&
       file_path.IsAbsolute())
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     return new URLRequestErrorJob(request, network_delegate, ERR_ACCESS_DENIED);
 #else
     return new URLRequestFileDirJob(request, network_delegate, file_path);

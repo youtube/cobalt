@@ -25,7 +25,7 @@ namespace net {
 
 namespace {
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
 // lbshell changes file scheme to local
 // url_canon_fileurl.cc:DoCanonicalizeFileURL()
 #define MAYBE_FileURLConversion DISABLED_FileURLConversion
@@ -415,6 +415,7 @@ struct UrlTestData {
   size_t prefix_len;
 };
 
+#if !defined(OS_STARBOARD)
 // Fills in sockaddr for the given 32-bit address (IPv4.)
 // |bytes| should be an array of length 4.
 void MakeIPv4Address(const uint8* bytes, int port, SockaddrStorage* storage) {
@@ -437,7 +438,8 @@ void MakeIPv6Address(const uint8* bytes, int port, SockaddrStorage* storage) {
   addr6->sin6_family = AF_INET6;
   memcpy(&addr6->sin6_addr, bytes, 16);
 }
-#endif
+#endif  // defined(IN6ADDR_ANY_INIT)
+#endif  // !defined(OS_STARBOARD)
 
 // A helper for IDN*{Fast,Slow}.
 // Append "::<language list>" to |expected| and |actual| to make it
@@ -497,7 +499,7 @@ std::string DumpIPNumber(const IPAddressNumber& v) {
   return out;
 }
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 void RunGenerateFileNameTestCase(const GenerateFilenameCase* test_case,
                                  size_t iteration,
                                  const char* suite) {
@@ -510,7 +512,7 @@ void RunGenerateFileNameTestCase(const GenerateFilenameCase* test_case,
             file_util::FilePathAsWString(file_path))
       << "Iteration " << iteration << " of " << suite << ": " << test_case->url;
 }
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 
 }  // anonymous namespace
 
@@ -991,7 +993,7 @@ TEST(NetUtilTest, MAYBE_GenerateSafeFileName) {
   }
 }
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 TEST(NetUtilTest, GenerateFileName) {
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
   // This test doesn't run when the locale is not UTF-8 because some of the
@@ -2124,7 +2126,7 @@ TEST(NetUtilTest, GenerateFileName) {
     RunGenerateFileNameTestCase(&test_case, i, "generation (referrer=GBK)");
   }
 }
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 
 // This is currently a windows specific function.
 #if defined(OS_WIN)
@@ -2300,6 +2302,7 @@ TEST(NetUtilTest, IPAddressToStringWithPort) {
             IPAddressToStringWithPort(addr3, sizeof(addr3), 8080));
 }
 
+#if !defined(OS_STARBOARD)
 TEST(NetUtilTest, NetAddressToString_IPv4) {
   const struct {
     uint8 addr[4];
@@ -2336,7 +2339,7 @@ TEST(NetUtilTest, NetAddressToString_IPv6) {
         NetAddressToString(storage.addr, storage.addr_len));
   }
 }
-#endif
+#endif  // defined(IN6ADDR_ANY_INIT)
 
 TEST(NetUtilTest, NetAddressToStringWithPort_IPv4) {
   uint8 addr[] = {127, 0, 0, 1};
@@ -2363,6 +2366,7 @@ TEST(NetUtilTest, NetAddressToStringWithPort_IPv6) {
     EXPECT_EQ("[fedc:ba98:7654:3210:fedc:ba98:7654:3210]:361", result);
 }
 #endif
+#endif  // !defined(OS_STARBOARD)
 
 TEST(NetUtilTest, GetHostName) {
   // We can't check the result of GetHostName() directly, since the result
@@ -2374,6 +2378,7 @@ TEST(NetUtilTest, GetHostName) {
 
 TEST(NetUtilTest, FormatUrl) {
   FormatUrlTypes default_format_type = kFormatUrlOmitUsernamePassword;
+  // clang-format off
   const UrlTestData tests[] = {
     {"Empty URL", "", "", default_format_type, UnescapeRule::NORMAL, L"", 0},
 
@@ -2407,12 +2412,12 @@ TEST(NetUtilTest, FormatUrl) {
      // GURL doesn't assume an email address's domain part as a host name.
      L"mailto:foo@xn--l8jvb1ey91xtjb.jp", 7},
 
-#if !defined (__LB_SHELL__)
+#if !defined (__LB_SHELL__) && !defined(COBALT)
     {"file: with Japanese IDN",
      "file://xn--l8jvb1ey91xtjb.jp/config.sys", "ja", default_format_type,
      UnescapeRule::NORMAL,
      L"file://\x671d\x65e5\x3042\x3055\x3072.jp/config.sys", 7},
-#endif // file is not a StandardURLScheme in LB_SHELL
+#endif // file is not a StandardURLScheme in LB_SHELL or COBALT
 
     {"ftp: with Japanese IDN",
      "ftp://xn--l8jvb1ey91xtjb.jp/config.sys", "ja", default_format_type,
@@ -2513,11 +2518,11 @@ TEST(NetUtilTest, FormatUrl) {
      "data:/", "en", kFormatUrlOmitTrailingSlashOnBareHostname,
      UnescapeRule::NORMAL, L"data:/", 5},
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
     {"omit slash for file URLs",
      "file:///", "en", kFormatUrlOmitTrailingSlashOnBareHostname,
      UnescapeRule::NORMAL, L"file:///", 7},
-#endif // file is not a StandardURLScheme in LB_SHELL
+#endif // file is not a StandardURLScheme in LB_SHELL or COBALT
 
     // -------- view-source: --------
     {"view-source",
@@ -2545,6 +2550,7 @@ TEST(NetUtilTest, FormatUrl) {
      UnescapeRule::NORMAL, L"view-source:a.b",
      12},
   };
+  // clang-format on
 
   for (size_t i = 0; i < arraysize(tests); ++i) {
     size_t prefix_len = 0;
@@ -3280,7 +3286,8 @@ TEST(NetUtilTest, IsLocalhost) {
 #endif
 }
 
-#if !defined(__LB_SHELL__) // lbshell doesn't support ifaddrs
+// lbshell doesn't support ifaddrs
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 // Verify GetNetworkList().
 TEST(NetUtilTest, GetNetworkList) {
   NetworkInterfaceList list;

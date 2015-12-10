@@ -11,6 +11,8 @@
 #include "net/socket/tcp_server_socket_win.h"
 #elif defined(OS_POSIX)
 #include "net/socket/tcp_server_socket_libevent.h"
+#elif defined(OS_STARBOARD)
+#include "net/socket/tcp_server_socket_starboard.h"
 #endif
 
 namespace net {
@@ -19,6 +21,8 @@ namespace net {
 typedef TCPServerSocketWin TCPServerSocket;
 #elif defined(OS_POSIX)
 typedef TCPServerSocketLibevent TCPServerSocket;
+#elif defined(OS_STARBOARD)
+typedef TCPServerSocketStarboard TCPServerSocket;
 #endif
 
 }  // namespace net

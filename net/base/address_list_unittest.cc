@@ -6,15 +6,78 @@
 
 #include "base/string_util.h"
 #include "base/sys_byteorder.h"
+#include "build/build_config.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if defined(OS_STARBOARD)
+#include "starboard/memory.h"
+#include "starboard/socket.h"
+#endif
 
 namespace net {
 namespace {
 
 static const char* kCanonicalHostname = "canonical.bar.com";
 
+#if defined(OS_STARBOARD)
+TEST(AddressListTest, CanonicalHostname) {
+  // Create an SbSocketResolution with a canonical name.
+  // The contents of resolution do not matter for this test,
+  // so just zero-ing them out for consistency.
+  SbSocketResolution resolution = {0};
+  resolution.canonical_name = kCanonicalHostname;
+
+  // Copy the addrinfo struct into an AddressList object and
+  // make sure it seems correct.
+  AddressList addrlist1 =
+      AddressList::CreateFromSbSocketResolution(&resolution);
+  EXPECT_EQ(kCanonicalHostname, addrlist1.canonical_name());
+
+  // Copy the AddressList to another one.
+  AddressList addrlist2 = addrlist1;
+  EXPECT_EQ(kCanonicalHostname, addrlist2.canonical_name());
+}
+
+TEST(AddressListTest, CreateFromSbSocketResolution) {
+  // Create an 4-element addrinfo.
+  const unsigned kNumElements = 4;
+  SbSocketResolution resolution = {0};
+  resolution.address_count = kNumElements;
+  struct SbSocketAddress addresses[kNumElements];
+  resolution.addresses = addresses;
+  for (int i = 0; i < kNumElements; ++i) {
+    SbSocketAddress* address = &addresses[i];
+    // Populating the address with { i, i, i, i }.
+    SbMemorySet(address->address, i, kIPv4AddressSize);
+    address->type = kSbSocketAddressTypeIpv4;
+    // Set port to i << 2;
+    address->port = i << 2;
+  }
+
+  AddressList list = AddressList::CreateFromSbSocketResolution(&resolution);
+
+  ASSERT_EQ(kNumElements, list.size());
+  for (size_t i = 0; i < list.size(); ++i) {
+    EXPECT_EQ(ADDRESS_FAMILY_IPV4, list[i].GetFamily());
+    // Only check the first byte of the address.
+    EXPECT_EQ(i, list[i].address()[0]);
+    EXPECT_EQ(static_cast<int>(i << 2), list[i].port());
+  }
+
+  // Check if operator= works.
+  AddressList copy;
+  copy = list;
+  ASSERT_EQ(kNumElements, copy.size());
+
+  // Check if copy is independent.
+  copy[1] = IPEndPoint(copy[2].address(), 0xBEEF);
+  // Original should be unchanged.
+  EXPECT_EQ(1u, list[1].address()[0]);
+  EXPECT_EQ(1 << 2, list[1].port());
+}
+#else   // defined(OS_STARBOARD)
 TEST(AddressListTest, Canonical) {
   // Create an addrinfo with a canonical name.
   struct sockaddr_in address;
@@ -85,6 +148,7 @@ TEST(AddressListTest, CreateFromAddrinfo) {
   EXPECT_EQ(1u, list[1].address()[0]);
   EXPECT_EQ(1 << 2, list[1].port());
 }
+#endif  // defined(OS_STARBOARD)
 
 TEST(AddressListTest, CreateFromIPAddressList) {
   struct TestData {
