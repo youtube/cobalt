@@ -21,13 +21,6 @@
       'sources': [
         'default_graphics_system.cc',
       ],
-      'include_dirs': [
-        '<(DEPTH)/third_party/angle/include',
-      ],
-      'dependencies': [
-        '<(DEPTH)/third_party/angle/src/build_angle.gyp:libEGL',
-        '<(DEPTH)/third_party/angle/src/build_angle.gyp:libGLESv2',
-      ],
 
       'includes': [
         '../egl/egl_backend.gypi',

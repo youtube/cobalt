@@ -13,10 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'gles3_supported%': 0,
-  },
-
   'sources': [
     'display.cc',
     'display.h',
@@ -35,26 +31,17 @@
     'texture_data.h',
     'texture_data_cpu.cc',
     'texture_data_cpu.h',
+    'texture_data_pbo.cc',
+    'texture_data_pbo.h',
     'utils.cc',
     'utils.h',
   ],
 
-  'conditions': [
-    ['gles3_supported==1', {
-      'sources': [
-        'texture_data_pbo.cc',
-        'texture_data_pbo.h',
-      ],
-
-      'defines': [
-        'GLES3_SUPPORTED',
-      ],
-    }],
+  'dependencies': [
+    '<(DEPTH)/cobalt/renderer/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+  ],
+  'export_dependent_settings': [
+    '<(DEPTH)/cobalt/renderer/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
   ],
 
-  'direct_dependent_settings': {
-    'include_dirs': [
-      '<(DEPTH)/third_party/angle/include',
-    ],
-  },
 }
