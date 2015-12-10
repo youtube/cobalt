@@ -151,6 +151,10 @@ void LineBox::BeginUpdateRectAndMaybeOverflow(Box* child_box) {
 void LineBox::BeginEstimateStaticPosition(Box* child_box) {
   DCHECK(child_box->IsAbsolutelyPositioned());
 
+  // The term "static position" (of an element) refers, roughly, to the position
+  // an element would have had in the normal flow.
+  //   http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+
   // TODO(***REMOVED***): Reimplement this crude approximation of static position
   //               in order to take horizontal and vertical alignments
   //               into consideration (for inline-level children) and line
