@@ -129,6 +129,12 @@ bool CreateTemporaryDirInDirImpl(const FilePath &base_dir,
 
 namespace file_util {
 
+bool AbsolutePath(FilePath* path) {
+  // We don't have cross-platform tools for this, so we will just return true if
+  // the path is already absolute.
+  return path->IsAbsolute();
+}
+
 bool Delete(const FilePath &path, bool recursive) {
   base::ThreadRestrictions::AssertIOAllowed();
   const char *path_str = path.value().c_str();
