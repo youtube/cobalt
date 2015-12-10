@@ -55,12 +55,7 @@ void HTMLScriptElement::OnInsertedIntoDocument() {
   }
   // TODO(***REMOVED***): Remove the following code once we support Promise.
   // See b/25387308 for more details.
-  MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
-                 base::AsWeakPtr<HTMLScriptElement>(this),
-                 make_scoped_refptr(new Event(
-                     EventNames::GetInstance()->readystatechange()))));
+  PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->readystatechange());
 }
 
 void HTMLScriptElement::OnParserStartTag(
@@ -158,12 +153,7 @@ void HTMLScriptElement::Prepare() {
   if (HasAttribute("src") && src() == "") {
     LOG(WARNING) << "src attribute of script element is empty.";
 
-    MessageLoop::current()->PostTask(
-        FROM_HERE,
-        base::Bind(
-            base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
-            base::AsWeakPtr<HTMLScriptElement>(this),
-            make_scoped_refptr(new Event(EventNames::GetInstance()->error()))));
+    PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
     return;
   }
 
@@ -175,12 +165,7 @@ void HTMLScriptElement::Prepare() {
   if (!url_.is_valid()) {
     LOG(WARNING) << src() << " cannot be resolved based on " << base_url << ".";
 
-    MessageLoop::current()->PostTask(
-        FROM_HERE,
-        base::Bind(
-            base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
-            base::AsWeakPtr<HTMLScriptElement>(this),
-            make_scoped_refptr(new Event(EventNames::GetInstance()->error()))));
+    PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
     return;
   }
 
@@ -452,12 +437,7 @@ void HTMLScriptElement::Execute(const std::string& content,
   if (is_external) {
     DispatchEvent(new Event(EventNames::GetInstance()->load()));
   } else {
-    MessageLoop::current()->PostTask(
-        FROM_HERE,
-        base::Bind(
-            base::IgnoreResult(&HTMLScriptElement::DispatchEvent),
-            base::AsWeakPtr<HTMLScriptElement>(this),
-            make_scoped_refptr(new Event(EventNames::GetInstance()->load()))));
+    PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->load());
   }
 }
 
