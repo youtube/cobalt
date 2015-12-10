@@ -178,6 +178,11 @@ class Element : public Node {
 
   HTMLElementContext* html_element_context();
 
+  // Post a task on the current MessageLoop to call DispatchEvent().
+  // Creates a new Event with the given name.
+  void PostToDispatchEvent(const tracked_objects::Location& location,
+                           const std::string& event_name);
+
  private:
   virtual void OnSetAttribute(const std::string& /* name */,
                               const std::string& /* value */) {}

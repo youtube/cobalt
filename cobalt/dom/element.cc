@@ -523,6 +523,14 @@ HTMLElementContext* Element::html_element_context() {
   return owner_document()->html_element_context();
 }
 
+void Element::PostToDispatchEvent(const tracked_objects::Location& location,
+                                  const std::string& event_name) {
+  MessageLoop::current()->PostTask(
+      location, base::Bind(base::IgnoreResult(&Element::DispatchEvent),
+                           base::AsWeakPtr<Element>(this),
+                           make_scoped_refptr(new Event(event_name))));
+}
+
 void Element::HTMLParseError(const std::string& error) {
   // TODO(***REMOVED***): Report line / column number.
   LOG(WARNING) << "Error when parsing inner HTML or outer HTML: " << error;
