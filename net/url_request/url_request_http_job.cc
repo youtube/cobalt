@@ -25,7 +25,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/network_delegate.h"
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 #include "net/base/sdch_manager.h"
 #endif
 #include "net/base/ssl_cert_request_info.h"
@@ -285,7 +285,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   ProcessStrictTransportSecurityHeader();
   ProcessPublicKeyPinsHeader();
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
   if (SdchManager::Global() &&
       SdchManager::Global()->IsInSupportedDomain(request_->url())) {
     const std::string name = "Get-Dictionary";
@@ -429,7 +429,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
   // simple_data_source.
   if (!request_info_.extra_headers.HasHeader(
       HttpRequestHeaders::kAcceptEncoding)) {
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
     bool advertise_sdch = SdchManager::Global() &&
         SdchManager::Global()->IsInSupportedDomain(request_->url());
     std::string avail_dictionaries;
@@ -469,7 +469,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
       request_info_.extra_headers.SetHeader(
           HttpRequestHeaders::kAcceptEncoding, "gzip,deflate");
     } else {
-#if !defined(__LB_SHELL__) && !defined(COBALT)
+#if !defined(__LB_SHELL__) && !defined(COBALT) && !defined(OS_STARBOARD)
       // Include SDCH in acceptable list.
       request_info_.extra_headers.SetHeader(
           HttpRequestHeaders::kAcceptEncoding, "gzip,deflate,sdch");
@@ -1285,7 +1285,7 @@ HostPortPair URLRequestHttpJob::GetSocketAddress() const {
 URLRequestHttpJob::~URLRequestHttpJob() {
   CHECK(!awaiting_callback_);
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
   DCHECK(!sdch_test_control_ || !sdch_test_activated_);
   if (!is_cached_content_) {
     if (sdch_test_control_)

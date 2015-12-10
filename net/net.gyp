@@ -1027,15 +1027,19 @@
               ],
               'sources!': [
                 'base/file_stream_context_shell.cc',
+                'base/net_errors_shell.cc',
                 'base/net_util_shell.cc',
                 'udp/udp_socket_shell.cc',
                 '<(lbshell_root)/src/tcp_client_socket_shell.cc',
               ],
               'sources': [
                 'base/file_stream_context_starboard.cc',
+                'base/net_errors_starboard.cc',
                 'base/net_util_starboard.cc',
                 'base/platform_mime_util_starboard.cc',
+                'dial/dial_system_config_starboard.cc',
                 'socket/tcp_client_socket_starboard.cc',
+                'socket/tcp_server_socket_starboard.cc',
                 'udp/udp_socket_starboard.cc',
               ],
             }],
@@ -1133,7 +1137,7 @@
               ],
             }],
           ],
-        }, { # os is not lb_shell
+        }, { # os is not lb_shell or starboard
           'dependencies': [
             '../sdch/sdch.gyp:sdch',
             '../v8/tools/gyp/v8.gyp:v8',
@@ -1507,6 +1511,7 @@
         '../third_party/zlib/zlib.gyp:zlib',
         'net',
         'net_test_support',
+        'http_server',  # This is needed by dial_http_server in net
       ],
       'sources': [
         'android/network_change_notifier_android_unittest.cc',
@@ -2007,6 +2012,85 @@
           'dependencies': [
             '../third_party/openssl/openssl.gyp:openssl',
           ],
+          'sources/': [
+            # Pulling forward exclusions from lb_shell's unit_tests_net.
+            ['exclude', '_android_'],
+            ['exclude', '_linux_'],
+            ['exclude', '_posix_'],
+            ['exclude', '_win_'],
+            # These tests don't compile or link
+            ['exclude', 'url_security_manager_unittest'],
+            ['exclude', 'tcp_server_socket_unittest'],
+            ['exclude', 'url_request_throttler_simulation_unittest'],
+            ['exclude', 'url_request_unittest'],
+            ['exclude', 'url_request_context_builder_unittest'],
+            ['exclude', 'udp_socket_unittest'],
+            ['exclude', 'dnssec_unittest'],
+            ['exclude', 'tcp_client_socket_unittest'],
+            ['exclude', 'dnsrr_resolver_unittest'],
+            ['exclude', 'url_fetcher_impl_unittest'],
+            ['exclude', 'ssl_client_socket_unittest'],
+            ['exclude', 'nss_cert_database_unittest'],
+            # These tests hang/crash/assert
+            ['exclude', 'backend_unittest'],  # ref-counting problems
+            ['exclude', 'block_files_unittest'],  # test data is little-endian
+            ['exclude', 'entry_unittest'],
+            ['exclude', 'tcp_listen_socket_unittest'],  #hang?
+            ['exclude', 'cert_verify_proc_unittest'],
+            ############### ALL TESTS BELOW ARE PERMANENTLY EXCLUDED ###############
+            ['exclude', 'address_sorter_unittest'],   # at time of exclusion, address sorting only happens when IPv6 is enabled
+            ['exclude', 'curvecp_transfer_unittest'],   # code being tested is excluded
+            ['exclude', 'effective_tld_names_unittest1'],  # not standalone; included by registry_controlled_domain_unittest.cc
+            ['exclude', 'effective_tld_names_unittest2'],  # not standalone; included by registry_controlled_domain_unittest.cc
+            ['exclude', 'http_auth_handler_negotiate_unittest'],
+            ['exclude', 'http_auth_gssapi_posix_unittest'],
+            ['exclude', 'http_content_disposition_unittest'],
+            ['exclude', 'cert_database_nss_unittest'],
+            ['exclude', 'unix_domain_socket_posix_unittest'],
+            ['exclude', 'sdch_filter_unittest'],
+            ['exclude', 'proxy_resolver_v8_unittest'],
+            ['exclude', 'python_utils_unittest'],
+            ['exclude', 'proxy_script_fetcher_impl_unittest'],
+            ['exclude', 'x509_cert_types_unittest'],  # ParseDistinguishedName() only exists for mac/win
+            # FTP is not supported
+            ['exclude', 'ftp_auth_cache_unittest'],
+            ['exclude', 'ftp_ctrl_response_buffer_unittest'],
+            ['exclude', 'ftp_directory_listing_parser_unittest'],
+            ['exclude', 'ftp_directory_listing_parser_ls_unittest'],
+            ['exclude', 'ftp_directory_listing_parser_netware_unittest'],
+            ['exclude', 'ftp_directory_listing_parser_os2_unittest'],
+            ['exclude', 'ftp_directory_listing_parser_vms_unittest'],
+            ['exclude', 'ftp_directory_listing_parser_windows_unittest'],
+            ['exclude', 'ftp_network_transaction_unittest'],
+            ['exclude', 'ftp_util_unittest'],
+            ['exclude', 'url_request_ftp_job_unittest'],
+            ['exclude', 'disk_cache'],
+            # WebSockets not supported
+            ['exclude', 'socket_stream/'],
+            ['exclude', 'websockets/'],
+            ['exclude', 'spdy_websocket_stream_spdy2_unittest'],
+            ['exclude', 'spdy_websocket_stream_spdy3_unittest'],
+            # SDCH, Shared Dictionary Compression over HTTP
+            ['exclude', 'sdch'],
+            # exclude any v8-specific bindings
+            ['exclude', 'v8'],
+            # and any request on a url for local folders
+            ['exclude', 'url_request_file_dir'],
+            # and the unsupported libevent
+            ['exclude', 'libevent'],
+            # WWW-authenticate: Negotiate requries a native GSSAPI
+            ['exclude', 'http/http_auth_handler_negotiate'],
+            # HttpContentDisposition is currently only used by
+            # net::GetSuggestedFilename and that function can figure out a
+            # file name without HttpContentDisposition.
+            ['exclude', 'http/http_content_disposition'],
+            # crl_filter code assumes little-endian machine
+            ['exclude', 'crl_filter'],
+            # no support for a recursive resolver
+            ['exclude', 'base/dnsrr_resolver'],
+            # no support for disk_cache
+            ['exclude', 'disk_cache/']
+          ],
         }],
         ['OS=="lb_shell" and target_arch=="android"', {
           'sources!': [
@@ -2191,6 +2275,16 @@
             ],
           },
         ],
+        ['OS == "starboard"', {
+          'sources!': [
+            # Disable all disk cache test support, because we don't use the disk
+            # cache.
+            'disk_cache/disk_cache_test_base.cc',
+            'disk_cache/disk_cache_test_base.h',
+            'disk_cache/disk_cache_test_util.cc',
+            'disk_cache/disk_cache_test_util.h',
+          ],
+        }],
       ],
     },
     {

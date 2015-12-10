@@ -26,10 +26,9 @@ DialSystemConfig* DialSystemConfig::GetInstance() {
 }
 
 DialSystemConfig::DialSystemConfig()
-    : friendly_name_(kDefaultFriendlyName)
-    , manufacturer_name_(kDefaultManufacturerName)
-    , model_name_(kDefaultModelName) {
-}
+    : friendly_name_(GetFriendlyName()),
+      manufacturer_name_(GetManufacturerName()),
+      model_name_(GetModelName()) {}
 
 const char* DialSystemConfig::model_uuid() const {
   base::AutoLock lock(lock_);

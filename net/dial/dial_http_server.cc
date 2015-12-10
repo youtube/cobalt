@@ -141,11 +141,11 @@ void DialHttpServer::ConfigureApplicationUrl() {
 void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
   DialSystemConfig* system_config = DialSystemConfig::GetInstance();
 #if defined(__LB_SHELL__FOR_RELEASE__)
-  const char* friendly_name = system_config->friendly_name_;
+  const char* friendly_name = system_config->friendly_name();
 #else
   // For non-Gold builds, append the IP to the friendly name
   // to help differentiate the devices.
-  std::string friendly_name_str = system_config->friendly_name_;
+  std::string friendly_name_str = system_config->friendly_name();
   IPEndPoint end_point;
   if (OK == GetLocalAddress(&end_point)) {
     friendly_name_str += " ";
@@ -154,11 +154,9 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
   const char* friendly_name = friendly_name_str.c_str();
 #endif
 
-  std::string data = base::StringPrintf(kDdXmlFormat,
-      friendly_name,
-      system_config->manufacturer_name_,
-      system_config->model_name_,
-      system_config->model_uuid());
+  std::string data = base::StringPrintf(
+      kDdXmlFormat, friendly_name, system_config->manufacturer_name(),
+      system_config->model_name(), system_config->model_uuid());
 
   std::vector<std::string> headers;
   headers.push_back(

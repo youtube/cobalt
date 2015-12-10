@@ -28,6 +28,11 @@
 #include "net/base/winsock_init.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if defined(OS_STARBOARD)
+#include "net/base/net_log.h"
+#include "net/socket/tcp_client_socket.h"
+#endif
+
 namespace net {
 
 enum ActionType {

@@ -22,9 +22,11 @@ class DialSystemConfig {
   static DialSystemConfig* GetInstance();
 
   // Stores the pointers to various system info.
-  const char* friendly_name_;
-  const char* manufacturer_name_;
-  const char* model_name_;
+  const char* friendly_name() const { return friendly_name_.c_str(); }
+
+  const char* manufacturer_name() const { return manufacturer_name_.c_str(); }
+
+  const char* model_name() const { return model_name_.c_str(); }
 
   // Get's the model uuid.
   const char* model_uuid() const;
@@ -36,11 +38,17 @@ class DialSystemConfig {
 
   static void CreateDialUuid();
 
-  // These are implemented in the platform specific file.
-  static const char* kDefaultFriendlyName;
-  static const char* kDefaultManufacturerName;
-  static const char* kDefaultModelName;
+  // These 4 functions must be defined by a platform-specific source file.
+  static std::string GetFriendlyName();
+  static std::string GetManufacturerName();
+  static std::string GetModelName();
   static std::string GeneratePlatformUuid();
+
+  static const int kMaxNameSize = 64;
+
+  std::string friendly_name_;
+  std::string manufacturer_name_;
+  std::string model_name_;
 
   DISALLOW_COPY_AND_ASSIGN(DialSystemConfig);
   mutable base::Lock lock_;
@@ -49,4 +57,3 @@ class DialSystemConfig {
 }
 
 #endif // NET_DIAL_DIAL_SYSTEM_CONFIG_H
-

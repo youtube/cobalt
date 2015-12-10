@@ -44,6 +44,7 @@ TEST(PythonUtils, Append) {
 #endif
 }
 
+#if !defined(OS_STARBOARD)
 TEST(PythonUtils, PythonRunTime) {
   CommandLine cmd_line(CommandLine::NO_PROGRAM);
   EXPECT_TRUE(GetPythonCommand(&cmd_line));
@@ -59,3 +60,4 @@ TEST(PythonUtils, PythonRunTime) {
   TrimWhitespace(output, TRIM_TRAILING, &output);
   EXPECT_EQ(input, output);
 }
+#endif  // !defined(OS_STARBOARD)
