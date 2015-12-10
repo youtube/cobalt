@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#if defined(GLES3_SUPPORTED)
+
 #include "cobalt/renderer/backend/egl/texture_data_pbo.h"
 
 #include <GLES2/gl2ext.h>
@@ -252,3 +254,5 @@ GLuint RawTextureMemoryPBO::CreateTexture(GraphicsContextEGL* graphics_context,
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
+
+#endif  // defined(GLES3_SUPPORTED)
