@@ -48,7 +48,7 @@ HttpCache::DefaultBackend::DefaultBackend(CacheType type,
                                           int max_bytes,
                                           base::MessageLoopProxy* thread)
     : path_(path),
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
       type_(type),
       max_bytes_(max_bytes),
 #endif
@@ -65,7 +65,7 @@ HttpCache::BackendFactory* HttpCache::DefaultBackend::InMemory(int max_bytes) {
 int HttpCache::DefaultBackend::CreateBackend(
     NetLog* net_log, disk_cache::Backend** backend,
     const CompletionCallback& callback) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
   // Disk cache is turned off in lb_shell and backend object shouldn't be
   // created.
   return ERR_FAILED;

@@ -23,8 +23,11 @@
 namespace net {
 
 Error MapSystemError(SbSystemError error) {
-  if (error != 0)
-    DVLOG(2) << "Error (" << error << ") " << SbSystemGetErrorString(error);
+  if (error != 0) {
+    char error_string[256];
+    SbSystemGetErrorString(error, error_string, sizeof(error_string));
+    DVLOG(2) << "Error (" << error << ") " << error_string;
+  }
 
   // TODO(iffy): Define standard Starboard error codes.
   if (error == 0)

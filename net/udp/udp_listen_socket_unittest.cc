@@ -4,7 +4,9 @@
 
 #include "net/udp/udp_listen_socket.h"
 
+#if !defined(OS_STARBOARD)
 #include <netinet/in.h>
+#endif
 
 #include "base/message_loop.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,6 +26,15 @@ using ::testing::StrEq;
 
 // Create a DGRAM socket and bound to random port.
 SocketDescriptor GetSocketBoundToRandomPort() {
+#if defined(OS_STARBOARD)
+  SocketDescriptor s =
+      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolUdp);
+  SbSocketAddress sb_address = {0};
+  sb_address.type = kSbSocketAddressTypeIpv4;
+
+  SbSocketBind(s, &sb_address);
+  return s;
+#else   // defined(OS_STARBOARD)
   SocketDescriptor s = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   SockaddrStorage src_addr;
   struct sockaddr_in *in = (struct sockaddr_in *)src_addr.addr;
@@ -33,12 +44,22 @@ SocketDescriptor GetSocketBoundToRandomPort() {
   ::bind(s, src_addr.addr, src_addr.addr_len);
   SetNonBlocking(s);
   return s;
+#endif  // defined(OS_STARBOARD)
 }
 
 // Get the address from |s| and send data to that address
 // using another DGRAM socket.
 void SendDataToListeningSocket(SocketDescriptor s,
                                const char* data, int size) {
+#if defined(OS_STARBOARD)
+  // Get the watching address
+  SbSocketAddress sb_address = {0};
+  SbSocketGetLocalAddress(s, &sb_address);
+
+  // Create another socket.
+  SocketDescriptor cs = SbSocketCreate(sb_address.type, kSbSocketProtocolUdp);
+  SbSocketSendTo(cs, data, size, &sb_address);
+#else   // defined(OS_STARBOARD)
   // Get the watching address
   SockaddrStorage bind_addr;
   ::getsockname(s, bind_addr.addr, &bind_addr.addr_len);
@@ -46,6 +67,7 @@ void SendDataToListeningSocket(SocketDescriptor s,
   // Create another socket.
   SocketDescriptor cs = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   ::sendto(cs, data, size, 0, bind_addr.addr, bind_addr.addr_len);
+#endif  // defined(OS_STARBOARD)
 }
 
 const std::string& kSampleData = "Hello World.";
@@ -92,11 +114,19 @@ TEST(UDPListenSocketTest, SendTo) {
   MockDelegate del2;
   scoped_refptr<UDPListenSocket> sock2 = new UDPListenSocket(s2, &del2);
 
+#if defined(OS_STARBOARD)
+  // Get the port of s1
+  SbSocketAddress sb_address = {0};
+  SbSocketGetLocalAddress(s1, &sb_address);
+  IPEndPoint s1_addr;
+  ignore_result(s1_addr.FromSbSocketAddress(&sb_address));
+#else   // defined(OS_STARBOARD)
   // Get the port of s1
   SockaddrStorage bind_addr;
   ::getsockname(s1, bind_addr.addr, &bind_addr.addr_len);
   IPEndPoint s1_addr;
   ignore_result(s1_addr.FromSockAddr(bind_addr.addr, bind_addr.addr_len));
+#endif  // defined(OS_STARBOARD)
 
   // Send message to s1 using s2
   sock2->SendTo(s1_addr, kSampleData);
