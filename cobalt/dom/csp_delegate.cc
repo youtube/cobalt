@@ -135,6 +135,14 @@ bool CSPDelegate::CanLoadImage(const GURL& url) const {
   return csp_->AllowImageFromSource(url);
 }
 
+bool CSPDelegate::CanLoadMedia(const GURL& url) const {
+  return csp_->AllowMediaFromSource(url);
+}
+
+bool CSPDelegate::CanLoadScript(const GURL& url) const {
+  return csp_->AllowScriptFromSource(url);
+}
+
 GURL CSPDelegate::url() const { return document_->url_as_gurl(); }
 
 // http://www.w3.org/TR/CSP2/#violation-reports
