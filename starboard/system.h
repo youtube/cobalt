@@ -57,6 +57,21 @@ typedef enum SbSystemPathId {
   kSbSystemPathTestOutputDirectory,
 } SbSystemPathId;
 
+// System properties that can be queried for.
+typedef enum SbSystemPropertyId {
+  // The name of this system, friendly enough to display to a user.
+  kSbSystemPropertyFriendlyName,
+
+  // The name of the device manufacturer.
+  kSbSystemPropertyManufacturerName,
+
+  // The name of the device model.
+  kSbSystemPropertyModelName,
+
+  // A universally-unique ID for the current user.
+  kSbSystemPropertyPlatformUuid,
+} SbSystemPropertyId;
+
 // Breaks the current program into the debugger, if a debugger is
 // attached. Aborts the program otherwise.
 SB_EXPORT void SbSystemBreakIntoDebugger();
@@ -79,11 +94,21 @@ SB_EXPORT int64_t SbSystemGetTotalMemory();
 // zero-terminated string into the user-allocated |out_path|, unless it is
 // longer than |path_length| - 1. Returns false if |path_id| is invalid for this
 // platform, or if |path_length| is too short for the given result, or if
-// |out_path| is NULL. On failure, |out_path| will not be
-// changed. Implementation must be thread-safe.
+// |out_path| is NULL. On failure, |out_path| will not be changed.
+// Implementation must be thread-safe.
 SB_EXPORT bool SbSystemGetPath(SbSystemPathId path_id,
                                char* out_path,
                                int path_length);
+
+// Gets the platform-defined system property specified by |property_id|, placing
+// it as a zero-terminated string into the user-allocated |out_value|, unless it
+// is longer than |value_length| - 1. Returns false if |property_id| is invalid
+// for this platform, or if |value_length| is too short for the given result, or
+// if |out_value| is NULL. On failure, |out_value| will not be changed.
+// Implementation must be thread-safe.
+SB_EXPORT bool SbSystemGetProperty(SbSystemPropertyId property_id,
+                                   char* out_value,
+                                   int value_length);
 
 // Gets a pseudorandom number uniformly distributed between the minimum and
 // maximum limits of uint64_t. This is expected to be a cryptographically secure
