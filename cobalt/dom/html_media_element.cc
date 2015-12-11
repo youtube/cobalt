@@ -24,6 +24,7 @@
 #include "base/guid.h"
 #include "base/logging.h"
 #include "base/message_loop_proxy.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event.h"
@@ -592,6 +593,12 @@ void HTMLMediaElement::LoadInternal() {
     if (media_url.is_empty()) {
       MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError);
       DLOG(WARNING) << "HTMLMediaElement::LoadInternal, invalid 'src' " << src;
+      return;
+    }
+
+    // Check if we are permitted to load this by CSP.
+    if (!owner_document()->csp_delegate()->CanLoadMedia(media_url)) {
+      MediaLoadingFailed(WebMediaPlayer::kNetworkStateNetworkError);
       return;
     }
 

@@ -34,6 +34,11 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
   DCHECK(thread_checker_.CalledOnValidThread());
   net::URLFetcher* url_fetcher =
       net::URLFetcher::Create(url, net::URLFetcher::POST, this);
+
+  // In general it doesn't make sense to follow redirects for POST requests.
+  // And for CSP reporting we are required not to follow them.
+  // http://www.w3.org/TR/CSP2/#send-violation-reports
+  url_fetcher->SetStopOnRedirect(true);
   url_fetcher->SetRequestContext(network_module_->url_request_context_getter());
 
   if (data.size()) {
