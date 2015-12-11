@@ -17,6 +17,7 @@
 #include "cobalt/csp/directive_list.h"
 
 #include "base/base64.h"
+#include "base/stringprintf.h"
 #include "cobalt/csp/crypto.h"
 #include "cobalt/csp/media_list_directive.h"
 #include "cobalt/csp/source_list_directive.h"
@@ -95,7 +96,6 @@ void DirectiveList::ReportViolation(const std::string& directive_text,
                                     const GURL& blocked_url) const {
   std::string message =
       report_only_ ? "[Report Only] " + console_message : console_message;
-  DLOG(INFO) << message;
   policy_->ReportViolation(directive_text, effective_directive, message,
                            blocked_url, report_endpoints_, header_);
 }
@@ -104,10 +104,9 @@ void DirectiveList::ReportViolationWithLocation(
     const std::string& directive_text, const std::string& effective_directive,
     const std::string& console_message, const GURL& blocked_url,
     const std::string& context_url, int context_line) const {
-  std::string message =
-      report_only_ ? "[Report Only] " + console_message : console_message;
-  DLOG(INFO) << message << " URL: " << context_url << " Line: " << context_line;
-
+  std::string message = base::StringPrintf(
+      "%s%s %s:%d", report_only_ ? "[Report Only] " : "",
+      console_message.c_str(), context_url.c_str(), context_line);
   policy_->ReportViolation(directive_text, effective_directive, message,
                            blocked_url, report_endpoints_, header_);
 }
@@ -387,7 +386,6 @@ bool DirectiveList::AllowObjectFromSource(
              : CheckSource(OperativeDirective(object_src_.get()), url,
                            redirect_status);
 }
-
 
 bool DirectiveList::AllowImageFromSource(
     const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,

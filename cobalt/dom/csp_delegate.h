@@ -41,9 +41,12 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
 
   csp::ContentSecurityPolicy* csp() const;
 
+  // virtual for overriding by mocks.
   virtual bool CanConnectToSource(const GURL& url) const;
   virtual bool CanLoadFont(const GURL& url) const;
   virtual bool CanLoadImage(const GURL& url) const;
+  virtual bool CanLoadMedia(const GURL&) const;
+  virtual bool CanLoadScript(const GURL&) const;
 
   // From csp::ContentSecurityPolicyDelegate
   GURL url() const OVERRIDE;
