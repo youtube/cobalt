@@ -21,6 +21,7 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/string_util.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_element_context.h"
@@ -165,6 +166,11 @@ void HTMLScriptElement::Prepare() {
   if (!url_.is_valid()) {
     LOG(WARNING) << src() << " cannot be resolved based on " << base_url << ".";
 
+    PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
+    return;
+  }
+
+  if (!document_->csp_delegate()->CanLoadScript(url_)) {
     PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
     return;
   }
