@@ -2883,7 +2883,7 @@ border_property_value:
 // of the outer border edge.
 //   http://www.w3.org/TR/css3-background/#the-border-radius
 border_radius_property_value:
-    length { $$ = $1; }
+    positive_length_percent_property_value { $$ = $1; }
   | common_values
   ;
 

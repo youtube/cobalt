@@ -2223,7 +2223,7 @@ TEST_F(ParserTest, ParsesSingleBorderStyleHidden) {
   EXPECT_EQ(cssom::KeywordValue::GetHidden(), style->border_style());
 }
 
-TEST_F(ParserTest, ParsesBorderRadius) {
+TEST_F(ParserTest, ParsesBorderRadiusLength) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("border-radius: 0.2em;",
                                         source_location_);
@@ -2233,6 +2233,17 @@ TEST_F(ParserTest, ParsesBorderRadius) {
   ASSERT_TRUE(border_radius);
   EXPECT_FLOAT_EQ(0.2f, border_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_radius->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderRadiusPercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border-radius: 50%;",
+                                        source_location_);
+
+  scoped_refptr<cssom::PercentageValue> border_radius =
+      dynamic_cast<cssom::PercentageValue*>(style->border_radius().get());
+  ASSERT_TRUE(border_radius);
+  EXPECT_FLOAT_EQ(0.5f, border_radius->value());
 }
 
 TEST_F(ParserTest, Parses3DigitColor) {
