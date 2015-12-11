@@ -512,6 +512,8 @@
                        margin_width
                        max_height_property_value
                        max_width_property_value
+                       min_height_property_value
+                       min_width_property_value
                        maybe_background_size_property_value
                        offset_property_value
                        opacity_property_value
@@ -3303,20 +3305,27 @@ font_property_value:
 
 // Specifies the content height of boxes.
 //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
-//   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
 height_property_value:
     positive_length_percent_property_value
   | auto
   | common_values
   ;
 
-// 'max-height' value can be height_property_value or 'none'.
+// Specifies the minimum content height of boxes.
+//   http://www.w3.org/TR/CSS21/visudet.html#propdef-min-height
+min_height_property_value:
+    positive_length_percent_property_value
+  | common_values
+  ;
+
+// Specifies the maximum content height of boxes.
 //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
 max_height_property_value:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
-  | height_property_value
+  | positive_length_percent_property_value
+  | common_values
   ;
 
 
@@ -4445,20 +4454,27 @@ white_space_property_value:
 
 // Specifies the content width of boxes.
 //   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
-//   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
-width_property_value:
+width_property_value:0
     positive_length_percent_property_value
   | auto
   | common_values
   ;
 
-// 'max-width' value can be width property_value or 'none'.
+// Specifies the minimum content width of boxes.
+//   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
+min_width_property_value:
+    positive_length_percent_property_value
+  | common_values
+  ;
+
+// Specifies the maximum content width of boxes.
 //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
 max_width_property_value:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
-  | width_property_value
+  | positive_length_percent_property_value
+  | common_values
   ;
 
 maybe_important:
@@ -4859,13 +4875,13 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
-  | kMinHeightToken maybe_whitespace colon height_property_value
+  | kMinHeightToken maybe_whitespace colon min_height_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kMinHeightProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
-  | kMinWidthToken maybe_whitespace colon width_property_value
+  | kMinWidthToken maybe_whitespace colon min_width_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kMinWidthProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
