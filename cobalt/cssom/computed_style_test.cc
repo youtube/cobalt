@@ -561,6 +561,23 @@ TEST(PromoteToComputedStyle, BackgroundSizeKeywordNotChanged) {
             computed_style->background_size());
 }
 
+TEST(PromoteToComputedStyle, BorderRadiusEmToPixel) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+  computed_style->set_border_radius(
+      new cssom::LengthValue(3, cssom::kFontSizesAkaEmUnit));
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  cssom::LengthValue* border_radius =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          computed_style->border_radius().get());
+  EXPECT_FLOAT_EQ(48.0f, border_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_radius->unit());
+}
+
 TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
