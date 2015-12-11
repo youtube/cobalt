@@ -97,6 +97,7 @@
         'system_get_last_error_test.cc',
         'system_get_number_of_processors_test.cc',
         'system_get_path_test.cc',
+        'system_get_property_test.cc',
         'system_get_random_uint64_test.cc',
         'system_get_stack_test.cc',
         'system_get_total_memory_test.cc',
