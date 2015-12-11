@@ -1846,6 +1846,9 @@ class CalculateComputedStyleContext {
   // Helper function to return the computed border style.
   PropertyValue* GetBorderStyle();
 
+  // Helper function to return the computed color.
+  PropertyValue* GetColor();
+
  private:
   // Immediately promote the specified property key to computed value (if
   // necessary).
@@ -1885,6 +1888,7 @@ class CalculateComputedStyleContext {
   // properties computed style calculations depend upon.  These are lazily
   // computed.
   scoped_refptr<PropertyValue> computed_border_style_;
+  scoped_refptr<PropertyValue> computed_color_;
   scoped_refptr<PropertyValue> computed_font_size_;
   scoped_refptr<PropertyValue> computed_position_;
 };
@@ -1936,6 +1940,15 @@ PropertyValue* CalculateComputedStyleContext::GetBorderStyle() {
   return computed_border_style_.get();
 }
 
+PropertyValue* CalculateComputedStyleContext::GetColor() {
+  if (!computed_color_) {
+    ComputeValue(kColorProperty);
+  }
+
+  DCHECK(computed_color_);
+  return computed_color_.get();
+}
+
 void CalculateComputedStyleContext::ComputeValue(PropertyKey key) {
   CSSStyleDeclarationData::PropertyValueIterator iterator =
       cascaded_style_->GetPropertyValueIterator(key);
@@ -1979,12 +1992,29 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
         property_value_iterator.SetValue(computed_background_position);
       }
     } break;
+    case kBorderColorProperty: {
+      if (property_value_iterator.Value() == KeywordValue::GetCurrentColor()) {
+        // The computed value of the 'currentColor' keyword is the computed
+        // value of the 'color' property.
+        property_value_iterator.SetValue(GetColor());
+      }
+    } break;
     case kBorderWidthProperty: {
       ComputedBorderWidthProvider border_width_provider(GetFontSize(),
                                                         GetBorderStyle());
       property_value_iterator.Value()->Accept(&border_width_provider);
       property_value_iterator.SetValue(
           border_width_provider.computed_border_width());
+    } break;
+    case kDisplayProperty: {
+      // According to http://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
+      // "inline" and "inline-block" values of "display" become "block" if
+      // "position" is "absolute" or "fixed".
+      if ((property_value_iterator.Value() == KeywordValue::GetInline() ||
+           property_value_iterator.Value() == KeywordValue::GetInlineBlock()) &&
+          IsAbsolutelyPositioned()) {
+        property_value_iterator.SetValue(KeywordValue::GetBlock());
+      }
     } break;
     case kFontSizeProperty: {
       // Only compute this if computed_font_size_ isn't set, otherwise that
@@ -2122,11 +2152,9 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kAnimationTimingFunctionProperty:
     case kBackgroundColorProperty:
     case kBackgroundRepeatProperty:
-    case kBorderColorProperty:
     case kBorderStyleProperty:
     case kColorProperty:
     case kContentProperty:
-    case kDisplayProperty:
     case kFontFamilyProperty:
     case kFontStyleProperty:
     case kOpacityProperty:
@@ -2177,6 +2205,9 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kBorderStyleProperty:
       computed_border_style_ = value;
       break;
+    case kColorProperty:
+      computed_color_ = value;
+      break;
 
     case kAllProperty:
     case kAnimationDelayProperty:
@@ -2198,7 +2229,6 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kBorderRadiusProperty:
     case kBorderWidthProperty:
     case kBottomProperty:
-    case kColorProperty:
     case kContentProperty:
     case kDisplayProperty:
     case kFontFamilyProperty:
@@ -2273,30 +2303,6 @@ void PromoteToComputedStyle(
        !property_value_iterator.Done(); property_value_iterator.Next()) {
     calculate_computed_style_context.SetComputedStyleForProperty(
         property_value_iterator);
-  }
-
-  // Finally, address properties who require calculations even if they were
-  // not specifically declared.  Usually this is because their initial value
-  // cannot be passed through directly to a computed value.
-
-  // The border color is always computed, even when the value is not declared
-  // because the inital value of 'currentColor' is not a computed property
-  // value.
-  if (cascaded_style->border_color() == KeywordValue::GetCurrentColor()) {
-    // The computed value of the 'currentColor' keyword is the computed
-    // value of the 'color' property.
-    cascaded_style->set_border_color(cascaded_style->color());
-  }
-
-  // According to http://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
-  // "inline" and "inline-block" values of "display" become "block" if
-  // "position" is "absolute" or "fixed".
-  const scoped_refptr<PropertyValue>& specified_display_value =
-      cascaded_style->display();
-  if ((specified_display_value == KeywordValue::GetInline() ||
-       specified_display_value == KeywordValue::GetInlineBlock()) &&
-      calculate_computed_style_context.IsAbsolutelyPositioned()) {
-    cascaded_style->set_display(KeywordValue::GetBlock());
   }
 }
 
