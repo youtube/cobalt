@@ -1526,6 +1526,40 @@ void ComputedBackgroundSizeProvider::VisitPropertyList(
   computed_background_size_ = new PropertyListValue(builder.Pass());
 }
 
+//    http://www.w3.org/TR/css3-background/#border-radius
+class ComputedBorderRadiusProvider : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedBorderRadiusProvider(const LengthValue* computed_font_size);
+
+  void VisitLength(LengthValue* specified_length);
+  void VisitPercentage(PercentageValue* percentage);
+
+  const scoped_refptr<PropertyValue>& computed_border_radius() const {
+    return computed_border_radius_;
+  }
+
+ private:
+  const LengthValue* computed_font_size_;
+
+  scoped_refptr<PropertyValue> computed_border_radius_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedBorderRadiusProvider);
+};
+
+ComputedBorderRadiusProvider::ComputedBorderRadiusProvider(
+    const LengthValue* computed_font_size)
+    : computed_font_size_(computed_font_size) {}
+
+void ComputedBorderRadiusProvider::VisitLength(LengthValue* specified_length) {
+  computed_border_radius_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_);
+}
+
+void ComputedBorderRadiusProvider::VisitPercentage(
+    PercentageValue* percentage) {
+  computed_border_radius_ = percentage;
+}
+
 // Computed value: for length of translation transforms.
 //   http://www.w3.org/TR/css3-transforms/#propdef-transform
 class ComputedTransformFunctionProvider : public TransformFunctionVisitor {
@@ -2052,6 +2086,12 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       property_value_iterator.SetValue(
           background_size_provider.computed_background_size());
     } break;
+    case kBorderRadiusProperty: {
+      ComputedBorderRadiusProvider border_radius_provider(GetFontSize());
+      property_value_iterator.Value()->Accept(&border_radius_provider);
+      property_value_iterator.SetValue(
+          border_radius_provider.computed_border_radius());
+    } break;
     case kTransformProperty: {
       ComputedTransformProvider transform_provider(GetFontSize());
       property_value_iterator.Value()->Accept(&transform_provider);
@@ -2083,7 +2123,6 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBackgroundColorProperty:
     case kBackgroundRepeatProperty:
     case kBorderColorProperty:
-    case kBorderRadiusProperty:
     case kBorderStyleProperty:
     case kColorProperty:
     case kContentProperty:
