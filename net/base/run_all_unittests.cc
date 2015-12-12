@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/memory/scoped_ptr.h"
 #include "base/metrics/statistics_recorder.h"
+#include "base/object_watcher_shell.h"
 #include "base/test/main_hook.h"
 #include "build/build_config.h"
 #include "crypto/nss_util.h"
@@ -26,6 +28,9 @@ using net::SpdySession;
 
 int main(int argc, char** argv) {
   MainHook hook(main, argc, argv);
+
+  scoped_ptr<base::ObjectWatchMultiplexer> watcher(
+      new base::ObjectWatchMultiplexer());
 
   // Record histograms, so we can get histograms data in tests.
   base::StatisticsRecorder::Initialize();
