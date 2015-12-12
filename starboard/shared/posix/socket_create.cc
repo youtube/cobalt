@@ -73,11 +73,5 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
     return kSbSocketInvalid;
   }
 
-  SbSocket result = new SbSocketPrivate();
-  result->protocol = protocol;
-  result->address_type = address_type;
-  result->socket_fd = socket_fd;
-  result->error = kSbSocketOk;
-  result->waiter = kSbSocketWaiterInvalid;
-  return result;
+  return new SbSocketPrivate(address_type, protocol, socket_fd);
 }
