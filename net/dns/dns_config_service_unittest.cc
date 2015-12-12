@@ -239,6 +239,7 @@ TEST_F(DnsConfigServiceTest, WatchFailure) {
   EXPECT_TRUE(last_config_.Equals(bad_config));
 }
 
+#if !defined(__LB_SHELL__)
 #if (defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)) || \
     defined(OS_WIN)
 // TODO(szym): This is really an integration test and can time out if HOSTS is
@@ -255,6 +256,6 @@ TEST_F(DnsConfigServiceTest, FLAKY_GetSystemConfig) {
       kTimeout.InSecondsF() << "s";
 }
 #endif  // OS_POSIX || OS_WIN
+#endif  // !defined(__LB_SHELL__)
 
 }  // namespace net
-
