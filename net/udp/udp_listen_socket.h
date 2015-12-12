@@ -28,7 +28,7 @@
 #include <string>
 
 #if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
-#include "object_watcher_shell.h"
+#include "base/object_watcher_shell.h"
 #endif
 
 #include "base/basictypes.h"
@@ -50,7 +50,8 @@ namespace net {
 class NET_EXPORT UDPListenSocket
     : public base::RefCountedThreadSafe<UDPListenSocket>
 #if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
-    , public base::steel::ObjectWatcher::Delegate
+      ,
+      public base::ObjectWatcher::Delegate
 #elif defined(OS_STARBOARD)
       ,
       public MessageLoopForIO::Watcher
@@ -95,7 +96,7 @@ class NET_EXPORT UDPListenSocket
 
 #if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   virtual void OnObjectSignaled(int object) OVERRIDE;
-  base::steel::ObjectWatcher watcher_;
+  base::ObjectWatcher watcher_;
 #elif defined(OS_STARBOARD)
   void OnSocketReadyToRead(SbSocket /*socket*/) OVERRIDE;
   void OnSocketReadyToWrite(SbSocket /*socket*/) OVERRIDE {}
