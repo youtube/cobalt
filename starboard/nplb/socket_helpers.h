@@ -28,6 +28,11 @@ static inline SbSocket CreateTcpIpv4Socket() {
   return SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
 }
 
+// Creates a plain UDP/IPv4 socket.
+static inline SbSocket CreateUdpIpv4Socket() {
+  return SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolUdp);
+}
+
 // Returns true if the given address is the unspecified address (all zeros),
 // supporting both address types.
 bool IsUnspecified(const SbSocketAddress* address);

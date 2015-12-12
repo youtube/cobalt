@@ -68,15 +68,15 @@ int SbSocketReceiveFrom(SbSocket socket,
     ssize_t bytes_read = recvfrom(socket->socket_fd, out_data, data_size, 0,
                                   sock_addr.sockaddr(), &sock_addr.length);
 
-    if (out_source) {
-      if (!sock_addr.ToSbSocketAddress(out_source)) {
-        SB_DLOG(FATAL) << __FUNCTION__ << ": Bad UDP source address.";
-        socket->error = kSbSocketErrorFailed;
-        return -1;
-      }
-    }
-
     if (bytes_read >= 0) {
+      if (out_source) {
+        if (!sock_addr.ToSbSocketAddress(out_source)) {
+          SB_DLOG(FATAL) << __FUNCTION__ << ": Bad UDP source address.";
+          socket->error = kSbSocketErrorFailed;
+          return -1;
+        }
+      }
+
       socket->error = kSbSocketOk;
       return static_cast<int>(bytes_read);
     }

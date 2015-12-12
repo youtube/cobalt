@@ -71,6 +71,7 @@
         'socket_helpers.cc',
         'socket_is_connected_and_idle_test.cc',
         'socket_is_connected_test.cc',
+        'socket_join_multicast_group_test.cc',
         'socket_listen_test.cc',
         'socket_receive_from_test.cc',
         'socket_resolve_test.cc',

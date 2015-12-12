@@ -27,6 +27,7 @@ SbSocketError SbSocketBind(SbSocket socket,
                            const SbSocketAddress* local_address) {
   if (!SbSocketIsValid(socket)) {
     errno = EBADF;
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid socket";
     return kSbSocketErrorFailed;
   }
 
@@ -47,6 +48,7 @@ SbSocketError SbSocketBind(SbSocket socket,
   int result = HANDLE_EINTR(
       bind(socket->socket_fd, sock_addr.sockaddr(), sock_addr.length));
   if (result != 0) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Bind failed. errno=" << errno;
     return (socket->error = sbposix::TranslateSocketErrno(errno));
   }
 
