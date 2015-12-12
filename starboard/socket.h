@@ -24,6 +24,11 @@
 #ifndef STARBOARD_SOCKET_H_
 #define STARBOARD_SOCKET_H_
 
+#ifdef __cplusplus
+#include <iomanip>
+#include <iostream>
+#endif
+
 #include "starboard/export.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -256,6 +261,11 @@ SB_EXPORT bool SbSocketSetTcpNoDelay(SbSocket socket, bool value);
 // Sets SO_WINSCALE, or equivalent, option to |value| on |socket|.
 SB_EXPORT bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value);
 
+// Joins |socket| to an IP multicast group identified by |address|. The
+// equivalent of IP_ADD_MEMBERSHIP.
+SB_EXPORT bool SbSocketJoinMulticastGroup(SbSocket socket,
+                                          const SbSocketAddress* address);
+
 // Gets the address of the local IPv4 network interface. Does not include
 // loopback (or IPv6) addresses.
 SB_EXPORT bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* out_address);
@@ -275,6 +285,33 @@ SB_EXPORT void SbSocketFreeResolution(SbSocketResolution* resolution);
 
 #ifdef __cplusplus
 }  // extern "C"
+#endif
+
+#ifdef __cplusplus
+// Let SbSocketAddresses be output to log streams.
+inline std::ostream& operator<<(std::ostream& os,
+                                const SbSocketAddress& address) {
+  if (address.type == kSbSocketAddressTypeIpv6) {
+    os << std::hex << "[";
+    const uint16_t* fields = reinterpret_cast<const uint16_t*>(address.address);
+    for (int i = 0; i < 8; ++i) {
+      if (i != 0) {
+        os << ":";
+      }
+      os << fields[i];
+    }
+    os << "]" << std::dec;
+  } else {
+    for (int i = 0; i < 4; ++i) {
+      if (i != 0) {
+        os << ".";
+      }
+      os << static_cast<int>(address.address[i]);
+    }
+  }
+  os << ":" << address.port;
+  return os;
+}
 #endif
 
 #endif  // STARBOARD_SOCKET_H_
