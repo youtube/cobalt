@@ -147,6 +147,7 @@ static void TestBogusPinsHeaders(HashValueTag tag) {
   SSLInfo ssl_info;
   ssl_info.cert =
       ImportCertFromFile(GetTestCertsDirectory(), "test_mail_google_com.pem");
+  ASSERT_NE(static_cast<void*>(NULL), ssl_info.cert);
   std::string good_pin = GetPinFromCert(ssl_info.cert, tag);
   base::Time now = base::Time::Now();
 
