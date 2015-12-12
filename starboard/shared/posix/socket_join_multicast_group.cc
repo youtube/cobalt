@@ -14,41 +14,42 @@
 
 #include "starboard/socket.h"
 
+#include <arpa/inet.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <sys/socket.h>
-#include <unistd.h>
 
 #include "starboard/log.h"
-#include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/socket_internal.h"
 
 namespace sbposix = starboard::shared::posix;
 
-SbSocket SbSocketAccept(SbSocket socket) {
+bool SbSocketJoinMulticastGroup(SbSocket socket,
+                                const SbSocketAddress* address) {
   if (!SbSocketIsValid(socket)) {
     errno = EBADF;
-    return kSbSocketInvalid;
+    return false;
+  }
+
+  if (!address) {
+    errno = EINVAL;
+    return false;
   }
 
   SB_DCHECK(socket->socket_fd >= 0);
+  struct ip_mreq imreq = {0};
+  in_addr_t in_addr = *reinterpret_cast<const in_addr_t*>(address->address);
+  imreq.imr_multiaddr.s_addr = in_addr;
+  imreq.imr_interface.s_addr = INADDR_ANY;
 
-  int socket_fd = HANDLE_EINTR(accept(socket->socket_fd, NULL, NULL));
-  if (socket_fd < 0) {
+  int result = setsockopt(socket->socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+                          &imreq, sizeof(imreq));
+  if (result != 0) {
+    SB_DLOG(ERROR) << "Failed to IP_ADD_MEMBERSHIP on socket "
+                   << socket->socket_fd << ", errno = " << errno;
     socket->error = sbposix::TranslateSocketErrno(errno);
-    return kSbSocketInvalid;
-  }
-
-  // All Starboard sockets are non-blocking, so let's ensure it.
-  if (!sbposix::SetNonBlocking(socket_fd)) {
-    // Something went wrong, we'll clean up and return failure.
-    socket->error = sbposix::TranslateSocketErrno(errno);
-    HANDLE_EINTR(close(socket_fd));
-    return kSbSocketInvalid;
+    return false;
   }
 
   socket->error = kSbSocketOk;
-
-  // Adopt the newly accepted socket.
-  return new SbSocketPrivate(socket->address_type, socket->protocol, socket_fd);
+  return true;
 }

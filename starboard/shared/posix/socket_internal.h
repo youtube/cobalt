@@ -25,11 +25,21 @@
 #include "starboard/types.h"
 
 struct SbSocketPrivate {
-  // The protocol of this socket, UDP or TCP.
-  SbSocketProtocol protocol;
+  SbSocketPrivate(SbSocketAddressType address_type,
+                  SbSocketProtocol protocol,
+                  int fd)
+      : address_type(address_type),
+        protocol(protocol),
+        socket_fd(fd),
+        error(kSbSocketOk),
+        waiter(kSbSocketWaiterInvalid) {}
+  ~SbSocketPrivate() {}
 
   // The address domain of this socket, IPv4 or IPv6.
   SbSocketAddressType address_type;
+
+  // The protocol of this socket, UDP or TCP.
+  SbSocketProtocol protocol;
 
   // The file descriptor for this socket.
   int socket_fd;
