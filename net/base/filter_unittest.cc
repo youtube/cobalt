@@ -6,6 +6,14 @@
 #include "net/base/mock_filter_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if defined(COBALT)
+#define MAYBE_SdchEncoding DISABLED_SdchEncoding
+#define MAYBE_MissingSdchEncoding DISABLED_MissingSdchEncoding
+#else
+#define MAYBE_SdchEncoding SdchEncoding
+#define MAYBE_MissingSdchEncoding MissingSdchEncoding
+#endif
+
 namespace net {
 
 class FilterTest : public testing::Test {
@@ -83,7 +91,7 @@ TEST(FilterTest, ApacheGzip) {
 }
 
 #if !defined(__LB_SHELL__)  // SDCH not supported in LB_SHELL
-TEST(FilterTest, SdchEncoding) {
+TEST(FilterTest, MAYBE_SdchEncoding) {
   // Handle content encodings including SDCH.
   const std::string kTextHtmlMime("text/html");
   MockFilterContext filter_context;
@@ -122,7 +130,7 @@ TEST(FilterTest, SdchEncoding) {
 #endif
 
 #if !defined(__LB_SHELL__)  // SDCH not supported
-TEST(FilterTest, MissingSdchEncoding) {
+TEST(FilterTest, MAYBE_MissingSdchEncoding) {
   // Handle interesting case where entire SDCH encoding assertion "got lost."
   const std::string kTextHtmlMime("text/html");
   MockFilterContext filter_context;

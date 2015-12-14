@@ -406,8 +406,8 @@ int WriteFile(const FilePath &filename, const char *data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
 
   base::PlatformFile file = base::CreatePlatformFile(
-      filename, base::PLATFORM_FILE_CREATE | base::PLATFORM_FILE_WRITE, NULL,
-      NULL);
+      filename, base::PLATFORM_FILE_CREATE_ALWAYS | base::PLATFORM_FILE_WRITE,
+      NULL, NULL);
   if (file == base::kInvalidPlatformFileValue) {
     DLOG(ERROR) << "WriteFile(" << filename.value() << "): Unable to open.";
     return -1;

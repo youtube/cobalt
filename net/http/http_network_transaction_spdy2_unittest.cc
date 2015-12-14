@@ -61,6 +61,17 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
+// Starboard has no way to make a file unreadable.
+#if defined(OS_STARBOARD)
+#define MAYBE_UploadUnreadableFile DISABLED_UploadUnreadableFile
+#define MAYBE_UnreadableUploadFileAfterAuthRestart \
+  DISABLED_UnreadableUploadFileAfterAuthRestart
+#else
+#define MAYBE_UploadUnreadableFile UploadUnreadableFile
+#define MAYBE_UnreadableUploadFileAfterAuthRestart \
+  UnreadableUploadFileAfterAuthRestart
+#endif
+
 using namespace net::test_spdy2;
 
 //-----------------------------------------------------------------------------
@@ -6574,7 +6585,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UploadFileSmallerThanLength) {
   file_util::Delete(temp_file_path, false);
 }
 
-TEST_F(HttpNetworkTransactionSpdy2Test, UploadUnreadableFile) {
+TEST_F(HttpNetworkTransactionSpdy2Test, MAYBE_UploadUnreadableFile) {
   FilePath temp_file;
   ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file));
   std::string temp_file_content("Unreadable file.");
@@ -6630,7 +6641,8 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UploadUnreadableFile) {
   file_util::Delete(temp_file, false);
 }
 
-TEST_F(HttpNetworkTransactionSpdy2Test, UnreadableUploadFileAfterAuthRestart) {
+TEST_F(HttpNetworkTransactionSpdy2Test,
+       MAYBE_UnreadableUploadFileAfterAuthRestart) {
   FilePath temp_file;
   ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file));
   std::string temp_file_contents("Unreadable file.");

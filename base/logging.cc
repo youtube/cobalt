@@ -628,7 +628,7 @@ LogMessage::~LogMessage() {
   // TODO(port): enable stacktrace generation on LOG_FATAL once backtrace are
   // working in Android.
 #if (!defined(NDEBUG) || defined(__LB_SHELL__FORCE_LOGGING__)) && \
-    !defined(OS_ANDROID) && !defined(OS_NACL) && !defined(OS_STARBOARD)
+    !defined(OS_ANDROID) && !defined(OS_NACL)
   if (severity_ == LOG_FATAL) {
     // Include a stack trace on a fatal.
     base::debug::StackTrace trace;

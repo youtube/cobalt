@@ -1802,6 +1802,20 @@
         'websockets/websocket_throttle_unittest.cc',
       ],
       'conditions': [
+        ['cobalt==1', {
+          'actions': [
+            {
+              'action_name': 'copy_test_data',
+              'variables': {
+                'input_files': [
+                  'data',
+                ],
+                'output_dir': 'net',
+              },
+              'includes': [ '../cobalt/build/copy_test_data.gypi' ],
+            },
+          ],
+        }],
         ['chromeos==1', {
           'sources!': [
             'base/network_change_notifier_linux_unittest.cc',
