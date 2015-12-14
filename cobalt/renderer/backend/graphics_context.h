@@ -28,6 +28,8 @@ namespace cobalt {
 namespace renderer {
 namespace backend {
 
+class GraphicsSystem;
+
 // The GraphicsContext captures the concept of a data channel to the GPU.
 // The above definition implies that all graphics commands must eventually
 // be issued through a graphics context. Basic rendering functionality
@@ -42,26 +44,14 @@ namespace backend {
 // scheduled for execution.
 class GraphicsContext {
  public:
+  explicit GraphicsContext(GraphicsSystem* system) : system_(system) {}
   virtual ~GraphicsContext() {}
 
-  // This method will allocate CPU-accessible memory with the given
-  // SurfaceInfo specifications.  The resulting TextureData object
-  // allows access to pixel memory which the caller can write to and eventually
-  // pass the object in to CreateTexture() to finalize a texture.
-  virtual scoped_ptr<TextureData> AllocateTextureData(
-      const SurfaceInfo& surface_info) = 0;
+  GraphicsSystem* system() const { return system_; }
 
   // Constructs a texture from the given formatted pixel data.
   virtual scoped_ptr<Texture> CreateTexture(
       scoped_ptr<TextureData> texture_data) = 0;
-
-  // This function can be used to allocate a chunk of memory that is potentially
-  // directly accessible by the GPU as a texture.  This would be used along
-  // with functions like CreateTextureFromRawMemory().  In general, one should
-  // use AllocateTextureData() instead, as it is not sensitive to platform
-  // specific details.
-  virtual scoped_ptr<RawTextureMemory> AllocateRawTextureMemory(
-      size_t size_in_bytes, size_t alignment) = 0;
 
   // Creates a texture from a raw chunk of contiguous texture memory allocated
   // via AllocateRawTextureMemory().  The RawTextureMemory return value of
@@ -140,6 +130,9 @@ class GraphicsContext {
 
   virtual scoped_ptr<Frame> StartFrame(
       const scoped_refptr<backend::RenderTarget>& render_target) = 0;
+
+ private:
+  GraphicsSystem* system_;
 };
 
 }  // namespace backend

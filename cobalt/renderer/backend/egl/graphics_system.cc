@@ -18,6 +18,7 @@
 
 #include "cobalt/renderer/backend/egl/display.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
+#include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 
 namespace cobalt {
@@ -56,7 +57,19 @@ scoped_ptr<Display> GraphicsSystemEGL::CreateDisplay(
 }
 
 scoped_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
-  return scoped_ptr<GraphicsContext>(new GraphicsContextEGL(display_, config_));
+  return scoped_ptr<GraphicsContext>(
+      new GraphicsContextEGL(this, display_, config_));
+}
+
+scoped_ptr<TextureData> GraphicsSystemEGL::AllocateTextureData(
+    const SurfaceInfo& surface_info) {
+  return scoped_ptr<TextureData>(new TextureDataEGL(surface_info));
+}
+
+scoped_ptr<RawTextureMemory> GraphicsSystemEGL::AllocateRawTextureMemory(
+    size_t size_in_bytes, size_t alignment) {
+  return scoped_ptr<RawTextureMemory>(
+      new RawTextureMemoryEGL(size_in_bytes, alignment));
 }
 
 }  // namespace backend
