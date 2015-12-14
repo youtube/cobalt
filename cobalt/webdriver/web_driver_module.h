@@ -79,6 +79,11 @@ class WebDriverModule {
       const WebDriverDispatcher::PathVariableMap* path_variables,
       scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
 
+  void ElementEquals(
+      const base::Value* parameters,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+
   void LogTypesCommand(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
