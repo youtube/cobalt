@@ -20,6 +20,7 @@
 #include "cobalt/renderer/backend/display_stub.h"
 #include "cobalt/renderer/backend/graphics_context_stub.h"
 #include "cobalt/renderer/backend/graphics_system.h"
+#include "cobalt/renderer/backend/texture_stub.h"
 
 namespace cobalt {
 
@@ -44,6 +45,15 @@ class GraphicsSystemStub : public GraphicsSystem {
 
   scoped_ptr<GraphicsContext> CreateGraphicsContext() OVERRIDE {
     return scoped_ptr<GraphicsContext>(new GraphicsContextStub());
+  }
+
+  scoped_ptr<TextureData> AllocateTextureData(const SurfaceInfo& surface_info) {
+    return scoped_ptr<TextureData>(new TextureDataStub(surface_info));
+  }
+  scoped_ptr<RawTextureMemory> AllocateRawTextureMemory(size_t size_in_bytes,
+                                                        size_t alignment) {
+    return scoped_ptr<RawTextureMemory>(
+        new RawTextureMemoryStub(size_in_bytes, alignment));
   }
 };
 

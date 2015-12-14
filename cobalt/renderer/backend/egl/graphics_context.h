@@ -34,21 +34,17 @@ namespace backend {
 // accessible the OpenGL ES API.
 class GraphicsContextEGL : public GraphicsContext {
  public:
-  GraphicsContextEGL(EGLDisplay display, EGLConfig config);
+  GraphicsContextEGL(GraphicsSystem* system, EGLDisplay display,
+                     EGLConfig config);
   ~GraphicsContextEGL() OVERRIDE;
 
-  scoped_ptr<TextureData> AllocateTextureData(
-      const SurfaceInfo& surface_info) OVERRIDE;
   scoped_ptr<Texture> CreateTexture(
       scoped_ptr<TextureData> texture_data) OVERRIDE;
 
-  scoped_ptr<RawTextureMemory> AllocateRawTextureMemory(
-      size_t size_in_bytes, size_t alignment) OVERRIDE;
   scoped_ptr<Texture> CreateTextureFromRawMemory(
       const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
       intptr_t offset, const SurfaceInfo& surface_info,
       int pitch_in_bytes) OVERRIDE;
-
 
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) OVERRIDE;
