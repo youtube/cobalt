@@ -13,6 +13,10 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'gles3_supported%': 0,
+  },
+
   'sources': [
     'display.cc',
     'display.h',
@@ -23,8 +27,29 @@
     'pbuffer_render_target.cc',
     'pbuffer_render_target.h',
     'render_target.h',
+    'resource_context.cc',
+    'resource_context.h',
     'texture.cc',
     'texture.h',
+    'texture_data.cc',
+    'texture_data.h',
+    'texture_data_cpu.cc',
+    'texture_data_cpu.h',
+    'utils.cc',
+    'utils.h',
+  ],
+
+  'conditions': [
+    ['gles3_supported==1', {
+      'sources': [
+        'texture_data_pbo.cc',
+        'texture_data_pbo.h',
+      ],
+
+      'defines': [
+        'GLES3_SUPPORTED',
+      ],
+    }],
   ],
 
   'direct_dependent_settings': {
