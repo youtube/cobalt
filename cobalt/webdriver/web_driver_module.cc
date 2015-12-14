@@ -44,6 +44,8 @@ const char kSessionIdVariable[] = ":sessionId";
 const char kWindowHandleVariable[] = ":windowHandle";
 const char kElementId[] = ":id";
 const char kOtherElementId[] = ":other";
+const char kAttributeName[] = ":name";
+const char kCssPropertyName[] = ":propertyName";
 
 // Error messages related to session creation.
 const char kMaxSessionsCreatedMessage[] =
@@ -318,6 +320,16 @@ WebDriverModule::WebDriverModule(
       StringPrintf("/session/%s/element/%s/equals/%s", kSessionIdVariable,
                    kElementId, kOtherElementId),
       base::Bind(&WebDriverModule::ElementEquals, base::Unretained(this)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/element/%s/attribute/%s", kSessionIdVariable,
+                   kElementId, kAttributeName),
+      base::Bind(&WebDriverModule::GetAttribute, base::Unretained(this)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/element/%s/css/%s", kSessionIdVariable,
+                   kElementId, kCssPropertyName),
+      base::Bind(&WebDriverModule::GetCssProperty, base::Unretained(this)));
 
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
@@ -488,6 +500,52 @@ void WebDriverModule::ElementEquals(
   CommandResult result = element_driver->Equals(other_element);
   util::internal::ReturnResponse(session_driver->session_id(), result,
                                  result_handler.get());
+}
+
+void WebDriverModule::GetAttribute(
+    const base::Value* parameters,
+    const WebDriverDispatcher::PathVariableMap* path_variables,
+    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
+      base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
+      path_variables, result_handler.get());
+  if (session_driver) {
+    ElementDriver* element_driver = LookUpElementDriverOrReturnInvalidResponse(
+        kElementId, session_driver, path_variables, result_handler.get());
+    if (element_driver) {
+      std::string attribute_name = path_variables->GetVariable(kAttributeName);
+
+      typedef util::CommandResult<base::optional<std::string> > CommandResult;
+      CommandResult result = element_driver->GetAttribute(attribute_name);
+      util::internal::ReturnResponse(session_driver->session_id(), result,
+                                     result_handler.get());
+    }
+  }
+}
+
+void WebDriverModule::GetCssProperty(
+    const base::Value* parameters,
+    const WebDriverDispatcher::PathVariableMap* path_variables,
+    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
+      base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
+      path_variables, result_handler.get());
+  if (session_driver) {
+    ElementDriver* element_driver = LookUpElementDriverOrReturnInvalidResponse(
+        kElementId, session_driver, path_variables, result_handler.get());
+    if (element_driver) {
+      std::string property_name = path_variables->GetVariable(kCssPropertyName);
+
+      typedef util::CommandResult<std::string> CommandResult;
+      CommandResult result = element_driver->GetCssProperty(property_name);
+      util::internal::ReturnResponse(session_driver->session_id(), result,
+                                     result_handler.get());
+    }
+  }
 }
 
 void WebDriverModule::LogTypesCommand(
