@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/message_loop.h"
 
 namespace net {

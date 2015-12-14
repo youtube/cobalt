@@ -19,6 +19,13 @@
 #include "net/proxy/sync_host_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if defined(OS_STARBOARD)
+// Starboard doesn't implement GetHostName.
+#define MAYBE_MyIpAddress DISABLED_MyIpAddress
+#else
+#define MAYBE_MyIpAddress MyIpAddress
+#endif
+
 namespace net {
 
 namespace {
@@ -116,7 +123,7 @@ TEST(ProxyResolverJSBindingsTest, DnsResolve) {
   // won't work on all systems.
 }
 
-TEST(ProxyResolverJSBindingsTest, MyIpAddress) {
+TEST(ProxyResolverJSBindingsTest, MAYBE_MyIpAddress) {
   MockSyncHostResolver* host_resolver = new MockSyncHostResolver;
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
@@ -177,8 +184,10 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
 
   std::string ip_address;
   // Now the actual test.
+#if !defined(OS_STARBOARD)
   EXPECT_TRUE(bindings->MyIpAddress(&ip_address));
   EXPECT_EQ("192.168.1.2", ip_address);  // IPv4 restricted.
+#endif
 
   EXPECT_TRUE(bindings->DnsResolve("foo", &ip_address));
   EXPECT_EQ("192.168.1.1", ip_address);  // IPv4 restricted.
@@ -186,8 +195,10 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
   EXPECT_TRUE(bindings->DnsResolve("foo2", &ip_address));
   EXPECT_EQ("192.168.1.2", ip_address);  // IPv4 restricted.
 
+#if !defined(OS_STARBOARD)
   EXPECT_TRUE(bindings->MyIpAddressEx(&ip_address));
   EXPECT_EQ("192.168.2.2", ip_address);  // Unrestricted.
+#endif
 
   EXPECT_TRUE(bindings->DnsResolveEx("foo", &ip_address));
   EXPECT_EQ("192.168.2.1", ip_address);  // Unrestricted.
@@ -209,8 +220,10 @@ TEST(ProxyResolverJSBindingsTest, ExFunctionsReturnList) {
 
   std::string ip_addresses;
 
+#if !defined(OS_STARBOARD)
   EXPECT_TRUE(bindings->MyIpAddressEx(&ip_addresses));
   EXPECT_EQ("192.168.1.1;172.22.34.1;200.100.1.2", ip_addresses);
+#endif
 
   EXPECT_TRUE(bindings->DnsResolveEx("FOO", &ip_addresses));
   EXPECT_EQ("192.168.1.1;172.22.34.1;200.100.1.2", ip_addresses);

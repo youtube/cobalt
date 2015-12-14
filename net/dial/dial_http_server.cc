@@ -82,7 +82,7 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
 #if defined(OS_STARBOARD)
   // Now get the IPAddress of the network card.
   SbSocketAddress address;
-  ret |= SbSocketGetLocalInterfaceAddress(&address);
+  ret |= SbSocketGetLocalInterfaceAddress(&address) ? 0 : -1;
   address.port = addr->port();
   return (ret == 0 && addr->FromSbSocketAddress(&address)) ? OK : ERR_FAILED;
 #else

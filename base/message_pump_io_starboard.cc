@@ -40,16 +40,22 @@ MessagePumpIOStarboard::SocketWatcher::~SocketWatcher() {
 
 bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
   SbSocket socket = Release();
-  bool result = pump_->StopWatching(socket);
+  bool result = true;
+  if (SbSocketIsValid(socket)) {
+    DCHECK(pump_);
+    result = pump_->StopWatching(socket);
+  }
   pump_ = NULL;
   watcher_ = NULL;
   return result;
 }
 
-void MessagePumpIOStarboard::SocketWatcher::Init(SbSocket socket) {
+void MessagePumpIOStarboard::SocketWatcher::Init(SbSocket socket,
+                                                 bool persistent) {
   DCHECK(socket);
   DCHECK(!socket_);
   socket_ = socket;
+  persistent_ = persistent;
 }
 
 SbSocket MessagePumpIOStarboard::SocketWatcher::Release() {
@@ -132,10 +138,12 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
   }
 
   // Set current interest mask and waiter for this event.
-  SbSocketWaiterAdd(waiter_, socket, controller, OnSocketWaiterNotification,
-                    interests, persistent);
+  bool result =
+      SbSocketWaiterAdd(waiter_, socket, controller, OnSocketWaiterNotification,
+                        interests, persistent);
+  DCHECK(result);
 
-  controller->Init(socket);
+  controller->Init(socket, persistent);
   controller->set_watcher(delegate);
   controller->set_pump(this);
 
@@ -249,6 +257,11 @@ void MessagePumpIOStarboard::OnSocketWaiterNotification(SbSocketWaiter waiter,
 
   MessagePumpIOStarboard* pump = controller->pump();
   pump->processed_io_events_ = true;
+
+  // If not persistent, the watch has been released at this point.
+  if (!controller->persistent()) {
+    controller->Release();
+  }
 
   if (ready_interests & kSbSocketWaiterInterestWrite) {
     controller->OnSocketReadyToWrite(socket, pump);
