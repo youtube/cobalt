@@ -23,6 +23,7 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/texture.h"
+#include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 
 namespace cobalt {
@@ -41,21 +42,24 @@ bool HasExtension(const char* extension) {
 
 }  // namespace
 
-GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* system,
-                                       EGLDisplay display, EGLConfig config)
-    : GraphicsContext(system),
+GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
+                                       EGLDisplay display, EGLConfig config,
+                                       ResourceContext* resource_context)
+    : GraphicsContext(parent_system),
       display_(display),
       config_(config),
       is_current_(false) {
+#if defined(GLES3_SUPPORTED)
+  context_ = CreateGLES3Context(display, config, resource_context->context());
+#else
+  // Create an OpenGL ES 2.0 context.
   EGLint context_attrib_list[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 2,
-      EGL_NONE,
+      EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE,
   };
-
-  // Create the OpenGL ES 2.0 context.
   context_ =
       eglCreateContext(display, config, EGL_NO_CONTEXT, context_attrib_list);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
+#endif
 
   // Create a dummy EGLSurface object to be assigned as the target surface
   // when we need to make OpenGL calls that do not depend on a surface (e.g.
@@ -191,9 +195,9 @@ scoped_ptr<Texture> GraphicsContextEGL::CreateTextureFromRawMemory(
       base::polymorphic_downcast<const RawTextureMemoryEGL*>(
           &(raw_texture_memory->raw_texture_memory())));
 
-  return scoped_ptr<Texture>(
-      new TextureEGL(this, texture_memory_egl->GetMemory() + offset,
-                     surface_info, pitch_in_bytes, bgra_format_supported_));
+  return scoped_ptr<Texture>(new TextureEGL(this, texture_memory_egl, offset,
+                                            surface_info, pitch_in_bytes,
+                                            bgra_format_supported_));
 }
 
 scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
