@@ -39,5 +39,18 @@
       CHECK_EQ(EGL_SUCCESS, eglGetError());\
     } while (false)
 
+namespace cobalt {
+namespace renderer {
+namespace backend {
+
+// Uses EGL to create a GL ES 3 context.  While EGL specifies a standard way
+// to do this, some platforms have finicky implementations and this function
+// smooths that over.
+EGLContext CreateGLES3Context(EGLDisplay display, EGLConfig config,
+                              EGLContext share_context);
+
+}  // namespace backend
+}  // namespace renderer
+}  // namespace cobalt
 
 #endif  // RENDERER_BACKEND_EGL_UTILS_H_

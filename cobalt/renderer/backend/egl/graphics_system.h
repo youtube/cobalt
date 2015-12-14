@@ -19,6 +19,8 @@
 
 #include <EGL/egl.h>
 
+#include "base/optional.h"
+#include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/system_window/system_window.h"
 
@@ -52,6 +54,10 @@ class GraphicsSystemEGL : public GraphicsSystem {
  private:
   EGLDisplay display_;
   EGLConfig config_;
+
+  // A special graphics context which is used exclusively for mapping/unmapping
+  // texture memory.
+  base::optional<ResourceContext> resource_context_;
 };
 
 }  // namespace backend
