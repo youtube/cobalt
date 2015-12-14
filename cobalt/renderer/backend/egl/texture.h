@@ -21,6 +21,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
+#include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/surface_info.h"
 #include "cobalt/renderer/backend/texture.h"
 
@@ -29,45 +30,7 @@ namespace renderer {
 namespace backend {
 
 class GraphicsContextEGL;
-
-class TextureDataEGL : public TextureData {
- public:
-  explicit TextureDataEGL(const SurfaceInfo& surface_info);
-
-  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE { return surface_info_; }
-  int GetPitchInBytes() const OVERRIDE {
-    return surface_info_.size.width() * surface_info_.BytesPerPixel();
-  }
-
-  uint8_t* GetMemory() OVERRIDE { return static_cast<uint8_t*>(memory_.get()); }
-
- private:
-  SurfaceInfo surface_info_;
-
-  // TODO(***REMOVED***): Store memory using a EGL PBuffer object which provides the
-  //               implementation control over the memory.
-  scoped_array<uint8_t> memory_;
-};
-
-class RawTextureMemoryEGL : public RawTextureMemory {
- public:
-  RawTextureMemoryEGL(size_t size_in_bytes, size_t alignment);
-
-  // Returns the allocated size of the texture memory.
-  virtual size_t GetSizeInBytes() const { return size_in_bytes_; }
-
-  // Returns a CPU-accessible pointer to the allocated memory.
-  virtual uint8_t* GetMemory() { return memory_.get(); }
-
-  const uint8_t* GetMemory() const { return memory_.get(); }
-
- private:
-  size_t size_in_bytes_;
-
-  // TODO(***REMOVED***): Store memory using a EGL PBuffer object which provides the
-  //               implementation control over the memory.
-  scoped_ptr_malloc<uint8_t> memory_;
-};
+class ResourceContext;
 
 class TextureEGL : public Texture {
  public:
@@ -76,14 +39,16 @@ class TextureEGL : public Texture {
              scoped_ptr<TextureDataEGL> texture_source_data,
              bool bgra_supported);
   // Create a texture from a pre-existing offscreen PBuffer render target.
-  TextureEGL(GraphicsContextEGL* graphics_context, const uint8_t* data,
+  TextureEGL(GraphicsContextEGL* graphics_context,
+             const RawTextureMemoryEGL* data, intptr_t offset,
              const SurfaceInfo& surface_info, int pitch_in_bytes,
              bool bgra_supported);
+
   // Create a texture from a pre-existing offscreen PBuffer render target.
   explicit TextureEGL(
       GraphicsContextEGL* graphics_context,
       const scoped_refptr<PBufferRenderTargetEGL>& render_target);
-  ~TextureEGL();
+  virtual ~TextureEGL();
 
   const SurfaceInfo& GetSurfaceInfo() const OVERRIDE;
 

@@ -23,6 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
+#include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/texture.h"
 
@@ -34,8 +35,8 @@ namespace backend {
 // accessible the OpenGL ES API.
 class GraphicsContextEGL : public GraphicsContext {
  public:
-  GraphicsContextEGL(GraphicsSystem* system, EGLDisplay display,
-                     EGLConfig config);
+  GraphicsContextEGL(GraphicsSystem* parent_system, EGLDisplay display,
+                     EGLConfig config, ResourceContext* resource_context);
   ~GraphicsContextEGL() OVERRIDE;
 
   scoped_ptr<Texture> CreateTexture(

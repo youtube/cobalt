@@ -21,94 +21,31 @@
 #include <malloc.h>
 
 #include "cobalt/renderer/backend/egl/graphics_context.h"
+#include "cobalt/renderer/backend/egl/resource_context.h"
+#include "cobalt/renderer/backend/egl/texture_data.h"
+#include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 
 namespace cobalt {
 namespace renderer {
 namespace backend {
 
-namespace {
-void SetupInitialTextureParameters() {
-  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-  GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-}
-
-GLenum SurfaceInfoFormatToGL(SurfaceInfo::Format format) {
-  switch (format) {
-    case SurfaceInfo::kFormatRGBA8: return GL_RGBA;
-    case SurfaceInfo::kFormatBGRA8: return GL_BGRA_EXT;
-    case SurfaceInfo::kFormatA8:
-      return GL_ALPHA;
-    default: DLOG(FATAL) << "Unsupported incoming pixel data format.";
-  }
-  return GL_INVALID_ENUM;
-}
-}  // namespace
-
-TextureDataEGL::TextureDataEGL(const SurfaceInfo& surface_info)
-    : surface_info_(surface_info),
-      memory_(new uint8_t[GetPitchInBytes() * surface_info.size.height()]) {}
-
-RawTextureMemoryEGL::RawTextureMemoryEGL(size_t size_in_bytes, size_t alignment)
-    : size_in_bytes_(size_in_bytes) {
-  memory_ = scoped_ptr_malloc<uint8_t>(
-      static_cast<uint8_t*>(memalign(alignment, size_in_bytes)));
-}
-
-namespace {
-
-GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
-                                   const uint8_t* data,
-                                   const SurfaceInfo& surface_info,
-                                   int pitch_in_bytes, bool bgra_supported) {
-  GLuint gl_handle;
-
-  GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context);
-
-  GL_CALL(glGenTextures(1, &gl_handle));
-  GL_CALL(glBindTexture(GL_TEXTURE_2D, gl_handle));
-  SetupInitialTextureParameters();
-
-  GLenum gl_format = SurfaceInfoFormatToGL(surface_info.format);
-  if (gl_format == GL_BGRA_EXT) {
-    DCHECK(bgra_supported);
-  }
-
-  DCHECK_EQ(surface_info.size.width() *
-                SurfaceInfo::BytesPerPixel(surface_info.format),
-            pitch_in_bytes);
-
-  // Copy pixel data over from the user provided source data into the OpenGL
-  // driver to be used as a texture from now on.
-  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, gl_format, surface_info.size.width(),
-                       surface_info.size.height(), 0, gl_format,
-                       GL_UNSIGNED_BYTE, data));
-  GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
-
-  return gl_handle;
-}
-
-}  // namespace
-
 TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
                        scoped_ptr<TextureDataEGL> texture_source_data,
                        bool bgra_supported)
     : graphics_context_(graphics_context),
       surface_info_(texture_source_data->GetSurfaceInfo()) {
-  gl_handle_ = UploadPixelDataToNewTexture(
-      graphics_context, texture_source_data->GetMemory(),
-      texture_source_data->GetSurfaceInfo(),
-      texture_source_data->GetPitchInBytes(), bgra_supported);
+  gl_handle_ =
+      texture_source_data->ConvertToTexture(graphics_context_, bgra_supported);
 }
 
 TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
-                       const uint8_t* data, const SurfaceInfo& surface_info,
-                       int pitch_in_bytes, bool bgra_supported)
+                       const RawTextureMemoryEGL* data, intptr_t offset,
+                       const SurfaceInfo& surface_info, int pitch_in_bytes,
+                       bool bgra_supported)
     : graphics_context_(graphics_context), surface_info_(surface_info) {
-  gl_handle_ = UploadPixelDataToNewTexture(graphics_context, data, surface_info,
-                                           pitch_in_bytes, bgra_supported);
+  gl_handle_ = data->CreateTexture(graphics_context_, offset, surface_info_,
+                                   pitch_in_bytes, bgra_supported);
 }
 
 TextureEGL::TextureEGL(
