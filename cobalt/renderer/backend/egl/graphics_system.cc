@@ -16,6 +16,12 @@
 
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 
+#if defined(GLES3_SUPPORTED)
+#include "cobalt/renderer/backend/egl/texture_data_pbo.h"
+#else
+#include "cobalt/renderer/backend/egl/texture_data_cpu.h"
+#endif
+
 #include "cobalt/renderer/backend/egl/display.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
@@ -33,22 +39,34 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
 
   // Setup our configuration to support RGBA and compatibility with PBuffer
   // objects (for offscreen rendering).
-  EGLint const attribute_list[] = {
-    EGL_RED_SIZE, 8,
-    EGL_GREEN_SIZE, 8,
-    EGL_BLUE_SIZE, 8,
-    EGL_ALPHA_SIZE, 8,
-    EGL_SURFACE_TYPE, EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
-    EGL_BIND_TO_TEXTURE_RGBA, EGL_TRUE,
-    EGL_NONE};
+  EGLint const attribute_list[] = {EGL_RED_SIZE,
+                                   8,
+                                   EGL_GREEN_SIZE,
+                                   8,
+                                   EGL_BLUE_SIZE,
+                                   8,
+                                   EGL_ALPHA_SIZE,
+                                   8,
+                                   EGL_SURFACE_TYPE,
+                                   EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
+                                   EGL_BIND_TO_TEXTURE_RGBA,
+                                   EGL_TRUE,
+                                   EGL_NONE};
 
   EGLint num_configs;
-  EGL_CALL(eglChooseConfig(
-      display_, attribute_list, &config_, 1, &num_configs));
+  EGL_CALL(
+      eglChooseConfig(display_, attribute_list, &config_, 1, &num_configs));
   DCHECK_EQ(1, num_configs);
+
+#if defined(GLES3_SUPPORTED)
+  resource_context_.emplace(display_, config_);
+#endif
 }
 
-GraphicsSystemEGL::~GraphicsSystemEGL() { eglTerminate(display_); }
+GraphicsSystemEGL::~GraphicsSystemEGL() {
+  resource_context_ = base::nullopt;
+  eglTerminate(display_);
+}
 
 scoped_ptr<Display> GraphicsSystemEGL::CreateDisplay(
     system_window::SystemWindow* system_window) {
@@ -57,19 +75,39 @@ scoped_ptr<Display> GraphicsSystemEGL::CreateDisplay(
 }
 
 scoped_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
+// If GLES3 is supported, we will make use of PBOs to allocate buffers for
+// texture data and populate them on separate threads.  In order to access
+// that data from graphics contexts created through this method, we must
+// enable sharing between them and the resource context, which is why we
+// must pass it in here.
+#if defined(GLES3_SUPPORTED)
+  ResourceContext* resource_context = &(resource_context_.value());
+#else
+  ResourceContext* resource_context = NULL;
+#endif
   return scoped_ptr<GraphicsContext>(
-      new GraphicsContextEGL(this, display_, config_));
+      new GraphicsContextEGL(this, display_, config_, resource_context));
 }
 
 scoped_ptr<TextureData> GraphicsSystemEGL::AllocateTextureData(
     const SurfaceInfo& surface_info) {
-  return scoped_ptr<TextureData>(new TextureDataEGL(surface_info));
+#if defined(GLES3_SUPPORTED)
+  return scoped_ptr<TextureData>(
+      new TextureDataPBO(&(resource_context_.value()), surface_info));
+#else
+  return scoped_ptr<TextureData>(new TextureDataCPU(surface_info));
+#endif
 }
 
 scoped_ptr<RawTextureMemory> GraphicsSystemEGL::AllocateRawTextureMemory(
     size_t size_in_bytes, size_t alignment) {
+#if defined(GLES3_SUPPORTED)
+  return scoped_ptr<RawTextureMemory>(new RawTextureMemoryPBO(
+      &(resource_context_.value()), size_in_bytes, alignment));
+#else
   return scoped_ptr<RawTextureMemory>(
-      new RawTextureMemoryEGL(size_in_bytes, alignment));
+      new RawTextureMemoryCPU(size_in_bytes, alignment));
+#endif
 }
 
 }  // namespace backend
