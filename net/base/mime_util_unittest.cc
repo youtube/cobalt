@@ -11,7 +11,7 @@
 namespace net {
 
 // lbshell doesn't have mappings from mime to file extension
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
 #define MAYBE_TestGetExtensionsForMimeType DISABLED_TestGetExtensionsForMimeType
 #else
 #define MAYBE_TestGetExtensionsForMimeType TestGetExtensionsForMimeType
@@ -264,7 +264,7 @@ TEST(MimeUtilTest, MAYBE_TestGetExtensionsForMimeType) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::vector<FilePath::StringType> extensions;
     GetExtensionsForMimeType(tests[i].mime_type, &extensions);
-    ASSERT_TRUE(tests[i].min_expected_size <= extensions.size());
+    ASSERT_LE(tests[i].min_expected_size, extensions.size()) << "i=" << i;
 
     if (!tests[i].contained_result)
       continue;

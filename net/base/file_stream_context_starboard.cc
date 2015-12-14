@@ -106,8 +106,7 @@ int FileStream::Context::WriteSync(const char* in_buf, int buf_len) {
 }
 
 int FileStream::Context::Truncate(int64 bytes) {
-  int result = base::TruncatePlatformFile(file_, bytes);
-  if (result == 0)
+  if (base::TruncatePlatformFile(file_, bytes))
     return bytes;
 
   return RecordAndMapError(GetLastErrno(), FILE_ERROR_SOURCE_SET_EOF);

@@ -340,6 +340,13 @@ void MessageLoop::QuitWhenIdle() {
   DCHECK_EQ(this, current());
   if (run_loop_) {
     run_loop_->quit_when_idle_received_ = true;
+#if defined(OS_STARBOARD)
+    // The IO loop may have already been idle, in which case it's waiting on the
+    // SbSocketWaiter. This call to ScheduleWork() ensures that the Idle
+    // delegate callback will be called again soon. This should be safe and
+    // appropriate to call here, even on non-Starboard message pumps.
+    pump_->ScheduleWork();
+#endif
   } else {
     NOTREACHED() << "Must be inside Run to call Quit";
   }

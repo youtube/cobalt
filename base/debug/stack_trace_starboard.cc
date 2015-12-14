@@ -156,6 +156,15 @@ StackTrace::StackTrace() {
   // Though the SbSystemGetStack API documentation does not specify any possible
   // negative return values, we take no chance.
   count_ = std::max(SbSystemGetStack(trace_, arraysize(trace_)), 0);
+  if (count_ < 1) {
+    return;
+  }
+
+  // We can remove this call from the stack trace, since we know it is always
+  // going to be in it.
+  for (int i = 1; i < count_; ++i) {
+    trace_[i - 1] = trace_[i];
+  }
 }
 
 void StackTrace::PrintBacktrace() const {

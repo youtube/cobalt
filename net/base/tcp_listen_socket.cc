@@ -84,7 +84,7 @@ SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
     }
 
     if (groovy) {
-      groovy &= SbSocketBind(socket, &sb_address);
+      groovy &= (SbSocketBind(socket, &sb_address) == kSbSocketOk);
     }
 
     if (!groovy) {
@@ -178,7 +178,7 @@ void TCPListenSocket::Accept() {
   scoped_refptr<TCPListenSocket> sock(
       new TCPListenSocket(conn, socket_delegate_));
   // It's up to the delegate to AddRef if it wants to keep it around.
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_STARBOARD)
   sock->WatchSocket(WAITING_READ);
 #endif
   socket_delegate_->DidAccept(this, sock);

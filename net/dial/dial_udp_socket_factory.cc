@@ -80,7 +80,11 @@ scoped_refptr<UDPListenSocket> UdpSocketFactory::CreateAndBind(
 }
 
 void DialUdpSocketFactory::SetupSocketAfterCreate(SocketDescriptor s) {
-#if defined(SO_REUSEADDR)
+#if defined(OS_STARBOARD)
+  if (!SbSocketSetReuseAddress(s, true)) {
+    LOG(WARNING) << "SbSocketSetReuseAddress failed on DIAL UDP socket.";
+  }
+#elif defined(SO_REUSEADDR)
   int on = 1;
   if (::setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
     LOG(WARNING) << "Failed to set SO_REUSEADDR on dial UDP socket.";
@@ -93,16 +97,26 @@ void DialUdpSocketFactory::SetupSocketAfterCreate(SocketDescriptor s) {
 
 // Enable Multicast and join group if multicast is enabled.
 void DialUdpSocketFactory::SetupSocketAfterBind(SocketDescriptor s) {
-#if defined(IP_ADD_MEMBERSHIP)
+#if defined(OS_STARBOARD)
+  SbSocketAddress address = {0};
+  address.type = kSbSocketAddressTypeIpv4;
+  address.address[0] = 239;
+  address.address[1] = 255;
+  address.address[2] = 255;
+  address.address[3] = 250;
+  if (!SbSocketJoinMulticastGroup(s, &address)) {
+    LOG(WARNING) << "SbSocketJoinMulticastGroup failed on DIAL UDP socket.";
+  }
+#elif defined(IP_ADD_MEMBERSHIP)
   struct ip_mreq imreq;
   imreq.imr_multiaddr.s_addr = ::inet_addr("239.255.255.250");
 #if defined(__LB_WIIU__)
   struct in_addr src_addr;
   ignore_result(LB::Platform::GetLocalIpAddress(&src_addr));
   imreq.imr_interface.s_addr = htonl(src_addr.s_addr);
-#else
+#else   // defined(__LB_WIIU__)
   imreq.imr_interface.s_addr = INADDR_ANY;
-#endif
+#endif  // defined(__LB_WIIU__)
   if (::setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imreq, sizeof(imreq)) < 0) {
     LOG(WARNING) << "Failed to join multicast group on dial UDP socket.";
   }

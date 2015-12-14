@@ -60,12 +60,17 @@ int CreateSocket(AddressFamily family, SbSocket* socket) {
                                  ? kSbSocketAddressTypeIpv6
                                  : kSbSocketAddressTypeIpv4;
   *socket = SbSocketCreate(type, kSbSocketProtocolTcp);
-  if (!SbSocketIsValid(*socket))
+  if (!SbSocketIsValid(*socket)) {
+    DLOG(ERROR) << "SbSocketCreate";
     return SbSystemGetLastError();
+  }
+
   int error = SetupSocket(*socket);
   if (error) {
-    if (!SbSocketDestroy(*socket))
+    if (!SbSocketDestroy(*socket)) {
       DLOG(ERROR) << "SbSocketDestroy";
+    }
+
     *socket = kSbSocketInvalid;
     return error;
   }
@@ -132,8 +137,9 @@ int TCPClientSocketStarboard::Connect(const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
 
   // If this socket is already valid, then just return OK.
-  if (SbSocketIsValid(socket_))
+  if (SbSocketIsValid(socket_)) {
     return OK;
+  }
 
   base::StatsCounter connects("tcp.connect");
   connects.Increment();
@@ -202,21 +208,26 @@ int TCPClientSocketStarboard::DoConnect() {
 
   // create a non-blocking socket
   connect_error_ = CreateSocket(endpoint.GetFamily(), &socket_);
-  if (connect_error_ != OK)
+  if (connect_error_ != OK) {
     return connect_error_;
+  }
 
   connect_start_time_ = base::TimeTicks::Now();
 
   SbSocketAddress address;
-  if (!endpoint.ToSbSocketAddress(&address))
+  if (!endpoint.ToSbSocketAddress(&address)) {
+    DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: Invalid address";
     return ERR_INVALID_ARGUMENT;
+  }
 
   bool success = SbSocketConnect(socket_, &address);
   DCHECK_EQ(true, success);
 
   int rv = MapLastSocketError(socket_);
-  if (rv != ERR_IO_PENDING)
+  if (rv != ERR_IO_PENDING) {
+    DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << rv;
     return rv;
+  }
 
   // When it is ready to write, it will have connected.
   MessageLoopForIO::current()->Watch(socket_, false,
@@ -258,8 +269,7 @@ int TCPClientSocketStarboard::DoConnectComplete(int result) {
 void TCPClientSocketStarboard::DidCompleteConnect() {
   DCHECK_EQ(next_connect_state_, CONNECT_STATE_CONNECT_COMPLETE);
 
-  // Get the error that connect() completed with.
-  connect_error_ = MapLastSocketError(socket_);
+  connect_error_ = SbSocketIsConnected(socket_) ? OK : ERR_FAILED;
   int rv = DoConnectLoop(connect_error_);
   if (rv != ERR_IO_PENDING) {
     LogConnectCompletion(rv);
@@ -393,8 +403,7 @@ int TCPClientSocketStarboard::Read(IOBuffer* buf,
   DCHECK(!waiting_read_);
   DCHECK_GT(buf_len, 0);
 
-  int bytes_read =
-      SbSocketReceiveFrom(socket_, read_buf_->data(), read_buf_len_, NULL);
+  int bytes_read = SbSocketReceiveFrom(socket_, buf->data(), buf_len, NULL);
   // Maybe we got some data. If so, do stats and return.
   if (bytes_read >= 0) {
     base::StatsCounter read_bytes("tcp.read_bytes");
@@ -409,8 +418,10 @@ int TCPClientSocketStarboard::Read(IOBuffer* buf,
 
   // If bytes_read < 0, then we got some kind of error.
   int error = MapLastSocketError(socket_);
-  if (error != ERR_IO_PENDING)
+  if (error != ERR_IO_PENDING) {
+    DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << error;
     return error;
+  }
 
   // We'll callback when there is more data.
   waiting_read_ = true;
@@ -469,10 +480,7 @@ int TCPClientSocketStarboard::Write(IOBuffer* buf,
   base::StatsCounter writes("tcp.writes");
   writes.Increment();
 
-  write_buf_ = buf;
-  write_buf_len_ = buf_len;
-
-  int rv = SbSocketSendTo(socket_, write_buf_->data(), write_buf_len_, NULL);
+  int rv = SbSocketSendTo(socket_, buf->data(), buf_len, NULL);
   // did it happen right away?
   if (rv >= 0) {
     base::StatsCounter write_bytes("tcp.write_bytes");
@@ -486,8 +494,10 @@ int TCPClientSocketStarboard::Write(IOBuffer* buf,
 
   // Some error occurred.
   int mapped_result = MapLastSocketError(socket_);
-  if (mapped_result != ERR_IO_PENDING)
+  if (mapped_result != ERR_IO_PENDING) {
+    DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << mapped_result;
     return mapped_result;
+  }
 
   // We are just blocked, so let's set up the callback.
   waiting_write_ = true;
