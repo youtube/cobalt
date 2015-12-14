@@ -1661,9 +1661,9 @@ unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);
 #if HAVE_MMAP
 
 #if defined (__LB_SHELL__)
-#define MMAP_DEFAULT(s) lb_mmap(s, "dlmalloc_mmap")
+#define MMAP_DEFAULT(s) lb_mmap_untracked(s, "dlmalloc_mmap")
 #define DIRECT_MMAP_DEFAULT(s) MMAP_DEFAULT(s)
-#define MUNMAP_DEFAULT(a, s) lb_munmap((a), (s))
+#define MUNMAP_DEFAULT(a, s) lb_munmap_untracked((a), (s))
 
 #elif !defined(WIN32)
 #define MUNMAP_DEFAULT(a, s)  munmap((a), (s))
@@ -6174,12 +6174,10 @@ static void heap_walker(void* start, void* end, size_t used_bytes, void* arg) {
 }
 
 void dldump_heap() {
+  oom_fprintf(1, "Dumping dlmalloc heap info:\n");
   oom_fprintf(1,
-      "Dumping global heap (Does not include large mmapped blocks).\n");
-  HeapWalker hw;
-  heap_walker_init(&hw, "global_heap.txt");
-  dlmalloc_inspect_all(heap_walker, &hw);
-  heap_walker_finish(&hw);
+      "bytes allocated directly via lb_mmap (external to dlmalloc): %6dKB\n",
+      lb_get_mmapped_bytes() / 1024);
   oom_fprintf(1, "mallinfo stats:\n");
   struct mallinfo info = dlmallinfo();
   oom_fprintf(1, "\ttotal in use: %6dKB\n", info.uordblks / 1024);
@@ -6188,6 +6186,14 @@ void dldump_heap() {
   oom_fprintf(1, "\ttotal allocated: %6dKB\n", info.arena / 1024);
   oom_fprintf(1, "direct mmapped:\n");
   oom_fprintf(1, "\tmmapped bytes: %6dKB\n", info.hblkhd / 1024);
+
+  oom_fprintf(1,
+      "Writing global heap (not including large mmapped blocks)."
+      " This may be slow...\n");
+  HeapWalker hw;
+  heap_walker_init(&hw, "global_heap.txt");
+  dlmalloc_inspect_all(heap_walker, &hw);
+  heap_walker_finish(&hw);
 }
 
 #endif /* defined(__LB_SHELL__FOR_RELEASE__) */
