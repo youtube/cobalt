@@ -17,6 +17,7 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 
 #include "cobalt/renderer/backend/copy_image_data.h"
+#include "cobalt/renderer/backend/graphics_system.h"
 
 namespace cobalt {
 namespace renderer {
@@ -29,7 +30,7 @@ scoped_ptr<Texture> GraphicsContext::CreateTextureFromCopy(
 
   // Default implementation is to forward to CreateImage().
   scoped_ptr<TextureData> texture_source_data =
-      AllocateTextureData(surface_info);
+      system()->AllocateTextureData(surface_info);
 
   uint8_t* image_source_memory = texture_source_data->GetMemory();
   int image_source_pitch_in_bytes = texture_source_data->GetPitchInBytes();
