@@ -43,6 +43,7 @@ const char kWebDriverSessionId[] = "session-0";
 const char kSessionIdVariable[] = ":sessionId";
 const char kWindowHandleVariable[] = ":windowHandle";
 const char kElementId[] = ":id";
+const char kOtherElementId[] = ":other";
 
 // Error messages related to session creation.
 const char kMaxSessionsCreatedMessage[] =
@@ -117,7 +118,7 @@ WindowDriver* LookUpWindowDriverOrReturnInvalidResponse(
 // Looks up the ElementDriver instance that is mapped to the
 // the sessionId variable in the path.
 ElementDriver* LookUpElementDriverOrReturnInvalidResponse(
-    SessionDriver* session_driver,
+    const char* path_variable, SessionDriver* session_driver,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     WebDriverDispatcher::CommandResultHandler* result_handler) {
   DCHECK(path_variables);
@@ -126,7 +127,7 @@ ElementDriver* LookUpElementDriverOrReturnInvalidResponse(
   WindowDriver* window_driver =
       LookUpCurrentWindowDriver(session_driver, path_variables, result_handler);
   if (window_driver) {
-    protocol::ElementId element_id(path_variables->GetVariable(kElementId));
+    protocol::ElementId element_id(path_variables->GetVariable(path_variable));
     element_driver = window_driver->GetElementDriver(element_id);
     if (!element_driver) {
       result_handler->SendInvalidRequestResponse(
@@ -192,7 +193,7 @@ WebDriverModule::WebDriverModule(
       new ElementCommandFactory(
           base::Bind(&LookUpSessionDriverOrReturnInvalidResponse,
                      get_session_driver_),
-          base::Bind(&LookUpElementDriverOrReturnInvalidResponse)));
+          base::Bind(&LookUpElementDriverOrReturnInvalidResponse, kElementId)));
 
   // Server commands.
   webdriver_dispatcher_->RegisterCommand(
@@ -312,6 +313,11 @@ WebDriverModule::WebDriverModule(
                                            kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::FindElements)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/element/%s/equals/%s", kSessionIdVariable,
+                   kElementId, kOtherElementId),
+      base::Bind(&WebDriverModule::ElementEquals, base::Unretained(this)));
 
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
@@ -452,6 +458,36 @@ void WebDriverModule::Shutdown(
   // It's expected that the application will terminate, so it's okay to
   // leave the request hanging.
   shutdown_cb_.Run();
+}
+
+void WebDriverModule::ElementEquals(
+    const base::Value* parameters,
+    const WebDriverDispatcher::PathVariableMap* path_variables,
+    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
+      base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
+      path_variables, result_handler.get());
+  if (!session_driver) {
+    return;
+  }
+  ElementDriver* element_driver = LookUpElementDriverOrReturnInvalidResponse(
+      kElementId, session_driver, path_variables, result_handler.get());
+  if (!element_driver) {
+    return;
+  }
+  ElementDriver* other_element = LookUpElementDriverOrReturnInvalidResponse(
+      kOtherElementId, session_driver, path_variables, result_handler.get());
+  if (!other_element) {
+    return;
+  }
+
+  typedef util::CommandResult<bool> CommandResult;
+
+  CommandResult result = element_driver->Equals(other_element);
+  util::internal::ReturnResponse(session_driver->session_id(), result,
+                                 result_handler.get());
 }
 
 void WebDriverModule::LogTypesCommand(

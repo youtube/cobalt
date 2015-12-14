@@ -176,6 +176,14 @@ ElementDriver::FindElements(const protocol::SearchStrategy& strategy) {
                  base::Unretained(this), strategy));
 }
 
+util::CommandResult<bool> ElementDriver::Equals(
+    const ElementDriver* other_element_driver) {
+  return util::CallOnMessageLoop(
+      element_message_loop_,
+      base::Bind(&ElementDriver::EqualsInternal, base::Unretained(this),
+                 other_element_driver));
+}
+
 dom::Element* ElementDriver::GetWeakElement() {
   DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
   return element_.get();
@@ -215,6 +223,18 @@ util::CommandResult<T> ElementDriver::FindElementsInternal(
   }
   return Search::FindElementsUnderNode<T>(strategy, element_.get(),
                                           element_mapping_);
+}
+
+util::CommandResult<bool> ElementDriver::EqualsInternal(
+    const ElementDriver* other_element_driver) {
+  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  typedef util::CommandResult<bool> CommandResult;
+  base::WeakPtr<dom::Element> other_element = other_element_driver->element_;
+  if (!element_ || !other_element) {
+    return CommandResult(protocol::Response::kStaleElementReference);
+  }
+  bool is_same_element = other_element.get() == element_.get();
+  return CommandResult(is_same_element);
 }
 
 }  // namespace webdriver
