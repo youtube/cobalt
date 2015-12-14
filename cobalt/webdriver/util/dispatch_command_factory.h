@@ -44,6 +44,16 @@ scoped_ptr<base::Value> ToValue(const std::vector<T>& value) {
   return list_value.PassAs<base::Value>();
 }
 
+// Partial template specialization for base::optional.
+template <typename T>
+scoped_ptr<base::Value> ToValue(const base::optional<T>& value) {
+  if (value) {
+    return ToValue<T>(*value);
+  } else {
+    return make_scoped_ptr<base::Value>(base::Value::CreateNullValue());
+  }
+}
+
 // Template specialization for std::string.
 template <>
 scoped_ptr<base::Value> ToValue(const std::string& value) {

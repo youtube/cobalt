@@ -61,6 +61,10 @@ class ElementDriver {
   util::CommandResult<std::vector<protocol::ElementId> > FindElements(
       const protocol::SearchStrategy& strategy);
   util::CommandResult<bool> Equals(const ElementDriver* other_element_driver);
+  util::CommandResult<base::optional<std::string> > GetAttribute(
+      const std::string& attribute_name);
+  util::CommandResult<std::string> GetCssProperty(
+      const std::string& property_name);
 
  private:
   typedef std::vector<scoped_refptr<dom::KeyboardEvent> > KeyboardEventVector;
