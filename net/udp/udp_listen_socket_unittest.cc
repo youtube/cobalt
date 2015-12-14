@@ -9,20 +9,32 @@
 #endif
 
 #include "base/message_loop.h"
+#include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace net {
-
-class MockDelegate : public UDPListenSocket::Delegate {
- public:
-  MOCK_METHOD1(DidClose, void(UDPListenSocket*));
-  MOCK_METHOD4(DidRead, void(UDPListenSocket*, const char*, int,
-                             const IPEndPoint*));
-};
+namespace {
 
 using ::testing::_;
 using ::testing::StrEq;
+using ::testing::InvokeWithoutArgs;
+
+class MockDelegate : public UDPListenSocket::Delegate {
+ public:
+  MockDelegate() {
+    ON_CALL(*this, DidRead(_, _, _, _))
+        .WillByDefault(InvokeWithoutArgs(this, &MockDelegate::DoDidRead));
+  }
+
+  MOCK_METHOD1(DidClose, void(UDPListenSocket*));
+  MOCK_METHOD4(DidRead, void(UDPListenSocket*, const char*, int,
+                             const IPEndPoint*));
+
+  void DoDidRead() { callback.callback().Run(OK); }
+
+  TestCompletionCallback callback;
+};
 
 // Create a DGRAM socket and bound to random port.
 SocketDescriptor GetSocketBoundToRandomPort() {
@@ -79,13 +91,9 @@ TEST(UDPListenSocketTest, DoRead) {
 
   // send the extra null character.
   SendDataToListeningSocket(s, kSampleData.c_str(), kSampleData.size() + 1);
-
-  // Let poll wait enough time for the data to be caught in.
-  usleep(200 * 1000);
-
   EXPECT_CALL(del, DidRead(sock.get(), StrEq(kSampleData.c_str()),
                            kSampleData.size() + 1, _));
-  MessageLoop::current()->RunUntilIdle();
+  del.callback.WaitForResult();
 }
 
 TEST(UDPListenSocketTest, DoReadReturnsNullAtEnd) {
@@ -95,13 +103,10 @@ TEST(UDPListenSocketTest, DoReadReturnsNullAtEnd) {
 
   SendDataToListeningSocket(s, kSampleData.data(), kSampleData.size());
 
-  // Let poll wait enough time for the data to be caught in.
-  usleep(200 * 1000);
-
   // still expect kSampleData, since that has been padded with '\0'.
   EXPECT_CALL(del, DidRead(sock.get(), StrEq(kSampleData.c_str()),
                            kSampleData.size(), _));
-  MessageLoop::current()->RunUntilIdle();
+  del.callback.WaitForResult();
 }
 
 // Create 2 UDPListenSockets. Use one to send message to another.
@@ -131,12 +136,10 @@ TEST(UDPListenSocketTest, SendTo) {
   // Send message to s1 using s2
   sock2->SendTo(s1_addr, kSampleData);
 
-  // Let poll wait enough time for the data to be caught in.
-  usleep(200 * 1000);
-
   EXPECT_CALL(del1, DidRead(sock1.get(), StrEq(kSampleData.c_str()),
-                           kSampleData.size(), _));
-  MessageLoop::current()->RunUntilIdle();
+                            kSampleData.size(), _));
+  del1.callback.WaitForResult();
 }
 
-}
+}  // namespace
+}  // namespace net

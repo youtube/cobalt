@@ -39,7 +39,7 @@ namespace {
 // Disk cache is turned off in lb_shell (http_cache.cc:CreateBackend())
 // The following cases which are using backend cache should be disabled:
 // GetBackend, SimpleGET_DoomWithPending, and RangeGET_LargeValues
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #define MAYBE_GetBackend DISABLED_GetBackend
 #define MAYBE_SimpleGET_DoomWithPending DISABLED_SimpleGET_DoomWithPending
 #define MAYBE_RangeGET_LargeValues DISABLED_RangeGET_LargeValues

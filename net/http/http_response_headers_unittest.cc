@@ -1151,8 +1151,7 @@ TEST(HttpResponseHeadersTest, GetContentLength) {
 }
 
 TEST(HttpResponseHeaders, GetContentRange) {
-
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   // LB Shell has the check for smaller content length removed,
   // it is still reported as valid HTTP header.
   const bool kAllowSmallerContentLength = true;

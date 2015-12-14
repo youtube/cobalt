@@ -19,7 +19,7 @@ namespace {
 // Disk cache is turned off in lb_shell (http_cache.cc:CreateBackend())
 // The following cases which are using backend cache should be disabled:
 // ListContents, DumpEntry, Prefix, and TruncatedFlag
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #define MAYBE_ListContents DISABLED_ListContents
 #define MAYBE_DumpEntry DISABLED_DumpEntry
 #define MAYBE_Prefix DISABLED_Prefix
