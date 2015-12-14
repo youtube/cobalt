@@ -18,6 +18,8 @@
 
 #include <GLES2/gl2.h>
 
+#include <algorithm>
+
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/texture.h"
@@ -39,8 +41,12 @@ bool HasExtension(const char* extension) {
 
 }  // namespace
 
-GraphicsContextEGL::GraphicsContextEGL(EGLDisplay display, EGLConfig config)
-    : display_(display), config_(config), is_current_(false) {
+GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* system,
+                                       EGLDisplay display, EGLConfig config)
+    : GraphicsContext(system),
+      display_(display),
+      config_(config),
+      is_current_(false) {
   EGLint context_attrib_list[] = {
       EGL_CONTEXT_CLIENT_VERSION, 2,
       EGL_NONE,
@@ -169,11 +175,6 @@ void GraphicsContextEGL::ReleaseCurrentContext() {
   is_current_ = false;
 }
 
-scoped_ptr<TextureData> GraphicsContextEGL::AllocateTextureData(
-    const SurfaceInfo& surface_info) {
-  return scoped_ptr<TextureData>(new TextureDataEGL(surface_info));
-}
-
 scoped_ptr<Texture> GraphicsContextEGL::CreateTexture(
     scoped_ptr<TextureData> texture_data) {
   scoped_ptr<TextureDataEGL> texture_data_egl(
@@ -181,12 +182,6 @@ scoped_ptr<Texture> GraphicsContextEGL::CreateTexture(
 
   return scoped_ptr<Texture>(
       new TextureEGL(this, texture_data_egl.Pass(), bgra_format_supported_));
-}
-
-scoped_ptr<RawTextureMemory> GraphicsContextEGL::AllocateRawTextureMemory(
-    size_t size_in_bytes, size_t alignment) {
-  return scoped_ptr<RawTextureMemory>(
-      new RawTextureMemoryEGL(size_in_bytes, alignment));
 }
 
 scoped_ptr<Texture> GraphicsContextEGL::CreateTextureFromRawMemory(

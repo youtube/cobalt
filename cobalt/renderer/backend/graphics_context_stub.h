@@ -34,13 +34,8 @@ namespace backend {
 // besides fight off compiler errors.
 class GraphicsContextStub : public GraphicsContext {
  public:
-  GraphicsContextStub() {}
-
-  scoped_ptr<TextureData> AllocateTextureData(
-      const SurfaceInfo& surface_info) OVERRIDE {
-    return scoped_ptr<TextureData>(
-        new TextureDataStub(surface_info));
-  }
+  explicit GraphicsContextStub(GraphicsSystem* system)
+      : GraphicsContext(system) {}
 
   scoped_ptr<Texture> CreateTexture(
       scoped_ptr<TextureData> texture_data) OVERRIDE {
