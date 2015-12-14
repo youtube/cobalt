@@ -110,6 +110,33 @@ bool IsDisplayed(dom::Element* element) {
   // getClientRects are implemented.
   return true;
 }
+
+base::optional<std::string> GetAttribute(const std::string& attribute_name,
+                                         dom::Element* element) {
+  DCHECK(element);
+  return element->GetAttribute(attribute_name);
+}
+
+std::string GetCssProperty(const std::string& property_name,
+                           dom::Element* element) {
+  DCHECK(element);
+  DCHECK(element->owner_document());
+  element->owner_document()->UpdateComputedStyles();
+
+  scoped_refptr<dom::HTMLElement> html_element(element->AsHTMLElement());
+  DCHECK(html_element);
+  DCHECK(html_element->computed_style());
+  cssom::PropertyKey property_key = cssom::GetPropertyKey(property_name);
+  if (property_key != cssom::kNoneProperty) {
+    scoped_refptr<cssom::PropertyValue> property_value =
+        html_element->computed_style()->GetPropertyValue(property_key);
+    if (property_value) {
+      return property_value->ToString();
+    }
+  }
+  return "";
+}
+
 }  // namespace
 
 ElementDriver::ElementDriver(
@@ -182,6 +209,24 @@ util::CommandResult<bool> ElementDriver::Equals(
       element_message_loop_,
       base::Bind(&ElementDriver::EqualsInternal, base::Unretained(this),
                  other_element_driver));
+}
+
+util::CommandResult<base::optional<std::string> > ElementDriver::GetAttribute(
+    const std::string& attribute_name) {
+  return util::CallWeakOnMessageLoopAndReturnResult(
+      element_message_loop_,
+      base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
+      base::Bind(&::cobalt::webdriver::GetAttribute, attribute_name),
+      protocol::Response::kStaleElementReference);
+}
+
+util::CommandResult<std::string> ElementDriver::GetCssProperty(
+    const std::string& property_name) {
+  return util::CallWeakOnMessageLoopAndReturnResult(
+      element_message_loop_,
+      base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
+      base::Bind(&::cobalt::webdriver::GetCssProperty, property_name),
+      protocol::Response::kStaleElementReference);
 }
 
 dom::Element* ElementDriver::GetWeakElement() {
