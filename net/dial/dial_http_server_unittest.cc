@@ -86,6 +86,8 @@ class DialHttpServerTest : public testing::Test {
     // make sure all messages on DialService are executed.
     dial_service_->Deregister(handler_.get());
     net::WaitUntilIdle(dial_service_->message_loop_proxy());
+    dial_service_.reset(NULL);
+
     const HttpNetworkSession::Params& params = session_->params();
     delete params.proxy_service;
     delete params.http_server_properties;
@@ -98,6 +100,8 @@ class DialHttpServerTest : public testing::Test {
 
     if (rv == ERR_IO_PENDING) {
       // FIXME: This call can be flaky: It may wait forever.
+      // NOTE: I think flakiness here has been fixed in Starboard, by explicitly
+      // waking up the message pump when calling QuitWhenIdle.
       callback.WaitForResult();
     }
     base::RunLoop().RunUntilIdle();
@@ -167,6 +171,7 @@ class DialHttpServerTest : public testing::Test {
 TEST_F(DialHttpServerTest, SendManifest) {
   HttpRequestInfo req = CreateRequest("GET", "/dd.xml");
   const HttpResponseInfo* resp = GetResponse(req);
+  ASSERT_TRUE(resp != NULL);
 
   std::string store;
   EXPECT_EQ(HTTP_OK, resp->headers->response_code());
@@ -195,6 +200,7 @@ TEST_F(DialHttpServerTest, SendManifest) {
 TEST_F(DialHttpServerTest, CurrentRunningAppRedirect) {
   HttpRequestInfo req = CreateRequest("GET", "/apps/");
   const HttpResponseInfo* resp = GetResponse(req);
+  ASSERT_TRUE(resp != NULL);
 
   std::string store;
   EXPECT_EQ(HTTP_FOUND, resp->headers->response_code());
@@ -224,6 +230,7 @@ TEST_F(DialHttpServerTest, AllOtherRequests) {
   for (int i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     HttpRequestInfo req = CreateRequest(tests[i].method, tests[i].path);
     const HttpResponseInfo* resp = GetResponse(req);
+    ASSERT_TRUE(resp != NULL);
 
     EXPECT_EQ(tests[i].response_code_received, resp->headers->response_code());
   }
@@ -241,6 +248,7 @@ TEST_F(DialHttpServerTest, CallbackNormalTest) {
       DoAll(Invoke(this, &DialHttpServerTest::Capture), Return(true)));
 
   const HttpResponseInfo* resp = GetResponse(req);
+  ASSERT_TRUE(resp != NULL);
   DoResponseCheck(resp, true);
 
   std::string store;
@@ -262,6 +270,7 @@ TEST_F(DialHttpServerTest, CallbackExceptionInServiceHandler) {
           DoAll(Invoke(this, &DialHttpServerTest::Capture), Return(true)));
 
   const HttpResponseInfo* resp = GetResponse(req);
+  ASSERT_TRUE(resp != NULL);
   EXPECT_EQ(HTTP_NOT_FOUND, resp->headers->response_code());
 }
 
@@ -272,6 +281,7 @@ TEST_F(DialHttpServerTest, CallbackHandleRequestReturnsFalse) {
           Return(false));
 
   const HttpResponseInfo* resp = GetResponse(req);
+  ASSERT_TRUE(resp != NULL);
   EXPECT_EQ(HTTP_NOT_FOUND, resp->headers->response_code());
 }
 
@@ -282,4 +292,3 @@ TEST_F(DialHttpServerTest, GetLocalAddress) {
 }
 
 } // namespace net
-

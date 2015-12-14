@@ -148,7 +148,7 @@ void StreamListenSocket::SendInternal(const char* bytes, int len) {
   int len_left = len;
   while (true) {
 #if defined(OS_STARBOARD)
-    int sent = SbSocketReceiveFrom(socket_, send_buf, len_left, NULL);
+    int sent = SbSocketSendTo(socket_, send_buf, len_left, NULL);
 #else
     int sent = HANDLE_EINTR(
         send(socket_, send_buf, len_left, kDefaultMsgFlags));
@@ -166,7 +166,8 @@ void StreamListenSocket::SendInternal(const char* bytes, int len) {
         LOG(ERROR) << "send failed: WSAGetLastError()==" << WSAGetLastError();
 #elif defined(OS_STARBOARD)
       if (SbSocketGetLastError(socket_) != kSbSocketPending) {
-        LOG(ERROR) << "send failed: error = " << SbSocketGetLastError(socket_);
+        LOG(ERROR) << "SbSocketSendTo failed: error = "
+                   << SbSocketGetLastError(socket_);
 #elif defined(__LB_SHELL__)
       if (!LB::Platform::NetWouldBlock()) {
         LOG(ERROR) << "send failed: errno==" << LB::Platform::net_errno();

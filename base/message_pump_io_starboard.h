@@ -68,16 +68,18 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
     // NOTE: These methods aren't called StartWatching()/StopWatching() to avoid
     // confusion with the win32 ObjectWatcher class.
 
-    // Stop watching the FD, always safe to call.  No-op if there's nothing to
-    // do.
+    // Stops watching the socket, always safe to call.  No-op if there's nothing
+    // to do.
     bool StopWatchingSocket();
+
+    bool persistent() const { return persistent_; }
 
    private:
     friend class MessagePumpIOStarboard;
     friend class MessagePumpIOStarboardTest;
 
     // Called by MessagePumpIOStarboard.
-    void Init(SbSocket socket);
+    void Init(SbSocket socket, bool persistent);
     SbSocket Release();
 
     int interests() const { return interests_; }
@@ -92,6 +94,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
 
     int interests_;
     SbSocket socket_;
+    bool persistent_;
     MessagePumpIOStarboard* pump_;
     Watcher* watcher_;
     base::WeakPtrFactory<SocketWatcher> weak_factory_;
