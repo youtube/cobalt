@@ -60,6 +60,7 @@ class ElementDriver {
       const protocol::SearchStrategy& strategy);
   util::CommandResult<std::vector<protocol::ElementId> > FindElements(
       const protocol::SearchStrategy& strategy);
+  util::CommandResult<bool> Equals(const ElementDriver* other_element_driver);
 
  private:
   typedef std::vector<scoped_refptr<dom::KeyboardEvent> > KeyboardEventVector;
@@ -76,6 +77,9 @@ class ElementDriver {
   template <typename T>
   util::CommandResult<T> FindElementsInternal(
       const protocol::SearchStrategy& strategy);
+
+  util::CommandResult<bool> EqualsInternal(
+      const ElementDriver* other_element_driver);
 
   protocol::ElementId element_id_;
 
