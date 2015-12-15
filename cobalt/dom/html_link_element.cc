@@ -22,6 +22,7 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 #include "googleurl/src/gurl.h"
@@ -79,11 +80,14 @@ void HTMLLinkElement::Obtain() {
   // the mode being the current state of the element's crossorigin content
   // attribute, the origin being the origin of the link element's Document, and
   // the default origin behaviour set to taint.
+  csp::SecurityCallback csp_callback = base::Bind(
+      &CSPDelegate::CanLoad, base::Unretained(owner_document()->csp_delegate()),
+      CSPDelegate::kStyle);
 
   loader_ = make_scoped_ptr(new loader::Loader(
-      base::Bind(&loader::FetcherFactory::CreateFetcher,
+      base::Bind(&loader::FetcherFactory::CreateSecureFetcher,
                  base::Unretained(html_element_context()->fetcher_factory()),
-                 absolute_url_),
+                 absolute_url_, csp_callback),
       scoped_ptr<loader::Decoder>(new loader::TextDecoder(
           base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
