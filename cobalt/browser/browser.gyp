@@ -56,7 +56,7 @@
         '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
-        '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
+        '<(DEPTH)/cobalt/script/engine.gyp:engine',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
