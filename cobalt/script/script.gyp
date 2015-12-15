@@ -1,4 +1,4 @@
-# Copyright 2014 Google Inc. All Rights Reserved.
+# Copyright 2015 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,25 +13,28 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'cobalt_code': 1,
-  },
   'targets': [
     {
-      'target_name': 'debug',
+      # Interfaces for interacting with a JavaScript engine and exposing objects
+      # to bindings to JavaScript.
+      'target_name': 'script',
       'type': 'static_library',
       'sources': [
-        'debug_hub.cc',
-        'debug_hub.h',
-        'debugger.cc',
-        'debugger.h',
-        'system_stats_tracker.cc',
-        'system_stats_tracker.h',
+        'debug_server.h',
+        'event_listener_callable.h',
+        'execution_state.cc',
+        'execution_state.h',
+        'global_object_proxy.h',
+        'script_runner.cc',
+        'script_runner.h',
+        'source_code.h',
+        'stack_frame.cc',
+        'stack_frame.h',
+        'wrappable.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/script/script.gyp:script',
-      ],
+      ]
     },
   ],
 }
