@@ -16,20 +16,16 @@
 
 #include "cobalt/dom/font_cache.h"
 
-#include "cobalt/dom/csp_delegate.h"
-
 namespace cobalt {
 namespace dom {
 
 FontCache::FontCache(render_tree::ResourceProvider* resource_provider,
                      loader::font::RemoteFontCache* remote_font_cache,
                      const base::Closure& external_font_load_event_callback,
-                     const CSPDelegate* csp_delegate,
                      const std::string& language)
     : resource_provider_(resource_provider),
       remote_font_cache_(remote_font_cache),
       external_font_load_event_callback_(external_font_load_event_callback),
-      csp_delegate_(csp_delegate),
       language_(language),
       font_face_map_(new FontFaceMap()) {}
 
@@ -163,13 +159,6 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
 
 scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
     const GURL& url, float size, bool* is_font_loading) {
-  // If the CSP delegate does not allow fonts from this source, immediately
-  // return NULL. It's a security risk to attempt to load a font from
-  // this URL.
-  if (!csp_delegate_->CanLoadFont(url)) {
-    return NULL;
-  }
-
   // Retrieve the font from the remote font cache, potentially triggering a
   // load.
   scoped_refptr<loader::font::CachedRemoteFont> cached_remote_font =

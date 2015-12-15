@@ -24,6 +24,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
+#include "cobalt/csp/content_security_policy.h"
 #include "cobalt/network/network_module.h"
 #include "googleurl/src/gurl.h"
 #include "media/player/buffered_data_source.h"
@@ -63,7 +64,8 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   // we use the message_loop passed in to create and destroy Fetchers.
   FetcherBufferedDataSource(
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
-      const GURL& url, network::NetworkModule* network_module);
+      const GURL& url, const csp::SecurityCallback& security_callback,
+      network::NetworkModule* network_module);
   ~FetcherBufferedDataSource() OVERRIDE;
 
   // DataSource methods.
@@ -114,6 +116,8 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   uint64 pending_read_position_;
   uint64 pending_read_size_;
   uint8* pending_read_data_;
+
+  csp::SecurityCallback security_callback_;
 };
 
 }  // namespace media

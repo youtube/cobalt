@@ -40,6 +40,7 @@ void DestroyFetcher(scoped_ptr<net::URLFetcher> fetcher) {
 
 FetcherBufferedDataSource::FetcherBufferedDataSource(
     const scoped_refptr<base::MessageLoopProxy>& message_loop, const GURL& url,
+    const csp::SecurityCallback& security_callback,
     network::NetworkModule* network_module)
     : message_loop_(message_loop),
       url_(url),
@@ -52,7 +53,8 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
       last_read_position_(0),
       pending_read_position_(0),
       pending_read_size_(0),
-      pending_read_data_(NULL) {
+      pending_read_data_(NULL),
+      security_callback_(security_callback) {
   DCHECK(message_loop_);
   DCHECK(!url.path().empty());
   DCHECK(network_module);
@@ -123,6 +125,15 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
   } else if (source->GetResponseCode() == -1) {
     // Could be a file URL, so we won't expect headers.
     return;
+  }
+
+  // In the event of a redirect, re-check the security policy.
+  if (source->GetURL() != source->GetOriginalURL()) {
+    if (!security_callback_.is_null() &&
+        !security_callback_.Run(source->GetURL(), true /*did redirect*/)) {
+      error_occured_ = true;
+      return;
+    }
   }
 
   scoped_refptr<net::HttpResponseHeaders> headers =
@@ -235,9 +246,6 @@ void FetcherBufferedDataSource::OnURLFetchComplete(
   if (fetcher_.get() != source) {
     return;
   }
-  if (error_occured_) {
-    return;
-  }
   const net::URLRequestStatus& status = source->GetStatus();
   if (status.is_success()) {
     if (total_size_of_resource_ && last_request_size_ != 0) {
@@ -262,6 +270,13 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
   base::AutoLock auto_lock(lock_);
   DCHECK_GE(static_cast<int64>(last_request_offset_), 0);
   DCHECK_GE(static_cast<int64>(last_request_size_), 0);
+
+  if (!security_callback_.is_null() && !security_callback_.Run(url_, false)) {
+    // Blocked.
+    // TODO(***REMOVED***): Do we need to signal an error in any way?
+    error_occured_ = true;
+    return;
+  }
 
   fetcher_.reset(net::URLFetcher::Create(url_, net::URLFetcher::GET, this));
   fetcher_->SetRequestContext(network_module_->url_request_context_getter());
