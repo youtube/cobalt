@@ -152,7 +152,7 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
+        '<(DEPTH)/cobalt/script/engine.gyp:engine',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'testing_bindings',
@@ -179,7 +179,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
+        '<(DEPTH)/cobalt/script/engine.gyp:engine',
         'testing_bindings',
       ]
     },

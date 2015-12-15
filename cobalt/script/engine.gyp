@@ -13,24 +13,19 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'cobalt_code': 1,
-  },
   'targets': [
     {
-      'target_name': 'debug',
+      # Target that represents the JavaScript engine implementation and an
+      # interface to create a new engine instance. In the future, the
+      # javascriptcore dependency could be set conditionally at gyp time to
+      # choose between different engine implementations.
+      'target_name': 'engine',
       'type': 'static_library',
       'sources': [
-        'debug_hub.cc',
-        'debug_hub.h',
-        'debugger.cc',
-        'debugger.h',
-        'system_stats_tracker.cc',
-        'system_stats_tracker.h',
+        'javascript_engine.h',
       ],
       'dependencies': [
-        '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/script/script.gyp:script',
+        'javascriptcore/javascriptcore.gyp:javascriptcore',
       ],
     },
   ],
