@@ -170,10 +170,9 @@ void HTMLScriptElement::Prepare() {
     return;
   }
 
-  if (!document_->csp_delegate()->CanLoadScript(url_)) {
-    PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
-    return;
-  }
+  csp::SecurityCallback csp_callback = base::Bind(
+      &CSPDelegate::CanLoad, base::Unretained(document_->csp_delegate()),
+      CSPDelegate::kScript);
 
   //   5. Do a potentially CORS-enabled fetch of the resulting absolute URL,
   // with the mode being the current state of the element's crossorigin
@@ -217,9 +216,9 @@ void HTMLScriptElement::Prepare() {
       loader::LoadSynchronously(
           html_element_context()->sync_load_thread()->message_loop(),
           base::Bind(
-              &loader::FetcherFactory::CreateFetcher,
-              base::Unretained(html_element_context()->fetcher_factory()),
-              url_),
+              &loader::FetcherFactory::CreateSecureFetcher,
+              base::Unretained(html_element_context()->fetcher_factory()), url_,
+              csp_callback),
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncLoadingDone,
                                 base::Unretained(this))),
@@ -251,9 +250,9 @@ void HTMLScriptElement::Prepare() {
       scripts_to_be_executed->push_back(this);
       loader_.reset(new loader::Loader(
           base::Bind(
-              &loader::FetcherFactory::CreateFetcher,
-              base::Unretained(html_element_context()->fetcher_factory()),
-              url_),
+              &loader::FetcherFactory::CreateSecureFetcher,
+              base::Unretained(html_element_context()->fetcher_factory()), url_,
+              csp_callback),
           scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
           base::Bind(&HTMLScriptElement::OnLoadingError,
@@ -272,9 +271,9 @@ void HTMLScriptElement::Prepare() {
       // prepare a script algorithm started.
       loader_.reset(new loader::Loader(
           base::Bind(
-              &loader::FetcherFactory::CreateFetcher,
-              base::Unretained(html_element_context()->fetcher_factory()),
-              url_),
+              &loader::FetcherFactory::CreateSecureFetcher,
+              base::Unretained(html_element_context()->fetcher_factory()), url_,
+              csp_callback),
           scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
           base::Bind(&HTMLScriptElement::OnLoadingError,

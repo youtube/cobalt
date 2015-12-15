@@ -39,19 +39,53 @@ bool IsResponseCodeSuccess(int response_code) {
 }
 }  // namespace
 
-NetFetcher::NetFetcher(const GURL& url, Handler* handler,
+NetFetcher::NetFetcher(const GURL& url,
+                       const csp::SecurityCallback& security_callback,
+                       Handler* handler,
                        const network::NetworkModule* network_module,
                        const Options& options)
-    : Fetcher(handler) {
+    : Fetcher(handler), security_callback_(security_callback) {
   url_fetcher_.reset(
       net::URLFetcher::Create(url, options.request_method, this));
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
   url_fetcher_->DiscardResponse();
-  url_fetcher_->Start();
+
+  // Delay the actual start until this function is complete. Otherwise we might
+  // call handler's callbacks at an unexpected time- e.g. receiving OnError()
+  // while a loader is still being constructed.
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&NetFetcher::Start, base::Unretained(this)));
+}
+
+void NetFetcher::Start() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  const GURL& original_url = url_fetcher_->GetOriginalURL();
+  if (security_callback_.is_null() ||
+      security_callback_.Run(original_url, false /* did not redirect */)) {
+    url_fetcher_->Start();
+  } else {
+    handler()->OnError(this,
+                       base::StringPrintf("URL %s rejected by security policy.",
+                                          original_url.spec().c_str()));
+  }
 }
 
 void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  if (source->GetURL() != source->GetOriginalURL()) {
+    // A redirect occured. Re-check the security policy.
+    if (!security_callback_.is_null() &&
+        !security_callback_.Run(source->GetURL(), true /* did redirect */)) {
+      handler()->OnError(
+          this,
+          base::StringPrintf(
+              "URL %s rejected by security policy after a redirect from %s.",
+              source->GetURL().spec().c_str(),
+              source->GetOriginalURL().spec().c_str()));
+      return;
+    }
+  }
+
   if (IsResponseCodeSuccess(source->GetResponseCode())) {
     handler()->OnResponseStarted(this, source->GetResponseHeaders());
   }

@@ -54,7 +54,6 @@ const char kFakeHeaders[] = {
     "X-Custom-Header-Comma:1\0"
     "X-Custom-Header-Empty:\0"};
 
-
 // Helper class for intercepting DLOG output.
 // Not thread safe.
 class ScopedLogInterceptor {
@@ -99,7 +98,8 @@ class FakeSettings : public dom::DOMSettings {
 class MockCSPDelegate : public dom::CSPDelegate {
  public:
   MockCSPDelegate() : dom::CSPDelegate(NULL) {}
-  MOCK_CONST_METHOD1(CanConnectToSource, bool(const GURL&));
+  MOCK_CONST_METHOD3(CanLoad,
+                     bool(dom::CSPDelegate::ResourceType, const GURL&, bool));
 };
 
 // Derive from XMLHttpRequest in order to override its csp_delegate.
@@ -166,7 +166,7 @@ TEST_F(XhrTest, OpenFailConnectSrc) {
       .WillOnce(SaveArg<0>(&exception));
 
   xhr_ = new FakeXmlHttpRequest(settings(), &csp_delegate);
-  EXPECT_CALL(csp_delegate, CanConnectToSource(_)).WillOnce(Return(false));
+  EXPECT_CALL(csp_delegate, CanLoad(_, _, _)).WillOnce(Return(false));
   xhr_->Open("GET", "https://www.google.com", &exception_state_);
 
   EXPECT_EQ(dom::DOMException::kSecurityErr,
