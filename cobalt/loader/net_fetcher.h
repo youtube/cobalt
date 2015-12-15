@@ -26,6 +26,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/network/network_module.h"
 #include "googleurl/src/gurl.h"
@@ -44,8 +45,8 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
     net::URLFetcher::RequestType request_method;
   };
 
-  NetFetcher(const GURL& url, Handler* handler,
-             const network::NetworkModule* network_module,
+  NetFetcher(const GURL& url, const csp::SecurityCallback& security_callback,
+             Handler* handler, const network::NetworkModule* network_module,
              const Options& options);
   ~NetFetcher() OVERRIDE;
 
@@ -59,10 +60,13 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   net::URLFetcher* url_fetcher() const { return url_fetcher_.get(); }
 
  private:
+  void Start();
+
   // Thread checker ensures all calls to the NetFetcher are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
   scoped_ptr<net::URLFetcher> url_fetcher_;
+  csp::SecurityCallback security_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);
 };

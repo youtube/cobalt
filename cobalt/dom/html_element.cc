@@ -760,11 +760,6 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
           base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
               property_list_value->value()[i].get());
       if (absolute_url->value().is_valid()) {
-        if (!owner_document()->csp_delegate()->CanLoadImage(
-                absolute_url->value())) {
-          continue;
-        }
-
         scoped_refptr<loader::image::CachedImage> cached_image =
             html_element_context()->image_cache()->CreateCachedResource(
                 absolute_url->value());

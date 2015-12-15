@@ -596,12 +596,6 @@ void HTMLMediaElement::LoadInternal() {
       return;
     }
 
-    // Check if we are permitted to load this by CSP.
-    if (!owner_document()->csp_delegate()->CanLoadMedia(media_url)) {
-      MediaLoadingFailed(WebMediaPlayer::kNetworkStateNetworkError);
-      return;
-    }
-
     // No type or key system information is available when the url comes from
     // the 'src' attribute so WebMediaPlayer will have to pick a media engine
     // based on the file extension.
@@ -649,9 +643,13 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   if (url.spec() == SourceURL()) {
     player_->LoadMediaSource();
   } else {
+    csp::SecurityCallback csp_callback =
+        base::Bind(&CSPDelegate::CanLoad,
+                   base::Unretained(owner_document()->csp_delegate()),
+                   CSPDelegate::kMedia);
     player_->LoadProgressive(
         url, new media::FetcherBufferedDataSource(
-                 base::MessageLoopProxy::current(), url,
+                 base::MessageLoopProxy::current(), url, csp_callback,
                  html_element_context()->fetcher_factory()->network_module()),
         WebMediaPlayer::kCORSModeUnspecified);
   }
