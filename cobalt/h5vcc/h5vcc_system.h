@@ -34,6 +34,8 @@ class H5vccSystem : public script::Wrappable {
   std::string region() const;
   std::string version() const;
 
+  bool TriggerHelp() const;
+
   DEFINE_WRAPPABLE_TYPE(H5vccSystem);
 
  private:
