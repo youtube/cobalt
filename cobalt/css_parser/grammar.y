@@ -4454,7 +4454,7 @@ white_space_property_value:
 
 // Specifies the content width of boxes.
 //   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
-width_property_value:0
+width_property_value:
     positive_length_percent_property_value
   | auto
   | common_values
