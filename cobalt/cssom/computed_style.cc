@@ -1003,7 +1003,6 @@ class ComputedBackgroundImageSingleLayerProvider
   explicit ComputedBackgroundImageSingleLayerProvider(const GURL& base_url)
       : base_url_(base_url) {}
 
-  void VisitAbsoluteURL(AbsoluteURLValue* absolute_url_value) OVERRIDE;
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
@@ -1017,11 +1016,6 @@ class ComputedBackgroundImageSingleLayerProvider
 
   scoped_refptr<PropertyValue> computed_background_image_;
 };
-
-void ComputedBackgroundImageSingleLayerProvider::VisitAbsoluteURL(
-    AbsoluteURLValue* absolute_url_value) {
-  computed_background_image_ = absolute_url_value;
-}
 
 void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     KeywordValue* keyword) {
@@ -1083,11 +1077,17 @@ void ComputedBackgroundImageSingleLayerProvider::VisitLinearGradient(
     LinearGradientValue* /*linear_gradient_value*/) {
   // TODO(***REMOVED***): Deal with linear gradient value.
   NOTIMPLEMENTED();
+  computed_background_image_ = cssom::KeywordValue::GetNone();
 }
 
 void ComputedBackgroundImageSingleLayerProvider::VisitURL(URLValue* url_value) {
-  GURL absolute_url;
+  if (url_value->value().empty()) {
+    // No need to convert URLValue into AbsoluteURLValue.
+    computed_background_image_ = cssom::KeywordValue::GetNone();
+    return;
+  }
 
+  GURL absolute_url;
   if (url_value->is_absolute()) {
     absolute_url = GURL(url_value->value());
   } else {
@@ -1125,9 +1125,7 @@ void ComputedBackgroundImageProvider::VisitPropertyList(
     property_list_value->value()[i]->Accept(&single_layer_provider);
     scoped_refptr<PropertyValue> computed_background_image =
         single_layer_provider.computed_background_image();
-    if (computed_background_image) {
-      builder->push_back(computed_background_image);
-    }
+    builder->push_back(computed_background_image);
   }
 
   computed_background_image_ = new PropertyListValue(builder.Pass());
