@@ -99,11 +99,6 @@ void HTMLImageElement::UpdateImageData() {
       return;
     }
 
-    if (!owner_document()->csp_delegate()->CanLoadImage(selected_source)) {
-      PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
-      return;
-    }
-
     // 7.2 Let key be a tuple consisting of the resulting absolute URL, the img
     // element's cross origin attribute's mode, and, if that mode is not No
     // CORS, the Document object's origin.

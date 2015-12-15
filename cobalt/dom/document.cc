@@ -73,7 +73,6 @@ Document::Document(HTMLElementContext* html_element_context,
           html_element_context_ ? html_element_context_->remote_font_cache()
                                 : NULL,
           base::Bind(&Document::OnFontLoadEvent, base::Unretained(this)),
-          csp_delegate_.get(),
           html_element_context_ ? html_element_context_->language()
                                 : "en-US"))),
       loading_counter_(0),
@@ -87,6 +86,18 @@ Document::Document(HTMLElementContext* html_element_context,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           default_timeline_(new DocumentTimeline(this, 0))),
       user_agent_style_sheet_(options.user_agent_style_sheet) {
+  if (html_element_context_ && html_element_context_->remote_font_cache()) {
+    html_element_context_->remote_font_cache()->set_security_callback(
+        base::Bind(&CSPDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
+                   CSPDelegate::kFont));
+  }
+
+  if (html_element_context_ && html_element_context_->image_cache()) {
+    html_element_context_->image_cache()->set_security_callback(
+        base::Bind(&CSPDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
+                   CSPDelegate::kImage));
+  }
+
   DCHECK(options.url.is_empty() || options.url.is_valid());
   if (options.viewport_size) {
     SetViewport(*options.viewport_size);

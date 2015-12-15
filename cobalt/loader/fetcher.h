@@ -19,8 +19,8 @@
 
 #include <string>
 
-#include "base/basictypes.h"
-#include "base/compiler_specific.h"
+#include "base/callback.h"
+#include "googleurl/src/gurl.h"
 #include "net/http/http_response_headers.h"
 
 namespace cobalt {

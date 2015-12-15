@@ -19,6 +19,7 @@
 
 #include "base/file_path.h"
 #include "base/threading/thread.h"
+#include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
 #include "googleurl/src/gurl.h"
 
@@ -34,8 +35,10 @@ class FetcherFactory {
   explicit FetcherFactory(network::NetworkModule* network_module);
   FetcherFactory(network::NetworkModule* network_module,
                  const FilePath& extra_search_dir);
-  scoped_ptr<Fetcher> CreateFetcher(
-      const GURL& url, Fetcher::Handler* handler);
+  scoped_ptr<Fetcher> CreateFetcher(const GURL& url, Fetcher::Handler* handler);
+  scoped_ptr<Fetcher> CreateSecureFetcher(
+      const GURL& url, const csp::SecurityCallback& url_security_callback,
+      Fetcher::Handler* handler);
   network::NetworkModule* network_module() const { return network_module_; }
 
  private:
