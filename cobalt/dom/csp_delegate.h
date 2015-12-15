@@ -41,12 +41,18 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
 
   csp::ContentSecurityPolicy* csp() const;
 
+  enum ResourceType {
+    kFont,
+    kImage,
+    kMedia,
+    kScript,
+    kStyle,
+    kXhr,
+  };
+
   // virtual for overriding by mocks.
-  virtual bool CanConnectToSource(const GURL& url) const;
-  virtual bool CanLoadFont(const GURL& url) const;
-  virtual bool CanLoadImage(const GURL& url) const;
-  virtual bool CanLoadMedia(const GURL&) const;
-  virtual bool CanLoadScript(const GURL&) const;
+  virtual bool CanLoad(ResourceType type, const GURL& url,
+                       bool did_redirect) const;
 
   // From csp::ContentSecurityPolicyDelegate
   GURL url() const OVERRIDE;

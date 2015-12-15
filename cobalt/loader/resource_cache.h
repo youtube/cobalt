@@ -30,6 +30,7 @@
 #include "base/stringprintf.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/console_values.h"
+#include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
@@ -88,7 +89,9 @@ class CachedResource
   };
 
   // Request fetching and decoding a single resource based on the url.
-  CachedResource(const GURL& url, const DecoderProviderType* decoder_provider,
+  CachedResource(const GURL& url,
+                 const csp::SecurityCallback& security_callback,
+                 const DecoderProviderType* decoder_provider,
                  loader::FetcherFactory* fetcher_factory,
                  ResourceCacheType* resource_cache);
 
@@ -192,7 +195,8 @@ CachedResource<CacheType>::OnLoadedCallbackHandler::~OnLoadedCallbackHandler() {
 
 template <typename CacheType>
 CachedResource<CacheType>::CachedResource(
-    const GURL& url, const DecoderProviderType* decoder_provider,
+    const GURL& url, const csp::SecurityCallback& security_callback,
+    const DecoderProviderType* decoder_provider,
     loader::FetcherFactory* fetcher_factory, ResourceCacheType* resource_cache)
     : url_(url), resource_cache_(resource_cache) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
@@ -201,8 +205,8 @@ CachedResource<CacheType>::CachedResource(
       base::Bind(&CachedResource::OnLoadingDone, base::Unretained(this)),
       base::Bind(&CachedResource::OnLoadingError, base::Unretained(this)));
   loader_ = make_scoped_ptr(new Loader(
-      base::Bind(&FetcherFactory::CreateFetcher,
-                 base::Unretained(fetcher_factory), url),
+      base::Bind(&FetcherFactory::CreateSecureFetcher,
+                 base::Unretained(fetcher_factory), url, security_callback),
       decoder.Pass(),
       base::Bind(&CachedResource::OnLoadingError, base::Unretained(this))));
 }
@@ -354,6 +358,15 @@ class ResourceCache {
   // CachedResource or wrap the resource if necessary.
   scoped_refptr<CachedResourceType> CreateCachedResource(const GURL& url);
 
+  // Set a callback that the loader will query to determine if the URL is safe
+  // according to our document's security policy.
+  void set_security_callback(const csp::SecurityCallback& security_callback) {
+    security_callback_ = security_callback;
+  }
+  const csp::SecurityCallback& security_callback() const {
+    return security_callback_;
+  }
+
  private:
   friend class CachedResource<CacheType>;
 
@@ -382,6 +395,7 @@ class ResourceCache {
 
   scoped_ptr<DecoderProviderType> decoder_provider_;
   loader::FetcherFactory* const fetcher_factory_;
+  csp::SecurityCallback security_callback_;
 
   // |cached_resource_map_| stores the cached resources that are currently
   // referenced.
@@ -452,8 +466,9 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url) {
 
   // If the resource doesn't exist, create a cached resource and fetch the
   // resource based on the url.
-  scoped_refptr<CachedResourceType> cached_resource(new CachedResourceType(
-      url, decoder_provider_.get(), fetcher_factory_, this));
+  scoped_refptr<CachedResourceType> cached_resource(
+      new CachedResourceType(url, security_callback_, decoder_provider_.get(),
+                             fetcher_factory_, this));
   cached_resource_map_.insert(
       std::make_pair(url.spec(), cached_resource.get()));
   return cached_resource;

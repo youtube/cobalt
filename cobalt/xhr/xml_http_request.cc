@@ -161,9 +161,7 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
   }
 
   dom::CSPDelegate* csp = csp_delegate();
-  if (csp && !csp->CanConnectToSource(request_url_)) {
-    DLOG(WARNING) << "Refused to connect to " << request_url_.spec()
-                  << ". It violates the document's Content Security Policy";
+  if (csp && !csp->CanLoad(dom::CSPDelegate::kXhr, request_url_, false)) {
     DOMException::Raise(DOMException::kSecurityErr, exception_state);
     return;
   }
@@ -447,6 +445,15 @@ void XMLHttpRequest::set_with_credentials(bool with_credentials) {
 
 void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  if (source->GetURL() != source->GetOriginalURL()) {
+    // This was a redirect. Re-check the CSP.
+    if (!csp_delegate()->CanLoad(dom::CSPDelegate::kXhr, source->GetURL(),
+                                 true /* is_redirect */)) {
+      HandleRequestError(kNetworkError);
+      return;
+    }
+  }
+
   http_status_ = source->GetResponseCode();
   // TODO(***REMOVED***): Handle the NULL response headers case.
   DCHECK(source->GetResponseHeaders());

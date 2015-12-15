@@ -32,8 +32,6 @@
 namespace cobalt {
 namespace dom {
 
-class CSPDelegate;
-
 // The font cache is typically owned by dom::Document and handles the following:
 //   - Creation and caching of font lists, which it provides to the used
 //     style provider as requested. Font lists handle most layout-related font
@@ -95,7 +93,7 @@ class FontCache {
   FontCache(render_tree::ResourceProvider* resource_provider,
             loader::font::RemoteFontCache* remote_font_cache,
             const base::Closure& external_font_load_event_callback,
-            const CSPDelegate* csp_delegate, const std::string& language);
+            const std::string& language);
 
   // Looks up the font list key in |font_list_map_|. If it doesn't exist, then
   // one is created. This is guaranteed to not return NULL.
@@ -139,9 +137,8 @@ class FontCache {
                                               bool* is_font_loading);
 
  private:
-  // Returns NULL immediately if the requested URL is blocked by the CSP
-  // delegate. If it is not blocked by the CSP delegate, returns the font if it
-  // is in the remote font cache and available; otherwise returns NULL.
+  // Returns the font if it is in the remote font cache and available;
+  // otherwise returns NULL.
   // If the font is in the cache, but is not loaded, this call triggers an
   // asynchronous load of it. Both an external load even callback, provided by
   // the constructor and an |OnRemoteFontLoadEvent| callback provided by the
@@ -171,7 +168,6 @@ class FontCache {
   // logic into the font cache when the loader interface improves.
   loader::font::RemoteFontCache* const remote_font_cache_;
   const base::Closure external_font_load_event_callback_;
-  const CSPDelegate* csp_delegate_;
   const std::string language_;
 
   // Font list related

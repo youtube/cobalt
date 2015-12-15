@@ -123,24 +123,29 @@ CSPDelegate::~CSPDelegate() {}
 
 csp::ContentSecurityPolicy* CSPDelegate::csp() const { return csp_.get(); }
 
-bool CSPDelegate::CanConnectToSource(const GURL& url) const {
-  return csp_->AllowConnectToSource(url);
-}
-
-bool CSPDelegate::CanLoadFont(const GURL& url) const {
-  return csp_->AllowFontFromSource(url);
-}
-
-bool CSPDelegate::CanLoadImage(const GURL& url) const {
-  return csp_->AllowImageFromSource(url);
-}
-
-bool CSPDelegate::CanLoadMedia(const GURL& url) const {
-  return csp_->AllowMediaFromSource(url);
-}
-
-bool CSPDelegate::CanLoadScript(const GURL& url) const {
-  return csp_->AllowScriptFromSource(url);
+bool CSPDelegate::CanLoad(ResourceType type, const GURL& url,
+                          bool did_redirect) const {
+  csp::ContentSecurityPolicy::RedirectStatus redirect_status =
+      did_redirect ? csp::ContentSecurityPolicy::kDidRedirect
+                   : csp::ContentSecurityPolicy::kDidNotRedirect;
+  switch (type) {
+    case kFont:
+      return csp_->AllowFontFromSource(url, redirect_status);
+    case kImage:
+      return csp_->AllowImageFromSource(url, redirect_status);
+    case kMedia:
+      return csp_->AllowMediaFromSource(url, redirect_status);
+    case kScript:
+      return csp_->AllowScriptFromSource(url, redirect_status);
+    case kStyle:
+      return csp_->AllowStyleFromSource(url, redirect_status);
+    case kXhr:
+      return csp_->AllowConnectToSource(url, redirect_status);
+    default:
+      break;
+  }
+  NOTREACHED() << "Invalid resource type " << type;
+  return true;
 }
 
 GURL CSPDelegate::url() const { return document_->url_as_gurl(); }

@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "base/callback.h"
 #include "base/hash_tables.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
@@ -32,6 +33,13 @@ namespace csp {
 
 class DirectiveList;
 class Source;
+
+// A callback that a URL fetcher will call to check if the URL is permitted
+// by our security policy. This may be called multiple times if the URL results
+// in a redirect. The callback should return |true| if the URL is safe to
+// load.
+typedef base::Callback<bool(const GURL& url, bool did_redirect)>
+    SecurityCallback;
 
 // Extract CSP-related headers from HttpResponseHeaders.
 class ResponseHeaders {

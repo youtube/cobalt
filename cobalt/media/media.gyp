@@ -38,6 +38,7 @@
         'web_media_player_factory.h',
       ],
       'dependencies': [
+        '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/media/media.gyp:media',
       ],
       'export_dependent_settings': [

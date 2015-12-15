@@ -67,6 +67,12 @@ FetcherFactory::FetcherFactory(network::NetworkModule* network_module,
 
 scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
                                                   Fetcher::Handler* handler) {
+  return CreateSecureFetcher(url, csp::SecurityCallback(), handler).Pass();
+}
+
+scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
+    const GURL& url, const csp::SecurityCallback& url_security_callback,
+    Fetcher::Handler* handler) {
   if (!url.is_valid()) {
     DLOG(WARNING) << "Invalid url: " << url << ".";
     return scoped_ptr<Fetcher>(NULL);
@@ -90,7 +96,8 @@ scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
   } else {
     DCHECK(network_module_) << "Network module required.";
     NetFetcher::Options options;
-    fetcher.reset(new NetFetcher(url, handler, network_module_, options));
+    fetcher.reset(new NetFetcher(url, url_security_callback, handler,
+                                 network_module_, options));
   }
   return fetcher.Pass();
 }
