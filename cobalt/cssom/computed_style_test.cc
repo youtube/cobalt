@@ -140,40 +140,6 @@ TEST(PromoteToComputedStyle, TextIndentInEmShouldBeComputedAfterFontSize) {
   EXPECT_EQ(cssom::kPixelsUnit, computed_text_indent->unit());
 }
 
-TEST(PromoteToComputedStyle, BackgroundImageAbsoluteURL) {
-  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
-      new cssom::CSSStyleDeclarationData());
-
-  scoped_ptr<cssom::PropertyListValue::Builder> background_image_builder(
-      new cssom::PropertyListValue::Builder());
-  background_image_builder->push_back(
-      new cssom::URLValue("file:///sample.png"));
-  scoped_refptr<cssom::PropertyListValue> background_image(
-      new cssom::PropertyListValue(background_image_builder.Pass()));
-  computed_style->set_background_image(background_image);
-
-  scoped_refptr<cssom::CSSStyleDeclarationData> parent_computed_style(
-      new cssom::CSSStyleDeclarationData());
-
-  GURLMap property_key_to_base_url_map;
-  property_key_to_base_url_map[cssom::kBackgroundImageProperty] =
-      GURL("file:///computed_style_test/document.html");
-
-  PromoteToComputedStyle(computed_style, parent_computed_style,
-                         &property_key_to_base_url_map);
-
-  scoped_refptr<cssom::PropertyListValue> background_image_list =
-      dynamic_cast<cssom::PropertyListValue*>(
-          computed_style->background_image().get());
-  ASSERT_TRUE(background_image_list);
-  ASSERT_EQ(1, background_image_list->value().size());
-
-  GURL value = base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
-                   background_image_list->value()[0].get())->value();
-
-  EXPECT_EQ("file:///sample.png", value.spec());
-}
-
 TEST(PromoteToComputedStyle, BackgroundImageRelativeURL) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
