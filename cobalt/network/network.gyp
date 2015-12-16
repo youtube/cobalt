@@ -24,6 +24,7 @@
       'type': 'static_library',
       'sources': [
         '<(actual_target_arch)/network_system.cc',
+        '<(actual_target_arch)/proxy_config_service.cc',
         'cookie_jar_impl.cc',
         'cookie_jar_impl.h',
         'net_poster.cc',
@@ -36,6 +37,7 @@
         'network_system.h',
         'persistent_cookie_store.cc',
         'persistent_cookie_store.h',
+        'proxy_config_service.h',
         'url_request_context.cc',
         'url_request_context.h',
         'url_request_context_getter.cc',
