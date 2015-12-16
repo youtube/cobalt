@@ -181,8 +181,6 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Custom, not in any spec: Node.
   //
-  bool IsDocument() const OVERRIDE { return true; }
-
   scoped_refptr<Document> AsDocument() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;

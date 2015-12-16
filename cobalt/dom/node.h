@@ -192,12 +192,12 @@ class Node : public EventTarget {
   //
   virtual bool HasAttributes() const { return false; }
 
-  virtual bool IsCDATASection() const { return false; }
-  virtual bool IsComment() const { return false; }
-  virtual bool IsDocument() const { return false; }
-  virtual bool IsDocumentType() const { return false; }
-  virtual bool IsElement() const { return false; }
-  virtual bool IsText() const { return false; }
+  bool IsCDATASection() const { return node_type() == kCdataSectionNode; }
+  bool IsComment() const { return node_type() == kCommentNode; }
+  bool IsDocument() const { return node_type() == kDocumentNode; }
+  bool IsDocumentType() const { return node_type() == kDocumentTypeNode; }
+  bool IsElement() const { return node_type() == kElementNode; }
+  bool IsText() const { return node_type() == kTextNode; }
 
   // Safe type conversion methods that will downcast to the required type if
   // possible or return NULL otherwise.

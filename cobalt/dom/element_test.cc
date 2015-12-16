@@ -402,44 +402,91 @@ TEST_F(ElementTest, InnerHTML) {
   root->set_inner_html(kAnotherHTML);
   EXPECT_EQ(2, root->child_element_count());
   EXPECT_EQ(3, root->child_nodes()->length());
+  ASSERT_TRUE(root->first_child());
   EXPECT_TRUE(root->first_child()->IsElement());
 
   scoped_refptr<Element> element_1 = root->first_child()->AsElement();
   EXPECT_TRUE(element_1->HasAttribute("key"));
   EXPECT_EQ("value", element_1->GetAttribute("key").value_or(""));
+  ASSERT_TRUE(element_1->first_child());
   EXPECT_TRUE(element_1->first_child()->IsText());
+  ASSERT_TRUE(element_1->next_sibling());
   EXPECT_TRUE(element_1->next_sibling()->IsText());
 
   scoped_refptr<Text> text_2 = element_1->first_child()->AsText();
+  ASSERT_TRUE(text_2->next_sibling());
   EXPECT_TRUE(text_2->next_sibling()->IsElement());
 
   scoped_refptr<Element> element_3 = text_2->next_sibling()->AsElement();
   EXPECT_TRUE(element_3->HasAttributes());
+  ASSERT_TRUE(element_3->next_sibling());
   EXPECT_TRUE(element_3->next_sibling()->IsText());
 
   scoped_refptr<Text> text_4 = element_3->next_sibling()->AsText();
+  ASSERT_TRUE(text_4->next_sibling());
   EXPECT_TRUE(text_4->next_sibling()->IsElement());
 
   scoped_refptr<Element> element_5 = text_4->next_sibling()->AsElement();
   EXPECT_TRUE(element_5->first_child()->IsText());
   EXPECT_EQ("Text", element_5->first_child()->AsText()->data());
+  ASSERT_TRUE(element_5->next_sibling());
   EXPECT_TRUE(element_5->next_sibling()->IsText());
 
   scoped_refptr<Text> text_8 = element_1->next_sibling()->AsText();
+  ASSERT_TRUE(text_8->next_sibling());
   EXPECT_TRUE(text_8->next_sibling()->IsElement());
 
   scoped_refptr<Element> element_9 = text_8->next_sibling()->AsElement();
+  ASSERT_TRUE(element_9->first_child());
   EXPECT_TRUE(element_9->first_child()->IsText());
 
   scoped_refptr<Text> text_10 = element_9->first_child()->AsText();
+  ASSERT_TRUE(text_10->next_sibling());
   EXPECT_TRUE(text_10->next_sibling()->IsComment());
 
   scoped_refptr<Comment> comment_11 = text_10->next_sibling()->AsComment();
   EXPECT_EQ("Comment", comment_11->data());
+  ASSERT_TRUE(comment_11->next_sibling());
   EXPECT_TRUE(comment_11->next_sibling()->IsText());
 
   // Compare serialization result with the original HTML.
   EXPECT_EQ(kAnotherHTML, root->inner_html());
+}
+
+TEST_F(ElementTest, InnerHTMLGetterReturnsText) {
+  scoped_refptr<Element> root = new Element(document_);
+  root->AppendChild(new Text(document_, "Cobalt"));
+  EXPECT_EQ(root->inner_html(), "Cobalt");
+}
+
+TEST_F(ElementTest, InnerHTMLSetterCreatesElement) {
+  scoped_refptr<Element> root = new Element(document_);
+  scoped_refptr<Element> element =
+      root->AppendChild(new Element(document_, "element"))->AsElement();
+  element->set_inner_html("<div>Cobalt</div>");
+  ASSERT_TRUE(element->first_child());
+  EXPECT_TRUE(element->first_child()->IsElement());
+}
+
+TEST_F(ElementTest, InnerHTMLSetterWithTextCreatesTextNode) {
+  scoped_refptr<Element> root = new Element(document_);
+  scoped_refptr<Element> element =
+      root->AppendChild(new Element(document_, "element"))->AsElement();
+  element->set_inner_html("Cobalt");
+  ASSERT_TRUE(element->first_child());
+  EXPECT_TRUE(element->first_child()->IsText());
+}
+
+TEST_F(ElementTest, InnerHTMLSetterAndGetterAreConsistent) {
+  scoped_refptr<Element> root = new Element(document_);
+  root->set_inner_html("<div>Cobalt</div>");
+  EXPECT_EQ(root->inner_html(), "<div>Cobalt</div>");
+}
+
+TEST_F(ElementTest, InnerHTMLSetterAndGetterAreConsistentWithText) {
+  scoped_refptr<Element> root = new Element(document_);
+  root->set_inner_html("Cobalt");
+  EXPECT_EQ(root->inner_html(), "Cobalt");
 }
 
 TEST_F(ElementTest, OuterHTML) {
@@ -511,40 +558,52 @@ TEST_F(ElementTest, OuterHTML) {
   root->first_element_child()->set_outer_html(kAnotherHTML);
   EXPECT_EQ(2, root->child_element_count());
   EXPECT_EQ(3, root->child_nodes()->length());
+  ASSERT_TRUE(root->first_child());
   EXPECT_TRUE(root->first_child()->IsElement());
 
   scoped_refptr<Element> element_1 = root->first_child()->AsElement();
   EXPECT_TRUE(element_1->HasAttribute("key"));
   EXPECT_EQ("value", element_1->GetAttribute("key").value_or(""));
+  ASSERT_TRUE(element_1->first_child());
   EXPECT_TRUE(element_1->first_child()->IsText());
+  ASSERT_TRUE(element_1->next_sibling());
   EXPECT_TRUE(element_1->next_sibling()->IsText());
 
   scoped_refptr<Text> text_2 = element_1->first_child()->AsText();
+  ASSERT_TRUE(text_2->next_sibling());
   EXPECT_TRUE(text_2->next_sibling()->IsElement());
 
   scoped_refptr<Element> element_3 = text_2->next_sibling()->AsElement();
   EXPECT_TRUE(element_3->HasAttributes());
+  ASSERT_TRUE(element_3->next_sibling());
   EXPECT_TRUE(element_3->next_sibling()->IsText());
 
   scoped_refptr<Text> text_4 = element_3->next_sibling()->AsText();
+  ASSERT_TRUE(text_4->next_sibling());
   EXPECT_TRUE(text_4->next_sibling()->IsElement());
 
   scoped_refptr<Element> element_5 = text_4->next_sibling()->AsElement();
+  ASSERT_TRUE(element_5->first_child());
   EXPECT_TRUE(element_5->first_child()->IsText());
   EXPECT_EQ("Text", element_5->first_child()->AsText()->data());
+  ASSERT_TRUE(element_5->next_sibling());
   EXPECT_TRUE(element_5->next_sibling()->IsText());
 
   scoped_refptr<Text> text_8 = element_1->next_sibling()->AsText();
+  ASSERT_TRUE(text_8->next_sibling());
   EXPECT_TRUE(text_8->next_sibling()->IsElement());
 
   scoped_refptr<Element> element_9 = text_8->next_sibling()->AsElement();
+  ASSERT_TRUE(element_9->first_child());
   EXPECT_TRUE(element_9->first_child()->IsText());
 
   scoped_refptr<Text> text_10 = element_9->first_child()->AsText();
+  ASSERT_TRUE(text_10->next_sibling());
   EXPECT_TRUE(text_10->next_sibling()->IsComment());
 
   scoped_refptr<Comment> comment_11 = text_10->next_sibling()->AsComment();
   EXPECT_EQ("Comment", comment_11->data());
+  ASSERT_TRUE(comment_11->next_sibling());
   EXPECT_TRUE(comment_11->next_sibling()->IsText());
 
   // Compare serialization result with the original HTML.
