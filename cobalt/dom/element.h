@@ -119,8 +119,6 @@ class Element : public Node {
 
   // Custom, not in any spec: Node.
   //
-  bool IsElement() const OVERRIDE { return true; }
-
   scoped_refptr<Element> AsElement() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;

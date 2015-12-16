@@ -44,8 +44,6 @@ class CDATASection : public Text {
 
   // Custom, not in any spec: Node.
   //
-  bool IsCDATASection() const OVERRIDE { return true; }
-
   scoped_refptr<CDATASection> AsCDATASection() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;

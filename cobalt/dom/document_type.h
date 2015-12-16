@@ -49,8 +49,6 @@ class DocumentType : public Node {
 
   // Custom, not in any spec: Node.
   //
-  bool IsDocumentType() const OVERRIDE { return true; }
-
   scoped_refptr<DocumentType> AsDocumentType() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
