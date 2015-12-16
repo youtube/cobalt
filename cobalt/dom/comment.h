@@ -43,8 +43,6 @@ class Comment : public CharacterData {
 
   // Custom, not in any spec: Node.
   //
-  bool IsComment() const OVERRIDE { return true; }
-
   scoped_refptr<Comment> AsComment() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;

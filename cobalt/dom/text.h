@@ -42,8 +42,6 @@ class Text : public CharacterData {
 
   // Custom, not in any spec: Node.
   //
-  bool IsText() const OVERRIDE { return true; }
-
   scoped_refptr<Text> AsText() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;

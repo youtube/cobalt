@@ -87,7 +87,6 @@ void LibxmlHTMLParserWrapper::OnEndElement(const std::string& name) {
   LibxmlParserWrapper::OnEndElement(name);
 }
 
-
 void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
   if (size == 0) {
     return;
@@ -96,6 +95,11 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
     if (IsFullDocument()) {
       document()->IncreaseLoadingCounter();
     }
+
+    // Suppress emitting a <p> element at the root level. This is needed to
+    // prevent a <p> tag being added to text at the root level, for example
+    // when used for setting an element's innerHTML.
+    htmlEmitImpliedRootLevelParagraph(0);
 
     // The parser will try to auto-detect the encoding using the provided
     // data chunk.
