@@ -147,12 +147,26 @@ Application::Application()
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
 
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kProxy)) {
+    options.network_module_options.custom_proxy =
+        command_line->GetSwitchValueASCII(browser::switches::kProxy);
+  }
+
+#if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
+  if (command_line->HasSwitch(browser::switches::kIgnoreCertificateErrors)) {
+    options.network_module_options.ignore_certificate_errors = true;
+  }
+#endif  // defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
+
 #if !defined(COBALT_FORCE_HTTPS)
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kAllowHttp)) {
+  if (command_line->HasSwitch(switches::kAllowHttp)) {
     DLOG(INFO) << "Allowing insecure HTTP connections";
     options.network_module_options.require_https = false;
   }
 #endif  // !defined(COBALT_FORCE_HTTPS)
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
 
   system_window_ = system_window::CreateSystemWindow(&event_dispatcher_);
   account_manager_ = account::AccountManager::Create(&event_dispatcher_);
@@ -172,7 +186,6 @@ Application::Application()
 
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kEnableWebDriver)) {
     int webdriver_port = GetWebDriverPort();
     web_driver_module_.reset(new webdriver::WebDriverModule(

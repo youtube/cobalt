@@ -165,17 +165,18 @@
         'ldflags': [ '<@(linker_flags_debug)' ],
         'defines': [
           'ALLOCATOR_STATS_TRACKING',
-          '_DEBUG',
           'COBALT_BOX_DUMP_ENABLED',
           'COBALT_BUILD_TYPE_DEBUG',
-          '__LB_SHELL__FORCE_LOGGING__',  # TODO(***REMOVED***): Rename to COBALT_LOGGING_ENABLED.
-          '__LB_SHELL__ENABLE_SCREENSHOT__',
-          'SK_DEVELOPER',
+          '_DEBUG',
+          'ENABLE_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_CONSOLE',
+          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
+          'ENABLE_IGNORE_CERTIFICATE_ERRORS',
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
-          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
-          'ENABLE_COMMAND_LINE_SWITCHES',
+          '__LB_SHELL__ENABLE_SCREENSHOT__',
+          '__LB_SHELL__FORCE_LOGGING__',  # TODO(***REMOVED***): Rename to COBALT_LOGGING_ENABLED.
+          'SK_DEVELOPER',
         ],
       }, # end of debug_base
       'devel_base': {
@@ -185,16 +186,17 @@
         'ldflags': [ '<@(linker_flags_devel)' ],
         'defines': [
           'ALLOCATOR_STATS_TRACKING',
-          'NDEBUG',
           'COBALT_BUILD_TYPE_DEVEL',
-          '__LB_SHELL__FORCE_LOGGING__',
-          '__LB_SHELL__ENABLE_SCREENSHOT__',
-          'SK_DEVELOPER',
+          'ENABLE_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_CONSOLE',
+          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
+          'ENABLE_IGNORE_CERTIFICATE_ERRORS',
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
-          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
-          'ENABLE_COMMAND_LINE_SWITCHES',
+          '__LB_SHELL__ENABLE_SCREENSHOT__',
+          '__LB_SHELL__FORCE_LOGGING__',
+          'NDEBUG',
+          'SK_DEVELOPER',
         ],
       }, # end of devel_base
       'qa_base': {
@@ -204,15 +206,16 @@
         'ldflags': [ '<@(linker_flags_qa)' ],
         'defines': [
           'ALLOCATOR_STATS_TRACKING',
-          'NDEBUG',
           'COBALT_BUILD_TYPE_QA',
-          '__LB_SHELL__FOR_QA__',
-          '__LB_SHELL__ENABLE_SCREENSHOT__',
+          'ENABLE_COMMAND_LINE_SWITCHES',
           'ENABLE_DEBUG_CONSOLE',
+          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
+          'ENABLE_IGNORE_CERTIFICATE_ERRORS',
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
-          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
-          'ENABLE_COMMAND_LINE_SWITCHES',
+          '__LB_SHELL__ENABLE_SCREENSHOT__',
+          '__LB_SHELL__FOR_QA__',
+          'NDEBUG',
         ],
       }, # end of devel_base
       'gold_base': {
@@ -221,11 +224,11 @@
         'cflags': [ '<@(compiler_flags_gold)' ],
         'ldflags': [ '<@(linker_flags_gold)' ],
         'defines': [
-          'NDEBUG',
           'COBALT_BUILD_TYPE_GOLD',
-          '__LB_SHELL__FOR_RELEASE__',
-          'TRACING_DISABLED',
           'COBALT_FORCE_HTTPS',
+          '__LB_SHELL__FOR_RELEASE__',
+          'NDEBUG',
+          'TRACING_DISABLED',
         ],
       }, # end of gold_base
     }, # end of configurations

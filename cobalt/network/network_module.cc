@@ -103,7 +103,9 @@ void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   DCHECK(message_loop_proxy()->BelongsToCurrentThread());
 
-  url_request_context_.reset(new URLRequestContext(storage_manager_));
+  url_request_context_.reset(
+      new URLRequestContext(storage_manager_, options_.custom_proxy,
+                            options_.ignore_certificate_errors));
   network_delegate_.reset(
       new NetworkDelegate(options_.cookie_policy, options_.require_https));
   url_request_context_->set_http_user_agent_settings(user_agent_.get());
