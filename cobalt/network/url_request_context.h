@@ -17,6 +17,8 @@
 #ifndef NETWORK_URL_REQUEST_CONTEXT_H_
 #define NETWORK_URL_REQUEST_CONTEXT_H_
 
+#include <string>
+
 #include "net/cookies/cookie_monster.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
@@ -31,7 +33,9 @@ namespace network {
 
 class URLRequestContext : public net::URLRequestContext {
  public:
-  explicit URLRequestContext(storage::StorageManager* storage_manager);
+  URLRequestContext(storage::StorageManager* storage_manager,
+                    const std::string& custom_proxy,
+                    bool ignore_certificate_errors);
   ~URLRequestContext() OVERRIDE;
 
  private:

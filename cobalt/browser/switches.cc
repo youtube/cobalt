@@ -33,6 +33,9 @@ const char kEnableWebDriver[] = "enable_webdriver";
 // Additional base directory for accessing web files via file://.
 const char kExtraWebFileDir[] = "web_file_path";
 
+// Setting this switch causes all certificate errors to be ignored.
+const char kIgnoreCertificateErrors[] = "ignore_certificate_errors";
+
 // Setting this switch defines the startup URL that Cobalt will use.  If no
 // value is set, a default URL will be used.
 const char kInitialURL[] = "url";
@@ -40,6 +43,9 @@ const char kInitialURL[] = "url";
 // If this flag is set, input will be continuously generated randomly instead of
 // taken from an external input device (like a controller).
 const char kInputFuzzer[] = "input_fuzzer";
+
+// Specifies a proxy to use for network connections.
+const char kProxy[] = "proxy";
 
 // Switches partial layout: on | off
 const char kPartialLayout[] = "partial_layout";
