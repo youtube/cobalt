@@ -16,9 +16,12 @@
 
 #include "cobalt/network/url_request_context.h"
 
+#include <string>
+
 #include "base/threading/worker_pool.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/persistent_cookie_store.h"
+#include "cobalt/network/proxy_config_service.h"
 #include "net/base/cert_verify_proc.h"
 #include "net/base/default_server_bound_cert_store.h"
 #include "net/base/host_cache.h"
@@ -29,15 +32,17 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_server_properties_impl.h"
-#include "net/proxy/proxy_config_service.h"
-#include "net/proxy/proxy_config_service_fixed.h"
+#include "net/proxy/proxy_config.h"
+#include "net/proxy/proxy_config_source.h"
 #include "net/proxy/proxy_service.h"
 #include "net/url_request/url_request_job_factory_impl.h"
 
 namespace cobalt {
 namespace network {
 
-URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager)
+URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager,
+                                     const std::string& custom_proxy,
+                                     bool ignore_certificate_errors)
     : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this)) {
   if (storage_manager) {
     persistent_cookie_store_ = new PersistentCookieStore(storage_manager);
@@ -48,11 +53,15 @@ URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager)
       new net::DefaultServerBoundCertStore(NULL),
       base::WorkerPool::GetTaskRunner(true)));
 
-  // TODO(***REMOVED***): Respect any command line fixed proxy arguments.
-  // TODO(***REMOVED***): Bring over ProxyConfigServiceShell.
-  scoped_ptr<net::ProxyConfigService> proxy_config_service;
-  net::ProxyConfig empty_config;
-  proxy_config_service.reset(new net::ProxyConfigServiceFixed(empty_config));
+  base::optional<net::ProxyConfig> proxy_config;
+  if (!custom_proxy.empty()) {
+    proxy_config = net::ProxyConfig::CreateDirect();
+    proxy_config->set_source(net::PROXY_CONFIG_SOURCE_CUSTOM);
+    proxy_config->proxy_rules().ParseFromString(custom_proxy);
+  }
+
+  scoped_ptr<net::ProxyConfigService> proxy_config_service(
+      new ProxyConfigService(proxy_config));
   storage_.set_proxy_service(net::ProxyService::CreateWithoutProxyResolver(
       proxy_config_service.release(), NULL));
 
@@ -85,6 +94,11 @@ URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager)
   params.http_server_properties = http_server_properties();
   params.net_log = NULL;
   params.trusted_spdy_proxy = "";
+#if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
+  params.ignore_certificate_errors = ignore_certificate_errors;
+#else
+  UNREFERENCED_PARAMETER(ignore_certificate_errors);
+#endif  // defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
 
   // disable caching
   net::HttpCache* cache = new net::HttpCache(params, NULL /* backend */);
