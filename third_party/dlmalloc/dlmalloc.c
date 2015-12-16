@@ -6108,64 +6108,157 @@ void dlmalloc_ranges_np(uintptr_t *start1, uintptr_t *end1,
 #if !defined(__LB_SHELL__FOR_RELEASE__)
 // Track and print contiguous ranges of allocations / free blocks.
 typedef struct HeapWalker {
+  // Allocated blocks, not including allocator overhead.
   size_t total_used_bytes;
+  // Total allocated blocks, including overhead.
   size_t total_block_bytes;
+  // Ther largest contiguous free space.
   size_t largest_free_block_bytes;
+  // Number of free blocks- a potential measure of fragmentation.
   int total_free_blocks;
   size_t total_free_bytes;
+  // File descriptor for writing to dump file.
   int file_descriptor;
+  // Track the current contiguous range.
+  uintptr_t cur_range_start;
+  size_t cur_range_size;
+  int cur_range_is_free;
+  int cur_range_block_count;
+
+  // Buffer for file writing.
+  char file_buf[4096];
+  int file_buf_len;
 } HeapWalker;
 
-static void heap_walker_init(HeapWalker* hw, char* file) {
+static void heap_walker_init(HeapWalker* hw, const char* file) {
   memset(hw, 0, sizeof(HeapWalker));
   char path[256];
   snprintf(path, sizeof(path), "%s/%s", MEMORY_LOG_PATH, file);
   hw->file_descriptor = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0644);
   if (hw->file_descriptor >= 0) {
     oom_fprintf(1, "Writing allocations to %s\n", path);
+  } else {
+    oom_fprintf(1, "Could not open file %s\n", path);
+  }
+}
+
+static void heap_walker_flush(HeapWalker* hw) {
+  if (hw->file_descriptor >= 0) {
+    write(hw->file_descriptor, hw->file_buf, hw->file_buf_len);
+  }
+  hw->file_buf_len = 0;
+}
+
+static void heap_walker_write(HeapWalker* hw, const char* buf, int buf_len) {
+  if (hw->file_buf_len + buf_len > sizeof(hw->file_buf)) {
+    heap_walker_flush(hw);
+  }
+
+  memcpy(hw->file_buf + hw->file_buf_len, buf, buf_len);
+  hw->file_buf_len += buf_len;
+}
+
+static void heap_walker_start_range(HeapWalker* hw, int is_free,
+                                    uintptr_t start, size_t bytes) {
+  hw->cur_range_is_free = is_free;
+  hw->cur_range_start = start;
+  hw->cur_range_size = bytes;
+  hw->cur_range_block_count = 1;
+}
+
+static void heap_walker_end_range(HeapWalker* hw) {
+  // Print and write the range.
+  if (hw->cur_range_start == 0) {
+    return;
+  }
+
+  if (hw->cur_range_is_free &&
+      hw->cur_range_size > hw->largest_free_block_bytes) {
+    hw->largest_free_block_bytes = hw->cur_range_size;
+  }
+
+  if (hw->file_descriptor >= 0) {
+    char buf[128];
+    int len = snprintf(buf, sizeof(buf),
+        "%s\t[0x%" PRIxPTR " - 0x%" PRIxPTR "]\t%d\t%d\n",
+        hw->cur_range_is_free != 0 ? "F" : "A",
+        hw->cur_range_start,
+        hw->cur_range_start + hw->cur_range_size,
+        (int)(hw->cur_range_size),
+        hw->cur_range_block_count);
+    heap_walker_write(hw, buf, len);
+  }
+}
+
+static void heap_walker_update_stats(HeapWalker* hw, int is_free,
+                                     size_t block_bytes, size_t used_bytes) {
+  if (is_free == 1) {
+    hw->total_free_blocks++;
+    hw->total_free_bytes += block_bytes;
+  } else {
+    hw->total_block_bytes += block_bytes;
+    hw->total_used_bytes += used_bytes;
+  }
+}
+
+static void heap_walker_update_range(HeapWalker* hw, int is_free,
+                                     uintptr_t start, size_t bytes) {
+  // Try to merge contiguous blocks.
+  if (is_free == hw->cur_range_is_free &&
+      hw->cur_range_start + hw->cur_range_size == start) {
+    // Blocks are of the same type and contiguous. Extend the current range.
+    hw->cur_range_size += bytes;
+    hw->cur_range_block_count++;
+  } else {
+    heap_walker_end_range(hw);
+    heap_walker_start_range(hw, is_free, start, bytes);
+  }
+}
+
+static void heap_walker_terminate(HeapWalker* hw) {
+  heap_walker_end_range(hw);
+  heap_walker_flush(hw);
+
+  if (hw->file_descriptor >= 0) {
+    close(hw->file_descriptor);
+    hw->file_descriptor = -1;
   }
 }
 
 static void heap_walker_log(
     HeapWalker* hw, void* start, void* end, size_t used_bytes) {
-  size_t block_bytes = (uintptr_t)end - (uintptr_t)start;
-  if (hw->file_descriptor >= 0) {
-    char buf[128];
-    int len = snprintf(buf, sizeof(buf),
-        "%s\t[0x%" PRIxPTR " - 0x%" PRIxPTR "]\t%d\n",
-        used_bytes != 0 ? "A" : "F",
-        (uintptr_t)start, (uintptr_t)end, (int)used_bytes);
-    buf[sizeof(buf) - 1] = '\0';
-    write(hw->file_descriptor, buf, len);
-  }
-  // Update free block stats
-  if (used_bytes == 0) {
-    hw->total_free_blocks++;
-    hw->largest_free_block_bytes =
-        MAX(block_bytes, hw->largest_free_block_bytes);
-  }
+  // |start| is the beginning of user data.
+  // |end| is the end of the chunk.
 
-  if (used_bytes) {
-    // allocated block
-    hw->total_block_bytes += block_bytes;
-    hw->total_used_bytes += used_bytes;
+  int is_free = used_bytes == 0;
+  uintptr_t block_start;
+  if (is_free) {
+    // We don't know where the chunk start is- it depends on the size.
+    // So we probably won't be able to merge consecutive free blocks,
+    // but that's dlmalloc's job anyway.
+    block_start = (uintptr_t)start;
   } else {
-    // free block.
-    hw->total_free_bytes += block_bytes;
+    // Convert the "mem" / userdata pointer back to the chunk pointer.
+    // This wil allow merging chunks for logging.
+    block_start = (uintptr_t)mem2chunk(start);
   }
+  uintptr_t block_end = (uintptr_t)end;
+  size_t block_bytes = block_end - block_start;
+
+  heap_walker_update_stats(hw, is_free, block_bytes, used_bytes);
+  heap_walker_update_range(hw, is_free, block_start, block_bytes);
 }
 
 static void heap_walker_finish(HeapWalker* hw) {
+  heap_walker_terminate(hw);
   oom_fprintf(1, "\nTotal Used Bytes: %d"
       "\tTotal Block Bytes: %d\tTotal Overhead: %d\n",
       hw->total_used_bytes,
       hw->total_block_bytes,
-      (hw->total_used_bytes - hw->total_block_bytes));
+      (hw->total_block_bytes - hw->total_used_bytes));
   oom_fprintf(1, "\nNumber of free blocks: %d\tLargest free block: %d\n",
       hw->total_free_blocks, hw->largest_free_block_bytes);
-  if (hw->file_descriptor >= 0) {
-    close(hw->file_descriptor);
-  }
+
 }
 
 static void heap_walker(void* start, void* end, size_t used_bytes, void* arg) {
@@ -6174,6 +6267,7 @@ static void heap_walker(void* start, void* end, size_t used_bytes, void* arg) {
 }
 
 void dldump_heap() {
+  ACQUIRE_MALLOC_GLOBAL_LOCK();
   oom_fprintf(1, "Dumping dlmalloc heap info:\n");
   oom_fprintf(1,
       "bytes allocated directly via lb_mmap (external to dlmalloc): %6dKB\n",
@@ -6188,12 +6282,12 @@ void dldump_heap() {
   oom_fprintf(1, "\tmmapped bytes: %6dKB\n", info.hblkhd / 1024);
 
   oom_fprintf(1,
-      "Writing global heap (not including large mmapped blocks)."
-      " This may be slow...\n");
+      "Writing global heap (not including large mmapped blocks).\n");
   HeapWalker hw;
   heap_walker_init(&hw, "global_heap.txt");
   dlmalloc_inspect_all(heap_walker, &hw);
   heap_walker_finish(&hw);
+  RELEASE_MALLOC_GLOBAL_LOCK();
 }
 
 #endif /* defined(__LB_SHELL__FOR_RELEASE__) */
