@@ -52,6 +52,9 @@
 /* #define DEBUG_PUSH */
 
 static int htmlOmittedDefaultValue = 1;
+#if defined(COBALT)
+static int htmlEmitImpliedRootLevelParagraphValue = 1;
+#endif  // defined(COBALT)
 
 xmlChar * htmlDecodeEntities(htmlParserCtxtPtr ctxt, int len,
 			     xmlChar end, xmlChar  end2, xmlChar end3);
@@ -1518,6 +1521,10 @@ htmlCheckParagraph(htmlParserCtxtPtr ctxt) {
 	return(-1);
     tag = ctxt->name;
     if (tag == NULL) {
+#if defined(COBALT)
+	if (!htmlEmitImpliedRootLevelParagraphValue)
+	    return(0);
+#endif  // defined(COBALT)
 	htmlAutoClose(ctxt, BAD_CAST"p");
 	htmlCheckImplied(ctxt, BAD_CAST"p");
 	htmlnamePush(ctxt, BAD_CAST"p");
@@ -6258,6 +6265,20 @@ htmlHandleOmittedElem(int val) {
     htmlOmittedDefaultValue = val;
     return(old);
 }
+
+#if defined(COBALT)
+/**
+ * htmlEmitImpliedRootLevelParagraph:
+ * @val:  int 0 or 1
+ *
+ * Set the value for emitting implied root level paragraph elements.
+ */
+
+void
+htmlEmitImpliedRootLevelParagraph(int val) {
+    htmlEmitImpliedRootLevelParagraphValue = val;
+}
+#endif  // defined(COBALT)
 
 /**
  * htmlElementAllowedHere:
