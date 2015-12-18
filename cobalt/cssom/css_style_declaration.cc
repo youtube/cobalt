@@ -31,7 +31,8 @@ namespace {
 
 struct NonTrivialStaticFields {
   NonTrivialStaticFields()
-      : location(base::SourceLocation("[object CSSStyleDeclaration]", 1, 1)) {}
+      : location(base::SourceLocation(
+            CSSStyleDeclaration::GetSourceLocationName(), 1, 1)) {}
 
   const base::SourceLocation location;
 
