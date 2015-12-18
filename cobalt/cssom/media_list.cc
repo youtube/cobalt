@@ -46,8 +46,8 @@ std::string MediaList::media_text() const {
 
 void MediaList::set_media_text(const std::string& css_text) {
   DCHECK(css_parser_);
-  scoped_refptr<MediaList> media_list = css_parser_->ParseMediaList(
-      css_text, base::SourceLocation("[object MediaList]", 1, 1));
+  scoped_refptr<MediaList> media_list =
+      css_parser_->ParseMediaList(css_text, GetInlineSourceLocation());
 
   media_queries_.swap(media_list->media_queries_);
 }
@@ -67,8 +67,8 @@ std::string MediaList::Item(unsigned int index) const {
 // takes a string as input and parses it into a MediaQuery.
 void MediaList::AppendMedium(const std::string& medium) {
   DCHECK(css_parser_);
-  scoped_refptr<MediaQuery> media_query = css_parser_->ParseMediaQuery(
-      medium, base::SourceLocation("[object MediaList]", 1, 1));
+  scoped_refptr<MediaQuery> media_query =
+      css_parser_->ParseMediaQuery(medium, GetInlineSourceLocation());
 
   // TODO(***REMOVED***): Don't add the query if the same one already exists in the
   // collection. See http://www.w3.org/TR/cssom/#medialist for details.
