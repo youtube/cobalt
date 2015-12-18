@@ -389,11 +389,8 @@ void Element::set_inner_html(const std::string& inner_html) {
   }
 
   // Use the DOM parser to parse the HTML input and generate children nodes.
-  // TODO(***REMOVED***): Replace "Element" in the source location with the name
-  //               of actual class, like "HTMLDivElement".
   html_element_context()->dom_parser()->ParseDocumentFragment(
-      inner_html, owner_document(), this, NULL,
-      base::SourceLocation("[object Element]", 1, 1));
+      inner_html, owner_document(), this, NULL, GetInlineSourceLocation());
 }
 
 // Algorithm for outer_html:
@@ -440,7 +437,7 @@ void Element::set_outer_html(const std::string& outer_html) {
   //               of actual class, like "HTMLDivElement".
   html_element_context()->dom_parser()->ParseDocumentFragment(
       outer_html, owner_document(), parent, reference,
-      base::SourceLocation("[object Element]", 1, 1));
+      GetInlineSourceLocation());
 }
 
 scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {

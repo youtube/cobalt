@@ -31,7 +31,7 @@ const char HTMLStyleElement::kTagName[] = "style";
 HTMLStyleElement::HTMLStyleElement(Document* document)
     : HTMLElement(document),
       is_parser_inserted_(false),
-      inline_style_location_("[object HTMLStyleElement]", 1, 1) {}
+      inline_style_location_(GetSourceLocationName(), 1, 1) {}
 
 std::string HTMLStyleElement::tag_name() const { return kTagName; }
 

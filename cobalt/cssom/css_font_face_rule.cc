@@ -33,7 +33,8 @@ namespace {
 
 struct NonTrivialStaticFields {
   NonTrivialStaticFields()
-      : location(base::SourceLocation("[object CSSFontFaceRule]", 1, 1)) {}
+      : location(base::SourceLocation(CSSFontFaceRule::GetSourceLocationName(),
+                                      1, 1)) {}
 
   const base::SourceLocation location;
 
