@@ -210,6 +210,10 @@ float Box::GetContentBoxTopEdgeOffsetFromContainingBlock() const {
   return top() + GetContentBoxTopEdgeOffsetFromMarginBox();
 }
 
+math::Vector2dF Box::GetContentBoxOffsetFromPaddingBox() const {
+  return math::Vector2dF(padding_left(), padding_top());
+}
+
 float Box::GetContentBoxLeftEdge() const {
   return GetPaddingBoxLeftEdge() + padding_left();
 }
@@ -489,12 +493,23 @@ void Box::UpdateCrossReferencesWithContext(
     // Stacking context and containing blocks only matter for positioned
     // boxes.
     ContainerBox* containing_block;
+    // Establish the containing block, as described in
+    // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
     if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
+      // If the element has 'position: absolute', the containing block is
+      // established by the nearest ancestor with a 'position' of 'absolute',
+      // 'relative' or 'fixed'.
       containing_block = absolute_containing_block;
     } else if (computed_style()->position() ==
                cssom::KeywordValue::GetFixed()) {
+      // If the element has 'position: fixed', the containing block is
+      // established by the viewport in the case of continuous media or the page
+      // area in the case of paged media.
       containing_block = fixed_containing_block;
     } else {
+      // If the element's position is "relative" or "static", the containing
+      // block is formed by the content edge of the nearest block container
+      // ancestor box.
       containing_block = parent_;
     }
 

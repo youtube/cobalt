@@ -209,6 +209,7 @@ class Box : public base::RefCounted<Box> {
   float height() const { return content_size_.height(); }
   const math::SizeF& content_box_size() const { return content_size_; }
   math::Vector2dF GetContentBoxOffsetFromMarginBox() const;
+  math::Vector2dF GetContentBoxOffsetFromPaddingBox() const;
   float GetContentBoxLeftEdgeOffsetFromMarginBox() const;
   float GetContentBoxTopEdgeOffsetFromMarginBox() const;
   float GetContentBoxLeftEdgeOffsetFromContainingBlock() const;
