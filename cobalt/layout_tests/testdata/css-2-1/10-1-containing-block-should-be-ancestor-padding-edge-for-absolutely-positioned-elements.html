@@ -7,6 +7,9 @@
 <html>
 <head>
   <style>
+    body {
+      margin: 0px;
+    }
     .absolutely-positioned {
       position: absolute;
     }
@@ -24,20 +27,49 @@
     }
     .level-4 {
       background-color: #0091ea;
-      height: 100px;
-      width: 100px;
+      height: 120px;
+      width: 120px;
+    }
+    .topleftquadrant {
+      left: 0px;
+      top: 0px;
+      width: 25%;
+      height: 25%;
+    }
+    .bottomrightquadrant {
+      right: 0%;
+      bottom: 0%;
+      width: 25%;
+      height: 25%;
+    }
+    .bottomrightextended {
+      right: -25%;
+      bottom: -25%;
+      width: 50%;
+      height: 50%;
     }
     .absolutely-positioned.level-4 {
       background-color: #01579b;
+    }
+    .absolutely-positioned.level-5 {
+      background-color: #0277bd;
+    }
+    .zindex {
+      z-index: -1;
     }
   </style>
 </head>
 <body>
   <div class="absolutely-positioned level-1">
-    <div class="level-2">
+    <div class="absolutely-positioned level-2">
       <div class="level-3">
         <div class="level-4"></div>
-        <div class="absolutely-positioned level-4"></div>
+        <div class="absolutely-positioned topleftquadrant level-4">
+          <div class="absolutely-positioned bottomrightextended level-5"></div>
+        </div>
+        <div class="absolutely-positioned bottomrightquadrant level-4">
+          <div class="absolutely-positioned bottomrightextended level-5 zindex"></div>
+        </div>
       </div>
     </div>
   </div>
