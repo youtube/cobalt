@@ -73,6 +73,14 @@ SB_EXPORT void SetMinLogLevel(SbLogPriority level);
 SB_EXPORT SbLogPriority GetMinLogLevel();
 SB_EXPORT void Break();
 
+// An object which will dumps the stack to the given ostream, without adding any
+// frames of its own. |skip_frames| is the number of frames to skip in the dump.
+struct SB_EXPORT Stack {
+  explicit Stack(int skip_frames) : skip_frames(skip_frames) {}
+  int skip_frames;
+};
+SB_EXPORT std::ostream& operator<<(std::ostream& out, const Stack& stack);
+
 SB_EXPORT std::ostream& operator<<(std::ostream& out, const wchar_t* wstr);
 inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
   return out << wstr.c_str();
@@ -145,11 +153,14 @@ struct CompileAssert {};
 
 #define SB_LOG_IS_ON(severity)                \
   ((starboard::logging::SB_LOG_##severity) >= \
-   starboard::logging::GetMinLogLevel())
+    starboard::logging::GetMinLogLevel())
 #define SB_LOG_IF(severity, condition) \
   SB_LAZY_STREAM(SB_LOG_STREAM(severity), SB_LOG_IS_ON(severity) && (condition))
 #define SB_LOG(severity) SB_LOG_IF(severity, true)
 #define SB_EAT_STREAM_PARAMETERS SB_LOG_IF(INFO, false)
+#define SB_STACK_IF(severity, condition) \
+  SB_LOG_IF(severity, condition) << "\n" << starboard::logging::Stack(0)
+#define SB_STACK(severity) SB_STACK_IF(severity, true)
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD
 #define SB_CHECK(condition) \
@@ -174,6 +185,7 @@ struct CompileAssert {};
 #endif  // SB_LOGGING_IS_OFFICIAL_BUILD
 
 #define SB_DLOG(severity) SB_DLOG_IF(severity, SB_DLOG_IS_ON(severity))
+#define SB_DSTACK(severity) SB_STACK_IF(severity, SB_DLOG_IS_ON(severity))
 #define SB_NOTREACHED() SB_DCHECK(false)
 
 #if !defined(SB_NOTIMPLEMENTED_POLICY)
