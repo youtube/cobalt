@@ -476,8 +476,8 @@ scoped_refptr<Element> Node::QuerySelectorInternal(
   DCHECK(css_parser);
 
   // Generate a rule with the given selectors and no style.
-  scoped_refptr<cssom::CSSRule> rule = css_parser->ParseRule(
-      selectors + " {}", base::SourceLocation("[object Node]", 1, 1));
+  scoped_refptr<cssom::CSSRule> rule =
+      css_parser->ParseRule(selectors + " {}", GetInlineSourceLocation());
   if (rule == NULL) {
     return NULL;
   }
@@ -512,8 +512,8 @@ scoped_refptr<NodeList> Node::QuerySelectorAllInternal(
   scoped_refptr<NodeList> node_list = new NodeList();
 
   // Generate a rule with the given selectors and no style.
-  scoped_refptr<cssom::CSSRule> rule = css_parser->ParseRule(
-      selectors + " {}", base::SourceLocation("[object Node]", 1, 1));
+  scoped_refptr<cssom::CSSRule> rule =
+      css_parser->ParseRule(selectors + " {}", GetInlineSourceLocation());
   if (rule == NULL) {
     return node_list;
   }

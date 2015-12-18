@@ -43,7 +43,7 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
       is_parser_inserted_(false),
       is_ready_(false),
       load_option_(0),
-      inline_script_location_("[object HTMLScriptElement]", 1, 1) {
+      inline_script_location_(GetSourceLocationName(), 1, 1) {
   DCHECK(document->html_element_context()->script_runner());
 }
 
