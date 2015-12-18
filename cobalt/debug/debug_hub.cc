@@ -142,8 +142,8 @@ int DebugHub::GetDebugConsoleMode() const {
 std::string DebugHub::ExecuteJavascript(const std::string& javascript) {
   // Assume the command is JavaScript to be exected in the main web module
   // using the callback provided at construction.
-  return execute_javascript_callback_.Run(
-      javascript, base::SourceLocation("[object DebugHub]", 1, 1));
+  return execute_javascript_callback_.Run(javascript,
+                                          GetInlineSourceLocation());
 }
 
 // TODO(***REMOVED***) - This function should be modified to return an array of

@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/source_location.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/script/opaque_handle.h"
 
@@ -56,7 +57,9 @@ class Wrappable : public base::RefCounted<Wrappable> {
   // Used for RTTI on wrappable types. This is implemented within the
   // DEFINE_WRAPPABLE_TYPE macro, defined below, which should be added to the
   // class definition of each wrappable type.
-  virtual base::TypeId GetWrappableType() = 0;
+  virtual base::TypeId GetWrappableType() const = 0;
+
+  virtual base::SourceLocation GetInlineSourceLocation() const = 0;
 
   // If this function returns true, the JavaScript engine will keep the wrapper
   // for this Wrappable from being garbage collected even if there are no strong
@@ -81,20 +84,29 @@ class Wrappable : public base::RefCounted<Wrappable> {
 }  // namespace cobalt
 
 // This macro should be added with public accessibility in a class that inherits
-// from Wrappable. It is used to implement RTTI that will be used by the
-// bindings layer to downcast a wrappable class if necessary before creating
-// the JS wrapper.
+// from Wrappable. It is used to implement RTTI that is used by the bindings
+// layer to downcast a wrappable class if necessary before creating the JS
+// wrapper.
 //
 // Using the interface name as the template parameter for the GetTypeId()
 // function allows us to ensure at compile time that the static method is
 // defined for a given type, and not just on one of its ancestors.
-#define DEFINE_WRAPPABLE_TYPE(INTERFACE_NAME)                   \
-  static base::TypeId INTERFACE_NAME##WrappableType() {         \
-    return base::GetTypeId<INTERFACE_NAME>();                   \
-  }                                                             \
-  base::TypeId GetWrappableType() OVERRIDE {                    \
-    return INTERFACE_NAME##WrappableType();                     \
+//
+// It is also used to implement GetSourceLocationName() and
+// GetInlineSourceLocation() that are used to generate source locations
+// returned in messages from the parsers.
+#define DEFINE_WRAPPABLE_TYPE(INTERFACE_NAME)                     \
+  static base::TypeId INTERFACE_NAME##WrappableType() {           \
+    return base::GetTypeId<INTERFACE_NAME>();                     \
+  }                                                               \
+  base::TypeId GetWrappableType() const OVERRIDE {                \
+    return INTERFACE_NAME##WrappableType();                       \
+  }                                                               \
+  static const char* GetSourceLocationName() {                    \
+    return "[object " #INTERFACE_NAME "]";                        \
+  }                                                               \
+  base::SourceLocation GetInlineSourceLocation() const OVERRIDE { \
+    return base::SourceLocation(GetSourceLocationName(), 1, 1);   \
   }
-
 
 #endif  // SCRIPT_WRAPPABLE_H_

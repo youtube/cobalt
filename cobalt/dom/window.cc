@@ -142,7 +142,7 @@ scoped_refptr<MediaQueryList> Window::MatchMedia(const std::string& query) {
   DCHECK(html_element_context_->css_parser());
   scoped_refptr<cssom::MediaList> media_list =
       html_element_context_->css_parser()->ParseMediaList(
-          query, base::SourceLocation("[object Window]", 1, 1));
+          query, GetInlineSourceLocation());
   return make_scoped_refptr(new MediaQueryList(media_list, screen_));
 }
 

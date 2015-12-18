@@ -39,12 +39,11 @@ scoped_refptr<Document> DOMParser::ParseFromString(const std::string& str,
                                                    const SupportedType& type) {
   if (type == kTextHtml) {
     return html_element_context_->dom_parser()->ParseDocument(
-        str, html_element_context_,
-        base::SourceLocation("[Object DOMParser]", 1, 1));
+        str, html_element_context_, GetInlineSourceLocation());
   } else if (type == kTextXml || type == kApplicationXml ||
              type == kApplicationXhtmlXml || type == kImageSvgXml) {
     return html_element_context_->dom_parser()->ParseXMLDocument(
-        str, base::SourceLocation("[Object DOMParser]", 1, 1));
+        str, GetInlineSourceLocation());
   } else {
     NOTREACHED();
     return NULL;

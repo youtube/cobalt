@@ -74,35 +74,65 @@ TEST_F(HTMLElementFactoryTest, CreateHTMLElement) {
 
   html_element = html_element_factory_.CreateHTMLElement(document_, "a");
   EXPECT_TRUE(html_element->AsHTMLAnchorElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLAnchorElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "body");
   EXPECT_TRUE(html_element->AsHTMLBodyElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLBodyElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "br");
   EXPECT_TRUE(html_element->AsHTMLBRElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLBRElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "div");
   EXPECT_TRUE(html_element->AsHTMLDivElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLDivElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "head");
   EXPECT_TRUE(html_element->AsHTMLHeadElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLHeadElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "html");
   EXPECT_TRUE(html_element->AsHTMLHtmlElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLHtmlElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "img");
   EXPECT_TRUE(html_element->AsHTMLImageElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLImageElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "link");
   EXPECT_TRUE(html_element->AsHTMLLinkElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLLinkElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "meta");
   EXPECT_TRUE(html_element->AsHTMLMetaElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLMetaElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "p");
   EXPECT_TRUE(html_element->AsHTMLParagraphElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLParagraphElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "script");
   EXPECT_TRUE(html_element->AsHTMLScriptElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLScriptElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "span");
   EXPECT_TRUE(html_element->AsHTMLSpanElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLSpanElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "style");
   EXPECT_TRUE(html_element->AsHTMLStyleElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLStyleElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "video");
   EXPECT_TRUE(html_element->AsHTMLVideoElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLVideoElement]");
 
   html_element = html_element_factory_.CreateHTMLElement(document_, "h1");
   EXPECT_TRUE(html_element->AsHTMLHeadingElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLHeadingElement]");
   html_element = html_element_factory_.CreateHTMLElement(document_, "h2");
   EXPECT_TRUE(html_element->AsHTMLHeadingElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "h3");
@@ -116,6 +146,8 @@ TEST_F(HTMLElementFactoryTest, CreateHTMLElement) {
 
   html_element = html_element_factory_.CreateHTMLElement(document_, "foo");
   EXPECT_TRUE(html_element->AsHTMLUnknownElement());
+  EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
+            "[object HTMLUnknownElement]");
 }
 
 }  // namespace dom
