@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_CONTAINER_BOX_H_
-#define LAYOUT_CONTAINER_BOX_H_
+#ifndef COBALT_LAYOUT_CONTAINER_BOX_H_
+#define COBALT_LAYOUT_CONTAINER_BOX_H_
 
 #include <set>
 #include <vector>
@@ -90,7 +90,8 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   typedef std::multiset<Box*, ZIndexComparator> ZIndexSortedList;
 
   void UpdateRectOfPositionedChildBoxes(
-      const LayoutParams& child_layout_params);
+      const LayoutParams& relative_child_layout_params,
+      const LayoutParams& absolute_child_layout_params);
 
   // child_box will be added to the end of the list of direct children.
   void PushBackDirectChild(const scoped_refptr<Box>& child_box);
@@ -132,7 +133,14 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   void UpdateOffsetOfRelativelyPositionedChildBox(
       Box* child_box, const LayoutParams& child_layout_params);
 
-  // Updates the sizes of absolutely (and fixed) position of the child box.
+  // Updates the sizes of the fixed position child box.
+  // This is meant to be called by UpdateRectOfPositionedChildBoxes(), after the
+  // child has gone through the in-flow layout.
+  //    https://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
+  void UpdateRectOfFixedPositionedChildBox(
+      Box* child_box, const LayoutParams& child_layout_params);
+
+  // Updates the sizes of the absolutely positioned child box.
   // This is meant to be called by UpdateRectOfPositionedChildBoxes(), after the
   // child has gone through the in-flow layout.
   //    https://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
@@ -187,4 +195,4 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_CONTAINER_BOX_H_
+#endif  // COBALT_LAYOUT_CONTAINER_BOX_H_

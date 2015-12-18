@@ -193,7 +193,8 @@ void ContainerBox::InvalidateUpdateSizeInputsOfBoxAndDescendants() {
 }
 
 void ContainerBox::UpdateRectOfPositionedChildBoxes(
-    const LayoutParams& child_layout_params) {
+    const LayoutParams& relative_child_layout_params,
+    const LayoutParams& absolute_child_layout_params) {
   for (std::vector<Box*>::const_iterator child_box_iterator =
            positioned_child_boxes_.begin();
        child_box_iterator != positioned_child_boxes_.end();
@@ -201,12 +202,18 @@ void ContainerBox::UpdateRectOfPositionedChildBoxes(
     Box* child_box = *child_box_iterator;
     DCHECK_EQ(this, child_box->containing_block());
 
-    if (child_box->computed_style()->position() ==
-        cssom::KeywordValue::GetRelative()) {
+    const scoped_refptr<cssom::PropertyValue>& child_box_position =
+        child_box->computed_style()->position();
+
+    if (child_box_position == cssom::KeywordValue::GetRelative()) {
       UpdateOffsetOfRelativelyPositionedChildBox(child_box,
-                                                 child_layout_params);
+                                                 relative_child_layout_params);
+    } else if (child_box_position == cssom::KeywordValue::GetAbsolute()) {
+      UpdateRectOfAbsolutelyPositionedChildBox(child_box,
+                                               absolute_child_layout_params);
     } else {
-      UpdateRectOfAbsolutelyPositionedChildBox(child_box, child_layout_params);
+      UpdateRectOfFixedPositionedChildBox(child_box,
+                                          relative_child_layout_params);
     }
   }
 }
@@ -275,10 +282,25 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
   child_box->set_top(child_box->top() + offset.y());
 }
 
+void ContainerBox::UpdateRectOfFixedPositionedChildBox(
+    Box* child_box, const LayoutParams& child_layout_params) {
+  math::Vector2dF static_position_offset =
+      GetOffsetFromContainingBlockToParent(child_box);
+  child_box->set_left(child_box->left() + static_position_offset.x());
+  child_box->set_top(child_box->top() + static_position_offset.y());
+
+  child_box->UpdateSize(child_layout_params);
+}
+
 void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
     Box* child_box, const LayoutParams& child_layout_params) {
   math::Vector2dF static_position_offset =
       GetOffsetFromContainingBlockToParent(child_box);
+  // The containing block is formed by the padding box instead of the content
+  // box, as described in
+  // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
+  static_position_offset +=
+      child_box->containing_block()->GetContentBoxOffsetFromPaddingBox();
   child_box->set_left(child_box->left() + static_position_offset.x());
   child_box->set_top(child_box->top() + static_position_offset.y());
 
@@ -310,8 +332,9 @@ math::Vector2dF GetOffsetFromContainingBlockToStackingContext(Box* child_box) {
 }
 
 math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
-  if (child_box->computed_style()->position() ==
-      cssom::KeywordValue::GetFixed()) {
+  const scoped_refptr<cssom::PropertyValue>& child_box_position =
+      child_box->computed_style()->position();
+  if (child_box_position == cssom::KeywordValue::GetFixed()) {
     // Elements with fixed position will have their containing block farther
     // up the hierarchy than the stacking context, so handle this case
     // specially.
@@ -319,6 +342,13 @@ math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
   }
 
   math::Vector2dF relative_position;
+  if (child_box_position == cssom::KeywordValue::GetAbsolute()) {
+    // The containing block is formed by the padding box instead of the content
+    // box, as described in
+    // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
+    relative_position -=
+        child_box->containing_block()->GetContentBoxOffsetFromPaddingBox();
+  }
   for (Box *current_box = child_box->containing_block(),
            *stacking_context = child_box->stacking_context();
        current_box != stacking_context;
@@ -332,6 +362,12 @@ math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
 
     relative_position += current_box->GetContentBoxOffsetFromMarginBox();
     relative_position += current_box->margin_box_offset_from_containing_block();
+
+    if (current_box->computed_style()->position() ==
+        cssom::KeywordValue::GetAbsolute()) {
+      relative_position -=
+          current_box->containing_block()->GetContentBoxOffsetFromPaddingBox();
+    }
   }
   return relative_position;
 }
