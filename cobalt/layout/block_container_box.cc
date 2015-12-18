@@ -83,6 +83,7 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
     const base::optional<float>& maybe_margin_bottom,
     const base::optional<float>& maybe_height) {
   LayoutParams child_layout_params;
+  LayoutParams absolute_child_layout_params;
   if (AsAnonymousBlockBox()) {
     // Anonymous block boxes are ignored when resolving percentage values
     // that would refer to it: the closest non-anonymous ancestor box is used
@@ -95,6 +96,11 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
     // box.
     //   https://www.w3.org/TR/CSS21/visudet.html#containing-block-details
     child_layout_params.containing_block_size.set_width(width());
+    // If the element has 'position: absolute', ...
+    // the containing block is formed by the padding edge of the ancestor.
+    //   http://www.w3.org/TR/CSS21/visudet.html#containing-block-details
+    absolute_child_layout_params.containing_block_size.set_width(
+        GetPaddingBoxWidth());
     // The "auto" height is not known yet but it shouldn't matter for in-flow
     // children, as per:
     //
@@ -121,7 +127,10 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
   // depends on the size of the containing block as well as possibly their
   // previously calculated in-flow position.
   child_layout_params.containing_block_size.set_height(height());
-  UpdateRectOfPositionedChildBoxes(child_layout_params);
+  absolute_child_layout_params.containing_block_size.set_height(
+      GetPaddingBoxHeight());
+  UpdateRectOfPositionedChildBoxes(child_layout_params,
+                                   absolute_child_layout_params);
 
   if (formatting_context->maybe_baseline_offset_from_top_content_edge()) {
     maybe_baseline_offset_from_top_margin_edge_ =
