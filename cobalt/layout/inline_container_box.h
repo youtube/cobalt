@@ -50,6 +50,9 @@ class InlineContainerBox : public ContainerBox {
   scoped_refptr<Box> TrySplitAt(float available_width,
                                 bool allow_overflow) OVERRIDE;
 
+  bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
+  void ResetEllipses() OVERRIDE;
+
   scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
@@ -80,6 +83,11 @@ class InlineContainerBox : public ContainerBox {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
+  // From |Box|.
+  void DoPlaceEllipsisOrProcessPlacedEllipsis(
+      float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+      float* placed_offset) OVERRIDE;
+
   scoped_refptr<Box> SplitAtIterator(
       Boxes::const_iterator child_split_iterator);
 

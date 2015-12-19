@@ -31,9 +31,23 @@ InlineLevelReplacedBox::InlineLevelReplacedBox(
     UsedStyleProvider* used_style_provider)
     : ReplacedBox(computed_style_state, replace_image_cb, paragraph,
                   text_position, maybe_intrinsic_width, maybe_intrinsic_height,
-                  maybe_intrinsic_ratio, used_style_provider) {}
+                  maybe_intrinsic_ratio, used_style_provider),
+      is_hidden_by_ellipsis_(false) {}
 
 Box::Level InlineLevelReplacedBox::GetLevel() const { return kInlineLevel; }
+
+bool InlineLevelReplacedBox::DoesFulfillEllipsisPlacementRequirement() const {
+  // This box fulfills the requirement that the first character or inline-level
+  // element must appear on the line before ellipsing can occur
+  // (http://www.w3.org/TR/css3-ui/#propdef-text-overflow).
+  return true;
+}
+
+void InlineLevelReplacedBox::ResetEllipses() { is_hidden_by_ellipsis_ = false; }
+
+bool InlineLevelReplacedBox::IsHiddenByEllipsis() const {
+  return is_hidden_by_ellipsis_;
+}
 
 void InlineLevelReplacedBox::UpdateHorizontalMargins(
     float containing_block_width, float border_box_width,
@@ -56,6 +70,37 @@ void InlineLevelReplacedBox::DumpClassName(std::ostream* stream) const {
 }
 
 #endif  // COBALT_BOX_DUMP_ENABLED
+
+void InlineLevelReplacedBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
+    float /*desired_offset*/, bool* is_placement_requirement_met,
+    bool* is_placed, float* placed_offset) {
+  // If the ellipsis is already placed, then simply mark the box as hidden by
+  // the ellipsis: "Implementations must hide characters and atomic inline-level
+  // elements at the applicable edge(s) of the line as necessary to fit the
+  // ellipsis."
+  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  if (*is_placed) {
+    is_hidden_by_ellipsis_ = true;
+    // Otherwise, the box is placing the ellipsis.
+  } else {
+    *is_placed = true;
+
+    // The first character or atomic inline-level element on a line must be
+    // clipped rather than ellipsed.
+    //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    // If this requirement has been met, then place the ellipsis to the left of
+    // the atomic inline-level element, as it should be fully hidden.
+    if (*is_placement_requirement_met) {
+      *placed_offset = left();
+      is_hidden_by_ellipsis_ = true;
+      // Otherwise, this box is fulfilling the required first inline-level
+      // element and the ellipsis must be added after the box, rather than
+      // before it.
+    } else {
+      *placed_offset = GetMarginBoxRightEdgeOffsetFromContainingBlock();
+    }
+  }
+}
 
 }  // namespace layout
 }  // namespace cobalt

@@ -60,9 +60,10 @@ class Paragraph : public base::RefCounted<Paragraph> {
     kObjectReplacementCharacterCodePoint,
   };
 
-  enum OverflowWrap {
-    kBreakWordOverflowWrap,
-    kSoftWrapOverflowWrap,
+  enum BreakPolicy {
+    kSoftWrap,
+    kBreakWord,
+    kSoftWrapWithBreakWordOnOverflow,
   };
 
   enum TextOrder {
@@ -84,17 +85,20 @@ class Paragraph : public base::RefCounted<Paragraph> {
                          TextTransform text_transform);
   int32 AppendCodePoint(CodePoint code_point);
 
-  // Iterate over breakable segments in the text from the starting position,
-  // adding up the width of each segment and determining the last one that fits
-  // within the available width. The parameter |break_width| indicates the width
-  // of the portion of the substring coming before |break_position|.
+  // Using the specified break policy, finds the last break position that fits
+  // within the available width. In the case where overflow is allowed and no
+  // break position is found within the available width, the first overflowing
+  // break position is used instead.
+  //
+  // The parameter |break_width| indicates the width of the portion of the
+  // substring coming before |break_position|.
   //
   // Returns false if no usable break position was found.
-  bool CalculateBreakPosition(const scoped_refptr<dom::FontList>& used_font,
-                              int32 start_position, int32 end_position,
-                              float available_width, bool allow_overflow,
-                              OverflowWrap overflow_wrap, int32* break_position,
-                              float* break_width);
+  bool FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
+                         int32 start_position, int32 end_position,
+                         float available_width, bool allow_overflow,
+                         BreakPolicy break_policy, int32* break_position,
+                         float* break_width);
   float CalculateSubStringWidth(const scoped_refptr<dom::FontList>& used_font,
                                 int32 start_position, int32 end_position) const;
 
@@ -125,14 +129,43 @@ class Paragraph : public base::RefCounted<Paragraph> {
 
   typedef std::vector<BidiLevelRun> BidiLevelRuns;
 
-  void CalculateCharacterBreakPosition(
-      const scoped_refptr<dom::FontList>& used_font, int32 start_position,
-      int32 end_position, float available_width, bool allow_overflow,
-      int32* break_position, float* break_width);
-  void CalculateSoftWrapBreakPosition(
-      const scoped_refptr<dom::FontList>& used_font, int32 start_position,
-      int32 end_position, float available_width, bool allow_overflow,
-      int32* break_position, float* break_width);
+  // Iterate over soft wrap segments in the text from the starting position,
+  // adding the width of each segment and determining the last one that fits
+  // within the available width. In the case where |allow_overflow| is true and
+  // the first segment overflows the width, that first overflowing segment will
+  // be included. The parameter |break_width| indicates the width of the portion
+  // of the substring coming before |break_position|.
+  //
+  // Returns false if no usable break position was found.
+  bool FindSoftWrapBreakPosition(const scoped_refptr<dom::FontList>& used_font,
+                                 int32 start_position, int32 end_position,
+                                 float available_width, bool allow_overflow,
+                                 int32* break_position, float* break_width);
+
+  // Iterate over characters in the text from the starting position, adding up
+  // adding the width of each character and determining the last one that fits
+  // within the available width. In the case where |allow_overflow| is true and
+  // the first segment overflows the width, that first overflowing segment will
+  // be included. The parameter |break_width| indicates the width of the portion
+  // of the substring coming before |break_position|.
+  //
+  // Returns false if no usable break position was found.
+  bool FindBreakWordBreakPosition(const scoped_refptr<dom::FontList>& used_font,
+                                  int32 start_position, int32 end_position,
+                                  float available_width, bool allow_overflow,
+                                  int32* break_position, float* break_width);
+
+  // Attempt to include the specified segment within the available width. If
+  // either the segment fits within the width or |allow_overflow| is true, then
+  // |break_position| and |break_width| are updated to include the segment.
+  //
+  // |allow_overflow| is always set to false after the first segment is added,
+  // ensuring that only the first segment can overflow the available width.
+  //
+  // Returns false if the specified segment exceeded the available width.
+  // However, as a result of overflow potentially being allowed, a return value
+  // of false does not guarantee that the segment was not included, but simply
+  // that no additional segments can be included.
   bool TryIncludeSegmentWithinAvailableWidth(
       const scoped_refptr<dom::FontList>& used_font, int32 start_position,
       int32 end_position, float available_width, bool* allow_overflow,
