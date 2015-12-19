@@ -30,13 +30,14 @@ InlineFormattingContext::InlineFormattingContext(
     const LayoutParams& layout_params,
     const scoped_refptr<cssom::PropertyValue>& text_align,
     const scoped_refptr<cssom::PropertyValue>& white_space,
-    float text_indent_offset)
+    float text_indent_offset, float ellipsis_width)
     : line_height_(line_height),
       font_metrics_(font_metrics),
       layout_params_(layout_params),
       text_align_(text_align),
       white_space_(white_space),
       text_indent_offset_(text_indent_offset),
+      ellipsis_width_(ellipsis_width),
       line_count_(0),
       preferred_min_width_(0) {
   CreateLineBox();
@@ -96,6 +97,11 @@ void InlineFormattingContext::EndUpdates() {
       line_count_ > 1 ? layout_params_.containing_block_size.width() : 0));
 }
 
+const std::vector<math::Vector2dF>&
+InlineFormattingContext::GetEllipsesCoordinates() const {
+  return ellipses_coordinates_;
+}
+
 bool InlineFormattingContext::TryBeginUpdateRectAndMaybeCreateLineBox(
     Box* child_box, scoped_refptr<Box>* child_box_after_split) {
   bool child_box_update_began = line_box_->TryBeginUpdateRectAndMaybeSplit(
@@ -123,7 +129,7 @@ void InlineFormattingContext::CreateLineBox() {
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   line_box_ = make_scoped_ptr(new LineBox(
       auto_height(), line_height_, font_metrics_, true, true, layout_params_,
-      text_align_, white_space_, line_indent_offset));
+      text_align_, white_space_, line_indent_offset, ellipsis_width_));
 }
 
 void InlineFormattingContext::DestroyLineBox() {
@@ -146,6 +152,10 @@ void InlineFormattingContext::DestroyLineBox() {
 
     set_baseline_offset_from_top_content_edge(
         line_box_->top() + line_box_->baseline_offset_from_top());
+
+    if (line_box_->IsEllipsisPlaced()) {
+      ellipses_coordinates_.push_back(line_box_->GetEllipsisCoordinates());
+    }
   }
 
   line_box_.reset();

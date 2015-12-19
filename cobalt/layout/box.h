@@ -182,8 +182,8 @@ class Box : public base::RefCounted<Box> {
   }
   float GetMarginBoxLeftEdge() const;
   float GetMarginBoxTopEdge() const;
-  float GetRightMarginEdgeOffsetFromContainingBlock() const;
-  float GetBottomMarginEdgeOffsetFromContainingBlock() const;
+  float GetMarginBoxRightEdgeOffsetFromContainingBlock() const;
+  float GetMarginBoxBottomEdgeOffsetFromContainingBlock() const;
 
   // Border box.
   float GetBorderBoxWidth() const;
@@ -204,6 +204,10 @@ class Box : public base::RefCounted<Box> {
   float height() const { return content_size_.height(); }
   const math::SizeF& content_box_size() const { return content_size_; }
   math::Vector2dF GetContentBoxOffsetFromMarginBox() const;
+  float GetContentBoxLeftEdgeOffsetFromMarginBox() const;
+  float GetContentBoxTopEdgeOffsetFromMarginBox() const;
+  float GetContentBoxLeftEdgeOffsetFromContainingBlock() const;
+  float GetContentBoxTopEdgeOffsetFromContainingBlock() const;
   float GetContentBoxLeftEdge() const;
   float GetContentBoxTopEdge() const;
 
@@ -217,6 +221,30 @@ class Box : public base::RefCounted<Box> {
   // Note that only inline boxes are splittable.
   virtual scoped_refptr<Box> TrySplitAt(float available_width,
                                         bool allow_overflow) = 0;
+
+  // Verifies that either an ellipsis can be placed within the box, or that an
+  // ellipsis has already been placed in a previous box in the line, and calls
+  // DoPlaceEllipsisOrProcessPlacedEllipsis() to handle ellipsis placement and
+  // updating of ellipsis-related state within the box. It also sets
+  // |is_placement_requirement_met| to true if the box fulfills the requirement
+  // that the first character or atomic inline-level element must appear on a
+  // line before an ellipsis
+  // (http://www.w3.org/TR/css3-ui/#propdef-text-overflow), regardless of
+  // whether or not the ellipsis can be placed within this specific box.
+  void TryPlaceEllipsisOrProcessPlacedEllipsis(
+      float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+      float* placed_offset);
+  // Whether or not the box fulfills the ellipsis requirement that it not be
+  // be placed until after the "the first character or atomic inline-level
+  // element on a line."
+  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  virtual bool DoesFulfillEllipsisPlacementRequirement() const { return false; }
+  // Reset all ellipses-related state within the box.
+  virtual void ResetEllipses() {}
+  // Whether or not the box is fully hidden by an ellipsis. This applies to
+  // atomic inline-level elements that have had an ellipsis placed before them
+  // on a line. http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  virtual bool IsHiddenByEllipsis() const { return false; }
 
   // Initial splitting of boxes between bidi level runs prior to layout, so that
   // they will not need to occur during layout.
@@ -442,6 +470,15 @@ class Box : public base::RefCounted<Box> {
   // always be the same as if the box was not positioned.
   void SetupAsPositionedChild(ContainerBox* containing_block,
                               ContainerBox* stacking_context);
+
+  // Called after TryPlaceEllipsisOrProcessPlacedEllipsis() determines that the
+  // box is impacted by the ellipsis. This handles both determining the location
+  // of the ellipsis, if it has not already been placed, and updating the
+  // ellipsis-related state of the box, such as whether or not it should be
+  // fully or partially hidden.
+  virtual void DoPlaceEllipsisOrProcessPlacedEllipsis(
+      float /*desired_offset*/, bool* /*is_placement_requirement_met*/,
+      bool* /*is_placed*/, float* /*placed_offset*/) {}
 
   // Helper methods used by |RenderAndAnimate|.
   void RenderAndAnimateBorder(

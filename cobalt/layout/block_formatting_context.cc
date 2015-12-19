@@ -16,6 +16,8 @@
 
 #include "cobalt/layout/block_formatting_context.h"
 
+#include <algorithm>
+
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/box.h"
 
@@ -38,13 +40,13 @@ void BlockFormattingContext::UpdateRect(Box* child_box) {
   //   http://www.w3.org/TR/CSS21/visudet.html#float-width
   set_shrink_to_fit_width(
       std::max(shrink_to_fit_width(),
-               child_box->GetRightMarginEdgeOffsetFromContainingBlock()));
+               child_box->GetMarginBoxRightEdgeOffsetFromContainingBlock()));
 
   // If "height" is "auto", the used value is the distance from box's top
   // content edge to the bottom edge of the bottom margin of its last in-flow
   // child.
   //   http://www.w3.org/TR/CSS21/visudet.html#normal-block
-  set_auto_height(child_box->GetBottomMarginEdgeOffsetFromContainingBlock());
+  set_auto_height(child_box->GetMarginBoxBottomEdgeOffsetFromContainingBlock());
 
   // The baseline of an "inline-block" is the baseline of its last line box
   // in the normal flow, unless it has no in-flow line boxes.

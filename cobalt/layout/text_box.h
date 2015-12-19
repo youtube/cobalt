@@ -47,6 +47,9 @@ class TextBox : public Box {
   scoped_refptr<Box> TrySplitAt(float available_width,
                                 bool allow_overflow) OVERRIDE;
 
+  bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
+  void ResetEllipses() OVERRIDE;
+
   void SplitBidiLevelRuns() OVERRIDE;
   scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
@@ -81,6 +84,11 @@ class TextBox : public Box {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
+  // From |Box|.
+  void DoPlaceEllipsisOrProcessPlacedEllipsis(
+      float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+      float* placed_offset) OVERRIDE;
+
   bool WhiteSpaceStyleAllowsCollapsing();
   bool WhiteSpaceStyleAllowsWrapping();
 
@@ -101,10 +109,17 @@ class TextBox : public Box {
   // space.
   float GetTrailingWhiteSpaceWidth() const;
 
+  int32 GetNonCollapsedTextStartPosition() const;
+  int32 GetNonCollapsedTextEndPosition() const;
+
   int32 GetNonCollapsibleTextStartPosition() const;
   int32 GetNonCollapsibleTextEndPosition() const;
   bool HasNonCollapsibleText() const;
   std::string GetNonCollapsibleText() const;
+
+  int32 GetVisibleTextEndPosition() const;
+  bool HasVisibleText() const;
+  std::string GetVisibleText() const;
 
   // The paragraph that this text box is part of. It contains access to the
   // underlying text, and handles the logic for determining bidi levels and
@@ -117,6 +132,12 @@ class TextBox : public Box {
   // The position within the paragraph where the text contained in this box
   // ends.
   int32 text_end_position_;
+  // The position within the paragraph where the text within the text box is
+  // truncated by an ellipsis and will not be visible.
+  // "Implementations must hide characters and atomic inline-level elements at
+  // the applicable edge(s) of the line as necessary to fit the ellipsis."
+  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  int32 truncated_text_end_position_;
 
   // A font used for text width and line height calculations.
   const scoped_refptr<dom::FontList> used_font_;

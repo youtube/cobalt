@@ -112,15 +112,15 @@ INSTANTIATE_TEST_CASE_P(CobaltSpecificLayoutTests, LayoutTest,
 // Custom CSS 2.1 (http://www.w3.org/TR/CSS21/) test cases.
 INSTANTIATE_TEST_CASE_P(CSS21LayoutTests, LayoutTest,
                         ::testing::ValuesIn(EnumerateLayoutTests("css-2-1")));
-// Custom CSS Text 3 (http://www.w3.org/TR/css3-background/) test cases.
+// Custom CSS Background (http://www.w3.org/TR/css3-background/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSBackground3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-background")));
-// Custom CSS Text 3 (http://www.w3.org/TR/css3-color/) test cases.
+// Custom CSS Color (http://www.w3.org/TR/css3-color/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSColor3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-color")));
-// Custom CSS Text 3 (http://www.w3.org/TR/css-text-3/) test cases.
+// Custom CSS Text (http://www.w3.org/TR/css-text-3/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSText3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css-text-3")));
@@ -140,14 +140,17 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     BidiLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("bidi")));
-// Custom CSS Conditional 3 (http://www.w3.org/TR/css3-conditional/) test cases.
+// Custom CSS Conditional (http://www.w3.org/TR/css3-conditional/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSConditional3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-conditional")));
-// Custom CSS Font 3 (http://www.w3.org/TR/css3-fonts/) test cases.
+// Custom CSS Font (http://www.w3.org/TR/css3-fonts/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSS3FontsLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-fonts")));
+// Custom CSS UI (http://www.w3.org/TR/css3-ui/) test cases.
+INSTANTIATE_TEST_CASE_P(CSS3UILayoutTests, LayoutTest,
+                        ::testing::ValuesIn(EnumerateLayoutTests("css3-ui")));
 // Custom incremental layout test cases.
 INSTANTIATE_TEST_CASE_P(
     IncrementalLayoutLayoutTests, LayoutTest,
