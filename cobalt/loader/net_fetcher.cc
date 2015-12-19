@@ -44,7 +44,10 @@ NetFetcher::NetFetcher(const GURL& url,
                        Handler* handler,
                        const network::NetworkModule* network_module,
                        const Options& options)
-    : Fetcher(handler), security_callback_(security_callback) {
+    : Fetcher(handler),
+      security_callback_(security_callback),
+      ALLOW_THIS_IN_INITIALIZER_LIST(start_callback_(
+          base::Bind(&NetFetcher::Start, base::Unretained(this)))) {
   url_fetcher_.reset(
       net::URLFetcher::Create(url, options.request_method, this));
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
@@ -53,8 +56,7 @@ NetFetcher::NetFetcher(const GURL& url,
   // Delay the actual start until this function is complete. Otherwise we might
   // call handler's callbacks at an unexpected time- e.g. receiving OnError()
   // while a loader is still being constructed.
-  MessageLoop::current()->PostTask(
-      FROM_HERE, base::Bind(&NetFetcher::Start, base::Unretained(this)));
+  MessageLoop::current()->PostTask(FROM_HERE, start_callback_.callback());
 }
 
 void NetFetcher::Start() {
@@ -115,7 +117,10 @@ void NetFetcher::OnURLFetchDownloadData(const net::URLFetcher* source,
   }
 }
 
-NetFetcher::~NetFetcher() { DCHECK(thread_checker_.CalledOnValidThread()); }
+NetFetcher::~NetFetcher() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  start_callback_.Cancel();
+}
 
 }  // namespace loader
 }  // namespace cobalt
