@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!--
+ | The "text-overflow" property only renders when the block container
+ | element has "overflow" set to a value other than "visible".
+ |   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+ -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: Roboto;
+      font-size: 20px;
+    }
+    div {
+      white-space: nowrap;
+      width: 200px;
+      overflow: visible;
+      text-overflow: ellipsis;
+      border: 1px solid #000000;
+}
+  </style>
+</head>
+<body>
+  <div class="containing-block">
+    <div>This is some long text that will not fit in the box</div>
+    <div><span>This is some long text that will not fit in the box</span></div>
+  </div>
+</body>
+</html>

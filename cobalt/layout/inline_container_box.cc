@@ -92,7 +92,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
       0, computed_style()->line_height(), used_font_->GetFontMetrics(),
       should_collapse_leading_white_space_,
       should_collapse_trailing_white_space_, layout_params,
-      cssom::KeywordValue::GetLeft(), cssom::KeywordValue::GetNormal(), 0);
+      cssom::KeywordValue::GetLeft(), cssom::KeywordValue::GetNormal(), 0, 0);
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
@@ -167,7 +167,7 @@ scoped_refptr<Box> InlineContainerBox::TrySplitAt(float available_width,
                                                   bool allow_overflow) {
   DCHECK_GT(GetMarginBoxWidth(), available_width);
 
-  available_width -= margin_left() + border_left_width() + padding_left();
+  available_width -= GetContentBoxLeftEdgeOffsetFromMarginBox();
   if (!allow_overflow && available_width < 0) {
     return scoped_refptr<Box>();
   }
@@ -234,6 +234,25 @@ scoped_refptr<Box> InlineContainerBox::TrySplitAt(float available_width,
   return SplitAtIterator(child_box_iterator);
 }
 
+bool InlineContainerBox::DoesFulfillEllipsisPlacementRequirement() const {
+  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
+       child_box_iterator != child_boxes().end(); ++child_box_iterator) {
+    Box* child_box = *child_box_iterator;
+    if (child_box->DoesFulfillEllipsisPlacementRequirement()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void InlineContainerBox::ResetEllipses() {
+  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
+       child_box_iterator != child_boxes().end(); ++child_box_iterator) {
+    (*child_box_iterator)->ResetEllipses();
+  }
+}
+
 scoped_refptr<Box> InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
   const int kInvalidLevel = -1;
   int last_level = kInvalidLevel;
@@ -278,8 +297,7 @@ scoped_refptr<Box> InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
 
 base::optional<int> InlineContainerBox::GetBidiLevel() const {
   if (!child_boxes().empty()) {
-    Boxes::const_iterator child_box_iterator = child_boxes().begin();
-    return (*child_box_iterator)->GetBidiLevel();
+    return child_boxes().front()->GetBidiLevel();
   }
 
   return base::nullopt;
@@ -362,6 +380,63 @@ void InlineContainerBox::DumpProperties(std::ostream* stream) const {
 }
 
 #endif  // COBALT_BOX_DUMP_ENABLED
+
+void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
+    float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+    float* placed_offset) {
+  bool was_previously_placed = *is_placed;
+
+  // Subtract the content block offset from the desired offset. This box's
+  // children will treat its content box left edge as the base ellipsis offset
+  // position, and the content block offset will be re-added to the placed
+  // offset after the ellipsis is placed. This allows its children to only focus
+  // on their offset from their containing block, and not worry about nested
+  // containing blocks.
+  float content_box_offset = GetContentBoxLeftEdgeOffsetFromContainingBlock();
+  desired_offset -= content_box_offset;
+
+  // If the ellipsis hasn't been previously placed, but the placement
+  // requirement is met and its desired offset comes before the box's content
+  // left edge, then place the ellipsis at its desired position. This can occur
+  // when the desired position falls between the left-most edge of the box and
+  // the left edge of its content.
+  if (!was_previously_placed && *is_placement_requirement_met &&
+      desired_offset <= 0) {
+    *is_placed = true;
+    *placed_offset = desired_offset;
+  }
+
+  // Walk each box within the line in order attempting to place the ellipsis
+  // and update the box's ellipsis state. Even after the ellipsis is placed,
+  // subsequent boxes must still be processed, as their state my change as
+  // a result of having an ellipsis preceding them on the line.
+  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
+       child_box_iterator != child_boxes().end(); ++child_box_iterator) {
+    Box* child_box = *child_box_iterator;
+    child_box->TryPlaceEllipsisOrProcessPlacedEllipsis(
+        desired_offset, is_placement_requirement_met, is_placed, placed_offset);
+  }
+
+  // If the ellipsis had not previously been placed prior to
+  // DoPlaceEllipsisOrProcessPlacedEllipsis() being called, then it is
+  // guaranteed that the placement is occurring within this box. At the very
+  // least, the box's content block offset needs to be added to the placed
+  // offset, so that the offset again references this box's containing block,
+  // and potentially the ellipsis still needs to be placed.
+  if (!was_previously_placed) {
+    // If the ellipsis hasn't been placed yet, then place the ellipsis at its
+    // desired position. This case can occur when the desired position falls
+    // between the right edge of the box's content and its right-most edge. In
+    // this case, |is_placement_requirement_met| does not need to be checked, as
+    // it is guaranteed that one of the child boxes met the requirement.
+    if (!(*is_placed)) {
+      *is_placed = true;
+      *placed_offset = desired_offset;
+    }
+
+    *placed_offset += content_box_offset;
+  }
+}
 
 scoped_refptr<Box> InlineContainerBox::SplitAtIterator(
     Boxes::const_iterator child_split_iterator) {

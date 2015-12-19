@@ -17,6 +17,8 @@
 #ifndef LAYOUT_INLINE_FORMATTING_CONTEXT_H_
 #define LAYOUT_INLINE_FORMATTING_CONTEXT_H_
 
+#include <vector>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
@@ -55,7 +57,7 @@ class InlineFormattingContext : public FormattingContext {
       const LayoutParams& layout_params,
       const scoped_refptr<cssom::PropertyValue>& text_align,
       const scoped_refptr<cssom::PropertyValue>& white_space,
-      float text_indent_offset);
+      float text_indent_offset, float ellipsis_width);
   ~InlineFormattingContext() OVERRIDE;
 
   // Asynchronously calculates the position and size of the given child box and
@@ -76,6 +78,8 @@ class InlineFormattingContext : public FormattingContext {
   // boxes is completed.
   void EndUpdates();
 
+  const std::vector<math::Vector2dF>& GetEllipsesCoordinates() const;
+
   // WARNING: All public getters from |FormattingContext| may be called only
   //          after |EndUpdates|.
 
@@ -92,6 +96,7 @@ class InlineFormattingContext : public FormattingContext {
   const scoped_refptr<cssom::PropertyValue> text_align_;
   const scoped_refptr<cssom::PropertyValue> white_space_;
   float text_indent_offset_;
+  float ellipsis_width_;
 
   // The inline formatting context only keeps the last line box, which may be
   // NULL if no child boxes were seen.
@@ -102,6 +107,8 @@ class InlineFormattingContext : public FormattingContext {
 
   // A width of the block container box when all possible line breaks are made.
   float preferred_min_width_;
+
+  std::vector<math::Vector2dF> ellipses_coordinates_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineFormattingContext);
 };

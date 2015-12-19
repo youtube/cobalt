@@ -22,6 +22,12 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+
+const char* kHorizontalEllipsisUtf8Value = "\xe2\x80\xa6";
+
+}  // namespace
+
 FontListFont::FontListFont(const std::string& family_name)
     : family_name_(family_name),
       state_(kUnrequestedState),
@@ -46,7 +52,9 @@ FontList::FontList(FontCache* font_cache, const FontListKey& font_list_key)
       is_font_metrics_set_(false),
       font_metrics_(0, 0, 0, 0),
       is_space_width_set_(false),
-      space_width_(0) {
+      space_width_(0),
+      is_ellipsis_info_set_(false),
+      ellipsis_width_(0) {
   // Add all of the family names to the font list fonts.
   for (size_t i = 0; i < font_list_key.family_names.size(); ++i) {
     fonts_.push_back(FontListFont(font_list_key.family_names[i]));
@@ -80,6 +88,8 @@ void FontList::ResetLoadingFonts() {
         primary_font_ = NULL;
         is_font_metrics_set_ = false;
         is_space_width_set_ = false;
+        is_ellipsis_info_set_ = false;
+        ellipsis_font_ = NULL;
       }
     } else if (font_list_font.state() == FontListFont::kLoadedState) {
       found_loaded_font = true;
@@ -166,6 +176,20 @@ float FontList::GetSpaceWidth() {
   }
 
   return space_width_;
+}
+
+std::string FontList::GetEllipsisString() const {
+  return kHorizontalEllipsisUtf8Value;
+}
+
+const scoped_refptr<render_tree::Font>& FontList::GetEllipsisFont() {
+  GenerateEllipsisInfo();
+  return ellipsis_font_;
+}
+
+float FontList::GetEllipsisWidth() {
+  GenerateEllipsisInfo();
+  return ellipsis_width_;
 }
 
 void FontList::RequestFont(size_t index) {
@@ -275,6 +299,16 @@ const scoped_refptr<render_tree::Font>& FontList::GetCharacterFont(
   // returned to the caller.
   return fallback_typeface_to_font_map_[fallback_typeface_id] =
              font_cache_->GetFallbackFont(fallback_typeface_id, size_);
+}
+
+void FontList::GenerateEllipsisInfo() {
+  if (!is_ellipsis_info_set_) {
+    is_ellipsis_info_set_ = true;
+    std::string ellipsis_string(kHorizontalEllipsisUtf8Value);
+    ellipsis_font_ =
+        GetCharacterFont(base::i18n::UTF8CharIterator(&ellipsis_string).get());
+    ellipsis_width_ = ellipsis_font_->GetBounds(ellipsis_string).width();
+  }
 }
 
 }  // namespace dom

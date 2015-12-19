@@ -16,6 +16,8 @@
 
 #include "cobalt/layout/block_formatting_block_container_box.h"
 
+#include <algorithm>
+
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/anonymous_block_box.h"
@@ -127,12 +129,29 @@ InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
     : BlockFormattingBlockContainerBox(computed_style_state,
                                        used_style_provider),
       paragraph_(paragraph),
-      text_position_(text_position) {}
+      text_position_(text_position),
+      is_hidden_by_ellipsis_(false) {}
 
 InlineLevelBlockContainerBox::~InlineLevelBlockContainerBox() {}
 
 Box::Level InlineLevelBlockContainerBox::GetLevel() const {
   return kInlineLevel;
+}
+
+bool InlineLevelBlockContainerBox::DoesFulfillEllipsisPlacementRequirement()
+    const {
+  // This box fulfills the requirement that the first character or inline-level
+  // element must appear on the line before ellipsing can occur.
+  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  return true;
+}
+
+void InlineLevelBlockContainerBox::ResetEllipses() {
+  is_hidden_by_ellipsis_ = false;
+}
+
+bool InlineLevelBlockContainerBox::IsHiddenByEllipsis() const {
+  return is_hidden_by_ellipsis_;
 }
 
 base::optional<int> InlineLevelBlockContainerBox::GetBidiLevel() const {
@@ -153,6 +172,37 @@ void InlineLevelBlockContainerBox::DumpProperties(std::ostream* stream) const {
 }
 
 #endif  // COBALT_BOX_DUMP_ENABLED
+
+void InlineLevelBlockContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
+    float /*desired_offset*/, bool* is_placement_requirement_met,
+    bool* is_placed, float* placed_offset) {
+  // If the ellipsis is already placed, then simply mark the box as hidden by
+  // the ellipsis: "Implementations must hide characters and atomic inline-level
+  // elements at the applicable edge(s) of the line as necessary to fit the
+  // ellipsis."
+  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  if (*is_placed) {
+    is_hidden_by_ellipsis_ = true;
+    // Otherwise, the box is placing the ellipsis.
+  } else {
+    *is_placed = true;
+
+    // The first character or atomic inline-level element on a line must be
+    // clipped rather than ellipsed.
+    //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    // If this requirement has been met, then place the ellipsis to the left of
+    // the atomic inline-level element, as it should be fully hidden.
+    if (*is_placement_requirement_met) {
+      *placed_offset = left();
+      is_hidden_by_ellipsis_ = true;
+      // Otherwise, this box is fulfilling the required first inline-level
+      // element and the ellipsis must be added after the box, rather than
+      // before it.
+    } else {
+      *placed_offset = GetMarginBoxRightEdgeOffsetFromContainingBlock();
+    }
+  }
+}
 
 }  // namespace layout
 }  // namespace cobalt
