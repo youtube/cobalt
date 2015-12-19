@@ -139,11 +139,11 @@ float Box::GetMarginBoxTopEdge() const {
   return top() + top_from_containing_block;
 }
 
-float Box::GetRightMarginEdgeOffsetFromContainingBlock() const {
+float Box::GetMarginBoxRightEdgeOffsetFromContainingBlock() const {
   return left() + GetMarginBoxWidth();
 }
 
-float Box::GetBottomMarginEdgeOffsetFromContainingBlock() const {
+float Box::GetMarginBoxBottomEdgeOffsetFromContainingBlock() const {
   return top() + GetMarginBoxHeight();
 }
 
@@ -188,8 +188,24 @@ float Box::GetPaddingBoxTopEdge() const {
 }
 
 math::Vector2dF Box::GetContentBoxOffsetFromMarginBox() const {
-  return math::Vector2dF(margin_left() + border_left_width() + padding_left(),
-                         margin_top() + border_top_width() + padding_top());
+  return math::Vector2dF(GetContentBoxLeftEdgeOffsetFromMarginBox(),
+                         GetContentBoxTopEdgeOffsetFromMarginBox());
+}
+
+float Box::GetContentBoxLeftEdgeOffsetFromMarginBox() const {
+  return margin_left() + border_left_width() + padding_left();
+}
+
+float Box::GetContentBoxTopEdgeOffsetFromMarginBox() const {
+  return margin_top() + border_top_width() + padding_top();
+}
+
+float Box::GetContentBoxLeftEdgeOffsetFromContainingBlock() const {
+  return left() + GetContentBoxLeftEdgeOffsetFromMarginBox();
+}
+
+float Box::GetContentBoxTopEdgeOffsetFromContainingBlock() const {
+  return top() + GetContentBoxTopEdgeOffsetFromMarginBox();
 }
 
 float Box::GetContentBoxLeftEdge() const {
@@ -198,6 +214,45 @@ float Box::GetContentBoxLeftEdge() const {
 
 float Box::GetContentBoxTopEdge() const {
   return GetPaddingBoxTopEdge() + padding_top();
+}
+
+void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
+    float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+    float* placed_offset) {
+  // Ellipsis placement should only occur in inline level boxes.
+  DCHECK(GetLevel() == kInlineLevel);
+
+  // Check for whether this box or a previous box meets the placement
+  // requirement that the first character or atomic inline-level element on a
+  // line must appear before the ellipsis
+  // (http://www.w3.org/TR/css3-ui/#propdef-text-overflow).
+  // NOTE: 'Meet' is used in this context to to indicate that either this box or
+  // a previous box within the line fulfilled the placement requirement.
+  // 'Fulfill' only refers to the specific box and does not take into account
+  // previous boxes within the line.
+  bool box_meets_placement_requirement =
+      *is_placement_requirement_met ||
+      DoesFulfillEllipsisPlacementRequirement();
+
+  // If the box was already placed or meets the placement requirement and
+  // contains the offset desired by the ellipsis, then call
+  // DoPlaceEllipsisOrProcessPlacedEllipsis(), which handles both determining
+  // the actual placement position and updating the  ellipsis-related box state.
+  // While the box meeting the placement requirement is included in the initial
+  // check, it is not included in DoPlaceEllipsisOrProcessPlacedEllipsis(), as
+  // DoPlaceEllipsisOrProcessPlacedEllipsis() needs to know whether or not the
+  // placement requirement was met in a previous box.
+  if (*is_placed ||
+      (desired_offset <= GetMarginBoxRightEdgeOffsetFromContainingBlock() &&
+       box_meets_placement_requirement)) {
+    DoPlaceEllipsisOrProcessPlacedEllipsis(
+        desired_offset, is_placement_requirement_met, is_placed, placed_offset);
+  }
+
+  // Update |is_placement_requirement_met| with whether or not this box met
+  // the placement requirement, so that later boxes will know that they don't
+  // need to fulfill it themselves.
+  *is_placement_requirement_met = box_meets_placement_requirement;
 }
 
 void Box::RenderAndAnimate(
@@ -211,6 +266,14 @@ void Box::RenderAndAnimate(
   if (opacity <= 0.0f && !opacity_animated) {
     // If the box has 0 opacity, and opacity is not animated, then we do not
     // need to proceed any farther, the box is invisible.
+    return;
+  }
+
+  // If a box is hidden by an ellipsis, then it and its children are hidden:
+  // Implementations must hide characters and atomic inline-level elements at
+  // the applicable edge(s) of the line as necessary to fit the ellipsis.
+  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  if (IsHiddenByEllipsis()) {
     return;
   }
 

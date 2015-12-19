@@ -56,7 +56,7 @@ class LineBox {
           const LayoutParams& layout_params,
           const scoped_refptr<cssom::PropertyValue>& text_align,
           const scoped_refptr<cssom::PropertyValue>& white_space,
-          float indent_offset);
+          float indent_offset, float ellipsis_width);
 
   float top() const { return top_; }
 
@@ -94,6 +94,9 @@ class LineBox {
   // Whether all boxes on the line are collapsed.
   bool IsCollapsed() const;
 
+  bool IsEllipsisPlaced() const;
+  math::Vector2dF GetEllipsisCoordinates() const;
+
   // Line boxes that contain no text, no preserved white space, no inline
   // elements with non-zero margins, padding, or borders, and no other in-flow
   // content must be treated as zero-height line boxes for the purposes
@@ -128,6 +131,8 @@ class LineBox {
   void UpdateChildBoxLeftPositions();
   void SetLineBoxHeightFromChildBoxes();
   void UpdateChildBoxTopPositions();
+  void MaybePlaceEllipsis();
+
   float GetHeightAboveMiddleAlignmentPoint(Box* child_box);
 
   const float top_;
@@ -139,6 +144,7 @@ class LineBox {
   const scoped_refptr<cssom::PropertyValue> text_align_;
   const bool is_text_wrapping_disabled_;
   const float indent_offset_;
+  const float ellipsis_width_;
 
   bool at_end_;
   bool line_exists_;
@@ -156,6 +162,9 @@ class LineBox {
   float shrink_to_fit_width_;
   float height_;
   float baseline_offset_from_top_;
+
+  bool is_ellipsis_placed_;
+  float placed_ellipsis_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(LineBox);
 };

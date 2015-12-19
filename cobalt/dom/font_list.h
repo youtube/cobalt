@@ -173,6 +173,16 @@ class FontList : public base::RefCounted<FontList> {
   const render_tree::FontMetrics& GetFontMetrics();
   float GetSpaceWidth();
 
+  // Returns the UTF-8 string that signifies an ellipsis code point.
+  std::string GetEllipsisString() const;
+  // Returns the first font in the font-list that supports the ellipsis code
+  // point. In the case where the ellipsis font has not already been calculated,
+  // it lazily generates it.
+  const scoped_refptr<render_tree::Font>& GetEllipsisFont();
+  // Returns the width of the ellipsis in the ellipsis font. In the case where
+  // the width has not already been calculated, it lazily generates it.
+  float GetEllipsisWidth();
+
   render_tree::FontStyle style() const { return style_; }
   float size() const { return size_; }
 
@@ -201,9 +211,12 @@ class FontList : public base::RefCounted<FontList> {
   const scoped_refptr<render_tree::Font>& GetCharacterFont(
       int32 utf32_character);
 
+  // Lazily generates the ellipsis ellipsis font and ellipsis width. If the info
+  // is already generated, it is immediately returned.
+  void GenerateEllipsisInfo();
+
   // The font cache, which provides both font family fonts and character
-  // fallback
-  // fonts to the font list.
+  // fallback fonts to the font list.
   FontCache* const font_cache_;
 
   FontListFonts fonts_;
@@ -222,6 +235,11 @@ class FontList : public base::RefCounted<FontList> {
   // Space width is lazily generated the first time it is requested.
   bool is_space_width_set_;
   float space_width_;
+
+  // The ellipsis info is lazily generated the first time it is requested.
+  bool is_ellipsis_info_set_;
+  scoped_refptr<render_tree::Font> ellipsis_font_;
+  float ellipsis_width_;
 
   // This is a mapping of a unique typeface id to a specific font for use with
   // character fallback. This allows the font list to request the typeface id

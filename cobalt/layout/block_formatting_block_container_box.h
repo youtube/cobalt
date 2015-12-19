@@ -102,6 +102,10 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
   Level GetLevel() const OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
+  bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
+  void ResetEllipses() OVERRIDE;
+  bool IsHiddenByEllipsis() const OVERRIDE;
+
  protected:
   // From |Box|.
 #ifdef COBALT_BOX_DUMP_ENABLED
@@ -110,8 +114,20 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
+  // From |Box|.
+  void DoPlaceEllipsisOrProcessPlacedEllipsis(
+      float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+      float* placed_offset) OVERRIDE;
+
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;
+
+  // This flag indicates that the box is fully hidden by the ellipsis and it,
+  // along with its contents will not be visible.
+  // "Implementations must hide characters and atomic inline-level elements at
+  // the applicable edge(s) of the line as necessary to fit the ellipsis."
+  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  bool is_hidden_by_ellipsis_;
 };
 
 }  // namespace layout
