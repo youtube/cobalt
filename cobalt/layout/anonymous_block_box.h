@@ -17,6 +17,8 @@
 #ifndef LAYOUT_ANONYMOUS_BLOCK_BOX_H_
 #define LAYOUT_ANONYMOUS_BLOCK_BOX_H_
 
+#include <vector>
+
 #include "cobalt/dom/font_list.h"
 #include "cobalt/layout/block_container_box.h"
 #include "cobalt/layout/box.h"
@@ -42,6 +44,11 @@ class AnonymousBlockBox : public BlockContainerBox {
 
   bool HasTrailingLineBreak() const OVERRIDE;
 
+  void RenderAndAnimateContent(
+      render_tree::CompositionNode::Builder* border_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const OVERRIDE;
+
   // From |ContainerBox|.
 
   // This method should never be called, instead all children have to be added
@@ -64,8 +71,16 @@ class AnonymousBlockBox : public BlockContainerBox {
       const LayoutParams& child_layout_params) OVERRIDE;
 
  private:
+  bool AreEllipsesEnabled() const;
+
+  typedef std::vector<math::Vector2dF> EllipsesCoordinates;
+
   // A font used for text width and line height calculations.
   const scoped_refptr<dom::FontList> used_font_;
+
+  // The XY coordinates of all ellipses placed while laying out the anonymous
+  // block box within an inline formatting context.
+  EllipsesCoordinates ellipses_coordinates_;
 };
 
 }  // namespace layout

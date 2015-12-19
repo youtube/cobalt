@@ -37,7 +37,7 @@ LineBox::LineBox(float top,
                  const LayoutParams& layout_params,
                  const scoped_refptr<cssom::PropertyValue>& text_align,
                  const scoped_refptr<cssom::PropertyValue>& white_space,
-                 float indent_offset)
+                 float indent_offset, float ellipsis_width)
     : top_(top),
       line_height_(line_height),
       font_metrics_(font_metrics),
@@ -50,11 +50,14 @@ LineBox::LineBox(float top,
                                      cssom::KeywordValue::GetNoWrap() ||
                                  white_space == cssom::KeywordValue::GetPre()),
       indent_offset_(indent_offset),
+      ellipsis_width_(ellipsis_width),
       at_end_(false),
       line_exists_(false),
       shrink_to_fit_width_(indent_offset_),
       height_(0),
-      baseline_offset_from_top_(0) {}
+      baseline_offset_from_top_(0),
+      is_ellipsis_placed_(false),
+      placed_ellipsis_offset_(0) {}
 
 bool LineBox::TryBeginUpdateRectAndMaybeSplit(
     Box* child_box, scoped_refptr<Box>* child_box_after_split) {
@@ -176,6 +179,7 @@ void LineBox::EndUpdates() {
   UpdateChildBoxLeftPositions();
   SetLineBoxHeightFromChildBoxes();
   UpdateChildBoxTopPositions();
+  MaybePlaceEllipsis();
 }
 
 bool LineBox::HasLeadingWhiteSpace() const {
@@ -192,6 +196,13 @@ bool LineBox::HasTrailingWhiteSpace() const {
 
 bool LineBox::IsCollapsed() const {
   return !first_non_collapsed_child_box_index_;
+}
+
+bool LineBox::IsEllipsisPlaced() const { return is_ellipsis_placed_; }
+
+math::Vector2dF LineBox::GetEllipsisCoordinates() const {
+  return math::Vector2dF(placed_ellipsis_offset_,
+                         top_ + baseline_offset_from_top_);
 }
 
 float LineBox::GetAvailableWidth() const {
@@ -377,7 +388,8 @@ void LineBox::UpdateChildBoxLeftPositions() {
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     child_box->set_left(child_box_left);
-    child_box_left = child_box->GetRightMarginEdgeOffsetFromContainingBlock();
+    child_box_left =
+        child_box->GetMarginBoxRightEdgeOffsetFromContainingBlock();
   }
 }
 
@@ -508,6 +520,44 @@ void LineBox::UpdateChildBoxTopPositions() {
       NOTREACHED() << "Unsupported vertical_align property value";
     }
     child_box->set_top(top_ + child_top);
+  }
+}
+
+void LineBox::MaybePlaceEllipsis() {
+  // Check to see if an ellipsis should be placed, which is only the case when a
+  // non-zero width ellipsis is available and the line box has overflowed the
+  // containing block.
+  if (ellipsis_width_ > 0 &&
+      shrink_to_fit_width_ > layout_params_.containing_block_size.width()) {
+    // Determine the preferred offset for the ellipsis:
+    // - The preferred offset defaults to the end line box edge minus the width
+    //   of the ellipsis, which ensures that the full ellipsis appears within
+    //   the unclipped portion of the line.
+    // - However, if there is insufficient space for the ellipsis, the preferred
+    //   offset is set to 0, rather than a negative value, thereby ensuring that
+    //   the ellipsis itself is clipped at the end line box edge.
+    // http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    float preferred_offset = std::max<float>(
+        layout_params_.containing_block_size.width() - ellipsis_width_, 0);
+
+    // Whether or not a character or atomic inline-level element has been
+    // encountered within the boxes already checked on the line. The ellipsis
+    // cannot be placed at an offset that precedes the first character or atomic
+    // inline-level element on a line.
+    // http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    bool is_placement_requirement_met = false;
+
+    // Walk each box within the line in order attempting to place the ellipsis
+    // and update the box's ellipsis state. Even after the ellipsis is placed,
+    // subsequent boxes must still be processed, as their state my change as
+    // a result of having an ellipsis preceding them on the line.
+    for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+         child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+      Box* child_box = *child_box_iterator;
+      child_box->TryPlaceEllipsisOrProcessPlacedEllipsis(
+          preferred_offset, &is_placement_requirement_met, &is_ellipsis_placed_,
+          &placed_ellipsis_offset_);
+    }
   }
 }
 

@@ -16,6 +16,7 @@
 
 #include "cobalt/layout/text_box.h"
 
+#include <algorithm>
 #include <limits>
 
 #include "cobalt/cssom/keyword_value.h"
@@ -36,6 +37,7 @@ TextBox::TextBox(
       paragraph_(paragraph),
       text_start_position_(text_start_position),
       text_end_position_(text_end_position),
+      truncated_text_end_position_(text_end_position),
       used_font_(used_style_provider->GetUsedFontList(
           computed_style_state->style()->font_family(),
           computed_style_state->style()->font_size(),
@@ -112,24 +114,36 @@ scoped_refptr<Box> TextBox::TrySplitAt(float available_width,
   // removed from the available width.
   available_width -= GetLeadingWhiteSpaceWidth();
   int32 start_position = GetNonCollapsibleTextStartPosition();
-  int32 split_position = start_position;
-  float split_width = 0;
+  int32 split_position;
+  float split_width;
 
-  Paragraph::OverflowWrap overflow_wrap;
+  Paragraph::BreakPolicy break_policy;
   if (computed_style()->overflow_wrap() ==
       cssom::KeywordValue::GetBreakWord()) {
-    overflow_wrap = Paragraph::kBreakWordOverflowWrap;
+    break_policy = Paragraph::kSoftWrapWithBreakWordOnOverflow;
   } else {
-    overflow_wrap = Paragraph::kSoftWrapOverflowWrap;
+    break_policy = Paragraph::kSoftWrap;
   }
 
-  if (paragraph_->CalculateBreakPosition(
+  if (paragraph_->FindBreakPosition(
           used_font_, start_position, text_end_position_, available_width,
-          allow_overflow, overflow_wrap, &split_position, &split_width)) {
+          allow_overflow, break_policy, &split_position, &split_width)) {
     return SplitAtPosition(split_position);
   }
 
   return scoped_refptr<Box>();
+}
+
+bool TextBox::DoesFulfillEllipsisPlacementRequirement() const {
+  // This box has non-collapsed text and fulfills the requirement that the first
+  // character or inline-level element must appear on the line before ellipsing
+  // can occur if it has non-collapsed characters.
+  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  return GetNonCollapsedTextStartPosition() < GetNonCollapsedTextEndPosition();
+}
+
+void TextBox::ResetEllipses() {
+  truncated_text_end_position_ = text_end_position_;
 }
 
 void TextBox::SplitBidiLevelRuns() {}
@@ -219,12 +233,12 @@ void TextBox::RenderAndAnimateContent(
   // transparently with fallback fonts to avoid a flash of text using a fallback
   // font."
   //   http://www.w3.org/TR/css3-fonts/#font-face-loading
-  if (HasNonCollapsibleText() && !used_font_->HasLoadingFont()) {
+  if (HasVisibleText() && !used_font_->HasLoadingFont()) {
     render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
     // Only render the text if it is not completely transparent.
     if (used_color.a() > 0.0f) {
-      std::string text = GetNonCollapsibleText();
+      std::string text = GetVisibleText();
       dom::FontRunList font_run_list;
       used_font_->GenerateFontRunList(text, &font_run_list);
 
@@ -282,6 +296,57 @@ void TextBox::DumpChildrenWithIndent(std::ostream* stream, int indent) const {
 }
 
 #endif  // COBALT_BOX_DUMP_ENABLED
+
+void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
+    float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+    float* placed_offset) {
+  // If the ellipsis has already been placed, then the text is fully truncated
+  // by the ellipsis.
+  if (*is_placed) {
+    truncated_text_end_position_ = text_start_position_;
+    return;
+  }
+
+  // Otherwise, the ellipsis is being placed somewhere within this text box.
+  *is_placed = true;
+
+  // Initially subtract the box's offset from the containing block from the
+  // ellipsis's desired offset. Paragraph::FindBreakPosition() searches for
+  // a break position from the start of the non-collapsed portion of the the
+  // box's text, and not from the start of the containing block.
+  float content_box_offset = GetContentBoxLeftEdgeOffsetFromContainingBlock();
+  desired_offset -= content_box_offset;
+
+  int32 start_position = GetNonCollapsedTextStartPosition();
+  int32 end_position = GetNonCollapsedTextEndPosition();
+  int32 found_position;
+  float found_offset;
+
+  // Attempt to find a break position allowing breaks anywhere within the text,
+  // and not simply at soft wrap locations. If the placement requirement has
+  // already been satisfied, then the ellipsis can appear anywhere within the
+  // text box. Otherwise, it can only appear after the first character
+  // (http://www.w3.org/TR/css3-ui/#propdef-text-overflow).
+  if (paragraph_->FindBreakPosition(
+          used_font_, start_position, end_position, desired_offset,
+          !(*is_placement_requirement_met), Paragraph::kBreakWord,
+          &found_position, &found_offset)) {
+    *placed_offset = found_offset + content_box_offset;
+    truncated_text_end_position_ = found_position;
+    // An acceptable break position was not found. If the placement requirement
+    // was already met prior to this box, then the ellipsis doesn't  require a
+    // character from this box to appear prior to its position, so simply place
+    // the ellipsis at the left edge of the box and fully truncate the text.
+  } else if (is_placement_requirement_met) {
+    *placed_offset = left();
+    truncated_text_end_position_ = text_start_position_;
+    // The placement requirement has not already been met. Given that an
+    // acceptable break position was not found within the text, the ellipsis can
+    // only be placed at the right edge of the box.
+  } else {
+    *placed_offset = GetMarginBoxRightEdgeOffsetFromContainingBlock();
+  }
+}
 
 bool TextBox::WhiteSpaceStyleAllowsCollapsing() {
   return computed_style()->white_space() != cssom::KeywordValue::GetPre();
@@ -347,6 +412,18 @@ float TextBox::GetTrailingWhiteSpaceWidth() const {
              : 0;
 }
 
+int32 TextBox::GetNonCollapsedTextStartPosition() const {
+  return should_collapse_leading_white_space_
+             ? GetNonCollapsibleTextStartPosition()
+             : text_start_position_;
+}
+
+int32 TextBox::GetNonCollapsedTextEndPosition() const {
+  return should_collapse_trailing_white_space_
+             ? GetNonCollapsibleTextEndPosition()
+             : text_end_position_;
+}
+
 int32 TextBox::GetNonCollapsibleTextStartPosition() const {
   return text_has_leading_white_space_ ? text_start_position_ + 1
                                        : text_start_position_;
@@ -365,6 +442,21 @@ bool TextBox::HasNonCollapsibleText() const {
 std::string TextBox::GetNonCollapsibleText() const {
   return paragraph_->RetrieveUtf8SubString(GetNonCollapsibleTextStartPosition(),
                                            GetNonCollapsibleTextEndPosition(),
+                                           Paragraph::kVisualTextOrder);
+}
+
+int32 TextBox::GetVisibleTextEndPosition() const {
+  return std::min(GetNonCollapsibleTextEndPosition(),
+                  truncated_text_end_position_);
+}
+
+bool TextBox::HasVisibleText() const {
+  return GetNonCollapsibleTextStartPosition() < GetVisibleTextEndPosition();
+}
+
+std::string TextBox::GetVisibleText() const {
+  return paragraph_->RetrieveUtf8SubString(GetNonCollapsibleTextStartPosition(),
+                                           GetVisibleTextEndPosition(),
                                            Paragraph::kVisualTextOrder);
 }
 
