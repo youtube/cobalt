@@ -19,8 +19,7 @@
 
 #include <string>
 
-#include "base/callback.h"
-#include "base/compiler_specific.h"
+#include "base/cancelable_callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -67,6 +66,9 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   base::ThreadChecker thread_checker_;
   scoped_ptr<net::URLFetcher> url_fetcher_;
   csp::SecurityCallback security_callback_;
+  // Ensure we can cancel any in-flight Start() task if we are destroyed
+  // after being constructed, but before Start() runs.
+  base::CancelableClosure start_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);
 };
