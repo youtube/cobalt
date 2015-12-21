@@ -26,8 +26,8 @@
     # preprocessor to assemble an include file path, so we have to do the
     # concatenation here in GYP.
     # http://stackoverflow.com/questions/29601786/c-preprocessor-building-a-path-string
-    'STARBOARD_ATOMIC_INCLUDE="starboard/<(target_arch)/atomic.h"',
-    'STARBOARD_CONFIGURATION_INCLUDE="starboard/<(target_arch)/configuration.h"',
-    'STARBOARD_THREAD_TYPES_INCLUDE="starboard/<(target_arch)/thread_types.h"',
+    'STARBOARD_ATOMIC_INCLUDE="starboard/<(target_arch)/atomic_public.h"',
+    'STARBOARD_CONFIGURATION_INCLUDE="starboard/<(target_arch)/configuration_public.h"',
+    'STARBOARD_THREAD_TYPES_INCLUDE="starboard/<(target_arch)/thread_types_public.h"',
   ],
 }
