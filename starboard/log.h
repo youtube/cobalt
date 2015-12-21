@@ -130,30 +130,30 @@ struct CompileAssert {};
 }  // namespace logging
 }  // namespace starboard
 
-#define SB_COMPILE_ASSERT(expr, msg)                                   \
-  typedef starboard::logging::CompileAssert<(static_cast<bool>(expr))> \
+#define SB_COMPILE_ASSERT(expr, msg)                                     \
+  typedef ::starboard::logging::CompileAssert<(static_cast<bool>(expr))> \
       msg[static_cast<bool>(expr) ? 1 : -1]
 
-#define SB_LOG_MESSAGE_INFO                          \
-  starboard::logging::LogMessage(__FILE__, __LINE__, \
-                                 starboard::logging::SB_LOG_INFO)
-#define SB_LOG_MESSAGE_WARNING                       \
-  starboard::logging::LogMessage(__FILE__, __LINE__, \
-                                 starboard::logging::SB_LOG_WARNING)
-#define SB_LOG_MESSAGE_ERROR                         \
-  starboard::logging::LogMessage(__FILE__, __LINE__, \
-                                 starboard::logging::SB_LOG_ERROR)
-#define SB_LOG_MESSAGE_FATAL                         \
-  starboard::logging::LogMessage(__FILE__, __LINE__, \
-                                 starboard::logging::SB_LOG_FATAL)
+#define SB_LOG_MESSAGE_INFO                            \
+  ::starboard::logging::LogMessage(__FILE__, __LINE__, \
+                                   ::starboard::logging::SB_LOG_INFO)
+#define SB_LOG_MESSAGE_WARNING                         \
+  ::starboard::logging::LogMessage(__FILE__, __LINE__, \
+                                   ::starboard::logging::SB_LOG_WARNING)
+#define SB_LOG_MESSAGE_ERROR                           \
+  ::starboard::logging::LogMessage(__FILE__, __LINE__, \
+                                   ::starboard::logging::SB_LOG_ERROR)
+#define SB_LOG_MESSAGE_FATAL                           \
+  ::starboard::logging::LogMessage(__FILE__, __LINE__, \
+                                   ::starboard::logging::SB_LOG_FATAL)
 
 #define SB_LOG_STREAM(severity) SB_LOG_MESSAGE_##severity.stream()
 #define SB_LAZY_STREAM(stream, condition) \
-  !(condition) ? (void)0 : starboard::logging::LogMessageVoidify() & (stream)
+  !(condition) ? (void)0 : ::starboard::logging::LogMessageVoidify() & (stream)
 
-#define SB_LOG_IS_ON(severity)                \
-  ((starboard::logging::SB_LOG_##severity) >= \
-    starboard::logging::GetMinLogLevel())
+#define SB_LOG_IS_ON(severity)                  \
+  ((::starboard::logging::SB_LOG_##severity) >= \
+   ::starboard::logging::GetMinLogLevel())
 #define SB_LOG_IF(severity, condition) \
   SB_LAZY_STREAM(SB_LOG_STREAM(severity), SB_LOG_IS_ON(severity) && (condition))
 #define SB_LOG(severity) SB_LOG_IF(severity, true)
@@ -164,7 +164,7 @@ struct CompileAssert {};
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD
 #define SB_CHECK(condition) \
-  !(condition) ? starboard::logging::Break() : SB_EAT_STREAM_PARAMETERS
+  !(condition) ? ::starboard::logging::Break() : SB_EAT_STREAM_PARAMETERS
 #define SB_DCHECK(condition) SB_EAT_STREAM_PARAMETERS
 #elif defined(_PREFAST_)
 #define SB_CHECK(condition) \

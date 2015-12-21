@@ -43,6 +43,9 @@
       'dependencies': [
         '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
       ],
+      'export_dependent_settings': [
+        '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
+      ],
     },
   ],
 }
