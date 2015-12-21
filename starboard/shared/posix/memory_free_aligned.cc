@@ -14,7 +14,8 @@
 
 #include "starboard/memory.h"
 
-#include <malloc.h>
+// Some platforms declare memory functions in stdlib.h instead of malloc.h.
+#include <stdlib.h>
 
 void SbMemoryFreeAligned(void* memory) {
   return free(memory);

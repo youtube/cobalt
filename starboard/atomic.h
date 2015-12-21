@@ -119,7 +119,7 @@ SB_C_FORCE_INLINE SbAtomicPtr
 SbAtomicNoBarrier_CompareAndSwapPtr(volatile SbAtomicPtr* ptr,
                                     SbAtomicPtr old_value,
                                     SbAtomicPtr new_value) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicNoBarrier_CompareAndSwap64(ptr, old_value, new_value);
 #else
   return SbAtomicNoBarrier_CompareAndSwap(ptr, old_value, new_value);
@@ -129,7 +129,7 @@ SbAtomicNoBarrier_CompareAndSwapPtr(volatile SbAtomicPtr* ptr,
 SB_C_FORCE_INLINE SbAtomicPtr
 SbAtomicNoBarrier_ExchangePtr(volatile SbAtomicPtr* ptr,
                               SbAtomicPtr new_value) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicNoBarrier_Exchange64(ptr, new_value);
 #else
   return SbAtomicNoBarrier_Exchange(ptr, new_value);
@@ -139,7 +139,7 @@ SbAtomicNoBarrier_ExchangePtr(volatile SbAtomicPtr* ptr,
 SB_C_FORCE_INLINE SbAtomicPtr
 SbAtomicNoBarrier_IncrementPtr(volatile SbAtomicPtr* ptr,
                                SbAtomicPtr increment) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicNoBarrier_Increment64(ptr, increment);
 #else
   return SbAtomicNoBarrier_Increment(ptr, increment);
@@ -148,7 +148,7 @@ SbAtomicNoBarrier_IncrementPtr(volatile SbAtomicPtr* ptr,
 
 SB_C_FORCE_INLINE SbAtomicPtr
 SbAtomicBarrier_IncrementPtr(volatile SbAtomicPtr* ptr, SbAtomicPtr increment) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicBarrier_Increment64(ptr, increment);
 #else
   return SbAtomicBarrier_Increment(ptr, increment);
@@ -159,7 +159,7 @@ SB_C_FORCE_INLINE SbAtomicPtr
 SbAtomicAcquire_CompareAndSwapPtr(volatile SbAtomicPtr* ptr,
                                   SbAtomicPtr old_value,
                                   SbAtomicPtr new_value) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicAcquire_CompareAndSwap64(ptr, old_value, new_value);
 #else
   return SbAtomicAcquire_CompareAndSwap(ptr, old_value, new_value);
@@ -170,7 +170,7 @@ SB_C_FORCE_INLINE SbAtomicPtr
 SbAtomicRelease_CompareAndSwapPtr(volatile SbAtomicPtr* ptr,
                                   SbAtomicPtr old_value,
                                   SbAtomicPtr new_value) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicRelease_CompareAndSwap64(ptr, old_value, new_value);
 #else
   return SbAtomicRelease_CompareAndSwap(ptr, old_value, new_value);
@@ -179,7 +179,7 @@ SbAtomicRelease_CompareAndSwapPtr(volatile SbAtomicPtr* ptr,
 
 SB_C_FORCE_INLINE void SbAtomicNoBarrier_StorePtr(volatile SbAtomicPtr* ptr,
                                                   SbAtomicPtr value) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicNoBarrier_Store64(ptr, value);
 #else
   return SbAtomicNoBarrier_Store(ptr, value);
@@ -188,7 +188,7 @@ SB_C_FORCE_INLINE void SbAtomicNoBarrier_StorePtr(volatile SbAtomicPtr* ptr,
 
 SB_C_FORCE_INLINE void SbAtomicAcquire_StorePtr(volatile SbAtomicPtr* ptr,
                                                 SbAtomicPtr value) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicAcquire_Store64(ptr, value);
 #else
   return SbAtomicAcquire_Store(ptr, value);
@@ -197,7 +197,7 @@ SB_C_FORCE_INLINE void SbAtomicAcquire_StorePtr(volatile SbAtomicPtr* ptr,
 
 SB_C_FORCE_INLINE void SbAtomicRelease_StorePtr(volatile SbAtomicPtr* ptr,
                                                 SbAtomicPtr value) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicRelease_Store64(ptr, value);
 #else
   return SbAtomicRelease_Store(ptr, value);
@@ -206,7 +206,7 @@ SB_C_FORCE_INLINE void SbAtomicRelease_StorePtr(volatile SbAtomicPtr* ptr,
 
 SB_C_FORCE_INLINE SbAtomicPtr
 SbAtomicNoBarrier_LoadPtr(volatile const SbAtomicPtr* ptr) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicNoBarrier_Load64(ptr);
 #else
   return SbAtomicNoBarrier_Load(ptr);
@@ -215,7 +215,7 @@ SbAtomicNoBarrier_LoadPtr(volatile const SbAtomicPtr* ptr) {
 
 SB_C_FORCE_INLINE SbAtomicPtr
 SbAtomicAcquire_LoadPtr(volatile const SbAtomicPtr* ptr) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicAcquire_Load64(ptr);
 #else
   return SbAtomicAcquire_Load(ptr);
@@ -224,7 +224,7 @@ SbAtomicAcquire_LoadPtr(volatile const SbAtomicPtr* ptr) {
 
 SB_C_FORCE_INLINE SbAtomicPtr
 SbAtomicRelease_LoadPtr(volatile const SbAtomicPtr* ptr) {
-#if SB_IS(64_BIT)
+#if SB_HAS(64_BIT_POINTERS)
   return SbAtomicRelease_Load64(ptr);
 #else
   return SbAtomicRelease_Load(ptr);

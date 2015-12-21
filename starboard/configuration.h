@@ -145,6 +145,10 @@
 #error "Your platform must be exactly one of { 32-bit, 64-bit }."
 #endif
 
+#if SB_HAS(32_BIT_POINTERS) == SB_HAS(64_BIT_POINTERS)
+#error "Your platform's pointer sizes must be either 32 bit or 64 bit."
+#endif
+
 #if !defined(SB_IS_BIG_ENDIAN)
 #error "Your platform must define SB_IS_BIG_ENDIAN."
 #endif

@@ -131,13 +131,14 @@ SB_C_INLINE bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
 // Creates a new thread, which starts immediately. The |stack_size| parameter
 // can be 0 to indicate that the default stack size should be used. |priority|
 // can be set to kSbThreadNoPriority to use the default priority for the
-// platform. |affinity| can be set to kSbThreadNoAffinity to use the default
-// affinity for the platform. |joinable| sets whether the thread can be joined,
-// or should start out "detached." |name| is mainly used for debugging, may be
-// NULL, and may not even be used in production builds. Returns a handle to the
-// newly created thread upon success, and returns kSbThreadInvalid if
-// not. |entry_point| will be executed on the newly created thread, and passed
-// |context|.
+// platform (e.g. possibly a fixed, standard priority, or possibly a priority
+// inherited from the thread that is calling SbThreadCreate()). |affinity| can
+// be set to kSbThreadNoAffinity to use the default affinity for the platform.
+// |joinable| sets whether the thread can be joined, or should start out
+// "detached." |name| is mainly used for debugging, may be NULL, and may not
+// even be used in production builds. Returns a handle to the newly created
+// thread upon success, and returns kSbThreadInvalid if not. |entry_point| will
+// be executed on the newly created thread, and passed |context|.
 //
 // NOTE: For joinable threads, when you are done with the thread handle, you
 // must call SbThreadJoin to release system resources associated with the

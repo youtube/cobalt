@@ -56,24 +56,23 @@ static const SbTime kSbTimeNanosecondsPerMicrosecond = 1000;
 static const SbTime kSbTimeMillisecond = 1000;
 
 // One second in SbTime units (microseconds).
-static const SbTime kSbTimeSecond = kSbTimeMillisecond * 1000;
+#define kSbTimeSecond (kSbTimeMillisecond * 1000)
 
 // One minute in SbTime units (microseconds).
-static const SbTime kSbTimeMinute = kSbTimeSecond * 60;
+#define kSbTimeMinute (kSbTimeSecond * 60)
 
 // One hour in SbTime units (microseconds).
-static const SbTime kSbTimeHour = kSbTimeMinute * 60;
+#define kSbTimeHour (kSbTimeMinute * 60)
 
 // One day in SbTime units (microseconds).
-static const SbTime kSbTimeDay = kSbTimeHour * 24;
+#define kSbTimeDay (kSbTimeHour * 24)
 
 // The maximum value of an SbTime.
-static const SbTime kSbTimeMax = kSbInt64Max;
+#define kSbTimeMax (kSbInt64Max)
 
 // A term that can be added to an SbTime to convert it into the number of
 // microseconds since the POSIX epoch.
-static const SbTime kSbTimeToPosixDelta =
-    SB_INT64_C(-11644473600) * kSbTimeSecond;
+#define kSbTimeToPosixDelta (SB_INT64_C(-11644473600) * kSbTimeSecond)
 
 // Converts an SbTime into microseconds from the POSIX epoch.
 static SB_C_FORCE_INLINE int64_t SbTimeToPosix(SbTime time) {
