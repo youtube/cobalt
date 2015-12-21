@@ -60,6 +60,7 @@
         'mutex_acquire_try_test.cc',
         'mutex_create_test.cc',
         'mutex_destroy_test.cc',
+        'once_test.cc',
         'socket_accept_test.cc',
         'socket_bind_test.cc',
         'socket_connect_test.cc',
