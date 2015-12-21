@@ -108,7 +108,7 @@ static const int16_t kSbInt16Min = ((int16_t)0x8000);
 static const int16_t kSbInt16Max = ((int16_t)0x7FFF);
 static const uint16_t kSbUInt16Max = ((uint16_t)0xFFFF);
 
-static const int32_t kSbInt32Min = ((int32_t)0x80000000);
+#define kSbInt32Min ((int32_t)0x80000000)
 static const int32_t kSbInt32Max = ((int32_t)0x7FFFFFFF);
 static const uint32_t kSbUInt32Max = ((uint32_t)0xFFFFFFFF);
 
@@ -121,7 +121,7 @@ static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
 #endif
 
 // A value that represents an int that is probably invalid.
-static const int32_t kSbInvalidInt = kSbInt32Min;
+#define kSbInvalidInt kSbInt32Min
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -98,6 +98,19 @@ TEST(SbThreadLocalValueTest, SunnyDayNoDestructor) {
   DoSunnyDayTest(false);
 }
 
+TEST(SbThreadLocalValueTest, SunnyDayFreshlyCreatedValuesAreNull) {
+  SbThreadLocalKey key = SbThreadCreateLocalKey(NULL);
+  EXPECT_EQ(NULL, SbThreadGetLocalValue(key));
+
+  // Some Starboard implementations may recycle the original key, so this test
+  // ensures that in that case it will be reset to NULL.
+  SbThreadSetLocalValue(key, reinterpret_cast<void*>(1));
+  SbThreadDestroyLocalKey(key);
+
+  key = SbThreadCreateLocalKey(NULL);
+  EXPECT_EQ(NULL, SbThreadGetLocalValue(key));
+}
+
 TEST(SbThreadLocalValueTest, SunnyDayMany) {
   const int kMany = 512;
   SbThreadLocalKey keys[kMany];
