@@ -19,22 +19,25 @@
 namespace cobalt {
 namespace webdriver {
 
-void Search::PopulateFindResults(
-    const ElementVector& found_elements, ElementMapping* element_mapping,
-    util::CommandResult<protocol::ElementId>* out_result) {
-  DCHECK(!found_elements.empty());
+template <>
+util::CommandResult<protocol::ElementId> Search::PopulateFindResults(
+    const ElementVector& found_elements, ElementMapping* element_mapping) {
   typedef util::CommandResult<protocol::ElementId> CommandResult;
+  // Return NoSuchElement if there are no results.
+  if (found_elements.empty()) {
+    return CommandResult(protocol::Response::kNoSuchElement);
+  }
 
   // Grab the first result from the list and return it.
   protocol::ElementId id =
       element_mapping->ElementToId(found_elements.front().get());
-  *out_result = CommandResult(id);
+  return CommandResult(id);
 }
 
-void Search::PopulateFindResults(
-    const ElementVector& found_elements, ElementMapping* element_mapping,
-    util::CommandResult<std::vector<protocol::ElementId> >* out_result) {
-  DCHECK(!found_elements.empty());
+template <>
+util::CommandResult<std::vector<protocol::ElementId> >
+Search::PopulateFindResults(const ElementVector& found_elements,
+                            ElementMapping* element_mapping) {
   typedef util::CommandResult<ElementIdVector> CommandResult;
 
   // Create a new ElementDriver for each result and return it.
@@ -45,7 +48,7 @@ void Search::PopulateFindResults(
     id_vector.push_back(id);
   }
 
-  *out_result = CommandResult(id_vector);
+  return CommandResult(id_vector);
 }
 
 }  // namespace webdriver

@@ -65,24 +65,16 @@ class Search {
       default:
         NOTIMPLEMENTED();
     }
-    if (found_elements.empty()) {
-      return CommandResult(protocol::Response::kNoSuchElement);
-    }
-    CommandResult result;
-    PopulateFindResults(found_elements, element_mapping, &result);
-    return result;
+    return PopulateFindResults<T>(found_elements, element_mapping);
   }
 
  private:
   typedef std::vector<scoped_refptr<dom::Element> > ElementVector;
   typedef std::vector<protocol::ElementId> ElementIdVector;
 
-  static void PopulateFindResults(
-      const ElementVector& found_elements, ElementMapping* element_mapping,
-      util::CommandResult<protocol::ElementId>* out_result);
-  static void PopulateFindResults(
-      const ElementVector& found_elements, ElementMapping* element_mapping,
-      util::CommandResult<std::vector<protocol::ElementId> >* out_result);
+  template <typename T>
+  static util::CommandResult<T> PopulateFindResults(
+      const ElementVector& found_elements, ElementMapping* element_mapping);
 };
 
 }  // namespace webdriver
