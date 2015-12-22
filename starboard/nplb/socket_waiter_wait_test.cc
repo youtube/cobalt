@@ -14,13 +14,15 @@
 
 #include "starboard/log.h"
 #include "starboard/nplb/socket_helpers.h"
+#include "starboard/nplb/thread_helpers.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
+#include "starboard/thread.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 // We want to make sure we aren't stuck too long in Wait().
@@ -63,7 +65,7 @@ TEST(SbSocketWaiterWaitTest, SunnyDay) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  sbnplb::ConnectedTrio trio = sbnplb::CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     ADD_FAILURE();
     return;
@@ -83,7 +85,7 @@ TEST(SbSocketWaiterWaitTest, SunnyDay) {
                                  &FailSocketWaiterCallback,
                                  kSbSocketWaiterInterestRead, false));
 
-  sbnplb::WaitShouldNotBlock(waiter);
+  WaitShouldNotBlock(waiter);
 
   EXPECT_EQ(1, values.count);  // Check that the callback was called once.
   EXPECT_EQ(waiter, values.waiter);
@@ -104,7 +106,7 @@ TEST(SbSocketWaiterWaitTest, SunnyDay) {
   delete[] send_buf;
   EXPECT_LT(0, bytes_sent);
 
-  sbnplb::WaitShouldNotBlock(waiter);
+  WaitShouldNotBlock(waiter);
 
   EXPECT_EQ(1, values.count);
   EXPECT_EQ(waiter, values.waiter);
@@ -118,8 +120,106 @@ TEST(SbSocketWaiterWaitTest, SunnyDay) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
+struct AlreadyReadyContext {
+  AlreadyReadyContext()
+      : waiter(kSbSocketWaiterInvalid),
+        a_write_result(false),
+        a_read_result(false),
+        b_result(false) {}
+  ~AlreadyReadyContext() {
+    EXPECT_TRUE(SbSocketDestroy(trio.listen_socket));
+    EXPECT_TRUE(SbSocketDestroy(trio.server_socket));
+    EXPECT_TRUE(SbSocketDestroy(trio.client_socket));
+    EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
+  }
+
+  SbSocketWaiter waiter;
+  ConnectedTrio trio;
+  Semaphore wrote_a_signal;
+  bool a_write_result;
+  bool a_read_result;
+  Semaphore write_b_signal;
+  bool b_result;
+  Semaphore wrote_b_signal;
+};
+
+const char kAData[] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const char kBData[] = "bb";
+const int kPort = 2048;
+
+void* AlreadyReadyEntryPoint(void* param) {
+  AlreadyReadyContext* context = reinterpret_cast<AlreadyReadyContext*>(param);
+
+  context->a_write_result = WriteBySpinning(
+      context->trio.server_socket, kAData, SB_ARRAY_SIZE_INT(kAData), kTimeout);
+  context->wrote_a_signal.Put();
+
+  context->write_b_signal.Take();
+  context->b_result = WriteBySpinning(context->trio.server_socket, kBData,
+                                      SB_ARRAY_SIZE_INT(kBData), kTimeout);
+  context->wrote_b_signal.Put();
+  return NULL;
+}
+
+void WakeUpSocketWaiterCallback(SbSocketWaiter waiter,
+                                SbSocket socket,
+                                void* param,
+                                int ready_interests) {
+  SbSocketWaiterWakeUp(waiter);
+}
+
+void AlreadyReadySocketWaiterCallback(SbSocketWaiter waiter,
+                                      SbSocket socket,
+                                      void* param,
+                                      int ready_interests) {
+  AlreadyReadyContext* context = reinterpret_cast<AlreadyReadyContext*>(param);
+  // Read in the A data.
+  char buffer[SB_ARRAY_SIZE_INT(kAData)];
+  context->a_read_result = ReadBySpinning(context->trio.client_socket, buffer,
+                                          SB_ARRAY_SIZE_INT(buffer), kTimeout);
+
+  // Tell the thread to write the B data now.
+  context->write_b_signal.Put();
+
+  // Wait until it thinks it has finished.
+  context->wrote_b_signal.Take();
+
+  // Now add the second read callback, and hope that it gets called.
+  EXPECT_TRUE(SbSocketWaiterAdd(waiter, socket, context,
+                                &WakeUpSocketWaiterCallback,
+                                kSbSocketWaiterInterestRead, false));
+}
+
+// This test ensures that if the socket gets written to while it is not being
+// waited on, and inside a callback, it will become ready immediately the next
+// time it is waited on.
+TEST(SbSocketWaiterWaitTest, SunnyDayAlreadyReady) {
+  AlreadyReadyContext context;
+  context.waiter = SbSocketWaiterCreate();
+  ASSERT_TRUE(SbSocketWaiterIsValid(context.waiter));
+
+  context.trio = CreateAndConnect(kPort, kTimeout);
+  ASSERT_TRUE(SbSocketIsValid(context.trio.server_socket));
+
+  EXPECT_TRUE(SbSocketWaiterAdd(context.waiter, context.trio.client_socket,
+                                &context, &AlreadyReadySocketWaiterCallback,
+                                kSbSocketWaiterInterestRead, false));
+
+  SbThread thread =
+      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
+                     AlreadyReadyEntryPoint, &context);
+  EXPECT_TRUE(SbThreadIsValid(thread));
+  context.wrote_a_signal.Take();
+
+  WaitShouldNotBlock(context.waiter);
+
+  EXPECT_TRUE(SbThreadJoin(thread, NULL));
+}
+
 TEST(SbSocketWaiterWaitTest, RainyDayInvalidWaiter) {
-  sbnplb::WaitShouldNotBlock(kSbSocketWaiterInvalid);
+  WaitShouldNotBlock(kSbSocketWaiterInvalid);
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

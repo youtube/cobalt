@@ -87,7 +87,13 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
                                 bool persistent) {
   SB_DCHECK(SbThreadIsCurrent(thread_));
 
-  if (!SbSocketIsValid(socket) || !interests) {
+  if (!SbSocketIsValid(socket)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
+    return false;
+  }
+
+  if (!interests) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": No interests provided.";
     return false;
   }
 
@@ -100,6 +106,7 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
   // access is all going to come from one I/O thread anyway, and there will only
   // be one waiter.
   if (SbSocketWaiterIsValid(socket->waiter)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has waiter.";
     return false;
   }
 
@@ -129,7 +136,16 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
 
 bool SbSocketWaiterPrivate::Remove(SbSocket socket) {
   SB_DCHECK(SbThreadIsCurrent(thread_));
-  if (!SbSocketIsValid(socket) || socket->waiter != this) {
+  if (!SbSocketIsValid(socket)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
+    return false;
+  }
+
+  if (socket->waiter != this) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") "
+                   << "is watched by Waiter (" << socket->waiter << "), "
+                   << "not this Waiter (" << this << ").";
+    SB_DSTACK(ERROR);
     return false;
   }
 
@@ -219,10 +235,17 @@ void SbSocketWaiterPrivate::HandleSignal(Waitee* waitee,
     interests |= kSbSocketWaiterInterestWrite;
   }
 
-  waitee->callback(this, waitee->socket, waitee->context, interests);
+  // Remove the non-persistent waitee before calling the callback, so that we
+  // can add another waitee in the callback if we need to. This is also why we
+  // copy all the fields we need out of waitee.
+  SbSocket socket = waitee->socket;
+  void* context = waitee->context;
+  SbSocketWaiterCallback callback = waitee->callback;
   if (!waitee->persistent) {
     Remove(waitee->socket);
   }
+
+  callback(this, socket, context, interests);
 }
 
 void SbSocketWaiterPrivate::HandleWakeUpRead() {
