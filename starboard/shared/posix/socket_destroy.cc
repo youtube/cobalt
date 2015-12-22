@@ -21,6 +21,7 @@
 #include "starboard/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/socket_internal.h"
+#include "starboard/socket_waiter.h"
 
 bool SbSocketDestroy(SbSocket socket) {
   if (!SbSocketIsValid(socket)) {
@@ -29,6 +30,12 @@ bool SbSocketDestroy(SbSocket socket) {
   }
 
   SB_DCHECK(socket->socket_fd >= 0);
+
+  if (socket->waiter != NULL) {
+    bool result = SbSocketWaiterRemove(socket->waiter, socket);
+    SB_DCHECK(result);
+  }
+
   bool result = HANDLE_EINTR(close(socket->socket_fd)) >= 0;
 
   delete socket;

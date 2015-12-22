@@ -162,7 +162,7 @@ SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
     // If we didn't get a socket, it should be pending.
     EXPECT_EQ(kSbSocketPending, SbSocketGetLastError(server_socket));
 
-    // Check if we have past our timeout.
+    // Check if we have passed our timeout.
     if (SbTimeGetMonotonicNow() - start >= timeout) {
       break;
     }
@@ -174,16 +174,73 @@ SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
   return kSbSocketInvalid;
 }
 
+bool WriteBySpinning(SbSocket socket,
+                     const char* data,
+                     int data_size,
+                     SbTime timeout) {
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int total = 0;
+  while (total < data_size) {
+    int sent = SbSocketSendTo(socket, data + total, data_size - total, NULL);
+    if (sent >= 0) {
+      total += sent;
+      continue;
+    }
+
+    if (SbSocketGetLastError(socket) != kSbSocketPending) {
+      return false;
+    }
+
+    if (SbTimeGetMonotonicNow() - start >= timeout) {
+      return false;
+    }
+
+    SbThreadYield();
+  }
+
+  return true;
+}
+
+bool ReadBySpinning(SbSocket socket,
+                    char* out_data,
+                    int data_size,
+                    SbTime timeout) {
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int total = 0;
+  while (total < data_size) {
+    int received =
+        SbSocketReceiveFrom(socket, out_data + total, data_size - total, NULL);
+    if (received >= 0) {
+      total += received;
+      continue;
+    }
+
+    if (SbSocketGetLastError(socket) != kSbSocketPending) {
+      return false;
+    }
+
+    if (SbTimeGetMonotonicNow() - start >= timeout) {
+      return false;
+    }
+
+    SbThreadYield();
+  }
+
+  return true;
+}
+
 ConnectedTrio CreateAndConnect(int port, SbTime timeout) {
   // Set up a listening socket.
   SbSocket listen_socket = CreateListeningTcpIpv4Socket(port);
   if (!SbSocketIsValid(listen_socket)) {
+    ADD_FAILURE() << "Could not create listen socket.";
     return {kSbSocketInvalid, kSbSocketInvalid, kSbSocketInvalid};
   }
 
   // Create a new socket to connect to the listening socket.
   SbSocket client_socket = CreateConnectingTcpIpv4Socket(port);
   if (!SbSocketIsValid(client_socket)) {
+    ADD_FAILURE() << "Could not create client socket.";
     EXPECT_TRUE(SbSocketDestroy(listen_socket));
     return {kSbSocketInvalid, kSbSocketInvalid, kSbSocketInvalid};
   }
