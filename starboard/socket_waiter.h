@@ -58,9 +58,6 @@ typedef enum SbSocketWaiterInterest {
 
   // An interest in or readiness to write to a socket without blocking.
   kSbSocketWaiterInterestWrite = 1 << 1,
-
-  // An interest in or readiness to accept a new connection without blocking.
-  kSbSocketWaiterInterestAccept = 1 << 2,
 } SbSocketWaiterInterest;
 
 // Function pointer for socket waiter callbacks.

@@ -14,6 +14,7 @@
 
 #include "starboard/socket_waiter.h"
 
+#include "starboard/log.h"
 #include "starboard/shared/libevent/socket_waiter_internal.h"
 
 bool SbSocketWaiterAdd(SbSocketWaiter waiter,
@@ -22,8 +23,23 @@ bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                        SbSocketWaiterCallback callback,
                        int interests,
                        bool persistent) {
-  if (!SbSocketWaiterIsValid(waiter) || !SbSocketIsValid(socket) || !callback ||
-      !interests) {
+  if (!SbSocketWaiterIsValid(waiter)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Waiter (" << waiter << ") is invalid.";
+    return false;
+  }
+
+  if (!SbSocketIsValid(socket)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
+    return false;
+  }
+
+  if (!callback) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": No callback provided.";
+    return false;
+  }
+
+  if (!interests) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": No interests provided.";
     return false;
   }
 

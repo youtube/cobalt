@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_NBLP_SOCKET_HELPERS_H_
-#define STARBOARD_NBLP_SOCKET_HELPERS_H_
+#ifndef STARBOARD_NPLB_SOCKET_HELPERS_H_
+#define STARBOARD_NPLB_SOCKET_HELPERS_H_
 
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
@@ -68,7 +68,19 @@ SbSocket CreateConnectingTcpIpv4Socket(int port);
 // Tries to accept a new connection from the given listening socket by checking,
 // yielding, and retrying for up to timeout. Returns kSbSocketInvalid if no
 // socket has been accepted in the given time.
-SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout);
+SbSocket AcceptBySpinning(SbSocket listen_socket, SbTime timeout);
+
+// Writes the given data to socket, spinning until success or error.
+bool WriteBySpinning(SbSocket socket,
+                     const char* data,
+                     int data_size,
+                     SbTime timeout);
+
+// Reads the given amount of data from socket, spinning until success or error.
+bool ReadBySpinning(SbSocket socket,
+                    char* out_data,
+                    int data_size,
+                    SbTime timeout);
 
 typedef struct ConnectedTrio {
   SbSocket listen_socket;
@@ -116,4 +128,4 @@ inline void TimedWaitShouldBlock(SbSocketWaiter waiter, SbTime timeout) {
 }  // namespace nplb
 }  // namespace starboard
 
-#endif  // STARBOARD_NBLP_SOCKET_HELPERS_H_
+#endif  // STARBOARD_NPLB_SOCKET_HELPERS_H_
