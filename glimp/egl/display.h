@@ -18,6 +18,7 @@
 #define GLIMP_EGL_DISPLAY_H_
 
 #include "glimp/base/scoped_ptr.h"
+#include "glimp/egl/config.h"
 #include "glimp/egl/display_impl.h"
 
 namespace glimp {
@@ -35,7 +36,13 @@ class Display {
   // implementation injected into it, where many methods will forward to.
   explicit Display(base::scoped_ptr<DisplayImpl> display_impl);
 
-  void GetVersionInfo(int* major, int* minor);
+  void GetVersionInfo(EGLint* major, EGLint* minor);
+
+  bool ChooseConfig(const EGLint* attrib_list,
+                    EGLConfig* configs,
+                    EGLint config_size,
+                    EGLint* num_config);
+  bool IsValidConfig(EGLConfig config);
 
  private:
   base::scoped_ptr<DisplayImpl> impl_;
