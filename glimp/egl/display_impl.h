@@ -19,7 +19,10 @@
 
 #include <EGL/egl.h>
 
+#include <set>
+
 #include "glimp/base/scoped_ptr.h"
+#include "glimp/egl/config.h"
 
 namespace glimp {
 namespace egl {
@@ -30,6 +33,16 @@ namespace egl {
 // platform-specific DisplayImpls are to be created.
 class DisplayImpl {
  public:
+  // Return value type for the method GetVersionInfo().
+  struct VersionInfo {
+    int major;
+    int minor;
+  };
+
+  typedef std::set<Config*> ConfigSet;
+
+  virtual ~DisplayImpl() {}
+
   // Returns true if the given |native_display| is a valid display ID that can
   // be subsequently passed into Create().
   // To be implemented by each implementing platform.
@@ -41,7 +54,12 @@ class DisplayImpl {
   // Returns the EGL major and minor versions, if they are not NULL.
   // Called by eglInitialize():
   //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglInitialize.xhtml
-  virtual void GetVersionInfo(int* major, int* minor) = 0;
+  virtual VersionInfo GetVersionInfo() = 0;
+
+  // Returns *all* configs for this display that may be chosen via a call to
+  // eglChooseConfig().
+  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglChooseConfig.xhtml
+  virtual const ConfigSet& GetSupportedConfigs() const = 0;
 
  private:
 };

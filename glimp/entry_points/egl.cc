@@ -16,6 +16,7 @@
 
 #include <EGL/egl.h>
 
+#include "glimp/egl/config.h"
 #include "glimp/egl/display.h"
 #include "glimp/egl/display_registry.h"
 #include "glimp/egl/error.h"
@@ -40,6 +41,7 @@ egl::Display* GetDisplayOrSetError(EGLDisplay egl_display) {
 
   return display;
 }
+
 }  // namespace
 
 extern "C" {
@@ -50,7 +52,13 @@ EGLBoolean EGLAPIENTRY eglChooseConfig(EGLDisplay dpy,
                                        EGLint config_size,
                                        EGLint* num_config) {
   egl::ScopedEGLLock egl_lock;
-  return false;
+
+  egl::Display* display = GetDisplayOrSetError(dpy);
+  if (!display) {
+    return false;
+  }
+
+  return display->ChooseConfig(attrib_list, configs, config_size, num_config);
 }
 
 EGLBoolean EGLAPIENTRY eglCopyBuffers(EGLDisplay dpy,
