@@ -16,14 +16,63 @@
 
 #include "glimp/egl/display.h"
 
+#include <algorithm>
+#include <vector>
+
+#include "glimp/egl/config.h"
+#include "glimp/egl/error.h"
+
 namespace glimp {
 namespace egl {
 
 Display::Display(base::scoped_ptr<DisplayImpl> display_impl)
     : impl_(display_impl.Pass()) {}
 
-void Display::GetVersionInfo(int* major, int* minor) {
-  impl_->GetVersionInfo(major, minor);
+void Display::GetVersionInfo(EGLint* major, EGLint* minor) {
+  DisplayImpl::VersionInfo version_info = impl_->GetVersionInfo();
+  if (major) {
+    *major = version_info.major;
+  }
+  if (minor) {
+    *minor = version_info.minor;
+  }
+}
+
+bool Display::ChooseConfig(const EGLint* attrib_list,
+                           EGLConfig* configs,
+                           EGLint config_size,
+                           EGLint* num_config) {
+  if (!num_config) {
+    SetError(EGL_BAD_PARAMETER);
+    return false;
+  }
+  ValidatedConfigAttribs attribs;
+  if (!ValidateConfigAttribList(attrib_list, &attribs)) {
+    SetError(EGL_BAD_ATTRIBUTE);
+    return false;
+  }
+
+  std::vector<Config*> configs_vector =
+      FilterConfigs(impl_->GetSupportedConfigs(), attribs);
+  SortConfigs(attribs, &configs_vector);
+
+  *num_config = std::min(config_size, static_cast<int>(configs_vector.size()));
+
+  if (configs) {
+    for (int i = 0; i < *num_config; ++i) {
+      configs[i] = ToEGLConfig(configs_vector[i]);
+    }
+  }
+
+  return true;
+}
+
+bool Display::IsValidConfig(EGLConfig config) {
+  const DisplayImpl::ConfigSet& supported_configs =
+      impl_->GetSupportedConfigs();
+
+  return supported_configs.find(reinterpret_cast<Config*>(config)) !=
+         supported_configs.end();
 }
 
 }  // namespace egl
