@@ -23,6 +23,7 @@
 
 #include "glimp/base/scoped_ptr.h"
 #include "glimp/egl/config.h"
+#include "glimp/egl/surface.h"
 
 namespace glimp {
 namespace egl {
@@ -60,6 +61,15 @@ class DisplayImpl {
   // eglChooseConfig().
   //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglChooseConfig.xhtml
   virtual const ConfigSet& GetSupportedConfigs() const = 0;
+
+  // Creates and returns a SurfaceImpl object that represents the surface of a
+  // window and is compatible with this DisplayImpl object.  This will be called
+  // when eglCreateWindowSurface() is called.
+  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglCreateWindowSurface.xhtml
+  virtual base::scoped_ptr<SurfaceImpl> CreateWindowSurface(
+      const Config* config,
+      EGLNativeWindowType win,
+      const ValidatedSurfaceAttribs& attributes) = 0;
 
  private:
 };
