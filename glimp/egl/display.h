@@ -17,6 +17,8 @@
 #ifndef GLIMP_EGL_DISPLAY_H_
 #define GLIMP_EGL_DISPLAY_H_
 
+#include <set>
+
 #include "glimp/base/scoped_ptr.h"
 #include "glimp/egl/config.h"
 #include "glimp/egl/display_impl.h"
@@ -35,6 +37,7 @@ class Display {
   // In order to create a display, it must have a platform-specific
   // implementation injected into it, where many methods will forward to.
   explicit Display(base::scoped_ptr<DisplayImpl> display_impl);
+  ~Display();
 
   void GetVersionInfo(EGLint* major, EGLint* minor);
 
@@ -42,10 +45,19 @@ class Display {
                     EGLConfig* configs,
                     EGLint config_size,
                     EGLint* num_config);
-  bool IsValidConfig(EGLConfig config);
+  bool ConfigIsValid(EGLConfig config);
+
+  EGLSurface CreateWindowSurface(EGLConfig config,
+                                 EGLNativeWindowType win,
+                                 const EGLint* attrib_list);
+  bool SurfaceIsValid(EGLSurface surface);
+  bool DestroySurface(EGLSurface surface);
 
  private:
   base::scoped_ptr<DisplayImpl> impl_;
+
+  // Keeps track of all created but not destroyed surfaces.
+  std::set<Surface*> active_surfaces_;
 };
 
 }  // namespace egl
