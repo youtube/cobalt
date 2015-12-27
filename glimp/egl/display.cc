@@ -21,12 +21,17 @@
 
 #include "glimp/egl/config.h"
 #include "glimp/egl/error.h"
+#include "starboard/log.h"
 
 namespace glimp {
 namespace egl {
 
 Display::Display(base::scoped_ptr<DisplayImpl> display_impl)
     : impl_(display_impl.Pass()) {}
+
+Display::~Display() {
+  SB_DCHECK(active_surfaces_.empty());
+}
 
 void Display::GetVersionInfo(EGLint* major, EGLint* minor) {
   DisplayImpl::VersionInfo version_info = impl_->GetVersionInfo();
@@ -67,12 +72,55 @@ bool Display::ChooseConfig(const EGLint* attrib_list,
   return true;
 }
 
-bool Display::IsValidConfig(EGLConfig config) {
+bool Display::ConfigIsValid(EGLConfig config) {
   const DisplayImpl::ConfigSet& supported_configs =
       impl_->GetSupportedConfigs();
 
   return supported_configs.find(reinterpret_cast<Config*>(config)) !=
          supported_configs.end();
+}
+
+EGLSurface Display::CreateWindowSurface(EGLConfig config,
+                                        EGLNativeWindowType win,
+                                        const EGLint* attrib_list) {
+  ValidatedSurfaceAttribs validated_attribs;
+  if (!ValidateSurfaceAttribList(attrib_list, &validated_attribs)) {
+    SetError(EGL_BAD_ATTRIBUTE);
+    return EGL_NO_SURFACE;
+  }
+
+  if (!ConfigIsValid(config)) {
+    SetError(EGL_BAD_CONFIG);
+    return EGL_NO_SURFACE;
+  }
+
+  base::scoped_ptr<SurfaceImpl> surface_impl = impl_->CreateWindowSurface(
+      reinterpret_cast<Config*>(config), win, validated_attribs);
+  if (!surface_impl) {
+    return EGL_NO_SURFACE;
+  }
+
+  Surface* surface = new Surface(surface_impl.Pass());
+  active_surfaces_.insert(surface);
+
+  return ToEGLSurface(surface);
+}
+
+bool Display::SurfaceIsValid(EGLSurface surface) {
+  return active_surfaces_.find(FromEGLSurface(surface)) !=
+         active_surfaces_.end();
+}
+
+bool Display::DestroySurface(EGLSurface surface) {
+  if (!SurfaceIsValid(surface)) {
+    SetError(EGL_BAD_SURFACE);
+    return false;
+  }
+
+  Surface* surf = FromEGLSurface(surface);
+  active_surfaces_.erase(surf);
+  delete surf;
+  return true;
 }
 
 }  // namespace egl
