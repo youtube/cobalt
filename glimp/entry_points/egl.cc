@@ -96,7 +96,13 @@ EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy,
                                               EGLNativeWindowType win,
                                               const EGLint* attrib_list) {
   egl::ScopedEGLLock egl_lock;
-  return EGL_NO_SURFACE;
+
+  egl::Display* display = GetDisplayOrSetError(dpy);
+  if (!display) {
+    return EGL_NO_SURFACE;
+  }
+
+  return display->CreateWindowSurface(config, win, attrib_list);
 }
 
 EGLBoolean EGLAPIENTRY eglDestroyContext(EGLDisplay dpy, EGLContext ctx) {
@@ -106,7 +112,13 @@ EGLBoolean EGLAPIENTRY eglDestroyContext(EGLDisplay dpy, EGLContext ctx) {
 
 EGLBoolean EGLAPIENTRY eglDestroySurface(EGLDisplay dpy, EGLSurface surface) {
   egl::ScopedEGLLock egl_lock;
-  return false;
+
+  egl::Display* display = GetDisplayOrSetError(dpy);
+  if (!display) {
+    return false;
+  }
+
+  return display->DestroySurface(surface);
 }
 
 EGLBoolean EGLAPIENTRY eglGetConfigAttrib(EGLDisplay dpy,
