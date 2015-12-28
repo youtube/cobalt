@@ -20,8 +20,8 @@
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 const SbTime kTimeout = kSbTimeSecond / 15;
@@ -29,7 +29,7 @@ const int kPort = 2048;
 
 TEST(SbSocketAcceptTest, RainyDayNoConnection) {
   // Set up a socket to listen.
-  SbSocket server_socket = sbnplb::CreateListeningTcpIpv4Socket(kPort);
+  SbSocket server_socket = CreateListeningTcpIpv4Socket(kPort);
   if (!SbSocketIsValid(server_socket)) {
     return;
   }
@@ -37,7 +37,7 @@ TEST(SbSocketAcceptTest, RainyDayNoConnection) {
   // Don't create a socket to connect to it.
 
   // Spin briefly to ensure that it won't accept.
-  SbSocket accepted_socket = sbnplb::AcceptBySpinning(server_socket, kTimeout);
+  SbSocket accepted_socket = AcceptBySpinning(server_socket, kTimeout);
   EXPECT_FALSE(SbSocketIsValid(accepted_socket))
       << "Accepted with no one connecting.";
 
@@ -47,7 +47,7 @@ TEST(SbSocketAcceptTest, RainyDayNoConnection) {
 
 TEST(SbSocketAcceptTest, RainyDayNotBound) {
   // Set up a socket, but don't Bind or Listen.
-  SbSocket server_socket = sbnplb::CreateServerTcpIpv4Socket();
+  SbSocket server_socket = CreateServerTcpIpv4Socket();
   if (!SbSocketIsValid(server_socket)) {
     return;
   }
@@ -61,7 +61,7 @@ TEST(SbSocketAcceptTest, RainyDayNotBound) {
 
 TEST(SbSocketAcceptTest, RainyDayNotListening) {
   // Set up a socket, but don't Bind or Listen.
-  SbSocket server_socket = sbnplb::CreateBoundTcpIpv4Socket(kPort);
+  SbSocket server_socket = CreateBoundTcpIpv4Socket(kPort);
   if (!SbSocketIsValid(server_socket)) {
     return;
   }
@@ -74,3 +74,5 @@ TEST(SbSocketAcceptTest, RainyDayNotListening) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

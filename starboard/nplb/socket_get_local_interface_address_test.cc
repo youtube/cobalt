@@ -16,16 +16,16 @@
 #include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbSocketGetLocalInterfaceTest, SunnyDay) {
   SbSocketAddress address = {0};
   EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
   EXPECT_EQ(0, address.port);
-  EXPECT_FALSE(sbnplb::IsUnspecified(&address));
-  EXPECT_FALSE(sbnplb::IsLocalhost(&address));
+  EXPECT_FALSE(IsUnspecified(&address));
+  EXPECT_FALSE(IsLocalhost(&address));
 }
 
 TEST(SbSocketGetLocalInterfaceTest, RainyDayNull) {
@@ -33,3 +33,5 @@ TEST(SbSocketGetLocalInterfaceTest, RainyDayNull) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

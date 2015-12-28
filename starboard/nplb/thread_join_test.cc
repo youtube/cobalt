@@ -17,6 +17,8 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbThreadJoinTest, RainyDayInvalid) {
@@ -27,3 +29,5 @@ TEST(SbThreadJoinTest, RainyDayInvalid) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

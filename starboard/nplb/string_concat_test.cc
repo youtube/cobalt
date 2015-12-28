@@ -15,6 +15,8 @@
 #include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 const char kSource[] = "0123456789";
@@ -80,3 +82,5 @@ TEST(SbStringConcatTest, SunnyDayShort) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

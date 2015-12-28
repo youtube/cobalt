@@ -15,6 +15,8 @@
 #include "starboard/socket_waiter.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbSocketWaiterCreateTest, SunnyDay) {
@@ -46,3 +48,5 @@ TEST(SbSocketWaiterCreateTest, ManyAtOnce) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

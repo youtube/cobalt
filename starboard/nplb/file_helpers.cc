@@ -21,15 +21,13 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace {
-
-// Size of appropriate path buffer.
-const size_t kPathSize = SB_FILE_MAX_PATH + 1;
-
-}  // namespace
-
 namespace starboard {
 namespace nplb {
+
+namespace {
+// Size of appropriate path buffer.
+const size_t kPathSize = SB_FILE_MAX_PATH + 1;
+}  // namespace
 
 std::string GetTempDir() {
   // It seems there's absolutely no way to get to std::string without a copy.
@@ -82,7 +80,7 @@ std::string ScopedRandomFile::MakeRandomFile(int length) {
     return "";
   }
 
-  char data[length];
+  char* data = new char[length];
   for (int i = 0; i < length; ++i) {
     data[i] = static_cast<char>(i & 0xFF);
   }
@@ -93,6 +91,7 @@ std::string ScopedRandomFile::MakeRandomFile(int length) {
 
   bool result = SbFileClose(file);
   EXPECT_TRUE(result) << "Failed to close " << filename;
+  delete[] data;
   return filename;
 }
 

@@ -21,8 +21,8 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using starboard::nplb::ScopedRandomFile;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 const int kBufferLength = 16 * 1024;
@@ -142,3 +142,5 @@ TEST(SbFileWriteTest, WriteZeroBytes) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

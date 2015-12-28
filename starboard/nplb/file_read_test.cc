@@ -18,6 +18,8 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 const int kBufferLength = 16 * 1024;
@@ -32,7 +34,7 @@ TEST(SbFileReadTest, BasicReading) {
   // Create a pattern file that is not an even multiple of the buffer size, but
   // is over several times the size of the buffer.
   const int kFileSize = kBufferLength * 16 / 3;
-  starboard::nplb::ScopedRandomFile random_file(kFileSize);
+  ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
   SbFile file =
@@ -74,8 +76,8 @@ TEST(SbFileReadTest, BasicReading) {
       max = bytes_read;
     }
 
-    starboard::nplb::ScopedRandomFile::ExpectPattern(previous_total, buffer,
-                                                     bytes_read, __LINE__);
+    ScopedRandomFile::ExpectPattern(previous_total, buffer, bytes_read,
+                                    __LINE__);
   }
 
   // Check that we read the whole file.
@@ -96,7 +98,7 @@ TEST(SbFileReadTest, BasicReading) {
 
 TEST(SbFileReadTest, ReadPastEnd) {
   const int kFileSize = kBufferLength;
-  starboard::nplb::ScopedRandomFile random_file(kFileSize);
+  ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
   SbFile file =
@@ -131,7 +133,7 @@ TEST(SbFileReadTest, ReadPastEnd) {
 
 TEST(SbFileReadTest, ReadZeroBytes) {
   const int kFileSize = kBufferLength;
-  starboard::nplb::ScopedRandomFile random_file(kFileSize);
+  ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
   SbFile file =
@@ -166,7 +168,7 @@ TEST(SbFileReadTest, ReadZeroBytes) {
 
 TEST(SbFileReadTest, ReadFromMiddle) {
   const int kFileSize = kBufferLength * 2;
-  starboard::nplb::ScopedRandomFile random_file(kFileSize);
+  ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
   SbFile file =
@@ -192,8 +194,7 @@ TEST(SbFileReadTest, ReadFromMiddle) {
   EXPECT_GE(kBufferLength, bytes_read);
   EXPECT_LT(0, bytes_read);
 
-  starboard::nplb::ScopedRandomFile::ExpectPattern(position, buffer, bytes_read,
-                                                   __LINE__);
+  ScopedRandomFile::ExpectPattern(position, buffer, bytes_read, __LINE__);
 
   for (int i = 0; i < kBufferOffset; ++i) {
     EXPECT_EQ('\xCD', real_buffer[i]);
@@ -208,3 +209,5 @@ TEST(SbFileReadTest, ReadFromMiddle) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

@@ -16,8 +16,8 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using starboard::nplb::ToVoid;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 void* EntryPoint(void* context) {
@@ -41,3 +41,5 @@ TEST(SbThreadGetCurrentTest, SunnyDay) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

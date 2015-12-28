@@ -17,8 +17,8 @@
 #include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 const int kPort = 2048;
@@ -30,7 +30,7 @@ TEST(SbSocketIsConnectedTest, RainyDayInvalidSocket) {
 TEST(SbSocketIsConnectedTest, SunnyDay) {
   const SbTime kTimeout = kSbTimeSecond / 15;
 
-  sbnplb::ConnectedTrio trio = sbnplb::CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     return;
   }
@@ -52,7 +52,7 @@ TEST(SbSocketIsConnectedTest, SunnyDay) {
 }
 
 TEST(SbSocketIsConnectedTest, SunnyDayNotConnected) {
-  SbSocket socket = sbnplb::CreateTcpIpv4Socket();
+  SbSocket socket = CreateTcpIpv4Socket();
   if (!SbSocketIsValid(socket)) {
     return;
   }
@@ -63,7 +63,7 @@ TEST(SbSocketIsConnectedTest, SunnyDayNotConnected) {
 }
 
 TEST(SbSocketIsConnectedTest, SunnyDayListeningNotConnected) {
-  SbSocket server_socket = sbnplb::CreateListeningTcpIpv4Socket(kPort);
+  SbSocket server_socket = CreateListeningTcpIpv4Socket(kPort);
   if (!SbSocketIsValid(server_socket)) {
     return;
   }
@@ -74,3 +74,5 @@ TEST(SbSocketIsConnectedTest, SunnyDayListeningNotConnected) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard
