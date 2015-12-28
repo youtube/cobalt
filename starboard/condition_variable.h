@@ -17,6 +17,10 @@
 #ifndef STARBOARD_CONDITION_VARIABLE_H_
 #define STARBOARD_CONDITION_VARIABLE_H_
 
+#ifdef __cplusplus
+#include <deque>
+#endif
+
 #include "starboard/export.h"
 #include "starboard/mutex.h"
 #include "starboard/thread_types.h"
@@ -81,6 +85,85 @@ SB_EXPORT bool SbConditionVariableSignal(SbConditionVariable* condition);
 
 #ifdef __cplusplus
 }  // extern "C"
+#endif
+
+#ifdef __cplusplus
+namespace starboard {
+
+// Inline class wrapper for SbConditionVariable.
+class ConditionVariable {
+ public:
+  explicit ConditionVariable(const Mutex& mutex)
+      : mutex_(mutex.mutex()), condition_() {
+    SbConditionVariableCreate(&condition_, &mutex_);
+  }
+
+  ~ConditionVariable() { SbConditionVariableDestroy(&condition_); }
+
+  void Wait() const { SbConditionVariableWait(&condition_, &mutex_); }
+
+  bool WaitTimed(SbTime duration) const {
+    return SbConditionVariableIsSignaled(
+        SbConditionVariableWaitTimed(&condition_, &mutex_, duration));
+  }
+
+  void Broadcast() const { SbConditionVariableBroadcast(&condition_); }
+
+  void Signal() const { SbConditionVariableSignal(&condition_); }
+
+ private:
+  mutable SbMutex mutex_;
+  mutable SbConditionVariable condition_;
+};
+
+// Inline, thread-safe, blocking queue, based on starboard::ConditionVariable.
+template <typename T>
+class Queue {
+ public:
+  Queue() : condition_(mutex_) {}
+  ~Queue() {}
+
+  // Polls for an item, returning the default value of T if nothing is present.
+  T Poll() {
+    ScopedLock lock(mutex_);
+    if (!queue_.empty()) {
+      T entry = queue_.front();
+      queue_.pop_front();
+      return entry;
+    }
+
+    return T();
+  }
+
+  // Gets the item at the front of the queue, blocking until there is such an
+  // item. If there are multiple waiters, this Queue guarantees that only one
+  // waiter will receive any given queue item.
+  T Get() {
+    ScopedLock lock(mutex_);
+    while (queue_.empty()) {
+      condition_.Wait();
+    }
+
+    T entry = queue_.front();
+    queue_.pop_front();
+    return entry;
+  }
+
+  // Pushes |value| onto the back of the queue, waking up a single waiter, if
+  // any exist.
+  void Put(T value) {
+    ScopedLock lock(mutex_);
+    queue_.push_back(value);
+    condition_.Signal();
+  }
+
+ private:
+  Mutex mutex_;
+  ConditionVariable condition_;
+  std::deque<T> queue_;
+};
+
+}  // namespace starboard
 #endif
 
 #endif  // STARBOARD_CONDITION_VARIABLE_H_
