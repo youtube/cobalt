@@ -19,8 +19,8 @@
 #include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbSocketListenTest, RainyDayInvalid) {
@@ -28,7 +28,7 @@ TEST(SbSocketListenTest, RainyDayInvalid) {
 }
 
 TEST(SbSocketListenTest, SunnyDayUnbound) {
-  SbSocket server_socket = sbnplb::CreateServerTcpIpv4Socket();
+  SbSocket server_socket = CreateServerTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(server_socket));
 
   EXPECT_EQ(kSbSocketOk, SbSocketListen(server_socket));
@@ -39,9 +39,11 @@ TEST(SbSocketListenTest, SunnyDayUnbound) {
   EXPECT_TRUE(SbSocketGetLocalAddress(server_socket, &address));
   EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
   EXPECT_NE(0, address.port);
-  EXPECT_TRUE(sbnplb::IsUnspecified(&address));
+  EXPECT_TRUE(IsUnspecified(&address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

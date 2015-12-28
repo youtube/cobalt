@@ -18,8 +18,8 @@
 #include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 // This is to use NULL in asserts, which otherwise complain about long
@@ -42,7 +42,7 @@ TEST(SbSocketResolveTest, SunnyDay) {
     EXPECT_TRUE(address.type == kSbSocketAddressTypeIpv4 ||
                 address.type == kSbSocketAddressTypeIpv6)
         << LOG_ADDRESS(i);
-    EXPECT_FALSE(sbnplb::IsUnspecified(&address)) << LOG_ADDRESS(i);
+    EXPECT_FALSE(IsUnspecified(&address)) << LOG_ADDRESS(i);
   }
 
   SbSocketFreeResolution(resolution);
@@ -107,3 +107,5 @@ TEST(SbSocketResolveTest, RainyDayNullHostname) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

@@ -15,9 +15,10 @@
 #include "starboard/configuration.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
-#include "starboard/nplb/thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 struct TestContext {
@@ -91,3 +92,5 @@ TEST(SbMutexAcquireTest, SunnyDayStaticallyInitialized) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

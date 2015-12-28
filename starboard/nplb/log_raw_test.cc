@@ -18,6 +18,8 @@
 #include "starboard/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbLogRawTest, SunnyDayEmpty) {
@@ -37,3 +39,5 @@ TEST(SbLogRawTest, SunnyDayTextAndNewline) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

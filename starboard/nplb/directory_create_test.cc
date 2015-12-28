@@ -20,8 +20,8 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using starboard::nplb::ScopedRandomFile;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 const char* kManyFileSeparators =
@@ -92,3 +92,5 @@ TEST(SbDirectoryCreateTest, FailureNotAbsolute) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

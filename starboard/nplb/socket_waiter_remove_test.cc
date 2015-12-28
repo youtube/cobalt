@@ -17,8 +17,8 @@
 #include "starboard/socket_waiter.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 void NoOpSocketWaiterCallback(SbSocketWaiter waiter,
@@ -36,7 +36,7 @@ TEST(SbSocketWaiterRemoveTest, RainyDayInvalidSocket) {
 }
 
 TEST(SbSocketWaiterRemoveTest, RainyDayInvalidWaiter) {
-  SbSocket socket = sbnplb::CreateTcpIpv4Socket();
+  SbSocket socket = CreateTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(socket));
 
   EXPECT_FALSE(SbSocketWaiterRemove(kSbSocketWaiterInvalid, socket));
@@ -47,7 +47,7 @@ TEST(SbSocketWaiterRemoveTest, RainyDayInvalidWaiter) {
 TEST(SbSocketWaiterRemoveTest, RainyDayNotAdded) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
-  SbSocket socket = sbnplb::CreateTcpIpv4Socket();
+  SbSocket socket = CreateTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(socket));
 
   EXPECT_FALSE(SbSocketWaiterRemove(waiter, socket));
@@ -59,7 +59,7 @@ TEST(SbSocketWaiterRemoveTest, RainyDayNotAdded) {
 TEST(SbSocketWaiterRemoveTest, RainyDayAlreadyRemoved) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
-  SbSocket socket = sbnplb::CreateTcpIpv4Socket();
+  SbSocket socket = CreateTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(socket));
 
   EXPECT_TRUE(SbSocketWaiterAdd(
@@ -73,3 +73,5 @@ TEST(SbSocketWaiterRemoveTest, RainyDayAlreadyRemoved) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

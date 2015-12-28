@@ -15,6 +15,8 @@
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 const size_t kSize = 1024 * 128;
@@ -68,3 +70,5 @@ TEST(SbMemoryCopyTest, CopiesZeroData) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

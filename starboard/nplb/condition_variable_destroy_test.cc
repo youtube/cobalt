@@ -20,8 +20,8 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbConditionVariableDestroyTest, SunnyDayAutoInit) {
@@ -51,3 +51,5 @@ TEST(SbConditionVariableDestroyTest, RainyDayNull) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

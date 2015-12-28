@@ -15,6 +15,8 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 #if SB_IS(COMPILER_MSVC)
@@ -95,3 +97,5 @@ TEST(SbSystemGetStackTest, SunnyDayStackDirection) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

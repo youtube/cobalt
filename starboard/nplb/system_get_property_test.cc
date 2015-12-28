@@ -19,6 +19,8 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 // Size of appropriate value buffer.
@@ -71,3 +73,5 @@ TEST(SbSystemGetPropertyTest, FailsGracefullyBogusId) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

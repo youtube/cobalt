@@ -18,8 +18,8 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 // Returns the thread's ID.
@@ -42,3 +42,5 @@ TEST(SbThreadGetNameTest, SunnyDay) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard
