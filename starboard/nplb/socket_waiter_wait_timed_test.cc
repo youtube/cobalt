@@ -19,8 +19,8 @@
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 // We want to make sure we aren't stuck too long in Wait().
@@ -56,7 +56,7 @@ TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
   EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
-  sbnplb::ConnectedTrio trio = sbnplb::CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     ADD_FAILURE();
     return;
@@ -69,7 +69,7 @@ TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
       waiter, trio.client_socket, &values, &TestSocketWaiterCallback,
       kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite, false));
 
-  sbnplb::TimedWaitShouldNotBlock(waiter, kTimeout);
+  TimedWaitShouldNotBlock(waiter, kTimeout);
 
   // Even though we waited for no time, we should have gotten this callback.
   EXPECT_EQ(1, values.count);  // Check that the callback was called once.
@@ -85,7 +85,7 @@ TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
                                 &TestSocketWaiterCallback,
                                 kSbSocketWaiterInterestRead, false));
 
-  sbnplb::TimedWaitShouldBlock(waiter, kTimeout);
+  TimedWaitShouldBlock(waiter, kTimeout);
 
   EXPECT_EQ(0, values.count);
 
@@ -96,7 +96,7 @@ TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
   delete[] send_buf;
   EXPECT_LT(0, bytes_sent);
 
-  sbnplb::TimedWaitShouldNotBlock(waiter, kTimeout);
+  TimedWaitShouldNotBlock(waiter, kTimeout);
 
   EXPECT_EQ(1, values.count);
   EXPECT_EQ(waiter, values.waiter);
@@ -111,7 +111,9 @@ TEST(SbSocketWaiterWaitTimedTest, SunnyDay) {
 }
 
 TEST(SbSocketWaiterWaitTimedTest, RainyDayInvalidWaiter) {
-  sbnplb::TimedWaitShouldNotBlock(kSbSocketWaiterInvalid, kTimeout);
+  TimedWaitShouldNotBlock(kSbSocketWaiterInvalid, kTimeout);
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

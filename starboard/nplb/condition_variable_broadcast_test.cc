@@ -17,6 +17,8 @@
 #include "starboard/condition_variable.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbConditionVariableBroadcastTest, SunnyDayAutoInit) {
@@ -30,3 +32,5 @@ TEST(SbConditionVariableBroadcastTest, RainyDayNull) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

@@ -18,6 +18,8 @@
 #include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbStringCompareWideTest, SunnyDay) {
@@ -32,3 +34,5 @@ TEST(SbStringCompareWideTest, SunnyDay) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

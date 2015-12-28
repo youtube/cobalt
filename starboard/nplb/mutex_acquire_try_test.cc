@@ -16,6 +16,8 @@
 #include "starboard/mutex.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbMutexAcquireTryTest, SunnyDayUncontended) {
@@ -53,3 +55,5 @@ TEST(SbMutexAcquireTryTest, RainyDayReentrant) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard
