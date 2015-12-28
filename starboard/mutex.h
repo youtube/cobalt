@@ -67,4 +67,38 @@ SB_EXPORT bool SbMutexRelease(SbMutex* handle);
 }  // extern "C"
 #endif
 
+#ifdef __cplusplus
+namespace starboard {
+
+// Inline class wrapper for SbMutex.
+class Mutex {
+ public:
+  Mutex() : mutex_() { SbMutexCreate(&mutex_); }
+
+  ~Mutex() { SbMutexDestroy(&mutex_); }
+
+  void Acquire() const { SbMutexAcquire(&mutex_); }
+
+  void Release() const { SbMutexRelease(&mutex_); }
+
+ private:
+  friend class ConditionVariable;
+  SbMutex mutex() const { return mutex_; }
+
+  mutable SbMutex mutex_;
+};
+
+// Scoped lock holder that works on starboard::Mutex.
+class ScopedLock {
+ public:
+  explicit ScopedLock(const Mutex& mutex) : mutex_(mutex) { mutex_.Acquire(); }
+
+  ~ScopedLock() { mutex_.Release(); }
+
+  const Mutex& mutex_;
+};
+
+}  // namespace starboard
+#endif
+
 #endif  // STARBOARD_MUTEX_H_
