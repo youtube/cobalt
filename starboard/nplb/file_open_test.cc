@@ -19,8 +19,8 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using starboard::nplb::ScopedRandomFile;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 void BasicTest(bool existing,
@@ -146,3 +146,5 @@ TEST(SbFileOpenTest, WorksWithNullOutParams) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

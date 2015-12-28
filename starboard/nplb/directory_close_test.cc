@@ -18,6 +18,8 @@
 #include "starboard/directory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbDirectoryCloseTest, FailureInvalid) {
@@ -25,3 +27,5 @@ TEST(SbDirectoryCloseTest, FailureInvalid) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

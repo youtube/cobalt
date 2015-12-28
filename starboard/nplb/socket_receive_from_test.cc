@@ -17,8 +17,8 @@
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 // Transfers data between the two connected local sockets, spinning until |size|
@@ -65,7 +65,7 @@ TEST(SbSocketReceiveFromTest, SunnyDay) {
   const int kBufSize = 256 * 1024;
   const int kSockBufSize = kBufSize / 8;
 
-  sbnplb::ConnectedTrio trio = sbnplb::CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     return;
   }
@@ -118,3 +118,5 @@ TEST(SbSocketReceiveFromTest, RainyDayInvalidSocket) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

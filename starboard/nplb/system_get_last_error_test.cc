@@ -17,8 +17,8 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using starboard::nplb::ScopedRandomFile;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbSystemGetLastErrorTest, SunnyDay) {
@@ -32,3 +32,5 @@ TEST(SbSystemGetLastErrorTest, SunnyDay) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

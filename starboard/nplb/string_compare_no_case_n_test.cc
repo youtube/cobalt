@@ -15,6 +15,8 @@
 #include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbStringCompareNoCaseNTest, SunnyDaySelf) {
@@ -61,3 +63,5 @@ TEST(SbStringCompareNoCaseNTest, SunnyDayCase) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

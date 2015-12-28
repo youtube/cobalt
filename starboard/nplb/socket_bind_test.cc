@@ -19,8 +19,8 @@
 #include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 // This is to use NULL in asserts, which otherwise complain about long
@@ -28,12 +28,12 @@ namespace {
 const void* kNull = NULL;
 
 TEST(SbSocketBindTest, RainyDayNullSocket) {
-  SbSocketAddress address = sbnplb::GetIpv4Unspecified(2048);
+  SbSocketAddress address = GetIpv4Unspecified(2048);
   EXPECT_EQ(kSbSocketErrorFailed, SbSocketBind(kSbSocketInvalid, &address));
 }
 
 TEST(SbSocketBindTest, RainyDayNullAddress) {
-  SbSocket server_socket = sbnplb::CreateServerTcpIpv4Socket();
+  SbSocket server_socket = CreateServerTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(server_socket));
 
   // Binding with a NULL address should fail.
@@ -41,7 +41,7 @@ TEST(SbSocketBindTest, RainyDayNullAddress) {
 
   // Even though that failed, binding the same socket now with 0.0.0.0:2048
   // should work.
-  SbSocketAddress address = sbnplb::GetIpv4Unspecified(2048);
+  SbSocketAddress address = GetIpv4Unspecified(2048);
   EXPECT_EQ(kSbSocketOk, SbSocketBind(server_socket, &address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
@@ -52,23 +52,23 @@ TEST(SbSocketBindTest, RainyDayNullNull) {
 }
 
 TEST(SbSocketBindTest, RainyDayWrongAddressType) {
-  SbSocket server_socket = sbnplb::CreateServerTcpIpv4Socket();
+  SbSocket server_socket = CreateServerTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(server_socket));
 
   // Binding with the wrong address type should fail.
-  SbSocketAddress address = sbnplb::GetIpv6Unspecified(2048);
+  SbSocketAddress address = GetIpv6Unspecified(2048);
   EXPECT_EQ(kSbSocketErrorFailed, SbSocketBind(server_socket, &address));
 
   // Even though that failed, binding the same socket now with 0.0.0.0:2048
   // should work.
-  address = sbnplb::GetIpv4Unspecified(2048);
+  address = GetIpv4Unspecified(2048);
   EXPECT_EQ(kSbSocketOk, SbSocketBind(server_socket, &address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
 TEST(SbSocketBindTest, RainyDayBadInterface) {
-  SbSocket server_socket = sbnplb::CreateServerTcpIpv4Socket();
+  SbSocket server_socket = CreateServerTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(server_socket));
 
   // Binding with an interface that doesn't exist on this device should fail, so
@@ -87,7 +87,7 @@ TEST(SbSocketBindTest, RainyDayBadInterface) {
 }
 
 TEST(SbSocketBindTest, SunnyDayLocalInterface) {
-  SbSocket server_socket = sbnplb::CreateServerTcpIpv4Socket();
+  SbSocket server_socket = CreateServerTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(server_socket));
 
   SbSocketAddress address = {0};
@@ -98,3 +98,5 @@ TEST(SbSocketBindTest, SunnyDayLocalInterface) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

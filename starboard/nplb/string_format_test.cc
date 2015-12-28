@@ -18,6 +18,8 @@
 #include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 int Format(char* out_buffer, size_t buffer_size, const char* format, ...) {
@@ -41,3 +43,5 @@ TEST(SbStringFormatTest, SunnyDay) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

@@ -16,8 +16,8 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace nplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbThreadCreateTest, SunnyDay) {
@@ -135,3 +135,5 @@ TEST(SbThreadCreateTest, RainyDayNoEntryPoint) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

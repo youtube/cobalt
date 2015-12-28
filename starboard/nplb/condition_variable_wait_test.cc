@@ -16,18 +16,17 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace nplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbConditionVariableWaitTest, SunnyDayAutoInit) {
-  nplb::TakeThenSignalContext context = {nplb::Semaphore(0),
-                                         SB_MUTEX_INITIALIZER,
-                                         SB_CONDITION_VARIABLE_INITIALIZER};
+  TakeThenSignalContext context = {Semaphore(0), SB_MUTEX_INITIALIZER,
+                                   SB_CONDITION_VARIABLE_INITIALIZER};
   // Start the thread.
   SbThread thread =
       SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
-                     nplb::TakeThenSignalEntryPoint, &context);
+                     TakeThenSignalEntryPoint, &context);
 
   EXPECT_TRUE(SbMutexIsSuccess(SbMutexAcquire(&context.mutex)));
 
@@ -51,12 +50,12 @@ TEST(SbConditionVariableWaitTest, SunnyDayAutoInit) {
 
 TEST(SbConditionVariableWaitTest, SunnyDay) {
   const int kMany = 64;
-  nplb::WaiterContext context;
+  WaiterContext context;
 
   SbThread threads[kMany];
   for (int i = 0; i < kMany; ++i) {
     threads[i] = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
-                                true, NULL, nplb::WaiterEntryPoint, &context);
+                                true, NULL, WaiterEntryPoint, &context);
   }
 
   for (int i = 0; i < kMany; ++i) {
@@ -89,3 +88,5 @@ TEST(SbConditionVariableWaitTest, RainyDayNull) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

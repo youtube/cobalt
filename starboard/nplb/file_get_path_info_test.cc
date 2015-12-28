@@ -22,6 +22,8 @@
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbFileGetInfoTest, InvalidFileErrors) {
@@ -52,7 +54,7 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
     SbTime time = SbTimeGetNow() - (2 * kSbTimeSecond);
 
     const int kFileSize = 12;
-    starboard::nplb::ScopedRandomFile random_file(kFileSize);
+    ScopedRandomFile random_file(kFileSize);
     const std::string& filename = random_file.filename();
 
     {
@@ -87,3 +89,5 @@ TEST(SbFileGetInfoTest, WorksOnADirectory) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

@@ -16,8 +16,8 @@
 #include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbSocketGetLocalAddressTest, RainyDayInvalidSocket) {
@@ -26,7 +26,7 @@ TEST(SbSocketGetLocalAddressTest, RainyDayInvalidSocket) {
 }
 
 TEST(SbSocketGetLocalAddressTest, RainyDayNullAddress) {
-  SbSocket server_socket = sbnplb::CreateBoundTcpIpv4Socket(0);
+  SbSocket server_socket = CreateBoundTcpIpv4Socket(0);
   EXPECT_TRUE(SbSocketIsValid(server_socket));
   EXPECT_FALSE(SbSocketGetLocalAddress(server_socket, NULL));
   EXPECT_TRUE(SbSocketDestroy(server_socket));
@@ -37,18 +37,18 @@ TEST(SbSocketGetLocalAddressTest, RainyDayNullNull) {
 }
 
 TEST(SbSocketGetLocalAddressTest, SunnyDayUnbound) {
-  SbSocket server_socket = sbnplb::CreateServerTcpIpv4Socket();
+  SbSocket server_socket = CreateServerTcpIpv4Socket();
   SbSocketAddress address = {0};
   EXPECT_TRUE(SbSocketGetLocalAddress(server_socket, &address));
   EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
   EXPECT_EQ(0, address.port);
-  EXPECT_TRUE(sbnplb::IsUnspecified(&address));
+  EXPECT_TRUE(IsUnspecified(&address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
 TEST(SbSocketGetLocalAddressTest, SunnyDayBoundUnspecified) {
-  SbSocket server_socket = sbnplb::CreateBoundTcpIpv4Socket(0);
+  SbSocket server_socket = CreateBoundTcpIpv4Socket(0);
   EXPECT_TRUE(SbSocketIsValid(server_socket));
 
   SbSocketAddress address = {0};
@@ -57,13 +57,13 @@ TEST(SbSocketGetLocalAddressTest, SunnyDayBoundUnspecified) {
   EXPECT_NE(0, address.port);
 
   // We bound to an unspecified address, so it should come back that way.
-  EXPECT_TRUE(sbnplb::IsUnspecified(&address));
+  EXPECT_TRUE(IsUnspecified(&address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
 TEST(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
-  SbSocket server_socket = sbnplb::CreateServerTcpIpv4Socket();
+  SbSocket server_socket = CreateServerTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(server_socket));
 
   {
@@ -76,7 +76,7 @@ TEST(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
   EXPECT_TRUE(SbSocketGetLocalAddress(server_socket, &address));
   EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
   EXPECT_NE(0, address.port);
-  EXPECT_FALSE(sbnplb::IsUnspecified(&address));
+  EXPECT_FALSE(IsUnspecified(&address));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
@@ -85,24 +85,24 @@ TEST(SbSocketGetLocalAddressTest, SunnyDayConnected) {
   const int kPort = 2048;
   const SbTimeMonotonic kTimeout = kSbTimeSecond / 15;
 
-  sbnplb::ConnectedTrio trio = sbnplb::CreateAndConnect(kPort, kTimeout);
+  ConnectedTrio trio = CreateAndConnect(kPort, kTimeout);
   if (!SbSocketIsValid(trio.server_socket)) {
     return;
   }
 
   SbSocketAddress address = {0};
   EXPECT_TRUE(SbSocketGetLocalAddress(trio.listen_socket, &address));
-  EXPECT_TRUE(sbnplb::IsUnspecified(&address));
+  EXPECT_TRUE(IsUnspecified(&address));
   EXPECT_EQ(kPort, address.port);
 
   SbSocketAddress address1 = {0};
   EXPECT_TRUE(SbSocketGetLocalAddress(trio.client_socket, &address1));
-  EXPECT_FALSE(sbnplb::IsUnspecified(&address1));
+  EXPECT_FALSE(IsUnspecified(&address1));
   EXPECT_NE(kPort, address1.port);
 
   SbSocketAddress address2 = {0};
   EXPECT_TRUE(SbSocketGetLocalAddress(trio.server_socket, &address2));
-  EXPECT_FALSE(sbnplb::IsUnspecified(&address2));
+  EXPECT_FALSE(IsUnspecified(&address2));
   EXPECT_EQ(kPort, address2.port);
 
   EXPECT_TRUE(SbSocketDestroy(trio.server_socket));
@@ -111,3 +111,5 @@ TEST(SbSocketGetLocalAddressTest, SunnyDayConnected) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard
