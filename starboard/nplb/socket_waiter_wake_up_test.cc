@@ -17,8 +17,8 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace sbnplb = starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 const SbTime kTimeout = kSbTimeSecond / 50;
@@ -60,8 +60,8 @@ TEST(SbSocketWaiterWakeUpTest, EarlyCallWakesUp) {
 
   SbSocketWaiterWakeUp(waiter);
 
-  sbnplb::TimedWaitShouldNotBlock(waiter, kTimeout);
-  sbnplb::TimedWaitShouldBlock(waiter, kTimeout);
+  TimedWaitShouldNotBlock(waiter, kTimeout);
+  TimedWaitShouldBlock(waiter, kTimeout);
 
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
@@ -75,9 +75,9 @@ TEST(SbSocketWaiterWakeUpTest, EarlyCallWakesUpMultiply) {
   }
 
   for (int i = 0; i < kMultiple; ++i) {
-    sbnplb::TimedWaitShouldNotBlock(waiter, kTimeout);
+    TimedWaitShouldNotBlock(waiter, kTimeout);
   }
-  sbnplb::TimedWaitShouldBlock(waiter, kTimeout);
+  TimedWaitShouldBlock(waiter, kTimeout);
 
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
@@ -88,8 +88,8 @@ TEST(SbSocketWaiterWakeUpTest, EarlyCallFromOtherThreadWakesUp) {
 
   SpawnJoin(waiter, &WakeUpEntryPoint);
 
-  sbnplb::TimedWaitShouldNotBlock(waiter, kTimeout);
-  sbnplb::TimedWaitShouldBlock(waiter, kTimeout);
+  TimedWaitShouldNotBlock(waiter, kTimeout);
+  TimedWaitShouldBlock(waiter, kTimeout);
 
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
@@ -103,9 +103,9 @@ TEST(SbSocketWaiterWakeUpTest, EarlyCallFromOtherThreadWakesUpMultiply) {
   }
 
   for (int i = 0; i < kMultiple; ++i) {
-    sbnplb::TimedWaitShouldNotBlock(waiter, kTimeout);
+    TimedWaitShouldNotBlock(waiter, kTimeout);
   }
-  sbnplb::TimedWaitShouldBlock(waiter, kTimeout);
+  TimedWaitShouldBlock(waiter, kTimeout);
 
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
@@ -116,7 +116,7 @@ TEST(SbSocketWaiterWakeUpTest, CallFromOtherThreadWakesUp) {
     EXPECT_TRUE(SbSocketWaiterIsValid(waiter));
 
     SbThread thread = Spawn(waiter, &WakeUpSleepEntryPoint);
-    sbnplb::WaitShouldBlockBetween(waiter, kTimeout, kTimeout * 2);
+    WaitShouldBlockBetween(waiter, kTimeout, kTimeout * 2);
     Join(thread);
 
     EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
@@ -124,3 +124,5 @@ TEST(SbSocketWaiterWakeUpTest, CallFromOtherThreadWakesUp) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

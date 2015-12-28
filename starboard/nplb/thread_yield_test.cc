@@ -17,8 +17,8 @@
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 // Returns whether a given index is a yielder for the given trial. We alternate
@@ -64,6 +64,10 @@ TEST(SbThreadYieldTest, SunnyDay) {
 // to fail regularly. By rerunning the test kTrials times, and by swapping which
 // thread gets started first, I hope to make this inherently flaky test not
 // flaky.
+//
+// Note: This test ended up EVER so slightly flaky, but within most
+// tolerances. If it fails on you randomly and inconsistently, it was probably
+// just a flake.
 TEST(SbThreadYieldTest, SunnyDayRace) {
   const int kTrials = 30;
   for (int trial = 0; trial < kTrials; ++trial) {
@@ -107,3 +111,5 @@ TEST(SbThreadYieldTest, SunnyDayRace) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

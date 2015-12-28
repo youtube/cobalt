@@ -15,6 +15,8 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 struct ThreadLocalValue {
@@ -126,3 +128,5 @@ TEST(SbThreadLocalValueTest, SunnyDayMany) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

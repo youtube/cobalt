@@ -22,6 +22,8 @@
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbFileGetInfoTest, InvalidFileErrors) {
@@ -88,3 +90,5 @@ TEST(SbFileGetInfoTest, WorksOnADirectory) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

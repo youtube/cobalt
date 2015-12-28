@@ -21,13 +21,15 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 typedef std::set<std::string> StringSet;
 
 TEST(SbDirectoryGetNextTest, SunnyDay) {
   const int kNumFiles = 65;
-  starboard::nplb::ScopedRandomFile files[kNumFiles];
+  ScopedRandomFile files[kNumFiles];
 
   std::string directory_name = files[0].filename();
   directory_name.resize(directory_name.find_last_of(SB_FILE_SEP_CHAR));
@@ -82,9 +84,9 @@ TEST(SbDirectoryGetNextTest, FailureInvalidSbDirectory) {
 
 TEST(SbDirectoryGetNextTest, FailureNullEntry) {
   // Ensure there's at least one file in the directory.
-  starboard::nplb::ScopedRandomFile file;
+  ScopedRandomFile file;
 
-  std::string path = starboard::nplb::GetTempDir();
+  std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(SbFileExists(path.c_str()));
 
@@ -103,3 +105,5 @@ TEST(SbDirectoryGetNextTest, FailureInvalidAndNull) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

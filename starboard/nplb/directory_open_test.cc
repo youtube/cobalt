@@ -20,10 +20,12 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbDirectoryOpenTest, SunnyDay) {
-  std::string path = starboard::nplb::GetTempDir();
+  std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(SbFileExists(path.c_str()));
 
@@ -35,7 +37,7 @@ TEST(SbDirectoryOpenTest, SunnyDay) {
 }
 
 TEST(SbDirectoryOpenTest, SunnyDayWithNullError) {
-  std::string path = starboard::nplb::GetTempDir();
+  std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(SbFileExists(path.c_str()));
 
@@ -45,7 +47,7 @@ TEST(SbDirectoryOpenTest, SunnyDayWithNullError) {
 }
 
 TEST(SbDirectoryOpenTest, ManySunnyDay) {
-  std::string path = starboard::nplb::GetTempDir();
+  std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(SbFileExists(path.c_str()));
 
@@ -65,7 +67,7 @@ TEST(SbDirectoryOpenTest, ManySunnyDay) {
 }
 
 TEST(SbDirectoryOpenTest, FailsInvalidPath) {
-  std::string path = starboard::nplb::GetTempDir();
+  std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(SbFileExists(path.c_str()));
 
@@ -117,7 +119,7 @@ TEST(SbDirectoryOpenTest, FailsEmptyPath) {
 }
 
 TEST(SbDirectoryOpenTest, FailsRegularFile) {
-  starboard::nplb::ScopedRandomFile file;
+  ScopedRandomFile file;
 
   SbFileError error = kSbFileErrorMax;
   SbDirectory directory = SbDirectoryOpen(file.filename().c_str(), &error);
@@ -129,3 +131,5 @@ TEST(SbDirectoryOpenTest, FailsRegularFile) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

@@ -18,8 +18,8 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace starboard::nplb;
-
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbThreadDetachTest, SunnyDay) {
@@ -38,3 +38,5 @@ TEST(SbThreadDetachTest, RainyDayInvalid) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

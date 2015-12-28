@@ -18,6 +18,8 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 TEST(SbFileTruncateTest, InvalidFileErrors) {
@@ -34,7 +36,7 @@ TEST(SbFileTruncateTest, InvalidFileErrors) {
 TEST(SbFileTruncateTest, TruncateToZero) {
   const int kStartSize = 123;
   const int kEndSize = 0;
-  starboard::nplb::ScopedRandomFile random_file(kStartSize);
+  ScopedRandomFile random_file(kStartSize);
   const std::string& filename = random_file.filename();
 
   SbFile file =
@@ -65,7 +67,7 @@ TEST(SbFileTruncateTest, TruncateUpInSize) {
   // "Truncate," I don't think that word means what you think it means.
   const int kStartSize = 123;
   const int kEndSize = kStartSize * 2;
-  starboard::nplb::ScopedRandomFile random_file(kStartSize);
+  ScopedRandomFile random_file(kStartSize);
   const std::string& filename = random_file.filename();
 
   SbFile file =
@@ -100,8 +102,7 @@ TEST(SbFileTruncateTest, TruncateUpInSize) {
   int bytes = SbFileRead(file, buffer, kEndSize);
   EXPECT_EQ(kEndSize, bytes);
 
-  starboard::nplb::ScopedRandomFile::ExpectPattern(0, buffer, kStartSize,
-                                                   __LINE__);
+  ScopedRandomFile::ExpectPattern(0, buffer, kStartSize, __LINE__);
 
   for (int i = kStartSize; i < kEndSize; ++i) {
     EXPECT_EQ(0, buffer[i]);
@@ -112,3 +113,5 @@ TEST(SbFileTruncateTest, TruncateUpInSize) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard

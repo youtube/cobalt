@@ -16,6 +16,8 @@
 #include "starboard/mutex.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace starboard {
+namespace nplb {
 namespace {
 
 const int kALot = 128 * 1024;
@@ -76,3 +78,5 @@ TEST(SbConditionVariableCreateTest, RainyDayNull) {
 }
 
 }  // namespace
+}  // namespace nplb
+}  // namespace starboard
