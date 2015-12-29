@@ -193,7 +193,7 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
     if (did_work)
       continue;
 
-    delegate->DoIdleWork();
+    did_work = delegate->DoIdleWork();
     if (!keep_running_)
       break;
 
