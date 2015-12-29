@@ -268,6 +268,10 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kBottomProperty, "bottom", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
+  // http://www.w3.org/TR/css3-background/#the-box-shadow
+  SetPropertyDefinition(kBoxShadowProperty, "box-shadow", kInheritedNo,
+                        kAnimatableNo, KeywordValue::GetNone());
+
   // Opaque black in Chromium and Cobalt.
   //   http://www.w3.org/TR/css3-color/#foreground
   SetPropertyDefinition(kColorProperty, "color", kInheritedYes, kAnimatableYes,
@@ -398,6 +402,10 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // http://www.w3.org/TR/css3-ui/#propdef-text-overflow
   SetPropertyDefinition(kTextOverflowProperty, "text-overflow", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetClip());
+
+  // http://www.w3.org/TR/css-text-decor-3/#text-shadow-property
+  SetPropertyDefinition(kTextShadowProperty, "text-shadow", kInheritedYes,
+                        kAnimatableNo, KeywordValue::GetNone());
 
   // http://www.w3.org/TR/css3-text/#text-transform-property
   SetPropertyDefinition(kTextTransformProperty, "text-transform", kInheritedYes,
@@ -773,6 +781,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kBorderTopProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBoxShadowProperty))) {
+        return kBoxShadowProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kFontStyleProperty))) {
         return kFontStyleProperty;
       }
@@ -830,6 +842,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTextIndentProperty))) {
         return kTextIndentProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kTextShadowProperty))) {
+        return kTextShadowProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kWhiteSpaceProperty))) {

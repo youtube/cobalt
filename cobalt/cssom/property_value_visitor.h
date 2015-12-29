@@ -40,6 +40,7 @@ class PropertyValue;
 class RatioValue;
 class ResolutionValue;
 class RGBAColorValue;
+class ShadowValue;
 class StringValue;
 class TimeListValue;
 class TimingFunctionListValue;
@@ -74,6 +75,7 @@ class PropertyValueVisitor {
   virtual void VisitRatio(RatioValue* ratio_value) = 0;
   virtual void VisitResolution(ResolutionValue* resolution_value) = 0;
   virtual void VisitRGBAColor(RGBAColorValue* color_value) = 0;
+  virtual void VisitShadow(ShadowValue* shadow_value) = 0;
   virtual void VisitString(StringValue* string_value) = 0;
   virtual void VisitTimeList(TimeListValue* time_list_value) = 0;
   virtual void VisitTimingFunctionList(
@@ -114,6 +116,7 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
   void VisitRatio(RatioValue* ratio_value) OVERRIDE;
   void VisitResolution(ResolutionValue* resolution_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* color_value) OVERRIDE;
+  void VisitShadow(ShadowValue* shadow_value) OVERRIDE;
   void VisitString(StringValue* string_value) OVERRIDE;
   void VisitTimeList(TimeListValue* time_list_value) OVERRIDE;
   void VisitTimingFunctionList(
