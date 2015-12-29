@@ -123,6 +123,8 @@
         'time_zone_get_current_test.cc',
         'time_zone_get_dst_name_test.cc',
         'time_zone_get_name_test.cc',
+        'window_create_test.cc',
+        'window_destroy_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/testing/gmock.gyp:gmock',
