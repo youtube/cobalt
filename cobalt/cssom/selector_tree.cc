@@ -27,11 +27,16 @@
 namespace cobalt {
 namespace cssom {
 
+SelectorTree::Node::Node()
+    : compound_selector_(NULL), selector_mask_(0), pseudo_class_mask_(0) {}
+
 SelectorTree::Node::Node(CompoundSelector* compound_selector,
-                         const Specificity& parent_specificity)
-    : compound_selector(compound_selector),
-      cumulative_specificity(parent_specificity) {
-  cumulative_specificity.AddFrom(compound_selector->GetSpecificity());
+                         Specificity parent_specificity)
+    : compound_selector_(compound_selector),
+      cumulative_specificity_(parent_specificity),
+      selector_mask_(0),
+      pseudo_class_mask_(0) {
+  cumulative_specificity_.AddFrom(compound_selector_->GetSpecificity());
 }
 
 void SelectorTree::AppendRule(CSSStyleRule* rule) {
@@ -39,7 +44,7 @@ void SelectorTree::AppendRule(CSSStyleRule* rule) {
        it != rule->selectors().end(); ++it) {
     DCHECK((*it)->AsComplexSelector());
     Node* node = GetOrCreateNodeForComplexSelector((*it)->AsComplexSelector());
-    node->rules.push_back(base::AsWeakPtr(rule));
+    node->rules().push_back(base::AsWeakPtr(rule));
   }
 }
 
@@ -48,10 +53,10 @@ void SelectorTree::RemoveRule(CSSStyleRule* rule) {
        it != rule->selectors().end(); ++it) {
     DCHECK((*it)->AsComplexSelector());
     Node* node = GetOrCreateNodeForComplexSelector((*it)->AsComplexSelector());
-    for (Rules::iterator remove_it = node->rules.begin();
-         remove_it != node->rules.end(); ++remove_it) {
+    for (Rules::iterator remove_it = node->rules().begin();
+         remove_it != node->rules().end(); ++remove_it) {
       if (*remove_it == rule) {
-        node->rules.erase(remove_it);
+        node->rules().erase(remove_it);
         break;
       }
     }
@@ -81,16 +86,16 @@ SelectorTree::Node* SelectorTree::GetOrCreateNodeForCompoundSelector(
     has_sibling_combinators_ = true;
   }
 
-  for (OwnedNodes::iterator it = parent_node->children[combinator].begin();
-       it != parent_node->children[combinator].end(); ++it) {
-    if ((*it)->compound_selector->GetNormalizedSelectorText() ==
+  for (OwnedNodes::iterator it = parent_node->children(combinator).begin();
+       it != parent_node->children(combinator).end(); ++it) {
+    if ((*it)->compound_selector()->GetNormalizedSelectorText() ==
         compound_selector->GetNormalizedSelectorText()) {
       return *it;
     }
   }
   Node* child_node =
-      new Node(compound_selector, parent_node->cumulative_specificity);
-  parent_node->children[combinator].push_back(child_node);
+      new Node(compound_selector, parent_node->cumulative_specificity());
+  parent_node->children(combinator).push_back(child_node);
 
   for (CompoundSelector::SimpleSelectors::const_iterator it =
            compound_selector->simple_selectors().begin();
