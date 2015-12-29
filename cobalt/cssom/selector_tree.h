@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SELECTOR_TREE_H_
-#define CSSOM_SELECTOR_TREE_H_
+#ifndef COBALT_CSSOM_SELECTOR_TREE_H_
+#define COBALT_CSSOM_SELECTOR_TREE_H_
 
 #include <map>
 #include <string>
@@ -23,12 +23,13 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/containers/small_map.h"
 #include "base/hash_tables.h"
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/unused.h"
 #include "cobalt/cssom/combinator.h"
+#include "cobalt/cssom/pseudo_class_type.h"
+#include "cobalt/cssom/simple_selector_type.h"
 #include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
@@ -41,63 +42,186 @@ class CSSStyleRule;
 // A selector tree is a tree structure that organizes compound selectors. It is
 // used to accelerate rule matching. More details can be found in the doc:
 // https://docs.google.com/document/d/1LTbSenGsGR94JTGg6DfZDXYB3MBBCp4C8dRC4rckt_8/
-//
-// TODO(***REMOVED***, b/24976289): Note that current selector tree does not support
-// removing rule from it, and is assuming that the appended rule does not
-// disappear. Support when needed.
 class SelectorTree {
  public:
   typedef std::vector<base::WeakPtr<CSSStyleRule> > Rules;
 
-  struct Node;
+  class Node;
 
-  typedef ScopedVector<Node> OwnedNodes;
-  // NOTE: The array size of SmallMap and the decision to use std::map as the
-  // underlying container type are based on extensive performance testing with
-  // ***REMOVED***. Do not change these unless additional profiling data justifies it.
-  typedef base::SmallMap<std::map<Node*, base::Unused>, 12> NodeSet;
-  typedef std::vector<Node*> Nodes;
-  // NOTE: The array size of SmallMap and the decision to use base::hash_map as
-  // the underlying container type are based on extensive performance testing
-  // with ***REMOVED***. Do not change these unless additional profiling data justifies
-  // it.
-  typedef base::SmallMap<base::hash_map<std::string, Nodes>, 2>
-      SelectorTextToNodesMap;
+  // This class can be used to store unique Nodes.  It stores the Nodes in its
+  // internal buffer whose size can be configured via template parameter.
+  // After the internal buffer is used up the extra Nodes will be stored inside
+  // the contained std::vector.
+  // TODO(***REMOVED***): Move this off to its own file if this can also be used by
+  // other code.
+  template <size_t InternalCacheSize>
+  class NodeSet {
+   public:
+    // Minimum interface for iterator.
+    class const_iterator {
+     public:
+      const_iterator(const NodeSet* set, size_t index)
+          : set_(set), index_(index) {}
+      void operator++() { ++index_; }
+      const Node* operator*() const { return set_->GetNode(index_); }
+      bool operator!=(const const_iterator& that) const {
+        return set_ != that.set_ || index_ != that.index_;
+      }
 
-  struct Node {
-    Node() : compound_selector(NULL) {}
-    Node(CompoundSelector* compound_selector,
-         const Specificity& parent_specificity);
+     private:
+      const NodeSet* set_;
+      size_t index_;
+    };
 
-    // Pointer to one of the equivalent compound selectors.
-    CompoundSelector* compound_selector;
-    // Sum of specificity from root to this node.
-    Specificity cumulative_specificity;
+    NodeSet() : size_(0) {}
+    void insert(const Node* node) {
+      // Check if we already have it.
+      for (size_t i = 0; i < size_; ++i) {
+        if (GetNode(i) == node) {
+          return;
+        }
+      }
+      if (size_ < InternalCacheSize) {
+        nodes_[size_] = node;
+      } else {
+        nodes_vector_.push_back(node);
+      }
+      ++size_;
+    }
+    template <class ConstIterator>
+    void insert(ConstIterator begin, ConstIterator end) {
+      while (begin != end) {
+        insert(*begin);
+        ++begin;
+      }
+    }
 
-    // Children of the node, with given type of combinator.
-    OwnedNodes children[kCombinatorCount];
-    // Indexes for the children.
-    SelectorTextToNodesMap type_selector_nodes_map[kCombinatorCount];
-    SelectorTextToNodesMap class_selector_nodes_map[kCombinatorCount];
-    SelectorTextToNodesMap id_selector_nodes_map[kCombinatorCount];
-    Nodes active_pseudo_class_nodes[kCombinatorCount];
-    Nodes empty_pseudo_class_nodes[kCombinatorCount];
-    Nodes focus_pseudo_class_nodes[kCombinatorCount];
-    Nodes hover_pseudo_class_nodes[kCombinatorCount];
-    Nodes not_pseudo_class_nodes[kCombinatorCount];
+    const_iterator begin() const { return const_iterator(this, 0); }
+    const_iterator end() const { return const_iterator(this, size_); }
+    size_t size() const { return size_; }
+    void clear() {
+      size_ = 0;
+      nodes_vector_.clear();
+    }
+    const Node* GetNode(size_t index) const {
+      if (index < InternalCacheSize) {
+        return nodes_[index];
+      }
+      return nodes_vector_[index - InternalCacheSize];
+    }
 
-    // Rules that end with this node.
-    Rules rules;
+   private:
+    size_t size_;
+    const Node* nodes_[InternalCacheSize];
+    std::vector<const Node*> nodes_vector_;
   };
 
-  SelectorTree() : has_sibling_combinators_(false) {
-    root_set_.insert(std::make_pair(&root_, base::Unused()));
-  }
+  struct PseudoClassNode {
+    PseudoClassType pseudo_class_type;
+    CombinatorType combinator_type;
+    Node* node;
+  };
 
-  Node* root() { return &root_; }
-  NodeSet* root_set() { return &root_set_; }
+  struct SimpleSelectorNode {
+    SimpleSelectorType simple_selector_type;
+    CombinatorType combinator_type;
+    Node* node;
+  };
 
-  bool has_sibling_combinators() { return has_sibling_combinators_; }
+  typedef ScopedVector<Node> OwnedNodes;
+  typedef std::vector<SimpleSelectorNode> SimpleSelectorNodes;
+  typedef std::vector<PseudoClassNode> PseudoClassNodes;
+  typedef base::hash_map<std::string, SimpleSelectorNodes>
+      SelectorTextToNodesMap;
+
+  class Node {
+   public:
+    CompoundSelector* compound_selector() const { return compound_selector_; }
+    Specificity cumulative_specificity() const {
+      return cumulative_specificity_;
+    }
+    OwnedNodes& children(CombinatorType type) { return children_[type]; }
+    const OwnedNodes& children(CombinatorType type) const {
+      return children_[type];
+    }
+    Rules& rules() { return rules_; }
+    const Rules& rules() const { return rules_; }
+
+    const PseudoClassNodes& pseudo_class_nodes() const {
+      return pseudo_class_nodes_;
+    }
+    bool HasPseudoClass(PseudoClassType pseudo_class_type,
+                        CombinatorType combinator_type) const {
+      return (pseudo_class_mask_ &
+              (1u << (pseudo_class_type * kCombinatorCount +
+                      combinator_type))) != 0;
+    }
+    void AppendPseudoClassNode(PseudoClassType pseudo_class_type,
+                               CombinatorType combinator_type, Node* node) {
+      PseudoClassNode child_node = {pseudo_class_type, combinator_type, node};
+      pseudo_class_nodes_.push_back(child_node);
+      pseudo_class_mask_ |=
+          (1u << (pseudo_class_type * kCombinatorCount + combinator_type));
+    }
+
+    const SelectorTextToNodesMap& selector_nodes_map() const {
+      return selector_nodes_map_;
+    }
+    bool HasSimpleSelector(SimpleSelectorType simple_selector_type,
+                           CombinatorType combinator_type) const {
+      return (selector_mask_ & (1u << (simple_selector_type * kCombinatorCount +
+                                       combinator_type))) != 0;
+    }
+    void AppendSimpleSelector(std::string name,
+                              SimpleSelectorType simple_selector_type,
+                              CombinatorType combinator_type, Node* node) {
+      SimpleSelectorNode child_node = {simple_selector_type, combinator_type,
+                                       node};
+      selector_nodes_map_[name].push_back(child_node);
+      selector_mask_ |=
+          (1u << (simple_selector_type * kCombinatorCount + combinator_type));
+    }
+
+   private:
+    friend class SelectorTree;
+
+    Node();
+    Node(CompoundSelector* compound_selector, Specificity parent_specificity);
+
+    // Pointer to one of the equivalent compound selectors.
+    CompoundSelector* compound_selector_;
+    // Sum of specificity from root to this node.
+    Specificity cumulative_specificity_;
+
+    // Children of the node, with given type of combinator.
+    OwnedNodes children_[kCombinatorCount];
+
+    // Indexes for the children.
+    SelectorTextToNodesMap selector_nodes_map_;
+    // Bit mask used to quickly reject a certain selector type and combinator
+    // combination.
+    uint32 selector_mask_;
+    COMPILE_ASSERT(sizeof(uint32) * 8 >=
+                       kSimpleSelectorTypeCount * kCombinatorCount,
+                   selector_mask_does_not_have_enough_bits);
+    PseudoClassNodes pseudo_class_nodes_;
+    // Bit mask used to quickly reject a certain pseudo class and combinator
+    // combination.
+    uint32 pseudo_class_mask_;
+    COMPILE_ASSERT(sizeof(uint32) * 8 >=
+                       kPseudoClassTypeCount * kCombinatorCount,
+                   pseudo_class_mask_does_not_have_enough_bits);
+
+    // Rules that end with this node.
+    Rules rules_;
+  };
+
+  SelectorTree() : has_sibling_combinators_(false) { root_set_.insert(&root_); }
+
+  const Node* root() const { return &root_; }
+  const NodeSet<1>& root_set() const { return root_set_; }
+
+  bool has_sibling_combinators() const { return has_sibling_combinators_; }
 
   void AppendRule(CSSStyleRule* rule);
   void RemoveRule(CSSStyleRule* rule);
@@ -113,7 +237,7 @@ class SelectorTree {
                                            CombinatorType combinator);
 
   Node root_;
-  NodeSet root_set_;
+  NodeSet<1> root_set_;
 
   bool has_sibling_combinators_;
 
@@ -123,4 +247,4 @@ class SelectorTree {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_SELECTOR_TREE_H_
+#endif  // COBALT_CSSOM_SELECTOR_TREE_H_
