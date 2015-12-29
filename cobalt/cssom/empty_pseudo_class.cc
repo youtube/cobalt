@@ -28,7 +28,7 @@ void EmptyPseudoClass::Accept(SelectorVisitor* visitor) {
 void EmptyPseudoClass::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                                              SelectorTree::Node* child_node,
                                              CombinatorType combinator) {
-  parent_node->empty_pseudo_class_nodes[combinator].push_back(child_node);
+  parent_node->AppendPseudoClassNode(kEmptyPseudoClass, combinator, child_node);
 }
 
 }  // namespace cssom

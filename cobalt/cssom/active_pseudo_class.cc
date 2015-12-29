@@ -28,7 +28,8 @@ void ActivePseudoClass::Accept(SelectorVisitor* visitor) {
 void ActivePseudoClass::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                                               SelectorTree::Node* child_node,
                                               CombinatorType combinator) {
-  parent_node->active_pseudo_class_nodes[combinator].push_back(child_node);
+  parent_node->AppendPseudoClassNode(kActivePseudoClass, combinator,
+                                     child_node);
 }
 
 }  // namespace cssom

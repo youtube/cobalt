@@ -14,22 +14,24 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/focus_pseudo_class.h"
-
-#include "cobalt/cssom/selector_visitor.h"
+#ifndef COBALT_CSSOM_SIMPLE_SELECTOR_TYPE_H_
+#define COBALT_CSSOM_SIMPLE_SELECTOR_TYPE_H_
 
 namespace cobalt {
 namespace cssom {
 
-void FocusPseudoClass::Accept(SelectorVisitor* visitor) {
-  visitor->VisitFocusPseudoClass(this);
-}
-
-void FocusPseudoClass::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
-                                             SelectorTree::Node* child_node,
-                                             CombinatorType combinator) {
-  parent_node->AppendPseudoClassNode(kFocusPseudoClass, combinator, child_node);
-}
+// Define the following enum here instead of inside simple_selector.h to avoid
+// circular dependency between header files.
+enum SimpleSelectorType {
+  kTypeSelector,
+  kClassSelector,
+  kIdSelector,
+  kPseudoClass,
+  kPseudoElement,
+  kSimpleSelectorTypeCount,
+};
 
 }  // namespace cssom
 }  // namespace cobalt
+
+#endif  // COBALT_CSSOM_SIMPLE_SELECTOR_TYPE_H_
