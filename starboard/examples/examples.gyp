@@ -12,20 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The Starboard "all" target, which includes all interesting targets for the
-# Starboard project.
-
 {
   'targets': [
     {
-      # Note that this target must be in a separate GYP file from starboard.gyp,
-      # or else it produces a GYP file loop (which is not allowed by GYP).
-      'target_name': 'starboard_all',
+      'target_name': 'examples',
       'type': 'none',
       'dependencies': [
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
-        '<(DEPTH)/starboard/examples/examples.gyp:examples',
-        '<(DEPTH)/starboard/nplb/nplb.gyp:nplb',
+        '<(DEPTH)/starboard/examples/window/window.gyp:window',
       ],
     },
   ],
