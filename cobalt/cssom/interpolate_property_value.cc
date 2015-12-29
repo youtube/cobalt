@@ -88,6 +88,7 @@ class InterpolateVisitor : public PropertyValueVisitor {
   void VisitRatio(RatioValue* start_ratio_value) OVERRIDE;
   void VisitResolution(ResolutionValue* start_resolution_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* start_color_value) OVERRIDE;
+  void VisitShadow(ShadowValue* shadow_value) OVERRIDE;
   void VisitString(StringValue* start_string_value) OVERRIDE;
   void VisitTransformFunctionList(
       TransformFunctionListValue* start_transform_list_value) OVERRIDE;
@@ -457,6 +458,11 @@ void InterpolateVisitor::VisitRGBAColor(RGBAColorValue* start_color_value) {
       Lerp(start_color_value->g(), end_color_value.g(), progress_),
       Lerp(start_color_value->b(), end_color_value.b(), progress_),
       Lerp(start_color_value->a(), end_color_value.a(), progress_)));
+}
+
+void InterpolateVisitor::VisitShadow(ShadowValue* /*shadow_value*/) {
+  NOTIMPLEMENTED();
+  interpolated_value_ = end_value_;
 }
 
 void InterpolateVisitor::VisitString(StringValue* /*start_string_value*/) {

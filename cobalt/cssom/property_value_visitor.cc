@@ -34,6 +34,7 @@
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/cssom/shadow_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function_list_value.h"
@@ -124,6 +125,10 @@ void DefaultingPropertyValueVisitor::VisitResolution(
 void DefaultingPropertyValueVisitor::VisitRGBAColor(
     RGBAColorValue* color_value) {
   VisitDefault(color_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitShadow(ShadowValue* shadow_value) {
+  VisitDefault(shadow_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitString(StringValue* string_value) {

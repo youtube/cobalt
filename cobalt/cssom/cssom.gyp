@@ -173,6 +173,8 @@
         'selector_tree.cc',
         'selector_tree.h',
         'selector_visitor.h',
+        'shadow_value.cc',
+        'shadow_value.h',
         'simple_selector.h',
         'specificity.cc',
         'specificity.h',
