@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_ELEMENT_H_
-#define DOM_HTML_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_ELEMENT_H_
+#define COBALT_DOM_HTML_ELEMENT_H_
 
 #include <string>
 
@@ -78,9 +78,9 @@ enum PseudoElementType {
 class HTMLElement : public Element, public cssom::MutationObserver {
  public:
   struct RuleMatchingState {
-    cssom::SelectorTree::NodeSet matching_nodes;
-    cssom::SelectorTree::NodeSet descendant_potential_nodes;
-    cssom::SelectorTree::NodeSet following_sibling_potential_nodes;
+    cssom::SelectorTree::NodeSet<12> matching_nodes;
+    cssom::SelectorTree::NodeSet<40> descendant_potential_nodes;
+    cssom::SelectorTree::NodeSet<8> following_sibling_potential_nodes;
   };
 
   // Web API: HTMLElement
@@ -289,4 +289,4 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_ELEMENT_H_

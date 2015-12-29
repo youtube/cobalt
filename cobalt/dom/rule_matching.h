@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_RULE_MATCHING_H_
-#define DOM_RULE_MATCHING_H_
+#ifndef COBALT_DOM_RULE_MATCHING_H_
+#define COBALT_DOM_RULE_MATCHING_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/cascade_priority.h"
@@ -36,10 +36,10 @@ bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element);
 
 // Updates the matching rules on an element and its children, using the given
 // selector tree.
-void UpdateMatchingRulesUsingSelectorTree(HTMLElement* dom_root,
-                                          cssom::SelectorTree* selector_tree);
+void UpdateMatchingRulesUsingSelectorTree(
+    HTMLElement* dom_root, const cssom::SelectorTree* selector_tree);
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_RULE_MATCHING_H_
+#endif  // COBALT_DOM_RULE_MATCHING_H_
