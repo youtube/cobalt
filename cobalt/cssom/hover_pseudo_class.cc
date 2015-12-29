@@ -28,7 +28,7 @@ void HoverPseudoClass::Accept(SelectorVisitor* visitor) {
 void HoverPseudoClass::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                                              SelectorTree::Node* child_node,
                                              CombinatorType combinator) {
-  parent_node->hover_pseudo_class_nodes[combinator].push_back(child_node);
+  parent_node->AppendPseudoClassNode(kHoverPseudoClass, combinator, child_node);
 }
 
 }  // namespace cssom

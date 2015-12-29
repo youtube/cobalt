@@ -29,7 +29,7 @@ void NotPseudoClass::Accept(SelectorVisitor* visitor) {
 void NotPseudoClass::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                                            SelectorTree::Node* child_node,
                                            CombinatorType combinator) {
-  parent_node->not_pseudo_class_nodes[combinator].push_back(child_node);
+  parent_node->AppendPseudoClassNode(kNotPseudoClass, combinator, child_node);
 }
 
 CompoundSelector* NotPseudoClass::selector() {
