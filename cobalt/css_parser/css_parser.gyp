@@ -94,6 +94,8 @@
         'ref_counted_util.h',
         'scanner.cc',
         'scanner.h',
+        'shadow_property_parse_structures.cc',
+        'shadow_property_parse_structures.h',
         'string_pool.h',
         'transition_shorthand_property_parse_structures.cc',
         'transition_shorthand_property_parse_structures.h',

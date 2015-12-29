@@ -110,6 +110,7 @@
 %token kBorderTopWidthToken                   // border-top-width
 %token kBorderWidthToken                      // border-width
 %token kBottomToken                           // bottom
+%token kBoxShadowToken                        // box-shadow
 %token kColorToken                            // color
 %token kContentToken                          // content
 %token kDisplayToken                          // display
@@ -145,6 +146,7 @@
 %token kTextAlignToken                        // text-align
 %token kTextIndentToken                       // text-indent
 %token kTextOverflowToken                     // text-overflow
+%token kTextShadowToken                       // text-shadow
 %token kTextTransformToken                    // text-transform
 %token kTopToken                              // top
 %token kTransformToken                        // transform
@@ -200,6 +202,7 @@
 %token kInitialToken                    // initial
 %token kInlineBlockToken                // inline-block
 %token kInlineToken                     // inline
+%token kInsetToken                      // inset
 %token kItalicToken                     // italic
 %token kLimeToken                       // lime
 %token kLinearToken                     // linear
@@ -505,6 +508,7 @@
                        border_width_element
                        border_width_element_with_common_values
                        border_width_property_value
+                       box_shadow_property_value
                        color_property_value
                        common_values
                        common_values_without_errors
@@ -547,6 +551,7 @@
                        text_align_property_value
                        text_indent_property_value
                        text_overflow_property_value
+                       text_shadow_property_value
                        text_transform_property_value
                        time_list_property_value
                        timing_function_list_property_value
@@ -786,6 +791,10 @@
 %union { BorderShorthand* border_shorthand; }
 %type <border_shorthand> border_property_value border_property_list
 %destructor { delete $$; } <border_shorthand>
+
+%union { ShadowPropertyInfo* shadow_info; }
+%type <shadow_info> box_shadow_property_list text_shadow_property_list
+%destructor { delete $$; } <shadow_info>
 
 %%
 
@@ -1297,6 +1306,10 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kBottomProperty));
   }
+  | kBoxShadowToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBoxShadowProperty));
+  }
   | kColorToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kColorProperty));
@@ -1601,6 +1614,9 @@ identifier_token:
   }
   | kInlineToken {
     $$ = TrivialStringPiece::FromCString(cssom::kInlineKeywordName);
+  }
+  | kInsetToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kInsetKeywordName);
   }
   | kItalicToken {
     $$ = TrivialStringPiece::FromCString(cssom::kItalicKeywordName);
@@ -3050,6 +3066,69 @@ border_radius_property_value:
   | common_values
   ;
 
+box_shadow_property_element:
+    length {
+    if ($<shadow_info>0->length_vector.size() == 2) {
+      scoped_refptr<cssom::LengthValue> length(MakeScopedRefPtrAndRelease($1));
+      // Negative values are not allowed for blur radius.
+      if (length && length->value() < 0) {
+        parser_impl->LogError(@1, "negative values of blur radius are illegal");
+        YYERROR;
+      } else {
+        $<shadow_info>0->length_vector.push_back(length);
+      }
+    } else {
+      $<shadow_info>0->length_vector.push_back(
+          MakeScopedRefPtrAndRelease($1));
+    }
+  }
+  | color {
+    if (!$<shadow_info>0->color) {
+      $<shadow_info>0->color = MakeScopedRefPtrAndRelease($1);
+    } else {
+      parser_impl->LogError(
+          @1, "color value declared twice in box shadow.");
+    }
+  }
+  | kInsetToken maybe_whitespace {
+    if (!$<shadow_info>0->has_inset) {
+      $<shadow_info>0->has_inset = true;
+    } else {
+      parser_impl->LogError(
+          @1, "inset value declared twice in box shadow.");
+    }
+  }
+  ;
+
+box_shadow_property_list:
+    /* empty */ {
+    $$ = new ShadowPropertyInfo();
+  }
+  | box_shadow_property_list box_shadow_property_element {
+    $$ = $1;
+  }
+  ;
+
+// The 'box-shadow' property attaches one or more drop-shadows to the box.
+//   http://www.w3.org/TR/css3-background/#box-shadow
+box_shadow_property_value:
+    box_shadow_property_list {
+    scoped_ptr<ShadowPropertyInfo> shadow_property_info($1);
+    if (!shadow_property_info->IsShadowPropertyValid(ShadowType::kBoxShadow)) {
+      parser_impl->LogWarning(@1, "invalid box shadow property.");
+      $$ = NULL;
+    } else {
+      $$ = AddRef(new cssom::ShadowValue(
+              shadow_property_info->length_vector, shadow_property_info->color,
+              shadow_property_info->has_inset));
+    }
+  }
+  | kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | common_values
+  ;
+
 // Foreground color of an element's text content.
 //   http://www.w3.org/TR/css3-color/#foreground
 color_property_value:
@@ -3759,6 +3838,61 @@ text_overflow_property_value:
   }
   | kEllipsisToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetEllipsis().get());
+  }
+  | common_values
+  ;
+
+text_shadow_property_element:
+    length {
+    if ($<shadow_info>0->length_vector.size() == 2) {
+      scoped_refptr<cssom::LengthValue> length(MakeScopedRefPtrAndRelease($1));
+      // Negative values are not allowed for blur radius.
+      if (length && length->value() < 0) {
+        parser_impl->LogError(@1, "negative values of blur radius are illegal");
+        YYERROR;
+      } else {
+        $<shadow_info>0->length_vector.push_back(length);
+      }
+    } else {
+      $<shadow_info>0->length_vector.push_back(
+          MakeScopedRefPtrAndRelease($1));
+    }
+  }
+  | color {
+    if (!$<shadow_info>0->color) {
+      $<shadow_info>0->color = MakeScopedRefPtrAndRelease($1);
+    } else {
+      parser_impl->LogError(
+          @1, "color value declared twice in box shadow.");
+    }
+  }
+  ;
+
+text_shadow_property_list:
+    /* empty */ {
+    $$ = new ShadowPropertyInfo();
+  }
+  | text_shadow_property_list text_shadow_property_element {
+    $$ = $1;
+  }
+  ;
+
+// This property accepts a comma-seperated list of shadow effects to be applied
+// to the text of the element.
+//   http://www.w3.org/TR/css-text-decor-3/#text-shadow-property
+text_shadow_property_value:
+    text_shadow_property_list {
+    scoped_ptr<ShadowPropertyInfo> shadow_property_info($1);
+    if (!shadow_property_info->IsShadowPropertyValid(ShadowType::kTextShadow)) {
+      parser_impl->LogWarning(@1, "invalid text shadow property.");
+      $$ = NULL;
+    } else {
+      $$ = AddRef(new cssom::ShadowValue(
+              shadow_property_info->length_vector, shadow_property_info->color));
+    }
+  }
+  | kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
   | common_values
   ;
@@ -5148,6 +5282,12 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kBoxShadowToken maybe_whitespace colon box_shadow_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBoxShadowProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kColorToken maybe_whitespace colon color_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kColorProperty,
@@ -5417,6 +5557,12 @@ maybe_declaration:
   | kTextOverflowToken maybe_whitespace colon text_overflow_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTextOverflowProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTextShadowToken maybe_whitespace colon text_shadow_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextShadowProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

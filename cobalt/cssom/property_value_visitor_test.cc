@@ -16,6 +16,8 @@
 
 #include "cobalt/cssom/property_value_visitor.h"
 
+#include <vector>
+
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/calc_value.h"
 #include "cobalt/cssom/font_style_value.h"
@@ -33,6 +35,7 @@
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/cssom/shadow_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function.h"
@@ -72,6 +75,7 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitRatio, void(RatioValue* ratio_value));
   MOCK_METHOD1(VisitResolution, void(ResolutionValue* resolution_value));
   MOCK_METHOD1(VisitRGBAColor, void(RGBAColorValue* color_value));
+  MOCK_METHOD1(VisitShadow, void(ShadowValue* shadow_value));
   MOCK_METHOD1(VisitString, void(StringValue* string_value));
   MOCK_METHOD1(VisitTimeList, void(TimeListValue* time_list_value));
   MOCK_METHOD1(VisitTimingFunctionList,
@@ -216,6 +220,15 @@ TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitRGBAColor(color_value.get()));
   color_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsShadowValue) {
+  scoped_refptr<ShadowValue> shadow_value =
+      new ShadowValue(std::vector<scoped_refptr<LengthValue> >(),
+                      new RGBAColorValue(0x0047abff));
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitShadow(shadow_value.get()));
+  shadow_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsStringValue) {
