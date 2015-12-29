@@ -60,6 +60,7 @@ extern const char kInheritKeywordName[];
 extern const char kInitialKeywordName[];
 extern const char kInlineBlockKeywordName[];
 extern const char kInlineKeywordName[];
+extern const char kInsetKeywordName[];
 extern const char kItalicKeywordName[];
 extern const char kLeftKeywordName[];
 extern const char kLimeKeywordName[];

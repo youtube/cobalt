@@ -16,6 +16,8 @@
 
 #include "cobalt/cssom/computed_style.h"
 
+#include <vector>
+
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
@@ -31,6 +33,7 @@
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
+#include "cobalt/cssom/shadow_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
@@ -1558,6 +1561,52 @@ void ComputedBorderRadiusProvider::VisitPercentage(
   computed_border_radius_ = percentage;
 }
 
+// Computed value: any <length> made absolute; any specified color computed;
+// otherwise as specified.
+//   http://www.w3.org/TR/css3-background/#box-shadow
+//   http://www.w3.org/TR/css-text-decor-3/#text-shadow-property
+class ComputedShadowProvider : public NotReachedPropertyValueVisitor {
+ public:
+  ComputedShadowProvider(const LengthValue* computed_font_size,
+                         const RGBAColorValue* computed_color);
+
+  void VisitShadow(ShadowValue* shadow_value);
+
+  const scoped_refptr<PropertyValue>& computed_shadow() const {
+    return computed_shadow_;
+  }
+
+ private:
+  const LengthValue* computed_font_size_;
+  const RGBAColorValue* computed_color_;
+
+  scoped_refptr<PropertyValue> computed_shadow_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedShadowProvider);
+};
+
+ComputedShadowProvider::ComputedShadowProvider(
+    const LengthValue* computed_font_size, const RGBAColorValue* computed_color)
+    : computed_font_size_(computed_font_size),
+      computed_color_(computed_color) {}
+
+void ComputedShadowProvider::VisitShadow(ShadowValue* shadow_value) {
+  std::vector<scoped_refptr<LengthValue> > lengths;
+  for (size_t i = 0; i < shadow_value->lengths().size(); ++i) {
+    LengthValue* specified_length = base::polymorphic_downcast<LengthValue*>(
+        shadow_value->lengths()[i].get());
+    lengths.push_back(
+        ProvideAbsoluteLength(specified_length, computed_font_size_));
+  }
+
+  scoped_refptr<RGBAColorValue> color = shadow_value->color();
+  if (!color) {
+    color = new RGBAColorValue(computed_color_->value());
+  }
+
+  computed_shadow_ = new ShadowValue(lengths, color, shadow_value->has_inset());
+}
+
 // Computed value: for length of translation transforms.
 //   http://www.w3.org/TR/css3-transforms/#propdef-transform
 class ComputedTransformFunctionProvider : public TransformFunctionVisitor {
@@ -1873,7 +1922,7 @@ class CalculateComputedStyleContext {
   PropertyValue* GetBorderTopStyle();
 
   // Helper function to return the computed color.
-  PropertyValue* GetColor();
+  RGBAColorValue* GetColor();
 
   // The style that, during the scope of CalculateComputedStyleContext, is
   // promoted from being a cascaded style to a computed style.
@@ -1987,13 +2036,13 @@ PropertyValue* CalculateComputedStyleContext::GetBorderTopStyle() {
   return computed_border_top_style_.get();
 }
 
-PropertyValue* CalculateComputedStyleContext::GetColor() {
+RGBAColorValue* CalculateComputedStyleContext::GetColor() {
   if (!computed_color_) {
     ComputeValue(kColorProperty);
   }
 
   DCHECK(computed_color_);
-  return computed_color_.get();
+  return base::polymorphic_downcast<RGBAColorValue*>(computed_color_.get());
 }
 
 void CalculateComputedStyleContext::ComputeValue(PropertyKey key) {
@@ -2059,6 +2108,12 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       property_value_iterator.Value()->Accept(&border_width_provider);
       property_value_iterator.SetValue(
           border_width_provider.computed_border_width());
+    } break;
+    case kBoxShadowProperty:
+    case kTextShadowProperty: {
+      ComputedShadowProvider shadow_provider(GetFontSize(), GetColor());
+      property_value_iterator.Value()->Accept(&shadow_provider);
+      property_value_iterator.SetValue(shadow_provider.computed_shadow());
     } break;
     case kDisplayProperty: {
       // According to http://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
@@ -2315,6 +2370,7 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kBorderProperty:
     case kBorderWidthProperty:
     case kBottomProperty:
+    case kBoxShadowProperty:
     case kContentProperty:
     case kDisplayProperty:
     case kFontFamilyProperty:
@@ -2348,6 +2404,7 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kTextAlignProperty:
     case kTextIndentProperty:
     case kTextOverflowProperty:
+    case kTextShadowProperty:
     case kTextTransformProperty:
     case kTopProperty:
     case kTransformProperty:

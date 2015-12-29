@@ -63,6 +63,7 @@
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
+#include "cobalt/cssom/shadow_value.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
@@ -2697,6 +2698,114 @@ TEST_F(ParserTest, ParsesBorderRadiusPercentage) {
   EXPECT_FLOAT_EQ(0.5f, border_radius->value());
 }
 
+TEST_F(ParserTest, ParsesBoxShadowWith2Lengths) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("box-shadow: .2em 20px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::ShadowValue> box_shadow =
+      dynamic_cast<cssom::ShadowValue*>(style->box_shadow().get());
+  ASSERT_TRUE(box_shadow);
+  EXPECT_EQ(2, box_shadow->lengths().size());
+
+  scoped_refptr<cssom::LengthValue> length_value_1 =
+      dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[0].get());
+  EXPECT_FLOAT_EQ(.2f, length_value_1->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, length_value_1->unit());
+
+  scoped_refptr<cssom::LengthValue> length_value_2 =
+      dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[1].get());
+  EXPECT_FLOAT_EQ(20, length_value_2->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_2->unit());
+
+  EXPECT_FALSE(box_shadow->color());
+  EXPECT_FALSE(box_shadow->has_inset());
+}
+
+TEST_F(ParserTest, ParsesBoxShadowWith3LengthsAndColor) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("box-shadow: gray .2em 20px .3em;",
+                                        source_location_);
+
+  scoped_refptr<cssom::ShadowValue> box_shadow =
+      dynamic_cast<cssom::ShadowValue*>(style->box_shadow().get());
+  ASSERT_TRUE(box_shadow);
+  EXPECT_EQ(3, box_shadow->lengths().size());
+
+  scoped_refptr<cssom::LengthValue> length_value_1 =
+      dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[0].get());
+  EXPECT_FLOAT_EQ(.2f, length_value_1->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, length_value_1->unit());
+
+  scoped_refptr<cssom::LengthValue> length_value_2 =
+      dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[1].get());
+  EXPECT_FLOAT_EQ(20, length_value_2->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_2->unit());
+
+  scoped_refptr<cssom::LengthValue> length_value_3 =
+      dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[2].get());
+  EXPECT_FLOAT_EQ(.3f, length_value_3->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, length_value_3->unit());
+
+  scoped_refptr<cssom::RGBAColorValue> color =
+      dynamic_cast<cssom::RGBAColorValue*>(box_shadow->color().get());
+  ASSERT_TRUE(color);
+  EXPECT_EQ(0x808080FF, color->value());
+
+  EXPECT_FALSE(box_shadow->has_inset());
+}
+
+TEST_F(ParserTest, ParsesBoxShadowWith4LengthsInsetAndColor) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "box-shadow: .2em 20px .3em 0 "
+          "inset rgba(0, 0, 0, .8);",
+          source_location_);
+
+  scoped_refptr<cssom::ShadowValue> box_shadow =
+      dynamic_cast<cssom::ShadowValue*>(style->box_shadow().get());
+  ASSERT_TRUE(box_shadow);
+  EXPECT_EQ(4, box_shadow->lengths().size());
+
+  scoped_refptr<cssom::LengthValue> length_value_1 =
+      dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[0].get());
+  EXPECT_FLOAT_EQ(.2f, length_value_1->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, length_value_1->unit());
+
+  scoped_refptr<cssom::LengthValue> length_value_2 =
+      dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[1].get());
+  EXPECT_FLOAT_EQ(20, length_value_2->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_2->unit());
+
+  scoped_refptr<cssom::LengthValue> length_value_3 =
+      dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[2].get());
+  EXPECT_FLOAT_EQ(.3f, length_value_3->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, length_value_3->unit());
+
+  scoped_refptr<cssom::LengthValue> length_value_4 =
+      dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[3].get());
+  EXPECT_FLOAT_EQ(0, length_value_4->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_4->unit());
+
+  scoped_refptr<cssom::RGBAColorValue> color =
+      dynamic_cast<cssom::RGBAColorValue*>(box_shadow->color().get());
+  ASSERT_TRUE(color);
+  EXPECT_EQ(0x000000cc, color->value());
+
+  EXPECT_TRUE(box_shadow->has_inset());
+}
+
+TEST_F(ParserTest, ParsesBoxShadowWithWrongFormat) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning(
+          "[object ParserTest]:1:11: warning: invalid box shadow property."));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("box-shadow: 0.04em #123 inset;",
+                                        source_location_);
+}
+
 TEST_F(ParserTest, Parses3DigitColor) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("color: #123;", source_location_);
@@ -4231,6 +4340,76 @@ TEST_F(ParserTest, ParsesEllipsisTextOverflow) {
                                         source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetEllipsis(), style->text_overflow());
+}
+
+TEST_F(ParserTest, ParsesTextShadowWith2Lengths) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("text-shadow: 0.04em 1px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::ShadowValue> text_shadow =
+      dynamic_cast<cssom::ShadowValue*>(style->text_shadow().get());
+  ASSERT_TRUE(text_shadow);
+  EXPECT_EQ(2, text_shadow->lengths().size());
+
+  scoped_refptr<cssom::LengthValue> length_value_1 =
+      dynamic_cast<cssom::LengthValue*>(text_shadow->lengths()[0].get());
+  EXPECT_FLOAT_EQ(.04f, length_value_1->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, length_value_1->unit());
+
+  scoped_refptr<cssom::LengthValue> length_value_2 =
+      dynamic_cast<cssom::LengthValue*>(text_shadow->lengths()[1].get());
+  EXPECT_FLOAT_EQ(1, length_value_2->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_2->unit());
+
+  EXPECT_FALSE(text_shadow->color());
+  EXPECT_FALSE(text_shadow->has_inset());
+}
+
+TEST_F(ParserTest, ParsesTextShadowWith3LengthsAndColor) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("text-shadow: 0.04em 1px .2em #123;",
+                                        source_location_);
+
+  scoped_refptr<cssom::ShadowValue> text_shadow =
+      dynamic_cast<cssom::ShadowValue*>(style->text_shadow().get());
+  ASSERT_TRUE(text_shadow);
+  EXPECT_EQ(3, text_shadow->lengths().size());
+
+  scoped_refptr<cssom::LengthValue> length_value_1 =
+      dynamic_cast<cssom::LengthValue*>(text_shadow->lengths()[0].get());
+  EXPECT_FLOAT_EQ(.04f, length_value_1->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, length_value_1->unit());
+
+  scoped_refptr<cssom::LengthValue> length_value_2 =
+      dynamic_cast<cssom::LengthValue*>(text_shadow->lengths()[1].get());
+  EXPECT_FLOAT_EQ(1, length_value_2->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_2->unit());
+
+  scoped_refptr<cssom::LengthValue> length_value_3 =
+      dynamic_cast<cssom::LengthValue*>(text_shadow->lengths()[2].get());
+  EXPECT_FLOAT_EQ(.2f, length_value_3->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, length_value_3->unit());
+
+  scoped_refptr<cssom::RGBAColorValue> color =
+      dynamic_cast<cssom::RGBAColorValue*>(text_shadow->color().get());
+  ASSERT_TRUE(color);
+  EXPECT_EQ(0x112233ff, color->value());
+
+  EXPECT_FALSE(text_shadow->has_inset());
+}
+
+TEST_F(ParserTest, ParsesTextShadowWithWrongFormat) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning(
+          "[object ParserTest]:1:12: warning: invalid text shadow property."));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "text-shadow: 0.04em 1px .2em 4px "
+          "#123;",
+          source_location_);
 }
 
 TEST_F(ParserTest, ParsesNoneTextTransform) {

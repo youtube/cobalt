@@ -411,6 +411,14 @@ void CSSStyleDeclaration::set_bottom(const std::string& bottom) {
   SetPropertyValueStringByKey(kBottomProperty, bottom);
 }
 
+std::string CSSStyleDeclaration::box_shadow() const {
+  return data_->GetDeclaredPropertyValueString(kBoxShadowProperty);
+}
+
+void CSSStyleDeclaration::set_box_shadow(const std::string& box_shadow) {
+  SetPropertyValueStringByKey(kBoxShadowProperty, box_shadow);
+}
+
 std::string CSSStyleDeclaration::color() const {
   return data_->GetDeclaredPropertyValueString(kColorProperty);
 }
@@ -602,6 +610,14 @@ std::string CSSStyleDeclaration::text_overflow() const {
 
 void CSSStyleDeclaration::set_text_overflow(const std::string& text_overflow) {
   SetPropertyValueStringByKey(kTextOverflowProperty, text_overflow);
+}
+
+std::string CSSStyleDeclaration::text_shadow() const {
+  return data_->GetDeclaredPropertyValueString(kTextShadowProperty);
+}
+
+void CSSStyleDeclaration::set_text_shadow(const std::string& text_shadow) {
+  SetPropertyValueStringByKey(kTextShadowProperty, text_shadow);
 }
 
 std::string CSSStyleDeclaration::text_transform() const {
