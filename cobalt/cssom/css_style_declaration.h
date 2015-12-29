@@ -154,6 +154,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string bottom() const;
   void set_bottom(const std::string& bottom);
 
+  std::string box_shadow() const;
+  void set_box_shadow(const std::string& box_shadow);
+
   std::string color() const;
   void set_color(const std::string& color);
 
@@ -225,6 +228,9 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   std::string text_overflow() const;
   void set_text_overflow(const std::string& text_overflow);
+
+  std::string text_shadow() const;
+  void set_text_shadow(const std::string& text_shadow);
 
   std::string text_transform() const;
   void set_text_transform(const std::string& text_transform);

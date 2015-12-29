@@ -1307,6 +1307,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         return true;
       }
       if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kBoxShadowProperty))) {
+        *property_name_token = kBoxShadowToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kFontStyleProperty))) {
         *property_name_token = kFontStyleToken;
         return true;
@@ -1377,6 +1382,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kTextIndentProperty))) {
         *property_name_token = kTextIndentToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kTextShadowProperty))) {
+        *property_name_token = kTextShadowToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
@@ -1803,6 +1813,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kGreenKeywordName)) {
         *property_value_token = kGreenToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kInsetKeywordName)) {
+        *property_value_token = kInsetToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kOliveKeywordName)) {

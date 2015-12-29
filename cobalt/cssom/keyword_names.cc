@@ -58,6 +58,7 @@ const char kInheritKeywordName[] = "inherit";
 const char kInitialKeywordName[] = "initial";
 const char kInlineBlockKeywordName[] = "inline-block";
 const char kInlineKeywordName[] = "inline";
+const char kInsetKeywordName[] = "inset";
 const char kItalicKeywordName[] = "italic";
 const char kLeftKeywordName[] = "left";
 const char kLimeKeywordName[] = "lime";
