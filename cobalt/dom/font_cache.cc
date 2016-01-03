@@ -19,6 +19,19 @@
 namespace cobalt {
 namespace dom {
 
+FontCache::RequestedRemoteFontInfo::RequestedRemoteFontInfo(
+    const scoped_refptr<loader::font::CachedRemoteFont>& cached_remote_font,
+    const base::Closure& font_load_event_callback)
+    : cached_remote_font_reference_(
+          new loader::font::CachedRemoteFontReferenceWithCallbacks(
+              cached_remote_font, font_load_event_callback,
+              font_load_event_callback)),
+      request_timer_(new base::Timer(false, false)) {
+  request_timer_->Start(FROM_HERE,
+                        base::TimeDelta::FromMilliseconds(kRequestTimerDelay),
+                        font_load_event_callback);
+}
+
 FontCache::FontCache(render_tree::ResourceProvider* resource_provider,
                      loader::font::RemoteFontCache* remote_font_cache,
                      const base::Closure& external_font_load_event_callback,
@@ -77,21 +90,16 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
   // map still contains each remote font's url. Any remote fonts with a url that
   // is no longer contained within |font_face_map_| is purged to allow the
   // remote cache to release the memory.
-  loader::font::CachedRemoteFontReferenceVector::iterator reference_iterator =
-      remote_font_reference_cache_.begin();
-  while (reference_iterator != remote_font_reference_cache_.end()) {
-    loader::font::CachedRemoteFontReferenceVector::iterator next_iterator =
-        reference_iterator + 1;
-
-    const GURL& url = (*reference_iterator)->cached_resource()->url();
+  RequestedRemoteFontMap::iterator requested_remote_font_iterator =
+      requested_remote_font_cache_.begin();
+  while (requested_remote_font_iterator != requested_remote_font_cache_.end()) {
+    RequestedRemoteFontMap::iterator current_iterator =
+        requested_remote_font_iterator++;
 
     // If the referenced url is not in the new url set, then purge it.
-    if (new_url_set.find(url) == new_url_set.end()) {
-      remote_font_reference_cache_.erase(reference_iterator);
-      remote_font_reference_cache_urls_.erase(url);
+    if (new_url_set.find(current_iterator->first) == new_url_set.end()) {
+      requested_remote_font_cache_.erase(current_iterator);
     }
-
-    reference_iterator = next_iterator;
   }
 }
 
@@ -148,58 +156,66 @@ scoped_refptr<render_tree::Font> FontCache::GetFallbackFont(
 
 scoped_refptr<render_tree::Font> FontCache::TryGetFont(
     const std::string& family, render_tree::FontStyle style, float size,
-    bool* is_font_loading) {
+    FontListFont::State* state) {
   FontFaceMap::iterator font_face_entry = font_face_map_->find(family);
   if (font_face_entry != font_face_map_->end()) {
-    return TryGetRemoteFont(font_face_entry->second, size, is_font_loading);
+    return TryGetRemoteFont(font_face_entry->second, size, state);
   } else {
-    return TryGetLocalFont(family, style, size, is_font_loading);
+    return TryGetLocalFont(family, style, size, state);
   }
 }
 
 scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
-    const GURL& url, float size, bool* is_font_loading) {
+    const GURL& url, float size, FontListFont::State* state) {
   // Retrieve the font from the remote font cache, potentially triggering a
   // load.
   scoped_refptr<loader::font::CachedRemoteFont> cached_remote_font =
       remote_font_cache_->CreateCachedResource(url);
 
+  RequestedRemoteFontMap::iterator requested_remote_font_iterator =
+      requested_remote_font_cache_.find(url);
+
   // If the requested url is not currently cached, then create a cached
-  // reference, providing callbacks for when the load is completed.
-  if (remote_font_reference_cache_urls_.find(url) ==
-      remote_font_reference_cache_urls_.end()) {
-    // Add the external font load event callback.
-    remote_font_reference_cache_.push_back(
-        new loader::font::CachedRemoteFontReferenceWithCallbacks(
-            cached_remote_font, external_font_load_event_callback_,
-            external_font_load_event_callback_));
+  // reference and request timer, providing callbacks for when the load is
+  // completed or the timer expires.
+  if (requested_remote_font_iterator == requested_remote_font_cache_.end()) {
+    // Create the remote font load event's callback. This callback occurs on
+    // successful loads, failed loads, and when the request's timer expires.
+    base::Closure font_load_event_callback = base::Bind(
+        &FontCache::OnRemoteFontLoadEvent, base::Unretained(this), url);
 
-    // Add the cache's remote font load event callback.
-    base::Closure font_cache_callback =
-        base::Bind(&FontCache::OnRemoteFontLoadEvent, base::Unretained(this));
-    remote_font_reference_cache_.push_back(
-        new loader::font::CachedRemoteFontReferenceWithCallbacks(
-            cached_remote_font, font_cache_callback, font_cache_callback));
-
-    remote_font_reference_cache_urls_.insert(url);
+    // Insert the newly requested remote font's info into the cache, and set the
+    // iterator from the return value of the map insertion.
+    requested_remote_font_iterator =
+        requested_remote_font_cache_.insert(
+                                        std::make_pair(
+                                            url, new RequestedRemoteFontInfo(
+                                                     cached_remote_font,
+                                                     font_load_event_callback)))
+            .first;
   }
-
-  *is_font_loading = cached_remote_font->IsLoading();
 
   scoped_refptr<render_tree::Font> font = cached_remote_font->TryGetResource();
   if (font != NULL) {
+    *state = FontListFont::kLoadedState;
     return font->CloneWithSize(size);
   } else {
+    if (cached_remote_font->IsLoading()) {
+      if (requested_remote_font_iterator->second->HasActiveRequestTimer()) {
+        *state = FontListFont::kLoadingWithTimerActiveState;
+      } else {
+        *state = FontListFont::kLoadingWithTimerExpiredState;
+      }
+    } else {
+      *state = FontListFont::kUnavailableState;
+    }
     return NULL;
   }
 }
 
 scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
     const std::string& family, render_tree::FontStyle style, float size,
-    bool* is_font_loading) {
-  // Local fonts are never asynchronously loaded.
-  *is_font_loading = false;
-
+    FontListFont::State* state) {
   // Only request the local font from the resource provider if the family is
   // empty or the resource provider actually has the family. The reason for this
   // is that the resource provider's |GetLocalFont()| is guaranteed to return a
@@ -208,16 +224,33 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
   // signifies using the default font.
   if (!family.empty() &&
       !resource_provider_->HasLocalFontFamily(family.c_str())) {
+    *state = FontListFont::kUnavailableState;
     return NULL;
   } else {
+    *state = FontListFont::kLoadedState;
     return resource_provider_->GetLocalFont(family.c_str(), style, size);
   }
 }
 
-void FontCache::OnRemoteFontLoadEvent() {
-  for (FontListMap::iterator font_list_iterator = font_list_map.begin();
-       font_list_iterator != font_list_map.end(); ++font_list_iterator) {
-    font_list_iterator->second->ResetLoadingFonts();
+void FontCache::OnRemoteFontLoadEvent(const GURL& url) {
+  RequestedRemoteFontMap::iterator requested_remote_font_iterator =
+      requested_remote_font_cache_.find(url);
+  if (requested_remote_font_iterator != requested_remote_font_cache_.end()) {
+    // NOTE(***REMOVED***): We can potentially track the exact font list fonts that are
+    // impacted by each load event and only reset them. However, as a result of
+    // the minimal amount of processing required to update the loading status of
+    // a font, the small number of fonts involved, and the fact that this is an
+    // infrequent event, adding this additional layer of tracking complexity
+    // doesn't appear to offer any meaningful benefits.
+    for (FontListMap::iterator font_list_iterator = font_list_map.begin();
+         font_list_iterator != font_list_map.end(); ++font_list_iterator) {
+      font_list_iterator->second->ResetLoadingFonts();
+    }
+
+    // Clear the request timer. It only runs until the first load event occurs.
+    requested_remote_font_iterator->second->ClearRequestTimer();
+
+    external_font_load_event_callback_.Run();
   }
 }
 
