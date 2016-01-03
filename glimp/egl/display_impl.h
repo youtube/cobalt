@@ -21,9 +21,9 @@
 
 #include <set>
 
-#include "glimp/base/scoped_ptr.h"
 #include "glimp/egl/config.h"
 #include "glimp/egl/surface.h"
+#include "glimp/nb/scoped_ptr.h"
 
 namespace glimp {
 namespace egl {
@@ -50,7 +50,7 @@ class DisplayImpl {
   static bool IsValidNativeDisplayType(EGLNativeDisplayType display_id);
   // Creates and returns a new DisplayImpl object.
   // To be implemented by each implementing platform.
-  static base::scoped_ptr<DisplayImpl> Create(EGLNativeDisplayType display_id);
+  static nb::scoped_ptr<DisplayImpl> Create(EGLNativeDisplayType display_id);
 
   // Returns the EGL major and minor versions, if they are not NULL.
   // Called by eglInitialize():
@@ -66,7 +66,7 @@ class DisplayImpl {
   // window and is compatible with this DisplayImpl object.  This will be called
   // when eglCreateWindowSurface() is called.
   //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglCreateWindowSurface.xhtml
-  virtual base::scoped_ptr<SurfaceImpl> CreateWindowSurface(
+  virtual nb::scoped_ptr<SurfaceImpl> CreateWindowSurface(
       const Config* config,
       EGLNativeWindowType win,
       const ValidatedSurfaceAttribs& attributes) = 0;

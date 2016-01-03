@@ -14,8 +14,6 @@
 
 {
   'sources': [
-    'base/move.h',
-    'base/scoped_ptr.h',
     'egl/config.cc',
     'egl/config.h',
     'egl/display.cc',
@@ -38,6 +36,7 @@
   ],
 
   'dependencies': [
+    '<(DEPTH)/glimp/nb/nano_base.gyp:nano_base',
     '<(DEPTH)/starboard/starboard.gyp:starboard',
   ],
 

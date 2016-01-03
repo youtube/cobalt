@@ -21,8 +21,8 @@
 
 #include <map>
 
-#include "glimp/base/scoped_ptr.h"
 #include "glimp/egl/surface_impl.h"
+#include "glimp/nb/scoped_ptr.h"
 
 namespace glimp {
 namespace egl {
@@ -31,10 +31,12 @@ typedef std::map<int, int> ValidatedSurfaceAttribs;
 
 class Surface {
  public:
-  explicit Surface(base::scoped_ptr<SurfaceImpl> surface_impl);
+  explicit Surface(nb::scoped_ptr<SurfaceImpl> surface_impl);
+
+  EGLBoolean QuerySurface(EGLint attribute, EGLint* value);
 
  private:
-  base::scoped_ptr<SurfaceImpl> surface_impl_;
+  nb::scoped_ptr<SurfaceImpl> surface_impl_;
 };
 
 bool ValidateSurfaceAttribList(const EGLint* raw_attribs,
