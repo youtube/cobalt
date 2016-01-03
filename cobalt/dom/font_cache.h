@@ -23,6 +23,8 @@
 #include <utility>
 
 #include "base/callback.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/timer.h"
 #include "cobalt/dom/font_list.h"
 #include "cobalt/loader/font/remote_font_cache.h"
 #include "cobalt/render_tree/font.h"
@@ -49,6 +51,41 @@ namespace dom {
 //     caching of that information for subsequent lookups.
 class FontCache {
  public:
+  class RequestedRemoteFontInfo
+      : public base::RefCounted<RequestedRemoteFontInfo> {
+   public:
+    RequestedRemoteFontInfo(
+        const scoped_refptr<loader::font::CachedRemoteFont>& cached_remote_font,
+        const base::Closure& font_load_event_callback);
+
+    bool HasActiveRequestTimer() const { return request_timer_ != NULL; }
+    void ClearRequestTimer() { request_timer_.reset(); }
+
+   private:
+    // The request timer delay, after which the requested font's fallback font
+    // becomes visible.
+    // NOTE: While using a timer of exactly 3 seconds is not specified by the
+    // spec, it is the delay used by both Firefox and Webkit, and thus matches
+    // user expectations.
+    const int kRequestTimerDelay = 3000;
+
+    // The cached remote font reference both provides load event callbacks to
+    // the remote font cache for this remote font, and also ensures that the
+    // remote font is retained in the remote font cache's memory for as long as
+    // this reference exists.
+    scoped_ptr<loader::font::CachedRemoteFontReferenceWithCallbacks>
+        cached_remote_font_reference_;
+
+    // The request timer is started on object creation and triggers a load event
+    // callback when the timer expires. Before the timer expires, font lists
+    // that use this font will be rendered transparently to avoid a flash of
+    // text from briefly displaying a fallback font. However, permanently hiding
+    // the text while waiting for it to load is considered non-conformant
+    // behavior by the spec, so after the timer expires, the fallback font
+    // becomes visible (http://www.w3.org/TR/css3-fonts/#font-face-loading).
+    scoped_ptr<base::Timer> request_timer_;
+  };
+
   struct CharacterFallbackTypefaceKey {
     CharacterFallbackTypefaceKey(int32 key_character,
                                  const render_tree::FontStyle& key_style)
@@ -78,6 +115,8 @@ class FontCache {
   // Font-face related
   typedef std::map<std::string, GURL> FontFaceMap;
   typedef std::set<GURL> FontUrlSet;
+  typedef std::map<GURL, scoped_refptr<RequestedRemoteFontInfo> >
+      RequestedRemoteFontMap;
 
   // Character map related
   typedef std::map<int32, bool> FontCharacterMap;
@@ -134,7 +173,7 @@ class FontCache {
   scoped_refptr<render_tree::Font> TryGetFont(const std::string& family,
                                               render_tree::FontStyle style,
                                               float size,
-                                              bool* is_font_loading);
+                                              FontListFont::State* state);
 
  private:
   // Returns the font if it is in the remote font cache and available;
@@ -147,7 +186,7 @@ class FontCache {
   // If the font is loading but not currently available, |maybe_is_font_loading|
   // will be set to true.
   scoped_refptr<render_tree::Font> TryGetRemoteFont(const GURL& url, float size,
-                                                    bool* is_font_loading);
+                                                    FontListFont::State* state);
 
   // Returns NULL if the requested family is not empty and is not available in
   // the resource provider. Otherwise, returns the best matching local font.
@@ -155,13 +194,13 @@ class FontCache {
   scoped_refptr<render_tree::Font> TryGetLocalFont(const std::string& family,
                                                    render_tree::FontStyle style,
                                                    float size,
-                                                   bool* is_font_loading);
+                                                   FontListFont::State* state);
 
   // Called when a remote font either successfully loads or fails to load. In
   // either case, the event can impact the fonts contained within the font
   // lists. As a result, the font lists need to have their loading fonts reset
   // so that they'll be re-requested from the cache.
-  void OnRemoteFontLoadEvent();
+  void OnRemoteFontLoadEvent(const GURL& url);
 
   render_tree::ResourceProvider* const resource_provider_;
   // TODO(***REMOVED***): Explore eliminating the remote font cache and moving its
@@ -182,10 +221,8 @@ class FontCache {
   // the constructor. Cached remote fonts returned by |remote_font_cache_| have
   // a reference retained by the cache for as long as the cache contains a font
   // face with the corresponding url, to ensure that they remain in memory.
-  // TODO(***REMOVED***): Clean up the vector/set logic with a map.
   scoped_ptr<FontFaceMap> font_face_map_;
-  loader::font::CachedRemoteFontReferenceVector remote_font_reference_cache_;
-  FontUrlSet remote_font_reference_cache_urls_;
+  RequestedRemoteFontMap requested_remote_font_cache_;
 
   // Character map related
   // This map tracks whether font family fonts contain specific characters. It
