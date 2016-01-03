@@ -26,7 +26,7 @@
 namespace glimp {
 namespace egl {
 
-Display::Display(base::scoped_ptr<DisplayImpl> display_impl)
+Display::Display(nb::scoped_ptr<DisplayImpl> display_impl)
     : impl_(display_impl.Pass()) {}
 
 Display::~Display() {
@@ -94,7 +94,7 @@ EGLSurface Display::CreateWindowSurface(EGLConfig config,
     return EGL_NO_SURFACE;
   }
 
-  base::scoped_ptr<SurfaceImpl> surface_impl = impl_->CreateWindowSurface(
+  nb::scoped_ptr<SurfaceImpl> surface_impl = impl_->CreateWindowSurface(
       reinterpret_cast<Config*>(config), win, validated_attribs);
   if (!surface_impl) {
     return EGL_NO_SURFACE;

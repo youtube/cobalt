@@ -26,6 +26,12 @@ class SurfaceImpl {
  public:
   virtual ~SurfaceImpl() {}
 
+  // Returns a description of the underlying surface.  This method will be
+  // referenced when functions like eglQuerySurface() are called.
+  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglQuerySurface.xhtml
+  virtual int GetWidth() const = 0;
+  virtual int GetHeight() const = 0;
+
  private:
 };
 
