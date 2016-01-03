@@ -42,6 +42,20 @@ egl::Display* GetDisplayOrSetError(EGLDisplay egl_display) {
   return display;
 }
 
+egl::Surface* GetSurfaceOrSetError(EGLDisplay egl_display,
+                                   EGLSurface egl_surface) {
+  egl::Display* display = GetDisplayOrSetError(egl_display);
+  if (!display) {
+    return NULL;
+  }
+
+  if (!display->SurfaceIsValid(egl_surface)) {
+    egl::SetError(EGL_BAD_SURFACE);
+    return NULL;
+  }
+
+  return egl::FromEGLSurface(egl_surface);
+}
 }  // namespace
 
 extern "C" {
@@ -203,7 +217,13 @@ EGLBoolean EGLAPIENTRY eglQuerySurface(EGLDisplay dpy,
                                        EGLint attribute,
                                        EGLint* value) {
   egl::ScopedEGLLock egl_lock;
-  return false;
+
+  egl::Surface* surf = GetSurfaceOrSetError(dpy, surface);
+  if (!surf) {
+    return false;
+  }
+
+  return surf->QuerySurface(attribute, value);
 }
 
 EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
