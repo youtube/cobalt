@@ -53,7 +53,7 @@ bool DisplayRegistry::InitializeDisplay(EGLDisplay display) {
   SB_DCHECK(Valid(display));
   Connection* connection = reinterpret_cast<Connection*>(display);
   if (!connection->display) {
-    base::scoped_ptr<DisplayImpl> display_impl =
+    nb::scoped_ptr<DisplayImpl> display_impl =
         DisplayImpl::Create(connection->native_display);
     // If the platform-specific glimp implementation rejected the native
     // display, then we return false to indicate failure.
