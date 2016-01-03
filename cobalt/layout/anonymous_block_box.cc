@@ -71,13 +71,15 @@ void AnonymousBlockBox::RenderAndAnimateContent(
     return;
   }
 
-  // Only add the ellipses to the render tree if a font isn't loading. The font
-  // is treated as transparent if a font is currently being downloaded: "In
-  // cases where textual content is loaded before downloadable fonts are
-  // available, user agents may... render text transparently with fallback fonts
-  // to avoid a flash of text using a fallback font."
+  // Only add the ellipses to the render tree if the font is visible. The font
+  // is treated as transparent if a font is currently being downloaded and
+  // hasn't timed out: "In cases where textual content is loaded before
+  // downloadable fonts are available, user agents may... render text
+  // transparently with fallback fonts to avoid a flash of text using a fallback
+  // font. In cases where the font download fails user agents must display text,
+  // simply leaving transparent text is considered non-conformant behavior."
   //   http://www.w3.org/TR/css3-fonts/#font-face-loading
-  if (!ellipses_coordinates_.empty() && !used_font_->HasLoadingFont()) {
+  if (!ellipses_coordinates_.empty() && used_font_->IsVisible()) {
     render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
     // Only render the ellipses if the color is not completely transparent.

@@ -60,7 +60,8 @@ class FontListFont {
 
   enum State {
     kUnrequestedState,
-    kLoadingState,
+    kLoadingWithTimerActiveState,
+    kLoadingWithTimerExpiredState,
     kLoadedState,
     kUnavailableState,
     kDuplicateState,
@@ -151,7 +152,7 @@ class FontList : public base::RefCounted<FontList> {
 
   FontList(FontCache* font_cache, const FontListKey& font_list_key);
 
-  bool HasLoadingFont() const;
+  bool IsVisible() const;
 
   // Reset loading fonts sets all font list fonts with a state of
   // |kLoadingState| back to |kUnrequestedState|, which will cause them to be

@@ -64,14 +64,22 @@ FontList::FontList(FontCache* font_cache, const FontListKey& font_list_key)
   fonts_.push_back(FontListFont(""));
 }
 
-bool FontList::HasLoadingFont() const {
+bool FontList::IsVisible() const {
   for (size_t i = 0; i < fonts_.size(); ++i) {
-    if (fonts_[i].state() == FontListFont::kLoadingState) {
-      return true;
+    // While any font in the font list is loading with an active timer, the font
+    // is made transparent. "In cases where textual content is loaded before
+    // downloadable fonts are available, user agents may... render text
+    // transparently with fallback fonts to avoid a flash of  text using a
+    // fallback font. In cases where the font download fails user agents must
+    // display text, simply leaving transparent text is considered
+    // non-conformant behavior."
+    //   http://www.w3.org/TR/css3-fonts/#font-face-loading
+    if (fonts_[i].state() == FontListFont::kLoadingWithTimerActiveState) {
+      return false;
     }
   }
 
-  return false;
+  return true;
 }
 
 void FontList::ResetLoadingFonts() {
@@ -80,7 +88,8 @@ void FontList::ResetLoadingFonts() {
   for (size_t i = 0; i < fonts_.size(); ++i) {
     FontListFont& font_list_font = fonts_[i];
 
-    if (font_list_font.state() == FontListFont::kLoadingState) {
+    if (font_list_font.state() == FontListFont::kLoadingWithTimerActiveState ||
+        font_list_font.state() == FontListFont::kLoadingWithTimerExpiredState) {
       font_list_font.set_state(FontListFont::kUnrequestedState);
       // If a loaded font hasn't been found yet, then the cached values need to
       // be reset. It'll potentially change the primary font.
@@ -195,23 +204,16 @@ float FontList::GetEllipsisWidth() {
 void FontList::RequestFont(size_t index) {
   FontListFont& font_list_font = fonts_[index];
 
-  bool is_loading = false;
+  FontListFont::State state;
 
-  // Request the font from the font cache. If this request triggers a remote
-  // load then |is_loading| will be set to true.
+  // Request the font from the font cache; the state of the font will be set
+  // during the call.
   scoped_refptr<render_tree::Font> render_tree_font = font_cache_->TryGetFont(
-      font_list_font.family_name(), style_, size_, &is_loading);
+      font_list_font.family_name(), style_, size_, &state);
 
-  // If |is_loading| is true, then set the font to loading. Its final state
-  // won't be known until later, but for now, it is unavailable.
-  if (is_loading) {
-    font_list_font.set_state(FontListFont::kLoadingState);
-    // Otherwise, if the font isn't loading and also isn't set, then the font is
-    // permanently unavailable.
-  } else if (!render_tree_font) {
-    font_list_font.set_state(FontListFont::kUnavailableState);
-    // Otherwise, the font was successfully retrieved.
-  } else {
+  if (state == FontListFont::kLoadedState) {
+    DCHECK(render_tree_font != NULL);
+
     // Walk all of the fonts in the list preceding the loaded font. If they have
     // the same typeface as the loaded font, then set the font list font as a
     // duplicate. There's no reason to have multiple fonts in the list with the
@@ -234,6 +236,8 @@ void FontList::RequestFont(size_t index) {
       font_list_font.set_character_map(
           font_cache_->GetFontCharacterMap(render_tree_font));
     }
+  } else {
+    font_list_font.set_state(state);
   }
 }
 
