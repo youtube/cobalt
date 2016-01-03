@@ -19,9 +19,9 @@
 
 #include <set>
 
-#include "glimp/base/scoped_ptr.h"
 #include "glimp/egl/config.h"
 #include "glimp/egl/display_impl.h"
+#include "glimp/nb/scoped_ptr.h"
 
 namespace glimp {
 namespace egl {
@@ -36,7 +36,7 @@ class Display {
  public:
   // In order to create a display, it must have a platform-specific
   // implementation injected into it, where many methods will forward to.
-  explicit Display(base::scoped_ptr<DisplayImpl> display_impl);
+  explicit Display(nb::scoped_ptr<DisplayImpl> display_impl);
   ~Display();
 
   void GetVersionInfo(EGLint* major, EGLint* minor);
@@ -54,7 +54,7 @@ class Display {
   bool DestroySurface(EGLSurface surface);
 
  private:
-  base::scoped_ptr<DisplayImpl> impl_;
+  nb::scoped_ptr<DisplayImpl> impl_;
 
   // Keeps track of all created but not destroyed surfaces.
   std::set<Surface*> active_surfaces_;

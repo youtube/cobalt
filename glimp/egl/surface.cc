@@ -16,13 +16,49 @@
 
 #include "glimp/egl/surface.h"
 
+#include "glimp/egl/error.h"
 #include "starboard/log.h"
 
 namespace glimp {
 namespace egl {
 
-Surface::Surface(base::scoped_ptr<SurfaceImpl> surface_impl)
+Surface::Surface(nb::scoped_ptr<SurfaceImpl> surface_impl)
     : surface_impl_(surface_impl.Pass()) {}
+
+EGLBoolean Surface::QuerySurface(EGLint attribute, EGLint* value) {
+  switch (attribute) {
+    case EGL_HEIGHT: {
+      *value = surface_impl_->GetHeight();
+      return true;
+    }
+
+    case EGL_WIDTH: {
+      *value = surface_impl_->GetWidth();
+      return true;
+    }
+
+    case EGL_CONFIG_ID:
+    case EGL_HORIZONTAL_RESOLUTION:
+    case EGL_LARGEST_PBUFFER:
+    case EGL_MIPMAP_LEVEL:
+    case EGL_MIPMAP_TEXTURE:
+    case EGL_MULTISAMPLE_RESOLVE:
+    case EGL_PIXEL_ASPECT_RATIO:
+    case EGL_RENDER_BUFFER:
+    case EGL_SWAP_BEHAVIOR:
+    case EGL_TEXTURE_FORMAT:
+    case EGL_TEXTURE_TARGET:
+    case EGL_VERTICAL_RESOLUTION: {
+      SB_NOTIMPLEMENTED();
+    }  // Fall through to default on purpose.
+
+    default:
+      SetError(EGL_BAD_ATTRIBUTE);
+      return false;
+  }
+
+  return true;
+}
 
 bool ValidateSurfaceAttribList(const EGLint* raw_attribs,
                                ValidatedSurfaceAttribs* validated_attribs) {
