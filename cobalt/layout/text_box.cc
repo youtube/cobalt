@@ -228,12 +228,14 @@ void TextBox::RenderAndAnimateContent(
 
   // Only add the text node to the render tree if it actually has content and
   // a font isn't loading. The font is treated as transparent if a font is
-  // currently being downloaded: "In cases where textual content is loaded
-  // before downloadable fonts are available, user agents may... render text
-  // transparently with fallback fonts to avoid a flash of text using a fallback
-  // font."
+  // currently being downloaded and hasn't timed out: "In cases where textual
+  // content is loaded before downloadable fonts are available, user agents
+  // may... render text transparently with fallback fonts to avoid a flash of
+  // text using a fallback font. In cases where the font download fails user
+  // agents must display text, simply leaving transparent text is considered
+  // non-conformant behavior."
   //   http://www.w3.org/TR/css3-fonts/#font-face-loading
-  if (HasVisibleText() && !used_font_->HasLoadingFont()) {
+  if (HasVisibleText() && used_font_->IsVisible()) {
     render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
     // Only render the text if it is not completely transparent.
