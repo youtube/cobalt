@@ -21,6 +21,7 @@
 
 #include "glimp/egl/config.h"
 #include "glimp/egl/display_impl.h"
+#include "glimp/gles/context.h"
 #include "glimp/nb/scoped_ptr.h"
 
 namespace glimp {
@@ -53,11 +54,22 @@ class Display {
   bool SurfaceIsValid(EGLSurface surface);
   bool DestroySurface(EGLSurface surface);
 
+  EGLContext CreateContext(EGLConfig config,
+                           EGLContext share_context,
+                           const EGLint* attrib_list);
+  bool ContextIsValid(EGLContext context);
+  bool DestroyContext(EGLContext ctx);
+
+  bool MakeCurrent(EGLSurface draw, EGLSurface read, EGLContext ctx);
+
  private:
   nb::scoped_ptr<DisplayImpl> impl_;
 
   // Keeps track of all created but not destroyed surfaces.
   std::set<Surface*> active_surfaces_;
+
+  // Keeps track of all created but not destroyed contexts.
+  std::set<gles::Context*> active_contexts_;
 };
 
 }  // namespace egl
