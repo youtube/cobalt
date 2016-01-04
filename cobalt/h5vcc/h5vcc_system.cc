@@ -16,9 +16,10 @@
 
 #include "cobalt/h5vcc/h5vcc_system.h"
 
+#include "base/stringprintf.h"
 #include "cobalt/cobalt_version.h"
 #include "cobalt/deprecated/platform_delegate.h"
-#include "steel_build_id.h"  // NOLINT(build/include)
+#include "cobalt_build_id.h"  // NOLINT(build/include)
 
 namespace cobalt {
 namespace h5vcc {
@@ -29,7 +30,12 @@ bool H5vccSystem::are_keys_reversed() const {
   return deprecated::PlatformDelegate::Get()->AreKeysReversed();
 }
 
-std::string H5vccSystem::build_id() const { return STEEL_BUILD_ID; }
+std::string H5vccSystem::build_id() const {
+  return base::StringPrintf(
+      "Built on %s (%s) at version #%s by %s", COBALT_BUILD_VERSION_DATE,
+      COBALT_BUILD_VERSION_TIMESTAMP, COBALT_BUILD_VERSION_NUMBER,
+      COBALT_BUILD_VERSION_USERNAME);
+}
 
 std::string H5vccSystem::platform() const {
   return deprecated::PlatformDelegate::Get()->GetPlatformName();
