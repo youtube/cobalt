@@ -35,10 +35,10 @@
         'h5vcc_system.h',
       ],
       'dependencies': [
-        '<(DEPTH)/lbshell/build/projects/steel_build_id.gyp:steel_build_id',
+        '<(DEPTH)/cobalt/build/cobalt_build_id.gyp:cobalt_build_id',
       ],
       'include_dirs': [
-        # For steel_build_id.h
+        # For cobalt_build_id.h
         '<(SHARED_INTERMEDIATE_DIR)',
       ],
     },
