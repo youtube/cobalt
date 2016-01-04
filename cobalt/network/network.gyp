@@ -50,9 +50,14 @@
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/net/net.gyp:net',
+        '<(DEPTH)/cobalt/build/cobalt_build_id.gyp:cobalt_build_id',
       ],
       'export_dependent_settings': [
         '<(DEPTH)/net/net.gyp:net',
+      ],
+      'include_dirs': [
+        # For cobalt_build_id.h
+        '<(SHARED_INTERMEDIATE_DIR)',
       ],
       'copies': [
       {
