@@ -14,38 +14,25 @@
  * limitations under the License.
  */
 
-#ifndef GLIMP_EGL_SURFACE_H_
-#define GLIMP_EGL_SURFACE_H_
+#ifndef GLIMP_EGL_ATTRIB_MAP_H_
+#define GLIMP_EGL_ATTRIB_MAP_H_
 
 #include <EGL/egl.h>
 
 #include <map>
 
-#include "glimp/egl/attrib_map.h"
-#include "glimp/egl/surface_impl.h"
-#include "glimp/nb/scoped_ptr.h"
-
 namespace glimp {
 namespace egl {
 
-class Surface {
- public:
-  explicit Surface(nb::scoped_ptr<SurfaceImpl> surface_impl);
+typedef std::map<int, int> AttribMap;
 
-  EGLBoolean QuerySurface(EGLint attribute, EGLint* value);
-
-  SurfaceImpl* impl() { return surface_impl_.get(); }
-
- private:
-  nb::scoped_ptr<SurfaceImpl> surface_impl_;
-};
-
-bool ValidateSurfaceAttribList(const AttribMap& attribs);
-
-EGLSurface ToEGLSurface(Surface* surface);
-Surface* FromEGLSurface(EGLSurface surface);
+// Many EGL functions take an "attribute list" as a parameter that all share a
+// similar format:  A list of integer key/value pairs and concluded with the
+// value EGL_NONE (like a null terminated C string).  This function parses
+// that attribute list into a map and returns it.
+AttribMap ParseRawAttribList(const EGLint* attrib_list);
 
 }  // namespace egl
 }  // namespace glimp
 
-#endif  // GLIMP_EGL_SURFACE_H_
+#endif  // GLIMP_EGL_ATTRIB_MAP_H_

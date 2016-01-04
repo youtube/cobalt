@@ -23,6 +23,7 @@
 
 #include "glimp/egl/config.h"
 #include "glimp/egl/surface.h"
+#include "glimp/gles/context_impl.h"
 #include "glimp/nb/scoped_ptr.h"
 
 namespace glimp {
@@ -69,7 +70,13 @@ class DisplayImpl {
   virtual nb::scoped_ptr<SurfaceImpl> CreateWindowSurface(
       const Config* config,
       EGLNativeWindowType win,
-      const ValidatedSurfaceAttribs& attributes) = 0;
+      const AttribMap& attributes) = 0;
+
+  // Creates and returns a gles::ContextImpl object that contains the platform
+  // specific implementation of a GL ES Context, of the specified version that
+  // is compatible with the specified config.
+  virtual nb::scoped_ptr<gles::ContextImpl> CreateContext(const Config* config,
+                                                          int gles_version) = 0;
 
  private:
 };
