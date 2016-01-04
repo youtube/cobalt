@@ -51,8 +51,8 @@ bool Display::ChooseConfig(const EGLint* attrib_list,
     SetError(EGL_BAD_PARAMETER);
     return false;
   }
-  ValidatedConfigAttribs attribs;
-  if (!ValidateConfigAttribList(attrib_list, &attribs)) {
+  AttribMap attribs = ParseRawAttribList(attrib_list);
+  if (!ValidateConfigAttribList(attribs)) {
     SetError(EGL_BAD_ATTRIBUTE);
     return false;
   }
@@ -83,8 +83,8 @@ bool Display::ConfigIsValid(EGLConfig config) {
 EGLSurface Display::CreateWindowSurface(EGLConfig config,
                                         EGLNativeWindowType win,
                                         const EGLint* attrib_list) {
-  ValidatedSurfaceAttribs validated_attribs;
-  if (!ValidateSurfaceAttribList(attrib_list, &validated_attribs)) {
+  AttribMap attribs = ParseRawAttribList(attrib_list);
+  if (!ValidateSurfaceAttribList(attribs)) {
     SetError(EGL_BAD_ATTRIBUTE);
     return EGL_NO_SURFACE;
   }
@@ -95,7 +95,7 @@ EGLSurface Display::CreateWindowSurface(EGLConfig config,
   }
 
   nb::scoped_ptr<SurfaceImpl> surface_impl = impl_->CreateWindowSurface(
-      reinterpret_cast<Config*>(config), win, validated_attribs);
+      reinterpret_cast<Config*>(config), win, attribs);
   if (!surface_impl) {
     return EGL_NO_SURFACE;
   }
@@ -121,6 +121,118 @@ bool Display::DestroySurface(EGLSurface surface) {
   active_surfaces_.erase(surf);
   delete surf;
   return true;
+}
+
+namespace {
+// Returns -1 if the context attributes are invalid.
+int GetContextVersion(const EGLint* attrib_list) {
+  AttribMap attribs = ParseRawAttribList(attrib_list);
+
+  // According to
+  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglCreateContext.xhtml,
+  // the default version of the GL ES context is 1.
+  if (attribs.empty()) {
+    return 1;
+  }
+
+  // EGL_CONTEXT_CLIENT_VERSION is the only valid attribute for CreateContext.
+  AttribMap::const_iterator found = attribs.find(EGL_CONTEXT_CLIENT_VERSION);
+  if (found == attribs.end()) {
+    // If we didn't find it, and the attribute list is not empty (checked above)
+    // then this is an invalid attribute list.
+    return -1;
+  } else {
+    return found->second;
+  }
+}
+}  // namespace
+
+EGLContext Display::CreateContext(EGLConfig config,
+                                  EGLContext share_context,
+                                  const EGLint* attrib_list) {
+  // glimp only supports GL ES versions 2 and 3.
+  int context_version = GetContextVersion(attrib_list);
+  if (context_version != 2 && context_version != 3) {
+    SetError(EGL_BAD_ATTRIBUTE);
+    return EGL_NO_CONTEXT;
+  }
+
+  if (!ConfigIsValid(config)) {
+    SetError(EGL_BAD_CONFIG);
+    return EGL_NO_CONTEXT;
+  }
+
+  // Ensure that |share_context| is either unspecified, or valid.
+  gles::Context* share = NULL;
+  if (share_context != EGL_NO_CONTEXT) {
+    if (!ContextIsValid(share_context)) {
+      SetError(EGL_BAD_CONTEXT);
+      return EGL_NO_CONTEXT;
+    }
+    share = reinterpret_cast<gles::Context*>(share_context);
+  }
+
+  nb::scoped_ptr<gles::ContextImpl> context_impl =
+      impl_->CreateContext(reinterpret_cast<Config*>(config), context_version);
+  if (!context_impl) {
+    return EGL_NO_CONTEXT;
+  }
+
+  gles::Context* context = new gles::Context(context_impl.Pass(), share);
+  active_contexts_.insert(context);
+
+  return reinterpret_cast<EGLContext>(context);
+}
+
+bool Display::ContextIsValid(EGLContext context) {
+  return active_contexts_.find(reinterpret_cast<gles::Context*>(context)) !=
+         active_contexts_.end();
+}
+
+bool Display::DestroyContext(EGLContext ctx) {
+  if (!ContextIsValid(ctx)) {
+    SetError(EGL_BAD_CONTEXT);
+    return false;
+  }
+
+  gles::Context* context = reinterpret_cast<gles::Context*>(ctx);
+  active_contexts_.erase(context);
+  delete context;
+  return true;
+}
+
+bool Display::MakeCurrent(EGLSurface draw, EGLSurface read, EGLContext ctx) {
+  if (draw == EGL_NO_SURFACE && read == EGL_NO_SURFACE &&
+      ctx == EGL_NO_CONTEXT) {
+    if (!ContextIsValid(reinterpret_cast<EGLContext>(
+            gles::Context::GetTLSCurrentContext()))) {
+      SB_DLOG(WARNING)
+          << "Attempted to release a context not owned by this display.";
+      SetError(EGL_BAD_CONTEXT);
+      return false;
+    }
+    gles::Context::ReleaseTLSCurrentContext();
+    return true;
+  }
+
+  if (!ContextIsValid(ctx)) {
+    SetError(EGL_BAD_CONTEXT);
+    return false;
+  }
+
+  if (!SurfaceIsValid(draw)) {
+    SetError(EGL_BAD_SURFACE);
+    return false;
+  }
+
+  if (!SurfaceIsValid(read)) {
+    SetError(EGL_BAD_SURFACE);
+    return false;
+  }
+
+  return gles::Context::SetTLSCurrentContext(
+      reinterpret_cast<gles::Context*>(ctx), FromEGLSurface(draw),
+      FromEGLSurface(read));
 }
 
 }  // namespace egl
