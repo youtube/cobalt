@@ -1809,6 +1809,8 @@ inline const char* GetEnv(const char* name) {
   // empty string rather than unset (NULL).  Handle that case.
   const char* const env = getenv(name);
   return (env != NULL && env[0] != '\0') ? env : NULL;
+#elif defined(__LB_SHELL__)  // TODO(aabtop): s/__LB_SHELL__/STARBOARD/
+  return NULL;
 #else
   return getenv(name);
 #endif
