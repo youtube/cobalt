@@ -14,6 +14,8 @@
 
 {
   'sources': [
+    'egl/attrib_map.cc',
+    'egl/attrib_map.h',
     'egl/config.cc',
     'egl/config.h',
     'egl/display.cc',
@@ -33,6 +35,9 @@
     'entry_points/gles_2_0.cc',
     'entry_points/gles_2_0_ext.cc',
     'entry_points/gles_3_0.cc',
+    'gles/context.cc',
+    'gles/context.h',
+    'gles/context_impl.h',
   ],
 
   'dependencies': [

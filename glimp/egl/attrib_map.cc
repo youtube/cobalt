@@ -14,38 +14,27 @@
  * limitations under the License.
  */
 
-#ifndef GLIMP_EGL_SURFACE_H_
-#define GLIMP_EGL_SURFACE_H_
-
-#include <EGL/egl.h>
-
-#include <map>
-
 #include "glimp/egl/attrib_map.h"
-#include "glimp/egl/surface_impl.h"
-#include "glimp/nb/scoped_ptr.h"
 
 namespace glimp {
 namespace egl {
 
-class Surface {
- public:
-  explicit Surface(nb::scoped_ptr<SurfaceImpl> surface_impl);
+AttribMap ParseRawAttribList(const EGLint* attrib_list) {
+  AttribMap ret;
+  if (!attrib_list) {
+    return ret;
+  }
 
-  EGLBoolean QuerySurface(EGLint attribute, EGLint* value);
+  const int* current_attrib = attrib_list;
+  while (*current_attrib != EGL_NONE) {
+    int key = *current_attrib++;
+    int value = *current_attrib++;
 
-  SurfaceImpl* impl() { return surface_impl_.get(); }
+    ret[key] = value;
+  }
 
- private:
-  nb::scoped_ptr<SurfaceImpl> surface_impl_;
-};
-
-bool ValidateSurfaceAttribList(const AttribMap& attribs);
-
-EGLSurface ToEGLSurface(Surface* surface);
-Surface* FromEGLSurface(EGLSurface surface);
+  return ret;
+}
 
 }  // namespace egl
 }  // namespace glimp
-
-#endif  // GLIMP_EGL_SURFACE_H_

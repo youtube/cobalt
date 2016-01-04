@@ -60,9 +60,8 @@ EGLBoolean Surface::QuerySurface(EGLint attribute, EGLint* value) {
   return true;
 }
 
-bool ValidateSurfaceAttribList(const EGLint* raw_attribs,
-                               ValidatedSurfaceAttribs* validated_attribs) {
-  if (raw_attribs) {
+bool ValidateSurfaceAttribList(const AttribMap& attribs) {
+  if (!attribs.empty()) {
     SB_NOTREACHED() << "Support for specifying surface attributes is not "
                     << "supported in glimp.";
   }
