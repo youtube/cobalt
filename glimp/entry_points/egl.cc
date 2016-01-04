@@ -87,7 +87,13 @@ EGLContext EGLAPIENTRY eglCreateContext(EGLDisplay dpy,
                                         EGLContext share_context,
                                         const EGLint* attrib_list) {
   egl::ScopedEGLLock egl_lock;
-  return EGL_NO_CONTEXT;
+
+  egl::Display* display = GetDisplayOrSetError(dpy);
+  if (!display) {
+    return EGL_NO_CONTEXT;
+  }
+
+  return display->CreateContext(config, share_context, attrib_list);
 }
 
 EGLSurface EGLAPIENTRY eglCreatePbufferSurface(EGLDisplay dpy,
@@ -121,7 +127,13 @@ EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy,
 
 EGLBoolean EGLAPIENTRY eglDestroyContext(EGLDisplay dpy, EGLContext ctx) {
   egl::ScopedEGLLock egl_lock;
-  return false;
+
+  egl::Display* display = GetDisplayOrSetError(dpy);
+  if (!display) {
+    return false;
+  }
+
+  return display->DestroyContext(ctx);
 }
 
 EGLBoolean EGLAPIENTRY eglDestroySurface(EGLDisplay dpy, EGLSurface surface) {
@@ -196,7 +208,13 @@ EGLBoolean EGLAPIENTRY eglMakeCurrent(EGLDisplay dpy,
                                       EGLSurface read,
                                       EGLContext ctx) {
   egl::ScopedEGLLock egl_lock;
-  return false;
+
+  egl::Display* display = GetDisplayOrSetError(dpy);
+  if (!display) {
+    return false;
+  }
+
+  return display->MakeCurrent(draw, read, ctx);
 }
 
 EGLBoolean EGLAPIENTRY eglQueryContext(EGLDisplay dpy,

@@ -56,21 +56,13 @@ bool AttributeKeyAndValueAreValid(int key, int value) {
 }
 }  // namespace
 
-bool ValidateConfigAttribList(const EGLint* raw_attribs,
-                              ValidatedConfigAttribs* out_validated_attribs) {
-  const int* current_attrib = raw_attribs;
-  while (*current_attrib != EGL_NONE) {
-    int key = *current_attrib++;
-    int value = *current_attrib++;
-
-    if (!AttributeKeyAndValueAreValid(key, value)) {
+bool ValidateConfigAttribList(const AttribMap& attribs) {
+  for (AttribMap::const_iterator iter = attribs.begin(); iter != attribs.end();
+       ++iter) {
+    if (!AttributeKeyAndValueAreValid(iter->first, iter->second)) {
       return false;
     }
-
-    // Now that the key is validated, add the key/value pair to the map.
-    (*out_validated_attribs)[key] = value;
   }
-
   return true;
 }
 
@@ -112,8 +104,8 @@ bool ConfigMatchesAttribute(const Config& config, int key, int value) {
 }
 
 bool ConfigMatchesAttributes(const Config& config,
-                             const ValidatedConfigAttribs& attrib_list) {
-  for (ValidatedConfigAttribs::const_iterator iter = attrib_list.begin();
+                             const AttribMap& attrib_list) {
+  for (AttribMap::const_iterator iter = attrib_list.begin();
        iter != attrib_list.end(); ++iter) {
     if (iter->second != EGL_DONT_CARE) {
       if (!ConfigMatchesAttribute(config, iter->first, iter->second)) {
@@ -126,7 +118,7 @@ bool ConfigMatchesAttributes(const Config& config,
 }  // namespace
 
 std::vector<Config*> FilterConfigs(const std::set<Config*>& configs,
-                                   const ValidatedConfigAttribs& attrib_list) {
+                                   const AttribMap& attrib_list) {
   std::vector<Config*> ret;
 
   for (std::set<Config*>::const_iterator iter = configs.begin();
@@ -143,7 +135,7 @@ namespace {
 
 class ConfigSorter {
  public:
-  explicit ConfigSorter(const ValidatedConfigAttribs& attrib_list)
+  explicit ConfigSorter(const AttribMap& attrib_list)
       : attrib_list_(attrib_list) {}
 
   // We define this such that it sorts in decreasing order of preference.
@@ -160,7 +152,7 @@ class ConfigSorter {
   // Returns the bit depth for a given channel, or 0 if we don't care about
   // it's value (e.g. it is not in the specified attribute list).
   int GetTotalBitDepthForChannel(const Config& config, int key) const {
-    ValidatedConfigAttribs::const_iterator found = attrib_list_.find(key);
+    AttribMap::const_iterator found = attrib_list_.find(key);
     if (found == attrib_list_.end() || found->second == EGL_DONT_CARE) {
       return 0;
     } else {
@@ -179,11 +171,11 @@ class ConfigSorter {
     return total_bit_depth;
   }
 
-  const ValidatedConfigAttribs& attrib_list_;
+  const AttribMap& attrib_list_;
 };
 }  // namespace
 
-void SortConfigs(const ValidatedConfigAttribs& attrib_list,
+void SortConfigs(const AttribMap& attrib_list,
                  std::vector<Config*>* in_out_configs) {
   ConfigSorter config_sorter(attrib_list);
   std::sort(in_out_configs->begin(), in_out_configs->end(), config_sorter);
