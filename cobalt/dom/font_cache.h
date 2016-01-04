@@ -67,7 +67,7 @@ class FontCache {
     // NOTE: While using a timer of exactly 3 seconds is not specified by the
     // spec, it is the delay used by both Firefox and Webkit, and thus matches
     // user expectations.
-    const int kRequestTimerDelay = 3000;
+    static const int kRequestTimerDelay = 3000;
 
     // The cached remote font reference both provides load event callbacks to
     // the remote font cache for this remote font, and also ensures that the
