@@ -1800,6 +1800,11 @@ inline int Write(int fd, const void* buf, unsigned int count) {
 inline int Close(int fd) { return close(fd); }
 inline const char* StrError(int errnum) { return strerror(errnum); }
 #endif
+#if defined(__LB_SHELL__)  // TODO(aabtop): s/__LB_SHELL__/STARBOARD/
+inline const char* GetEnv(const char* /*name*/) {
+  return NULL;
+}
+#else
 inline const char* GetEnv(const char* name) {
 #if GTEST_OS_WINDOWS_MOBILE
   // We are on Windows CE, which has no environment variables.
@@ -1809,12 +1814,11 @@ inline const char* GetEnv(const char* name) {
   // empty string rather than unset (NULL).  Handle that case.
   const char* const env = getenv(name);
   return (env != NULL && env[0] != '\0') ? env : NULL;
-#elif defined(__LB_SHELL__)  // TODO(aabtop): s/__LB_SHELL__/STARBOARD/
-  return NULL;
 #else
   return getenv(name);
 #endif
 }
+#endif
 
 #ifdef _MSC_VER
 # pragma warning(pop)  // Restores the warning state.
