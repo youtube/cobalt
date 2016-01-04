@@ -15,16 +15,22 @@
 """Utilities for use by gyp_cobalt and other build tools."""
 
 import importlib
+import json
 import logging
 import os
 import re
 import subprocess
 import sys
+import urllib
+import urllib2
 
 
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 _SOURCE_TREE_DIR = os.path.abspath(os.path.join(_SCRIPT_DIR, os.pardir,
                                                 os.pardir))
+
+_VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
+_XSSI_PREFIX = ")]}'\n"
 
 
 def GetGyp():
@@ -51,26 +57,57 @@ def GypDebugOptions():
   return debug_modes
 
 
-def GitHash(path_to_git_repo):
-  """Compute HEAD SHA1 of the git repo that contains the given path."""
+def GetRevinfo():
+  """Get absolute state of all git repos from gclient DEPS."""
 
-  full_path = os.path.join(_SOURCE_TREE_DIR, path_to_git_repo)
-  if not os.path.exists(full_path):
-    logging.error('Unable to query git hash. '
-                  'Path does not exist "%s".', full_path)
-    return '0'
+  revinfo_cmd = ['gclient', 'revinfo', '-a']
 
-  current_dir = os.getcwd()
+  if sys.platform.startswith('linux'):
+    use_shell = False
+  else:
+    # Windows needs shell to find gclient in the PATH.
+    use_shell = True
+  output = subprocess.check_output(revinfo_cmd, shell=use_shell)
+  revinfo = {}
+  lines = output.splitlines()
+  for line in lines:
+    repo, url = line.split(':', 1)
+    repo = repo.strip().replace('\\', '/')
+    url = url.strip()
+    revinfo[repo] = url
+  return revinfo
+
+
+def GetBuildNumber(version_server=_VERSION_SERVER_URL):
+  """Send a request to the build version server for a build number."""
+
+  revinfo = GetRevinfo()
+  json_deps = json.dumps(revinfo)
+  username = os.environ.get('USERNAME', os.environ.get('USER'))
+
+  post_data = {'deps': json_deps}
+  if username:
+    post_data['user'] = username
+
+  logging.info('Post data is %s', post_data)
+  request = urllib2.Request(version_server, data=urllib.urlencode(post_data))
+  # TODO(***REMOVED***): retry on timeout.
   try:
-    os.chdir(full_path)
-    cmd_line = ('git log --pretty=format:%h -n 1')
-    sp = subprocess.check_output(cmd_line, shell=True)
-    return sp.strip()
-  except subprocess.CalledProcessError:
-    logging.error('Unable to query git hash.')
-    return '0'
-  finally:
-    os.chdir(current_dir)
+    response = urllib2.urlopen(request)
+  except urllib2.HTTPError as e:
+    logging.error('Failed to retrieve build number: %s', e)
+    return 0
+  except urllib2.URLError as e:
+    logging.error('Could not connect to %s: %s', version_server, e)
+    return 0
+
+  data = response.read()
+  if data.find(_XSSI_PREFIX) == 0:
+    data = data[len(_XSSI_PREFIX):]
+  results = json.loads(data)
+  build_number = results.get('build_number', 0)
+  logging.info('Build Number: %d', build_number)
+  return build_number
 
 
 def Which(filename):
@@ -148,7 +185,7 @@ def GetConstantValue(file_path, constant_name):
     sys.exit(1)
 
   expression = match.group(1)
-  value = eval(expression)
+  value = eval(expression)  # pylint:disable=eval-used
   return value
 
 

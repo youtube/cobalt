@@ -28,8 +28,8 @@
     # Contains the current build configuration.
     'cobalt_config%': 'Gold',
     'cobalt_fastbuild%': 0,
-    # Contains the sha1 of the cobalt git repo head.
-    'cobalt_sha1%': 0,
+    # Build version number.
+    'cobalt_version%': 0,
     # Contains the name of the hosting OS. The value is defined by gyp_cobalt.
     'host_os%': 'win',
     # The "real" target_arch that is used to select the correct delegate source.
@@ -45,8 +45,6 @@
 
     # Needed for backwards compatibility with lbshell code.
     'lbshell_root%': '<(DEPTH)/lbshell',
-    'lb_shell_sha1%': '<(cobalt_sha1)',
-
 
     # Compiler configuration.
 

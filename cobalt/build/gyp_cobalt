@@ -203,7 +203,7 @@ class _GypRunner(object):
     variables = {
         'OS': 'lb_shell',
         'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
-        'cobalt_sha1': gyp_utils.GitHash('cobalt'),
+        'cobalt_version': gyp_utils.GetBuildNumber(),
         'host_os': _GetHostOS(),
     }
     if self.platform_config.IsStarboard():
