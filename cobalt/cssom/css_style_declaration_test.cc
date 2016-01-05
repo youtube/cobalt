@@ -368,24 +368,6 @@ TEST(CSSStyleDeclarationTest, PositionSetter) {
   style->set_position(position);
 }
 
-TEST(CSSStyleDeclarationTest, TabSizeSetter) {
-  testing::MockCSSParser css_parser;
-  scoped_refptr<CSSStyleDeclaration> style =
-      new CSSStyleDeclaration(&css_parser);
-
-  const std::string tab_size = "4";
-  MockMutationObserver observer;
-  style->set_mutation_observer(&observer);
-
-  EXPECT_CALL(css_parser,
-              ParsePropertyIntoDeclarationData(
-                  GetPropertyName(kTabSizeProperty), tab_size, _,
-                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
-  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
-  style->set_tab_size(tab_size);
-}
-
 TEST(CSSStyleDeclarationTest, TextAlignSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
