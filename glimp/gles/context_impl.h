@@ -19,6 +19,9 @@
 
 #include <GLES3/gl3.h>
 
+#include <string>
+#include <vector>
+
 namespace glimp {
 namespace gles {
 
@@ -29,6 +32,8 @@ namespace gles {
 // such as textures or shaders.
 class ContextImpl {
  public:
+  typedef std::vector<std::string> ExtensionList;
+
   virtual ~ContextImpl() {}
 
   // The following methods are called when eglMakeCurrent() is called with
@@ -44,6 +49,12 @@ class ContextImpl {
   // Called via glViewport.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glViewport.xml
   virtual void SetViewport(int x, int y, int width, int height) = 0;
+
+  // Called via glGetString(GL_EXTENSIONS).
+  // Note that glimp common code may append its own extensions to the list
+  // provided by the implementation.
+  //   https://www.khronos.org/opengles/sdk/1.1/docs/man/glGetString.xml
+  virtual ExtensionList GetExtensions() const = 0;
 
  private:
 };
