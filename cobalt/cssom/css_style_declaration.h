@@ -217,9 +217,6 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string right() const;
   void set_right(const std::string& right);
 
-  std::string tab_size() const;
-  void set_tab_size(const std::string& tab_size);
-
   std::string text_align() const;
   void set_text_align(const std::string& text_align);
 
