@@ -60,10 +60,30 @@ EGLBoolean Surface::QuerySurface(EGLint attribute, EGLint* value) {
   return true;
 }
 
+namespace {
+bool AttributeKeyAndValueAreValid(int key, int value) {
+  switch (key) {
+    // First deal with the trivial keys where all values are valid.
+    case EGL_WIDTH:
+    case EGL_HEIGHT: {
+      return true;
+    }
+  }
+
+  // If the switch statement didn't catch the key, this is an unknown
+  // key.
+  // TODO(***REMOVED***): glimp doesn't support all values yet, and will return
+  //               false for keys that it doesn't support.
+  return false;
+}
+}  // namespace
+
 bool ValidateSurfaceAttribList(const AttribMap& attribs) {
-  if (!attribs.empty()) {
-    SB_NOTREACHED() << "Support for specifying surface attributes is not "
-                    << "supported in glimp.";
+  for (AttribMap::const_iterator iter = attribs.begin(); iter != attribs.end();
+       ++iter) {
+    if (!AttributeKeyAndValueAreValid(iter->first, iter->second)) {
+      return false;
+    }
   }
   return true;
 }
