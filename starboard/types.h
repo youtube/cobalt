@@ -39,6 +39,10 @@
 #include <stddef.h>
 #endif
 
+#if SB_HAS(LIMITS_H)
+#include <limits.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -90,6 +94,15 @@ typedef SB_UINTPTR uintptr_t;
 #define SB_INT64_C(x) x##LL
 #define SB_UINT64_C(x) x##ULL
 #endif  // defined(_MSC_VER)
+
+// Simulate portions of limits.h for platforms that don't provide it.
+#if !SB_HAS(LIMITS_H)
+// Assume long is 32-bits until we find a platform for which that fails.
+SB_COMPILE_ASSERT(sizeof(long) == sizeof(int32_t),  // NOLINT[runtime/int]
+                  long_is_32_bits);
+#define LONG_MIN ((long)0x80000000)  // NOLINT[runtime/int]
+#define LONG_MAX ((long)0x7FFFFFFF)  // NOLINT[runtime/int]
+#endif
 
 #if !defined(PRId32)
 #error "inttypes.h should provide the portable formatting macros."
