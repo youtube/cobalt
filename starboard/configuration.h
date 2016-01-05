@@ -98,6 +98,22 @@
   } while (0)
 #endif
 
+// A way to do compile-time assertions.
+#if defined(__cplusplus)
+namespace starboard {
+template <bool>
+struct CompileAssert {};
+}  // namespace starboard
+
+#define SB_COMPILE_ASSERT(expr, msg)                            \
+  typedef ::starboard::CompileAssert<(static_cast<bool>(expr))> \
+      msg[static_cast<bool>(expr) ? 1 : -1]
+#else
+// Doesn't work in straight-C, but we will at least define it to make things
+// easier.
+#define SB_COMPILE_ASSERT(expr, msg)
+#endif
+
 // Causes the annotated (at the end) function to generate a warning if the
 // result is not accessed.
 #if defined(COMPILER_GCC)
