@@ -92,6 +92,8 @@
         'focus_event.h',
         'font_cache.cc',
         'font_cache.h',
+        'font_face.cc',
+        'font_face.h',
         'font_face_updater.cc',
         'font_face_updater.h',
         'font_list.cc',

@@ -25,6 +25,7 @@
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
+#include "cobalt/dom/font_face.h"
 #include "cobalt/dom/font_list.h"
 #include "cobalt/loader/font/remote_font_cache.h"
 #include "cobalt/render_tree/font.h"
@@ -113,8 +114,7 @@ class FontCache {
   typedef std::map<FontListKey, scoped_refptr<FontList> > FontListMap;
 
   // Font-face related
-  typedef std::map<std::string, GURL> FontFaceMap;
-  typedef std::set<GURL> FontUrlSet;
+  typedef std::map<std::string, FontFaceStyleSet> FontFaceMap;
   typedef std::map<GURL, scoped_refptr<RequestedRemoteFontInfo> >
       RequestedRemoteFontMap;
 
