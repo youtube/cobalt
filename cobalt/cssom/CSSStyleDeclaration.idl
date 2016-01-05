@@ -51,7 +51,6 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString] attribute DOMString overflowWrap;
   [TreatNullAs=EmptyString] attribute DOMString position;
   [TreatNullAs=EmptyString] attribute DOMString right;
-  [TreatNullAs=EmptyString] attribute DOMString tabSize;
   [TreatNullAs=EmptyString] attribute DOMString textAlign;
   [TreatNullAs=EmptyString] attribute DOMString textIndent;
   [TreatNullAs=EmptyString] attribute DOMString textOverflow;
