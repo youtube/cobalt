@@ -21,6 +21,7 @@
 
 #include <set>
 
+#include "glimp/egl/attrib_map.h"
 #include "glimp/egl/config.h"
 #include "glimp/egl/surface.h"
 #include "glimp/gles/context_impl.h"
@@ -70,6 +71,14 @@ class DisplayImpl {
   virtual nb::scoped_ptr<SurfaceImpl> CreateWindowSurface(
       const Config* config,
       EGLNativeWindowType win,
+      const AttribMap& attributes) = 0;
+
+  // Creates and returns a SurfaceImpl object that represents the surface of a
+  // Pbuffer and is compatible with this DisplayImpl object.  This will be
+  // called when eglCreatePbufferSurface() is called.
+  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglCreatePbufferSurface.xhtml
+  virtual nb::scoped_ptr<SurfaceImpl> CreatePbufferSurface(
+      const Config* config,
       const AttribMap& attributes) = 0;
 
   // Creates and returns a gles::ContextImpl object that contains the platform
