@@ -1254,11 +1254,6 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kPositionToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(
-              name.begin, cssom::GetPropertyName(cssom::kTabSizeProperty))) {
-        *property_name_token = kTabSizeToken;
-        return true;
-      }
       return false;
 
     case 9:
