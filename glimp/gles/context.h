@@ -19,8 +19,11 @@
 
 #include <GLES3/gl3.h>
 
+#include <string>
+
 #include "glimp/egl/surface.h"
 #include "glimp/gles/context_impl.h"
+#include "glimp/nb/ref_counted.h"
 #include "glimp/nb/scoped_ptr.h"
 #include "starboard/thread.h"
 
@@ -48,9 +51,16 @@ class Context {
   // if no thread currently holds the context.
   SbThread current_thread() const { return current_thread_; }
 
+  GLenum GetError() const { return error_; }
+
+  const GLubyte* GetString(GLenum name);
+
  private:
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);
   void ReleaseContext();
+  void SetError(GLenum error) { error_ = error; }
+
+  void SetupExtensionsString();
 
   // A reference to the platform-specific implementation aspects of the context.
   nb::scoped_ptr<ContextImpl> impl_;
@@ -60,6 +70,12 @@ class Context {
 
   // Has this context ever been made current before?
   bool has_been_current_;
+
+  // The value to be returned when GetString(GL_EXTENSIONS) is called.
+  std::string extensions_string_;
+
+  // The last GL ES error raised.
+  GLenum error_;
 };
 
 }  // namespace gles
