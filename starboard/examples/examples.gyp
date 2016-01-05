@@ -18,7 +18,7 @@
       'target_name': 'examples',
       'type': 'none',
       'dependencies': [
-        '<(DEPTH)/starboard/examples/window/window.gyp:window',
+        '<(DEPTH)/starboard/examples/window/window.gyp:starboard_window_example',
       ],
     },
   ],
