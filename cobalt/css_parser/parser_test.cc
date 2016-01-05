@@ -2698,6 +2698,13 @@ TEST_F(ParserTest, ParsesBorderRadiusPercentage) {
   EXPECT_FLOAT_EQ(0.5f, border_radius->value());
 }
 
+TEST_F(ParserTest, ParsesBoxShadowWithNone) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("box-shadow: none;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), style->box_shadow());
+}
+
 TEST_F(ParserTest, ParsesBoxShadowWith2Lengths) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("box-shadow: .2em 20px;",
@@ -4340,6 +4347,13 @@ TEST_F(ParserTest, ParsesEllipsisTextOverflow) {
                                         source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetEllipsis(), style->text_overflow());
+}
+
+TEST_F(ParserTest, ParsesTextShadowWithNone) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("text-shadow: none;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), style->text_shadow());
 }
 
 TEST_F(ParserTest, ParsesTextShadowWith2Lengths) {
