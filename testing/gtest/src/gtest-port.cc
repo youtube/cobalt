@@ -31,6 +31,7 @@
 
 #include "gtest/internal/gtest-port.h"
 
+#if !GTEST_OS_STARBOARD
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -44,6 +45,7 @@
 #else
 # include <unistd.h>
 #endif  // GTEST_OS_WINDOWS_MOBILE
+#endif  // !GTEST_OS_STARBOARD
 
 #if GTEST_OS_MAC
 # include <mach/mach_init.h>
@@ -73,7 +75,8 @@
 namespace testing {
 namespace internal {
 
-#if defined(_MSC_VER) || defined(__BORLANDC__) || defined(__LB_SHELL__)
+#if defined(_MSC_VER) || defined(__BORLANDC__) || defined(__LB_SHELL__) || \
+    GTEST_OS_STARBOARD
 // MSVC and C++Builder do not provide a definition of STDERR_FILENO.
 const int kStdOutFileno = 1;
 const int kStdErrFileno = 2;
@@ -496,7 +499,7 @@ GTestLog::GTestLog(GTestLogSeverity severity, const char* file, int line)
 GTestLog::~GTestLog() {
   GetStream() << ::std::endl;
   if (severity_ == GTEST_FATAL) {
-    fflush(stderr);
+    posix::Flush();
     posix::Abort();
   }
 }
@@ -556,7 +559,7 @@ class CapturedStream {
     const int captured_fd = mkstemp(name_template);
     filename_ = name_template;
 # endif  // GTEST_OS_WINDOWS
-    fflush(NULL);
+    posix::Flush();
     dup2(captured_fd, fd_);
     close(captured_fd);
   }
@@ -568,7 +571,7 @@ class CapturedStream {
   std::string GetCapturedString() {
     if (uncaptured_fd_ != -1) {
       // Restores the original stream.
-      fflush(NULL);
+      posix::Flush();
       dup2(uncaptured_fd_, fd_);
       close(uncaptured_fd_);
       uncaptured_fd_ = -1;
@@ -733,8 +736,8 @@ bool ParseInt32(const Message& src_text, const char* str, Int32* value) {
     msg << "WARNING: " << src_text
         << " is expected to be a 32-bit integer, but actually"
         << " has value \"" << str << "\".\n";
-    printf("%s", msg.GetString().c_str());
-    fflush(stdout);
+    posix::PrintF("%s", msg.GetString().c_str());
+    posix::Flush();
     return false;
   }
 
@@ -750,8 +753,8 @@ bool ParseInt32(const Message& src_text, const char* str, Int32* value) {
     msg << "WARNING: " << src_text
         << " is expected to be a 32-bit integer, but actually"
         << " has value " << str << ", which overflows.\n";
-    printf("%s", msg.GetString().c_str());
-    fflush(stdout);
+    posix::PrintF("%s", msg.GetString().c_str());
+    posix::Flush();
     return false;
   }
 
@@ -784,9 +787,9 @@ Int32 Int32FromGTestEnv(const char* flag, Int32 default_value) {
   Int32 result = default_value;
   if (!ParseInt32(Message() << "Environment variable " << env_var,
                   string_value, &result)) {
-    printf("The default value %s is used.\n",
-           (Message() << default_value).GetString().c_str());
-    fflush(stdout);
+    posix::PrintF("The default value %s is used.\n",
+                  (Message() << default_value).GetString().c_str());
+    posix::Flush();
     return default_value;
   }
 
