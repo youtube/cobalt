@@ -1570,7 +1570,8 @@ class ComputedShadowProvider : public NotReachedPropertyValueVisitor {
   ComputedShadowProvider(const LengthValue* computed_font_size,
                          const RGBAColorValue* computed_color);
 
-  void VisitShadow(ShadowValue* shadow_value);
+  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
+  void VisitShadow(ShadowValue* shadow_value) OVERRIDE;
 
   const scoped_refptr<PropertyValue>& computed_shadow() const {
     return computed_shadow_;
@@ -1589,6 +1590,61 @@ ComputedShadowProvider::ComputedShadowProvider(
     const LengthValue* computed_font_size, const RGBAColorValue* computed_color)
     : computed_font_size_(computed_font_size),
       computed_color_(computed_color) {}
+
+void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case KeywordValue::kNone:
+      computed_shadow_ = keyword;
+      break;
+
+    case KeywordValue::kAbsolute:
+    case KeywordValue::kAlternate:
+    case KeywordValue::kAlternateReverse:
+    case KeywordValue::kAuto:
+    case KeywordValue::kBackwards:
+    case KeywordValue::kBaseline:
+    case KeywordValue::kBlock:
+    case KeywordValue::kBoth:
+    case KeywordValue::kBottom:
+    case KeywordValue::kBreakWord:
+    case KeywordValue::kCenter:
+    case KeywordValue::kClip:
+    case KeywordValue::kContain:
+    case KeywordValue::kCover:
+    case KeywordValue::kCurrentColor:
+    case KeywordValue::kCursive:
+    case KeywordValue::kEllipsis:
+    case KeywordValue::kFantasy:
+    case KeywordValue::kForwards:
+    case KeywordValue::kFixed:
+    case KeywordValue::kHidden:
+    case KeywordValue::kInfinite:
+    case KeywordValue::kInherit:
+    case KeywordValue::kInitial:
+    case KeywordValue::kInline:
+    case KeywordValue::kInlineBlock:
+    case KeywordValue::kLeft:
+    case KeywordValue::kMiddle:
+    case KeywordValue::kMonospace:
+    case KeywordValue::kNormal:
+    case KeywordValue::kNoRepeat:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
+    case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
+    case KeywordValue::kReverse:
+    case KeywordValue::kRight:
+    case KeywordValue::kSansSerif:
+    case KeywordValue::kSerif:
+    case KeywordValue::kSolid:
+    case KeywordValue::kStatic:
+    case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
+    case KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
 
 void ComputedShadowProvider::VisitShadow(ShadowValue* shadow_value) {
   std::vector<scoped_refptr<LengthValue> > lengths;
