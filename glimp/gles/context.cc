@@ -46,7 +46,14 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
                  Context* share_context)
     : impl_(context_impl.Pass()),
       current_thread_(kSbThreadInvalid),
-      has_been_current_(false) {
+      has_been_current_(false),
+      error_(GL_NO_ERROR) {
+  if (share_context != NULL) {
+    resource_manager_ = share_context->resource_manager_;
+  } else {
+    resource_manager_ = new ResourceManager();
+  }
+
   SetupExtensionsString();
 }
 
@@ -107,6 +114,32 @@ const GLubyte* Context::GetString(GLenum name) {
     default: { SetError(GL_INVALID_ENUM); }
   }
   return NULL;
+}
+
+GLuint Context::CreateProgram() {
+  nb::scoped_ptr<ProgramImpl> impl = impl_->CreateProgram();
+  if (!impl) {
+    return 0;
+  }
+  nb::scoped_refptr<Program> program(new Program(impl.Pass()));
+
+  return resource_manager_->RegisterProgram(program);
+}
+
+void Context::DeleteProgram(GLuint program) {
+  // As indicated by the specification for glDeleteProgram(),
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glDeleteProgram.xml
+  // values of 0 will be silently ignored.
+  if (program == 0) {
+    return;
+  }
+
+  nb::scoped_refptr<Program> program_resource =
+      resource_manager_->DeregisterProgram(program);
+
+  if (!program_resource) {
+    SetError(GL_INVALID_VALUE);
+  }
 }
 
 void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
