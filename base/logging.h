@@ -610,7 +610,8 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define CHECK_GE(val1, val2) CHECK_OP(GE, >=, val1, val2)
 #define CHECK_GT(val1, val2) CHECK_OP(GT, > , val1, val2)
 
-#if LOGGING_IS_OFFICIAL_BUILD
+#if LOGGING_IS_OFFICIAL_BUILD || \
+    (defined(__LB_SHELL__FOR_QA__) && !defined(__LB_SHELL__FORCE_LOGGING__))
 // In order to have optimized code for official builds, remove DLOGs and
 // DCHECKs.
 #define ENABLE_DLOG 0
