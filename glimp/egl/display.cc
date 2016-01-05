@@ -94,8 +94,49 @@ EGLSurface Display::CreateWindowSurface(EGLConfig config,
     return EGL_NO_SURFACE;
   }
 
+  if (!((*reinterpret_cast<Config*>(config))[EGL_SURFACE_TYPE] |
+        EGL_WINDOW_BIT)) {
+    // The config used must have the EGL_WINDOW_BIT set in order for us to
+    // be able to create windows.
+    SetError(EGL_BAD_MATCH);
+    return EGL_NO_SURFACE;
+  }
+
   nb::scoped_ptr<SurfaceImpl> surface_impl = impl_->CreateWindowSurface(
       reinterpret_cast<Config*>(config), win, attribs);
+  if (!surface_impl) {
+    return EGL_NO_SURFACE;
+  }
+
+  Surface* surface = new Surface(surface_impl.Pass());
+  active_surfaces_.insert(surface);
+
+  return ToEGLSurface(surface);
+}
+
+EGLSurface Display::CreatePbufferSurface(EGLConfig config,
+                                         const EGLint* attrib_list) {
+  AttribMap attribs = ParseRawAttribList(attrib_list);
+  if (!ValidateSurfaceAttribList(attribs)) {
+    SetError(EGL_BAD_ATTRIBUTE);
+    return EGL_NO_SURFACE;
+  }
+
+  if (!ConfigIsValid(config)) {
+    SetError(EGL_BAD_CONFIG);
+    return EGL_NO_SURFACE;
+  }
+
+  if (!((*reinterpret_cast<Config*>(config))[EGL_SURFACE_TYPE] |
+        EGL_PBUFFER_BIT)) {
+    // The config used must have the EGL_PBUFFER_BIT set in order for us to
+    // be able to create pbuffers.
+    SetError(EGL_BAD_MATCH);
+    return EGL_NO_SURFACE;
+  }
+
+  nb::scoped_ptr<SurfaceImpl> surface_impl =
+      impl_->CreatePbufferSurface(reinterpret_cast<Config*>(config), attribs);
   if (!surface_impl) {
     return EGL_NO_SURFACE;
   }

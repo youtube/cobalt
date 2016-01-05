@@ -51,6 +51,8 @@ class Display {
   EGLSurface CreateWindowSurface(EGLConfig config,
                                  EGLNativeWindowType win,
                                  const EGLint* attrib_list);
+  EGLSurface CreatePbufferSurface(EGLConfig config, const EGLint* attrib_list);
+
   bool SurfaceIsValid(EGLSurface surface);
   bool DestroySurface(EGLSurface surface);
 
