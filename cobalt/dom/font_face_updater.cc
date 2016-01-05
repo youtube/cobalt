@@ -23,7 +23,10 @@
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/font_style_value.h"
+#include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/local_src_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/string_value.h"
@@ -36,13 +39,13 @@ namespace dom {
 
 namespace {
 
-//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // FontFaceProvider
-//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-// Visit a single font face rule, generating the FontFace from its values and
-// verify that it is a valid rule.
-// TODO(***REMOVED***): Handle local font faces, unicode ranges, and factor in styles.
+// Visit a single font face rule, generating a FontFaceStyleSet::Entry from its
+// values and verifying that it is valid.
+// TODO(***REMOVED***): Handle unicode ranges.
 class FontFaceProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
   explicit FontFaceProvider(const GURL& base_url) : base_url_(base_url) {}
@@ -60,25 +63,56 @@ class FontFaceProvider : public cssom::NotReachedPropertyValueVisitor {
   bool IsFontFaceValid() const;
 
   const std::string& font_family() const { return font_family_; }
-  const GURL& url() const { return url_; }
+  const FontFaceStyleSet::Entry& style_set_entry() const {
+    return style_set_entry_;
+  }
 
  private:
-  std::string font_family_;
-  GURL url_;
   const GURL& base_url_;
+
+  std::string font_family_;
+  FontFaceStyleSet::Entry style_set_entry_;
 
   DISALLOW_COPY_AND_ASSIGN(FontFaceProvider);
 };
 
-void FontFaceProvider::VisitFontStyle(cssom::FontStyleValue* /*font_style*/) {
-  NOTIMPLEMENTED()
-      << "FontFaceProvider::FontStyleValue support not implemented yet.";
+void FontFaceProvider::VisitFontStyle(cssom::FontStyleValue* font_style) {
+  style_set_entry_.style.slant =
+      font_style->value() == cssom::FontStyleValue::kItalic
+          ? render_tree::FontStyle::kItalicSlant
+          : render_tree::FontStyle::kUprightSlant;
 }
 
-void FontFaceProvider::VisitFontWeight(
-    cssom::FontWeightValue* /*font_weight*/) {
-  NOTIMPLEMENTED()
-      << "FontFaceProvider::UnicodeRange support not implemented yet.";
+void FontFaceProvider::VisitFontWeight(cssom::FontWeightValue* font_weight) {
+  switch (font_weight->value()) {
+    case cssom::FontWeightValue::kThinAka100:
+      style_set_entry_.style.weight = render_tree::FontStyle::kThinWeight;
+      break;
+    case cssom::FontWeightValue::kExtraLightAka200:
+      style_set_entry_.style.weight = render_tree::FontStyle::kExtraLightWeight;
+      break;
+    case cssom::FontWeightValue::kLightAka300:
+      style_set_entry_.style.weight = render_tree::FontStyle::kLightWeight;
+      break;
+    case cssom::FontWeightValue::kNormalAka400:
+      style_set_entry_.style.weight = render_tree::FontStyle::kNormalWeight;
+      break;
+    case cssom::FontWeightValue::kMediumAka500:
+      style_set_entry_.style.weight = render_tree::FontStyle::kMediumWeight;
+      break;
+    case cssom::FontWeightValue::kSemiBoldAka600:
+      style_set_entry_.style.weight = render_tree::FontStyle::kSemiBoldWeight;
+      break;
+    case cssom::FontWeightValue::kBoldAka700:
+      style_set_entry_.style.weight = render_tree::FontStyle::kBoldWeight;
+      break;
+    case cssom::FontWeightValue::kExtraBoldAka800:
+      style_set_entry_.style.weight = render_tree::FontStyle::kExtraBoldWeight;
+      break;
+    case cssom::FontWeightValue::kBlackAka900:
+      style_set_entry_.style.weight = render_tree::FontStyle::kBlackWeight;
+      break;
+  }
 }
 
 void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
@@ -135,14 +169,14 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   }
 }
 
-void FontFaceProvider::VisitLocalSrc(cssom::LocalSrcValue* /*local_src*/) {
-  NOTIMPLEMENTED() << "FontFaceProvider::LocalSrc support not implemented yet.";
+void FontFaceProvider::VisitLocalSrc(cssom::LocalSrcValue* local_src) {
+  style_set_entry_.sources.push_back(FontFaceSource(local_src->value()));
 }
 
 void FontFaceProvider::VisitPropertyList(
     cssom::PropertyListValue* property_list) {
-  if (property_list->value().size() > 0) {
-    property_list->value()[0]->Accept(this);
+  for (size_t i = 0; i < property_list->value().size(); ++i) {
+    property_list->value()[i]->Accept(this);
   }
 }
 
@@ -170,18 +204,17 @@ void FontFaceProvider::VisitUrlSrc(cssom::UrlSrcValue* url_src) {
 // location of the style sheet containing the @font-face rule.
 //   http://www.w3.org/TR/css3-fonts/#descdef-src
 void FontFaceProvider::VisitURL(cssom::URLValue* url) {
-  if (url->is_absolute()) {
-    url_ = GURL(url->value());
-  } else {
-    url_ = url->Resolve(base_url_);
+  GURL gurl = url->is_absolute() ? GURL(url->value()) : url->Resolve(base_url_);
+  if (gurl.is_valid()) {
+    style_set_entry_.sources.push_back(FontFaceSource(gurl));
   }
 }
 
-// The src and font family are required for the @font-face rule to be valid.
+// The font family and src are required for the @font-face rule to be valid.
 //  http://www.w3.org/TR/css3-fonts/#descdef-font-family
 //  http://www.w3.org/TR/css3-fonts/#descdef-src
 bool FontFaceProvider::IsFontFaceValid() const {
-  return !font_family_.empty() && url_.is_valid();
+  return !font_family_.empty() && !style_set_entry_.sources.empty();
 }
 
 }  // namespace
@@ -240,10 +273,16 @@ void FontFaceUpdater::VisitCSSFontFaceRule(
   if (css_font_face_rule->data()->src()) {
     css_font_face_rule->data()->src()->Accept(&font_face_provider);
   }
+  if (css_font_face_rule->data()->style()) {
+    css_font_face_rule->data()->style()->Accept(&font_face_provider);
+  }
+  if (css_font_face_rule->data()->weight()) {
+    css_font_face_rule->data()->weight()->Accept(&font_face_provider);
+  }
 
   if (font_face_provider.IsFontFaceValid()) {
-    (*font_face_map_)[font_face_provider.font_family()] =
-        font_face_provider.url();
+    (*font_face_map_)[font_face_provider.font_family()].AddEntry(
+        font_face_provider.style_set_entry());
   }
 }
 

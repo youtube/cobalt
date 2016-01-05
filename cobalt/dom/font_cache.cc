@@ -80,10 +80,10 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
   font_face_map_ = font_face_map.Pass();
 
   // Generate a set of the urls contained within the new font face map.
-  FontUrlSet new_url_set;
+  std::set<GURL> new_url_set;
   for (FontFaceMap::iterator map_iterator = font_face_map_->begin();
        map_iterator != font_face_map_->end(); ++map_iterator) {
-    new_url_set.insert(map_iterator->second);
+    map_iterator->second.CollectUrlSources(&new_url_set);
   }
 
   // Iterate through active remote font references, verifying that the font face
@@ -157,9 +157,40 @@ scoped_refptr<render_tree::Font> FontCache::GetFallbackFont(
 scoped_refptr<render_tree::Font> FontCache::TryGetFont(
     const std::string& family, render_tree::FontStyle style, float size,
     FontListFont::State* state) {
-  FontFaceMap::iterator font_face_entry = font_face_map_->find(family);
-  if (font_face_entry != font_face_map_->end()) {
-    return TryGetRemoteFont(font_face_entry->second, size, state);
+  FontFaceMap::iterator font_face_map_iterator = font_face_map_->find(family);
+  if (font_face_map_iterator != font_face_map_->end()) {
+    // Retrieve the font face style set entry that most closely matches the
+    // desired style. Given that a font face was found for this family, it
+    // should never be NULL.
+    // http://www.w3.org/TR/css3-fonts/#font-prop-desc
+    const FontFaceStyleSet::Entry* style_set_entry =
+        font_face_map_iterator->second.MatchStyle(style);
+    DCHECK(style_set_entry != NULL);
+
+    // Walk the entry's sources:
+    // - If a remote source is encountered, always return the results of its
+    //   attempted retrieval, regardless of its success.
+    // - If a local source is encountered, only return the local font if it is
+    //   successfully retrieved. In the case where the font is not locally
+    //   available, the next font in the source list should be attempted
+    //   instead.
+    // http://www.w3.org/TR/css3-fonts/#src-desc
+    for (FontFaceSources::const_iterator source_iterator =
+             style_set_entry->sources.begin();
+         source_iterator != style_set_entry->sources.end(); ++source_iterator) {
+      if (source_iterator->IsUrlSource()) {
+        return TryGetRemoteFont(source_iterator->GetUrl(), size, state);
+      } else {
+        scoped_refptr<render_tree::Font> font =
+            TryGetLocalFont(source_iterator->GetName(), style, size, state);
+        if (font != NULL) {
+          return font;
+        }
+      }
+    }
+
+    *state = FontListFont::kUnavailableState;
+    return NULL;
   } else {
     return TryGetLocalFont(family, style, size, state);
   }
