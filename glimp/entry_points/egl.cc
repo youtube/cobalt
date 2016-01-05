@@ -100,7 +100,13 @@ EGLSurface EGLAPIENTRY eglCreatePbufferSurface(EGLDisplay dpy,
                                                EGLConfig config,
                                                const EGLint* attrib_list) {
   egl::ScopedEGLLock egl_lock;
-  return EGL_NO_SURFACE;
+
+  egl::Display* display = GetDisplayOrSetError(dpy);
+  if (!display) {
+    return EGL_NO_SURFACE;
+  }
+
+  return display->CreatePbufferSurface(config, attrib_list);
 }
 
 EGLSurface EGLAPIENTRY eglCreatePixmapSurface(EGLDisplay dpy,
