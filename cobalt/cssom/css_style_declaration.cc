@@ -580,14 +580,6 @@ void CSSStyleDeclaration::set_right(const std::string& right) {
   SetPropertyValueStringByKey(kRightProperty, right);
 }
 
-std::string CSSStyleDeclaration::tab_size() const {
-  return data_->GetDeclaredPropertyValueString(kTabSizeProperty);
-}
-
-void CSSStyleDeclaration::set_tab_size(const std::string& tab_size) {
-  SetPropertyValueStringByKey(kTabSizeProperty, tab_size);
-}
-
 std::string CSSStyleDeclaration::text_align() const {
   return data_->GetDeclaredPropertyValueString(kTextAlignProperty);
 }

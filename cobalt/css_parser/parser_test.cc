@@ -4267,16 +4267,6 @@ TEST_F(ParserTest, RecoversFromInvalidTransformList) {
   EXPECT_TRUE(style->color());
 }
 
-TEST_F(ParserTest, ParsesIntegerTabSize) {
-  scoped_refptr<cssom::CSSStyleDeclarationData> style =
-      parser_.ParseStyleDeclarationList("tab-size: 4;", source_location_);
-
-  scoped_refptr<cssom::IntegerValue> tab_size =
-      dynamic_cast<cssom::IntegerValue*>(style->tab_size().get());
-  ASSERT_TRUE(tab_size);
-  EXPECT_EQ(4, tab_size->value());
-}
-
 TEST_F(ParserTest, ParsesLeftTextAlign) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("text-align: left;", source_location_);

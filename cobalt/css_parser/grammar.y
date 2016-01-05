@@ -142,7 +142,6 @@
 %token kPositionToken                         // position
 %token kRightToken                            // right
 %token kSrcToken                              // src
-%token kTabSizeToken                          // tab-size
 %token kTextAlignToken                        // text-align
 %token kTextIndentToken                       // text-indent
 %token kTextOverflowToken                     // text-overflow
@@ -547,7 +546,6 @@
                        position_property_value
                        positive_length_percent_property_value
                        scan_media_feature_keyword_value
-                       tab_size_property_value
                        text_align_property_value
                        text_indent_property_value
                        text_overflow_property_value
@@ -1429,10 +1427,6 @@ identifier_token:
   | kSrcToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kSrcProperty));
-  }
-  | kTabSizeToken {
-    $$ = TrivialStringPiece::FromCString(
-            cssom::GetPropertyName(cssom::kTabSizeProperty));
   }
   | kTextAlignToken {
     $$ = TrivialStringPiece::FromCString(
@@ -3792,17 +3786,6 @@ scale_function_parameters:
   }
   ;
 
-// This property determines the tab size used to render preserved tab
-// characters. Integers represent the measure as multiples of the space
-// character's advance width. Negative values are not allowed.
-//   http://www.w3.org/TR/css-text-3/#tab-size
-tab_size_property_value:
-    positive_integer {
-    $$ = AddRef(new cssom::IntegerValue($1));
-  }
-  | common_values
-  ;
-
 // This property describes how inline-level content of a block container is
 // aligned.
 //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
@@ -5533,12 +5516,6 @@ maybe_declaration:
   | kSrcToken maybe_whitespace colon font_face_src_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kSrcProperty,
-                                      MakeScopedRefPtrAndRelease($4), $5)
-            : NULL;
-  }
-  | kTabSizeToken maybe_whitespace colon tab_size_property_value
-      maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTabSizeProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

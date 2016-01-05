@@ -2329,7 +2329,6 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kOverflowProperty:
     case kOverflowWrapProperty:
     case kPositionProperty:
-    case kTabSizeProperty:
     case kTextAlignProperty:
     case kTextOverflowProperty:
     case kTextTransformProperty:
@@ -2456,7 +2455,6 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kPaddingTopProperty:
     case kRightProperty:
     case kSrcProperty:
-    case kTabSizeProperty:
     case kTextAlignProperty:
     case kTextIndentProperty:
     case kTextOverflowProperty:

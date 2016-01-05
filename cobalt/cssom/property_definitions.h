@@ -94,7 +94,6 @@ enum PropertyKey {
   kPaddingTopProperty,
   kPositionProperty,
   kRightProperty,
-  kTabSizeProperty,
   kTextAlignProperty,
   kTextIndentProperty,
   kTextOverflowProperty,

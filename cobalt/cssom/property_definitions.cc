@@ -385,10 +385,6 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kRightProperty, "right", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // http://www.w3.org/TR/css-text-3/#tab-size
-  SetPropertyDefinition(kTabSizeProperty, "tab-size", kInheritedYes,
-                        kAnimatableNo, new IntegerValue(8));
-
   // TODO(***REMOVED***): Currently this initial value is fixed to be 'left'. Properly
   // set this according to direction.
   //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
@@ -741,10 +737,6 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kPositionProperty))) {
         return kPositionProperty;
-      }
-      if (LowerCaseEqualsASCII(property_name,
-                               GetPropertyName(kTabSizeProperty))) {
-        return kTabSizeProperty;
       }
       return kNoneProperty;
 
