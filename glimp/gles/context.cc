@@ -16,6 +16,8 @@
 
 #include "glimp/gles/context.h"
 
+#include <string>
+
 #include "glimp/egl/error.h"
 #include "glimp/egl/surface.h"
 #include "starboard/log.h"
@@ -44,7 +46,9 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
                  Context* share_context)
     : impl_(context_impl.Pass()),
       current_thread_(kSbThreadInvalid),
-      has_been_current_(false) {}
+      has_been_current_(false) {
+  SetupExtensionsString();
+}
 
 Context* Context::GetTLSCurrentContext() {
   return reinterpret_cast<Context*>(SbThreadGetLocalValue(GetThreadLocalKey()));
@@ -88,6 +92,23 @@ void Context::ReleaseTLSCurrentContext() {
   }
 }
 
+const GLubyte* Context::GetString(GLenum name) {
+  switch (name) {
+    case GL_EXTENSIONS: {
+      return reinterpret_cast<const GLubyte*>(extensions_string_.c_str());
+    } break;
+
+    case GL_VENDOR:
+    case GL_RENDERER:
+    case GL_VERSION: {
+      SB_NOTIMPLEMENTED();
+    } break;
+
+    default: { SetError(GL_INVALID_ENUM); }
+  }
+  return NULL;
+}
+
 void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
   SB_DCHECK(current_thread_ == kSbThreadInvalid ||
             current_thread_ == SbThreadGetCurrent());
@@ -115,6 +136,26 @@ void Context::ReleaseContext() {
   SB_DCHECK(has_been_current_);
 
   current_thread_ = kSbThreadInvalid;
+}
+
+void Context::SetupExtensionsString() {
+  // Extract the list of extensions from the platform-specific implementation
+  // and then turn them into a string.
+  ContextImpl::ExtensionList impl_extensions = impl_->GetExtensions();
+
+  extensions_string_ = "";
+  for (int i = 0; i < impl_extensions.size(); ++i) {
+    if (i > 0) {
+      extensions_string_ += " ";
+    }
+    extensions_string_ += impl_extensions[i];
+  }
+
+  // Since extensions_string_ will eventually be returned as an array of
+  // unsigned chars, make sure that none of the characters in it are negative.
+  for (int i = 0; i < extensions_string_.size(); ++i) {
+    SB_DCHECK(extensions_string_[i] > 0);
+  }
 }
 
 }  // namespace gles
