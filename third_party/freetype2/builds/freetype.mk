@@ -97,7 +97,7 @@ BASE_DIR := $(SRC_DIR)/base
 
 # Other derived directories.
 #
-PUBLIC_DIR   := $(TOP_DIR)/include
+PUBLIC_DIR   := $(TOP_DIR)/include/freetype
 INTERNAL_DIR := $(PUBLIC_DIR)/internal
 SERVICES_DIR := $(INTERNAL_DIR)/services
 CONFIG_DIR   := $(PUBLIC_DIR)/config

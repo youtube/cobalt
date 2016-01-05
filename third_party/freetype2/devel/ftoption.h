@@ -38,9 +38,9 @@ FT_BEGIN_HEADER
   /*    library from a single source directory.                            */
   /*                                                                       */
   /*  - You can put a copy of this file in your build directory, more      */
-  /*    precisely in `$BUILD/config/ftoption.h', where `$BUILD' is the     */
-  /*    name of a directory that is included _before_ the FreeType include */
-  /*    path during compilation.                                           */
+  /*    precisely in `$BUILD/freetype/config/ftoption.h', where `$BUILD'   */
+  /*    is the name of a directory that is included _before_ the FreeType  */
+  /*    include path during compilation.                                   */
   /*                                                                       */
   /*    The default FreeType Makefiles and Jamfiles use the build          */
   /*    directory `builds/<system>' by default, but you can easily change  */
@@ -51,7 +51,7 @@ FT_BEGIN_HEADER
   /*    locate this file during the build.  For example,                   */
   /*                                                                       */
   /*      #define FT_CONFIG_OPTIONS_H  <myftoptions.h>                     */
-  /*      #include <config/ftheader.h>                                     */
+  /*      #include <freetype/config/ftheader.h>                            */
   /*                                                                       */
   /*    will use `$BUILD/myftoptions.h' instead of this file for macro     */
   /*    definitions.                                                       */
@@ -59,7 +59,7 @@ FT_BEGIN_HEADER
   /*    Note also that you can similarly pre-define the macro              */
   /*    FT_CONFIG_MODULES_H used to locate the file listing of the modules */
   /*    that are statically linked to the library at compile time.  By     */
-  /*    default, this file is <config/ftmodule.h>.                         */
+  /*    default, this file is <freetype/config/ftmodule.h>.                */
   /*                                                                       */
   /* We highly recommend using the third method whenever possible.         */
   /*                                                                       */
@@ -205,6 +205,17 @@ FT_BEGIN_HEADER
 
   /*************************************************************************/
   /*                                                                       */
+  /* Define to disable the use of file stream functions and types, FILE,   */
+  /* fopen() etc.  Enables the use of smaller system libraries on embedded */
+  /* systems that have multiple system libraries, some with or without     */
+  /* file stream support, in the cases where file stream support is not    */
+  /* necessary such as memory loading of font files.                       */
+  /*                                                                       */
+/* #define FT_CONFIG_OPTION_DISABLE_STREAM_SUPPORT */
+
+
+  /*************************************************************************/
+  /*                                                                       */
   /* PNG bitmap support.                                                   */
   /*                                                                       */
   /*   FreeType now handles loading color bitmap glyphs in the PNG format. */
@@ -228,17 +239,6 @@ FT_BEGIN_HEADER
   /*   Define this macro if you want to enable this `feature'.             */
   /*                                                                       */
 #define FT_CONFIG_OPTION_USE_HARFBUZZ
-
-
-  /*************************************************************************/
-  /*                                                                       */
-  /* Define to disable the use of file stream functions and types, FILE,   */
-  /* fopen() etc.  Enables the use of smaller system libraries on embedded */
-  /* systems that have multiple system libraries, some with or without     */
-  /* file stream support, in the cases where file stream support is not    */
-  /* necessary such as memory loading of font files.                       */
-  /*                                                                       */
-/* #define FT_CONFIG_OPTION_DISABLE_STREAM_SUPPORT */
 
 
   /*************************************************************************/
@@ -690,6 +690,24 @@ FT_BEGIN_HEADER
   /* an embedded `BDF ' table within SFNT-based bitmap formats.            */
   /*                                                                       */
 #define TT_CONFIG_OPTION_BDF
+
+
+  /*************************************************************************/
+  /*                                                                       */
+  /* Option TT_CONFIG_OPTION_MAX_RUNNABLE_OPCODES controls the maximum     */
+  /* number of bytecode instructions executed for a single run of the      */
+  /* bytecode interpreter, needed to prevent infinite loops.  You don't    */
+  /* want to change this except for very special situations (e.g., making  */
+  /* a library fuzzer spend less time to handle broken fonts).             */
+  /*                                                                       */
+  /* It is not expected that this value is ever modified by a configuring  */
+  /* script; instead, it gets surrounded with #ifndef ... #endif so that   */
+  /* the value can be set as a preprocessor option on the compiler's       */
+  /* command line.                                                         */
+  /*                                                                       */
+#ifndef TT_CONFIG_OPTION_MAX_RUNNABLE_OPCODES
+#define TT_CONFIG_OPTION_MAX_RUNNABLE_OPCODES  1000000L
+#endif
 
 
   /*************************************************************************/
