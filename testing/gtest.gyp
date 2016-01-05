@@ -150,7 +150,7 @@
             ],
           },
         }],
-        ['OS=="lb_shell"', {
+        ['OS=="lb_shell" or OS=="starboard"', {
           'variables': {
             'gtest_defines' : [
               'GTEST_USE_OWN_TR1_TUPLE=1',
@@ -159,6 +159,11 @@
             ],
             'conditions' : [
               ['target_arch=="android"', {
+                'gtest_defines!' : [
+                  '_POSIX_PATH_MAX=255',
+                ],
+              }],
+              ['OS=="starboard"', {
                 'gtest_defines!' : [
                   '_POSIX_PATH_MAX=255',
                 ],
