@@ -713,6 +713,19 @@ TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
   EXPECT_FALSE(box_shadow->has_inset());
 }
 
+TEST(PromoteToComputedStyle, BoxShadowWithNone) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  computed_style->set_box_shadow(cssom::KeywordValue::GetNone());
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), computed_style->box_shadow());
+}
+
 TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
@@ -784,6 +797,19 @@ TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
   EXPECT_EQ(0x0047abff, color->value());
 
   EXPECT_FALSE(text_shadow->has_inset());
+}
+
+TEST(PromoteToComputedStyle, TextShadowWithNone) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  computed_style->set_text_shadow(cssom::KeywordValue::GetNone());
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), computed_style->text_shadow());
 }
 
 TEST(PromoteToComputedStyle, HeightPercentageInUnspecifiedHeightBlockIsAuto) {
