@@ -135,7 +135,12 @@ void GL_APIENTRY glCopyTexSubImage2D(GLenum target,
                                      GLsizei height) {}
 
 GLuint GL_APIENTRY glCreateProgram(void) {
-  return 0;
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return 0;
+  }
+
+  return context->CreateProgram();
 }
 
 GLuint GL_APIENTRY glCreateShader(GLenum type) {
@@ -148,7 +153,14 @@ void GL_APIENTRY glDeleteBuffers(GLsizei n, const GLuint* buffers) {}
 
 void GL_APIENTRY glDeleteFramebuffers(GLsizei n, const GLuint* framebuffers) {}
 
-void GL_APIENTRY glDeleteProgram(GLuint program) {}
+void GL_APIENTRY glDeleteProgram(GLuint program) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->DeleteProgram(program);
+}
 
 void GL_APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers) {
 }
