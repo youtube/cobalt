@@ -16,6 +16,21 @@
 
 #include <GLES2/gl2.h>
 
+#include "glimp/gles/context.h"
+#include "starboard/log.h"
+
+namespace gles = glimp::gles;
+
+namespace {
+gles::Context* GetCurrentContext() {
+  gles::Context* context = gles::Context::GetTLSCurrentContext();
+  if (!context) {
+    SB_DLOG(WARNING) << "GL ES command issued while no context was current.";
+  }
+  return context;
+}
+}
+
 extern "C" {
 
 void GL_APIENTRY glActiveTexture(GLenum texture) {}
@@ -224,7 +239,12 @@ void GL_APIENTRY glGetBufferParameteriv(GLenum target,
                                         GLint* params) {}
 
 GLenum GL_APIENTRY glGetError(void) {
-  return 0;
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return GL_NO_ERROR;
+  }
+
+  return context->GetError();
 }
 
 void GL_APIENTRY glGetFloatv(GLenum pname, GLfloat* params) {}
@@ -265,7 +285,12 @@ void GL_APIENTRY glGetShaderSource(GLuint shader,
                                    GLchar* source) {}
 
 const GLubyte* GL_APIENTRY glGetString(GLenum name) {
-  return NULL;
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return NULL;
+  }
+
+  return context->GetString(name);
 }
 
 void GL_APIENTRY glGetTexParameterfv(GLenum target,
