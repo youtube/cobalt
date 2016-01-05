@@ -32,7 +32,9 @@
 #include "gtest/internal/gtest-filepath.h"
 #include "gtest/internal/gtest-port.h"
 
+#if !GTEST_OS_STARBOARD
 #include <stdlib.h>
+#endif
 
 #if GTEST_OS_WINDOWS_MOBILE
 # include <windows.h>
@@ -98,7 +100,7 @@ static bool IsPathSeparator(char c) {
 
 // Returns the current working directory, or "" if unsuccessful.
 FilePath FilePath::GetCurrentDir() {
-#if GTEST_OS_WINDOWS_MOBILE
+#if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_STARBOARD
   // Windows CE doesn't have a current directory, so we just return
   // something reasonable.
   return FilePath(kCurrentDirectoryString);
@@ -325,7 +327,7 @@ bool FilePath::CreateFolder() const {
 #elif GTEST_OS_WINDOWS
   int result = _mkdir(pathname_.c_str());
 #else
-  int result = mkdir(pathname_.c_str(), 0777);
+  int result = posix::MkDir(pathname_.c_str(), 0777);
 #endif  // GTEST_OS_WINDOWS_MOBILE
 
   if (result == -1) {
