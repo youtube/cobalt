@@ -22,6 +22,10 @@
 #include <string>
 #include <vector>
 
+#include "glimp/egl/surface.h"
+#include "glimp/gles/program_impl.h"
+#include "glimp/nb/scoped_ptr.h"
+
 namespace glimp {
 namespace gles {
 
@@ -55,6 +59,12 @@ class ContextImpl {
   // provided by the implementation.
   //   https://www.khronos.org/opengles/sdk/1.1/docs/man/glGetString.xml
   virtual ExtensionList GetExtensions() const = 0;
+
+  // Called via glCreateProgram.  Must create and return a platform-specific
+  // ProgramImpl implementation.  If a NULL scoped_ptr is returned, it is
+  // treated as an error.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCreateProgram.xml
+  virtual nb::scoped_ptr<ProgramImpl> CreateProgram() = 0;
 
  private:
 };

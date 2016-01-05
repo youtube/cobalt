@@ -23,6 +23,7 @@
 
 #include "glimp/egl/surface.h"
 #include "glimp/gles/context_impl.h"
+#include "glimp/gles/resource_manager.h"
 #include "glimp/nb/ref_counted.h"
 #include "glimp/nb/scoped_ptr.h"
 #include "starboard/thread.h"
@@ -55,6 +56,9 @@ class Context {
 
   const GLubyte* GetString(GLenum name);
 
+  GLuint CreateProgram();
+  void DeleteProgram(GLuint program);
+
  private:
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);
   void ReleaseContext();
@@ -73,6 +77,9 @@ class Context {
 
   // The value to be returned when GetString(GL_EXTENSIONS) is called.
   std::string extensions_string_;
+
+  // The resource manager containing all referenced resources.
+  nb::scoped_refptr<ResourceManager> resource_manager_;
 
   // The last GL ES error raised.
   GLenum error_;

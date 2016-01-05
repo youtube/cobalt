@@ -38,6 +38,14 @@
     'gles/context.cc',
     'gles/context.h',
     'gles/context_impl.h',
+    'gles/program.cc',
+    'gles/program.h',
+    'gles/program_impl.h',
+    'gles/ref_counted_resource_map.h',
+    'gles/resource_manager.cc',
+    'gles/resource_manager.h',
+    'gles/unique_id_generator.cc',
+    'gles/unique_id_generator.h',
   ],
 
   'dependencies': [
