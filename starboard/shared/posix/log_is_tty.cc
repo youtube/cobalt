@@ -12,34 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This test doesn't test that the appropriate output was produced, but ensures
-// it compiles and runs without crashing.
-
 #include "starboard/log.h"
-#include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
-namespace {
+#include <unistd.h>
 
-TEST(SbLogRawTest, SunnyDayEmpty) {
-  SbLogRaw("");
+bool SbLogIsTty() {
+  return isatty(STDERR_FILENO) == 1;
 }
-
-TEST(SbLogRawTest, SunnyDayNewline) {
-  SbLogRaw("\n");
-}
-
-TEST(SbLogRawTest, SunnyDayTextNoNewline) {
-  SbLogRaw("test");
-  // Add the newline separately to avoid messing up the output.
-  SbLogRaw("\n");
-}
-
-TEST(SbLogRawTest, SunnyDayTextAndNewline) {
-  SbLogRaw("test\n");
-}
-
-}  // namespace
-}  // namespace nplb
-}  // namespace starboard

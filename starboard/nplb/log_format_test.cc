@@ -22,22 +22,18 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbLogRawTest, SunnyDayEmpty) {
-  SbLogRaw("");
+TEST(SbLogFormatTest, SunnyDayNoFormat) {
+  SbLogFormatF("");
+  SbLogFormatF("\n");
+  SbLogFormatF("test");
+  SbLogFormatF("test\n");
 }
 
-TEST(SbLogRawTest, SunnyDayNewline) {
-  SbLogRaw("\n");
-}
-
-TEST(SbLogRawTest, SunnyDayTextNoNewline) {
-  SbLogRaw("test");
-  // Add the newline separately to avoid messing up the output.
-  SbLogRaw("\n");
-}
-
-TEST(SbLogRawTest, SunnyDayTextAndNewline) {
-  SbLogRaw("test\n");
+TEST(SbLogFormatTest, SunnyDayFormat) {
+  int i = 2;
+  int j = 3;
+  SbLogFormatF("2 == %d, 3 == %d\n", i, j);
+  SbLogFormatF("\"test\" == \"%s\"\n", "test");
 }
 
 }  // namespace

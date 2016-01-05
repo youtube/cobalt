@@ -17,6 +17,8 @@
 #ifndef STARBOARD_LOG_H_
 #define STARBOARD_LOG_H_
 
+#include <stdarg.h>
+
 #ifdef __cplusplus
 #include <sstream>
 #include <string>
@@ -51,6 +53,26 @@ SB_EXPORT void SbLog(SbLogPriority priority, const char* message);
 // from an asynchronous signal handler (e.g. a SIGSEGV handler). It should do no
 // additional formatting.
 SB_EXPORT void SbLogRaw(const char* message);
+
+// A log output method, that additionally performs a string format on the way
+// out.
+SB_EXPORT void SbLogFormat(const char* format, va_list args)
+    SB_PRINTF_FORMAT(1, 0);
+
+// Inline wrapper of SbLogFormat to convert from ellipsis to va_args.
+SB_C_INLINE void SbLogFormatF(const char* format, ...) SB_PRINTF_FORMAT(1, 2);
+SB_C_INLINE void SbLogFormatF(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  SbLogFormat(format, args);
+  va_end(args);
+}
+
+// Flushes the log buffer, on some platforms.
+SB_EXPORT void SbLogFlush();
+
+// Returns whether the log output goes to a TTY or is being redirected.
+SB_EXPORT bool SbLogIsTty();
 
 #ifdef __cplusplus
 }  // extern "C"
@@ -124,15 +146,8 @@ class LogMessageVoidify {
   void operator&(std::ostream&) {}
 };
 
-template <bool>
-struct CompileAssert {};
-
 }  // namespace logging
 }  // namespace starboard
-
-#define SB_COMPILE_ASSERT(expr, msg)                                     \
-  typedef ::starboard::logging::CompileAssert<(static_cast<bool>(expr))> \
-      msg[static_cast<bool>(expr) ? 1 : -1]
 
 #define SB_LOG_MESSAGE_INFO                            \
   ::starboard::logging::LogMessage(__FILE__, __LINE__, \
@@ -153,7 +168,7 @@ struct CompileAssert {};
 
 #define SB_LOG_IS_ON(severity)                  \
   ((::starboard::logging::SB_LOG_##severity) >= \
-   ::starboard::logging::GetMinLogLevel())
+    ::starboard::logging::GetMinLogLevel())
 #define SB_LOG_IF(severity, condition) \
   SB_LAZY_STREAM(SB_LOG_STREAM(severity), SB_LOG_IS_ON(severity) && (condition))
 #define SB_LOG(severity) SB_LOG_IF(severity, true)

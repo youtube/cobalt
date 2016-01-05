@@ -15,7 +15,7 @@
 {
   'targets': [
     {
-      'target_name': 'window',
+      'target_name': 'starboard_window_example',
       'type': 'executable',
       'sources': [
         'main.cc',
