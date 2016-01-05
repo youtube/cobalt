@@ -189,7 +189,9 @@
 //   Int32FromGTestEnv()  - parses an Int32 environment variable.
 //   StringFromGTestEnv() - parses a string environment variable.
 
+#if !defined(STARBOARD)
 #include <ctype.h>   // for isspace, etc
+#include <stdarg.h>
 #include <stddef.h>  // for ptrdiff_t
 #include <stdlib.h>
 #include <stdio.h>
@@ -198,6 +200,15 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 #endif  // !_WIN32_WCE
+#else  // !defined(STARBOARD)
+#include "starboard/directory.h"
+#include "starboard/log.h"
+#include "starboard/file.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/system.h"
+#include "starboard/types.h"
+#endif  // !defined(STARBOARD)
 
 #if defined __APPLE__
 # include <AvailabilityMacros.h>
@@ -223,7 +234,9 @@
 #endif  // __GNUC__
 
 // Determines the platform on which Google Test is compiled.
-#ifdef __CYGWIN__
+#if defined(STARBOARD)
+# define GTEST_OS_STARBOARD 1
+#elif defined(__CYGWIN__)
 # define GTEST_OS_CYGWIN 1
 #elif defined __SYMBIAN32__
 # define GTEST_OS_SYMBIAN 1
@@ -278,6 +291,13 @@
 # endif
 #endif
 
+#if GTEST_OS_STARBOARD
+# define GTEST_HAS_EXCEPTIONS 0
+# define GTEST_HAS_POSIX_RE 0
+# define GTEST_HAS_RTTI 0
+# define GTEST_HAS_SEH 0
+# define GTEST_HAS_STREAM_REDIRECTION 0
+#else  // GTEST_OS_STARBOARD
 // Brings in definitions for functions used in the testing::internal::posix
 // namespace (read, write, close, chdir, isatty, stat). We do not currently
 // use them on Windows Mobile.
@@ -291,6 +311,7 @@
 # include <direct.h>
 # include <io.h>
 #endif
+#endif  // GTEST_OS_STARBOARD
 
 #if GTEST_OS_LINUX_ANDROID
 // Used to define __ANDROID_API__ matching the target NDK API level.
@@ -1032,7 +1053,11 @@ class GTEST_API_ GTestLog {
                                   __FILE__, __LINE__).GetStream()
 
 inline void LogToStderr() {}
+#if GTEST_OS_STARBOARD
+inline void FlushInfoLog() {}
+#else
 inline void FlushInfoLog() { fflush(NULL); }
+#endif
 
 // INTERNAL IMPLEMENTATION - DO NOT USE.
 //
@@ -1688,6 +1713,57 @@ inline char ToUpper(char ch) {
 
 namespace posix {
 
+#if GTEST_OS_STARBOARD
+
+typedef SbFileInfo StatStruct;
+typedef int FILE;
+
+inline int FileNo(FILE* file) { return 0; }
+inline int IsATTY(FILE* file) { return SbLogIsTty() ? 1 : 0; }
+inline int Stat(const char* path, StatStruct* buf) {
+  return SbFileGetPathInfo(path, buf) ? 0 : -1;
+}
+inline int StrCaseCmp(const char* s1, const char* s2) {
+  return SbStringCompareNoCase(s1, s2);
+}
+inline char* StrDup(const char* src) { return SbStringDuplicate(src); }
+inline int RmDir(const char* dir) { return SbFileDelete(dir); }
+inline bool IsDir(const StatStruct& st) { return st.is_directory; }
+
+inline const char* StrNCpy(char* dest, const char* src, size_t n) {
+  SbStringCopy(dest, src, static_cast<int>(n));
+  return dest;
+}
+
+inline FILE* FOpen(const char* path, const char* mode) { return NULL; }
+inline int FClose(FILE* fp) { return -1; }
+inline const char* StrError(int errnum) { return "N/A"; }
+
+inline const char* GetEnv(const char* /*name*/) { return NULL; }
+inline void Abort() { SbSystemBreakIntoDebugger(); }
+
+inline void* Malloc(size_t size) { return SbMemoryAllocate(size); }
+inline void Free(void *memory) { SbMemoryFree(memory); }
+
+inline int MkDir(const char* path, int /*mode*/) {
+  return SbDirectoryCreate(path) ? 0 : -1;
+}
+
+inline void VPrintF(const char* format, va_list args) {
+  SbLogFormat(format, args);
+}
+
+inline void PrintF(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  VPrintF(format, args);
+  va_end(args);
+}
+
+inline void Flush() { SbLogFlush(); }
+
+#else // GTEST_OS_STARBOARD
+
 // Functions with a different name on Windows.
 
 #if GTEST_OS_WINDOWS
@@ -1832,6 +1908,28 @@ void Abort();
 #else
 inline void Abort() { abort(); }
 #endif  // GTEST_OS_WINDOWS_MOBILE
+
+inline void* Malloc(size_t size) { return malloc(size); }
+inline void Free(void* memory) { free(memory); }
+inline int MkDir(const char* path, mode_t mode) {
+#ifdef _MSC_VER
+  (mode);  // Windows apparently doesn't use the mode parameter.
+#endif
+  return mkdir(path, mode);
+}
+inline void VPrintF(const char* format, va_list args) {
+  vfprintf(stdout, format, args);
+}
+
+inline void PrintF(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  VPrintF(format, args);
+  va_end(args);
+}
+
+inline void Flush() { fflush(stdout); }
+#endif  // GTEST_OS_STARBOARD
 
 }  // namespace posix
 
