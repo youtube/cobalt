@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef H5VCC_H5VCC_H_
-#define H5VCC_H5VCC_H_
+#ifndef COBALT_H5VCC_H5VCC_H_
+#define COBALT_H5VCC_H5VCC_H_
 
 #include "cobalt/h5vcc/h5vcc_account_info.h"
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
@@ -58,4 +58,4 @@ class H5vcc : public script::Wrappable {
 }  // namespace h5vcc
 }  // namespace cobalt
 
-#endif  // H5VCC_H5VCC_H_
+#endif  // COBALT_H5VCC_H5VCC_H_

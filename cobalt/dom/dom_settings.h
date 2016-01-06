@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_DOM_SETTINGS_H_
-#define DOM_DOM_SETTINGS_H_
+#ifndef COBALT_DOM_DOM_SETTINGS_H_
+#define COBALT_DOM_DOM_SETTINGS_H_
 
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/window.h"
@@ -25,6 +25,9 @@ namespace cobalt {
 
 namespace loader {
 class FetcherFactory;
+}
+namespace network {
+class NetworkModule;
 }
 namespace script {
 class GlobalObjectProxy;
@@ -37,6 +40,7 @@ namespace dom {
 class DOMSettings : public script::EnvironmentSettings {
  public:
   DOMSettings(loader::FetcherFactory* fetcher_factory,
+              network::NetworkModule* network_module,
               const scoped_refptr<Window>& window,
               MediaSource::Registry* media_source_registry,
               script::JavaScriptEngine* engine,
@@ -50,6 +54,10 @@ class DOMSettings : public script::EnvironmentSettings {
     fetcher_factory_ = fetcher_factory;
   }
   loader::FetcherFactory* fetcher_factory() const { return fetcher_factory_; }
+  void set_network_module(network::NetworkModule* network_module) {
+    network_module_ = network_module;
+  }
+  network::NetworkModule* network_module() const { return network_module_; }
   script::JavaScriptEngine* javascript_engine() const {
     return javascript_engine_;
   }
@@ -65,6 +73,7 @@ class DOMSettings : public script::EnvironmentSettings {
 
  private:
   loader::FetcherFactory* fetcher_factory_;
+  network::NetworkModule* network_module_;
   scoped_refptr<Window> window_;
   MediaSource::Registry* media_source_registry_;
   script::JavaScriptEngine* javascript_engine_;
@@ -76,4 +85,4 @@ class DOMSettings : public script::EnvironmentSettings {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_DOM_SETTINGS_H_
+#endif  // COBALT_DOM_DOM_SETTINGS_H_

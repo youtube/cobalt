@@ -43,6 +43,9 @@
     'final_executable_type%': 'executable',
     'posix_emulation_target_type%': 'static_library',
 
+    # Set to 1 to build with DIAL support.
+    'in_app_dial%': 0,
+
     # Needed for backwards compatibility with lbshell code.
     'lbshell_root%': '<(DEPTH)/lbshell',
 
@@ -151,6 +154,11 @@
       }],  # OS == "starboard"
       ['target_arch in ["xb1", "xb360"]', {
         'defines': ['_USE_MATH_DEFINES'],  # For #define M_PI
+      }],
+      ['in_app_dial == 1', {
+        'defines': [
+          'DIAL_SERVER',
+        ],
       }],
     ],
 

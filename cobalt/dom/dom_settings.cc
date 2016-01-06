@@ -22,11 +22,13 @@ namespace cobalt {
 namespace dom {
 
 DOMSettings::DOMSettings(loader::FetcherFactory* fetcher_factory,
+                         network::NetworkModule* network_module,
                          const scoped_refptr<Window>& window,
                          MediaSource::Registry* media_source_registry,
                          script::JavaScriptEngine* engine,
                          script::GlobalObjectProxy* global_object_proxy)
     : fetcher_factory_(fetcher_factory),
+      network_module_(network_module),
       window_(window),
       media_source_registry_(media_source_registry),
       javascript_engine_(engine),
