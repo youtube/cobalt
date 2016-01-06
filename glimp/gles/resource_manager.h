@@ -19,6 +19,7 @@
 
 #include "glimp/gles/program.h"
 #include "glimp/gles/ref_counted_resource_map.h"
+#include "glimp/gles/shader.h"
 #include "glimp/nb/ref_counted.h"
 #include "starboard/mutex.h"
 
@@ -39,10 +40,15 @@ class ResourceManager : public nb::RefCountedThreadSafe<ResourceManager> {
   nb::scoped_refptr<Program> GetProgram(uint32_t id);
   nb::scoped_refptr<Program> DeregisterProgram(uint32_t id);
 
+  uint32_t RegisterShader(const nb::scoped_refptr<Shader>& shader);
+  nb::scoped_refptr<Shader> GetShader(uint32_t id);
+  nb::scoped_refptr<Shader> DeregisterShader(uint32_t id);
+
  private:
   starboard::Mutex mutex_;
 
   RefCountedResourceMap<Program> programs_;
+  RefCountedResourceMap<Shader> shaders_;
 };
 
 }  // namespace gles

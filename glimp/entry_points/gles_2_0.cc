@@ -35,7 +35,14 @@ extern "C" {
 
 void GL_APIENTRY glActiveTexture(GLenum texture) {}
 
-void GL_APIENTRY glAttachShader(GLuint program, GLuint shader) {}
+void GL_APIENTRY glAttachShader(GLuint program, GLuint shader) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->AttachShader(program, shader);
+}
 
 void GL_APIENTRY glBindAttribLocation(GLuint program,
                                       GLuint index,
@@ -144,7 +151,12 @@ GLuint GL_APIENTRY glCreateProgram(void) {
 }
 
 GLuint GL_APIENTRY glCreateShader(GLenum type) {
-  return 0;
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return 0;
+  }
+
+  return context->CreateShader(type);
 }
 
 void GL_APIENTRY glCullFace(GLenum mode) {}
@@ -165,7 +177,14 @@ void GL_APIENTRY glDeleteProgram(GLuint program) {
 void GL_APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers) {
 }
 
-void GL_APIENTRY glDeleteShader(GLuint shader) {}
+void GL_APIENTRY glDeleteShader(GLuint shader) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->DeleteShader(shader);
+}
 
 void GL_APIENTRY glDeleteTextures(GLsizei n, const GLuint* textures) {}
 
@@ -402,7 +421,14 @@ void GL_APIENTRY glShaderBinary(GLsizei n,
 void GL_APIENTRY glShaderSource(GLuint shader,
                                 GLsizei count,
                                 const GLchar* const* string,
-                                const GLint* length) {}
+                                const GLint* length) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->ShaderSource(shader, count, string, length);
+}
 
 void GL_APIENTRY glStencilFunc(GLenum func, GLint ref, GLuint mask) {}
 

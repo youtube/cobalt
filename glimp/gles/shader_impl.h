@@ -14,30 +14,20 @@
  * limitations under the License.
  */
 
-#include "glimp/gles/program.h"
+#ifndef GLIMP_GLES_SHADER_IMPL_H_
+#define GLIMP_GLES_SHADER_IMPL_H_
 
 namespace glimp {
 namespace gles {
 
-Program::Program(nb::scoped_ptr<ProgramImpl> impl) : impl_(impl.Pass()) {}
+class ShaderImpl {
+ public:
+  virtual ~ShaderImpl() {}
 
-bool Program::AttachShader(const nb::scoped_refptr<Shader>& shader) {
-  if (shader->type() == GL_VERTEX_SHADER) {
-    if (vertex_shader_) {
-      return false;
-    }
-    vertex_shader_ = shader;
-  } else if (shader->type() == GL_FRAGMENT_SHADER) {
-    if (fragment_shader_) {
-      return false;
-    }
-    fragment_shader_ = shader;
-  } else {
-    SB_DLOG(FATAL) << "Invalid shader type.";
-  }
-
-  return true;
-}
+ private:
+};
 
 }  // namespace gles
 }  // namespace glimp
+
+#endif  // GLIMP_GLES_SHADER_IMPL_H_
