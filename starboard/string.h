@@ -17,11 +17,11 @@
 #ifndef STARBOARD_STRING_H_
 #define STARBOARD_STRING_H_
 
+#include <stdarg.h>
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/types.h"
-
-#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,6 +62,14 @@ int SbStringConcatWide(wchar_t* out_destination,
 // be freed with SbMemoryFree. Meant to be a drop-in replacement for strdup.
 char* SbStringDuplicate(const char* source);
 
+// Finds the first occurence of |character| in |str|, returning a pointer to
+// the found character in the given string, or NULL if not found.
+const char* SbStringFindCharacter(const char* str, char character);
+
+// Finds the last occurence of |character| in |str|, returning a pointer to
+// the found character in the given string, or NULL if not found.
+const char* SbStringFindLastCharacter(const char* str, char character);
+
 // Compares |string1| and |string2|, ignoring differences in case. Returns < 0
 // if |string1| is ASCII-betically lower than |string2|, 0 if they are equal,
 // and > 0 if |string1| is ASCII-betically higher than |string2|. Meant to be a
@@ -85,12 +93,40 @@ int SbStringFormat(char* out_buffer,
                    const char* format,
                    va_list arguments) SB_PRINTF_FORMAT(3, 0);
 
+// Inline wrapper of SbStringFormat to convert from ellipsis to va_args.
+inline int SbStringFormatF(char* out_buffer,
+                           size_t buffer_size,
+                           const char* format,
+                           ...) SB_PRINTF_FORMAT(3, 4);
+inline int SbStringFormatF(char* out_buffer,
+                           size_t buffer_size,
+                           const char* format,
+                           ...) {
+  va_list args;
+  va_start(args, format);
+  int result = SbStringFormat(out_buffer, buffer_size, format, args);
+  va_end(args);
+  return result;
+}
+
 // Same as SbStringFormat, but for wide characters. Meant to be a drop-in
 // replacement for vswprintf.
 int SbStringFormatWide(wchar_t* out_buffer,
                        size_t buffer_size,
                        const wchar_t* format,
                        va_list arguments);
+
+// Inline wrapper of SbStringFormatWide to convert from ellipsis to va_args.
+inline int SbStringFormatWideF(wchar_t* out_buffer,
+                               size_t buffer_size,
+                               const wchar_t* format,
+                               ...) {
+  va_list args;
+  va_start(args, format);
+  int result = SbStringFormatWide(out_buffer, buffer_size, format, args);
+  va_end(args);
+  return result;
+}
 
 // Compares the first |count| characters of |string1| and |string2|, which are
 // 16-bit character strings. Returns < 0 if |string1| is ASCII-betically lower
@@ -100,8 +136,14 @@ int SbStringCompareWide(const wchar_t* string1,
                         const wchar_t* string2,
                         size_t count);
 
+// Compares the first |count| characters of |string1| and |string2|, which are
+// 8-bit character strings. Returns < 0 if |string1| is ASCII-betically lower
+// than |string2|, 0 if they are equal, and > 0 if |string1| is ASCII-betically
+// higher than |string2|. Meant to be a drop-in replacement of strncmp.
+int SbStringCompare(const char* string1, const char* string2, size_t count);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD_SYSTEM_H_
+#endif  // STARBOARD_STRING_H_

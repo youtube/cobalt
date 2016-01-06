@@ -14,6 +14,7 @@
 
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
+#include "starboard/string.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -33,9 +34,9 @@ TEST(SbSystemGetErrorStringTest, SunnyDay) {
     char name[128] = {0};
     int len = SbSystemGetErrorString(error, name, SB_ARRAY_SIZE_INT(name));
     EXPECT_LT(0, len);
-    EXPECT_LT(0, strlen(name));
+    EXPECT_LT(0, SbStringGetLength(name));
     if (len < SB_ARRAY_SIZE_INT(name)) {
-      EXPECT_EQ(len, strlen(name));
+      EXPECT_EQ(len, SbStringGetLength(name));
     }
   }
 
@@ -43,7 +44,7 @@ TEST(SbSystemGetErrorStringTest, SunnyDay) {
     char name[128] = {0};
     int len = SbSystemGetErrorString(error, name, 0);
     EXPECT_LT(0, len);
-    EXPECT_EQ(0, strlen(name));
+    EXPECT_EQ(0, SbStringGetLength(name));
   }
 
   {

@@ -12,28 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This test doesn't test that the appropriate output was produced, but ensures
-// it compiles and runs without crashing.
-
-#include "starboard/log.h"
+#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbLogFormatTest, SunnyDayNoFormat) {
-  SbLogFormatF("");
-  SbLogFormatF("\n");
-  SbLogFormatF("test");
-  SbLogFormatF("test\n");
+const char kTestString[] = "012345678901234567890123456789";
+const char* kNull = NULL;
+
+TEST(SbStringFindLastCharacterTest, SunnyDay) {
+  for (int i = 0; i < 10; ++i) {
+    EXPECT_EQ(kTestString + SbStringGetLength(kTestString) - 10 + i,
+              SbStringFindLastCharacter(kTestString, '0' + i));
+  }
 }
 
-TEST(SbLogFormatTest, SunnyDayFormat) {
-  int i = 2;
-  int j = 3;
-  SbLogFormatF("2 == %d, 3 == %d\n", i, j);
-  SbLogFormatF("\"test\" == \"%s\"\n", "test");
+TEST(SbStringFindLastCharacterTest, RainyDayNotFound) {
+  EXPECT_EQ(kNull, SbStringFindLastCharacter(kTestString, 'X'));
 }
 
 }  // namespace
