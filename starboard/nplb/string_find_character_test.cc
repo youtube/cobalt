@@ -12,14 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/log.h"
+#include "starboard/string.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <unistd.h>
+namespace starboard {
+namespace nplb {
+namespace {
 
-#include "starboard/shared/posix/handle_eintr.h"
+const char kTestString[] = "012345678901234567890123456789";
+const char* kNull = NULL;
 
-void SbLogFormat(const char* format, va_list arguments) {
-  vfprintf(stderr, format, arguments);
+TEST(SbStringFindCharacterTest, SunnyDay) {
+  for (int i = 0; i < 10; ++i) {
+    EXPECT_EQ(kTestString + i, SbStringFindCharacter(kTestString, '0' + i));
+  }
 }
+
+TEST(SbStringFindCharacterTest, RainyDayNotFound) {
+  EXPECT_EQ(kNull, SbStringFindCharacter(kTestString, 'X'));
+}
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard

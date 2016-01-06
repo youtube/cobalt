@@ -12,28 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This test doesn't test that the appropriate output was produced, but ensures
-// it compiles and runs without crashing.
+// Here we are not trying to do anything fancy, just to really sanity check that
+// this is hooked up to something.
 
-#include "starboard/log.h"
+#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbLogFormatTest, SunnyDayNoFormat) {
-  SbLogFormatF("");
-  SbLogFormatF("\n");
-  SbLogFormatF("test");
-  SbLogFormatF("test\n");
-}
-
-TEST(SbLogFormatTest, SunnyDayFormat) {
-  int i = 2;
-  int j = 3;
-  SbLogFormatF("2 == %d, 3 == %d\n", i, j);
-  SbLogFormatF("\"test\" == \"%s\"\n", "test");
+TEST(SbStringCompareTest, SunnyDay) {
+  const char kString1[] = "0123456788";
+  const char kString2[] = "0123456789";
+  EXPECT_EQ(0,
+            SbStringCompare(kString1, kString1, SbStringGetLength(kString1)));
+  EXPECT_GT(0,
+            SbStringCompare(kString1, kString2, SbStringGetLength(kString1)));
+  EXPECT_LT(0,
+            SbStringCompare(kString2, kString1, SbStringGetLength(kString2)));
 }
 
 }  // namespace
