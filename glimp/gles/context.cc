@@ -118,9 +118,8 @@ const GLubyte* Context::GetString(GLenum name) {
 
 GLuint Context::CreateProgram() {
   nb::scoped_ptr<ProgramImpl> impl = impl_->CreateProgram();
-  if (!impl) {
-    return 0;
-  }
+  SB_DCHECK(impl);
+
   nb::scoped_refptr<Program> program(new Program(impl.Pass()));
 
   return resource_manager_->RegisterProgram(program);
@@ -134,12 +133,86 @@ void Context::DeleteProgram(GLuint program) {
     return;
   }
 
-  nb::scoped_refptr<Program> program_resource =
+  nb::scoped_refptr<Program> program_object =
       resource_manager_->DeregisterProgram(program);
 
-  if (!program_resource) {
+  if (!program_object) {
     SetError(GL_INVALID_VALUE);
   }
+}
+
+void Context::AttachShader(GLuint program, GLuint shader) {
+  nb::scoped_refptr<Program> program_object =
+      resource_manager_->GetProgram(program);
+  if (!program_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  nb::scoped_refptr<Shader> shader_object =
+      resource_manager_->GetShader(shader);
+  if (!shader_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (!program_object->AttachShader(shader_object)) {
+    // A shader of the given type was already attached.
+    SetError(GL_INVALID_OPERATION);
+  }
+}
+
+GLuint Context::CreateShader(GLenum type) {
+  nb::scoped_ptr<ShaderImpl> impl;
+  if (type == GL_VERTEX_SHADER) {
+    impl = impl_->CreateVertexShader();
+  } else if (type == GL_FRAGMENT_SHADER) {
+    impl = impl_->CreateFragmentShader();
+  } else {
+    SetError(GL_INVALID_ENUM);
+    return 0;
+  }
+  SB_DCHECK(impl);
+
+  nb::scoped_refptr<Shader> shader(new Shader(impl.Pass(), type));
+
+  return resource_manager_->RegisterShader(shader);
+}
+
+void Context::DeleteShader(GLuint shader) {
+  // As indicated by the specification for glDeleteShader(),
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glDeleteShader.xml
+  // values of 0 will be silently ignored.
+  if (shader == 0) {
+    return;
+  }
+
+  nb::scoped_refptr<Shader> shader_resource =
+      resource_manager_->DeregisterShader(shader);
+
+  if (!shader_resource) {
+    SetError(GL_INVALID_VALUE);
+  }
+}
+
+void Context::ShaderSource(GLuint shader,
+                           GLsizei count,
+                           const GLchar* const* string,
+                           const GLint* length) {
+  if (count < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  nb::scoped_refptr<Shader> shader_object =
+      resource_manager_->GetShader(shader);
+
+  if (!shader_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  shader_object->ShaderSource(count, string, length);
 }
 
 void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
