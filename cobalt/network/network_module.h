@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_NETWORK_MODULE_H_
-#define NETWORK_NETWORK_MODULE_H_
+#ifndef COBALT_NETWORK_NETWORK_MODULE_H_
+#define COBALT_NETWORK_NETWORK_MODULE_H_
 
 #include <string>
 
@@ -31,10 +31,23 @@
 #include "cobalt/network/user_agent.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/static_cookie_policy.h"
+#if defined(DIAL_SERVER)
+// Including this header causes a link error on Windows, since we
+// don't have StreamListenSocket.
+#include "net/dial/dial_service.h"
+#endif
 
 namespace base {
 class WaitableEvent;
 }  // namespace base
+
+#if !defined(DIAL_SERVER)
+namespace net {
+// Empty stub that should never be instantiated.
+// Just here so that we can use a scoped_ptr below.
+class DialService {};
+}
+#endif  // defined(DIAL_SERVER)
 
 namespace cobalt {
 
@@ -91,6 +104,7 @@ class NetworkModule {
   storage::StorageManager* storage_manager() const { return storage_manager_; }
   network_bridge::CookieJar* cookie_jar() const { return cookie_jar_.get(); }
   network_bridge::NetPosterFactory net_poster_factory();
+  net::DialService* dial_service() const { return dial_service_.get(); }
 
  private:
   void Initialize(base::EventDispatcher* event_dispatcher);
@@ -106,6 +120,8 @@ class NetworkModule {
   scoped_ptr<UserAgent> user_agent_;
   scoped_ptr<NetworkSystem> network_system_;
   scoped_ptr<network_bridge::CookieJar> cookie_jar_;
+  scoped_ptr<net::DialService> dial_service_;
+
   Options options_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);
@@ -114,4 +130,4 @@ class NetworkModule {
 }  // namespace network
 }  // namespace cobalt
 
-#endif  // NETWORK_NETWORK_MODULE_H_
+#endif  // COBALT_NETWORK_NETWORK_MODULE_H_
