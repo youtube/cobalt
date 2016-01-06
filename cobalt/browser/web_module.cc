@@ -116,8 +116,9 @@ WebModule::WebModule(
           network_module->cookie_jar(), network_module->net_poster_factory())),
       window_weak_(base::AsWeakPtr(window_.get())),
       environment_settings_(new dom::DOMSettings(
-          fetcher_factory_.get(), window_, &media_source_registry_,
-          javascript_engine_.get(), global_object_proxy_.get())),
+          fetcher_factory_.get(), network_module, window_,
+          &media_source_registry_, javascript_engine_.get(),
+          global_object_proxy_.get())),
       layout_manager_(window_.get(), render_tree_produced_callback,
                       options.layout_trigger, layout_refresh_rate,
                       network_module->preferred_language()),

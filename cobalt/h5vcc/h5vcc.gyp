@@ -21,6 +21,12 @@
       'target_name': 'h5vcc',
       'type': 'static_library',
       'sources': [
+        'dial/dial_http_request.cc',
+        'dial/dial_http_request.h',
+        'dial/dial_http_response.cc',
+        'dial/dial_http_response.h',
+        'dial/dial_server.cc',
+        'dial/dial_server.h',
         'h5vcc.cc',
         'h5vcc.h',
         'h5vcc_account_info.cc',
