@@ -64,6 +64,7 @@
 #include "media/player/crypto/key_systems.h"
 #include "media/player/crypto/proxy_decryptor.h"
 #include "media/player/web_media_player.h"
+#include "media/player/web_media_player_delegate.h"
 #include "ui/gfx/size.h"
 
 #if (defined(__LB_XB1__) && !defined(COBALT_WIN)) || defined(__LB_XB360__)
@@ -107,6 +108,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   WebMediaPlayerImpl(
       WebMediaPlayerClient* client,
+      WebMediaPlayerDelegate* delegate,
       scoped_ptr<FilterCollection> collection,
       const scoped_refptr<AudioRendererSink>& audio_renderer_sink,
       scoped_ptr<MessageLoopFactory> message_loop_factory,
@@ -320,6 +322,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   float pending_seek_seconds_;
 
   WebMediaPlayerClient* client_;
+  WebMediaPlayerDelegate* delegate_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
 
