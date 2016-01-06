@@ -18,6 +18,7 @@
 #define GLIMP_GLES_PROGRAM_H_
 
 #include "glimp/gles/program_impl.h"
+#include "glimp/gles/shader.h"
 #include "glimp/nb/ref_counted.h"
 #include "glimp/nb/scoped_ptr.h"
 
@@ -28,11 +29,20 @@ class Program : public nb::RefCountedThreadSafe<Program> {
  public:
   explicit Program(nb::scoped_ptr<ProgramImpl> impl);
 
+  // Attaches the specified shader to either this program's vertex or fragment
+  // shader slot, depending on the shader type.  If a shader of the given
+  // type is already attached, this method does nothing and returns false,
+  // otherwise the shader is attached and true is returned.
+  bool AttachShader(const nb::scoped_refptr<Shader>& shader);
+
  private:
   friend class nb::RefCountedThreadSafe<Program>;
   ~Program() {}
 
   nb::scoped_ptr<ProgramImpl> impl_;
+
+  nb::scoped_refptr<Shader> vertex_shader_;
+  nb::scoped_refptr<Shader> fragment_shader_;
 };
 
 }  // namespace gles
