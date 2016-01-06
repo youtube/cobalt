@@ -97,9 +97,15 @@ typedef SB_UINTPTR uintptr_t;
 
 // Simulate portions of limits.h for platforms that don't provide it.
 #if !SB_HAS(LIMITS_H)
+// Assume int is 32-bits until we find a platform for which that fails.
+SB_COMPILE_ASSERT(sizeof(int) == sizeof(int32_t),  // NOLINT[runtime/int]
+                  starboard_int_is_32_bits);
+#define INT_MIN ((int)0x80000000)  // NOLINT[runtime/int]
+#define INT_MAX ((int)0x7FFFFFFF)  // NOLINT[runtime/int]
+
 // Assume long is 32-bits until we find a platform for which that fails.
 SB_COMPILE_ASSERT(sizeof(long) == sizeof(int32_t),  // NOLINT[runtime/int]
-                  long_is_32_bits);
+                  starboard_long_is_32_bits);
 #define LONG_MIN ((long)0x80000000)  // NOLINT[runtime/int]
 #define LONG_MAX ((long)0x7FFFFFFF)  // NOLINT[runtime/int]
 #endif
