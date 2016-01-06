@@ -128,6 +128,7 @@ static void LogMediaSourceError(const scoped_refptr<MediaLog>& media_log,
 
 WebMediaPlayerImpl::WebMediaPlayerImpl(
     WebMediaPlayerClient* client,
+    WebMediaPlayerDelegate* delegate,
     scoped_ptr<FilterCollection> collection,
     const scoped_refptr<AudioRendererSink>& audio_renderer_sink,
     scoped_ptr<MessageLoopFactory> message_loop_factory,
@@ -143,6 +144,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       pending_seek_(false),
       pending_seek_seconds_(0.0f),
       client_(client),
+      delegate_(delegate),
       proxy_(new WebMediaPlayerProxy(main_loop_->message_loop_proxy(), this)),
       media_log_(media_log),
       incremented_externally_allocated_memory_(false),
@@ -192,13 +194,23 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   filter_collection_->AddAudioRenderer(ShellAudioRenderer::Create(
       audio_renderer_sink, set_decryptor_ready_cb, pipeline_message_loop));
 #endif  // defined(LB_USE_SHELL_PIPELINE)
+
+  if (delegate_) {
+    delegate_->RegisterPlayer(this);
+  }
 }
 
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   DCHECK_EQ(main_loop_, MessageLoop::current());
+
+  if (delegate_) {
+    delegate_->UnregisterPlayer(this);
+  }
+
 #if defined(__LB_ANDROID__)
   audio_focus_bridge_.AbandonAudioFocus();
 #endif  // defined(__LB_ANDROID__)
+
   Destroy();
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_DESTROYED));
