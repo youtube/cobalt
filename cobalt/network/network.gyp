@@ -52,6 +52,14 @@
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/cobalt/build/cobalt_build_id.gyp:cobalt_build_id',
       ],
+      'conditions': [
+        ['in_app_dial == 1', {
+          'dependencies': [
+            # DialService depends on http server.
+            '<(DEPTH)/net/net.gyp:http_server',
+          ],
+        }],
+      ],
       'export_dependent_settings': [
         '<(DEPTH)/net/net.gyp:net',
       ],

@@ -32,7 +32,9 @@ namespace {
 // on the IO thread. Called during NetworkModule destruction.
 void OnDestroy(scoped_ptr<network_bridge::CookieJar> /* cookie_jar*/,
                scoped_ptr<URLRequestContext> /* url_request_context */,
-               scoped_ptr<NetworkDelegate> /* network_delegate */) {}
+               scoped_ptr<NetworkDelegate> /* network_delegate */,
+               scoped_ptr<net::DialService> /* dial_service */
+               ) {}
 }  // namespace
 
 NetworkModule::NetworkModule() : storage_manager_(NULL) {
@@ -61,7 +63,8 @@ NetworkModule::~NetworkModule() {
   message_loop_proxy()->PostTask(
       FROM_HERE, base::Bind(&OnDestroy, base::Passed(&cookie_jar_),
                             base::Passed(&url_request_context_),
-                            base::Passed(&network_delegate_)));
+                            base::Passed(&network_delegate_),
+                            base::Passed(&dial_service_)));
   // This will run the above task, and then stop the thread.
   thread_.reset(NULL);
   object_watch_multiplexer_.reset(NULL);
@@ -111,6 +114,10 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   url_request_context_->set_http_user_agent_settings(user_agent_.get());
   url_request_context_->set_network_delegate(network_delegate_.get());
   cookie_jar_.reset(new CookieJarImpl(url_request_context_->cookie_store()));
+#if defined(DIAL_SERVER)
+  dial_service_.reset(new net::DialService());
+#endif
+
   creation_event->Signal();
 }
 
