@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_RECT_NODE_H_
-#define RENDER_TREE_RECT_NODE_H_
+#ifndef COBALT_RENDER_TREE_RECT_NODE_H_
+#define COBALT_RENDER_TREE_RECT_NODE_H_
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
@@ -24,12 +24,10 @@
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/movable.h"
 #include "cobalt/render_tree/node.h"
+#include "cobalt/render_tree/rounded_corners.h"
 
 namespace cobalt {
 namespace render_tree {
-
-// TODO(***REMOVED***): Define border radiuses.
-class BorderRadiuses;
 
 // TODO(***REMOVED***): Define the shadow.
 class Shadow;
@@ -41,10 +39,15 @@ class RectNode : public Node {
    public:
     DECLARE_AS_MOVABLE(Builder);
 
+    explicit Builder(const math::SizeF& size);
     Builder(const math::SizeF& size, scoped_ptr<Border> border);
     Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush);
+    Builder(const math::SizeF& size,
+            scoped_ptr<RoundedCorners> rounded_corners);
     Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush,
             scoped_ptr<Border> border);
+    Builder(const math::SizeF& size, scoped_ptr<Border> border,
+            scoped_ptr<RoundedCorners> rounded_corners);
     explicit Builder(const Builder& other);
     explicit Builder(Moved moved);
 
@@ -57,6 +60,10 @@ class RectNode : public Node {
 
     // A border arounds a RectNode.
     scoped_ptr<Border> border;
+
+    // Defines the radii of an ellipse that defines the shape of the corner of
+    // the outer border edge.
+    scoped_ptr<RoundedCorners> rounded_corners;
   };
 
   RectNode(const math::SizeF& size, scoped_ptr<Border> border)
@@ -86,7 +93,7 @@ class RectNode : public Node {
 
  private:
   void DCheckData(const Builder& data) {
-    DCHECK(data.background_brush || data.border);
+    DCHECK(data.background_brush || data.border || data.rounded_corners);
   }
 
   const Builder data_;
@@ -95,4 +102,4 @@ class RectNode : public Node {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_RECT_NODE_H_
+#endif  // COBALT_RENDER_TREE_RECT_NODE_H_
