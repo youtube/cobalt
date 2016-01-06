@@ -58,6 +58,14 @@ class Context {
 
   GLuint CreateProgram();
   void DeleteProgram(GLuint program);
+  void AttachShader(GLuint program, GLuint shader);
+
+  GLuint CreateShader(GLenum type);
+  void DeleteShader(GLuint shader);
+  void ShaderSource(GLuint shader,
+                    GLsizei count,
+                    const GLchar* const* string,
+                    const GLint* length);
 
  private:
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);

@@ -24,6 +24,7 @@
 
 #include "glimp/egl/surface.h"
 #include "glimp/gles/program_impl.h"
+#include "glimp/gles/shader_impl.h"
 #include "glimp/nb/scoped_ptr.h"
 
 namespace glimp {
@@ -65,6 +66,16 @@ class ContextImpl {
   // treated as an error.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCreateProgram.xml
   virtual nb::scoped_ptr<ProgramImpl> CreateProgram() = 0;
+
+  // Called via glCreateShader(GL_VERTEX_SHADER).  Must create a
+  // platform-specific ShaderImpl object representing a vertex shader.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCreateShader.xml
+  virtual nb::scoped_ptr<ShaderImpl> CreateVertexShader() = 0;
+
+  // Called via glCreateShader(GL_FRAGMENT_SHADER).  Must create a
+  // platform-specific ShaderImpl object representing a fragment shader.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCreateShader.xml
+  virtual nb::scoped_ptr<ShaderImpl> CreateFragmentShader() = 0;
 
  private:
 };
