@@ -646,6 +646,7 @@
                 'player/mime_util.h',
                 'player/mime_util_certificate_type_list.h',
                 'player/web_media_player.h',
+                'player/web_media_player_delegate.h',
                 'player/web_media_player_impl.cc',
                 'player/web_media_player_impl.h',
                 'player/web_media_player_proxy.cc',
