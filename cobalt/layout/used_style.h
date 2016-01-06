@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_USED_STYLE_H_
-#define LAYOUT_USED_STYLE_H_
+#ifndef COBALT_LAYOUT_USED_STYLE_H_
+#define COBALT_LAYOUT_USED_STYLE_H_
 
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/property_list_value.h"
@@ -31,6 +31,7 @@
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/render_tree/rounded_corners.h"
 
 namespace cobalt {
 namespace layout {
@@ -217,6 +218,25 @@ class UsedBackgroundSizeProvider
   DISALLOW_COPY_AND_ASSIGN(UsedBackgroundSizeProvider);
 };
 
+class UsedBorderRadiusProvider : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  explicit UsedBorderRadiusProvider(const math::SizeF& frame_size);
+
+  void VisitLength(cssom::LengthValue* length) OVERRIDE;
+  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
+
+  const render_tree::RoundedCorners& rounded_corners() const {
+    return rounded_corners_;
+  }
+
+ private:
+  render_tree::RoundedCorners rounded_corners_;
+
+  const math::SizeF frame_size_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedBorderRadiusProvider);
+};
+
 class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
   explicit UsedLineHeightProvider(const render_tree::FontMetrics& font_metrics);
@@ -322,4 +342,4 @@ float GetUsedPaddingBottom(
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_USED_STYLE_H_
+#endif  // COBALT_LAYOUT_USED_STYLE_H_

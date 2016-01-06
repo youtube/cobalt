@@ -36,6 +36,7 @@
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/rect_node.h"
+#include "cobalt/render_tree/rounded_corners.h"
 
 using cobalt::render_tree::Border;
 using cobalt::render_tree::Brush;
@@ -43,6 +44,7 @@ using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::FilterNode;
 using cobalt::render_tree::OpacityFilter;
 using cobalt::render_tree::RectNode;
+using cobalt::render_tree::RoundedCorners;
 using cobalt::render_tree::ViewportFilter;
 using cobalt::render_tree::animations::Animation;
 using cobalt::render_tree::animations::NodeAnimationsMap;
@@ -295,11 +297,17 @@ void Box::RenderAndAnimate(
   // 'visibility: visible'.
   //   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
   if (computed_style()->visibility() == cssom::KeywordValue::GetVisible()) {
-    RenderAndAnimateBackgroundColor(&border_node_builder,
+    UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
+    computed_style()->border_radius()->Accept(&border_radius_provider);
+
+    RenderAndAnimateBackgroundColor(border_radius_provider.rounded_corners(),
+                                    &border_node_builder,
                                     node_animations_map_builder);
-    RenderAndAnimateBackgroundImage(&border_node_builder,
+    RenderAndAnimateBackgroundImage(border_radius_provider.rounded_corners(),
+                                    &border_node_builder,
                                     node_animations_map_builder);
-    RenderAndAnimateBorder(&border_node_builder, node_animations_map_builder);
+    RenderAndAnimateBorder(border_radius_provider.rounded_corners(),
+                           &border_node_builder, node_animations_map_builder);
   }
 
   RenderAndAnimateContent(&border_node_builder, node_animations_map_builder);
@@ -348,11 +356,17 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
 
 namespace {
 void SetupBackgroundNodeFromStyle(
+    const RoundedCorners& rounded_corners,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
     RectNode::Builder* rect_node_builder) {
   rect_node_builder->background_brush =
       scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
           GetUsedColor(style->background_color())));
+
+  if (!rounded_corners.AreSquares()) {
+    rect_node_builder->rounded_corners =
+        scoped_ptr<RoundedCorners>(new RoundedCorners(rounded_corners));
+  }
 }
 
 bool IsBorderStyleNoneOrHidden(
@@ -402,9 +416,16 @@ Border CreateBorderFromStyle(
 }
 
 void SetupBorderNodeFromStyle(
+    const RoundedCorners& rounded_corners,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
     RectNode::Builder* rect_node_builder) {
-  *rect_node_builder->border = CreateBorderFromStyle(style);
+  rect_node_builder->border =
+      scoped_ptr<Border>(new Border(CreateBorderFromStyle(style)));
+
+  if (!rounded_corners.AreSquares()) {
+    rect_node_builder->rounded_corners =
+        scoped_ptr<RoundedCorners>(new RoundedCorners(rounded_corners));
+  }
 }
 }  // namespace
 
@@ -606,6 +627,7 @@ bool HasAnimatedBorder(const web_animations::AnimationSet* animation_set) {
 }  // namespace
 
 void Box::RenderAndAnimateBorder(
+    const RoundedCorners& rounded_corners,
     CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   // If the border is absent or all borders are transparent, there is no need
@@ -615,21 +637,22 @@ void Box::RenderAndAnimateBorder(
     return;
   }
 
-  scoped_ptr<Border> border(
-      new Border(CreateBorderFromStyle(computed_style())));
-  RectNode::Builder rect_node_builder(GetBorderBoxSize(), border.Pass());
+  RectNode::Builder rect_node_builder(GetBorderBoxSize());
+  SetupBorderNodeFromStyle(rounded_corners, computed_style(),
+                           &rect_node_builder);
 
   scoped_refptr<RectNode> border_node(new RectNode(rect_node_builder.Pass()));
   border_node_builder->AddChild(border_node, math::Matrix3F::Identity());
 
   if (HasAnimatedBorder(animations())) {
-      AddAnimations<RectNode>(base::Bind(&SetupBorderNodeFromStyle),
-                              *computed_style_state(), border_node,
-                              node_animations_map_builder);
+    AddAnimations<RectNode>(
+        base::Bind(&SetupBorderNodeFromStyle, rounded_corners),
+        *computed_style_state(), border_node, node_animations_map_builder);
   }
 }
 
 void Box::RenderAndAnimateBackgroundColor(
+    const RoundedCorners& rounded_corners,
     render_tree::CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   // Only create the RectNode if the background color is not the initial value
@@ -642,8 +665,9 @@ void Box::RenderAndAnimateBackgroundColor(
       animations()->IsPropertyAnimated(cssom::kBackgroundColorProperty);
   if (!background_color_transparent || background_color_animated) {
     RectNode::Builder rect_node_builder(GetPaddingBoxSize(),
-                                        scoped_ptr<render_tree::Brush>());
-    SetupBackgroundNodeFromStyle(computed_style(), &rect_node_builder);
+                                        scoped_ptr<Brush>());
+    SetupBackgroundNodeFromStyle(rounded_corners, computed_style(),
+                                 &rect_node_builder);
     if (rect_node_builder.size.GetArea() != 0) {
       scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
       border_node_builder->AddChild(
@@ -653,15 +677,16 @@ void Box::RenderAndAnimateBackgroundColor(
       // TODO(***REMOVED***) Investigate if we could pass computed_style_state_ instead
       // here.
       if (background_color_animated) {
-        AddAnimations<RectNode>(base::Bind(&SetupBackgroundNodeFromStyle),
-                                *computed_style_state(), rect_node,
-                                node_animations_map_builder);
+        AddAnimations<RectNode>(
+            base::Bind(&SetupBackgroundNodeFromStyle, rounded_corners),
+            *computed_style_state(), rect_node, node_animations_map_builder);
       }
     }
   }
 }
 
 void Box::RenderAndAnimateBackgroundImage(
+    const RoundedCorners& rounded_corners,
     CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   UNREFERENCED_PARAMETER(node_animations_map_builder);
@@ -687,6 +712,15 @@ void Box::RenderAndAnimateBackgroundImage(
         background_node_provider.background_node();
 
     if (background_node) {
+      if (!rounded_corners.AreSquares()) {
+        // Apply rounded viewport filter to the background image.
+        FilterNode::Builder filter_node_builder(background_node);
+        filter_node_builder.rounded_viewport_filter =
+            render_tree::RoundedViewportFilter(math::RectF(GetBorderBoxSize()),
+                                               rounded_corners);
+        background_node = new FilterNode(filter_node_builder);
+      }
+
       border_node_builder->AddChild(
           background_node,
           math::TranslateMatrix(border_left_width(), border_top_width()));
@@ -705,12 +739,26 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     FilterNode::Builder filter_node_builder(border_node);
 
     if (overflow_hidden) {
+      // TODO(***REMOVED***): Once RoundedViewportFilter is implemented, applying
+      // ViewportFilter and RoundedViewportFilter should be mutually exclusive.
       // TODO(***REMOVED***): The "overflow" property specifies whether a box is
       //               clipped to its padding edge.
       //                 http://www.w3.org/TR/CSS21/visufx.html#overflow
       //               Currently it's clipped to a border edge.
       filter_node_builder.viewport_filter =
           ViewportFilter(math::RectF(GetBorderBoxSize()));
+
+      // When the overflow is hidden, the content of replaced elements is always
+      // trimmed to the content edge curve.
+      //   http://www.w3.org/TR/css3-background/#corner-clipping
+      UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
+      computed_style()->border_radius()->Accept(&border_radius_provider);
+      if (!border_radius_provider.rounded_corners().AreSquares()) {
+        filter_node_builder.rounded_viewport_filter =
+            render_tree::RoundedViewportFilter(
+                math::RectF(GetBorderBoxSize()),
+                border_radius_provider.rounded_corners());
+      }
     }
 
     if (opacity < 1.0f) {

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_BOX_H_
-#define LAYOUT_BOX_H_
+#ifndef COBALT_LAYOUT_BOX_H_
+#define COBALT_LAYOUT_BOX_H_
 
 #include <iosfwd>
 #include <string>
@@ -35,6 +35,11 @@
 #include "cobalt/web_animations/animation_set.h"
 
 namespace cobalt {
+
+namespace render_tree {
+struct RoundedCorners;
+}  // namespace render_tree
+
 namespace layout {
 
 class AnonymousBlockBox;
@@ -482,14 +487,17 @@ class Box : public base::RefCounted<Box> {
 
   // Helper methods used by |RenderAndAnimate|.
   void RenderAndAnimateBorder(
+      const render_tree::RoundedCorners& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
   void RenderAndAnimateBackgroundColor(
+      const render_tree::RoundedCorners& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
   void RenderAndAnimateBackgroundImage(
+      const render_tree::RoundedCorners& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
@@ -575,4 +583,4 @@ typedef std::vector<scoped_refptr<Box> > Boxes;
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_BOX_H_
+#endif  // COBALT_LAYOUT_BOX_H_
