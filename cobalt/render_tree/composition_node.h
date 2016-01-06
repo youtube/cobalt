@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_COMPOSITION_NODE_H_
-#define RENDER_TREE_COMPOSITION_NODE_H_
+#ifndef COBALT_RENDER_TREE_COMPOSITION_NODE_H_
+#define COBALT_RENDER_TREE_COMPOSITION_NODE_H_
+
+#include <algorithm>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
@@ -23,12 +26,8 @@
 #include "cobalt/render_tree/movable.h"
 #include "cobalt/render_tree/node.h"
 
-#include <vector>
-
 namespace cobalt {
 namespace render_tree {
-
-class ClipRegion;
 
 // A composition specifies a set of child nodes that are to be rendered in
 // order. It is the primary way to compose multiple child nodes together in a
@@ -133,4 +132,4 @@ class CompositionNode : public Node {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_COMPOSITION_NODE_H_
+#endif  // COBALT_RENDER_TREE_COMPOSITION_NODE_H_

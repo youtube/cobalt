@@ -31,6 +31,11 @@ FilterNode::Builder::Builder(const ViewportFilter& viewport_filter,
                              const scoped_refptr<render_tree::Node>& source)
     : source(source), viewport_filter(viewport_filter) {}
 
+FilterNode::Builder::Builder(
+    const RoundedViewportFilter& rounded_viewport_filter,
+    const scoped_refptr<render_tree::Node>& source)
+    : source(source), rounded_viewport_filter(rounded_viewport_filter) {}
+
 FilterNode::FilterNode(const OpacityFilter& opacity_filter,
                        const scoped_refptr<render_tree::Node>& source)
     : data_(opacity_filter, source) {}
@@ -38,6 +43,10 @@ FilterNode::FilterNode(const OpacityFilter& opacity_filter,
 FilterNode::FilterNode(const ViewportFilter& viewport_filter,
                        const scoped_refptr<render_tree::Node>& source)
     : data_(viewport_filter, source) {}
+
+FilterNode::FilterNode(const RoundedViewportFilter& rounded_viewport_filter,
+                       const scoped_refptr<render_tree::Node>& source)
+    : data_(rounded_viewport_filter, source) {}
 
 void FilterNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
