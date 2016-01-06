@@ -22,12 +22,18 @@
 namespace cobalt {
 namespace render_tree {
 
+RectNode::Builder::Builder(const math::SizeF& size) : size(size) {}
+
 RectNode::Builder::Builder(const math::SizeF& size, scoped_ptr<Border> border)
     : size(size), border(border.Pass()) {}
 
 RectNode::Builder::Builder(const math::SizeF& size,
                            scoped_ptr<Brush> background_brush)
     : size(size), background_brush(background_brush.Pass()) {}
+
+RectNode::Builder::Builder(const math::SizeF& size,
+                           scoped_ptr<RoundedCorners> rounded_corners)
+    : size(size), rounded_corners(rounded_corners.Pass()) {}
 
 RectNode::Builder::Builder(const math::SizeF& size,
                            scoped_ptr<Brush> background_brush,
@@ -44,15 +50,19 @@ RectNode::Builder::Builder(const Builder& other) {
   }
 
   if (other.border) {
-    border.reset(new Border(other.border->left, other.border->right,
-                            other.border->top, other.border->bottom));
+    border.reset(new Border(*other.border));
+  }
+
+  if (other.rounded_corners) {
+    rounded_corners.reset(new RoundedCorners(*other.rounded_corners));
   }
 }
 
 RectNode::Builder::Builder(Moved moved)
     : size(moved->size),
       background_brush(moved->background_brush.Pass()),
-      border(moved->border.Pass()) {}
+      border(moved->border.Pass()),
+      rounded_corners(moved->rounded_corners.Pass()) {}
 
 void RectNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
