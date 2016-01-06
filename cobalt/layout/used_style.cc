@@ -38,6 +38,7 @@
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/rounded_corners.h"
 
 namespace cobalt {
 namespace layout {
@@ -686,6 +687,24 @@ void UsedBackgroundSizeProvider::ConvertWidthAndHeightScale(
 
   width_ = width_scale * image_size_.width();
   height_ = height_scale * image_size_.height();
+}
+
+UsedBorderRadiusProvider::UsedBorderRadiusProvider(
+    const math::SizeF& frame_size)
+    : rounded_corners_(render_tree::RoundedCorner()), frame_size_(frame_size) {}
+
+void UsedBorderRadiusProvider::VisitLength(cssom::LengthValue* length) {
+  render_tree::RoundedCorner rounded_corner =
+      render_tree::RoundedCorner(length->value(), length->value());
+  rounded_corners_ = render_tree::RoundedCorners(rounded_corner);
+}
+
+void UsedBorderRadiusProvider::VisitPercentage(
+    cssom::PercentageValue* percentage) {
+  render_tree::RoundedCorner rounded_corner =
+      render_tree::RoundedCorner(percentage->value() * frame_size_.width(),
+                                 percentage->value() * frame_size_.height());
+  rounded_corners_ = render_tree::RoundedCorners(rounded_corner);
 }
 
 UsedLineHeightProvider::UsedLineHeightProvider(
