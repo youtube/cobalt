@@ -12,14 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/log.h"
+#include "starboard/string.h"
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <unistd.h>
+#include <string.h>
 
-#include "starboard/shared/posix/handle_eintr.h"
-
-void SbLogFormat(const char* format, va_list arguments) {
-  vfprintf(stderr, format, arguments);
+int SbStringCompare(const char* string1, const char* string2, size_t count) {
+  return strncmp(string1, string2, count);
 }
