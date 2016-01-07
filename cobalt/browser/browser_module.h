@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_BROWSER_MODULE_H_
-#define BROWSER_BROWSER_MODULE_H_
+#ifndef COBALT_BROWSER_BROWSER_MODULE_H_
+#define COBALT_BROWSER_BROWSER_MODULE_H_
 
 #include <list>
 #include <string>
 
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/browser/debug_console.h"
@@ -75,6 +76,10 @@ class BrowserModule {
   // Adds/removes a URL handler.
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
   void RemoveURLHandler(const URLHandler::URLHandlerCallback& callback);
+
+  // Pauses/resumes all media players and blocks the browser thread. Should
+  // be called on a thread other than |self_message_loop_|.
+  void SetPaused(bool paused);
 
 #if defined(ENABLE_SCREENSHOT)
   // Request a screenshot to be written to the specified path. Callback will
@@ -160,6 +165,10 @@ class BrowserModule {
   // Destroys the splash screen, if currently displayed.
   void DestroySplashScreen();
 
+  // Pauses all active web players and blocks the main thread until the
+  // |has_resumed_| event is signalled. Must be called on |self_message_loop_|.
+  void Pause();
+
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::WindowDriver> CreateWindowDriver(
       const webdriver::protocol::WindowId& window_id) {
@@ -238,9 +247,12 @@ class BrowserModule {
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
   scoped_ptr<SplashScreen> splash_screen_;
+
+  // Reset when the browser is paused, signalled to resume.
+  base::WaitableEvent has_resumed_;
 };
 
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // BROWSER_BROWSER_MODULE_H_
+#endif  // COBALT_BROWSER_BROWSER_MODULE_H_
