@@ -40,6 +40,12 @@ class Shader : public nb::RefCountedThreadSafe<Shader> {
                     const GLchar* const* string,
                     const GLint* length);
 
+  // Called when glCompileShader() is called.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCompileShader.xml
+  void CompileShader();
+
+  bool compiled() const { return compile_status_ == GL_TRUE; }
+
  private:
   friend class nb::RefCountedThreadSafe<Shader>;
   ~Shader() {}
@@ -49,6 +55,14 @@ class Shader : public nb::RefCountedThreadSafe<Shader> {
   GLenum type_;
 
   std::string source_;
+
+  // True if the shader has previously been successfully compiled.
+  bool compiled_;
+
+  // Keeps track of the success of the last CompileShader() call.  Can be
+  // queried via glGetShaderiv() with the parameter GL_COMPILE_STATUS, and
+  // is GL_TRUE on success and GL_FALSE otherwise.
+  GLint compile_status_;
 };
 
 }  // namespace gles

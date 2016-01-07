@@ -66,6 +66,7 @@ class Context {
                     GLsizei count,
                     const GLchar* const* string,
                     const GLint* length);
+  void CompileShader(GLuint shader);
 
  private:
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);
