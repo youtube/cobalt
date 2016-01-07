@@ -21,15 +21,13 @@ const char kUnsetData[] = UNSET_DATA;
 const size_t kUnsetSize = 1024;
 
 // Like memcmp, but reports which index and values failed.
-bool IsSame(const char* expected, const char* actual, size_t length) {
+void IsSame(const char* expected, const char* actual, size_t length) {
   for (size_t i = 0; i < length; ++i) {
     if (expected[i] != actual[i]) {
-      printf("Expected '%c' at %lu, but got '%c'\n", expected[i], i, actual[i]);
-      return false;
+      EXPECT_EQ(expected[i], actual[i]) << "at " << i;
+      return;
     }
   }
-
-  return true;
 }
 
 size_t read_pos = 0;
@@ -61,10 +59,10 @@ void TestRead(base::CircularBufferShell* circular_buffer, size_t to_read) {
   circular_buffer->Read(buffer, to_read, &bytes_read);
   EXPECT_EQ(to_read, bytes_read);
   EXPECT_EQ(before_length - to_read, circular_buffer->GetLength());
-  EXPECT_TRUE(IsSame(kTestData + read_pos, buffer, to_read));
-  EXPECT_TRUE(IsSame(kUnsetData + to_read, buffer + to_read, to_read));
-  EXPECT_TRUE(IsSame(kUnsetData + strlen(kUnsetData) - to_read,
-                     buffer - to_read, to_read));
+  IsSame(kTestData + read_pos, buffer, to_read);
+  IsSame(kUnsetData + to_read, buffer + to_read, to_read);
+  IsSame(kUnsetData + strlen(kUnsetData) - to_read,
+         buffer - to_read, to_read);
   read_pos += to_read;
 }
 
@@ -199,7 +197,7 @@ TEST(CircularBufferShellTest, ReadEmpty) {
     circular_buffer->Read(buffer, 0, &bytes_read);
     EXPECT_EQ(0, bytes_read);
     EXPECT_EQ(0, circular_buffer->GetLength());
-    EXPECT_TRUE(IsSame(kUnsetData, buffer, 10));
+    IsSame(kUnsetData, buffer, 10);
   }
 
   {
@@ -208,7 +206,7 @@ TEST(CircularBufferShellTest, ReadEmpty) {
     circular_buffer->Read(buffer, 10, &bytes_read);
     EXPECT_EQ(0, bytes_read);
     EXPECT_EQ(0, circular_buffer->GetLength());
-    EXPECT_TRUE(IsSame(kUnsetData, buffer, 10));
+    IsSame(kUnsetData, buffer, 10);
   }
 }
 
@@ -238,11 +236,11 @@ TEST(CircularBufferShellTest, Peek) {
     circular_buffer.Peek(destination + 9, 10, peek_offset, &bytes_peeked);
 
     EXPECT_EQ(10, bytes_peeked);
-    EXPECT_TRUE(IsSame(UNSET_DATA, destination, 9));
-    EXPECT_TRUE(IsSame(UNSET_DATA + 9 + bytes_peeked,
-                       destination + 9 + bytes_peeked,
-                       sizeof(UNSET_DATA) - 9 - bytes_peeked));
-    EXPECT_TRUE(IsSame(kTestData, destination + 9, 10));
+    IsSame(UNSET_DATA, destination, 9);
+    IsSame(UNSET_DATA + 9 + bytes_peeked,
+           destination + 9 + bytes_peeked,
+           sizeof(UNSET_DATA) - 9 - bytes_peeked);
+    IsSame(kTestData, destination + 9, 10);
     peek_offset += bytes_peeked;
   }
 
@@ -252,11 +250,11 @@ TEST(CircularBufferShellTest, Peek) {
     circular_buffer.Peek(destination + 9, 7, peek_offset, &bytes_peeked);
 
     EXPECT_EQ(7, bytes_peeked);
-    EXPECT_TRUE(IsSame(UNSET_DATA, destination, 9));
-    EXPECT_TRUE(IsSame(UNSET_DATA + 9 + bytes_peeked,
-                       destination + 9 + bytes_peeked,
-                       sizeof(UNSET_DATA) - 9 - bytes_peeked));
-    EXPECT_TRUE(IsSame(kTestData + peek_offset, destination + 9, bytes_peeked));
+    IsSame(UNSET_DATA, destination, 9);
+    IsSame(UNSET_DATA + 9 + bytes_peeked,
+           destination + 9 + bytes_peeked,
+           sizeof(UNSET_DATA) - 9 - bytes_peeked);
+    IsSame(kTestData + peek_offset, destination + 9, bytes_peeked);
     peek_offset += bytes_peeked;
   }
 
@@ -266,11 +264,11 @@ TEST(CircularBufferShellTest, Peek) {
     circular_buffer.Peek(destination + 9, 7, peek_offset, &bytes_peeked);
 
     EXPECT_EQ(3, bytes_peeked);
-    EXPECT_TRUE(IsSame(UNSET_DATA, destination, 9));
-    EXPECT_TRUE(IsSame(UNSET_DATA + 9 + bytes_peeked,
-                       destination + 9 + bytes_peeked,
-                       sizeof(UNSET_DATA) - 9 - bytes_peeked));
-    EXPECT_TRUE(IsSame(kTestData + peek_offset, destination + 9, bytes_peeked));
+    IsSame(UNSET_DATA, destination, 9);
+    IsSame(UNSET_DATA + 9 + bytes_peeked,
+           destination + 9 + bytes_peeked,
+           sizeof(UNSET_DATA) - 9 - bytes_peeked);
+    IsSame(kTestData + peek_offset, destination + 9, bytes_peeked);
     peek_offset += bytes_peeked;
   }
 
@@ -279,7 +277,7 @@ TEST(CircularBufferShellTest, Peek) {
     char destination[] = UNSET_DATA;
     circular_buffer.Peek(destination + 9, 7, peek_offset, &bytes_peeked);
 
-    EXPECT_TRUE(IsSame(UNSET_DATA, destination, sizeof(destination)));
+    IsSame(UNSET_DATA, destination, sizeof(destination));
     EXPECT_EQ(0, bytes_peeked);
     // Verify that we are actually peeking instead of reading.
     EXPECT_EQ(kMaxCapacity, circular_buffer.GetLength());
@@ -300,7 +298,7 @@ TEST(CircularBufferShellTest, Skip) {
   circular_buffer.Read(destination, kMaxCapacity, &bytes);
 
   EXPECT_EQ(kMaxCapacity - 10, bytes);
-  EXPECT_TRUE(IsSame(kTestData + 10, destination, bytes));
+  IsSame(kTestData + 10, destination, bytes);
 }
 
 TEST(CircularBufferShellTest, PeekWrapped) {
@@ -322,7 +320,7 @@ TEST(CircularBufferShellTest, PeekWrapped) {
   circular_buffer.Peek(destination, kMaxCapacity, 5, &bytes_peeked);
 
   EXPECT_EQ(kMaxCapacity - 5, bytes_peeked);
-  EXPECT_TRUE(IsSame(kTestData + 15, destination, bytes_peeked));
+  IsSame(kTestData + 15, destination, bytes_peeked);
 }
 
 TEST(CircularBufferShellTest, SkipWrapped) {
@@ -342,7 +340,7 @@ TEST(CircularBufferShellTest, SkipWrapped) {
 
   circular_buffer.Read(destination, 5, &bytes);
   EXPECT_EQ(5, bytes);
-  EXPECT_TRUE(IsSame(kTestData + kMaxCapacity + 5, destination, 5));
+  IsSame(kTestData + kMaxCapacity + 5, destination, 5);
 }
 
 // --- Legacy Tests ---
