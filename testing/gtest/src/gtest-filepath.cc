@@ -130,9 +130,11 @@ FilePath FilePath::RemoveExtension(const char* extension) const {
 // the FilePath. On Windows, for example, both '/' and '\' are valid path
 // separators. Returns NULL if no path separator was found.
 const char* FilePath::FindLastPathSeparator() const {
-  const char* const last_sep = strrchr(c_str(), kPathSeparator);
+  const char* const last_sep =
+      internal::posix::StrRChr(c_str(), kPathSeparator);
 #if GTEST_HAS_ALT_PATH_SEP_
-  const char* const last_alt_sep = strrchr(c_str(), kAlternatePathSeparator);
+  const char* const last_alt_sep =
+      internal::posix::StrRChr(c_str(), kAlternatePathSeparator);
   // Comparing two pointers of which only one is NULL is undefined.
   if (last_alt_sep != NULL &&
       (last_sep == NULL || last_alt_sep > last_sep)) {
@@ -357,7 +359,7 @@ void FilePath::Normalize() {
   const char* src = pathname_.c_str();
   char* const dest = new char[pathname_.length() + 1];
   char* dest_ptr = dest;
-  memset(dest_ptr, 0, pathname_.length() + 1);
+  internal::posix::MemSet(dest_ptr, 0, pathname_.length() + 1);
 
   while (*src != '\0') {
     *dest_ptr = *src;

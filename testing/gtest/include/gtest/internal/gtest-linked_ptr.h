@@ -68,8 +68,10 @@
 #ifndef GTEST_INCLUDE_GTEST_INTERNAL_GTEST_LINKED_PTR_H_
 #define GTEST_INCLUDE_GTEST_INTERNAL_GTEST_LINKED_PTR_H_
 
+#if !defined(STARBOARD)
 #include <stdlib.h>
 #include <assert.h>
+#endif  // !GTEST_OS_STARBOARD
 
 #include "gtest/internal/gtest-port.h"
 
@@ -145,7 +147,7 @@ class linked_ptr {
   // Copy an existing linked_ptr<>, adding ourselves to the list of references.
   template <typename U> linked_ptr(linked_ptr<U> const& ptr) { copy(&ptr); }
   linked_ptr(linked_ptr const& ptr) {  // NOLINT
-    assert(&ptr != this);
+    posix::Assert(&ptr != this);
     copy(&ptr);
   }
 
