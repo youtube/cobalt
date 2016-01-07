@@ -38,7 +38,10 @@
 #ifndef GMOCK_INCLUDE_GMOCK_INTERNAL_GMOCK_INTERNAL_UTILS_H_
 #define GMOCK_INCLUDE_GMOCK_INTERNAL_GMOCK_INTERNAL_UTILS_H_
 
+#if !defined(STARBOARD)
 #include <stdio.h>
+#endif
+
 #include <ostream>  // NOLINT
 #include <string>
 
