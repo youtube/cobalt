@@ -187,7 +187,10 @@ scoped_refptr<Node> Node::InsertBefore(
 
   if (inserted_into_document_) {
     new_child->OnInsertedIntoDocument();
-    node_document_->OnDOMMutation();
+    Document* document = node_document();
+    if (document) {
+      document->OnDOMMutation();
+    }
   }
 
   OnInsertBefore(new_child, reference_child);
@@ -301,7 +304,10 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
 
   // Custom, not in any spec.
   if (was_inserted_to_document) {
-    node->owner_document()->OnDOMMutation();
+    scoped_refptr<Document> document = node->owner_document();
+    if (document) {
+      document->OnDOMMutation();
+    }
   }
 
   OnRemoveChild(node);
