@@ -103,6 +103,7 @@
         'string_format_wide_test.cc',
         'system_get_error_string_test.cc',
         'system_get_last_error_test.cc',
+        'system_get_locale_id_test.cc',
         'system_get_number_of_processors_test.cc',
         'system_get_path_test.cc',
         'system_get_property_test.cc',

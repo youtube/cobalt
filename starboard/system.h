@@ -110,6 +110,25 @@ SB_EXPORT bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                    char* out_value,
                                    int value_length);
 
+// Gets the system's current POSIX-style Locale ID. The locale represents the
+// location, language, and cultural conventions that the system wants to use,
+// which affects which text is displayed to the user, and how display numbers,
+// dates, currency, and the like are formatted.
+//
+// At its simplest, it can just be a BCP 47 language code, like "en_US". These
+// days, POSIX also wants to include the encoding, like "en_US.UTF8". POSIX
+// additionally allows a couple very bare-bones locales, like "C" or "POSIX",
+// but they are not supported here. POSIX also supports different locale
+// settings for a few different purposes, but Starboard only exposes a single
+// locale at a time.
+//
+// RFC 5646 describing BCP 47 language codes:
+// https://tools.ietf.org/html/bcp47
+//
+// For more information than you want on POSIX locales:
+// http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html
+SB_EXPORT const char* SbSystemGetLocaleId();
+
 // Gets a pseudorandom number uniformly distributed between the minimum and
 // maximum limits of uint64_t. This is expected to be a cryptographically secure
 // random number generator, and doesn't require manual seeding.

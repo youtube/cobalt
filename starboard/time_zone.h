@@ -45,4 +45,4 @@ SB_EXPORT const char* SbTimeZoneGetDstName();
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD_TIME_H_
+#endif  // STARBOARD_TIME_ZONE_H_
