@@ -49,6 +49,9 @@
     'gles/shader_impl.h',
     'gles/unique_id_generator.cc',
     'gles/unique_id_generator.h',
+    'shaders/glsl_shader_map_helpers.h',
+    'shaders/hash_glsl_source.cc',
+    'shaders/hash_glsl_source.h',
   ],
 
   'dependencies': [

@@ -215,6 +215,18 @@ void Context::ShaderSource(GLuint shader,
   shader_object->ShaderSource(count, string, length);
 }
 
+void Context::CompileShader(GLuint shader) {
+  nb::scoped_refptr<Shader> shader_object =
+      resource_manager_->GetShader(shader);
+
+  if (!shader_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  shader_object->CompileShader();
+}
+
 void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
   SB_DCHECK(current_thread_ == kSbThreadInvalid ||
             current_thread_ == SbThreadGetCurrent());
