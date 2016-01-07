@@ -561,6 +561,8 @@
                        unicode_range_property_value
                        url
                        validated_background_position_property
+                       validated_box_shadow_list
+                       validated_text_shadow_list
                        vertical_align_property_value
                        visibility_property_value
                        white_space_property_value
@@ -725,8 +727,10 @@
                       comma_separated_animation_iteration_count_list
                       comma_separated_animation_name_list
                       comma_separated_background_image_list
+                      comma_separated_box_shadow_list
                       comma_separated_font_face_src_list
                       comma_separated_font_family_name_list
+                      comma_separated_text_shadow_list
                       comma_separated_unicode_range_list
 %destructor { delete $$; } <property_list>
 
@@ -791,7 +795,7 @@
 %destructor { delete $$; } <border_shorthand>
 
 %union { ShadowPropertyInfo* shadow_info; }
-%type <shadow_info> box_shadow_property_list text_shadow_property_list
+%type <shadow_info> box_shadow_list text_shadow_list
 %destructor { delete $$; } <shadow_info>
 
 %%
@@ -3094,19 +3098,17 @@ box_shadow_property_element:
   }
   ;
 
-box_shadow_property_list:
+box_shadow_list:
     /* empty */ {
     $$ = new ShadowPropertyInfo();
   }
-  | box_shadow_property_list box_shadow_property_element {
+  | box_shadow_list box_shadow_property_element {
     $$ = $1;
   }
   ;
 
-// The 'box-shadow' property attaches one or more drop-shadows to the box.
-//   http://www.w3.org/TR/css3-background/#box-shadow
-box_shadow_property_value:
-    box_shadow_property_list {
+validated_box_shadow_list:
+    box_shadow_list {
     scoped_ptr<ShadowPropertyInfo> shadow_property_info($1);
     if (!shadow_property_info->IsShadowPropertyValid(ShadowType::kBoxShadow)) {
       parser_impl->LogWarning(@1, "invalid box shadow property.");
@@ -3116,6 +3118,31 @@ box_shadow_property_value:
               shadow_property_info->length_vector, shadow_property_info->color,
               shadow_property_info->has_inset));
     }
+  }
+  ;
+
+comma_separated_box_shadow_list:
+    validated_box_shadow_list {
+    $$ = new cssom::PropertyListValue::Builder();
+    if ($1) {
+      $$->push_back(MakeScopedRefPtrAndRelease($1));
+    }
+  }
+  | comma_separated_box_shadow_list comma validated_box_shadow_list {
+    $$ = $1;
+    if ($3) {
+      $$->push_back(MakeScopedRefPtrAndRelease($3));
+    }
+  }
+  ;
+
+// The 'box-shadow' property attaches one or more drop-shadows to the box.
+// The property takes a comma-separated list of shadows, ordered front to back.
+//   http://www.w3.org/TR/css3-background/#box-shadow
+box_shadow_property_value:
+    comma_separated_box_shadow_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
   }
   | kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -3851,20 +3878,17 @@ text_shadow_property_element:
   }
   ;
 
-text_shadow_property_list:
+text_shadow_list:
     /* empty */ {
     $$ = new ShadowPropertyInfo();
   }
-  | text_shadow_property_list text_shadow_property_element {
+  | text_shadow_list text_shadow_property_element {
     $$ = $1;
   }
   ;
 
-// This property accepts a comma-seperated list of shadow effects to be applied
-// to the text of the element.
-//   http://www.w3.org/TR/css-text-decor-3/#text-shadow-property
-text_shadow_property_value:
-    text_shadow_property_list {
+validated_text_shadow_list:
+    text_shadow_list {
     scoped_ptr<ShadowPropertyInfo> shadow_property_info($1);
     if (!shadow_property_info->IsShadowPropertyValid(ShadowType::kTextShadow)) {
       parser_impl->LogWarning(@1, "invalid text shadow property.");
@@ -3873,6 +3897,31 @@ text_shadow_property_value:
       $$ = AddRef(new cssom::ShadowValue(
               shadow_property_info->length_vector, shadow_property_info->color));
     }
+  }
+  ;
+
+comma_separated_text_shadow_list:
+    validated_text_shadow_list {
+    $$ = new cssom::PropertyListValue::Builder();
+    if ($1) {
+      $$->push_back(MakeScopedRefPtrAndRelease($1));
+    }
+  }
+  | comma_separated_text_shadow_list comma validated_text_shadow_list {
+    $$ = $1;
+    if ($3) {
+      $$->push_back(MakeScopedRefPtrAndRelease($3));
+    }
+  }
+  ;
+
+// This property accepts a comma-seperated list of shadow effects to be applied
+// to the text of the element.
+//   http://www.w3.org/TR/css-text-decor-3/#text-shadow-property
+text_shadow_property_value:
+    comma_separated_text_shadow_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
   }
   | kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
