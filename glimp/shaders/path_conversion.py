@@ -35,7 +35,15 @@ def ConvertPaths(input_paths, output_directory, output_prefix,
 
     return output_path
 
-  return [ConvertPath(x) for x in input_paths]
+  # If an element in the list of input paths contains a space, treat that as
+  # a separater for more input paths and expand the list of input paths.
+  # Gyp does not make it easy to marshall paramaters into a Python script so
+  # this functionality is for working around that problem.
+  expanded_input_paths = []
+  for x in input_paths:
+    expanded_input_paths += x.split(' ')
+
+  return [ConvertPath(x) for x in expanded_input_paths]
 
 def DoMain(argv):
   parser = argparse.ArgumentParser(
