@@ -77,7 +77,7 @@ glib_script_to_script[] =
   HB_SCRIPT_THAANA,
   HB_SCRIPT_THAI,
   HB_SCRIPT_TIBETAN,
-  HB_SCRIPT_CANADIAN_ABORIGINAL,
+  HB_SCRIPT_CANADIAN_SYLLABICS,
   HB_SCRIPT_YI,
   HB_SCRIPT_TAGALOG,
   HB_SCRIPT_HANUNOO,
@@ -334,13 +334,13 @@ hb_glib_unicode_decompose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
 }
 
 static unsigned int
-hb_glib_unicode_decompose_compatibility (hb_unicode_funcs_t *ufuncs,
+hb_glib_unicode_decompose_compatibility (hb_unicode_funcs_t *ufuncs HB_UNUSED,
 					 hb_codepoint_t      u,
 					 hb_codepoint_t     *decomposed,
 					 void               *user_data HB_UNUSED)
 {
 #if GLIB_CHECK_VERSION(2,29,12)
-  return g_unichar_fully_decompose (u, TRUE, decomposed, HB_UNICODE_MAX_DECOMPOSITION_LEN);
+  return g_unichar_fully_decompose (u, true, decomposed, HB_UNICODE_MAX_DECOMPOSITION_LEN);
 #endif
 
   /* If the user doesn't have GLib >= 2.29.12 we have to perform
@@ -382,3 +382,14 @@ hb_glib_get_unicode_funcs (void)
   return const_cast<hb_unicode_funcs_t *> (&_hb_glib_unicode_funcs);
 }
 
+hb_blob_t *
+hb_glib_blob_create (GBytes *gbytes)
+{
+  gsize size = 0;
+  gconstpointer data = g_bytes_get_data (gbytes, &size);
+  return hb_blob_create ((const char *) data,
+			 size,
+			 HB_MEMORY_MODE_READONLY,
+			 g_bytes_ref (gbytes),
+			 (hb_destroy_func_t) g_bytes_unref);
+}

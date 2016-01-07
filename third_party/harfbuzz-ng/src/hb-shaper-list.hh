@@ -29,9 +29,20 @@
 #endif /* HB_SHAPER_LIST_HH */ /* Dummy header guards */
 
 /* v--- Add new shapers in the right place here. */
+
 #ifdef HAVE_GRAPHITE2
+/* Only picks up fonts that have a "Silf" table. */
 HB_SHAPER_IMPLEMENT (graphite2)
 #endif
+#ifdef HAVE_CORETEXT
+/* Only picks up fonts that have a "mort" or "morx" table. */
+HB_SHAPER_IMPLEMENT (coretext_aat)
+#endif
+
+#ifdef HAVE_OT
+HB_SHAPER_IMPLEMENT (ot) /* <--- This is our main OpenType shaper. */
+#endif
+
 #ifdef HAVE_UNISCRIBE
 HB_SHAPER_IMPLEMENT (uniscribe)
 #endif
@@ -39,16 +50,6 @@ HB_SHAPER_IMPLEMENT (uniscribe)
 HB_SHAPER_IMPLEMENT (coretext)
 #endif
 
-#ifdef HAVE_OT
-HB_SHAPER_IMPLEMENT (ot) /* <--- This is our main OpenType shaper. */
-#endif
-
-#ifdef HAVE_HB_OLD
-HB_SHAPER_IMPLEMENT (old)
-#endif
-
-#ifdef HAVE_ICU_LE
-HB_SHAPER_IMPLEMENT (icu_le)
-#endif
-
+#ifdef HAVE_FALLBACK
 HB_SHAPER_IMPLEMENT (fallback) /* <--- This should be last. */
+#endif

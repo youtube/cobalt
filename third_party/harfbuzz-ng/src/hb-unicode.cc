@@ -133,7 +133,7 @@ hb_unicode_funcs_get_default (void)
 
 #ifdef HAVE_GLIB
   HB_UNICODE_FUNCS_IMPLEMENT(glib)
-#elif defined(HAVE_ICU)
+#elif defined(HAVE_ICU) && defined(HAVE_ICU_BUILTIN)
   HB_UNICODE_FUNCS_IMPLEMENT(icu)
 #elif defined(HAVE_UCDN)
   HB_UNICODE_FUNCS_IMPLEMENT(ucdn)
@@ -146,10 +146,25 @@ hb_unicode_funcs_get_default (void)
 }
 
 #if !defined(HB_NO_UNICODE_FUNCS) && defined(HB_UNICODE_FUNCS_NIL)
-#pragma message("Could not find any Unicode functions implementation, you have to provide your own.")
-#pragma message("To suppress this warnings, define HB_NO_UNICODE_FUNCS.")
+#ifdef _MSC_VER
+#pragma message("Could not find any Unicode functions implementation, you have to provide your own")
+#pragma message("To suppress this warnings, define HB_NO_UNICODE_FUNCS")
+#else
+#warning "Could not find any Unicode functions implementation, you have to provide your own"
+#warning "To suppress this warning, define HB_NO_UNICODE_FUNCS"
+#endif
 #endif
 
+/**
+ * hb_unicode_funcs_create: (Xconstructor)
+ * @parent: (nullable):
+ *
+ * 
+ *
+ * Return value: (transfer full):
+ *
+ * Since: 1.0
+ **/
 hb_unicode_funcs_t *
 hb_unicode_funcs_create (hb_unicode_funcs_t *parent)
 {
@@ -187,18 +202,45 @@ const hb_unicode_funcs_t _hb_unicode_funcs_nil = {
   }
 };
 
+/**
+ * hb_unicode_funcs_get_empty:
+ *
+ * 
+ *
+ * Return value: (transfer full):
+ *
+ * Since: 1.0
+ **/
 hb_unicode_funcs_t *
 hb_unicode_funcs_get_empty (void)
 {
   return const_cast<hb_unicode_funcs_t *> (&_hb_unicode_funcs_nil);
 }
 
+/**
+ * hb_unicode_funcs_reference: (skip)
+ * @ufuncs: Unicode functions.
+ *
+ * 
+ *
+ * Return value: (transfer full):
+ *
+ * Since: 1.0
+ **/
 hb_unicode_funcs_t *
 hb_unicode_funcs_reference (hb_unicode_funcs_t *ufuncs)
 {
   return hb_object_reference (ufuncs);
 }
 
+/**
+ * hb_unicode_funcs_destroy: (skip)
+ * @ufuncs: Unicode functions.
+ *
+ * 
+ *
+ * Since: 1.0
+ **/
 void
 hb_unicode_funcs_destroy (hb_unicode_funcs_t *ufuncs)
 {
@@ -214,6 +256,20 @@ hb_unicode_funcs_destroy (hb_unicode_funcs_t *ufuncs)
   free (ufuncs);
 }
 
+/**
+ * hb_unicode_funcs_set_user_data: (skip)
+ * @ufuncs: Unicode functions.
+ * @key: 
+ * @data: 
+ * @destroy: 
+ * @replace: 
+ *
+ * 
+ *
+ * Return value: 
+ *
+ * Since: 1.0
+ **/
 hb_bool_t
 hb_unicode_funcs_set_user_data (hb_unicode_funcs_t *ufuncs,
 			        hb_user_data_key_t *key,
@@ -224,6 +280,17 @@ hb_unicode_funcs_set_user_data (hb_unicode_funcs_t *ufuncs,
   return hb_object_set_user_data (ufuncs, key, data, destroy, replace);
 }
 
+/**
+ * hb_unicode_funcs_get_user_data: (skip)
+ * @ufuncs: Unicode functions.
+ * @key: 
+ *
+ * 
+ *
+ * Return value: (transfer none):
+ *
+ * Since: 1.0
+ **/
 void *
 hb_unicode_funcs_get_user_data (hb_unicode_funcs_t *ufuncs,
 			        hb_user_data_key_t *key)
@@ -232,21 +299,49 @@ hb_unicode_funcs_get_user_data (hb_unicode_funcs_t *ufuncs,
 }
 
 
+/**
+ * hb_unicode_funcs_make_immutable:
+ * @ufuncs: Unicode functions.
+ *
+ * 
+ *
+ * Since: 1.0
+ **/
 void
 hb_unicode_funcs_make_immutable (hb_unicode_funcs_t *ufuncs)
 {
-  if (hb_object_is_inert (ufuncs))
+  if (unlikely (hb_object_is_inert (ufuncs)))
     return;
 
   ufuncs->immutable = true;
 }
 
+/**
+ * hb_unicode_funcs_is_immutable:
+ * @ufuncs: Unicode functions.
+ *
+ * 
+ *
+ * Return value: 
+ *
+ * Since: 1.0
+ **/
 hb_bool_t
 hb_unicode_funcs_is_immutable (hb_unicode_funcs_t *ufuncs)
 {
   return ufuncs->immutable;
 }
 
+/**
+ * hb_unicode_funcs_get_parent:
+ * @ufuncs: Unicode functions.
+ *
+ * 
+ *
+ * Return value: 
+ *
+ * Since: 1.0
+ **/
 hb_unicode_funcs_t *
 hb_unicode_funcs_get_parent (hb_unicode_funcs_t *ufuncs)
 {
@@ -294,6 +389,19 @@ hb_unicode_##name (hb_unicode_funcs_t *ufuncs,					\
 HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS_SIMPLE
 #undef HB_UNICODE_FUNC_IMPLEMENT
 
+/**
+ * hb_unicode_compose:
+ * @ufuncs: Unicode functions.
+ * @a: 
+ * @b: 
+ * @ab: (out):
+ *
+ * 
+ *
+ * Return value: 
+ *
+ * Since: 1.0
+ **/
 hb_bool_t
 hb_unicode_compose (hb_unicode_funcs_t *ufuncs,
 		    hb_codepoint_t      a,
@@ -303,6 +411,19 @@ hb_unicode_compose (hb_unicode_funcs_t *ufuncs,
   return ufuncs->compose (a, b, ab);
 }
 
+/**
+ * hb_unicode_decompose:
+ * @ufuncs: Unicode functions.
+ * @ab: 
+ * @a: (out):
+ * @b: (out):
+ *
+ * 
+ *
+ * Return value: 
+ *
+ * Since: 1.0
+ **/
 hb_bool_t
 hb_unicode_decompose (hb_unicode_funcs_t *ufuncs,
 		      hb_codepoint_t      ab,
@@ -312,6 +433,18 @@ hb_unicode_decompose (hb_unicode_funcs_t *ufuncs,
   return ufuncs->decompose (ab, a, b);
 }
 
+/**
+ * hb_unicode_decompose_compatibility:
+ * @ufuncs: Unicode functions.
+ * @u: 
+ * @decomposed: (out):
+ *
+ * 
+ *
+ * Return value: 
+ *
+ * Since: 1.0
+ **/
 unsigned int
 hb_unicode_decompose_compatibility (hb_unicode_funcs_t *ufuncs,
 				    hb_codepoint_t      u,
