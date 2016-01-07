@@ -75,7 +75,7 @@ void Element::set_text_content(
   }
   std::string new_text_content = text_content.value_or("");
   if (!new_text_content.empty()) {
-    AppendChild(new Text(owner_document(), new_text_content));
+    AppendChild(new Text(node_document(), new_text_content));
   }
 }
 
@@ -105,10 +105,12 @@ scoped_refptr<DOMTokenList> Element::class_list() {
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-getattribute
 base::optional<std::string> Element::GetAttribute(
     const std::string& name) const {
+  Document* document = node_document();
+
   // 1. If the context object is in the HTML namespace and its node document is
   //    an HTML document, let name be converted to ASCII lowercase.
   std::string attr_name = name;
-  if (!owner_document()->IsXMLDocument()) {
+  if (document && !document->IsXMLDocument()) {
     StringToLowerASCII(&attr_name);
   }
 
@@ -135,12 +137,14 @@ base::optional<std::string> Element::GetAttribute(
 // Algorithm for SetAttribute:
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-setattribute
 void Element::SetAttribute(const std::string& name, const std::string& value) {
+  Document* document = node_document();
+
   // 1. Not needed by Cobalt.
 
   // 2. If the context object is in the HTML namespace and its node document is
   //    an HTML document, let name be converted to ASCII lowercase.
   std::string attr_name = name;
-  if (!owner_document()->IsXMLDocument()) {
+  if (document && !document->IsXMLDocument()) {
     StringToLowerASCII(&attr_name);
   }
 
@@ -191,17 +195,21 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
     named_node_map_->SetAttributeInternal(attr_name, value);
   }
 
-  owner_document()->OnDOMMutation();
+  if (document) {
+    document->OnDOMMutation();
+  }
   OnSetAttribute(name, value);
 }
 
 // Algorithm for RemoveAttribute:
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-removeattribute
 void Element::RemoveAttribute(const std::string& name) {
+  Document* document = node_document();
+
   // 1. If the context object is in the HTML namespace and its node document is
   //    an HTML document, let name be converted to ASCII lowercase.
   std::string attr_name = name;
-  if (!owner_document()->IsXMLDocument()) {
+  if (document && !document->IsXMLDocument()) {
     StringToLowerASCII(&attr_name);
   }
 
@@ -245,17 +253,21 @@ void Element::RemoveAttribute(const std::string& name) {
     named_node_map_->RemoveAttributeInternal(attr_name);
   }
 
-  owner_document()->OnDOMMutation();
+  if (document) {
+    document->OnDOMMutation();
+  }
   OnRemoveAttribute(name);
 }
 
 // Algorithm for HasAttribute:
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-hasattribute
 bool Element::HasAttribute(const std::string& name) const {
+  Document* document = node_document();
+
   // 1. If the context object is in the HTML namespace and its node document is
   //    an HTML document, let name be converted to ASCII lowercase.
   std::string attr_name = name;
-  if (!owner_document()->IsXMLDocument()) {
+  if (document && !document->IsXMLDocument()) {
     StringToLowerASCII(&attr_name);
   }
 
@@ -389,8 +401,11 @@ void Element::set_inner_html(const std::string& inner_html) {
   }
 
   // Use the DOM parser to parse the HTML input and generate children nodes.
-  html_element_context()->dom_parser()->ParseDocumentFragment(
-      inner_html, owner_document(), this, NULL, GetInlineSourceLocation());
+  Document* document = node_document();
+  if (document) {
+    document->html_element_context()->dom_parser()->ParseDocumentFragment(
+        inner_html, document, this, NULL, GetInlineSourceLocation());
+  }
 }
 
 // Algorithm for outer_html:
@@ -435,19 +450,32 @@ void Element::set_outer_html(const std::string& outer_html) {
   // Use the DOM parser to parse the HTML input and generate children nodes.
   // TODO(***REMOVED***): Replace "Element" in the source location with the name
   //               of actual class, like "HTMLDivElement".
-  html_element_context()->dom_parser()->ParseDocumentFragment(
-      outer_html, owner_document(), parent, reference,
-      GetInlineSourceLocation());
+  Document* document = node_document();
+  if (document) {
+    document->html_element_context()->dom_parser()->ParseDocumentFragment(
+        outer_html, document, parent, reference, GetInlineSourceLocation());
+  }
 }
 
 scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {
-  return QuerySelectorInternal(selectors, html_element_context()->css_parser());
+  Document* document = node_document();
+  if (document) {
+    return QuerySelectorInternal(
+        selectors, document->html_element_context()->css_parser());
+  } else {
+    return NULL;
+  }
 }
 
 scoped_refptr<NodeList> Element::QuerySelectorAll(
     const std::string& selectors) {
-  return QuerySelectorAllInternal(selectors,
-                                  html_element_context()->css_parser());
+  Document* document = node_document();
+  if (document) {
+    return QuerySelectorAllInternal(
+        selectors, document->html_element_context()->css_parser());
+  } else {
+    return make_scoped_refptr(new NodeList());
+  }
 }
 
 void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
@@ -455,7 +483,7 @@ void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Element::Duplicate() const {
-  Element* new_element = new Element(owner_document());
+  Element* new_element = new Element(node_document());
   new_element->CopyAttributes(*this);
   return new_element;
 }
@@ -472,10 +500,8 @@ bool Element::IsEmpty() {
 }
 
 bool Element::HasFocus() {
-  if (!owner_document()) {
-    return false;
-  }
-  return owner_document()->active_element() == this;
+  Document* document = node_document();
+  return document ? (document->active_element() == this) : false;
 }
 
 base::optional<std::string> Element::GetStyleAttribute() const {
@@ -517,7 +543,8 @@ void Element::CopyAttributes(const Element& other) {
 }
 
 HTMLElementContext* Element::html_element_context() {
-  return owner_document()->html_element_context();
+  Document* document = node_document();
+  return document ? document->html_element_context() : NULL;
 }
 
 void Element::PostToDispatchEvent(const tracked_objects::Location& location,
