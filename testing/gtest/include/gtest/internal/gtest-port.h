@@ -190,6 +190,7 @@
 //   StringFromGTestEnv() - parses a string environment variable.
 
 #if !defined(STARBOARD)
+#include <assert.h>
 #include <ctype.h>   // for isspace, etc
 #include <stdarg.h>
 #include <stddef.h>  // for ptrdiff_t
@@ -1742,8 +1743,32 @@ inline const char* StrError(int errnum) { return "N/A"; }
 inline const char* GetEnv(const char* /*name*/) { return NULL; }
 inline void Abort() { SbSystemBreakIntoDebugger(); }
 
-inline void* Malloc(size_t size) { return SbMemoryAllocate(size); }
-inline void Free(void *memory) { SbMemoryFree(memory); }
+inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
+                      va_list args) {
+  return SbStringFormat(out_buffer, size, format, args);
+}
+
+inline size_t StrLen(const char *str) {
+  return SbStringGetLength(str);
+}
+
+inline const char *StrChr(const char *str, char c) {
+  return SbStringFindCharacter(str, c);
+}
+
+inline const char *StrRChr(const char *str, char c) {
+  return SbStringFindLastCharacter(str, c);
+}
+
+inline int StrNCmp(const char *s1, const char *s2, size_t n) {
+  return SbStringCompare(s1, s2, n);
+}
+
+inline void *MemSet(void *s, int c, size_t n) {
+  return SbMemorySet(s, c, n);
+}
+
+inline void Assert(bool b) { SB_CHECK(b); }
 
 inline int MkDir(const char* path, int /*mode*/) {
   return SbDirectoryCreate(path) ? 0 : -1;
@@ -1876,7 +1901,7 @@ inline int Write(int fd, const void* buf, unsigned int count) {
 inline int Close(int fd) { return close(fd); }
 inline const char* StrError(int errnum) { return strerror(errnum); }
 #endif
-#if defined(__LB_SHELL__)  // TODO(aabtop): s/__LB_SHELL__/STARBOARD/
+#if defined(__LB_SHELL__)
 inline const char* GetEnv(const char* /*name*/) {
   return NULL;
 }
@@ -1900,6 +1925,15 @@ inline const char* GetEnv(const char* name) {
 # pragma warning(pop)  // Restores the warning state.
 #endif
 
+#if !defined(GTEST_UNREFERENCED_PARAMETER)
+#ifdef _MSC_VER
+#define GTEST_UNREFERENCED_PARAMETER(x) (x)
+#else  // _MSC_VER
+#define GTEST_UNREFERENCED_PARAMETER(x) do { (void)(x); } while(0)
+#endif  // _MSC_VER
+#endif  // !defined(GTEST_UNREFERENCED_PARAMETER)
+
+
 #if GTEST_OS_WINDOWS_MOBILE
 // Windows CE has no C library. The abort() function is used in
 // several places in Google Test. This implementation provides a reasonable
@@ -1909,12 +1943,26 @@ void Abort();
 inline void Abort() { abort(); }
 #endif  // GTEST_OS_WINDOWS_MOBILE
 
-inline void* Malloc(size_t size) { return malloc(size); }
-inline void Free(void* memory) { free(memory); }
+inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
+                     va_list args) {
+  return vsnprintf(out_buffer, size, format, args);
+}
+
+inline size_t StrLen(const char *str) { return strlen(str); }
+inline const char *StrChr(const char *str, char c) { return strchr(str, c); }
+inline const char *StrRChr(const char *str, char c) { return strrchr(str, c); }
+inline int StrNCmp(const char *s1, const char *s2, size_t n) {
+  return strncmp(s1, s2, n);
+}
+inline void *MemSet(void *s, int c, size_t n) { return memset(s, c, n); }
+
+inline void Assert(bool b) {
+  GTEST_UNREFERENCED_PARAMETER(b);
+  assert(b);
+}
+
 inline int MkDir(const char* path, mode_t mode) {
-#ifdef _MSC_VER
-  (mode);  // Windows apparently doesn't use the mode parameter.
-#endif
+  GTEST_UNREFERENCED_PARAMETER(mode);
   return mkdir(path, mode);
 }
 inline void VPrintF(const char* format, va_list args) {
@@ -1931,8 +1979,19 @@ inline void PrintF(const char* format, ...) {
 inline void Flush() { fflush(stdout); }
 #endif  // GTEST_OS_STARBOARD
 
+inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
+  va_list args;
+  va_start(args, format);
+  VSNPrintF(out_buffer, size, format, args);
+  va_end(args);
+}
+
 }  // namespace posix
 
+
+#if GTEST_OS_STARBOARD
+# define GTEST_SNPRINTF_ internal::posix::SNPrintF
+#else  // GTEST_OS_STARBOARD
 // MSVC "deprecates" snprintf and issues warnings wherever it is used.  In
 // order to avoid these warnings, we need to use _snprintf or _snprintf_s on
 // MSVC-based platforms.  We map the GTEST_SNPRINTF_ macro to the appropriate
@@ -1949,6 +2008,7 @@ inline void Flush() { fflush(stdout); }
 #else
 # define GTEST_SNPRINTF_ snprintf
 #endif
+#endif  // GTEST_OS_STARBOARD
 
 // The maximum number a BiggestInt can represent.  This definition
 // works no matter BiggestInt is represented in one's complement or

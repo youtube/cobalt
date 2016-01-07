@@ -49,7 +49,8 @@
 #if !GTEST_OS_STARBOARD
 #include <ctype.h>
 #include <string.h>
-#endif
+#endif  // !GTEST_OS_STARBOARD
+
 #include <iomanip>
 #include <limits>
 #include <set>
@@ -555,7 +556,7 @@ class GTEST_API_ TypedTestCasePState {
 // Skips to the first non-space char after the first comma in 'str';
 // returns NULL if no comma is found in 'str'.
 inline const char* SkipComma(const char* str) {
-  const char* comma = strchr(str, ',');
+  const char* comma = posix::StrChr(str, ',');
   if (comma == NULL) {
     return NULL;
   }
@@ -566,7 +567,7 @@ inline const char* SkipComma(const char* str) {
 // Returns the prefix of 'str' before the first comma in it; returns
 // the entire string if it contains no comma.
 inline std::string GetPrefixUntilComma(const char* str) {
-  const char* comma = strchr(str, ',');
+  const char* comma = posix::StrChr(str, ',');
   return comma == NULL ? str : std::string(str, comma);
 }
 
