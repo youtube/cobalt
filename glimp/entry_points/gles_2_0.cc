@@ -33,7 +33,14 @@ gles::Context* GetCurrentContext() {
 
 extern "C" {
 
-void GL_APIENTRY glActiveTexture(GLenum texture) {}
+void GL_APIENTRY glActiveTexture(GLenum texture) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->ActiveTexture(texture);
+}
 
 void GL_APIENTRY glAttachShader(GLuint program, GLuint shader) {
   gles::Context* context = GetCurrentContext();
@@ -68,7 +75,14 @@ void GL_APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer) {}
 
 void GL_APIENTRY glBindRenderbuffer(GLenum target, GLuint renderbuffer) {}
 
-void GL_APIENTRY glBindTexture(GLenum target, GLuint texture) {}
+void GL_APIENTRY glBindTexture(GLenum target, GLuint texture) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->BindTexture(target, texture);
+}
 
 void GL_APIENTRY glBlendColor(GLfloat red,
                               GLfloat green,
@@ -221,7 +235,14 @@ void GL_APIENTRY glDeleteShader(GLuint shader) {
   return context->DeleteShader(shader);
 }
 
-void GL_APIENTRY glDeleteTextures(GLsizei n, const GLuint* textures) {}
+void GL_APIENTRY glDeleteTextures(GLsizei n, const GLuint* textures) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->DeleteTextures(n, textures);
+}
 
 void GL_APIENTRY glDepthFunc(GLenum func) {}
 
@@ -278,7 +299,14 @@ void GL_APIENTRY glGenFramebuffers(GLsizei n, GLuint* framebuffers) {}
 
 void GL_APIENTRY glGenRenderbuffers(GLsizei n, GLuint* renderbuffers) {}
 
-void GL_APIENTRY glGenTextures(GLsizei n, GLuint* textures) {}
+void GL_APIENTRY glGenTextures(GLsizei n, GLuint* textures) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->GenTextures(n, textures);
+}
 
 void GL_APIENTRY glGetActiveAttrib(GLuint program,
                                    GLuint index,
@@ -505,7 +533,15 @@ void GL_APIENTRY glTexImage2D(GLenum target,
                               GLint border,
                               GLenum format,
                               GLenum type,
-                              const GLvoid* pixels) {}
+                              const GLvoid* pixels) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->TexImage2D(target, level, internalformat, width, height,
+                             border, format, type, pixels);
+}
 
 void GL_APIENTRY glTexParameterf(GLenum target, GLenum pname, GLfloat param) {}
 
@@ -513,7 +549,14 @@ void GL_APIENTRY glTexParameterfv(GLenum target,
                                   GLenum pname,
                                   const GLfloat* params) {}
 
-void GL_APIENTRY glTexParameteri(GLenum target, GLenum pname, GLint param) {}
+void GL_APIENTRY glTexParameteri(GLenum target, GLenum pname, GLint param) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->TexParameteri(target, pname, param);
+}
 
 void GL_APIENTRY glTexParameteriv(GLenum target,
                                   GLenum pname,

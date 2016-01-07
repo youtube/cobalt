@@ -24,6 +24,7 @@
 #include "glimp/egl/surface.h"
 #include "glimp/gles/context_impl.h"
 #include "glimp/gles/resource_manager.h"
+#include "glimp/gles/sampler.h"
 #include "glimp/nb/ref_counted.h"
 #include "glimp/nb/scoped_ptr.h"
 #include "starboard/thread.h"
@@ -79,13 +80,33 @@ class Context {
                   const GLvoid* data,
                   GLenum usage);
 
+  void GenTextures(GLsizei n, GLuint* textures);
+  void DeleteTextures(GLsizei n, const GLuint* textures);
+  void ActiveTexture(GLenum texture);
+  void BindTexture(GLenum target, GLuint texture);
+  void TexParameteri(GLenum target, GLenum pname, GLint param);
+  void TexImage2D(GLenum target,
+                  GLint level,
+                  GLint internalformat,
+                  GLsizei width,
+                  GLsizei height,
+                  GLint border,
+                  GLenum format,
+                  GLenum type,
+                  const GLvoid* pixels);
+
  private:
+  static const int kMaxActiveTextures = 8;
+
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);
   void ReleaseContext();
   void SetError(GLenum error) { error_ = error; }
 
   // Returns the bound buffer slot for the specific specified target.
   nb::scoped_refptr<Buffer>* GetBoundBufferForTarget(GLenum target);
+
+  // Returns the bound texture slot for the specific specified target.
+  nb::scoped_refptr<Texture>* GetBoundTextureForTarget(GLenum target);
 
   void SetupExtensionsString();
 
@@ -111,6 +132,13 @@ class Context {
   // The currently bound element array buffer, set by calling
   // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER).
   nb::scoped_refptr<Buffer> bound_element_array_buffer_;
+
+  // Sets the active texture, which can be thought of more intuitively as
+  // the active "sampler".  Set using glActiveTexture().
+  GLenum active_texture_;
+
+  // The set of sampler units, of which |active_texture_| indexes.
+  Sampler samplers_[kMaxActiveTextures];
 
   // The last GL ES error raised.
   GLenum error_;

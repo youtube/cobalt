@@ -26,6 +26,7 @@
 #include "glimp/gles/buffer_impl.h"
 #include "glimp/gles/program_impl.h"
 #include "glimp/gles/shader_impl.h"
+#include "glimp/gles/texture_impl.h"
 #include "glimp/nb/scoped_ptr.h"
 
 namespace glimp {
@@ -82,6 +83,11 @@ class ContextImpl {
   // object representing a buffer.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGenBuffers.xml
   virtual nb::scoped_ptr<BufferImpl> CreateBuffer() = 0;
+
+  // Called via glGenTextures().  Must create a platform-specific TextureImpl
+  // object representing a texture.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGenTextures.xml
+  virtual nb::scoped_ptr<TextureImpl> CreateTexture() = 0;
 
  private:
 };
