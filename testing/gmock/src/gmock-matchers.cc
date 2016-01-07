@@ -37,7 +37,10 @@
 #include "gmock/gmock-matchers.h"
 #include "gmock/gmock-generated-matchers.h"
 
+#if !GTEST_OS_STARBOARD
 #include <string.h>
+#endif  // !GTEST_OS_STARBOARD
+
 #include <sstream>
 #include <string>
 
