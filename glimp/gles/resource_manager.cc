@@ -57,5 +57,21 @@ nb::scoped_refptr<Shader> ResourceManager::DeregisterShader(uint32_t id) {
   return shaders_.DeregisterResource(id);
 }
 
+uint32_t ResourceManager::RegisterBuffer(
+    const nb::scoped_refptr<Buffer>& buffer) {
+  starboard::ScopedLock lock(mutex_);
+  return buffers_.RegisterResource(buffer);
+}
+
+nb::scoped_refptr<Buffer> ResourceManager::GetBuffer(uint32_t id) {
+  starboard::ScopedLock lock(mutex_);
+  return buffers_.GetResource(id);
+}
+
+nb::scoped_refptr<Buffer> ResourceManager::DeregisterBuffer(uint32_t id) {
+  starboard::ScopedLock lock(mutex_);
+  return buffers_.DeregisterResource(id);
+}
+
 }  // namespace gles
 }  // namespace glimp

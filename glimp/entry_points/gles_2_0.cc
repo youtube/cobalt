@@ -48,7 +48,14 @@ void GL_APIENTRY glBindAttribLocation(GLuint program,
                                       GLuint index,
                                       const GLchar* name) {}
 
-void GL_APIENTRY glBindBuffer(GLenum target, GLuint buffer) {}
+void GL_APIENTRY glBindBuffer(GLenum target, GLuint buffer) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->BindBuffer(target, buffer);
+}
 
 void GL_APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer) {}
 
@@ -75,7 +82,14 @@ void GL_APIENTRY glBlendFuncSeparate(GLenum srcRGB,
 void GL_APIENTRY glBufferData(GLenum target,
                               GLsizeiptr size,
                               const GLvoid* data,
-                              GLenum usage) {}
+                              GLenum usage) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->BufferData(target, size, data, usage);
+}
 
 void GL_APIENTRY glBufferSubData(GLenum target,
                                  GLintptr offset,
@@ -168,7 +182,14 @@ GLuint GL_APIENTRY glCreateShader(GLenum type) {
 
 void GL_APIENTRY glCullFace(GLenum mode) {}
 
-void GL_APIENTRY glDeleteBuffers(GLsizei n, const GLuint* buffers) {}
+void GL_APIENTRY glDeleteBuffers(GLsizei n, const GLuint* buffers) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->DeleteBuffers(n, buffers);
+}
 
 void GL_APIENTRY glDeleteFramebuffers(GLsizei n, const GLuint* framebuffers) {}
 
@@ -235,7 +256,14 @@ void GL_APIENTRY glFramebufferTexture2D(GLenum target,
 
 void GL_APIENTRY glFrontFace(GLenum mode) {}
 
-void GL_APIENTRY glGenBuffers(GLsizei n, GLuint* buffers) {}
+void GL_APIENTRY glGenBuffers(GLsizei n, GLuint* buffers) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->GenBuffers(n, buffers);
+}
 
 void GL_APIENTRY glGenerateMipmap(GLenum target) {}
 
