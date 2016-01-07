@@ -60,6 +60,8 @@ class Context {
   GLuint CreateProgram();
   void DeleteProgram(GLuint program);
   void AttachShader(GLuint program, GLuint shader);
+  void LinkProgram(GLuint program);
+  void BindAttribLocation(GLuint program, GLuint index, const GLchar* name);
 
   GLuint CreateShader(GLenum type);
   void DeleteShader(GLuint shader);

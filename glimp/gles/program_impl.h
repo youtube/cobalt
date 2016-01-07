@@ -17,12 +17,21 @@
 #ifndef GLIMP_GLES_PROGRAM_IMPL_H_
 #define GLIMP_GLES_PROGRAM_IMPL_H_
 
+#include "glimp/gles/shader.h"
+#include "glimp/nb/ref_counted.h"
+
 namespace glimp {
 namespace gles {
 
 class ProgramImpl {
  public:
   virtual ~ProgramImpl() {}
+
+  // Ultimately called by glLinkProgram(), this marks the end of the program's
+  // setup phase and the beginning of the program's ability to be used.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glLinkProgram.xml
+  virtual bool Link(const nb::scoped_refptr<Shader>& vertex_shader,
+                    const nb::scoped_refptr<Shader>& fragment_shader) = 0;
 
  private:
 };
