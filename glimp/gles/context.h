@@ -52,7 +52,8 @@ class Context {
   // if no thread currently holds the context.
   SbThread current_thread() const { return current_thread_; }
 
-  GLenum GetError() const { return error_; }
+  // Return the last error generated and reset the error flag to GL_NO_ERROR.
+  GLenum GetError();
 
   const GLubyte* GetString(GLenum name);
 
@@ -68,10 +69,21 @@ class Context {
                     const GLint* length);
   void CompileShader(GLuint shader);
 
+  void GenBuffers(GLsizei n, GLuint* buffers);
+  void DeleteBuffers(GLsizei n, const GLuint* buffers);
+  void BindBuffer(GLenum target, GLuint buffer);
+  void BufferData(GLenum target,
+                  GLsizeiptr size,
+                  const GLvoid* data,
+                  GLenum usage);
+
  private:
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);
   void ReleaseContext();
   void SetError(GLenum error) { error_ = error; }
+
+  // Returns the bound buffer slot for the specific specified target.
+  nb::scoped_refptr<Buffer>* GetBoundBufferForTarget(GLenum target);
 
   void SetupExtensionsString();
 
@@ -89,6 +101,14 @@ class Context {
 
   // The resource manager containing all referenced resources.
   nb::scoped_refptr<ResourceManager> resource_manager_;
+
+  // The currently bound array buffer, set by calling
+  // glBindBuffer(GL_ARRAY_BUFFER).
+  nb::scoped_refptr<Buffer> bound_array_buffer_;
+
+  // The currently bound element array buffer, set by calling
+  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER).
+  nb::scoped_refptr<Buffer> bound_element_array_buffer_;
 
   // The last GL ES error raised.
   GLenum error_;

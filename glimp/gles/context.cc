@@ -99,6 +99,12 @@ void Context::ReleaseTLSCurrentContext() {
   }
 }
 
+GLenum Context::GetError() {
+  GLenum error = error_;
+  error_ = GL_NO_ERROR;
+  return error;
+}
+
 const GLubyte* Context::GetString(GLenum name) {
   switch (name) {
     case GL_EXTENSIONS: {
@@ -117,10 +123,10 @@ const GLubyte* Context::GetString(GLenum name) {
 }
 
 GLuint Context::CreateProgram() {
-  nb::scoped_ptr<ProgramImpl> impl = impl_->CreateProgram();
-  SB_DCHECK(impl);
+  nb::scoped_ptr<ProgramImpl> program_impl = impl_->CreateProgram();
+  SB_DCHECK(program_impl);
 
-  nb::scoped_refptr<Program> program(new Program(impl.Pass()));
+  nb::scoped_refptr<Program> program(new Program(program_impl.Pass()));
 
   return resource_manager_->RegisterProgram(program);
 }
@@ -163,18 +169,18 @@ void Context::AttachShader(GLuint program, GLuint shader) {
 }
 
 GLuint Context::CreateShader(GLenum type) {
-  nb::scoped_ptr<ShaderImpl> impl;
+  nb::scoped_ptr<ShaderImpl> shader_impl;
   if (type == GL_VERTEX_SHADER) {
-    impl = impl_->CreateVertexShader();
+    shader_impl = impl_->CreateVertexShader();
   } else if (type == GL_FRAGMENT_SHADER) {
-    impl = impl_->CreateFragmentShader();
+    shader_impl = impl_->CreateFragmentShader();
   } else {
     SetError(GL_INVALID_ENUM);
     return 0;
   }
-  SB_DCHECK(impl);
+  SB_DCHECK(shader_impl);
 
-  nb::scoped_refptr<Shader> shader(new Shader(impl.Pass(), type));
+  nb::scoped_refptr<Shader> shader(new Shader(shader_impl.Pass(), type));
 
   return resource_manager_->RegisterShader(shader);
 }
@@ -187,10 +193,10 @@ void Context::DeleteShader(GLuint shader) {
     return;
   }
 
-  nb::scoped_refptr<Shader> shader_resource =
+  nb::scoped_refptr<Shader> shader_object =
       resource_manager_->DeregisterShader(shader);
 
-  if (!shader_resource) {
+  if (!shader_object) {
     SetError(GL_INVALID_VALUE);
   }
 }
@@ -227,6 +233,106 @@ void Context::CompileShader(GLuint shader) {
   shader_object->CompileShader();
 }
 
+void Context::GenBuffers(GLsizei n, GLuint* buffers) {
+  if (n < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  for (GLsizei i = 0; i < n; ++i) {
+    nb::scoped_ptr<BufferImpl> buffer_impl = impl_->CreateBuffer();
+    SB_DCHECK(buffer_impl);
+
+    nb::scoped_refptr<Buffer> buffer(new Buffer(buffer_impl.Pass()));
+
+    buffers[i] = resource_manager_->RegisterBuffer(buffer);
+  }
+}
+
+void Context::DeleteBuffers(GLsizei n, const GLuint* buffers) {
+  if (n < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  for (GLsizei i = 0; i < n; ++i) {
+    if (buffers[i] == 0) {
+      // Silently ignore 0 buffers.
+      continue;
+    }
+
+    nb::scoped_refptr<Buffer> buffer_object =
+        resource_manager_->DeregisterBuffer(buffers[i]);
+
+    if (!buffer_object) {
+      // The specification does not indicate that any error should be set
+      // in the case that there was an error deleting a specific buffer.
+      //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glDeleteBuffers.xml
+      return;
+    }
+
+    // If a bound buffer is deleted, set the bound buffer to NULL.
+    if (buffer_object->target_valid()) {
+      *GetBoundBufferForTarget(buffer_object->target()) =
+          nb::scoped_refptr<Buffer>();
+    }
+  }
+}
+
+void Context::BindBuffer(GLenum target, GLuint buffer) {
+  if (target != GL_ARRAY_BUFFER && target != GL_ELEMENT_ARRAY_BUFFER) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (buffer == 0) {
+    // Unbind the current buffer if 0 is passed in for buffer.
+    *GetBoundBufferForTarget(target) = nb::scoped_refptr<Buffer>();
+    return;
+  }
+
+  nb::scoped_refptr<Buffer> buffer_object =
+      resource_manager_->GetBuffer(buffer);
+
+  if (!buffer_object) {
+    // According to the specification, no error is generated if the buffer is
+    // invalid.
+    //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBindBuffer.xml
+    return;
+  }
+
+  buffer_object->SetTarget(target);
+  *GetBoundBufferForTarget(target) = buffer_object;
+}
+
+void Context::BufferData(GLenum target,
+                         GLsizeiptr size,
+                         const GLvoid* data,
+                         GLenum usage) {
+  if (size < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (usage != GL_STATIC_DRAW && usage != GL_DYNAMIC_DRAW) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (target != GL_ARRAY_BUFFER && target != GL_ELEMENT_ARRAY_BUFFER) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  nb::scoped_refptr<Buffer> bound_buffer = *GetBoundBufferForTarget(target);
+  if (bound_buffer == 0) {
+    SetError(GL_INVALID_OPERATION);
+    return;
+  }
+
+  bound_buffer->BufferData(size, data, usage);
+}
+
 void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
   SB_DCHECK(current_thread_ == kSbThreadInvalid ||
             current_thread_ == SbThreadGetCurrent());
@@ -254,6 +360,18 @@ void Context::ReleaseContext() {
   SB_DCHECK(has_been_current_);
 
   current_thread_ = kSbThreadInvalid;
+}
+
+nb::scoped_refptr<Buffer>* Context::GetBoundBufferForTarget(GLenum target) {
+  switch (target) {
+    case GL_ARRAY_BUFFER:
+      return &bound_array_buffer_;
+    case GL_ELEMENT_ARRAY_BUFFER:
+      return &bound_element_array_buffer_;
+  }
+
+  SB_NOTREACHED();
+  return NULL;
 }
 
 void Context::SetupExtensionsString() {
