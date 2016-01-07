@@ -46,7 +46,14 @@ void GL_APIENTRY glAttachShader(GLuint program, GLuint shader) {
 
 void GL_APIENTRY glBindAttribLocation(GLuint program,
                                       GLuint index,
-                                      const GLchar* name) {}
+                                      const GLchar* name) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->BindAttribLocation(program, index, name);
+}
 
 void GL_APIENTRY glBindBuffer(GLenum target, GLuint buffer) {
   gles::Context* context = GetCurrentContext();
@@ -422,7 +429,14 @@ GLboolean GL_APIENTRY glIsTexture(GLuint texture) {
 
 void GL_APIENTRY glLineWidth(GLfloat width) {}
 
-void GL_APIENTRY glLinkProgram(GLuint program) {}
+void GL_APIENTRY glLinkProgram(GLuint program) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->LinkProgram(program);
+}
 
 void GL_APIENTRY glPixelStorei(GLenum pname, GLint param) {}
 

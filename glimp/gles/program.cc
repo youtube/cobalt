@@ -19,7 +19,8 @@
 namespace glimp {
 namespace gles {
 
-Program::Program(nb::scoped_ptr<ProgramImpl> impl) : impl_(impl.Pass()) {}
+Program::Program(nb::scoped_ptr<ProgramImpl> impl)
+    : impl_(impl.Pass()), link_status_(GL_FALSE) {}
 
 bool Program::AttachShader(const nb::scoped_refptr<Shader>& shader) {
   if (shader->type() == GL_VERTEX_SHADER) {
@@ -37,6 +38,27 @@ bool Program::AttachShader(const nb::scoped_refptr<Shader>& shader) {
   }
 
   return true;
+}
+
+void Program::Link() {
+  if (!vertex_shader_ || !fragment_shader_) {
+    // We cannot successfully link if both a vertex and fragment shader
+    // have not yet been attached.
+    link_status_ = GL_FALSE;
+    return;
+  }
+
+  if (impl_->Link(vertex_shader_, fragment_shader_)) {
+    link_status_ = GL_TRUE;
+  } else {
+    link_status_ = GL_FALSE;
+  }
+}
+
+void Program::BindAttribLocation(GLuint index, const GLchar* name) {
+  // TODO(***REMOVED***): Will come back to this later when the implementation can be
+  //               be more easily verified.
+  SB_NOTIMPLEMENTED();
 }
 
 }  // namespace gles
