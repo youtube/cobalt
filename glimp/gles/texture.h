@@ -14,32 +14,29 @@
  * limitations under the License.
  */
 
-#ifndef GLIMP_GLES_BUFFER_H_
-#define GLIMP_GLES_BUFFER_H_
+#ifndef GLIMP_GLES_TEXTURE_H_
+#define GLIMP_GLES_TEXTURE_H_
 
 #include <GLES3/gl3.h>
 
-#include "glimp/gles/buffer_impl.h"
+#include "glimp/gles/texture_impl.h"
 #include "glimp/nb/ref_counted.h"
 #include "glimp/nb/scoped_ptr.h"
 
 namespace glimp {
 namespace gles {
 
-class Buffer : public nb::RefCountedThreadSafe<Buffer> {
+class Texture : public nb::RefCountedThreadSafe<Texture> {
  public:
-  explicit Buffer(nb::scoped_ptr<BufferImpl> impl);
+  explicit Texture(nb::scoped_ptr<TextureImpl> impl);
 
-  // Called when glBindBuffer() is called.
+  // Called when glBindTexture() is called.
   void SetTarget(GLenum target);
 
-  // Implements support for glBufferData() on this buffer object.
-  void BufferData(GLsizeiptr size, const GLvoid* data, GLenum usage);
-
-  // Returns true if the target has been set (e.g. via glBindBuffer()).
+  // Returns true if the target has been set (e.g. via glBindTexture()).
   bool target_valid() const { return target_valid_; }
 
-  // Returns the target (set via glBindBuffer()).  Must be called only if
+  // Returns the target (set via glBindTexture()).  Must be called only if
   // target_valid() is true.
   GLenum target() const {
     SB_DCHECK(target_valid_);
@@ -47,13 +44,13 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
   }
 
  private:
-  friend class nb::RefCountedThreadSafe<Buffer>;
-  ~Buffer() {}
+  friend class nb::RefCountedThreadSafe<Texture>;
+  ~Texture() {}
 
-  nb::scoped_ptr<BufferImpl> impl_;
+  nb::scoped_ptr<TextureImpl> impl_;
 
-  // The target type this buffer was last bound as, set through a call to
-  // glBindBuffer().
+  // The target type this texture was last bound as, set through a call to
+  // glBindTexture().
   GLenum target_;
 
   // Represents whether or not target_ as been initialized yet.
@@ -63,4 +60,4 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
 }  // namespace gles
 }  // namespace glimp
 
-#endif  // GLIMP_GLES_BUFFER_H_
+#endif  // GLIMP_GLES_TEXTURE_H_

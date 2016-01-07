@@ -47,6 +47,7 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
     : impl_(context_impl.Pass()),
       current_thread_(kSbThreadInvalid),
       has_been_current_(false),
+      active_texture_(GL_TEXTURE0),
       error_(GL_NO_ERROR) {
   if (share_context != NULL) {
     resource_manager_ = share_context->resource_manager_;
@@ -320,7 +321,7 @@ void Context::BindBuffer(GLenum target, GLuint buffer) {
 
   if (buffer == 0) {
     // Unbind the current buffer if 0 is passed in for buffer.
-    *GetBoundBufferForTarget(target) = nb::scoped_refptr<Buffer>();
+    *GetBoundBufferForTarget(target) = NULL;
     return;
   }
 
@@ -407,6 +408,19 @@ nb::scoped_refptr<Buffer>* Context::GetBoundBufferForTarget(GLenum target) {
   return NULL;
 }
 
+nb::scoped_refptr<Texture>* Context::GetBoundTextureForTarget(GLenum target) {
+  switch (target) {
+    case GL_TEXTURE_2D:
+      return &(samplers_[active_texture_].bound_texture);
+    case GL_TEXTURE_CUBE_MAP:
+      SB_NOTREACHED() << "Currently unimplemented in glimp.";
+      return NULL;
+  }
+
+  SB_NOTREACHED();
+  return NULL;
+}
+
 void Context::SetupExtensionsString() {
   // Extract the list of extensions from the platform-specific implementation
   // and then turn them into a string.
@@ -425,6 +439,122 @@ void Context::SetupExtensionsString() {
   for (int i = 0; i < extensions_string_.size(); ++i) {
     SB_DCHECK(extensions_string_[i] > 0);
   }
+}
+
+void Context::GenTextures(GLsizei n, GLuint* textures) {
+  if (n < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  for (GLsizei i = 0; i < n; ++i) {
+    nb::scoped_ptr<TextureImpl> texture_impl = impl_->CreateTexture();
+    SB_DCHECK(texture_impl);
+
+    nb::scoped_refptr<Texture> texture(new Texture(texture_impl.Pass()));
+
+    textures[i] = resource_manager_->RegisterTexture(texture);
+  }
+}
+
+void Context::DeleteTextures(GLsizei n, const GLuint* textures) {
+  if (n < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  for (GLsizei i = 0; i < n; ++i) {
+    if (textures[i] == 0) {
+      // Silently ignore 0 textures.
+      continue;
+    }
+
+    nb::scoped_refptr<Texture> texture_object =
+        resource_manager_->DeregisterTexture(textures[i]);
+
+    if (!texture_object) {
+      // The specification does not indicate that any error should be set
+      // in the case that there was an error deleting a specific texture.
+      //   https://www.khronos.org/opengles/sdk/1.1/docs/man/glDeleteTextures.xml
+      return;
+    }
+
+    // If a bound texture is deleted, set the bound texture to NULL.
+    if (texture_object->target_valid()) {
+      *GetBoundTextureForTarget(texture_object->target()) = NULL;
+    }
+  }
+}
+
+void Context::ActiveTexture(GLenum texture) {
+  if (texture < GL_TEXTURE0 || texture >= GL_TEXTURE0 + kMaxActiveTextures) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  active_texture_ = texture;
+}
+
+void Context::BindTexture(GLenum target, GLuint texture) {
+  if (target != GL_TEXTURE_2D && target != GL_TEXTURE_CUBE_MAP) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (texture == 0) {
+    // Unbind the current texture if 0 is passed in for texture.
+    *GetBoundTextureForTarget(target) = NULL;
+    return;
+  }
+
+  nb::scoped_refptr<Texture> texture_object =
+      resource_manager_->GetTexture(texture);
+
+  if (!texture_object) {
+    // According to the specification, no error is generated if the texture is
+    // invalid.
+    //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBindTexture.xml
+    return;
+  }
+
+  texture_object->SetTarget(target);
+  *GetBoundTextureForTarget(target) = texture_object;
+}
+
+void Context::TexParameteri(GLenum target, GLenum pname, GLint param) {
+  Sampler* active_sampler = &samplers_[active_texture_];
+
+  switch (pname) {
+    case GL_TEXTURE_MAG_FILTER:
+      active_sampler->mag_filter = param;
+      break;
+    case GL_TEXTURE_MIN_FILTER:
+      active_sampler->min_filter = param;
+      break;
+    case GL_TEXTURE_WRAP_S:
+      active_sampler->wrap_s = param;
+      break;
+    case GL_TEXTURE_WRAP_T:
+      active_sampler->wrap_t = param;
+      break;
+
+    default:
+      SetError(GL_INVALID_ENUM);
+      return;
+  }
+}
+
+void Context::TexImage2D(GLenum target,
+                         GLint level,
+                         GLint internalformat,
+                         GLsizei width,
+                         GLsizei height,
+                         GLint border,
+                         GLenum format,
+                         GLenum type,
+                         const GLvoid* pixels) {
+  // TODO(***REMOVED***): Will implement in a future CL.
+  SB_NOTIMPLEMENTED();
 }
 
 }  // namespace gles
