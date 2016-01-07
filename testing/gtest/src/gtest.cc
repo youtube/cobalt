@@ -1634,11 +1634,13 @@ std::string String::Format(const char * format, ...) {
 # pragma warning(push)          // Saves the current warning state.
 # pragma warning(disable:4996)  // Temporarily disables warning 4996.
 
-  const int size = vsnprintf(buffer, kBufferSize, format, args);
+  const int size =
+      internal::posix::VSNPrintF(buffer, kBufferSize, format, args);
 
 # pragma warning(pop)           // Restores the warning state.
 #else  // We are not using MSVC.
-  const int size = vsnprintf(buffer, kBufferSize, format, args);
+  const int size =
+      internal::posix::VSNPrintF(buffer, kBufferSize, format, args);
 #endif  // _MSC_VER
   va_end(args);
 
@@ -2175,8 +2177,8 @@ void ReportInvalidTestCaseType(const char* test_case_name,
       << "probably rename one of the classes to put the tests into different\n"
       << "test cases.";
 
-  fprintf(stderr, "%s %s", FormatFileLocation(file, line).c_str(),
-          errors.GetString().c_str());
+  internal::posix::PrintF("%s %s", FormatFileLocation(file, line).c_str(),
+                          errors.GetString().c_str());
 }
 #endif  // GTEST_HAS_PARAM_TEST
 
@@ -2637,7 +2639,8 @@ class PrettyUnitTestResultPrinter : public TestEventListener {
 void PrettyUnitTestResultPrinter::OnTestIterationStart(
     const UnitTest& unit_test, int iteration) {
   if (GTEST_FLAG(repeat) != 1)
-    printf("\nRepeating all tests (iteration %d) . . .\n\n", iteration + 1);
+    internal::posix::PrintF("\nRepeating all tests (iteration %d) . . .\n\n",
+                            iteration + 1);
 
   const char* const filter = GTEST_FLAG(filter).c_str();
 
@@ -4111,9 +4114,10 @@ static void TearDownEnvironment(Environment* env) { env->TearDown(); }
 bool UnitTestImpl::RunAllTests() {
   // Makes sure InitGoogleTest() was called.
   if (!GTestIsInitialized()) {
-    printf("%s",
-           "\nThis test program did NOT call ::testing::InitGoogleTest "
-           "before calling RUN_ALL_TESTS().  Please fix it.\n");
+    internal::posix::PrintF(
+        "%s",
+        "\nThis test program did NOT call ::testing::InitGoogleTest "
+        "before calling RUN_ALL_TESTS().  Please fix it.\n");
     return false;
   }
 
@@ -4412,13 +4416,13 @@ void UnitTestImpl::ListTestsMatchingFilter() {
       if (test_info->matches_filter_) {
         if (!printed_test_case_name) {
           printed_test_case_name = true;
-          printf("%s.\n", test_case->name());
+          internal::posix::PrintF("%s.\n", test_case->name());
         }
-        printf("  %s\n", test_info->name());
+        internal::posix::PrintF("  %s\n", test_info->name());
       }
     }
   }
-  fflush(stdout);
+  internal::posix::Flush();
 }
 
 // Sets the OS stack trace getter.
