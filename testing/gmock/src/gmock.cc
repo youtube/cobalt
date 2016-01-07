@@ -64,7 +64,8 @@ static const char* ParseGoogleMockFlagValue(const char* str,
   // The flag must start with "--gmock_".
   const std::string flag_str = std::string("--gmock_") + flag;
   const size_t flag_len = flag_str.length();
-  if (strncmp(str, flag_str.c_str(), flag_len) != 0) return NULL;
+  if (internal::posix::StrNCmp(str, flag_str.c_str(), flag_len) != 0)
+    return NULL;
 
   // Skips the flag name.
   const char* flag_end = str + flag_len;

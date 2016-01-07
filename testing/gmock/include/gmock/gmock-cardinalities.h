@@ -38,7 +38,12 @@
 #ifndef GMOCK_INCLUDE_GMOCK_GMOCK_CARDINALITIES_H_
 #define GMOCK_INCLUDE_GMOCK_GMOCK_CARDINALITIES_H_
 
+#if defined(STARBOARD)
+#include "starboard/types.h"
+#else
 #include <limits.h>
+#endif
+
 #include <ostream>  // NOLINT
 #include "gmock/internal/gmock-port.h"
 #include "gtest/gtest.h"

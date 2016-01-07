@@ -36,8 +36,11 @@
 #ifndef GMOCK_INCLUDE_GMOCK_INTERNAL_GMOCK_PORT_H_
 #define GMOCK_INCLUDE_GMOCK_INTERNAL_GMOCK_PORT_H_
 
+#if !defined(STARBOARD)
 #include <assert.h>
 #include <stdlib.h>
+#endif
+
 #include <iostream>
 
 // Most of the types needed for porting Google Mock are also required
