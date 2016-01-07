@@ -14,29 +14,25 @@
  * limitations under the License.
  */
 
-#ifndef GLIMP_GLES_SHADER_IMPL_H_
-#define GLIMP_GLES_SHADER_IMPL_H_
+#ifndef GLIMP_SHADERS_GLSL_SHADER_MAP_HELPERS_H_
+#define GLIMP_SHADERS_GLSL_SHADER_MAP_HELPERS_H_
 
-#include <string>
+#include <map>
 
 namespace glimp {
-namespace gles {
+namespace shaders {
 
-class ShaderImpl {
- public:
-  virtual ~ShaderImpl() {}
+struct ShaderData {
+  ShaderData() : data(NULL), size(0) {}
+  ShaderData(const uint8_t* data, size_t size) : data(data), size(size) {}
 
-  // Called when glCompileShader() is called.  The source passed in is whatever
-  // source was last set by glShaderSource().  This method should return true
-  // on success and false on failure.  In the future, the return value may
-  // change to allow an error message to be expressed.
-  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCompileShader.xml
-  virtual bool Compile(const std::string& source) = 0;
-
- private:
+  const uint8_t* data;
+  size_t size;
 };
 
-}  // namespace gles
+typedef std::map<uint32_t, ShaderData> GLSLShaderHashMap;
+
+}  // namespace shaders
 }  // namespace glimp
 
-#endif  // GLIMP_GLES_SHADER_IMPL_H_
+#endif  // GLIMP_SHADERS_GLSL_SHADER_MAP_HELPERS_H_

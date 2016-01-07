@@ -20,7 +20,7 @@ namespace glimp {
 namespace gles {
 
 Shader::Shader(nb::scoped_ptr<ShaderImpl> impl, GLenum type)
-    : impl_(impl.Pass()), type_(type) {}
+    : impl_(impl.Pass()), type_(type), compile_status_(GL_FALSE) {}
 
 void Shader::ShaderSource(GLsizei count,
                           const GLchar* const* string,
@@ -35,6 +35,14 @@ void Shader::ShaderSource(GLsizei count,
     } else {
       source_.append(string[i], length[i]);
     }
+  }
+}
+
+void Shader::CompileShader() {
+  if (impl_->Compile(source_)) {
+    compile_status_ = GL_TRUE;
+  } else {
+    compile_status_ = GL_FALSE;
   }
 }
 
