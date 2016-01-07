@@ -34,17 +34,15 @@
 #include "hb-font-private.hh"
 
 
-static void
+static bool
 parse_space (const char **pp, const char *end)
 {
-  char c;
-#define ISSPACE(c) ((c)==' '||(c)=='\f'||(c)=='\n'||(c)=='\r'||(c)=='\t'||(c)=='\v')
-  while (*pp < end && (c = **pp, ISSPACE (c)))
+  while (*pp < end && ISSPACE (**pp))
     (*pp)++;
-#undef ISSPACE
+  return true;
 }
 
-static hb_bool_t
+static bool
 parse_char (const char **pp, const char *end, char c)
 {
   parse_space (pp, end);
@@ -56,20 +54,23 @@ parse_char (const char **pp, const char *end, char c)
   return true;
 }
 
-static hb_bool_t
+static bool
 parse_uint (const char **pp, const char *end, unsigned int *pv)
 {
   char buf[32];
-  strncpy (buf, *pp, end - *pp);
-  buf[ARRAY_LENGTH (buf) - 1] = '\0';
+  unsigned int len = MIN (ARRAY_LENGTH (buf) - 1, (unsigned int) (end - *pp));
+  strncpy (buf, *pp, len);
+  buf[len] = '\0';
 
   char *p = buf;
   char *pend = p;
   unsigned int v;
 
+  /* Intentionally use strtol instead of strtoul, such that
+   * -1 turns into "big number"... */
+  errno = 0;
   v = strtol (p, &pend, 0);
-
-  if (p == pend)
+  if (errno || p == pend)
     return false;
 
   *pv = v;
@@ -77,7 +78,27 @@ parse_uint (const char **pp, const char *end, unsigned int *pv)
   return true;
 }
 
-static hb_bool_t
+static bool
+parse_bool (const char **pp, const char *end, unsigned int *pv)
+{
+  parse_space (pp, end);
+
+  const char *p = *pp;
+  while (*pp < end && ISALPHA(**pp))
+    (*pp)++;
+
+  /* CSS allows on/off as aliases 1/0. */
+  if (*pp - p == 2 || 0 == strncmp (p, "on", 2))
+    *pv = 1;
+  else if (*pp - p == 3 || 0 == strncmp (p, "off", 2))
+    *pv = 0;
+  else
+    return false;
+
+  return true;
+}
+
+static bool
 parse_feature_value_prefix (const char **pp, const char *end, hb_feature_t *feature)
 {
   if (parse_char (pp, end, '-'))
@@ -90,32 +111,48 @@ parse_feature_value_prefix (const char **pp, const char *end, hb_feature_t *feat
   return true;
 }
 
-static hb_bool_t
+static bool
 parse_feature_tag (const char **pp, const char *end, hb_feature_t *feature)
 {
-  const char *p = *pp;
-  char c;
-
   parse_space (pp, end);
 
-#define ISALNUM(c) (('a' <= (c) && (c) <= 'z') || ('A' <= (c) && (c) <= 'Z') || ('0' <= (c) && (c) <= '9'))
-  while (*pp < end && (c = **pp, ISALNUM(c)))
-    (*pp)++;
-#undef ISALNUM
+  char quote = 0;
 
-  if (p == *pp)
+  if (*pp < end && (**pp == '\'' || **pp == '"'))
+  {
+    quote = **pp;
+    (*pp)++;
+  }
+
+  const char *p = *pp;
+  while (*pp < end && ISALNUM(**pp))
+    (*pp)++;
+
+  if (p == *pp || *pp - p > 4)
     return false;
 
   feature->tag = hb_tag_from_string (p, *pp - p);
+
+  if (quote)
+  {
+    /* CSS expects exactly four bytes.  And we only allow quotations for
+     * CSS compatibility.  So, enforce the length. */
+     if (*pp - p != 4)
+       return false;
+    if (*pp == end || **pp != quote)
+      return false;
+    (*pp)++;
+  }
+
   return true;
 }
 
-static hb_bool_t
+static bool
 parse_feature_indices (const char **pp, const char *end, hb_feature_t *feature)
 {
   parse_space (pp, end);
 
-  hb_bool_t has_start;
+  bool has_start;
 
   feature->start = 0;
   feature->end = (unsigned int) -1;
@@ -135,33 +172,73 @@ parse_feature_indices (const char **pp, const char *end, hb_feature_t *feature)
   return parse_char (pp, end, ']');
 }
 
-static hb_bool_t
+static bool
 parse_feature_value_postfix (const char **pp, const char *end, hb_feature_t *feature)
 {
-  return !parse_char (pp, end, '=') || parse_uint (pp, end, &feature->value);
+  bool had_equal = parse_char (pp, end, '=');
+  bool had_value = parse_uint (pp, end, &feature->value) ||
+                   parse_bool (pp, end, &feature->value);
+  /* CSS doesn't use equal-sign between tag and value.
+   * If there was an equal-sign, then there *must* be a value.
+   * A value without an eqaul-sign is ok, but not required. */
+  return !had_equal || had_value;
 }
 
 
-static hb_bool_t
+static bool
 parse_one_feature (const char **pp, const char *end, hb_feature_t *feature)
 {
   return parse_feature_value_prefix (pp, end, feature) &&
 	 parse_feature_tag (pp, end, feature) &&
 	 parse_feature_indices (pp, end, feature) &&
 	 parse_feature_value_postfix (pp, end, feature) &&
+	 parse_space (pp, end) &&
 	 *pp == end;
 }
 
+/**
+ * hb_feature_from_string:
+ * @str: (array length=len):
+ * @len: 
+ * @feature: (out) (optional):
+ *
+ * 
+ *
+ * Return value: 
+ *
+ * Since: 1.0
+ **/
 hb_bool_t
 hb_feature_from_string (const char *str, int len,
 			hb_feature_t *feature)
 {
+  hb_feature_t feat;
+
   if (len < 0)
     len = strlen (str);
 
-  return parse_one_feature (&str, str + len, feature);
+  if (likely (parse_one_feature (&str, str + len, &feat)))
+  {
+    if (feature)
+      *feature = feat;
+    return true;
+  }
+
+  if (feature)
+    memset (feature, 0, sizeof (*feature));
+  return false;
 }
 
+/**
+ * hb_feature_to_string:
+ * @feature: 
+ * @buf: (array length=size):
+ * @size: 
+ *
+ * 
+ *
+ * Since: 1.0
+ **/
 void
 hb_feature_to_string (hb_feature_t *feature,
 		      char *buf, unsigned int size)
@@ -176,38 +253,49 @@ hb_feature_to_string (hb_feature_t *feature,
   len += 4;
   while (len && s[len - 1] == ' ')
     len--;
-  if (feature->start != 0 || feature->start != (unsigned int) -1)
+  if (feature->start != 0 || feature->end != (unsigned int) -1)
   {
     s[len++] = '[';
     if (feature->start)
-      len += snprintf (s + len, ARRAY_LENGTH (s) - len, "%d", feature->start);
+      len += MAX (0, snprintf (s + len, ARRAY_LENGTH (s) - len, "%u", feature->start));
     if (feature->end != feature->start + 1) {
       s[len++] = ':';
       if (feature->end != (unsigned int) -1)
-	len += snprintf (s + len, ARRAY_LENGTH (s) - len, "%d", feature->end);
+	len += MAX (0, snprintf (s + len, ARRAY_LENGTH (s) - len, "%u", feature->end));
     }
     s[len++] = ']';
   }
   if (feature->value > 1)
   {
     s[len++] = '=';
-    len += snprintf (s + len, ARRAY_LENGTH (s) - len, "%d", feature->value);
+    len += MAX (0, snprintf (s + len, ARRAY_LENGTH (s) - len, "%u", feature->value));
   }
   assert (len < ARRAY_LENGTH (s));
   len = MIN (len, size - 1);
   memcpy (buf, s, len);
-  s[len] = '\0';
+  buf[len] = '\0';
 }
 
 
 static const char **static_shaper_list;
 
+#ifdef HB_USE_ATEXIT
 static
 void free_static_shaper_list (void)
 {
   free (static_shaper_list);
 }
+#endif
 
+/**
+ * hb_shape_list_shapers:
+ *
+ * 
+ *
+ * Return value: (transfer none):
+ *
+ * Since: 1.0
+ **/
 const char **
 hb_shape_list_shapers (void)
 {
@@ -234,7 +322,7 @@ retry:
       goto retry;
     }
 
-#ifdef HAVE_ATEXIT
+#ifdef HB_USE_ATEXIT
     atexit (free_static_shaper_list); /* First person registers atexit() callback. */
 #endif
   }
@@ -243,6 +331,20 @@ retry:
 }
 
 
+/**
+ * hb_shape_full:
+ * @font: a font.
+ * @buffer: a buffer.
+ * @features: (array length=num_features):
+ * @num_features: 
+ * @shaper_list: (array zero-terminated=1):
+ *
+ * 
+ *
+ * Return value: 
+ *
+ * Since: 1.0
+ **/
 hb_bool_t
 hb_shape_full (hb_font_t          *font,
 	       hb_buffer_t        *buffer,
@@ -255,8 +357,6 @@ hb_shape_full (hb_font_t          *font,
 
   assert (buffer->content_type == HB_BUFFER_CONTENT_TYPE_UNICODE);
 
-  buffer->guess_properties ();
-
   hb_shape_plan_t *shape_plan = hb_shape_plan_create_cached (font->face, &buffer->props, features, num_features, shaper_list);
   hb_bool_t res = hb_shape_plan_execute (shape_plan, font, buffer, features, num_features);
   hb_shape_plan_destroy (shape_plan);
@@ -266,6 +366,17 @@ hb_shape_full (hb_font_t          *font,
   return res;
 }
 
+/**
+ * hb_shape:
+ * @font: a font.
+ * @buffer: a buffer.
+ * @features: (array length=num_features):
+ * @num_features: 
+ *
+ * 
+ *
+ * Since: 1.0
+ **/
 void
 hb_shape (hb_font_t           *font,
 	  hb_buffer_t         *buffer,
