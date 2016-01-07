@@ -17,6 +17,8 @@
 #ifndef GLIMP_GLES_PROGRAM_H_
 #define GLIMP_GLES_PROGRAM_H_
 
+#include <GLES3/gl3.h>
+
 #include "glimp/gles/program_impl.h"
 #include "glimp/gles/shader.h"
 #include "glimp/nb/ref_counted.h"
@@ -35,6 +37,13 @@ class Program : public nb::RefCountedThreadSafe<Program> {
   // otherwise the shader is attached and true is returned.
   bool AttachShader(const nb::scoped_refptr<Shader>& shader);
 
+  // Links the vertex and fragment shaders, making the shader usable.
+  void Link();
+
+  GLint link_status() const { return link_status_; }
+
+  void BindAttribLocation(GLuint index, const GLchar* name);
+
  private:
   friend class nb::RefCountedThreadSafe<Program>;
   ~Program() {}
@@ -43,6 +52,10 @@ class Program : public nb::RefCountedThreadSafe<Program> {
 
   nb::scoped_refptr<Shader> vertex_shader_;
   nb::scoped_refptr<Shader> fragment_shader_;
+
+  // Stores the value that will be returned when glGetProgramiv(GL_LINK_STATUS)
+  // is called.
+  GLint link_status_;
 };
 
 }  // namespace gles

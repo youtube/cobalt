@@ -168,6 +168,39 @@ void Context::AttachShader(GLuint program, GLuint shader) {
   }
 }
 
+void Context::LinkProgram(GLuint program) {
+  nb::scoped_refptr<Program> program_object =
+      resource_manager_->GetProgram(program);
+  if (!program_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  program_object->Link();
+}
+
+void Context::BindAttribLocation(
+    GLuint program, GLuint index, const GLchar* name) {
+  if (index >= GL_MAX_VERTEX_ATTRIBS) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (name[0] == 'g' && name[1] == 'l' && name[2] == '_') {
+    // |name| is not allowed to begin with the reserved prefix, "gl_".
+    SetError(GL_INVALID_OPERATION);
+    return;
+  }
+  nb::scoped_refptr<Program> program_object =
+      resource_manager_->GetProgram(program);
+  if (!program_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  program_object->BindAttribLocation(index, name);
+}
+
 GLuint Context::CreateShader(GLenum type) {
   nb::scoped_ptr<ShaderImpl> shader_impl;
   if (type == GL_VERTEX_SHADER) {
