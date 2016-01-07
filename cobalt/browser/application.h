@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_APPLICATION_H_
-#define BROWSER_APPLICATION_H_
+#ifndef COBALT_BROWSER_APPLICATION_H_
+#define COBALT_BROWSER_APPLICATION_H_
 
 #include "base/callback.h"
 #include "base/message_loop.h"
@@ -60,6 +60,9 @@ class Application {
   // Called to handle a network event.
   void OnNetworkEvent(const base::Event* event);
 
+  // Called to handle an application event.
+  void OnApplicationEvent(const base::Event* event);
+
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
 
@@ -77,6 +80,7 @@ class Application {
   // Event callbacks.
   base::EventCallback account_event_callback_;
   base::EventCallback network_event_callback_;
+  base::EventCallback application_event_callback_;
 
 #if defined(ENABLE_WEBDRIVER)
   // WebDriver implementation with embedded HTTP server.
@@ -91,4 +95,4 @@ scoped_ptr<Application> CreateApplication();
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // BROWSER_APPLICATION_H_
+#endif  // COBALT_BROWSER_APPLICATION_H_

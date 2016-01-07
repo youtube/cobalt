@@ -16,46 +16,18 @@
 
 #include "cobalt/browser/application.h"
 
-#include "cobalt/system_window/application_event.h"
-
 namespace cobalt {
 namespace browser {
 
 class ApplicationWin : public Application {
  public:
-  ApplicationWin();
-  ~ApplicationWin() OVERRIDE;
-
-  void OnApplicationEvent(const base::Event* event);
-
- private:
-  base::EventCallback event_callback_;
+  ApplicationWin() {}
+  ~ApplicationWin() OVERRIDE {}
 };
 
 scoped_ptr<Application> CreateApplication() {
   return scoped_ptr<Application>(new ApplicationWin());
 }
-
-ApplicationWin::ApplicationWin() {
-  event_callback_ =
-      base::Bind(&ApplicationWin::OnApplicationEvent, base::Unretained(this));
-  event_dispatcher_.AddEventCallback(system_window::ApplicationEvent::TypeId(),
-                                     event_callback_);
-}
-
-ApplicationWin::~ApplicationWin() {
-  event_dispatcher_.RemoveEventCallback(
-      system_window::ApplicationEvent::TypeId(), event_callback_);
-}
-
-void ApplicationWin::OnApplicationEvent(const base::Event* event) {
-  const system_window::ApplicationEvent* application_event =
-      base::polymorphic_downcast<const system_window::ApplicationEvent*>(event);
-  if (application_event->type() == system_window::ApplicationEvent::kQuit) {
-    Quit();
-  }
-}
-
 
 }  // namespace browser
 }  // namespace cobalt

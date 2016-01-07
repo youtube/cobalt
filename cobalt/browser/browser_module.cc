@@ -161,7 +161,8 @@ BrowserModule::BrowserModule(const GURL& url,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           h5vcc_url_handler_(this, system_window, account_manager)),
       initial_url_(url),
-      web_module_options_(options.web_module_options) {
+      web_module_options_(options.web_module_options),
+      has_resumed_(true, false) {
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
@@ -279,6 +280,37 @@ void BrowserModule::NavigateWithCallbackInternal(
       math::Size(kInitialWidth, kInitialHeight),
       renderer_module_.pipeline()->GetResourceProvider(),
       renderer_module_.pipeline()->refresh_rate(), options));
+}
+
+void BrowserModule::SetPaused(bool paused) {
+  // This method should not be called on the browser's own thread, as
+  // we will be unable to signal the |has_resumed_| event when the
+  // |Pause| method blocks the thread.
+  DCHECK_NE(MessageLoop::current(), self_message_loop_);
+
+  if (paused) {
+    has_resumed_.Reset();
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::Pause, base::Unretained(this)));
+  } else {
+    has_resumed_.Signal();
+  }
+}
+
+void BrowserModule::Pause() {
+  // This method must be called on the browser's own thread.
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+
+  media_module_->PauseAllPlayers();
+
+  // Block the thread until the browser has been resumed.
+  DLOG(INFO) << "Pausing browser loop with " << self_message_loop_->Size()
+             << " items in queue.";
+  has_resumed_.Wait();
+  DLOG(INFO) << "Resuming browser loop with " << self_message_loop_->Size()
+             << " items in queue.";
+
+  media_module_->ResumeAllPlayers();
 }
 
 #if defined(ENABLE_SCREENSHOT)
