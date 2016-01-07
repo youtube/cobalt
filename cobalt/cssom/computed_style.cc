@@ -1571,7 +1571,7 @@ class ComputedShadowProvider : public NotReachedPropertyValueVisitor {
                          const RGBAColorValue* computed_color);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitShadow(ShadowValue* shadow_value) OVERRIDE;
+  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
 
   const scoped_refptr<PropertyValue>& computed_shadow() const {
     return computed_shadow_;
@@ -1646,21 +1646,34 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
   }
 }
 
-void ComputedShadowProvider::VisitShadow(ShadowValue* shadow_value) {
-  std::vector<scoped_refptr<LengthValue> > lengths;
-  for (size_t i = 0; i < shadow_value->lengths().size(); ++i) {
-    LengthValue* specified_length = base::polymorphic_downcast<LengthValue*>(
-        shadow_value->lengths()[i].get());
-    lengths.push_back(
-        ProvideAbsoluteLength(specified_length, computed_font_size_));
+void ComputedShadowProvider::VisitPropertyList(
+    PropertyListValue* property_list_value) {
+  scoped_ptr<PropertyListValue::Builder> builder(
+      new PropertyListValue::Builder());
+  builder->reserve(property_list_value->value().size());
+
+  for (size_t i = 0; i < property_list_value->value().size(); ++i) {
+    ShadowValue* shadow_value = base::polymorphic_downcast<ShadowValue*>(
+        property_list_value->value()[i].get());
+
+    std::vector<scoped_refptr<LengthValue> > lengths;
+    for (size_t j = 0; j < shadow_value->lengths().size(); ++j) {
+      LengthValue* specified_length = base::polymorphic_downcast<LengthValue*>(
+          shadow_value->lengths()[j].get());
+      lengths.push_back(
+          ProvideAbsoluteLength(specified_length, computed_font_size_));
+    }
+
+    scoped_refptr<RGBAColorValue> color = shadow_value->color();
+    if (!color) {
+      color = new RGBAColorValue(computed_color_->value());
+    }
+
+    builder->push_back(
+        new ShadowValue(lengths, color, shadow_value->has_inset()));
   }
 
-  scoped_refptr<RGBAColorValue> color = shadow_value->color();
-  if (!color) {
-    color = new RGBAColorValue(computed_color_->value());
-  }
-
-  computed_shadow_ = new ShadowValue(lengths, color, shadow_value->has_inset());
+  computed_shadow_ = new PropertyListValue(builder.Pass());
 }
 
 // Computed value: for length of translation transforms.
