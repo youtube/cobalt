@@ -37,7 +37,10 @@
 
 #include "gmock/internal/gmock-internal-utils.h"
 
+#if !GTEST_OS_STARBOARD
 #include <ctype.h>
+#endif  // !GTEST_OS_STARBOARD
+
 #include <ostream>  // NOLINT
 #include <string>
 #include "gmock/gmock.h"
