@@ -102,7 +102,14 @@ void GL_APIENTRY glColorMask(GLboolean red,
                              GLboolean blue,
                              GLboolean alpha) {}
 
-void GL_APIENTRY glCompileShader(GLuint shader) {}
+void GL_APIENTRY glCompileShader(GLuint shader) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->CompileShader(shader);
+}
 
 void GL_APIENTRY glCompressedTexImage2D(GLenum target,
                                         GLint level,
