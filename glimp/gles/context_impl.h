@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "glimp/egl/surface.h"
+#include "glimp/gles/buffer_impl.h"
 #include "glimp/gles/program_impl.h"
 #include "glimp/gles/shader_impl.h"
 #include "glimp/nb/scoped_ptr.h"
@@ -76,6 +77,11 @@ class ContextImpl {
   // platform-specific ShaderImpl object representing a fragment shader.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCreateShader.xml
   virtual nb::scoped_ptr<ShaderImpl> CreateFragmentShader() = 0;
+
+  // Called via glGenBuffers().  Must create a platform-specific BufferImpl
+  // object representing a buffer.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGenBuffers.xml
+  virtual nb::scoped_ptr<BufferImpl> CreateBuffer() = 0;
 
  private:
 };
