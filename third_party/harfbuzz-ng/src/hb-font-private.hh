@@ -31,10 +31,9 @@
 
 #include "hb-private.hh"
 
-#include "hb-font.h"
 #include "hb-object-private.hh"
+#include "hb-face-private.hh"
 #include "hb-shaper-private.hh"
-#include "hb-shape-plan-private.hh"
 
 
 
@@ -84,62 +83,6 @@ struct hb_font_funcs_t {
 };
 
 
-/*
- * hb_face_t
- */
-
-struct hb_face_t {
-  hb_object_header_t header;
-  ASSERT_POD ();
-
-  hb_bool_t immutable;
-
-  hb_reference_table_func_t  reference_table_func;
-  void                      *user_data;
-  hb_destroy_func_t          destroy;
-
-  unsigned int index;
-  mutable unsigned int upem;
-
-  struct hb_shaper_data_t shaper_data;
-
-  struct plan_node_t {
-    hb_shape_plan_t *shape_plan;
-    plan_node_t *next;
-  } *shape_plans;
-
-
-  inline hb_blob_t *reference_table (hb_tag_t tag) const
-  {
-    hb_blob_t *blob;
-
-    if (unlikely (!this || !reference_table_func))
-      return hb_blob_get_empty ();
-
-    blob = reference_table_func (/*XXX*/const_cast<hb_face_t *> (this), tag, user_data);
-    if (unlikely (!blob))
-      return hb_blob_get_empty ();
-
-    return blob;
-  }
-
-  inline unsigned int get_upem (void) const
-  {
-    if (unlikely (!upem))
-      load_upem ();
-    return upem;
-  }
-
-  private:
-  HB_INTERNAL void load_upem (void) const;
-};
-
-#define HB_SHAPER_DATA_CREATE_FUNC_EXTRA_ARGS
-#define HB_SHAPER_IMPLEMENT(shaper) HB_SHAPER_DATA_PROTOTYPE(shaper, face);
-#include "hb-shaper-list.hh"
-#undef HB_SHAPER_IMPLEMENT
-#undef HB_SHAPER_DATA_CREATE_FUNC_EXTRA_ARGS
-
 
 /*
  * hb_font_t
@@ -174,12 +117,12 @@ struct hb_font_t {
   /* Convert from parent-font user-space to our user-space */
   inline hb_position_t parent_scale_x_distance (hb_position_t v) {
     if (unlikely (parent && parent->x_scale != x_scale))
-      return v * (int64_t) this->x_scale / this->parent->x_scale;
+      return (hb_position_t) (v * (int64_t) this->x_scale / this->parent->x_scale);
     return v;
   }
   inline hb_position_t parent_scale_y_distance (hb_position_t v) {
     if (unlikely (parent && parent->y_scale != y_scale))
-      return v * (int64_t) this->y_scale / this->parent->y_scale;
+      return (hb_position_t) (v * (int64_t) this->y_scale / this->parent->y_scale);
     return v;
   }
   inline hb_position_t parent_scale_x_position (hb_position_t v) {
@@ -200,6 +143,12 @@ struct hb_font_t {
 
 
   /* Public getters */
+
+  inline hb_bool_t has_glyph (hb_codepoint_t unicode)
+  {
+    hb_codepoint_t glyph;
+    return get_glyph (unicode, 0, &glyph);
+  }
 
   inline hb_bool_t get_glyph (hb_codepoint_t unicode, hb_codepoint_t variation_selector,
 			      hb_codepoint_t *glyph)
@@ -249,10 +198,10 @@ struct hb_font_t {
 				       klass->user_data.glyph_h_kerning);
   }
 
-  inline hb_position_t get_glyph_v_kerning (hb_codepoint_t left_glyph, hb_codepoint_t right_glyph)
+  inline hb_position_t get_glyph_v_kerning (hb_codepoint_t top_glyph, hb_codepoint_t bottom_glyph)
   {
     return klass->get.glyph_v_kerning (this, user_data,
-				       left_glyph, right_glyph,
+				       top_glyph, bottom_glyph,
 				       klass->user_data.glyph_v_kerning);
   }
 
@@ -327,16 +276,21 @@ struct hb_font_t {
 					      hb_direction_t direction,
 					      hb_position_t *x, hb_position_t *y)
   {
-    if (likely (HB_DIRECTION_IS_HORIZONTAL (direction))) {
-      hb_bool_t ret = get_glyph_h_origin (glyph, x, y);
-      if (!ret && (ret = get_glyph_v_origin (glyph, x, y))) {
+    if (likely (HB_DIRECTION_IS_HORIZONTAL (direction)))
+    {
+      if (!get_glyph_h_origin (glyph, x, y) &&
+	   get_glyph_v_origin (glyph, x, y))
+      {
 	hb_position_t dx, dy;
 	guess_v_origin_minus_h_origin (glyph, &dx, &dy);
 	*x -= dx; *y -= dy;
       }
-    } else {
-      hb_bool_t ret = get_glyph_v_origin (glyph, x, y);
-      if (!ret && (ret = get_glyph_h_origin (glyph, x, y))) {
+    }
+    else
+    {
+      if (!get_glyph_v_origin (glyph, x, y) &&
+	   get_glyph_h_origin (glyph, x, y))
+      {
 	hb_position_t dx, dy;
 	guess_v_origin_minus_h_origin (glyph, &dx, &dy);
 	*x += dx; *y += dy;
@@ -412,7 +366,8 @@ struct hb_font_t {
   {
     if (get_glyph_name (glyph, s, size)) return;
 
-    snprintf (s, size, "gid%u", glyph);
+    if (size && snprintf (s, size, "gid%u", glyph) < 0)
+      *s = '\0';
   }
 
   /* Parses gidDDD and uniUUUU strings automatically. */
@@ -447,7 +402,7 @@ struct hb_font_t {
   }
 
   private:
-  inline hb_position_t em_scale (int16_t v, int scale) { return v * (int64_t) scale / hb_face_get_upem (this->face); }
+  inline hb_position_t em_scale (int16_t v, int scale) { return (hb_position_t) (v * (int64_t) scale / face->get_upem ()); }
 };
 
 #define HB_SHAPER_DATA_CREATE_FUNC_EXTRA_ARGS

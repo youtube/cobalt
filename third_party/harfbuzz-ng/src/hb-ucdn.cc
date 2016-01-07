@@ -49,7 +49,7 @@ static const hb_script_t ucdn_script_translate[] =
     HB_SCRIPT_HANGUL,
     HB_SCRIPT_ETHIOPIC,
     HB_SCRIPT_CHEROKEE,
-    HB_SCRIPT_CANADIAN_ABORIGINAL,
+    HB_SCRIPT_CANADIAN_SYLLABICS,
     HB_SCRIPT_OGHAM,
     HB_SCRIPT_RUNIC,
     HB_SCRIPT_KHMER,
@@ -125,61 +125,87 @@ static const hb_script_t ucdn_script_translate[] =
     HB_SCRIPT_SORA_SOMPENG,
     HB_SCRIPT_TAKRI,
     HB_SCRIPT_UNKNOWN,
+    HB_SCRIPT_BASSA_VAH,
+    HB_SCRIPT_CAUCASIAN_ALBANIAN,
+    HB_SCRIPT_DUPLOYAN,
+    HB_SCRIPT_ELBASAN,
+    HB_SCRIPT_GRANTHA,
+    HB_SCRIPT_KHOJKI,
+    HB_SCRIPT_KHUDAWADI,
+    HB_SCRIPT_LINEAR_A,
+    HB_SCRIPT_MAHAJANI,
+    HB_SCRIPT_MANICHAEAN,
+    HB_SCRIPT_MENDE_KIKAKUI,
+    HB_SCRIPT_MODI,
+    HB_SCRIPT_MRO,
+    HB_SCRIPT_NABATAEAN,
+    HB_SCRIPT_OLD_NORTH_ARABIAN,
+    HB_SCRIPT_OLD_PERMIC,
+    HB_SCRIPT_PAHAWH_HMONG,
+    HB_SCRIPT_PALMYRENE,
+    HB_SCRIPT_PAU_CIN_HAU,
+    HB_SCRIPT_PSALTER_PAHLAVI,
+    HB_SCRIPT_SIDDHAM,
+    HB_SCRIPT_TIRHUTA,
+    HB_SCRIPT_WARANG_CITI,
 };
 
 static hb_unicode_combining_class_t
 hb_ucdn_combining_class(hb_unicode_funcs_t *ufuncs, hb_codepoint_t unicode,
-        void *user_data)
+			void *user_data HB_UNUSED)
 {
     return (hb_unicode_combining_class_t) ucdn_get_combining_class(unicode);
 }
 
 static unsigned int
 hb_ucdn_eastasian_width(hb_unicode_funcs_t *ufuncs, hb_codepoint_t unicode,
-        void *user_data)
+			void *user_data HB_UNUSED)
 {
     int w = ucdn_get_east_asian_width(unicode);
     return (w == UCDN_EAST_ASIAN_F || w == UCDN_EAST_ASIAN_W) ? 2 : 1;
 }
 
 static hb_unicode_general_category_t
-hb_ucdn_general_category(hb_unicode_funcs_t *ufuncs,
-        hb_codepoint_t unicode, void *user_data)
+hb_ucdn_general_category(hb_unicode_funcs_t *ufuncs, hb_codepoint_t unicode,
+			 void *user_data HB_UNUSED)
 {
     return (hb_unicode_general_category_t)ucdn_get_general_category(unicode);
 }
 
 static hb_codepoint_t
 hb_ucdn_mirroring(hb_unicode_funcs_t *ufuncs, hb_codepoint_t unicode,
-        void *user_data)
+		  void *user_data HB_UNUSED)
 {
     return ucdn_mirror(unicode);
 }
 
 static hb_script_t
 hb_ucdn_script(hb_unicode_funcs_t *ufuncs, hb_codepoint_t unicode,
-        void *user_data)
+	       void *user_data HB_UNUSED)
 {
     return ucdn_script_translate[ucdn_get_script(unicode)];
 }
 
 static hb_bool_t
-hb_ucdn_compose(hb_unicode_funcs_t *ufuncs, hb_codepoint_t a,
-        hb_codepoint_t b, hb_codepoint_t *ab, void *user_data)
+hb_ucdn_compose(hb_unicode_funcs_t *ufuncs,
+		hb_codepoint_t a, hb_codepoint_t b, hb_codepoint_t *ab,
+		void *user_data HB_UNUSED)
 {
     return ucdn_compose(ab, a, b);
 }
 
 static hb_bool_t
-hb_ucdn_decompose(hb_unicode_funcs_t *ufuncs, hb_codepoint_t ab,
-        hb_codepoint_t *a, hb_codepoint_t *b, void *user_data)
+hb_ucdn_decompose(hb_unicode_funcs_t *ufuncs,
+		  hb_codepoint_t ab, hb_codepoint_t *a, hb_codepoint_t *b,
+		  void *user_data HB_UNUSED)
 {
     return ucdn_decompose(ab, a, b);
 }
 
 static unsigned int
-hb_ucdn_decompose_compatibility(hb_unicode_funcs_t *ufuncs, hb_codepoint_t u,
-        hb_codepoint_t *decomposed, void *user_data)
+hb_ucdn_decompose_compatibility(hb_unicode_funcs_t *ufuncs,
+				hb_codepoint_t u, hb_codepoint_t *decomposed,
+				void *user_data HB_UNUSED)
 {
     return ucdn_compat_decompose(u, decomposed);
 }
