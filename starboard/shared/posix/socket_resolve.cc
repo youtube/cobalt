@@ -90,6 +90,7 @@ SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
     }
   }
 
+  delete[] sock_addrs;
   freeaddrinfo(ai);
   return result;
 }
