@@ -41,12 +41,12 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
   virtual void OnClose(int conn_id) OVERRIDE;
 
   // Unused HttpServer::Delegate
-  virtual void OnWebSocketRequest(int connection_id,
-                                  const HttpServerRequestInfo& info) OVERRIDE {
-  }
+  virtual void OnWebSocketRequest(
+      int /*connection_id*/,
+      const HttpServerRequestInfo& /*info*/) OVERRIDE {}
 
-  virtual void OnWebSocketMessage(int connection_id,
-                                  const std::string& data) OVERRIDE { }
+  virtual void OnWebSocketMessage(int /*connection_id*/,
+                                  const std::string& /*data*/) OVERRIDE {}
 
   // Return the formatted application URL
   std::string application_url() const {
