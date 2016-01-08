@@ -23,9 +23,9 @@
       'target_name': 'starboard_all',
       'type': 'none',
       'dependencies': [
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
-        '<(DEPTH)/starboard/examples/examples.gyp:examples',
-        '<(DEPTH)/starboard/nplb/nplb.gyp:nplb',
+        '<(DEPTH)/starboard/starboard.gyp:*',
+        '<(DEPTH)/starboard/examples/examples.gyp:*',
+        '<(DEPTH)/starboard/nplb/nplb.gyp:*',
       ],
     },
   ],

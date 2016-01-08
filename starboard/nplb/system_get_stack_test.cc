@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/log.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -19,18 +20,16 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_IS(COMPILER_MSVC)
-#pragma optimize("", off)
-#elif SB_IS(COMPILER_GCC)
-#pragma GCC push_options
-#pragma GCC optimize("O0")
-#endif
-
-int GetStackWithAnExtraFrame(void** out_stack, int stack_size) {
+SB_C_NOINLINE int GetStackWithAnExtraFrame(void** out_stack, int stack_size) {
+  // This EXPECT_NE is just enough to avoid inlining with optimizations on.
+  // This may not be enough on other platforms, so we'll have to keep an eye on
+  // it.
+  void** const kNullVpp = NULL;
+  EXPECT_NE(kNullVpp, out_stack);
   return SbSystemGetStack(out_stack, stack_size);
 }
 
-void WowThatsADeepStack() {
+SB_C_NOINLINE void WowThatsADeepStack() {
   void* stack1[10] = {0};
   void* stack2[10] = {0};
   EXPECT_LT(0, SbSystemGetStack(stack1, SB_ARRAY_SIZE_INT(stack1)));
@@ -38,23 +37,12 @@ void WowThatsADeepStack() {
   EXPECT_EQ(stack1[3], stack2[4]);
 }
 
-void EvenDeeper() {
+TEST(SbSystemGetStackTest, SunnyDayStackDirection) {
+  // Make sure there are enough frames for us to look down the stack a ways,
+  // without assuming anything about how the test runner calls or compiles these
+  // tests.
   WowThatsADeepStack();
 }
-
-void Deeper() {
-  EvenDeeper();
-}
-
-void Deep() {
-  Deeper();
-}
-
-#if SB_IS(COMPILER_MSVC)
-#pragma optimize("", on)
-#elif SB_IS(COMPILER_GCC)
-#pragma GCC pop_options
-#endif
 
 TEST(SbSystemGetStackTest, SunnyDay) {
   // Ensure we have more entries than actual stack frames, to check that we have
@@ -87,13 +75,6 @@ TEST(SbSystemGetStackTest, SunnyDayNoStack) {
   int count = SbSystemGetStack(stack, 0);
   EXPECT_EQ(0, count);
   EXPECT_EQ(static_cast<void*>(NULL), stack[0]);
-}
-
-TEST(SbSystemGetStackTest, SunnyDayStackDirection) {
-  // Make sure there are enough frames for us to look down the stack a ways,
-  // without assuming anything about how the test runner calls or compiles these
-  // tests.
-  Deep();
 }
 
 }  // namespace

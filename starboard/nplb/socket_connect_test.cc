@@ -32,6 +32,7 @@ TEST(SbSocketConnectTest, RainyDayNullAddress) {
   SbSocket socket = CreateTcpIpv4Socket();
   EXPECT_TRUE(SbSocketIsValid(socket));
   EXPECT_EQ(kSbSocketErrorFailed, SbSocketConnect(socket, NULL));
+  EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
 TEST(SbSocketConnectTest, RainyDayNullNull) {

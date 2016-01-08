@@ -277,6 +277,7 @@ SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::RemoveWaitee(
     return NULL;
   }
 
+  Waitee* result = it->second;
   waitees_.erase(it);
-  return it->second;
+  return result;
 }
