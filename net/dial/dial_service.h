@@ -30,28 +30,24 @@
 
 namespace net {
 
+// DialService is part of an implementation of in-app DIAL.
+// It starts up a UDP server to be used to respond to SSDP discovery requests,
+// and an HTTP server to implement the DIAL commands.
+// Clients register their DialServiceHandlers in order to get called back
+// by the server when requests come in.
+// Each registered DialServiceHandler should have a unique service path.
 class NET_EXPORT DialService {
  public:
   DialService();
   ~DialService();
 
-  bool Register(DialServiceHandler* handler);
-  bool Deregister(DialServiceHandler* handler);
+  void Register(DialServiceHandler* handler);
+  void Deregister(DialServiceHandler* handler);
 
   DialServiceHandler* GetHandler(const std::string& service_name,
                                  std::string* remaining_handler);
 
-  bool is_running() const {
-    return is_running_;
-  }
-
   const std::string& http_host_address() const;
-
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy() const;
-
-  bool IsOnServiceThread() const {
-    return thread_ && thread_->message_loop_proxy()->BelongsToCurrentThread();
-  }
 
   // Expose the DialHttpServer for unit tests.
   scoped_refptr<net::DialHttpServer> http_server() const {
@@ -65,19 +61,12 @@ class NET_EXPORT DialService {
   // Called in DialService destructor.
   void Terminate();
 
-  // Called on the dial_service thread's message loop.
-  void OnInitialize();
-  void OnTerminate();
-  void OnRegister(DialServiceHandler*);
-  void OnDeregister(DialServiceHandler*);
-
-  scoped_ptr<base::Thread> thread_;
+  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
   scoped_refptr<net::DialHttpServer> http_server_;
   scoped_ptr<net::DialUdpServer> udp_server_;
   typedef std::map<std::string, DialServiceHandler*> ServiceHandlerMap;
   ServiceHandlerMap handlers_;
   std::string http_host_address_;
-  bool is_running_;
 
   DISALLOW_COPY_AND_ASSIGN(DialService);
 };
