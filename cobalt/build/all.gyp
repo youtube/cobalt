@@ -83,4 +83,33 @@
       ],
     },
   ],
+  'conditions': [
+    ['OS=="starboard"', {
+      'targets': [
+        {
+          # All working starboard targets, not including tests, for the
+          # QA and GOLD builds on the buildbot.
+          'target_name': 'starboard_working',
+          'type': 'none',
+          'dependencies': [
+            '<(DEPTH)/net/net.gyp:net',
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
+            '<(DEPTH)/starboard/examples/examples.gyp:*',
+          ],
+        },
+        {
+          # All working starboard targets, including tests, for the
+          # Debug and Devel builds on the buildbot.
+          'target_name': 'starboard_working_tests',
+          'type': 'none',
+          'dependencies': [
+            'starboard_working',
+            '<(DEPTH)/base/base.gyp:base_unittests',
+            '<(DEPTH)/net/net.gyp:net_unittests',
+            '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
+          ],
+        },
+      ],
+    }],
+  ],
 }
