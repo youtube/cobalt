@@ -40,7 +40,7 @@ uint32_t UniqueIdGenerator::AcquireId() {
 
 void UniqueIdGenerator::ReleaseId(uint32_t id) {
   SB_DCHECK(id <= largest_id_);
-  SB_DCHECK(std::find(reusable_ids_.begin(), reusable_ids_.end(), id) !=
+  SB_DCHECK(std::find(reusable_ids_.begin(), reusable_ids_.end(), id) ==
             reusable_ids_.end());
   reusable_ids_.push_back(id);
 }

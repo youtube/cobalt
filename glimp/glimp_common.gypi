@@ -41,6 +41,8 @@
     'gles/context.cc',
     'gles/context.h',
     'gles/context_impl.h',
+    'gles/pixel_format.cc',
+    'gles/pixel_format.h',
     'gles/program.cc',
     'gles/program.h',
     'gles/program_impl.h',
