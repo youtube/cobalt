@@ -111,6 +111,7 @@ TEST(SbThreadLocalValueTest, SunnyDayFreshlyCreatedValuesAreNull) {
 
   key = SbThreadCreateLocalKey(NULL);
   EXPECT_EQ(NULL, SbThreadGetLocalValue(key));
+  SbThreadDestroyLocalKey(key);
 }
 
 TEST(SbThreadLocalValueTest, SunnyDayMany) {
