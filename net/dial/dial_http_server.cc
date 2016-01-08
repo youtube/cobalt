@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "net/base/ip_endpoint.h"
@@ -60,7 +61,6 @@ DialHttpServer::~DialHttpServer() {
 }
 
 void DialHttpServer::Start() {
-  DCHECK(dial_service_->IsOnServiceThread());
   DCHECK(!http_server_);
   DCHECK(server_url_.empty());
 
@@ -70,7 +70,6 @@ void DialHttpServer::Start() {
 }
 
 void DialHttpServer::Stop() {
-  DCHECK(dial_service_->IsOnServiceThread());
   DCHECK(http_server_);
   DCHECK(!server_url_.empty());
 }
@@ -100,8 +99,7 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
 
 void DialHttpServer::OnHttpRequest(int conn_id,
                                    const HttpServerRequestInfo& info) {
-  DVLOG(1) << "Http Request: "
-           << info.method << " " << info.path << " HTTP/1.1";
+  TRACE_EVENT0("net::dial", "DialHttpServer::OnHttpRequest");
 
   if (info.method == "GET" && LowerCaseEqualsASCII(info.path, "/dd.xml")) {
     // If dd.xml request
@@ -167,8 +165,8 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
 bool DialHttpServer::DispatchToHandler(int conn_id,
                                        const HttpServerRequestInfo& info) {
   // See if DialService has a handler for this request.
-  // In Steel, that will be an instance of H5vccDialServiceHandlerImpl.
-  DCHECK(dial_service_->IsOnServiceThread());
+  TRACE_EVENT0("net::dial", __FUNCTION__);
+
   std::string handler_path;
   DialServiceHandler* handler =
       dial_service_->GetHandler(info.path, &handler_path);
@@ -176,19 +174,18 @@ bool DialHttpServer::DispatchToHandler(int conn_id,
     return false;
   }
 
-  VLOG(1) << "Dispatching request to DialServiceHandler: " << info.path;
-  bool ret = handler->handleRequest(handler_path, info,
-      base::Bind(&DialHttpServer::AsyncReceivedResponse, this, conn_id));
-  return ret;
+  handler->HandleRequest(
+      handler_path, info,
+      base::Bind(&DialHttpServer::OnReceivedResponse, this, conn_id));
+  return true;
 }
 
 void DialHttpServer::OnReceivedResponse(
     int conn_id,
     scoped_ptr<HttpServerResponseInfo> response,
     bool ok) {
+  TRACE_EVENT0("net::dial", __FUNCTION__);
   DCHECK(response);
-  DCHECK(dial_service_->IsOnServiceThread());
-
   if (!ok) {
     http_server_->Send404(conn_id);
   } else {
@@ -198,17 +195,6 @@ void DialHttpServer::OnReceivedResponse(
                        response->mime_type,
                        response->headers);
   }
-}
-
-void DialHttpServer::AsyncReceivedResponse(
-    int conn_id,
-    scoped_ptr<HttpServerResponseInfo> response,
-    bool ok) {
-  // Should be called from WebKit.
-  DCHECK(!dial_service_->IsOnServiceThread());
-  dial_service_->message_loop_proxy()->PostTask(FROM_HERE,
-      base::Bind(&DialHttpServer::OnReceivedResponse, this, conn_id,
-                 base::Passed(&response), ok));
 }
 
 }  // namespace net
