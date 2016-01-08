@@ -17,6 +17,7 @@
 #ifndef GLIMP_GLES_TEXTURE_IMPL_H_
 #define GLIMP_GLES_TEXTURE_IMPL_H_
 
+#include "glimp/gles/pixel_format.h"
 #include "glimp/gles/shader.h"
 #include "glimp/nb/ref_counted.h"
 
@@ -26,6 +27,17 @@ namespace gles {
 class TextureImpl {
  public:
   virtual ~TextureImpl() {}
+
+  // Internally allocates memory for a texture of the specified format, width
+  // and height, for the specified mimap level.  If pixels is not NULL, the
+  // pixel values contained are to be copied into the newly allocated texture
+  // data memory.  This method is called when glTexImage2D() is called.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
+  virtual void SetData(int level,
+                       PixelFormat pixel_format,
+                       int width,
+                       int height,
+                       const void* pixels) = 0;
 
  private:
 };

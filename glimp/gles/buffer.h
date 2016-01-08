@@ -34,7 +34,7 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
   void SetTarget(GLenum target);
 
   // Implements support for glBufferData() on this buffer object.
-  void BufferData(GLsizeiptr size, const GLvoid* data, GLenum usage);
+  void SetData(GLsizeiptr size, const GLvoid* data, GLenum usage);
 
   // Returns true if the target has been set (e.g. via glBindBuffer()).
   bool target_valid() const { return target_valid_; }
