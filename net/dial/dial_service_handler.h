@@ -29,23 +29,31 @@ namespace net {
 
 class HttpServerRequestInfo;
 
-class HttpServerResponseInfo {
- public:
+struct HttpServerResponseInfo {
   int response_code;
   std::string mime_type;
   std::string body;
   std::vector<std::string> headers;
 };
 
+// Abstract class that provides a response to a request from the dial server.
+// DialServiceHandlers should be Register()ed with a DialService object.
 class DialServiceHandler {
  public:
-  typedef base::Callback<void(scoped_ptr<HttpServerResponseInfo>, bool)>
-      CompletionCB;
+  typedef base::Callback<void(scoped_ptr<HttpServerResponseInfo> response,
+                              bool result)> CompletionCB;
   virtual ~DialServiceHandler() {}
-  virtual bool handleRequest(const std::string& path,
+  // Called by the DialHttpServer to satisfy an incoming request.
+  // It is expected that this will be handled asynchronously and the completion
+  // callback must be called in all cases. If the request is handled
+  // successfully, pass the response the server should send
+  // back and a |result| of true. If the request cannot be handled, pass a NULL
+  // |response| and a |result| of false.
+  virtual void HandleRequest(const std::string& path,
                              const HttpServerRequestInfo& request,
                              const CompletionCB& completion_cb) = 0;
-  virtual const std::string service_name() const  = 0;
+  // The name of the DIAL service this handler implements.
+  virtual const std::string& service_name() const = 0;
 };
 
 } // namespace net

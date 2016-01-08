@@ -14,20 +14,17 @@ namespace net {
 
 class MockServiceHandler : public DialServiceHandler {
  public:
-  MockServiceHandler(const std::string& service_name);
-  MOCK_METHOD3(handleRequest, bool(const std::string&,
-                              const HttpServerRequestInfo& request,
-                              const CompletionCB& completion_cb));
-    const std::string service_name() const OVERRIDE {
-    return service_name_;
-  }
+  MockServiceHandler(const std::string& service_name)
+      : service_name_(service_name) {}
+  MOCK_METHOD3(HandleRequest,
+               void(const std::string&,
+                    const HttpServerRequestInfo& request,
+                    const CompletionCB& completion_cb));
+  const std::string& service_name() const OVERRIDE { return service_name_; }
+
  private:
   std::string service_name_;
 };
-
-// Blocks the running thread until |message_loop| runs all previously posted
-// messages. Note: This has no guarantee on a DelayedTask.
-void WaitUntilIdle(base::MessageLoopProxy* message_loop);
 
 } // namespace net
 
