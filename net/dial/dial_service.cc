@@ -17,6 +17,7 @@
 #include "net/dial/dial_service.h"
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/string_piece.h"
 #include "base/stringprintf.h"
 #include "net/server/http_server_request_info.h"
@@ -28,68 +29,8 @@ namespace {
 const char* kUdpServerAgent = "Steel/2.0 UPnP/1.1";
 }  // namespace
 
-DialService::DialService()
-    : thread_(new base::Thread("dial_service"))
-    , http_server_(NULL)
-    , udp_server_(NULL)
-    , is_running_(false) {
-  base::Thread::Options thread_options(MessageLoop::TYPE_IO, 64 * 1024);
-  thread_->StartWithOptions(thread_options);
-  message_loop_proxy()->PostTask(FROM_HERE,
-      base::Bind(&DialService::OnInitialize, base::Unretained(this)));
-}
-
-DialService::~DialService() {
-  Terminate();
-}
-
-scoped_refptr<base::MessageLoopProxy> DialService::message_loop_proxy() const {
-  DCHECK(thread_->IsRunning());
-  return thread_->message_loop_proxy();
-}
-
-const std::string& DialService::http_host_address() const {
-    DCHECK_EQ(is_running(), true);
-    return http_host_address_;
-}
-
-void DialService::Terminate() {
-  DCHECK(!IsOnServiceThread());
-  if (!is_running_) {
-    return;
-  }
-  is_running_ = false;
-  message_loop_proxy()->PostTask(FROM_HERE,
-      base::Bind(&DialService::OnTerminate, base::Unretained(this)));
-
-  // Stop() will wait for all pending tasks.
-  thread_->Stop();
-  thread_.reset();
-}
-
-bool DialService::Register(DialServiceHandler* handler) {
-  DCHECK(!IsOnServiceThread());
-
-  message_loop_proxy()->PostTask(FROM_HERE,
-      base::Bind(&DialService::OnRegister, base::Unretained(this),
-                 base::Unretained(handler)));
-  return true;
-}
-
-bool DialService::Deregister(DialServiceHandler* handler) {
-  DCHECK(!IsOnServiceThread());
-
-  message_loop_proxy()->PostTask(FROM_HERE,
-      base::Bind(&DialService::OnDeregister, base::Unretained(this),
-                 base::Unretained(handler)));
-  return true;
-}
-
-void DialService::OnInitialize() {
-  DCHECK(IsOnServiceThread());
-  DCHECK_EQ(is_running_, false);
-  DCHECK(!http_server_.get());
-  DCHECK(!udp_server_.get());
+DialService::DialService() {
+  message_loop_proxy_ = base::MessageLoopProxy::current();
 
   http_server_ = new DialHttpServer(this);
   udp_server_.reset(new DialUdpServer(http_server_->location_url(),
@@ -101,17 +42,31 @@ void DialService::OnInitialize() {
   http_host_address_ = addr.ToString();
 
   DLOG(INFO) << "Dial Server is now running on " << http_host_address_;
-  is_running_ = true;
 }
 
-void DialService::OnTerminate() {
-  DCHECK(IsOnServiceThread());
+DialService::~DialService() {
+  Terminate();
+}
+
+const std::string& DialService::http_host_address() const {
+  return http_host_address_;
+}
+
+void DialService::Terminate() {
+  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
   http_server_ = NULL;
   udp_server_.reset();
 }
 
-void DialService::OnRegister(DialServiceHandler* handler) {
-  DCHECK(IsOnServiceThread());
+void DialService::Register(DialServiceHandler* handler) {
+  if (base::MessageLoopProxy::current() != message_loop_proxy_) {
+    message_loop_proxy_->PostTask(
+        FROM_HERE,
+        base::Bind(&DialService::Register, base::Unretained(this), handler));
+    return;
+  }
+
+  TRACE_EVENT0("net::dial", __FUNCTION__);
   DCHECK(handler);
   const std::string& path = handler->service_name();
   if (!path.empty()) {
@@ -119,10 +74,16 @@ void DialService::OnRegister(DialServiceHandler* handler) {
   }
 }
 
-void DialService::OnDeregister(DialServiceHandler* handler) {
-  DCHECK(IsOnServiceThread());
-  DCHECK(handler);
+void DialService::Deregister(DialServiceHandler* handler) {
+  if (base::MessageLoopProxy::current() != message_loop_proxy_) {
+    message_loop_proxy_->PostTask(
+        FROM_HERE,
+        base::Bind(&DialService::Deregister, base::Unretained(this), handler));
+    return;
+  }
 
+  TRACE_EVENT0("net::dial", __FUNCTION__);
+  DCHECK(handler);
   for (ServiceHandlerMap::iterator it = handlers_.begin();
       it != handlers_.end(); ++it) {
     if (it->second == handler) {
@@ -134,15 +95,20 @@ void DialService::OnDeregister(DialServiceHandler* handler) {
 
 DialServiceHandler* DialService::GetHandler(const std::string& request_path,
                                             std::string* handler_path) {
-  DCHECK(IsOnServiceThread());
+  // This function should only be called by DialHttpServer, to find a handler
+  // to respond to an incoming request.
+  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
   DCHECK(handler_path != NULL);
+  TRACE_EVENT0("net::dial", __FUNCTION__);
 
   VLOG(1) << "Requesting Handler for path: " << request_path;
   base::StringPiece path(request_path);
 
   // remove '/apps/'
   const base::StringPiece kUrlPrefix("/apps/");
-  if (!path.starts_with(kUrlPrefix)) return NULL;
+  if (!path.starts_with(kUrlPrefix)) {
+    return NULL;
+  }
   path = path.substr(kUrlPrefix.size());
 
   // find the next '/', and extract the portion in between.
