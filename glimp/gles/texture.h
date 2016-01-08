@@ -19,6 +19,7 @@
 
 #include <GLES3/gl3.h>
 
+#include "glimp/gles/pixel_format.h"
 #include "glimp/gles/texture_impl.h"
 #include "glimp/nb/ref_counted.h"
 #include "glimp/nb/scoped_ptr.h"
@@ -32,6 +33,13 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
 
   // Called when glBindTexture() is called.
   void SetTarget(GLenum target);
+
+  // Implements support for glTexImage2D().
+  void SetData(GLint level,
+               PixelFormat pixel_format,
+               GLsizei width,
+               GLsizei height,
+               const GLvoid* pixels);
 
   // Returns true if the target has been set (e.g. via glBindTexture()).
   bool target_valid() const { return target_valid_; }
@@ -55,6 +63,16 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
 
   // Represents whether or not target_ as been initialized yet.
   bool target_valid_;
+
+  // True if underlying texture data has been allocated yet or not (e.g.
+  // will be true after glTexImage2D() is called.)
+  bool texture_allocated_;
+
+  // The width and height of the texture, in pixels.
+  int width_;
+  int height_;
+
+  PixelFormat pixel_format_;
 };
 
 }  // namespace gles

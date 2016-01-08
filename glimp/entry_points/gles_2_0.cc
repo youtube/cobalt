@@ -543,7 +543,9 @@ void GL_APIENTRY glTexImage2D(GLenum target,
                              border, format, type, pixels);
 }
 
-void GL_APIENTRY glTexParameterf(GLenum target, GLenum pname, GLfloat param) {}
+void GL_APIENTRY glTexParameterf(GLenum target, GLenum pname, GLfloat param) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glTexParameterfv(GLenum target,
                                   GLenum pname,

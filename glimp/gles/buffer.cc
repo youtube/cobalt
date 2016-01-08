@@ -55,7 +55,7 @@ void Buffer::SetTarget(GLenum target) {
   target_valid_ = true;
 }
 
-void Buffer::BufferData(GLsizeiptr size, const GLvoid* data, GLenum usage) {
+void Buffer::SetData(GLsizeiptr size, const GLvoid* data, GLenum usage) {
   SB_DCHECK(target_valid());
   impl_->SetData(GLTargetEnumToTargetType(target_), GLUsageEnumToUsage(usage),
                  data, static_cast<size_t>(size));

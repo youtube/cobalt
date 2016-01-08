@@ -15,16 +15,31 @@
  */
 
 #include "glimp/gles/texture.h"
+#include "glimp/nb/pointer_arithmetic.h"
 
 namespace glimp {
 namespace gles {
 
 Texture::Texture(nb::scoped_ptr<TextureImpl> impl)
-    : impl_(impl.Pass()), target_valid_(false) {}
+    : impl_(impl.Pass()), target_valid_(false), texture_allocated_(false) {}
 
 void Texture::SetTarget(GLenum target) {
   target_ = target;
   target_valid_ = true;
+}
+
+void Texture::SetData(GLint level,
+                      PixelFormat pixel_format,
+                      GLsizei width,
+                      GLsizei height,
+                      const GLvoid* pixels) {
+  width_ = static_cast<int>(width);
+  height_ = static_cast<int>(height);
+  pixel_format_ = pixel_format;
+
+  impl_->SetData(level, pixel_format_, width_, height_, pixels);
+
+  texture_allocated_ = true;
 }
 
 }  // namespace gles

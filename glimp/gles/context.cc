@@ -20,6 +20,7 @@
 
 #include "glimp/egl/error.h"
 #include "glimp/egl/surface.h"
+#include "glimp/gles/pixel_format.h"
 #include "starboard/log.h"
 #include "starboard/once.h"
 
@@ -180,8 +181,9 @@ void Context::LinkProgram(GLuint program) {
   program_object->Link();
 }
 
-void Context::BindAttribLocation(
-    GLuint program, GLuint index, const GLchar* name) {
+void Context::BindAttribLocation(GLuint program,
+                                 GLuint index,
+                                 const GLchar* name) {
   if (index >= GL_MAX_VERTEX_ATTRIBS) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -364,7 +366,7 @@ void Context::BufferData(GLenum target,
     return;
   }
 
-  bound_buffer->BufferData(size, data, usage);
+  bound_buffer->SetData(size, data, usage);
 }
 
 void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
@@ -411,7 +413,7 @@ nb::scoped_refptr<Buffer>* Context::GetBoundBufferForTarget(GLenum target) {
 nb::scoped_refptr<Texture>* Context::GetBoundTextureForTarget(GLenum target) {
   switch (target) {
     case GL_TEXTURE_2D:
-      return &(samplers_[active_texture_].bound_texture);
+      return &(samplers_[active_texture_ - GL_TEXTURE0].bound_texture);
     case GL_TEXTURE_CUBE_MAP:
       SB_NOTREACHED() << "Currently unimplemented in glimp.";
       return NULL;
@@ -544,6 +546,35 @@ void Context::TexParameteri(GLenum target, GLenum pname, GLint param) {
   }
 }
 
+namespace {
+
+bool TextureFormatIsValid(GLenum format) {
+  switch (format) {
+    case GL_ALPHA:
+    case GL_RGB:
+    case GL_RGBA:
+    case GL_LUMINANCE:
+    case GL_LUMINANCE_ALPHA:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool TextureTypeIsValid(GLenum type) {
+  switch (type) {
+    case GL_UNSIGNED_BYTE:
+    case GL_UNSIGNED_SHORT_5_6_5:
+    case GL_UNSIGNED_SHORT_4_4_4_4:
+    case GL_UNSIGNED_SHORT_5_5_5_1:
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
 void Context::TexImage2D(GLenum target,
                          GLint level,
                          GLint internalformat,
@@ -553,8 +584,52 @@ void Context::TexImage2D(GLenum target,
                          GLenum format,
                          GLenum type,
                          const GLvoid* pixels) {
-  // TODO(***REMOVED***): Will implement in a future CL.
-  SB_NOTIMPLEMENTED();
+  if (target != GL_TEXTURE_2D) {
+    SB_NOTREACHED() << "Only target=GL_TEXTURE_2D is supported in glimp.";
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (level < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (border != 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (format != internalformat) {
+    SetError(GL_INVALID_OPERATION);
+    return;
+  }
+
+  if (!TextureFormatIsValid(format)) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (!TextureTypeIsValid(type)) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  // Fold format and type together to determine a single glimp PixelFormat value
+  // for the incoming data.
+  PixelFormat pixel_format = PixelFormatFromGLTypeAndFormat(format, type);
+  SB_DCHECK(pixel_format != kPixelFormatInvalid)
+      << "Pixel format not supported by glimp.";
+
+  nb::scoped_refptr<Texture> texture_object = *GetBoundTextureForTarget(target);
+  if (!texture_object) {
+    // According to the specification, no error is generated if no texture
+    // is bound.
+    //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
+    return;
+  }
+
+  texture_object->SetData(level, pixel_format, width, height, pixels);
 }
 
 }  // namespace gles
