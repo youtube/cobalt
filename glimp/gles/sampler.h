@@ -17,8 +17,6 @@
 #ifndef GLIMP_GLES_SAMPLER_H_
 #define GLIMP_GLES_SAMPLER_H_
 
-#include <GLES3/gl3.h>
-
 #include "glimp/gles/texture.h"
 #include "glimp/nb/ref_counted.h"
 
@@ -31,20 +29,41 @@ namespace gles {
 // used outside of OpenGL and more clearly disambiguates the function of
 // sampler objects and texture objects.
 struct Sampler {
+  enum MinFilter {
+    kMinFilterNearest,
+    kMinFilterLinear,
+    kMinFilterNearestMipMapNearest,
+    kMinFilterLinearMipMapNearest,
+    kMinFilterNearestMipMapLinear,
+    kMinFilterLinearMipMapLinear,
+    kMinFilterInvalid,
+  };
+  enum MagFilter {
+    kMagFilterNearest,
+    kMagFilterLinear,
+    kMagFilterInvalid,
+  };
+  enum WrapMode {
+    kWrapModeRepeat,
+    kWrapModeClampToEdge,
+    kWrapModeMirroredRepeat,
+    kWrapModeInvalid,
+  };
+
   // Initialize the sampler with default values defined by the GL ES
   // specification:
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexParameter.xml
   Sampler()
-      : mag_filter(GL_LINEAR),
-        min_filter(GL_NEAREST_MIPMAP_LINEAR),
-        wrap_s(GL_REPEAT),
-        wrap_t(GL_REPEAT) {}
+      : mag_filter(kMagFilterLinear),
+        min_filter(kMinFilterNearestMipMapLinear),
+        wrap_s(kWrapModeRepeat),
+        wrap_t(kWrapModeRepeat) {}
 
-  // Paremters that are modifiable via glTexParameter() functions.
-  int mag_filter;
-  int min_filter;
-  int wrap_s;
-  int wrap_t;
+  // Parameters that are modifiable via glTexParameter() functions.
+  MagFilter mag_filter;
+  MinFilter min_filter;
+  WrapMode wrap_s;
+  WrapMode wrap_t;
 
   // The currently bound 2D texture, set by calling
   // glBindTexture(GL_TEXTURE_2D) to affect the current sampler (e.g.

@@ -19,6 +19,9 @@
 
 #include <GLES3/gl3.h>
 
+#include <map>
+#include <string>
+
 #include "glimp/gles/program_impl.h"
 #include "glimp/gles/shader.h"
 #include "glimp/nb/ref_counted.h"
@@ -44,7 +47,11 @@ class Program : public nb::RefCountedThreadSafe<Program> {
 
   void BindAttribLocation(GLuint index, const GLchar* name);
 
+  ProgramImpl* impl() { return impl_.get(); }
+  const ProgramImpl* impl() const { return impl_.get(); }
+
  private:
+  typedef std::map<unsigned int, std::string> BoundAttributes;
   friend class nb::RefCountedThreadSafe<Program>;
   ~Program() {}
 
@@ -53,9 +60,18 @@ class Program : public nb::RefCountedThreadSafe<Program> {
   nb::scoped_refptr<Shader> vertex_shader_;
   nb::scoped_refptr<Shader> fragment_shader_;
 
+  // We explicitly reference the last-linked vertex and fragment shaders to
+  // ensure that they stay valid as long as they're linked.
+  nb::scoped_refptr<Shader> linked_vertex_shader_;
+  nb::scoped_refptr<Shader> linked_fragment_shader_;
+
   // Stores the value that will be returned when glGetProgramiv(GL_LINK_STATUS)
   // is called.
   GLint link_status_;
+
+  // Constructed by glBindAttribLocation(), this maps generic vertex attribute
+  // indices to attribute names, and applies when and after a program is linked.
+  BoundAttributes bound_attrib_locations_;
 };
 
 }  // namespace gles
