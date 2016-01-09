@@ -51,6 +51,9 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
     return target_;
   }
 
+  TextureImpl* impl() { return impl_.get(); }
+  const TextureImpl* impl() const { return impl_.get(); }
+
  private:
   friend class nb::RefCountedThreadSafe<Texture>;
   ~Texture() {}
