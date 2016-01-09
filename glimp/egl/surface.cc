@@ -25,15 +25,23 @@ namespace egl {
 Surface::Surface(nb::scoped_ptr<SurfaceImpl> surface_impl)
     : surface_impl_(surface_impl.Pass()) {}
 
+int Surface::GetWidth() const {
+  return surface_impl_->GetWidth();
+}
+
+int Surface::GetHeight() const {
+  return surface_impl_->GetHeight();
+}
+
 EGLBoolean Surface::QuerySurface(EGLint attribute, EGLint* value) {
   switch (attribute) {
     case EGL_HEIGHT: {
-      *value = surface_impl_->GetHeight();
+      *value = GetHeight();
       return true;
     }
 
     case EGL_WIDTH: {
-      *value = surface_impl_->GetWidth();
+      *value = GetWidth();
       return true;
     }
 

@@ -50,15 +50,29 @@ void Program::Link() {
 
   if (impl_->Link(vertex_shader_, fragment_shader_)) {
     link_status_ = GL_TRUE;
+
+    linked_vertex_shader_ = vertex_shader_;
+    linked_fragment_shader_ = fragment_shader_;
+
+    // Re-issue any binding attributes that are defined for this program.
+    for (BoundAttributes::const_iterator iter = bound_attrib_locations_.begin();
+         iter != bound_attrib_locations_.end(); ++iter) {
+      impl_->BindAttribLocation(iter->first, iter->second.c_str());
+    }
   } else {
     link_status_ = GL_FALSE;
   }
 }
 
 void Program::BindAttribLocation(GLuint index, const GLchar* name) {
-  // TODO(***REMOVED***): Will come back to this later when the implementation can be
-  //               be more easily verified.
-  SB_NOTIMPLEMENTED();
+  bound_attrib_locations_[index] = std::string(name);
+
+  if (link_status() == GL_TRUE) {
+    // If we are linked, then immediately pass this new binding information
+    // on to the platform-specific implementation.  Otherwise, this information
+    // will all be communicated upon linking.
+    impl_->BindAttribLocation(index, name);
+  }
 }
 
 }  // namespace gles

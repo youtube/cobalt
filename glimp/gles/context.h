@@ -19,12 +19,16 @@
 
 #include <GLES3/gl3.h>
 
+#include <map>
+#include <set>
 #include <string>
+#include <utility>
 
 #include "glimp/egl/surface.h"
 #include "glimp/gles/context_impl.h"
 #include "glimp/gles/resource_manager.h"
 #include "glimp/gles/sampler.h"
+#include "glimp/gles/vertex_attribute.h"
 #include "glimp/nb/ref_counted.h"
 #include "glimp/nb/scoped_ptr.h"
 #include "starboard/thread.h"
@@ -63,6 +67,7 @@ class Context {
   void AttachShader(GLuint program, GLuint shader);
   void LinkProgram(GLuint program);
   void BindAttribLocation(GLuint program, GLuint index, const GLchar* name);
+  void UseProgram(GLuint program);
 
   GLuint CreateShader(GLenum type);
   void DeleteShader(GLuint shader);
@@ -94,6 +99,22 @@ class Context {
                   GLenum format,
                   GLenum type,
                   const GLvoid* pixels);
+
+  void Viewport(GLint x, GLint y, GLsizei width, GLsizei height);
+  void Scissor(GLint x, GLint y, GLsizei width, GLsizei height);
+
+  void VertexAttribPointer(GLuint indx,
+                           GLint size,
+                           GLenum type,
+                           GLboolean normalized,
+                           GLsizei stride,
+                           const GLvoid* ptr);
+  void EnableVertexAttribArray(GLuint index);
+  void DisableVertexAttribArray(GLuint index);
+
+  void DrawArrays(GLenum mode, GLint first, GLsizei count);
+
+  void Flush();
 
  private:
   static const int kMaxActiveTextures = 8;
@@ -133,12 +154,35 @@ class Context {
   // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER).
   nb::scoped_refptr<Buffer> bound_element_array_buffer_;
 
+  // The currently in-use Program object, set by a call to glUseProgram().
+  nb::scoped_refptr<Program> in_use_program_;
+
   // Sets the active texture, which can be thought of more intuitively as
   // the active "sampler".  Set using glActiveTexture().
   GLenum active_texture_;
 
   // The set of sampler units, of which |active_texture_| indexes.
   Sampler samplers_[kMaxActiveTextures];
+
+  // A mapping from an integer index (specified by the index parameter of
+  // glBindAttribLocation(), glVertexAttribPointer(), and others) to vertex
+  // attribute information structure.
+  std::map<unsigned int, VertexAttribute> vertex_attrib_map_;
+
+  // Keeps track of which vertex attributes are enabled.  This set is modified
+  // through calls to glEnableVertexAttribArray() and
+  // glDisableVertexAttribArray().
+  std::set<unsigned int> enabled_vertex_attribs_;
+
+  // This vector maintains the set of enabled vertex attributes, and is passed
+  // into the ContextImpl object on draw calls.  It is a dense set of only the
+  // enabled vertex attributes.
+  ContextImpl::EnabledVertexAttributeList draw_vertex_attribs_;
+
+  // This vector maintains the set of enabled sampler objects, and is passed
+  // into the ContextImpl object on draw calls.  It is a dense set of only the
+  // enabled sampler units.
+  ContextImpl::EnabledSamplerList draw_samplers_;
 
   // The last GL ES error raised.
   GLenum error_;
