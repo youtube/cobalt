@@ -86,7 +86,8 @@ TEST(ToolsSanityTest, MemoryLeak) {
   leak[4] = 1;  // Make sure the allocated memory is used.
 }
 
-#if defined(ADDRESS_SANITIZER) && (defined(OS_IOS) || defined(__LB_SHELL__))
+#if defined(ADDRESS_SANITIZER) && \
+  (defined(OS_IOS) || defined(__LB_SHELL__) || defined(OS_STARBOARD))
 // Because iOS doesn't support death tests, each of the following tests will
 // crash the whole program under ASan.
 #define MAYBE_AccessesToNewMemory DISABLED_AccessesToNewMemory
