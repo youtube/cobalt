@@ -32,6 +32,9 @@ class Surface {
  public:
   explicit Surface(nb::scoped_ptr<SurfaceImpl> surface_impl);
 
+  int GetWidth() const;
+  int GetHeight() const;
+
   EGLBoolean QuerySurface(EGLint attribute, EGLint* value);
 
   SurfaceImpl* impl() { return surface_impl_.get(); }

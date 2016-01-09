@@ -46,6 +46,9 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
     return target_;
   }
 
+  BufferImpl* impl() { return impl_.get(); }
+  const BufferImpl* impl() const { return impl_.get(); }
+
  private:
   friend class nb::RefCountedThreadSafe<Buffer>;
   ~Buffer() {}
