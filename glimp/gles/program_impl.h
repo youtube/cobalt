@@ -29,9 +29,21 @@ class ProgramImpl {
 
   // Ultimately called by glLinkProgram(), this marks the end of the program's
   // setup phase and the beginning of the program's ability to be used.
+  // Upon successful linking, BindAttribLocation() will be called for each
+  // existing attribute binding, so any exiting bindings should be cleared
+  // within Link().
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glLinkProgram.xml
   virtual bool Link(const nb::scoped_refptr<Shader>& vertex_shader,
                     const nb::scoped_refptr<Shader>& fragment_shader) = 0;
+
+  // Binds the attribute with the specified |name| to the specified index.
+  // Implementations can take this opportunity to resolve |name| to a
+  // platform-specific attribute identifier so that a by-name lookup does not
+  // need to occur when a draw command is issued.  This function will only
+  // be called after Link() is called.  If a re-link is performed, this command
+  // is re-issued by Program for all existing bindings.
+  // Returns true on success and false if the attribute name could not be found.
+  virtual bool BindAttribLocation(unsigned int index, const char* name) = 0;
 
  private:
 };

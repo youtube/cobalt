@@ -20,13 +20,19 @@
 #include <GLES3/gl3.h>
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "glimp/egl/surface.h"
+#include "glimp/gles/buffer.h"
 #include "glimp/gles/buffer_impl.h"
+#include "glimp/gles/draw_mode.h"
+#include "glimp/gles/program.h"
 #include "glimp/gles/program_impl.h"
+#include "glimp/gles/sampler.h"
 #include "glimp/gles/shader_impl.h"
 #include "glimp/gles/texture_impl.h"
+#include "glimp/gles/vertex_attribute.h"
 #include "glimp/nb/scoped_ptr.h"
 
 namespace glimp {
@@ -39,7 +45,18 @@ namespace gles {
 // such as textures or shaders.
 class ContextImpl {
  public:
+  // Type returned from GetExtensions() in response to
+  // glGetString(GL_EXTENSIONS).
   typedef std::vector<std::string> ExtensionList;
+
+  // Types passed in as parameters to draw calls (like DrawArrays()) to
+  // describe the set of only enabled vertex attributes.
+  typedef std::vector<std::pair<unsigned int, VertexAttribute*> >
+      EnabledVertexAttributeList;
+
+  // Similar to EnabledVertexAttributeList, but lists only samplers with
+  // textures bound to them.
+  typedef std::vector<std::pair<unsigned int, Sampler*> > EnabledSamplerList;
 
   virtual ~ContextImpl() {}
 
@@ -88,6 +105,26 @@ class ContextImpl {
   // object representing a texture.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGenTextures.xml
   virtual nb::scoped_ptr<TextureImpl> CreateTexture() = 0;
+
+  // Called when glFlush() is called.  After this method is called, client
+  // code may assume that all previously issued graphics commands will
+  // eventually be executed by the GPU.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glFlush.xml
+  virtual void Flush() = 0;
+
+  // Called when glDrawArrays() is called.  This method must generate GPU
+  // commands to render the passed in |vertex_buffer| whose structure is defined
+  // by |attributes|.  The vertex program |program| should be used to render
+  // the vertices, and |samplers| defines the set of textures to be bound for
+  // the draw call.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glDrawArrays.xml
+  virtual void DrawArrays(DrawMode mode,
+                          int first_vertex,
+                          int num_vertices,
+                          const Program& program,
+                          const Buffer& vertex_buffer,
+                          const EnabledVertexAttributeList& attributes,
+                          const EnabledSamplerList& samplers) = 0;
 
  private:
 };

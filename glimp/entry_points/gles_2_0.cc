@@ -254,9 +254,23 @@ void GL_APIENTRY glDetachShader(GLuint program, GLuint shader) {}
 
 void GL_APIENTRY glDisable(GLenum cap) {}
 
-void GL_APIENTRY glDisableVertexAttribArray(GLuint index) {}
+void GL_APIENTRY glDisableVertexAttribArray(GLuint index) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
 
-void GL_APIENTRY glDrawArrays(GLenum mode, GLint first, GLsizei count) {}
+  return context->DisableVertexAttribArray(index);
+}
+
+void GL_APIENTRY glDrawArrays(GLenum mode, GLint first, GLsizei count) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->DrawArrays(mode, first, count);
+}
 
 void GL_APIENTRY glDrawElements(GLenum mode,
                                 GLsizei count,
@@ -265,11 +279,25 @@ void GL_APIENTRY glDrawElements(GLenum mode,
 
 void GL_APIENTRY glEnable(GLenum cap) {}
 
-void GL_APIENTRY glEnableVertexAttribArray(GLuint index) {}
+void GL_APIENTRY glEnableVertexAttribArray(GLuint index) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->EnableVertexAttribArray(index);
+}
 
 void GL_APIENTRY glFinish(void) {}
 
-void GL_APIENTRY glFlush(void) {}
+void GL_APIENTRY glFlush(void) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->Flush();
+}
 
 void GL_APIENTRY glFramebufferRenderbuffer(GLenum target,
                                            GLenum attachment,
@@ -487,7 +515,14 @@ void GL_APIENTRY glRenderbufferStorage(GLenum target,
 
 void GL_APIENTRY glSampleCoverage(GLfloat value, GLboolean invert) {}
 
-void GL_APIENTRY glScissor(GLint x, GLint y, GLsizei width, GLsizei height) {}
+void GL_APIENTRY glScissor(GLint x, GLint y, GLsizei width, GLsizei height) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->Scissor(x, y, width, height);
+}
 
 void GL_APIENTRY glShaderBinary(GLsizei n,
                                 const GLuint* shaders,
@@ -627,7 +662,14 @@ void GL_APIENTRY glUniformMatrix4fv(GLint location,
                                     GLboolean transpose,
                                     const GLfloat* value) {}
 
-void GL_APIENTRY glUseProgram(GLuint program) {}
+void GL_APIENTRY glUseProgram(GLuint program) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->UseProgram(program);
+}
 
 void GL_APIENTRY glValidateProgram(GLuint program) {}
 
@@ -656,8 +698,23 @@ void GL_APIENTRY glVertexAttribPointer(GLuint indx,
                                        GLenum type,
                                        GLboolean normalized,
                                        GLsizei stride,
-                                       const GLvoid* ptr) {}
+                                       const GLvoid* ptr) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
 
-void GL_APIENTRY glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {}
+  return context->VertexAttribPointer(indx, size, type, normalized, stride,
+                                      ptr);
+}
+
+void GL_APIENTRY glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->Viewport(x, y, width, height);
+}
 
 }  // extern "C"

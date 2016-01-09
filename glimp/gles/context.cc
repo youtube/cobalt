@@ -20,6 +20,7 @@
 
 #include "glimp/egl/error.h"
 #include "glimp/egl/surface.h"
+#include "glimp/gles/draw_mode.h"
 #include "glimp/gles/pixel_format.h"
 #include "starboard/log.h"
 #include "starboard/once.h"
@@ -202,6 +203,28 @@ void Context::BindAttribLocation(GLuint program,
   }
 
   program_object->BindAttribLocation(index, name);
+}
+
+void Context::UseProgram(GLuint program) {
+  if (program == 0) {
+    in_use_program_ = NULL;
+    return;
+  }
+
+  nb::scoped_refptr<Program> program_object =
+      resource_manager_->GetProgram(program);
+  if (!program_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (program_object->link_status() != GL_TRUE) {
+    // Only linked programs can be used.
+    SetError(GL_INVALID_OPERATION);
+    return;
+  }
+
+  in_use_program_ = program_object;
 }
 
 GLuint Context::CreateShader(GLenum type) {
@@ -523,26 +546,91 @@ void Context::BindTexture(GLenum target, GLuint texture) {
   *GetBoundTextureForTarget(target) = texture_object;
 }
 
+namespace {
+Sampler::MinFilter MinFilterFromGLEnum(GLenum min_filter) {
+  switch (min_filter) {
+    case GL_NEAREST:
+      return Sampler::kMinFilterNearest;
+    case GL_LINEAR:
+      return Sampler::kMinFilterLinear;
+    case GL_NEAREST_MIPMAP_NEAREST:
+      return Sampler::kMinFilterNearestMipMapNearest;
+    case GL_NEAREST_MIPMAP_LINEAR:
+      return Sampler::kMinFilterNearestMipMapLinear;
+    case GL_LINEAR_MIPMAP_NEAREST:
+      return Sampler::kMinFilterLinearMipMapNearest;
+    case GL_LINEAR_MIPMAP_LINEAR:
+      return Sampler::kMinFilterLinearMipMapLinear;
+    default:
+      return Sampler::kMinFilterInvalid;
+  }
+}
+
+Sampler::MagFilter MagFilterFromGLEnum(GLenum mag_filter) {
+  switch (mag_filter) {
+    case GL_NEAREST:
+      return Sampler::kMagFilterNearest;
+    case GL_LINEAR:
+      return Sampler::kMagFilterLinear;
+    default:
+      return Sampler::kMagFilterInvalid;
+  }
+}
+
+Sampler::WrapMode WrapModeFromGLEnum(GLenum wrap_mode) {
+  switch (wrap_mode) {
+    case GL_CLAMP_TO_EDGE:
+      return Sampler::kWrapModeClampToEdge;
+    case GL_MIRRORED_REPEAT:
+      return Sampler::kWrapModeMirroredRepeat;
+    case GL_REPEAT:
+      return Sampler::kWrapModeRepeat;
+    default:
+      return Sampler::kWrapModeInvalid;
+  }
+}
+}  // namespace
+
 void Context::TexParameteri(GLenum target, GLenum pname, GLint param) {
   Sampler* active_sampler = &samplers_[active_texture_];
 
   switch (pname) {
-    case GL_TEXTURE_MAG_FILTER:
-      active_sampler->mag_filter = param;
-      break;
-    case GL_TEXTURE_MIN_FILTER:
-      active_sampler->min_filter = param;
-      break;
+    case GL_TEXTURE_MAG_FILTER: {
+      Sampler::MagFilter mag_filter = MagFilterFromGLEnum(param);
+      if (mag_filter == Sampler::kMagFilterInvalid) {
+        SetError(GL_INVALID_ENUM);
+        return;
+      }
+      active_sampler->mag_filter = mag_filter;
+    } break;
+    case GL_TEXTURE_MIN_FILTER: {
+      Sampler::MinFilter min_filter = MinFilterFromGLEnum(param);
+      if (min_filter == Sampler::kMinFilterInvalid) {
+        SetError(GL_INVALID_ENUM);
+        return;
+      }
+      active_sampler->min_filter = min_filter;
+    } break;
     case GL_TEXTURE_WRAP_S:
-      active_sampler->wrap_s = param;
-      break;
-    case GL_TEXTURE_WRAP_T:
-      active_sampler->wrap_t = param;
-      break;
+    case GL_TEXTURE_WRAP_T: {
+      Sampler::WrapMode wrap_mode = WrapModeFromGLEnum(param);
+      if (wrap_mode == Sampler::kWrapModeInvalid) {
+        SetError(GL_INVALID_ENUM);
+        return;
+      }
 
-    default:
+      if (pname == GL_TEXTURE_WRAP_S) {
+        active_sampler->wrap_s = wrap_mode;
+      } else {
+        SB_DCHECK(pname == GL_TEXTURE_WRAP_T);
+        active_sampler->wrap_t = wrap_mode;
+      }
+    } break;
+
+    default: {
       SetError(GL_INVALID_ENUM);
       return;
+    }
   }
 }
 
@@ -615,8 +703,8 @@ void Context::TexImage2D(GLenum target,
     return;
   }
 
-  // Fold format and type together to determine a single glimp PixelFormat value
-  // for the incoming data.
+  // Fold format and type together to determine a single glimp PixelFormat
+  // value for the incoming data.
   PixelFormat pixel_format = PixelFormatFromGLTypeAndFormat(format, type);
   SB_DCHECK(pixel_format != kPixelFormatInvalid)
       << "Pixel format not supported by glimp.";
@@ -630,6 +718,154 @@ void Context::TexImage2D(GLenum target,
   }
 
   texture_object->SetData(level, pixel_format, width, height, pixels);
+}
+
+void Context::Viewport(GLint x, GLint y, GLsizei width, GLsizei height) {
+  impl_->SetViewport(x, y, width, height);
+}
+
+void Context::Scissor(GLint x, GLint y, GLsizei width, GLsizei height) {
+  impl_->SetScissor(x, y, width, height);
+}
+
+namespace {
+// Converts from the GLenum passed into glVertexAttribPointer() to the enum
+// defined in VertexAttribute.
+static VertexAttribute::Type VertexAttributeTypeFromGLEnum(GLenum type) {
+  switch (type) {
+    case GL_BYTE:
+      return VertexAttribute::kTypeByte;
+    case GL_UNSIGNED_BYTE:
+      return VertexAttribute::kTypeUnsignedByte;
+    case GL_SHORT:
+      return VertexAttribute::kTypeShort;
+    case GL_UNSIGNED_SHORT:
+      return VertexAttribute::kTypeUnsignedShort;
+    case GL_FIXED:
+      return VertexAttribute::kTypeFixed;
+    case GL_FLOAT:
+      return VertexAttribute::kTypeFloat;
+    default:
+      return VertexAttribute::kTypeInvalid;
+  }
+}
+}  // namespace
+
+void Context::VertexAttribPointer(GLuint indx,
+                                  GLint size,
+                                  GLenum type,
+                                  GLboolean normalized,
+                                  GLsizei stride,
+                                  const GLvoid* ptr) {
+  if (indx >= GL_MAX_VERTEX_ATTRIBS) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+  if (size < 1 || size > 4) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+  if (stride < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  VertexAttribute::Type vertex_attribute_type =
+      VertexAttributeTypeFromGLEnum(type);
+  if (vertex_attribute_type == VertexAttribute::kTypeInvalid) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  vertex_attrib_map_[indx] =
+      VertexAttribute(size, vertex_attribute_type, normalized, stride,
+                      reinterpret_cast<int>(ptr));
+}
+
+void Context::EnableVertexAttribArray(GLuint index) {
+  if (index >= GL_MAX_VERTEX_ATTRIBS) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  enabled_vertex_attribs_.insert(index);
+}
+
+void Context::DisableVertexAttribArray(GLuint index) {
+  if (index >= GL_MAX_VERTEX_ATTRIBS) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  enabled_vertex_attribs_.erase(index);
+}
+
+namespace {
+DrawMode DrawModeFromGLEnum(GLenum mode) {
+  switch (mode) {
+    case GL_POINTS:
+      return kDrawModePoints;
+    case GL_LINE_STRIP:
+      return kDrawModeLineStrip;
+    case GL_LINE_LOOP:
+      return kDrawModeLineLoop;
+    case GL_LINES:
+      return kDrawModeLines;
+    case GL_TRIANGLE_STRIP:
+      return kDrawModeTriangleStrip;
+    case GL_TRIANGLE_FAN:
+      return kDrawModeTriangleFan;
+    case GL_TRIANGLES:
+      return kDrawModeTriangles;
+    default:
+      return kDrawModeInvalid;
+  }
+}
+}  // namespace
+
+void Context::DrawArrays(GLenum mode, GLint first, GLsizei count) {
+  if (count < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  DrawMode draw_mode = DrawModeFromGLEnum(mode);
+  if (draw_mode == kDrawModeInvalid) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  SB_DCHECK(bound_array_buffer_)
+      << "glimp only supports drawing from vertex buffers.";
+
+  // Setup the list of enabled vertex attributes.
+  draw_vertex_attribs_.clear();
+  for (std::set<unsigned int>::const_iterator iter =
+           enabled_vertex_attribs_.begin();
+       iter != enabled_vertex_attribs_.end(); ++iter) {
+    draw_vertex_attribs_.push_back(
+        std::make_pair(*iter, &vertex_attrib_map_[*iter]));
+  }
+
+  // Setup the list of enabled samplers.
+  draw_samplers_.clear();
+  for (int i = 0; i < kMaxActiveTextures; ++i) {
+    if (samplers_[i].bound_texture) {
+      draw_samplers_.push_back(
+          std::make_pair(static_cast<unsigned int>(i), &samplers_[i]));
+    }
+  }
+
+  // TODO(***REMOVED***): Consider tracking graphics state dirtiness and passing in
+  //               those flags to the implementation so that it can know if
+  //               it doesn't need to do anything.
+  //               b/26491218
+  impl_->DrawArrays(draw_mode, first, count, *in_use_program_,
+                    *bound_array_buffer_, draw_vertex_attribs_, draw_samplers_);
+}
+
+void Context::Flush() {
+  impl_->Flush();
 }
 
 }  // namespace gles
