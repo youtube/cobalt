@@ -128,9 +128,13 @@ static int errno = 0; /* Use something better? */
 #    define getenv(Name) NULL
 #  endif
 #  if (defined(__WIN32__) && !defined(__WINE__)) || defined(_MSC_VER)
-#    define snprintf _snprintf
+#    ifndef snprintf
+#      define snprintf _snprintf
+#    endif
      /* Windows CE only has _strdup, while rest of Windows has both. */
-#    define strdup _strdup
+#    ifndef strdup
+#      define strdup _strdup
+#    endif
 #  endif
 #endif
 
