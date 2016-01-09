@@ -68,9 +68,12 @@ TEST_F(FileStreamTest, BasicOpenClose) {
     file = stream.GetPlatformFileForTesting();
   }
   EXPECT_NE(base::kInvalidPlatformFileValue, file);
+#if !defined(OS_STARBOARD) // This is an invalid test. File handles may be
+                           // reused.
   base::PlatformFileInfo info;
   // The file should be closed.
   EXPECT_FALSE(base::GetPlatformFileInfo(file, &info));
+#endif
 }
 
 TEST_F(FileStreamTest, FileHandleNotLeftOpen) {
@@ -88,9 +91,12 @@ TEST_F(FileStreamTest, FileHandleNotLeftOpen) {
   }
 
   EXPECT_NE(base::kInvalidPlatformFileValue, file);
+#if !defined(OS_STARBOARD) // This is an invalid test. File handles may be
+                           // reused.
   base::PlatformFileInfo info;
   // The file should be closed.
   EXPECT_FALSE(base::GetPlatformFileInfo(file, &info));
+#endif
 }
 
 // Test the use of FileStream with a file handle provided at construction.
