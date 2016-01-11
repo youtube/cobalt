@@ -161,6 +161,34 @@ void Context::GetIntegerv(GLenum pname, GLint* params) {
   }
 }
 
+void Context::Enable(GLenum cap) {
+  SB_NOTIMPLEMENTED();
+  SetError(GL_INVALID_ENUM);
+}
+
+void Context::Disable(GLenum cap) {
+  switch (cap) {
+    case GL_DEPTH_TEST:
+    case GL_SCISSOR_TEST:
+    case GL_DITHER:
+    case GL_CULL_FACE:
+    // Since these are not implemented yet, it is not an error to do nothing
+    // when we ask for them to be disabled!
+    break;
+
+    default:
+      SB_NOTIMPLEMENTED();
+      SetError(GL_INVALID_ENUM);
+  }
+}
+
+void Context::DepthMask(GLboolean flag) {
+  if (flag == GL_TRUE) {
+    SB_NOTIMPLEMENTED();
+    SetError(GL_INVALID_OPERATION);
+  }
+}
+
 GLuint Context::CreateProgram() {
   nb::scoped_ptr<ProgramImpl> program_impl = impl_->CreateProgram();
   SB_DCHECK(program_impl);
@@ -756,6 +784,12 @@ void Context::TexImage2D(GLenum target,
   }
 
   texture_object->SetData(level, pixel_format, width, height, pixels);
+}
+
+void Context::BindFramebuffer(GLenum target, GLuint framebuffer) {
+  if (framebuffer != 0) {
+    SB_NOTIMPLEMENTED() << "Framebuffers are not supported in glimp yet";
+  }
 }
 
 void Context::Viewport(GLint x, GLint y, GLsizei width, GLsizei height) {
