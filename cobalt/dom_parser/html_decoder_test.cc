@@ -66,7 +66,7 @@ HTMLDecoderTest::HTMLDecoderTest()
                             &stub_script_runner_, NULL, NULL, NULL, NULL, ""),
       document_(
           new dom::Document(&html_element_context_, dom::Document::Options())),
-      root_(new dom::Element(document_)),
+      root_(new dom::Element(document_, base::Token("element"))),
       source_location_(base::SourceLocation("[object HTMLDecoderTest]", 1, 1)) {
 }
 

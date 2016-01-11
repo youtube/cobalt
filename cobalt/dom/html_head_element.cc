@@ -24,8 +24,6 @@ namespace dom {
 // static
 const char HTMLHeadElement::kTagName[] = "head";
 
-std::string HTMLHeadElement::tag_name() const { return kTagName; }
-
 void HTMLHeadElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
   node_document()->SetHead(this);

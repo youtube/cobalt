@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_ANCHOR_ELEMENT_H_
-#define DOM_HTML_ANCHOR_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_ANCHOR_ELEMENT_H_
+#define COBALT_DOM_HTML_ANCHOR_ELEMENT_H_
 
 #include <string>
 
@@ -33,10 +33,8 @@ class HTMLAnchorElement : public HTMLElement {
  public:
   static const char kTagName[];
 
-  explicit HTMLAnchorElement(Document* document) : HTMLElement(document) {}
-
-  // Web API: Element
-  std::string tag_name() const OVERRIDE;
+  explicit HTMLAnchorElement(Document* document)
+      : HTMLElement(document, base::Token(kTagName)) {}
 
   // Custom, not in any spec.
   scoped_refptr<HTMLAnchorElement> AsHTMLAnchorElement() OVERRIDE {
@@ -52,4 +50,4 @@ class HTMLAnchorElement : public HTMLElement {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_ANCHOR_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_ANCHOR_ELEMENT_H_

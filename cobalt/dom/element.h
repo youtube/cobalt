@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_ELEMENT_H_
-#define DOM_ELEMENT_H_
+#ifndef COBALT_DOM_ELEMENT_H_
+#define COBALT_DOM_ELEMENT_H_
 
 #include <string>
 
@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/base/source_location.h"
+#include "cobalt/base/token.h"
 #include "cobalt/dom/event_listener.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/web_animations/animation_set.h"
@@ -52,12 +53,11 @@ class Element : public Node {
   typedef base::SmallMap<base::hash_map<std::string, std::string>, 2>
       AttributeMap;
 
-  explicit Element(Document* document);
-  Element(Document* document, const std::string& tag_name);
+  Element(Document* document, base::Token tag_name);
 
   // Web API: Node
   //
-  std::string node_name() const OVERRIDE { return tag_name(); }
+  std::string node_name() const OVERRIDE { return tag_name().str(); }
   NodeType node_type() const OVERRIDE { return Node::kElementNode; }
 
   base::optional<std::string> text_content() const OVERRIDE;
@@ -69,9 +69,9 @@ class Element : public Node {
   // Web API: Element
   //
 
-  virtual std::string tag_name() const { return tag_name_; }
+  base::Token tag_name() const { return tag_name_; }
 
-  const std::string& id() const { return id_attribute_; }
+  base::Token id() const { return id_attribute_; }
   void set_id(const std::string& value) { SetAttribute("id", value); }
 
   const std::string& class_name() const { return class_attribute_; }
@@ -190,12 +190,12 @@ class Element : public Node {
   void HTMLParseError(const std::string& error);
 
   // Tag name of the element.
-  std::string tag_name_;
+  base::Token tag_name_;
   // A map that holds the actual element attributes.
   AttributeMap attribute_map_;
   // The "id" attribute for this element. Stored here in addition to being
   // stored in |attribute_map_| as an optimization for id().
-  std::string id_attribute_;
+  base::Token id_attribute_;
   // The "class" attribute for this element. Stored here in addition to being
   // stored in |attribute_map_| as an optimization for class().
   std::string class_attribute_;
@@ -214,4 +214,4 @@ class Element : public Node {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_ELEMENT_H_
+#endif  // COBALT_DOM_ELEMENT_H_

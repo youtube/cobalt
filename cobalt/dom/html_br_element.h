@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_BR_ELEMENT_H_
-#define DOM_HTML_BR_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_BR_ELEMENT_H_
+#define COBALT_DOM_HTML_BR_ELEMENT_H_
 
 #include <string>
 
@@ -34,9 +34,6 @@ class HTMLBRElement : public HTMLElement {
 
   explicit HTMLBRElement(Document* document);
 
-  // Web API: Element
-  std::string tag_name() const OVERRIDE;
-
   // Custom, not in any spec.
   scoped_refptr<HTMLBRElement> AsHTMLBRElement() OVERRIDE { return this; }
 
@@ -49,4 +46,4 @@ class HTMLBRElement : public HTMLElement {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_BR_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_BR_ELEMENT_H_

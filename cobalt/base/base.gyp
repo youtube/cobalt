@@ -50,6 +50,8 @@
         'source_location.h',
         'system_poller.cc',
         'system_poller.h',
+        'token.cc',
+        'token.h',
         'type_id.h',
         'unused.h',
       ],
@@ -77,6 +79,7 @@
         'console_values_test.cc',
         'fixed_no_free_allocator_test.cc',
         'reuse_allocator_test.cc',
+        'token_test.cc',
       ],
       'dependencies': [
         'base',

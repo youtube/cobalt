@@ -105,7 +105,8 @@ TEST_F(DocumentTest, DocumentElement) {
   EXPECT_EQ(NULL, document->document_element());
 
   scoped_refptr<Text> text = new Text(document, "test_text");
-  scoped_refptr<Element> element = new Element(document);
+  scoped_refptr<Element> element =
+      new Element(document, base::Token("element"));
   document->AppendChild(text);
   document->AppendChild(element);
   EXPECT_EQ(element, document->document_element());
@@ -177,11 +178,16 @@ TEST_F(DocumentTest, GetElementById) {
   //       c1
   //   a2
   //     d1
-  scoped_refptr<Node> a1 = document->AppendChild(new Element(document));
-  scoped_refptr<Node> a2 = document->AppendChild(new Element(document));
-  scoped_refptr<Node> b1 = a1->AppendChild(new Element(document));
-  scoped_refptr<Node> c1 = b1->AppendChild(new Element(document));
-  scoped_refptr<Node> d1 = a2->AppendChild(new Element(document));
+  scoped_refptr<Node> a1 =
+      document->AppendChild(new Element(document, base::Token("a1")));
+  scoped_refptr<Node> a2 =
+      document->AppendChild(new Element(document, base::Token("a2")));
+  scoped_refptr<Node> b1 =
+      a1->AppendChild(new Element(document, base::Token("b1")));
+  scoped_refptr<Node> c1 =
+      b1->AppendChild(new Element(document, base::Token("c1")));
+  scoped_refptr<Node> d1 =
+      a2->AppendChild(new Element(document, base::Token("d1")));
 
   EXPECT_EQ(NULL, document->GetElementById("id"));
 
@@ -201,8 +207,8 @@ TEST_F(DocumentTest, OwnerDocument) {
   //   element1
   //     element2
   scoped_refptr<Document> document = new Document(&html_element_context_);
-  scoped_refptr<Node> element1 = new Element(document);
-  scoped_refptr<Node> element2 = new Element(document);
+  scoped_refptr<Node> element1 = new Element(document, base::Token("element1"));
+  scoped_refptr<Node> element2 = new Element(document, base::Token("element2"));
 
   EXPECT_EQ(NULL, document->owner_document());
   EXPECT_EQ(document, element1->owner_document());
@@ -233,19 +239,19 @@ TEST_F(DocumentTest, StyleSheets) {
 
   scoped_refptr<HTMLElement> element1 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
-          document, HTMLStyleElement::kTagName);
+          document, base::Token(HTMLStyleElement::kTagName));
   element1->set_text_content(std::string("body { background-color: #D3D3D3 }"));
   document->AppendChild(element1);
 
   scoped_refptr<HTMLElement> element2 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
-          document, HTMLStyleElement::kTagName);
+          document, base::Token(HTMLStyleElement::kTagName));
   element2->set_text_content(std::string("h1 { color: #00F }"));
   document->AppendChild(element2);
 
   scoped_refptr<HTMLElement> element3 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
-          document, HTMLStyleElement::kTagName);
+          document, base::Token(HTMLStyleElement::kTagName));
   element3->set_text_content(std::string("p { color: #008000 }"));
   document->AppendChild(element3);
 

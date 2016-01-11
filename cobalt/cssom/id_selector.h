@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_ID_SELECTOR_H_
-#define CSSOM_ID_SELECTOR_H_
+#ifndef COBALT_CSSOM_ID_SELECTOR_H_
+#define COBALT_CSSOM_ID_SELECTOR_H_
 
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "cobalt/base/token.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
@@ -45,17 +46,17 @@ class IdSelector : public SimpleSelector {
   // From SimpleSelector.
   IdSelector* AsIdSelector() OVERRIDE { return this; }
   int GetRank() const OVERRIDE { return kIdSelectorRank; }
-  std::string GetSelectorText() const OVERRIDE { return "#" + id_; }
+  std::string GetSelectorText() const OVERRIDE { return "#" + id_.str(); }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) OVERRIDE;
 
   // Rest of public methods.
 
-  const std::string& id() const { return id_; }
+  base::Token id() const { return id_; }
 
  private:
-  const std::string id_;
+  const base::Token id_;
 
   DISALLOW_COPY_AND_ASSIGN(IdSelector);
 };
@@ -63,4 +64,4 @@ class IdSelector : public SimpleSelector {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_ID_SELECTOR_H_
+#endif  // COBALT_CSSOM_ID_SELECTOR_H_
