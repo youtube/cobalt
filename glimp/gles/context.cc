@@ -49,6 +49,8 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
     : impl_(context_impl.Pass()),
       current_thread_(kSbThreadInvalid),
       has_been_current_(false),
+      draw_surface_(NULL),
+      read_surface_(NULL),
       active_texture_(GL_TEXTURE0),
       error_(GL_NO_ERROR) {
   if (share_context != NULL) {
@@ -397,6 +399,8 @@ void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
             current_thread_ == SbThreadGetCurrent());
 
   current_thread_ = SbThreadGetCurrent();
+  draw_surface_ = draw;
+  read_surface_ = read;
   impl_->SetDrawSurface(draw);
   impl_->SetReadSurface(read);
 
@@ -866,6 +870,11 @@ void Context::DrawArrays(GLenum mode, GLint first, GLsizei count) {
 
 void Context::Flush() {
   impl_->Flush();
+}
+
+void Context::SwapBuffers() {
+  Flush();
+  impl_->SwapBuffers();
 }
 
 }  // namespace gles

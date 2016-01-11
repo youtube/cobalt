@@ -276,5 +276,36 @@ bool Display::MakeCurrent(EGLSurface draw, EGLSurface read, EGLContext ctx) {
       FromEGLSurface(read));
 }
 
+bool Display::SwapBuffers(EGLSurface surface) {
+  if (!SurfaceIsValid(surface)) {
+    SetError(EGL_BAD_SURFACE);
+    return false;
+  }
+  Surface* surface_object = FromEGLSurface(surface);
+
+  gles::Context* current_context = gles::Context::GetTLSCurrentContext();
+  if (!ContextIsValid(reinterpret_cast<EGLContext>(current_context))) {
+    // The specification for eglSwapBuffers() does not explicitly state that
+    // the surface's context needs to be current when eglSwapBuffers() is
+    // called, but we enforce this in glimp as it is a very typical use-case and
+    // it considerably simplifies the process.
+    SB_DLOG(WARNING)
+        << "eglSwapBuffers() called when no or an invalid context was current.";
+    SetError(EGL_BAD_SURFACE);
+    return false;
+  }
+
+  if (current_context->draw_surface() != surface_object) {
+    SB_DLOG(WARNING)
+        << "eglSwapBuffers() called on a surface that is not the draw surface "
+        << "of the current context.";
+    SetError(EGL_BAD_SURFACE);
+    return false;
+  }
+
+  current_context->SwapBuffers();
+  return true;
+}
+
 }  // namespace egl
 }  // namespace glimp
