@@ -23,10 +23,10 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/containers/small_map.h"
 #include "base/hash_tables.h"
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/base/unused.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/pseudo_class_type.h"
 #include "cobalt/cssom/simple_selector_type.h"
@@ -116,6 +116,17 @@ class SelectorTree {
     std::vector<const Node*> nodes_vector_;
   };
 
+  // This class holds references to Nodes allocated on the heap that are owned
+  // by the same parent Node.  It deletes all contained Nodes on destruction.
+  class OwnedNodes : public base::SmallMap<std::map<std::string, Node*>, 1> {
+   public:
+    ~OwnedNodes() {
+      for (iterator iter = begin(); iter != end(); ++iter) {
+        delete iter->second;
+      }
+    }
+  };
+
   struct PseudoClassNode {
     PseudoClassType pseudo_class_type;
     CombinatorType combinator_type;
@@ -128,10 +139,9 @@ class SelectorTree {
     Node* node;
   };
 
-  typedef ScopedVector<Node> OwnedNodes;
   typedef std::vector<SimpleSelectorNode> SimpleSelectorNodes;
   typedef std::vector<PseudoClassNode> PseudoClassNodes;
-  typedef base::hash_map<std::string, SimpleSelectorNodes>
+  typedef base::SmallMap<base::hash_map<std::string, SimpleSelectorNodes>, 2>
       SelectorTextToNodesMap;
 
   class Node {
@@ -140,9 +150,8 @@ class SelectorTree {
     Specificity cumulative_specificity() const {
       return cumulative_specificity_;
     }
-    OwnedNodes& children(CombinatorType type) { return children_[type]; }
-    const OwnedNodes& children(CombinatorType type) const {
-      return children_[type];
+    bool HasCombinator(CombinatorType type) const {
+      return (combinator_mask_ & (1 << type)) != 0;
     }
     Rules& rules() { return rules_; }
     const Rules& rules() const { return rules_; }
@@ -188,13 +197,15 @@ class SelectorTree {
     Node();
     Node(CompoundSelector* compound_selector, Specificity parent_specificity);
 
+    // Bit mask used to quickly reject a certain combinator type.
+    uint8 combinator_mask_;
+    COMPILE_ASSERT(sizeof(uint8) * 8 >= kCombinatorCount,
+                   combinator_mask_does_not_have_enough_bits);
+
     // Pointer to one of the equivalent compound selectors.
     CompoundSelector* compound_selector_;
     // Sum of specificity from root to this node.
     Specificity cumulative_specificity_;
-
-    // Children of the node, with given type of combinator.
-    OwnedNodes children_[kCombinatorCount];
 
     // Indexes for the children.
     SelectorTextToNodesMap selector_nodes_map_;
@@ -226,6 +237,9 @@ class SelectorTree {
   void AppendRule(CSSStyleRule* rule);
   void RemoveRule(CSSStyleRule* rule);
 
+  // Used by unit tests only.
+  const OwnedNodes& children(const Node* node, CombinatorType combinator);
+
  private:
   // Gets or creates node for complex selector, starting from root.
   Node* GetOrCreateNodeForComplexSelector(ComplexSelector* selector);
@@ -238,6 +252,13 @@ class SelectorTree {
 
   Node root_;
   NodeSet<1> root_set_;
+
+  // This variable maps from a parent Node and a combinator type to child Nodes
+  // under the particular parent Node corresponding to the particular combinator
+  // type.  It is only used when modifying the SelectorTree and is not used
+  // during rule matching.  So we store it externally to the Node to minimize
+  // the size of Node structure.
+  std::map<std::pair<const Node*, CombinatorType>, OwnedNodes> owned_nodes_map_;
 
   bool has_sibling_combinators_;
 
