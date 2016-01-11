@@ -126,6 +126,12 @@ class ContextImpl {
                           const EnabledVertexAttributeList& attributes,
                           const EnabledSamplerList& samplers) = 0;
 
+  // Called when eglSwapBuffers() is called.  This method is responsible for
+  // submitting a command to the GPU to indicate that we are done rendering this
+  // frame and that the current draw surface should be swapped to the display.
+  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglSwapBuffers.xhtml
+  virtual void SwapBuffers() = 0;
+
  private:
 };
 

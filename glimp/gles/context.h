@@ -53,6 +53,8 @@ class Context {
   // Releases the current thread's current context.
   static void ReleaseTLSCurrentContext();
 
+  egl::Surface* draw_surface() { return draw_surface_; }
+
   // Returns the thread that currently holds this Context, or kSbThreadInvalid
   // if no thread currently holds the context.
   SbThread current_thread() const { return current_thread_; }
@@ -115,6 +117,7 @@ class Context {
   void DrawArrays(GLenum mode, GLint first, GLsizei count);
 
   void Flush();
+  void SwapBuffers();
 
  private:
   static const int kMaxActiveTextures = 8;
@@ -139,6 +142,12 @@ class Context {
 
   // Has this context ever been made current before?
   bool has_been_current_;
+
+  // The current draw surface.
+  egl::Surface* draw_surface_;
+
+  // The current read surface.
+  egl::Surface* read_surface_;
 
   // The value to be returned when GetString(GL_EXTENSIONS) is called.
   std::string extensions_string_;
