@@ -95,16 +95,16 @@ class ConditionVariable {
  public:
   explicit ConditionVariable(const Mutex& mutex)
       : mutex_(mutex.mutex()), condition_() {
-    SbConditionVariableCreate(&condition_, &mutex_);
+    SbConditionVariableCreate(&condition_, mutex_);
   }
 
   ~ConditionVariable() { SbConditionVariableDestroy(&condition_); }
 
-  void Wait() const { SbConditionVariableWait(&condition_, &mutex_); }
+  void Wait() const { SbConditionVariableWait(&condition_, mutex_); }
 
   bool WaitTimed(SbTime duration) const {
     return SbConditionVariableIsSignaled(
-        SbConditionVariableWaitTimed(&condition_, &mutex_, duration));
+        SbConditionVariableWaitTimed(&condition_, mutex_, duration));
   }
 
   void Broadcast() const { SbConditionVariableBroadcast(&condition_); }
@@ -112,7 +112,7 @@ class ConditionVariable {
   void Signal() const { SbConditionVariableSignal(&condition_); }
 
  private:
-  mutable SbMutex mutex_;
+  mutable SbMutex* mutex_;
   mutable SbConditionVariable condition_;
 };
 
