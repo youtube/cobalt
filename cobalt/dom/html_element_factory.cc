@@ -85,7 +85,7 @@ scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElement(
   if (iter != tag_name_to_create_html_element_t_callback_map_.end()) {
     return iter->second.Run(document);
   } else {
-    // TODO(***REMOVED***): Report unknown HTML tag.
+    LOG(WARNING) << "Unknown HTML element: <" << tag_name << ">.";
     return new HTMLUnknownElement(document, tag_name);
   }
 }
