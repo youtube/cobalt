@@ -72,7 +72,12 @@ void GL_APIENTRY glBindBuffer(GLenum target, GLuint buffer) {
 }
 
 void GL_APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->BindFramebuffer(target, framebuffer);
 }
 
 void GL_APIENTRY glBindRenderbuffer(GLenum target, GLuint renderbuffer) {
@@ -289,7 +294,12 @@ void GL_APIENTRY glDepthFunc(GLenum func) {
 }
 
 void GL_APIENTRY glDepthMask(GLboolean flag) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->DepthMask(flag);
 }
 
 void GL_APIENTRY glDepthRangef(GLfloat n, GLfloat f) {
@@ -301,7 +311,12 @@ void GL_APIENTRY glDetachShader(GLuint program, GLuint shader) {
 }
 
 void GL_APIENTRY glDisable(GLenum cap) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Disable(cap);
 }
 
 void GL_APIENTRY glDisableVertexAttribArray(GLuint index) {
