@@ -24,9 +24,8 @@ namespace dom {
 // static
 const char HTMLBRElement::kTagName[] = "br";
 
-HTMLBRElement::HTMLBRElement(Document* document) : HTMLElement(document) {}
-
-std::string HTMLBRElement::tag_name() const { return kTagName; }
+HTMLBRElement::HTMLBRElement(Document* document)
+    : HTMLElement(document, base::Token(kTagName)) {}
 
 }  // namespace dom
 }  // namespace cobalt

@@ -60,7 +60,7 @@ base::optional<std::string> DOMTokenList::Item(unsigned int index) const {
   if (index >= tokens_.size()) return base::nullopt;
 
   // 2. Return the indexth token in tokens.
-  return tokens_[index];
+  return tokens_[index].str();
 }
 
 // Algorithm for Contains:
@@ -110,12 +110,11 @@ void DOMTokenList::Add(const std::vector<std::string>& tokens) {
   for (std::vector<std::string>::const_iterator it = tokens.begin();
        it != tokens.end(); ++it) {
     // 3. For each token in tokens, in given order, that is not in tokens,
-    // append
-    //    token to tokens.
+    //    append token to tokens.
     if (std::find(tokens_.begin(), tokens_.end(), *it) != tokens_.end()) {
       continue;
     }
-    tokens_.push_back(*it);
+    tokens_.push_back(base::Token(*it));
   }
 
   // 4. Run the update steps.
@@ -155,23 +154,29 @@ void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
 }
 
 std::string DOMTokenList::AnonymousStringifier() const {
-  return JoinString(tokens_, ' ');
+  std::string result;
+  for (size_t i = 0; i < tokens_.size(); ++i) {
+    result += tokens_[i].str();
+    result += ' ';
+  }
+  if (!result.empty()) result.resize(result.size() - 1);
+  return result;
 }
 
-const std::string& DOMTokenList::NonNullItem(unsigned int index) const {
+base::Token DOMTokenList::NonNullItem(unsigned int index) const {
   MaybeRefresh();
 
   // 1. If index is equal to or greater than the number of tokens in tokens,
   //    return an empty string rather than NULL.
   if (index >= tokens_.size()) {
-    return EmptyString();
+    return base::Token();
   }
 
   // 2. Return the indexth token in tokens.
   return tokens_[index];
 }
 
-bool DOMTokenList::ContainsValid(const std::string& valid_token) const {
+bool DOMTokenList::ContainsValid(base::Token valid_token) const {
   MaybeRefresh();
 
   // This version of Contains does not process steps 1 and 2 and requires the
@@ -202,7 +207,7 @@ void DOMTokenList::UpdateSteps() const {
 
   // 2. Set an attribute for the associated element using associated attribute's
   // local name and the result of running the ordered set serializer for tokens.
-  element_->SetAttribute(attr_name_, JoinString(tokens_, ' '));
+  element_->SetAttribute(attr_name_, AnonymousStringifier());
 }
 
 bool DOMTokenList::IsTokenValid(const std::string& token) const {
@@ -221,7 +226,12 @@ void DOMTokenList::MaybeRefresh() const {
   if (element_ && element_node_generation_ != element_->node_generation()) {
     element_node_generation_ = element_->node_generation();
     std::string attribute = element_->GetAttribute(attr_name_).value_or("");
-    base::SplitStringAlongWhitespace(attribute, &tokens_);
+    std::vector<std::string> tokens;
+    base::SplitStringAlongWhitespace(attribute, &tokens);
+    tokens_.clear();
+    for (size_t i = 0; i < tokens.size(); ++i) {
+      tokens_.push_back(base::Token(tokens[i]));
+    }
   }
 }
 

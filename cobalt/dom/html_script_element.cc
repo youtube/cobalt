@@ -38,7 +38,7 @@ namespace dom {
 const char HTMLScriptElement::kTagName[] = "script";
 
 HTMLScriptElement::HTMLScriptElement(Document* document)
-    : HTMLElement(document),
+    : HTMLElement(document, base::Token(kTagName)),
       is_already_started_(false),
       is_parser_inserted_(false),
       is_ready_(false),
@@ -46,8 +46,6 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
       inline_script_location_(GetSourceLocationName(), 1, 1) {
   DCHECK(document->html_element_context()->script_runner());
 }
-
-std::string HTMLScriptElement::tag_name() const { return kTagName; }
 
 void HTMLScriptElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();

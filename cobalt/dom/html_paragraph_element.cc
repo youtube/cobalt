@@ -24,7 +24,5 @@ namespace dom {
 // static
 const char HTMLParagraphElement::kTagName[] = "p";
 
-std::string HTMLParagraphElement::tag_name() const { return kTagName; }
-
 }  // namespace dom
 }  // namespace cobalt

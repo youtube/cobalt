@@ -63,7 +63,7 @@ TEST_F(TextTest, Duplicate) {
 }
 
 TEST_F(TextTest, CheckAttach) {
-  scoped_refptr<Element> root = new Element(document_);
+  scoped_refptr<Element> root = new Element(document_, base::Token("root"));
 
   scoped_refptr<Node> text = root->AppendChild(new Text(document_, "text"));
   scoped_refptr<Node> other_text = new Text(document_, "other_text");

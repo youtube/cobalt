@@ -24,7 +24,8 @@ namespace dom {
 // static
 const char HTMLHtmlElement::kTagName[] = "html";
 
-std::string HTMLHtmlElement::tag_name() const { return kTagName; }
+HTMLHtmlElement::HTMLHtmlElement(Document* document)
+    : HTMLElement(document, base::Token(kTagName)) {}
 
 void HTMLHtmlElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();

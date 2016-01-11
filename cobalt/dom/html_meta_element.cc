@@ -31,8 +31,6 @@ const char kContentSecurityPolicy[] = "content-security-policy";
 // static
 const char HTMLMetaElement::kTagName[] = "meta";
 
-std::string HTMLMetaElement::tag_name() const { return kTagName; }
-
 void HTMLMetaElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
   std::string http_equiv_attribute = GetAttribute("http-equiv").value_or("");

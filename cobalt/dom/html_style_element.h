@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_STYLE_ELEMENT_H_
-#define DOM_HTML_STYLE_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_STYLE_ELEMENT_H_
+#define COBALT_DOM_HTML_STYLE_ELEMENT_H_
 
 #include <string>
 
@@ -37,9 +37,6 @@ class HTMLStyleElement : public HTMLElement {
   static const char kTagName[];
 
   explicit HTMLStyleElement(Document* document);
-
-  // Web API: Element
-  std::string tag_name() const OVERRIDE;
 
   // Web API: HTMLStyleElement
   std::string type() const { return GetAttribute("type").value_or(""); }
@@ -82,4 +79,4 @@ class HTMLStyleElement : public HTMLElement {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_STYLE_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_STYLE_ELEMENT_H_
