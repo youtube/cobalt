@@ -28,12 +28,16 @@ namespace cobalt {
 namespace cssom {
 
 SelectorTree::Node::Node()
-    : compound_selector_(NULL), selector_mask_(0), pseudo_class_mask_(0) {}
+    : compound_selector_(NULL),
+      combinator_mask_(0),
+      selector_mask_(0),
+      pseudo_class_mask_(0) {}
 
 SelectorTree::Node::Node(CompoundSelector* compound_selector,
                          Specificity parent_specificity)
     : compound_selector_(compound_selector),
       cumulative_specificity_(parent_specificity),
+      combinator_mask_(0),
       selector_mask_(0),
       pseudo_class_mask_(0) {
   cumulative_specificity_.AddFrom(compound_selector_->GetSpecificity());
@@ -63,6 +67,11 @@ void SelectorTree::RemoveRule(CSSStyleRule* rule) {
   }
 }
 
+const SelectorTree::OwnedNodes& SelectorTree::children(
+    const Node* node, CombinatorType combinator) {
+  return owned_nodes_map_[std::make_pair(node, combinator)];
+}
+
 SelectorTree::Node* SelectorTree::GetOrCreateNodeForComplexSelector(
     ComplexSelector* complex_selector) {
   Node* node = GetOrCreateNodeForCompoundSelector(
@@ -86,16 +95,18 @@ SelectorTree::Node* SelectorTree::GetOrCreateNodeForCompoundSelector(
     has_sibling_combinators_ = true;
   }
 
-  for (OwnedNodes::iterator it = parent_node->children(combinator).begin();
-       it != parent_node->children(combinator).end(); ++it) {
-    if ((*it)->compound_selector()->GetNormalizedSelectorText() ==
-        compound_selector->GetNormalizedSelectorText()) {
-      return *it;
-    }
+  const std::string& selector_text =
+      compound_selector->GetNormalizedSelectorText();
+  OwnedNodes& owned_nodes =
+      owned_nodes_map_[std::make_pair(parent_node, combinator)];
+  OwnedNodes::iterator child_node_it = owned_nodes.find(selector_text);
+  if (child_node_it != owned_nodes.end()) {
+    return child_node_it->second;
   }
   Node* child_node =
       new Node(compound_selector, parent_node->cumulative_specificity());
-  parent_node->children(combinator).push_back(child_node);
+  parent_node->combinator_mask_ |= (1 << combinator);
+  owned_nodes[selector_text] = child_node;
 
   for (CompoundSelector::SimpleSelectors::const_iterator it =
            compound_selector->simple_selectors().begin();
