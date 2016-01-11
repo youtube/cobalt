@@ -419,7 +419,7 @@ void ForEachChildOnNodes(
        node_iterator != node_set.end(); ++node_iterator) {
     const SelectorTree::Node* node = *node_iterator;
 
-    if (node->children(combinator_type).empty()) {
+    if (!node->HasCombinator(combinator_type)) {
       continue;
     }
 

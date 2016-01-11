@@ -25,11 +25,17 @@ namespace cssom {
 
 TEST(SelectorTreeTest, RootShouldHaveNoChildrenAfterInitialization) {
   SelectorTree selector_tree;
-  EXPECT_TRUE(selector_tree.root()->children(kChildCombinator).empty());
-  EXPECT_TRUE(selector_tree.root()->children(kDescendantCombinator).empty());
-  EXPECT_TRUE(selector_tree.root()->children(kNextSiblingCombinator).empty());
   EXPECT_TRUE(
-      selector_tree.root()->children(kFollowingSiblingCombinator).empty());
+      selector_tree.children(selector_tree.root(), kChildCombinator).empty());
+  EXPECT_TRUE(
+      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+          .empty());
+  EXPECT_TRUE(
+      selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+          .empty());
+  EXPECT_TRUE(
+      selector_tree.children(selector_tree.root(), kFollowingSiblingCombinator)
+          .empty());
 }
 
 TEST(SelectorTreeTest, AppendRuleShouldTakeOneRule) {
@@ -44,14 +50,22 @@ TEST(SelectorTreeTest, AppendRuleShouldTakeOneRule) {
                                           "[object SelectorTreeTest]", 1, 1))
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
-  ASSERT_EQ(0, selector_tree.root()->children(kChildCombinator).size());
-  ASSERT_EQ(1, selector_tree.root()->children(kDescendantCombinator).size());
-  ASSERT_EQ(0, selector_tree.root()->children(kNextSiblingCombinator).size());
+  ASSERT_EQ(
+      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
+  ASSERT_EQ(1,
+            selector_tree.children(selector_tree.root(), kDescendantCombinator)
+                .size());
   ASSERT_EQ(0,
-            selector_tree.root()->children(kFollowingSiblingCombinator).size());
+            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+                .size());
+  ASSERT_EQ(0, selector_tree.children(selector_tree.root(),
+                                      kFollowingSiblingCombinator)
+                   .size());
 
   const SelectorTree::Node* node_1 =
-      selector_tree.root()->children(kDescendantCombinator)[0];
+      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+          .begin()
+          ->second;
   ASSERT_EQ(1, node_1->rules().size());
   EXPECT_EQ(css_style_rule_1, node_1->rules()[0]);
   EXPECT_EQ(Specificity(0, 0, 1), node_1->cumulative_specificity());
@@ -76,11 +90,17 @@ TEST(SelectorTreeTest, AppendRuleShouldNormalizeCompoundSelector) {
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
-  ASSERT_EQ(0, selector_tree.root()->children(kChildCombinator).size());
-  ASSERT_EQ(1, selector_tree.root()->children(kDescendantCombinator).size());
-  ASSERT_EQ(0, selector_tree.root()->children(kNextSiblingCombinator).size());
+  ASSERT_EQ(
+      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
+  ASSERT_EQ(1,
+            selector_tree.children(selector_tree.root(), kDescendantCombinator)
+                .size());
   ASSERT_EQ(0,
-            selector_tree.root()->children(kFollowingSiblingCombinator).size());
+            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+                .size());
+  ASSERT_EQ(0, selector_tree.children(selector_tree.root(),
+                                      kFollowingSiblingCombinator)
+                   .size());
 }
 
 TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoIdenticalRules) {
@@ -101,13 +121,21 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoIdenticalRules) {
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
 
-  ASSERT_EQ(0, selector_tree.root()->children(kChildCombinator).size());
-  ASSERT_EQ(1, selector_tree.root()->children(kDescendantCombinator).size());
-  ASSERT_EQ(0, selector_tree.root()->children(kNextSiblingCombinator).size());
+  ASSERT_EQ(
+      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
+  ASSERT_EQ(1,
+            selector_tree.children(selector_tree.root(), kDescendantCombinator)
+                .size());
   ASSERT_EQ(0,
-            selector_tree.root()->children(kFollowingSiblingCombinator).size());
+            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+                .size());
+  ASSERT_EQ(0, selector_tree.children(selector_tree.root(),
+                                      kFollowingSiblingCombinator)
+                   .size());
   const SelectorTree::Node* node_1 =
-      selector_tree.root()->children(kDescendantCombinator)[0];
+      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+          .begin()
+          ->second;
   ASSERT_EQ(2, node_1->rules().size());
   EXPECT_EQ(css_style_rule_1, node_1->rules()[0]);
   EXPECT_EQ(css_style_rule_2, node_1->rules()[1]);
@@ -134,22 +162,32 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoDesendantSelectors) {
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
 
-  ASSERT_EQ(0, selector_tree.root()->children(kChildCombinator).size());
-  ASSERT_EQ(1, selector_tree.root()->children(kDescendantCombinator).size());
-  ASSERT_EQ(0, selector_tree.root()->children(kNextSiblingCombinator).size());
+  ASSERT_EQ(
+      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
+  ASSERT_EQ(1,
+            selector_tree.children(selector_tree.root(), kDescendantCombinator)
+                .size());
   ASSERT_EQ(0,
-            selector_tree.root()->children(kFollowingSiblingCombinator).size());
+            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+                .size());
+  ASSERT_EQ(0, selector_tree.children(selector_tree.root(),
+                                      kFollowingSiblingCombinator)
+                   .size());
   const SelectorTree::Node* node_1 =
-      selector_tree.root()->children(kDescendantCombinator)[0];
+      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+          .begin()
+          ->second;
   ASSERT_EQ(1, node_1->rules().size());
   EXPECT_EQ(css_style_rule_1, node_1->rules()[0]);
   EXPECT_EQ(Specificity(0, 0, 1), node_1->cumulative_specificity());
 
-  ASSERT_EQ(0, node_1->children(kChildCombinator).size());
-  ASSERT_EQ(1, node_1->children(kDescendantCombinator).size());
-  ASSERT_EQ(0, node_1->children(kNextSiblingCombinator).size());
-  ASSERT_EQ(0, node_1->children(kFollowingSiblingCombinator).size());
-  const SelectorTree::Node* node_2 = node_1->children(kDescendantCombinator)[0];
+  ASSERT_EQ(0, selector_tree.children(node_1, kChildCombinator).size());
+  ASSERT_EQ(1, selector_tree.children(node_1, kDescendantCombinator).size());
+  ASSERT_EQ(0, selector_tree.children(node_1, kNextSiblingCombinator).size());
+  ASSERT_EQ(0,
+            selector_tree.children(node_1, kFollowingSiblingCombinator).size());
+  const SelectorTree::Node* node_2 =
+      selector_tree.children(node_1, kDescendantCombinator).begin()->second;
   ASSERT_EQ(1, node_2->rules().size());
   EXPECT_EQ(css_style_rule_2, node_2->rules()[0]);
   EXPECT_EQ(Specificity(0, 0, 2), node_2->cumulative_specificity());
