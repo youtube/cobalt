@@ -83,7 +83,7 @@ class Mutex {
 
  private:
   friend class ConditionVariable;
-  SbMutex mutex() const { return mutex_; }
+  SbMutex* mutex() const { return &mutex_; }
 
   mutable SbMutex mutex_;
 };
