@@ -21,6 +21,7 @@
 #include "glimp/egl/display_registry.h"
 #include "glimp/egl/error.h"
 #include "glimp/egl/scoped_egl_lock.h"
+#include "starboard/log.h"
 
 namespace egl = glimp::egl;
 
@@ -79,6 +80,7 @@ EGLBoolean EGLAPIENTRY eglCopyBuffers(EGLDisplay dpy,
                                       EGLSurface surface,
                                       EGLNativePixmapType target) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
@@ -114,6 +116,7 @@ EGLSurface EGLAPIENTRY eglCreatePixmapSurface(EGLDisplay dpy,
                                               EGLNativePixmapType pixmap,
                                               const EGLint* attrib_list) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return EGL_NO_SURFACE;
 }
 
@@ -158,6 +161,7 @@ EGLBoolean EGLAPIENTRY eglGetConfigAttrib(EGLDisplay dpy,
                                           EGLint attribute,
                                           EGLint* value) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
@@ -166,16 +170,19 @@ EGLBoolean EGLAPIENTRY eglGetConfigs(EGLDisplay dpy,
                                      EGLint config_size,
                                      EGLint* num_config) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 EGLDisplay EGLAPIENTRY eglGetCurrentDisplay(void) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return EGL_NO_DISPLAY;
 }
 
 EGLSurface EGLAPIENTRY eglGetCurrentSurface(EGLint readdraw) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return EGL_NO_SURFACE;
 }
 
@@ -228,11 +235,13 @@ EGLBoolean EGLAPIENTRY eglQueryContext(EGLDisplay dpy,
                                        EGLint attribute,
                                        EGLint* value) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 const char* EGLAPIENTRY eglQueryString(EGLDisplay dpy, EGLint name) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return NULL;
 }
 
@@ -276,11 +285,13 @@ EGLBoolean EGLAPIENTRY eglTerminate(EGLDisplay dpy) {
 
 EGLBoolean EGLAPIENTRY eglWaitGL(void) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 EGLBoolean EGLAPIENTRY eglWaitNative(EGLint engine) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
@@ -288,6 +299,7 @@ EGLBoolean EGLAPIENTRY eglBindTexImage(EGLDisplay dpy,
                                        EGLSurface surface,
                                        EGLint buffer) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
@@ -295,6 +307,7 @@ EGLBoolean EGLAPIENTRY eglReleaseTexImage(EGLDisplay dpy,
                                           EGLSurface surface,
                                           EGLint buffer) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
@@ -303,21 +316,25 @@ EGLBoolean EGLAPIENTRY eglSurfaceAttrib(EGLDisplay dpy,
                                         EGLint attribute,
                                         EGLint value) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 EGLBoolean EGLAPIENTRY eglSwapInterval(EGLDisplay dpy, EGLint interval) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 EGLBoolean EGLAPIENTRY eglBindAPI(EGLenum api) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 EGLenum EGLAPIENTRY eglQueryAPI(void) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return 0;
 }
 
@@ -328,21 +345,25 @@ eglCreatePbufferFromClientBuffer(EGLDisplay dpy,
                                  EGLConfig config,
                                  const EGLint* attrib_list) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return EGL_NO_SURFACE;
 }
 
 EGLBoolean EGLAPIENTRY eglReleaseThread(void) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 EGLBoolean EGLAPIENTRY eglWaitClient(void) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 EGLContext EGLAPIENTRY eglGetCurrentContext(void) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return EGL_NO_CONTEXT;
 }
 
@@ -350,11 +371,13 @@ EGLSync EGLAPIENTRY eglCreateSync(EGLDisplay dpy,
                                   EGLenum type,
                                   const EGLAttrib* attrib_list) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return 0;
 }
 
 EGLBoolean EGLAPIENTRY eglDestroySync(EGLDisplay dpy, EGLSync sync) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
@@ -363,6 +386,7 @@ EGLint EGLAPIENTRY eglClientWaitSync(EGLDisplay dpy,
                                      EGLint flags,
                                      EGLTime timeout) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return 0;
 }
 
@@ -371,6 +395,7 @@ EGLBoolean EGLAPIENTRY eglGetSyncAttrib(EGLDisplay dpy,
                                         EGLint attribute,
                                         EGLAttrib* value) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
@@ -380,11 +405,13 @@ EGLImage EGLAPIENTRY eglCreateImage(EGLDisplay dpy,
                                     EGLClientBuffer buffer,
                                     const EGLAttrib* attrib_list) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return 0;
 }
 
 EGLBoolean EGLAPIENTRY eglDestroyImage(EGLDisplay dpy, EGLImage image) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
@@ -392,6 +419,7 @@ EGLDisplay EGLAPIENTRY eglGetPlatformDisplay(EGLenum platform,
                                              void* native_display,
                                              const EGLAttrib* attrib_list) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return EGL_NO_DISPLAY;
 }
 
@@ -401,6 +429,7 @@ eglCreatePlatformWindowSurface(EGLDisplay dpy,
                                void* native_window,
                                const EGLAttrib* attrib_list) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return EGL_NO_SURFACE;
 }
 
@@ -410,17 +439,20 @@ eglCreatePlatformPixmapSurface(EGLDisplay dpy,
                                void* native_pixmap,
                                const EGLAttrib* attrib_list) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return EGL_NO_SURFACE;
 }
 
 EGLBoolean EGLAPIENTRY eglWaitSync(EGLDisplay dpy, EGLSync sync, EGLint flags) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 __eglMustCastToProperFunctionPointerType EGLAPIENTRY
 eglGetProcAddress(const char* procname) {
   egl::ScopedEGLLock egl_lock;
+  SB_NOTIMPLEMENTED();
   return NULL;
 }
 
