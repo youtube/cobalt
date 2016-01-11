@@ -154,14 +154,14 @@ scoped_refptr<HTMLCollection> Document::GetElementsByClassName(
 
 scoped_refptr<Element> Document::CreateElement(const std::string& local_name) {
   if (IsXMLDocument()) {
-    return new Element(this, local_name);
+    return new Element(this, base::Token(local_name));
   } else {
     std::string lower_local_name = local_name;
     StringToLowerASCII(&lower_local_name);
     DCHECK(html_element_context_);
     DCHECK(html_element_context_->html_element_factory());
     return html_element_context_->html_element_factory()->CreateHTMLElement(
-        this, lower_local_name);
+        this, base::Token(lower_local_name));
   }
 }
 

@@ -72,79 +72,100 @@ class HTMLElementFactoryTest : public ::testing::Test {
 TEST_F(HTMLElementFactoryTest, CreateHTMLElement) {
   scoped_refptr<HTMLElement> html_element;
 
-  html_element = html_element_factory_.CreateHTMLElement(document_, "a");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("a"));
   EXPECT_TRUE(html_element->AsHTMLAnchorElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLAnchorElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "body");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("body"));
   EXPECT_TRUE(html_element->AsHTMLBodyElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLBodyElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "br");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("br"));
   EXPECT_TRUE(html_element->AsHTMLBRElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLBRElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "div");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("div"));
   EXPECT_TRUE(html_element->AsHTMLDivElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLDivElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "head");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("head"));
   EXPECT_TRUE(html_element->AsHTMLHeadElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLHeadElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "html");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("html"));
   EXPECT_TRUE(html_element->AsHTMLHtmlElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLHtmlElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "img");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("img"));
   EXPECT_TRUE(html_element->AsHTMLImageElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLImageElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "link");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("link"));
   EXPECT_TRUE(html_element->AsHTMLLinkElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLLinkElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "meta");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("meta"));
   EXPECT_TRUE(html_element->AsHTMLMetaElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLMetaElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "p");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("p"));
   EXPECT_TRUE(html_element->AsHTMLParagraphElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLParagraphElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "script");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("script"));
   EXPECT_TRUE(html_element->AsHTMLScriptElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLScriptElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "span");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("span"));
   EXPECT_TRUE(html_element->AsHTMLSpanElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLSpanElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "style");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("style"));
   EXPECT_TRUE(html_element->AsHTMLStyleElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLStyleElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "video");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("video"));
   EXPECT_TRUE(html_element->AsHTMLVideoElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLVideoElement]");
 
-  html_element = html_element_factory_.CreateHTMLElement(document_, "h1");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("h1"));
   EXPECT_TRUE(html_element->AsHTMLHeadingElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLHeadingElement]");
-  html_element = html_element_factory_.CreateHTMLElement(document_, "h2");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("h2"));
   EXPECT_TRUE(html_element->AsHTMLHeadingElement());
-  html_element = html_element_factory_.CreateHTMLElement(document_, "h3");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("h3"));
   EXPECT_TRUE(html_element->AsHTMLHeadingElement());
-  html_element = html_element_factory_.CreateHTMLElement(document_, "h4");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("h4"));
   EXPECT_TRUE(html_element->AsHTMLHeadingElement());
-  html_element = html_element_factory_.CreateHTMLElement(document_, "h5");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("h5"));
   EXPECT_TRUE(html_element->AsHTMLHeadingElement());
-  html_element = html_element_factory_.CreateHTMLElement(document_, "h6");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("h6"));
   EXPECT_TRUE(html_element->AsHTMLHeadingElement());
 
-  html_element = html_element_factory_.CreateHTMLElement(document_, "foo");
+  html_element =
+      html_element_factory_.CreateHTMLElement(document_, base::Token("foo"));
   EXPECT_TRUE(html_element->AsHTMLUnknownElement());
   EXPECT_EQ(html_element->GetInlineSourceLocation().file_path,
             "[object HTMLUnknownElement]");

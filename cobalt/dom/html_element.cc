@@ -678,24 +678,7 @@ void HTMLElement::InvalidateLayoutBoxesFromNodeAndDescendants() {
   Node::InvalidateLayoutBoxesFromNodeAndDescendants();
 }
 
-HTMLElement::HTMLElement(Document* document)
-    : Element(document),
-      style_(new cssom::CSSStyleDeclaration(
-          document->html_element_context()->css_parser())),
-      computed_style_valid_(false),
-      computed_style_state_(new cssom::ComputedStyleState()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          transitions_adapter_(new DOMAnimatable(this))),
-      css_transitions_(&transitions_adapter_),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          animations_adapter_(new DOMAnimatable(this))),
-      css_animations_(&animations_adapter_),
-      matching_rules_valid_(false) {
-  computed_style_state_->set_animations(animations());
-  style_->set_mutation_observer(this);
-}
-
-HTMLElement::HTMLElement(Document* document, const std::string& tag_name)
+HTMLElement::HTMLElement(Document* document, base::Token tag_name)
     : Element(document, tag_name),
       style_(new cssom::CSSStyleDeclaration(
           document->html_element_context()->css_parser())),

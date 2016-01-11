@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_VIDEO_ELEMENT_H_
-#define DOM_HTML_VIDEO_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_VIDEO_ELEMENT_H_
+#define COBALT_DOM_HTML_VIDEO_ELEMENT_H_
 
 #include <string>
 
@@ -34,10 +34,6 @@ class HTMLVideoElement : public HTMLMediaElement {
   static const char kTagName[];
 
   explicit HTMLVideoElement(Document* document);
-
-  // Web API: Element
-  //
-  std::string tag_name() const OVERRIDE;
 
   // Web API: HTMLVideoElement
   //
@@ -71,4 +67,4 @@ class HTMLVideoElement : public HTMLMediaElement {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_VIDEO_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_VIDEO_ELEMENT_H_

@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TYPE_SELECTOR_H_
-#define CSSOM_TYPE_SELECTOR_H_
+#ifndef COBALT_CSSOM_TYPE_SELECTOR_H_
+#define COBALT_CSSOM_TYPE_SELECTOR_H_
 
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "cobalt/base/token.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
@@ -46,17 +47,17 @@ class TypeSelector : public SimpleSelector {
   // From SimpleSelector.
   TypeSelector* AsTypeSelector() OVERRIDE { return this; }
   int GetRank() const OVERRIDE { return kTypeSelectorRank; }
-  std::string GetSelectorText() const OVERRIDE { return element_name_; }
+  std::string GetSelectorText() const OVERRIDE { return element_name_.str(); }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) OVERRIDE;
 
   // Rest of public methods.
 
-  const std::string& element_name() const { return element_name_; }
+  base::Token element_name() const { return element_name_; }
 
  private:
-  const std::string element_name_;
+  const base::Token element_name_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeSelector);
 };
@@ -64,4 +65,4 @@ class TypeSelector : public SimpleSelector {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TYPE_SELECTOR_H_
+#endif  // COBALT_CSSOM_TYPE_SELECTOR_H_

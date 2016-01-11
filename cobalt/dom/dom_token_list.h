@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_DOM_TOKEN_LIST_H_
-#define DOM_DOM_TOKEN_LIST_H_
+#ifndef COBALT_DOM_DOM_TOKEN_LIST_H_
+#define COBALT_DOM_DOM_TOKEN_LIST_H_
 
 #include <string>
 #include <vector>
@@ -23,6 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
+#include "cobalt/base/token.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -50,11 +51,11 @@ class DOMTokenList : public script::Wrappable {
 
   // This is a variation of Item that should only be called in cases where NULL
   // is not needed for invalid indices.
-  const std::string& NonNullItem(unsigned int index) const;
+  base::Token NonNullItem(unsigned int index) const;
 
   // This is a variation of Contains that should only be called in cases where
   // the token has already been validated.
-  bool ContainsValid(const std::string& valid_token) const;
+  bool ContainsValid(base::Token valid_token) const;
 
   DEFINE_WRAPPABLE_TYPE(DOMTokenList);
 
@@ -77,7 +78,7 @@ class DOMTokenList : public script::Wrappable {
   // Node generation of the element when tokens is updated.
   mutable uint32_t element_node_generation_;
   // Cached tokens.
-  mutable std::vector<std::string> tokens_;
+  mutable std::vector<base::Token> tokens_;
 
   DISALLOW_COPY_AND_ASSIGN(DOMTokenList);
 };
@@ -85,4 +86,4 @@ class DOMTokenList : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_DOM_TOKEN_LIST_H_
+#endif  // COBALT_DOM_DOM_TOKEN_LIST_H_

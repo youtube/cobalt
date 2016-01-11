@@ -72,11 +72,12 @@ TEST_F(NodeTest, CreateNode) {
 }
 
 TEST_F(NodeTest, CloneNode) {
-  scoped_refptr<Element> root = new Element(document_);
+  scoped_refptr<Element> root = new Element(document_, base::Token("root"));
   root->SetAttribute("id", "root");
   root->AppendChild(new Text(document_, "text"));
   scoped_refptr<Element> child =
-      root->AppendChild(new Element(document_))->AsElement();
+      root->AppendChild(new Element(document_, base::Token("child")))
+          ->AsElement();
   child->SetAttribute("id", "child");
 
   // Shallow clone should only clone the node itself.
@@ -251,7 +252,8 @@ TEST_F(NodeTest, ParentElement) {
   EXPECT_EQ(NULL, node->parent_element());
 
   root->RemoveChild(node);
-  scoped_refptr<Element> parent_element = new Element(document_);
+  scoped_refptr<Element> parent_element =
+      new Element(document_, base::Token("parent_element"));
   parent_element->AppendChild(node);
   EXPECT_EQ(parent_element, node->parent_element());
 }
@@ -260,10 +262,12 @@ TEST_F(NodeTest, ParentNode) {
   scoped_refptr<Node> node = new FakeNode(document_);
   node->AppendChild(new Text(document_, "first"));
   scoped_refptr<Element> child1 =
-      node->AppendChild(new Element(document_))->AsElement();
+      node->AppendChild(new Element(document_, base::Token("child1")))
+          ->AsElement();
   node->AppendChild(new Text(document_, "middle"));
   scoped_refptr<Element> child2 =
-      node->AppendChild(new Element(document_))->AsElement();
+      node->AppendChild(new Element(document_, base::Token("child2")))
+          ->AsElement();
   node->AppendChild(new Text(document_, "last"));
   child1->SetAttribute("id", "1");
   child2->SetAttribute("id", "2");
@@ -296,12 +300,15 @@ TEST_F(NodeTest, NonDocumentTypeChildNode) {
   scoped_refptr<Node> node = new FakeNode(document_);
   node->AppendChild(new Text(document_, "first"));
   scoped_refptr<Element> child1 =
-      node->AppendChild(new Element(document_))->AsElement();
+      node->AppendChild(new Element(document_, base::Token("child1")))
+          ->AsElement();
   node->AppendChild(new Text(document_, "middle"));
   scoped_refptr<Element> child2 =
-      node->AppendChild(new Element(document_))->AsElement();
+      node->AppendChild(new Element(document_, base::Token("child2")))
+          ->AsElement();
   scoped_refptr<Element> child3 =
-      node->AppendChild(new Element(document_))->AsElement();
+      node->AppendChild(new Element(document_, base::Token("child3")))
+          ->AsElement();
   node->AppendChild(new Text(document_, "last"));
   scoped_refptr<HTMLCollection> children = node->children();
 

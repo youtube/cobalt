@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_IMAGE_ELEMENT_H_
-#define DOM_HTML_IMAGE_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_IMAGE_ELEMENT_H_
+#define COBALT_DOM_HTML_IMAGE_ELEMENT_H_
 
 #include <string>
 
@@ -35,13 +35,10 @@ class HTMLImageElement : public HTMLElement {
  public:
   static const char kTagName[];
 
-  explicit HTMLImageElement(Document* document) : HTMLElement(document) {}
+  explicit HTMLImageElement(Document* document)
+      : HTMLElement(document, base::Token(kTagName)) {}
 
   explicit HTMLImageElement(script::EnvironmentSettings* env_settings);
-
-  // Web API: Element
-  //
-  std::string tag_name() const OVERRIDE;
 
   // Web API: HTMLImageElement
   //
@@ -76,4 +73,4 @@ class HTMLImageElement : public HTMLElement {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_IMAGE_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_IMAGE_ELEMENT_H_
