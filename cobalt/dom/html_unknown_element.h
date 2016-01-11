@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_UNKNOWN_ELEMENT_H_
-#define DOM_HTML_UNKNOWN_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_UNKNOWN_ELEMENT_H_
+#define COBALT_DOM_HTML_UNKNOWN_ELEMENT_H_
 
 #include <string>
 
@@ -29,7 +29,7 @@ namespace dom {
 //   http://www.w3.org/TR/html5/dom.html#htmlunknownelement
 class HTMLUnknownElement : public HTMLElement {
  public:
-  HTMLUnknownElement(Document* document, const std::string& tag_name)
+  HTMLUnknownElement(Document* document, base::Token tag_name)
       : HTMLElement(document, tag_name) {}
 
   // Custom, not in any spec.
@@ -43,11 +43,9 @@ class HTMLUnknownElement : public HTMLElement {
 
  private:
   ~HTMLUnknownElement() OVERRIDE {}
-
-  std::string tag_name_;
 };
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_UNKNOWN_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_UNKNOWN_ELEMENT_H_

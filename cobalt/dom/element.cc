@@ -45,10 +45,7 @@ const char kStyleAttributeName[] = "style";
 
 }  // namespace
 
-Element::Element(Document* document)
-    : Node(document), animations_(new web_animations::AnimationSet()) {}
-
-Element::Element(Document* document, const std::string& tag_name)
+Element::Element(Document* document, base::Token tag_name)
     : Node(document),
       tag_name_(tag_name),
       animations_(new web_animations::AnimationSet()) {}
@@ -180,7 +177,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   switch (attr_name.size()) {
     case 2:
       if (attr_name == "id") {
-        id_attribute_ = value;
+        id_attribute_ = base::Token(value);
       }
       break;
     case 5:
@@ -238,7 +235,7 @@ void Element::RemoveAttribute(const std::string& name) {
   switch (attr_name.size()) {
     case 2:
       if (attr_name == "id") {
-        id_attribute_ = "";
+        id_attribute_ = base::Token("");
       }
       break;
     case 5:
@@ -483,7 +480,7 @@ void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Element::Duplicate() const {
-  Element* new_element = new Element(node_document());
+  Element* new_element = new Element(node_document(), tag_name());
   new_element->CopyAttributes(*this);
   return new_element;
 }

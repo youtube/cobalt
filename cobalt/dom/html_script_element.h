@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_SCRIPT_ELEMENT_H_
-#define DOM_HTML_SCRIPT_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_SCRIPT_ELEMENT_H_
+#define COBALT_DOM_HTML_SCRIPT_ELEMENT_H_
 
 #include <string>
 
@@ -37,10 +37,6 @@ class HTMLScriptElement : public HTMLElement {
   static const char kTagName[];
 
   explicit HTMLScriptElement(Document* document);
-
-  // Web API: Element
-  //
-  std::string tag_name() const OVERRIDE;
 
   // Web API: HTMLScriptElement
   //
@@ -122,4 +118,4 @@ class HTMLScriptElement : public HTMLElement {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_SCRIPT_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_SCRIPT_ELEMENT_H_

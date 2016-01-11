@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CLASS_SELECTOR_H_
-#define CSSOM_CLASS_SELECTOR_H_
+#ifndef COBALT_CSSOM_CLASS_SELECTOR_H_
+#define COBALT_CSSOM_CLASS_SELECTOR_H_
 
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "cobalt/base/token.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
@@ -46,17 +47,19 @@ class ClassSelector : public SimpleSelector {
   // From SimpleSelector.
   ClassSelector* AsClassSelector() OVERRIDE { return this; }
   int GetRank() const OVERRIDE { return kClassSelectorRank; }
-  std::string GetSelectorText() const OVERRIDE { return "." + class_name_; }
+  std::string GetSelectorText() const OVERRIDE {
+    return "." + class_name_.str();
+  }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) OVERRIDE;
 
   // Rest of public methods.
 
-  const std::string& class_name() const { return class_name_; }
+  base::Token class_name() const { return class_name_; }
 
  private:
-  const std::string class_name_;
+  const base::Token class_name_;
 
   DISALLOW_COPY_AND_ASSIGN(ClassSelector);
 };
@@ -64,4 +67,4 @@ class ClassSelector : public SimpleSelector {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CLASS_SELECTOR_H_
+#endif  // COBALT_CSSOM_CLASS_SELECTOR_H_

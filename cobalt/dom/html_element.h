@@ -25,6 +25,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "base/string_piece.h"
+#include "cobalt/base/token.h"
 #include "cobalt/cssom/animation_set.h"
 #include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/css_style_declaration.h"
@@ -221,8 +222,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
-  explicit HTMLElement(Document* document);
-  HTMLElement(Document* document, const std::string& tag_name);
+  HTMLElement(Document* document, base::Token tag_name);
   ~HTMLElement() OVERRIDE;
 
  private:

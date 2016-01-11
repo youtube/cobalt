@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_SPAN_ELEMENT_H_
-#define DOM_HTML_SPAN_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_SPAN_ELEMENT_H_
+#define COBALT_DOM_HTML_SPAN_ELEMENT_H_
 
 #include <string>
 
@@ -32,10 +32,8 @@ class HTMLSpanElement : public HTMLElement {
  public:
   static const char kTagName[];
 
-  explicit HTMLSpanElement(Document* document) : HTMLElement(document) {}
-
-  // Web API: Element
-  std::string tag_name() const OVERRIDE;
+  explicit HTMLSpanElement(Document* document)
+      : HTMLElement(document, base::Token(kTagName)) {}
 
   // Custom, not in any spec.
   scoped_refptr<HTMLSpanElement> AsHTMLSpanElement() OVERRIDE { return this; }
@@ -49,4 +47,4 @@ class HTMLSpanElement : public HTMLElement {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_SPAN_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_SPAN_ELEMENT_H_

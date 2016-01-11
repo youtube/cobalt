@@ -36,9 +36,8 @@ const char HTMLImageElement::kTagName[] = "img";
 HTMLImageElement::HTMLImageElement(script::EnvironmentSettings* env_settings)
     : HTMLElement(base::polymorphic_downcast<DOMSettings*>(env_settings)
                       ->window()
-                      ->document()) {}
-
-std::string HTMLImageElement::tag_name() const { return kTagName; }
+                      ->document(),
+                  base::Token(kTagName)) {}
 
 void HTMLImageElement::OnSetAttribute(const std::string& name,
                                       const std::string& /* value */) {

@@ -27,9 +27,7 @@ using ::media::ShellVideoFrameProvider;
 const char HTMLVideoElement::kTagName[] = "video";
 
 HTMLVideoElement::HTMLVideoElement(Document* document)
-    : HTMLMediaElement(document) {}
-
-std::string HTMLVideoElement::tag_name() const { return kTagName; }
+    : HTMLMediaElement(document, base::Token(kTagName)) {}
 
 uint32 HTMLVideoElement::width() const {
   uint32 result = 0;

@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_ELEMENT_FACTORY_H_
-#define DOM_HTML_ELEMENT_FACTORY_H_
+#ifndef COBALT_DOM_HTML_ELEMENT_FACTORY_H_
+#define COBALT_DOM_HTML_ELEMENT_FACTORY_H_
 
 #include <string>
 
 #include "base/callback.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/base/token.h"
 
 namespace cobalt {
 namespace dom {
@@ -36,12 +37,12 @@ class HTMLElementFactory {
   ~HTMLElementFactory();
 
   scoped_refptr<HTMLElement> CreateHTMLElement(Document* document,
-                                               const std::string& tag_name);
+                                               base::Token tag_name);
 
  private:
   typedef base::Callback<scoped_refptr<HTMLElement>(Document* document)>
       CreateHTMLElementTCallback;
-  typedef base::hash_map<std::string, CreateHTMLElementTCallback>
+  typedef base::hash_map<base::Token, CreateHTMLElementTCallback>
       TagNameToCreateHTMLElementTCallbackMap;
 
   // Helper function templates for adding entries to the map below.
@@ -59,4 +60,4 @@ class HTMLElementFactory {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_ELEMENT_FACTORY_H_
+#endif  // COBALT_DOM_HTML_ELEMENT_FACTORY_H_
