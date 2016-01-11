@@ -63,6 +63,7 @@ class Display {
   bool DestroyContext(EGLContext ctx);
 
   bool MakeCurrent(EGLSurface draw, EGLSurface read, EGLContext ctx);
+  bool SwapBuffers(EGLSurface surface);
 
  private:
   nb::scoped_ptr<DisplayImpl> impl_;

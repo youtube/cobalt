@@ -252,7 +252,13 @@ EGLBoolean EGLAPIENTRY eglQuerySurface(EGLDisplay dpy,
 
 EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
   egl::ScopedEGLLock egl_lock;
-  return false;
+
+  egl::Display* display = GetDisplayOrSetError(dpy);
+  if (!display) {
+    return false;
+  }
+
+  return display->SwapBuffers(surface);
 }
 
 EGLBoolean EGLAPIENTRY eglTerminate(EGLDisplay dpy) {
