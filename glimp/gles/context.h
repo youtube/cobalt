@@ -92,6 +92,10 @@ class Context {
                   GLsizeiptr size,
                   const GLvoid* data,
                   GLenum usage);
+  void BufferSubData(GLenum target,
+                     GLintptr offset,
+                     GLsizeiptr size,
+                     const GLvoid* data);
 
   void GenTextures(GLsizei n, GLuint* textures);
   void DeleteTextures(GLsizei n, const GLuint* textures);
