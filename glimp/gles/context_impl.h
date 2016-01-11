@@ -80,6 +80,32 @@ class ContextImpl {
   //   https://www.khronos.org/opengles/sdk/1.1/docs/man/glGetString.xml
   virtual ExtensionList GetExtensions() const = 0;
 
+  // Called via glGetIntegerv(GL_MAX_VERTEX_ATTRIBS).
+  // Returns the maximum supported number of enabled vertex attributes.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml
+  virtual int GetMaxVertexAttribs() const = 0;
+
+  // Called via glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS).
+  // Returns the maximum supported number of textures per fragment shader.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml
+  virtual int GetMaxFragmentTextureUnits() const = 0;
+
+  // Called via glGetIntegerv(GL_MAX_TEXTURE_SIZE).
+  // Returns the maximum width and height of a texture, in pixels.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml
+  virtual int GetMaxTextureSize() const = 0;
+
+  // Called via glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE).
+  // Returns the maximum width and height of a render buffer, in pixels.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml
+  virtual int GetMaxRenderbufferSize() const = 0;
+
+  // Called via glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS).
+  // Returns the maximum number of uniforms that can be bound to a fragment
+  // shader.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml
+  virtual int GetMaxFragmentUniformVectors() const = 0;
+
   // Called via glCreateProgram.  Must create and return a platform-specific
   // ProgramImpl implementation.  If a NULL scoped_ptr is returned, it is
   // treated as an error.
