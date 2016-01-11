@@ -1,5 +1,6 @@
 /*
- * Copyright © 2010,2012  Google, Inc.
+ * Copyright © 2015  Mozilla Foundation.
+ * Copyright © 2015  Google, Inc.
  *
  *  This is part of HarfBuzz, a text shaping library.
  *
@@ -21,25 +22,29 @@
  * ON AN "AS IS" BASIS, AND THE COPYRIGHT HOLDER HAS NO OBLIGATION TO
  * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
+ * Mozilla Author(s): Jonathan Kew
  * Google Author(s): Behdad Esfahbod
  */
+
+#ifndef HB_OT_SHAPE_COMPLEX_ARABIC_PRIVATE_HH
+#define HB_OT_SHAPE_COMPLEX_ARABIC_PRIVATE_HH
+
+#include "hb-private.hh"
 
 #include "hb-ot-shape-complex-private.hh"
 
 
-const hb_ot_complex_shaper_t _hb_ot_complex_shaper_default =
-{
-  "default",
-  NULL, /* collect_features */
-  NULL, /* override_features */
-  NULL, /* data_create */
-  NULL, /* data_destroy */
-  NULL, /* preprocess_text */
-  NULL, /* postprocess_glyphs */
-  HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT,
-  NULL, /* decompose */
-  NULL, /* compose */
-  NULL, /* setup_masks */
-  HB_OT_SHAPE_ZERO_WIDTH_MARKS_DEFAULT,
-  true, /* fallback_position */
-};
+struct arabic_shape_plan_t;
+
+HB_INTERNAL void *
+data_create_arabic (const hb_ot_shape_plan_t *plan);
+
+HB_INTERNAL void
+data_destroy_arabic (void *data);
+
+HB_INTERNAL void
+setup_masks_arabic_plan (const arabic_shape_plan_t *arabic_plan,
+			 hb_buffer_t               *buffer,
+			 hb_script_t                script);
+
+#endif /* HB_OT_SHAPE_COMPLEX_ARABIC_PRIVATE_HH */
