@@ -172,9 +172,9 @@ void Context::Disable(GLenum cap) {
     case GL_SCISSOR_TEST:
     case GL_DITHER:
     case GL_CULL_FACE:
-    // Since these are not implemented yet, it is not an error to do nothing
-    // when we ask for them to be disabled!
-    break;
+      // Since these are not implemented yet, it is not an error to do nothing
+      // when we ask for them to be disabled!
+      break;
 
     default:
       SB_NOTIMPLEMENTED();
@@ -437,7 +437,8 @@ void Context::BufferData(GLenum target,
     return;
   }
 
-  if (usage != GL_STATIC_DRAW && usage != GL_DYNAMIC_DRAW) {
+  if (usage != GL_STREAM_DRAW && usage != GL_STATIC_DRAW &&
+      usage != GL_DYNAMIC_DRAW) {
     SetError(GL_INVALID_ENUM);
     return;
   }
@@ -453,7 +454,42 @@ void Context::BufferData(GLenum target,
     return;
   }
 
-  bound_buffer->SetData(size, data, usage);
+  bound_buffer->Allocate(usage, size);
+  if (data) {
+    bound_buffer->SetData(0, size, data);
+  }
+}
+
+void Context::BufferSubData(GLenum target,
+                            GLintptr offset,
+                            GLsizeiptr size,
+                            const GLvoid* data) {
+  if (size < 0 || offset < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (target != GL_ARRAY_BUFFER && target != GL_ELEMENT_ARRAY_BUFFER) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  nb::scoped_refptr<Buffer> bound_buffer = *GetBoundBufferForTarget(target);
+  if (bound_buffer == 0) {
+    SetError(GL_INVALID_OPERATION);
+    return;
+  }
+
+  if (offset + size > bound_buffer->size_in_bytes()) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  // Nothing in the specification says there should be an error if data
+  // is NULL.
+  if (data) {
+    bound_buffer->SetData(offset, size, data);
+  }
 }
 
 void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
