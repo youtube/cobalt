@@ -63,6 +63,7 @@ class Context {
   GLenum GetError();
 
   const GLubyte* GetString(GLenum name);
+  void GetIntegerv(GLenum pname, GLint* params);
 
   GLuint CreateProgram();
   void DeleteProgram(GLuint program);

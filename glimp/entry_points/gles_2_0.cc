@@ -467,7 +467,12 @@ void GL_APIENTRY glGetFramebufferAttachmentParameteriv(GLenum target,
 }
 
 void GL_APIENTRY glGetIntegerv(GLenum pname, GLint* params) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->GetIntegerv(pname, params);
 }
 
 void GL_APIENTRY glGetProgramiv(GLuint program, GLenum pname, GLint* params) {

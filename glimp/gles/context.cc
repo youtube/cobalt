@@ -112,19 +112,53 @@ GLenum Context::GetError() {
 
 const GLubyte* Context::GetString(GLenum name) {
   switch (name) {
-    case GL_EXTENSIONS: {
+    case GL_EXTENSIONS:
       return reinterpret_cast<const GLubyte*>(extensions_string_.c_str());
-    } break;
-
+    case GL_VERSION:
+      return reinterpret_cast<const GLubyte*>("OpenGL ES 2.0 (glimp)");
     case GL_VENDOR:
+      return reinterpret_cast<const GLubyte*>("Google Inc.");
     case GL_RENDERER:
-    case GL_VERSION: {
-      SB_NOTIMPLEMENTED();
-    } break;
+      return reinterpret_cast<const GLubyte*>("glimp");
+    case GL_SHADING_LANGUAGE_VERSION:
+      return reinterpret_cast<const GLubyte*>("OpenGL ES GLSL ES 1.00");
 
-    default: { SetError(GL_INVALID_ENUM); }
+    default: {
+      SetError(GL_INVALID_ENUM);
+      return NULL;
+    }
   }
-  return NULL;
+}
+
+void Context::GetIntegerv(GLenum pname, GLint* params) {
+  switch (pname) {
+    case GL_MAX_TEXTURE_SIZE:
+      *params = impl_->GetMaxTextureSize();
+      break;
+    case GL_ACTIVE_TEXTURE:
+      *params = static_cast<GLint>(active_texture_);
+      break;
+    case GL_MAX_RENDERBUFFER_SIZE:
+      *params = impl_->GetMaxRenderbufferSize();
+      break;
+    case GL_NUM_COMPRESSED_TEXTURE_FORMATS:
+      // We don't currently support compressed textures.
+      *params = 0;
+      break;
+    case GL_MAX_VERTEX_ATTRIBS:
+      *params = impl_->GetMaxVertexAttribs();
+      break;
+    case GL_MAX_TEXTURE_IMAGE_UNITS:
+      *params = impl_->GetMaxFragmentTextureUnits();
+      break;
+    case GL_MAX_FRAGMENT_UNIFORM_VECTORS:
+      *params = impl_->GetMaxFragmentUniformVectors();
+      break;
+    default: {
+      SB_NOTIMPLEMENTED();
+      SetError(GL_INVALID_ENUM);
+    }
+  }
 }
 
 GLuint Context::CreateProgram() {
