@@ -26,30 +26,29 @@ namespace gles {
 // to create a texture.
 class BufferImpl {
  public:
-  // Corresponds to the |target| GLenum passed into glBindBuffers().
-  enum TargetType {
-    kArrayBuffer,
-    kElementArrayBuffer,
-  };
-
   // Corresponds to the |usage| GLenum passed into glBufferData().
   enum Usage {
+    kStreamDraw,
     kStaticDraw,
     kDynamicDraw,
   };
 
   virtual ~BufferImpl() {}
 
-  // Upload the specified data into this buffer.  |target| and |usage| may
-  // both be used as hints for how the data will be used.
-  // |target| is specified by the last call to glBindBuffers() and |usage|
-  // is specified by the call to glBufferData().  This method is called when
-  // glBufferData() is called.
-  //   https://www.khronos.org/opengles/sdk/1.1/docs/man/glBufferData.xml
-  virtual void SetData(TargetType target,
-                       Usage usage,
-                       const void* data,
-                       size_t size) = 0;
+  // Sets the size and usage of allocated memory for the buffer.
+  // Since no data is available at this point, implementations are free to
+  // delay the actual allocation of memory until data is provided.  Called from
+  // glBufferData().
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBufferData.xml
+  virtual void Allocate(Usage usage, size_t size) = 0;
+
+  // Upload the specified data into this buffer.  Allocate() must have
+  // previously been called for a call to SetData() to be valid.
+  // This method is called by glBufferData() (when data is not NULL) and
+  // glBufferSubData().
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBufferData.xml
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBufferSubData.xml
+  virtual void SetData(intptr_t offset, size_t size, const void* data) = 0;
 
  private:
 };

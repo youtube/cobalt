@@ -135,7 +135,12 @@ void GL_APIENTRY glBufferSubData(GLenum target,
                                  GLintptr offset,
                                  GLsizeiptr size,
                                  const GLvoid* data) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->BufferSubData(target, offset, size, data);
 }
 
 GLenum GL_APIENTRY glCheckFramebufferStatus(GLenum target) {

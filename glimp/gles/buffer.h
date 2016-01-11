@@ -33,8 +33,11 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
   // Called when glBindBuffer() is called.
   void SetTarget(GLenum target);
 
+  // Allocates memory within this Buffer object.
+  void Allocate(GLenum usage, size_t size);
+
   // Implements support for glBufferData() on this buffer object.
-  void SetData(GLsizeiptr size, const GLvoid* data, GLenum usage);
+  void SetData(GLintptr offset, GLsizeiptr size, const GLvoid* data);
 
   // Returns true if the target has been set (e.g. via glBindBuffer()).
   bool target_valid() const { return target_valid_; }
@@ -45,6 +48,8 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
     SB_DCHECK(target_valid_);
     return target_;
   }
+
+  GLsizeiptr size_in_bytes() const { return size_in_bytes_; }
 
   BufferImpl* impl() { return impl_.get(); }
   const BufferImpl* impl() const { return impl_.get(); }
@@ -61,6 +66,9 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
 
   // Represents whether or not target_ as been initialized yet.
   bool target_valid_;
+
+  // The size of the allocated memory used by this buffer.
+  GLsizeiptr size_in_bytes_;
 };
 
 }  // namespace gles
