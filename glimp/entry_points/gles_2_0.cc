@@ -71,9 +71,13 @@ void GL_APIENTRY glBindBuffer(GLenum target, GLuint buffer) {
   context->BindBuffer(target, buffer);
 }
 
-void GL_APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer) {}
+void GL_APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glBindRenderbuffer(GLenum target, GLuint renderbuffer) {}
+void GL_APIENTRY glBindRenderbuffer(GLenum target, GLuint renderbuffer) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glBindTexture(GLenum target, GLuint texture) {
   gles::Context* context = GetCurrentContext();
@@ -87,18 +91,28 @@ void GL_APIENTRY glBindTexture(GLenum target, GLuint texture) {
 void GL_APIENTRY glBlendColor(GLfloat red,
                               GLfloat green,
                               GLfloat blue,
-                              GLfloat alpha) {}
+                              GLfloat alpha) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glBlendEquation(GLenum mode) {}
+void GL_APIENTRY glBlendEquation(GLenum mode) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha) {}
+void GL_APIENTRY glBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glBlendFunc(GLenum sfactor, GLenum dfactor) {}
+void GL_APIENTRY glBlendFunc(GLenum sfactor, GLenum dfactor) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glBlendFuncSeparate(GLenum srcRGB,
                                      GLenum dstRGB,
                                      GLenum srcAlpha,
-                                     GLenum dstAlpha) {}
+                                     GLenum dstAlpha) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glBufferData(GLenum target,
                               GLsizeiptr size,
@@ -115,27 +129,40 @@ void GL_APIENTRY glBufferData(GLenum target,
 void GL_APIENTRY glBufferSubData(GLenum target,
                                  GLintptr offset,
                                  GLsizeiptr size,
-                                 const GLvoid* data) {}
+                                 const GLvoid* data) {
+  SB_NOTIMPLEMENTED();
+}
 
 GLenum GL_APIENTRY glCheckFramebufferStatus(GLenum target) {
+  SB_NOTIMPLEMENTED();
   return 0;
 }
 
-void GL_APIENTRY glClear(GLbitfield mask) {}
+void GL_APIENTRY glClear(GLbitfield mask) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glClearColor(GLfloat red,
                               GLfloat green,
                               GLfloat blue,
-                              GLfloat alpha) {}
+                              GLfloat alpha) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glClearDepthf(GLfloat depth) {}
+void GL_APIENTRY glClearDepthf(GLfloat depth) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glClearStencil(GLint s) {}
+void GL_APIENTRY glClearStencil(GLint s) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glColorMask(GLboolean red,
                              GLboolean green,
                              GLboolean blue,
-                             GLboolean alpha) {}
+                             GLboolean alpha) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glCompileShader(GLuint shader) {
   gles::Context* context = GetCurrentContext();
@@ -153,7 +180,9 @@ void GL_APIENTRY glCompressedTexImage2D(GLenum target,
                                         GLsizei height,
                                         GLint border,
                                         GLsizei imageSize,
-                                        const GLvoid* data) {}
+                                        const GLvoid* data) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glCompressedTexSubImage2D(GLenum target,
                                            GLint level,
@@ -163,7 +192,9 @@ void GL_APIENTRY glCompressedTexSubImage2D(GLenum target,
                                            GLsizei height,
                                            GLenum format,
                                            GLsizei imageSize,
-                                           const GLvoid* data) {}
+                                           const GLvoid* data) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glCopyTexImage2D(GLenum target,
                                   GLint level,
@@ -172,7 +203,9 @@ void GL_APIENTRY glCopyTexImage2D(GLenum target,
                                   GLint y,
                                   GLsizei width,
                                   GLsizei height,
-                                  GLint border) {}
+                                  GLint border) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glCopyTexSubImage2D(GLenum target,
                                      GLint level,
@@ -181,7 +214,9 @@ void GL_APIENTRY glCopyTexSubImage2D(GLenum target,
                                      GLint x,
                                      GLint y,
                                      GLsizei width,
-                                     GLsizei height) {}
+                                     GLsizei height) {
+  SB_NOTIMPLEMENTED();
+}
 
 GLuint GL_APIENTRY glCreateProgram(void) {
   gles::Context* context = GetCurrentContext();
@@ -201,7 +236,9 @@ GLuint GL_APIENTRY glCreateShader(GLenum type) {
   return context->CreateShader(type);
 }
 
-void GL_APIENTRY glCullFace(GLenum mode) {}
+void GL_APIENTRY glCullFace(GLenum mode) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glDeleteBuffers(GLsizei n, const GLuint* buffers) {
   gles::Context* context = GetCurrentContext();
@@ -212,7 +249,9 @@ void GL_APIENTRY glDeleteBuffers(GLsizei n, const GLuint* buffers) {
   return context->DeleteBuffers(n, buffers);
 }
 
-void GL_APIENTRY glDeleteFramebuffers(GLsizei n, const GLuint* framebuffers) {}
+void GL_APIENTRY glDeleteFramebuffers(GLsizei n, const GLuint* framebuffers) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glDeleteProgram(GLuint program) {
   gles::Context* context = GetCurrentContext();
@@ -224,6 +263,7 @@ void GL_APIENTRY glDeleteProgram(GLuint program) {
 }
 
 void GL_APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers) {
+  SB_NOTIMPLEMENTED();
 }
 
 void GL_APIENTRY glDeleteShader(GLuint shader) {
@@ -244,15 +284,25 @@ void GL_APIENTRY glDeleteTextures(GLsizei n, const GLuint* textures) {
   return context->DeleteTextures(n, textures);
 }
 
-void GL_APIENTRY glDepthFunc(GLenum func) {}
+void GL_APIENTRY glDepthFunc(GLenum func) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glDepthMask(GLboolean flag) {}
+void GL_APIENTRY glDepthMask(GLboolean flag) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glDepthRangef(GLfloat n, GLfloat f) {}
+void GL_APIENTRY glDepthRangef(GLfloat n, GLfloat f) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glDetachShader(GLuint program, GLuint shader) {}
+void GL_APIENTRY glDetachShader(GLuint program, GLuint shader) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glDisable(GLenum cap) {}
+void GL_APIENTRY glDisable(GLenum cap) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glDisableVertexAttribArray(GLuint index) {
   gles::Context* context = GetCurrentContext();
@@ -275,9 +325,13 @@ void GL_APIENTRY glDrawArrays(GLenum mode, GLint first, GLsizei count) {
 void GL_APIENTRY glDrawElements(GLenum mode,
                                 GLsizei count,
                                 GLenum type,
-                                const GLvoid* indices) {}
+                                const GLvoid* indices) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glEnable(GLenum cap) {}
+void GL_APIENTRY glEnable(GLenum cap) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glEnableVertexAttribArray(GLuint index) {
   gles::Context* context = GetCurrentContext();
@@ -288,7 +342,9 @@ void GL_APIENTRY glEnableVertexAttribArray(GLuint index) {
   return context->EnableVertexAttribArray(index);
 }
 
-void GL_APIENTRY glFinish(void) {}
+void GL_APIENTRY glFinish(void) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glFlush(void) {
   gles::Context* context = GetCurrentContext();
@@ -302,15 +358,21 @@ void GL_APIENTRY glFlush(void) {
 void GL_APIENTRY glFramebufferRenderbuffer(GLenum target,
                                            GLenum attachment,
                                            GLenum renderbuffertarget,
-                                           GLuint renderbuffer) {}
+                                           GLuint renderbuffer) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glFramebufferTexture2D(GLenum target,
                                         GLenum attachment,
                                         GLenum textarget,
                                         GLuint texture,
-                                        GLint level) {}
+                                        GLint level) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glFrontFace(GLenum mode) {}
+void GL_APIENTRY glFrontFace(GLenum mode) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGenBuffers(GLsizei n, GLuint* buffers) {
   gles::Context* context = GetCurrentContext();
@@ -321,11 +383,17 @@ void GL_APIENTRY glGenBuffers(GLsizei n, GLuint* buffers) {
   return context->GenBuffers(n, buffers);
 }
 
-void GL_APIENTRY glGenerateMipmap(GLenum target) {}
+void GL_APIENTRY glGenerateMipmap(GLenum target) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glGenFramebuffers(GLsizei n, GLuint* framebuffers) {}
+void GL_APIENTRY glGenFramebuffers(GLsizei n, GLuint* framebuffers) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glGenRenderbuffers(GLsizei n, GLuint* renderbuffers) {}
+void GL_APIENTRY glGenRenderbuffers(GLsizei n, GLuint* renderbuffers) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGenTextures(GLsizei n, GLuint* textures) {
   gles::Context* context = GetCurrentContext();
@@ -342,7 +410,9 @@ void GL_APIENTRY glGetActiveAttrib(GLuint program,
                                    GLsizei* length,
                                    GLint* size,
                                    GLenum* type,
-                                   GLchar* name) {}
+                                   GLchar* name) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetActiveUniform(GLuint program,
                                     GLuint index,
@@ -350,22 +420,31 @@ void GL_APIENTRY glGetActiveUniform(GLuint program,
                                     GLsizei* length,
                                     GLint* size,
                                     GLenum* type,
-                                    GLchar* name) {}
+                                    GLchar* name) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetAttachedShaders(GLuint program,
                                       GLsizei maxcount,
                                       GLsizei* count,
-                                      GLuint* shaders) {}
+                                      GLuint* shaders) {
+  SB_NOTIMPLEMENTED();
+}
 
 GLint GL_APIENTRY glGetAttribLocation(GLuint program, const GLchar* name) {
+  SB_NOTIMPLEMENTED();
   return 0;
 }
 
-void GL_APIENTRY glGetBooleanv(GLenum pname, GLboolean* params) {}
+void GL_APIENTRY glGetBooleanv(GLenum pname, GLboolean* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetBufferParameteriv(GLenum target,
                                         GLenum pname,
-                                        GLint* params) {}
+                                        GLint* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 GLenum GL_APIENTRY glGetError(void) {
   gles::Context* context = GetCurrentContext();
@@ -376,42 +455,62 @@ GLenum GL_APIENTRY glGetError(void) {
   return context->GetError();
 }
 
-void GL_APIENTRY glGetFloatv(GLenum pname, GLfloat* params) {}
+void GL_APIENTRY glGetFloatv(GLenum pname, GLfloat* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetFramebufferAttachmentParameteriv(GLenum target,
                                                        GLenum attachment,
                                                        GLenum pname,
-                                                       GLint* params) {}
+                                                       GLint* params) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glGetIntegerv(GLenum pname, GLint* params) {}
+void GL_APIENTRY glGetIntegerv(GLenum pname, GLint* params) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glGetProgramiv(GLuint program, GLenum pname, GLint* params) {}
+void GL_APIENTRY glGetProgramiv(GLuint program, GLenum pname, GLint* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetProgramInfoLog(GLuint program,
                                      GLsizei bufsize,
                                      GLsizei* length,
-                                     GLchar* infolog) {}
+                                     GLchar* infolog) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetRenderbufferParameteriv(GLenum target,
                                               GLenum pname,
-                                              GLint* params) {}
+                                              GLint* params) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glGetShaderiv(GLuint shader, GLenum pname, GLint* params) {}
+void GL_APIENTRY glGetShaderiv(GLuint shader, GLenum pname, GLint* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetShaderInfoLog(GLuint shader,
                                     GLsizei bufsize,
                                     GLsizei* length,
-                                    GLchar* infolog) {}
+                                    GLchar* infolog) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetShaderPrecisionFormat(GLenum shadertype,
                                             GLenum precisiontype,
                                             GLint* range,
-                                            GLint* precision) {}
+                                            GLint* precision) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetShaderSource(GLuint shader,
                                    GLsizei bufsize,
                                    GLsizei* length,
-                                   GLchar* source) {}
+                                   GLchar* source) {
+  SB_NOTIMPLEMENTED();
+}
 
 const GLubyte* GL_APIENTRY glGetString(GLenum name) {
   gles::Context* context = GetCurrentContext();
@@ -424,66 +523,91 @@ const GLubyte* GL_APIENTRY glGetString(GLenum name) {
 
 void GL_APIENTRY glGetTexParameterfv(GLenum target,
                                      GLenum pname,
-                                     GLfloat* params) {}
+                                     GLfloat* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetTexParameteriv(GLenum target,
                                      GLenum pname,
-                                     GLint* params) {}
+                                     GLint* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetUniformfv(GLuint program,
                                 GLint location,
-                                GLfloat* params) {}
+                                GLfloat* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetUniformiv(GLuint program, GLint location, GLint* params) {
+  SB_NOTIMPLEMENTED();
 }
 
 GLint GL_APIENTRY glGetUniformLocation(GLuint program, const GLchar* name) {
+  SB_NOTIMPLEMENTED();
   return 0;
 }
 
 void GL_APIENTRY glGetVertexAttribfv(GLuint index,
                                      GLenum pname,
-                                     GLfloat* params) {}
+                                     GLfloat* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetVertexAttribiv(GLuint index,
                                      GLenum pname,
-                                     GLint* params) {}
+                                     GLint* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glGetVertexAttribPointerv(GLuint index,
                                            GLenum pname,
-                                           GLvoid** pointer) {}
+                                           GLvoid** pointer) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glHint(GLenum target, GLenum mode) {}
+void GL_APIENTRY glHint(GLenum target, GLenum mode) {
+  SB_NOTIMPLEMENTED();
+}
 
 GLboolean GL_APIENTRY glIsBuffer(GLuint buffer) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 GLboolean GL_APIENTRY glIsEnabled(GLenum cap) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 GLboolean GL_APIENTRY glIsFramebuffer(GLuint framebuffer) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 GLboolean GL_APIENTRY glIsProgram(GLuint program) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 GLboolean GL_APIENTRY glIsRenderbuffer(GLuint renderbuffer) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 GLboolean GL_APIENTRY glIsShader(GLuint shader) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 GLboolean GL_APIENTRY glIsTexture(GLuint texture) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
-void GL_APIENTRY glLineWidth(GLfloat width) {}
+void GL_APIENTRY glLineWidth(GLfloat width) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glLinkProgram(GLuint program) {
   gles::Context* context = GetCurrentContext();
@@ -494,9 +618,13 @@ void GL_APIENTRY glLinkProgram(GLuint program) {
   context->LinkProgram(program);
 }
 
-void GL_APIENTRY glPixelStorei(GLenum pname, GLint param) {}
+void GL_APIENTRY glPixelStorei(GLenum pname, GLint param) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glPolygonOffset(GLfloat factor, GLfloat units) {}
+void GL_APIENTRY glPolygonOffset(GLfloat factor, GLfloat units) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glReadPixels(GLint x,
                               GLint y,
@@ -504,16 +632,24 @@ void GL_APIENTRY glReadPixels(GLint x,
                               GLsizei height,
                               GLenum format,
                               GLenum type,
-                              GLvoid* pixels) {}
+                              GLvoid* pixels) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glReleaseShaderCompiler(void) {}
+void GL_APIENTRY glReleaseShaderCompiler(void) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glRenderbufferStorage(GLenum target,
                                        GLenum internalformat,
                                        GLsizei width,
-                                       GLsizei height) {}
+                                       GLsizei height) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glSampleCoverage(GLfloat value, GLboolean invert) {}
+void GL_APIENTRY glSampleCoverage(GLfloat value, GLboolean invert) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glScissor(GLint x, GLint y, GLsizei width, GLsizei height) {
   gles::Context* context = GetCurrentContext();
@@ -528,7 +664,9 @@ void GL_APIENTRY glShaderBinary(GLsizei n,
                                 const GLuint* shaders,
                                 GLenum binaryformat,
                                 const GLvoid* binary,
-                                GLsizei length) {}
+                                GLsizei length) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glShaderSource(GLuint shader,
                                 GLsizei count,
@@ -542,23 +680,35 @@ void GL_APIENTRY glShaderSource(GLuint shader,
   context->ShaderSource(shader, count, string, length);
 }
 
-void GL_APIENTRY glStencilFunc(GLenum func, GLint ref, GLuint mask) {}
+void GL_APIENTRY glStencilFunc(GLenum func, GLint ref, GLuint mask) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glStencilFuncSeparate(GLenum face,
                                        GLenum func,
                                        GLint ref,
-                                       GLuint mask) {}
+                                       GLuint mask) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glStencilMask(GLuint mask) {}
+void GL_APIENTRY glStencilMask(GLuint mask) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glStencilMaskSeparate(GLenum face, GLuint mask) {}
+void GL_APIENTRY glStencilMaskSeparate(GLenum face, GLuint mask) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass) {}
+void GL_APIENTRY glStencilOp(GLenum fail, GLenum zfail, GLenum zpass) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glStencilOpSeparate(GLenum face,
                                      GLenum fail,
                                      GLenum zfail,
-                                     GLenum zpass) {}
+                                     GLenum zpass) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glTexImage2D(GLenum target,
                               GLint level,
@@ -584,7 +734,9 @@ void GL_APIENTRY glTexParameterf(GLenum target, GLenum pname, GLfloat param) {
 
 void GL_APIENTRY glTexParameterfv(GLenum target,
                                   GLenum pname,
-                                  const GLfloat* params) {}
+                                  const GLfloat* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glTexParameteri(GLenum target, GLenum pname, GLint param) {
   gles::Context* context = GetCurrentContext();
@@ -597,7 +749,9 @@ void GL_APIENTRY glTexParameteri(GLenum target, GLenum pname, GLint param) {
 
 void GL_APIENTRY glTexParameteriv(GLenum target,
                                   GLenum pname,
-                                  const GLint* params) {}
+                                  const GLint* params) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glTexSubImage2D(GLenum target,
                                  GLint level,
@@ -607,60 +761,93 @@ void GL_APIENTRY glTexSubImage2D(GLenum target,
                                  GLsizei height,
                                  GLenum format,
                                  GLenum type,
-                                 const GLvoid* pixels) {}
+                                 const GLvoid* pixels) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glUniform1f(GLint location, GLfloat x) {}
+void GL_APIENTRY glUniform1f(GLint location, GLfloat x) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glUniform1fv(GLint location, GLsizei count, const GLfloat* v) {
 }
 
-void GL_APIENTRY glUniform1i(GLint location, GLint x) {}
+void GL_APIENTRY glUniform1i(GLint location, GLint x) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glUniform1iv(GLint location, GLsizei count, const GLint* v) {}
+void GL_APIENTRY glUniform1iv(GLint location, GLsizei count, const GLint* v) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glUniform2f(GLint location, GLfloat x, GLfloat y) {}
+void GL_APIENTRY glUniform2f(GLint location, GLfloat x, GLfloat y) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glUniform2fv(GLint location, GLsizei count, const GLfloat* v) {
 }
 
-void GL_APIENTRY glUniform2i(GLint location, GLint x, GLint y) {}
+void GL_APIENTRY glUniform2i(GLint location, GLint x, GLint y) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glUniform2iv(GLint location, GLsizei count, const GLint* v) {}
+void GL_APIENTRY glUniform2iv(GLint location, GLsizei count, const GLint* v) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glUniform3f(GLint location, GLfloat x, GLfloat y, GLfloat z) {}
+void GL_APIENTRY glUniform3f(GLint location, GLfloat x, GLfloat y, GLfloat z) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glUniform3fv(GLint location, GLsizei count, const GLfloat* v) {
 }
 
-void GL_APIENTRY glUniform3i(GLint location, GLint x, GLint y, GLint z) {}
+void GL_APIENTRY glUniform3i(GLint location, GLint x, GLint y, GLint z) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glUniform3iv(GLint location, GLsizei count, const GLint* v) {}
-
-void GL_APIENTRY
-glUniform4f(GLint location, GLfloat x, GLfloat y, GLfloat z, GLfloat w) {}
-
-void GL_APIENTRY glUniform4fv(GLint location, GLsizei count, const GLfloat* v) {
+void GL_APIENTRY glUniform3iv(GLint location, GLsizei count, const GLint* v) {
+  SB_NOTIMPLEMENTED();
 }
 
 void GL_APIENTRY
-glUniform4i(GLint location, GLint x, GLint y, GLint z, GLint w) {}
+glUniform4f(GLint location, GLfloat x, GLfloat y, GLfloat z, GLfloat w) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glUniform4iv(GLint location, GLsizei count, const GLint* v) {}
+void GL_APIENTRY glUniform4fv(GLint location, GLsizei count, const GLfloat* v) {
+  SB_NOTIMPLEMENTED();
+}
+
+void GL_APIENTRY
+glUniform4i(GLint location, GLint x, GLint y, GLint z, GLint w) {
+  SB_NOTIMPLEMENTED();
+}
+
+void GL_APIENTRY glUniform4iv(GLint location, GLsizei count, const GLint* v) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glUniformMatrix2fv(GLint location,
                                     GLsizei count,
                                     GLboolean transpose,
-                                    const GLfloat* value) {}
+                                    const GLfloat* value) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glUniformMatrix3fv(GLint location,
                                     GLsizei count,
                                     GLboolean transpose,
-                                    const GLfloat* value) {}
+                                    const GLfloat* value) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glUniformMatrix4fv(GLint location,
                                     GLsizei count,
                                     GLboolean transpose,
-                                    const GLfloat* value) {}
+                                    const GLfloat* value) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glUseProgram(GLuint program) {
   gles::Context* context = GetCurrentContext();
@@ -671,27 +858,45 @@ void GL_APIENTRY glUseProgram(GLuint program) {
   return context->UseProgram(program);
 }
 
-void GL_APIENTRY glValidateProgram(GLuint program) {}
+void GL_APIENTRY glValidateProgram(GLuint program) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glVertexAttrib1f(GLuint indx, GLfloat x) {}
+void GL_APIENTRY glVertexAttrib1f(GLuint indx, GLfloat x) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glVertexAttrib1fv(GLuint indx, const GLfloat* values) {}
+void GL_APIENTRY glVertexAttrib1fv(GLuint indx, const GLfloat* values) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glVertexAttrib2f(GLuint indx, GLfloat x, GLfloat y) {}
+void GL_APIENTRY glVertexAttrib2f(GLuint indx, GLfloat x, GLfloat y) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glVertexAttrib2fv(GLuint indx, const GLfloat* values) {}
+void GL_APIENTRY glVertexAttrib2fv(GLuint indx, const GLfloat* values) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glVertexAttrib3f(GLuint indx,
                                   GLfloat x,
                                   GLfloat y,
-                                  GLfloat z) {}
+                                  GLfloat z) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glVertexAttrib3fv(GLuint indx, const GLfloat* values) {}
+void GL_APIENTRY glVertexAttrib3fv(GLuint indx, const GLfloat* values) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY
-glVertexAttrib4f(GLuint indx, GLfloat x, GLfloat y, GLfloat z, GLfloat w) {}
+glVertexAttrib4f(GLuint indx, GLfloat x, GLfloat y, GLfloat z, GLfloat w) {
+  SB_NOTIMPLEMENTED();
+}
 
-void GL_APIENTRY glVertexAttrib4fv(GLuint indx, const GLfloat* values) {}
+void GL_APIENTRY glVertexAttrib4fv(GLuint indx, const GLfloat* values) {
+  SB_NOTIMPLEMENTED();
+}
 
 void GL_APIENTRY glVertexAttribPointer(GLuint indx,
                                        GLint size,

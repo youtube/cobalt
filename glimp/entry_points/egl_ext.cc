@@ -17,12 +17,15 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#include "starboard/log.h"
+
 extern "C" {
 
 EGLBoolean EGLAPIENTRY eglQuerySurfacePointerANGLE(EGLDisplay dpy,
                                                    EGLSurface surface,
                                                    EGLint attribute,
                                                    void** value) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
@@ -32,29 +35,34 @@ EGLBoolean EGLAPIENTRY eglPostSubBufferNV(EGLDisplay dpy,
                                           EGLint y,
                                           EGLint width,
                                           EGLint height) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 EGLDisplay EGLAPIENTRY eglGetPlatformDisplayEXT(EGLenum platform,
                                                 void* native_display,
                                                 const EGLint* attrib_list) {
+  SB_NOTIMPLEMENTED();
   return EGL_NO_DISPLAY;
 }
 
 EGLBoolean EGLAPIENTRY eglQueryDisplayAttribEXT(EGLDisplay dpy,
                                                 EGLint attribute,
                                                 EGLAttrib* value) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 EGLBoolean EGLAPIENTRY eglQueryDeviceAttribEXT(EGLDeviceEXT device,
                                                EGLint attribute,
                                                EGLAttrib* value) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 const char* EGLAPIENTRY eglQueryDeviceStringEXT(EGLDeviceEXT device,
                                                 EGLint name) {
+  SB_NOTIMPLEMENTED();
   return NULL;
 }
 
@@ -63,20 +71,24 @@ EGLImageKHR EGLAPIENTRY eglCreateImageKHR(EGLDisplay dpy,
                                           EGLenum target,
                                           EGLClientBuffer buffer,
                                           const EGLint* attrib_list) {
+  SB_NOTIMPLEMENTED();
   return 0;
 }
 
 EGLBoolean EGLAPIENTRY eglDestroyImageKHR(EGLDisplay dpy, EGLImageKHR image) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
 EGLDeviceEXT EGLAPIENTRY eglCreateDeviceANGLE(EGLint device_type,
                                               void* native_device,
                                               const EGLAttrib* attrib_list) {
+  SB_NOTIMPLEMENTED();
   return 0;
 }
 
 EGLBoolean EGLAPIENTRY eglReleaseDeviceANGLE(EGLDeviceEXT device) {
+  SB_NOTIMPLEMENTED();
   return false;
 }
 
