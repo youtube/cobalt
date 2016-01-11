@@ -70,6 +70,7 @@
             'src/hb-ot-shape.cc',
             'src/hb-ot-shape-complex-arabic.cc',
             'src/hb-ot-shape-complex-arabic-fallback.hh',
+            'src/hb-ot-shape-complex-arabic-private.hh',
             'src/hb-ot-shape-complex-arabic-table.hh',
             'src/hb-ot-shape-complex-default.cc',
             'src/hb-ot-shape-complex-hangul.cc',
@@ -81,10 +82,12 @@
             'src/hb-ot-shape-complex-myanmar.cc',
             'src/hb-ot-shape-complex-myanmar-machine.hh',
             'src/hb-ot-shape-complex-private.hh',
-            'src/hb-ot-shape-complex-sea.cc',
-            'src/hb-ot-shape-complex-sea-machine.hh',
             'src/hb-ot-shape-complex-thai.cc',
             'src/hb-ot-shape-complex-tibetan.cc',
+            'src/hb-ot-shape-complex-use.cc',
+            'src/hb-ot-shape-complex-use-machine.hh',
+            'src/hb-ot-shape-complex-use-private.hh',
+            'src/hb-ot-shape-complex-use-table.cc',
             'src/hb-ot-shape-fallback.cc',
             'src/hb-ot-shape-fallback-private.hh',
             'src/hb-ot-shape.h',
@@ -129,19 +132,26 @@
               'xcode_settings': {
                 'WARNING_CFLAGS': [
                   '-Wno-unused-value',
+                  # Harfbuzz uses unused typedefs for its static asserts (and its
+                  # static asserts are strange enough that they can't be replaced
+                  # by static_assert).
+                  '-Wno-unused-local-typedef',
                 ],
               },
               'cflags': [
                 '-Wno-unused-value',
+                # Harfbuzz uses unused typedefs for its static asserts (and its
+                # static asserts are strange enough that they can't be replaced
+                # by static_assert).
+                '-Wno-unused-local-typedef',
               ]
             }],
             # Disable windows harfbuzz warnings:
+            #   4267: on amd64. size_t -> int, size_t -> unsigned int
             #   4334: '<<' : result of 32-bit shift implicitly converted to 64
             #       bits (was 64-bit shift intended?)
-            #   4800: 'hb_bool_t' : forcing value to bool 'true' or 'false'
-            #       (performance warning)
             ['actual_target_arch=="win"', {
-              'msvs_disabled_warnings': [ 4334, 4800 ],
+              'msvs_disabled_warnings': [4267, 4334],
             }],
           ],
         },
