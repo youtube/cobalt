@@ -46,7 +46,6 @@ namespace dom {
 
 using ::media::WebMediaPlayer;
 
-const char HTMLMediaElement::kTagName[] = "media";
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
 const double HTMLMediaElement::kMaxTimeupdateEventFrequency = 0.25;
 
@@ -71,8 +70,8 @@ void RaiseMediaKeyException(WebMediaPlayer::MediaKeyException exception,
 
 }  // namespace
 
-HTMLMediaElement::HTMLMediaElement(Document* document)
-    : HTMLElement(document),
+HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
+    : HTMLElement(document, tag_name),
       load_state_(kWaitingForSource),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       playback_rate_(1.0f),
@@ -103,8 +102,6 @@ HTMLMediaElement::HTMLMediaElement(Document* document)
 HTMLMediaElement::~HTMLMediaElement() {
   SetSourceState(MediaSource::kReadyStateClosed);
 }
-
-std::string HTMLMediaElement::tag_name() const { return kTagName; }
 
 std::string HTMLMediaElement::src() const {
   return GetAttribute("src").value_or("");

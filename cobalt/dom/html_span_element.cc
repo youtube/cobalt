@@ -22,7 +22,5 @@ namespace dom {
 // static
 const char HTMLSpanElement::kTagName[] = "span";
 
-std::string HTMLSpanElement::tag_name() const { return kTagName; }
-
 }  // namespace dom
 }  // namespace cobalt

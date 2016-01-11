@@ -29,11 +29,9 @@ namespace dom {
 const char HTMLStyleElement::kTagName[] = "style";
 
 HTMLStyleElement::HTMLStyleElement(Document* document)
-    : HTMLElement(document),
+    : HTMLElement(document, base::Token(kTagName)),
       is_parser_inserted_(false),
       inline_style_location_(GetSourceLocationName(), 1, 1) {}
-
-std::string HTMLStyleElement::tag_name() const { return kTagName; }
 
 void HTMLStyleElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();

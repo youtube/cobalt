@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_HEADING_ELEMENT_H_
-#define DOM_HTML_HEADING_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_HEADING_ELEMENT_H_
+#define COBALT_DOM_HTML_HEADING_ELEMENT_H_
 
 #include <string>
 
@@ -33,7 +33,7 @@ class HTMLHeadingElement : public HTMLElement {
   static const int kTagNameCount;
   static const char* kTagNames[];
 
-  HTMLHeadingElement(Document* document, const std::string& tag_name)
+  HTMLHeadingElement(Document* document, base::Token tag_name)
       : HTMLElement(document, tag_name) {}
 
   // Custom, not in any spec.
@@ -50,4 +50,4 @@ class HTMLHeadingElement : public HTMLElement {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_HEADING_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_HEADING_ELEMENT_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_MEDIA_ELEMENT_H_
-#define DOM_HTML_MEDIA_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_MEDIA_ELEMENT_H_
+#define COBALT_DOM_HTML_MEDIA_ELEMENT_H_
 
 #include <string>
 
@@ -46,14 +46,8 @@ class HTMLMediaElement : public HTMLElement,
  public:
   typedef ::media::WebMediaPlayer WebMediaPlayer;
 
-  static const char kTagName[];
-
-  explicit HTMLMediaElement(Document* document);
+  HTMLMediaElement(Document* document, base::Token tag_name);
   ~HTMLMediaElement() OVERRIDE;
-
-  // Web API: Element
-  //
-  std::string tag_name() const OVERRIDE;
 
   // Web API: HTMLMediaElement
   //
@@ -285,4 +279,4 @@ class HTMLMediaElement : public HTMLElement,
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_MEDIA_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_MEDIA_ELEMENT_H_

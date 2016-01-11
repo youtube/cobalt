@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_PARAGRAPH_ELEMENT_H_
-#define DOM_HTML_PARAGRAPH_ELEMENT_H_
+#ifndef COBALT_DOM_HTML_PARAGRAPH_ELEMENT_H_
+#define COBALT_DOM_HTML_PARAGRAPH_ELEMENT_H_
 
 #include <string>
 
@@ -32,10 +32,8 @@ class HTMLParagraphElement : public HTMLElement {
  public:
   static const char kTagName[];
 
-  explicit HTMLParagraphElement(Document* document) : HTMLElement(document) {}
-
-  // Web API: Element
-  std::string tag_name() const OVERRIDE;
+  explicit HTMLParagraphElement(Document* document)
+      : HTMLElement(document, base::Token(kTagName)) {}
 
   // Custom, not in any spec.
   scoped_refptr<HTMLParagraphElement> AsHTMLParagraphElement() OVERRIDE {
@@ -51,4 +49,4 @@ class HTMLParagraphElement : public HTMLElement {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_PARAGRAPH_ELEMENT_H_
+#endif  // COBALT_DOM_HTML_PARAGRAPH_ELEMENT_H_

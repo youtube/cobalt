@@ -27,6 +27,7 @@
 #include "base/hash_tables.h"
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/base/token.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/pseudo_class_type.h"
 #include "cobalt/cssom/simple_selector_type.h"
@@ -141,7 +142,7 @@ class SelectorTree {
 
   typedef std::vector<SimpleSelectorNode> SimpleSelectorNodes;
   typedef std::vector<PseudoClassNode> PseudoClassNodes;
-  typedef base::SmallMap<base::hash_map<std::string, SimpleSelectorNodes>, 2>
+  typedef base::SmallMap<base::hash_map<base::Token, SimpleSelectorNodes>, 2>
       SelectorTextToNodesMap;
 
   class Node {
@@ -181,7 +182,7 @@ class SelectorTree {
       return (selector_mask_ & (1u << (simple_selector_type * kCombinatorCount +
                                        combinator_type))) != 0;
     }
-    void AppendSimpleSelector(std::string name,
+    void AppendSimpleSelector(base::Token name,
                               SimpleSelectorType simple_selector_type,
                               CombinatorType combinator_type, Node* node) {
       SimpleSelectorNode child_node = {simple_selector_type, combinator_type,
