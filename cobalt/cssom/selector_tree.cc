@@ -28,16 +28,16 @@ namespace cobalt {
 namespace cssom {
 
 SelectorTree::Node::Node()
-    : compound_selector_(NULL),
-      combinator_mask_(0),
+    : combinator_mask_(0),
+      compound_selector_(NULL),
       selector_mask_(0),
       pseudo_class_mask_(0) {}
 
 SelectorTree::Node::Node(CompoundSelector* compound_selector,
                          Specificity parent_specificity)
-    : compound_selector_(compound_selector),
+    : combinator_mask_(0),
+      compound_selector_(compound_selector),
       cumulative_specificity_(parent_specificity),
-      combinator_mask_(0),
       selector_mask_(0),
       pseudo_class_mask_(0) {
   cumulative_specificity_.AddFrom(compound_selector_->GetSpecificity());
