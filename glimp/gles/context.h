@@ -65,6 +65,11 @@ class Context {
   const GLubyte* GetString(GLenum name);
   void GetIntegerv(GLenum pname, GLint* params);
 
+  void Enable(GLenum cap);
+  void Disable(GLenum cap);
+
+  void DepthMask(GLboolean flag);
+
   GLuint CreateProgram();
   void DeleteProgram(GLuint program);
   void AttachShader(GLuint program, GLuint shader);
@@ -102,6 +107,8 @@ class Context {
                   GLenum format,
                   GLenum type,
                   const GLvoid* pixels);
+
+  void BindFramebuffer(GLenum target, GLuint framebuffer);
 
   void Viewport(GLint x, GLint y, GLsizei width, GLsizei height);
   void Scissor(GLint x, GLint y, GLsizei width, GLsizei height);
