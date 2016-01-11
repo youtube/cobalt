@@ -21,20 +21,10 @@ namespace gles {
 
 namespace {
 
-BufferImpl::TargetType GLTargetEnumToTargetType(GLenum target) {
-  switch (target) {
-    case GL_ARRAY_BUFFER:
-      return BufferImpl::kArrayBuffer;
-    case GL_ELEMENT_ARRAY_BUFFER:
-      return BufferImpl::kElementArrayBuffer;
-  }
-
-  SB_NOTREACHED();
-  return BufferImpl::kArrayBuffer;
-}
-
 BufferImpl::Usage GLUsageEnumToUsage(GLenum usage) {
   switch (usage) {
+    case GL_STREAM_DRAW:
+      return BufferImpl::kStreamDraw;
     case GL_STATIC_DRAW:
       return BufferImpl::kStaticDraw;
     case GL_DYNAMIC_DRAW:
@@ -48,17 +38,27 @@ BufferImpl::Usage GLUsageEnumToUsage(GLenum usage) {
 }  // namespace
 
 Buffer::Buffer(nb::scoped_ptr<BufferImpl> impl)
-    : impl_(impl.Pass()), target_valid_(false) {}
+    : impl_(impl.Pass()), target_valid_(false), size_in_bytes_(0) {}
 
 void Buffer::SetTarget(GLenum target) {
   target_ = target;
   target_valid_ = true;
 }
 
-void Buffer::SetData(GLsizeiptr size, const GLvoid* data, GLenum usage) {
+void Buffer::Allocate(GLenum usage, size_t size) {
+  size_in_bytes_ = size;
+  impl_->Allocate(GLUsageEnumToUsage(usage), size);
+}
+
+void Buffer::SetData(GLintptr offset, GLsizeiptr size, const GLvoid* data) {
   SB_DCHECK(target_valid());
-  impl_->SetData(GLTargetEnumToTargetType(target_), GLUsageEnumToUsage(usage),
-                 data, static_cast<size_t>(size));
+  SB_DCHECK(size_in_bytes_ >= offset + size);
+  SB_DCHECK(offset >= 0);
+  SB_DCHECK(size >= 0);
+
+  if (size > 0) {
+    impl_->SetData(offset, static_cast<size_t>(size), data);
+  }
 }
 
 }  // namespace gles
