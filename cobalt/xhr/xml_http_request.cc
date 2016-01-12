@@ -16,6 +16,8 @@
 
 #include "cobalt/xhr/xml_http_request.h"
 
+#include <algorithm>
+
 #include "base/compiler_specific.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
@@ -43,7 +45,7 @@ namespace {
 // too many times.
 const size_t kInitialReceivingBufferSize = 64 * 1024;
 
-const char* s_response_types[] = {
+const char* kResponseTypes[] = {
     "",             // kDefault
     "text",         // kText
     "json",         // kJson
@@ -52,9 +54,14 @@ const char* s_response_types[] = {
     "arraybuffer",  // kArrayBuffer
 };
 
-const char* s_forbidden_methods[] = {
+const char* kForbiddenMethods[] = {
     "connect", "trace", "track",
 };
+
+const char* kRequestErrorTypes[] = {"Network", "Abort", "Timeout"};
+const char* kStateNames[] = {"Unsent", "Opened", "HeadersReceived", "Loading",
+                             "Done"};
+const char* kMethodNames[] = {"GET", "POST", "HEAD", "DELETE", "PUT"};
 
 bool MethodNameToRequestType(const std::string& method,
                              net::URLFetcher::RequestType* request_type) {
@@ -74,16 +81,47 @@ bool MethodNameToRequestType(const std::string& method,
   return true;
 }
 
+const char* RequestTypeToMethodName(net::URLFetcher::RequestType request_type) {
+  if (request_type >= 0 && request_type < arraysize(kMethodNames)) {
+    return kMethodNames[request_type];
+  } else {
+    NOTREACHED();
+    return "";
+  }
+}
+
+const char* RequestErrorTypeName(XMLHttpRequest::RequestErrorType type) {
+  if (type >= 0 && type < arraysize(kRequestErrorTypes)) {
+    return kRequestErrorTypes[type];
+  } else {
+    NOTREACHED();
+    return "";
+  }
+}
+
+const char* StateName(XMLHttpRequest::State state) {
+  if (state >= 0 && state < arraysize(kStateNames)) {
+    return kStateNames[state];
+  } else {
+    NOTREACHED();
+    return "";
+  }
+}
+
 bool IsForbiddenMethod(const std::string& method) {
-  for (size_t i = 0; i < arraysize(s_forbidden_methods); ++i) {
-    if (LowerCaseEqualsASCII(method, s_forbidden_methods[i])) {
+  for (size_t i = 0; i < arraysize(kForbiddenMethods); ++i) {
+    if (LowerCaseEqualsASCII(method, kForbiddenMethods[i])) {
       return true;
     }
   }
   return false;
 }
 
+int s_xhr_sequence_num_ = 0;
+
 }  // namespace
+
+bool XMLHttpRequest::verbose_ = false;
 
 XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
     : settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
@@ -99,6 +137,7 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
       did_add_ref_(false) {
   DCHECK(settings_);
   dom::Stats::GetInstance()->Add(this);
+  xhr_id_ = ++s_xhr_sequence_num_;
 }
 
 void XMLHttpRequest::Abort() {
@@ -106,7 +145,6 @@ void XMLHttpRequest::Abort() {
   DCHECK(thread_checker_.CalledOnValidThread());
   // Cancel any in-flight request and set error flag.
   TerminateRequest();
-
   bool abort_is_no_op =
       state_ == kUnsent || state_ == kDone || (state_ == kOpened && !sent_);
   if (!abort_is_no_op) {
@@ -239,7 +277,6 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
                           script::ExceptionState* exception_state) {
   // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-send()-method
   DCHECK(thread_checker_.CalledOnValidThread());
-
   if (state_ != kOpened) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
@@ -404,8 +441,8 @@ void XMLHttpRequest::set_response_type(
                              exception_state);
     return;
   }
-  for (int i = 0; i < static_cast<int>(arraysize(s_response_types)); ++i) {
-    if (response_type == s_response_types[i]) {
+  for (size_t i = 0; i < arraysize(kResponseTypes); ++i) {
+    if (response_type == kResponseTypes[i]) {
       DCHECK_LT(i, kResponseTypeCodeMax);
       response_type_ = static_cast<ResponseTypeCode>(i);
       return;
@@ -418,8 +455,8 @@ void XMLHttpRequest::set_response_type(
 std::string XMLHttpRequest::response_type(
     script::ExceptionState* /* unused */) const {
   // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsetype-attribute
-  DCHECK_LT(response_type_, arraysize(s_response_types));
-  return s_response_types[response_type_];
+  DCHECK_LT(response_type_, arraysize(kResponseTypes));
+  return kResponseTypes[response_type_];
 }
 
 void XMLHttpRequest::set_timeout(uint32 timeout) {
@@ -482,8 +519,9 @@ void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
                                 : kInitialReceivingBufferSize;
   response_body_.Reserve(bytes_to_reserve);
 
-  UpdateProgress();
   ChangeState(kHeadersReceived);
+
+  UpdateProgress();
 }
 
 void XMLHttpRequest::OnURLFetchDownloadData(
@@ -509,7 +547,6 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
 
     ChangeState(kDone);
     UpdateProgress();
-
     // Undo the ref we added in Send()
     AllowGarbageCollection();
   } else {
@@ -551,6 +588,12 @@ void XMLHttpRequest::HandleRequestError(
     XMLHttpRequest::RequestErrorType request_error_type) {
   // http://www.w3.org/TR/XMLHttpRequest/#timeout-error
   DCHECK(thread_checker_.CalledOnValidThread());
+  DLOG_IF(INFO, verbose()) << __FUNCTION__ << " ("
+                           << RequestErrorTypeName(request_error_type) << ") "
+                           << *this << std::endl
+                           << script::StackTraceToString(
+                                  settings_->global_object()->GetStackTrace());
+
   TerminateRequest();
   // Change state and fire readystatechange event.
   ChangeState(kDone);
@@ -624,6 +667,9 @@ void XMLHttpRequest::UpdateProgress() {
   const uint64 total =
       length_computable ? static_cast<uint64>(content_length) : 0;
 
+  DLOG_IF(INFO, verbose()) << __FUNCTION__ << " (" << received_length << " / "
+                           << total << ") " << *this;
+
   if (state_ == kDone) {
     FireProgressEvent(dom::EventNames::GetInstance()->load(),
                       static_cast<uint64>(received_length), total,
@@ -683,7 +729,46 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
     // request_headers.
     url_fetcher_->SetUploadData("", request_body);
   }
+
+  DLOG_IF(INFO, verbose()) << __FUNCTION__ << *this;
   url_fetcher_->Start();
+}
+
+std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+  base::StringPiece response_text("");
+  if ((xhr.state_ == XMLHttpRequest::kDone) &&
+      (xhr.response_type_ == XMLHttpRequest::kDefault ||
+       xhr.response_type_ == XMLHttpRequest::kText)) {
+    size_t kMaxSize = 4096;
+    response_text = base::StringPiece(
+        reinterpret_cast<const char*>(xhr.response_body_.data()),
+        std::min(kMaxSize, xhr.response_body_.size()));
+  }
+
+  std::string xhr_out = base::StringPrintf(
+      " XHR:\n"
+      "\tid:    %d\n"
+      "\trequest_url: %s\n"
+      "\tstate: %s\n"
+      "\tresponse_type: %s\n"
+      "\ttimeout_ms: %d\n"
+      "\tmethod: %s\n"
+      "\thttp_status: %d\n"
+      "\twith_credentials: %s\n"
+      "\terror: %s\n"
+      "\tsent: %s\n"
+      "\tstop_timeout: %s\n"
+      "\tresponse_body: %s\n",
+      xhr.xhr_id_, xhr.request_url_.spec().c_str(), StateName(xhr.state_),
+      xhr.response_type(NULL).c_str(), xhr.timeout_ms_,
+      RequestTypeToMethodName(xhr.method_), xhr.http_status_,
+      xhr.with_credentials_ ? "true" : "false", xhr.error_ ? "true" : "false",
+      xhr.sent_ ? "true" : "false", xhr.stop_timeout_ ? "true" : "false",
+      response_text.as_string().c_str());
+  out << xhr_out;
+#endif
+  return out;
 }
 
 }  // namespace xhr
