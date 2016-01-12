@@ -19,6 +19,7 @@
 
 #include <GLES3/gl3.h>
 
+#include "glimp/egl/surface.h"
 #include "glimp/gles/buffer.h"
 #include "glimp/gles/pixel_format.h"
 #include "glimp/gles/texture_impl.h"
@@ -60,6 +61,20 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
       int pitch_in_bytes,
       const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
       uintptr_t buffer_offset);
+
+  // These methods will be called when eglBindTexImage() and
+  // eglReleaseTexImage() are called.
+  bool BindToEGLSurface(egl::Surface* surface);
+  bool ReleaseFromEGLSurface(egl::Surface* surface);
+
+  // Write a copy of the texture data into a window within the pointer specified
+  // by |pixels|.
+  void ReadPixelsAsRGBA8(GLint x,
+                         GLint y,
+                         GLsizei width,
+                         GLsizei height,
+                         int pitch_in_bytes,
+                         GLvoid* pixels);
 
   // Returns true if this texture can be used as a framebuffer component.
   // Essentially, this function is asking whether we can render to the texture
@@ -119,6 +134,10 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
 
   // The pixel format of the set data.
   PixelFormat pixel_format_;
+
+  // Non-null if we are currently bound to an egl::Surface (e.g. from a
+  // call to eglBindTexImage()).
+  egl::Surface* bound_to_surface_;
 };
 
 }  // namespace gles

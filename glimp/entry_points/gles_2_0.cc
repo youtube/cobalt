@@ -737,7 +737,12 @@ void GL_APIENTRY glReadPixels(GLint x,
                               GLenum format,
                               GLenum type,
                               GLvoid* pixels) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->ReadPixels(x, y, width, height, format, type, pixels);
 }
 
 void GL_APIENTRY glReleaseShaderCompiler(void) {
