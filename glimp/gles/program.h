@@ -43,12 +43,15 @@ class Program : public nb::RefCountedThreadSafe<Program> {
   // Links the vertex and fragment shaders, making the shader usable.
   void Link();
 
-  GLint link_status() const { return link_status_; }
+  bool linked() const { return link_results_.success; }
 
   void BindAttribLocation(GLuint index, const GLchar* name);
 
   ProgramImpl* impl() { return impl_.get(); }
   const ProgramImpl* impl() const { return impl_.get(); }
+
+  GLenum GetProgramiv(GLenum pname, GLint* params);
+  void GetProgramInfoLog(GLsizei bufsize, GLsizei* length, GLchar* infolog);
 
  private:
   typedef std::map<unsigned int, std::string> BoundAttributes;
@@ -66,8 +69,8 @@ class Program : public nb::RefCountedThreadSafe<Program> {
   nb::scoped_refptr<Shader> linked_fragment_shader_;
 
   // Stores the value that will be returned when glGetProgramiv(GL_LINK_STATUS)
-  // is called.
-  GLint link_status_;
+  // or glGetProgramiv(GL_INFO_LOG_LENGTH) is called.
+  ProgramImpl::LinkResults link_results_;
 
   // Constructed by glBindAttribLocation(), this maps generic vertex attribute
   // indices to attribute names, and applies when and after a program is linked.

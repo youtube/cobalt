@@ -511,14 +511,24 @@ void GL_APIENTRY glGetIntegerv(GLenum pname, GLint* params) {
 }
 
 void GL_APIENTRY glGetProgramiv(GLuint program, GLenum pname, GLint* params) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->GetProgramiv(program, pname, params);
 }
 
 void GL_APIENTRY glGetProgramInfoLog(GLuint program,
                                      GLsizei bufsize,
                                      GLsizei* length,
                                      GLchar* infolog) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->GetProgramInfoLog(program, bufsize, length, infolog);
 }
 
 void GL_APIENTRY glGetRenderbufferParameteriv(GLenum target,
@@ -528,14 +538,24 @@ void GL_APIENTRY glGetRenderbufferParameteriv(GLenum target,
 }
 
 void GL_APIENTRY glGetShaderiv(GLuint shader, GLenum pname, GLint* params) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->GetShaderiv(shader, pname, params);
 }
 
 void GL_APIENTRY glGetShaderInfoLog(GLuint shader,
                                     GLsizei bufsize,
                                     GLsizei* length,
                                     GLchar* infolog) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->GetShaderInfoLog(shader, bufsize, length, infolog);
 }
 
 void GL_APIENTRY glGetShaderPrecisionFormat(GLenum shadertype,
