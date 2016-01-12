@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DEBUG_DEBUG_HUB_H_
-#define DEBUG_DEBUG_HUB_H_
+#ifndef COBALT_DEBUG_DEBUG_HUB_H_
+#define COBALT_DEBUG_DEBUG_HUB_H_
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
@@ -24,6 +24,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/stl_util.h"
 #include "base/synchronization/lock.h"
@@ -80,12 +81,16 @@ class DebugHub : public script::Wrappable {
   // We store the message loop from which the callback was registered,
   // so we can run the callback on the same loop.
   struct LogMessageCallbackInfo {
-    LogMessageCallbackInfo(const DebugHub* const debug_hub,
+    // LogMessageCallbackInfo(const DebugHub* const debug_hub,
+    LogMessageCallbackInfo(const base::WeakPtr<DebugHub> debug_hub,
                            const LogMessageCallbackArg& cb,
                            const scoped_refptr<base::MessageLoopProxy>& proxy)
-        : callback(debug_hub, cb), message_loop_proxy(proxy) {}
+        : callback(debug_hub, cb),
+          message_loop_proxy(proxy),
+          debug_hub_weak_ptr(debug_hub) {}
     LogMessageCallbackArg::Reference callback;
     scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
+    base::WeakPtr<DebugHub> debug_hub_weak_ptr;
   };
 
   // Debug console visibility modes.
@@ -172,10 +177,13 @@ class DebugHub : public script::Wrappable {
 
   // Interface to the JavaScript debugger client.
   scoped_refptr<Debugger> debugger_;
+
+  // Used to generate weak pointers to post log message callbacks.
+  base::WeakPtrFactory<DebugHub> weak_ptr_factory_;
 };
 
 }  // namespace debug
 }  // namespace cobalt
 
 #endif  // ENABLE_DEBUG_CONSOLE
-#endif  // DEBUG_DEBUG_HUB_H_
+#endif  // COBALT_DEBUG_DEBUG_HUB_H_
