@@ -16,7 +16,6 @@
 
 #include "glimp/gles/context.h"
 
-#include <algorithm>
 #include <string>
 
 #include "glimp/egl/error.h"
@@ -50,10 +49,10 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
     : impl_(context_impl.Pass()),
       current_thread_(kSbThreadInvalid),
       has_been_current_(false),
-      draw_surface_(NULL),
       read_surface_(NULL),
       active_texture_(GL_TEXTURE0),
-      clear_state_dirty_(true),
+      enabled_samplers_dirty_(true),
+      enabled_vertex_attribs_dirty_(true),
       error_(GL_NO_ERROR) {
   if (share_context != NULL) {
     resource_manager_ = share_context->resource_manager_;
@@ -254,10 +253,8 @@ void Context::ColorMask(GLboolean red,
                         GLboolean green,
                         GLboolean blue,
                         GLboolean alpha) {
-  color_mask_.red = red;
-  color_mask_.green = green;
-  color_mask_.blue = blue;
-  color_mask_.alpha = alpha;
+  draw_state_.color_mask = gles::ColorMask(red, green, blue, alpha);
+  draw_state_dirty_flags_.color_mask_dirty = true;
 }
 
 void Context::DepthMask(GLboolean flag) {
@@ -268,22 +265,17 @@ void Context::DepthMask(GLboolean flag) {
 }
 
 void Context::Clear(GLbitfield mask) {
-  impl_->Clear(clear_state_, clear_state_dirty_, color_mask_,
-               mask & GL_COLOR_BUFFER_BIT, mask & GL_DEPTH_BUFFER_BIT,
-               mask & GL_STENCIL_BUFFER_BIT);
-
-  clear_state_dirty_ = false;
+  impl_->Clear(mask & GL_COLOR_BUFFER_BIT, mask & GL_DEPTH_BUFFER_BIT,
+               mask & GL_STENCIL_BUFFER_BIT, draw_state_,
+               &draw_state_dirty_flags_);
 }
 
 void Context::ClearColor(GLfloat red,
                          GLfloat green,
                          GLfloat blue,
                          GLfloat alpha) {
-  clear_state_.red = std::min(1.0f, std::max(0.0f, red));
-  clear_state_.green = std::min(1.0f, std::max(0.0f, green));
-  clear_state_.blue = std::min(1.0f, std::max(0.0f, blue));
-  clear_state_.alpha = std::min(1.0f, std::max(0.0f, alpha));
-  clear_state_dirty_ = true;
+  draw_state_.clear_color = gles::ClearColor(red, green, blue, alpha);
+  draw_state_dirty_flags_.clear_color_dirty = true;
 }
 
 GLuint Context::CreateProgram() {
@@ -330,6 +322,10 @@ void Context::AttachShader(GLuint program, GLuint shader) {
     // A shader of the given type was already attached.
     SetError(GL_INVALID_OPERATION);
   }
+
+  if (program_object.get() == draw_state_.used_program.get()) {
+    draw_state_dirty_flags_.used_program_dirty = true;
+  }
 }
 
 void Context::LinkProgram(GLuint program) {
@@ -341,6 +337,9 @@ void Context::LinkProgram(GLuint program) {
   }
 
   program_object->Link();
+  if (program_object.get() == draw_state_.used_program.get()) {
+    draw_state_dirty_flags_.used_program_dirty = true;
+  }
 }
 
 void Context::BindAttribLocation(GLuint program,
@@ -364,11 +363,16 @@ void Context::BindAttribLocation(GLuint program,
   }
 
   program_object->BindAttribLocation(index, name);
+
+  if (program_object.get() == draw_state_.used_program.get()) {
+    draw_state_dirty_flags_.used_program_dirty = true;
+  }
 }
 
 void Context::UseProgram(GLuint program) {
   if (program == 0) {
-    in_use_program_ = NULL;
+    draw_state_.used_program = NULL;
+    draw_state_dirty_flags_.used_program_dirty = true;
     return;
   }
 
@@ -385,7 +389,10 @@ void Context::UseProgram(GLuint program) {
     return;
   }
 
-  in_use_program_ = program_object;
+  if (program_object.get() != draw_state_.used_program.get()) {
+    draw_state_.used_program = program_object;
+    draw_state_dirty_flags_.used_program_dirty = true;
+  }
 }
 
 GLuint Context::CreateShader(GLenum type) {
@@ -594,20 +601,21 @@ void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
             current_thread_ == SbThreadGetCurrent());
 
   current_thread_ = SbThreadGetCurrent();
-  draw_surface_ = draw;
-  read_surface_ = read;
-  impl_->SetDrawSurface(draw);
-  impl_->SetReadSurface(read);
+  if (draw_state_.draw_surface != draw) {
+    draw_state_.draw_surface = draw;
+    draw_state_dirty_flags_.draw_surface_dirty = true;
+  }
+  if (read_surface_ != read) {
+    read_surface_ = read;
+  }
 
   if (!has_been_current_) {
     // According to the documentation for eglMakeCurrent(),
     //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglMakeCurrent.xhtml
     // we should set the scissor and viewport to the draw surface the first
     // time this context is made current.
-    impl_->SetScissor(0, 0, draw->impl()->GetWidth(),
-                      draw->impl()->GetHeight());
-    impl_->SetViewport(0, 0, draw->impl()->GetWidth(),
-                       draw->impl()->GetHeight());
+    Scissor(0, 0, draw->impl()->GetWidth(), draw->impl()->GetHeight());
+    Viewport(0, 0, draw->impl()->GetWidth(), draw->impl()->GetHeight());
     has_been_current_ = true;
   }
 }
@@ -623,9 +631,11 @@ void Context::ReleaseContext() {
 nb::scoped_refptr<Buffer>* Context::GetBoundBufferForTarget(GLenum target) {
   switch (target) {
     case GL_ARRAY_BUFFER:
-      return &bound_array_buffer_;
+      draw_state_dirty_flags_.array_buffer_dirty = true;
+      return &draw_state_.array_buffer;
     case GL_ELEMENT_ARRAY_BUFFER:
-      return &bound_element_array_buffer_;
+      draw_state_dirty_flags_.element_array_buffer_dirty = true;
+      return &draw_state_.element_array_buffer;
   }
 
   SB_NOTREACHED();
@@ -706,6 +716,7 @@ void Context::DeleteTextures(GLsizei n, const GLuint* textures) {
     // If a bound texture is deleted, set the bound texture to NULL.
     if (texture_object->target_valid()) {
       *GetBoundTextureForTarget(texture_object->target()) = NULL;
+      enabled_samplers_dirty_ = true;
     }
   }
 }
@@ -728,6 +739,7 @@ void Context::BindTexture(GLenum target, GLuint texture) {
   if (texture == 0) {
     // Unbind the current texture if 0 is passed in for texture.
     *GetBoundTextureForTarget(target) = NULL;
+    enabled_samplers_dirty_ = true;
     return;
   }
 
@@ -743,6 +755,7 @@ void Context::BindTexture(GLenum target, GLuint texture) {
 
   texture_object->SetTarget(target);
   *GetBoundTextureForTarget(target) = texture_object;
+  enabled_samplers_dirty_ = true;
 }
 
 namespace {
@@ -791,7 +804,7 @@ Sampler::WrapMode WrapModeFromGLEnum(GLenum wrap_mode) {
 }  // namespace
 
 void Context::TexParameteri(GLenum target, GLenum pname, GLint param) {
-  Sampler* active_sampler = &samplers_[active_texture_];
+  Sampler* active_sampler = &samplers_[active_texture_ - GL_TEXTURE0];
 
   switch (pname) {
     case GL_TEXTURE_MAG_FILTER: {
@@ -831,6 +844,8 @@ void Context::TexParameteri(GLenum target, GLenum pname, GLint param) {
       return;
     }
   }
+
+  enabled_samplers_dirty_ = true;
 }
 
 namespace {
@@ -926,11 +941,13 @@ void Context::BindFramebuffer(GLenum target, GLuint framebuffer) {
 }
 
 void Context::Viewport(GLint x, GLint y, GLsizei width, GLsizei height) {
-  impl_->SetViewport(x, y, width, height);
+  draw_state_.viewport = ViewportState(x, y, width, height);
+  draw_state_dirty_flags_.viewport_dirty = true;
 }
 
 void Context::Scissor(GLint x, GLint y, GLsizei width, GLsizei height) {
-  impl_->SetScissor(x, y, width, height);
+  draw_state_.scissor = ScissorState(x, y, width, height);
+  draw_state_dirty_flags_.scissor_dirty = true;
 }
 
 namespace {
@@ -985,6 +1002,9 @@ void Context::VertexAttribPointer(GLuint indx,
   vertex_attrib_map_[indx] =
       VertexAttribute(size, vertex_attribute_type, normalized, stride,
                       reinterpret_cast<int>(ptr));
+  if (enabled_vertex_attribs_.find(indx) != enabled_vertex_attribs_.end()) {
+    enabled_vertex_attribs_dirty_ = true;
+  }
 }
 
 void Context::EnableVertexAttribArray(GLuint index) {
@@ -994,6 +1014,7 @@ void Context::EnableVertexAttribArray(GLuint index) {
   }
 
   enabled_vertex_attribs_.insert(index);
+  enabled_vertex_attribs_dirty_ = true;
 }
 
 void Context::DisableVertexAttribArray(GLuint index) {
@@ -1003,6 +1024,7 @@ void Context::DisableVertexAttribArray(GLuint index) {
   }
 
   enabled_vertex_attribs_.erase(index);
+  enabled_vertex_attribs_dirty_ = true;
 }
 
 namespace {
@@ -1040,34 +1062,21 @@ void Context::DrawArrays(GLenum mode, GLint first, GLsizei count) {
     return;
   }
 
-  SB_DCHECK(bound_array_buffer_)
+  SB_DCHECK(draw_state_.array_buffer)
       << "glimp only supports drawing from vertex buffers.";
 
-  // Setup the list of enabled vertex attributes.
-  draw_vertex_attribs_.clear();
-  for (std::set<unsigned int>::const_iterator iter =
-           enabled_vertex_attribs_.begin();
-       iter != enabled_vertex_attribs_.end(); ++iter) {
-    draw_vertex_attribs_.push_back(
-        std::make_pair(*iter, &vertex_attrib_map_[*iter]));
+  if (enabled_vertex_attribs_dirty_) {
+    UpdateVertexAttribsInDrawState();
+    SB_DCHECK(enabled_vertex_attribs_dirty_ == false);
   }
 
-  // Setup the list of enabled samplers.
-  draw_samplers_.clear();
-  for (int i = 0; i < kMaxActiveTextures; ++i) {
-    if (samplers_[i].bound_texture) {
-      draw_samplers_.push_back(
-          std::make_pair(static_cast<unsigned int>(i), &samplers_[i]));
-    }
+  if (enabled_samplers_dirty_) {
+    UpdateSamplersInDrawState();
+    SB_DCHECK(enabled_samplers_dirty_ == false);
   }
 
-  // TODO(***REMOVED***): Consider tracking graphics state dirtiness and passing in
-  //               those flags to the implementation so that it can know if
-  //               it doesn't need to do anything.
-  //               b/26491218
-  impl_->DrawArrays(draw_mode, first, count, *in_use_program_,
-                    *bound_array_buffer_, draw_vertex_attribs_, draw_samplers_,
-                    color_mask_);
+  impl_->DrawArrays(draw_mode, first, count, draw_state_,
+                    &draw_state_dirty_flags_);
 }
 
 void Context::Flush() {
@@ -1076,7 +1085,35 @@ void Context::Flush() {
 
 void Context::SwapBuffers() {
   Flush();
-  impl_->SwapBuffers();
+  impl_->SwapBuffers(draw_state_.draw_surface);
+}
+
+void Context::UpdateVertexAttribsInDrawState() {
+  // Setup the dense list of enabled vertex attributes.
+  draw_state_.vertex_attributes.clear();
+  for (std::set<unsigned int>::const_iterator iter =
+           enabled_vertex_attribs_.begin();
+       iter != enabled_vertex_attribs_.end(); ++iter) {
+    draw_state_.vertex_attributes.push_back(
+        std::make_pair(*iter, &vertex_attrib_map_[*iter]));
+  }
+
+  draw_state_dirty_flags_.vertex_attributes_dirty = true;
+  enabled_vertex_attribs_dirty_ = false;
+}
+
+void Context::UpdateSamplersInDrawState() {
+  // Setup the list of enabled samplers.
+  draw_state_.samplers.clear();
+  for (int i = 0; i < kMaxActiveTextures; ++i) {
+    if (samplers_[i].bound_texture) {
+      draw_state_.samplers.push_back(
+          std::make_pair(static_cast<unsigned int>(i), &samplers_[i]));
+    }
+  }
+
+  draw_state_dirty_flags_.samplers_dirty = true;
+  enabled_samplers_dirty_ = false;
 }
 
 }  // namespace gles
