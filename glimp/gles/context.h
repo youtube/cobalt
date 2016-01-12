@@ -194,8 +194,21 @@ class Context {
                     GLenum type,
                     const GLvoid* indices);
 
+  void ReadPixels(GLint x,
+                  GLint y,
+                  GLsizei width,
+                  GLsizei height,
+                  GLenum format,
+                  GLenum type,
+                  GLvoid* pixels);
+
   void Flush();
   void SwapBuffers();
+
+  // Called when eglBindTexImage() is called.
+  bool BindTextureToEGLSurface(egl::Surface* surface);
+  // Called when eglReleaseTexImage() is called.
+  bool ReleaseTextureFromEGLSurface(egl::Surface* surface);
 
  private:
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);
@@ -227,8 +240,10 @@ class Context {
 
   // Sets the bound framebuffer to the default framebuffer (e.g. when
   // glBindFramebuffer(GL_FRAMEBUFFER, 0) is called).
-  void SetBoundFramebufferToDefault();
-  bool IsDefaultFramebufferBound() const;
+  void SetBoundDrawFramebufferToDefault();
+  void SetBoundReadFramebufferToDefault();
+  bool IsDefaultDrawFramebufferBound() const;
+  bool IsDefaultReadFramebufferBound() const;
 
   // Takes settings like GL_UNPACK_ROW_LENGTH and GL_UNPACK_ALIGNMENT into
   // account to determine the pitch of incoming pixel data.
@@ -275,6 +290,10 @@ class Context {
   nb::scoped_refptr<Framebuffer> default_draw_framebuffer_;
   nb::scoped_refptr<Framebuffer> default_read_framebuffer_;
 
+  // The currently bound read framebuffer.  If this is set to the default read
+  // framebuffer, then it will be equal to |default_read_framebuffer_|.
+  nb::scoped_refptr<Framebuffer> read_framebuffer_;
+
   // Tracks all GL draw state.  It is updated by making various GL calls,
   // and it is read when a draw (or clear) call is made.  It is modified
   // by this Context object and read from the ContextImpl object.
@@ -304,6 +323,10 @@ class Context {
   // Tracks the currently bound pixel unpack buffer object, or NULL if none
   // are bound.
   nb::scoped_refptr<Buffer> bound_pixel_unpack_buffer_;
+
+  // Keeps track of the set of EGLSurfaces that are bound to textures
+  // currently.
+  std::map<egl::Surface*, nb::scoped_refptr<Texture> > bound_egl_surfaces_;
 
   // The last GL ES error raised.
   GLenum error_;

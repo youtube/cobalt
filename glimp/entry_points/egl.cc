@@ -299,16 +299,26 @@ EGLBoolean EGLAPIENTRY eglBindTexImage(EGLDisplay dpy,
                                        EGLSurface surface,
                                        EGLint buffer) {
   egl::ScopedEGLLock egl_lock;
-  SB_NOTIMPLEMENTED();
-  return false;
+
+  egl::Surface* surf = GetSurfaceOrSetError(dpy, surface);
+  if (!surf) {
+    return false;
+  }
+
+  return surf->BindTexImage(buffer);
 }
 
 EGLBoolean EGLAPIENTRY eglReleaseTexImage(EGLDisplay dpy,
                                           EGLSurface surface,
                                           EGLint buffer) {
   egl::ScopedEGLLock egl_lock;
-  SB_NOTIMPLEMENTED();
-  return false;
+
+  egl::Surface* surf = GetSurfaceOrSetError(dpy, surface);
+  if (!surf) {
+    return false;
+  }
+
+  return surf->ReleaseTexImage(buffer);
 }
 
 EGLBoolean EGLAPIENTRY eglSurfaceAttrib(EGLDisplay dpy,
