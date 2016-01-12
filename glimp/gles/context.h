@@ -25,6 +25,8 @@
 #include <utility>
 
 #include "glimp/egl/surface.h"
+#include "glimp/gles/clear_state.h"
+#include "glimp/gles/color_mask.h"
 #include "glimp/gles/context_impl.h"
 #include "glimp/gles/resource_manager.h"
 #include "glimp/gles/sampler.h"
@@ -68,7 +70,14 @@ class Context {
   void Enable(GLenum cap);
   void Disable(GLenum cap);
 
+  void ColorMask(GLboolean red,
+                 GLboolean green,
+                 GLboolean blue,
+                 GLboolean alpha);
   void DepthMask(GLboolean flag);
+
+  void Clear(GLbitfield mask);
+  void ClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
 
   GLuint CreateProgram();
   void DeleteProgram(GLuint program);
@@ -204,6 +213,15 @@ class Context {
   // into the ContextImpl object on draw calls.  It is a dense set of only the
   // enabled sampler units.
   ContextImpl::EnabledSamplerList draw_samplers_;
+
+  // Tracks the state that affects each glClear() call.
+  ClearState clear_state_;
+
+  // True if clear_state_ has changed since the last glClear() call.
+  bool clear_state_dirty_;
+
+  // Tracks the state modified by glColorMask().
+  gles::ColorMask color_mask_;
 
   // The last GL ES error raised.
   GLenum error_;

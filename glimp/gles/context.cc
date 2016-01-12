@@ -16,6 +16,7 @@
 
 #include "glimp/gles/context.h"
 
+#include <algorithm>
 #include <string>
 
 #include "glimp/egl/error.h"
@@ -52,6 +53,7 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
       draw_surface_(NULL),
       read_surface_(NULL),
       active_texture_(GL_TEXTURE0),
+      clear_state_dirty_(true),
       error_(GL_NO_ERROR) {
   if (share_context != NULL) {
     resource_manager_ = share_context->resource_manager_;
@@ -182,11 +184,40 @@ void Context::Disable(GLenum cap) {
   }
 }
 
+void Context::ColorMask(GLboolean red,
+                        GLboolean green,
+                        GLboolean blue,
+                        GLboolean alpha) {
+  color_mask_.red = red;
+  color_mask_.green = green;
+  color_mask_.blue = blue;
+  color_mask_.alpha = alpha;
+}
+
 void Context::DepthMask(GLboolean flag) {
   if (flag == GL_TRUE) {
-    SB_NOTIMPLEMENTED();
+    SB_NOTIMPLEMENTED() << "glimp currently does not support depth buffers.";
     SetError(GL_INVALID_OPERATION);
   }
+}
+
+void Context::Clear(GLbitfield mask) {
+  impl_->Clear(clear_state_, clear_state_dirty_, color_mask_,
+               mask & GL_COLOR_BUFFER_BIT, mask & GL_DEPTH_BUFFER_BIT,
+               mask & GL_STENCIL_BUFFER_BIT);
+
+  clear_state_dirty_ = false;
+}
+
+void Context::ClearColor(GLfloat red,
+                         GLfloat green,
+                         GLfloat blue,
+                         GLfloat alpha) {
+  clear_state_.red = std::min(1.0f, std::max(0.0f, red));
+  clear_state_.green = std::min(1.0f, std::max(0.0f, green));
+  clear_state_.blue = std::min(1.0f, std::max(0.0f, blue));
+  clear_state_.alpha = std::min(1.0f, std::max(0.0f, alpha));
+  clear_state_dirty_ = true;
 }
 
 GLuint Context::CreateProgram() {
@@ -969,7 +1000,8 @@ void Context::DrawArrays(GLenum mode, GLint first, GLsizei count) {
   //               it doesn't need to do anything.
   //               b/26491218
   impl_->DrawArrays(draw_mode, first, count, *in_use_program_,
-                    *bound_array_buffer_, draw_vertex_attribs_, draw_samplers_);
+                    *bound_array_buffer_, draw_vertex_attribs_, draw_samplers_,
+                    color_mask_);
 }
 
 void Context::Flush() {
