@@ -44,7 +44,13 @@ class Shader : public nb::RefCountedThreadSafe<Shader> {
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCompileShader.xml
   void CompileShader();
 
-  bool compiled() const { return compile_status_ == GL_TRUE; }
+  // Called when glGetShaderiv() is called.  Returns GL_NO_ERROR if the query
+  // was successful, otherwise returns the error GLenum that should be returned
+  // to the caller.
+  GLenum GetShaderiv(GLenum pname, GLint* params);
+  void GetShaderInfoLog(GLsizei bufsize, GLsizei* length, GLchar* infolog);
+
+  bool compiled() const { return compile_results_.success; }
 
   ShaderImpl* impl() { return impl_.get(); }
 
@@ -58,12 +64,11 @@ class Shader : public nb::RefCountedThreadSafe<Shader> {
 
   std::string source_;
 
-  // True if the shader has previously been successfully compiled.
-  bool compiled_;
-
   // Keeps track of the success of the last CompileShader() call.  Can be
-  // queried via glGetShaderiv() with the parameter GL_COMPILE_STATUS, and
-  // is GL_TRUE on success and GL_FALSE otherwise.
+  // queried via glGetShaderiv() with the parameter GL_COMPILE_STATUS or
+  // GL_INFO_LOG_LENGTH.
+  ShaderImpl::CompileResults compile_results_;
+
   GLint compile_status_;
 };
 
