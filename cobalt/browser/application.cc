@@ -276,6 +276,7 @@ void Application::OnApplicationEvent(const base::Event* event) {
       base::polymorphic_downcast<const system_window::ApplicationEvent*>(event);
   if (app_event->type() == system_window::ApplicationEvent::kQuit) {
     DLOG(INFO) << "Got quit event.";
+    browser_module_->SetPaused(false);
     Quit();
   } else if (app_event->type() == system_window::ApplicationEvent::kSuspend) {
     DLOG(INFO) << "Got suspend event.";
