@@ -1,0 +1,40 @@
+body {
+  background-color: #FFFFFF
+}
+
+#consoleFrame {
+  position: absolute;
+  left: 0%;
+  top: 0%;
+  width: 100%;
+  height: 100%;
+  background-color: #FFFFFF;
+  color: #000000;
+  overflow: hidden;
+}
+
+#messageContainer {
+  position: absolute;
+  left: 0%;
+  top: 0%;
+  width: 98%;
+  height: 92%;
+  background-color: #FFFFFF;
+  color: #000000;
+  overflow: scroll;
+  padding: 1%;
+  font-family: monospace;
+}
+
+#in {
+  position: absolute;
+  left: 0%;
+  top: 95%;
+  width: 98%;
+  height: 2%;
+  background-color: #FFFFFF;
+  color: #000000;
+  white-space: pre;
+  font-family: monospace;
+  padding: 1%
+}
