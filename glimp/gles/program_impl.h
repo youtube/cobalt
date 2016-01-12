@@ -17,6 +17,8 @@
 #ifndef GLIMP_GLES_PROGRAM_IMPL_H_
 #define GLIMP_GLES_PROGRAM_IMPL_H_
 
+#include <string>
+
 #include "glimp/gles/shader.h"
 #include "glimp/nb/ref_counted.h"
 
@@ -25,16 +27,29 @@ namespace gles {
 
 class ProgramImpl {
  public:
+  // Return value from the Link() method.  Can be used to communicate an
+  // error message to the client.
+  struct LinkResults {
+    explicit LinkResults(bool success) : success(success) {}
+    LinkResults(bool success, const std::string& info_log)
+        : success(success), info_log(info_log) {}
+    bool success;
+    std::string info_log;
+  };
+
   virtual ~ProgramImpl() {}
 
   // Ultimately called by glLinkProgram(), this marks the end of the program's
   // setup phase and the beginning of the program's ability to be used.
+  // This method should return true on success and false on failure, along
+  // with an information message if desired.
   // Upon successful linking, BindAttribLocation() will be called for each
   // existing attribute binding, so any exiting bindings should be cleared
   // within Link().
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glLinkProgram.xml
-  virtual bool Link(const nb::scoped_refptr<Shader>& vertex_shader,
-                    const nb::scoped_refptr<Shader>& fragment_shader) = 0;
+  virtual LinkResults Link(
+      const nb::scoped_refptr<Shader>& vertex_shader,
+      const nb::scoped_refptr<Shader>& fragment_shader) = 0;
 
   // Binds the attribute with the specified |name| to the specified index.
   // Implementations can take this opportunity to resolve |name| to a

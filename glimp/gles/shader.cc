@@ -15,12 +15,13 @@
  */
 
 #include "glimp/gles/shader.h"
+#include "starboard/string.h"
 
 namespace glimp {
 namespace gles {
 
 Shader::Shader(nb::scoped_ptr<ShaderImpl> impl, GLenum type)
-    : impl_(impl.Pass()), type_(type), compile_status_(GL_FALSE) {}
+    : impl_(impl.Pass()), type_(type), compile_results_(false) {}
 
 void Shader::ShaderSource(GLsizei count,
                           const GLchar* const* string,
@@ -39,11 +40,37 @@ void Shader::ShaderSource(GLsizei count,
 }
 
 void Shader::CompileShader() {
-  if (impl_->Compile(source_)) {
-    compile_status_ = GL_TRUE;
-  } else {
-    compile_status_ = GL_FALSE;
+  compile_results_ = impl_->Compile(source_);
+}
+
+GLenum Shader::GetShaderiv(GLenum pname, GLint* params) {
+  switch (pname) {
+    case GL_COMPILE_STATUS:
+      *params = compile_results_.success ? 1 : 0;
+      break;
+    case GL_SHADER_SOURCE_LENGTH:
+      *params = source_.size();
+      break;
+    case GL_SHADER_TYPE:
+      *params = type_;
+      break;
+    case GL_INFO_LOG_LENGTH:
+      *params = compile_results_.info_log.size();
+      break;
+    case GL_DELETE_STATUS:
+      SB_NOTIMPLEMENTED();
+      break;
+    default:
+      return GL_INVALID_ENUM;
   }
+
+  return GL_NO_ERROR;
+}
+
+void Shader::GetShaderInfoLog(GLsizei bufsize,
+                              GLsizei* length,
+                              GLchar* infolog) {
+  *length = SbStringCopy(infolog, compile_results_.info_log.c_str(), bufsize);
 }
 
 }  // namespace gles
