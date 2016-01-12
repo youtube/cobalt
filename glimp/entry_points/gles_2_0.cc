@@ -149,14 +149,24 @@ GLenum GL_APIENTRY glCheckFramebufferStatus(GLenum target) {
 }
 
 void GL_APIENTRY glClear(GLbitfield mask) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Clear(mask);
 }
 
 void GL_APIENTRY glClearColor(GLfloat red,
                               GLfloat green,
                               GLfloat blue,
                               GLfloat alpha) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->ClearColor(red, green, blue, alpha);
 }
 
 void GL_APIENTRY glClearDepthf(GLfloat depth) {
@@ -171,7 +181,12 @@ void GL_APIENTRY glColorMask(GLboolean red,
                              GLboolean green,
                              GLboolean blue,
                              GLboolean alpha) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->ColorMask(red, green, blue, alpha);
 }
 
 void GL_APIENTRY glCompileShader(GLuint shader) {
