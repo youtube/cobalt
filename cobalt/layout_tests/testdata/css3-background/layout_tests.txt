@@ -62,6 +62,7 @@
 14-2-1-multiple-layers-background-image
 4-0-border-color-with-solid-border-style-and-background-color
 4-0-border-color-with-solid-border-style
+4-0-border-radius-with-background-color
 4-0-border-set-using-border-color-and-border-style
 4-0-border-set-using-border-color-border-width-and-border-style
 4-0-border-set-using-border-width-and-border-style
