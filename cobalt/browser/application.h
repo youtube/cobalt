@@ -28,6 +28,10 @@
 #include "cobalt/webdriver/web_driver_module.h"
 #endif
 
+#if defined(ENABLE_REMOTE_DEBUGGING)
+#include "cobalt/debug/debug_web_server.h"
+#endif
+
 namespace cobalt {
 namespace browser {
 
@@ -85,6 +89,12 @@ class Application {
 #if defined(ENABLE_WEBDRIVER)
   // WebDriver implementation with embedded HTTP server.
   scoped_ptr<webdriver::WebDriverModule> web_driver_module_;
+#endif
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  // Web server to serve devtools front end. Debugging messages are sent and
+  // received via a WebSocket and communicated to an embedded DebugServer.
+  scoped_ptr<debug::DebugWebServer> debug_web_server_;
 #endif
 };
 

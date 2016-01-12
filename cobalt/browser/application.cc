@@ -38,6 +38,27 @@ namespace browser {
 
 namespace {
 
+#if defined(ENABLE_REMOTE_DEBUGGING)
+int GetRemoteDebuggingPort() {
+  const int kDefaultRemoteDebuggingPort = 9222;
+  int remote_debugging_port = kDefaultRemoteDebuggingPort;
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kRemoteDebuggingPort)) {
+    const std::string switchValue =
+        command_line->GetSwitchValueASCII(switches::kRemoteDebuggingPort);
+    if (!base::StringToInt(switchValue, &remote_debugging_port)) {
+      DLOG(ERROR) << "Invalid port specified for remote debug server: "
+                  << switchValue
+                  << ". Using default port: " << kDefaultRemoteDebuggingPort;
+      remote_debugging_port = kDefaultRemoteDebuggingPort;
+    }
+  }
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
+  return remote_debugging_port;
+}
+#endif  // ENABLE_REMOTE_DEBUGGING
+
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
 int GetWebDriverPort() {
@@ -202,6 +223,14 @@ Application::Application()
   }
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 #endif  // ENABLE_WEBDRIVER
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  int remote_debugging_port = GetRemoteDebuggingPort();
+  debug_web_server_.reset(new debug::DebugWebServer(
+      remote_debugging_port,
+      base::Bind(&BrowserModule::CreateDebugServer,
+                 base::Unretained(browser_module_.get()))));
+#endif  // ENABLE_REMOTE_DEBUGGING
 }
 
 Application::~Application() {

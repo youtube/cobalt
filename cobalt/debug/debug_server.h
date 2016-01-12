@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef DEBUG_DEBUG_SERVER_H_
-#define DEBUG_DEBUG_SERVER_H_
+#ifndef COBALT_DEBUG_DEBUG_SERVER_H_
+#define COBALT_DEBUG_DEBUG_SERVER_H_
 
 #include <map>
 #include <string>
@@ -26,6 +26,7 @@
 #include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/debug/json_object.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_debugger_interface.h"
 
@@ -67,15 +68,16 @@ namespace debug {
 class DebugServer {
  public:
   // Type for command callback function.
-  typedef base::Callback<void(const base::optional<std::string>&)>
+  typedef base::Callback<void(const base::optional<std::string>& response)>
       CommandCallback;
 
   // Type for onEvent callback function.
-  typedef base::Callback<void(
-      const std::string&, const base::optional<std::string>&)> OnEventCallback;
+  typedef base::Callback<void(const std::string& method,
+                              const base::optional<std::string>& params)>
+      OnEventCallback;
 
   // Type for onDetach callback function.
-  typedef base::Callback<void(const std::string&)> OnDetachCallback;
+  typedef base::Callback<void(const std::string& reason)> OnDetachCallback;
 
   // Constructor may be called from any thread, but all internal operations
   // will run on the message loop specified here, which must be the message
@@ -109,12 +111,8 @@ class DebugServer {
     scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
   };
 
-  // Type for a scoped pointer to a JSON object stored as a dictionary.
-  typedef scoped_ptr<base::DictionaryValue> ScopedDictionary;
-
   // Type for a command execution function stored in the command registry.
-  typedef base::Callback<ScopedDictionary(const ScopedDictionary&)>
-      CommandExecutor;
+  typedef base::Callback<JSONObject(const JSONObject& params)> CommandExecutor;
 
   // Type for a registry of commands, mapping method names from the protocol
   // to command execution callbacks.
@@ -137,18 +135,12 @@ class DebugServer {
                        CommandCallbackInfo callback_info);
 
   // Callback to receive onEvent notifications from the JavaScript debugger.
-  // Serializes the dictionary object to a JSON string and passes to the
+  // Serializes the method and params object to a JSON string and passes to the
   // external |on_event_callback_| specified in the constructor.
-  void OnEvent(const std::string& method,
-               const scoped_ptr<base::DictionaryValue>& params);
-
-  // Methods to convert JSON objects between dictionary value and string.
-  ScopedDictionary CreateDictionaryFromJSONString(const std::string& json);
-  std::string CreateJSONStringFromDictionary(
-      const ScopedDictionary& dictionary);
+  void OnEvent(const std::string& method, const JSONObject& params);
 
   // Gets the source of a script from the JavaScript debugger.
-  ScopedDictionary GetScriptSource(const ScopedDictionary& params);
+  JSONObject GetScriptSource(const JSONObject& params);
 
   // The message loop to use for all communication with debug targets.
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
@@ -169,4 +161,4 @@ class DebugServer {
 }  // namespace debug
 }  // namespace cobalt
 
-#endif  // DEBUG_DEBUG_SERVER_H_
+#endif  // COBALT_DEBUG_DEBUG_SERVER_H_
