@@ -38,6 +38,7 @@
 10-4-min-width-and-max-width-percentage-should-refer-containing-block-width
 10-5-percentage-of-auto-height-on-absolute-element-should-compute-to-percentage
 10-5-percentage-of-auto-height-should-compute-to-auto
+10-6-1-content-height-of-inline-boxes-matches-font-size
 10-6-2-replaced-box-height
 10-8-1-vertical-align
 10-8-1-vertical-align-baseline-after-middle
@@ -47,9 +48,12 @@
 10-8-1-vertical-align-middle-top-baseline-simple
 10-8-1-vertical-align-potential-baseline-vs-bottom-confusion
 10-8-baseline-of-inline-block-should-be-baseline-of-last-line-box
+10-8-large-elements-can-increase-the-distance-between-succesive-baselines
+10-8-line-height-and-font-size-and-borders-in-nested-inline-boxes-do-no-affect-alignment
 10-8-line-height-should-be-used-for-vertical-align-with-inline-non-replaced-boxes
 10-8-line-height-should-specify-minimum-height-of-line-boxes
 10-8-margin-box-should-be-used-for-vertical-align-with-most-boxes
+10-8-vertical-align-top-and-bottom-affect-height-and-baseline
 11-1-1-overflow-hidden
 11-1-1-overflow-hidden-and-opacity
 11-1-1-overflow-hidden-and-position-absolute-div-with-position-absolute-children

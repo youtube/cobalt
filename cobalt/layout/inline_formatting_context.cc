@@ -19,7 +19,9 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/line_box.h"
+#include "cobalt/layout/used_style.h"
 
 namespace cobalt {
 namespace layout {
@@ -127,9 +129,10 @@ void InlineFormattingContext::CreateLineBox() {
   // Line boxes are stacked with no vertical separation and they never
   // overlap.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  line_box_ = make_scoped_ptr(new LineBox(
-      auto_height(), line_height_, font_metrics_, true, true, layout_params_,
-      text_align_, white_space_, line_indent_offset, ellipsis_width_));
+  line_box_ = make_scoped_ptr(
+      new LineBox(auto_height(), false, line_height_, font_metrics_, true, true,
+                  layout_params_, text_align_, white_space_, line_indent_offset,
+                  ellipsis_width_));
 }
 
 void InlineFormattingContext::DestroyLineBox() {

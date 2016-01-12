@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_INLINE_CONTAINER_BOX_H_
-#define LAYOUT_INLINE_CONTAINER_BOX_H_
+#ifndef COBALT_LAYOUT_INLINE_CONTAINER_BOX_H_
+#define COBALT_LAYOUT_INLINE_CONTAINER_BOX_H_
 
 #include "cobalt/dom/font_list.h"
 #include "cobalt/layout/container_box.h"
@@ -68,6 +68,8 @@ class InlineContainerBox : public ContainerBox {
   bool HasTrailingLineBreak() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
   float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
+  float GetInlineLevelBoxHeight() const OVERRIDE;
+  float GetInlineLevelTopMargin() const OVERRIDE;
 
   // From |ContainerBox|.
   bool TryAddChild(const scoped_refptr<Box>& child_box) OVERRIDE;
@@ -99,6 +101,8 @@ class InlineContainerBox : public ContainerBox {
 
   bool justifies_line_existence_;
   float baseline_offset_from_margin_box_top_;
+  float line_height_;
+  float inline_top_margin_;
   // A font used for text width and line height calculations.
   const scoped_refptr<dom::FontList> used_font_;
 
@@ -108,4 +112,4 @@ class InlineContainerBox : public ContainerBox {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_INLINE_CONTAINER_BOX_H_
+#endif  // COBALT_LAYOUT_INLINE_CONTAINER_BOX_H_

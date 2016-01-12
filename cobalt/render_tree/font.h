@@ -28,22 +28,30 @@ namespace cobalt {
 namespace render_tree {
 
 // Contains metrics common for all glyphs in the font.
-struct FontMetrics {
+class FontMetrics {
+ public:
   FontMetrics(float ascent, float descent, float leading, float x_height)
-      : ascent(ascent),
-        descent(descent),
-        leading(leading),
-        x_height(x_height) {}
+      : ascent_(ascent),
+        descent_(descent),
+        leading_(leading),
+        x_height_(x_height) {}
+  float ascent() const { return ascent_; }
+  float descent() const { return descent_; }
+  float leading() const { return leading_; }
+  float x_height() const { return x_height_; }
+  float em_box_height() const { return ascent_ + descent_ + leading_; }
+  float baseline_offset_from_top() const { return ascent_ + leading_ / 2; }
 
+ private:
   // The recommended distance above the baseline.
-  float ascent;
+  float ascent_;
   // The recommended distance below the baseline.
-  float descent;
+  float descent_;
   // The recommended distance to add between lines of text.
-  float leading;
+  float leading_;
   // The x-height, aka the height of the 'x' glyph, used for centering.
   // See also https://en.wikipedia.org/wiki/X-height
-  float x_height;
+  float x_height_;
 };
 
 // Used as a parameter to GetLocalFont() and GetCharacterFallbackFont() to

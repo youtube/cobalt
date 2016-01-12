@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_LINE_BOX_H_
-#define LAYOUT_LINE_BOX_H_
+#ifndef COBALT_LAYOUT_LINE_BOX_H_
+#define COBALT_LAYOUT_LINE_BOX_H_
 
 #include <vector>
 
@@ -49,7 +49,8 @@ namespace layout {
 // been called for every child box.
 class LineBox {
  public:
-  LineBox(float top, const scoped_refptr<cssom::PropertyValue>& line_height,
+  LineBox(float top, bool position_children_relative_to_baseline,
+          const scoped_refptr<cssom::PropertyValue>& line_height,
           const render_tree::FontMetrics& font_metrics,
           bool should_collapse_leading_white_space,
           bool should_collapse_trailing_white_space,
@@ -136,6 +137,7 @@ class LineBox {
   float GetHeightAboveMiddleAlignmentPoint(Box* child_box);
 
   const float top_;
+  const bool position_children_relative_to_baseline_;
   const scoped_refptr<cssom::PropertyValue> line_height_;
   const render_tree::FontMetrics font_metrics_;
   const bool should_collapse_leading_white_space_;
@@ -172,4 +174,4 @@ class LineBox {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_LINE_BOX_H_
+#endif  // COBALT_LAYOUT_LINE_BOX_H_
