@@ -38,6 +38,8 @@
     'gles/buffer.cc',
     'gles/buffer.h',
     'gles/buffer_impl.h',
+    'gles/clear_state.h',
+    'gles/color_mask.h',
     'gles/context.cc',
     'gles/context.h',
     'gles/context_impl.h',
