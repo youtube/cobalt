@@ -547,10 +547,6 @@ bool NewComputedStyleInvalidatesLayoutBoxes(
              *new_computed_style->display()) ||
          !old_computed_style->content()->Equals(
              *new_computed_style->content()) ||
-         !old_computed_style->text_transform()->Equals(
-             *new_computed_style->text_transform()) ||
-         !old_computed_style->white_space()->Equals(
-             *new_computed_style->white_space()) ||
          !old_computed_style->color()->Equals(*new_computed_style->color()) ||
          !old_computed_style->font_family()->Equals(
              *new_computed_style->font_family()) ||
