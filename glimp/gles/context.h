@@ -25,9 +25,8 @@
 #include <utility>
 
 #include "glimp/egl/surface.h"
-#include "glimp/gles/clear_state.h"
-#include "glimp/gles/color_mask.h"
 #include "glimp/gles/context_impl.h"
+#include "glimp/gles/draw_state.h"
 #include "glimp/gles/resource_manager.h"
 #include "glimp/gles/sampler.h"
 #include "glimp/gles/vertex_attribute.h"
@@ -55,7 +54,7 @@ class Context {
   // Releases the current thread's current context.
   static void ReleaseTLSCurrentContext();
 
-  egl::Surface* draw_surface() { return draw_surface_; }
+  egl::Surface* draw_surface() { return draw_state_.draw_surface; }
 
   // Returns the thread that currently holds this Context, or kSbThreadInvalid
   // if no thread currently holds the context.
@@ -165,6 +164,9 @@ class Context {
 
   void SetupExtensionsString();
 
+  void UpdateVertexAttribsInDrawState();
+  void UpdateSamplersInDrawState();
+
   // A reference to the platform-specific implementation aspects of the context.
   nb::scoped_ptr<ContextImpl> impl_;
 
@@ -173,9 +175,6 @@ class Context {
 
   // Has this context ever been made current before?
   bool has_been_current_;
-
-  // The current draw surface.
-  egl::Surface* draw_surface_;
 
   // The current read surface.
   egl::Surface* read_surface_;
@@ -186,23 +185,13 @@ class Context {
   // The resource manager containing all referenced resources.
   nb::scoped_refptr<ResourceManager> resource_manager_;
 
-  // The currently bound array buffer, set by calling
-  // glBindBuffer(GL_ARRAY_BUFFER).
-  nb::scoped_refptr<Buffer> bound_array_buffer_;
-
-  // The currently bound element array buffer, set by calling
-  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER).
-  nb::scoped_refptr<Buffer> bound_element_array_buffer_;
-
-  // The currently in-use Program object, set by a call to glUseProgram().
-  nb::scoped_refptr<Program> in_use_program_;
-
   // Sets the active texture, which can be thought of more intuitively as
   // the active "sampler".  Set using glActiveTexture().
   GLenum active_texture_;
 
   // The set of sampler units, of which |active_texture_| indexes.
   Sampler samplers_[kMaxActiveTextures];
+  bool enabled_samplers_dirty_;
 
   // A mapping from an integer index (specified by the index parameter of
   // glBindAttribLocation(), glVertexAttribPointer(), and others) to vertex
@@ -213,25 +202,20 @@ class Context {
   // through calls to glEnableVertexAttribArray() and
   // glDisableVertexAttribArray().
   std::set<unsigned int> enabled_vertex_attribs_;
+  bool enabled_vertex_attribs_dirty_;
 
-  // This vector maintains the set of enabled vertex attributes, and is passed
-  // into the ContextImpl object on draw calls.  It is a dense set of only the
-  // enabled vertex attributes.
-  ContextImpl::EnabledVertexAttributeList draw_vertex_attribs_;
+  // Tracks all GL draw state.  It is updated by making various GL calls,
+  // and it is read when a draw (or clear) call is made.  It is modified
+  // by this Context object and read from the ContextImpl object.
+  DrawState draw_state_;
 
-  // This vector maintains the set of enabled sampler objects, and is passed
-  // into the ContextImpl object on draw calls.  It is a dense set of only the
-  // enabled sampler units.
-  ContextImpl::EnabledSamplerList draw_samplers_;
-
-  // Tracks the state that affects each glClear() call.
-  ClearState clear_state_;
-
-  // True if clear_state_ has changed since the last glClear() call.
-  bool clear_state_dirty_;
-
-  // Tracks the state modified by glColorMask().
-  gles::ColorMask color_mask_;
+  // Tracks which members of |draw_state_| have been modified since the last
+  // draw (or clear) command issued to the ContextImpl object.  This
+  // allows implementations to determine whether it is necessary to re-setup
+  // certain context information.  It is expected that implementations will
+  // set these dirty flags to false after they have processed the corresponding
+  // draw state.
+  DrawStateDirtyFlags draw_state_dirty_flags_;
 
   // The last GL ES error raised.
   GLenum error_;
