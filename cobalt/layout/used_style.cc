@@ -725,8 +725,7 @@ UsedLineHeightProvider::UsedLineHeightProvider(
 
 void UsedLineHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   DCHECK_EQ(cssom::KeywordValue::kNormal, keyword->value());
-  used_line_height_ =
-      font_metrics_.ascent + font_metrics_.descent + font_metrics_.leading;
+  used_line_height_ = font_metrics_.em_box_height();
   UpdateHalfLeading();
 }
 
@@ -741,7 +740,8 @@ void UsedLineHeightProvider::UpdateHalfLeading() {
   // AD = A (ascent) + D (descent).
   //   https://www.w3.org/TR/CSS21/visudet.html#leading
   half_leading_ =
-      (used_line_height_ - (font_metrics_.ascent + font_metrics_.descent)) / 2;
+      (used_line_height_ - (font_metrics_.ascent() + font_metrics_.descent())) /
+      2;
 }
 
 // A percentage for the horizontal offset is relative to the width of the

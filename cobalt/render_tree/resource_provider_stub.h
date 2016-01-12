@@ -83,10 +83,8 @@ class FontStub : public Font {
 
   math::RectF GetBounds(const std::string& text) const OVERRIDE {
     FontMetrics font_metrics = GetFontMetrics();
-    return math::RectF(
-        0, 0,
-        static_cast<float>(text.length() * 10),
-        font_metrics.ascent + font_metrics.descent);
+    return math::RectF(0, 0, static_cast<float>(text.length() * 10),
+                       font_metrics.ascent() + font_metrics.descent());
   }
 
   FontMetrics GetFontMetrics() const OVERRIDE {

@@ -49,7 +49,9 @@ TextBox::TextBox(
       should_collapse_leading_white_space_(false),
       should_collapse_trailing_white_space_(false),
       has_trailing_line_break_(has_trailing_line_break),
-      update_size_results_valid_(false) {
+      update_size_results_valid_(false),
+      line_height_(0),
+      inline_top_margin_(0) {
   DCHECK(text_start_position_ <= text_end_position_);
 
   UpdateTextHasLeadingWhiteSpace();
@@ -69,6 +71,10 @@ bool TextBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
   }
 }
 
+float TextBox::GetInlineLevelBoxHeight() const { return line_height_; }
+
+float TextBox::GetInlineLevelTopMargin() const { return inline_top_margin_; }
+
 void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   // Anonymous boxes do not have margins.
   DCHECK_EQ(0.0f, GetUsedMarginLeftIfNotAuto(
@@ -80,11 +86,6 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   DCHECK_EQ(0.0f, GetUsedMarginBottomIfNotAuto(
                       computed_style(), layout_params.containing_block_size));
 
-  set_margin_left(0);
-  set_margin_top(0);
-  set_margin_right(0);
-  set_margin_bottom(0);
-
   float non_collapsible_text_width =
       HasNonCollapsibleText()
           ? RoundToFixedPointPrecision(
@@ -94,12 +95,19 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
             GetTrailingWhiteSpaceWidth());
 
   if (!baseline_offset_from_top_) {
-    UsedLineHeightProvider used_line_height_provider(
-        used_font_->GetFontMetrics());
+    set_margin_left(0);
+    set_margin_top(0);
+    set_margin_right(0);
+    set_margin_bottom(0);
+
+    const render_tree::FontMetrics& font_metrics = used_font_->GetFontMetrics();
+    UsedLineHeightProvider used_line_height_provider(font_metrics);
     computed_style()->line_height()->Accept(&used_line_height_provider);
-    set_height(used_line_height_provider.used_line_height());
+    set_height(font_metrics.em_box_height());
     baseline_offset_from_top_ =
         used_line_height_provider.baseline_offset_from_top();
+    line_height_ = used_line_height_provider.used_line_height();
+    inline_top_margin_ = used_line_height_provider.half_leading();
   }
 }
 
@@ -211,6 +219,7 @@ bool TextBox::AffectsBaselineInBlockFormattingContext() const {
 }
 
 float TextBox::GetBaselineOffsetFromTopMarginEdge() const {
+  DCHECK(baseline_offset_from_top_);
   return *baseline_offset_from_top_;
 }
 
@@ -258,6 +267,8 @@ void TextBox::RenderAndAnimateContent(
       used_font_->GenerateFontRunList(text, &font_run_list);
 
       float leading_width = GetLeadingWhiteSpaceWidth();
+      float baseline_offset_from_top =
+          used_font_->GetFontMetrics().baseline_offset_from_top();
 
       for (size_t i = 0; i < font_run_list.size(); ++i) {
         const dom::FontRun& font_run = font_run_list[i];
@@ -272,7 +283,7 @@ void TextBox::RenderAndAnimateContent(
         // a baseline, offset the text node accordingly.
         border_node_builder->AddChild(
             text_node,
-            math::TranslateMatrix(leading_width, *baseline_offset_from_top_));
+            math::TranslateMatrix(leading_width, baseline_offset_from_top));
 
         if (is_color_animated) {
           AddAnimations<render_tree::TextNode>(
@@ -302,7 +313,8 @@ void TextBox::DumpProperties(std::ostream* stream) const {
   *stream << "text_start=" << text_start_position_ << " "
           << "text_end=" << text_end_position_ << " ";
 
-  *stream << std::boolalpha
+  *stream << std::boolalpha << "line_height=" << line_height_ << " "
+          << "inline_top_margin=" << inline_top_margin_ << " "
           << "has_leading_white_space=" << HasLeadingWhiteSpace() << " "
           << "has_trailing_white_space=" << HasTrailingWhiteSpace() << " "
           << std::noboolalpha;
