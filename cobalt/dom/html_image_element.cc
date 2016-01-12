@@ -92,7 +92,7 @@ void HTMLImageElement::UpdateImageData() {
   if (!src.empty()) {
     // 7.1. Resolve selected source, relative to the element. If that is not
     // successful, abort these steps.
-    const GURL base_url = owner_document()->url_as_gurl();
+    const GURL base_url = node_document()->url_as_gurl();
     const GURL selected_source = base_url.Resolve(src);
     if (!selected_source.is_valid()) {
       LOG(WARNING) << src << " cannot be resolved based on " << base_url << ".";
@@ -106,8 +106,10 @@ void HTMLImageElement::UpdateImageData() {
     // the img element to the completely available state, update the
     // presentation of the image appropriately, queue a task to fire a simple
     // event named load at the img element, and abort these steps.
-    cached_image_ = html_element_context()->image_cache()->CreateCachedResource(
-        selected_source);
+    cached_image_ = node_document()
+                        ->html_element_context()
+                        ->image_cache()
+                        ->CreateCachedResource(selected_source);
     if (cached_image_->TryGetResource()) {
       PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->load());
       return;
@@ -137,19 +139,19 @@ void HTMLImageElement::UpdateImageData() {
           base::Bind(&HTMLImageElement::OnLoadingDone, base::Unretained(this)),
           base::Bind(&HTMLImageElement::OnLoadingError,
                      base::Unretained(this))));
-  owner_document()->IncreaseLoadingCounter();
+  node_document()->IncreaseLoadingCounter();
 }
 
 void HTMLImageElement::OnLoadingDone() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingDone()");
   PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->load());
-  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
 }
 
 void HTMLImageElement::OnLoadingError() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingError()");
   PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
-  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
 }
 
 }  // namespace dom

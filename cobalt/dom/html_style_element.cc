@@ -56,11 +56,12 @@ scoped_refptr<HTMLStyleElement> HTMLStyleElement::AsHTMLStyleElement() {
 }
 
 void HTMLStyleElement::Process() {
+  Document* document = node_document();
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      html_element_context()->css_parser()->ParseStyleSheet(
+      document->html_element_context()->css_parser()->ParseStyleSheet(
           text_content().value(), inline_style_location_);
   style_sheet->SetLocationUrl(GURL(inline_style_location_.file_path));
-  owner_document()->style_sheets()->Append(style_sheet);
+  document->style_sheets()->Append(style_sheet);
   style_sheet_ = style_sheet;
 }
 
