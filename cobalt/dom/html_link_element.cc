@@ -46,7 +46,7 @@ void HTMLLinkElement::OnInsertedIntoDocument() {
 
 void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
   // Resolve the URL given by the href attribute, relative to the element.
-  const GURL base_url = node_document()->url_as_gurl();
+  const GURL& base_url = node_document()->url_as_gurl();
   absolute_url_ = base_url.Resolve(href());
 
   LOG_IF(WARNING, !absolute_url_.is_valid())

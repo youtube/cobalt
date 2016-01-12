@@ -92,7 +92,7 @@ void HTMLImageElement::UpdateImageData() {
   if (!src.empty()) {
     // 7.1. Resolve selected source, relative to the element. If that is not
     // successful, abort these steps.
-    const GURL base_url = node_document()->url_as_gurl();
+    const GURL& base_url = node_document()->url_as_gurl();
     const GURL selected_source = base_url.Resolve(src);
     if (!selected_source.is_valid()) {
       LOG(WARNING) << src << " cannot be resolved based on " << base_url << ".";
