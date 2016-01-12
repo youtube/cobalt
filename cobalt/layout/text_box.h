@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_TEXT_BOX_H_
-#define LAYOUT_TEXT_BOX_H_
+#ifndef COBALT_LAYOUT_TEXT_BOX_H_
+#define COBALT_LAYOUT_TEXT_BOX_H_
 
 #include <string>
 
@@ -66,6 +66,8 @@ class TextBox : public Box {
   bool HasTrailingLineBreak() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
   float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
+  float GetInlineLevelBoxHeight() const OVERRIDE;
+  float GetInlineLevelTopMargin() const OVERRIDE;
 
   bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
 
@@ -156,9 +158,11 @@ class TextBox : public Box {
   base::optional<float> baseline_offset_from_top_;
 
   bool update_size_results_valid_;
+  float line_height_;
+  float inline_top_margin_;
 };
 
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_TEXT_BOX_H_
+#endif  // COBALT_LAYOUT_TEXT_BOX_H_

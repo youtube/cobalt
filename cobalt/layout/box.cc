@@ -222,6 +222,10 @@ float Box::GetContentBoxTopEdge() const {
   return GetPaddingBoxTopEdge() + padding_top();
 }
 
+float Box::GetInlineLevelBoxHeight() const { return GetMarginBoxHeight(); }
+
+float Box::GetInlineLevelTopMargin() const { return 0.0f; }
+
 void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
     float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
     float* placed_offset) {

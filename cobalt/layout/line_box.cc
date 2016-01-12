@@ -29,7 +29,7 @@ namespace layout {
 
 // The left edge of a line box touches the left edge of its containing block.
 //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-LineBox::LineBox(float top,
+LineBox::LineBox(float top, bool position_children_relative_to_baseline,
                  const scoped_refptr<cssom::PropertyValue>& line_height,
                  const render_tree::FontMetrics& font_metrics,
                  bool should_collapse_leading_white_space,
@@ -39,6 +39,8 @@ LineBox::LineBox(float top,
                  const scoped_refptr<cssom::PropertyValue>& white_space,
                  float indent_offset, float ellipsis_width)
     : top_(top),
+      position_children_relative_to_baseline_(
+          position_children_relative_to_baseline),
       line_height_(line_height),
       font_metrics_(font_metrics),
       should_collapse_leading_white_space_(should_collapse_leading_white_space),
@@ -403,13 +405,14 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
   //   https://www.w3.org/TR/CSS21/visudet.html#strut
   UsedLineHeightProvider used_line_height_provider(font_metrics_);
   line_height_->Accept(&used_line_height_provider);
+
   baseline_offset_from_top_ =
       used_line_height_provider.baseline_offset_from_top();
   float baseline_offset_from_bottom =
       used_line_height_provider.baseline_offset_from_bottom();
 
-  float child_max_top_aligned_margin_box_height = 0;
-  float child_max_bottom_aligned_margin_box_height = 0;
+  float max_top_aligned_height = 0;
+  float max_bottom_aligned_height = 0;
 
   // During this loop, the line box height above and below the baseline is
   // established.
@@ -436,15 +439,22 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
       // may affect the height below the baseline if this is the tallest child
       // box. We measure the tallest top-aligned box to implement that after
       // this loop.
-      child_max_top_aligned_margin_box_height =
-          std::max(child_max_top_aligned_margin_box_height,
-                   child_box->GetMarginBoxHeight());
+      float child_height = child_box->GetInlineLevelBoxHeight();
+      // If there previously was a taller bottom-aligned box, then this box does
+      // not influence the line box height or baseline.
+      if (child_height > max_bottom_aligned_height) {
+        max_top_aligned_height = std::max(max_top_aligned_height, child_height);
+      }
     } else if (vertical_align == cssom::KeywordValue::GetBottom()) {
       // Align the bottom of the aligned subtree with the bottom of the line
       // box.
-      child_max_bottom_aligned_margin_box_height =
-          std::max(child_max_bottom_aligned_margin_box_height,
-                   child_box->GetMarginBoxHeight());
+      float child_height = child_box->GetInlineLevelBoxHeight();
+      // If there previously was a taller top-aligned box, then this box does
+      // not influence the line box height or baseline.
+      if (child_height > max_top_aligned_height) {
+        max_bottom_aligned_height =
+            std::max(max_bottom_aligned_height, child_height);
+      }
     } else if (vertical_align == cssom::KeywordValue::GetBaseline()) {
       // Align the baseline of the box with the baseline of the parent box.
       baseline_offset_from_child_top_margin_edge =
@@ -460,7 +470,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
                    baseline_offset_from_child_top_margin_edge);
 
       float baseline_offset_from_child_bottom_margin_edge =
-          child_box->GetMarginBoxHeight() -
+          child_box->GetInlineLevelBoxHeight() -
           baseline_offset_from_child_top_margin_edge;
       baseline_offset_from_bottom =
           std::max(baseline_offset_from_bottom,
@@ -471,23 +481,51 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
   // lowermost box bottom.
   //   https://www.w3.org/TR/CSS21/visudet.html#line-height
   height_ = baseline_offset_from_top_ + baseline_offset_from_bottom;
-  if (child_max_top_aligned_margin_box_height > height_) {
-    // Increase the line box height below the baseline to make the largest
-    // top-aligned child box fit.
-    baseline_offset_from_bottom +=
-        child_max_top_aligned_margin_box_height - height_;
-    height_ = baseline_offset_from_top_ + baseline_offset_from_bottom;
-  }
-  if (child_max_bottom_aligned_margin_box_height > height_) {
-    // Increase the line box height above the baseline to make the largest
-    // bottom-aligned child box fit.
-    baseline_offset_from_top_ +=
-        child_max_bottom_aligned_margin_box_height - height_;
-    height_ = baseline_offset_from_top_ + baseline_offset_from_bottom;
+
+  // In case they are aligned 'top' or 'bottom', they must be aligned so as to
+  // minimize the line box height. If such boxes are tall enough, there are
+  // multiple solutions and CSS 2.1 does not define the position of the line
+  // box's baseline.
+  //   https://www.w3.org/TR/CSS21/visudet.html#line-height
+  // For the cases where CSS 2.1 does not specify the baseline position, the
+  // code below matches the behavior or WebKit and Blink.
+  if (max_top_aligned_height < max_bottom_aligned_height) {
+    if (max_top_aligned_height > height_) {
+      // The bottom aligned box is tallest, but there should also be enough
+      // space below the baseline for the shorter top aligned box.
+      baseline_offset_from_bottom =
+          max_top_aligned_height - baseline_offset_from_top_;
+    }
+    if (max_bottom_aligned_height > height_) {
+      // Increase the line box height above the baseline to make the largest
+      // bottom-aligned child box fit.
+      height_ = max_bottom_aligned_height;
+      baseline_offset_from_top_ = height_ - baseline_offset_from_bottom;
+    }
+  } else {
+    if (max_bottom_aligned_height > height_) {
+      // The top aligned box is tallest, but there should also be enough
+      // space above the baseline for the shorter bottom aligned box.
+      baseline_offset_from_top_ =
+          max_bottom_aligned_height - baseline_offset_from_bottom;
+    }
+    if (max_top_aligned_height > height_) {
+      // Increase the line box height below the baseline to make the largest
+      // top-aligned child box fit.
+      height_ = max_top_aligned_height;
+      baseline_offset_from_bottom = height_ - baseline_offset_from_top_;
+    }
   }
 }
 
 void LineBox::UpdateChildBoxTopPositions() {
+  float top_offset = top_;
+  if (position_children_relative_to_baseline_) {
+    // For InlineContainerBoxes, the children have to be aligned to the baseline
+    // so that the vertical positioning can be consistent with the box position
+    // with line-height and different font sizes.
+    top_offset -= baseline_offset_from_top_;
+  }
   // During this loop, the vertical positions of the child boxes are
   // established.
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
@@ -510,7 +548,7 @@ void LineBox::UpdateChildBoxTopPositions() {
     } else if (vertical_align == cssom::KeywordValue::GetBottom()) {
       // Align the bottom of the aligned subtree with the bottom of the line
       // box.
-      child_top = height_ - child_box->GetMarginBoxHeight();
+      child_top = height_ - child_box->GetInlineLevelBoxHeight();
     } else if (vertical_align == cssom::KeywordValue::GetBaseline()) {
       // Align the baseline of the box with the baseline of the parent box.
       child_top = baseline_offset_from_top_ -
@@ -519,7 +557,8 @@ void LineBox::UpdateChildBoxTopPositions() {
       child_top = 0;
       NOTREACHED() << "Unsupported vertical_align property value";
     }
-    child_box->set_top(top_ + child_top);
+    child_box->set_top(top_offset + child_top +
+                       child_box->GetInlineLevelTopMargin());
   }
 }
 
@@ -563,7 +602,7 @@ void LineBox::MaybePlaceEllipsis() {
 
 // Returns the height of half the given box above the 'middle' of the line box.
 float LineBox::GetHeightAboveMiddleAlignmentPoint(Box* child_box) {
-  return (child_box->height() + font_metrics_.x_height) / 2.0f;
+  return (child_box->height() + font_metrics_.x_height()) / 2.0f;
 }
 
 }  // namespace layout

@@ -217,6 +217,14 @@ class Box : public base::RefCounted<Box> {
   float GetContentBoxLeftEdge() const;
   float GetContentBoxTopEdge() const;
 
+  // The height of each inline-level box in the line box is calculated. For
+  // replaced elements, inline-block elements, and inline-table elements, this
+  // is the height of their margin box; for inline boxes, this is their
+  // 'line-height'.
+  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  virtual float GetInlineLevelBoxHeight() const;
+  virtual float GetInlineLevelTopMargin() const;
+
   // Attempts to split the box, so that the part before the split would fit
   // the available width. However, if |allow_overflow| is true, then the split
   // is permitted to overflow the available width if no smaller split is
