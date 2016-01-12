@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#ifndef XHR_XML_HTTP_REQUEST_H_
-#define XHR_XML_HTTP_REQUEST_H_
+#ifndef COBALT_XHR_XML_HTTP_REQUEST_H_
+#define COBALT_XHR_XML_HTTP_REQUEST_H_
 
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -79,6 +80,12 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
     kResponseTypeCodeMax,
   };
 
+  enum RequestErrorType {
+    kNetworkError,
+    kAbortError,
+    kTimeoutError,
+  };
+
   void Abort();
   void Open(const std::string& method, const std::string& url,
             script::ExceptionState* exception_state) {
@@ -135,12 +142,17 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   bool with_credentials() const { return with_credentials_; }
   void set_with_credentials(bool b);
 
+  static void set_verbose(bool verbose) { verbose_ = verbose; }
+  static bool verbose() { return verbose_; }
+
   // net::URLFetcherDelegate interface
   void OnURLFetchResponseStarted(const net::URLFetcher* source) OVERRIDE;
   void OnURLFetchDownloadData(const net::URLFetcher* source,
                               scoped_ptr<std::string> download_data) OVERRIDE;
   void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
   bool ShouldSendDownloadData() OVERRIDE { return true; }
+
+  friend std::ostream& operator<<(std::ostream& os, const XMLHttpRequest& xhr);
 
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequest);
 
@@ -157,12 +169,6 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   FRIEND_TEST_ALL_PREFIXES(XhrTest, Open);
   FRIEND_TEST_ALL_PREFIXES(XhrTest, OverrideMimeType);
   FRIEND_TEST_ALL_PREFIXES(XhrTest, SetRequestHeader);
-
-  enum RequestErrorType {
-    kNetworkError,
-    kAbortError,
-    kTimeoutError,
-  };
 
   // Dispatch a progress event to any listeners.
   void FireProgressEvent(const std::string& event_name);
@@ -235,10 +241,16 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   // For debugging our reference count manipulations.
   bool did_add_ref_;
 
+  static bool verbose_;
+  // Unique ID for debugging.
+  int xhr_id_;
+
   DISALLOW_COPY_AND_ASSIGN(XMLHttpRequest);
 };
+
+std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr);
 
 }  // namespace xhr
 }  // namespace cobalt
 
-#endif  // XHR_XML_HTTP_REQUEST_H_
+#endif  // COBALT_XHR_XML_HTTP_REQUEST_H_
