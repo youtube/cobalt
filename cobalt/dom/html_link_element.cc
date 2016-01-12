@@ -46,7 +46,7 @@ void HTMLLinkElement::OnInsertedIntoDocument() {
 
 void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
   // Resolve the URL given by the href attribute, relative to the element.
-  const GURL base_url = owner_document()->url_as_gurl();
+  const GURL base_url = node_document()->url_as_gurl();
   absolute_url_ = base_url.Resolve(href());
 
   LOG_IF(WARNING, !absolute_url_.is_valid())
@@ -80,14 +80,16 @@ void HTMLLinkElement::Obtain() {
   // the mode being the current state of the element's crossorigin content
   // attribute, the origin being the origin of the link element's Document, and
   // the default origin behaviour set to taint.
+  Document* document = node_document();
   csp::SecurityCallback csp_callback = base::Bind(
-      &CSPDelegate::CanLoad, base::Unretained(owner_document()->csp_delegate()),
+      &CSPDelegate::CanLoad, base::Unretained(document->csp_delegate()),
       CSPDelegate::kStyle);
 
   loader_ = make_scoped_ptr(new loader::Loader(
-      base::Bind(&loader::FetcherFactory::CreateSecureFetcher,
-                 base::Unretained(html_element_context()->fetcher_factory()),
-                 absolute_url_, csp_callback),
+      base::Bind(
+          &loader::FetcherFactory::CreateSecureFetcher,
+          base::Unretained(document->html_element_context()->fetcher_factory()),
+          absolute_url_, csp_callback),
       scoped_ptr<loader::Decoder>(new loader::TextDecoder(
           base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
@@ -95,7 +97,7 @@ void HTMLLinkElement::Obtain() {
   // The element must delay the load event of the element's document until all
   // the attempts to obtain the resource and its critical subresources are
   // complete.
-  owner_document()->IncreaseLoadingCounter();
+  document->IncreaseLoadingCounter();
 }
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
@@ -103,11 +105,12 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   DCHECK_EQ(rel(), "stylesheet");
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
 
+  Document* document = node_document();
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      html_element_context()->css_parser()->ParseStyleSheet(
+      document->html_element_context()->css_parser()->ParseStyleSheet(
           content, base::SourceLocation(href(), 1, 1));
   style_sheet->SetLocationUrl(absolute_url_);
-  owner_document()->style_sheets()->Append(style_sheet);
+  document->style_sheets()->Append(style_sheet);
 
   // Once the attempts to obtain the resource and its critical subresources are
   // complete, the user agent must, if the loads were successful, queue a task
@@ -121,7 +124,7 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   // The element must delay the load event of the element's document until all
   // the attempts to obtain the resource and its critical subresources are
   // complete.
-  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+  document->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
 
   DCHECK(loader_);
   loader_.reset();
@@ -145,7 +148,7 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
   // The element must delay the load event of the element's document until all
   // the attempts to obtain the resource and its critical subresources are
   // complete.
-  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
 
   DCHECK(loader_);
   loader_.reset();

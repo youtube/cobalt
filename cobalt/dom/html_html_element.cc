@@ -28,11 +28,11 @@ std::string HTMLHtmlElement::tag_name() const { return kTagName; }
 
 void HTMLHtmlElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
-  owner_document()->SetHtml(this);
+  node_document()->SetHtml(this);
 }
 
 void HTMLHtmlElement::OnRemovedFromDocument() {
-  owner_document()->SetHtml(NULL);
+  node_document()->SetHtml(NULL);
   Node::OnRemovedFromDocument();
 }
 
