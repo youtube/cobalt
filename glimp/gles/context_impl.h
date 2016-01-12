@@ -26,6 +26,8 @@
 #include "glimp/egl/surface.h"
 #include "glimp/gles/buffer.h"
 #include "glimp/gles/buffer_impl.h"
+#include "glimp/gles/clear_state.h"
+#include "glimp/gles/color_mask.h"
 #include "glimp/gles/draw_mode.h"
 #include "glimp/gles/program.h"
 #include "glimp/gles/program_impl.h"
@@ -138,6 +140,18 @@ class ContextImpl {
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glFlush.xml
   virtual void Flush() = 0;
 
+  // Called when glClear() is called.  Clears all of the three buffers that have
+  // their |clear_*| parameters set.  |clear_state| represents the current
+  // clear state as set by the client through GL calls.  If |clear_state_dirty|
+  // is true, then |clear_state| has changed since the last call to Clear().
+  //   https://www.opengl.org/sdk/docs/man2/xhtml/glClear.xml
+  virtual void Clear(const ClearState& clear_state,
+                     bool clear_state_dirty,
+                     const ColorMask& color_mask,
+                     bool clear_color,
+                     bool clear_depth,
+                     bool clear_stencil) = 0;
+
   // Called when glDrawArrays() is called.  This method must generate GPU
   // commands to render the passed in |vertex_buffer| whose structure is defined
   // by |attributes|.  The vertex program |program| should be used to render
@@ -150,7 +164,8 @@ class ContextImpl {
                           const Program& program,
                           const Buffer& vertex_buffer,
                           const EnabledVertexAttributeList& attributes,
-                          const EnabledSamplerList& samplers) = 0;
+                          const EnabledSamplerList& samplers,
+                          const ColorMask& color_mask) = 0;
 
   // Called when eglSwapBuffers() is called.  This method is responsible for
   // submitting a command to the GPU to indicate that we are done rendering this
