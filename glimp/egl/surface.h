@@ -35,12 +35,23 @@ class Surface {
   int GetWidth() const;
   int GetHeight() const;
 
-  EGLBoolean QuerySurface(EGLint attribute, EGLint* value);
+  EGLint GetTextureFormat() const;
+  EGLint GetTextureTarget() const;
 
-  SurfaceImpl* impl() { return surface_impl_.get(); }
+  EGLBoolean QuerySurface(EGLint attribute, EGLint* value);
+  EGLBoolean BindTexImage(EGLint buffer);
+  EGLBoolean ReleaseTexImage(EGLint buffer);
+
+  bool is_bound_to_texture() const { return is_bound_to_texture_; }
+
+  SurfaceImpl* impl() const { return surface_impl_.get(); }
 
  private:
   nb::scoped_ptr<SurfaceImpl> surface_impl_;
+
+  // True if this surface is currently bound to a GL ES texture via
+  // eglBindTexImage().
+  bool is_bound_to_texture_;
 };
 
 bool ValidateSurfaceAttribList(const AttribMap& attribs);

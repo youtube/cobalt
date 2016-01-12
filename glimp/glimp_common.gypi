@@ -42,6 +42,8 @@
     'gles/context.cc',
     'gles/context.h',
     'gles/context_impl.h',
+    'gles/convert_pixel_data.cc',
+    'gles/convert_pixel_data.h',
     'gles/draw_mode.h',
     'gles/draw_state.cc',
     'gles/draw_state.h',
