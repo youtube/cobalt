@@ -26,9 +26,8 @@
 #include "glimp/egl/surface.h"
 #include "glimp/gles/buffer.h"
 #include "glimp/gles/buffer_impl.h"
-#include "glimp/gles/clear_state.h"
-#include "glimp/gles/color_mask.h"
 #include "glimp/gles/draw_mode.h"
+#include "glimp/gles/draw_state.h"
 #include "glimp/gles/program.h"
 #include "glimp/gles/program_impl.h"
 #include "glimp/gles/sampler.h"
@@ -51,30 +50,7 @@ class ContextImpl {
   // glGetString(GL_EXTENSIONS).
   typedef std::vector<std::string> ExtensionList;
 
-  // Types passed in as parameters to draw calls (like DrawArrays()) to
-  // describe the set of only enabled vertex attributes.
-  typedef std::vector<std::pair<unsigned int, VertexAttribute*> >
-      EnabledVertexAttributeList;
-
-  // Similar to EnabledVertexAttributeList, but lists only samplers with
-  // textures bound to them.
-  typedef std::vector<std::pair<unsigned int, Sampler*> > EnabledSamplerList;
-
   virtual ~ContextImpl() {}
-
-  // The following methods are called when eglMakeCurrent() is called with
-  // different surfaces specified.
-  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglMakeCurrent.xhtml
-  virtual void SetDrawSurface(egl::Surface* surface) = 0;
-  virtual void SetReadSurface(egl::Surface* surface) = 0;
-
-  // Called via glScissor.
-  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glScissor.xml
-  virtual void SetScissor(int x, int y, int width, int height) = 0;
-
-  // Called via glViewport.
-  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glViewport.xml
-  virtual void SetViewport(int x, int y, int width, int height) = 0;
 
   // Called via glGetString(GL_EXTENSIONS).
   // Note that glimp common code may append its own extensions to the list
@@ -141,37 +117,47 @@ class ContextImpl {
   virtual void Flush() = 0;
 
   // Called when glClear() is called.  Clears all of the three buffers that have
-  // their |clear_*| parameters set.  |clear_state| represents the current
-  // clear state as set by the client through GL calls.  If |clear_state_dirty|
-  // is true, then |clear_state| has changed since the last call to Clear().
+  // their |clear_*| parameters set.
+  //   |draw_state| represents the current GL ES draw state at the time of this
+  //                call.
+  //   |dirty_flags| represents which members of the |draw_state| have been
+  //                 modified since the last draw (or clear) call.  This can
+  //                 be leveraged to avoid reconfiguring unchanged state.
+  //                 It is expected that implementations will manually set
+  //                 these flags to false after they have processed the
+  //                 corresponding draw state member.
   //   https://www.opengl.org/sdk/docs/man2/xhtml/glClear.xml
-  virtual void Clear(const ClearState& clear_state,
-                     bool clear_state_dirty,
-                     const ColorMask& color_mask,
-                     bool clear_color,
+  virtual void Clear(bool clear_color,
                      bool clear_depth,
-                     bool clear_stencil) = 0;
+                     bool clear_stencil,
+                     const DrawState& draw_state,
+                     DrawStateDirtyFlags* dirty_flags) = 0;
 
   // Called when glDrawArrays() is called.  This method must generate GPU
   // commands to render the passed in |vertex_buffer| whose structure is defined
   // by |attributes|.  The vertex program |program| should be used to render
   // the vertices, and |samplers| defines the set of textures to be bound for
   // the draw call.
+  //   |draw_state| represents the current GL ES draw state at the time of this
+  //                call.
+  //   |dirty_flags| represents which members of the |draw_state| have been
+  //                 modified since the last draw (or clear) call.  This can
+  //                 be leveraged to avoid reconfiguring unchanged state.
+  //                 It is expected that implementations will manually set
+  //                 these flags to false after they have processed the
+  //                 corresponding draw state member.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glDrawArrays.xml
   virtual void DrawArrays(DrawMode mode,
                           int first_vertex,
                           int num_vertices,
-                          const Program& program,
-                          const Buffer& vertex_buffer,
-                          const EnabledVertexAttributeList& attributes,
-                          const EnabledSamplerList& samplers,
-                          const ColorMask& color_mask) = 0;
+                          const DrawState& draw_state,
+                          DrawStateDirtyFlags* dirty_flags) = 0;
 
   // Called when eglSwapBuffers() is called.  This method is responsible for
   // submitting a command to the GPU to indicate that we are done rendering this
   // frame and that the current draw surface should be swapped to the display.
   //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglSwapBuffers.xhtml
-  virtual void SwapBuffers() = 0;
+  virtual void SwapBuffers(egl::Surface* surface) = 0;
 
  private:
 };
