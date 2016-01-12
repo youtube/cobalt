@@ -7,7 +7,8 @@ that it does not.
 ## Current State
 
 Starboard is still very much in development, and does not currently run
-Cobalt. Mainly, it runs NPLB (see below) and Chromium base, and only on Linux.
+Cobalt. Mainly, it runs NPLB (see below), Chromium base, Chromium net, ICU,
+GTest, GMock, and only on Linux.
 
 The work so far has focused on supporting Chromium base and net, and their
 dependencies, so the APIs for things like media decoding, decryption, DRM, and
@@ -17,25 +18,20 @@ graphics haven't yet been defined.
 
 All source locations are specified relative to `src/starboard/` (this directory).
 
-  * `.` - The current directory contains all the public headers that Starboard
-    defines.
-  * `nplb/` - No Platform Left Behind: Starboard's platform verification test
+  * `.` - This is the root directory for the Starboard project, and contains all
+    the public headers that Starboard defines.
+  * `examples/` - Example code demonstrating various aspects of Starboard API
+    usage.
+  * `linux/` - The home of the Linux Starboard implementation. This contains a
+    `starboard_platform.gyp` file that defines a library with all the source
+    files needed to provide a complete Starboard Linux implementation. Source
+    files that are specific to Linux are in this directory, whereas shared
+    implementations are pulled from the shared directory.
+  * `nplb/` - "No Platform Left Behind:" Starboard's platform verification test
     suite.
-  * `linux/` - The home of the Linux Starboard implementation
   * `shared/` - The home of all code that can be shared between Starboard
-    implementations. Directly in this directory are files that only reference
-    other Starboard APIs, and therefore should be completely
-    reusable. Subdirectories delimit code that can be shared between platforms
-    that share some facet of their OS API.
-    * `shared/iso` - Implementation files that follow ISO C and C++
-      standards. Platforms that are ISO-compliant should be able to use these.
-    * `shared/posix` - POSIX-specific implementation files. Starboard
-      implementations may pull some or all of this directory to implement
-      Starboard APIs if they are POSIX-compliant.
-    * `shared/libevent` - libevent-specific implementation files, for platforms
-      that can build and run libevent.
-    * `shared/pthread` - pthread-specific implementation files, for platforms
-      that provide a reasonable implementation of POSIX threads.
+    implementations. Subdirectories delimit code that can be shared between
+    platforms that share some facet of their OS API.
 
 
 ## Building with Starboard
