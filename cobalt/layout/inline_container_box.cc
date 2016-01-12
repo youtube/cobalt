@@ -36,6 +36,8 @@ InlineContainerBox::InlineContainerBox(
       is_collapsed_(false),
       justifies_line_existence_(false),
       baseline_offset_from_margin_box_top_(0),
+      line_height_(0),
+      inline_top_margin_(0),
       used_font_(used_style_provider->GetUsedFontList(
           computed_style_state->style()->font_family(),
           computed_style_state->style()->font_size(),
@@ -84,15 +86,25 @@ scoped_refptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
   return box_after_split;
 }
 
+float InlineContainerBox::GetInlineLevelBoxHeight() const {
+  return line_height_;
+}
+
+float InlineContainerBox::GetInlineLevelTopMargin() const {
+  return inline_top_margin_;
+}
+
 void InlineContainerBox::UpdateContentSizeAndMargins(
     const LayoutParams& layout_params) {
   // Lay out child boxes as one line without width constraints and white space
   // trimming.
-  LineBox line_box(
-      0, computed_style()->line_height(), used_font_->GetFontMetrics(),
-      should_collapse_leading_white_space_,
-      should_collapse_trailing_white_space_, layout_params,
-      cssom::KeywordValue::GetLeft(), cssom::KeywordValue::GetNormal(), 0, 0);
+  const render_tree::FontMetrics& font_metrics = used_font_->GetFontMetrics();
+  float box_top_height = font_metrics.ascent();
+  LineBox line_box(box_top_height, true, computed_style()->line_height(),
+                   font_metrics, should_collapse_leading_white_space_,
+                   should_collapse_trailing_white_space_, layout_params,
+                   cssom::KeywordValue::GetLeft(),
+                   cssom::KeywordValue::GetNormal(), 0, 0);
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
@@ -140,27 +152,26 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   //
   // Above definition of used height matches the height of hypothetical line box
   // that contains all children.
-  set_height(line_box.height());
+  set_height(font_metrics.em_box_height());
 
-  base::optional<float> maybe_margin_top = GetUsedMarginTopIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
-  base::optional<float> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
-      computed_style(), layout_params.containing_block_size);
+  // On a non-replaced inline element, 'line-height' specifies the height that
+  // is used in the calculation of the line box height.
+  //   https://www.w3.org/TR/CSS21/visudet.html#propdef-line-height
+  line_height_ = line_box.height();
 
   // Vertical margins will not have any effect on non-replaced inline elements.
   //   https://www.w3.org/TR/CSS21/box.html#margin-properties
   set_margin_top(0);
   set_margin_bottom(0);
+  inline_top_margin_ = line_box.baseline_offset_from_top() - line_box.top() -
+                       border_top_width() - padding_top();
 
   has_leading_white_space_ = line_box.HasLeadingWhiteSpace();
   has_trailing_white_space_ = line_box.HasTrailingWhiteSpace();
   is_collapsed_ = line_box.IsCollapsed();
   justifies_line_existence_ =
       line_box.line_exists() || HasNonZeroMarginOrBorderOrPadding();
-
-  baseline_offset_from_margin_box_top_ = margin_top() + border_top_width() +
-                                         padding_top() +
-                                         line_box.baseline_offset_from_top();
+  baseline_offset_from_margin_box_top_ = line_box.baseline_offset_from_top();
 }
 
 scoped_refptr<Box> InlineContainerBox::TrySplitAt(float available_width,
@@ -371,7 +382,8 @@ void InlineContainerBox::DumpClassName(std::ostream* stream) const {
 void InlineContainerBox::DumpProperties(std::ostream* stream) const {
   ContainerBox::DumpProperties(stream);
 
-  *stream << std::boolalpha
+  *stream << std::boolalpha << "line_height=" << line_height_ << " "
+          << "inline_top_margin=" << inline_top_margin_ << " "
           << "has_leading_white_space=" << has_leading_white_space_ << " "
           << "has_trailing_white_space=" << has_trailing_white_space_ << " "
           << "is_collapsed=" << is_collapsed_ << " "
