@@ -29,12 +29,47 @@
         'debugger.h',
         'debugger_event_target.cc',
         'debugger_event_target.h',
+        'json_object.cc',
+        'json_object.h',
         'system_stats_tracker.cc',
         'system_stats_tracker.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/script/script.gyp:script',
+        '<(DEPTH)/net/net.gyp:http_server',
+      ],
+      'conditions': [
+        ['enable_remote_debugging==1', {
+          'sources': [
+            'debug_web_server.cc',
+            'debug_web_server.h',
+          ],
+          'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
+          'all_dependent_settings': {
+            'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
+          },
+          'dependencies': [
+            'debug_copy_web_files',
+          ],
+        }],
+      ],
+    },
+
+    {
+      'target_name': 'debug_copy_web_files',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'debug_copy_web_files',
+          'variables': {
+            'input_files': [
+              '<(DEPTH)/cobalt/debug/content/',
+            ],
+            'output_dir': 'cobalt/debug',
+          },
+          'includes': [ '../build/copy_web_data.gypi' ],
+        },
       ],
     },
   ],

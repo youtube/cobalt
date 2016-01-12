@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_SWITCHES_H_
-#define BROWSER_SWITCHES_H_
+#ifndef COBALT_BROWSER_SWITCHES_H_
+#define COBALT_BROWSER_SWITCHES_H_
 
 namespace cobalt {
 namespace browser {
@@ -31,6 +31,7 @@ extern const char kInitialURL[];
 extern const char kInputFuzzer[];
 extern const char kPartialLayout[];
 extern const char kProxy[];
+extern const char kRemoteDebuggingPort[];
 extern const char kShutdownAfter[];
 extern const char kTimedTrace[];
 extern const char kWebDriverPort[];
@@ -40,4 +41,4 @@ extern const char kWebDriverPort[];
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // BROWSER_SWITCHES_H_
+#endif  // COBALT_BROWSER_SWITCHES_H_

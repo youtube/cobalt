@@ -20,8 +20,6 @@
 #include <string>
 
 #include "base/bind.h"
-#include "base/json/json_reader.h"
-#include "base/json/json_writer.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
@@ -101,9 +99,8 @@ void DebugServer::DispatchCommand(std::string method, std::string json_params,
   // Find the command in the registry and parse the JSON parameter string.
   // Both of these could fail, so we check below.
   CommandRegistry::iterator iter = command_registry_.find(method);
-  scoped_ptr<base::DictionaryValue> params =
-      CreateDictionaryFromJSONString(json_params);
-  ScopedDictionary response;
+  JSONObject params = JSONParse(json_params);
+  JSONObject response;
 
   if (iter != command_registry_.end() && params) {
     // Everything is looking good so far - run the command function and take
@@ -119,35 +116,15 @@ void DebugServer::DispatchCommand(std::string method, std::string json_params,
 
   // Serialize the response object and run the callback.
   DCHECK(response);
-  std::string json_response = CreateJSONStringFromDictionary(response);
+  std::string json_response = JSONStringify(response);
   callback_info.message_loop_proxy->PostTask(
       FROM_HERE, base::Bind(callback_info.callback, json_response));
 }
 
-void DebugServer::OnEvent(const std::string& method,
-                          const scoped_ptr<base::DictionaryValue>& params) {
+void DebugServer::OnEvent(const std::string& method, const JSONObject& params) {
   // Serialize the event parameters and pass to the external callback.
-  const std::string json_params = CreateJSONStringFromDictionary(params);
+  const std::string json_params = JSONStringify(params);
   on_event_callback_.Run(method, json_params);
-}
-
-DebugServer::ScopedDictionary DebugServer::CreateDictionaryFromJSONString(
-    const std::string& json) {
-  base::Value* value = base::JSONReader::Read(json);
-  base::DictionaryValue* dictionary = NULL;
-  if (value) {
-    value->GetAsDictionary(&dictionary);
-  }
-  // dictionary pointer may be NULL - caller must check.
-  return ScopedDictionary(dictionary);
-}
-
-std::string DebugServer::CreateJSONStringFromDictionary(
-    const DebugServer::ScopedDictionary& dictionary) {
-  DCHECK(dictionary);
-  std::string json;
-  base::JSONWriter::Write(dictionary.get(), &json);
-  return json;
 }
 
 void DebugServer::RegisterCommands() {
@@ -155,8 +132,7 @@ void DebugServer::RegisterCommands() {
       base::Bind(&DebugServer::GetScriptSource, base::Unretained(this));
 }
 
-DebugServer::ScopedDictionary DebugServer::GetScriptSource(
-    const ScopedDictionary& params) {
+JSONObject DebugServer::GetScriptSource(const JSONObject& params) {
   return javascript_debugger_->GetScriptSource(params);
 }
 

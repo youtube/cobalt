@@ -50,6 +50,9 @@ const char kProxy[] = "proxy";
 // Switches partial layout: on | off
 const char kPartialLayout[] = "partial_layout";
 
+// Creates a remote debugging server and listens on the specified port.
+const char kRemoteDebuggingPort[] = "remote_debugging_port";
+
 // If this flag is set, Cobalt will automatically shutdown after the specified
 // number of seconds have passed.
 const char kShutdownAfter[] = "shutdown_after";
