@@ -161,7 +161,7 @@ void HTMLScriptElement::Prepare() {
   //   3. Resolve src relative to the element.
   //   4. If the previous step failed, queue a task to fire a simple event named
   // error at the element, and abort these steps.
-  const GURL base_url = document_->url_as_gurl();
+  const GURL& base_url = document_->url_as_gurl();
   url_ = base_url.Resolve(src());
   if (!url_.is_valid()) {
     LOG(WARNING) << src() << " cannot be resolved based on " << base_url << ".";
