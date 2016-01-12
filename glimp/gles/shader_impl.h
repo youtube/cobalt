@@ -24,14 +24,24 @@ namespace gles {
 
 class ShaderImpl {
  public:
+  // Return value from the Compile() method.  Can be used to communicate an
+  // error message to the client.
+  struct CompileResults {
+    explicit CompileResults(bool success) : success(success) {}
+    CompileResults(bool success, const std::string& info_log)
+        : success(success), info_log(info_log) {}
+    bool success;
+    std::string info_log;
+  };
+
   virtual ~ShaderImpl() {}
 
   // Called when glCompileShader() is called.  The source passed in is whatever
   // source was last set by glShaderSource().  This method should return true
-  // on success and false on failure.  In the future, the return value may
-  // change to allow an error message to be expressed.
+  // on success and false on failure, along with an information message if
+  // desired.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCompileShader.xml
-  virtual bool Compile(const std::string& source) = 0;
+  virtual CompileResults Compile(const std::string& source) = 0;
 
  private:
 };

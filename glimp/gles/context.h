@@ -66,6 +66,16 @@ class Context {
 
   const GLubyte* GetString(GLenum name);
   void GetIntegerv(GLenum pname, GLint* params);
+  void GetShaderiv(GLuint shader, GLenum pname, GLint* params);
+  void GetShaderInfoLog(GLuint shader,
+                        GLsizei bufsize,
+                        GLsizei* length,
+                        GLchar* infolog);
+  void GetProgramiv(GLuint program, GLenum pname, GLint* params);
+  void GetProgramInfoLog(GLuint program,
+                         GLsizei bufsize,
+                         GLsizei* length,
+                         GLchar* infolog);
 
   void Enable(GLenum cap);
   void Disable(GLenum cap);

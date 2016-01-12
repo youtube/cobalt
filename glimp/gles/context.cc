@@ -163,6 +163,72 @@ void Context::GetIntegerv(GLenum pname, GLint* params) {
   }
 }
 
+void Context::GetShaderiv(GLuint shader, GLenum pname, GLint* params) {
+  nb::scoped_refptr<Shader> shader_object =
+      resource_manager_->GetShader(shader);
+  if (!shader_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  GLenum result = shader_object->GetShaderiv(pname, params);
+  if (result != GL_NO_ERROR) {
+    SetError(result);
+  }
+}
+
+void Context::GetShaderInfoLog(GLuint shader,
+                               GLsizei bufsize,
+                               GLsizei* length,
+                               GLchar* infolog) {
+  if (bufsize < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  nb::scoped_refptr<Shader> shader_object =
+      resource_manager_->GetShader(shader);
+  if (!shader_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  shader_object->GetShaderInfoLog(bufsize, length, infolog);
+}
+
+void Context::GetProgramiv(GLuint program, GLenum pname, GLint* params) {
+  nb::scoped_refptr<Program> program_object =
+      resource_manager_->GetProgram(program);
+  if (!program_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  GLenum result = program_object->GetProgramiv(pname, params);
+  if (result != GL_NO_ERROR) {
+    SetError(result);
+  }
+}
+
+void Context::GetProgramInfoLog(GLuint program,
+                                GLsizei bufsize,
+                                GLsizei* length,
+                                GLchar* infolog) {
+  if (bufsize < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  nb::scoped_refptr<Program> program_object =
+      resource_manager_->GetProgram(program);
+  if (!program_object) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  program_object->GetProgramInfoLog(bufsize, length, infolog);
+}
+
 void Context::Enable(GLenum cap) {
   SB_NOTIMPLEMENTED();
   SetError(GL_INVALID_ENUM);
@@ -313,7 +379,7 @@ void Context::UseProgram(GLuint program) {
     return;
   }
 
-  if (program_object->link_status() != GL_TRUE) {
+  if (!program_object->linked()) {
     // Only linked programs can be used.
     SetError(GL_INVALID_OPERATION);
     return;
