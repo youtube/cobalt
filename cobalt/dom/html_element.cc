@@ -84,12 +84,13 @@ void HTMLElement::Focus() {
     return;
   }
 
-  Element* old_active_element = owner_document()->active_element();
+  Document* document = node_document();
+  Element* old_active_element = document->active_element();
   if (old_active_element == this->AsElement()) {
     return;
   }
 
-  owner_document()->SetActiveElement(this);
+  document->SetActiveElement(this);
 
   if (old_active_element) {
     old_active_element->DispatchEvent(new FocusEvent("blur", this));
@@ -99,8 +100,9 @@ void HTMLElement::Focus() {
 }
 
 void HTMLElement::Blur() {
-  if (owner_document()->active_element() == this->AsElement()) {
-    owner_document()->SetActiveElement(NULL);
+  Document* document = node_document();
+  if (document->active_element() == this->AsElement()) {
+    document->SetActiveElement(NULL);
 
     DispatchEvent(new FocusEvent("blur", NULL));
   }
@@ -109,8 +111,8 @@ void HTMLElement::Blur() {
 // Algorithm for GetClientRects:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
 scoped_refptr<DOMRectList> HTMLElement::GetClientRects() {
-  DCHECK(owner_document());
-  owner_document()->DoSynchronousLayout();
+  DCHECK(node_document());
+  node_document()->DoSynchronousLayout();
 
   // 1. If the element on which it was invoked does not have an associated
   // layout box return an empty DOMRectList object and stop this algorithm.
@@ -125,8 +127,8 @@ scoped_refptr<DOMRectList> HTMLElement::GetClientRects() {
 // Algorithm for client_top:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
 float HTMLElement::client_top() {
-  DCHECK(owner_document());
-  owner_document()->DoSynchronousLayout();
+  DCHECK(node_document());
+  node_document()->DoSynchronousLayout();
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
@@ -143,8 +145,8 @@ float HTMLElement::client_top() {
 // Algorithm for client_left:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
 float HTMLElement::client_left() {
-  DCHECK(owner_document());
-  owner_document()->DoSynchronousLayout();
+  DCHECK(node_document());
+  node_document()->DoSynchronousLayout();
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
@@ -161,8 +163,8 @@ float HTMLElement::client_left() {
 // Algorithm for client_width:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
 float HTMLElement::client_width() {
-  DCHECK(owner_document());
-  owner_document()->DoSynchronousLayout();
+  DCHECK(node_document());
+  node_document()->DoSynchronousLayout();
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
@@ -183,8 +185,8 @@ float HTMLElement::client_width() {
 // Algorithm for client_height:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
 float HTMLElement::client_height() {
-  DCHECK(owner_document());
-  owner_document()->DoSynchronousLayout();
+  DCHECK(node_document());
+  node_document()->DoSynchronousLayout();
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
@@ -205,8 +207,8 @@ float HTMLElement::client_height() {
 // Algorithm for offsetParent:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
 scoped_refptr<Element> HTMLElement::offset_parent() {
-  DCHECK(owner_document());
-  owner_document()->DoSynchronousLayout();
+  DCHECK(node_document());
+  node_document()->DoSynchronousLayout();
 
   // 1. If any of the following holds true return null and terminate this
   //    algorithm:
@@ -251,8 +253,8 @@ scoped_refptr<Element> HTMLElement::offset_parent() {
 // Algorithm for offset_top:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
 float HTMLElement::offset_top() {
-  DCHECK(owner_document());
-  owner_document()->DoSynchronousLayout();
+  DCHECK(node_document());
+  node_document()->DoSynchronousLayout();
 
   // 1. If the element is the HTML body element or does not have any associated
   // CSS layout box return zero and terminate this algorithm.
@@ -287,8 +289,8 @@ float HTMLElement::offset_top() {
 // Algorithm for offset_left:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
 float HTMLElement::offset_left() {
-  DCHECK(owner_document());
-  owner_document()->DoSynchronousLayout();
+  DCHECK(node_document());
+  node_document()->DoSynchronousLayout();
 
   // 1. If the element is the HTML body element or does not have any associated
   // CSS layout box return zero and terminate this algorithm.
@@ -323,8 +325,8 @@ float HTMLElement::offset_left() {
 // Algorithm for offset_width:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
 float HTMLElement::offset_width() {
-  DCHECK(owner_document());
-  owner_document()->DoSynchronousLayout();
+  DCHECK(node_document());
+  node_document()->DoSynchronousLayout();
 
   // 1. If the element does not have any associated CSS layout box return zero
   // and terminate this algorithm.
@@ -341,8 +343,8 @@ float HTMLElement::offset_width() {
 // Algorithm for offset_height:
 //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
 float HTMLElement::offset_height() {
-  DCHECK(owner_document());
-  owner_document()->DoSynchronousLayout();
+  DCHECK(node_document());
+  node_document()->DoSynchronousLayout();
 
   // 1. If the element does not have any associated CSS layout box return zero
   // and terminate this algorithm.
@@ -357,12 +359,12 @@ float HTMLElement::offset_height() {
 }
 
 scoped_refptr<Node> HTMLElement::Duplicate() const {
-  DCHECK(owner_document()->html_element_context()->html_element_factory());
+  Document* document = node_document();
+  DCHECK(document->html_element_context()->html_element_factory());
   scoped_refptr<HTMLElement> new_html_element =
-      owner_document()
-          ->html_element_context()
+      document->html_element_context()
           ->html_element_factory()
-          ->CreateHTMLElement(owner_document(), tag_name());
+          ->CreateHTMLElement(document, tag_name());
   new_html_element->CopyAttributes(*this);
 
   return new_html_element;
@@ -390,7 +392,7 @@ void HTMLElement::OnCSSMutation() {
   // Remove the style attribute value from the Element.
   Element::RemoveStyleAttribute();
 
-  owner_document()->OnElementInlineStyleMutation();
+  node_document()->OnElementInlineStyleMutation();
 }
 
 scoped_refptr<HTMLAnchorElement> HTMLElement::AsHTMLAnchorElement() {
@@ -470,7 +472,7 @@ void HTMLElement::InvalidateMatchingRules() {
 
   // Invalidate matching rules on all following siblings if sibling combinators
   // are used.
-  if (owner_document()->selector_tree()->has_sibling_combinators()) {
+  if (node_document()->selector_tree()->has_sibling_combinators()) {
     for (Element* element = next_element_sibling(); element;
          element = element->next_element_sibling()) {
       HTMLElement* html_element = element->AsHTMLElement();
@@ -580,7 +582,7 @@ void HTMLElement::UpdateComputedStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
     const base::TimeDelta& style_change_event_time) {
-  scoped_refptr<Document> document = owner_document();
+  Document* document = node_document();
   DCHECK(document) << "Element should be attached to document in order to "
                       "participate in layout.";
 
@@ -595,8 +597,7 @@ void HTMLElement::UpdateComputedStyle(
       PromoteMatchingRulesToComputedStyle(
           matching_rules(), &property_key_to_base_url_map, style_->data(),
           parent_computed_style, style_change_event_time, &css_transitions_,
-          computed_style(), &css_animations_,
-          owner_document()->keyframes_map());
+          computed_style(), &css_animations_, document->keyframes_map());
 
   // If there is no previous computed style, there should also be no layout
   // boxes, and nothing has to be invalidated.
@@ -625,7 +626,7 @@ void HTMLElement::UpdateComputedStyle(
               pseudo_elements_[pseudo_element_type]->css_transitions(),
               pseudo_elements_[pseudo_element_type]->computed_style(),
               pseudo_elements_[pseudo_element_type]->css_animations(),
-              owner_document()->keyframes_map());
+              document->keyframes_map());
 
       if (!invalidate_layout_boxes &&
           pseudo_elements_[pseudo_element_type]->computed_style() &&
@@ -777,7 +778,7 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
 }
 
 void HTMLElement::OnBackgroundImageLoaded() {
-  owner_document()->RecordMutation();
+  node_document()->RecordMutation();
 }
 
 bool HTMLElement::IsRootElement() {
