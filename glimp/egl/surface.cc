@@ -17,13 +17,14 @@
 #include "glimp/egl/surface.h"
 
 #include "glimp/egl/error.h"
+#include "glimp/gles/context.h"
 #include "starboard/log.h"
 
 namespace glimp {
 namespace egl {
 
 Surface::Surface(nb::scoped_ptr<SurfaceImpl> surface_impl)
-    : surface_impl_(surface_impl.Pass()) {}
+    : surface_impl_(surface_impl.Pass()), is_bound_to_texture_(false) {}
 
 int Surface::GetWidth() const {
   return surface_impl_->GetWidth();
@@ -31,6 +32,14 @@ int Surface::GetWidth() const {
 
 int Surface::GetHeight() const {
   return surface_impl_->GetHeight();
+}
+
+EGLint Surface::GetTextureFormat() const {
+  return EGL_TEXTURE_RGBA;
+}
+
+EGLint Surface::GetTextureTarget() const {
+  return EGL_TEXTURE_2D;
 }
 
 EGLBoolean Surface::QuerySurface(EGLint attribute, EGLint* value) {
@@ -45,6 +54,17 @@ EGLBoolean Surface::QuerySurface(EGLint attribute, EGLint* value) {
       return true;
     }
 
+    case EGL_TEXTURE_FORMAT: {
+      // glimp only supports EGL_TEXTURE_RGBA.
+      *value = GetTextureFormat();
+      return true;
+    }
+
+    case EGL_TEXTURE_TARGET: {
+      // glimp only supports EGL_TEXTURE_2D.
+      *value = GetTextureTarget();
+    }
+
     case EGL_CONFIG_ID:
     case EGL_HORIZONTAL_RESOLUTION:
     case EGL_LARGEST_PBUFFER:
@@ -54,8 +74,6 @@ EGLBoolean Surface::QuerySurface(EGLint attribute, EGLint* value) {
     case EGL_PIXEL_ASPECT_RATIO:
     case EGL_RENDER_BUFFER:
     case EGL_SWAP_BEHAVIOR:
-    case EGL_TEXTURE_FORMAT:
-    case EGL_TEXTURE_TARGET:
     case EGL_VERTICAL_RESOLUTION: {
       SB_NOTIMPLEMENTED();
     }  // Fall through to default on purpose.
@@ -68,6 +86,72 @@ EGLBoolean Surface::QuerySurface(EGLint attribute, EGLint* value) {
   return true;
 }
 
+EGLBoolean Surface::BindTexImage(EGLint buffer) {
+  if (buffer != EGL_BACK_BUFFER) {
+    SetError(EGL_BAD_MATCH);
+    return false;
+  }
+
+  if (is_bound_to_texture_) {
+    SetError(EGL_BAD_ACCESS);
+    return false;
+  }
+
+  if (GetTextureTarget() == EGL_NO_TEXTURE) {
+    SetError(EGL_BAD_MATCH);
+    return false;
+  }
+  if (GetTextureTarget() != EGL_TEXTURE_2D) {
+    SB_NOTIMPLEMENTED() << "glimp does not support binding anything other than "
+                           "EGL_TEXTURE_2D.";
+    SetError(EGL_BAD_MATCH);
+    return false;
+  }
+
+  // When this method is called, we should bind to the currently bound active
+  // texture in the current GL context.
+  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglBindTexImage.xhtml
+  gles::Context* current_context = gles::Context::GetTLSCurrentContext();
+  if (current_context == NULL) {
+    SB_DLOG(WARNING)
+        << "No GL ES context current during call to eglBindTexImage().";
+    // This error is non-specified behavior, but seems reasonable.
+    SetError(EGL_BAD_CONTEXT);
+    return false;
+  }
+
+  is_bound_to_texture_ = current_context->BindTextureToEGLSurface(this);
+  return is_bound_to_texture_;
+}
+
+EGLBoolean Surface::ReleaseTexImage(EGLint buffer) {
+  if (buffer != EGL_BACK_BUFFER) {
+    SetError(EGL_BAD_MATCH);
+    return false;
+  }
+
+  if (!is_bound_to_texture_) {
+    // Nothing to do if the surface is not already bound.
+    return true;
+  }
+
+  gles::Context* current_context = gles::Context::GetTLSCurrentContext();
+  if (current_context == NULL) {
+    SB_DLOG(WARNING)
+        << "No GL ES context current during call to eglReleaseTexImage().";
+    // This error is non-specified behavior, but seems reasonable.
+    SetError(EGL_BAD_CONTEXT);
+    return false;
+  }
+
+  if (current_context->ReleaseTextureFromEGLSurface(this)) {
+    is_bound_to_texture_ = false;
+    return true;
+  } else {
+    return false;
+  }
+}
+
 namespace {
 bool AttributeKeyAndValueAreValid(int key, int value) {
   switch (key) {
@@ -75,6 +159,14 @@ bool AttributeKeyAndValueAreValid(int key, int value) {
     case EGL_WIDTH:
     case EGL_HEIGHT: {
       return true;
+    }
+
+    case EGL_TEXTURE_TARGET: {
+      return value == EGL_TEXTURE_2D;
+    }
+
+    case EGL_TEXTURE_FORMAT: {
+      return value == EGL_TEXTURE_RGBA;
     }
   }
 

@@ -17,6 +17,7 @@
 #ifndef GLIMP_GLES_TEXTURE_IMPL_H_
 #define GLIMP_GLES_TEXTURE_IMPL_H_
 
+#include "glimp/egl/surface.h"
 #include "glimp/gles/buffer.h"
 #include "glimp/gles/pixel_format.h"
 #include "glimp/gles/shader.h"
@@ -32,7 +33,9 @@ class TextureImpl {
 
   // Specifies texture parameters necessary to allocate texture data within
   // this texture.  This method must be called before pixel data can be
-  // provided to the texture via UpdateData*() methods.
+  // provided to the texture via UpdateData*() methods.  If |width| == 0,
+  // the texture should be placed in an uninitialized state where UpdateData*()
+  // methods are invalid.
   // This method is called when glTexImage2D() is called.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
   virtual void Initialize(int level,
@@ -65,6 +68,21 @@ class TextureImpl {
       int pitch_in_bytes,
       const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
       uintptr_t buffer_offset) = 0;
+
+  // Called when eglBindTexImage() is called.  When this occurs, the texture
+  // should configure itself to point at the same data as the passed in
+  // egl::Surface is pointing to, so that the egl::Surface can effectively be
+  // referenced as a texture.  This method should clear out any existing image
+  // data in the texture when it is called.  When eglReleaseTexImage() is
+  // called, TextureImpl::Initialize() will be called with |width| = 0 to reset
+  // this texture.
+  //   https://www.khronos.org/registry/egl/sdk/docs/man/html/eglBindTexImage.xhtml
+  virtual void BindToEGLSurface(egl::Surface* surface) = 0;
+
+  // This is called when glReadPixels() is called.  The
+  virtual void ReadPixelsAsRGBA8(const nb::Rect<int>& window,
+                                 int pitch_in_bytes,
+                                 void* pixels) = 0;
 
   // Returns true if this texture is valid for use as a Framebuffer color
   // attachment.  In other words, this should return true if the texture can

@@ -881,6 +881,7 @@ void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
     default_draw_framebuffer_ = new Framebuffer(draw);
     default_read_framebuffer_ = new Framebuffer(read);
     draw_state_.framebuffer = default_draw_framebuffer_;
+    read_framebuffer_ = default_read_framebuffer_;
 
     has_been_current_ = true;
   }
@@ -1361,7 +1362,10 @@ void Context::DeleteFramebuffers(GLsizei n, const GLuint* framebuffers) {
     // If a bound framebuffer is deleted, set the bound framebuffer back to
     // the default framebuffer.
     if (framebuffer_object == draw_state_.framebuffer) {
-      SetBoundFramebufferToDefault();
+      SetBoundDrawFramebufferToDefault();
+    }
+    if (framebuffer_object == read_framebuffer_) {
+      SetBoundReadFramebufferToDefault();
     }
   }
 }
@@ -1373,7 +1377,8 @@ void Context::BindFramebuffer(GLenum target, GLuint framebuffer) {
   }
 
   if (framebuffer == 0) {
-    SetBoundFramebufferToDefault();
+    SetBoundDrawFramebufferToDefault();
+    SetBoundReadFramebufferToDefault();
     return;
   }
 
@@ -1390,6 +1395,8 @@ void Context::BindFramebuffer(GLenum target, GLuint framebuffer) {
 
   draw_state_.framebuffer = framebuffer_object;
   draw_state_dirty_flags_.framebuffer_dirty = true;
+
+  read_framebuffer_ = framebuffer_object;
 }
 
 void Context::FramebufferTexture2D(GLenum target,
@@ -1402,7 +1409,7 @@ void Context::FramebufferTexture2D(GLenum target,
     return;
   }
 
-  if (IsDefaultFramebufferBound()) {
+  if (IsDefaultDrawFramebufferBound() || IsDefaultReadFramebufferBound()) {
     SetError(GL_INVALID_OPERATION);
     return;
   }
@@ -1727,6 +1734,65 @@ void Context::DrawElements(GLenum mode,
                       &draw_state_dirty_flags_);
 }
 
+namespace {
+bool ValidReadPixelsFormat(GLenum format) {
+  switch (format) {
+    case GL_RGBA:
+    case GL_RGBA_INTEGER:
+      return true;
+      break;
+    default:
+      return false;
+      break;
+  }
+}
+
+bool ValidReadPixelsType(GLenum type) {
+  switch (type) {
+    case GL_UNSIGNED_BYTE:
+    case GL_UNSIGNED_INT:
+    case GL_INT:
+    case GL_FLOAT:
+      return true;
+      break;
+    default:
+      return false;
+      break;
+  }
+}
+}  // namespace
+
+void Context::ReadPixels(GLint x,
+                         GLint y,
+                         GLsizei width,
+                         GLsizei height,
+                         GLenum format,
+                         GLenum type,
+                         GLvoid* pixels) {
+  if (!ValidReadPixelsFormat(format) || !ValidReadPixelsType(type)) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  SB_DCHECK(format == GL_RGBA) << "glimp only supports format=GL_RGBA.";
+  SB_DCHECK(type == GL_UNSIGNED_BYTE)
+      << "glimp only supports type=GL_UNSIGNED_BYTE.";
+
+  SB_DCHECK(read_framebuffer_->color_attachment_texture())
+      << "glimp only supports glReadPixels() calls on non-default "
+         "framebuffers.";
+
+  if (x < 0 || y < 0 || width < 0 || height < 0 ||
+      x + width > read_framebuffer_->GetWidth() ||
+      y + height > read_framebuffer_->GetHeight()) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  read_framebuffer_->color_attachment_texture()->ReadPixelsAsRGBA8(
+      x, y, width, height, width * BytesPerPixel(kPixelFormatRGBA8), pixels);
+}
+
 void Context::Flush() {
   impl_->Flush();
 }
@@ -1734,6 +1800,44 @@ void Context::Flush() {
 void Context::SwapBuffers() {
   Flush();
   impl_->SwapBuffers(default_draw_framebuffer_->color_attachment_surface());
+}
+
+bool Context::BindTextureToEGLSurface(egl::Surface* surface) {
+  SB_DCHECK(surface->GetTextureTarget() == EGL_TEXTURE_2D);
+
+  const nb::scoped_refptr<Texture>& current_texture =
+      *GetBoundTextureForTarget(GL_TEXTURE_2D);
+
+  if (!current_texture) {
+    SB_DLOG(WARNING) << "No texture is currently bound during call to "
+                        "eglBindTexImage().";
+    return false;
+  }
+
+  SB_DCHECK(bound_egl_surfaces_.find(surface) == bound_egl_surfaces_.end());
+
+  bool success = current_texture->BindToEGLSurface(surface);
+  if (success) {
+    bound_egl_surfaces_[surface] = current_texture;
+  }
+
+  return success;
+}
+
+bool Context::ReleaseTextureFromEGLSurface(egl::Surface* surface) {
+  std::map<egl::Surface*, nb::scoped_refptr<Texture> >::iterator found =
+      bound_egl_surfaces_.find(surface);
+  if (found == bound_egl_surfaces_.end()) {
+    SB_LOG(WARNING) << "Releasing EGLSurface was never bound to a texture in "
+                       "this context.";
+    return false;
+  }
+
+  bool success = found->second->ReleaseFromEGLSurface(surface);
+  if (success) {
+    bound_egl_surfaces_.erase(found);
+  }
+  return success;
 }
 
 void Context::UpdateVertexAttribsInDrawState() {
@@ -1786,15 +1890,25 @@ void Context::MarkUsedProgramDirty() {
   draw_state_dirty_flags_.uniforms_dirty.MarkAll();
 }
 
-void Context::SetBoundFramebufferToDefault() {
+void Context::SetBoundDrawFramebufferToDefault() {
   if (draw_state_.framebuffer != default_draw_framebuffer_) {
     draw_state_.framebuffer = default_draw_framebuffer_;
     draw_state_dirty_flags_.framebuffer_dirty = true;
   }
 }
 
-bool Context::IsDefaultFramebufferBound() const {
+void Context::SetBoundReadFramebufferToDefault() {
+  if (read_framebuffer_ != default_read_framebuffer_) {
+    read_framebuffer_ = default_read_framebuffer_;
+  }
+}
+
+bool Context::IsDefaultDrawFramebufferBound() const {
   return draw_state_.framebuffer == default_draw_framebuffer_;
+}
+
+bool Context::IsDefaultReadFramebufferBound() const {
+  return read_framebuffer_ == default_read_framebuffer_;
 }
 
 int Context::GetPitchForTextureData(int width, PixelFormat pixel_format) const {
