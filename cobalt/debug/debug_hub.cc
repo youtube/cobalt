@@ -20,6 +20,7 @@
 
 #include <set>
 
+#include "base/compiler_specific.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/console_values.h"
 #include "cobalt/base/source_location.h"
@@ -35,7 +36,8 @@ DebugHub::DebugHub(
       execute_javascript_callback_(execute_javascript_callback),
       next_log_message_callback_id_(0),
       log_message_callbacks_deleter_(&log_message_callbacks_),
-      debugger_(new Debugger(create_debug_server_callback)) {
+      debugger_(new Debugger(create_debug_server_callback)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
   // Get log output while still making it available elsewhere.
   const base::LogMessageHandler::OnLogMessageCallback on_log_message_callback =
       base::Bind(&DebugHub::OnLogMessage, base::Unretained(this));
@@ -61,9 +63,10 @@ bool DebugHub::OnLogMessage(int severity, const char* file, int line,
     const LogMessageCallbackInfo* callbackInfo = it->second;
     const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy =
         callbackInfo->message_loop_proxy;
+    base::WeakPtr<DebugHub> weak_ptr = callbackInfo->debug_hub_weak_ptr;
 
     message_loop_proxy->PostTask(
-        FROM_HERE, base::Bind(&DebugHub::LogMessageTo, this, it->first,
+        FROM_HERE, base::Bind(&DebugHub::LogMessageTo, weak_ptr, it->first,
                               severity, file, line, message_start, str));
   }
   // Don't suppress the log message.
@@ -72,6 +75,7 @@ bool DebugHub::OnLogMessage(int severity, const char* file, int line,
 
 void DebugHub::LogMessageTo(int id, int severity, const char* file, int line,
                             size_t message_start, const std::string& str) {
+  DCHECK(this);
   base::AutoLock auto_lock(lock_);
   LogMessageCallbacks::const_iterator it = log_message_callbacks_.find(id);
   if (it != log_message_callbacks_.end()) {
@@ -84,8 +88,9 @@ void DebugHub::LogMessageTo(int id, int severity, const char* file, int line,
 int DebugHub::AddLogMessageCallback(const LogMessageCallbackArg& callback) {
   base::AutoLock auto_lock(lock_);
   const int callback_id = next_log_message_callback_id_++;
+  base::WeakPtr<DebugHub> weak_ptr = weak_ptr_factory_.GetWeakPtr();
   log_message_callbacks_[callback_id] = new LogMessageCallbackInfo(
-      this, callback, base::MessageLoopProxy::current());
+      weak_ptr, callback, base::MessageLoopProxy::current());
   return callback_id;
 }
 
