@@ -58,7 +58,18 @@ class ProgramImpl {
   // be called after Link() is called.  If a re-link is performed, this command
   // is re-issued by Program for all existing bindings.
   // Returns true on success and false if the attribute name could not be found.
+  // This method will be called when glBindAttribLocation() is called.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBindAttribLocation.xml
   virtual bool BindAttribLocation(unsigned int index, const char* name) = 0;
+
+  // Returns the location of the specified uniform within the shader.  Texture
+  // samplers are included in this definition of "uniform".  This will later
+  // be used to reference the uniform, and will be eventually set in the
+  // DrawState that is passed into draw calls.  This method should return
+  // -1 if there is no uniform by the given |name|.
+  // This method will be called when glGetUniformLocation() is called.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGetUniformLocation.xml
+  virtual int GetUniformLocation(const char* name) = 0;
 
  private:
 };
