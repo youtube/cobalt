@@ -58,8 +58,6 @@ const char* kForbiddenMethods[] = {
     "connect", "trace", "track",
 };
 
-const char* kRequestErrorTypes[] = {"Network", "Abort", "Timeout"};
-
 bool MethodNameToRequestType(const std::string& method,
                              net::URLFetcher::RequestType* request_type) {
   if (LowerCaseEqualsASCII(method, "get")) {
@@ -102,15 +100,6 @@ const char* StateName(XMLHttpRequest::State state) {
 }
 #endif  // defined(__LB_SHELL__FOR_RELEASE__)
 
-const char* RequestErrorTypeName(XMLHttpRequest::RequestErrorType type) {
-  if (type >= 0 && type < arraysize(kRequestErrorTypes)) {
-    return kRequestErrorTypes[type];
-  } else {
-    NOTREACHED();
-    return "";
-  }
-}
-
 bool IsForbiddenMethod(const std::string& method) {
   for (size_t i = 0; i < arraysize(kForbiddenMethods); ++i) {
     if (LowerCaseEqualsASCII(method, kForbiddenMethods[i])) {
@@ -118,6 +107,37 @@ bool IsForbiddenMethod(const std::string& method) {
     }
   }
   return false;
+}
+
+const std::string& RequestErrorTypeName(XMLHttpRequest::RequestErrorType type) {
+  switch (type) {
+    case XMLHttpRequest::kNetworkError:
+      return dom::EventNames::GetInstance()->error();
+    case XMLHttpRequest::kTimeoutError:
+      return dom::EventNames::GetInstance()->timeout();
+    case XMLHttpRequest::kAbortError:
+      return dom::EventNames::GetInstance()->abort();
+  }
+  NOTREACHED();
+  return EmptyString();
+}
+
+void FireProgressEvent(XMLHttpRequestEventTarget* target,
+                       const std::string& event_name) {
+  if (!target) {
+    return;
+  }
+  target->DispatchEvent(new dom::ProgressEvent(event_name));
+}
+
+void FireProgressEvent(XMLHttpRequestEventTarget* target,
+                       const std::string& event_name, uint64 loaded,
+                       uint64 total, bool length_computable) {
+  if (!target) {
+    return;
+  }
+  target->DispatchEvent(
+      new dom::ProgressEvent(event_name, loaded, total, length_computable));
 }
 
 int s_xhr_sequence_num_ = 0;
@@ -137,6 +157,7 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
       error_(false),
       sent_(false),
       stop_timeout_(false),
+      upload_complete_(false),
       did_add_ref_(false) {
   DCHECK(settings_);
   dom::Stats::GetInstance()->Add(this);
@@ -280,23 +301,22 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
                           script::ExceptionState* exception_state) {
   // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-send()-method
   DCHECK(thread_checker_.CalledOnValidThread());
+  // Step 1
   if (state_ != kOpened) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
+  // Step 2
   if (sent_) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
+
+  // Step 3 - 7
   error_ = false;
-  sent_ = true;
-  // Now that a send is happening, prevent this object
-  // from being collected until it's complete or aborted.
-  PreventGarbageCollection();
-  FireProgressEvent(dom::EventNames::GetInstance()->loadstart());
+  upload_complete_ = false;
 
   std::string request_body_text;
-
   // Add request body, if appropriate.
   if ((method_ == net::URLFetcher::POST || method_ == net::URLFetcher::PUT) &&
       request_body) {
@@ -318,6 +338,19 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
                                  view->byte_length());
       }
     }
+  } else {
+    upload_complete_ = true;
+  }
+  // Step 8- not required
+
+  // Step 9
+  sent_ = true;
+  // Now that a send is happening, prevent this object
+  // from being collected until it's complete or aborted.
+  PreventGarbageCollection();
+  FireProgressEvent(this, dom::EventNames::GetInstance()->loadstart());
+  if (!upload_complete_) {
+    FireProgressEvent(upload_, dom::EventNames::GetInstance()->loadstart());
   }
 
   StartRequest(request_body_text);
@@ -483,6 +516,13 @@ void XMLHttpRequest::set_with_credentials(bool with_credentials) {
   NOTIMPLEMENTED();
 }
 
+scoped_refptr<XMLHttpRequestUpload> XMLHttpRequest::upload() {
+  if (!upload_) {
+    upload_ = new XMLHttpRequestUpload();
+  }
+  return upload_;
+}
+
 void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
   if (source->GetURL() != source->GetOriginalURL()) {
@@ -557,6 +597,26 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
   }
 }
 
+void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
+                                              int64 current_val,
+                                              int64 total_val) {
+  UNREFERENCED_PARAMETER(source);
+  DCHECK(thread_checker_.CalledOnValidThread());
+  uint64 current = static_cast<uint64>(current_val);
+  uint64 total = static_cast<uint64>(total_val);
+
+  FireProgressEvent(upload_, dom::EventNames::GetInstance()->progress(),
+                    current, total, total != 0);
+
+  if (current == total && !upload_complete_) {
+    upload_complete_ = true;
+    FireProgressEvent(upload_, dom::EventNames::GetInstance()->load(), current,
+                      total, total != 0);
+    FireProgressEvent(upload_, dom::EventNames::GetInstance()->loadend(),
+                      current, total, total != 0);
+  }
+}
+
 XMLHttpRequest::~XMLHttpRequest() {
   DCHECK(thread_checker_.CalledOnValidThread());
   dom::Stats::GetInstance()->Remove(this);
@@ -569,17 +629,6 @@ dom::CSPDelegate* XMLHttpRequest::csp_delegate() const {
   } else {
     return NULL;
   }
-}
-
-void XMLHttpRequest::FireProgressEvent(const std::string& event_name) {
-  DispatchEvent(new dom::ProgressEvent(event_name));
-}
-
-void XMLHttpRequest::FireProgressEvent(const std::string& event_name,
-                                       uint64 loaded, uint64 total,
-                                       bool length_computable) {
-  DispatchEvent(
-      new dom::ProgressEvent(event_name, loaded, total, length_computable));
 }
 
 void XMLHttpRequest::TerminateRequest() {
@@ -596,24 +645,25 @@ void XMLHttpRequest::HandleRequestError(
                            << *this << std::endl
                            << script::StackTraceToString(
                                   settings_->global_object()->GetStackTrace());
-
+  // Step 1
   TerminateRequest();
+  // Steps 2-4
   // Change state and fire readystatechange event.
   ChangeState(kDone);
 
-  FireProgressEvent(dom::EventNames::GetInstance()->progress());
-  switch (request_error_type) {
-    case kNetworkError:
-      FireProgressEvent(dom::EventNames::GetInstance()->error());
-      break;
-    case kTimeoutError:
-      FireProgressEvent(dom::EventNames::GetInstance()->timeout());
-      break;
-    case kAbortError:
-      FireProgressEvent(dom::EventNames::GetInstance()->abort());
-      break;
+  const std::string& error_name = RequestErrorTypeName(request_error_type);
+  // Step 5
+  if (!upload_complete_) {
+    upload_complete_ = true;
+    FireProgressEvent(upload_, dom::EventNames::GetInstance()->progress());
+    FireProgressEvent(upload_, error_name);
+    FireProgressEvent(upload_, dom::EventNames::GetInstance()->loadend());
   }
-  FireProgressEvent(dom::EventNames::GetInstance()->loadend());
+
+  // Steps 6-8
+  FireProgressEvent(this, dom::EventNames::GetInstance()->progress());
+  FireProgressEvent(this, error_name);
+  FireProgressEvent(this, dom::EventNames::GetInstance()->loadend());
   AllowGarbageCollection();
 }
 
@@ -674,14 +724,14 @@ void XMLHttpRequest::UpdateProgress() {
                            << total << ") " << *this;
 
   if (state_ == kDone) {
-    FireProgressEvent(dom::EventNames::GetInstance()->load(),
+    FireProgressEvent(this, dom::EventNames::GetInstance()->load(),
                       static_cast<uint64>(received_length), total,
                       length_computable);
-    FireProgressEvent(dom::EventNames::GetInstance()->loadend(),
+    FireProgressEvent(this, dom::EventNames::GetInstance()->loadend(),
                       static_cast<uint64>(received_length), total,
                       length_computable);
   } else {
-    FireProgressEvent(dom::EventNames::GetInstance()->progress(),
+    FireProgressEvent(this, dom::EventNames::GetInstance()->progress(),
                       static_cast<uint64>(received_length), total,
                       length_computable);
   }

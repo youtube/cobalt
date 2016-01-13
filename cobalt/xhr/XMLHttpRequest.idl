@@ -48,8 +48,7 @@
 
     attribute boolean withCredentials;
 
-    // TODO(***REMOVED***): Do we need to support uploads?
-    // readonly attribute XMLHttpRequestUpload upload;
+    readonly attribute XMLHttpRequestUpload upload;
 
     [RaisesException] readonly attribute DOMString responseText;
     [RaisesException] readonly attribute Document? responseXML;
