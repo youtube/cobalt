@@ -20,6 +20,7 @@
 
 #include "glimp/egl/error.h"
 #include "glimp/egl/surface.h"
+#include "glimp/gles/blend_state.h"
 #include "glimp/gles/draw_mode.h"
 #include "glimp/gles/index_data_type.h"
 #include "glimp/gles/pixel_format.h"
@@ -229,23 +230,56 @@ void Context::GetProgramInfoLog(GLuint program,
   program_object->GetProgramInfoLog(bufsize, length, infolog);
 }
 
-void Context::Enable(GLenum cap) {
+GLenum Context::CheckFramebufferStatus(GLenum target) {
   SB_NOTIMPLEMENTED();
-  SetError(GL_INVALID_ENUM);
+  return GL_FRAMEBUFFER_COMPLETE;
+}
+
+void Context::Enable(GLenum cap) {
+  switch (cap) {
+    case GL_BLEND:
+      draw_state_.blend_state.enabled = true;
+      draw_state_dirty_flags_.blend_state_dirty = true;
+      break;
+    case GL_SCISSOR_TEST:
+      draw_state_.scissor.enabled = true;
+      draw_state_dirty_flags_.scissor_dirty = true;
+      break;
+    case GL_DEPTH_TEST:
+    case GL_DITHER:
+    case GL_CULL_FACE:
+    case GL_STENCIL_TEST:
+    case GL_POLYGON_OFFSET_FILL:
+    case GL_SAMPLE_ALPHA_TO_COVERAGE:
+    case GL_SAMPLE_COVERAGE:
+      SB_NOTIMPLEMENTED();
+    default:
+      SetError(GL_INVALID_ENUM);
+  }
 }
 
 void Context::Disable(GLenum cap) {
   switch (cap) {
-    case GL_DEPTH_TEST:
+    case GL_BLEND:
+      draw_state_.blend_state.enabled = false;
+      draw_state_dirty_flags_.blend_state_dirty = true;
+      break;
     case GL_SCISSOR_TEST:
+      draw_state_.scissor.enabled = false;
+      draw_state_dirty_flags_.scissor_dirty = true;
+      break;
+    case GL_DEPTH_TEST:
     case GL_DITHER:
     case GL_CULL_FACE:
+    case GL_STENCIL_TEST:
+    case GL_POLYGON_OFFSET_FILL:
+    case GL_SAMPLE_ALPHA_TO_COVERAGE:
+    case GL_SAMPLE_COVERAGE:
       // Since these are not implemented yet, it is not an error to do nothing
       // when we ask for them to be disabled!
-      break;
-
-    default:
       SB_NOTIMPLEMENTED();
+      break;
+    default:
       SetError(GL_INVALID_ENUM);
   }
 }
@@ -277,6 +311,59 @@ void Context::ClearColor(GLfloat red,
                          GLfloat alpha) {
   draw_state_.clear_color = gles::ClearColor(red, green, blue, alpha);
   draw_state_dirty_flags_.clear_color_dirty = true;
+}
+
+namespace {
+BlendState::Factor BlendStateFactorFromGLenum(GLenum blend_factor) {
+  switch (blend_factor) {
+    case GL_ZERO:
+      return BlendState::kFactorZero;
+    case GL_ONE:
+      return BlendState::kFactorOne;
+    case GL_SRC_COLOR:
+      return BlendState::kFactorSrcColor;
+    case GL_ONE_MINUS_SRC_COLOR:
+      return BlendState::kFactorOneMinusSrcColor;
+    case GL_DST_COLOR:
+      return BlendState::kFactorDstColor;
+    case GL_ONE_MINUS_DST_COLOR:
+      return BlendState::kFactorOneMinusDstColor;
+    case GL_SRC_ALPHA:
+      return BlendState::kFactorSrcAlpha;
+    case GL_ONE_MINUS_SRC_ALPHA:
+      return BlendState::kFactorOneMinusSrcAlpha;
+    case GL_DST_ALPHA:
+      return BlendState::kFactorDstAlpha;
+    case GL_ONE_MINUS_DST_ALPHA:
+      return BlendState::kFactorOneMinusDstAlpha;
+    case GL_CONSTANT_COLOR:
+      return BlendState::kFactorConstantColor;
+    case GL_ONE_MINUS_CONSTANT_COLOR:
+      return BlendState::kFactorOneMinusConstantColor;
+    case GL_CONSTANT_ALPHA:
+      return BlendState::kFactorConstantAlpha;
+    case GL_ONE_MINUS_CONSTANT_ALPHA:
+      return BlendState::kFactorOneMinusConstantAlpha;
+    case GL_SRC_ALPHA_SATURATE:
+      return BlendState::kFactorSrcAlphaSaturate;
+    default:
+      return BlendState::kFactorInvalid;
+  }
+}
+}  // namespace
+
+void Context::BlendFunc(GLenum sfactor, GLenum dfactor) {
+  BlendState::Factor src_factor = BlendStateFactorFromGLenum(sfactor);
+  BlendState::Factor dst_factor = BlendStateFactorFromGLenum(dfactor);
+  if (src_factor == BlendState::kFactorInvalid ||
+      dst_factor == BlendState::kFactorInvalid) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  draw_state_.blend_state.src_factor = src_factor;
+  draw_state_.blend_state.dst_factor = dst_factor;
+  draw_state_dirty_flags_.blend_state_dirty = true;
 }
 
 GLuint Context::CreateProgram() {
@@ -323,10 +410,6 @@ void Context::AttachShader(GLuint program, GLuint shader) {
     // A shader of the given type was already attached.
     SetError(GL_INVALID_OPERATION);
   }
-
-  if (program_object.get() == draw_state_.used_program.get()) {
-    draw_state_dirty_flags_.used_program_dirty = true;
-  }
 }
 
 void Context::LinkProgram(GLuint program) {
@@ -340,10 +423,7 @@ void Context::LinkProgram(GLuint program) {
   program_object->Link();
 
   if (program_object.get() == draw_state_.used_program.get()) {
-    draw_state_dirty_flags_.used_program_dirty = true;
-    // Linking a program should clear out all of its uniforms, so the following
-    // call should effectively clear the dirty uniforms vector.
-    draw_state_dirty_flags_.uniforms_dirty.MarkAll();
+    MarkUsedProgramDirty();
   }
 }
 
@@ -370,15 +450,14 @@ void Context::BindAttribLocation(GLuint program,
   program_object->BindAttribLocation(index, name);
 
   if (program_object.get() == draw_state_.used_program.get()) {
-    draw_state_dirty_flags_.used_program_dirty = true;
+    draw_state_dirty_flags_.vertex_attributes_dirty = true;
   }
 }
 
 void Context::UseProgram(GLuint program) {
   if (program == 0) {
     draw_state_.used_program = NULL;
-    draw_state_dirty_flags_.used_program_dirty = true;
-    draw_state_dirty_flags_.uniforms_dirty.MarkAll();
+    MarkUsedProgramDirty();
     return;
   }
 
@@ -397,9 +476,7 @@ void Context::UseProgram(GLuint program) {
 
   if (program_object.get() != draw_state_.used_program.get()) {
     draw_state_.used_program = program_object;
-    draw_state_dirty_flags_.used_program_dirty = true;
-    // Switching programs marks all uniforms as being dirty.
-    draw_state_dirty_flags_.uniforms_dirty.MarkAll();
+    MarkUsedProgramDirty();
   }
 }
 
@@ -1170,15 +1247,7 @@ void Context::DrawArrays(GLenum mode, GLint first, GLsizei count) {
   SB_DCHECK(draw_state_.array_buffer)
       << "glimp only supports vertices from vertex buffers.";
 
-  if (enabled_vertex_attribs_dirty_) {
-    UpdateVertexAttribsInDrawState();
-    SB_DCHECK(enabled_vertex_attribs_dirty_ == false);
-  }
-
-  if (enabled_samplers_dirty_) {
-    UpdateSamplersInDrawState();
-    SB_DCHECK(enabled_samplers_dirty_ == false);
-  }
+  CompressDrawStateForDrawCall();
 
   impl_->DrawArrays(draw_mode, first, count, draw_state_,
                     &draw_state_dirty_flags_);
@@ -1223,6 +1292,8 @@ void Context::DrawElements(GLenum mode,
   SB_DCHECK(draw_state_.element_array_buffer)
       << "glimp only supports indices from element vertex buffers.";
 
+  CompressDrawStateForDrawCall();
+
   impl_->DrawElements(draw_mode, count, index_data_type,
                       reinterpret_cast<intptr_t>(indices), draw_state_,
                       &draw_state_dirty_flags_);
@@ -1263,6 +1334,27 @@ void Context::UpdateSamplersInDrawState() {
 
   draw_state_dirty_flags_.samplers_dirty = true;
   enabled_samplers_dirty_ = false;
+}
+
+void Context::CompressDrawStateForDrawCall() {
+  if (enabled_vertex_attribs_dirty_) {
+    UpdateVertexAttribsInDrawState();
+    SB_DCHECK(enabled_vertex_attribs_dirty_ == false);
+  }
+
+  if (enabled_samplers_dirty_) {
+    UpdateSamplersInDrawState();
+    SB_DCHECK(enabled_samplers_dirty_ == false);
+  }
+}
+
+void Context::MarkUsedProgramDirty() {
+  draw_state_dirty_flags_.used_program_dirty = true;
+  // Switching programs marks all uniforms, samplers and vertex attributes
+  // as being dirty as well, since they are all properties of the program.
+  draw_state_dirty_flags_.vertex_attributes_dirty = true;
+  draw_state_dirty_flags_.samplers_dirty = true;
+  draw_state_dirty_flags_.uniforms_dirty.MarkAll();
 }
 
 }  // namespace gles

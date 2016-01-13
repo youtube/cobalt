@@ -75,6 +75,7 @@ class Context {
                          GLsizei bufsize,
                          GLsizei* length,
                          GLchar* infolog);
+  GLenum CheckFramebufferStatus(GLenum target);
 
   void Enable(GLenum cap);
   void Disable(GLenum cap);
@@ -87,6 +88,8 @@ class Context {
 
   void Clear(GLbitfield mask);
   void ClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+
+  void BlendFunc(GLenum sfactor, GLenum dfactor);
 
   GLuint CreateProgram();
   void DeleteProgram(GLuint program);
@@ -185,6 +188,14 @@ class Context {
 
   void UpdateVertexAttribsInDrawState();
   void UpdateSamplersInDrawState();
+
+  // Packs enabled vertex attributes and samplers into dense lists in the
+  // |draw_state_| if they have been modified.
+  void CompressDrawStateForDrawCall();
+
+  // Marks the used program as being dirty, but this may also imply the marking
+  // of attributes and uniforms as being dirty as well.
+  void MarkUsedProgramDirty();
 
   // A reference to the platform-specific implementation aspects of the context.
   nb::scoped_ptr<ContextImpl> impl_;
