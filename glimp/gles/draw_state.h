@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "glimp/egl/surface.h"
+#include "glimp/gles/blend_state.h"
 #include "glimp/gles/buffer.h"
 #include "glimp/gles/program.h"
 #include "glimp/gles/sampler.h"
@@ -52,7 +53,7 @@ struct ViewportState {
 };
 
 struct ScissorState {
-  ScissorState() : x(-1), y(-1), width(-1), height(-1) {}
+  ScissorState() : x(-1), y(-1), width(-1), height(-1), enabled(false) {}
   ScissorState(int x, int y, int width, int height)
       : x(x), y(y), width(width), height(height) {}
 
@@ -60,6 +61,8 @@ struct ScissorState {
   int y;
   int width;
   int height;
+
+  bool enabled;
 };
 
 struct ClearColor {
@@ -150,6 +153,10 @@ struct DrawState {
   // transformed to screen pixel coordinates.
   ViewportState viewport;
 
+  // Defines how pixels produced by a draw call should be blended with the
+  // existing pixels in the output framebuffer.
+  BlendState blend_state;
+
   // The currently bound array buffer, set by calling
   // glBindBuffer(GL_ARRAY_BUFFER).
   nb::scoped_refptr<Buffer> array_buffer;
@@ -177,6 +184,7 @@ struct DrawStateDirtyFlags {
     vertex_attributes_dirty = true;
     scissor_dirty = true;
     viewport_dirty = true;
+    blend_state_dirty = true;
     array_buffer_dirty = true;
     element_array_buffer_dirty = true;
     used_program_dirty = true;
@@ -190,6 +198,7 @@ struct DrawStateDirtyFlags {
   bool vertex_attributes_dirty;
   bool scissor_dirty;
   bool viewport_dirty;
+  bool blend_state_dirty;
   bool array_buffer_dirty;
   bool element_array_buffer_dirty;
   bool used_program_dirty;
