@@ -87,23 +87,27 @@ inline std::ostream& operator<<(std::ostream& os, base::Token token) {
 }  // namespace base
 
 namespace BASE_HASH_NAMESPACE {
-
-#if BASE_HASH_USE_HASH
+#if defined(COMPILER_GCC) &&                                 \
+    (!(defined(__LB_SHELL__) && !defined(__LB_LINUX__)) ||   \
+     (defined(OS_STARBOARD) && defined(SB_HAS_HASH_VALUE) && \
+      SB_HAS_HASH_VALUE))
 
 template <>
-inline size_t hash<base::Token>(const base::Token& token) {
+struct hash<base::Token> {
+  std::size_t operator()(const base::Token& token) const {
+    return reinterpret_cast<size_t>(&(token.str()));
+  }
+};
+
+#elif defined(COMPILER_MSVC) || defined(__LB_SHELL__) || \
+    (defined(OS_STARBOARD) && defined(SB_HAS_HASH_VALUE) && SB_HAS_HASH_VALUE)
+
+template <>
+size_t hash_value<base::Token>(const base::Token& token) {
   return reinterpret_cast<size_t>(&(token.str()));
 }
 
-#else  // BASE_HASH_USE_HASH
-
-template <>
-inline size_t hash_value<base::Token>(const base::Token& token) {
-  return reinterpret_cast<size_t>(&(token.str()));
-}
-
-#endif  // BASE_HASH_USE_HASH
-
+#endif  // COMPILER
 }  // namespace BASE_HASH_NAMESPACE
 
 #endif  // COBALT_BASE_TOKEN_H_
