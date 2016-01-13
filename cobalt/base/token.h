@@ -43,15 +43,13 @@ class Token {
   // TODO(***REMOVED***): Remove this accessor once all code are Token friendly.
   const std::string& str() const { return *str_; }
 
+  bool operator==(const Token& that) const { return str_ == that.str_; }
+
  private:
   void Initialize(const char* str);
 
   const std::string* str_;
 };
-
-inline bool operator==(const Token& lhs, const Token& rhs) {
-  return lhs.c_str() == rhs.c_str();
-}
 
 // TODO(***REMOVED***): Remove implicit comparison functions to non Token type once
 // all places using them are converted into explicit comparison.
