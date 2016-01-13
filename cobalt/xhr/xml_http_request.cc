@@ -59,9 +59,6 @@ const char* kForbiddenMethods[] = {
 };
 
 const char* kRequestErrorTypes[] = {"Network", "Abort", "Timeout"};
-const char* kStateNames[] = {"Unsent", "Opened", "HeadersReceived", "Loading",
-                             "Done"};
-const char* kMethodNames[] = {"GET", "POST", "HEAD", "DELETE", "PUT"};
 
 bool MethodNameToRequestType(const std::string& method,
                              net::URLFetcher::RequestType* request_type) {
@@ -81,6 +78,11 @@ bool MethodNameToRequestType(const std::string& method,
   return true;
 }
 
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+const char* kStateNames[] = {"Unsent", "Opened", "HeadersReceived", "Loading",
+                             "Done"};
+const char* kMethodNames[] = {"GET", "POST", "HEAD", "DELETE", "PUT"};
+
 const char* RequestTypeToMethodName(net::URLFetcher::RequestType request_type) {
   if (request_type >= 0 && request_type < arraysize(kMethodNames)) {
     return kMethodNames[request_type];
@@ -90,18 +92,19 @@ const char* RequestTypeToMethodName(net::URLFetcher::RequestType request_type) {
   }
 }
 
-const char* RequestErrorTypeName(XMLHttpRequest::RequestErrorType type) {
-  if (type >= 0 && type < arraysize(kRequestErrorTypes)) {
-    return kRequestErrorTypes[type];
+const char* StateName(XMLHttpRequest::State state) {
+  if (state >= 0 && state < arraysize(kStateNames)) {
+    return kStateNames[state];
   } else {
     NOTREACHED();
     return "";
   }
 }
+#endif  // defined(__LB_SHELL__FOR_RELEASE__)
 
-const char* StateName(XMLHttpRequest::State state) {
-  if (state >= 0 && state < arraysize(kStateNames)) {
-    return kStateNames[state];
+const char* RequestErrorTypeName(XMLHttpRequest::RequestErrorType type) {
+  if (type >= 0 && type < arraysize(kRequestErrorTypes)) {
+    return kRequestErrorTypes[type];
   } else {
     NOTREACHED();
     return "";
@@ -767,6 +770,8 @@ std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
       xhr.sent_ ? "true" : "false", xhr.stop_timeout_ ? "true" : "false",
       response_text.as_string().c_str());
   out << xhr_out;
+#else
+  UNREFERENCED_PARAMETER(xhr);
 #endif
   return out;
 }
