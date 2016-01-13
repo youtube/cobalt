@@ -30,7 +30,7 @@ namespace webdriver {
 namespace {
 std::string GetTagName(dom::Element* element) {
   DCHECK(element);
-  return element->tag_name();
+  return element->tag_name().str();
 }
 
 std::string GetVisibleText(dom::Element* element) {
