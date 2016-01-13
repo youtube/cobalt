@@ -95,6 +95,32 @@ struct ColorMask {
   bool alpha;
 };
 
+// This class is used to keep track of which uniform locations are dirty, or
+// whether all of them are.
+class DirtyUniforms {
+ public:
+  DirtyUniforms();
+
+  // Returns true if the uniform at |location| is dirty.
+  bool IsDirty(int location) const;
+
+  // Returns true if any uniform is dirty.
+  bool AnyDirty() const;
+
+  // Clears the dirty flag from all uniforms.
+  void ClearAll();
+
+  // Marks all uniforms as being dirty.
+  void MarkAll();
+
+  // Marks the uniform at |location| as being dirty.
+  void Mark(int location);
+
+ private:
+  std::vector<int> uniforms_dirty_;
+  bool all_dirty_;
+};
+
 // The DrawState structure aggregates all GL state relevant to draw (or clear)
 // commands.  It will be modified as GL ES commands are issued, but it will
 // only be propagated to the platform-specific implementations when draw (or
@@ -154,6 +180,7 @@ struct DrawStateDirtyFlags {
     array_buffer_dirty = true;
     element_array_buffer_dirty = true;
     used_program_dirty = true;
+    uniforms_dirty.MarkAll();
   }
 
   bool clear_color_dirty;
@@ -166,6 +193,10 @@ struct DrawStateDirtyFlags {
   bool array_buffer_dirty;
   bool element_array_buffer_dirty;
   bool used_program_dirty;
+
+  // A list of uniform locations (within DrawState::used_program->uniforms())
+  // whose values are dirty.
+  DirtyUniforms uniforms_dirty;
 };
 
 }  // namespace gles

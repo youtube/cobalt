@@ -15,6 +15,7 @@
  */
 
 #include "glimp/gles/program.h"
+#include "starboard/memory.h"
 #include "starboard/string.h"
 
 namespace glimp {
@@ -54,6 +55,8 @@ void Program::Link() {
   if (link_results_.success) {
     linked_vertex_shader_ = vertex_shader_;
     linked_fragment_shader_ = fragment_shader_;
+
+    ClearUniforms();
 
     // Re-issue any binding attributes that are defined for this program.
     for (BoundAttributes::const_iterator iter = bound_attrib_locations_.begin();
@@ -102,6 +105,114 @@ void Program::GetProgramInfoLog(GLsizei bufsize,
                                 GLsizei* length,
                                 GLchar* infolog) {
   *length = SbStringCopy(infolog, link_results_.info_log.c_str(), bufsize);
+}
+
+GLint Program::GetUniformLocation(const GLchar* name) {
+  SB_DCHECK(linked());
+  int location = impl_->GetUniformLocation(name);
+  if (location != -1) {
+    if (std::find(active_uniform_locations_.begin(),
+                  active_uniform_locations_.end(),
+                  location) == active_uniform_locations_.end()) {
+      active_uniform_locations_.push_back(location);
+    }
+  }
+  return location;
+}
+
+GLenum Program::Uniformiv(GLint location,
+                          GLsizei count,
+                          GLsizei elem_size,
+                          const GLint* v) {
+  return UpdateUniform(location, count, elem_size, v,
+                       UniformInfo::kTypeInteger);
+}
+
+GLenum Program::Uniformfv(GLint location,
+                          GLsizei count,
+                          GLsizei elem_size,
+                          const GLfloat* v) {
+  return UpdateUniform(location, count, elem_size, v, UniformInfo::kTypeFloat);
+}
+
+GLenum Program::UniformMatrixfv(GLint location,
+                                GLsizei count,
+                                GLsizei dim_size,
+                                const GLfloat* value) {
+  return UpdateUniform(location, count, dim_size, value,
+                       UniformInfo::kTypeMatrix);
+}
+
+Program::Uniform* Program::FindOrMakeUniform(int location) {
+  if (std::find(active_uniform_locations_.begin(),
+                active_uniform_locations_.end(),
+                location) == active_uniform_locations_.end()) {
+    return NULL;
+  }
+
+  for (size_t i = 0; i < uniforms_.size(); ++i) {
+    if (uniforms_[i].location == location) {
+      return &uniforms_[i];
+    }
+  }
+  uniforms_.push_back(Uniform());
+  uniforms_.back().location = location;
+  return &uniforms_.back();
+}
+
+// Clear all stored uniform information and values.
+void Program::ClearUniforms() {
+  for (size_t i = 0; i < uniforms_.size(); ++i) {
+    SbMemoryFree(uniforms_[i].data);
+  }
+  uniforms_.clear();
+  active_uniform_locations_.clear();
+}
+
+namespace {
+int DataSizeForType(GLsizei count, GLsizei elem_size, UniformInfo::Type type) {
+  switch (type) {
+    case UniformInfo::kTypeInteger:
+      return sizeof(int) * count * elem_size;
+    case UniformInfo::kTypeFloat:
+      return sizeof(float) * count * elem_size;
+    case UniformInfo::kTypeMatrix:
+      return sizeof(float) * count * elem_size * elem_size;
+    default:
+      SB_NOTREACHED();
+      return NULL;
+  }
+}
+}  // namespace
+
+// Assign the specified data to the specified uniform, so that it is available
+// to the next draw call.
+GLenum Program::UpdateUniform(GLint location,
+                              GLsizei count,
+                              GLsizei elem_size,
+                              const void* v,
+                              UniformInfo::Type type) {
+  // TODO(***REMOVED***): It would be nice to be able to query the ProgramImpl object
+  //               for UniformInfo information so that we can check it against
+  //               incoming glUniform() calls to ensure consistency.  As it is
+  //               currently, we are defining this information through
+  //               these glUniform() calls.
+  Uniform* uniform = FindOrMakeUniform(location);
+  if (uniform == NULL) {
+    return GL_INVALID_OPERATION;
+  }
+
+  UniformInfo new_info = UniformInfo(type, count, elem_size);
+  if (new_info != uniform->info) {
+    // We need to reallocate data if the information has changed.
+    uniform->info = new_info;
+
+    SbMemoryFree(uniform->data);
+    uniform->data = SbMemoryAllocate(DataSizeForType(count, elem_size, type));
+  }
+  SbMemoryCopy(uniform->data, v, DataSizeForType(count, elem_size, type));
+
+  return GL_NO_ERROR;
 }
 
 }  // namespace gles
