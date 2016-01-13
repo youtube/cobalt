@@ -21,6 +21,7 @@
 #include "glimp/egl/error.h"
 #include "glimp/egl/surface.h"
 #include "glimp/gles/draw_mode.h"
+#include "glimp/gles/index_data_type.h"
 #include "glimp/gles/pixel_format.h"
 #include "starboard/log.h"
 #include "starboard/once.h"
@@ -1167,7 +1168,7 @@ void Context::DrawArrays(GLenum mode, GLint first, GLsizei count) {
   }
 
   SB_DCHECK(draw_state_.array_buffer)
-      << "glimp only supports drawing from vertex buffers.";
+      << "glimp only supports vertices from vertex buffers.";
 
   if (enabled_vertex_attribs_dirty_) {
     UpdateVertexAttribsInDrawState();
@@ -1181,6 +1182,50 @@ void Context::DrawArrays(GLenum mode, GLint first, GLsizei count) {
 
   impl_->DrawArrays(draw_mode, first, count, draw_state_,
                     &draw_state_dirty_flags_);
+}
+
+namespace {
+IndexDataType IndexDataTypeFromGLenum(GLenum type) {
+  switch (type) {
+    case GL_UNSIGNED_BYTE:
+      return kIndexDataTypeUnsignedByte;
+    case GL_UNSIGNED_SHORT:
+      return kIndexDataTypeUnsignedShort;
+    default:
+      return kIndexDataTypeInvalid;
+  }
+}
+}  // namespace
+
+void Context::DrawElements(GLenum mode,
+                           GLsizei count,
+                           GLenum type,
+                           const GLvoid* indices) {
+  if (count < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  DrawMode draw_mode = DrawModeFromGLEnum(mode);
+  if (draw_mode == kDrawModeInvalid) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  IndexDataType index_data_type = IndexDataTypeFromGLenum(type);
+  if (type == kIndexDataTypeInvalid) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  SB_DCHECK(draw_state_.array_buffer)
+      << "glimp only supports vertices from vertex buffers.";
+  SB_DCHECK(draw_state_.element_array_buffer)
+      << "glimp only supports indices from element vertex buffers.";
+
+  impl_->DrawElements(draw_mode, count, index_data_type,
+                      reinterpret_cast<intptr_t>(indices), draw_state_,
+                      &draw_state_dirty_flags_);
 }
 
 void Context::Flush() {
