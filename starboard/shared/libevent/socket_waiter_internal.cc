@@ -45,7 +45,10 @@ SB_COMPILE_ASSERT(sizeof(int16_t) == sizeof(short),  // NOLINT[runtime/int]
 }  // namespace
 
 SbSocketWaiterPrivate::SbSocketWaiterPrivate()
-    : thread_(SbThreadGetCurrent()), base_(event_base_new()), waiting_(false) {
+    : thread_(SbThreadGetCurrent()),
+      base_(event_base_new()),
+      waiting_(false),
+      woken_up_(false) {
   int fds[2];
   int result = pipe(fds);
   SB_DCHECK(result == 0);
@@ -169,7 +172,7 @@ void SbSocketWaiterPrivate::Wait() {
   WaitTimed(kSbTimeMax);
 }
 
-void SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
+SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
   SB_DCHECK(SbThreadIsCurrent(thread_));
 
   // The way to do this is apparently to create a timeout event, call WakeUp
@@ -186,17 +189,23 @@ void SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
   event_base_loop(base_, 0);
   waiting_ = false;
 
+  SbSocketWaiterResult result =
+      woken_up_ ? kSbSocketWaiterResultWokenUp : kSbSocketWaiterResultTimedOut;
+  woken_up_ = false;
+
   // We clean this up, in case we were bewakened early, to prevent a suprious
   // wake-up later.
   timeout_del(&event);
+
+  return result;
 }
 
-void SbSocketWaiterPrivate::WakeUp() {
+void SbSocketWaiterPrivate::WakeUp(bool timeout) {
   // We may be calling from a separate thread, so we have to be clever. The
   // version of libevent we are using (14.x) does not really do thread-safety,
   // despite the documentation that says otherwise. But, sending a byte through
   // a local pipe gets the job done safely.
-  char buf = 0;
+  char buf = timeout ? 0 : 1;
   int bytes_written = HANDLE_EINTR(write(wakeup_write_fd_, &buf, 1));
   SB_DCHECK(bytes_written == 1 || errno == EAGAIN)
       << "[bytes_written:" << bytes_written << "] [errno:" << errno << "]";
@@ -214,7 +223,7 @@ void SbSocketWaiterPrivate::LibeventSocketCallback(int /*fd*/,
 void SbSocketWaiterPrivate::LibeventTimeoutCallback(int /*fd*/,
                                                     int16_t /*event*/,
                                                     void* context) {
-  reinterpret_cast<SbSocketWaiter>(context)->WakeUp();
+  reinterpret_cast<SbSocketWaiter>(context)->WakeUp(true);
 }
 
 // static
@@ -249,10 +258,14 @@ void SbSocketWaiterPrivate::HandleSignal(Waitee* waitee,
 }
 
 void SbSocketWaiterPrivate::HandleWakeUpRead() {
+  SB_DCHECK(waiting_);
   // Remove and discard the wakeup byte.
   char buf;
   int bytes_read = HANDLE_EINTR(read(wakeup_read_fd_, &buf, 1));
   SB_DCHECK(bytes_read == 1);
+  if (buf != 0) {
+    woken_up_ = true;
+  }
   event_base_loopbreak(base_);
 }
 
