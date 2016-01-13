@@ -103,7 +103,7 @@ struct hash<base::Token> {
     (defined(OS_STARBOARD) && defined(SB_HAS_HASH_VALUE) && SB_HAS_HASH_VALUE)
 
 template <>
-size_t hash_value<base::Token>(const base::Token& token) {
+inline size_t hash_value<base::Token>(const base::Token& token) {
   return reinterpret_cast<size_t>(&(token.str()));
 }
 
