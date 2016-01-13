@@ -361,7 +361,12 @@ void GL_APIENTRY glDrawElements(GLenum mode,
                                 GLsizei count,
                                 GLenum type,
                                 const GLvoid* indices) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->DrawElements(mode, count, type, indices);
 }
 
 void GL_APIENTRY glEnable(GLenum cap) {

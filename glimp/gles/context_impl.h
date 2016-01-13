@@ -17,8 +17,6 @@
 #ifndef GLIMP_GLES_CONTEXT_IMPL_H_
 #define GLIMP_GLES_CONTEXT_IMPL_H_
 
-#include <GLES3/gl3.h>
-
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,6 +26,7 @@
 #include "glimp/gles/buffer_impl.h"
 #include "glimp/gles/draw_mode.h"
 #include "glimp/gles/draw_state.h"
+#include "glimp/gles/index_data_type.h"
 #include "glimp/gles/program.h"
 #include "glimp/gles/program_impl.h"
 #include "glimp/gles/sampler.h"
@@ -134,9 +133,10 @@ class ContextImpl {
                      DrawStateDirtyFlags* dirty_flags) = 0;
 
   // Called when glDrawArrays() is called.  This method must generate GPU
-  // commands to render the passed in |vertex_buffer| whose structure is defined
-  // by |attributes|.  The vertex program |program| should be used to render
-  // the vertices, and |samplers| defines the set of textures to be bound for
+  // commands to render the passed in |draw_state.array_buffer| whose structure
+  // is defined by |draw_state.attributes|.  The vertex program
+  // |draw_state.used_program| should be used to render the vertices, and
+  // |draw_state.samplers| defines the set of textures to be bound for
   // the draw call.
   //   |draw_state| represents the current GL ES draw state at the time of this
   //                call.
@@ -152,6 +152,30 @@ class ContextImpl {
                           int num_vertices,
                           const DrawState& draw_state,
                           DrawStateDirtyFlags* dirty_flags) = 0;
+
+  // Called when glDrawElements() is called.  This method must generate GPU
+  // commands to render the passed in |draw_state.array_buffer| whose structure
+  // is defined by |draw_state.attributes|.  The particular vertices rendered
+  // are chosen by the indices defined within |draw_state.element_array_buffer|
+  // + |intptr_t index_offset_in_bytes|.  The vertex program
+  // |draw_state.used_program| should be used to render the vertices, and
+  // |draw_state.samplers| defines the set of textures to be bound for the draw
+  // call.
+  //   |draw_state| represents the current GL ES draw state at the time of this
+  //                call.
+  //   |dirty_flags| represents which members of the |draw_state| have been
+  //                 modified since the last draw (or clear) call.  This can
+  //                 be leveraged to avoid reconfiguring unchanged state.
+  //                 It is expected that implementations will manually set
+  //                 these flags to false after they have processed the
+  //                 corresponding draw state member.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glDrawElements.xml
+  virtual void DrawElements(DrawMode mode,
+                            int num_vertices,
+                            IndexDataType index_data_type,
+                            intptr_t index_offset_in_bytes,
+                            const DrawState& draw_state,
+                            DrawStateDirtyFlags* dirty_flags) = 0;
 
   // Called when eglSwapBuffers() is called.  This method is responsible for
   // submitting a command to the GPU to indicate that we are done rendering this
