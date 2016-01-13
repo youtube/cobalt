@@ -604,8 +604,12 @@ void GL_APIENTRY glGetUniformiv(GLuint program, GLint location, GLint* params) {
 }
 
 GLint GL_APIENTRY glGetUniformLocation(GLuint program, const GLchar* name) {
-  SB_NOTIMPLEMENTED();
-  return 0;
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return -1;
+  }
+
+  return context->GetUniformLocation(program, name);
 }
 
 void GL_APIENTRY glGetVertexAttribfv(GLuint index,
@@ -804,7 +808,7 @@ void GL_APIENTRY glTexParameteri(GLenum target, GLenum pname, GLint param) {
     return;
   }
 
-  return context->TexParameteri(target, pname, param);
+  context->TexParameteri(target, pname, param);
 }
 
 void GL_APIENTRY glTexParameteriv(GLenum target,
@@ -826,87 +830,209 @@ void GL_APIENTRY glTexSubImage2D(GLenum target,
 }
 
 void GL_APIENTRY glUniform1f(GLint location, GLfloat x) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Uniformfv(location, 1, 1, &x);
 }
 
 void GL_APIENTRY glUniform1fv(GLint location, GLsizei count, const GLfloat* v) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Uniformfv(location, count, 1, v);
 }
 
 void GL_APIENTRY glUniform1i(GLint location, GLint x) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Uniformiv(location, 1, 1, &x);
 }
 
 void GL_APIENTRY glUniform1iv(GLint location, GLsizei count, const GLint* v) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Uniformiv(location, count, 1, v);
 }
 
 void GL_APIENTRY glUniform2f(GLint location, GLfloat x, GLfloat y) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  float v[2];
+  v[0] = x;
+  v[1] = y;
+  context->Uniformfv(location, 1, 2, v);
 }
 
 void GL_APIENTRY glUniform2fv(GLint location, GLsizei count, const GLfloat* v) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Uniformfv(location, count, 2, v);
 }
 
 void GL_APIENTRY glUniform2i(GLint location, GLint x, GLint y) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  int v[2];
+  v[0] = x;
+  v[1] = y;
+  context->Uniformiv(location, 1, 2, v);
 }
 
 void GL_APIENTRY glUniform2iv(GLint location, GLsizei count, const GLint* v) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Uniformiv(location, count, 2, v);
 }
 
 void GL_APIENTRY glUniform3f(GLint location, GLfloat x, GLfloat y, GLfloat z) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  float v[3];
+  v[0] = x;
+  v[1] = y;
+  v[2] = z;
+  context->Uniformfv(location, 1, 3, v);
 }
 
 void GL_APIENTRY glUniform3fv(GLint location, GLsizei count, const GLfloat* v) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Uniformfv(location, count, 3, v);
 }
 
 void GL_APIENTRY glUniform3i(GLint location, GLint x, GLint y, GLint z) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  int v[3];
+  v[0] = x;
+  v[1] = y;
+  v[2] = z;
+  context->Uniformiv(location, 1, 3, v);
 }
 
 void GL_APIENTRY glUniform3iv(GLint location, GLsizei count, const GLint* v) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Uniformiv(location, count, 3, v);
 }
 
 void GL_APIENTRY
 glUniform4f(GLint location, GLfloat x, GLfloat y, GLfloat z, GLfloat w) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  float v[4];
+  v[0] = x;
+  v[1] = y;
+  v[2] = z;
+  v[3] = w;
+  context->Uniformfv(location, 1, 4, v);
 }
 
 void GL_APIENTRY glUniform4fv(GLint location, GLsizei count, const GLfloat* v) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Uniformfv(location, count, 4, v);
 }
 
 void GL_APIENTRY
 glUniform4i(GLint location, GLint x, GLint y, GLint z, GLint w) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  int v[4];
+  v[0] = x;
+  v[1] = y;
+  v[2] = z;
+  v[3] = w;
+  context->Uniformiv(location, 1, 4, v);
 }
 
 void GL_APIENTRY glUniform4iv(GLint location, GLsizei count, const GLint* v) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Uniformiv(location, count, 4, v);
 }
 
 void GL_APIENTRY glUniformMatrix2fv(GLint location,
                                     GLsizei count,
                                     GLboolean transpose,
                                     const GLfloat* value) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->UniformMatrixfv(location, count, transpose, 2, value);
 }
 
 void GL_APIENTRY glUniformMatrix3fv(GLint location,
                                     GLsizei count,
                                     GLboolean transpose,
                                     const GLfloat* value) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->UniformMatrixfv(location, count, transpose, 3, value);
 }
 
 void GL_APIENTRY glUniformMatrix4fv(GLint location,
                                     GLsizei count,
                                     GLboolean transpose,
                                     const GLfloat* value) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->UniformMatrixfv(location, count, transpose, 4, value);
 }
 
 void GL_APIENTRY glUseProgram(GLuint program) {
