@@ -76,8 +76,8 @@ bool Context::SetTLSCurrentContext(Context* context,
 
   if (context->current_thread() != kSbThreadInvalid &&
       context->current_thread() != SbThreadGetCurrent()) {
-    // Another thread currently holds the context current, and so it is an
-    // error for us to try to make it current on this thread.
+    SB_DLOG(WARNING) << "Another thread holds current the context that is to "
+                        "be made current on this thread.";
     egl::SetError(EGL_BAD_ACCESS);
     return false;
   }
@@ -337,8 +337,12 @@ void Context::LinkProgram(GLuint program) {
   }
 
   program_object->Link();
+
   if (program_object.get() == draw_state_.used_program.get()) {
     draw_state_dirty_flags_.used_program_dirty = true;
+    // Linking a program should clear out all of its uniforms, so the following
+    // call should effectively clear the dirty uniforms vector.
+    draw_state_dirty_flags_.uniforms_dirty.MarkAll();
   }
 }
 
@@ -373,6 +377,7 @@ void Context::UseProgram(GLuint program) {
   if (program == 0) {
     draw_state_.used_program = NULL;
     draw_state_dirty_flags_.used_program_dirty = true;
+    draw_state_dirty_flags_.uniforms_dirty.MarkAll();
     return;
   }
 
@@ -392,6 +397,8 @@ void Context::UseProgram(GLuint program) {
   if (program_object.get() != draw_state_.used_program.get()) {
     draw_state_.used_program = program_object;
     draw_state_dirty_flags_.used_program_dirty = true;
+    // Switching programs marks all uniforms as being dirty.
+    draw_state_dirty_flags_.uniforms_dirty.MarkAll();
   }
 }
 
@@ -1025,6 +1032,103 @@ void Context::DisableVertexAttribArray(GLuint index) {
 
   enabled_vertex_attribs_.erase(index);
   enabled_vertex_attribs_dirty_ = true;
+}
+
+GLint Context::GetUniformLocation(GLuint program, const GLchar* name) {
+  if (name[0] == 'g' && name[1] == 'l' && name[2] == '_') {
+    // |name| is not allowed to begin with the reserved prefix, "gl_".
+    return -1;
+  }
+
+  nb::scoped_refptr<Program> program_object =
+      resource_manager_->GetProgram(program);
+  if (!program_object) {
+    SetError(GL_INVALID_VALUE);
+    return -1;
+  }
+
+  if (!program_object->linked()) {
+    SetError(GL_INVALID_OPERATION);
+    return -1;
+  }
+
+  return program_object->GetUniformLocation(name);
+}
+
+void Context::Uniformiv(GLint location,
+                        GLsizei count,
+                        GLsizei elem_size,
+                        const GLint* v) {
+  SB_DCHECK(elem_size >= 1 && elem_size <= 4);
+
+  if (count < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (!draw_state_.used_program) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  GLenum result =
+      draw_state_.used_program->Uniformiv(location, count, elem_size, v);
+  if (result == GL_NO_ERROR) {
+    draw_state_dirty_flags_.uniforms_dirty.Mark(location);
+  } else {
+    SetError(result);
+  }
+}
+
+void Context::Uniformfv(GLint location,
+                        GLsizei count,
+                        GLsizei elem_size,
+                        const GLfloat* v) {
+  SB_DCHECK(elem_size >= 1 && elem_size <= 4);
+
+  if (count < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (!draw_state_.used_program) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  GLenum result =
+      draw_state_.used_program->Uniformfv(location, count, elem_size, v);
+  if (result == GL_NO_ERROR) {
+    draw_state_dirty_flags_.uniforms_dirty.Mark(location);
+  } else {
+    SetError(result);
+  }
+}
+
+void Context::UniformMatrixfv(GLint location,
+                              GLsizei count,
+                              GLboolean transpose,
+                              GLsizei dim_size,
+                              const GLfloat* value) {
+  SB_DCHECK(dim_size >= 2 && dim_size <= 4);
+
+  if (transpose != GL_FALSE) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (!draw_state_.used_program) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  GLenum result = draw_state_.used_program->UniformMatrixfv(location, count,
+                                                            dim_size, value);
+  if (result == GL_NO_ERROR) {
+    draw_state_dirty_flags_.uniforms_dirty.Mark(location);
+  } else {
+    SetError(result);
+  }
 }
 
 namespace {

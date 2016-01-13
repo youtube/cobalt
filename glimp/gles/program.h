@@ -21,9 +21,11 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "glimp/gles/program_impl.h"
 #include "glimp/gles/shader.h"
+#include "glimp/gles/uniform_info.h"
 #include "glimp/nb/ref_counted.h"
 #include "glimp/nb/scoped_ptr.h"
 
@@ -32,6 +34,17 @@ namespace gles {
 
 class Program : public nb::RefCountedThreadSafe<Program> {
  public:
+  // Represents a Uniform entry in this program, including type information
+  // about it and the actual data as it was last set via a call to
+  // UniformXv().
+  struct Uniform {
+    Uniform() : location(-1), data(NULL) {}
+
+    int location;
+    UniformInfo info;
+    void* data;
+  };
+
   explicit Program(nb::scoped_ptr<ProgramImpl> impl);
 
   // Attaches the specified shader to either this program's vertex or fragment
@@ -53,10 +66,37 @@ class Program : public nb::RefCountedThreadSafe<Program> {
   GLenum GetProgramiv(GLenum pname, GLint* params);
   void GetProgramInfoLog(GLsizei bufsize, GLsizei* length, GLchar* infolog);
 
+  GLint GetUniformLocation(const GLchar* name);
+  GLenum Uniformiv(GLint location,
+                   GLsizei count,
+                   GLsizei elem_size,
+                   const GLint* v);
+  GLenum Uniformfv(GLint location,
+                   GLsizei count,
+                   GLsizei elem_size,
+                   const GLfloat* v);
+  GLenum UniformMatrixfv(GLint location,
+                         GLsizei count,
+                         GLsizei dim_size,
+                         const GLfloat* value);
+
+  // Returns the current list of all uniforms that have been targeted by
+  // UniformXv() calls since the last call to Link().
+  const std::vector<Uniform> uniforms() const { return uniforms_; }
+
  private:
   typedef std::map<unsigned int, std::string> BoundAttributes;
   friend class nb::RefCountedThreadSafe<Program>;
   ~Program() {}
+
+  // Returns a U
+  Uniform* FindOrMakeUniform(int location);
+  void ClearUniforms();
+  GLenum UpdateUniform(GLint location,
+                       GLsizei count,
+                       GLsizei elem_size,
+                       const void* v,
+                       UniformInfo::Type type);
 
   nb::scoped_ptr<ProgramImpl> impl_;
 
@@ -75,6 +115,15 @@ class Program : public nb::RefCountedThreadSafe<Program> {
   // Constructed by glBindAttribLocation(), this maps generic vertex attribute
   // indices to attribute names, and applies when and after a program is linked.
   BoundAttributes bound_attrib_locations_;
+
+  // The list of all uniforms that have been assigned values through
+  // the UniformXv() methods.
+  std::vector<Uniform> uniforms_;
+
+  // Keeps track of all uniform locations that have been returned by a call
+  // to GetUniformLocation() above.  These may or may not have had values
+  // assigned to them since a Link().
+  std::vector<int> active_uniform_locations_;
 };
 
 }  // namespace gles
