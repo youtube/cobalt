@@ -44,6 +44,7 @@
     'gles/draw_mode.h',
     'gles/draw_state.cc',
     'gles/draw_state.h',
+    'gles/index_data_type.h',
     'gles/pixel_format.cc',
     'gles/pixel_format.h',
     'gles/program.cc',
