@@ -172,8 +172,15 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
     if (!keep_running_)
       break;
 
-    SbSocketWaiterWaitTimed(waiter_, 0);
-    did_work |= processed_io_events_;
+    // NOTE: We need to have a wake-up pending any time there is work queued. If
+    // any work is scheduled here, the next call to wait could consume a
+    // wake-up, but leave the work undone. So we need to say that we did work if
+    // the waiter was woken up rather than timed out.
+
+    SbSocketWaiterResult result = SbSocketWaiterWaitTimed(waiter_, 0);
+    DCHECK_NE(kSbSocketWaiterResultInvalid, result);
+    did_work |= (result == kSbSocketWaiterResultWokenUp) ||
+                processed_io_events_;
     processed_io_events_ = false;
     if (!keep_running_)
       break;
