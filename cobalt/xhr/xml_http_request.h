@@ -32,6 +32,7 @@
 #include "cobalt/script/union_type.h"
 #include "cobalt/xhr/xhr_response_data.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
+#include "cobalt/xhr/xml_http_request_upload.h"
 #include "googleurl/src/gurl.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
@@ -142,9 +143,10 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   bool with_credentials() const { return with_credentials_; }
   void set_with_credentials(bool b);
 
+  scoped_refptr<XMLHttpRequestUpload> upload();
+
   static void set_verbose(bool verbose) { verbose_ = verbose; }
   static bool verbose() { return verbose_; }
-
   // net::URLFetcherDelegate interface
   void OnURLFetchResponseStarted(const net::URLFetcher* source) OVERRIDE;
   void OnURLFetchDownloadData(const net::URLFetcher* source,
@@ -152,8 +154,10 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
   bool ShouldSendDownloadData() OVERRIDE { return true; }
 
-  friend std::ostream& operator<<(std::ostream& os, const XMLHttpRequest& xhr);
+  void OnURLFetchUploadProgress(const net::URLFetcher* source, int64 current,
+                                int64 total) OVERRIDE;
 
+  friend std::ostream& operator<<(std::ostream& os, const XMLHttpRequest& xhr);
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequest);
 
  protected:
@@ -169,11 +173,6 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   FRIEND_TEST_ALL_PREFIXES(XhrTest, Open);
   FRIEND_TEST_ALL_PREFIXES(XhrTest, OverrideMimeType);
   FRIEND_TEST_ALL_PREFIXES(XhrTest, SetRequestHeader);
-
-  // Dispatch a progress event to any listeners.
-  void FireProgressEvent(const std::string& event_name);
-  void FireProgressEvent(const std::string& event_name, uint64 loaded,
-                         uint64 total, bool length_computable);
   // Cancel any inflight request and set error flag.
   void TerminateRequest();
   // Dispatch events based on the type of error.
@@ -216,6 +215,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   scoped_refptr<net::HttpResponseHeaders> http_response_headers_;
   XhrResponseData response_body_;
   scoped_refptr<dom::ArrayBuffer> response_array_buffer_;
+  scoped_refptr<XMLHttpRequestUpload> upload_;
 
   std::string mime_type_override_;
   GURL base_url_;
@@ -237,6 +237,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   bool error_;
   bool sent_;
   bool stop_timeout_;
+  bool upload_complete_;
 
   // For debugging our reference count manipulations.
   bool did_add_ref_;
