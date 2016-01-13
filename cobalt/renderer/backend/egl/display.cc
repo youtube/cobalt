@@ -67,7 +67,9 @@ const SurfaceInfo& DisplayRenderTargetEGL::GetSurfaceInfo() {
   return surface_info_;
 }
 
-DisplayRenderTargetEGL::~DisplayRenderTargetEGL() {}
+DisplayRenderTargetEGL::~DisplayRenderTargetEGL() {
+  eglDestroySurface(display_, surface_);
+}
 
 EGLSurface DisplayRenderTargetEGL::GetSurface() const { return surface_; }
 
