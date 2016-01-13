@@ -21,5 +21,5 @@ void SbSocketWaiterWakeUp(SbSocketWaiter waiter) {
     return;
   }
 
-  waiter->WakeUp();
+  waiter->WakeUp(false);
 }

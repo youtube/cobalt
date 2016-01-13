@@ -37,8 +37,8 @@ struct SbSocketWaiterPrivate {
            bool persistent);
   bool Remove(SbSocket socket);
   void Wait();
-  void WaitTimed(SbTime duration);
-  void WakeUp();
+  SbSocketWaiterResult WaitTimed(SbTime duration);
+  void WakeUp(bool timeout);
 
  private:
   // A registration of a socket with a socket waiter.
@@ -140,6 +140,9 @@ struct SbSocketWaiterPrivate {
 
   // Whether or not the waiter is actually waiting.
   bool waiting_;
+
+  // Whether or not the waiter was woken up.
+  bool woken_up_;
 };
 
 #endif  // STARBOARD_SHARED_LIBEVENT_SOCKET_WAITER_INTERNAL_H_
