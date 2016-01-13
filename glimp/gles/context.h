@@ -144,6 +144,21 @@ class Context {
   void EnableVertexAttribArray(GLuint index);
   void DisableVertexAttribArray(GLuint index);
 
+  GLint GetUniformLocation(GLuint program, const GLchar* name);
+  void Uniformiv(GLint location,
+                 GLsizei count,
+                 GLsizei elem_size,
+                 const GLint* v);
+  void Uniformfv(GLint location,
+                 GLsizei count,
+                 GLsizei elem_size,
+                 const GLfloat* v);
+  void UniformMatrixfv(GLint location,
+                       GLsizei count,
+                       GLboolean transpose,
+                       GLsizei dim_size,
+                       const GLfloat* value);
+
   void DrawArrays(GLenum mode, GLint first, GLsizei count);
 
   void Flush();
