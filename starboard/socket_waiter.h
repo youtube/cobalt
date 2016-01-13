@@ -60,6 +60,18 @@ typedef enum SbSocketWaiterInterest {
   kSbSocketWaiterInterestWrite = 1 << 1,
 } SbSocketWaiterInterest;
 
+// Possible reasons why a call to SbSocketWaiterWaitTimed returned.
+typedef enum SbSocketWaiterResult {
+  // The wait didn't block because the waiter was invalid.
+  kSbSocketWaiterResultInvalid,
+
+  // The wait stopped because the timeout expired.
+  kSbSocketWaiterResultTimedOut,
+
+  // The wait stopped because a call to SbSocketWaiterWakeUp was consumed.
+  kSbSocketWaiterResultWokenUp,
+} SbSocketWaiterResult;
+
 // Function pointer for socket waiter callbacks.
 typedef void (*SbSocketWaiterCallback)(SbSocketWaiter waiter,
                                        SbSocket socket,
@@ -127,11 +139,12 @@ SB_EXPORT void SbSocketWaiterWait(SbSocketWaiter waiter);
 
 // Behaves the same as SbSocketWaiterWait(), waking up when
 // SbSocketWaiterWakeUp(), but also exits on its own after at least |duration|
-// has passed, whichever comes first. Note that, as with SbThreadSleep(), it may
-// wait longer than |duration|. For example if the timeout expires while a
-// callback is being fired. This should only be called on the thread that waits
-// on this waiter.
-SB_EXPORT void SbSocketWaiterWaitTimed(SbSocketWaiter waiter, SbTime duration);
+// has passed, whichever comes first, returning an indicator of which one
+// happened. Note that, as with SbThreadSleep(), it may wait longer than
+// |duration|. For example if the timeout expires while a callback is being
+// fired. This should only be called on the thread that waits on this waiter.
+SB_EXPORT SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter,
+                                                       SbTime duration);
 
 // Wakes up |waiter| once. Can be called from a SbSocketWaiterCallback to wake
 // up its own waiter. Can also be called from another thread at any time, it's
