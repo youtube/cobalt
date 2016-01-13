@@ -11,15 +11,13 @@ abort-after-timeout.htm,PASS
 abort-during-done.htm,QUIET
 abort-during-open.htm,PASS
 abort-during-unsent.htm,PASS
-# Requires .upload
-abort-during-upload.htm,FAIL
+abort-during-upload.htm,PASS
 abort-event-abort.htm,PASS
 abort-event-listeners.htm,PASS
 abort-event-loadend.htm,PASS
-# Requires .upload
-abort-event-order.htm,FAIL
-abort-upload-event-abort.htm,FAIL
-abort-upload-event-loadend.htm,FAIL
+abort-event-order.htm,PASS
+abort-upload-event-abort.htm,PASS
+abort-upload-event-loadend.htm,PASS
 anonymous-mode-unsupported.htm,PASS
 # Unsupported by XHR currently. b/25800310
 data-uri.htm,DISABLE
@@ -31,10 +29,8 @@ event-loadstart.htm,PASS
 event-progress.htm,PASS
 event-readystatechange-loaded.htm,PASS
 event-timeout.htm,PASS
-# Needs .upload
-event-upload-progress-crossorigin.sub.htm,FAIL
-# Needs .upload
-event-upload-progress.htm,FAIL
+event-upload-progress-crossorigin.sub.htm,PASS
+event-upload-progress.htm,PASS
 # FormData is not implemented
 FormData-append.html,FAIL
 # FormData, Blob is not implemented
@@ -154,19 +150,16 @@ send-entity-body-document-bogus.htm,QUIET
 # SyntaxError: Unexpected EOF
 send-entity-body-document.htm,FAIL
 send-entity-body-empty.htm,QUIET
-# Requires .upload
-send-entity-body-get-head-async.htm,FAIL
+send-entity-body-get-head-async.htm,PASS
 send-entity-body-get-head.htm,QUIET
 send-entity-body-none.htm,QUIET
-# Requires .upload
-send-network-error-async-events.sub.htm,FAIL
+send-network-error-async-events.sub.htm,PASS
 # Synchronous
 send-network-error-sync-events.sub.htm,QUIET
 send-non-same-origin.sub.htm,QUIET
 send-no-response-event-loadend.htm,PASS
 send-no-response-event-loadstart.htm,PASS
-# Requires .upload
-send-no-response-event-order.htm,FAIL
+send-no-response-event-order.htm,PASS
 # Check failed : IsStringUTF8()
 send-receive-utf16.htm,DISABLE
 send-redirect-bogus.htm,PASS
@@ -178,9 +171,9 @@ send-redirect-no-location.htm,FAIL
 send-redirect-to-cors.htm,FAIL
 send-redirect-to-non-cors.htm,PASS
 send-response-event-order.htm,FAIL
-send-response-upload-event-loadend.htm,FAIL
-send-response-upload-event-loadstart.htm,FAIL
-send-response-upload-event-progress.htm,FAIL
+send-response-upload-event-loadend.htm,PASS
+send-response-upload-event-loadstart.htm,PASS
+send-response-upload-event-progress.htm,PASS
 send-send.htm,PASS
 send-sync-blocks-async.htm,QUIET
 send-sync-no-response-event-loadend.htm,QUIET
@@ -188,7 +181,7 @@ send-sync-no-response-event-load.htm,QUIET
 send-sync-no-response-event-order.htm,QUIET
 send-sync-response-event-order.htm,QUIET
 send-sync-timeout.htm,QUIET
-send-timeout-events.htm,FAIL
+send-timeout-events.htm,PASS
 # Infinite loop?
 send-usp.html,DISABLE
 setrequestheader-after-send.htm,PASS
