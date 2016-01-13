@@ -160,6 +160,10 @@ class Context {
                        const GLfloat* value);
 
   void DrawArrays(GLenum mode, GLint first, GLsizei count);
+  void DrawElements(GLenum mode,
+                    GLsizei count,
+                    GLenum type,
+                    const GLvoid* indices);
 
   void Flush();
   void SwapBuffers();
