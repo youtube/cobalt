@@ -35,6 +35,7 @@
     'entry_points/gles_2_0.cc',
     'entry_points/gles_2_0_ext.cc',
     'entry_points/gles_3_0.cc',
+    'gles/blend_state.h',
     'gles/buffer.cc',
     'gles/buffer.h',
     'gles/buffer_impl.h',

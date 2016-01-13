@@ -109,7 +109,12 @@ void GL_APIENTRY glBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha) {
 }
 
 void GL_APIENTRY glBlendFunc(GLenum sfactor, GLenum dfactor) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->BlendFunc(sfactor, dfactor);
 }
 
 void GL_APIENTRY glBlendFuncSeparate(GLenum srcRGB,
@@ -144,8 +149,12 @@ void GL_APIENTRY glBufferSubData(GLenum target,
 }
 
 GLenum GL_APIENTRY glCheckFramebufferStatus(GLenum target) {
-  SB_NOTIMPLEMENTED();
-  return 0;
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return 0;
+  }
+
+  return context->CheckFramebufferStatus(target);
 }
 
 void GL_APIENTRY glClear(GLbitfield mask) {
@@ -370,7 +379,12 @@ void GL_APIENTRY glDrawElements(GLenum mode,
 }
 
 void GL_APIENTRY glEnable(GLenum cap) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->Enable(cap);
 }
 
 void GL_APIENTRY glEnableVertexAttribArray(GLuint index) {
