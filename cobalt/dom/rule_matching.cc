@@ -17,7 +17,6 @@
 #include "cobalt/dom/rule_matching.h"
 
 #include <algorithm>
-#include <string>
 
 #include "base/bind.h"
 #include "base/callback.h"
@@ -26,12 +25,15 @@
 #include "cobalt/base/unused.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/before_pseudo_element.h"
+#include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/combinator_visitor.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
+#include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/following_sibling_combinator.h"
@@ -44,8 +46,11 @@
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/type_selector.h"
 #include "cobalt/dom/dom_token_list.h"
+#include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/node_descendants_iterator.h"
+#include "cobalt/dom/node_list.h"
 #include "cobalt/dom/pseudo_element.h"
 #include "cobalt/math/safe_integer_conversions.h"
 
@@ -63,7 +68,8 @@ const size_t kRuleMatchingNodeSetSize = 60;
 // Matches an element against a selector. If the element doesn't match, returns
 // NULL, otherwise returns the result of advancing the pointer to the element
 // according to the combinators.
-Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element);
+Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element,
+                                 bool matching_combinators);
 
 //////////////////////////////////////////////////////////////////////////
 // Combinator matcher
@@ -71,19 +77,15 @@ Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element);
 
 class CombinatorMatcher : public cssom::CombinatorVisitor {
  public:
-  CombinatorMatcher(Element* element,
-                    cssom::CompoundSelector* previous_selector)
-      : element_(element), previous_selector_(previous_selector) {
+  explicit CombinatorMatcher(Element* element) : element_(element) {
     DCHECK(element);
-    DCHECK(previous_selector);
   }
 
   // Child combinator describes a childhood relationship between two elements.
   //   http://www.w3.org/TR/selectors4/#child-combinators
-  void VisitChildCombinator(
-      cssom::ChildCombinator* /*child_combinator*/) OVERRIDE {
-    element_ =
-        MatchSelectorAndElement(previous_selector_, element_->parent_element());
+  void VisitChildCombinator(cssom::ChildCombinator* child_combinator) OVERRIDE {
+    element_ = MatchSelectorAndElement(child_combinator->left_selector(),
+                                       element_->parent_element(), true);
   }
 
   // Next-sibling combinator describes that the elements represented by the two
@@ -92,19 +94,21 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
   // element represented by the second one.
   //   http://www.w3.org/TR/selectors4/#adjacent-sibling-combinators
   void VisitNextSiblingCombinator(
-      cssom::NextSiblingCombinator* /*next_sibling_combinator*/) OVERRIDE {
-    element_ = MatchSelectorAndElement(previous_selector_,
-                                       element_->previous_element_sibling());
+      cssom::NextSiblingCombinator* next_sibling_combinator) OVERRIDE {
+    element_ =
+        MatchSelectorAndElement(next_sibling_combinator->left_selector(),
+                                element_->previous_element_sibling(), true);
   }
 
   // Descendant combinator describes an element that is the descendant of
   // another element in the document tree.
   //   http://www.w3.org/TR/selectors4/#descendant-combinators
   void VisitDescendantCombinator(
-      cssom::DescendantCombinator* /*descendant_combinator*/) OVERRIDE {
+      cssom::DescendantCombinator* descendant_combinator) OVERRIDE {
     do {
       element_ = element_->parent_element();
-      Element* element = MatchSelectorAndElement(previous_selector_, element_);
+      Element* element = MatchSelectorAndElement(
+          descendant_combinator->left_selector(), element_, true);
       if (element) {
         element_ = element;
         return;
@@ -118,11 +122,12 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
   // necessarily immediately) the element represented by the second one.
   //   http://www.w3.org/TR/selectors4/#general-sibling-combinators
   void VisitFollowingSiblingCombinator(
-      cssom::FollowingSiblingCombinator* /*following_sibling_combinator*/)
+      cssom::FollowingSiblingCombinator* following_sibling_combinator)
       OVERRIDE {
     do {
       element_ = element_->previous_element_sibling();
-      Element* element = MatchSelectorAndElement(previous_selector_, element_);
+      Element* element = MatchSelectorAndElement(
+          following_sibling_combinator->left_selector(), element_, true);
       if (element) {
         element_ = element;
         return;
@@ -134,7 +139,6 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
 
  private:
   Element* element_;
-  cssom::CompoundSelector* previous_selector_;
   DISALLOW_COPY_AND_ASSIGN(CombinatorMatcher);
 };
 
@@ -144,7 +148,12 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
 
 class SelectorMatcher : public cssom::SelectorVisitor {
  public:
-  explicit SelectorMatcher(Element* element) : element_(element) {
+  explicit SelectorMatcher(Element* element)
+      : element_(element), matching_combinators_(false) {
+    DCHECK(element);
+  }
+  SelectorMatcher(Element* element, bool matching_combinators)
+      : element_(element), matching_combinators_(matching_combinators) {
     DCHECK(element);
   }
 
@@ -221,7 +230,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // represented by its argument.
   //   http://www.w3.org/TR/selectors4/#negation-pseudo
   void VisitNotPseudoClass(cssom::NotPseudoClass* not_pseudo_class) OVERRIDE {
-    if (MatchSelectorAndElement(not_pseudo_class->selector(), element_)) {
+    if (MatchSelectorAndElement(not_pseudo_class->selector(), element_, true)) {
       element_ = NULL;
     }
   }
@@ -253,10 +262,17 @@ class SelectorMatcher : public cssom::SelectorVisitor {
              selector_iterator = compound_selector->simple_selectors().begin();
          selector_iterator != compound_selector->simple_selectors().end();
          ++selector_iterator) {
-      element_ = MatchSelectorAndElement(*selector_iterator, element_);
+      element_ = MatchSelectorAndElement(*selector_iterator, element_, false);
       if (!element_) {
         return;
       }
+    }
+
+    // Check combinator.
+    if (matching_combinators_ && compound_selector->left_combinator()) {
+      CombinatorMatcher combinator_matcher(element_);
+      compound_selector->left_combinator()->Accept(&combinator_matcher);
+      element_ = combinator_matcher.element();
     }
   }
 
@@ -264,46 +280,15 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // by combinators.
   //   http://www.w3.org/TR/selectors4/#complex
   void VisitComplexSelector(cssom::ComplexSelector* complex_selector) OVERRIDE {
-    // Match against the last compound selector.
-    cssom::CompoundSelector* last_selector =
-        complex_selector->combinators().empty()
-            ? complex_selector->first_selector()
-            : complex_selector->combinators().back()->selector();
-    element_ = MatchSelectorAndElement(last_selector, element_);
-    if (!element_) {
-      return;
-    }
-
-    // Iterate through all the combinators.
-    for (cssom::Combinators::const_reverse_iterator combinator_iterator =
-             complex_selector->combinators().rbegin();
-         combinator_iterator != complex_selector->combinators().rend();
-         ++combinator_iterator) {
-      cssom::Combinator* combinator = *combinator_iterator;
-
-      // Get the previous selector to the left of the combinator.
-      cssom::Combinators::const_reverse_iterator previous_combinator_iterator =
-          combinator_iterator;
-      previous_combinator_iterator++;
-      cssom::CompoundSelector* previous_selector =
-          previous_combinator_iterator == complex_selector->combinators().rend()
-              ? complex_selector->first_selector()
-              : (*previous_combinator_iterator)->selector();
-
-      // Match and advance the pointer to the element.
-      CombinatorMatcher combinator_matcher(element_, previous_selector);
-      combinator->Accept(&combinator_matcher);
-      element_ = combinator_matcher.element();
-      if (!element_) {
-        return;
-      }
-    }
+    element_ = MatchSelectorAndElement(complex_selector->last_selector(),
+                                       element_, true);
   }
 
   Element* element() const { return element_; }
 
  private:
   Element* element_;
+  bool matching_combinators_;
   DISALLOW_COPY_AND_ASSIGN(SelectorMatcher);
 };
 
@@ -311,12 +296,13 @@ class SelectorMatcher : public cssom::SelectorVisitor {
 // Helper functions
 //////////////////////////////////////////////////////////////////////////
 
-Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element) {
+Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element,
+                                 bool matching_combinators) {
   DCHECK(selector);
   if (!element) {
     return NULL;
   }
-  SelectorMatcher selector_matcher(element);
+  SelectorMatcher selector_matcher(element, matching_combinators);
   selector->Accept(&selector_matcher);
   return selector_matcher.element();
 }
@@ -478,8 +464,8 @@ void ForEachChildOnNodes(
          ++candidate_node_iterator) {
       const SelectorTree::Node* candidate_node = *candidate_node_iterator;
 
-      if (MatchSelectorAndElement(candidate_node->compound_selector(),
-                                  element)) {
+      if (MatchSelectorAndElement(candidate_node->compound_selector(), element,
+                                  false)) {
         callback.Run(element, candidate_node);
       }
     }
@@ -591,7 +577,7 @@ bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
            rule->selectors().begin();
        selector_iterator != rule->selectors().end(); ++selector_iterator) {
     DCHECK(*selector_iterator);
-    if (MatchSelectorAndElement(*selector_iterator, element)) {
+    if (MatchSelectorAndElement(*selector_iterator, element, true)) {
       return true;
     }
   }
@@ -601,6 +587,72 @@ bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
 void UpdateMatchingRulesUsingSelectorTree(HTMLElement* dom_root,
                                           const SelectorTree* selector_tree) {
   CalculateMatchingRulesRecursively(dom_root, selector_tree);
+}
+
+scoped_refptr<Element> QuerySelector(Node* node, const std::string& selectors,
+                                     cssom::CSSParser* css_parser) {
+  DCHECK(css_parser);
+
+  // Generate a rule with the given selectors and no style.
+  scoped_refptr<cssom::CSSRule> css_rule =
+      css_parser->ParseRule(selectors + " {}", node->GetInlineSourceLocation());
+  if (!css_rule) {
+    return NULL;
+  }
+  scoped_refptr<cssom::CSSStyleRule> css_style_rule =
+      css_rule->AsCSSStyleRule();
+  if (!css_style_rule) {
+    return NULL;
+  }
+
+  // Iterate through the descendants of the node and find the first matching
+  // element if any.
+  NodeDescendantsIterator iterator(node);
+  Node* child = iterator.First();
+  while (child) {
+    if (child->IsElement()) {
+      scoped_refptr<Element> element = child->AsElement();
+      if (MatchRuleAndElement(css_style_rule, element)) {
+        return element;
+      }
+    }
+    child = iterator.Next();
+  }
+  return NULL;
+}
+
+scoped_refptr<NodeList> QuerySelectorAll(Node* node,
+                                         const std::string& selectors,
+                                         cssom::CSSParser* css_parser) {
+  DCHECK(css_parser);
+
+  scoped_refptr<NodeList> node_list = new NodeList();
+
+  // Generate a rule with the given selectors and no style.
+  scoped_refptr<cssom::CSSRule> css_rule =
+      css_parser->ParseRule(selectors + " {}", node->GetInlineSourceLocation());
+  if (!css_rule) {
+    return node_list;
+  }
+  scoped_refptr<cssom::CSSStyleRule> css_style_rule =
+      css_rule->AsCSSStyleRule();
+  if (!css_style_rule) {
+    return node_list;
+  }
+
+  // Iterate through the descendants of the node and find the matching elements.
+  NodeDescendantsIterator iterator(node);
+  Node* child = iterator.First();
+  while (child) {
+    if (child->IsElement()) {
+      scoped_refptr<Element> element = child->AsElement();
+      if (MatchRuleAndElement(css_style_rule, element)) {
+        node_list->AppendNode(element);
+      }
+    }
+    child = iterator.Next();
+  }
+  return node_list;
 }
 
 }  // namespace dom

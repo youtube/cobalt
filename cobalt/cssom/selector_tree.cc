@@ -74,16 +74,17 @@ const SelectorTree::OwnedNodes& SelectorTree::children(
 
 SelectorTree::Node* SelectorTree::GetOrCreateNodeForComplexSelector(
     ComplexSelector* complex_selector) {
-  Node* node = GetOrCreateNodeForCompoundSelector(
-      complex_selector->first_selector(), &root_, kDescendantCombinator);
+  CompoundSelector* selector = complex_selector->first_selector();
+  Node* node = GetOrCreateNodeForCompoundSelector(selector, &root_,
+                                                  kDescendantCombinator);
 
-  for (Combinators::const_iterator it = complex_selector->combinators().begin();
-       it != complex_selector->combinators().end(); ++it) {
-    DCHECK((*it)->selector()->AsCompoundSelector());
-    node = GetOrCreateNodeForCompoundSelector(
-        (*it)->selector()->AsCompoundSelector(), node,
-        (*it)->GetCombinatorType());
+  while (selector->right_combinator()) {
+    Combinator* combinator = selector->right_combinator();
+    selector = combinator->right_selector();
+    node = GetOrCreateNodeForCompoundSelector(selector, node,
+                                              combinator->GetCombinatorType());
   }
+
   return node;
 }
 

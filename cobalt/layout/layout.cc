@@ -23,7 +23,6 @@
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
-#include "cobalt/dom/rule_matching.h"
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/initial_containing_block.h"

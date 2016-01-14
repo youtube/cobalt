@@ -279,28 +279,6 @@ TEST_F(DocumentTest, StyleSheets) {
             document->style_sheets()->Item(2));
 }
 
-TEST_F(DocumentTest, QuerySelector) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
-  document->AppendChild(document->CreateElement("div"));
-  document->AppendChild(document->CreateElement("div"));
-  EXPECT_FALSE(document->QuerySelector("span"));
-  // QuerySelector should return first matching child.
-  EXPECT_EQ(document->first_element_child(), document->QuerySelector("div"));
-}
-
-TEST_F(DocumentTest, QuerySelectorAll) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
-  document->AppendChild(document->CreateElement("div"));
-  document->AppendChild(document->CreateElement("div"));
-  scoped_refptr<NodeList> result = document->QuerySelectorAll("span");
-  EXPECT_EQ(0, result->length());
-
-  result = document->QuerySelectorAll("div");
-  EXPECT_EQ(2, result->length());
-  EXPECT_EQ(document->first_element_child(), result->Item(0));
-  EXPECT_EQ(document->last_element_child(), result->Item(1));
-}
-
 }  // namespace
 }  // namespace dom
 }  // namespace cobalt

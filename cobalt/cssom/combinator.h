@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_COMBINATOR_H_
-#define CSSOM_COMBINATOR_H_
+#ifndef COBALT_CSSOM_COMBINATOR_H_
+#define COBALT_CSSOM_COMBINATOR_H_
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 
 namespace cobalt {
 namespace cssom {
@@ -51,19 +50,22 @@ class Combinator {
 
   virtual CombinatorType GetCombinatorType() = 0;
 
-  // The compound selector to the right of the combinator.
-  CompoundSelector* selector();
-  void set_selector(scoped_ptr<CompoundSelector> compound_selector);
+  CompoundSelector* left_selector() { return left_selector_; }
+  void set_left_selector(CompoundSelector* left_selector) {
+    left_selector_ = left_selector;
+  }
+
+  CompoundSelector* right_selector() { return right_selector_.get(); }
+  void set_right_selector(scoped_ptr<CompoundSelector> right_selector);
 
  private:
-  scoped_ptr<CompoundSelector> compound_selector_;
+  CompoundSelector* left_selector_;
+  scoped_ptr<CompoundSelector> right_selector_;
 
   DISALLOW_COPY_AND_ASSIGN(Combinator);
 };
 
-typedef ScopedVector<Combinator> Combinators;
-
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_COMBINATOR_H_
+#endif  // COBALT_CSSOM_COMBINATOR_H_

@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef DOM_NODE_H_
-#define DOM_NODE_H_
+#ifndef COBALT_DOM_NODE_H_
+#define COBALT_DOM_NODE_H_
 
 #include <string>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
-#include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/event_target.h"
 
 namespace cobalt {
@@ -256,13 +255,6 @@ class Node : public EventTarget {
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateNodeGeneration();
 
-  // Implementations of QuerySelector and QuerySelectorAll on Document and
-  // Element.
-  scoped_refptr<Element> QuerySelectorInternal(const std::string& selectors,
-                                               cssom::CSSParser* css_parser);
-  scoped_refptr<NodeList> QuerySelectorAllInternal(
-      const std::string& selectors, cssom::CSSParser* css_parser);
-
  private:
   // Weak reference to the node document.
   base::WeakPtr<Document> node_document_;
@@ -289,4 +281,4 @@ class Node : public EventTarget {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_NODE_H_
+#endif  // COBALT_DOM_NODE_H_

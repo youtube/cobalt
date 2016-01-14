@@ -32,6 +32,7 @@
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/parser.h"
+#include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/math/rect_f.h"
@@ -455,24 +456,14 @@ void Element::set_outer_html(const std::string& outer_html) {
 }
 
 scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {
-  Document* document = node_document();
-  if (document) {
-    return QuerySelectorInternal(
-        selectors, document->html_element_context()->css_parser());
-  } else {
-    return NULL;
-  }
+  return dom::QuerySelector(
+      this, selectors, node_document()->html_element_context()->css_parser());
 }
 
 scoped_refptr<NodeList> Element::QuerySelectorAll(
     const std::string& selectors) {
-  Document* document = node_document();
-  if (document) {
-    return QuerySelectorAllInternal(
-        selectors, document->html_element_context()->css_parser());
-  } else {
-    return make_scoped_refptr(new NodeList());
-  }
+  return dom::QuerySelectorAll(
+      this, selectors, node_document()->html_element_context()->css_parser());
 }
 
 void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
