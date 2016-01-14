@@ -937,6 +937,14 @@ void URLFetcherCore::RetryOrCompleteUrlFetch() {
 }
 
 void URLFetcherCore::ReleaseRequest() {
+#if defined(COBALT)
+  if (upload_progress_checker_timer_) {
+    // The request may have completed too quickly, before the upload
+    // progress checker had a chance to run. Force it to run here.
+    InformDelegateUploadProgress();
+  }
+#endif
+
   upload_progress_checker_timer_.reset();
   request_.reset();
   g_registry.Get().RemoveURLFetcherCore(this);
