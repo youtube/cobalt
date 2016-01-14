@@ -100,6 +100,7 @@ enum PropertyKey {
   kTextShadowProperty,
   kTextTransformProperty,
   kTopProperty,
+  kTransformOriginProperty,
   kTransformProperty,
   kTransitionDelayProperty,
   kTransitionDurationProperty,

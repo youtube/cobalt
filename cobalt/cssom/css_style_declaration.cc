@@ -637,6 +637,15 @@ void CSSStyleDeclaration::set_transform(const std::string& transform) {
   SetPropertyValueStringByKey(kTransformProperty, transform);
 }
 
+std::string CSSStyleDeclaration::transform_origin() const {
+  return data_->GetDeclaredPropertyValueString(kTransformOriginProperty);
+}
+
+void CSSStyleDeclaration::set_transform_origin(
+    const std::string& transform_origin) {
+  SetPropertyValueStringByKey(kTransformOriginProperty, transform_origin);
+}
+
 std::string CSSStyleDeclaration::transition() const {
   // In order to implement this properly we must either save the incoming string
   // values when they are being set, or combine the results of getting the

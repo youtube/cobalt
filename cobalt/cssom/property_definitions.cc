@@ -415,6 +415,17 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kTransformProperty, "transform", kInheritedNo,
                         kAnimatableYes, KeywordValue::GetNone());
 
+  // https://www.w3.org/TR/css3-transforms/#propdef-transform-origin
+  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+      new PropertyListValue::Builder());
+  transform_origin_builder->reserve(2);
+  transform_origin_builder->push_back(new PercentageValue(0.5f));
+  transform_origin_builder->push_back(new PercentageValue(0.5f));
+  scoped_refptr<PropertyListValue> transform_origin_list(
+      new PropertyListValue(transform_origin_builder.Pass()));
+  SetPropertyDefinition(kTransformOriginProperty, "transform-origin",
+                        kInheritedNo, kAnimatableNo, transform_origin_list);
+
   // http://www.w3.org/TR/css3-transitions/#transition-delay-property
   SetPropertyDefinition(kTransitionDelayProperty, "transition-delay",
                         kInheritedNo, kAnimatableNo,
@@ -949,6 +960,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kBackgroundImageProperty))) {
         return kBackgroundImageProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kTransformOriginProperty))) {
+        return kTransformOriginProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTransitionDelayProperty))) {
