@@ -31,7 +31,7 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
                             GURLMap* property_key_to_base_url_map) {
   // A sparce vector of CascadePriority values for all possible property values.
   base::optional<CascadePriority>
-      cascade_precedences[static_cast<size_t>(kMaxLonghandPropertyKey + 1)];
+      cascade_precedences[static_cast<size_t>(kNumLonghandProperties)];
 
   for (CSSStyleDeclarationData::PropertyValueConstIterator
            inline_property_value_iterator =
