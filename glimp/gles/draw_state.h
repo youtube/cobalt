@@ -24,6 +24,7 @@
 #include "glimp/egl/surface.h"
 #include "glimp/gles/blend_state.h"
 #include "glimp/gles/buffer.h"
+#include "glimp/gles/framebuffer.h"
 #include "glimp/gles/program.h"
 #include "glimp/gles/sampler.h"
 #include "glimp/gles/vertex_attribute.h"
@@ -67,10 +68,10 @@ struct ClearColor {
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glClearColor.xml
   ClearColor() : red(0.0f), green(0.0f), blue(0.0f), alpha(0.0f) {}
   ClearColor(float red, float green, float blue, float alpha)
-      : red(std::min(1.0f, std::max(1.0f, red))),
-        green(std::min(1.0f, std::max(1.0f, green))),
-        blue(std::min(1.0f, std::max(1.0f, blue))),
-        alpha(std::min(1.0f, std::max(1.0f, alpha))) {}
+      : red(std::min(1.0f, std::max(0.0f, red))),
+        green(std::min(1.0f, std::max(0.0f, green))),
+        blue(std::min(1.0f, std::max(0.0f, blue))),
+        alpha(std::min(1.0f, std::max(0.0f, alpha))) {}
 
   // Clear color properties setup by calls to glClearColor().
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glClearColor.xml
@@ -126,7 +127,6 @@ class DirtyUniforms {
 // only be propagated to the platform-specific implementations when draw (or
 // clear) calls are made.  A dirty flag is kept
 struct DrawState {
-  DrawState() : draw_surface(NULL) {}
   // The color the next color buffer clear will clear to.
   ClearColor clear_color;
 
@@ -164,6 +164,12 @@ struct DrawState {
 
   // The currently in-use Program object, set by a call to glUseProgram().
   nb::scoped_refptr<Program> used_program;
+
+  // The currently bound framebuffer.  This is never NULL, even if the
+  // default framebuffer is bound, in which case
+  // framebuffer->color_attachment_surface() will be non-NULL and point to
+  // the draw surface specified through eglMakeCurrent().
+  nb::scoped_refptr<Framebuffer> framebuffer;
 };
 
 // The dirty flags structure tracks which draw state members have been modified
@@ -185,6 +191,7 @@ struct DrawStateDirtyFlags {
     array_buffer_dirty = true;
     element_array_buffer_dirty = true;
     used_program_dirty = true;
+    framebuffer_dirty = true;
     uniforms_dirty.MarkAll();
   }
 
@@ -199,6 +206,7 @@ struct DrawStateDirtyFlags {
   bool array_buffer_dirty;
   bool element_array_buffer_dirty;
   bool used_program_dirty;
+  bool framebuffer_dirty;
 
   // A list of uniform locations (within DrawState::used_program->uniforms())
   // whose values are dirty.

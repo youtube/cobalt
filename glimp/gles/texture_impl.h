@@ -51,6 +51,14 @@ class TextureImpl {
                           int pitch_in_bytes,
                           const void* pixels) = 0;
 
+  // Returns true if this texture is valid for use as a Framebuffer color
+  // attachment.  In other words, this should return true if the texture can
+  // be used as a render target.  This method is called when the function
+  // glCheckFramebufferStatus() is called on a framebuffer that has this
+  // texture attached to it.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glCheckFramebufferStatus.xml
+  virtual bool CanBeAttachedToFramebuffer() const = 0;
+
  private:
 };
 
