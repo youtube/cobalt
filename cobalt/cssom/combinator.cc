@@ -21,14 +21,13 @@
 namespace cobalt {
 namespace cssom {
 
-Combinator::Combinator() {}
+Combinator::Combinator() : left_selector_(NULL) {}
 
 Combinator::~Combinator() {}
 
-CompoundSelector* Combinator::selector() { return compound_selector_.get(); }
-
-void Combinator::set_selector(scoped_ptr<CompoundSelector> compound_selector) {
-  compound_selector_ = compound_selector.Pass();
+void Combinator::set_right_selector(
+    scoped_ptr<CompoundSelector> right_selector) {
+  right_selector_ = right_selector.Pass();
 }
 
 }  // namespace cssom
