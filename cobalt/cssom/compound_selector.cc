@@ -35,7 +35,7 @@ bool CompareSimpleSelectors(const SimpleSelector* lhs,
 }  // namespace
 
 CompoundSelector::CompoundSelector()
-    : should_normalize_(false), pseudo_element_(NULL) {}
+    : should_normalize_(false), pseudo_element_(NULL), left_combinator_(NULL) {}
 
 CompoundSelector::~CompoundSelector() {}
 
@@ -66,6 +66,10 @@ const std::string& CompoundSelector::GetNormalizedSelectorText() {
     }
   }
   return normalized_selector_text_;
+}
+
+void CompoundSelector::set_right_combinator(scoped_ptr<Combinator> combinator) {
+  right_combinator_ = combinator.Pass();
 }
 
 }  // namespace cssom

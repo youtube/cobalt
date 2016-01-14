@@ -23,11 +23,13 @@
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/selector_tree.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/node.h"
+#include "cobalt/dom/node_list.h"
 #include "cobalt/dom_parser/parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -486,6 +488,104 @@ TEST_F(RuleMatchingTest, ComplexSelectorCombinedMatch) {
   ASSERT_EQ(1, matching_rules_->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0),
             (*matching_rules_)[0].first);
+}
+
+TEST_F(RuleMatchingTest, QuerySelectorShouldReturnFirstMatch) {
+  root_->set_inner_html(
+      "<div id='div1'>"
+      "  <div id='div2'/>"
+      "  <div id='div3'/>"
+      "</div>");
+
+  scoped_refptr<Element> div1 =
+      QuerySelector(document_, "div", css_parser_.get());
+  ASSERT_TRUE(div1);
+  EXPECT_EQ("div1", div1->id());
+
+  EXPECT_FALSE(QuerySelector(document_, "span", css_parser_.get()));
+}
+
+TEST_F(RuleMatchingTest, QuerySelectorShouldLimitResultInSubtree) {
+  root_->set_inner_html(
+      "<div id='div1'>"
+      "  <div id='div2'/>"
+      "  <div id='div3'/>"
+      "</div>");
+
+  scoped_refptr<Element> div1 =
+      QuerySelector(document_, "div", css_parser_.get());
+  ASSERT_TRUE(div1);
+  EXPECT_EQ("div1", div1->id());
+
+  scoped_refptr<Element> div2 = QuerySelector(div1, "div", css_parser_.get());
+  ASSERT_TRUE(div2);
+  EXPECT_EQ("div2", div2->id());
+}
+
+TEST_F(RuleMatchingTest, QuerySelectorShouldMatchCombinatorOutsideSubtree) {
+  root_->set_inner_html(
+      "<div class='out'>"
+      "  <div id='div1'>"
+      "    <span/>"
+      "  </div>"
+      "</div>");
+
+  scoped_refptr<Element> div1 =
+      QuerySelector(document_, "#div1", css_parser_.get());
+  ASSERT_TRUE(div1);
+  EXPECT_EQ("div1", div1->id());
+  scoped_refptr<Element> span =
+      QuerySelector(div1, ".out span", css_parser_.get());
+  EXPECT_TRUE(span);
+}
+
+TEST_F(RuleMatchingTest, QuerySelectorShouldMatchCombinatorsRecursively) {
+  root_->set_inner_html(
+      "<div/>"
+      "<div/>"
+      "<p/>"
+      "<div/>"
+      "<span/>");
+
+  scoped_refptr<Element> span =
+      QuerySelector(document_, "div + div ~ span", css_parser_.get());
+  EXPECT_TRUE(span);
+}
+
+TEST_F(RuleMatchingTest, QuerySelectorShouldMatchCombinatorsCombined) {
+  root_->set_inner_html(
+      "<div/>"
+      "<span/>"
+      "<span/>"
+      "<div/>"
+      "<span/>"
+      "<div/>"
+      "<div>"
+      "  <div/>"
+      "  <div/>"
+      "</div>");
+
+  scoped_refptr<Element> div = QuerySelector(
+      document_, "div ~ span + div ~ div + div > div + div", css_parser_.get());
+  EXPECT_TRUE(div);
+}
+
+TEST_F(RuleMatchingTest, QuerySelectorAllShouldReturnAllMatches) {
+  root_->set_inner_html(
+      "<div id='div1'>"
+      "  <div id='div2'/>"
+      "  <div id='div3'/>"
+      "</div>");
+
+  scoped_refptr<NodeList> node_list;
+  node_list = QuerySelectorAll(document_, "div", css_parser_.get());
+  ASSERT_EQ(3, node_list->length());
+  EXPECT_EQ("div1", node_list->Item(0)->AsElement()->id());
+  EXPECT_EQ("div2", node_list->Item(1)->AsElement()->id());
+  EXPECT_EQ("div3", node_list->Item(2)->AsElement()->id());
+
+  node_list = QuerySelectorAll(document_, "span", css_parser_.get());
+  EXPECT_EQ(0, node_list->length());
 }
 
 }  // namespace dom
