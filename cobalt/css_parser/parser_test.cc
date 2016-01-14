@@ -567,11 +567,11 @@ TEST_F(ParserTest, ParsesComplexSelectorDescendantCombinator) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  ASSERT_EQ(1, complex_selector->combinators().size());
-  cssom::DescendantCombinator* descendant_combinator =
-      dynamic_cast<cssom::DescendantCombinator*>(
-          const_cast<cssom::Combinator*>(complex_selector->combinators()[0]));
-  ASSERT_TRUE(descendant_combinator);
+  ASSERT_TRUE(complex_selector->first_selector());
+  cssom::CompoundSelector* selector = complex_selector->first_selector();
+  ASSERT_TRUE(selector->right_combinator());
+  EXPECT_EQ(cssom::kDescendantCombinator,
+            selector->right_combinator()->GetCombinatorType());
 }
 
 TEST_F(ParserTest, ParsesComplexSelectorFollowingSiblingCombinator) {
@@ -588,11 +588,11 @@ TEST_F(ParserTest, ParsesComplexSelectorFollowingSiblingCombinator) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  ASSERT_EQ(1, complex_selector->combinators().size());
-  cssom::FollowingSiblingCombinator* following_sibling_combinator =
-      dynamic_cast<cssom::FollowingSiblingCombinator*>(
-          const_cast<cssom::Combinator*>(complex_selector->combinators()[0]));
-  ASSERT_TRUE(following_sibling_combinator);
+  ASSERT_TRUE(complex_selector->first_selector());
+  cssom::CompoundSelector* selector = complex_selector->first_selector();
+  ASSERT_TRUE(selector->right_combinator());
+  EXPECT_EQ(cssom::kFollowingSiblingCombinator,
+            selector->right_combinator()->GetCombinatorType());
 }
 
 TEST_F(ParserTest, ParsesComplexSelectorChildCombinator) {
@@ -609,11 +609,11 @@ TEST_F(ParserTest, ParsesComplexSelectorChildCombinator) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  ASSERT_EQ(1, complex_selector->combinators().size());
-  cssom::ChildCombinator* child_combinator =
-      dynamic_cast<cssom::ChildCombinator*>(
-          const_cast<cssom::Combinator*>(complex_selector->combinators()[0]));
-  ASSERT_TRUE(child_combinator);
+  ASSERT_TRUE(complex_selector->first_selector());
+  cssom::CompoundSelector* selector = complex_selector->first_selector();
+  ASSERT_TRUE(selector->right_combinator());
+  EXPECT_EQ(cssom::kChildCombinator,
+            selector->right_combinator()->GetCombinatorType());
 }
 
 TEST_F(ParserTest, ParsesComplexSelectorNextSiblingCombinator) {
@@ -630,11 +630,11 @@ TEST_F(ParserTest, ParsesComplexSelectorNextSiblingCombinator) {
       dynamic_cast<cssom::ComplexSelector*>(
           const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
-  ASSERT_EQ(1, complex_selector->combinators().size());
-  cssom::NextSiblingCombinator* next_sibling_combinator =
-      dynamic_cast<cssom::NextSiblingCombinator*>(
-          const_cast<cssom::Combinator*>(complex_selector->combinators()[0]));
-  ASSERT_TRUE(next_sibling_combinator);
+  ASSERT_TRUE(complex_selector->first_selector());
+  cssom::CompoundSelector* selector = complex_selector->first_selector();
+  ASSERT_TRUE(selector->right_combinator());
+  EXPECT_EQ(cssom::kNextSiblingCombinator,
+            selector->right_combinator()->GetCombinatorType());
 }
 
 TEST_F(ParserTest, ParsesDeclarationListWithTrailingSemicolon) {

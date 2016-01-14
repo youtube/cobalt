@@ -260,13 +260,14 @@ scoped_refptr<Element> Document::active_element() const {
 }
 
 scoped_refptr<Element> Document::QuerySelector(const std::string& selectors) {
-  return QuerySelectorInternal(selectors, html_element_context_->css_parser());
+  return dom::QuerySelector(this, selectors,
+                            html_element_context_->css_parser());
 }
 
 scoped_refptr<NodeList> Document::QuerySelectorAll(
     const std::string& selectors) {
-  return QuerySelectorAllInternal(selectors,
-                                  html_element_context()->css_parser());
+  return dom::QuerySelectorAll(this, selectors,
+                               html_element_context()->css_parser());
 }
 
 void Document::set_cookie(const std::string& cookie) {
