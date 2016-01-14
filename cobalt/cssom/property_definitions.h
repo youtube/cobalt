@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_PROPERTY_DEFINITIONS_H_
-#define CSSOM_PROPERTY_DEFINITIONS_H_
+#ifndef COBALT_CSSOM_PROPERTY_DEFINITIONS_H_
+#define COBALT_CSSOM_PROPERTY_DEFINITIONS_H_
 
 #include <map>
 #include <set>
@@ -138,6 +138,7 @@ enum PropertyKey {
   kMaxShorthandPropertyKey = kTransitionProperty,
 
   kMaxEveryPropertyKey = kMaxShorthandPropertyKey,
+  kNumLonghandProperties = kMaxLonghandPropertyKey + 1,
 };
 
 enum Inherited {
@@ -179,4 +180,4 @@ const LonghandPropertySet& ExpandShorthandProperty(PropertyKey key);
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_PROPERTY_DEFINITIONS_H_
+#endif  // COBALT_CSSOM_PROPERTY_DEFINITIONS_H_
