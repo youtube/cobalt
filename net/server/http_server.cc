@@ -195,7 +195,7 @@ namespace { // anonymous
 //     a single space between the method/url and url/protocol.
 
 // Input character types.
-enum header_parse_inputs {
+enum HeaderParseInputs {
   INPUT_SPACE,
   INPUT_CR,
   INPUT_LF,
@@ -205,7 +205,7 @@ enum header_parse_inputs {
 };
 
 // Parser states.
-enum header_parse_states {
+enum HeaderParseStates {
   ST_METHOD,     // Receiving the method
   ST_URL,        // Receiving the URL
   ST_PROTO,      // Receiving the protocol
@@ -219,7 +219,7 @@ enum header_parse_states {
 };
 
 // State transition table
-int parser_state[MAX_STATES][MAX_INPUTS] = {
+HeaderParseStates parser_state[MAX_STATES][MAX_INPUTS] = {
 /* METHOD    */ { ST_URL,       ST_ERR,     ST_ERR,   ST_ERR,       ST_METHOD },
 /* URL       */ { ST_PROTO,     ST_ERR,     ST_ERR,   ST_URL,       ST_URL },
 /* PROTOCOL  */ { ST_ERR,       ST_HEADER,  ST_NAME,  ST_ERR,       ST_PROTO },
@@ -232,7 +232,7 @@ int parser_state[MAX_STATES][MAX_INPUTS] = {
 };
 
 // Convert an input character to the parser's input token.
-int charToInput(char ch) {
+HeaderParseInputs charToInput(char ch) {
   switch(ch) {
     case ' ':
       return INPUT_SPACE;
@@ -251,46 +251,59 @@ bool ParseHeadersInternal(const std::string& received_data,
                           size_t* ppos) {
   size_t& pos = *ppos;
   size_t data_len = received_data.length();
-  int state = ST_METHOD;
+  HeaderParseStates state = ST_METHOD;
   std::string buffer;
   std::string header_name;
-  std::string header_value;
   while (pos < data_len) {
     char ch = received_data[pos++];
-    int input = charToInput(ch);
-    int next_state = parser_state[state][input];
+    HeaderParseInputs input = charToInput(ch);
+    HeaderParseStates next_state = parser_state[state][input];
 
     bool transition = (next_state != state);
     if (transition) {
       // Do any actions based on state transitions.
       switch (state) {
-        case ST_METHOD:
+        case ST_METHOD: {
           info->method = buffer;
           buffer.clear();
           break;
-        case ST_URL:
+        }
+        case ST_URL: {
           info->path = buffer;
           buffer.clear();
           break;
-        case ST_PROTO:
+        }
+        case ST_PROTO: {
           // TODO(mbelshe): Deal better with parsing protocol.
-          DCHECK(buffer == "HTTP/1.1");
+          DCHECK(buffer == "HTTP/1.0" || buffer == "HTTP/1.1");
           buffer.clear();
           break;
-        case ST_NAME:
+        }
+        case ST_NAME: {
           header_name = buffer;
           buffer.clear();
           break;
-        case ST_VALUE:
-          header_value = buffer;
-          // TODO(mbelshe): Deal better with duplicate headers
-          DCHECK(info->headers.find(header_name) == info->headers.end());
-          info->headers[header_name] = header_value;
+        }
+        case ST_VALUE: {
+          HttpServerRequestInfo::HeadersMap::iterator
+            header_entry = info->headers.find(header_name);
+          if (header_entry != info->headers.end()) {
+            // Combine duplicate headers, as allowed according to:
+            // http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
+            header_entry->second += "," + buffer;
+          } else {
+            info->headers[header_name] = buffer;
+          }
           buffer.clear();
           break;
-        case ST_SEPARATOR:
+        }
+        case ST_SEPARATOR: {
           buffer.append(&ch, 1);
           break;
+        }
+        default: {
+          break;
+        }
       }
       state = next_state;
     } else {
@@ -308,6 +321,8 @@ bool ParseHeadersInternal(const std::string& received_data,
           return true;
         case ST_ERR:
           return false;
+        default:
+          break;
       }
     }
   }
