@@ -36,13 +36,5 @@ int BytesPerPixel(PixelFormat format) {
   return kBytesPerPixel[format];
 }
 
-PixelFormat PixelFormatFromGLTypeAndFormat(GLenum format, GLenum type) {
-  if (type == GL_UNSIGNED_BYTE && format == GL_RGBA) {
-    return kPixelFormatRGBA8;
-  } else {
-    return kPixelFormatInvalid;
-  }
-}
-
 }  // namespace gles
 }  // namespace glimp

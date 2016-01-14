@@ -19,6 +19,7 @@
 
 #include "glimp/gles/pixel_format.h"
 #include "glimp/gles/shader.h"
+#include "glimp/nb/rect.h"
 #include "glimp/nb/ref_counted.h"
 
 namespace glimp {
@@ -37,7 +38,18 @@ class TextureImpl {
                        PixelFormat pixel_format,
                        int width,
                        int height,
+                       int pitch_in_bytes,
                        const void* pixels) = 0;
+
+  // Called when glTexSubImage2D() is called.  Updates an already allocated
+  // texture data with new texture data provided by the client.  The parameters
+  // of this method define a window within the existing texture data of which
+  // should be updated with the provided (non-NULL) |pixels|.  The provided
+  // |pitch_in_bytes| refers to the input data pixel rows.
+  virtual void UpdateData(int level,
+                          const nb::Rect<int>& window,
+                          int pitch_in_bytes,
+                          const void* pixels) = 0;
 
  private:
 };

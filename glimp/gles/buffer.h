@@ -51,8 +51,7 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
 
   GLsizeiptr size_in_bytes() const { return size_in_bytes_; }
 
-  BufferImpl* impl() { return impl_.get(); }
-  const BufferImpl* impl() const { return impl_.get(); }
+  BufferImpl* impl() const { return impl_.get(); }
 
  private:
   friend class nb::RefCountedThreadSafe<Buffer>;
