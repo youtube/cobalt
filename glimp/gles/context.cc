@@ -24,6 +24,7 @@
 #include "glimp/gles/draw_mode.h"
 #include "glimp/gles/index_data_type.h"
 #include "glimp/gles/pixel_format.h"
+#include "glimp/nb/pointer_arithmetic.h"
 #include "starboard/log.h"
 #include "starboard/once.h"
 
@@ -55,6 +56,8 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
       active_texture_(GL_TEXTURE0),
       enabled_samplers_dirty_(true),
       enabled_vertex_attribs_dirty_(true),
+      pack_alignment_(4),
+      unpack_alignment_(4),
       error_(GL_NO_ERROR) {
   if (share_context != NULL) {
     resource_manager_ = share_context->resource_manager_;
@@ -63,6 +66,8 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
   }
 
   SetupExtensionsString();
+
+  samplers_.reset(new Sampler[impl_->GetMaxFragmentTextureUnits()]);
 }
 
 Context* Context::GetTLSCurrentContext() {
@@ -233,6 +238,25 @@ void Context::GetProgramInfoLog(GLuint program,
 GLenum Context::CheckFramebufferStatus(GLenum target) {
   SB_NOTIMPLEMENTED();
   return GL_FRAMEBUFFER_COMPLETE;
+}
+
+void Context::PixelStorei(GLenum pname, GLint param) {
+  if (param != 1 && param != 4 && param != 8) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  switch (pname) {
+    case GL_PACK_ALIGNMENT:
+      pack_alignment_ = param;
+      break;
+    case GL_UNPACK_ALIGNMENT:
+      unpack_alignment_ = param;
+      break;
+    default:
+      SetError(GL_INVALID_ENUM);
+      break;
+  }
 }
 
 void Context::Enable(GLenum cap) {
@@ -807,7 +831,8 @@ void Context::DeleteTextures(GLsizei n, const GLuint* textures) {
 }
 
 void Context::ActiveTexture(GLenum texture) {
-  if (texture < GL_TEXTURE0 || texture >= GL_TEXTURE0 + kMaxActiveTextures) {
+  if (texture < GL_TEXTURE0 ||
+      texture >= GL_TEXTURE0 + impl_->GetMaxFragmentTextureUnits()) {
     SetError(GL_INVALID_ENUM);
     return;
   }
@@ -960,6 +985,20 @@ bool TextureTypeIsValid(GLenum type) {
   }
 }
 
+// Converts a GL type and format to a glimp PixelFormat.  Information about
+// the different possible values for type and format can be found here:
+//   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
+// Note that glimp may not support all possible formats described above.
+PixelFormat PixelFormatFromGLTypeAndFormat(GLenum format, GLenum type) {
+  if (type == GL_UNSIGNED_BYTE && format == GL_RGBA) {
+    return kPixelFormatRGBA8;
+  } else if (type == GL_UNSIGNED_BYTE && format == GL_ALPHA) {
+    return kPixelFormatA8;
+  } else {
+    return kPixelFormatInvalid;
+  }
+}
+
 }  // namespace
 
 void Context::TexImage2D(GLenum target,
@@ -977,14 +1016,8 @@ void Context::TexImage2D(GLenum target,
     return;
   }
 
-  if (level < 0) {
+  if (width < 0 || height < 0 || level < 0 || border != 0) {
     SetError(GL_INVALID_VALUE);
-    return;
-  }
-
-  if (border != 0) {
-    SetError(GL_INVALID_VALUE);
-    return;
   }
 
   if (format != internalformat) {
@@ -1016,7 +1049,84 @@ void Context::TexImage2D(GLenum target,
     return;
   }
 
-  texture_object->SetData(level, pixel_format, width, height, pixels);
+  // The incoming pixel data should be aligned as the client has specified
+  // that it will be.
+  SB_DCHECK(nb::IsAligned(nb::AsInteger(pixels),
+                          static_cast<uintptr_t>(unpack_alignment_)));
+
+  // Determine the pitch via the GL_UNPACK_ALIGNMENT setting made through a
+  // call to glPixelStorei().  By default this value is 4.
+  int pitch_in_bytes =
+      nb::AlignUp(width * BytesPerPixel(pixel_format), unpack_alignment_);
+  texture_object->SetData(level, pixel_format, width, height, pitch_in_bytes,
+                          pixels);
+}
+
+void Context::TexSubImage2D(GLenum target,
+                            GLint level,
+                            GLint xoffset,
+                            GLint yoffset,
+                            GLsizei width,
+                            GLsizei height,
+                            GLenum format,
+                            GLenum type,
+                            const GLvoid* pixels) {
+  if (target != GL_TEXTURE_2D) {
+    SB_NOTREACHED() << "Only target=GL_TEXTURE_2D is supported in glimp.";
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (width < 0 || height < 0 || level < 0 || xoffset < 0 || yoffset < 0) {
+    SetError(GL_INVALID_VALUE);
+  }
+
+  if (!TextureFormatIsValid(format)) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (!TextureTypeIsValid(type)) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  PixelFormat pixel_format = PixelFormatFromGLTypeAndFormat(format, type);
+  SB_DCHECK(pixel_format != kPixelFormatInvalid)
+      << "Pixel format not supported by glimp.";
+
+  nb::scoped_refptr<Texture> texture_object = *GetBoundTextureForTarget(target);
+  if (!texture_object) {
+    // According to the specification, no error is generated if no texture
+    // is bound.
+    //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexSubImage2D.xml
+    return;
+  }
+
+  if (!texture_object->texture_allocated() ||
+      pixel_format != texture_object->pixel_format()) {
+    SetError(GL_INVALID_OPERATION);
+    return;
+  }
+
+  if (xoffset + width > texture_object->width() ||
+      yoffset + height > texture_object->height()) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  // The incoming pixel data should be aligned as the client has specified
+  // that it will be.
+  SB_DCHECK(nb::IsAligned(nb::AsInteger(pixels),
+                          static_cast<uintptr_t>(unpack_alignment_)));
+
+  // Determine the pitch via the GL_UNPACK_ALIGNMENT setting made through a
+  // call to glPixelStorei().  By default this value is 4.
+  int pitch_in_bytes =
+      nb::AlignUp(width * BytesPerPixel(pixel_format), unpack_alignment_);
+
+  texture_object->UpdateData(level, xoffset, yoffset, width, height,
+                             pitch_in_bytes, pixels);
 }
 
 void Context::BindFramebuffer(GLenum target, GLuint framebuffer) {
@@ -1325,7 +1435,8 @@ void Context::UpdateVertexAttribsInDrawState() {
 void Context::UpdateSamplersInDrawState() {
   // Setup the list of enabled samplers.
   draw_state_.samplers.clear();
-  for (int i = 0; i < kMaxActiveTextures; ++i) {
+  int max_active_textures = impl_->GetMaxFragmentTextureUnits();
+  for (int i = 0; i < max_active_textures; ++i) {
     if (samplers_[i].bound_texture) {
       draw_state_.samplers.push_back(
           std::make_pair(static_cast<unsigned int>(i), &samplers_[i]));

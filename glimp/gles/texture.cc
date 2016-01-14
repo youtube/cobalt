@@ -15,7 +15,9 @@
  */
 
 #include "glimp/gles/texture.h"
+
 #include "glimp/nb/pointer_arithmetic.h"
+#include "glimp/nb/rect.h"
 
 namespace glimp {
 namespace gles {
@@ -32,14 +34,27 @@ void Texture::SetData(GLint level,
                       PixelFormat pixel_format,
                       GLsizei width,
                       GLsizei height,
+                      int pitch_in_bytes,
                       const GLvoid* pixels) {
   width_ = static_cast<int>(width);
   height_ = static_cast<int>(height);
   pixel_format_ = pixel_format;
 
-  impl_->SetData(level, pixel_format_, width_, height_, pixels);
+  impl_->SetData(level, pixel_format_, width_, height_, pitch_in_bytes, pixels);
 
   texture_allocated_ = true;
+}
+
+void Texture::UpdateData(GLint level,
+                         GLint xoffset,
+                         GLint yoffset,
+                         GLsizei width,
+                         GLsizei height,
+                         int pitch_in_bytes,
+                         const GLvoid* pixels) {
+  SB_DCHECK(pixels != NULL);
+  impl_->UpdateData(level, nb::Rect<int>(xoffset, yoffset, width, height),
+                    pitch_in_bytes, pixels);
 }
 
 }  // namespace gles

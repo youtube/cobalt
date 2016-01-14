@@ -702,7 +702,12 @@ void GL_APIENTRY glLinkProgram(GLuint program) {
 }
 
 void GL_APIENTRY glPixelStorei(GLenum pname, GLint param) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->PixelStorei(pname, param);
 }
 
 void GL_APIENTRY glPolygonOffset(GLfloat factor, GLfloat units) {
@@ -845,7 +850,13 @@ void GL_APIENTRY glTexSubImage2D(GLenum target,
                                  GLenum format,
                                  GLenum type,
                                  const GLvoid* pixels) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->TexSubImage2D(target, level, xoffset, yoffset, width, height,
+                                format, type, pixels);
 }
 
 void GL_APIENTRY glUniform1f(GLint location, GLfloat x) {
