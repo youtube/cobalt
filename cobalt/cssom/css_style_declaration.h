@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_STYLE_DECLARATION_H_
-#define CSSOM_CSS_STYLE_DECLARATION_H_
+#ifndef COBALT_CSSOM_CSS_STYLE_DECLARATION_H_
+#define COBALT_CSSOM_CSS_STYLE_DECLARATION_H_
 
 #include <string>
 
@@ -238,6 +238,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string transform() const;
   void set_transform(const std::string& transform);
 
+  std::string transform_origin() const;
+  void set_transform_origin(const std::string& transform_origin);
+
   std::string transition() const;
   void set_transition(const std::string& transition);
 
@@ -317,4 +320,4 @@ class CSSStyleDeclaration : public script::Wrappable {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_STYLE_DECLARATION_H_
+#endif  // COBALT_CSSOM_CSS_STYLE_DECLARATION_H_

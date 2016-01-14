@@ -1228,18 +1228,33 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
   }
 }
 
-//   http://www.w3.org/TR/css3-background/#the-background-position
-class ComputedBackgroundPositionProvider
-    : public NotReachedPropertyValueVisitor {
+namespace {
+
+// Helper class for |ComputedBackgroundPositionProvider| and
+// |ComputedTransformOriginProvider| to resolve the computed value of position
+// part.
+//   https://www.w3.org/TR/css3-background/#the-background-position
+//   https://www.w3.org/TR/css3-transforms/#propdef-transform-origin
+class ComputedPositionHelper {
  public:
-  explicit ComputedBackgroundPositionProvider(
-      const LengthValue* computed_font_size);
+  explicit ComputedPositionHelper(const LengthValue* computed_font_size);
 
-  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+  // Only resolve the first value of |input_position_builder|, other than the
+  // first value would be ignored.
+  void ComputeOneValuePosition(
+      PropertyListValue::Builder input_position_builder,
+      PropertyListValue::Builder* output_position_builder);
 
-  const scoped_refptr<PropertyValue>& computed_background_position() const {
-    return computed_background_position_;
-  }
+  // Only resolve the first two values of |input_position_builder|, other than
+  // the first two values would be ignored.
+  void ComputeTwoValuesPosition(
+      PropertyListValue::Builder input_position_builder,
+      PropertyListValue::Builder* output_position_builder);
+
+  // Only resolve three or four values of |input_position_builder|.
+  void ComputeMoreThanTwoValuesPosition(
+      PropertyListValue::Builder input_position_builder,
+      PropertyListValue::Builder* output_position_builder);
 
  private:
   enum Direction {
@@ -1272,46 +1287,79 @@ class ComputedBackgroundPositionProvider
       const scoped_refptr<PropertyValue>& offset,
       PropertyListValue::Builder* position_builder);
 
-  void BackgroundPositionBuilderProviderForSize2(
-      PropertyListValue* property_list_value,
-      PropertyListValue::Builder* position_builder);
-
-  void BackgroundPositionBuilderProviderForMoreThanSize2(
-      PropertyListValue* property_list_value,
-      PropertyListValue::Builder* position_builder);
-
   const LengthValue* computed_font_size_;
 
-  scoped_refptr<PropertyValue> computed_background_position_;
-
-  DISALLOW_COPY_AND_ASSIGN(ComputedBackgroundPositionProvider);
+  DISALLOW_COPY_AND_ASSIGN(ComputedPositionHelper);
 };
 
-ComputedBackgroundPositionProvider::ComputedBackgroundPositionProvider(
+ComputedPositionHelper::ComputedPositionHelper(
     const LengthValue* computed_font_size)
     : computed_font_size_(computed_font_size) {}
 
-void ComputedBackgroundPositionProvider::VisitPropertyList(
-    PropertyListValue* property_list_value) {
-  size_t size = property_list_value->value().size();
-  // We have already filled the default value 'center' if only one value is
-  // specified when we parse the grammar.
-  DCHECK_GE(size, static_cast<size_t>(2));
-  DCHECK_LE(size, static_cast<size_t>(4));
+// If only one value is specified, the second value is assumed to be center.
+void ComputedPositionHelper::ComputeOneValuePosition(
+    PropertyListValue::Builder input_position_builder,
+    PropertyListValue::Builder* output_position_builder) {
+  DCHECK_GE(input_position_builder.size(), 1u);
 
-  scoped_ptr<PropertyListValue::Builder> background_position_builder(
-      new cssom::PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
+  PropertyListValue::Builder position_builder;
+  position_builder.push_back(input_position_builder[0]);
+  position_builder.push_back(cssom::KeywordValue::GetCenter());
 
-  if (size == 2) {
-    BackgroundPositionBuilderProviderForSize2(
-        property_list_value, background_position_builder.get());
-  } else {
-    BackgroundPositionBuilderProviderForMoreThanSize2(
-        property_list_value, background_position_builder.get());
+  ComputeTwoValuesPosition(position_builder, output_position_builder);
+}
+
+// If two position values are given, a length or percentage as the
+// first value represents the horizontal position (or offset) and a length or
+// percentage as the second value represents the vertical position (or offset).
+void ComputedPositionHelper::ComputeTwoValuesPosition(
+    PropertyListValue::Builder input_position_builder,
+    PropertyListValue::Builder* output_position_builder) {
+  DCHECK_GE(input_position_builder.size(), 2u);
+
+  for (size_t i = 0; i < 2; ++i) {
+    scoped_refptr<PropertyValue> current_value = input_position_builder[i];
+
+    if (current_value->GetTypeId() == base::GetTypeId<KeywordValue>()) {
+      FillPositionBuilderFromOriginAndOffset(current_value, NULL,
+                                             output_position_builder);
+    } else {
+      OriginInfo default_origin = OriginInfo(0.0f, 1, kNone);
+      (*output_position_builder)[i] =
+          ProvideCalcValueFromOriginAndOffset(&default_origin, current_value);
+    }
   }
+}
 
-  computed_background_position_ =
-      new cssom::PropertyListValue(background_position_builder.Pass());
+// If three values are given, then there are two cases:
+// 1. <KeywordValue Length/Percentage KeywordValue>
+// 2. <KeywordValue KeywordValue Length/Percentage>
+// If four values are given, then each <percentage> or <length> represents
+// an offset and must be preceded by a keyword, which specifies from which
+// edge the offset is given. Keyword cannot be 'center'. The pattern is
+// <KeywordValue Length/Percentage KeywordValue Length/Percentage>
+void ComputedPositionHelper::ComputeMoreThanTwoValuesPosition(
+    PropertyListValue::Builder input_position_builder,
+    PropertyListValue::Builder* output_position_builder) {
+  DCHECK_GT(input_position_builder.size(), 2u);
+  DCHECK_LE(input_position_builder.size(), 4u);
+
+  for (size_t i = 0; i < input_position_builder.size(); ++i) {
+    scoped_refptr<PropertyValue> previous_value =
+        (i == 0) ? NULL : input_position_builder[i - 1];
+
+    scoped_refptr<PropertyValue> current_value = input_position_builder[i];
+
+    if (current_value->GetTypeId() == base::GetTypeId<KeywordValue>()) {
+      FillPositionBuilderFromOriginAndOffset(current_value, NULL,
+                                             output_position_builder);
+    } else {
+      DCHECK(previous_value);
+      DCHECK(previous_value->GetTypeId() == base::GetTypeId<KeywordValue>());
+      FillPositionBuilderFromOriginAndOffset(previous_value, current_value,
+                                             output_position_builder);
+    }
+  }
 }
 
 // 1) 'top' computes to '0%' for the vertical position if one or two values are
@@ -1329,9 +1377,8 @@ void ComputedBackgroundPositionProvider::VisitPropertyList(
 // 5) 'center' computes to '50%' (left 50%) for the horizontal position if
 //     horizontal position is not specified, or '50%' (right 50%) for the
 //     vertical position is not specified.
-//   http://www.w3.org/TR/css3-background/#the-background-position
-const ComputedBackgroundPositionProvider::OriginInfo
-ComputedBackgroundPositionProvider::ConvertToOriginInfo(
+const ComputedPositionHelper::OriginInfo
+ComputedPositionHelper::ConvertToOriginInfo(
     const scoped_refptr<PropertyValue>& keyword) const {
   DCHECK(keyword->GetTypeId() == base::GetTypeId<KeywordValue>());
 
@@ -1355,7 +1402,7 @@ ComputedBackgroundPositionProvider::ConvertToOriginInfo(
 // computed style. eg: (background-position: bottom 20px left 40%;) would be
 // computed as Calc(0px, 40%), Calc(-20px, 100%)
 scoped_refptr<CalcValue>
-ComputedBackgroundPositionProvider::ProvideCalcValueFromOriginAndOffset(
+ComputedPositionHelper::ProvideCalcValueFromOriginAndOffset(
     OriginInfo* origin_info, const scoped_refptr<PropertyValue>& offset) {
   DCHECK(origin_info);
 
@@ -1388,31 +1435,31 @@ ComputedBackgroundPositionProvider::ProvideCalcValueFromOriginAndOffset(
   }
 }
 
-void ComputedBackgroundPositionProvider::FillPositionBuilderFromOriginAndOffset(
+void ComputedPositionHelper::FillPositionBuilderFromOriginAndOffset(
     const scoped_refptr<PropertyValue>& origin,
     const scoped_refptr<PropertyValue>& offset,
-    PropertyListValue::Builder* position_builder) {
+    PropertyListValue::Builder* output_position_builder) {
   DCHECK(origin->GetTypeId() == base::GetTypeId<KeywordValue>());
 
   OriginInfo origin_info = ConvertToOriginInfo(origin);
   switch (origin_info.direction) {
     case kHorizontal: {
-      (*position_builder)[0] =
+      (*output_position_builder)[0] =
           ProvideCalcValueFromOriginAndOffset(&origin_info, offset);
       break;
     }
     case kVertical: {
-      (*position_builder)[1] =
+      (*output_position_builder)[1] =
           ProvideCalcValueFromOriginAndOffset(&origin_info, offset);
       break;
     }
     case kCenter: {
-      if (!(*position_builder)[0]) {
-        (*position_builder)[0] =
+      if (!(*output_position_builder)[0]) {
+        (*output_position_builder)[0] =
             ProvideCalcValueFromOriginAndOffset(&origin_info, offset);
       }
-      if (!(*position_builder)[1]) {
-        (*position_builder)[1] =
+      if (!(*output_position_builder)[1]) {
+        (*output_position_builder)[1] =
             ProvideCalcValueFromOriginAndOffset(&origin_info, offset);
       }
       break;
@@ -1424,61 +1471,68 @@ void ComputedBackgroundPositionProvider::FillPositionBuilderFromOriginAndOffset(
   }
 }
 
-// If two background position values are given, a length or percentage as the
-// first value represents the horizontal position (or offset) and a length or
-// percentage as the second value represents the vertical position (or offset).
+}  // namespace
+
+// ComputedBackgroundPositionProvider provides a property list which has two
+// CalcValue. Each of CalcValue has two parts <percentage> and <length>.
 // <percentage> and <length> values here represent an offset of the top left
 // corner of the background image from the top left corner of the background
 // positioning area.
-void ComputedBackgroundPositionProvider::
-    BackgroundPositionBuilderProviderForSize2(
-        PropertyListValue* property_list_value,
-        cssom::PropertyListValue::Builder* position_builder) {
-  DCHECK_EQ(2, property_list_value->value().size());
+//   http://www.w3.org/TR/css3-background/#the-background-position
+class ComputedBackgroundPositionProvider
+    : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedBackgroundPositionProvider(
+      const LengthValue* computed_font_size);
 
-  for (size_t i = 0; i < 2; ++i) {
-    scoped_refptr<PropertyValue> current_value =
-        property_list_value->value()[i];
+  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
 
-    if (current_value->GetTypeId() == base::GetTypeId<KeywordValue>()) {
-      FillPositionBuilderFromOriginAndOffset(current_value, NULL,
-                                             position_builder);
-    } else {
-      OriginInfo default_origin = OriginInfo(0.0f, 1, kNone);
-      (*position_builder)[i] =
-          ProvideCalcValueFromOriginAndOffset(&default_origin, current_value);
-    }
+  const scoped_refptr<PropertyValue>& computed_background_position() const {
+    return computed_background_position_;
   }
-}
 
-// If three values are given, then there are two cases:
-// 1. <KeywordValue Length/Percentage KeywordValue>
-// 2. <KeywordValue KeywordValue Length/Percentage>
-// If four values are given, then each <percentage> or <length> represents
-// an offset and must be preceded by a keyword, which specifies from which
-// edge the offset is given. Keyword cannot be 'center'. The pattern is
-// <KeywordValue Length/Percentage KeywordValue Length/Percentage>
-void ComputedBackgroundPositionProvider::
-    BackgroundPositionBuilderProviderForMoreThanSize2(
-        PropertyListValue* property_list_value,
-        PropertyListValue::Builder* position_builder) {
-  for (size_t i = 0; i < property_list_value->value().size(); ++i) {
-    scoped_refptr<PropertyValue> previous_value =
-        (i == 0) ? NULL : property_list_value->value()[i - 1];
+ private:
+  const LengthValue* computed_font_size_;
 
-    scoped_refptr<PropertyValue> current_value =
-        property_list_value->value()[i];
+  scoped_refptr<PropertyValue> computed_background_position_;
 
-    if (current_value->GetTypeId() == base::GetTypeId<KeywordValue>()) {
-      FillPositionBuilderFromOriginAndOffset(current_value, NULL,
-                                             position_builder);
-    } else {
-      DCHECK(previous_value);
-      DCHECK(previous_value->GetTypeId() == base::GetTypeId<KeywordValue>());
-      FillPositionBuilderFromOriginAndOffset(previous_value, current_value,
-                                             position_builder);
-    }
+  DISALLOW_COPY_AND_ASSIGN(ComputedBackgroundPositionProvider);
+};
+
+ComputedBackgroundPositionProvider::ComputedBackgroundPositionProvider(
+    const LengthValue* computed_font_size)
+    : computed_font_size_(computed_font_size) {}
+
+void ComputedBackgroundPositionProvider::VisitPropertyList(
+    PropertyListValue* property_list_value) {
+  size_t size = property_list_value->value().size();
+  DCHECK_GE(size, 1u);
+  DCHECK_LE(size, 4u);
+
+  ComputedPositionHelper position_helper(computed_font_size_);
+  scoped_ptr<PropertyListValue::Builder> background_position_builder(
+      new cssom::PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
+
+  switch (size) {
+    case 1:
+      position_helper.ComputeOneValuePosition(
+          property_list_value->value(), background_position_builder.get());
+      break;
+    case 2:
+      position_helper.ComputeTwoValuesPosition(
+          property_list_value->value(), background_position_builder.get());
+      break;
+    case 3:  // fall-through
+    case 4:
+      position_helper.ComputeMoreThanTwoValuesPosition(
+          property_list_value->value(), background_position_builder.get());
+      break;
+    default:
+      NOTREACHED();
   }
+
+  computed_background_position_ =
+      new cssom::PropertyListValue(background_position_builder.Pass());
 }
 
 class ComputedBackgroundSizeProvider : public NotReachedPropertyValueVisitor {
@@ -1768,6 +1822,76 @@ ComputedTextIndentProvider::ComputedTextIndentProvider(
 void ComputedTextIndentProvider::VisitLength(LengthValue* specified_length) {
   computed_text_indent_ =
       ProvideAbsoluteLength(specified_length, computed_font_size_);
+}
+
+// ComputedTransformOriginProvider provides a property list which has three
+// PropertyValues. The first two PropertyValues are CalcValue to represent
+// the horizontal position (or offset) and the vertical position (or offset).
+// The third value always represents the Z position (or offset) and must be a
+// LengthValue.
+//  https://www.w3.org/TR/css3-transforms/#propdef-transform-origin
+class ComputedTransformOriginProvider : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedTransformOriginProvider(
+      const LengthValue* computed_font_size);
+
+  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+
+  const scoped_refptr<PropertyValue>& computed_transform_origin() const {
+    return computed_transform_origin_;
+  }
+
+ private:
+  const LengthValue* computed_font_size_;
+
+  scoped_refptr<PropertyValue> computed_transform_origin_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedTransformOriginProvider);
+};
+
+ComputedTransformOriginProvider::ComputedTransformOriginProvider(
+    const LengthValue* computed_font_size)
+    : computed_font_size_(computed_font_size) {}
+
+void ComputedTransformOriginProvider::VisitPropertyList(
+    PropertyListValue* property_list_value) {
+  size_t size = property_list_value->value().size();
+  DCHECK_GE(size, 1u);
+  DCHECK_LE(size, 3u);
+
+  ComputedPositionHelper position_helper(computed_font_size_);
+  scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
+      new cssom::PropertyListValue::Builder(3, scoped_refptr<PropertyValue>()));
+
+  // If one or two values are specified, the third value is assumed to be 0px.
+  switch (size) {
+    case 1:
+      position_helper.ComputeOneValuePosition(property_list_value->value(),
+                                              transform_origin_builder.get());
+      (*transform_origin_builder)[2] =
+          new LengthValue(0.0f, cssom::kPixelsUnit);
+      break;
+    case 2:
+      position_helper.ComputeTwoValuesPosition(property_list_value->value(),
+                                               transform_origin_builder.get());
+      (*transform_origin_builder)[2] =
+          new LengthValue(0.0f, cssom::kPixelsUnit);
+      break;
+    case 3:
+      position_helper.ComputeTwoValuesPosition(property_list_value->value(),
+                                               transform_origin_builder.get());
+      // The third value must be LengthValue type.
+      (*transform_origin_builder)[2] =
+          ProvideAbsoluteLength(base::polymorphic_downcast<LengthValue*>(
+                                    property_list_value->value()[2].get()),
+                                computed_font_size_);
+      break;
+    default:
+      NOTREACHED();
+  }
+
+  computed_transform_origin_ =
+      new cssom::PropertyListValue(transform_origin_builder.Pass());
 }
 
 namespace {
@@ -2300,17 +2424,23 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       property_value_iterator.SetValue(
           border_radius_provider.computed_border_radius());
     } break;
-    case kTransformProperty: {
-      ComputedTransformProvider transform_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&transform_provider);
-      property_value_iterator.SetValue(
-          transform_provider.computed_transform_list());
-    } break;
     case kTextIndentProperty: {
       ComputedTextIndentProvider text_indent_provider(GetFontSize());
       property_value_iterator.Value()->Accept(&text_indent_provider);
       property_value_iterator.SetValue(
           text_indent_provider.computed_text_indent());
+    } break;
+    case kTransformOriginProperty: {
+      ComputedTransformOriginProvider transform_origin_provider(GetFontSize());
+      property_value_iterator.Value()->Accept(&transform_origin_provider);
+      property_value_iterator.SetValue(
+          transform_origin_provider.computed_transform_origin());
+    } break;
+    case kTransformProperty: {
+      ComputedTransformProvider transform_provider(GetFontSize());
+      property_value_iterator.Value()->Accept(&transform_provider);
+      property_value_iterator.SetValue(
+          transform_provider.computed_transform_list());
     } break;
     case kBottomProperty:
     case kLeftProperty:
@@ -2474,6 +2604,7 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kTextShadowProperty:
     case kTextTransformProperty:
     case kTopProperty:
+    case kTransformOriginProperty:
     case kTransformProperty:
     case kTransitionDelayProperty:
     case kTransitionDurationProperty:
