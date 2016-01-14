@@ -156,6 +156,14 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 bool ReadFileToString(const FilePath& path, std::string* contents) {
   if (path.ReferencesParent())
     return false;
+
+#if defined(COBALT)
+  // Use a smaller buffer so we don't run out of stack space on PS3.
+  const size_t kReadBufferSize = 1 << 12;
+#else
+  const size_t kReadBufferSize = 1 << 16;
+#endif
+
 #if defined(OS_STARBOARD)
   base::PlatformFile file = base::CreatePlatformFile(
       path, base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ, NULL, NULL);
@@ -163,7 +171,7 @@ bool ReadFileToString(const FilePath& path, std::string* contents) {
     return false;
   }
 
-  char buf[1 << 16];
+  char buf[kReadBufferSize];
   size_t len;
   while ((len = base::ReadPlatformFileAtCurrentPos(file, buf, sizeof(buf))) >
          0) {
@@ -180,7 +188,7 @@ bool ReadFileToString(const FilePath& path, std::string* contents) {
     return false;
   }
 
-  char buf[1 << 16];
+  char buf[kReadBufferSize];
   size_t len;
   while ((len = fread(buf, 1, sizeof(buf), file)) > 0) {
     if (contents)
