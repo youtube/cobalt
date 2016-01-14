@@ -17,8 +17,6 @@
 #ifndef GLIMP_GLES_PIXEL_FORMAT_H_
 #define GLIMP_GLES_PIXEL_FORMAT_H_
 
-#include <GLES3/gl3.h>
-
 #include "glimp/gles/buffer_impl.h"
 #include "glimp/nb/ref_counted.h"
 #include "glimp/nb/scoped_ptr.h"
@@ -39,12 +37,6 @@ enum PixelFormat {
 
 // Returns the number of bytes per pixel for a given PixelFormat.
 int BytesPerPixel(PixelFormat format);
-
-// Converts a GL type and format to a glimp PixelFormat.  Information about
-// the different possible values for type and format can be found here:
-//   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
-// Note that glimp may not support all possible formats described above.
-PixelFormat PixelFormatFromGLTypeAndFormat(GLenum format, GLenum type);
 
 }  // namespace gles
 }  // namespace glimp

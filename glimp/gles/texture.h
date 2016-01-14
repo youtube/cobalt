@@ -39,7 +39,17 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
                PixelFormat pixel_format,
                GLsizei width,
                GLsizei height,
+               int pitch_in_bytes,
                const GLvoid* pixels);
+
+  // Implements support for glTexSubImage2D().
+  void UpdateData(GLint level,
+                  GLint xoffset,
+                  GLint yoffset,
+                  GLsizei width,
+                  GLsizei height,
+                  int pitch_in_bytes,
+                  const GLvoid* pixels);
 
   // Returns true if the target has been set (e.g. via glBindTexture()).
   bool target_valid() const { return target_valid_; }
@@ -51,8 +61,25 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
     return target_;
   }
 
-  TextureImpl* impl() { return impl_.get(); }
-  const TextureImpl* impl() const { return impl_.get(); }
+  TextureImpl* impl() const { return impl_.get(); }
+
+  // Returns whether the data has been set yet or not.
+  bool texture_allocated() const { return texture_allocated_; }
+
+  int width() const {
+    SB_DCHECK(texture_allocated_);
+    return width_;
+  }
+
+  int height() const {
+    SB_DCHECK(texture_allocated_);
+    return height_;
+  }
+
+  PixelFormat pixel_format() const {
+    SB_DCHECK(texture_allocated_);
+    return pixel_format_;
+  }
 
  private:
   friend class nb::RefCountedThreadSafe<Texture>;
@@ -75,6 +102,7 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
   int width_;
   int height_;
 
+  // The pixel format of the set data.
   PixelFormat pixel_format_;
 };
 
