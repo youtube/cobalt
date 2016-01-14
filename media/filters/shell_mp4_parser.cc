@@ -139,6 +139,7 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
   base::TimeDelta timestamp;
   base::TimeDelta duration;
   if (type == DemuxerStream::AUDIO) {
+    DCHECK_NE(audio_time_scale_hz_, 0);
     if (!audio_map_->GetSize(audio_sample_, size) ||
         !audio_map_->GetOffset(audio_sample_, offset) ||
         !audio_map_->GetDuration(audio_sample_, duration_ticks) ||
@@ -157,6 +158,7 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
     audio_sample_++;
     timestamp = TicksToTime(timestamp_ticks, audio_time_scale_hz_);
     duration = TicksToTime(duration_ticks, audio_time_scale_hz_);
+
     // It would be very unusual to encounter non-contiguous audio
     // in an mp4, but you never know. Make sure this timestamp is
     // contiguous in ticks from the last one
@@ -195,6 +197,7 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
       }
     }
     video_sample_++;
+    DCHECK_NE(video_time_scale_hz_, 0);
     timestamp = TicksToTime(timestamp_ticks, video_time_scale_hz_);
     duration = TicksToTime(duration_ticks, video_time_scale_hz_);
     // due to b-frames it's much more likely we'll encounter discontinuous
@@ -218,6 +221,8 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
 }
 
 bool ShellMP4Parser::SeekTo(base::TimeDelta timestamp) {
+  DCHECK_NE(video_time_scale_hz_, 0);
+  DCHECK_NE(audio_time_scale_hz_, 0);
   // get video timestamp in video time units
   uint64 video_ticks = TimeToTicks(timestamp, video_time_scale_hz_);
   // find nearest keyframe from map, make it our next video sample
@@ -591,6 +596,10 @@ bool ShellMP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
     return false;
   }
   uint32 time_scale = LB::Platform::load_uint32_big_endian(mdhd + 12);
+  if(time_scale == 0) {
+    DLOG(WARNING) << "got 0 time scale for mvhd";
+    return false;
+  }
   // double-check track duration, it may be different from the movie duration
   uint32 track_duration_ticks = LB::Platform::load_uint32_big_endian(mdhd + 16);
   base::TimeDelta track_duration =
@@ -688,7 +697,7 @@ bool ShellMP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
 
 base::TimeDelta ShellMP4Parser::TicksToTime(uint64 ticks,
                                             uint32 time_scale_hz) {
-  DCHECK(time_scale_hz);
+  DCHECK_NE(time_scale_hz, 0);
   return base::TimeDelta::FromMicroseconds((ticks * 1000000ULL) /
                                            time_scale_hz);
 }
