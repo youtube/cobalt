@@ -27,6 +27,7 @@
 #include "glimp/gles/program.h"
 #include "glimp/gles/sampler.h"
 #include "glimp/gles/vertex_attribute.h"
+#include "glimp/nb/rect.h"
 #include "glimp/nb/ref_counted.h"
 
 namespace glimp {
@@ -42,25 +43,21 @@ typedef std::vector<std::pair<unsigned int, VertexAttribute*> >
 typedef std::vector<std::pair<unsigned int, Sampler*> > EnabledSamplerList;
 
 struct ViewportState {
-  ViewportState() : x(-1), y(-1), width(-1), height(-1) {}
+  ViewportState() : rect(-1, -1, -1, -1) {}
+  explicit ViewportState(const nb::Rect<int>& rect) : rect(rect) {}
   ViewportState(int x, int y, int width, int height)
-      : x(x), y(y), width(width), height(height) {}
+      : rect(x, y, width, height) {}
 
-  int x;
-  int y;
-  int width;
-  int height;
+  nb::Rect<int> rect;
 };
 
 struct ScissorState {
-  ScissorState() : x(-1), y(-1), width(-1), height(-1), enabled(false) {}
+  ScissorState() : rect(-1, -1, -1, -1) {}
+  explicit ScissorState(const nb::Rect<int>& rect) : rect(rect) {}
   ScissorState(int x, int y, int width, int height)
-      : x(x), y(y), width(width), height(height) {}
+      : rect(x, y, width, height) {}
 
-  int x;
-  int y;
-  int width;
-  int height;
+  nb::Rect<int> rect;
 
   bool enabled;
 };
