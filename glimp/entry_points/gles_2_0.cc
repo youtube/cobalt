@@ -284,7 +284,12 @@ void GL_APIENTRY glDeleteBuffers(GLsizei n, const GLuint* buffers) {
 }
 
 void GL_APIENTRY glDeleteFramebuffers(GLsizei n, const GLuint* framebuffers) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->DeleteFramebuffers(n, framebuffers);
 }
 
 void GL_APIENTRY glDeleteProgram(GLuint program) {
@@ -421,7 +426,13 @@ void GL_APIENTRY glFramebufferTexture2D(GLenum target,
                                         GLenum textarget,
                                         GLuint texture,
                                         GLint level) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->FramebufferTexture2D(target, attachment, textarget, texture,
+                                       level);
 }
 
 void GL_APIENTRY glFrontFace(GLenum mode) {
@@ -442,7 +453,12 @@ void GL_APIENTRY glGenerateMipmap(GLenum target) {
 }
 
 void GL_APIENTRY glGenFramebuffers(GLsizei n, GLuint* framebuffers) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->GenFramebuffers(n, framebuffers);
 }
 
 void GL_APIENTRY glGenRenderbuffers(GLsizei n, GLuint* renderbuffers) {

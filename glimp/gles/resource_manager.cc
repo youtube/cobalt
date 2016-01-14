@@ -89,5 +89,22 @@ nb::scoped_refptr<Texture> ResourceManager::DeregisterTexture(uint32_t id) {
   return textures_.DeregisterResource(id);
 }
 
+uint32_t ResourceManager::RegisterFramebuffer(
+    const nb::scoped_refptr<Framebuffer>& framebuffer) {
+  starboard::ScopedLock lock(mutex_);
+  return framebuffers_.RegisterResource(framebuffer);
+}
+
+nb::scoped_refptr<Framebuffer> ResourceManager::GetFramebuffer(uint32_t id) {
+  starboard::ScopedLock lock(mutex_);
+  return framebuffers_.GetResource(id);
+}
+
+nb::scoped_refptr<Framebuffer> ResourceManager::DeregisterFramebuffer(
+    uint32_t id) {
+  starboard::ScopedLock lock(mutex_);
+  return framebuffers_.DeregisterResource(id);
+}
+
 }  // namespace gles
 }  // namespace glimp

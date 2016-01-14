@@ -27,6 +27,7 @@
 #include "glimp/egl/surface.h"
 #include "glimp/gles/context_impl.h"
 #include "glimp/gles/draw_state.h"
+#include "glimp/gles/framebuffer.h"
 #include "glimp/gles/resource_manager.h"
 #include "glimp/gles/sampler.h"
 #include "glimp/gles/vertex_attribute.h"
@@ -54,7 +55,9 @@ class Context {
   // Releases the current thread's current context.
   static void ReleaseTLSCurrentContext();
 
-  egl::Surface* draw_surface() { return draw_state_.draw_surface; }
+  egl::Surface* draw_surface() {
+    return default_draw_framebuffer_->color_attachment_surface();
+  }
 
   // Returns the thread that currently holds this Context, or kSbThreadInvalid
   // if no thread currently holds the context.
@@ -75,7 +78,6 @@ class Context {
                          GLsizei bufsize,
                          GLsizei* length,
                          GLchar* infolog);
-  GLenum CheckFramebufferStatus(GLenum target);
 
   void PixelStorei(GLenum pname, GLint param);
 
@@ -144,7 +146,15 @@ class Context {
                      GLenum type,
                      const GLvoid* pixels);
 
+  void GenFramebuffers(GLsizei n, GLuint* framebuffers);
+  void DeleteFramebuffers(GLsizei n, const GLuint* framebuffers);
   void BindFramebuffer(GLenum target, GLuint framebuffer);
+  void FramebufferTexture2D(GLenum target,
+                            GLenum attachment,
+                            GLenum textarget,
+                            GLuint texture,
+                            GLint level);
+  GLenum CheckFramebufferStatus(GLenum target);
 
   void Viewport(GLint x, GLint y, GLsizei width, GLsizei height);
   void Scissor(GLint x, GLint y, GLsizei width, GLsizei height);
@@ -206,6 +216,11 @@ class Context {
   // of attributes and uniforms as being dirty as well.
   void MarkUsedProgramDirty();
 
+  // Sets the bound framebuffer to the default framebuffer (e.g. when
+  // glBindFramebuffer(GL_FRAMEBUFFER, 0) is called).
+  void SetBoundFramebufferToDefault();
+  bool IsDefaultFramebufferBound() const;
+
   // A reference to the platform-specific implementation aspects of the context.
   nb::scoped_ptr<ContextImpl> impl_;
 
@@ -214,9 +229,6 @@ class Context {
 
   // Has this context ever been made current before?
   bool has_been_current_;
-
-  // The current read surface.
-  egl::Surface* read_surface_;
 
   // The value to be returned when GetString(GL_EXTENSIONS) is called.
   std::string extensions_string_;
@@ -242,6 +254,13 @@ class Context {
   // glDisableVertexAttribArray().
   std::set<unsigned int> enabled_vertex_attribs_;
   bool enabled_vertex_attribs_dirty_;
+
+  // The default draw and read framebuffer are those whose surfaces are set by
+  // calls to eglMakeCurrent().  The default draw framebuffer is the initial
+  // framebuffer target for draw commands, and can be selected by calling
+  // glBindFramebuffer(0).
+  nb::scoped_refptr<Framebuffer> default_draw_framebuffer_;
+  nb::scoped_refptr<Framebuffer> default_read_framebuffer_;
 
   // Tracks all GL draw state.  It is updated by making various GL calls,
   // and it is read when a draw (or clear) call is made.  It is modified

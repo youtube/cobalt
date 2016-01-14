@@ -52,7 +52,6 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
     : impl_(context_impl.Pass()),
       current_thread_(kSbThreadInvalid),
       has_been_current_(false),
-      read_surface_(NULL),
       active_texture_(GL_TEXTURE0),
       enabled_samplers_dirty_(true),
       enabled_vertex_attribs_dirty_(true),
@@ -233,11 +232,6 @@ void Context::GetProgramInfoLog(GLuint program,
   }
 
   program_object->GetProgramInfoLog(bufsize, length, infolog);
-}
-
-GLenum Context::CheckFramebufferStatus(GLenum target) {
-  SB_NOTIMPLEMENTED();
-  return GL_FRAMEBUFFER_COMPLETE;
 }
 
 void Context::PixelStorei(GLenum pname, GLint param) {
@@ -634,6 +628,7 @@ void Context::BindBuffer(GLenum target, GLuint buffer) {
     // According to the specification, no error is generated if the buffer is
     // invalid.
     //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBindBuffer.xml
+    SB_DLOG(WARNING) << "Could not glBindBuffer() to invalid buffer.";
     return;
   }
 
@@ -710,13 +705,6 @@ void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
             current_thread_ == SbThreadGetCurrent());
 
   current_thread_ = SbThreadGetCurrent();
-  if (draw_state_.draw_surface != draw) {
-    draw_state_.draw_surface = draw;
-    draw_state_dirty_flags_.draw_surface_dirty = true;
-  }
-  if (read_surface_ != read) {
-    read_surface_ = read;
-  }
 
   if (!has_been_current_) {
     // According to the documentation for eglMakeCurrent(),
@@ -725,7 +713,28 @@ void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
     // time this context is made current.
     Scissor(0, 0, draw->impl()->GetWidth(), draw->impl()->GetHeight());
     Viewport(0, 0, draw->impl()->GetWidth(), draw->impl()->GetHeight());
+
+    // Setup the default framebuffers and bind them.
+    SB_DCHECK(!default_draw_framebuffer_);
+    SB_DCHECK(!default_read_framebuffer_);
+    SB_DCHECK(!draw_state_.framebuffer);
+    default_draw_framebuffer_ = new Framebuffer(draw);
+    default_read_framebuffer_ = new Framebuffer(read);
+    draw_state_.framebuffer = default_draw_framebuffer_;
+
     has_been_current_ = true;
+  }
+
+  // Update our draw and read framebuffers, marking the framebuffer dirty
+  // flag if the default framebuffer is the one that is currently bound.
+  if (default_draw_framebuffer_->color_attachment_surface() != draw) {
+    default_draw_framebuffer_->UpdateColorSurface(draw);
+    if (draw_state_.framebuffer == default_draw_framebuffer_) {
+      draw_state_dirty_flags_.framebuffer_dirty = true;
+    }
+  }
+  if (default_read_framebuffer_->color_attachment_surface() != read) {
+    default_read_framebuffer_->UpdateColorSurface(read);
   }
 }
 
@@ -1129,10 +1138,122 @@ void Context::TexSubImage2D(GLenum target,
                              pitch_in_bytes, pixels);
 }
 
-void Context::BindFramebuffer(GLenum target, GLuint framebuffer) {
-  if (framebuffer != 0) {
-    SB_NOTIMPLEMENTED() << "Framebuffers are not supported in glimp yet";
+void Context::GenFramebuffers(GLsizei n, GLuint* framebuffers) {
+  if (n < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
   }
+
+  for (GLsizei i = 0; i < n; ++i) {
+    nb::scoped_refptr<Framebuffer> framebuffer(new Framebuffer());
+
+    framebuffers[i] = resource_manager_->RegisterFramebuffer(framebuffer);
+  }
+}
+
+void Context::DeleteFramebuffers(GLsizei n, const GLuint* framebuffers) {
+  if (n < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  for (GLsizei i = 0; i < n; ++i) {
+    if (framebuffers[i] == 0) {
+      // Silently ignore 0 framebuffers.
+      continue;
+    }
+
+    nb::scoped_refptr<Framebuffer> framebuffer_object =
+        resource_manager_->DeregisterFramebuffer(framebuffers[i]);
+
+    if (!framebuffer_object) {
+      // The specification does not indicate that any error should be set
+      // in the case that there was an error deleting a specific framebuffer.
+      //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glDeleteFramebuffers.xml
+      return;
+    }
+
+    // If a bound framebuffer is deleted, set the bound framebuffer back to
+    // the default framebuffer.
+    if (framebuffer_object == draw_state_.framebuffer) {
+      SetBoundFramebufferToDefault();
+    }
+  }
+}
+
+void Context::BindFramebuffer(GLenum target, GLuint framebuffer) {
+  if (target != GL_FRAMEBUFFER) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (framebuffer == 0) {
+    SetBoundFramebufferToDefault();
+    return;
+  }
+
+  nb::scoped_refptr<Framebuffer> framebuffer_object =
+      resource_manager_->GetFramebuffer(framebuffer);
+
+  if (!framebuffer_object) {
+    // According to the specification, no error is generated if the buffer is
+    // invalid.
+    //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBindFramebuffer.xml
+    SB_DLOG(WARNING) << "Could not glBindFramebuffer() to invalid framebuffer.";
+    return;
+  }
+
+  draw_state_.framebuffer = framebuffer_object;
+  draw_state_dirty_flags_.framebuffer_dirty = true;
+}
+
+void Context::FramebufferTexture2D(GLenum target,
+                                   GLenum attachment,
+                                   GLenum textarget,
+                                   GLuint texture,
+                                   GLint level) {
+  if (target != GL_FRAMEBUFFER) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (IsDefaultFramebufferBound()) {
+    SetError(GL_INVALID_OPERATION);
+    return;
+  }
+
+  if (textarget != GL_TEXTURE_2D) {
+    SB_NOTREACHED() << "Only textarget=GL_TEXTURE_2D is supported in glimp.";
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (attachment != GL_COLOR_ATTACHMENT0) {
+    SB_NOTREACHED()
+        << "Only attachment=GL_COLOR_ATTACHMENT0 is supported in glimp.";
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  nb::scoped_refptr<Texture> texture_object;
+  if (texture != 0) {
+    texture_object = resource_manager_->GetTexture(texture);
+    if (!texture_object) {
+      SetError(GL_INVALID_OPERATION);
+      return;
+    }
+  }
+
+  draw_state_.framebuffer->AttachTexture2D(texture_object, level);
+}
+
+GLenum Context::CheckFramebufferStatus(GLenum target) {
+  if (target != GL_FRAMEBUFFER) {
+    SetError(GL_INVALID_ENUM);
+    return 0;
+  }
+
+  return draw_state_.framebuffer->CheckFramebufferStatus();
 }
 
 void Context::Viewport(GLint x, GLint y, GLsizei width, GLsizei height) {
@@ -1348,6 +1469,12 @@ void Context::DrawArrays(GLenum mode, GLint first, GLsizei count) {
     return;
   }
 
+  if (draw_state_.framebuffer->CheckFramebufferStatus() !=
+      GL_FRAMEBUFFER_COMPLETE) {
+    SetError(GL_INVALID_FRAMEBUFFER_OPERATION);
+    return;
+  }
+
   DrawMode draw_mode = DrawModeFromGLEnum(mode);
   if (draw_mode == kDrawModeInvalid) {
     SetError(GL_INVALID_ENUM);
@@ -1385,6 +1512,12 @@ void Context::DrawElements(GLenum mode,
     return;
   }
 
+  if (draw_state_.framebuffer->CheckFramebufferStatus() !=
+      GL_FRAMEBUFFER_COMPLETE) {
+    SetError(GL_INVALID_FRAMEBUFFER_OPERATION);
+    return;
+  }
+
   DrawMode draw_mode = DrawModeFromGLEnum(mode);
   if (draw_mode == kDrawModeInvalid) {
     SetError(GL_INVALID_ENUM);
@@ -1415,7 +1548,7 @@ void Context::Flush() {
 
 void Context::SwapBuffers() {
   Flush();
-  impl_->SwapBuffers(draw_state_.draw_surface);
+  impl_->SwapBuffers(default_draw_framebuffer_->color_attachment_surface());
 }
 
 void Context::UpdateVertexAttribsInDrawState() {
@@ -1468,5 +1601,15 @@ void Context::MarkUsedProgramDirty() {
   draw_state_dirty_flags_.uniforms_dirty.MarkAll();
 }
 
+void Context::SetBoundFramebufferToDefault() {
+  if (draw_state_.framebuffer != default_draw_framebuffer_) {
+    draw_state_.framebuffer = default_draw_framebuffer_;
+    draw_state_dirty_flags_.framebuffer_dirty = true;
+  }
+}
+
+bool Context::IsDefaultFramebufferBound() const {
+  return draw_state_.framebuffer == default_draw_framebuffer_;
+}
 }  // namespace gles
 }  // namespace glimp

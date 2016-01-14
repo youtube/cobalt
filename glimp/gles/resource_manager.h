@@ -18,6 +18,7 @@
 #define GLIMP_GLES_RESOURCE_MANAGER_H_
 
 #include "glimp/gles/buffer.h"
+#include "glimp/gles/framebuffer.h"
 #include "glimp/gles/program.h"
 #include "glimp/gles/ref_counted_resource_map.h"
 #include "glimp/gles/shader.h"
@@ -54,6 +55,11 @@ class ResourceManager : public nb::RefCountedThreadSafe<ResourceManager> {
   nb::scoped_refptr<Texture> GetTexture(uint32_t id);
   nb::scoped_refptr<Texture> DeregisterTexture(uint32_t id);
 
+  uint32_t RegisterFramebuffer(
+      const nb::scoped_refptr<Framebuffer>& framebuffer);
+  nb::scoped_refptr<Framebuffer> GetFramebuffer(uint32_t id);
+  nb::scoped_refptr<Framebuffer> DeregisterFramebuffer(uint32_t id);
+
  private:
   starboard::Mutex mutex_;
 
@@ -61,6 +67,7 @@ class ResourceManager : public nb::RefCountedThreadSafe<ResourceManager> {
   RefCountedResourceMap<Shader> shaders_;
   RefCountedResourceMap<Buffer> buffers_;
   RefCountedResourceMap<Texture> textures_;
+  RefCountedResourceMap<Framebuffer> framebuffers_;
 };
 
 }  // namespace gles
