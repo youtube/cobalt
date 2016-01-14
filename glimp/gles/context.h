@@ -77,6 +77,8 @@ class Context {
                          GLchar* infolog);
   GLenum CheckFramebufferStatus(GLenum target);
 
+  void PixelStorei(GLenum pname, GLint param);
+
   void Enable(GLenum cap);
   void Disable(GLenum cap);
 
@@ -132,6 +134,15 @@ class Context {
                   GLenum format,
                   GLenum type,
                   const GLvoid* pixels);
+  void TexSubImage2D(GLenum target,
+                     GLint level,
+                     GLint xoffset,
+                     GLint yoffset,
+                     GLsizei width,
+                     GLsizei height,
+                     GLenum format,
+                     GLenum type,
+                     const GLvoid* pixels);
 
   void BindFramebuffer(GLenum target, GLuint framebuffer);
 
@@ -172,8 +183,6 @@ class Context {
   void SwapBuffers();
 
  private:
-  static const int kMaxActiveTextures = 8;
-
   void MakeCurrent(egl::Surface* draw, egl::Surface* read);
   void ReleaseContext();
   void SetError(GLenum error) { error_ = error; }
@@ -220,7 +229,7 @@ class Context {
   GLenum active_texture_;
 
   // The set of sampler units, of which |active_texture_| indexes.
-  Sampler samplers_[kMaxActiveTextures];
+  nb::scoped_array<Sampler> samplers_;
   bool enabled_samplers_dirty_;
 
   // A mapping from an integer index (specified by the index parameter of
@@ -246,6 +255,14 @@ class Context {
   // set these dirty flags to false after they have processed the corresponding
   // draw state.
   DrawStateDirtyFlags draw_state_dirty_flags_;
+
+  // The pack/unpack alignments are used when transferring pixel data to/from
+  // client CPU memory, respectively.  For example, calls to glTexImage2D()
+  // will refer to the unpack alignment to determine the expected alignment
+  // of each row of pixel data.  These values are set through glPixelStorei().
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glPixelStorei.xml
+  int pack_alignment_;
+  int unpack_alignment_;
 
   // The last GL ES error raised.
   GLenum error_;

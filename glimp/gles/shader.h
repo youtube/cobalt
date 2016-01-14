@@ -52,7 +52,7 @@ class Shader : public nb::RefCountedThreadSafe<Shader> {
 
   bool compiled() const { return compile_results_.success; }
 
-  ShaderImpl* impl() { return impl_.get(); }
+  ShaderImpl* impl() const { return impl_.get(); }
 
  private:
   friend class nb::RefCountedThreadSafe<Shader>;

@@ -60,8 +60,7 @@ class Program : public nb::RefCountedThreadSafe<Program> {
 
   void BindAttribLocation(GLuint index, const GLchar* name);
 
-  ProgramImpl* impl() { return impl_.get(); }
-  const ProgramImpl* impl() const { return impl_.get(); }
+  ProgramImpl* impl() const { return impl_.get(); }
 
   GLenum GetProgramiv(GLenum pname, GLint* params);
   void GetProgramInfoLog(GLsizei bufsize, GLsizei* length, GLchar* infolog);
