@@ -33,7 +33,7 @@ TEST(CSSStylePropertyDefinitionsTest,
 }
 
 TEST(CSSStylePropertyDefinitionsTest, LongHandPropertiesHaveAnInitialValue) {
-  for (int key = 0; key < kMaxLonghandPropertyKey + 1; ++key) {
+  for (int key = 0; key < kNumLonghandProperties; ++key) {
     const scoped_refptr<PropertyValue> &initial_value =
         GetPropertyInitialValue(static_cast<PropertyKey>(key));
     ASSERT_TRUE(initial_value);
@@ -41,7 +41,7 @@ TEST(CSSStylePropertyDefinitionsTest, LongHandPropertiesHaveAnInitialValue) {
 }
 
 TEST(CSSStylePropertyDefinitionsTest, LongHandPropertiesKeyLookup) {
-  for (int key = 0; key < kMaxLonghandPropertyKey + 1; ++key) {
+  for (int key = 0; key < kNumLonghandProperties; ++key) {
     const char *name = GetPropertyName(static_cast<PropertyKey>(key));
     ASSERT_TRUE(name);
     PropertyKey looked_up_key = GetPropertyKey(name);
