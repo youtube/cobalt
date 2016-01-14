@@ -149,6 +149,7 @@
 %token kTextTransformToken                    // text-transform
 %token kTopToken                              // top
 %token kTransformToken                        // transform
+%token kTransformOriginToken                  // transform-origin
 %token kTransitionDelayToken                  // transition-delay
 %token kTransitionDurationToken               // transition-duration
 %token kTransitionPropertyToken               // transition-property
@@ -493,7 +494,6 @@
                        background_color_property_value
                        background_image_property_list_element
                        background_image_property_value
-                       background_position_property_list_element
                        background_position_property_value
                        background_repeat_element
                        background_repeat_property_value
@@ -543,6 +543,7 @@
                        overflow_property_value
                        overflow_wrap_property_value
                        padding_side_property_value
+                       position_list_element
                        position_property_value
                        positive_length_percent_property_value
                        scan_media_feature_keyword_value
@@ -554,6 +555,7 @@
                        time_list_property_value
                        timing_function_list_property_value
                        transform_property_value
+                       transform_origin_property_value
                        transition_delay_property_value
                        transition_duration_property_value
                        transition_property_property_value
@@ -732,6 +734,7 @@
                       comma_separated_font_family_name_list
                       comma_separated_text_shadow_list
                       comma_separated_unicode_range_list
+                      validated_two_position_list_elements
 %destructor { delete $$; } <property_list>
 
 %union { cssom::TransformFunction* transform_function; }
@@ -786,9 +789,9 @@
     background_property_value
 %destructor { delete $$; } <background_shorthand_layer>
 
-%union { BackgroundPositionInfo* background_position_info; }
-%type <background_position_info> background_position_property_list
-%destructor { delete $$; } <background_position_info>
+%union { PositionParseStructure* position_structure; }
+%type <position_structure> background_position_property_list
+%destructor { delete $$; } <position_structure>
 
 %union { BorderShorthand* border_shorthand; }
 %type <border_shorthand> border_property_value border_property_list
@@ -1455,6 +1458,10 @@ identifier_token:
   | kTransformToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kTransformProperty));
+  }
+  | kTransformOriginToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTransformOriginProperty));
   }
   | kTransitionDelayToken {
     $$ = TrivialStringPiece::FromCString(
@@ -2710,35 +2717,35 @@ background_image_property_value:
   | common_values
   ;
 
-background_position_property_list_element:
+position_list_element:
     kBottomToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetBottom().get());;
+    $$ = AddRef(cssom::KeywordValue::GetBottom().get());
   }
   | kCenterToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetCenter().get());;
+    $$ = AddRef(cssom::KeywordValue::GetCenter().get());
   }
   | kLeftToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetLeft().get());;
+    $$ = AddRef(cssom::KeywordValue::GetLeft().get());
   }
   | kRightToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetRight().get());;
+    $$ = AddRef(cssom::KeywordValue::GetRight().get());
   }
   | kTopToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetTop().get());;
+    $$ = AddRef(cssom::KeywordValue::GetTop().get());
   }
   | length_percent_property_value
   ;
 
 background_position_property_list:
-    background_position_property_list_element {
-    scoped_ptr<BackgroundPositionInfo> position_info(
-        new BackgroundPositionInfo());
+    position_list_element {
+    scoped_ptr<PositionParseStructure> position_info(
+        new PositionParseStructure());
     position_info->PushBackElement(MakeScopedRefPtrAndRelease($1));
     $$ = position_info.release();
   }
   | background_position_property_list
-    background_position_property_list_element {
-    scoped_ptr<BackgroundPositionInfo> position_info($1);
+    position_list_element {
+    scoped_ptr<PositionParseStructure> position_info($1);
     scoped_refptr<cssom::PropertyValue> element = MakeScopedRefPtrAndRelease($2);
     if (position_info &&
         !position_info->PushBackElement(element)) {
@@ -2752,28 +2759,23 @@ background_position_property_list:
 
 validated_background_position_property:
     background_position_property_list {
-    scoped_ptr<BackgroundPositionInfo> position_info($1);
+    scoped_ptr<PositionParseStructure> position_info($1);
     scoped_ptr<cssom::PropertyListValue::Builder> property_value;
 
     if (!position_info) {
       // No-ops.
-    } else if (position_info->background_position_builder()->size() == 1) {
-      // If only one value is specified, the second value is assumed to be
-      // 'center'.
-      position_info->PushBackElement(cssom::KeywordValue::GetCenter().get());
+    } else if (position_info->position_builder().size() == 1) {
       property_value.reset(new cssom::PropertyListValue::Builder(
-          *position_info->background_position_builder()));
-    } else if (position_info->background_position_builder()->size() == 2 &&
-               !position_info->IsBackgroundPositionValidOnSizeTwo()) {
+          position_info->position_builder()));
+    } else if (position_info->position_builder().size() == 2 &&
+               !position_info->IsPositionValidOnSizeTwo()) {
       parser_impl->LogWarning(@1, "invalid background position value");
       // No-ops.
     } else {
-      DCHECK_GE(position_info->background_position_builder()->size(),
-                static_cast<size_t>(2));
-      DCHECK_LE(position_info->background_position_builder()->size(),
-                static_cast<size_t>(4));
+      DCHECK_GE(position_info->position_builder().size(), 2u);
+      DCHECK_LE(position_info->position_builder().size(), 4u);
       property_value.reset(new cssom::PropertyListValue::Builder(
-          *position_info->background_position_builder()));
+          position_info->position_builder()));
     }
 
     $$ = property_value
@@ -4051,6 +4053,50 @@ transform_property_value:
     $$ = NULL;
   }
   | common_values_without_errors
+  ;
+
+validated_two_position_list_elements:
+    position_list_element position_list_element {
+    scoped_ptr<PositionParseStructure> position_info(
+        new PositionParseStructure());
+    position_info->PushBackElement(MakeScopedRefPtrAndRelease($1));
+    if (position_info->PushBackElement(MakeScopedRefPtrAndRelease($2)) &&
+        position_info->IsPositionValidOnSizeTwo()) {
+      $$ = new cssom::PropertyListValue::Builder(
+              position_info->position_builder());
+    } else {
+      parser_impl->LogWarning(@2, "invalid transform-origin value");
+      $$ = NULL;
+    }
+  }
+  ;
+
+// The transform-origin property lets you modify the origin for transformations
+// of an element.
+//   http://www.w3.org/TR/css3-transforms/#propdef-transform-origin
+transform_origin_property_value:
+    position_list_element {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+        new cssom::PropertyListValue::Builder());
+    property_value->push_back(MakeScopedRefPtrAndRelease($1));
+    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+  }
+  | validated_two_position_list_elements {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    $$ = property_value
+         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         : NULL;
+  }
+  | validated_two_position_list_elements length {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    if (property_value) {
+      property_value->push_back(MakeScopedRefPtrAndRelease($2));
+      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    } else {
+      $$ = NULL;
+    }
+  }
+  | common_values
   ;
 
 // Determines the vertical alignment of a box.
@@ -5607,6 +5653,12 @@ maybe_declaration:
   | kTransformToken maybe_whitespace colon transform_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTransformProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTransformOriginToken maybe_whitespace colon transform_origin_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransformOriginProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

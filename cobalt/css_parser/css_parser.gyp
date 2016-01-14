@@ -78,8 +78,6 @@
       'sources': [
         'animation_shorthand_property_parse_structures.cc',
         'animation_shorthand_property_parse_structures.h',
-        'background_position_property_parse_structures.cc',
-        'background_position_property_parse_structures.h',
         'background_shorthand_property_parse_structures.cc',
         'background_shorthand_property_parse_structures.h',
         'border_shorthand_property_parse_structures.cc',
@@ -90,6 +88,8 @@
         'margin_or_padding_shorthand.h',
         'parser.cc',
         'parser.h',
+        'position_parse_structures.cc',
+        'position_parse_structures.h',
         'property_declaration.h',
         'ref_counted_util.h',
         'scanner.cc',

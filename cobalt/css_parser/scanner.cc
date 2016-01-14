@@ -1550,6 +1550,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(
               name.begin,
+              cssom::GetPropertyName(cssom::kTransformOriginProperty))) {
+        *property_name_token = kTransformOriginToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
               cssom::GetPropertyName(cssom::kTransitionDelayProperty))) {
         *property_name_token = kTransitionDelayToken;
         return true;
