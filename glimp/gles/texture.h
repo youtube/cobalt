@@ -51,6 +51,11 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
                   int pitch_in_bytes,
                   const GLvoid* pixels);
 
+  // Returns true if this texture can be used as a framebuffer component.
+  // Essentially, this function is asking whether we can render to the texture
+  // or not.
+  bool CanBeAttachedToFramebuffer() const;
+
   // Returns true if the target has been set (e.g. via glBindTexture()).
   bool target_valid() const { return target_valid_; }
 

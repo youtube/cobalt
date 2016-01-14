@@ -57,5 +57,9 @@ void Texture::UpdateData(GLint level,
                     pitch_in_bytes, pixels);
 }
 
+bool Texture::CanBeAttachedToFramebuffer() const {
+  return impl_->CanBeAttachedToFramebuffer();
+}
+
 }  // namespace gles
 }  // namespace glimp
