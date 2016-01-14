@@ -51,7 +51,6 @@
 #include "cobalt/dom/html_title_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
-#include "cobalt/dom/rule_matching.h"
 
 namespace cobalt {
 namespace dom {

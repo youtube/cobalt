@@ -14,28 +14,28 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_COMPLEX_SELECTOR_H_
-#define CSSOM_COMPLEX_SELECTOR_H_
+#ifndef COBALT_CSSOM_COMPLEX_SELECTOR_H_
+#define COBALT_CSSOM_COMPLEX_SELECTOR_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
 namespace cssom {
 
-class SelectorVisitor;
+class Combinator;
 class CompoundSelector;
+class SelectorVisitor;
 
 // A complex selector is a chain of one or more compound selectors separated by
 // combinators.
 //   http://www.w3.org/TR/selectors4/#complex
 class ComplexSelector : public Selector {
  public:
-  ComplexSelector() {}
+  ComplexSelector() : last_selector_(NULL) {}
   ~ComplexSelector() OVERRIDE {}
 
   // From Selector.
@@ -46,7 +46,7 @@ class ComplexSelector : public Selector {
   // Rest of public methods.
 
   CompoundSelector* first_selector() { return first_selector_.get(); }
-  const Combinators& combinators() { return combinators_; }
+  CompoundSelector* last_selector() { return last_selector_; }
 
   // For a chain of compound selectors separated by combinators, AppendSelector
   // should be first called with the left most compound selector, then
@@ -58,8 +58,9 @@ class ComplexSelector : public Selector {
       scoped_ptr<CompoundSelector> compound_selector);
 
  private:
+  CompoundSelector* last_selector_;
+
   scoped_ptr<CompoundSelector> first_selector_;
-  Combinators combinators_;
   Specificity specificity_;
 
   DISALLOW_COPY_AND_ASSIGN(ComplexSelector);
@@ -68,4 +69,4 @@ class ComplexSelector : public Selector {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_COMPLEX_SELECTOR_H_
+#endif  // COBALT_CSSOM_COMPLEX_SELECTOR_H_

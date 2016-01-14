@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_DOCUMENT_H_
-#define DOM_DOCUMENT_H_
+#ifndef COBALT_DOM_DOCUMENT_H_
+#define COBALT_DOM_DOCUMENT_H_
 
 #include <deque>
 #include <map>
@@ -28,6 +28,7 @@
 #include "base/string_piece.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/cssom/css_keyframes_rule.h"
+#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
@@ -35,7 +36,6 @@
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node.h"
-#include "cobalt/dom/rule_matching.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
@@ -386,4 +386,4 @@ class Document : public Node, public cssom::MutationObserver {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_DOCUMENT_H_
+#endif  // COBALT_DOM_DOCUMENT_H_

@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/complex_selector.h"
 
+#include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/selector_visitor.h"
 
@@ -31,6 +32,7 @@ void ComplexSelector::AppendSelector(
   DCHECK(!first_selector_);
   specificity_.AddFrom(compound_selector->GetSpecificity());
   first_selector_ = compound_selector.Pass();
+  last_selector_ = first_selector_.get();
 }
 
 void ComplexSelector::AppendCombinatorAndSelector(
@@ -38,8 +40,14 @@ void ComplexSelector::AppendCombinatorAndSelector(
     scoped_ptr<CompoundSelector> compound_selector) {
   DCHECK(first_selector_);
   specificity_.AddFrom(compound_selector->GetSpecificity());
-  combinator->set_selector(compound_selector.Pass());
-  combinators_.push_back(combinator.release());
+
+  combinator->set_left_selector(last_selector_);
+  compound_selector->set_left_combinator(combinator.get());
+
+  combinator->set_right_selector(compound_selector.Pass());
+  last_selector_->set_right_combinator(combinator.Pass());
+
+  last_selector_ = last_selector_->right_combinator()->right_selector();
 }
 
 }  // namespace cssom

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_COMPOUND_SELECTOR_H_
-#define CSSOM_COMPOUND_SELECTOR_H_
+#ifndef COBALT_CSSOM_COMPOUND_SELECTOR_H_
+#define COBALT_CSSOM_COMPOUND_SELECTOR_H_
 
 #include <string>
 
@@ -28,9 +28,10 @@
 namespace cobalt {
 namespace cssom {
 
+class Combinator;
+class PseudoElement;
 class SelectorVisitor;
 class SimpleSelector;
-class PseudoElement;
 
 // A compound selector is a chain of simple selectors that are not separated by
 // a combinator.
@@ -54,10 +55,20 @@ class CompoundSelector : public Selector {
   PseudoElement* pseudo_element() { return pseudo_element_; }
   const std::string& GetNormalizedSelectorText();
 
+  Combinator* left_combinator() { return left_combinator_; }
+  void set_left_combinator(Combinator* combinator) {
+    left_combinator_ = combinator;
+  }
+
+  Combinator* right_combinator() { return right_combinator_.get(); }
+  void set_right_combinator(scoped_ptr<Combinator> combinator);
+
  private:
   bool should_normalize_;
   PseudoElement* pseudo_element_;
+  Combinator* left_combinator_;
 
+  scoped_ptr<Combinator> right_combinator_;
   SimpleSelectors simple_selectors_;
   Specificity specificity_;
   std::string normalized_selector_text_;
@@ -68,4 +79,4 @@ class CompoundSelector : public Selector {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_COMPOUND_SELECTOR_H_
+#endif  // COBALT_CSSOM_COMPOUND_SELECTOR_H_
