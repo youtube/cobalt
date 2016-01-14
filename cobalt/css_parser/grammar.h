@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSS_PARSER_GRAMMAR_H_
-#define CSS_PARSER_GRAMMAR_H_
+#ifndef COBALT_CSS_PARSER_GRAMMAR_H_
+#define COBALT_CSS_PARSER_GRAMMAR_H_
 
 // A wrapper around grammar_generated.h, the latter should never be included
 // directly.
@@ -35,10 +35,10 @@
 //     nesting of included classes.
 
 #include "cobalt/css_parser/animation_shorthand_property_parse_structures.h"
-#include "cobalt/css_parser/background_position_property_parse_structures.h"
 #include "cobalt/css_parser/background_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/border_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/font_shorthand_property_parse_structures.h"
+#include "cobalt/css_parser/position_parse_structures.h"
 #include "cobalt/css_parser/shadow_property_parse_structures.h"
 #include "cobalt/css_parser/transition_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
@@ -103,4 +103,4 @@ struct cobalt_yyltype {
 }  // namespace css_parser
 }  // namespace cobalt
 
-#endif  // CSS_PARSER_GRAMMAR_H_
+#endif  // COBALT_CSS_PARSER_GRAMMAR_H_
