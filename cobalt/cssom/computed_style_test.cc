@@ -207,6 +207,81 @@ TEST(PromoteToComputedStyle, BackgroundImageNone) {
   EXPECT_EQ(cssom::KeywordValue::GetNone(), background_image_list->value()[0]);
 }
 
+TEST(PromoteToComputedStyle, BackgroundPositionOneValueWithoutKeywordValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  // background-position: 3em;
+  scoped_ptr<cssom::PropertyListValue::Builder> background_position_builder(
+      new cssom::PropertyListValue::Builder());
+  background_position_builder->push_back(
+      new cssom::LengthValue(3, cssom::kFontSizesAkaEmUnit));
+  scoped_refptr<cssom::PropertyListValue> background_position(
+      new cssom::PropertyListValue(background_position_builder.Pass()));
+  computed_style->set_background_position(background_position);
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->background_position().get());
+  ASSERT_TRUE(background_position_list);
+  ASSERT_EQ(2, background_position_list->value().size());
+
+  cssom::CalcValue* left_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      background_position_list->value()[0].get());
+  const cssom::LengthValue* left_length_value = left_value->length_value();
+  EXPECT_FLOAT_EQ(48.0f, left_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, left_length_value->unit());
+  EXPECT_FLOAT_EQ(0.0f, left_value->percentage_value()->value());
+
+  cssom::CalcValue* right_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      background_position_list->value()[1].get());
+  const cssom::LengthValue* right_length_value = right_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, right_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, right_length_value->unit());
+  EXPECT_FLOAT_EQ(0.5f, right_value->percentage_value()->value());
+}
+
+TEST(PromoteToComputedStyle, BackgroundPositionOneKeywordValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  // background-position: bottom;
+  scoped_ptr<cssom::PropertyListValue::Builder> background_position_builder(
+      new cssom::PropertyListValue::Builder());
+  background_position_builder->push_back(cssom::KeywordValue::GetBottom());
+  scoped_refptr<cssom::PropertyListValue> background_position(
+      new cssom::PropertyListValue(background_position_builder.Pass()));
+  computed_style->set_background_position(background_position);
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->background_position().get());
+  ASSERT_TRUE(background_position_list);
+  ASSERT_EQ(2, background_position_list->value().size());
+
+  cssom::CalcValue* left_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      background_position_list->value()[0].get());
+  const cssom::LengthValue* left_length_value = left_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, left_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, left_length_value->unit());
+  EXPECT_FLOAT_EQ(0.5f, left_value->percentage_value()->value());
+
+  cssom::CalcValue* right_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      background_position_list->value()[1].get());
+  const cssom::LengthValue* right_length_value = right_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, right_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, right_length_value->unit());
+  EXPECT_FLOAT_EQ(1.0f, right_value->percentage_value()->value());
+}
+
 TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithoutKeywordValue) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
@@ -1126,6 +1201,325 @@ TEST(PromoteToComputedStyle, LineHeightPercentageIsRelativeToFontSize) {
           computed_style->line_height().get());
   EXPECT_EQ(75, computed_line_height->value());
   EXPECT_EQ(cssom::kPixelsUnit, computed_line_height->unit());
+}
+
+TEST(PromoteToComputedStyle, TransformOriginOneValueWithKeyword) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  // transform-origin: bottom;
+  scoped_ptr<cssom::PropertyListValue::Builder> transform_origin_builder(
+      new cssom::PropertyListValue::Builder());
+  transform_origin_builder->push_back(cssom::KeywordValue::GetBottom());
+  scoped_refptr<cssom::PropertyListValue> transform_origin(
+      new cssom::PropertyListValue(transform_origin_builder.Pass()));
+  computed_style->set_transform_origin(transform_origin);
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  scoped_refptr<cssom::PropertyListValue> transform_origin_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->transform_origin().get());
+  ASSERT_TRUE(transform_origin_list);
+  ASSERT_EQ(3, transform_origin_list->value().size());
+
+  cssom::CalcValue* first_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      transform_origin_list->value()[0].get());
+  const cssom::LengthValue* first_length_value = first_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, first_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, first_length_value->unit());
+  EXPECT_FLOAT_EQ(0.5f, first_value->percentage_value()->value());
+
+  cssom::CalcValue* second_value =
+      base::polymorphic_downcast<cssom::CalcValue*>(
+          transform_origin_list->value()[1].get());
+  const cssom::LengthValue* second_length_value = second_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, second_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, second_length_value->unit());
+  EXPECT_FLOAT_EQ(1.0f, second_value->percentage_value()->value());
+
+  cssom::LengthValue* third_value =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          transform_origin_list->value()[2].get());
+  EXPECT_FLOAT_EQ(0.0f, third_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, third_value->unit());
+}
+
+TEST(PromoteToComputedStyle, TransformOriginOneValueWithoutKeyword) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  // transform-origin: 3em;
+  scoped_ptr<cssom::PropertyListValue::Builder> transform_origin_builder(
+      new cssom::PropertyListValue::Builder());
+  transform_origin_builder->push_back(
+      new cssom::LengthValue(3, cssom::kFontSizesAkaEmUnit));
+  scoped_refptr<cssom::PropertyListValue> transform_origin(
+      new cssom::PropertyListValue(transform_origin_builder.Pass()));
+  computed_style->set_transform_origin(transform_origin);
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  scoped_refptr<cssom::PropertyListValue> transform_origin_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->transform_origin().get());
+  ASSERT_TRUE(transform_origin_list);
+  ASSERT_EQ(3, transform_origin_list->value().size());
+
+  cssom::CalcValue* first_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      transform_origin_list->value()[0].get());
+  const cssom::LengthValue* first_length_value = first_value->length_value();
+  EXPECT_FLOAT_EQ(48.0f, first_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, first_length_value->unit());
+  EXPECT_FLOAT_EQ(0.0f, first_value->percentage_value()->value());
+
+  cssom::CalcValue* second_value =
+      base::polymorphic_downcast<cssom::CalcValue*>(
+          transform_origin_list->value()[1].get());
+  const cssom::LengthValue* second_length_value = second_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, second_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, second_length_value->unit());
+  EXPECT_FLOAT_EQ(0.5f, second_value->percentage_value()->value());
+
+  cssom::LengthValue* third_value =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          transform_origin_list->value()[2].get());
+  EXPECT_FLOAT_EQ(0.0f, third_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, third_value->unit());
+}
+
+TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeywordValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  // transform-origin: 3em 40px;
+  scoped_ptr<cssom::PropertyListValue::Builder> transform_origin_builder(
+      new cssom::PropertyListValue::Builder());
+  transform_origin_builder->push_back(
+      new cssom::LengthValue(3, cssom::kFontSizesAkaEmUnit));
+  transform_origin_builder->push_back(
+      new cssom::LengthValue(40, cssom::kPixelsUnit));
+  scoped_refptr<cssom::PropertyListValue> transform_origin(
+      new cssom::PropertyListValue(transform_origin_builder.Pass()));
+  computed_style->set_transform_origin(transform_origin);
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  scoped_refptr<cssom::PropertyListValue> transform_origin_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->transform_origin().get());
+  ASSERT_TRUE(transform_origin_list);
+  ASSERT_EQ(3, transform_origin_list->value().size());
+
+  cssom::CalcValue* first_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      transform_origin_list->value()[0].get());
+  const cssom::LengthValue* first_length_value = first_value->length_value();
+  EXPECT_FLOAT_EQ(48.0f, first_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, first_length_value->unit());
+  EXPECT_FLOAT_EQ(0.0f, first_value->percentage_value()->value());
+
+  cssom::CalcValue* second_value =
+      base::polymorphic_downcast<cssom::CalcValue*>(
+          transform_origin_list->value()[1].get());
+  const cssom::LengthValue* second_length_value = second_value->length_value();
+  EXPECT_FLOAT_EQ(40.0f, second_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, second_length_value->unit());
+  EXPECT_FLOAT_EQ(0.0f, second_value->percentage_value()->value());
+
+  cssom::LengthValue* third_value =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          transform_origin_list->value()[2].get());
+  EXPECT_FLOAT_EQ(0.0f, third_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, third_value->unit());
+}
+
+TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithOneKeyword) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  // transform-origin: right 20%;
+  scoped_ptr<cssom::PropertyListValue::Builder> transform_origin_builder(
+      new cssom::PropertyListValue::Builder());
+  transform_origin_builder->push_back(cssom::KeywordValue::GetRight());
+  transform_origin_builder->push_back(new cssom::PercentageValue(0.2f));
+  scoped_refptr<cssom::PropertyListValue> transform_origin(
+      new cssom::PropertyListValue(transform_origin_builder.Pass()));
+  computed_style->set_transform_origin(transform_origin);
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  scoped_refptr<cssom::PropertyListValue> transform_origin_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->transform_origin().get());
+  ASSERT_TRUE(transform_origin_list);
+  ASSERT_EQ(3, transform_origin_list->value().size());
+
+  cssom::CalcValue* first_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      transform_origin_list->value()[0].get());
+  const cssom::LengthValue* first_length_value = first_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, first_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, first_length_value->unit());
+  EXPECT_FLOAT_EQ(1.0f, first_value->percentage_value()->value());
+
+  cssom::CalcValue* second_value =
+      base::polymorphic_downcast<cssom::CalcValue*>(
+          transform_origin_list->value()[1].get());
+  const cssom::LengthValue* second_length_value = second_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, second_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, second_length_value->unit());
+  EXPECT_FLOAT_EQ(0.2f, second_value->percentage_value()->value());
+
+  cssom::LengthValue* third_value =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          transform_origin_list->value()[2].get());
+  EXPECT_FLOAT_EQ(0.0f, third_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, third_value->unit());
+}
+
+TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeyword) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  // transform-origin: 60% 80%;
+  scoped_ptr<cssom::PropertyListValue::Builder> transform_origin_builder(
+      new cssom::PropertyListValue::Builder());
+  transform_origin_builder->push_back(new cssom::PercentageValue(0.6f));
+  transform_origin_builder->push_back(new cssom::PercentageValue(0.8f));
+  scoped_refptr<cssom::PropertyListValue> transform_origin(
+      new cssom::PropertyListValue(transform_origin_builder.Pass()));
+  computed_style->set_transform_origin(transform_origin);
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  scoped_refptr<cssom::PropertyListValue> transform_origin_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->transform_origin().get());
+  ASSERT_TRUE(transform_origin_list);
+  ASSERT_EQ(3, transform_origin_list->value().size());
+
+  cssom::CalcValue* first_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      transform_origin_list->value()[0].get());
+  const cssom::LengthValue* first_length_value = first_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, first_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, first_length_value->unit());
+  EXPECT_FLOAT_EQ(0.6f, first_value->percentage_value()->value());
+
+  cssom::CalcValue* second_value =
+      base::polymorphic_downcast<cssom::CalcValue*>(
+          transform_origin_list->value()[1].get());
+  const cssom::LengthValue* second_length_value = second_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, second_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, second_length_value->unit());
+  EXPECT_FLOAT_EQ(0.8f, second_value->percentage_value()->value());
+
+  cssom::LengthValue* third_value =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          transform_origin_list->value()[2].get());
+  EXPECT_FLOAT_EQ(0.0f, third_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, third_value->unit());
+}
+
+TEST(PromoteToComputedStyle, TransformOriginTwoKeywordValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  // transform-origin: top center;
+  scoped_ptr<cssom::PropertyListValue::Builder> transform_origin_builder(
+      new cssom::PropertyListValue::Builder());
+  transform_origin_builder->push_back(cssom::KeywordValue::GetTop());
+  transform_origin_builder->push_back(cssom::KeywordValue::GetCenter());
+  scoped_refptr<cssom::PropertyListValue> transform_origin(
+      new cssom::PropertyListValue(transform_origin_builder.Pass()));
+  computed_style->set_transform_origin(transform_origin);
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  scoped_refptr<cssom::PropertyListValue> transform_origin_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->transform_origin().get());
+  ASSERT_TRUE(transform_origin_list);
+  ASSERT_EQ(3, transform_origin_list->value().size());
+
+  cssom::CalcValue* first_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      transform_origin_list->value()[0].get());
+  const cssom::LengthValue* first_length_value = first_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, first_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, first_length_value->unit());
+  EXPECT_FLOAT_EQ(0.5f, first_value->percentage_value()->value());
+
+  cssom::CalcValue* second_value =
+      base::polymorphic_downcast<cssom::CalcValue*>(
+          transform_origin_list->value()[1].get());
+  const cssom::LengthValue* second_length_value = second_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, second_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, second_length_value->unit());
+  EXPECT_FLOAT_EQ(0.0f, second_value->percentage_value()->value());
+
+  cssom::LengthValue* third_value =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          transform_origin_list->value()[2].get());
+  EXPECT_FLOAT_EQ(0.0f, third_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, third_value->unit());
+}
+
+TEST(PromoteToComputedStyle, TransformOriginThreeValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
+      new cssom::CSSStyleDeclarationData());
+
+  // transform-origin: 30px top 50px;
+  scoped_ptr<cssom::PropertyListValue::Builder> transform_origin_builder(
+      new cssom::PropertyListValue::Builder());
+  transform_origin_builder->push_back(
+      new cssom::LengthValue(30.0f, cssom::kPixelsUnit));
+  transform_origin_builder->push_back(cssom::KeywordValue::GetTop());
+  transform_origin_builder->push_back(
+      new cssom::LengthValue(50.0f, cssom::kPixelsUnit));
+  scoped_refptr<cssom::PropertyListValue> transform_origin(
+      new cssom::PropertyListValue(transform_origin_builder.Pass()));
+  computed_style->set_transform_origin(transform_origin);
+
+  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style(
+      new cssom::CSSStyleDeclarationData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  scoped_refptr<cssom::PropertyListValue> transform_origin_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->transform_origin().get());
+  ASSERT_TRUE(transform_origin_list);
+  ASSERT_EQ(3, transform_origin_list->value().size());
+
+  cssom::CalcValue* first_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      transform_origin_list->value()[0].get());
+  const cssom::LengthValue* first_length_value = first_value->length_value();
+  EXPECT_FLOAT_EQ(30.0f, first_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, first_length_value->unit());
+  EXPECT_FLOAT_EQ(0.0f, first_value->percentage_value()->value());
+
+  cssom::CalcValue* second_value =
+      base::polymorphic_downcast<cssom::CalcValue*>(
+          transform_origin_list->value()[1].get());
+  const cssom::LengthValue* second_length_value = second_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, second_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, second_length_value->unit());
+  EXPECT_FLOAT_EQ(0.0f, second_value->percentage_value()->value());
+
+  cssom::LengthValue* third_value =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          transform_origin_list->value()[2].get());
+  EXPECT_FLOAT_EQ(50.0f, third_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, third_value->unit());
 }
 
 }  // namespace cssom

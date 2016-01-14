@@ -886,11 +886,9 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSize) {
           style->background_position().get());
   ASSERT_TRUE(background_position_list);
 
-  EXPECT_EQ(2, background_position_list->value().size());
+  EXPECT_EQ(1, background_position_list->value().size());
   EXPECT_EQ(cssom::KeywordValue::GetCenter(),
             background_position_list->value()[0]);
-  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
-            background_position_list->value()[1]);
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
@@ -926,11 +924,9 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSizeInDifferentOrder) {
           style->background_position().get());
   ASSERT_TRUE(background_position_list);
 
-  EXPECT_EQ(2, background_position_list->value().size());
+  EXPECT_EQ(1, background_position_list->value().size());
   EXPECT_EQ(cssom::KeywordValue::GetCenter(),
             background_position_list->value()[0]);
-  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
-            background_position_list->value()[1]);
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
@@ -1026,10 +1022,9 @@ TEST_F(ParserTest, ParsesBackgroundWithURLNoRepeatAndPosition) {
           style->background_position().get());
   ASSERT_TRUE(background_position_list);
 
+  EXPECT_EQ(1, background_position_list->value().size());
   EXPECT_EQ(cssom::KeywordValue::GetCenter(),
             background_position_list->value()[0]);
-  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
-            background_position_list->value()[1]);
 
   scoped_refptr<cssom::PropertyListValue> background_repeat =
       dynamic_cast<cssom::PropertyListValue*>(style->background_repeat().get());
@@ -1049,10 +1044,9 @@ TEST_F(ParserTest, ParsesBackgroundWithNoRepeatAndCenter) {
           style->background_position().get());
   ASSERT_TRUE(background_position_list);
 
+  EXPECT_EQ(1, background_position_list->value().size());
   EXPECT_EQ(cssom::KeywordValue::GetCenter(),
             background_position_list->value()[0]);
-  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
-            background_position_list->value()[1]);
 
   scoped_refptr<cssom::PropertyListValue> background_repeat =
       dynamic_cast<cssom::PropertyListValue*>(style->background_repeat().get());
@@ -1597,12 +1591,10 @@ TEST_F(ParserTest, ParsesBackgroundPositionCenter) {
       dynamic_cast<cssom::PropertyListValue*>(
           style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  EXPECT_EQ(2, background_position_list->value().size());
+  EXPECT_EQ(1, background_position_list->value().size());
 
   EXPECT_EQ(cssom::KeywordValue::GetCenter(),
             background_position_list->value()[0]);
-  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
-            background_position_list->value()[1]);
 }
 
 TEST_F(ParserTest, ParsesBackgroundPositionOneValue) {
@@ -1614,16 +1606,13 @@ TEST_F(ParserTest, ParsesBackgroundPositionOneValue) {
       dynamic_cast<cssom::PropertyListValue*>(
           style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  EXPECT_EQ(2, background_position_list->value().size());
+  EXPECT_EQ(1, background_position_list->value().size());
 
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(
           background_position_list->value()[0].get());
   ASSERT_TRUE(percentage);
   EXPECT_FLOAT_EQ(0.2f, percentage->value());
-
-  EXPECT_EQ(cssom::KeywordValue::GetCenter(),
-            background_position_list->value()[1]);
 }
 
 TEST_F(ParserTest, ParsesBackgroundPositionCenterLeft) {
@@ -4306,6 +4295,98 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
   EXPECT_TRUE(transform_list->value()[1]);
   EXPECT_EQ(base::GetTypeId<cssom::TranslateFunction>(),
             transform_list->value()[1]->GetTypeId());
+}
+
+TEST_F(ParserTest, ParsesTransformOriginWithOneValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform-origin: 20%;",
+                                        source_location_);
+  scoped_refptr<cssom::PropertyListValue> transform_origin =
+      dynamic_cast<cssom::PropertyListValue*>(style->transform_origin().get());
+  ASSERT_TRUE(transform_origin);
+  ASSERT_EQ(1, transform_origin->value().size());
+
+  const cssom::PercentageValue* horizontal_value =
+      dynamic_cast<const cssom::PercentageValue*>(
+          transform_origin->value()[0].get());
+  EXPECT_FLOAT_EQ(0.2f, horizontal_value->value());
+}
+
+TEST_F(ParserTest, ParsesTransformOriginWithOneKeywordValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform-origin: bottom;",
+                                        source_location_);
+  scoped_refptr<cssom::PropertyListValue> transform_origin =
+      dynamic_cast<cssom::PropertyListValue*>(style->transform_origin().get());
+  ASSERT_TRUE(transform_origin);
+  ASSERT_EQ(1, transform_origin->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetBottom(), transform_origin->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesTransformOriginWithTwoValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform-origin: 20% 50%;",
+                                        source_location_);
+  scoped_refptr<cssom::PropertyListValue> transform_origin =
+      dynamic_cast<cssom::PropertyListValue*>(style->transform_origin().get());
+  ASSERT_TRUE(transform_origin);
+  ASSERT_EQ(2, transform_origin->value().size());
+
+  float expected_value[2] = {0.2f, 0.5f};
+  for (size_t i = 0; i < 2; ++i) {
+    const cssom::PercentageValue* percentage_value =
+        dynamic_cast<const cssom::PercentageValue*>(
+            transform_origin->value()[i].get());
+    EXPECT_FLOAT_EQ(expected_value[i], percentage_value->value());
+  }
+}
+
+TEST_F(ParserTest, ParsesTransformOriginWithTwoKeywordValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform-origin: bottom left;",
+                                        source_location_);
+  scoped_refptr<cssom::PropertyListValue> transform_origin =
+      dynamic_cast<cssom::PropertyListValue*>(style->transform_origin().get());
+  ASSERT_TRUE(transform_origin);
+  ASSERT_EQ(2, transform_origin->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetBottom(), transform_origin->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetLeft(), transform_origin->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesTransformOriginWithThreeValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform-origin: left 0.4em 20px;",
+                                        source_location_);
+  scoped_refptr<cssom::PropertyListValue> transform_origin =
+      dynamic_cast<cssom::PropertyListValue*>(style->transform_origin().get());
+  ASSERT_TRUE(transform_origin);
+  ASSERT_EQ(3, transform_origin->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetLeft(), transform_origin->value()[0]);
+
+  const cssom::LengthValue* vertical_value =
+      dynamic_cast<const cssom::LengthValue*>(
+          transform_origin->value()[1].get());
+  EXPECT_FLOAT_EQ(0.4f, vertical_value->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, vertical_value->unit());
+
+  const cssom::LengthValue* z_value = dynamic_cast<const cssom::LengthValue*>(
+      transform_origin->value()[2].get());
+  EXPECT_FLOAT_EQ(20.0f, z_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, z_value->unit());
+}
+
+TEST_F(ParserTest, ParsesInvalidTransformOrigin) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning(
+          "[object ParserTest]:1:23: warning: invalid transform-origin value"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform-origin: 20% left;",
+                                        source_location_);
 }
 
 TEST_F(ParserTest, RecoversFromInvalidTransformList) {
