@@ -46,11 +46,16 @@ class NodeList;
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-element
 class Element : public Node {
  public:
-  // NOTE: The array size of SmallMap and the decision to use base::hash_map as
-  // the underlying container type are based on extensive performance testing
-  // with ***REMOVED***. Do not change these unless additional profiling data justifies
-  // it.
-  typedef base::SmallMap<base::hash_map<std::string, std::string>, 2>
+  // NOTE1: The array size of base::SmallMap and the decision to use
+  // base::hash_map as the underlying container type are based on extensive
+  // performance testing with ***REMOVED***. Do not change these unless additional
+  // profiling data justifies it.
+  // NOTE2: Using base::SmallMap rather than base::hash_map also results in
+  // substantial memory gains when live videos are played. These videos trigger
+  // the creation of XML documents with over 20k elements, of which over 99%
+  // contain a single attribute. By using base::SmallMap, these single attribute
+  // elements are contained within arrays rather than hash_maps.
+  typedef base::SmallMap<base::hash_map<std::string, std::string>, 1>
       AttributeMap;
 
   Element(Document* document, base::Token tag_name);
@@ -74,7 +79,7 @@ class Element : public Node {
   base::Token id() const { return id_attribute_; }
   void set_id(const std::string& value) { SetAttribute("id", value); }
 
-  const std::string& class_name() const { return class_attribute_; }
+  std::string class_name() const { return GetAttribute("class").value_or(""); }
   void set_class_name(const std::string& value) {
     SetAttribute("class", value);
   }
@@ -196,9 +201,6 @@ class Element : public Node {
   // The "id" attribute for this element. Stored here in addition to being
   // stored in |attribute_map_| as an optimization for id().
   base::Token id_attribute_;
-  // The "class" attribute for this element. Stored here in addition to being
-  // stored in |attribute_map_| as an optimization for class().
-  std::string class_attribute_;
   // A weak pointer to a NamedNodeMap that proxies the actual attributes.
   // This heavy weight object is kept in memory only when needed by the user.
   base::WeakPtr<NamedNodeMap> named_node_map_;

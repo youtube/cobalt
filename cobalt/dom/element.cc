@@ -183,7 +183,6 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
       break;
     case 5:
       if (attr_name == "class") {
-        class_attribute_ = value;
         // Changing the class name may affect the contents of proxy objects.
         UpdateNodeGeneration();
       }
@@ -241,7 +240,6 @@ void Element::RemoveAttribute(const std::string& name) {
       break;
     case 5:
       if (attr_name == "class") {
-        class_attribute_ = "";
         // Changing the class name may affect the contents of proxy objects.
         UpdateNodeGeneration();
       }
@@ -527,7 +525,6 @@ void Element::SetBooleanAttribute(const std::string& name, bool value) {
 void Element::CopyAttributes(const Element& other) {
   attribute_map_ = other.attribute_map_;
   id_attribute_ = other.id_attribute_;
-  class_attribute_ = other.class_attribute_;
 }
 
 HTMLElementContext* Element::html_element_context() {
