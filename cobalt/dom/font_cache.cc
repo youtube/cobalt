@@ -103,9 +103,9 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
   }
 }
 
-FontCache::FontCharacterMap* FontCache::GetFontCharacterMap(
+FontCache::FontCharacterGlyphMap* FontCache::GetFontCharacterGlyphMap(
     scoped_refptr<render_tree::Font> font) {
-  return &(typeface_id_to_character_map_[font->GetTypefaceId()]);
+  return &(typeface_id_to_character_glyph_map_[font->GetTypefaceId()]);
 }
 
 render_tree::TypefaceId FontCache::GetCharacterFallbackTypefaceId(
