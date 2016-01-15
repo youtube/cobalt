@@ -1228,6 +1228,8 @@ void Context::TexImage2D(GLenum target,
   // Determine pitch taking into account glPixelStorei() settings.
   int pitch_in_bytes = GetPitchForTextureData(width, pixel_format);
 
+  texture_object->Initialize(level, pixel_format, width, height);
+
   if (bound_pixel_unpack_buffer_) {
     if (bound_pixel_unpack_buffer_->is_mapped() ||
         height * pitch_in_bytes > bound_pixel_unpack_buffer_->size_in_bytes()) {
@@ -1235,12 +1237,12 @@ void Context::TexImage2D(GLenum target,
       return;
     }
 
-    texture_object->SetDataFromBuffer(
-        level, pixel_format, width, height, pitch_in_bytes,
-        bound_pixel_unpack_buffer_, nb::AsInteger(pixels));
-  } else {
-    texture_object->SetData(level, pixel_format, width, height, pitch_in_bytes,
-                            pixels);
+    texture_object->UpdateDataFromBuffer(
+        level, 0, 0, width, height, pitch_in_bytes, bound_pixel_unpack_buffer_,
+        nb::AsInteger(pixels));
+  } else if (pixels) {
+    texture_object->UpdateData(level, 0, 0, width, height, pitch_in_bytes,
+                               pixels);
   }
 }
 
