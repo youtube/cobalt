@@ -27,10 +27,12 @@
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_alpha_texcoords_and_color.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_color_only.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_texcoords_and_color.glsl',
+      '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_yuv.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/vertex_position_and_texcoord.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/vertex_skia_color_only.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/vertex_skia_texcoords_and_color.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/vertex_skia_texcoords_and_color_with_texcoord_matrix.glsl',
+      '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/vertex_skia_yuv.glsl',
     ],
   }
 }
