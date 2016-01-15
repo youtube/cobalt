@@ -17,6 +17,7 @@
 #ifndef COBALT_DOM_DOM_SETTINGS_H_
 #define COBALT_DOM_DOM_SETTINGS_H_
 
+#include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/environment_settings.h"
@@ -42,6 +43,7 @@ class DOMSettings : public script::EnvironmentSettings {
   DOMSettings(loader::FetcherFactory* fetcher_factory,
               network::NetworkModule* network_module,
               const scoped_refptr<Window>& window,
+              ArrayBuffer::Allocator* array_buffer_allocator,
               MediaSource::Registry* media_source_registry,
               script::JavaScriptEngine* engine,
               script::GlobalObjectProxy* global_object_proxy);
@@ -49,6 +51,10 @@ class DOMSettings : public script::EnvironmentSettings {
 
   void set_window(const scoped_refptr<Window>& window) { window_ = window; }
   scoped_refptr<Window> window() const { return window_; }
+
+  ArrayBuffer::Allocator* array_buffer_allocator() const {
+    return array_buffer_allocator_;
+  }
 
   void set_fetcher_factory(loader::FetcherFactory* fetcher_factory) {
     fetcher_factory_ = fetcher_factory;
@@ -75,6 +81,7 @@ class DOMSettings : public script::EnvironmentSettings {
   loader::FetcherFactory* fetcher_factory_;
   network::NetworkModule* network_module_;
   scoped_refptr<Window> window_;
+  ArrayBuffer::Allocator* array_buffer_allocator_;
   MediaSource::Registry* media_source_registry_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalObjectProxy* global_object_proxy_;

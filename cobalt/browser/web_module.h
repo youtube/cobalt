@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_WEB_MODULE_H_
-#define BROWSER_WEB_MODULE_H_
+#ifndef COBALT_BROWSER_WEB_MODULE_H_
+#define COBALT_BROWSER_WEB_MODULE_H_
 
 #include <string>
 #include <vector>
@@ -78,7 +78,8 @@ class WebModule {
     // initialized in the default constructor to useful defaults.
     Options()
         : name("WebModule"),
-          layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
+          layout_trigger(layout::LayoutManager::kOnDocumentMutation),
+          array_buffer_allocator(NULL) {}
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to
@@ -106,6 +107,12 @@ class WebModule {
     // into the WebModule's window object upon construction.  This provides
     // a mechanism to inject custom APIs into the WebModule object.
     InjectedWindowAttributes injected_window_attributes;
+
+    // ArrayBuffer allocates its memory on the heap by default and ArrayBuffers
+    // may occupy a lot of memory.  It is possible to provide an allocator via
+    // the following member on some platforms so ArrayBuffer can possibly use
+    // memory that is not part of the heap.
+    dom::ArrayBuffer::Allocator* array_buffer_allocator;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -245,4 +252,4 @@ class WebModule {
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // BROWSER_WEB_MODULE_H_
+#endif  // COBALT_BROWSER_WEB_MODULE_H_

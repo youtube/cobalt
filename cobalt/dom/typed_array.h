@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_TYPED_ARRAY_H_
-#define DOM_TYPED_ARRAY_H_
+#ifndef COBALT_DOM_TYPED_ARRAY_H_
+#define COBALT_DOM_TYPED_ARRAY_H_
 
 #include <memory.h>  // for memcpy
 
@@ -133,7 +133,8 @@ class TypedArray : public ArrayBufferView {
     }
     uint32 source_offset = 0;
     while (source_offset < source->length()) {
-      data()[offset] = source->data()[source_offset];
+      memcpy(data() + offset, source->data() + source_offset,
+             sizeof(ElementType));
       ++offset;
       ++source_offset;
     }
@@ -147,13 +148,15 @@ class TypedArray : public ArrayBufferView {
   // Write a single element of the array.
   void Set(uint32 index, ElementType val) {
     if (index < length()) {
-      data()[index] = val;
+      memcpy(data() + index, &val, sizeof(ElementType));
     }
   }
 
   ElementType Get(uint32 index) const {
     if (index < length()) {
-      return data()[index];
+      ElementType val;
+      memcpy(&val, data() + index, sizeof(ElementType));
+      return val;
     } else {
       // TODO(***REMOVED***): an out of bounds index should return undefined.
       DLOG(ERROR) << "index " << index << " out of range " << length();
@@ -238,4 +241,4 @@ class TypedArray : public ArrayBufferView {
     DISALLOW_COPY_AND_ASSIGN(SubarrayType);                                    \
   }
 
-#endif  // DOM_TYPED_ARRAY_H_
+#endif  // COBALT_DOM_TYPED_ARRAY_H_

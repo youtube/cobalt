@@ -23,6 +23,7 @@
 #include "base/path_service.h"
 #include "base/stl_util.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/browser/resource_provider_array_buffer_allocator.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/event_names.h"
@@ -134,6 +135,10 @@ BrowserModule::BrowserModule(const GURL& url,
                              const Options& options)
     : storage_manager_(options.storage_manager_options),
       renderer_module_(system_window, options.renderer_module_options),
+#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+      array_buffer_allocator_(new ResourceProviderArrayBufferAllocator(
+          renderer_module_.pipeline()->GetResourceProvider())),
+#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       media_module_(media::MediaModule::Create(
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_, system_window->event_dispatcher(),
@@ -271,6 +276,7 @@ void BrowserModule::NavigateWithCallbackInternal(
       renderer_module_.pipeline()->refresh_rate()));
   options.loaded_callbacks.push_back(
       base::Bind(&BrowserModule::DestroySplashScreen, base::Unretained(this)));
+  options.array_buffer_allocator = array_buffer_allocator_.get();
 
   web_module_.reset(new WebModule(
       url,

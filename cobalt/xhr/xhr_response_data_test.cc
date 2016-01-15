@@ -27,7 +27,7 @@ TEST(XhrResponseData, InitialState) {
   XhrResponseData empty;
   EXPECT_EQ(0, empty.size());
   EXPECT_EQ(0, empty.capacity());
-  EXPECT_TRUE(empty.data() == NULL);
+  EXPECT_TRUE(empty.data() != NULL);
 }
 
 TEST(XhrResponseData, Append) {
@@ -51,25 +51,6 @@ TEST(XhrResponseData, Reserve) {
   EXPECT_EQ(1, data.capacity());
   EXPECT_EQ(0, data.size());
   EXPECT_TRUE(data.data() != NULL);
-}
-
-TEST(XhrResponseData, Pass) {
-  XhrResponseData data;
-  data.Reserve(55);
-  for (int i = 0; i < 77; ++i) {
-    uint8 raw_data = static_cast<uint8>(i);
-    data.Append(&raw_data, 1);
-  }
-  EXPECT_EQ(77, data.capacity());
-  EXPECT_EQ(77, data.size());
-
-  scoped_array<uint8> new_owner = data.Pass();
-  EXPECT_EQ(0, data.capacity());
-  EXPECT_EQ(0, data.size());
-  EXPECT_TRUE(data.data() == NULL);
-  for (int i = 0; i < 77; ++i) {
-    EXPECT_EQ(i, new_owner.get()[i]);
-  }
 }
 
 }  // namespace

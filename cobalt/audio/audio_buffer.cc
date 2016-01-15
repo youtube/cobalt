@@ -32,7 +32,7 @@ AudioBuffer::AudioBuffer(script::EnvironmentSettings* settings,
 
   // Create an ArrayBuffer stores sample data from all channels.
   scoped_refptr<dom::ArrayBuffer> array_buffer(new dom::ArrayBuffer(
-      settings, channels_data.Pass(),
+      settings, dom::ArrayBuffer::kFromHeap, channels_data.Pass(),
       number_of_frames * number_of_channels * sizeof(float)));
 
   channels_data_.resize(static_cast<size_t>(number_of_channels));

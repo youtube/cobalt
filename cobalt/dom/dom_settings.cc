@@ -24,12 +24,14 @@ namespace dom {
 DOMSettings::DOMSettings(loader::FetcherFactory* fetcher_factory,
                          network::NetworkModule* network_module,
                          const scoped_refptr<Window>& window,
+                         ArrayBuffer::Allocator* array_buffer_allocator,
                          MediaSource::Registry* media_source_registry,
                          script::JavaScriptEngine* engine,
                          script::GlobalObjectProxy* global_object_proxy)
     : fetcher_factory_(fetcher_factory),
       network_module_(network_module),
       window_(window),
+      array_buffer_allocator_(array_buffer_allocator),
       media_source_registry_(media_source_registry),
       javascript_engine_(engine),
       global_object_proxy_(global_object_proxy) {}
