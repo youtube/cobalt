@@ -101,6 +101,7 @@ SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
 
   SocketDescriptor s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (s != kInvalidSocket) {
+    SetNonBlocking(s);
 #if defined(OS_POSIX)
     // Allow rapid reuse.
     static const int kOn = 1;
