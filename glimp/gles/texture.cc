@@ -30,37 +30,15 @@ void Texture::SetTarget(GLenum target) {
   target_valid_ = true;
 }
 
-void Texture::SetData(GLint level,
-                      PixelFormat pixel_format,
-                      GLsizei width,
-                      GLsizei height,
-                      int pitch_in_bytes,
-                      const GLvoid* pixels) {
+void Texture::Initialize(GLint level,
+                         PixelFormat pixel_format,
+                         GLsizei width,
+                         GLsizei height) {
   width_ = static_cast<int>(width);
   height_ = static_cast<int>(height);
   pixel_format_ = pixel_format;
 
-  impl_->SetData(level, pixel_format_, width_, height_, pitch_in_bytes, pixels);
-
-  texture_allocated_ = true;
-}
-
-void Texture::SetDataFromBuffer(
-    GLint level,
-    PixelFormat pixel_format,
-    GLsizei width,
-    GLsizei height,
-    int pitch_in_bytes,
-    const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
-    uintptr_t buffer_offset) {
-  SB_DCHECK(pixel_unpack_buffer);
-
-  width_ = static_cast<int>(width);
-  height_ = static_cast<int>(height);
-  pixel_format_ = pixel_format;
-
-  impl_->SetDataFromBuffer(level, pixel_format_, width_, height_,
-                           pitch_in_bytes, pixel_unpack_buffer, buffer_offset);
+  impl_->Initialize(level, pixel_format_, width_, height_);
 
   texture_allocated_ = true;
 }
