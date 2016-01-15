@@ -31,6 +31,8 @@
         'h5vcc_url_handler.h',
         'render_tree_combiner.cc',
         'render_tree_combiner.h',
+	'resource_provider_array_buffer_allocator.cc',
+	'resource_provider_array_buffer_allocator.h',
         'splash_screen.cc',
         'splash_screen.h',
         'switches.cc',
