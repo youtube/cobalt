@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <limits>
+// This test doesn't test that the appropriate output was produced, but ensures
+// it compiles and runs without crashing.
 
-#include "starboard/double.h"
+#include "starboard/character.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbDoubleIsFiniteTest, SunnyDay) {
-  double d = 1;
-  EXPECT_TRUE(SbDoubleIsFinite(&d));
-
-  d = std::numeric_limits<double>::infinity();
-  EXPECT_FALSE(SbDoubleIsFinite(&d));
+TEST(SbCharacterToLowerTest, SunnyDay) {
+  const char kInputs[] =
+      "1234567890"
+      "`~!@#$%^&*()_+-=[]\\{}|;':\",./<>?"
+      "abcdefghijklmnopqrstuvwxyz"
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const char kExpected[] =
+      "1234567890"
+      "`~!@#$%^&*()_+-=[]\\{}|;':\",./<>?"
+      "abcdefghijklmnopqrstuvwxyz"
+      "abcdefghijklmnopqrstuvwxyz";
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kInputs); ++i) {
+    EXPECT_EQ(kExpected[i], static_cast<char>(SbCharacterToLower(kInputs[i])));
+  }
 }
 
 }  // namespace
