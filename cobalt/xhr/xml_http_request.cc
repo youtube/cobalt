@@ -704,9 +704,10 @@ scoped_refptr<dom::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
     // The request is done so it is safe to only keep the ArrayBuffer and clear
     // |response_body_|.  As |response_body_| will not be used unless the
     // request is re-opened.
-    size_t response_size = response_body_.size();
-    response_array_buffer_ = new dom::ArrayBuffer(
-        settings_, response_body_.Pass(), static_cast<uint32>(response_size));
+    response_array_buffer_ =
+        new dom::ArrayBuffer(settings_, response_body_.data(),
+                             static_cast<uint32>(response_body_.size()));
+    response_body_.Clear();
   }
   return response_array_buffer_;
 }

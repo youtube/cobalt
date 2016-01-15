@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_ARRAY_BUFFER_H_
-#define DOM_ARRAY_BUFFER_H_
+#ifndef COBALT_DOM_ARRAY_BUFFER_H_
+#define COBALT_DOM_ARRAY_BUFFER_H_
 
 #include <vector>
 
@@ -28,11 +28,52 @@ namespace dom {
 
 class ArrayBuffer : public script::Wrappable {
  public:
+  // To explicitly express that a specific ArrayBuffer should be allocated from
+  // the heap.
+  enum AllocationType { kFromHeap };
+
+  // Optional Allocator to be used to allocate/free memory for ArrayBuffer.
+  // ArrayBuffer will allocate from the heap if an Allocator is not provided.
+  class Allocator {
+   public:
+    virtual ~Allocator() {}
+    virtual void* Allocate(size_t size) = 0;
+    virtual void Free(void* p) = 0;
+  };
+
+  // This class manages the internal buffer of an ArrayBuffer.  It deals the
+  // fact that the buffer can be allocated from an Allocator or from the heap.
+  class Data {
+   public:
+    Data(script::EnvironmentSettings* settings, size_t size);
+    Data(script::EnvironmentSettings* settings, const uint8* data, size_t size);
+    Data(scoped_array<uint8> data, size_t size);
+
+    ~Data();
+
+    uint8* data() const { return data_; }
+    size_t size() const { return size_; }
+
+   private:
+    void Initialize(script::EnvironmentSettings* settings, size_t size);
+
+    Allocator* allocator_;
+    uint8* data_;
+    size_t size_;
+
+    DISALLOW_COPY_AND_ASSIGN(Data);
+  };
+
   ArrayBuffer(script::EnvironmentSettings* settings, uint32 length);
-  ArrayBuffer(script::EnvironmentSettings* settings, scoped_array<uint8> data,
+  ArrayBuffer(script::EnvironmentSettings* settings, const uint8* data,
+              uint32 length);
+  // This is for use by AudioBuffer as we do want to ensure decoded audio data
+  // stay in main memory.
+  ArrayBuffer(script::EnvironmentSettings* settings,
+              AllocationType allocation_type, scoped_array<uint8> data,
               uint32 length);
 
-  uint32 byte_length() const { return static_cast<uint32>(size_); }
+  uint32 byte_length() const { return static_cast<uint32>(data_.size()); }
   scoped_refptr<ArrayBuffer> Slice(script::EnvironmentSettings* settings,
                                    int begin) const {
     return Slice(settings, begin, static_cast<int>(byte_length()));
@@ -40,8 +81,8 @@ class ArrayBuffer : public script::Wrappable {
   scoped_refptr<ArrayBuffer> Slice(script::EnvironmentSettings* settings,
                                    int begin, int end) const;
 
-  uint8* data() { return data_.get(); }
-  const uint8* data() const { return data_.get(); }
+  uint8* data() { return data_.data(); }
+  const uint8* data() const { return data_.data(); }
 
   // Utility function for restricting begin/end offsets to an appropriate
   // range as defined by the spec. Negative start or end values refer
@@ -56,8 +97,7 @@ class ArrayBuffer : public script::Wrappable {
  private:
   ~ArrayBuffer();
 
-  scoped_array<uint8> data_;
-  size_t size_;
+  Data data_;
 
   DISALLOW_COPY_AND_ASSIGN(ArrayBuffer);
 };
@@ -65,4 +105,4 @@ class ArrayBuffer : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_ARRAY_BUFFER_H_
+#endif  // COBALT_DOM_ARRAY_BUFFER_H_

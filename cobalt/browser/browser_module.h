@@ -20,6 +20,7 @@
 #include <list>
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/console_commands.h"
@@ -31,6 +32,7 @@
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/debug/debug_server.h"
+#include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
@@ -185,6 +187,9 @@ class BrowserModule {
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.
   renderer::RendererModule renderer_module_;
+
+  // Optional memory allocator used by ArrayBuffer.
+  scoped_ptr<dom::ArrayBuffer::Allocator> array_buffer_allocator_;
 
   // Controls all media playback related objects/resources.
   scoped_ptr<media::MediaModule> media_module_;
