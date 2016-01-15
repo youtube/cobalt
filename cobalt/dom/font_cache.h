@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_FONT_CACHE_H_
-#define DOM_FONT_CACHE_H_
+#ifndef COBALT_DOM_FONT_CACHE_H_
+#define COBALT_DOM_FONT_CACHE_H_
 
 #include <map>
 #include <set>
@@ -45,9 +45,9 @@ namespace dom {
 //     remote fonts.
 //   - Retrieval of fonts, either locally from the resource provider or
 //     remotely from the remote resource cache.
-//   - Caching of whether or not a typeface supports a specific character,
-//     so that only the first query of a specific font character necessitates
-//     a typeface lookup.
+//   - Caching the indices of the glyphs that the typeface provides for specific
+//     characters, so that only the first query of a specific font character
+//     necessitates the glyph lookup.
 //   - Determination of the fallback typeface for a specific character, and
 //     caching of that information for subsequent lookups.
 class FontCache {
@@ -118,10 +118,10 @@ class FontCache {
   typedef std::map<GURL, scoped_refptr<RequestedRemoteFontInfo> >
       RequestedRemoteFontMap;
 
-  // Character map related
-  typedef std::map<int32, bool> FontCharacterMap;
-  typedef std::map<render_tree::TypefaceId, FontCharacterMap>
-      TypefaceToFontCharacterMap;
+  // Character glyph map related
+  typedef std::map<int32, render_tree::GlyphIndex> FontCharacterGlyphMap;
+  typedef std::map<render_tree::TypefaceId, FontCharacterGlyphMap>
+      TypefaceToFontCharacterGlyphMap;
 
   // Character fallback related
   typedef std::map<render_tree::TypefaceId, scoped_refptr<render_tree::Font> >
@@ -147,9 +147,10 @@ class FontCache {
   // containers are purged of URLs that are no longer contained within the map.
   void SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map);
 
-  // Retrieves the character map associated with the font's typeface id. If it
-  // does not exist, it is created. This is guaranteed to not return NULL.
-  FontCharacterMap* GetFontCharacterMap(scoped_refptr<render_tree::Font> font);
+  // Retrieves the character glyph map associated with the font's typeface id.
+  // If it does not exist, it is created. This is guaranteed to not return NULL.
+  FontCharacterGlyphMap* GetFontCharacterGlyphMap(
+      scoped_refptr<render_tree::Font> font);
 
   // Looks up the typeface id associated with a UTF-32 character and style. If
   // one is not associated yet, it requests the fallback font from the resource
@@ -224,15 +225,15 @@ class FontCache {
   scoped_ptr<FontFaceMap> font_face_map_;
   RequestedRemoteFontMap requested_remote_font_cache_;
 
-  // Character map related
-  // This map tracks whether font family fonts contain specific characters. It
-  // is not used at all with fallback fonts. Each unique typeface id maps to a
-  // character map (allowing all fonts sharing the same typeface id to share the
-  // same character map). The font character map populates a character in the
-  // map after the first request triggers a call to the resource provider,
-  // ensuring that the resource provider will only ever be queried once for a
-  // unique typeface-character combination.
-  TypefaceToFontCharacterMap typeface_id_to_character_map_;
+  // Character glyph map related
+  // This map tracks the glyphs a typeface provides for specific characters.
+  // Each unique typeface id maps to a character glyph map (allowing all fonts
+  // sharing the same typeface id to share the same character glyph map).
+  // Character to glyph entries are lazily populated the first time that they
+  // are requested. This ensures that the resource provider will only be queried
+  // for typeface-character combinations that are actually used, and will never
+  // be queried more than once for any given typeface-character combination.
+  TypefaceToFontCharacterGlyphMap typeface_id_to_character_glyph_map_;
 
   // Fallback font related
   // Contains maps of both the unique typeface to use with a specific
@@ -247,4 +248,4 @@ class FontCache {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_FONT_CACHE_H_
+#endif  // COBALT_DOM_FONT_CACHE_H_
