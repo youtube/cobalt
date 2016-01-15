@@ -43,6 +43,10 @@
 #include <limits.h>
 #endif
 
+#if SB_HAS(STDARG_H)
+#include <stdarg.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
