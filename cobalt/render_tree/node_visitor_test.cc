@@ -121,9 +121,10 @@ class DummyFont : public Font {
     return NULL;
   }
 
-  bool HasCharacter(int32 utf32_character) const OVERRIDE {
+  cobalt::render_tree::GlyphIndex GetGlyphForCharacter(
+      int32 utf32_character) const OVERRIDE {
     UNREFERENCED_PARAMETER(utf32_character);
-    return 0;
+    return cobalt::render_tree::GlyphIndex(1);
   }
 };
 
