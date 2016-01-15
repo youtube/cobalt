@@ -57,6 +57,7 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
       enabled_vertex_attribs_dirty_(true),
       pack_alignment_(4),
       unpack_alignment_(4),
+      unpack_row_length_(0),
       error_(GL_NO_ERROR) {
   if (share_context != NULL) {
     resource_manager_ = share_context->resource_manager_;
@@ -235,9 +236,21 @@ void Context::GetProgramInfoLog(GLuint program,
 }
 
 void Context::PixelStorei(GLenum pname, GLint param) {
-  if (param != 1 && param != 4 && param != 8) {
-    SetError(GL_INVALID_VALUE);
-    return;
+  switch (pname) {
+    case GL_PACK_ALIGNMENT:
+    case GL_UNPACK_ALIGNMENT:
+      if (param != 1 && param != 4 && param != 8) {
+        SetError(GL_INVALID_VALUE);
+        return;
+      }
+      break;
+
+    default:
+      if (param < 0) {
+        SetError(GL_INVALID_VALUE);
+        return;
+      }
+      break;
   }
 
   switch (pname) {
@@ -247,6 +260,17 @@ void Context::PixelStorei(GLenum pname, GLint param) {
     case GL_UNPACK_ALIGNMENT:
       unpack_alignment_ = param;
       break;
+    case GL_UNPACK_ROW_LENGTH:
+      unpack_row_length_ = param;
+      break;
+    case GL_PACK_ROW_LENGTH:
+    case GL_PACK_SKIP_ROWS:
+    case GL_PACK_SKIP_PIXELS:
+    case GL_UNPACK_IMAGE_HEIGHT:
+    case GL_UNPACK_SKIP_ROWS:
+    case GL_UNPACK_SKIP_PIXELS:
+    case GL_UNPACK_SKIP_IMAGES:
+      SB_NOTIMPLEMENTED();
     default:
       SetError(GL_INVALID_ENUM);
       break;
@@ -601,6 +625,12 @@ void Context::DeleteBuffers(GLsizei n, const GLuint* buffers) {
       return;
     }
 
+    if (buffer_object->is_mapped()) {
+      // Buffer objects should be unmapped if they are deleted.
+      //   https://www.khronos.org/opengles/sdk/docs/man3/html/glMapBufferRange.xhtml
+      buffer_object->Unmap();
+    }
+
     // If a bound buffer is deleted, set the bound buffer to NULL.
     if (buffer_object->target_valid()) {
       *GetBoundBufferForTarget(buffer_object->target()) =
@@ -609,8 +639,29 @@ void Context::DeleteBuffers(GLsizei n, const GLuint* buffers) {
   }
 }
 
+namespace {
+bool IsValidBufferTarget(GLenum target) {
+  switch (target) {
+    case GL_ARRAY_BUFFER:
+    case GL_ELEMENT_ARRAY_BUFFER:
+    case GL_PIXEL_UNPACK_BUFFER:
+      return true;
+      break;
+    case GL_COPY_READ_BUFFER:
+    case GL_COPY_WRITE_BUFFER:
+    case GL_PIXEL_PACK_BUFFER:
+    case GL_TRANSFORM_FEEDBACK_BUFFER:
+    case GL_UNIFORM_BUFFER:
+      SB_NOTIMPLEMENTED() << "Buffer target " << target << " is not supported "
+                                                           "in glimp.";
+    default:
+      return false;
+  }
+}
+}  // namespace
+
 void Context::BindBuffer(GLenum target, GLuint buffer) {
-  if (target != GL_ARRAY_BUFFER && target != GL_ELEMENT_ARRAY_BUFFER) {
+  if (!IsValidBufferTarget(target)) {
     SetError(GL_INVALID_ENUM);
     return;
   }
@@ -651,7 +702,7 @@ void Context::BufferData(GLenum target,
     return;
   }
 
-  if (target != GL_ARRAY_BUFFER && target != GL_ELEMENT_ARRAY_BUFFER) {
+  if (!IsValidBufferTarget(target)) {
     SetError(GL_INVALID_ENUM);
     return;
   }
@@ -660,6 +711,13 @@ void Context::BufferData(GLenum target,
   if (bound_buffer == 0) {
     SetError(GL_INVALID_OPERATION);
     return;
+  }
+
+  if (bound_buffer->is_mapped()) {
+    // According to the specification, we must unmap the buffer if its data
+    // store is recreated with glBufferData.
+    //   https://www.khronos.org/opengles/sdk/docs/man3/html/glMapBufferRange.xhtml
+    bound_buffer->Unmap();
   }
 
   bound_buffer->Allocate(usage, size);
@@ -677,7 +735,7 @@ void Context::BufferSubData(GLenum target,
     return;
   }
 
-  if (target != GL_ARRAY_BUFFER && target != GL_ELEMENT_ARRAY_BUFFER) {
+  if (!IsValidBufferTarget(target)) {
     SetError(GL_INVALID_ENUM);
     return;
   }
@@ -693,10 +751,112 @@ void Context::BufferSubData(GLenum target,
     return;
   }
 
+  if (bound_buffer->is_mapped()) {
+    // According to the specification, we must unmap the buffer if its data
+    // store is recreated with glBufferData.
+    //   https://www.khronos.org/opengles/sdk/docs/man3/html/glMapBufferRange.xhtml
+    bound_buffer->Unmap();
+  }
+
   // Nothing in the specification says there should be an error if data
   // is NULL.
   if (data) {
     bound_buffer->SetData(offset, size, data);
+  }
+}
+
+namespace {
+// This function is based off of the logic described in the "Errors" section
+// of the specification:
+//   https://www.khronos.org/opengles/sdk/docs/man3/html/glMapBufferRange.xhtml
+bool MapBufferRangeAccessFlagsAreValid(GLbitfield access) {
+  if (access &
+      ~(GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT |
+        GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_FLUSH_EXPLICIT_BIT |
+        GL_MAP_UNSYNCHRONIZED_BIT)) {
+    return false;
+  }
+
+  if (!(access & (GL_MAP_READ_BIT | GL_MAP_WRITE_BIT))) {
+    return false;
+  }
+
+  if ((access & GL_MAP_READ_BIT) &&
+      (access & (GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_INVALIDATE_RANGE_BIT |
+                 GL_MAP_UNSYNCHRONIZED_BIT))) {
+    return false;
+  }
+
+  if ((access & GL_MAP_FLUSH_EXPLICIT_BIT) && !(access & GL_MAP_WRITE_BIT)) {
+    return false;
+  }
+
+  return true;
+}
+}  // namespace
+
+void* Context::MapBufferRange(GLenum target,
+                              GLintptr offset,
+                              GLsizeiptr length,
+                              GLbitfield access) {
+  if (!IsValidBufferTarget(target)) {
+    SetError(GL_INVALID_ENUM);
+    return NULL;
+  }
+
+  nb::scoped_refptr<Buffer> bound_buffer = *GetBoundBufferForTarget(target);
+  if (bound_buffer == 0) {
+    SetError(GL_INVALID_OPERATION);
+    return NULL;
+  }
+
+  if (offset < 0 || length < 0 ||
+      offset + length > bound_buffer->size_in_bytes()) {
+    SetError(GL_INVALID_VALUE);
+    return NULL;
+  }
+
+  if (bound_buffer->is_mapped()) {
+    SetError(GL_INVALID_OPERATION);
+    return NULL;
+  }
+
+  if (!MapBufferRangeAccessFlagsAreValid(access)) {
+    SetError(GL_INVALID_OPERATION);
+    return NULL;
+  }
+
+  SB_DCHECK(access & GL_MAP_INVALIDATE_BUFFER_BIT)
+      << "glimp requires the GL_MAP_INVALIDATE_BUFFER_BIT flag to be set.";
+  SB_DCHECK(access & GL_MAP_UNSYNCHRONIZED_BIT)
+      << "glimp requres the GL_MAP_UNSYNCHRONIZED_BIT flag to be set.";
+  SB_DCHECK(!(access & GL_MAP_FLUSH_EXPLICIT_BIT))
+      << "glimp does not support the GL_MAP_FLUSH_EXPLICIT_BIT flag.";
+  SB_DCHECK(length == bound_buffer->size_in_bytes())
+      << "glimp only supports mapping the entire buffer.";
+
+  return bound_buffer->Map();
+}
+
+bool Context::UnmapBuffer(GLenum target) {
+  if (!IsValidBufferTarget(target)) {
+    SetError(GL_INVALID_ENUM);
+    return GL_FALSE;
+  }
+
+  nb::scoped_refptr<Buffer> bound_buffer = *GetBoundBufferForTarget(target);
+  if (bound_buffer == 0) {
+    SetError(GL_INVALID_OPERATION);
+    return GL_FALSE;
+  }
+
+  if (bound_buffer->is_mapped()) {
+    return bound_buffer->Unmap();
+  } else {
+    // The specification is unclear on what to do in the case where the buffer
+    // was not mapped to begin with, so we return GL_FALSE in this case.
+    //   https://www.khronos.org/opengles/sdk/docs/man3/html/glMapBufferRange.xhtml
+    return GL_FALSE;
   }
 }
 
@@ -754,6 +914,8 @@ nb::scoped_refptr<Buffer>* Context::GetBoundBufferForTarget(GLenum target) {
     case GL_ELEMENT_ARRAY_BUFFER:
       draw_state_dirty_flags_.element_array_buffer_dirty = true;
       return &draw_state_.element_array_buffer;
+    case GL_PIXEL_UNPACK_BUFFER:
+      return &bound_pixel_unpack_buffer_;
   }
 
   SB_NOTREACHED();
@@ -1063,12 +1225,23 @@ void Context::TexImage2D(GLenum target,
   SB_DCHECK(nb::IsAligned(nb::AsInteger(pixels),
                           static_cast<uintptr_t>(unpack_alignment_)));
 
-  // Determine the pitch via the GL_UNPACK_ALIGNMENT setting made through a
-  // call to glPixelStorei().  By default this value is 4.
-  int pitch_in_bytes =
-      nb::AlignUp(width * BytesPerPixel(pixel_format), unpack_alignment_);
-  texture_object->SetData(level, pixel_format, width, height, pitch_in_bytes,
-                          pixels);
+  // Determine pitch taking into account glPixelStorei() settings.
+  int pitch_in_bytes = GetPitchForTextureData(width, pixel_format);
+
+  if (bound_pixel_unpack_buffer_) {
+    if (bound_pixel_unpack_buffer_->is_mapped() ||
+        height * pitch_in_bytes > bound_pixel_unpack_buffer_->size_in_bytes()) {
+      SetError(GL_INVALID_OPERATION);
+      return;
+    }
+
+    texture_object->SetDataFromBuffer(
+        level, pixel_format, width, height, pitch_in_bytes,
+        bound_pixel_unpack_buffer_, nb::AsInteger(pixels));
+  } else {
+    texture_object->SetData(level, pixel_format, width, height, pitch_in_bytes,
+                            pixels);
+  }
 }
 
 void Context::TexSubImage2D(GLenum target,
@@ -1129,13 +1302,23 @@ void Context::TexSubImage2D(GLenum target,
   SB_DCHECK(nb::IsAligned(nb::AsInteger(pixels),
                           static_cast<uintptr_t>(unpack_alignment_)));
 
-  // Determine the pitch via the GL_UNPACK_ALIGNMENT setting made through a
-  // call to glPixelStorei().  By default this value is 4.
-  int pitch_in_bytes =
-      nb::AlignUp(width * BytesPerPixel(pixel_format), unpack_alignment_);
+  // Determine pitch taking into account glPixelStorei() settings.
+  int pitch_in_bytes = GetPitchForTextureData(width, pixel_format);
 
-  texture_object->UpdateData(level, xoffset, yoffset, width, height,
-                             pitch_in_bytes, pixels);
+  if (bound_pixel_unpack_buffer_) {
+    if (bound_pixel_unpack_buffer_->is_mapped() ||
+        height * pitch_in_bytes > bound_pixel_unpack_buffer_->size_in_bytes()) {
+      SetError(GL_INVALID_OPERATION);
+      return;
+    }
+
+    texture_object->UpdateDataFromBuffer(
+        level, xoffset, yoffset, width, height, pitch_in_bytes,
+        bound_pixel_unpack_buffer_, nb::AsInteger(pixels));
+  } else {
+    texture_object->UpdateData(level, xoffset, yoffset, width, height,
+                               pitch_in_bytes, pixels);
+  }
 }
 
 void Context::GenFramebuffers(GLsizei n, GLuint* framebuffers) {
@@ -1611,5 +1794,21 @@ void Context::SetBoundFramebufferToDefault() {
 bool Context::IsDefaultFramebufferBound() const {
   return draw_state_.framebuffer == default_draw_framebuffer_;
 }
+
+int Context::GetPitchForTextureData(int width, PixelFormat pixel_format) const {
+  // The equations for determining the pitch are described here:
+  //   https://www.khronos.org/opengles/sdk/docs/man3/html/glPixelStorei.xhtml
+  int n = BytesPerPixel(pixel_format);
+  int s = 1;
+  int len = unpack_row_length_ > 0 ? unpack_row_length_ : width;
+  int a = unpack_alignment_;
+
+  if (s >= a) {
+    return n * len;
+  } else {
+    return nb::AlignUp(s * n * len, a) / s;
+  }
+}
+
 }  // namespace gles
 }  // namespace glimp
