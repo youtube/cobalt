@@ -17,6 +17,7 @@
 #ifndef GLIMP_GLES_TEXTURE_IMPL_H_
 #define GLIMP_GLES_TEXTURE_IMPL_H_
 
+#include "glimp/gles/buffer.h"
 #include "glimp/gles/pixel_format.h"
 #include "glimp/gles/shader.h"
 #include "glimp/nb/rect.h"
@@ -41,6 +42,21 @@ class TextureImpl {
                        int pitch_in_bytes,
                        const void* pixels) = 0;
 
+  // Similar to SetData() above, however the source of pixels in this case
+  // is a buffer object, and an offset into it.  This method will be called
+  // when glTexImage2D() is called while a buffer is currently bound to
+  // the GL_PIXEL_UNPACK_BUFFER target.
+  //   https://www.khronos.org/opengles/sdk/docs/man3/html/glTexImage2D.xhtml
+  //   https://www.khronos.org/opengles/sdk/docs/man3/html/glBindBuffer.xhtml
+  virtual void SetDataFromBuffer(
+      int level,
+      PixelFormat pixel_format,
+      int width,
+      int height,
+      int pitch_in_bytes,
+      const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
+      uintptr_t buffer_offset) = 0;
+
   // Called when glTexSubImage2D() is called.  Updates an already allocated
   // texture data with new texture data provided by the client.  The parameters
   // of this method define a window within the existing texture data of which
@@ -50,6 +66,17 @@ class TextureImpl {
                           const nb::Rect<int>& window,
                           int pitch_in_bytes,
                           const void* pixels) = 0;
+
+  // Similar to UpdateData() above, however the source of pixels in this case
+  // is a buffer object, and an offset into it.  This method will be called
+  // when glTexSubImage2D() is called while a buffer is currently bound to
+  // the GL_PIXEL_UNPACK_BUFFER target.
+  virtual void UpdateDataFromBuffer(
+      int level,
+      const nb::Rect<int>& window,
+      int pitch_in_bytes,
+      const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
+      uintptr_t buffer_offset) = 0;
 
   // Returns true if this texture is valid for use as a Framebuffer color
   // attachment.  In other words, this should return true if the texture can
