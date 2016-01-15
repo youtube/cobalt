@@ -19,6 +19,7 @@
 
 #include <GLES3/gl3.h>
 
+#include "glimp/gles/buffer.h"
 #include "glimp/gles/pixel_format.h"
 #include "glimp/gles/texture_impl.h"
 #include "glimp/nb/ref_counted.h"
@@ -42,6 +43,16 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
                int pitch_in_bytes,
                const GLvoid* pixels);
 
+  // Implementes support for glTexImage2D() when data is supplied by a
+  // GL_PIXEL_UNPACK_BUFFER.
+  void SetDataFromBuffer(GLint level,
+                         PixelFormat pixel_format,
+                         GLsizei width,
+                         GLsizei height,
+                         int pitch_in_bytes,
+                         const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
+                         uintptr_t buffer_offset);
+
   // Implements support for glTexSubImage2D().
   void UpdateData(GLint level,
                   GLint xoffset,
@@ -50,6 +61,18 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
                   GLsizei height,
                   int pitch_in_bytes,
                   const GLvoid* pixels);
+
+  // Implementes support for glTexSubImage2D() when data is supplied by a
+  // GL_PIXEL_UNPACK_BUFFER.
+  void UpdateDataFromBuffer(
+      GLint level,
+      GLint xoffset,
+      GLint yoffset,
+      GLsizei width,
+      GLsizei height,
+      int pitch_in_bytes,
+      const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
+      uintptr_t buffer_offset);
 
   // Returns true if this texture can be used as a framebuffer component.
   // Essentially, this function is asking whether we can render to the texture
