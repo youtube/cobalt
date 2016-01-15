@@ -35,23 +35,10 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
   // Called when glBindTexture() is called.
   void SetTarget(GLenum target);
 
-  // Implements support for glTexImage2D().
-  void SetData(GLint level,
-               PixelFormat pixel_format,
-               GLsizei width,
-               GLsizei height,
-               int pitch_in_bytes,
-               const GLvoid* pixels);
-
-  // Implementes support for glTexImage2D() when data is supplied by a
-  // GL_PIXEL_UNPACK_BUFFER.
-  void SetDataFromBuffer(GLint level,
-                         PixelFormat pixel_format,
-                         GLsizei width,
-                         GLsizei height,
-                         int pitch_in_bytes,
-                         const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
-                         uintptr_t buffer_offset);
+  void Initialize(GLint level,
+                  PixelFormat pixel_format,
+                  GLsizei width,
+                  GLsizei height);
 
   // Implements support for glTexSubImage2D().
   void UpdateData(GLint level,
