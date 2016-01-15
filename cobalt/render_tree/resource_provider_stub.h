@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
-#define RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
+#ifndef COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
+#define COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 
 #include <string>
 
@@ -101,9 +101,9 @@ class FontStub : public Font {
     return make_scoped_refptr(new FontStub(NULL, 0));
   }
 
-  bool HasCharacter(int32 character) const OVERRIDE {
-    UNREFERENCED_PARAMETER(character);
-    return true;
+  GlyphIndex GetGlyphForCharacter(int32 utf32_character) const OVERRIDE {
+    UNREFERENCED_PARAMETER(utf32_character);
+    return GlyphIndex(1);
   }
 
  private:
@@ -181,4 +181,4 @@ class ResourceProviderStub : public ResourceProvider {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
+#endif  // COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_FONT_LIST_H_
-#define DOM_FONT_LIST_H_
+#ifndef COBALT_DOM_FONT_LIST_H_
+#define COBALT_DOM_FONT_LIST_H_
 
 #include <map>
 #include <string>
@@ -56,7 +56,7 @@ typedef std::vector<FontRun> FontRunList;
 // will only be non-NULL in the case where |state_| is set to |kLoadedState|.
 class FontListFont {
  public:
-  typedef std::map<int32, bool> CharacterMap;
+  typedef std::map<int32, render_tree::GlyphIndex> CharacterGlyphMap;
 
   enum State {
     kUnrequestedState,
@@ -77,8 +77,8 @@ class FontListFont {
   const scoped_refptr<render_tree::Font>& font() const { return font_; }
   void set_font(const scoped_refptr<render_tree::Font> font) { font_ = font; }
 
-  void set_character_map(CharacterMap* character_map) {
-    character_map_ = character_map;
+  void set_character_glyph_map(CharacterGlyphMap* character_glyph_map) {
+    character_glyph_map_ = character_glyph_map;
   }
 
   // Whether or not the font has the specified UTF-32 character. If the map does
@@ -86,7 +86,7 @@ class FontListFont {
   // having the character and the map is updated with the return value, ensuring
   // that the underlying font will only ever need to be queried once for a
   // character.
-  bool HasCharacter(int32 utf32_character);
+  bool HasGlyphForCharacter(int32 utf32_character);
 
  private:
   std::string family_name_;
@@ -106,7 +106,7 @@ class FontListFont {
   // means that it has not been queried yet, and not that the character is not
   // supported. It is only non-NULL in the case where |state_| is set to
   // |kLoadedState|.
-  CharacterMap* character_map_;
+  CharacterGlyphMap* character_glyph_map_;
 };
 
 // The key used for maps with a |FontList| value. It is also used for
@@ -252,4 +252,4 @@ class FontList : public base::RefCounted<FontList> {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_FONT_LIST_H_
+#endif  // COBALT_DOM_FONT_LIST_H_

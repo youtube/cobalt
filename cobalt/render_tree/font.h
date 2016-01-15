@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_FONT_H_
-#define RENDER_TREE_FONT_H_
+#ifndef COBALT_RENDER_TREE_FONT_H_
+#define COBALT_RENDER_TREE_FONT_H_
 
 #include <string>
 #include <vector>
@@ -76,6 +76,9 @@ struct FontStyle {
 
 typedef uint32_t TypefaceId;
 
+typedef uint16_t GlyphIndex;
+static const GlyphIndex kInvalidGlyphIndex = 0;
+
 // The Font class is an abstract base class representing all information
 // required by the rasterizer to determine the font metrics for a given
 // string of text.  Typically this implies that a font typeface, size, and
@@ -111,9 +114,10 @@ class Font : public base::RefCountedThreadSafe<Font> {
   // passed in value.
   virtual scoped_refptr<Font> CloneWithSize(float font_size) const = 0;
 
-  // Returns whether or not the font provides a glyph for a given UTF-32
-  // character.
-  virtual bool HasCharacter(int32 utf32_character) const = 0;
+  // Returns an index to the glyph that the font provides for a given UTF-32
+  // unicode character. If the character is unsupported, then it returns
+  // kInvalidGlyphIndex.
+  virtual GlyphIndex GetGlyphForCharacter(int32 utf32_character) const = 0;
 
  protected:
   virtual ~Font() {}
@@ -125,4 +129,4 @@ class Font : public base::RefCountedThreadSafe<Font> {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_FONT_H_
+#endif  // COBALT_RENDER_TREE_FONT_H_
