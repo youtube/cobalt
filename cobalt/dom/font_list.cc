@@ -31,18 +31,21 @@ const char* kHorizontalEllipsisUtf8Value = "\xe2\x80\xa6";
 FontListFont::FontListFont(const std::string& family_name)
     : family_name_(family_name),
       state_(kUnrequestedState),
-      character_map_(NULL) {}
+      character_glyph_map_(NULL) {}
 
-bool FontListFont::HasCharacter(int32 utf32_character) {
-  CharacterMap::iterator map_iterator = character_map_->find(utf32_character);
-  if (map_iterator != character_map_->end()) {
-    return map_iterator->second;
+bool FontListFont::HasGlyphForCharacter(int32 utf32_character) {
+  CharacterGlyphMap::iterator map_iterator =
+      character_glyph_map_->find(utf32_character);
+  if (map_iterator != character_glyph_map_->end()) {
+    return map_iterator->second != render_tree::kInvalidGlyphIndex;
   }
 
-  // The character map wasn't already populated with this character. Both set
-  // the character map's value and return that value to the caller.
-  return (*character_map_)[utf32_character] =
-             font_->HasCharacter(utf32_character);
+  // The character map wasn't already populated with this character's glyph.
+  // Both set the character map's glyph and return whether or not it is a valid
+  // glyph to the caller.
+  return ((*character_glyph_map_)[utf32_character] =
+              font_->GetGlyphForCharacter(utf32_character)) !=
+         render_tree::kInvalidGlyphIndex;
 }
 
 FontList::FontList(FontCache* font_cache, const FontListKey& font_list_key)
@@ -233,8 +236,8 @@ void FontList::RequestFont(size_t index) {
     if (font_list_font.state() != FontListFont::kDuplicateState) {
       font_list_font.set_state(FontListFont::kLoadedState);
       font_list_font.set_font(render_tree_font);
-      font_list_font.set_character_map(
-          font_cache_->GetFontCharacterMap(render_tree_font));
+      font_list_font.set_character_glyph_map(
+          font_cache_->GetFontCharacterGlyphMap(render_tree_font));
     }
   } else {
     font_list_font.set_state(state);
@@ -278,7 +281,7 @@ const scoped_refptr<render_tree::Font>& FontList::GetCharacterFont(
     }
 
     if (font_list_font.state() == FontListFont::kLoadedState &&
-        font_list_font.HasCharacter(utf32_character)) {
+        font_list_font.HasGlyphForCharacter(utf32_character)) {
       return font_list_font.font();
     }
   }
