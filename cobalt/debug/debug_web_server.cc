@@ -25,8 +25,13 @@
 #include "base/string_util.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/debug/json_object.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/tcp_listen_socket.h"
 #include "net/server/http_server_request_info.h"
+
+#if defined(__LB_SHELL__)
+#include "lb_network_helpers.h"
+#endif
 
 namespace cobalt {
 namespace debug {
@@ -73,6 +78,17 @@ FilePath AppendIndexFile(const FilePath& directory) {
   return directory;
 }
 
+std::string GetLocalIpAddress() {
+  struct sockaddr_in addr = {0};
+  addr.sin_family = AF_INET;
+  LB::Platform::GetLocalIpAddress(&addr.sin_addr);
+  net::IPEndPoint ip_addr;
+  bool result =
+      ip_addr.FromSockAddr(reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+  DCHECK(result);
+  return ip_addr.ToStringWithoutPort();
+}
+
 const char kContentDir[] = "cobalt/debug";
 const char kErrorField[] = "error.message";
 const char kIdField[] = "id";
@@ -84,7 +100,10 @@ DebugWebServer::DebugWebServer(
     int port, const CreateDebugServerCallback& create_debugger_callback)
     : http_server_thread_("DebugWebServer"),
       create_debugger_callback_(create_debugger_callback),
-      websocket_id_(-1) {
+      websocket_id_(-1),
+      // Actual local address will be set when the web server is started.
+      local_address_("DevTools.Server", "0.0.0.0:0",
+                     "Address to connect to for remote debugging.") {
   // Construct the content root directory to serve files from.
   PathService::Get(paths::DIR_COBALT_WEB_ROOT, &content_root_dir_);
   content_root_dir_ = content_root_dir_.AppendASCII(kContentDir);
@@ -226,13 +245,21 @@ void DebugWebServer::OnDebuggerDetach(const std::string& reason) const {
   DLOG(INFO) << "Got detach notification: " << reason;
 }
 
+std::string DebugWebServer::GetLocalAddress() const {
+  net::IPEndPoint ip_addr;
+  server_->GetLocalAddress(&ip_addr);
+  return std::string("http://") + ip_addr.ToString();
+}
+
 void DebugWebServer::StartServer(int port) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DLOG(INFO) << "Starting debug web server on port " << port;
 
   // Create http server
-  factory_.reset(new net::TCPListenSocketFactory("0.0.0.0", port));
+  const std::string ip_addr = GetLocalIpAddress();
+  DLOG(INFO) << "Starting debug web server at: " << ip_addr << ":" << port;
+  factory_.reset(new net::TCPListenSocketFactory(ip_addr, port));
   server_ = new net::HttpServer(*factory_, this);
+  local_address_ = GetLocalAddress();
 }
 
 }  // namespace debug
