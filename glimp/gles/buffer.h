@@ -39,6 +39,14 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
   // Implements support for glBufferData() on this buffer object.
   void SetData(GLintptr offset, GLsizeiptr size, const GLvoid* data);
 
+  // Maps the buffer's memory to a CPU-accessible pointer and returns it, or
+  // NULL on failure.
+  void* Map();
+  bool Unmap();
+
+  // Returns true if the buffer is currently mapped to the CPU address space.
+  bool is_mapped() const { return is_mapped_; }
+
   // Returns true if the target has been set (e.g. via glBindBuffer()).
   bool target_valid() const { return target_valid_; }
 
@@ -68,6 +76,9 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
 
   // The size of the allocated memory used by this buffer.
   GLsizeiptr size_in_bytes_;
+
+  // Is the buffer's data currently mapped to CPU address space?
+  bool is_mapped_;
 };
 
 }  // namespace gles

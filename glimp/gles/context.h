@@ -121,6 +121,11 @@ class Context {
                      GLintptr offset,
                      GLsizeiptr size,
                      const GLvoid* data);
+  void* MapBufferRange(GLenum target,
+                       GLintptr offset,
+                       GLsizeiptr length,
+                       GLbitfield access);
+  bool UnmapBuffer(GLenum target);
 
   void GenTextures(GLsizei n, GLuint* textures);
   void DeleteTextures(GLsizei n, const GLuint* textures);
@@ -198,9 +203,13 @@ class Context {
   void SetError(GLenum error) { error_ = error; }
 
   // Returns the bound buffer slot for the specific specified target.
+  // This returns a pointer because it is used by glBindBuffer() which modifies
+  // what the returned scoped_refptr points to.
   nb::scoped_refptr<Buffer>* GetBoundBufferForTarget(GLenum target);
 
   // Returns the bound texture slot for the specific specified target.
+  // This returns a pointer because it is used by glBindTexture() which modifies
+  // what the returned scoped_refptr points to.
   nb::scoped_refptr<Texture>* GetBoundTextureForTarget(GLenum target);
 
   void SetupExtensionsString();
@@ -220,6 +229,10 @@ class Context {
   // glBindFramebuffer(GL_FRAMEBUFFER, 0) is called).
   void SetBoundFramebufferToDefault();
   bool IsDefaultFramebufferBound() const;
+
+  // Takes settings like GL_UNPACK_ROW_LENGTH and GL_UNPACK_ALIGNMENT into
+  // account to determine the pitch of incoming pixel data.
+  int GetPitchForTextureData(int width, PixelFormat pixel_format) const;
 
   // A reference to the platform-specific implementation aspects of the context.
   nb::scoped_ptr<ContextImpl> impl_;
@@ -282,6 +295,15 @@ class Context {
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glPixelStorei.xml
   int pack_alignment_;
   int unpack_alignment_;
+
+  // Allows the pitch of texture data to be explicitly specified.  This value
+  // can be modified by calling glPixelStorei(GL_UNPACK_ALIGNMENT, x).
+  //   https://www.khronos.org/opengles/sdk/docs/man3/html/glPixelStorei.xhtml
+  int unpack_row_length_;
+
+  // Tracks the currently bound pixel unpack buffer object, or NULL if none
+  // are bound.
+  nb::scoped_refptr<Buffer> bound_pixel_unpack_buffer_;
 
   // The last GL ES error raised.
   GLenum error_;
