@@ -30,38 +30,24 @@ class TextureImpl {
  public:
   virtual ~TextureImpl() {}
 
-  // Internally allocates memory for a texture of the specified format, width
-  // and height, for the specified mimap level.  If pixels is not NULL, the
-  // pixel values contained are to be copied into the newly allocated texture
-  // data memory.  This method is called when glTexImage2D() is called.
+  // Specifies texture parameters necessary to allocate texture data within
+  // this texture.  This method must be called before pixel data can be
+  // provided to the texture via UpdateData*() methods.
+  // This method is called when glTexImage2D() is called.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
-  virtual void SetData(int level,
-                       PixelFormat pixel_format,
-                       int width,
-                       int height,
-                       int pitch_in_bytes,
-                       const void* pixels) = 0;
+  virtual void Initialize(int level,
+                          PixelFormat pixel_format,
+                          int width,
+                          int height) = 0;
 
-  // Similar to SetData() above, however the source of pixels in this case
-  // is a buffer object, and an offset into it.  This method will be called
-  // when glTexImage2D() is called while a buffer is currently bound to
-  // the GL_PIXEL_UNPACK_BUFFER target.
-  //   https://www.khronos.org/opengles/sdk/docs/man3/html/glTexImage2D.xhtml
-  //   https://www.khronos.org/opengles/sdk/docs/man3/html/glBindBuffer.xhtml
-  virtual void SetDataFromBuffer(
-      int level,
-      PixelFormat pixel_format,
-      int width,
-      int height,
-      int pitch_in_bytes,
-      const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
-      uintptr_t buffer_offset) = 0;
-
-  // Called when glTexSubImage2D() is called.  Updates an already allocated
-  // texture data with new texture data provided by the client.  The parameters
+  // Called when glTexImage2D() is called with non-null pixels, or when
+  // glTexSubImage2D() is called.  Updates an already allocated texture
+  // with new texture data provided by the client.  The parameters
   // of this method define a window within the existing texture data of which
   // should be updated with the provided (non-NULL) |pixels|.  The provided
   // |pitch_in_bytes| refers to the input data pixel rows.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexSubImage2D.xml
   virtual void UpdateData(int level,
                           const nb::Rect<int>& window,
                           int pitch_in_bytes,
@@ -69,8 +55,10 @@ class TextureImpl {
 
   // Similar to UpdateData() above, however the source of pixels in this case
   // is a buffer object, and an offset into it.  This method will be called
-  // when glTexSubImage2D() is called while a buffer is currently bound to
-  // the GL_PIXEL_UNPACK_BUFFER target.
+  // when glTexImage2D() or glTexSubImage2D() is called while a buffer is bound
+  // to the GL_PIXEL_UNPACK_BUFFER target.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexSubImage2D.xml
   virtual void UpdateDataFromBuffer(
       int level,
       const nb::Rect<int>& window,
