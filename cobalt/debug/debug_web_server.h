@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "base/threading/thread.h"
 #include "base/values.h"
+#include "cobalt/base/console_values.h"
 #include "cobalt/debug/debug_server.h"
 #include "net/base/stream_listen_socket.h"
 #include "net/server/http_server.h"
@@ -69,6 +70,8 @@ class DebugWebServer : private net::HttpServer::Delegate {
   void OnDebuggerDetach(const std::string& reason) const;
 
  private:
+  std::string GetLocalAddress() const;
+
   void StartServer(int port);
 
   void SendErrorResponseOverWebSocket(int id, const std::string& message);
@@ -80,6 +83,7 @@ class DebugWebServer : private net::HttpServer::Delegate {
   CreateDebugServerCallback create_debugger_callback_;
   scoped_ptr<DebugServer> debugger_;
   int websocket_id_;
+  base::CVal<std::string> local_address_;
   FilePath content_root_dir_;
 };
 
