@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbDoubleIsFiniteTest, SunnyDay) {
-  double d = 1;
-  EXPECT_TRUE(SbDoubleIsFinite(&d));
+TEST(SbDoubleIsNanTest, SunnyDay) {
+  EXPECT_FALSE(SbDoubleIsNan(1));
 
-  d = std::numeric_limits<double>::infinity();
-  EXPECT_FALSE(SbDoubleIsFinite(&d));
+  // |quiet_NaN()| is standard, but seems to be newish, and may not be
+  // super-portable, keep an eye out.
+  EXPECT_TRUE(SbDoubleIsNan(std::numeric_limits<double>::quiet_NaN()));
 }
 
 }  // namespace

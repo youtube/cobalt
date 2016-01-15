@@ -24,10 +24,22 @@
 extern "C" {
 #endif
 
+// Floors double-precision floating-point number |d| to the nearest integer.
+SB_EXPORT double SbDoubleFloor(double d);
+
+// Returns the absolute value of the given double-precision floating-point
+// number |d|, preserving NaN and Infinity.
+SB_EXPORT double SbDoubleAbsolute(double d);
+
 // Determines whether double-precision floating-point number |d| represents a
 // fininte number. |d| is a pointer to a double to avoid copying the whole
 // double, similar to using a const reference in C++.
+// TODO(***REMOVED***): Pass |d| by value.
 SB_EXPORT bool SbDoubleIsFinite(const double* d);
+
+// Determines whether double-precision floating-point number |d| represents "Not
+// a Number."
+SB_EXPORT bool SbDoubleIsNan(const double d);
 
 #ifdef __cplusplus
 }  // extern "C"

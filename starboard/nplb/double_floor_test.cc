@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <limits>
-
 #include "starboard/double.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -21,12 +19,15 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbDoubleIsFiniteTest, SunnyDay) {
-  double d = 1;
-  EXPECT_TRUE(SbDoubleIsFinite(&d));
+TEST(SbDoubleFloorTest, SunnyDay) {
+  double d = 1.5;
+  EXPECT_EQ(1, SbDoubleFloor(d));
 
-  d = std::numeric_limits<double>::infinity();
-  EXPECT_FALSE(SbDoubleIsFinite(&d));
+  d = 123.00123;
+  EXPECT_EQ(123, SbDoubleFloor(d));
+
+  d = 123.9987;
+  EXPECT_EQ(123, SbDoubleFloor(d));
 }
 
 }  // namespace
