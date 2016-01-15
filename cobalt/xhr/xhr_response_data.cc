@@ -16,44 +16,52 @@
 
 #include "cobalt/xhr/xhr_response_data.h"
 
+#include <algorithm>
+
 #include "cobalt/dom/stats.h"
 
 namespace cobalt {
 namespace xhr {
 
-XhrResponseData::XhrResponseData() : size_(0), capacity_(0) {}
-XhrResponseData::~XhrResponseData() { Clear(); }
+namespace {
+
+// When we don't have any data, we still want to return a non-null pointer to a
+// valid memory location.  Because even it will never be accessed, a null
+// pointer may trigger undefined behavior in functions like memcpy.  So we
+// create this dummy value here and return its address when we don't have any
+// data.
+uint8 s_dummy;
+
+}  // namespace
+
+XhrResponseData::XhrResponseData() {}
+
+XhrResponseData::~XhrResponseData() {}
 
 void XhrResponseData::Clear() {
-  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity_);
-  data_.reset(NULL);
-  size_ = 0;
-  capacity_ = 0;
+  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+  // Use swap to force free the memory allocated.
+  std::vector<uint8> dummy;
+  data_.swap(dummy);
 }
 
-void XhrResponseData::Reserve(size_t new_capacity) {
-  if (capacity_ < new_capacity) {
-    dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(new_capacity - capacity_);
-    // Ideally, we could realloc here instead of having two buffers alive at
-    // once, but using a scoped_array makes that more difficult.
-    uint8* new_data = new uint8[new_capacity];
-    memcpy(new_data, data_.get(), size_);
-    data_.reset(new_data);
-    capacity_ = new_capacity;
-  }
+void XhrResponseData::Reserve(size_t new_capacity_bytes) {
+  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+  data_.reserve(new_capacity_bytes);
+  dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
 }
 
 void XhrResponseData::Append(const uint8* source_data, size_t size_bytes) {
-  Reserve(size_ + size_bytes);
-  memcpy(data() + size_, source_data, size_bytes);
-  size_ += size_bytes;
+  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+  data_.insert(data_.end(), source_data, source_data + size_bytes);
+  dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
 }
 
-scoped_array<uint8> XhrResponseData::Pass() {
-  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity_);
-  size_ = 0;
-  capacity_ = 0;
-  return data_.Pass();
+const uint8* XhrResponseData::data() const {
+  return data_.empty() ? &s_dummy : &data_[0];
 }
+
+uint8* XhrResponseData::data() { return data_.empty() ? &s_dummy : &data_[0]; }
+
 }  // namespace xhr
 }  // namespace cobalt

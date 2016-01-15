@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef XHR_XHR_RESPONSE_DATA_H_
-#define XHR_XHR_RESPONSE_DATA_H_
+#ifndef COBALT_XHR_XHR_RESPONSE_DATA_H_
+#define COBALT_XHR_XHR_RESPONSE_DATA_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <vector>
+
+#include "base/basictypes.h"
 
 namespace cobalt {
 namespace xhr {
@@ -36,22 +38,17 @@ class XhrResponseData {
   // Append |source_data|, |size_bytes| in length, to the data array.
   void Append(const uint8* source_data, size_t size_bytes);
 
-  // Transfers ownership to the caller, and effectively Clear()s this object.
-  scoped_array<uint8> Pass();
+  const uint8* data() const;
+  uint8* data();
 
-  const uint8* data() const { return data_.get(); }
-  uint8* data() { return data_.get(); }
-
-  size_t size() const { return size_; }
-  size_t capacity() const { return capacity_; }
+  size_t size() const { return data_.size(); }
+  size_t capacity() const { return data_.capacity(); }
 
  private:
-  scoped_array<uint8> data_;
-  size_t size_;
-  size_t capacity_;
+  std::vector<uint8> data_;
 };
 
 }  // namespace xhr
 }  // namespace cobalt
 
-#endif  // XHR_XHR_RESPONSE_DATA_H_
+#endif  // COBALT_XHR_XHR_RESPONSE_DATA_H_
