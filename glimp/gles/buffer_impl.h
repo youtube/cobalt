@@ -50,6 +50,23 @@ class BufferImpl {
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBufferSubData.xml
   virtual void SetData(intptr_t offset, size_t size, const void* data) = 0;
 
+  // Maps the buffer's data to a CPU-addressible memory location and then
+  // returns a pointer to that location.  This method is called when
+  // glMapBufferRange() is called.  glimp only supports calls to
+  // glMapBufferRange() with the flag GL_MAP_INVALIDATE_BUFFER_BIT set,
+  // therefore this method is free to throw away any existing memory when
+  // this method is called.
+  //   https://www.khronos.org/opengles/sdk/docs/man3/html/glMapBufferRange.xhtml
+  virtual void* Map() = 0;
+
+  // Unmaps the data previously mapped to a CPU-addressible memory location
+  // through a call to Map().  This method will be called when
+  // glUnmapBuffer() is called.  This command should return false if the
+  // underlying buffer resource has become invalid while the memory was mapped.
+  // Otherwise, it should return true.
+  //   https://www.khronos.org/opengles/sdk/docs/man3/html/glMapBufferRange.xhtml
+  virtual bool Unmap() = 0;
+
  private:
 };
 

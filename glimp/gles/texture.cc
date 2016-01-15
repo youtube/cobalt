@@ -45,6 +45,26 @@ void Texture::SetData(GLint level,
   texture_allocated_ = true;
 }
 
+void Texture::SetDataFromBuffer(
+    GLint level,
+    PixelFormat pixel_format,
+    GLsizei width,
+    GLsizei height,
+    int pitch_in_bytes,
+    const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
+    uintptr_t buffer_offset) {
+  SB_DCHECK(pixel_unpack_buffer);
+
+  width_ = static_cast<int>(width);
+  height_ = static_cast<int>(height);
+  pixel_format_ = pixel_format;
+
+  impl_->SetDataFromBuffer(level, pixel_format_, width_, height_,
+                           pitch_in_bytes, pixel_unpack_buffer, buffer_offset);
+
+  texture_allocated_ = true;
+}
+
 void Texture::UpdateData(GLint level,
                          GLint xoffset,
                          GLint yoffset,
@@ -55,6 +75,21 @@ void Texture::UpdateData(GLint level,
   SB_DCHECK(pixels != NULL);
   impl_->UpdateData(level, nb::Rect<int>(xoffset, yoffset, width, height),
                     pitch_in_bytes, pixels);
+}
+
+void Texture::UpdateDataFromBuffer(
+    GLint level,
+    GLint xoffset,
+    GLint yoffset,
+    GLsizei width,
+    GLsizei height,
+    int pitch_in_bytes,
+    const nb::scoped_refptr<Buffer>& pixel_unpack_buffer,
+    uintptr_t buffer_offset) {
+  SB_DCHECK(pixel_unpack_buffer);
+  impl_->UpdateDataFromBuffer(
+      level, nb::Rect<int>(xoffset, yoffset, width, height), pitch_in_bytes,
+      pixel_unpack_buffer, buffer_offset);
 }
 
 bool Texture::CanBeAttachedToFramebuffer() const {

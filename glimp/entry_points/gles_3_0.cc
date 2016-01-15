@@ -16,7 +16,20 @@
 
 #include <GLES3/gl3.h>
 
+#include "glimp/gles/context.h"
 #include "starboard/log.h"
+
+namespace gles = glimp::gles;
+
+namespace {
+gles::Context* GetCurrentContext() {
+  gles::Context* context = gles::Context::GetTLSCurrentContext();
+  if (!context) {
+    SB_DLOG(WARNING) << "GL ES command issued while no context was current.";
+  }
+  return context;
+}
+}
 
 extern "C" {
 
@@ -128,8 +141,12 @@ void GL_APIENTRY glGetQueryObjectuiv(GLuint id, GLenum pname, GLuint* params) {
 }
 
 GLboolean GL_APIENTRY glUnmapBuffer(GLenum target) {
-  SB_NOTIMPLEMENTED();
-  return false;
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return GL_FALSE;
+  }
+
+  return context->UnmapBuffer(target);
 }
 
 void GL_APIENTRY glGetBufferPointerv(GLenum target,
@@ -217,8 +234,12 @@ GLvoid* GL_APIENTRY glMapBufferRange(GLenum target,
                                      GLintptr offset,
                                      GLsizeiptr length,
                                      GLbitfield access) {
-  SB_NOTIMPLEMENTED();
-  return NULL;
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return NULL;
+  }
+
+  return context->MapBufferRange(target, offset, length, access);
 }
 
 void GL_APIENTRY glFlushMappedBufferRange(GLenum target,

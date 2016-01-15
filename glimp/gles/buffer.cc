@@ -55,10 +55,25 @@ void Buffer::SetData(GLintptr offset, GLsizeiptr size, const GLvoid* data) {
   SB_DCHECK(size_in_bytes_ >= offset + size);
   SB_DCHECK(offset >= 0);
   SB_DCHECK(size >= 0);
+  SB_DCHECK(!is_mapped_);
 
   if (size > 0) {
     impl_->SetData(offset, static_cast<size_t>(size), data);
   }
+}
+
+void* Buffer::Map() {
+  SB_DCHECK(!is_mapped_);
+  is_mapped_ = true;
+
+  return impl_->Map();
+}
+
+bool Buffer::Unmap() {
+  SB_DCHECK(is_mapped_);
+  is_mapped_ = false;
+
+  return impl_->Unmap();
 }
 
 }  // namespace gles
