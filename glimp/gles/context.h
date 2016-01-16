@@ -203,6 +203,7 @@ class Context {
                   GLvoid* pixels);
 
   void Flush();
+  void Finish();
   void SwapBuffers();
 
   // Called when eglBindTexImage() is called.
