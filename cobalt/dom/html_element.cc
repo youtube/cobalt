@@ -48,6 +48,7 @@
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
 #include "cobalt/dom/html_style_element.h"
+#include "cobalt/dom/html_title_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/rule_matching.h"
@@ -432,6 +433,10 @@ scoped_refptr<HTMLScriptElement> HTMLElement::AsHTMLScriptElement() {
 scoped_refptr<HTMLSpanElement> HTMLElement::AsHTMLSpanElement() { return NULL; }
 
 scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
+  return NULL;
+}
+
+scoped_refptr<HTMLTitleElement> HTMLElement::AsHTMLTitleElement() {
   return NULL;
 }
 
