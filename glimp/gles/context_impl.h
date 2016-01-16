@@ -115,6 +115,12 @@ class ContextImpl {
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glFlush.xml
   virtual void Flush() = 0;
 
+  // Called when glFinish() is called.  After this method is called, client
+  // code can assume that all previously issued GL commands have been submitted
+  // and also have finished being processed by the GPU.
+  //   https://www.khronos.org/opengles/sdk/docs/man3/html/glFinish.xhtml
+  virtual void Finish() = 0;
+
   // Called when glClear() is called.  Clears all of the three buffers that have
   // their |clear_*| parameters set.
   //   |draw_state| represents the current GL ES draw state at the time of this
