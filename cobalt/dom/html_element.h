@@ -61,6 +61,7 @@ class HTMLParagraphElement;
 class HTMLScriptElement;
 class HTMLSpanElement;
 class HTMLStyleElement;
+class HTMLTitleElement;
 class HTMLUnknownElement;
 class HTMLVideoElement;
 
@@ -147,6 +148,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   virtual scoped_refptr<HTMLScriptElement> AsHTMLScriptElement();
   virtual scoped_refptr<HTMLSpanElement> AsHTMLSpanElement();
   virtual scoped_refptr<HTMLStyleElement> AsHTMLStyleElement();
+  virtual scoped_refptr<HTMLTitleElement> AsHTMLTitleElement();
   virtual scoped_refptr<HTMLUnknownElement> AsHTMLUnknownElement();
   virtual scoped_refptr<HTMLVideoElement> AsHTMLVideoElement();
 

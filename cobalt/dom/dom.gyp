@@ -138,6 +138,8 @@
         'html_span_element.h',
         'html_style_element.cc',
         'html_style_element.h',
+        'html_title_element.cc',
+        'html_title_element.h',
         'html_unknown_element.h',
         'html_video_element.cc',
         'html_video_element.h',
