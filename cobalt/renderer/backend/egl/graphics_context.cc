@@ -240,6 +240,13 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
       base::polymorphic_downcast<const TextureEGL*>(&texture);
   ScopedMakeCurrent scoped_current_context(this);
 
+  // This shouldn't be strictly necessary as glReadPixels() should implicitly
+  // call glFinish(), however it doesn't hurt to be safe and guard against
+  // potentially different implementations.  Performance is not an issue
+  // in this function, because it is only used by tests to verify rendered
+  // output.
+  GL_CALL(glFinish());
+
   GLuint texture_framebuffer;
   GL_CALL(glGenFramebuffers(1, &texture_framebuffer));
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, texture_framebuffer));
@@ -260,8 +267,6 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
 
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
   GL_CALL(glDeleteFramebuffers(1, &texture_framebuffer));
-
-  GL_CALL(glFinish());
 
   // Vertically flip the resulting pixel data before returning so that the 0th
   // pixel is at the top-left.  While this is not a fast procedure, this
