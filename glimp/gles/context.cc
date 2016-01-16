@@ -1797,6 +1797,10 @@ void Context::Flush() {
   impl_->Flush();
 }
 
+void Context::Finish() {
+  impl_->Finish();
+}
+
 void Context::SwapBuffers() {
   Flush();
   impl_->SwapBuffers(default_draw_framebuffer_->color_attachment_surface());
