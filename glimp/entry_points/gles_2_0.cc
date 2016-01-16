@@ -402,7 +402,12 @@ void GL_APIENTRY glEnableVertexAttribArray(GLuint index) {
 }
 
 void GL_APIENTRY glFinish(void) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->Finish();
 }
 
 void GL_APIENTRY glFlush(void) {
