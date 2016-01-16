@@ -66,16 +66,22 @@ std::string Location::host() const {
   return url_.host() + (url_.has_port() ? ":" + url_.port() : "");
 }
 
-void Location::set_host(const std::string& host) {
-  GURL url(host);
+void Location::set_host(const std::string& host_and_port) {
+  // Host may include an optional port.
+  std::string host = host_and_port;
+  std::string port;
+  size_t host_end = host.find(':');
+  if (host_end != std::string::npos) {
+    host = host_and_port.substr(0, host_end);
+    port = host_and_port.substr(host_end + 1);
+  }
+
   GURL::Replacements replacements;
-  url_parse::Component comp_host;
-  comp_host.len = static_cast<int>(url.host().length());
-  replacements.SetHost(url.host().c_str(), comp_host);
-  if (url.has_port()) {
-    url_parse::Component comp_port;
-    comp_port.len = static_cast<int>(url.port().length());
-    replacements.SetPort(url.port().c_str(), comp_port);
+  replacements.SetHostStr(host);
+  if (port.length() > 0) {
+    replacements.SetPortStr(port);
+  } else {
+    replacements.ClearPort();
   }
   GURL new_url = url_.ReplaceComponents(replacements);
   Navigate(new_url);
