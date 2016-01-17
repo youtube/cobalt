@@ -8,8 +8,7 @@ attribute vec4 inColor;
 varying vec4 vColor;
 varying vec2 vMatrixCoord_Stage0;
 
-void main()
-{
+void main() {
   vec3 pos3 = uViewM * vec3(inPosition, 1);
   vColor = inColor;
   vMatrixCoord_Stage0 = (uStageMatrix_Stage0 * vec3(inLocalCoords, 1)).xy;
