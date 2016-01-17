@@ -47,6 +47,18 @@ uint32_t HashGLSLSource(const char* source) {
       continue;
     }
 
+    if (source[i] == '/' && source[i + 1] == '/') {
+      // If we see a comment, leave it out of the hash.
+      while (source[i] != '\n' && source[i] != '\0') {
+        ++i;
+      }
+      if (source[i] == '\0') {
+        break;
+      } else {
+        continue;
+      }
+    }
+
     hash = UpdateHash(hash, source[i]);
   }
   return FinalizeHash(hash);
