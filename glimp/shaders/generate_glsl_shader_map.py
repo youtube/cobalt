@@ -33,6 +33,7 @@ the data as well as its size.
 """
 
 import os
+import re
 import sys
 
 
@@ -224,7 +225,9 @@ def HashGLSLShaderFile(glsl_filename):
     return (a ^ b) & 0xffffffff
 
   hash_value = 0
-  for c in glsl_contents:
+  glsl_contents_without_comments = re.sub(r'//.*\n', '', glsl_contents)
+
+  for c in glsl_contents_without_comments:
     if c in [' ', '\n', '\t']:
       continue
     hash_value = AddUint32(hash_value, ord(c))
