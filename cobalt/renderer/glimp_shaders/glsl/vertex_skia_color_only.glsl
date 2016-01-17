@@ -2,7 +2,6 @@
 uniform mat3 uViewM;
 uniform vec4 urtAdjustment;
 attribute vec2 inPosition;
-attribute vec2 inLocalCoords;
 attribute vec4 inColor;
 varying vec4 vColor;
 void main()
