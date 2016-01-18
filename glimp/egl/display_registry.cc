@@ -17,6 +17,7 @@
 #include "glimp/egl/display_registry.h"
 
 #include "glimp/egl/display_impl.h"
+#include "glimp/egl/error.h"
 
 namespace glimp {
 namespace egl {
@@ -85,6 +86,23 @@ bool DisplayRegistry::Valid(EGLDisplay display) {
     }
   }
   return false;
+}
+
+// This function will either return the Display object associated with the
+// given EGLDisplay, or else set the appropriate EGL error and then return
+// NULL.
+egl::Display* GetDisplayOrSetError(EGLDisplay egl_display) {
+  if (!egl::DisplayRegistry::Valid(egl_display)) {
+    egl::SetError(EGL_BAD_DISPLAY);
+    return NULL;
+  }
+  egl::Display* display = egl::DisplayRegistry::ToDisplay(egl_display);
+  if (!display) {
+    egl::SetError(EGL_NOT_INITIALIZED);
+    return NULL;
+  }
+
+  return display;
 }
 
 }  // namespace egl
