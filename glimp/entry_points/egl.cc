@@ -20,32 +20,16 @@
 #include "glimp/egl/display.h"
 #include "glimp/egl/display_registry.h"
 #include "glimp/egl/error.h"
+#include "glimp/egl/get_proc_address_impl.h"
 #include "glimp/egl/scoped_egl_lock.h"
 #include "starboard/log.h"
 
 namespace egl = glimp::egl;
 
 namespace {
-// This function will either return the Display object associated with the
-// given EGLDisplay, or else set the appropriate EGL error and then return
-// NULL.
-egl::Display* GetDisplayOrSetError(EGLDisplay egl_display) {
-  if (!egl::DisplayRegistry::Valid(egl_display)) {
-    egl::SetError(EGL_BAD_DISPLAY);
-    return NULL;
-  }
-  egl::Display* display = egl::DisplayRegistry::ToDisplay(egl_display);
-  if (!display) {
-    egl::SetError(EGL_NOT_INITIALIZED);
-    return NULL;
-  }
-
-  return display;
-}
-
 egl::Surface* GetSurfaceOrSetError(EGLDisplay egl_display,
                                    EGLSurface egl_surface) {
-  egl::Display* display = GetDisplayOrSetError(egl_display);
+  egl::Display* display = egl::GetDisplayOrSetError(egl_display);
   if (!display) {
     return NULL;
   }
@@ -68,7 +52,7 @@ EGLBoolean EGLAPIENTRY eglChooseConfig(EGLDisplay dpy,
                                        EGLint* num_config) {
   egl::ScopedEGLLock egl_lock;
 
-  egl::Display* display = GetDisplayOrSetError(dpy);
+  egl::Display* display = egl::GetDisplayOrSetError(dpy);
   if (!display) {
     return false;
   }
@@ -90,7 +74,7 @@ EGLContext EGLAPIENTRY eglCreateContext(EGLDisplay dpy,
                                         const EGLint* attrib_list) {
   egl::ScopedEGLLock egl_lock;
 
-  egl::Display* display = GetDisplayOrSetError(dpy);
+  egl::Display* display = egl::GetDisplayOrSetError(dpy);
   if (!display) {
     return EGL_NO_CONTEXT;
   }
@@ -103,7 +87,7 @@ EGLSurface EGLAPIENTRY eglCreatePbufferSurface(EGLDisplay dpy,
                                                const EGLint* attrib_list) {
   egl::ScopedEGLLock egl_lock;
 
-  egl::Display* display = GetDisplayOrSetError(dpy);
+  egl::Display* display = egl::GetDisplayOrSetError(dpy);
   if (!display) {
     return EGL_NO_SURFACE;
   }
@@ -126,7 +110,7 @@ EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy,
                                               const EGLint* attrib_list) {
   egl::ScopedEGLLock egl_lock;
 
-  egl::Display* display = GetDisplayOrSetError(dpy);
+  egl::Display* display = egl::GetDisplayOrSetError(dpy);
   if (!display) {
     return EGL_NO_SURFACE;
   }
@@ -137,7 +121,7 @@ EGLSurface EGLAPIENTRY eglCreateWindowSurface(EGLDisplay dpy,
 EGLBoolean EGLAPIENTRY eglDestroyContext(EGLDisplay dpy, EGLContext ctx) {
   egl::ScopedEGLLock egl_lock;
 
-  egl::Display* display = GetDisplayOrSetError(dpy);
+  egl::Display* display = egl::GetDisplayOrSetError(dpy);
   if (!display) {
     return false;
   }
@@ -148,7 +132,7 @@ EGLBoolean EGLAPIENTRY eglDestroyContext(EGLDisplay dpy, EGLContext ctx) {
 EGLBoolean EGLAPIENTRY eglDestroySurface(EGLDisplay dpy, EGLSurface surface) {
   egl::ScopedEGLLock egl_lock;
 
-  egl::Display* display = GetDisplayOrSetError(dpy);
+  egl::Display* display = egl::GetDisplayOrSetError(dpy);
   if (!display) {
     return false;
   }
@@ -222,7 +206,7 @@ EGLBoolean EGLAPIENTRY eglMakeCurrent(EGLDisplay dpy,
                                       EGLContext ctx) {
   egl::ScopedEGLLock egl_lock;
 
-  egl::Display* display = GetDisplayOrSetError(dpy);
+  egl::Display* display = egl::GetDisplayOrSetError(dpy);
   if (!display) {
     return false;
   }
@@ -262,7 +246,7 @@ EGLBoolean EGLAPIENTRY eglQuerySurface(EGLDisplay dpy,
 EGLBoolean EGLAPIENTRY eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
   egl::ScopedEGLLock egl_lock;
 
-  egl::Display* display = GetDisplayOrSetError(dpy);
+  egl::Display* display = egl::GetDisplayOrSetError(dpy);
   if (!display) {
     return false;
   }
@@ -462,8 +446,9 @@ EGLBoolean EGLAPIENTRY eglWaitSync(EGLDisplay dpy, EGLSync sync, EGLint flags) {
 __eglMustCastToProperFunctionPointerType EGLAPIENTRY
 eglGetProcAddress(const char* procname) {
   egl::ScopedEGLLock egl_lock;
-  SB_NOTIMPLEMENTED();
-  return NULL;
+
+  // Forward the call on to platform-specific code to possibly handle.
+  return egl::GetProcAddressImpl(procname);
 }
 
 }  // extern "C"

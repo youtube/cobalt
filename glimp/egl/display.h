@@ -65,6 +65,8 @@ class Display {
   bool MakeCurrent(EGLSurface draw, EGLSurface read, EGLContext ctx);
   bool SwapBuffers(EGLSurface surface);
 
+  DisplayImpl* impl() const { return impl_.get(); }
+
  private:
   nb::scoped_ptr<DisplayImpl> impl_;
 
