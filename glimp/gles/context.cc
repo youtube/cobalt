@@ -1449,12 +1449,18 @@ GLenum Context::CheckFramebufferStatus(GLenum target) {
 }
 
 void Context::Viewport(GLint x, GLint y, GLsizei width, GLsizei height) {
-  draw_state_.viewport = ViewportState(x, y, width, height);
+  draw_state_.viewport.rect = nb::Rect<int>(x, y, width, height);
   draw_state_dirty_flags_.viewport_dirty = true;
 }
 
 void Context::Scissor(GLint x, GLint y, GLsizei width, GLsizei height) {
-  draw_state_.scissor = ScissorState(x, y, width, height);
+  if (x < 0) {
+    SB_DLOG(WARNING) << "glScissor() x coordinate is set to negative.";
+  }
+  if (y < 0) {
+    SB_DLOG(WARNING) << "glScissor() y coordinate is set to negative.";
+  }
+  draw_state_.scissor.rect = nb::Rect<int>(x, y, width, height);
   draw_state_dirty_flags_.scissor_dirty = true;
 }
 
