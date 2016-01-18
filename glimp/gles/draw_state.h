@@ -45,18 +45,12 @@ typedef std::vector<std::pair<unsigned int, Sampler*> > EnabledSamplerList;
 
 struct ViewportState {
   ViewportState() : rect(-1, -1, -1, -1) {}
-  explicit ViewportState(const nb::Rect<int>& rect) : rect(rect) {}
-  ViewportState(int x, int y, int width, int height)
-      : rect(x, y, width, height) {}
 
   nb::Rect<int> rect;
 };
 
 struct ScissorState {
-  ScissorState() : rect(-1, -1, -1, -1) {}
-  explicit ScissorState(const nb::Rect<int>& rect) : rect(rect) {}
-  ScissorState(int x, int y, int width, int height)
-      : rect(x, y, width, height) {}
+  ScissorState() : rect(-1, -1, -1, -1), enabled(false) {}
 
   nb::Rect<int> rect;
 
