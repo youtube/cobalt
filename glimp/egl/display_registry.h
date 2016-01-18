@@ -76,6 +76,11 @@ class DisplayRegistry {
   static Connection connections_[kMaxDisplays];
 };
 
+// This function will either return the Display object associated with the
+// given EGLDisplay, or else set the appropriate EGL error and then return
+// NULL.
+egl::Display* GetDisplayOrSetError(EGLDisplay egl_display);
+
 }  // namespace egl
 }  // namespace glimp
 

@@ -25,6 +25,7 @@
     'egl/display_registry.h',
     'egl/error.cc',
     'egl/error.h',
+    'egl/get_proc_address_impl.h',
     'egl/scoped_egl_lock.cc',
     'egl/scoped_egl_lock.h',
     'egl/surface.cc',
