@@ -304,7 +304,7 @@ class KeyTranslator {
 
   // Runs the sendKeys() algorithm to translate utf8 code points into key
   // press events.
-  // http://www.w3.org/TR/webdriver/#sendkeys
+  // https://www.w3.org/TR/webdriver/#sendkeys
   void Translate(const std::string& utf8_keys) {
     base::i18n::UTF8CharIterator utf8_iterator(&utf8_keys);
     while (!utf8_iterator.end()) {

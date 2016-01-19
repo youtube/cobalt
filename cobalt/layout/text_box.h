@@ -136,7 +136,7 @@ class TextBox : public Box {
   // truncated by an ellipsis and will not be visible.
   // "Implementations must hide characters and atomic inline-level elements at
   // the applicable edge(s) of the line as necessary to fit the ellipsis."
-  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   int32 truncated_text_end_position_;
 
   // A font used for text width and line height calculations.

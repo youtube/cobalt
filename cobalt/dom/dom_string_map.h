@@ -32,12 +32,12 @@ class Element;
 
 // The DOMStringMap interface represents a set of name-value pairs. It exposes
 // these using the scripting language's native mechanisms for property access.
-//   http://www.w3.org/TR/html5/infrastructure.html#domstringmap
+//   https://www.w3.org/TR/html5/infrastructure.html#domstringmap
 //
 // NOTE: This implementation is targeted to support |HTMLElement.dataset|
 //       which performs bidirectional conversion of key names between hyphenated
 //       and camel-cased forms as per
-//       http://www.w3.org/TR/html5/dom.html#dom-dataset.
+//       https://www.w3.org/TR/html5/dom.html#dom-dataset.
 class DOMStringMap : public script::Wrappable,
                      public base::SupportsWeakPtr<DOMStringMap> {
  public:

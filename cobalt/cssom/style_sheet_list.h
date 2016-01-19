@@ -32,7 +32,7 @@ class StyleSheet;
 
 // The StyleSheetList interface represents an ordered collection of CSS
 // style sheets.
-//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-stylesheetlist-interface
+//   https://www.w3.org/TR/2013/WD-cssom-20131205/#the-stylesheetlist-interface
 class StyleSheetList : public script::Wrappable, public MutationObserver {
  public:
   // If no layout mutation reporting needed, |observer| can be null.

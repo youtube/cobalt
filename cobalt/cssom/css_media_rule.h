@@ -36,7 +36,7 @@ class MediaList;
 class PropertyValue;
 
 // The CSSMediaRule interface represents an @media at-rule.
-//   http://www.w3.org/TR/cssom/#the-cssmediarule-interface
+//   https://www.w3.org/TR/cssom/#the-cssmediarule-interface
 class CSSMediaRule : public CSSConditionRule {
  public:
   CSSMediaRule();

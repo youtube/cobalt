@@ -35,7 +35,7 @@ class Node;
 //
 // An HTMLCollection in the HTML DOM is live; it is automatically updated when
 // the underlying document is changed.
-//    http://www.w3.org/TR/2014/WD-dom-20140710/#interface-htmlcollection
+//    https://www.w3.org/TR/2014/WD-dom-20140710/#interface-htmlcollection
 //
 // This is a DOM interface which has an HTML prefix for historical reasons.
 class HTMLCollection : public script::Wrappable {

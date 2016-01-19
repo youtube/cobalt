@@ -39,8 +39,8 @@ class HTMLElement;
 // Examples are generated content elements with '::after' and '::before', or
 // styles that affect parts of the DOM element they are attached to, such as
 // '::first-line'.
-//   http://www.w3.org/TR/selectors4/#pseudo-elements
-//   http://www.w3.org/TR/CSS21/generate.html#before-after-content
+//   https://www.w3.org/TR/selectors4/#pseudo-elements
+//   https://www.w3.org/TR/CSS21/generate.html#before-after-content
 // This class adds a container for the DOM state needed for pseudo elements.
 class PseudoElement {
  public:
@@ -48,7 +48,7 @@ class PseudoElement {
   ~PseudoElement() {}
 
   // Used by layout engine to cache the computed values.
-  // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
+  // See https://www.w3.org/TR/css-cascade-3/#computed for the definition of
   // computed value.
   scoped_refptr<cssom::ComputedStyleState>& computed_style_state() {
     return computed_style_state_;

@@ -25,7 +25,7 @@ namespace dom {
 
 // The FocusEvent interface provides specific contextual information associated
 // with Focus events.
-//   http://www.w3.org/TR/uievents/#interface-FocusEvent
+//   https://www.w3.org/TR/uievents/#interface-FocusEvent
 class FocusEvent : public UIEvent {
  public:
   FocusEvent(const std::string& type,

@@ -28,7 +28,7 @@ class Document;
 
 // The HTML Anchor Element (<a>) defines a hyperlink to a location on the same
 // page or any other page on the Web.
-//   http://www.w3.org/TR/html5/text-level-semantics.html#htmlanchorelement
+//   https://www.w3.org/TR/html5/text-level-semantics.html#htmlanchorelement
 class HTMLAnchorElement : public HTMLElement {
  public:
   static const char kTagName[];

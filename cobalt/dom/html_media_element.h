@@ -38,7 +38,7 @@ namespace cobalt {
 namespace dom {
 
 // The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
-//   http://www.w3.org/TR/html5/embedded-content-0.html#media-element
+//   https://www.w3.org/TR/html5/embedded-content-0.html#media-element
 // It also implements methods defined in Encrypted Media Extensions.
 //   https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html
 class HTMLMediaElement : public HTMLElement,

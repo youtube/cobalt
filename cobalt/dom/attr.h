@@ -30,7 +30,7 @@ class Element;
 class NamedNodeMap;
 
 // This type represents a DOM element's attribute as an object.
-//    http://www.w3.org/TR/2014/WD-dom-20140710/#interface-attr
+//    https://www.w3.org/TR/2014/WD-dom-20140710/#interface-attr
 //
 // Starting from DOM4, Attr no longer inherits from Node.
 //

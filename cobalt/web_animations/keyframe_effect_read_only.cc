@@ -197,7 +197,7 @@ T FirstWithProperty(const T& start, const T& end,
 }  // namespace
 
 // Described within step 10 from:
-//   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-effect-value-of-a-keyframe-animation-effect
+//   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-effect-value-of-a-keyframe-animation-effect
 std::pair<base::optional<PropertySpecificKeyframe>,
           base::optional<PropertySpecificKeyframe> >
 ComputeIntervalEndpoints(
@@ -260,7 +260,7 @@ ComputeIntervalEndpoints(
   return interval_endpoints;
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-effect-value-of-a-keyframe-animation-effect
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-effect-value-of-a-keyframe-animation-effect
 scoped_refptr<cssom::PropertyValue>
 KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue(
     cssom::PropertyKey target_property,

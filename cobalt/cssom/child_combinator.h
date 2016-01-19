@@ -27,7 +27,7 @@ namespace cssom {
 class CombinatorVisitor;
 
 // Child combinator describes a childhood relationship between two elements.
-//   http://www.w3.org/TR/selectors4/#child-combinators
+//   https://www.w3.org/TR/selectors4/#child-combinators
 class ChildCombinator : public Combinator {
  public:
   ChildCombinator() {}

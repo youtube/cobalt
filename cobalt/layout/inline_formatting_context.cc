@@ -52,7 +52,7 @@ scoped_refptr<Box> InlineFormattingContext::BeginUpdateRectAndMaybeSplit(
 
   // When an inline box exceeds the width of a line box, it is split into
   // several boxes and these boxes are distributed across several line boxes.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   //
   // We tackle this problem one split (and one line) at the time.
   scoped_refptr<Box> child_box_after_split;
@@ -80,7 +80,7 @@ void InlineFormattingContext::EndUpdates() {
 
   // The shrink-to-fit width is:
   // min(max(preferred minimum width, available width), preferred width).
-  //   http://www.w3.org/TR/CSS21/visudet.html#float-width
+  //   https://www.w3.org/TR/CSS21/visudet.html#float-width
   //
   // Naive solution of the above expression would require two layout passes:
   // one to calculate the "preferred minimum width" and another one to
@@ -121,12 +121,12 @@ void InlineFormattingContext::CreateLineBox() {
 
   // "'Text-indent' only affects a line if it is the first formatted line of an
   // element."
-  //   http://www.w3.org/TR/CSS21/text.html#propdef-text-indent
+  //   https://www.w3.org/TR/CSS21/text.html#propdef-text-indent
   float line_indent_offset = line_count_ == 0 ? text_indent_offset_ : 0;
 
   // Line boxes are stacked with no vertical separation and they never
   // overlap.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   line_box_ = make_scoped_ptr(new LineBox(
       auto_height(), line_height_, font_metrics_, true, true, layout_params_,
       text_align_, white_space_, line_indent_offset, ellipsis_width_));
@@ -137,7 +137,7 @@ void InlineFormattingContext::DestroyLineBox() {
 
   // The baseline of an "inline-block" is the baseline of its last line box
   // in the normal flow, unless it has no in-flow line boxes.
-  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  //   https://www.w3.org/TR/CSS21/visudet.html#line-height
   if (line_box_->line_exists()) {
     ++line_count_;
 
@@ -147,7 +147,7 @@ void InlineFormattingContext::DestroyLineBox() {
     // If "height" is "auto", the used value is the distance from box's top
     // content edge to the bottom edge of the last line box, if the box
     // establishes an inline formatting context with one or more lines.
-    //   http://www.w3.org/TR/CSS21/visudet.html#normal-block
+    //   https://www.w3.org/TR/CSS21/visudet.html#normal-block
     set_auto_height(line_box_->top() + line_box_->height());
 
     set_baseline_offset_from_top_content_edge(

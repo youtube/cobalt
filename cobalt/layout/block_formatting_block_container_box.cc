@@ -60,7 +60,7 @@ scoped_ptr<FormattingContext>
 BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {
   // Lay out child boxes in the normal flow.
-  //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
+  //   https://www.w3.org/TR/CSS21/visuren.html#normal-flow
   scoped_ptr<BlockFormattingContext> block_formatting_context(
       new BlockFormattingContext(child_layout_params));
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
@@ -142,7 +142,7 @@ bool InlineLevelBlockContainerBox::DoesFulfillEllipsisPlacementRequirement()
     const {
   // This box fulfills the requirement that the first character or inline-level
   // element must appear on the line before ellipsing can occur.
-  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   return true;
 }
 
@@ -180,7 +180,7 @@ void InlineLevelBlockContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // the ellipsis: "Implementations must hide characters and atomic inline-level
   // elements at the applicable edge(s) of the line as necessary to fit the
   // ellipsis."
-  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   if (*is_placed) {
     is_hidden_by_ellipsis_ = true;
     // Otherwise, the box is placing the ellipsis.
@@ -189,7 +189,7 @@ void InlineLevelBlockContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
 
     // The first character or atomic inline-level element on a line must be
     // clipped rather than ellipsed.
-    //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
     // If this requirement has been met, then place the ellipsis to the left of
     // the atomic inline-level element, as it should be fully hidden.
     if (*is_placement_requirement_met) {

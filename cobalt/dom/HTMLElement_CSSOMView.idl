@@ -15,17 +15,17 @@
  */
 
 // From CSSOM View Module.
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface
 
 partial interface HTMLElement {
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
+  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
   readonly attribute Element? offsetParent;
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
+  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
   readonly attribute double offsetTop;
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
+  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
   readonly attribute double offsetLeft;
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
+  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
   readonly attribute double offsetWidth;
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
+  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
   readonly attribute double offsetHeight;
 };

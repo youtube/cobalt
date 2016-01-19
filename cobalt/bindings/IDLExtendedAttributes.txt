@@ -40,7 +40,7 @@
 #
 
 # An Interface Object for this interface will not be created.
-# http://www.w3.org/TR/WebIDL/#NoInterfaceObject
+# https://www.w3.org/TR/WebIDL/#NoInterfaceObject
 NoInterfaceObject
 
 # This interface will be used as a global object. PrimaryGlobal s intended to be

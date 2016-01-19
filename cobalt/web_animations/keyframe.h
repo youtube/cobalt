@@ -35,7 +35,7 @@ namespace web_animations {
 
 // Individual keyframes are represented by a special kind of Keyframe dictionary
 // type whose members map to the properties to be animated.
-//   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-keyframe-dictionary
+//   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-keyframe-dictionary
 // A Keyframe associates target values for a set of CSS properties to a
 // particular normalized offset between 0 and 1.
 class Keyframe : public script::Wrappable {

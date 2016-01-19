@@ -28,7 +28,7 @@ LayoutBoxes::~LayoutBoxes() {}
 LayoutBoxes::Type LayoutBoxes::type() const { return kLayoutLayoutBoxes; }
 
 // Algorithm for GetClientRects:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
 scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
   // 1. If the element on which it was invoked does not have an associated
   // layout box return an empty DOMRectList object and stop this algorithm.

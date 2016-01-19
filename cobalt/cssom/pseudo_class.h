@@ -33,7 +33,7 @@ class NotPseudoClass;
 // The pseudo-class concept is introduced to permit selection based on
 // information that lies outside of the document tree or that can be awkward or
 // impossible to express using the other simple selectors.
-//   http://www.w3.org/TR/selectors4/#pseudo-classes
+//   https://www.w3.org/TR/selectors4/#pseudo-classes
 class PseudoClass : public SimpleSelector {
  public:
   ~PseudoClass() OVERRIDE {}

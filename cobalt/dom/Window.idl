@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/html5/browsers.html#the-window-object
+// https://www.w3.org/TR/html5/browsers.html#the-window-object
 
 [PrimaryGlobal]
 /*sealed*/ interface Window : EventTarget {

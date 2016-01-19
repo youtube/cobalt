@@ -39,7 +39,7 @@ Box::Level InlineLevelReplacedBox::GetLevel() const { return kInlineLevel; }
 bool InlineLevelReplacedBox::DoesFulfillEllipsisPlacementRequirement() const {
   // This box fulfills the requirement that the first character or inline-level
   // element must appear on the line before ellipsing can occur
-  // (http://www.w3.org/TR/css3-ui/#propdef-text-overflow).
+  // (https://www.w3.org/TR/css3-ui/#propdef-text-overflow).
   return true;
 }
 
@@ -58,7 +58,7 @@ void InlineLevelReplacedBox::UpdateHorizontalMargins(
 
   // A computed value of "auto" for "margin-left" or "margin-right" becomes
   // a used value of "0".
-  //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
+  //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
   set_margin_left(maybe_margin_left.value_or(0.0f));
   set_margin_right(maybe_margin_right.value_or(0.0f));
 }
@@ -78,7 +78,7 @@ void InlineLevelReplacedBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // the ellipsis: "Implementations must hide characters and atomic inline-level
   // elements at the applicable edge(s) of the line as necessary to fit the
   // ellipsis."
-  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   if (*is_placed) {
     is_hidden_by_ellipsis_ = true;
     // Otherwise, the box is placing the ellipsis.
@@ -87,7 +87,7 @@ void InlineLevelReplacedBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
 
     // The first character or atomic inline-level element on a line must be
     // clipped rather than ellipsed.
-    //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
     // If this requirement has been met, then place the ellipsis to the left of
     // the atomic inline-level element, as it should be fully hidden.
     if (*is_placement_requirement_met) {

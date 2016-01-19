@@ -21,7 +21,7 @@ namespace cobalt {
 namespace cssom {
 
 // Lower-case names of CSS media features.
-//   http://www.w3.org/TR/css3-mediaqueries/#media1
+//   https://www.w3.org/TR/css3-mediaqueries/#media1
 extern const char kAspectRatioMediaFeatureName[];
 extern const char kColorIndexMediaFeatureName[];
 extern const char kColorMediaFeatureName[];

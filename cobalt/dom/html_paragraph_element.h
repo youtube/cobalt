@@ -27,7 +27,7 @@ namespace dom {
 class Document;
 
 // The p element represents a paragraph.
-//   http://www.w3.org/TR/html5/grouping-content.html#the-p-element
+//   https://www.w3.org/TR/html5/grouping-content.html#the-p-element
 class HTMLParagraphElement : public HTMLElement {
  public:
   static const char kTagName[];

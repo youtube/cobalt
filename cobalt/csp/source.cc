@@ -34,7 +34,7 @@ Source::Source(ContentSecurityPolicy* policy, const SourceConfig& config)
   config_.port_wildcard = config.port_wildcard;
 }
 
-// http://www.w3.org/TR/2015/CR-CSP2-20150721/#match-source-expression
+// https://www.w3.org/TR/2015/CR-CSP2-20150721/#match-source-expression
 bool Source::Matches(
     const GURL& url,
     ContentSecurityPolicy::RedirectStatus redirect_status) const {
@@ -84,7 +84,7 @@ bool Source::PathMatches(const GURL& url) const {
     return path == config_.path;
   }
 }
-// http://www.w3.org/TR/2015/CR-CSP2-20150721/#match-source-expression #9-10
+// https://www.w3.org/TR/2015/CR-CSP2-20150721/#match-source-expression #9-10
 bool Source::PortMatches(const GURL& url) const {
   if (config_.port_wildcard == SourceConfig::kHasWildcard) {
     return true;

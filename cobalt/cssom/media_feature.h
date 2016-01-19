@@ -39,7 +39,7 @@ enum MediaFeatureOperator {
 
 // A media feature is a '(keyword:value)' block of a @media conditional rule
 // segment.
-//   http://www.w3.org/TR/css3-mediaqueries/#media1
+//   https://www.w3.org/TR/css3-mediaqueries/#media1
 class MediaFeature : public script::Wrappable {
  public:
   explicit MediaFeature(int name);
@@ -56,7 +56,7 @@ class MediaFeature : public script::Wrappable {
  private:
   // The 'aspect-ratio' media feature is defined as the ratio of the value of
   // the 'width' media feature to the value of the 'height' media feature.
-  //   http://www.w3.org/TR/css3-mediaqueries/#aspect-ratio
+  //   https://www.w3.org/TR/css3-mediaqueries/#aspect-ratio
   // Returns true if the media query expression for aspect ratio is true for the
   // given media values.
   bool CompareAspectRatio(const math::Size& viewport_size);
@@ -72,17 +72,17 @@ class MediaFeature : public script::Wrappable {
   // The 'orientation' media feature is 'portrait' when the value of the
   // 'height' media feature is greater than or equal to the value of the 'width'
   // media feature. Otherwise 'orientation' is 'landscape'.
-  //   http://www.w3.org/TR/css3-mediaqueries/#orientation
+  //   https://www.w3.org/TR/css3-mediaqueries/#orientation
   bool CompareOrientation(const math::Size& viewport_size);
 
   // The 'resolution' media feature describes the resolution of the output
   // device, i.e. the density of the pixels.
-  //   http://www.w3.org/TR/css3-mediaqueries/#resolution
+  //   https://www.w3.org/TR/css3-mediaqueries/#resolution
   bool CompareResolution(const math::Size& viewport_size);
 
   // The 'scan' media feature describes the scanning process of "tv" output
   // devices.
-  //   http://www.w3.org/TR/css3-mediaqueries/#scan
+  //   https://www.w3.org/TR/css3-mediaqueries/#scan
   bool CompareScan();
 
   MediaFeatureName name_;

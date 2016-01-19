@@ -34,7 +34,7 @@ namespace cobalt {
 namespace web_animations {
 
 // Keyframe effects are represented by the KeyframeEffectReadOnly interface.
-//   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-keyframeeffect-interfaces
+//   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-keyframeeffect-interfaces
 // This class contains a sequence of keyframes which define an effect.  Each
 // keyframe specifies an offset and values for a set of CSS properties.  All
 // keyframes are normalized to be between 0 and 1, and the responsibility for

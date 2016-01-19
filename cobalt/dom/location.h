@@ -28,7 +28,7 @@ namespace dom {
 
 // Each Document object in a browsing context's session history is associated
 // with a unique instance of a Location object.
-//   http://www.w3.org/TR/html5/browsers.html#the-location-interface
+//   https://www.w3.org/TR/html5/browsers.html#the-location-interface
 class Location : public script::Wrappable {
  public:
   explicit Location(const GURL& url);

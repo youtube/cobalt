@@ -35,7 +35,7 @@ enum LengthUnit {
 
 // Represents distance or size.
 // Applies to properties such as left, width, font-size, etc.
-// See http://www.w3.org/TR/css3-values/#lengths for details.
+// See https://www.w3.org/TR/css3-values/#lengths for details.
 class LengthValue : public PropertyValue {
  public:
   LengthValue(float value, LengthUnit unit) : value_(value), unit_(unit) {}

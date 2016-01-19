@@ -28,7 +28,7 @@ namespace cobalt {
 namespace dom {
 
 // The Text interface represents the textual content of Element or Attr.
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-text
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-text
 class Text : public CharacterData {
  public:
   Text(script::EnvironmentSettings* env_settings,

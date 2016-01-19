@@ -111,10 +111,10 @@ bool ContainerBox::IsContainingBlockForPositionFixedElements() const {
 
 // Returns true if this container box serves as a stacking context for
 // descendant elements.  The core stacking context creation criteria is given
-// here (http://www.w3.org/TR/CSS21/visuren.html#z-index) however it is
+// here (https://www.w3.org/TR/CSS21/visuren.html#z-index) however it is
 // extended by various other specification documents such as those describing
-// opacity (http://www.w3.org/TR/css3-color/#transparency) and transforms
-// (http://www.w3.org/TR/css3-transforms/#transform-rendering).
+// opacity (https://www.w3.org/TR/css3-color/#transparency) and transforms
+// (https://www.w3.org/TR/css3-transforms/#transform-rendering).
 bool ContainerBox::IsStackingContext() const {
   bool has_opacity =
       base::polymorphic_downcast<const cssom::NumberValue*>(
@@ -228,7 +228,7 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
   math::Vector2dF offset;
 
   // The following steps are performed according to the procedure described
-  // here: http://www.w3.org/TR/CSS21/visuren.html#relative-positioning
+  // here: https://www.w3.org/TR/CSS21/visuren.html#relative-positioning
 
   // For relatively positioned elements, 'left' and 'right' move the box(es)
   // horizontally, without changing their size.
@@ -432,7 +432,7 @@ void ContainerBox::RenderAndAnimateContent(
 
   // Render all positioned children in our stacking context that have negative
   // z-index values.
-  //   http://www.w3.org/TR/CSS21/visuren.html#z-index
+  //   https://www.w3.org/TR/CSS21/visuren.html#z-index
   RenderAndAnimateStackingContextChildren(negative_z_index_child_,
                                           content_node_builder,
                                           node_animations_map_builder);
@@ -446,7 +446,7 @@ void ContainerBox::RenderAndAnimateContent(
     }
   }
   // Render all positioned children with non-negative z-index values.
-  //   http://www.w3.org/TR/CSS21/visuren.html#z-index
+  //   https://www.w3.org/TR/CSS21/visuren.html#z-index
   RenderAndAnimateStackingContextChildren(non_negative_z_index_child_,
                                           content_node_builder,
                                           node_animations_map_builder);

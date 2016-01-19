@@ -41,9 +41,9 @@ class LayoutBoxes {
 
   // Methods to support the CSSOM View Module extensions to the Element and
   // HTMLElement Interfaces. See
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
+  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
   // and
-  // http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface.
+  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface.
 
   // Returns a DOMRectList object containing a list of DOMRect objects in
   // content order describing the bounding border boxes.
@@ -53,7 +53,7 @@ class LayoutBoxes {
   virtual bool IsInlineLevel() const = 0;
 
   // Returns border edge values.
-  // See http://www.w3.org/TR/CSS21/box.html#box-dimensions
+  // See https://www.w3.org/TR/CSS21/box.html#box-dimensions
   virtual float GetBorderEdgeLeft() const = 0;
   virtual float GetBorderEdgeTop() const = 0;
   virtual float GetBorderEdgeWidth() const = 0;
@@ -64,12 +64,12 @@ class LayoutBoxes {
   virtual float GetBorderTopWidth() const = 0;
 
   // Returns margin edge values.
-  // See http://www.w3.org/TR/CSS21/box.html#box-dimensions
+  // See https://www.w3.org/TR/CSS21/box.html#box-dimensions
   virtual float GetMarginEdgeWidth() const = 0;
   virtual float GetMarginEdgeHeight() const = 0;
 
   // Returns padding edge values.
-  // See http://www.w3.org/TR/CSS21/box.html#box-dimensions
+  // See https://www.w3.org/TR/CSS21/box.html#box-dimensions
   virtual float GetPaddingEdgeLeft() const = 0;
   virtual float GetPaddingEdgeTop() const = 0;
   virtual float GetPaddingEdgeWidth() const = 0;

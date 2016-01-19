@@ -43,7 +43,7 @@ class NodeList;
 
 // The Element interface represents an object of a Document. This interface
 // describes methods and properties common to all kinds of elements.
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-element
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-element
 class Element : public Node {
  public:
   // NOTE1: The array size of base::SmallMap and the decision to use
@@ -100,7 +100,7 @@ class Element : public Node {
 
   // Web API: CSSOM View Module: Extensions to the Element Interface (partial
   // interface)
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
   scoped_refptr<DOMRect> GetBoundingClientRect();
   virtual scoped_refptr<DOMRectList> GetClientRects();
   virtual float client_top();
@@ -109,7 +109,7 @@ class Element : public Node {
   virtual float client_height();
 
   // Web API: DOM Parsing and Serialization (partial interface)
-  //   http://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface
+  //   https://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface
   //
   std::string inner_html() const;
   void set_inner_html(const std::string& inner_html);
@@ -117,7 +117,7 @@ class Element : public Node {
   void set_outer_html(const std::string& outer_html);
 
   // Web API: Selectors API (partial interface)
-  //   http://www.w3.org/TR/selectors-api2/#interface-definitions
+  //   https://www.w3.org/TR/selectors-api2/#interface-definitions
   //
   scoped_refptr<Element> QuerySelector(const std::string& selectors);
   scoped_refptr<NodeList> QuerySelectorAll(const std::string& selectors);
@@ -135,11 +135,11 @@ class Element : public Node {
   //
   // Returns whether the element has no children at all except comments or
   // processing instructions.
-  //   http://www.w3.org/TR/selectors4/#empty-pseudo
+  //   https://www.w3.org/TR/selectors4/#empty-pseudo
   bool IsEmpty();
 
   // Returns whether the element has focus.
-  //   http://www.w3.org/TR/selectors4/#focus-pseudo
+  //   https://www.w3.org/TR/selectors4/#focus-pseudo
   bool HasFocus();
 
   // Returns a map that holds the actual attributes of the element.
@@ -156,7 +156,7 @@ class Element : public Node {
 
   // Used to ensure that the style attribute value reflects the style
   // declaration.
-  //   http://www.w3.org/TR/html5/dom.html#the-style-attribute
+  //   https://www.w3.org/TR/html5/dom.html#the-style-attribute
   virtual base::optional<std::string> GetStyleAttribute() const;
   virtual void SetStyleAttribute(const std::string& value);
   virtual void RemoveStyleAttribute();
@@ -173,7 +173,7 @@ class Element : public Node {
   ~Element() OVERRIDE;
 
   // Getting and setting boolean attribute.
-  //   http://www.w3.org/TR/html5/infrastructure.html#boolean-attribute
+  //   https://www.w3.org/TR/html5/infrastructure.html#boolean-attribute
   bool GetBooleanAttribute(const std::string& name) const;
   void SetBooleanAttribute(const std::string& name, bool value);
 

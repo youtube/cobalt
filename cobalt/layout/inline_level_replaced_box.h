@@ -71,7 +71,7 @@ class InlineLevelReplacedBox : public ReplacedBox {
   // along with its contents will not be visible.
   // "Implementations must hide characters and atomic inline-level elements at
   // the applicable edge(s) of the line as necessary to fit the ellipsis."
-  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   bool is_hidden_by_ellipsis_;
 };
 

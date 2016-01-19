@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animation-interface
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animation-interface
 
 [Constructor (optional AnimationEffectReadOnly? effect = null,
               optional AnimationTimeline? timeline = null)]

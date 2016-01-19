@@ -29,7 +29,7 @@ namespace cobalt {
 namespace cssom {
 
 // Represents a dimensionless value.
-//   http://www.w3.org/TR/css3-values/#integers
+//   https://www.w3.org/TR/css3-values/#integers
 class IntegerValue : public PropertyValue {
  public:
   explicit IntegerValue(int value) : value_(value) {}

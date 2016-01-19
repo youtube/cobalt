@@ -30,7 +30,7 @@ namespace {
 typedef InterfaceBindingsTest<BooleanTypeTestInterface> BooleanTypeBindingsTest;
 }  // namespace
 
-// Boolean conversion algorithm: http://www.w3.org/TR/WebIDL/#es-boolean
+// Boolean conversion algorithm: https://www.w3.org/TR/WebIDL/#es-boolean
 // ToBoolean operation: http://es5.github.io/#x9.2
 
 TEST_F(BooleanTypeBindingsTest, GetBooleanProperty) {
