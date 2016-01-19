@@ -33,7 +33,7 @@ namespace cobalt {
 namespace web_animations {
 
 // Implements the Web Animations API AnimationEffectTimingReadOnly interface.
-//   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animationeffecttimingreadonly-interface
+//   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animationeffecttimingreadonly-interface
 // Specifies animation timing details, such as delay, number of iterations,
 // duration, etc...
 class AnimationEffectTimingReadOnly : public script::Wrappable {

@@ -33,7 +33,7 @@ class MediaQuery;
 class PropertyValue;
 
 // The MediaList interface represents a list of Media Queries.
-//   http://www.w3.org/TR/cssom/#medialist
+//   https://www.w3.org/TR/cssom/#medialist
 class MediaList : public script::Wrappable {
  public:
   MediaList();

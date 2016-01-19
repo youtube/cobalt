@@ -78,7 +78,7 @@ void AnonymousBlockBox::RenderAndAnimateContent(
   // transparently with fallback fonts to avoid a flash of text using a fallback
   // font. In cases where the font download fails user agents must display text,
   // simply leaving transparent text is considered non-conformant behavior."
-  //   http://www.w3.org/TR/css3-fonts/#font-face-loading
+  //   https://www.w3.org/TR/css3-fonts/#font-face-loading
   if (!ellipses_coordinates_.empty() && used_font_->IsVisible()) {
     render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
@@ -143,7 +143,7 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
   }
 
   // Lay out child boxes in the normal flow.
-  //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
+  //   https://www.w3.org/TR/CSS21/visuren.html#normal-flow
   scoped_ptr<InlineFormattingContext> inline_formatting_context(
       new InlineFormattingContext(
           computed_style()->line_height(), used_font_->GetFontMetrics(),

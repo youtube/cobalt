@@ -40,7 +40,7 @@ enum CombinatorType {
 
 // A combinator is punctuation that represents a particular kind of relationship
 // between the selectors on either side.
-//   http://www.w3.org/TR/selectors4/#combinator
+//   https://www.w3.org/TR/selectors4/#combinator
 class Combinator {
  public:
   Combinator();

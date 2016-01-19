@@ -30,7 +30,7 @@ BlockContainerBox::BlockContainerBox(
 BlockContainerBox::~BlockContainerBox() {}
 
 // Updates used values of "width" and "margin" properties based on
-// http://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins.
+// https://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins.
 void BlockContainerBox::UpdateContentWidthAndMargins(
     float containing_block_width, bool shrink_to_fit_width_forced,
     bool width_depends_on_containing_block,
@@ -74,7 +74,7 @@ void BlockContainerBox::UpdateContentWidthAndMargins(
 }
 
 // Updates used values of "height" and "margin" properties based on
-// http://www.w3.org/TR/CSS21/visudet.html#Computing_heights_and_margins.
+// https://www.w3.org/TR/CSS21/visudet.html#Computing_heights_and_margins.
 void BlockContainerBox::UpdateContentHeightAndMargins(
     const math::SizeF& containing_block_size,
     const base::optional<float>& maybe_top,
@@ -87,13 +87,13 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
     // Anonymous block boxes are ignored when resolving percentage values
     // that would refer to it: the closest non-anonymous ancestor box is used
     // instead.
-    //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
+    //   https://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
     child_layout_params.containing_block_size = containing_block_size;
   } else {
     // If the element's position is "relative" or "static", the containing block
     // is formed by the content edge of the nearest block container ancestor
     // box.
-    //   http://www.w3.org/TR/CSS21/visudet.html#containing-block-details
+    //   https://www.w3.org/TR/CSS21/visudet.html#containing-block-details
     child_layout_params.containing_block_size.set_width(width());
     // The "auto" height is not known yet but it shouldn't matter for in-flow
     // children, as per:
@@ -101,7 +101,7 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
     // If the height of the containing block is not specified explicitly (i.e.,
     // it depends on content height), and this element is not absolutely
     // positioned, the value [of "height"] computes to "auto".
-    //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
+    //   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
     child_layout_params.containing_block_size.set_height(
         maybe_height.value_or(0.0f));
   }
@@ -166,7 +166,7 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   // If the tentative used width is greater than 'max-width', the rules above
   // are applied again, but this time using the computed value of 'max-width' as
   // the computed value for 'width'.
-  //   http://www.w3.org/TR/CSS21/visudet.html#min-max-widths
+  //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
   bool max_width_depends_on_containing_block;
   base::optional<float> maybe_max_width = GetUsedMaxWidthIfNotNone(
       computed_style(), layout_params.containing_block_size,
@@ -182,7 +182,7 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   // If the resulting width is smaller than 'min-width', the rules above are
   // applied again, but this time using the value of 'min-width' as the computed
   // value for 'width'.
-  //   http://www.w3.org/TR/CSS21/visudet.html#min-max-widths
+  //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
   bool min_width_depends_on_containing_block;
   base::optional<float> min_width =
       GetUsedMinWidth(computed_style(), layout_params.containing_block_size,
@@ -202,7 +202,7 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   // If the tentative height is greater than 'max-height', the rules above are
   // applied again, but this time using the value of 'max-height' as the
   // computed value for 'height'.
-  //   http://www.w3.org/TR/CSS21/visudet.html#min-max-heights
+  //   https://www.w3.org/TR/CSS21/visudet.html#min-max-heights
   bool max_height_depends_on_containing_block;
   base::optional<float> maybe_max_height = GetUsedMaxHeightIfNotNone(
       computed_style(), layout_params.containing_block_size,
@@ -216,7 +216,7 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   // If the resulting height is smaller than 'min-height', the rules above are
   // applied again, but this time using the value of 'min-height' as the
   // computed value for 'height'.
-  //   http://www.w3.org/TR/CSS21/visudet.html#min-max-heights
+  //   https://www.w3.org/TR/CSS21/visudet.html#min-max-heights
   bool min_height_depends_on_containing_block;
   base::optional<float> min_height =
       GetUsedMinHeight(computed_style(), layout_params.containing_block_size,
@@ -300,7 +300,7 @@ void BlockContainerBox::DumpProperties(std::ostream* stream) const {
 
 #endif  // COBALT_BOX_DUMP_ENABLED
 
-// Based on http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width.
+// Based on https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width.
 //
 // The constraint that determines the used values for these elements is:
 //       "left" + "margin-left" + "border-left-width" + "padding-left"
@@ -426,7 +426,7 @@ void BlockContainerBox::UpdateWidthAssumingAbsolutelyPositionedBox(
   }
 }
 
-// Based on http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height.
+// Based on https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height.
 //
 // The constraint that determines the used values for these elements is:
 //       "top" + "margin-top" + "border-top-width" + "padding-top"
@@ -545,7 +545,7 @@ void BlockContainerBox::UpdateHeightAssumingAbsolutelyPositionedBox(
   }
 }
 
-// Based on http://www.w3.org/TR/CSS21/visudet.html#blockwidth.
+// Based on https://www.w3.org/TR/CSS21/visudet.html#blockwidth.
 //
 // The following constraints must hold among the used values of the other
 // properties:
@@ -586,13 +586,13 @@ void BlockContainerBox::UpdateWidthAssumingInlineLevelInFlowBox(
     const base::optional<float>& maybe_height) {
   // A computed value of "auto" for "margin-left" or "margin-right" becomes
   // a used value of "0".
-  //   http://www.w3.org/TR/CSS21/visudet.html#inlineblock-width
+  //   https://www.w3.org/TR/CSS21/visudet.html#inlineblock-width
   set_margin_left(maybe_margin_left.value_or(0.0f));
   set_margin_right(maybe_margin_right.value_or(0.0f));
 
   if (!maybe_width) {
     // If "width" is "auto", the used value is the shrink-to-fit width.
-    //   http://www.w3.org/TR/CSS21/visudet.html#inlineblock-width
+    //   https://www.w3.org/TR/CSS21/visudet.html#inlineblock-width
     set_width(GetShrinkToFitWidth(containing_block_width, maybe_height));
   } else {
     set_width(*maybe_width);
@@ -605,7 +605,7 @@ float BlockContainerBox::GetShrinkToFitWidth(
   // The available width is the width of the containing block minus
   // the used values of "margin-left", "border-left-width", "padding-left",
   // "padding-right", "border-right-width", "margin-right".
-  //   http://www.w3.org/TR/CSS21/visudet.html#shrink-to-fit-float
+  //   https://www.w3.org/TR/CSS21/visudet.html#shrink-to-fit-float
   child_layout_params.containing_block_size.set_width(
       containing_block_width - margin_left() - border_left_width() -
       padding_left() - padding_right() - border_right_width() - margin_right());
@@ -615,7 +615,7 @@ float BlockContainerBox::GetShrinkToFitWidth(
   // If the height of the containing block is not specified explicitly (i.e.,
   // it depends on content height), and this element is not absolutely
   // positioned, the value [of "height"] computes to "auto".
-  //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
+  //   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
   child_layout_params.containing_block_size.set_height(
       maybe_height.value_or(0.0f));
   // Although the spec does not mention it explicitly, Chromium operates under
@@ -636,10 +636,10 @@ float BlockContainerBox::GetShrinkToFitWidth(
   return formatting_context->shrink_to_fit_width();
 }
 
-// Based on http://www.w3.org/TR/CSS21/visudet.html#normal-block.
+// Based on https://www.w3.org/TR/CSS21/visudet.html#normal-block.
 //
 // TODO(***REMOVED***): Implement
-//               http://www.w3.org/TR/CSS21/visudet.html#block-root-margin when
+//               https://www.w3.org/TR/CSS21/visudet.html#block-root-margin when
 //               the margin collapsing is supported.
 void BlockContainerBox::UpdateHeightAssumingInFlowBox(
     const base::optional<float>& maybe_height,

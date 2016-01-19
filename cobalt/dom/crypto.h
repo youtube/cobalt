@@ -27,7 +27,7 @@ namespace dom {
 // The Crypto interface represents an interface to general purpose
 // cryptographic functionality including a cryptographically strong
 // pseudo-random number generator seeded with truly random values.
-//   http://www.w3.org/TR/WebCryptoAPI/#crypto-interface
+//   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
 //
 // Note that in Cobalt we only need to implement getRandomValues().
 class Crypto : public script::Wrappable {

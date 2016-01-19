@@ -33,7 +33,7 @@ class SelectorVisitor;
 
 // A type selector represents an instance of the element type in the document
 // tree.
-//   http://www.w3.org/TR/selectors4/#type-selector
+//   https://www.w3.org/TR/selectors4/#type-selector
 class TypeSelector : public SimpleSelector {
  public:
   explicit TypeSelector(const std::string& element_name)

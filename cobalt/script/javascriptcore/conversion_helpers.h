@@ -435,7 +435,7 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   JSCGlobalObject* global_object =
       JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
 
-  // http://www.w3.org/TR/WebIDL/#es-callback-function
+  // https://www.w3.org/TR/WebIDL/#es-callback-function
   // 1. If V is not a Function object, throw a TypeError
   if (!jsvalue.isFunction()) {
     out_exception->SetSimpleException(ExceptionState::kTypeError,
@@ -466,7 +466,7 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
     // Return here whether an exception was set or not.
     return;
   } else {
-    // http://www.w3.org/TR/WebIDL/#es-object
+    // https://www.w3.org/TR/WebIDL/#es-object
     // 1. If Type(V) is not Object, throw a TypeError
     js_object = jsvalue.getObject();
     if (!js_object) {

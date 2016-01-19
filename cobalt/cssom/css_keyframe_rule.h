@@ -32,7 +32,7 @@ class CSSRuleVisitor;
 class CSSStyleSheet;
 
 // The CSSKeyframeRule interface represents the style rule for a single key.
-//   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframeRule-interface
+//   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframeRule-interface
 class CSSKeyframeRule : public CSSRule {
  public:
   CSSKeyframeRule(const std::vector<float>& offsets,

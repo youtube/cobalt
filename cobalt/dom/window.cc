@@ -216,9 +216,9 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
       event->type() == EventNames::GetInstance()->keyup()) {
     // Event.target:focused element processing the key event or if no element
     // focused, then the body element if available, otherwise the root element.
-    //   http://www.w3.org/TR/DOM-Level-3-Events/#event-type-keydown
-    //   http://www.w3.org/TR/DOM-Level-3-Events/#event-type-keypress
-    //   http://www.w3.org/TR/DOM-Level-3-Events/#event-type-keyup
+    //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keydown
+    //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keypress
+    //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keyup
     if (document_->active_element()) {
       document_->active_element()->DispatchEvent(event);
     } else {

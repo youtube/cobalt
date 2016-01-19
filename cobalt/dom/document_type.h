@@ -26,7 +26,7 @@ namespace cobalt {
 namespace dom {
 
 // The DocumentType interface represents a Node containing a doctype.
-//   http://www.w3.org/TR/2015/WD-dom-20150618/#documenttype
+//   https://www.w3.org/TR/2015/WD-dom-20150618/#documenttype
 class DocumentType : public Node {
  public:
   DocumentType(Document* document, const std::string& name)

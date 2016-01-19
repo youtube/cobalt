@@ -25,7 +25,7 @@ namespace dom {
 
 // Each node inheriting from the CharacterData interface has an associated
 // mutable string called data.
-//   http://www.w3.org/TR/2015/WD-dom-20150428/#interface-characterdata
+//   https://www.w3.org/TR/2015/WD-dom-20150428/#interface-characterdata
 class CharacterData : public Node {
  public:
   // Web API: Node

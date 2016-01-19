@@ -32,7 +32,7 @@ class HTMLElementContext;
 
 // DOMParser can parse XML or HTML source stored in a string into a DOM
 // Document.
-//   http://www.w3.org/TR/DOM-Parsing/#the-domparser-interface
+//   https://www.w3.org/TR/DOM-Parsing/#the-domparser-interface
 class DOMParser : public script::Wrappable {
  public:
   enum SupportedType {

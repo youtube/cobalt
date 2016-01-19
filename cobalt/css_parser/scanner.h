@@ -47,7 +47,7 @@ struct TrivialStringPiece;
 // by Flex. See https://bugs.webkit.org/show_bug.cgi?id=70107.
 //
 // Detailed information on the CSS grammar can be found at
-// http://www.w3.org/TR/css-syntax-3/.
+// https://www.w3.org/TR/css-syntax-3/.
 class Scanner {
  public:
   Scanner(const char* input_iterator, StringPool* string_pool);
@@ -84,7 +84,7 @@ class Scanner {
 
     // A scanner enters this mode after seeing "nth-child" or similar function
     // and exits it after ")". The mode is needed to recognize "an+b"
-    // microsyntax: http://www.w3.org/TR/css-syntax-3/#anb
+    // microsyntax: https://www.w3.org/TR/css-syntax-3/#anb
     kNthChildMode
   };
 

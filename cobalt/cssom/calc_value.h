@@ -33,7 +33,7 @@ namespace cssom {
 // standard operator precedence rules.
 // TODO(***REMOVED***): Implement the complete version of CalcValue. The
 // current CalcValue is just a simplified implementation.
-//  http://www.w3.org/TR/css3-values/#calc-notation
+//  https://www.w3.org/TR/css3-values/#calc-notation
 class CalcValue : public PropertyValue {
  public:
   CalcValue(const scoped_refptr<LengthValue>& length_value,

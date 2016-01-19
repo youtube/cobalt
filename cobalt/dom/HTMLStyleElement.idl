@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/html5/document-metadata.html#the-style-element
+// https://www.w3.org/TR/html5/document-metadata.html#the-style-element
 
 interface HTMLStyleElement : HTMLElement {
   attribute DOMString type;

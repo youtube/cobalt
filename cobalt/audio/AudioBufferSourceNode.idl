@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/webaudio/#AudioBufferSourceNode
+// https://www.w3.org/TR/webaudio/#AudioBufferSourceNode
 
 interface AudioBufferSourceNode : AudioNode {
   attribute AudioBuffer? buffer;

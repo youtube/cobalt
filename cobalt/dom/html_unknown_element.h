@@ -26,7 +26,7 @@ namespace dom {
 
 // The HTMLUnknownElement interface must be used for HTML elements that are not
 // defined by any applicable specifications.
-//   http://www.w3.org/TR/html5/dom.html#htmlunknownelement
+//   https://www.w3.org/TR/html5/dom.html#htmlunknownelement
 class HTMLUnknownElement : public HTMLElement {
  public:
   HTMLUnknownElement(Document* document, base::Token tag_name)

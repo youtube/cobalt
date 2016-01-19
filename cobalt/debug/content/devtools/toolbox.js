@@ -568,7 +568,7 @@ element.className=className;return element;}
 function createElementWithClass(elementName,className,customElementType)
 {return document.createElementWithClass(elementName,className,customElementType);}
 Document.prototype.createSVGElement=function(childType,className)
-{var element=this.createElementNS("http://www.w3.org/2000/svg",childType);if(className)
+{var element=this.createElementNS("https://www.w3.org/2000/svg",childType);if(className)
 element.setAttribute("class",className);return element;}
 function createSVGElement(childType,className)
 {return document.createSVGElement(childType,className);}

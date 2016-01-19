@@ -43,7 +43,7 @@ typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;
 typedef base::hash_map<std::string, CSSRuleSet> StringToCSSRuleSetMap;
 
 // The CSSStyleSheet interface represents a CSS style sheet.
-//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylesheet-interface
+//   https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylesheet-interface
 class CSSStyleSheet : public StyleSheet, public MutationObserver {
  public:
   CSSStyleSheet();

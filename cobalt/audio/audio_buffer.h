@@ -36,7 +36,7 @@ namespace audio {
 // sounds, such as music soundtracks, streaming should be used with the audio
 // element and MediaElementAudioSourceNode.
 // An AudioBuffer may be used by one or more AudioContexts.
-//   http://www.w3.org/TR/webaudio/#AudioBuffer
+//   https://www.w3.org/TR/webaudio/#AudioBuffer
 class AudioBuffer : public script::Wrappable {
  public:
   // The audio data passed in |channels_data| stores multi-channel audio in

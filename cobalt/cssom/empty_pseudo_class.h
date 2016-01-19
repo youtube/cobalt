@@ -35,7 +35,7 @@ class SelectorVisitor;
 // length must be considered as affecting emptiness; comments, processing
 // instructions, and other nodes must not affect whether an element is
 // considered empty or not.
-//   http://www.w3.org/TR/selectors4/#empty-pseudo
+//   https://www.w3.org/TR/selectors4/#empty-pseudo
 class EmptyPseudoClass : public PseudoClass {
  public:
   EmptyPseudoClass() {}

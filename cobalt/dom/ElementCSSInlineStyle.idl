@@ -15,7 +15,7 @@
  */
 
 // From the spec CSS Object Model (CSSOM)
-//   http://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
+//   https://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
 
 [NoInterfaceObject]
 interface ElementCSSInlineStyle {

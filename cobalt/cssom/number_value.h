@@ -31,7 +31,7 @@ namespace cssom {
 class PropertyValueVisitor;
 
 // Represents a dimensionless value.
-//   http://www.w3.org/TR/css3-values/#numeric-types
+//   https://www.w3.org/TR/css3-values/#numeric-types
 class NumberValue : public PropertyValue {
  public:
   explicit NumberValue(float value) : value_(value) {}

@@ -70,7 +70,7 @@ class AudioLock : public base::RefCountedThreadSafe<AudioLock> {
 // ultimately hears). Nodes are created from the cotnext and are then connected
 // together. In most user cases, only a single AudioContext is used per
 // document.
-//   http://www.w3.org/TR/webaudio/#AudioContext-section
+//   https://www.w3.org/TR/webaudio/#AudioContext-section
 class AudioContext : public dom::EventTarget {
  public:
   // Type for decode success and error callbacks on JS side.

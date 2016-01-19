@@ -30,7 +30,7 @@ namespace dom {
 class Document;
 
 // An img element represents an image.
-//   http://www.w3.org/TR/html5/embedded-content-0.html#the-img-element
+//   https://www.w3.org/TR/html5/embedded-content-0.html#the-img-element
 class HTMLImageElement : public HTMLElement {
  public:
   static const char kTagName[];

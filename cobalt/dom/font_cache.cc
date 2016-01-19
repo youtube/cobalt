@@ -162,7 +162,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
     // Retrieve the font face style set entry that most closely matches the
     // desired style. Given that a font face was found for this family, it
     // should never be NULL.
-    // http://www.w3.org/TR/css3-fonts/#font-prop-desc
+    // https://www.w3.org/TR/css3-fonts/#font-prop-desc
     const FontFaceStyleSet::Entry* style_set_entry =
         font_face_map_iterator->second.MatchStyle(style);
     DCHECK(style_set_entry != NULL);
@@ -174,7 +174,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
     //   successfully retrieved. In the case where the font is not locally
     //   available, the next font in the source list should be attempted
     //   instead.
-    // http://www.w3.org/TR/css3-fonts/#src-desc
+    // https://www.w3.org/TR/css3-fonts/#src-desc
     for (FontFaceSources::const_iterator source_iterator =
              style_set_entry->sources.begin();
          source_iterator != style_set_entry->sources.end(); ++source_iterator) {

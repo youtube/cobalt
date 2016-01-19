@@ -59,7 +59,7 @@ struct ViolationEvent {
 };
 
 std::string StripURLForUseInReport(const GURL& origin_url, const GURL& url) {
-  // http://www.w3.org/TR/CSP/#strip-uri-for-reporting
+  // https://www.w3.org/TR/CSP/#strip-uri-for-reporting
   if (!url.is_valid()) {
     return std::string();
   }
@@ -150,7 +150,7 @@ bool CSPDelegate::CanLoad(ResourceType type, const GURL& url,
 
 GURL CSPDelegate::url() const { return document_->url_as_gurl(); }
 
-// http://www.w3.org/TR/CSP2/#violation-reports
+// https://www.w3.org/TR/CSP2/#violation-reports
 void CSPDelegate::ReportViolation(const std::string& directive_text,
                                   const std::string& effective_directive,
                                   const std::string& console_message,

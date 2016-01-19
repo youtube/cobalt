@@ -40,7 +40,7 @@ unsigned int AnimationTimeline::num_animations() const {
 
 // Returns the current time for the document.  This is based off of the last
 // sampled time.
-// http://www.w3.org/TR/web-animations-1/#the-animationtimeline-interface
+// https://www.w3.org/TR/web-animations-1/#the-animationtimeline-interface
 base::optional<double> AnimationTimeline::current_time() {
   if (sampled_clock_time_) {
     return sampled_clock_time_->InMillisecondsF();

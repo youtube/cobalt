@@ -24,7 +24,7 @@ namespace cobalt {
 namespace dom {
 
 // Objects implementing the DOMRect interface represent a rectangle.
-//   http://www.w3.org/TR/2014/CR-geometry-1-20141125/#DOMRect
+//   https://www.w3.org/TR/2014/CR-geometry-1-20141125/#DOMRect
 class DOMRect : public DOMRectReadOnly {
  public:
   DOMRect() : DOMRectReadOnly(0.0f, 0.0f, 0.0f, 0.0f) {}

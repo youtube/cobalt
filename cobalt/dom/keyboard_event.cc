@@ -35,7 +35,7 @@ KeyboardEvent::KeyboardEvent(const std::string& type, KeyLocationCode location,
       repeat_(is_repeat) {}
 
 // How to determine keycode:
-//   http://www.w3.org/TR/DOM-Level-3-Events/#determine-keydown-keyup-keyCode
+//   https://www.w3.org/TR/DOM-Level-3-Events/#determine-keydown-keyup-keyCode
 // Virtual key code for keyup/keydown, 0 for keypress (split model)
 int KeyboardEvent::key_code() const {
   if (type() == EventNames::GetInstance()->keydown() ||
@@ -60,7 +60,7 @@ std::string KeyboardEvent::key() const {
 
   // Otherwise, we have one of the non-printable characters.
   // Definitions taken from:
-  //   http://www.w3.org/TR/DOM-Level-3-Events-key/
+  //   https://www.w3.org/TR/DOM-Level-3-Events-key/
   //   https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key.
   switch (key_code_) {
     case keycode::kBack:

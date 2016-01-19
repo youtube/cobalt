@@ -30,7 +30,7 @@ namespace dom {
 
 // Manages a list of frame request callbacks as well as their "cancelled" state.
 // Associates a handle to each frame frequest that is unique to this list.
-//   http://www.w3.org/TR/animation-timing/#dfn-animation-frame-request-callback-list
+//   https://www.w3.org/TR/animation-timing/#dfn-animation-frame-request-callback-list
 class AnimationFrameRequestCallbackList {
  public:
   typedef script::CallbackFunction<void(double)> FrameRequestCallback;

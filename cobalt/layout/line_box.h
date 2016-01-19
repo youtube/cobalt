@@ -29,7 +29,7 @@ namespace layout {
 
 // The rectangular area that contains the boxes that form a line is called
 // a line box.
-//   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+//   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
 //
 // Note that the line box is not an actual box. To maintain consistency, we
 // follow the nomenclature of CSS 2.1 specification. But we do not derive
@@ -102,7 +102,7 @@ class LineBox {
   // content must be treated as zero-height line boxes for the purposes
   // of determining the positions of any elements inside of them, and must be
   // treated as not existing for any other purpose.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   bool line_exists() const { return line_exists_; }
 
   // Used to calculate the width of an inline container box.
@@ -114,7 +114,7 @@ class LineBox {
 
   // Returns the vertical offset of the baseline from the top of the line box.
   // May return non-zero values even for empty line boxes, because of the strut.
-  //   http://www.w3.org/TR/CSS21/visudet.html#strut
+  //   https://www.w3.org/TR/CSS21/visudet.html#strut
   float baseline_offset_from_top() const { return baseline_offset_from_top_; }
 
  private:

@@ -63,7 +63,7 @@ void HTMLImageElement::OnRemoveAttribute(const std::string& name) {
 }
 
 // Algorithm for UpdateTheImageData:
-//   http://www.w3.org/TR/html5/embedded-content-0.html#update-the-image-data
+//   https://www.w3.org/TR/html5/embedded-content-0.html#update-the-image-data
 void HTMLImageElement::UpdateImageData() {
   DCHECK(MessageLoop::current());
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::UpdateImageData()");

@@ -730,7 +730,7 @@ void CSSStyleDeclaration::set_width(const std::string& width) {
 }
 
 // word-wrap is treated as an alias for overflow-wrap
-//   http://www.w3.org/TR/css-text-3/#overflow-wrap
+//   https://www.w3.org/TR/css-text-3/#overflow-wrap
 std::string CSSStyleDeclaration::word_wrap() const {
   return data_->GetDeclaredPropertyValueString(kOverflowWrapProperty);
 }
@@ -749,7 +749,7 @@ void CSSStyleDeclaration::set_z_index(const std::string& z_index) {
 
 // This returns the result of serializing a CSS declaration block.
 // The current implementation does not handle shorthands.
-//   http://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
+//   https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
 std::string CSSStyleDeclaration::css_text() const {
   return data_->SerializeCSSDeclarationBlock();
 }
@@ -771,12 +771,12 @@ void CSSStyleDeclaration::set_css_text(const std::string& css_text) {
 
 // The length attribute must return the number of CSS declarations in the
 // declarations.
-//   http://www.w3.org/TR/cssom/#dom-cssstyledeclaration-length
+//   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-length
 unsigned int CSSStyleDeclaration::length() const { return data_->length(); }
 
 // The item(index) method must return the property name of the CSS declaration
 // at position index.
-//   http://www.w3.org/TR/cssom/#dom-cssstyledeclaration-item
+//   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-item
 base::optional<std::string> CSSStyleDeclaration::Item(
     unsigned int index) const {
   const char* item = data_->Item(index);

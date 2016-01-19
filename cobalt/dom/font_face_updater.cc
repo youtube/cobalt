@@ -192,7 +192,7 @@ void FontFaceProvider::VisitUnicodeRange(
 
 // Check for a supported format. If no format hints are supplied, then the user
 // agent should download the font resource.
-//  http://www.w3.org/TR/css3-fonts/#descdef-src
+//  https://www.w3.org/TR/css3-fonts/#descdef-src
 void FontFaceProvider::VisitUrlSrc(cssom::UrlSrcValue* url_src) {
   if (url_src->format().empty() || url_src->format() == "truetype" ||
       url_src->format() == "opentype" || url_src->format() == "woff") {
@@ -202,7 +202,7 @@ void FontFaceProvider::VisitUrlSrc(cssom::UrlSrcValue* url_src) {
 
 // The URL may be relative, in which case it is resolved relative to the
 // location of the style sheet containing the @font-face rule.
-//   http://www.w3.org/TR/css3-fonts/#descdef-src
+//   https://www.w3.org/TR/css3-fonts/#descdef-src
 void FontFaceProvider::VisitURL(cssom::URLValue* url) {
   GURL gurl = url->is_absolute() ? GURL(url->value()) : url->Resolve(base_url_);
   if (gurl.is_valid()) {
@@ -211,8 +211,8 @@ void FontFaceProvider::VisitURL(cssom::URLValue* url) {
 }
 
 // The font family and src are required for the @font-face rule to be valid.
-//  http://www.w3.org/TR/css3-fonts/#descdef-font-family
-//  http://www.w3.org/TR/css3-fonts/#descdef-src
+//  https://www.w3.org/TR/css3-fonts/#descdef-font-family
+//  https://www.w3.org/TR/css3-fonts/#descdef-src
 bool FontFaceProvider::IsFontFaceValid() const {
   return !font_family_.empty() && !style_set_entry_.sources.empty();
 }
@@ -256,7 +256,7 @@ void FontFaceUpdater::VisitCSSFontFaceRule(
     cssom::CSSFontFaceRule* css_font_face_rule) {
   // The URL may be relative, in which case it is resolved relative to the
   // location of the style sheet containing the @font-face rule.
-  //   http://www.w3.org/TR/css3-fonts/#descdef-src
+  //   https://www.w3.org/TR/css3-fonts/#descdef-src
   // In the case where the style sheet URL is empty, treat the document base URL
   // as the style sheet's URL. While the spec is not clear on the expected
   // behavior for this case, this mimics WebKit's functionality.

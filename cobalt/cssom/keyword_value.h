@@ -34,251 +34,251 @@ class KeywordValue : public PropertyValue {
     // "absolute" is a value of "position" property which indicates that values
     // of "top", "right", "bottom", and "left" properties specify offsets
     // with respect to the box's containing block.
-    //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
+    //   https://www.w3.org/TR/CSS21/visuren.html#choose-position
     kAbsolute,
 
     // "alternate" is a possible value of the "animation-direction" property.
-    //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
+    //   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
     kAlternate,
 
     // "alternate-reverse" is a possible value of the "animation-direction"
     // property.
-    //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
+    //   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
     kAlternateReverse,
 
     // "auto" is a value of "width" and "height" properties which indicates
     // that used value of these properties depends on the values of other
     // properties.
-    //   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
-    //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
+    //   https://www.w3.org/TR/CSS21/visudet.html#the-width-property
+    //   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
     kAuto,
 
     // "backwards" is a value of "animation-fill-mode" property which causes the
     // animation results to fill in backwards around the animation's active
     // duration.
-    //   http://www.w3.org/TR/css3-animations/#animation-fill-mode-property
+    //   https://www.w3.org/TR/css3-animations/#animation-fill-mode-property
     kBackwards,
 
     // "middle" is the default value of "vertical-align" property that indicates
     // that the content should be aligned at the baselines.
-    //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    //   https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
     kBaseline,
 
     // "block" is a value of "display" property which causes an element
     // to generate a block box.
-    //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
+    //   https://www.w3.org/TR/CSS21/visuren.html#display-prop
     kBlock,
 
     // "both" is a value of "animation-fill-mode" property which causes the
     // animation results to fill in forwards and backwards around the
     // animation's active duration.
-    //   http://www.w3.org/TR/css3-animations/#animation-fill-mode-property
+    //   https://www.w3.org/TR/css3-animations/#animation-fill-mode-property
     kBoth,
 
     // "bottom" is a value of "background-position" property that computes to
     // 100% for the vertical position if one or two values are given, otherwise
     // specifies the bottom edge as the origin for the next offset.
-    //  http://www.w3.org/TR/css3-background/#the-background-position
+    //  https://www.w3.org/TR/css3-background/#the-background-position
     kBottom,
 
     // "break-word" is a value of "overflow-wrap" property which specifies to
     // the user agent that an unbreakable word may be broken at an arbitrary
     // point if there are no otherwise-acceptable break points in the line.
-    //   http://www.w3.org/TR/css-text-3/#overflow-wrap-property
+    //   https://www.w3.org/TR/css-text-3/#overflow-wrap-property
     kBreakWord,
 
     // "center" is a value of "text-align" property that indicates that the
     // content should be aligned horizontally centered.
-    //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+    //   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
     kCenter,
 
     // "clip" is a value of "text-overflow" property which specifies clipping
     // content that overflows its block container element. Characters may be
     // only partially rendered.
-    //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
     kClip,
 
     // "contain" is a value of "background-size" property which scales the
     // image to the largest size such that both its width and its height can
     // completely cover the background positioning area.
-    //   http://www.w3.org/TR/css3-background/#the-background-size
+    //   https://www.w3.org/TR/css3-background/#the-background-size
     kContain,
 
     // "cover" is a value of "background-size" property which scales the image
     // to the smallest size such that both its width and its height can fit
     // inside the background positioning area.
-    //   http://www.w3.org/TR/css3-background/#the-background-size
+    //   https://www.w3.org/TR/css3-background/#the-background-size
     kCover,
 
     // "currentColor" is the initial value of "border-color" property.
     // CSS3 extends the color value to include the 'currentColor' keyword
     // to allow its use with all properties that accept a <color> value.
-    //   http://www.w3.org/TR/css3-color/#currentcolor
+    //   https://www.w3.org/TR/css3-color/#currentcolor
     kCurrentColor,
 
     // "cursive" is a value of "font_family" property which indicates a generic
     // font family using a more informal script style.
-    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    //   https://www.w3.org/TR/css3-fonts/#generic-font-families
     kCursive,
 
     // "ellipsis" is a value of "text-overflow" property which specifies
     // rendering an ellipsis to represent clipped inline content.
-    //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
     kEllipsis,
 
     // "fantasy" is a value of "font_family" property which indicates a generic
     // font family using decorative or expressive representations of characters.
-    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    //   https://www.w3.org/TR/css3-fonts/#generic-font-families
     kFantasy,
 
     // "fixed" is a value of the "position" property which indicates that
     // the element is positioned and the element's containing block should be
     // set to the viewport.
-    //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
+    //   https://www.w3.org/TR/CSS21/visuren.html#choose-position
     kFixed,
 
     // "forwards" is a value of "animation-fill-mode" property which causes the
     // animation results to fill in forwards around the animation's active
     // duration.
-    //   http://www.w3.org/TR/css3-animations/#animation-fill-mode-property
+    //   https://www.w3.org/TR/css3-animations/#animation-fill-mode-property
     kForwards,
 
     // "hidden" is a value of "overflow" property which indicates that
     // the content is clipped.
-    //   http://www.w3.org/TR/CSS21/visufx.html#overflow
+    //   https://www.w3.org/TR/CSS21/visufx.html#overflow
     // "hidden" is a value of "visibility" property which indicates that
     // the generated box is invisible.
-    //   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
+    //   https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
     kHidden,
 
     // "infinite" is a value of "animation-iteration-count" property which
     // causes the animation to loop forever.
-    //   http://www.w3.org/TR/css3-animations/#animation-iteration-count-property
+    //   https://www.w3.org/TR/css3-animations/#animation-iteration-count-property
     kInfinite,
 
     // Applicable to any property, represents a cascaded value of "inherit",
     // which means that, for a given element, the property takes the same
     // specified value as the property for the element's parent.
-    //   http://www.w3.org/TR/CSS21/cascade.html#value-def-inherit
+    //   https://www.w3.org/TR/CSS21/cascade.html#value-def-inherit
     kInherit,
 
     // Applicable to any property, the "initial" keyword represents
     // the specified value that is designated as the property's initial value.
-    //   http://www.w3.org/TR/css3-values/#common-keywords
+    //   https://www.w3.org/TR/css3-values/#common-keywords
     kInitial,
 
     // "inline" is a value of "display" property which causes an element
     // to generate one or more inline boxes.
-    //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
+    //   https://www.w3.org/TR/CSS21/visuren.html#display-prop
     kInline,
 
     // "inline-block" is a value of "display" property which causes an element
     // to generate an inline-level block container.
-    //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
+    //   https://www.w3.org/TR/CSS21/visuren.html#display-prop
     kInlineBlock,
 
     // "left" is a value of "text-align" property that indicates that the
     // content should be aligned horizontally to the left.
-    //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+    //   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
     kLeft,
 
     // "middle" is a value of "vertical-align" property that indicates that the
     // content should be aligned vertically centered.
-    //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    //   https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
     kMiddle,
 
     // "monospace" is a value of "font_family" property which indicates a
     // generic
     // font family using glyphs with the same fixed width.
-    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    //   https://www.w3.org/TR/css3-fonts/#generic-font-families
     kMonospace,
 
     // "none" is a value of "transform" property which means that HTML element
     // is rendered as is.
-    //   http://www.w3.org/TR/css3-transforms/#transform-property
+    //   https://www.w3.org/TR/css3-transforms/#transform-property
     kNone,
 
     // "no-repeat" is a value of "background-repeat" property which means that
     // image is not repeated in a specific direction.
-    //   http://www.w3.org/TR/css3-background/#background-repeat
+    //   https://www.w3.org/TR/css3-background/#background-repeat
     kNoRepeat,
 
     // "normal" is a value of "line-height" property which tells user agents
     // to set the used value to a "reasonable" value based on the font
     // of the element.
-    //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+    //   https://www.w3.org/TR/CSS21/visudet.html#line-height
     kNormal,
 
     // "nowrap" is a value of "white-space" property which tells user agents
     // that white space should be collapsed as for "normal" but line breaks
     // should be suppressed within text.
-    //   http://www.w3.org/TR/css3-text/#white-space-property
+    //   https://www.w3.org/TR/css3-text/#white-space-property
     kNoWrap,
 
     // "pre" is a value of "white-space" property which tells user agents that
     // white space inside the element should not be collapsed and lines should
     // only be broken at preserved newline characters.
-    //   http://www.w3.org/TR/css3-text/#white-space-property
+    //   https://www.w3.org/TR/css3-text/#white-space-property
     kPre,
 
     // "relative" is a value of "position" property which indicates that values
     // of "top", "right", "bottom", and "left" properties specify offsets
     // with respect to the box's in-flow position.
-    //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
+    //   https://www.w3.org/TR/CSS21/visuren.html#choose-position
     kRelative,
 
     // "repeat" is a value of "background-repeat" property which means that
     // image is repeated in a specific direction.
-    //   http://www.w3.org/TR/css3-background/#background-repeat
+    //   https://www.w3.org/TR/css3-background/#background-repeat
     kRepeat,
 
     // "reverse" is a possible value of the "animation-direction" property.
-    //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
+    //   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
     kReverse,
 
     // "right" is a value of "text-align" property that indicates that the
     // content should be aligned horizontally to the right.
-    //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+    //   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
     kRight,
 
     // "sans-serif" is a value of "font_family" property which indicates a
     // generic font family using glyphs with low contrast and plain stroke
     // endings (without flaring, cross stroke or other ornamentation).
-    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    //   https://www.w3.org/TR/css3-fonts/#generic-font-families
     kSansSerif,
 
     // "serif" is a value of "font_family" property which indicates a generic
     // font family representing the formal text style for script.
-    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    //   https://www.w3.org/TR/css3-fonts/#generic-font-families
     kSerif,
 
     // "solid" is a value of "border-style" property which indicates a single
     // line segment.
-    //   http://www.w3.org/TR/css3-background/#border-style
+    //   https://www.w3.org/TR/css3-background/#border-style
     kSolid,
 
     // "static" is a value of "position" property which indicates that a box
     // is laid out according to the normal flow.
-    //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
+    //   https://www.w3.org/TR/CSS21/visuren.html#choose-position
     kStatic,
 
     // "top" is a value of "vertical-align" property that indicates that the
     // content should be aligned vertically at the top.
-    //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    //   https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
     kTop,
 
     // "uppercase" is a value of "text_transform" property that indicates that
     // all characters in each word of the element's text should be put in
     // uppercase.
-    //   http://www.w3.org/TR/css3-text/#text-transform-property
+    //   https://www.w3.org/TR/css3-text/#text-transform-property
     kUppercase,
 
     // "visible" is a value of "overflow" property which indicates that
     // the content is not clipped.
-    //   http://www.w3.org/TR/CSS21/visufx.html#overflow
+    //   https://www.w3.org/TR/CSS21/visufx.html#overflow
     // "visible" is a value of "visibility" property which indicates that
     // the generated box is visible.
-    //   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
+    //   https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
     kVisible,
   };
 

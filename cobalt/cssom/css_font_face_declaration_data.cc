@@ -25,8 +25,8 @@ namespace cobalt {
 namespace cssom {
 
 // Font style and font weight default to normal
-//   http://www.w3.org/TR/css3-fonts/#descdef-font-style
-//   http://www.w3.org/TR/css3-fonts/#descdef-font-weight
+//   https://www.w3.org/TR/css3-fonts/#descdef-font-style
+//   https://www.w3.org/TR/css3-fonts/#descdef-font-weight
 CSSFontFaceDeclarationData::CSSFontFaceDeclarationData()
     : style_(FontStyleValue::GetNormal()),
       weight_(FontWeightValue::GetNormalAka400()) {}
@@ -57,7 +57,7 @@ void CSSFontFaceDeclarationData::SetPropertyValue(
   } else {
     // 3. If property is not a case-sensitive match for a supported CSS
     // property, terminate this algorithm.
-    //   http://www.w3.org/TR/2013/WD-cssom-20131205/#dom-cssstyledeclaration-setpropertyvalue
+    //   https://www.w3.org/TR/2013/WD-cssom-20131205/#dom-cssstyledeclaration-setpropertyvalue
   }
 }
 

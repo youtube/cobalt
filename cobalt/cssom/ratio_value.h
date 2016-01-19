@@ -33,9 +33,9 @@ namespace cssom {
 class PropertyValueVisitor;
 
 // Represents a ratio value.
-//   http://www.w3.org/TR/css3-mediaqueries/#values
+//   https://www.w3.org/TR/css3-mediaqueries/#values
 // Applies to aspect-ratio and device-aspect-ratio media feature.
-//   http://www.w3.org/TR/css3-mediaqueries/#aspect-ratio
+//   https://www.w3.org/TR/css3-mediaqueries/#aspect-ratio
 class RatioValue : public PropertyValue {
  public:
   explicit RatioValue(const math::Rational& value) : value_(value) {

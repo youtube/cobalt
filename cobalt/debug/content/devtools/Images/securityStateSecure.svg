@@ -1,4 +1,4 @@
-<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 96 96" xmlns="https://www.w3.org/2000/svg">
   <g fill="none" fill-rule="evenodd" transform="translate(8 8)">
     <path d="M 10,6 H70 V76 H10 z" fill="#fff"/>
     <g fill="#1ac222">

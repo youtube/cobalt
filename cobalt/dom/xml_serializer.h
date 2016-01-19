@@ -28,7 +28,7 @@ class Node;
 
 // XMLSerializer can be used to convert DOM subtree or DOM document into text.
 // XMLSerializer is available to unprivileged scripts.
-//   http://www.w3.org/TR/DOM-Parsing/#the-domparser-interface
+//   https://www.w3.org/TR/DOM-Parsing/#the-domparser-interface
 class XMLSerializer : public script::Wrappable {
  public:
   XMLSerializer() {}

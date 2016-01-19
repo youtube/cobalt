@@ -31,7 +31,7 @@ class Document;
 
 // The style element allows authors to embed style information in their
 // documents.
-//   http://www.w3.org/TR/html5/document-metadata.html#the-style-element
+//   https://www.w3.org/TR/html5/document-metadata.html#the-style-element
 class HTMLStyleElement : public HTMLElement {
  public:
   static const char kTagName[];
@@ -45,7 +45,7 @@ class HTMLStyleElement : public HTMLElement {
   // Web API: LinkStyle (implements)
   // The sheet attribute must return the associated CSS style sheet for the node
   // or null if there is no associated CSS style sheet.
-  //   http://www.w3.org/TR/cssom/#dom-linkstyle-sheet
+  //   https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
   const scoped_refptr<cssom::StyleSheet> &sheet() const { return style_sheet_; }
 
   // Custom, not in any spec.

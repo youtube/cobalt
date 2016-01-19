@@ -134,7 +134,7 @@ bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
   // unbreakable "words" at an arbitrary point. However, in the case where the
   // policy is |kSoftWrapWithBreakWordOnOverflow|, this is only permitted when
   // overflow is allowed, meaning that no otherwise-acceptable break points have
-  // been found in the line (http://www.w3.org/TR/css3-text/#overflow-wrap).
+  // been found in the line (https://www.w3.org/TR/css3-text/#overflow-wrap).
   if ((break_policy == kBreakWord) ||
       (break_policy == kSoftWrapWithBreakWordOnOverflow && allow_overflow)) {
     // Attempt to find a break word break position. If successful, return that

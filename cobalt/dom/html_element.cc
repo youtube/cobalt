@@ -109,7 +109,7 @@ void HTMLElement::Blur() {
 }
 
 // Algorithm for GetClientRects:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
 scoped_refptr<DOMRectList> HTMLElement::GetClientRects() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -125,7 +125,7 @@ scoped_refptr<DOMRectList> HTMLElement::GetClientRects() {
 }
 
 // Algorithm for client_top:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
 float HTMLElement::client_top() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -143,7 +143,7 @@ float HTMLElement::client_top() {
 }
 
 // Algorithm for client_left:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
 float HTMLElement::client_left() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -161,7 +161,7 @@ float HTMLElement::client_left() {
 }
 
 // Algorithm for client_width:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
 float HTMLElement::client_width() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -183,7 +183,7 @@ float HTMLElement::client_width() {
 }
 
 // Algorithm for client_height:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
 float HTMLElement::client_height() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -205,7 +205,7 @@ float HTMLElement::client_height() {
 }
 
 // Algorithm for offsetParent:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
 scoped_refptr<Element> HTMLElement::offset_parent() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -251,7 +251,7 @@ scoped_refptr<Element> HTMLElement::offset_parent() {
 }
 
 // Algorithm for offset_top:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
 float HTMLElement::offset_top() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -287,7 +287,7 @@ float HTMLElement::offset_top() {
 }
 
 // Algorithm for offset_left:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
 float HTMLElement::offset_left() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -323,7 +323,7 @@ float HTMLElement::offset_left() {
 }
 
 // Algorithm for offset_width:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
 float HTMLElement::offset_width() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -341,7 +341,7 @@ float HTMLElement::offset_width() {
 }
 
 // Algorithm for offset_height:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
 float HTMLElement::offset_height() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
@@ -766,7 +766,7 @@ void HTMLElement::OnBackgroundImageLoaded() {
 
 bool HTMLElement::IsRootElement() {
   // The html element represents the root of an HTML document.
-  //   http://www.w3.org/TR/2014/REC-html5-20141028/semantics.html#the-root-element
+  //   https://www.w3.org/TR/2014/REC-html5-20141028/semantics.html#the-root-element
   return AsHTMLHtmlElement() != NULL;
 }
 

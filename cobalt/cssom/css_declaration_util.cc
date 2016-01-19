@@ -24,7 +24,7 @@ namespace cssom {
 // Append a property declaration to a string.
 // When the given string is not empty, this also adds the single space separator
 // needed for the serialization of a CSS declaration block.
-//   http://www.w3.org/TR/cssom/#serialize-a-css-declaration
+//   https://www.w3.org/TR/cssom/#serialize-a-css-declaration
 void AppendPropertyDeclaration(
     const char* const property_name,
     const scoped_refptr<PropertyValue>& property_value, std::string* output) {

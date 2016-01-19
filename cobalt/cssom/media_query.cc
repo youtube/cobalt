@@ -24,7 +24,7 @@ namespace cssom {
 
 // If the media query list is empty (i.e. the declaration is the empty string or
 // consists solely of whitespace) it evaluates to true.
-//   http://www.w3.org/TR/css3-mediaqueries/#error-handling
+//   https://www.w3.org/TR/css3-mediaqueries/#error-handling
 MediaQuery::MediaQuery() : evaluated_media_type_(true) {}
 
 MediaQuery::MediaQuery(bool evaluated_media_type)

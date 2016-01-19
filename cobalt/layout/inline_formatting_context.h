@@ -37,7 +37,7 @@ class LineBox;
 // after the other, beginning at the top of a containing block. When several
 // inline-level boxes cannot fit horizontally within a single line box,
 // they are distributed among two or more vertically-stacked line boxes.
-//   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+//   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
 //
 // An inline formatting context is a short-lived object that is constructed
 // and destroyed during the layout. The inline formatting context does not own

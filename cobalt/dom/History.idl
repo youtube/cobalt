@@ -21,7 +21,7 @@
 // removed except for the current entry of the joint session history.
 // ***REMOVED*** does not use the History interface, just a stubbed implementation is
 // required. However, more support may be needed in the future for other clients.
-// http://www.w3.org/TR/html5/browsers.html#the-history-interface
+// https://www.w3.org/TR/html5/browsers.html#the-history-interface
 interface History {
   readonly attribute long length;
 };
