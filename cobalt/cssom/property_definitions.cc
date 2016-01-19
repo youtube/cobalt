@@ -418,9 +418,11 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // https://www.w3.org/TR/css3-transforms/#propdef-transform-origin
   scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder());
-  transform_origin_builder->reserve(2);
-  transform_origin_builder->push_back(new PercentageValue(0.5f));
-  transform_origin_builder->push_back(new PercentageValue(0.5f));
+  transform_origin_builder->reserve(3);
+  transform_origin_builder->push_back(new CalcValue(new PercentageValue(0.5f)));
+  transform_origin_builder->push_back(new CalcValue(new PercentageValue(0.5f)));
+  transform_origin_builder->push_back(
+      new LengthValue(0.0f, cssom::kPixelsUnit));
   scoped_refptr<PropertyListValue> transform_origin_list(
       new PropertyListValue(transform_origin_builder.Pass()));
   SetPropertyDefinition(kTransformOriginProperty, "transform-origin",
