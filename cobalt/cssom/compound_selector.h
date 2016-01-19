@@ -35,7 +35,7 @@ class SimpleSelector;
 
 // A compound selector is a chain of simple selectors that are not separated by
 // a combinator.
-//   http://www.w3.org/TR/selectors4/#compound
+//   https://www.w3.org/TR/selectors4/#compound
 class CompoundSelector : public Selector {
  public:
   typedef ScopedVector<SimpleSelector> SimpleSelectors;

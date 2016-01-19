@@ -34,7 +34,7 @@ class SelectorVisitor;
 // releases it. On systems with more than one mouse button, :active applies only
 // to the primary or primary activation button (typically the "left" mouse
 // button), and any aliases thereof.
-//   http://www.w3.org/TR/selectors4/#active-pseudo
+//   https://www.w3.org/TR/selectors4/#active-pseudo
 class ActivePseudoClass : public PseudoClass {
  public:
   ActivePseudoClass() {}

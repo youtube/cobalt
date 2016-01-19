@@ -100,7 +100,7 @@ scoped_refptr<DOMTokenList> Element::class_list() {
 }
 
 // Algorithm for GetAttribute:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-getattribute
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-getattribute
 base::optional<std::string> Element::GetAttribute(
     const std::string& name) const {
   Document* document = node_document();
@@ -133,7 +133,7 @@ base::optional<std::string> Element::GetAttribute(
 }
 
 // Algorithm for SetAttribute:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-setattribute
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-setattribute
 void Element::SetAttribute(const std::string& name, const std::string& value) {
   Document* document = node_document();
 
@@ -199,7 +199,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
 }
 
 // Algorithm for RemoveAttribute:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-removeattribute
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-removeattribute
 void Element::RemoveAttribute(const std::string& name) {
   Document* document = node_document();
 
@@ -256,7 +256,7 @@ void Element::RemoveAttribute(const std::string& name) {
 }
 
 // Algorithm for HasAttribute:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-hasattribute
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-hasattribute
 bool Element::HasAttribute(const std::string& name) const {
   Document* document = node_document();
 
@@ -307,7 +307,7 @@ math::RectF GetBoundingRectangle(const scoped_refptr<DOMRect>& dom_rect) {
 }  // namespace
 
 // Algorithm for getBoundingClientRect:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getboundingclientrect
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getboundingclientrect
 scoped_refptr<DOMRect> Element::GetBoundingClientRect() {
   // 1. Let list be the result of invoking getClientRects() on the same element
   // this method was invoked on.
@@ -333,7 +333,7 @@ scoped_refptr<DOMRect> Element::GetBoundingClientRect() {
 }
 
 // Algorithm for GetClientRects:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-getclientrects
 scoped_refptr<DOMRectList> Element::GetClientRects() {
   // 1. If the element on which it was invoked does not have an associated
   // layout box return an empty DOMRectList object and stop this algorithm.
@@ -341,7 +341,7 @@ scoped_refptr<DOMRectList> Element::GetClientRects() {
 }
 
 // Algorithm for client_top:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
 float Element::client_top() {
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
@@ -349,7 +349,7 @@ float Element::client_top() {
 }
 
 // Algorithm for client_left:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
 float Element::client_left() {
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
@@ -357,7 +357,7 @@ float Element::client_left() {
 }
 
 // Algorithm for client_width:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
 float Element::client_width() {
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
@@ -365,7 +365,7 @@ float Element::client_width() {
 }
 
 // Algorithm for client_height:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
 float Element::client_height() {
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
@@ -373,7 +373,7 @@ float Element::client_height() {
 }
 
 // Algorithm for inner_html:
-//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
+//   https://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
 std::string Element::inner_html() const {
   std::ostringstream oss;
   Serializer serializer(&oss);
@@ -382,7 +382,7 @@ std::string Element::inner_html() const {
 }
 
 // Algorithm for set_inner_html:
-//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
+//   https://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
 void Element::set_inner_html(const std::string& inner_html) {
   // 1. Let fragment be the result of invoking the fragment parsing algorithm
   // with the new value as markup, and the context object as the context
@@ -405,7 +405,7 @@ void Element::set_inner_html(const std::string& inner_html) {
 }
 
 // Algorithm for outer_html:
-//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
+//   https://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
 std::string Element::outer_html() const {
   std::ostringstream oss;
   Serializer serializer(&oss);
@@ -414,7 +414,7 @@ std::string Element::outer_html() const {
 }
 
 // Algorithm for set_outer_html:
-//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-outerHTML
+//   https://www.w3.org/TR/DOM-Parsing/#widl-Element-outerHTML
 void Element::set_outer_html(const std::string& outer_html) {
   // 1. Let parent be the context object's parent.
   scoped_refptr<Node> parent = parent_node();

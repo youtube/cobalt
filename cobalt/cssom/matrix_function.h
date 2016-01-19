@@ -31,7 +31,7 @@ class TransformFunctionVisitor;
 
 // The matrix function allows one to specify a 2D 2x3 affine transformation
 // as a matrix.
-//   http://www.w3.org/TR/css-transforms-1/#funcdef-matrix
+//   https://www.w3.org/TR/css-transforms-1/#funcdef-matrix
 class MatrixFunction : public TransformFunction {
  public:
   explicit MatrixFunction(const math::Matrix3F& matrix);

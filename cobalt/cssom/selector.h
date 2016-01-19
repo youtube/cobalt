@@ -31,7 +31,7 @@ class SimpleSelector;
 // Selectors are patterns that match against elements in a tree, and as such
 // form one of several technologies that can be used to select nodes in an XML
 // document.
-//   http://www.w3.org/TR/selectors4/
+//   https://www.w3.org/TR/selectors4/
 class Selector {
  public:
   virtual ~Selector() {}
@@ -47,7 +47,7 @@ class Selector {
   // Count the number of class selectors, attributes selectors, and
   // pseudo-classes in the selector (B)
   // Count the number of type selectors and pseudo-elements in the selector (C)
-  //   http://www.w3.org/TR/selectors4/#specificity
+  //   https://www.w3.org/TR/selectors4/#specificity
   virtual Specificity GetSpecificity() const = 0;
 };
 

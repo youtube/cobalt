@@ -39,7 +39,7 @@ class UsedStyleProvider;
 
 // In the visual formatting model, each element in the document tree generates
 // zero or more boxes.
-//   http://www.w3.org/TR/CSS21/visuren.html#box-gen
+//   https://www.w3.org/TR/CSS21/visuren.html#box-gen
 //
 // A box generator recursively visits an HTML subtree that starts with a given
 // element, creates a matching forest of boxes, and returns zero or more root

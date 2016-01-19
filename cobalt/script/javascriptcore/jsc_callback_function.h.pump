@@ -93,7 +93,7 @@ class JSCCallbackFunction<R($for ARG , [[A$(ARG)]])>
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
-    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
     JSC::JSValue this_value = JSC::jsNull();
     JSC::MarkedArgumentBuffer args;

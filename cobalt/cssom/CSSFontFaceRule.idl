@@ -15,7 +15,7 @@
  */
 
 // The CSSFontFaceRule interface represents a @font-face rule.
-//   http://www.w3.org/TR/css3-fonts/#om-fontface
+//   https://www.w3.org/TR/css3-fonts/#om-fontface
 interface CSSFontFaceRule : CSSRule {
   [TreatNullAs=EmptyString] attribute DOMString family;
   [TreatNullAs=EmptyString] attribute DOMString src;

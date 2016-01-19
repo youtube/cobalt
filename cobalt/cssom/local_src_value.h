@@ -31,7 +31,7 @@ class PropertyValueVisitor;
 
 // A LocalSrcValue is a pointer to a resource that corresponds to the local
 // function token in the font-face src descriptor.
-//  http://www.w3.org/TR/css3-fonts/#descdef-src
+//  https://www.w3.org/TR/css3-fonts/#descdef-src
 class LocalSrcValue : public PropertyValue {
  public:
   explicit LocalSrcValue(const std::string& src);

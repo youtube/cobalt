@@ -3639,7 +3639,7 @@ TEST_F(ParserTest, ParsesMaxHeightNone) {
   // 'none' is also the initial value for max-height. It is set to a length
   // value first, to ensure that the property does not have the initial value
   // for the test.
-  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+  //   https://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("max-height: 100px; max-height: none;",
                                         source_location_);
@@ -3662,7 +3662,7 @@ TEST_F(ParserTest, ParsesMaxWidthNone) {
   // 'none' is also the initial value for max-width. It is set to a length value
   // first, to ensure that the property does not have the initial value for the
   // test.
-  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
+  //   https://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("max-width: 100px; max-width: none;",
                                         source_location_);
@@ -4723,7 +4723,7 @@ TEST_F(ParserTest, ParsesBreakWordWordWrap) {
                                         source_location_);
 
   // word-wrap is treated as an alias for overflow-wrap
-  //   http://www.w3.org/TR/css-text-3/#overflow-wrap
+  //   https://www.w3.org/TR/css-text-3/#overflow-wrap
   EXPECT_EQ(cssom::KeywordValue::GetBreakWord(), style->overflow_wrap());
 }
 
@@ -4732,7 +4732,7 @@ TEST_F(ParserTest, ParsesNormalWordWrap) {
       parser_.ParseStyleDeclarationList("word-wrap: normal;", source_location_);
 
   // word-wrap is treated as an alias for overflow-wrap
-  //   http://www.w3.org/TR/css-text-3/#overflow-wrap
+  //   https://www.w3.org/TR/css-text-3/#overflow-wrap
   EXPECT_EQ(cssom::KeywordValue::GetNormal(), style->overflow_wrap());
 }
 
@@ -6258,7 +6258,7 @@ TEST_F(ParserTest, ParsesNegativeZIndex) {
 }
 
 // Test that style declarations in a list are parsed in specified order.
-//   http://www.w3.org/TR/cssom/#dom-cssstyledeclaration-csstext
+//   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-csstext
 TEST_F(ParserTest, ParsesDeclarationsInSpecifiedOrder) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList(

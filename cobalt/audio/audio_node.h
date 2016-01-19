@@ -42,7 +42,7 @@ class AudioContext;
 // of how it processes or synthesizes audio. But, in general, AudioNodes will
 // process its inputs (if it has any), and generate audio for its outputs
 // (if it has any).
-//   http://www.w3.org/TR/webaudio/#AudioNode-section
+//   https://www.w3.org/TR/webaudio/#AudioNode-section
 class AudioNode : public dom::EventTarget {
   typedef ::media::ShellAudioBus ShellAudioBus;
 

@@ -34,7 +34,7 @@ class Element;
 
 // The NamedNodeMap interface represents a collection of Attr objects. Objects
 // inside a NamedNodeMap are not in any particular order.
-//   http://www.w3.org/TR/DOM-Level-3-Core/core.html#ID-1780488922
+//   https://www.w3.org/TR/DOM-Level-3-Core/core.html#ID-1780488922
 //
 // Although called NamedNodeMap, this interface doesn't deal with Node objects
 // but with Attr objects, which were originally a specialized class of Node.

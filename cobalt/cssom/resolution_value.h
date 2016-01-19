@@ -36,8 +36,8 @@ enum ResolutionUnit {
 
 // Represents a resolution value.
 // Applies to resolution media feature.
-// See http://www.w3.org/TR/css3-mediaqueries/#resolution and
-// http://www.w3.org/TR/css3-mediaqueries/#resolution0 for details.
+// See https://www.w3.org/TR/css3-mediaqueries/#resolution and
+// https://www.w3.org/TR/css3-mediaqueries/#resolution0 for details.
 class ResolutionValue : public PropertyValue {
  public:
   ResolutionValue(float value, ResolutionUnit unit)

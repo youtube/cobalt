@@ -21,9 +21,9 @@ namespace cobalt {
 namespace cssom {
 
 // Lower-case names of CSS media types
-//  http://www.w3.org/TR/html4/types.html#h-6.13
-//  http://www.w3.org/TR/CSS21/media.html#media-types
-//  http://www.w3.org/TR/css3-mediaqueries/
+//  https://www.w3.org/TR/html4/types.html#h-6.13
+//  https://www.w3.org/TR/CSS21/media.html#media-types
+//  https://www.w3.org/TR/css3-mediaqueries/
 // Listed here are the names of all supported media types, except the 'all'
 // media type.
 extern const char kScreenMediaTypeName[];

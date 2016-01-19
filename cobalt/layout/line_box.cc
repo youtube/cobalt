@@ -28,7 +28,7 @@ namespace cobalt {
 namespace layout {
 
 // The left edge of a line box touches the left edge of its containing block.
-//   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+//   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
 LineBox::LineBox(float top,
                  const scoped_refptr<cssom::PropertyValue>& line_height,
                  const render_tree::FontMetrics& font_metrics,
@@ -85,7 +85,7 @@ bool LineBox::TryBeginUpdateRectAndMaybeSplit(
   float available_width = GetAvailableWidth();
 
   // Horizontal margins, borders, and padding are respected between boxes.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   if (child_box->GetMarginBoxWidth() <= available_width) {
     BeginUpdatePosition(child_box);
     return true;
@@ -99,7 +99,7 @@ bool LineBox::TryBeginUpdateRectAndMaybeSplit(
     child_box->UpdateSize(layout_params_);
 
     // A sequence of collapsible spaces at the end of a line is removed.
-    //   http://www.w3.org/TR/css3-text/#white-space-phase-2
+    //   https://www.w3.org/TR/css3-text/#white-space-phase-2
     if (child_box->IsCollapsed()) {
       CollapseTrailingWhiteSpace();
     }
@@ -117,7 +117,7 @@ bool LineBox::TryBeginUpdateRectAndMaybeSplit(
   // a single character, or language specific word breaking rules disallow
   // a break within the inline box), then the inline box overflows the line
   // box.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   //
   // Allow the overflow if the line box has no children that justify line
   // existence. This prevents perpetual rejection of child boxes that cannot
@@ -125,7 +125,7 @@ bool LineBox::TryBeginUpdateRectAndMaybeSplit(
   bool allow_overflow = !line_exists_;
 
   // When an inline box exceeds the width of a line box, it is split.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   *child_box_after_split =
       child_box->TrySplitAt(available_width, allow_overflow);
 
@@ -156,7 +156,7 @@ void LineBox::BeginEstimateStaticPosition(Box* child_box) {
 
   // The term "static position" (of an element) refers, roughly, to the position
   // an element would have had in the normal flow.
-  //   http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
 
   // TODO(***REMOVED***): Reimplement this crude approximation of static position
   //               in order to take horizontal and vertical alignments
@@ -170,7 +170,7 @@ void LineBox::EndUpdates() {
   at_end_ = true;
 
   // A sequence of collapsible spaces at the end of a line is removed.
-  //   http://www.w3.org/TR/css3-text/#white-space-phase-2
+  //   https://www.w3.org/TR/css3-text/#white-space-phase-2
   if (should_collapse_trailing_white_space_) {
     CollapseTrailingWhiteSpace();
   }
@@ -223,12 +223,12 @@ bool LineBox::ShouldCollapseLeadingWhiteSpaceInNextChildBox() const {
              // one outside the boundary of the inline containing that space,
              // provided they are both within the same inline formatting context
              // - is collapsed.
-             //   http://www.w3.org/TR/css3-text/#white-space-phase-1
+             //   https://www.w3.org/TR/css3-text/#white-space-phase-1
              ? child_boxes_[*last_non_collapsed_child_box_index_]
                    ->HasTrailingWhiteSpace()
              // A sequence of collapsible spaces at the beginning of a line is
              // removed.
-             //   http://www.w3.org/TR/css3-text/#white-space-phase-2
+             //   https://www.w3.org/TR/css3-text/#white-space-phase-2
              : should_collapse_leading_white_space_;
 }
 
@@ -276,7 +276,7 @@ void LineBox::BeginUpdatePosition(Box* child_box) {
   }
 
   // Horizontal margins, borders, and padding are respected between boxes.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   shrink_to_fit_width_ += child_box->GetMarginBoxWidth();
 
   line_exists_ = line_exists_ || child_box->JustifiesLineExistence();
@@ -365,7 +365,7 @@ void LineBox::UpdateChildBoxLeftPositions() {
     // When the total width of the inline-level boxes on a line is less than
     // the width of the line box containing them, their horizontal distribution
     // within the line box is determined by the "text-align" property.
-    //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+    //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
     //
     // So do not shift child boxes when the inline-level boxes already overflow,
     // also do not shift if text-align is "left".
@@ -379,10 +379,10 @@ void LineBox::UpdateChildBoxLeftPositions() {
 
   // Set the first child box position to the indent offset, which is treated as
   // a margin applied to the start edge of the line box, specified by
-  // http://www.w3.org/TR/CSS21/text.html#propdef-text-indent,
+  // https://www.w3.org/TR/CSS21/text.html#propdef-text-indent,
   // and offset this position by the the value calculated from "text-align",
   // which is vaguely specified by
-  // http://www.w3.org/TR/CSS21/text.html#propdef-text-align.
+  // https://www.w3.org/TR/CSS21/text.html#propdef-text-align.
   float child_box_left = indent_offset_ + horizontal_offset_due_alignment;
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
@@ -400,7 +400,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
   // a minimum depth below it, exactly as if each line box starts with
   // a zero-width inline box with the element's font and line height properties.
   // We call that imaginary box a "strut."
-  //   http://www.w3.org/TR/CSS21/visudet.html#strut
+  //   https://www.w3.org/TR/CSS21/visudet.html#strut
   UsedLineHeightProvider used_line_height_provider(font_metrics_);
   line_height_->Accept(&used_line_height_provider);
   baseline_offset_from_top_ =
@@ -419,7 +419,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
 
     // The child box influence on the line box depends on the vertical-align
     // property.
-    //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    //   https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
     const scoped_refptr<cssom::PropertyValue>& vertical_align =
         child_box->computed_style()->vertical_align();
     float baseline_offset_from_child_top_margin_edge;
@@ -469,7 +469,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
   }
   // The line box height is the distance between the uppermost box top and the
   // lowermost box bottom.
-  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  //   https://www.w3.org/TR/CSS21/visudet.html#line-height
   height_ = baseline_offset_from_top_ + baseline_offset_from_bottom;
   if (child_max_top_aligned_margin_box_height > height_) {
     // Increase the line box height below the baseline to make the largest
@@ -495,7 +495,7 @@ void LineBox::UpdateChildBoxTopPositions() {
     Box* child_box = *child_box_iterator;
 
     // The child box top position depends on the vertical-align property.
-    //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    //   https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
     const scoped_refptr<cssom::PropertyValue>& vertical_align =
         child_box->computed_style()->vertical_align();
     float child_top;
@@ -536,7 +536,7 @@ void LineBox::MaybePlaceEllipsis() {
     // - However, if there is insufficient space for the ellipsis, the preferred
     //   offset is set to 0, rather than a negative value, thereby ensuring that
     //   the ellipsis itself is clipped at the end line box edge.
-    // http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    // https://www.w3.org/TR/css3-ui/#propdef-text-overflow
     float preferred_offset = std::max<float>(
         layout_params_.containing_block_size.width() - ellipsis_width_, 0);
 
@@ -544,7 +544,7 @@ void LineBox::MaybePlaceEllipsis() {
     // encountered within the boxes already checked on the line. The ellipsis
     // cannot be placed at an offset that precedes the first character or atomic
     // inline-level element on a line.
-    // http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    // https://www.w3.org/TR/css3-ui/#propdef-text-overflow
     bool is_placement_requirement_met = false;
 
     // Walk each box within the line in order attempting to place the ellipsis

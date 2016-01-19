@@ -42,7 +42,7 @@ class PropertyValueVisitor;
 //
 // Applies to properties such as background-color, color, etc.
 //
-// See http://www.w3.org/TR/css3-color/#rgb-color for details.
+// See https://www.w3.org/TR/css3-color/#rgb-color for details.
 class RGBAColorValue : public PropertyValue {
  public:
   static const scoped_refptr<RGBAColorValue>& GetAqua();

@@ -26,7 +26,7 @@ namespace cobalt {
 namespace dom {
 
 // The completion of a CSS Transition generates a corresponding DOM Event.
-//   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-events
+//   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-events
 class TransitionEvent : public Event {
  public:
   TransitionEvent(const std::string& type, cssom::PropertyKey property,

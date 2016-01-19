@@ -33,7 +33,7 @@ class CSSRuleVisitor;
 
 // The CSSConditionRule interface represents all the "conditional" at-rules,
 // which consist of a condition and a statement block.
-//   http://www.w3.org/TR/css3-conditional/#cssconditionrule
+//   https://www.w3.org/TR/css3-conditional/#cssconditionrule
 class CSSConditionRule : public CSSGroupingRule {
  public:
   // Web API: CSSConditionRule

@@ -32,7 +32,7 @@ namespace cssom {
 
 // A list of transform functions that define how transformation is applied
 // to the coordinate system an HTML element renders in.
-//   http://www.w3.org/TR/css-transforms-1/#typedef-transform-list
+//   https://www.w3.org/TR/css-transforms-1/#typedef-transform-list
 class TransformFunctionListValue : public ScopedListValue<TransformFunction> {
  public:
   explicit TransformFunctionListValue(

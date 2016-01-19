@@ -33,9 +33,9 @@ class LengthValue;
 class PercentageValue;
 
 // Specifies a translation by the given amount in the X, Y or Z direction.
-//   http://www.w3.org/TR/css-transforms-1/#funcdef-translatex
-//   http://www.w3.org/TR/css-transforms-1/#funcdef-translatey
-//   http://www.w3.org/TR/css-transforms-1/#funcdef-translatez
+//   https://www.w3.org/TR/css-transforms-1/#funcdef-translatex
+//   https://www.w3.org/TR/css-transforms-1/#funcdef-translatey
+//   https://www.w3.org/TR/css-transforms-1/#funcdef-translatez
 class TranslateFunction : public TransformFunction {
  public:
   enum Axis {

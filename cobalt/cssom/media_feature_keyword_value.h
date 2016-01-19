@@ -35,22 +35,22 @@ class MediaFeatureKeywordValue : public PropertyValue {
   enum Value {
     // "interlace" is a value of the "scan" media feature which indicates that
     // the display is interlaced.
-    //   http://www.w3.org/TR/css3-mediaqueries/#scan
+    //   https://www.w3.org/TR/css3-mediaqueries/#scan
     kInterlace,
 
     // "landscape" is a value of the "orientation" media feature which indicates
     // that the display is oriented in landscape mode.
-    //   http://www.w3.org/TR/css3-mediaqueries/#orientation
+    //   https://www.w3.org/TR/css3-mediaqueries/#orientation
     kLandscape,
 
     // "portrait" is a value of the "orientation" media feature which indicates
     // that the display is oriented in portrait mode.
-    //   http://www.w3.org/TR/css3-mediaqueries/#orientation
+    //   https://www.w3.org/TR/css3-mediaqueries/#orientation
     kPortrait,
 
     // "progressive" is a value of the "scan" media feature which indicates that
     // the display is progressive (not interlaced).
-    //   http://www.w3.org/TR/css3-mediaqueries/#scan
+    //   https://www.w3.org/TR/css3-mediaqueries/#scan
     kProgressive,
   };
 

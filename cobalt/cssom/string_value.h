@@ -31,7 +31,7 @@ class PropertyValueVisitor;
 
 // Represents a sequence of characters delimited by single or double quotes.
 // Applies to properties like font-family.
-// See http://www.w3.org/TR/css3-values/#strings for details.
+// See https://www.w3.org/TR/css3-values/#strings for details.
 class StringValue : public PropertyValue {
  public:
   explicit StringValue(const std::string& value) : value_(value) {}

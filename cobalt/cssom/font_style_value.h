@@ -33,7 +33,7 @@ class PropertyValueVisitor;
 // Allows italic or oblique faces to be selected. Italic forms are generally
 // cursive in nature while oblique faces are typically sloped versions of
 // regular face.
-//   http://www.w3.org/TR/css3-fonts/#font-style-prop
+//   https://www.w3.org/TR/css3-fonts/#font-style-prop
 class FontStyleValue : public PropertyValue {
  public:
   enum Value {

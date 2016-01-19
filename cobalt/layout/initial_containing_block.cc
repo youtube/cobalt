@@ -63,7 +63,7 @@ bool ConditionalCopyBackgroundStyle(
 
 // This propagates the computed background style of the <html> or <body> element
 // to the given style for the initial containing block.
-//   http://www.w3.org/TR/css3-background/#body-background
+//   https://www.w3.org/TR/css3-background/#body-background
 void PropagateBackgroundStyleToInitialStyle(
     const scoped_refptr<dom::Document>& document,
     scoped_refptr<cssom::CSSStyleDeclarationData>
@@ -93,7 +93,7 @@ scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
 
   // The background color and image style may need to be propagated up from the
   // <body> element to the parent <html> element.
-  //   http://www.w3.org/TR/css3-background/#body-background
+  //   https://www.w3.org/TR/css3-background/#body-background
   PropagateBackgroundStyleToInitialStyle(
       document, initial_containing_block_style);
 

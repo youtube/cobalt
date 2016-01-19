@@ -47,7 +47,7 @@ int GetPropertyTransitionIndex(
     // The LAST reference to the given property in the transition-property list
     // is the one we use to determine the property's index, so start searching
     // for it from the back to the front.
-    //   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-property-property
+    //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-property-property
     for (int i = static_cast<int>(property_name_list->value().size()) - 1;
          i >= 0; --i) {
       PropertyKey current_list_property =
@@ -104,7 +104,7 @@ void SetReversingValues(
     scoped_refptr<PropertyValue>* new_reversing_adjusted_start_value,
     float* new_reversing_shortening_factor) {
   // This value is calculated as explained here:
-  //   http://www.w3.org/TR/css3-transitions/#reversing
+  //   https://www.w3.org/TR/css3-transitions/#reversing
   // These calculations make a pleasant experience when reversing a transition
   // half-way through by making the reverse transition occur over half as much
   // time.
@@ -172,7 +172,7 @@ void TransitionSet::UpdateTransitionForProperty(
     const scoped_refptr<PropertyValue>& end_value,
     const CSSStyleDeclarationData& transition_style) {
   // This method essentially implements the logic defined at
-  //   http://www.w3.org/TR/css3-transitions/#starting
+  //   https://www.w3.org/TR/css3-transitions/#starting
 
   // Get the index of this property in the transition-property list, so we
   // can know if the property should be animated (i.e. it is animated if it
@@ -236,7 +236,7 @@ void TransitionSet::UpdateTransitionForProperty(
       // if it has completed yet.  If so, remove it from the list of
       // transformations.
       // TODO(***REMOVED***): Fire off a transitionend event.
-      //   http://www.w3.org/TR/css3-transitions/#transitionend
+      //   https://www.w3.org/TR/css3-transitions/#transitionend
       const Transition* transition =
           transitions_.GetTransitionForProperty(property);
       if (transition != NULL) {

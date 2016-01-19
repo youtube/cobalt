@@ -27,7 +27,7 @@ namespace dom {
 class Node;
 
 // A NodeListLive is a live NodeList, which is a collection of nodes.
-//    http://www.w3.org/TR/2015/WD-dom-20150428/#interface-nodelist
+//    https://www.w3.org/TR/2015/WD-dom-20150428/#interface-nodelist
 class NodeListLive : public NodeList {
  public:
   // Create a live collection of all first-level child nodes.

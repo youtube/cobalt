@@ -29,7 +29,7 @@ namespace dom {
 // The Comment interface represents textual notations within markup; although
 // it is generally not visually shown, such comments can be still retrieved
 // from the document.
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-comment
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-comment
 class Comment : public CharacterData {
  public:
   Comment(script::EnvironmentSettings* env_settings,

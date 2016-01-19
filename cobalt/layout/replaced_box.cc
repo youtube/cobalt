@@ -35,11 +35,11 @@ using render_tree::CompositionNode;
 namespace {
 
 // Used when intrinsic ratio cannot be determined,
-// as per http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
+// as per https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
 const float kFallbackIntrinsicRatio = 2.0f;
 
 // Becomes a used value of "width" if it cannot be determined by any other
-// means, as per http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
+// means, as per https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
 const float kFallbackWidth = 300.0f;
 
 }  // namespace
@@ -57,7 +57,7 @@ ReplacedBox::ReplacedBox(
       maybe_intrinsic_height_(maybe_intrinsic_height),
       // Like Chromium, we assume that an element must always have an intrinsic
       // ratio, although technically it's a spec violation. For details see
-      // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
+      // https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
       intrinsic_ratio_(maybe_intrinsic_ratio.value_or(kFallbackIntrinsicRatio)),
       replace_image_cb_(replace_image_cb),
       paragraph_(paragraph),
@@ -166,7 +166,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
 
   if (IsAbsolutelyPositioned()) {
     // TODO(***REMOVED***): Implement CSS section 10.3.8, see
-    // http://www.w3.org/TR/CSS21/visudet.html#abs-replaced-width.
+    // https://www.w3.org/TR/CSS21/visudet.html#abs-replaced-width.
     set_left(maybe_left.value_or(0.0f));
     set_top(maybe_top.value_or(0.0f));
   }
@@ -176,20 +176,20 @@ void ReplacedBox::UpdateContentSizeAndMargins(
         // If "height" and "width" both have computed values of "auto" and
         // the element also has an intrinsic width, then that intrinsic width
         // is the used value of "width".
-        //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
+        //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
         set_width(*maybe_intrinsic_width_);
       } else if (maybe_intrinsic_height_) {
         // If "height" and "width" both have computed values of "auto" and
         // the element has no intrinsic width, but does have an intrinsic height
         // and intrinsic ratio then the used value of "width" is:
         //     (intrinsic height) * (intrinsic ratio)
-        //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
+        //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
         set_width(*maybe_intrinsic_height_ * intrinsic_ratio_);
       } else {
         // Otherwise, if "width" has a computed value of "auto", but none of
         // the conditions above are met, then the used value of "width" becomes
         // 300px.
-        //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
+        //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
         set_width(kFallbackWidth);
       }
     } else {
@@ -197,7 +197,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
       // computed value, and the element does have an intrinsic ratio then
       // the used value of "width" is:
       //     (used height) * (intrinsic ratio)
-      //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
+      //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
       set_width(*maybe_height * intrinsic_ratio_);
     }
   } else {
@@ -209,13 +209,13 @@ void ReplacedBox::UpdateContentSizeAndMargins(
       // If "height" and "width" both have computed values of "auto" and
       // the element also has an intrinsic height, then that intrinsic height
       // is the used value of "height".
-      //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
+      //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
       set_height(*maybe_intrinsic_height_);
     } else {
       // Otherwise, if "height" has a computed value of "auto", and the element
       // has an intrinsic ratio then the used value of "height" is:
       //     (used width) / (intrinsic ratio)
-      //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
+      //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
       set_height(width() / intrinsic_ratio_);
     }
   } else {
@@ -225,7 +225,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
   if (!maybe_width && !maybe_height) {
     // For replaced elements with an intrinsic ratio and both 'width' and
     // 'height' specified as 'auto', the algorithm is as described in
-    // http://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
+    // https://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
 
     base::optional<float> maybe_max_width = GetUsedMaxWidthIfNotNone(
         computed_style(), layout_params.containing_block_size, NULL);
@@ -241,13 +241,13 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     // 'max-height' properties. Normally these are the intrinsic width and
     // height, but they may not be in the case of replaced elements with
     // intrinsic ratios.
-    //   http://www.w3.org/TR/CSS21/visudet.html#min-max-widths
+    //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
     float w = width();
     float h = height();
 
     // Take the max-width and max-height as max(min, max) so that min <= max
     // holds true.
-    //   http://www.w3.org/TR/CSS21/visudet.html#min-max-widths
+    //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
     base::optional<float> max_height;
     bool h_greater_than_max_height = false;
     if (maybe_max_height) {
@@ -264,7 +264,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
 
     // This block sets resolved width and resolved height values according to
     // the table listing a number of different constraint violations in
-    // http://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
+    // https://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
     if (w_greater_than_max_width) {
       if (h_greater_than_max_height) {
         float max_width_ratio = *max_width / w;
@@ -339,8 +339,8 @@ void ReplacedBox::UpdateContentSizeAndMargins(
 
   // The horizontal margin rules are difference for block level replaced boxes
   // versus inline level replaced boxes.
-  //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
-  //   http://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
+  //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
+  //   https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
   base::optional<float> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
   base::optional<float> maybe_margin_right = GetUsedMarginRightIfNotAuto(
@@ -356,7 +356,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
       computed_style(), layout_params.containing_block_size);
 
   // If "margin-top", or "margin-bottom" are "auto", their used value is 0.
-  //   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
+  //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
   set_margin_top(maybe_margin_top.value_or(0.0f));
   set_margin_bottom(maybe_margin_bottom.value_or(0.0f));
 }

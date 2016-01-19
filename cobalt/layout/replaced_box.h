@@ -32,7 +32,7 @@ namespace layout {
 // The class represents a Replaced element in the layout tree. It is used to
 // render elements like embed, iframe or video. Currently it renders the element
 // as an image retrieved from a callback passed into its ctor.
-//   http://www.w3.org/TR/html5/rendering.html#replaced-elements
+//   https://www.w3.org/TR/html5/rendering.html#replaced-elements
 //
 // TODO(***REMOVED***): Make ReplacedBox support elements other than media element.
 class ReplacedBox : public Box {
@@ -86,8 +86,8 @@ class ReplacedBox : public Box {
   // Rest of the protected methods.
 
   // Updates used values of "margin-left" and "margin-right" properties based on
-  // http://www.w3.org/TR/CSS21/visudet.html#block-replaced-width and
-  // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
+  // https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width and
+  // https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
   virtual void UpdateHorizontalMargins(
       float containing_block_width, float border_box_width,
       const base::optional<float>& maybe_margin_left,

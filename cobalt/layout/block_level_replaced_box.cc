@@ -41,7 +41,7 @@ void BlockLevelReplacedBox::UpdateHorizontalMargins(
     const base::optional<float>& maybe_margin_right) {
   // Calculate the horizonal margins for block-level, replaced elements in
   // normal flow.
-  //   http://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
+  //   https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
   UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
       containing_block_width, border_box_width, maybe_margin_left,
       maybe_margin_right);

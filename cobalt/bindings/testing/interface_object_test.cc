@@ -31,9 +31,9 @@ typedef InterfaceBindingsTest<ArbitraryInterface> InterfaceObjectTest;
 typedef InterfaceBindingsTest<NoInterfaceObjectInterface> NoInterfaceObjectTest;
 }  // namespace
 
-// Spec for interface object: http://www.w3.org/TR/WebIDL/#interface-object
+// Spec for interface object: https://www.w3.org/TR/WebIDL/#interface-object
 // Spec for interface prototype object:
-//     http://www.w3.org/TR/WebIDL/#interface-prototype-object
+//     https://www.w3.org/TR/WebIDL/#interface-prototype-object
 
 // Interface object for non-callback interface is a global property.
 TEST_F(InterfaceObjectTest, InterfaceObjectIsGlobalProperty) {

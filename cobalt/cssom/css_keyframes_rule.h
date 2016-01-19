@@ -35,7 +35,7 @@ class CSSStyleSheet;
 
 // The CSSKeyframesRule interface represents a complete set of keyframes for a
 // single animation.
-//   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframesRule-interface
+//   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframesRule-interface
 class CSSKeyframesRule : public CSSRule {
  public:
   typedef std::map<std::string, scoped_refptr<CSSKeyframesRule> > NameMap;

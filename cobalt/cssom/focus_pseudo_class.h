@@ -32,7 +32,7 @@ class SelectorVisitor;
 
 // The :focus pseudo-class applies while an element has the focus (accepts
 // keyboard or mouse events, or other forms of input).
-//   http://www.w3.org/TR/selectors4/#focus-pseudo
+//   https://www.w3.org/TR/selectors4/#focus-pseudo
 class FocusPseudoClass : public PseudoClass {
  public:
   FocusPseudoClass() {}

@@ -28,7 +28,7 @@ namespace dom {
 class Node;
 
 // A NodeList object is a collection of nodes.
-//    http://www.w3.org/TR/2015/WD-dom-20150428/#interface-nodelist
+//    https://www.w3.org/TR/2015/WD-dom-20150428/#interface-nodelist
 class NodeList : public script::Wrappable {
  public:
   NodeList();

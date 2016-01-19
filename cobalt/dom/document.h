@@ -76,7 +76,7 @@ class DocumentObserver {
 // The Document interface serves as an entry point into the web page's content
 // (the DOM tree, including elements such as <head> and <body>) and provides
 // functionality which is global to the document.
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-document
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-document
 //
 // In the spec, "A document is assumed to be an XML document unless it is
 // flagged as being an HTML document". In Cobalt it is always considered as HTML
@@ -141,12 +141,12 @@ class Document : public Node, public cssom::MutationObserver {
                                    script::ExceptionState* exception_state);
 
   // Web API: NonElementParentNode (implements)
-  //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-nonelementparentnode
+  //   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-nonelementparentnode
   //
   scoped_refptr<Element> GetElementById(const std::string& id) const;
 
   // Web API: HTML5 (partial interface)
-  //   http://www.w3.org/TR/html5/dom.html#the-document-object
+  //   https://www.w3.org/TR/html5/dom.html#the-document-object
   //
   scoped_refptr<Location> location() const;
 
@@ -164,18 +164,18 @@ class Document : public Node, public cssom::MutationObserver {
   }
 
   // Web API: Selectors API (partial interface)
-  //   http://www.w3.org/TR/selectors-api2/#interface-definitions
+  //   https://www.w3.org/TR/selectors-api2/#interface-definitions
   //
   scoped_refptr<Element> QuerySelector(const std::string& selectors);
   scoped_refptr<NodeList> QuerySelectorAll(const std::string& selectors);
 
   // Web Animations API
-  // http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#extensions-to-the-document-interface
+  // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#extensions-to-the-document-interface
   const scoped_refptr<DocumentTimeline>& timeline() const {
     return default_timeline_;
   }
 
-  // http://www.w3.org/TR/html5/dom.html#dom-document-cookie
+  // https://www.w3.org/TR/html5/dom.html#dom-document-cookie
   void set_cookie(const std::string& cookie);
   std::string cookie() const;
 
@@ -209,7 +209,7 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<HTMLHtmlElement> html() const;
 
   // List of scripts that will execute in order as soon as possible.
-  //   http://www.w3.org/TR/html5/scripting-1.html#list-of-scripts-that-will-execute-in-order-as-soon-as-possible
+  //   https://www.w3.org/TR/html5/scripting-1.html#list-of-scripts-that-will-execute-in-order-as-soon-as-possible
   std::deque<HTMLScriptElement*>* scripts_to_be_executed() {
     return &scripts_to_be_executed_;
   }
@@ -241,7 +241,7 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Must be called by all descendants of the document on their modification.
   // TODO(***REMOVED***): Provide more granularity, model after mutation observers
-  //               (see http://www.w3.org/TR/dom/#mutation-observers).
+  //               (see https://www.w3.org/TR/dom/#mutation-observers).
   void RecordMutation();
 
   // From cssom::MutationObserver.
@@ -261,7 +261,7 @@ class Document : public Node, public cssom::MutationObserver {
   // Only a subset of selectors is supported as specified here:
   //   http://***REMOVED***cobalt-css#heading=h.s82z8u3l3se
   // Those selectors that are supported are implemented after Selectors Level 4.
-  //   http://www.w3.org/TR/selectors4/
+  //   https://www.w3.org/TR/selectors4/
   void UpdateMatchingRules();
 
   void UpdateMediaRules();
@@ -279,7 +279,7 @@ class Document : public Node, public cssom::MutationObserver {
   void UpdateKeyframes();
 
   // Manages the clock used by Web Animations.
-  //     http://www.w3.org/TR/web-animations
+  //     https://www.w3.org/TR/web-animations
   // This clock is also used for requestAnimationFrame() callbacks, according
   // to the specification above.
   void SampleTimelineTime();

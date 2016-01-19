@@ -43,7 +43,7 @@ class Storage : public script::Wrappable {
   Storage(Window* window, StorageType type, LocalStorageDatabase* db);
 
   // Web API
-  // http://www.w3.org/TR/2015/CR-webstorage-20150609/#storage-0
+  // https://www.w3.org/TR/2015/CR-webstorage-20150609/#storage-0
   unsigned int length() const {
     return static_cast<unsigned int>(area_->length());
   }

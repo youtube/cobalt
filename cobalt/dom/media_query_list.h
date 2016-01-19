@@ -29,7 +29,7 @@ namespace cobalt {
 namespace dom {
 
 // The MediaQueryList interface represents a list of Media Queries.
-//   http://www.w3.org/TR/cssom/#mediaQuerylist
+//   https://www.w3.org/TR/cssom/#mediaQuerylist
 class MediaQueryList : public script::Wrappable {
  public:
   MediaQueryList(const scoped_refptr<cssom::MediaList>& media_list,

@@ -26,7 +26,7 @@ AnimationEffectTimingReadOnly::Data::IterationProgress
 AnimationEffectTimingReadOnly::Data::ComputeIterationProgressFromLocalTime(
     const base::optional<base::TimeDelta>& local_time) const {
   // Calculating the iteration progress from the local time is summarized nicely
-  // here: http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#overview
+  // here: https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#overview
   // Note that the flowchart from that links concludes with the production of
   // "transformed time", which must then have this algorithm:
   //   https://w3c.github.io/web-animations/#calculating-the-iteration-progress
@@ -51,7 +51,7 @@ AnimationEffectTimingReadOnly::Data::ComputeIterationProgressFromLocalTime(
   return ret;
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#animation-effect-phases-and-states
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#animation-effect-phases-and-states
 AnimationEffectTimingReadOnly::Data::Phase
 AnimationEffectTimingReadOnly::Data::GetPhase(
     const base::optional<base::TimeDelta>& local_time) const {
@@ -85,17 +85,17 @@ base::TimeDelta ScaleTime(const base::TimeDelta& time, double scale) {
 }
 }  // namespace
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-active-duration
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-active-duration
 base::TimeDelta AnimationEffectTimingReadOnly::Data::active_duration() const {
   return ScaleTime(duration_, iterations_);
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-scaled-active-time
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-scaled-active-time
 base::TimeDelta AnimationEffectTimingReadOnly::Data::start_offset() const {
   return ScaleTime(duration_, iteration_start_);
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-active-time
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-active-time
 base::optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeActiveTimeFromLocalTime(
     const base::optional<base::TimeDelta>& local_time) const {
@@ -126,7 +126,7 @@ AnimationEffectTimingReadOnly::Data::ComputeActiveTimeFromLocalTime(
   return base::nullopt;
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-scaled-active-time
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-scaled-active-time
 base::optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeScaledActiveTimeFromActiveTime(
     const base::optional<base::TimeDelta>& active_time) const {
@@ -135,7 +135,7 @@ AnimationEffectTimingReadOnly::Data::ComputeScaledActiveTimeFromActiveTime(
   return *active_time + start_offset();
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-iteration-time
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-iteration-time
 base::optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeIterationTimeFromScaledActiveTime(
     const base::optional<base::TimeDelta>& scaled_active_time) const {
@@ -155,7 +155,7 @@ AnimationEffectTimingReadOnly::Data::ComputeIterationTimeFromScaledActiveTime(
       scaled_active_time->InMicroseconds() % duration_.InMicroseconds());
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-current-iteration
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-current-iteration
 base::optional<double>
 AnimationEffectTimingReadOnly::Data::ComputeCurrentIteration(
     const base::optional<base::TimeDelta>& active_time,
@@ -187,7 +187,7 @@ AnimationEffectTimingReadOnly::Data::ComputeCurrentIteration(
                     duration_.InMillisecondsF());
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-directed-time
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-directed-time
 base::optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeDirectedTimeFromIterationTime(
     const base::optional<base::TimeDelta>& iteration_time,
@@ -234,7 +234,7 @@ AnimationEffectTimingReadOnly::Data::ComputeDirectedTimeFromIterationTime(
                                         : duration_ - *iteration_time;
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-transformed-time
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-transformed-time
 base::optional<base::TimeDelta>
 AnimationEffectTimingReadOnly::Data::ComputeTransformedTimeFromDirectedTime(
     const base::optional<base::TimeDelta>& directed_time) const {
@@ -257,7 +257,7 @@ AnimationEffectTimingReadOnly::Data::ComputeTransformedTimeFromDirectedTime(
   return ScaleTime(duration_, scaled_progress);
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-iteration-progress
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#calculating-the-iteration-progress
 base::optional<double> AnimationEffectTimingReadOnly::Data::
     ComputeIterationProgressFromTransformedTime(
         const base::optional<base::TimeDelta>& transformed_time) const {

@@ -24,9 +24,9 @@ namespace cobalt {
 namespace cssom {
 
 // Basic color keywords:
-//  http://www.w3.org/TR/css3-color/#html4
+//  https://www.w3.org/TR/css3-color/#html4
 // Transparent keyword:
-//  http://www.w3.org/TR/css3-color/#transparent-def
+//  https://www.w3.org/TR/css3-color/#transparent-def
 uint32 kAqua = 0x00FFFFFF;
 uint32 kBlack = 0x000000FF;
 uint32 kBlue = 0x0000FFFF;

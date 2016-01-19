@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/webaudio/#AudioBuffer
+// https://www.w3.org/TR/webaudio/#AudioBuffer
 
 interface AudioBuffer {
   readonly attribute float sampleRate;

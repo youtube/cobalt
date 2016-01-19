@@ -29,7 +29,7 @@ namespace cssom {
 
 class PropertyValueVisitor;
 
-// See http://www.w3.org/TR/css3-fonts/#unicode-range-desc for details.
+// See https://www.w3.org/TR/css3-fonts/#unicode-range-desc for details.
 class UnicodeRangeValue : public PropertyValue {
  public:
   UnicodeRangeValue(int start, int end);

@@ -28,7 +28,7 @@ class CombinatorVisitor;
 
 // Descendant combinator describes an element that is the descendant of another
 // element in the document tree.
-//   http://www.w3.org/TR/selectors4/#descendant-combinators
+//   https://www.w3.org/TR/selectors4/#descendant-combinators
 class DescendantCombinator : public Combinator {
  public:
   DescendantCombinator() {}

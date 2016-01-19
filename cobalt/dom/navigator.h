@@ -30,7 +30,7 @@ namespace dom {
 // The Navigator object represents the identity and state of the user agent (the
 // client), and allows Web pages to register themselves as potential protocol
 // and content handlers.
-// http://www.w3.org/TR/html5/webappapis.html#navigator
+// https://www.w3.org/TR/html5/webappapis.html#navigator
 class Navigator : public script::Wrappable {
  public:
   Navigator(const std::string& user_agent, const std::string& language);

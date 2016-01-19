@@ -31,7 +31,7 @@ class CSSRuleVisitor;
 class CSSStyleSheet;
 
 // The CSSFontFaceRule represents an @font-face at-rule.
-//   http://www.w3.org/TR/css3-fonts/#font-face-rule
+//   https://www.w3.org/TR/css3-fonts/#font-face-rule
 class CSSFontFaceRule : public CSSRule {
  public:
   CSSFontFaceRule();

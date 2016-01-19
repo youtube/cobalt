@@ -33,7 +33,7 @@ class SelectorVisitor;
 
 // The class selector represents an element belonging to the class identified by
 // the identifier.
-//   http://www.w3.org/TR/selectors4/#class-selector
+//   https://www.w3.org/TR/selectors4/#class-selector
 class ClassSelector : public SimpleSelector {
  public:
   explicit ClassSelector(const std::string& class_name)
