@@ -28,6 +28,7 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
@@ -730,6 +731,33 @@ void UsedLineHeightProvider::UpdateHalfLeading() {
   //   http://www.w3.org/TR/CSS21/visudet.html#leading
   half_leading_ =
       (used_line_height_ - (font_metrics_.ascent + font_metrics_.descent)) / 2;
+}
+
+// A percentage for the horizontal offset is relative to the width of the
+// bounding box. A percentage for the vertical offset is relative to height of
+// the bounding box. A length value gives a fixed length as the offset.
+// The value for the horizontal and vertical offset represent an offset from the
+// top left corner of the bounding box.
+//  https://www.w3.org/TR/css3-transforms/#transform-origin-property
+math::SizeF GetTransformOriginSize(const math::SizeF& used_size,
+                                   cssom::PropertyValue* value) {
+  const cssom::PropertyListValue* property_list =
+      base::polymorphic_downcast<const cssom::PropertyListValue*>(value);
+
+  DCHECK_EQ(property_list->value().size(), 3u);
+  const cssom::CalcValue* horizontal =
+      base::polymorphic_downcast<const cssom::CalcValue*>(
+          property_list->value()[0].get());
+  float width = horizontal->percentage_value()->value() * used_size.width() +
+                horizontal->length_value()->value();
+
+  const cssom::CalcValue* vertical =
+      base::polymorphic_downcast<const cssom::CalcValue*>(
+          property_list->value()[1].get());
+  float height = vertical->percentage_value()->value() * used_size.height() +
+                 vertical->length_value()->value();
+
+  return math::SizeF(width, height);
 }
 
 cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value) {

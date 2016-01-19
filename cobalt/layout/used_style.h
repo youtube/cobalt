@@ -268,6 +268,9 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   DISALLOW_COPY_AND_ASSIGN(UsedLineHeightProvider);
 };
 
+math::SizeF GetTransformOriginSize(const math::SizeF& used_size,
+                                   cssom::PropertyValue* value);
+
 cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value);
 
 // Functions to calculate used values of box model properties.
