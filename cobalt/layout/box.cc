@@ -561,8 +561,10 @@ namespace {
 // style property will also be taken into account, and therefore the layed
 // out size of the object is also required in order to resolve a
 // percentage-based transform-origin.
-math::Matrix3F GetCSSTransform(cssom::PropertyValue* transform_property_value,
-                               const math::SizeF& used_size) {
+math::Matrix3F GetCSSTransform(
+    cssom::PropertyValue* transform_property_value,
+    cssom::PropertyValue* transform_origin_property_value,
+    const math::SizeF& used_size) {
   if (transform_property_value == cssom::KeywordValue::GetNone()) {
     return math::Matrix3F::Identity();
   }
@@ -572,14 +574,12 @@ math::Matrix3F GetCSSTransform(cssom::PropertyValue* transform_property_value,
 
   // Apply the CSS transformations, taking into account the CSS
   // transform-origin property.
-  // TODO(***REMOVED***): We are not actually taking advantage of the
-  //               transform-origin property yet, instead we are just
-  //               assuming that it is the default, 50% 50%.
-  return math::TranslateMatrix(used_size.width() * 0.5f,
-                               used_size.height() * 0.5f) *
+  math::SizeF origin =
+      GetTransformOriginSize(used_size, transform_origin_property_value);
+
+  return math::TranslateMatrix(origin.width(), origin.height()) *
          css_transform_matrix *
-         math::TranslateMatrix(-used_size.width() * 0.5f,
-                               -used_size.height() * 0.5f);
+         math::TranslateMatrix(-origin.width(), -origin.height());
 }
 
 // Used within the animation callback for CSS transforms.  This will
@@ -591,7 +591,7 @@ void SetupCompositionNodeFromCSSSStyleTransform(
     CompositionNode::Builder* composition_node_builder) {
   DCHECK_EQ(1, composition_node_builder->composed_children().size());
   composition_node_builder->GetChild(0)->transform =
-      GetCSSTransform(style->transform(), used_size);
+      GetCSSTransform(style->transform(), style->transform_origin(), used_size);
 }
 
 void SetupFilterNodeFromStyle(
@@ -808,7 +808,9 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     // Combine layout transform and CSS transform.
     *border_node_transform =
         *border_node_transform *
-        GetCSSTransform(computed_style()->transform(), GetBorderBoxSize());
+        GetCSSTransform(computed_style()->transform(),
+                        computed_style()->transform_origin(),
+                        GetBorderBoxSize());
   }
   return border_node;
 }
