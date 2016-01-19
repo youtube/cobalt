@@ -1795,6 +1795,10 @@ void Context::ReadPixels(GLint x,
     return;
   }
 
+  // Ensure that all GPU activity (in particular, texture writes) complete
+  // before we attempt to read pixel data from the texture.
+  Finish();
+
   read_framebuffer_->color_attachment_texture()->ReadPixelsAsRGBA8(
       x, y, width, height, width * BytesPerPixel(kPixelFormatRGBA8), pixels);
 }
