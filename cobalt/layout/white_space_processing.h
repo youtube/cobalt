@@ -27,7 +27,7 @@ namespace layout {
 
 // Performs white space collapsing and transformation that correspond to
 // the phase I of the white space processing.
-//   http://www.w3.org/TR/css3-text/#white-space-phase-1
+//   https://www.w3.org/TR/css3-text/#white-space-phase-1
 void CollapseWhiteSpace(std::string* text);
 
 bool FindNextNewlineSequence(const std::string& utf8_text, size_t index,

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylesheet-interface
+// https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylesheet-interface
 
 interface CSSStyleSheet : StyleSheet {
   [SameObject] readonly attribute CSSRuleList cssRules;

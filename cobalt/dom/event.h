@@ -30,7 +30,7 @@ class EventTarget;
 
 // The Event interface can be passed from the event target to event listener to
 // pass information between them.
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-event
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-event
 //
 // TODO(b/19335817): We only support the attributes/methods that are in use.
 // We need to investigate the exact subset of them required in Cobalt.

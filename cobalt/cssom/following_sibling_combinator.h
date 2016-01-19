@@ -30,7 +30,7 @@ class CombinatorVisitor;
 // two compound selectors share the same parent in the document tree and the
 // element represented by the first compound selector precedes (not necessarily
 // immediately) the element represented by the second one.
-//   http://www.w3.org/TR/selectors4/#general-sibling-combinators
+//   https://www.w3.org/TR/selectors4/#general-sibling-combinators
 class FollowingSiblingCombinator : public Combinator {
  public:
   FollowingSiblingCombinator() {}

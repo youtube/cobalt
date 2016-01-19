@@ -32,7 +32,7 @@ class PropertyValueVisitor;
 
 // Specifies the weight of glyphs in the font, their degree of blackness
 // or stroke thickness.
-//   http://www.w3.org/TR/css3-fonts/#font-weight-prop
+//   https://www.w3.org/TR/css3-fonts/#font-weight-prop
 class FontWeightValue : public PropertyValue {
  public:
   enum Value {

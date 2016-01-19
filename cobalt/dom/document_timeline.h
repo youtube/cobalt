@@ -34,7 +34,7 @@ namespace dom {
 class Document;
 
 // Implements the DocumentTimeline IDL interface.
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-documenttimeline-interface
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-documenttimeline-interface
 class DocumentTimeline : public web_animations::AnimationTimeline {
  public:
   DocumentTimeline(Document* document, double origin_time);

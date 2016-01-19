@@ -24,7 +24,7 @@
 namespace cobalt {
 namespace dom {
 
-// http://www.w3.org/TR/CSP/#securitypolicyviolationevent-interface
+// https://www.w3.org/TR/CSP/#securitypolicyviolationevent-interface
 class SecurityPolicyViolationEvent : public Event {
  public:
   SecurityPolicyViolationEvent(const std::string& document_uri,

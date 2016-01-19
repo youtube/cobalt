@@ -52,7 +52,7 @@ void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
 }
 
 // Algorithm for Obtain:
-//   http://www.w3.org/TR/html5/document-metadata.html#concept-link-obtain
+//   https://www.w3.org/TR/html5/document-metadata.html#concept-link-obtain
 void HTMLLinkElement::Obtain() {
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::Obtain()");
   // Custom, not in any spec.

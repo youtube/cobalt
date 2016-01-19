@@ -36,7 +36,7 @@ namespace cssom {
 // for common timing function parameters, these specific timing functions also
 // have getter methods provided here.
 // More information on CSS timing functions can be found in the specification:
-//   http://www.w3.org/TR/css3-transitions/#transition-timing-function-property
+//   https://www.w3.org/TR/css3-transitions/#transition-timing-function-property
 class TimingFunction : public base::RefCountedThreadSafe<TimingFunction>,
                        public base::PolymorphicEquatable {
  public:

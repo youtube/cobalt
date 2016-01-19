@@ -28,7 +28,7 @@ namespace cssom {
 // Count the number of class selectors, attributes selectors, and
 // pseudo-classes in the selector (B)
 // Count the number of type selectors and pseudo-elements in the selector (C)
-//   http://www.w3.org/TR/selectors4/#specificity
+//   https://www.w3.org/TR/selectors4/#specificity
 // When adding two specificities, clampping the result at each field (A, B and
 // C).
 class Specificity {

@@ -50,13 +50,13 @@ scoped_refptr<LengthValue> ProvideAbsoluteLength(
     const LengthValue* computed_font_size) {
   switch (specified_length->unit()) {
     // "px" is an absolute unit.
-    //   http://www.w3.org/TR/css3-values/#absolute-lengths
+    //   https://www.w3.org/TR/css3-values/#absolute-lengths
     case kPixelsUnit:
       return scoped_refptr<LengthValue>(specified_length);
 
     // "em" equals to the computed value of the "font-size" property of
     // the element on which it is used.
-    //   http://www.w3.org/TR/css3-values/#font-relative-lengths
+    //   https://www.w3.org/TR/css3-values/#font-relative-lengths
     case kFontSizesAkaEmUnit: {
       DCHECK_EQ(kPixelsUnit, computed_font_size->unit());
 
@@ -72,7 +72,7 @@ scoped_refptr<LengthValue> ProvideAbsoluteLength(
 
 // Computed value: absolute length;
 //                 '0' if the border style is 'none' or 'hidden'.
-//   http://www.w3.org/TR/css3-background/#border-width
+//   https://www.w3.org/TR/css3-background/#border-width
 class ComputedBorderWidthProvider : public NotReachedPropertyValueVisitor {
  public:
   explicit ComputedBorderWidthProvider(const LengthValue* computed_font_size,
@@ -109,7 +109,7 @@ void ComputedBorderWidthProvider::VisitLength(LengthValue* specified_length) {
 }
 
 // Computed value: numeric weight value.
-//   http://www.w3.org/TR/css3-fonts/#font-weight-prop
+//   https://www.w3.org/TR/css3-fonts/#font-weight-prop
 class ComputedFontWeightProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedFontWeightProvider() {}
@@ -130,14 +130,14 @@ class ComputedFontWeightProvider : public NotReachedPropertyValueVisitor {
 // Quite often there are only a few weights available for a particular font
 // family. When a weight is specified for which no face exists, a face with a
 // nearby weight is used.
-//   http://www.w3.org/TR/css3-fonts/#font-matching-algorithm
+//   https://www.w3.org/TR/css3-fonts/#font-matching-algorithm
 void ComputedFontWeightProvider::VisitFontWeight(
     FontWeightValue* specified_weight) {
   computed_font_weight_ = specified_weight;
 }
 
 // Computed value: absolute length.
-//   http://www.w3.org/TR/css3-fonts/#font-size-prop
+//   https://www.w3.org/TR/css3-fonts/#font-size-prop
 class ComputedFontSizeProvider : public NotReachedPropertyValueVisitor {
  public:
   explicit ComputedFontSizeProvider(
@@ -165,7 +165,7 @@ ComputedFontSizeProvider::ComputedFontSizeProvider(
 void ComputedFontSizeProvider::VisitLength(LengthValue* specified_length) {
   // "em" on "font-size" is calculated relatively to the inherited value
   // of "font-size".
-  //   http://www.w3.org/TR/css3-values/#font-relative-lengths
+  //   https://www.w3.org/TR/css3-values/#font-relative-lengths
   computed_font_size_ =
       ProvideAbsoluteLength(specified_length, parent_computed_font_size_);
 }
@@ -174,7 +174,7 @@ void ComputedFontSizeProvider::VisitPercentage(
     PercentageValue* specified_percentage) {
   // A percentage value specifies an absolute font size relative to the parent
   // element's fonts size.
-  //   http://www.w3.org/TR/css3-fonts/#percentage-size-value
+  //   https://www.w3.org/TR/css3-fonts/#percentage-size-value
   computed_font_size_ = new LengthValue(
       parent_computed_font_size_->value() * specified_percentage->value(),
       kPixelsUnit);
@@ -182,7 +182,7 @@ void ComputedFontSizeProvider::VisitPercentage(
 
 // Computed value: for length and percentage the absolute value;
 //                 otherwise as specified.
-//   http://www.w3.org/TR/CSS21/visudet.html#line-height
+//   https://www.w3.org/TR/CSS21/visudet.html#line-height
 class ComputedLineHeightProvider : public NotReachedPropertyValueVisitor {
  public:
   explicit ComputedLineHeightProvider(const LengthValue* computed_font_size);
@@ -215,7 +215,7 @@ void ComputedLineHeightProvider::VisitLength(LengthValue* specified_length) {
 void ComputedLineHeightProvider::VisitPercentage(PercentageValue* percentage) {
   // The computed value of the property is this percentage multiplied by the
   // element's computed font size. Negative values are illegal.
-  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  //   https://www.w3.org/TR/CSS21/visudet.html#line-height
   computed_line_height_ = new LengthValue(
       computed_font_size_->value() * percentage->value(), kPixelsUnit);
 }
@@ -276,8 +276,8 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
 }
 
 // Computed value: the percentage as specified or the absolute length.
-//   http://www.w3.org/TR/CSS21/box.html#margin-properties
-//   http://www.w3.org/TR/CSS21/box.html#padding-properties
+//   https://www.w3.org/TR/CSS21/box.html#margin-properties
+//   https://www.w3.org/TR/CSS21/box.html#padding-properties
 class ComputedMarginOrPaddingEdgeProvider
     : public NotReachedPropertyValueVisitor {
  public:
@@ -462,7 +462,7 @@ ComputedPositionOffsetProvider::ComputedPositionOffsetProvider(
     : computed_font_size_(computed_font_size) {}
 
 // Computed value: the percentage or "auto" or the absolute length.
-//   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
+//   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
 class ComputedHeightProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedHeightProvider(const PropertyValue* parent_computed_height,
@@ -560,14 +560,14 @@ void ComputedHeightProvider::VisitPercentage(PercentageValue* percentage) {
   // If the height of the containing block is not specified explicitly
   // (i.e., it depends on content height), and this element is not absolutely
   // positioned, the value computes to "auto".
-  //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
+  //   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
   computed_height_ = (parent_computed_height_ == auto_value && !out_of_flow_)
                          ? auto_value
                          : percentage;
 }
 
 // Computed value: the percentage or "auto" or the absolute length.
-//   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+//   https://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
 class ComputedMaxHeightProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedMaxHeightProvider(const PropertyValue* parent_computed_max_height,
@@ -666,14 +666,14 @@ void ComputedMaxHeightProvider::VisitPercentage(PercentageValue* percentage) {
   // If the max_height of the containing block is not specified explicitly
   // (i.e., it depends on content max_height), and this element is not
   // absolutely positioned, the percentage value is treated as 'none'.
-  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+  //   https://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
   computed_max_height_ =
       (parent_computed_max_height_ == auto_value && !out_of_flow_) ? none_value
                                                                    : percentage;
 }
 
 // Computed value: the percentage or "auto" or the absolute length.
-//   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
+//   https://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
 class ComputedMinHeightProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedMinHeightProvider(const PropertyValue* parent_computed_min_max_height,
@@ -771,7 +771,7 @@ void ComputedMinHeightProvider::VisitPercentage(PercentageValue* percentage) {
   // If the min_height of the containing block is not specified explicitly
   // (i.e., it depends on content min_height), and this element is not
   // absolutely positioned, the percentage value is treated as '0'.
-  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
+  //   https://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
   if (parent_computed_min_max_height_ == auto_value && !out_of_flow_) {
     computed_min_height_ = new LengthValue(0, kPixelsUnit);
   } else {
@@ -780,7 +780,7 @@ void ComputedMinHeightProvider::VisitPercentage(PercentageValue* percentage) {
 }
 
 // Computed value: the percentage or "auto" as specified or the absolute length.
-//   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
+//   https://www.w3.org/TR/CSS21/visudet.html#the-width-property
 class ComputedWidthProvider : public NotReachedPropertyValueVisitor {
  public:
   explicit ComputedWidthProvider(const LengthValue* computed_font_size);
@@ -870,7 +870,7 @@ void ComputedWidthProvider::VisitPercentage(PercentageValue* percentage) {
 }
 
 // Computed value: the percentage or "auto" as specified or the absolute length.
-//   http://www.w3.org/TR/CSS2/visudet.html#min-max-widths
+//   https://www.w3.org/TR/CSS2/visudet.html#min-max-widths
 class ComputedMinMaxWidthProvider : public NotReachedPropertyValueVisitor {
  public:
   explicit ComputedMinMaxWidthProvider(
@@ -989,7 +989,7 @@ void ComputedMinMaxWidthProvider::VisitPercentage(PercentageValue* percentage) {
   ComputedLengthIsNegativeProvider computed_length_is_negative_provider;
   parent_computed_min_max_width_->Accept(&computed_length_is_negative_provider);
   // If the containing block's width is negative, the used value is zero.
-  //   http://www.w3.org/TR/CSS2/visudet.html#min-max-widths
+  //   https://www.w3.org/TR/CSS2/visudet.html#min-max-widths
   if (computed_length_is_negative_provider.computed_length_is_negative()) {
     computed_min_max_width_ = new LengthValue(0, kPixelsUnit);
   } else {
@@ -999,7 +999,7 @@ void ComputedMinMaxWidthProvider::VisitPercentage(PercentageValue* percentage) {
 
 // Absolutizes the value of "background-image" property.
 // Computed value: as specified, but with URIs made absolute.
-//   http://www.w3.org/TR/css3-background/#the-background-image
+//   https://www.w3.org/TR/css3-background/#the-background-image
 class ComputedBackgroundImageSingleLayerProvider
     : public NotReachedPropertyValueVisitor {
  public:
@@ -1478,7 +1478,7 @@ void ComputedPositionHelper::FillPositionBuilderFromOriginAndOffset(
 // <percentage> and <length> values here represent an offset of the top left
 // corner of the background image from the top left corner of the background
 // positioning area.
-//   http://www.w3.org/TR/css3-background/#the-background-position
+//   https://www.w3.org/TR/css3-background/#the-background-position
 class ComputedBackgroundPositionProvider
     : public NotReachedPropertyValueVisitor {
  public:
@@ -1581,7 +1581,7 @@ void ComputedBackgroundSizeProvider::VisitPropertyList(
   computed_background_size_ = new PropertyListValue(builder.Pass());
 }
 
-//    http://www.w3.org/TR/css3-background/#border-radius
+//    https://www.w3.org/TR/css3-background/#border-radius
 class ComputedBorderRadiusProvider : public NotReachedPropertyValueVisitor {
  public:
   explicit ComputedBorderRadiusProvider(const LengthValue* computed_font_size);
@@ -1617,8 +1617,8 @@ void ComputedBorderRadiusProvider::VisitPercentage(
 
 // Computed value: any <length> made absolute; any specified color computed;
 // otherwise as specified.
-//   http://www.w3.org/TR/css3-background/#box-shadow
-//   http://www.w3.org/TR/css-text-decor-3/#text-shadow-property
+//   https://www.w3.org/TR/css3-background/#box-shadow
+//   https://www.w3.org/TR/css-text-decor-3/#text-shadow-property
 class ComputedShadowProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedShadowProvider(const LengthValue* computed_font_size,
@@ -1731,7 +1731,7 @@ void ComputedShadowProvider::VisitPropertyList(
 }
 
 // Computed value: for length of translation transforms.
-//   http://www.w3.org/TR/css3-transforms/#propdef-transform
+//   https://www.w3.org/TR/css3-transforms/#propdef-transform
 class ComputedTransformFunctionProvider : public TransformFunctionVisitor {
  public:
   explicit ComputedTransformFunctionProvider(
@@ -2160,7 +2160,7 @@ void CalculateComputedStyleContext::SetComputedStyleForProperty(
 bool CalculateComputedStyleContext::IsAbsolutelyPositioned() {
   // An absolutely positioned element (or its box) implies that the element's
   // 'position' property has the value 'absolute' or 'fixed'.
-  //   http://www.w3.org/TR/CSS21/visuren.html#absolutely-positioned
+  //   https://www.w3.org/TR/CSS21/visuren.html#absolutely-positioned
   if (!computed_position_) {
     ComputeValue(kPositionProperty);
   }
@@ -2309,7 +2309,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       property_value_iterator.SetValue(shadow_provider.computed_shadow());
     } break;
     case kDisplayProperty: {
-      // According to http://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
+      // According to https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
       // "inline" and "inline-block" values of "display" become "block" if
       // "position" is "absolute" or "fixed".
       if ((property_value_iterator.Value() == KeywordValue::GetInline() ||

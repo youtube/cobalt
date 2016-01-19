@@ -29,7 +29,7 @@ namespace audio {
 // This represents an audio source from an in-memory audio asset in an
 // AudioBuffer. It is useful for playing short audio assets which require a high
 // degree of scheduling flexibility (can playback in rhythmically perfect ways).
-//   http://www.w3.org/TR/webaudio/#AudioBufferSourceNode
+//   https://www.w3.org/TR/webaudio/#AudioBufferSourceNode
 class AudioBufferSourceNode : public AudioNode {
   typedef ::media::ShellAudioBus ShellAudioBus;
 

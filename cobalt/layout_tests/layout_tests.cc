@@ -109,66 +109,66 @@ TEST_P(LayoutTest, LayoutTest) {
 // Cobalt-specific test cases.
 INSTANTIATE_TEST_CASE_P(CobaltSpecificLayoutTests, LayoutTest,
                         ::testing::ValuesIn(EnumerateLayoutTests("cobalt")));
-// Custom CSS 2.1 (http://www.w3.org/TR/CSS21/) test cases.
+// Custom CSS 2.1 (https://www.w3.org/TR/CSS21/) test cases.
 INSTANTIATE_TEST_CASE_P(CSS21LayoutTests, LayoutTest,
                         ::testing::ValuesIn(EnumerateLayoutTests("css-2-1")));
-// Custom CSS Background (http://www.w3.org/TR/css3-background/) test cases.
+// Custom CSS Background (https://www.w3.org/TR/css3-background/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSBackground3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-background")));
-// Custom CSS Color (http://www.w3.org/TR/css3-color/) test cases.
+// Custom CSS Color (https://www.w3.org/TR/css3-color/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSColor3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-color")));
-// Custom CSS Text (http://www.w3.org/TR/css-text-3/) test cases.
+// Custom CSS Text (https://www.w3.org/TR/css-text-3/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSText3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css-text-3")));
-// Custom CSS Transform (http://http://www.w3.org/TR/css-transforms/)
+// Custom CSS Transform (http://https://www.w3.org/TR/css-transforms/)
 // test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSTransformsLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css-transforms")));
 // Custom CSS Transition
-// (http://www.w3.org/TR/2013/WD-css3-transitions-20131119/)
+// (https://www.w3.org/TR/2013/WD-css3-transitions-20131119/)
 // test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSTransitionLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-transitions")));
 // Custom bidi text (http://www.unicode.org/reports/tr9/)
-// (http://www.w3.org/TR/CSS21/visuren.html#direction) test cases.
+// (https://www.w3.org/TR/CSS21/visuren.html#direction) test cases.
 INSTANTIATE_TEST_CASE_P(
     BidiLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("bidi")));
-// Custom CSS Conditional (http://www.w3.org/TR/css3-conditional/) test cases.
+// Custom CSS Conditional (https://www.w3.org/TR/css3-conditional/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSConditional3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-conditional")));
-// Custom CSS Font (http://www.w3.org/TR/css3-fonts/) test cases.
+// Custom CSS Font (https://www.w3.org/TR/css3-fonts/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSS3FontsLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-fonts")));
-// Custom CSS UI (http://www.w3.org/TR/css3-ui/) test cases.
+// Custom CSS UI (https://www.w3.org/TR/css3-ui/) test cases.
 INSTANTIATE_TEST_CASE_P(CSS3UILayoutTests, LayoutTest,
                         ::testing::ValuesIn(EnumerateLayoutTests("css3-ui")));
 // Custom incremental layout test cases.
 INSTANTIATE_TEST_CASE_P(
     IncrementalLayoutLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("incremental-layout")));
-// Custom CSSOM view (http://www.w3.org/TR/2013/WD-cssom-view-20131217/)
+// Custom CSSOM view (https://www.w3.org/TR/2013/WD-cssom-view-20131217/)
 // test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSOMViewLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("cssom-view")));
 
-// JavaScript HTML5 WebAPIs (http://www.w3.org/TR/html5/webappapis.html) test
+// JavaScript HTML5 WebAPIs (https://www.w3.org/TR/html5/webappapis.html) test
 // cases.
 INSTANTIATE_TEST_CASE_P(
     WebAppAPIsLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("webappapis")));
 
 // JavaScript HTML5 APIs that describe requestAnimationFrame().
-//   http://www.w3.org/TR/animation-timing/
+//   https://www.w3.org/TR/animation-timing/
 INSTANTIATE_TEST_CASE_P(
     AnimationTimingAPILayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("animation-timing")));

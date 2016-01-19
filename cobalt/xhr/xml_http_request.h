@@ -190,7 +190,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   // Prevent this object from being destroyed while there are active requests
   // in flight.
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#garbage-collection
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#garbage-collection
   void PreventGarbageCollection();
   void AllowGarbageCollection();
   void StartRequest(const std::string& request_body);

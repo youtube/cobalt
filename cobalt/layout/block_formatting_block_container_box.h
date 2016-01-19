@@ -54,14 +54,14 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
 // Often abbreviated as simply "blocks", block-level block container boxes
 // participate in the block formatting context and are the most common form
 // of block container boxes.
-//   http://www.w3.org/TR/CSS21/visuren.html#block-boxes
+//   https://www.w3.org/TR/CSS21/visuren.html#block-boxes
 //
 // Although this class always establishes a block formatting context, it can
 // nevertheless accommodate inline-level children through the creation
 // of anonymous block boxes. When all children are inline-level this becomes
 // slightly suboptimal from a memory standpoint but it simplifies
 // the implementation and is conformance-neutral.
-//   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
+//   https://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
 class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
  public:
   BlockLevelBlockContainerBox(
@@ -82,14 +82,14 @@ class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 // Non-replaced inline-block elements generate block container boxes that
 // participate in the inline formatting context as a single opaque box. They
 // belong to a wider group called atomic inline-level boxes.
-//   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+//   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
 //
 // Although this class always establishes a block formatting context, it can
 // nevertheless accommodate inline-level children through the creation
 // of anonymous block boxes. When all children are inline-level this becomes
 // slightly suboptimal from a memory standpoint but it simplifies
 // the implementation and is conformance-neutral.
-//   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
+//   https://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
 class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
  public:
   InlineLevelBlockContainerBox(
@@ -126,7 +126,7 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
   // along with its contents will not be visible.
   // "Implementations must hide characters and atomic inline-level elements at
   // the applicable edge(s) of the line as necessary to fit the ellipsis."
-  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   bool is_hidden_by_ellipsis_;
 };
 

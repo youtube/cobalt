@@ -29,7 +29,7 @@ namespace layout {
 // A block-level block container box that establish an inline formatting
 // context. Anonymous block boxes are created to enclose inline-level
 // children in a block formatting context.
-//   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
+//   https://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
 class AnonymousBlockBox : public BlockContainerBox {
  public:
   AnonymousBlockBox(

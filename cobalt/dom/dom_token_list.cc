@@ -41,7 +41,7 @@ DOMTokenList::DOMTokenList(Element* element, const std::string& attr_name)
 }
 
 // Algorithm for length:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-length
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-length
 unsigned int DOMTokenList::length() const {
   // Custom, not in any spec.
   MaybeRefresh();
@@ -50,7 +50,7 @@ unsigned int DOMTokenList::length() const {
 }
 
 // Algorithm for Item:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-item
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-item
 base::optional<std::string> DOMTokenList::Item(unsigned int index) const {
   // Custom, not in any spec.
   MaybeRefresh();
@@ -64,7 +64,7 @@ base::optional<std::string> DOMTokenList::Item(unsigned int index) const {
 }
 
 // Algorithm for Contains:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-contains
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-contains
 bool DOMTokenList::Contains(const std::string& token) const {
   // Custom, not in any spec.
   MaybeRefresh();
@@ -91,7 +91,7 @@ bool DOMTokenList::Contains(const std::string& token) const {
 }
 
 // Algorithm for Add:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-add
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-add
 void DOMTokenList::Add(const std::vector<std::string>& tokens) {
   // Custom, not in any spec.
   MaybeRefresh();
@@ -124,7 +124,7 @@ void DOMTokenList::Add(const std::vector<std::string>& tokens) {
 }
 
 // Algorithm for Remove:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-remove
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-remove
 void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
   // Custom, not in any spec.
   MaybeRefresh();
@@ -197,7 +197,7 @@ bool DOMTokenList::ContainsValid(base::Token valid_token) const {
 DOMTokenList::~DOMTokenList() { Stats::GetInstance()->Remove(this); }
 
 // Algorithm for UpdateSteps:
-//   http://www.w3.org/TR/dom/#concept-dtl-update
+//   https://www.w3.org/TR/dom/#concept-dtl-update
 void DOMTokenList::UpdateSteps() const {
   // 1. If there is no associated attribute (when the object is a
   // DOMSettableTokenList), terminate these steps.

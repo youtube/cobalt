@@ -46,7 +46,7 @@ void MixAudioBufferBasedOnInterpretation(
 // number of channels do not match any of these basic speaker layouts, revert to
 // "discrete".
 // Up down mix equations for mono, stereo, quad, 5.1:
-//   http://www.w3.org/TR/webaudio/#ChannelLayouts
+//   https://www.w3.org/TR/webaudio/#ChannelLayouts
 void MixAudioBuffer(const AudioNode::ChannelInterpretation& interpretation,
                     ShellAudioBus* source, ShellAudioBus* output_audio_data) {
   DCHECK_GT(source->channels(), 0u);

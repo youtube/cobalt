@@ -32,7 +32,7 @@ namespace audio {
 // routed to this node, a "terminal" node in the AudioContext's routing graph.
 // There is only a single AudioDestinationNode per AudioContext, provided
 // through the destination attribute of AudioContext.
-//   http://www.w3.org/TR/webaudio/#AudioDestinationNode
+//   https://www.w3.org/TR/webaudio/#AudioDestinationNode
 class AudioDestinationNode : public AudioNode,
                              public AudioDevice::RenderCallback {
   typedef ::media::ShellAudioBus ShellAudioBus;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/html5/infrastructure.html#domstringmap
+// https://www.w3.org/TR/html5/infrastructure.html#domstringmap
 
 [OverrideBuiltins]
 interface DOMStringMap {

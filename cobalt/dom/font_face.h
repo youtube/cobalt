@@ -29,7 +29,7 @@ namespace dom {
 
 // FontFaceSource contains a single font-face source, representing either an
 // external reference or a locally-installed font face name.
-// http://www.w3.org/TR/css3-fonts/#descdef-src
+// https://www.w3.org/TR/css3-fonts/#descdef-src
 class FontFaceSource {
  public:
   explicit FontFaceSource(const std::string& name) : name_(name) {}
@@ -55,13 +55,13 @@ typedef std::vector<FontFaceSource> FontFaceSources;
 // font-family, providing the ability to add additional entries to the
 // collection and to retrieve the entry from the collection that most closely
 // matches a given style.
-// http://www.w3.org/TR/css3-fonts/#font-face-rule
+// https://www.w3.org/TR/css3-fonts/#font-face-rule
 class FontFaceStyleSet {
  public:
   // FontFaceStyleSet::Entry contains the style and source information for a
   // single @font-face rule.
-  // http://www.w3.org/TR/css3-fonts/#descdef-src
-  // http://www.w3.org/TR/css3-fonts/#font-prop-desc
+  // https://www.w3.org/TR/css3-fonts/#descdef-src
+  // https://www.w3.org/TR/css3-fonts/#font-prop-desc
   struct Entry {
    public:
     bool operator==(const Entry& other) const {

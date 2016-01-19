@@ -38,7 +38,7 @@ namespace dom {
 // and possibly generates events.
 // This interface describes methods and properties common to all kinds of
 // EventTarget.
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#eventtarget
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#eventtarget
 class EventTarget : public script::Wrappable,
                     public base::SupportsWeakPtr<EventTarget> {
  public:
@@ -64,7 +64,7 @@ class EventTarget : public script::Wrappable,
   // Web API: GlobalEventHandlers (implements)
   // Many objects can have event handlers specified. These act as non-capture
   // event listeners for the object on which they are specified.
-  //   http://www.w3.org/TR/html5/webappapis.html#globaleventhandlers
+  //   https://www.w3.org/TR/html5/webappapis.html#globaleventhandlers
   //
   const EventListenerScriptObject* onblur() {
     return GetAttributeEventListener(EventNames::GetInstance()->blur());

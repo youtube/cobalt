@@ -32,7 +32,7 @@ class Animation;
 class AnimationSet;
 
 // Implements the AnimationTimeline IDL interface.
-//   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animationtimeline-interface
+//   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animationtimeline-interface
 class AnimationTimeline : public script::Wrappable {
  public:
   explicit AnimationTimeline(const scoped_refptr<base::Clock>& clock);

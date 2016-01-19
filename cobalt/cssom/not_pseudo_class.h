@@ -33,7 +33,7 @@ class SelectorVisitor;
 // The negation pseudo-class, :not(), is a functional pseudo-class taking a
 // selector list as an argument. It represents an element that is not
 // represented by its argument.
-//   http://www.w3.org/TR/selectors4/#negation-pseudo
+//   https://www.w3.org/TR/selectors4/#negation-pseudo
 class NotPseudoClass : public PseudoClass {
  public:
   NotPseudoClass() {}

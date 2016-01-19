@@ -165,7 +165,7 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
 }
 
 void XMLHttpRequest::Abort() {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-abort()-method
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-abort()-method
   DCHECK(thread_checker_.CalledOnValidThread());
   // Cancel any in-flight request and set error flag.
   TerminateRequest();
@@ -181,7 +181,7 @@ void XMLHttpRequest::Abort() {
   response_array_buffer_ = NULL;
 }
 
-// http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-open()-method
+// https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-open()-method
 void XMLHttpRequest::Open(const std::string& method, const std::string& url,
                           bool async,
                           const base::optional<std::string>& username,
@@ -247,7 +247,7 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
 void XMLHttpRequest::SetRequestHeader(const std::string& header,
                                       const std::string& value,
                                       script::ExceptionState* exception_state) {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#dom-xmlhttprequest-setrequestheader
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#dom-xmlhttprequest-setrequestheader
   if (state_ != kOpened || sent_) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
@@ -271,7 +271,7 @@ void XMLHttpRequest::SetRequestHeader(const std::string& header,
 
 void XMLHttpRequest::OverrideMimeType(const std::string& override_mime,
                                       script::ExceptionState* exception_state) {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#dom-xmlhttprequest-overridemimetype
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#dom-xmlhttprequest-overridemimetype
   DCHECK(thread_checker_.CalledOnValidThread());
   if (state_ == kLoading || state_ == kDone) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
@@ -299,7 +299,7 @@ void XMLHttpRequest::Send(script::ExceptionState* exception_state) {
 
 void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
                           script::ExceptionState* exception_state) {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-send()-method
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-send()-method
   DCHECK(thread_checker_.CalledOnValidThread());
   // Step 1
   if (state_ != kOpened) {
@@ -364,7 +364,7 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
 
 base::optional<std::string> XMLHttpRequest::GetResponseHeader(
     const std::string& header) {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-getresponseheader()-method
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-getresponseheader()-method
   DCHECK(thread_checker_.CalledOnValidThread());
 
   if (state_ == kUnsent || state_ == kOpened || error_) {
@@ -389,7 +389,7 @@ base::optional<std::string> XMLHttpRequest::GetResponseHeader(
 }
 
 std::string XMLHttpRequest::GetAllResponseHeaders() {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-getallresponseheaders()-method
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-getallresponseheaders()-method
   DCHECK(thread_checker_.CalledOnValidThread());
   std::string output;
 
@@ -412,7 +412,7 @@ std::string XMLHttpRequest::GetAllResponseHeaders() {
 
 std::string XMLHttpRequest::response_text(
     script::ExceptionState* exception_state) {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsetext-attribute
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsetext-attribute
   if (response_type_ != kDefault && response_type_ != kText) {
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
                              exception_state);
@@ -427,14 +427,14 @@ std::string XMLHttpRequest::response_text(
 
 base::optional<std::string> XMLHttpRequest::response_xml(
     script::ExceptionState*) {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsexml-attribute
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsexml-attribute
   NOTIMPLEMENTED();
   return base::nullopt;
 }
 
 base::optional<XMLHttpRequest::ResponseType> XMLHttpRequest::response(
     script::ExceptionState* exception_state) {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#response
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#response
   switch (response_type_) {
     case kDefault:
     case kText:
@@ -453,7 +453,7 @@ base::optional<XMLHttpRequest::ResponseType> XMLHttpRequest::response(
 }
 
 int XMLHttpRequest::status() const {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-status-attribute
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-status-attribute
   if (state_ == kUnsent || state_ == kOpened || error_) {
     return 0;
   } else {
@@ -462,7 +462,7 @@ int XMLHttpRequest::status() const {
 }
 
 std::string XMLHttpRequest::status_text() {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-statustext-attribute
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-statustext-attribute
   if (state_ == kUnsent || state_ == kOpened || error_) {
     return std::string();
   }
@@ -490,13 +490,13 @@ void XMLHttpRequest::set_response_type(
 
 std::string XMLHttpRequest::response_type(
     script::ExceptionState* /* unused */) const {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsetype-attribute
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsetype-attribute
   DCHECK_LT(response_type_, arraysize(kResponseTypes));
   return kResponseTypes[response_type_];
 }
 
 void XMLHttpRequest::set_timeout(uint32 timeout) {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-timeout-attribute
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-timeout-attribute
   DCHECK(thread_checker_.CalledOnValidThread());
 
   timeout_ms_ = timeout;
@@ -511,7 +511,7 @@ void XMLHttpRequest::set_timeout(uint32 timeout) {
 }
 
 void XMLHttpRequest::set_with_credentials(bool with_credentials) {
-  // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-withcredentials-attribute
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-withcredentials-attribute
   UNREFERENCED_PARAMETER(with_credentials);
   NOTIMPLEMENTED();
 }
@@ -638,7 +638,7 @@ void XMLHttpRequest::TerminateRequest() {
 
 void XMLHttpRequest::HandleRequestError(
     XMLHttpRequest::RequestErrorType request_error_type) {
-  // http://www.w3.org/TR/XMLHttpRequest/#timeout-error
+  // https://www.w3.org/TR/XMLHttpRequest/#timeout-error
   DCHECK(thread_checker_.CalledOnValidThread());
   DLOG_IF(INFO, verbose()) << __FUNCTION__ << " ("
                            << RequestErrorTypeName(request_error_type) << ") "
@@ -696,7 +696,7 @@ void XMLHttpRequest::ChangeState(XMLHttpRequest::State new_state) {
 }
 
 scoped_refptr<dom::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
-  // http://www.w3.org/TR/XMLHttpRequest/#response-entity-body
+  // https://www.w3.org/TR/XMLHttpRequest/#response-entity-body
   if (error_ || state_ != kDone) {
     return NULL;
   }

@@ -26,7 +26,7 @@ namespace cobalt {
 namespace dom {
 
 // Objects implementing the DOMRectReadOnly interface represent a rectangle.
-//   http://www.w3.org/TR/2014/CR-geometry-1-20141125/#DOMRect
+//   https://www.w3.org/TR/2014/CR-geometry-1-20141125/#DOMRect
 class DOMRectReadOnly : public script::Wrappable {
  public:
   DOMRectReadOnly(float x, float y, float width, float height)

@@ -38,7 +38,7 @@ void Animation::set_timeline(const scoped_refptr<AnimationTimeline>& timeline) {
   timeline_ = timeline;
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#playing-an-animation-section
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#playing-an-animation-section
 void Animation::Play() {
   // This is currently a simplified version of steps 8.2.
   DCHECK(timeline_);
@@ -50,7 +50,7 @@ void Animation::Play() {
   UpdatePendingTasks();
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#cancel-an-animation
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#cancel-an-animation
 void Animation::Cancel() {
   // 5.  Make animation's start time unresolved.
   data_.set_start_time(base::nullopt);
@@ -58,7 +58,7 @@ void Animation::Cancel() {
   UpdatePendingTasks();
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
 base::optional<double> Animation::current_time() const {
   if (!timeline_) {
     return base::nullopt;
@@ -76,7 +76,7 @@ base::TimeDelta ScaleTime(const base::TimeDelta& time, double scale) {
 }
 }  // namespace
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
 base::optional<base::TimeDelta>
 Animation::Data::ComputeLocalTimeFromTimelineTime(
     const base::optional<double>& timeline_time_in_milliseconds) const {
@@ -91,7 +91,7 @@ Animation::Data::ComputeLocalTimeFromTimelineTime(
       playback_rate_);
 }
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#setting-the-current-time-of-an-animation
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#setting-the-current-time-of-an-animation
 void Animation::set_current_time(const base::optional<double>& current_time) {
   UNREFERENCED_PARAMETER(current_time);
   NOTIMPLEMENTED();

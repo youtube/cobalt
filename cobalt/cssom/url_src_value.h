@@ -33,7 +33,7 @@ class PropertyValueVisitor;
 
 // A UrlSrcValue is a pointer to a resource that corresponds to the local
 // function token in the font-face src descriptor.
-//  http://www.w3.org/TR/css3-fonts/#descdef-src
+//  https://www.w3.org/TR/css3-fonts/#descdef-src
 class UrlSrcValue : public PropertyValue {
  public:
   explicit UrlSrcValue(const scoped_refptr<PropertyValue>& url,

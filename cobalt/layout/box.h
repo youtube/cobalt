@@ -53,22 +53,22 @@ struct LayoutParams {
   // calculated by choosing the 1 out of 10 algorithms based on the computed
   // values of "display", "position", "overflow", and the fact whether the box
   // is replaced or not, as per:
-  // http://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins
+  // https://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins
   //
   // If this flag is set, block container boxes will follow the algorithm
   // for inline-level, non-replaced block container boxes, which involves
   // the calculation of shrink-to-fit width, as per:
-  // http://www.w3.org/TR/CSS21/visudet.html#inlineblock-width
+  // https://www.w3.org/TR/CSS21/visudet.html#inlineblock-width
   //
   // This override is used during the first pass of layout to calculate
   // the content size of "inline-block" elements. It's an equivalent of
   // "trying all possible line breaks", as described by:
-  // http://www.w3.org/TR/CSS21/visudet.html#shrink-to-fit-float
+  // https://www.w3.org/TR/CSS21/visudet.html#shrink-to-fit-float
   bool shrink_to_fit_width_forced;
 
   // Many box positions and sizes are calculated with respect to the edges of
   // a rectangular box called a containing block.
-  //   http://www.w3.org/TR/CSS21/visuren.html#containing-block
+  //   https://www.w3.org/TR/CSS21/visuren.html#containing-block
   math::SizeF containing_block_size;
 
   bool operator==(const LayoutParams& rhs) const {
@@ -82,7 +82,7 @@ struct LayoutParams {
 // The CSS box model describes the rectangular boxes that are generated
 // for elements in the document tree and laid out according to the visual
 // formatting model.
-//   http://www.w3.org/TR/CSS21/box.html
+//   https://www.w3.org/TR/CSS21/box.html
 // Boxes are reference counted, because they are referred to by both parent
 // boxes and LayoutBoxes objects stored with html elements in the DOM tree to
 // allow incremental box generation.
@@ -93,13 +93,13 @@ class Box : public base::RefCounted<Box> {
   enum Level {
     // The "block" value of the "display" property makes an element block-level.
     // Block-level boxes participate in a block formatting context.
-    //   http://www.w3.org/TR/CSS21/visuren.html#block-boxes
+    //   https://www.w3.org/TR/CSS21/visuren.html#block-boxes
     kBlockLevel,
 
     // The "inline" and "inline-block" values of the "display" property make
     // an element inline-level. Inline-level boxes that participate in an inline
     // formatting context.
-    //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+    //   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
     kInlineLevel,
   };
 
@@ -112,7 +112,7 @@ class Box : public base::RefCounted<Box> {
   // as possible without laying out the document or performing other expensive
   // or hard-to-parallelize operations, such as resolving network requests or
   // retrieving values other than from the element and its parent.
-  //   http://www.w3.org/TR/css-cascade-3/#computed
+  //   https://www.w3.org/TR/css-cascade-3/#computed
   const scoped_refptr<cssom::ComputedStyleState>& computed_style_state() const {
     return computed_style_state_;
   }
@@ -136,16 +136,16 @@ class Box : public base::RefCounted<Box> {
   // Returns true if the box is positioned (e.g. position is non-static or
   // transform is not None).  Intuitively, this is true if the element does
   // not follow standard layout flow rules for determining its position.
-  //   http://www.w3.org/TR/CSS21/visuren.html#positioned-element.
+  //   https://www.w3.org/TR/CSS21/visuren.html#positioned-element.
   bool IsPositioned() const;
 
   // Returns true if the box has a non-"none" value for its transform property.
-  //   http://www.w3.org/TR/css3-transforms/#transform-property
+  //   https://www.w3.org/TR/css3-transforms/#transform-property
   bool IsTransformed() const;
 
   // Absolutely positioned box implies that the element's "position" property
   // has the value "absolute" or "fixed".
-  //   http://www.w3.org/TR/CSS21/visuren.html#absolutely-positioned
+  //   https://www.w3.org/TR/CSS21/visuren.html#absolutely-positioned
   bool IsAbsolutelyPositioned() const;
 
   // Updates the size of margin, border, padding, and content boxes. Lays out
@@ -174,7 +174,7 @@ class Box : public base::RefCounted<Box> {
 
   // Each box has a content area and optional surrounding padding, border,
   // and margin areas.
-  //   http://www.w3.org/TR/CSS21/box.html#box-dimensions
+  //   https://www.w3.org/TR/CSS21/box.html#box-dimensions
   //
   // Methods below provide read-only access to dimensions and edges of margin,
   // border, padding, and content boxes.
@@ -234,7 +234,7 @@ class Box : public base::RefCounted<Box> {
   // |is_placement_requirement_met| to true if the box fulfills the requirement
   // that the first character or atomic inline-level element must appear on a
   // line before an ellipsis
-  // (http://www.w3.org/TR/css3-ui/#propdef-text-overflow), regardless of
+  // (https://www.w3.org/TR/css3-ui/#propdef-text-overflow), regardless of
   // whether or not the ellipsis can be placed within this specific box.
   void TryPlaceEllipsisOrProcessPlacedEllipsis(
       float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
@@ -242,13 +242,13 @@ class Box : public base::RefCounted<Box> {
   // Whether or not the box fulfills the ellipsis requirement that it not be
   // be placed until after the "the first character or atomic inline-level
   // element on a line."
-  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   virtual bool DoesFulfillEllipsisPlacementRequirement() const { return false; }
   // Reset all ellipses-related state within the box.
   virtual void ResetEllipses() {}
   // Whether or not the box is fully hidden by an ellipsis. This applies to
   // atomic inline-level elements that have had an ellipsis placed before them
-  // on a line. http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  // on a line. https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   virtual bool IsHiddenByEllipsis() const { return false; }
 
   // Initial splitting of boxes between bidi level runs prior to layout, so that
@@ -294,7 +294,7 @@ class Box : public base::RefCounted<Box> {
   // content must be treated as zero-height line boxes for the purposes
   // of determining the positions of any elements inside of them, and must be
   // treated as not existing for any other purpose.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   virtual bool JustifiesLineExistence() const = 0;
   // Whether or not the box or its last descendant has a trailing line break,
   // disallowing additional boxes on the same line.
@@ -304,7 +304,7 @@ class Box : public base::RefCounted<Box> {
   virtual bool AffectsBaselineInBlockFormattingContext() const = 0;
   // Returns the vertical offset of the baseline relatively to the top margin
   // edge. If the box does not have a baseline, returns the bottom margin edge,
-  // as per http://www.w3.org/TR/CSS21/visudet.html#line-height.
+  // as per https://www.w3.org/TR/CSS21/visudet.html#line-height.
   virtual float GetBaselineOffsetFromTopMarginEdge() const = 0;
 
   // Marks the current set of UpdateSize parameters (which includes the
@@ -367,10 +367,10 @@ class Box : public base::RefCounted<Box> {
   }
 
   // Updates used values of "width", "height", and "margin" properties based on
-  // http://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins and
-  // http://www.w3.org/TR/CSS21/visudet.html#Computing_heights_and_margins.
+  // https://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins and
+  // https://www.w3.org/TR/CSS21/visudet.html#Computing_heights_and_margins.
   // Limits set by "min-width" and "max-width" are honored for non-replaced
-  // boxes, based on http://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
+  // boxes, based on https://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
   virtual void UpdateContentSizeAndMargins(
       const LayoutParams& layout_params) = 0;
 
@@ -423,7 +423,7 @@ class Box : public base::RefCounted<Box> {
   //
   // Line boxes that contain no inline elements with non-zero margins, padding,
   // or borders must be treated as not existing.
-  //   http://www.w3.org/TR/CSS21/visuren.html#phantom-line-box
+  //   https://www.w3.org/TR/CSS21/visuren.html#phantom-line-box
   bool HasNonZeroMarginOrBorderOrPadding() const;
 
   // Renders the content of the box.
@@ -434,7 +434,7 @@ class Box : public base::RefCounted<Box> {
 
   // A transformable element is an element whose layout is governed by the CSS
   // box model which is either a block-level or atomic inline-level element.
-  //   http://www.w3.org/TR/css3-transforms/#transformable-element
+  //   https://www.w3.org/TR/css3-transforms/#transformable-element
   virtual bool IsTransformable() const = 0;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
@@ -456,8 +456,8 @@ class Box : public base::RefCounted<Box> {
 
   // Updates the horizontal margins for block level in-flow boxes. This is used
   // for both non-replaced and replaced elements. See
-  // http://www.w3.org/TR/CSS21/visudet.html#blockwidth and
-  // http://www.w3.org/TR/CSS21/visudet.html#block-replaced-width.
+  // https://www.w3.org/TR/CSS21/visudet.html#blockwidth and
+  // https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width.
   void UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
       float containing_block_width, float border_box_width,
       const base::optional<float>& possibly_overconstrained_margin_left,

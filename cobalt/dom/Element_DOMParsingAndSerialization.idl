@@ -15,7 +15,7 @@
  */
 
 // From the spec DOM Parsing and Serialization
-//   http://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface
+//   https://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface
 
 partial interface Element {
   [TreatNullAs=EmptyString] attribute DOMString innerHTML;

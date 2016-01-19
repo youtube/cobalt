@@ -27,7 +27,7 @@ namespace dom {
 class Document;
 
 // The meta element allows authors to meta their document to other resources.
-//   http://www.w3.org/TR/html5/document-metadata.html#the-meta-element
+//   https://www.w3.org/TR/html5/document-metadata.html#the-meta-element
 class HTMLMetaElement : public HTMLElement {
  public:
   static const char kTagName[];

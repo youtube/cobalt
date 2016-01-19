@@ -34,7 +34,7 @@ class CSSStyleSheet;
 
 // The CSSRuleList interface represents an ordered collection of CSS
 // style rules.
-//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssrulelist-interface
+//   https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssrulelist-interface
 class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
                     public script::Wrappable {
  public:

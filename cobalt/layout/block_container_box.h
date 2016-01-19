@@ -31,12 +31,12 @@ class FormattingContext;
 // Derived classes establish either:
 //   - a block formatting context (and thus contain only block-level boxes);
 //   - an inline formatting context (and thus contain only inline-level boxes).
-//   http://www.w3.org/TR/CSS21/visuren.html#block-boxes
+//   https://www.w3.org/TR/CSS21/visuren.html#block-boxes
 //
 // Note that "block container box" and "block-level box" are different concepts.
 // A block container box itself may either be a block-level box or
 // an inline-level box.
-//   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+//   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
 class BlockContainerBox : public ContainerBox {
  public:
   BlockContainerBox(

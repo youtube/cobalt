@@ -36,7 +36,7 @@ namespace cobalt {
 namespace dom {
 
 // Algorithm for DispatchEvent:
-//   http://www.w3.org/TR/dom/#dispatching-events
+//   https://www.w3.org/TR/dom/#dispatching-events
 bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event);
   DCHECK(!event->IsBeingDispatched());
@@ -85,7 +85,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
 }
 
 // Algorithm for owner_document:
-//   http://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-ownerdocument
+//   https://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-ownerdocument
 scoped_refptr<Document> Node::owner_document() const {
   // 1. If the context object is a document, return null.
   if (IsDocument()) {
@@ -106,7 +106,7 @@ scoped_refptr<NodeList> Node::child_nodes() const {
 }
 
 // Algorithm for CloneNode:
-//   http://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-clonenode
+//   https://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-clonenode
 scoped_refptr<Node> Node::CloneNode(bool deep) const {
   scoped_refptr<Node> new_node = Duplicate();
   if (deep) {
@@ -200,7 +200,7 @@ scoped_refptr<Node> Node::AppendChild(const scoped_refptr<Node>& new_child) {
 }
 
 // Algorithm for ReplaceChild:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#concept-node-replace
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#concept-node-replace
 scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
                                        const scoped_refptr<Node>& child) {
   // Custom, not in any spec.
@@ -260,7 +260,7 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
 }
 
 // Algorithm for RemoveChild:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#concept-node-remove
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#concept-node-remove
 scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
   // Custom, not in any spec.
   if (!node) {

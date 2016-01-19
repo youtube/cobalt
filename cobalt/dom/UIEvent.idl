@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/DOM-Level-3-Events/#events-uievents
+// https://www.w3.org/TR/DOM-Level-3-Events/#events-uievents
 interface UIEvent : Event {
   void initUIEvent(DOMString type, boolean bubbles, boolean cancelable,
                    Window? view, long detail);

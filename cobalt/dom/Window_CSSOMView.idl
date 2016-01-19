@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
+// https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
 
 partial interface Window {
   MediaQueryList matchMedia(DOMString query);

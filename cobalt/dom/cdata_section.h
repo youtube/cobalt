@@ -30,7 +30,7 @@ class Document;
 
 // CDATA sections are used to escape blocks of text containing characters that
 // would otherwise be regarded as markup.
-//   http://www.w3.org/TR/2000/REC-DOM-Level-2-Core-20001113/core.html#ID-667469212
+//   https://www.w3.org/TR/2000/REC-DOM-Level-2-Core-20001113/core.html#ID-667469212
 class CDATASection : public Text {
  public:
   CDATASection(script::EnvironmentSettings* env_settings,

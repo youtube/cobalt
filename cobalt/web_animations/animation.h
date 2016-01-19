@@ -33,7 +33,7 @@ namespace web_animations {
 
 // Animations are represented in the Web Animations API by the Animation
 // interface.
-//   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animation-interface
+//   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animation-interface
 //
 // This class introduces levers to pause/play/reverse an animation.  The
 // Animation object provides functionality for converting from timeline time

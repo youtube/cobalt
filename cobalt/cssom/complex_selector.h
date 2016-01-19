@@ -32,7 +32,7 @@ class SelectorVisitor;
 
 // A complex selector is a chain of one or more compound selectors separated by
 // combinators.
-//   http://www.w3.org/TR/selectors4/#complex
+//   https://www.w3.org/TR/selectors4/#complex
 class ComplexSelector : public Selector {
  public:
   ComplexSelector() : last_selector_(NULL) {}

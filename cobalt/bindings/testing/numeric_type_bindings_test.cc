@@ -178,7 +178,7 @@ TYPED_TEST(IntegerTypeBindingsTest, ArgumentOperationRange) {
 
 // In the absence of extended IDL attributes to check or enforce the range,
 // out-of-range values are not clamped.
-// http://www.w3.org/TR/WebIDL/#es-byte
+// https://www.w3.org/TR/WebIDL/#es-byte
 // For the signed types (8 bit integer in this example):
 //     5. x := sign(x)*floor(abs(x))
 //     6. x := x modulo 2^8

@@ -29,7 +29,7 @@ namespace dom {
 // The URL interface contains static functions CreateObjectURL() and
 // RevokeObjectURL().  The former is used to create urls in string from
 // JavaScript blob objects.  The latter is used to revoke the url.
-//   http://www.w3.org/TR/2015/WD-FileAPI-20150421/#URL-object
+//   https://www.w3.org/TR/2015/WD-FileAPI-20150421/#URL-object
 //
 // The Media Source Extension extends it to create an url from a MediaSource
 // object so we can assign it to HTMLMediaElement.src.

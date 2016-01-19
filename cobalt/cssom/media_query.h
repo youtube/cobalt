@@ -31,7 +31,7 @@ namespace cssom {
 
 // The media query represents the expression of the @media conditional rule
 // for example: 'screen and (max-width: 640px) and (aspect-ratio: 4/3)'
-//   http://www.w3.org/TR/css3-mediaqueries
+//   https://www.w3.org/TR/css3-mediaqueries
 class MediaQuery : public script::Wrappable {
  public:
   MediaQuery();

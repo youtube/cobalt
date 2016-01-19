@@ -179,7 +179,7 @@ scoped_refptr<Text> Document::CreateTextNode(const std::string& text) {
 scoped_refptr<Event> Document::CreateEvent(
     const std::string& interface_name,
     script::ExceptionState* exception_state) {
-  // http://www.w3.org/TR/2015/WD-dom-20150428/#dom-document-createevent
+  // https://www.w3.org/TR/2015/WD-dom-20150428/#dom-document-createevent
   // The match of interface name is case-insensitive.
   if (strcasecmp(interface_name.c_str(), "event") == 0 ||
       strcasecmp(interface_name.c_str(), "events") == 0) {
@@ -215,7 +215,7 @@ scoped_refptr<Location> Document::location() const { return location_; }
 scoped_refptr<HTMLBodyElement> Document::body() const { return body_.get(); }
 
 // Algorithm for set_body:
-//   http://www.w3.org/TR/html5/dom.html#dom-document-body
+//   https://www.w3.org/TR/html5/dom.html#dom-document-body
 void Document::set_body(const scoped_refptr<HTMLBodyElement>& value) {
   // 1. If the new value is not a body or frameset element, then throw a
   //    HierarchyRequestError exception and abort these steps.
@@ -544,7 +544,7 @@ void Document::UpdateComputedStyles() {
     // is needed (as opposed to repeatedly calling base::Time::Now()) because
     // all animations that may be triggered here must start at the exact same
     // time if they were triggered in the same style change event.
-    //   http://www.w3.org/TR/css3-transitions/#starting
+    //   https://www.w3.org/TR/css3-transitions/#starting
     base::TimeDelta style_change_event_time =
         base::TimeDelta::FromMillisecondsD(*default_timeline_->current_time());
 

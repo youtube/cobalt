@@ -29,7 +29,7 @@ class TransformFunctionVisitor;
 // A base class for all transform functions.
 // Transform functions define how transformation is applied to the coordinate
 // system an HTML element renders in.
-//   http://www.w3.org/TR/css-transforms-1/#transform-functions
+//   https://www.w3.org/TR/css-transforms-1/#transform-functions
 class TransformFunction : public base::PolymorphicEquatable {
  public:
   virtual void Accept(TransformFunctionVisitor* visitor) const = 0;

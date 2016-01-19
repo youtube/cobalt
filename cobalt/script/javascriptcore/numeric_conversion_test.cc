@@ -103,13 +103,13 @@ T JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue js_value,
 
 // Conversion between a JavaScript value and an IDL integer type is described
 // here:
-//     http://www.w3.org/TR/WebIDL/#es-byte
-//     http://www.w3.org/TR/WebIDL/#es-octet
-//     http://www.w3.org/TR/WebIDL/#es-short
-//     http://www.w3.org/TR/WebIDL/#es-unsigned-short
-//     http://www.w3.org/TR/WebIDL/#es-long
-//     http://www.w3.org/TR/WebIDL/#es-unsigned-long
-//     http://www.w3.org/TR/WebIDL/#es-double
+//     https://www.w3.org/TR/WebIDL/#es-byte
+//     https://www.w3.org/TR/WebIDL/#es-octet
+//     https://www.w3.org/TR/WebIDL/#es-short
+//     https://www.w3.org/TR/WebIDL/#es-unsigned-short
+//     https://www.w3.org/TR/WebIDL/#es-long
+//     https://www.w3.org/TR/WebIDL/#es-unsigned-long
+//     https://www.w3.org/TR/WebIDL/#es-double
 // The first step in each of these algorithms is the ToNumber operation:
 //     http://es5.github.io/#x9.3
 // ToNumber describes how various non-numeric types should convert to a

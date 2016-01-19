@@ -33,8 +33,8 @@ class CSSRuleVisitor;
 
 // The CSSGroupingRule interface represents an at-rule that contains other rules
 // nested inside itself.
-//   http://www.w3.org/TR/cssom/#the-cssgroupingrule-interface
-//   http://www.w3.org/TR/css3-conditional/#cssgroupingrule
+//   https://www.w3.org/TR/cssom/#the-cssgroupingrule-interface
+//   https://www.w3.org/TR/css3-conditional/#cssgroupingrule
 class CSSGroupingRule : public CSSRule {
  public:
   CSSGroupingRule();

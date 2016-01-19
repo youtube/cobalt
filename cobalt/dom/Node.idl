@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/2015/WD-dom-20150428/#interface-node
+// https://www.w3.org/TR/2015/WD-dom-20150428/#interface-node
 
 interface Node : EventTarget {
   const unsigned short ELEMENT_NODE = 1;

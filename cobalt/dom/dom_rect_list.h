@@ -28,7 +28,7 @@ namespace dom {
 
 // The DOMRectList interface represents an ordered collection of DOMRect
 // objects.
-//   http://www.w3.org/TR/2014/CR-geometry-1-20141125/#DOMRectList
+//   https://www.w3.org/TR/2014/CR-geometry-1-20141125/#DOMRectList
 class DOMRectList : public script::Wrappable {
  public:
   DOMRectList();

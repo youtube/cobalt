@@ -36,7 +36,7 @@ class CSSStyleSheet;
 // The CSSRule interface represents an abstract, base CSS style rule.
 // Each distinct CSS style rule type is represented by a distinct interface
 // that inherits from this interface.
-//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssrule-interface
+//   https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssrule-interface
 class CSSRule : public script::Wrappable,
                 public base::SupportsWeakPtr<CSSRule> {
  public:

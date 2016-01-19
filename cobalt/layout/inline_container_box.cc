@@ -78,7 +78,7 @@ scoped_refptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
 
   // When an inline box is split, margins, borders, and padding have no visual
   // effect where the split occurs.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   // TODO(***REMOVED***): Implement the above comment.
 
   return box_after_split;
@@ -108,7 +108,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   // Although the spec says:
   //
   // The "width" property does not apply.
-  //   http://www.w3.org/TR/CSS21/visudet.html#inline-width
+  //   https://www.w3.org/TR/CSS21/visudet.html#inline-width
   //
   // ...it is not the entire truth. It merely means that we have to ignore
   // the computed value of "width". Instead we use the shrink-to-fit width of
@@ -117,7 +117,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   //
   // When an inline box exceeds the width of a line box, it is split into
   // several boxes.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   set_width(line_box.shrink_to_fit_width());
 
   base::optional<float> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
@@ -127,7 +127,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
 
   // A computed value of "auto" for "margin-left" or "margin-right" becomes
   // a used value of "0".
-  //   http://www.w3.org/TR/CSS21/visudet.html#inline-width
+  //   https://www.w3.org/TR/CSS21/visudet.html#inline-width
   set_margin_left(maybe_margin_left.value_or(0.0f));
   set_margin_right(maybe_margin_right.value_or(0.0f));
 
@@ -136,7 +136,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   // However, we suggest that the height is chosen such that the content area
   // is just high enough for [...] the maximum ascenders and descenders, of all
   // the fonts in the element.
-  //   http://www.w3.org/TR/CSS21/visudet.html#inline-non-replaced
+  //   https://www.w3.org/TR/CSS21/visudet.html#inline-non-replaced
   //
   // Above definition of used height matches the height of hypothetical line box
   // that contains all children.
@@ -148,7 +148,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
       computed_style(), layout_params.containing_block_size);
 
   // Vertical margins will not have any effect on non-replaced inline elements.
-  //   http://www.w3.org/TR/CSS21/box.html#margin-properties
+  //   https://www.w3.org/TR/CSS21/box.html#margin-properties
   set_margin_top(0);
   set_margin_bottom(0);
 
@@ -442,7 +442,7 @@ scoped_refptr<Box> InlineContainerBox::SplitAtIterator(
     Boxes::const_iterator child_split_iterator) {
   // TODO(***REMOVED***): When an inline box is split, margins, borders, and padding
   //               have no visual effect where the split occurs.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
 
   // Move the children after the split into a new box.
   scoped_refptr<InlineContainerBox> box_after_split(

@@ -35,7 +35,7 @@ namespace layout {
 // Inline-level boxes that are not inline boxes (such as inline-block elements)
 // are called atomic inline-level boxes because they participate in their inline
 // formatting context as a single opaque box.
-//   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+//   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
 class InlineContainerBox : public ContainerBox {
  public:
   InlineContainerBox(

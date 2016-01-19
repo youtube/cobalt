@@ -828,7 +828,7 @@ errors:
 
 // The @font-face rule consists of the @font-face at-keyword followed by a block
 // of descriptor declarations.
-//   http://www.w3.org/TR/css3-fonts/#font-face-rule
+//   https://www.w3.org/TR/css3-fonts/#font-face-rule
 at_font_face_rule:
     kFontFaceToken maybe_whitespace '{' maybe_whitespace
         font_face_declaration_list '}' maybe_whitespace {
@@ -848,7 +848,7 @@ at_font_face_rule:
 // It consists of the at-keyword '@media' followed by a (possibly empty) media
 // query list, followed by a group rule body. The condition of the rule is the
 // result of the media query.
-//   http://www.w3.org/TR/css3-conditional/#at-media
+//   https://www.w3.org/TR/css3-conditional/#at-media
 at_media_rule:
   // @media expr {}
     kMediaToken maybe_whitespace media_list rule_list_block {
@@ -859,15 +859,15 @@ at_media_rule:
 
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 // Media Rule, Media Query, Media Type
-//   http://www.w3.org/TR/cssom/#media-queries
-//   http://www.w3.org/TR/css3-mediaqueries/
+//   https://www.w3.org/TR/cssom/#media-queries
+//   https://www.w3.org/TR/css3-mediaqueries/
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
 // Follow the syntax defined here:
-//   http://www.w3.org/TR/css3-mediaqueries/#syntax
+//   https://www.w3.org/TR/css3-mediaqueries/#syntax
 
 // Orientation value, landscale or portrait
-//   http://www.w3.org/TR/css3-mediaqueries/#orientation
+//   https://www.w3.org/TR/css3-mediaqueries/#orientation
 orientation_media_feature_keyword_value:
     kLandscapeMediaFeatureKeywordValueToken maybe_whitespace {
     $$ = AddRef(cssom::MediaFeatureKeywordValue::GetLandscape().get());
@@ -878,7 +878,7 @@ orientation_media_feature_keyword_value:
   ;
 
 // Scan value, interlace or progressive
-//   http://www.w3.org/TR/css3-mediaqueries/#scan
+//   https://www.w3.org/TR/css3-mediaqueries/#scan
 scan_media_feature_keyword_value:
     kInterlaceMediaFeatureKeywordValueToken maybe_whitespace {
     $$ = AddRef(cssom::MediaFeatureKeywordValue::GetInterlace().get());
@@ -897,7 +897,7 @@ media_feature_operator:
 // Media feature: 'feature' only.
 // (feature) will evaluate to true if (feature:x) will evaluate to true for a
 // value x other than zero or zero followed by a unit identifier.
-//   http://www.w3.org/TR/css3-mediaqueries/#media1
+//   https://www.w3.org/TR/css3-mediaqueries/#media1
 media_feature_without_value:
     kLengthMediaFeatureTypeToken maybe_whitespace {
     $$ = AddRef(new cssom::MediaFeature($1));
@@ -958,7 +958,7 @@ media_feature_allowing_operator_with_value:
 
 // Media feature: 'feature' or 'feature:value' or 'min-feature:value' or
 // 'max-feature:value'
-//   http://www.w3.org/TR/css3-mediaqueries/#media1
+//   https://www.w3.org/TR/css3-mediaqueries/#media1
 media_feature:
     media_feature_without_value
   | media_feature_with_value
@@ -1025,8 +1025,8 @@ media_type_specified:
   ;
 // The names chosen for CSS media types reflect target devices for which the
 // relevant properties make sense
-//   http://www.w3.org/TR/CSS21/media.html#media-types
-//   http://www.w3.org/TR/css3-mediaqueries/#media0
+//   https://www.w3.org/TR/CSS21/media.html#media-types
+//   https://www.w3.org/TR/css3-mediaqueries/#media0
 evaluated_media_type:
   // @media [type]...
     media_type_specified {
@@ -1052,8 +1052,8 @@ evaluated_media_type:
 
 // A media query consists of a media type and zero or more expressions that
 // check for the conditions of particular media features.
-//   http://www.w3.org/TR/cssom/#media-queries
-//   http://www.w3.org/TR/css3-mediaqueries/#media0
+//   https://www.w3.org/TR/cssom/#media-queries
+//   https://www.w3.org/TR/css3-mediaqueries/#media0
 media_query:
   // @media  {}
     /* empty */ {
@@ -1077,15 +1077,15 @@ media_query:
   // When an unknown media feature, an unknown media feature value, a malformed
   // media query, or unexpected tokens is found, the media query must be
   // represented as 'not all'.
-  //   http://www.w3.org/TR/css3-mediaqueries/#error-handling
+  //   https://www.w3.org/TR/css3-mediaqueries/#error-handling
   | errors {
     $$ = AddRef(new cssom::MediaQuery(true));
   }
   ;
 
 // Several media queries can be combined in a media query list.
-//   http://www.w3.org/TR/cssom/#medialist
-//   http://www.w3.org/TR/css3-mediaqueries/#media0
+//   https://www.w3.org/TR/cssom/#medialist
+//   https://www.w3.org/TR/css3-mediaqueries/#media0
 media_list:
     media_query {
     $$ = AddRef(new cssom::MediaList(parser_impl->css_parser()));
@@ -1099,8 +1099,8 @@ media_list:
 
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 // Keyframe Rule and Keyframes Rule
-//   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframeRule-interface
-//   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframesRule-interface
+//   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframeRule-interface
+//   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSKeyframesRule-interface
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
 at_keyframes_rule:
@@ -1756,7 +1756,7 @@ identifier_token:
 
 // A type selector represents an instance of the element type in the document
 // tree.
-//   http://www.w3.org/TR/selectors4/#type-selector
+//   https://www.w3.org/TR/selectors4/#type-selector
 type_selector_token:
     identifier_token {
     $$ = new cssom::TypeSelector($1.ToString());
@@ -1764,7 +1764,7 @@ type_selector_token:
   ;
 
 // The universal selector represents an element with any name.
-//   http://www.w3.org/TR/selectors4/#universal-selector
+//   https://www.w3.org/TR/selectors4/#universal-selector
 universal_selector_token: '*' {
     parser_impl->LogWarning(@1, "universal selector is not implemented yet");
     $$ = NULL;  // TODO(***REMOVED***): Implement.
@@ -1773,7 +1773,7 @@ universal_selector_token: '*' {
 
 // The class selector represents an element belonging to the class identified by
 // the identifier.
-//   http://www.w3.org/TR/selectors4/#class-selector
+//   https://www.w3.org/TR/selectors4/#class-selector
 class_selector_token:
     '.' identifier_token {
     $$ = new cssom::ClassSelector($2.ToString());
@@ -1782,7 +1782,7 @@ class_selector_token:
 
 // An ID selector represents an element instance that has an identifier that
 // matches the identifier in the ID selector.
-//   http://www.w3.org/TR/selectors4/#id-selector
+//   https://www.w3.org/TR/selectors4/#id-selector
 id_selector_token:
     kIdSelectorToken {
     $$ = new cssom::IdSelector($1.ToString());
@@ -1798,7 +1798,7 @@ id_selector_token:
 
 // Allows to indicate single elements or all elements at regularly-spaced
 // intervals in a list.
-//   http://www.w3.org/TR/css-syntax-3/#anb
+//   https://www.w3.org/TR/css-syntax-3/#anb
 an_plus_b:
     integer
   | kNthToken maybe_whitespace
@@ -1832,14 +1832,14 @@ unsupported_pseudo_class_token:
 // The pseudo-class concept is introduced to permit selection based on
 // information that lies outside of the document tree or that can be awkward or
 // impossible to express using the other simple selectors.
-//   http://www.w3.org/TR/selectors4/#pseudo-classes
+//   https://www.w3.org/TR/selectors4/#pseudo-classes
 pseudo_class_token:
   // The :active pseudo-class applies while an element is being activated by the
   // user. For example, between the times the user presses the mouse button and
   // releases it. On systems with more than one mouse button, :active applies
   // only to the primary or primary activation button (typically the "left"
   // mouse button), and any aliases thereof.
-  //   http://www.w3.org/TR/selectors4/#active-pseudo
+  //   https://www.w3.org/TR/selectors4/#active-pseudo
     ':' kActiveToken {
     $$ = new cssom::ActivePseudoClass();
   }
@@ -1849,13 +1849,13 @@ pseudo_class_token:
   // non-zero length must be considered as affecting emptiness; comments,
   // processing instructions, and other nodes must not affect whether an element
   // is considered empty or not.
-  //   http://www.w3.org/TR/selectors4/#empty-pseudo
+  //   https://www.w3.org/TR/selectors4/#empty-pseudo
   | ':' kEmptyToken {
     $$ = new cssom::EmptyPseudoClass();
   }
   // The :focus pseudo-class applies while an element has the focus (accepts
   // keyboard or mouse events, or other forms of input).
-  //   http://www.w3.org/TR/selectors4/#focus-pseudo
+  //   https://www.w3.org/TR/selectors4/#focus-pseudo
   | ':' kFocusToken {
     $$ = new cssom::FocusPseudoClass();
   }
@@ -1865,14 +1865,14 @@ pseudo_class_token:
   // pointer) hovers over a box generated by the element. Interactive user
   // agents that cannot detect hovering due to hardware limitations (e.g., a pen
   // device that does not detect hovering) are still conforming.
-  //   http://www.w3.org/TR/selectors4/#hover-pseudo
+  //   https://www.w3.org/TR/selectors4/#hover-pseudo
   | ':' kHoverToken {
     $$ = new cssom::HoverPseudoClass();
   }
   // The negation pseudo-class, :not(), is a functional pseudo-class taking a
   // selector list as an argument. It represents an element that is not
   // represented by its argument.
-  //   http://www.w3.org/TR/selectors4/#negation-pseudo
+  //   https://www.w3.org/TR/selectors4/#negation-pseudo
   | ':' kNotFunctionToken compound_selector_token ')' {
     scoped_ptr<cssom::CompoundSelector> compound_selector($3);
     scoped_ptr<cssom::NotPseudoClass> not_pseudo_class(new
@@ -1912,14 +1912,14 @@ pseudo_class_token:
 
 // Pseudo-elements create abstractions about the document tree beyond those
 // specified by the document language.
-//   http://www.w3.org/TR/selectors4/#pseudo-elements
+//   https://www.w3.org/TR/selectors4/#pseudo-elements
 pseudo_element_token:
 // Authors specify the style and location of generated content with the
 // :before and :after pseudo-elements.
-//   http://www.w3.org/TR/CSS21/generate.html#before-after-content
+//   https://www.w3.org/TR/CSS21/generate.html#before-after-content
 // User agents must also accept the previous one-colon notation for
 // pseudo-elements introduced in CSS levels 1 and 2.
-//   http://www.w3.org/TR/selectors4/#pseudo-elements
+//   https://www.w3.org/TR/selectors4/#pseudo-elements
     ':' kAfterToken {
     $$ = new cssom::AfterPseudoElement();
   }
@@ -1939,7 +1939,7 @@ pseudo_element_token:
   ;
 
 // A simple selector represents an aspect of an element to be matched against.
-//   http://www.w3.org/TR/selectors4/#simple
+//   https://www.w3.org/TR/selectors4/#simple
 simple_selector_token:
     class_selector_token
   | id_selector_token
@@ -1951,7 +1951,7 @@ simple_selector_token:
 
 // A compound selector is a chain of simple selectors that are not separated by
 // a combinator.
-//   http://www.w3.org/TR/selectors4/#compound
+//   https://www.w3.org/TR/selectors4/#compound
 compound_selector_token:
     simple_selector_token {
     scoped_ptr<cssom::SimpleSelector> simple_selector($1);
@@ -1978,7 +1978,7 @@ compound_selector_token:
 
 // A combinator is punctuation that represents a particular kind of relationship
 // between the selectors on either side.
-//   http://www.w3.org/TR/selectors4/#combinator
+//   https://www.w3.org/TR/selectors4/#combinator
 combinator:
     kWhitespaceToken {
     $$ = new cssom::DescendantCombinator();
@@ -1996,7 +1996,7 @@ combinator:
 
 // A complex selector is a chain of one or more compound selectors separated by
 // combinators.
-//   http://www.w3.org/TR/selectors4/#complex
+//   https://www.w3.org/TR/selectors4/#complex
 complex_selector:
     compound_selector_token {
     scoped_ptr<cssom::CompoundSelector> compound_selector($1);
@@ -2025,7 +2025,7 @@ complex_selector:
   ;
 
 // A selector list is a comma-separated list of selectors.
-//   http://www.w3.org/TR/selectors4/#selector-list
+//   https://www.w3.org/TR/selectors4/#selector-list
 selector_list:
     complex_selector {
     scoped_ptr<cssom::ComplexSelector> complex_selector($1);
@@ -2063,7 +2063,7 @@ auto:
 // The scanner that we adopted from WebKit was built with assumption that sign
 // is handled in the grammar. Practically this means that tokens of <number>
 // and <real> types has to be prepended with this rule.
-//   http://www.w3.org/TR/css3-syntax/#consume-a-number
+//   https://www.w3.org/TR/css3-syntax/#consume-a-number
 maybe_sign_token:
     /* empty */ { $$ = 1; }
   | '+' { $$ = 1; }
@@ -2072,7 +2072,7 @@ maybe_sign_token:
 
 // This is for integers that can only have the values 0 or 1, including '-0'.
 // As used in the 'grid' css media feature:
-//   http://www.w3.org/TR/css3-mediaqueries/#grid
+//   https://www.w3.org/TR/css3-mediaqueries/#grid
 zero_or_one:
     integer {
     if (($1 < 0) || ($1 > 1)) {
@@ -2086,7 +2086,7 @@ zero_or_one:
 
 // An integer is one or more decimal digits "0" through "9". The first digit
 // of an integer may be immediately preceded by "-" or "+" to indicate the sign.
-//   http://www.w3.org/TR/css3-values/#integers
+//   https://www.w3.org/TR/css3-values/#integers
 integer:
     maybe_sign_token kIntegerToken maybe_whitespace {
     $$ = $1 * $2;
@@ -2119,7 +2119,7 @@ positive_integer:
 
 // A number is either an |integer| or zero or more decimal digits followed
 // by a dot followed by one or more decimal digits.
-//   http://www.w3.org/TR/css3-values/#numbers
+//   https://www.w3.org/TR/css3-values/#numbers
 number:
     integer { $$ = $1; }
   | maybe_sign_token kRealToken maybe_whitespace { $$ = $1 * $2; }
@@ -2140,7 +2140,7 @@ non_negative_number:
 // Percentage values are always relative to another value, for example a length.
 // Each property that allows percentages also defines the value to which
 // the percentage refers.
-//   http://www.w3.org/TR/css3-values/#percentages
+//   https://www.w3.org/TR/css3-values/#percentages
 percentage:
     maybe_sign_token kPercentageToken maybe_whitespace {
     $$ = AddRef(new cssom::PercentageValue($1 * $2 / 100));
@@ -2163,7 +2163,7 @@ positive_percentage:
   ;
 
 // Opacity.
-//   http://www.w3.org/TR/css3-color/#alphavaluedt
+//   https://www.w3.org/TR/css3-color/#alphavaluedt
 alpha:
     number {
     // Any values outside the range 0.0 (fully transparent)
@@ -2173,7 +2173,7 @@ alpha:
   ;
 
 // Distance units.
-//   http://www.w3.org/TR/css3-values/#lengths
+//   https://www.w3.org/TR/css3-values/#lengths
 length:
     number {
     if ($1 == 0) {
@@ -2185,12 +2185,12 @@ length:
     }
   }
   // Relative lengths.
-  //   http://www.w3.org/TR/css3-values/#relative-lengths
+  //   https://www.w3.org/TR/css3-values/#relative-lengths
   | maybe_sign_token kFontSizesAkaEmToken maybe_whitespace {
     $$ = AddRef(new cssom::LengthValue($1 * $2, cssom::kFontSizesAkaEmUnit));
   }
   // Absolute lengths.
-  //   http://www.w3.org/TR/css3-values/#absolute-lengths
+  //   https://www.w3.org/TR/css3-values/#absolute-lengths
   | maybe_sign_token kPixelsToken maybe_whitespace {
     $$ = AddRef(new cssom::LengthValue($1 * $2, cssom::kPixelsUnit));
   }
@@ -2210,7 +2210,7 @@ positive_length:
   ;
 
 // Ratio units.
-//   http://www.w3.org/TR/css3-mediaqueries/#values
+//   https://www.w3.org/TR/css3-mediaqueries/#values
 ratio:
     positive_integer '/' maybe_whitespace positive_integer {
     $$ = AddRef(new cssom::RatioValue(math::Rational($1, $4)));
@@ -2218,7 +2218,7 @@ ratio:
   ;
 
 // Resolution units.
-//   http://www.w3.org/TR/css3-mediaqueries/#resolution0
+//   https://www.w3.org/TR/css3-mediaqueries/#resolution0
 resolution:
     maybe_sign_token kDotsPerInchToken maybe_whitespace {
     float value = $1 * $2;
@@ -2239,7 +2239,7 @@ resolution:
   ;
 
 // Angle units (returned synthetic value will always be in radians).
-//   http://www.w3.org/TR/css3-values/#angles
+//   https://www.w3.org/TR/css3-values/#angles
 angle:
     maybe_sign_token kDegreesToken maybe_whitespace {
     $$ = $1 * $2 * (2 * static_cast<float>(M_PI) / 360.0f);
@@ -2256,7 +2256,7 @@ angle:
   ;
 
 // Time units (used by animations and transitions).
-//   http://www.w3.org/TR/css3-values/#time
+//   https://www.w3.org/TR/css3-values/#time
 time:
     number {
     $$ = base::TimeDelta::FromMilliseconds(
@@ -2286,17 +2286,17 @@ colon: ':' maybe_whitespace ;
 comma: ',' maybe_whitespace ;
 
 // All properties accept the CSS-wide keywords.
-//   http://www.w3.org/TR/css3-values/#common-keywords
+//   https://www.w3.org/TR/css3-values/#common-keywords
 common_values:
     common_values_without_errors
   | errors {
     // If a user agent does not support a particular value, it should ignore
     // that value when parsing style sheets, as if that value was an illegal
     // value.
-    //   http://www.w3.org/TR/CSS21/syndata.html#unsupported-values
+    //   https://www.w3.org/TR/CSS21/syndata.html#unsupported-values
     //
     // User agents must ignore a declaration with an illegal value.
-    //   http://www.w3.org/TR/CSS21/syndata.html#illegalvalues
+    //   https://www.w3.org/TR/CSS21/syndata.html#illegalvalues
     parser_impl->LogWarning(@1, "unsupported value");
     $$ = NULL;
   }
@@ -2313,7 +2313,7 @@ common_values_without_errors:
 
 color:
   // Hexadecimal notation.
-  //   http://www.w3.org/TR/css3-color/#numerical
+  //   https://www.w3.org/TR/css3-color/#numerical
     kHexToken maybe_whitespace {
     switch ($1.size()) {
       // The three-digit RGB notation (#rgb) is converted into six-digit
@@ -2341,7 +2341,7 @@ color:
     }
   }
   // RGB color model.
-  //   http://www.w3.org/TR/css3-color/#rgb-color
+  //   https://www.w3.org/TR/css3-color/#rgb-color
   | kRGBFunctionToken maybe_whitespace integer comma
       integer comma integer ')' maybe_whitespace {
     uint8 r = static_cast<uint8>(ClampToRange(0, 255, $3));
@@ -2350,7 +2350,7 @@ color:
     $$ = AddRef(new cssom::RGBAColorValue(r, g, b, 0xff));
   }
   // RGB color model with opacity.
-  //   http://www.w3.org/TR/css3-color/#rgba-color
+  //   https://www.w3.org/TR/css3-color/#rgba-color
   | kRGBAFunctionToken maybe_whitespace integer comma integer comma integer
       comma alpha ')' maybe_whitespace {
     uint8 r = static_cast<uint8>(ClampToRange(0, 255, $3));
@@ -2537,7 +2537,7 @@ final_background_layer_without_position_and_repeat:
   ;
 
 // Only the final background layer is allowed to set the background color.
-//   http://www.w3.org/TR/css3-background/#ltfinal-bg-layergt
+//   https://www.w3.org/TR/css3-background/#ltfinal-bg-layergt
 final_background_layer:
     /* empty */ {
     // Initialize the background shorthand which is to be filled in by
@@ -2567,7 +2567,7 @@ final_background_layer:
   ;
 
 // Shorthand property for setting most background properties at the same place.
-//   http://www.w3.org/TR/css3-background/#the-background
+//   https://www.w3.org/TR/css3-background/#the-background
 background_property_value:
     final_background_layer
   | common_values {
@@ -2585,7 +2585,7 @@ background_property_value:
   ;
 
 // Background color of an element drawn behind any background images.
-//   http://www.w3.org/TR/css3-background/#the-background-color
+//   https://www.w3.org/TR/css3-background/#the-background-color
 background_color_property_value:
     color { $$ = $1; }
   | common_values
@@ -2706,7 +2706,7 @@ comma_separated_background_image_list:
 
 // Images are drawn with the first specified one on top (closest to the user)
 // and each subsequent image behind the previous one.
-//   http://www.w3.org/TR/css3-background/#the-background-image
+//   https://www.w3.org/TR/css3-background/#the-background-image
 background_image_property_value:
   comma_separated_background_image_list {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
@@ -2787,7 +2787,7 @@ validated_background_position_property:
 // If background images have been specified, this property specifies their
 // initial position (after any resizing) within their corresponding background
 // positioning area.
-//   http://www.w3.org/TR/css3-background/#the-background-position
+//   https://www.w3.org/TR/css3-background/#the-background-position
 background_position_property_value:
     validated_background_position_property
   | common_values
@@ -2795,7 +2795,7 @@ background_position_property_value:
 
 // Specifies how background images are tiled after they have been sized and
 // positioned.
-//   http://www.w3.org/TR/css3-background/#the-background-repeat
+//   https://www.w3.org/TR/css3-background/#the-background-repeat
 background_repeat_element:
     kNoRepeatToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNoRepeat().get());
@@ -2869,7 +2869,7 @@ background_size_property_list:
   ;
 
 // Specifies the size of the background images.
-//   http://www.w3.org/TR/css3-background/#the-background-size
+//   https://www.w3.org/TR/css3-background/#the-background-size
 background_size_property_value_without_common_values:
     background_size_property_list {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
@@ -2892,7 +2892,7 @@ background_size_property_value:
 
 // 'border-color' sets the foreground color of the border specified by the
 // border-style properties.
-//   http://www.w3.org/TR/css3-background/#border-color
+//   https://www.w3.org/TR/css3-background/#border-color
 border_color_property_list:
     /* empty */ {
     $$ = new cssom::PropertyListValue::Builder();
@@ -2917,7 +2917,7 @@ border_color_property_value:
   }
   ;
 
-//   http://www.w3.org/TR/css3-background/#ltline-stylegt
+//   https://www.w3.org/TR/css3-background/#ltline-stylegt
 line_style:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -2936,7 +2936,7 @@ line_style_with_common_values:
   ;
 
 // 'border-style' sets the style of the border, unless there is a border-image.
-//   http://www.w3.org/TR/css3-background/#border-style
+//   https://www.w3.org/TR/css3-background/#border-style
 border_style_property_list:
     /* empty */ {
     $$ = new cssom::PropertyListValue::Builder();
@@ -2962,7 +2962,7 @@ border_style_property_value:
   ;
 
 // 'border-width' sets the thickness of the border.
-//   http://www.w3.org/TR/css3-background/#border-width
+//   https://www.w3.org/TR/css3-background/#border-width
 border_width_element:
     positive_length  { $$ = $1; }
   ;
@@ -3044,7 +3044,7 @@ border_property_list:
 // line, pseudo-3D border, etc.) or it can be an image. In the former case,
 // various properties define the style ('border-style'), color ('border-color'),
 // and thickness ('border-width') of the border.
-//   http://www.w3.org/TR/css3-background/#borders
+//   https://www.w3.org/TR/css3-background/#borders
 border_property_value:
     border_property_list
   | common_values_without_errors {
@@ -3060,7 +3060,7 @@ border_property_value:
 
 // The radii of a quarter ellipse that defines the shape of the corner
 // of the outer border edge.
-//   http://www.w3.org/TR/css3-background/#the-border-radius
+//   https://www.w3.org/TR/css3-background/#the-border-radius
 border_radius_property_value:
     positive_length_percent_property_value { $$ = $1; }
   | common_values
@@ -3140,7 +3140,7 @@ comma_separated_box_shadow_list:
 
 // The 'box-shadow' property attaches one or more drop-shadows to the box.
 // The property takes a comma-separated list of shadows, ordered front to back.
-//   http://www.w3.org/TR/css3-background/#box-shadow
+//   https://www.w3.org/TR/css3-background/#box-shadow
 box_shadow_property_value:
     comma_separated_box_shadow_list {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
@@ -3153,14 +3153,14 @@ box_shadow_property_value:
   ;
 
 // Foreground color of an element's text content.
-//   http://www.w3.org/TR/css3-color/#foreground
+//   https://www.w3.org/TR/css3-color/#foreground
 color_property_value:
     color { $$ = $1; }
   | common_values
   ;
 
 // Used to add generated content with a :before or :after pseudo-element.
-//   http://www.w3.org/TR/CSS21/generate.html#content
+//   https://www.w3.org/TR/CSS21/generate.html#content
 content_property_value:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -3176,7 +3176,7 @@ content_property_value:
 ;
 
 // Controls the generation of boxes.
-//   http://www.w3.org/TR/CSS21/visuren.html#display-prop
+//   https://www.w3.org/TR/CSS21/visuren.html#display-prop
 display_property_value:
     kBlockToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetBlock().get());
@@ -3195,7 +3195,7 @@ display_property_value:
 
 // External font-face references consist of a URL, followed by an optional
 // hint describing the format of the font resource referenced by that URL.
-//   http://www.w3.org/TR/css3-fonts/#descdef-src
+//   https://www.w3.org/TR/css3-fonts/#descdef-src
 font_face_url_src:
     url kFormatFunctionToken maybe_whitespace kStringToken maybe_whitespace ')'
         maybe_whitespace {
@@ -3209,7 +3209,7 @@ font_face_url_src:
 
 // The syntax for a local font-face reference is a unique font face name
 // enclosed by "local(" and ")".
-//   http://www.w3.org/TR/css3-fonts/#descdef-src
+//   https://www.w3.org/TR/css3-fonts/#descdef-src
 font_face_local_src:
     kLocalFunctionToken maybe_whitespace font_family_specific_name ')'
         maybe_whitespace {
@@ -3237,7 +3237,7 @@ comma_separated_font_face_src_list:
 // The src descriptor specifies the resource containing font data. Its value is
 // a prioritized, comma-separated list of external references or
 // locally-installed font face names.
-//   http://www.w3.org/TR/css3-fonts/#src-desc
+//   https://www.w3.org/TR/css3-fonts/#src-desc
 font_face_src_property_value:
     comma_separated_font_face_src_list {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
@@ -3251,7 +3251,7 @@ font_face_src_property_value:
 // The unquoted name must be a sequence of identifiers separated by whitespace
 // which is converted to a string by joining the identifiers together separated
 // by a single space.
-//   http://www.w3.org/TR/css3-fonts/#descdef-src
+//   https://www.w3.org/TR/css3-fonts/#descdef-src
 font_family_name_identifier_list:
     identifier_token maybe_whitespace {
     $$ = AddRef(new cssom::StringValue($1.ToString()));
@@ -3270,7 +3270,7 @@ font_family_string_name:
 
 // Font family names other than generic families must be quoted
 // as strings or unquoted as a sequence of one or more identifiers.
-//   http://www.w3.org/TR/css3-fonts/#family-name-value
+//   https://www.w3.org/TR/css3-fonts/#family-name-value
 font_family_specific_name:
     font_family_name_identifier_list
   | font_family_string_name
@@ -3290,11 +3290,11 @@ font_family_specific_name_no_single_identifier:
 // There are two types of font family names:
 //   -- The name of a specific font family
 //   -- A generic font family which can be used as a general fallback mechanism
-//   http://www.w3.org/TR/css3-fonts/#family-name-value
+//   https://www.w3.org/TR/css3-fonts/#family-name-value
 font_family_name:
     identifier_token maybe_whitespace {
     // Generic families are defined in all CSS implementations.
-    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    //   https://www.w3.org/TR/css3-fonts/#generic-font-families
     if ($1 == cssom::kCursiveKeywordName) {
       $$ = AddRef(cssom::KeywordValue::GetCursive().get());
     } else if ($1 == cssom::kFantasyKeywordName) {
@@ -3324,14 +3324,14 @@ comma_separated_font_family_name_list:
   ;
 
 // Prioritized list of font family names.
-//   http://www.w3.org/TR/css3-fonts/#font-family-prop
+//   https://www.w3.org/TR/css3-fonts/#font-family-prop
 font_family_property_value:
   // Special case for a single identifier, which can be a reserved keyword or
   // a generic font name.
     identifier_token maybe_whitespace {
     // "inherit" and "initial" are reserved values and not allowed as font
     // family names.
-    //   http://www.w3.org/TR/css3-fonts/#propdef-font-family
+    //   https://www.w3.org/TR/css3-fonts/#propdef-font-family
     if ($1 == cssom::kInheritKeywordName) {
       $$ = AddRef(cssom::KeywordValue::GetInherit().get());
     } else if ($1 == cssom::kInitialKeywordName) {
@@ -3341,7 +3341,7 @@ font_family_property_value:
           builder(new cssom::PropertyListValue::Builder());
 
       // Generic families are defined in all CSS implementations.
-      //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+      //   https://www.w3.org/TR/css3-fonts/#generic-font-families
       if ($1 == cssom::kCursiveKeywordName) {
         builder->push_back(cssom::KeywordValue::GetCursive().get());
       } else if ($1 == cssom::kFantasyKeywordName) {
@@ -3377,7 +3377,7 @@ font_family_property_value:
   ;
 
 // Desired height of glyphs from the font.
-//   http://www.w3.org/TR/css3-fonts/#font-size-prop
+//   https://www.w3.org/TR/css3-fonts/#font-size-prop
 font_size_property_value:
     positive_length_percent_property_value
   | common_values
@@ -3395,7 +3395,7 @@ font_style_exclusive_property_value:
   ;
 
 // The 'font-style' property allows italic or oblique faces to be selected.
-//   http://www.w3.org/TR/css3-fonts/#font-style-prop
+//   https://www.w3.org/TR/css3-fonts/#font-style-prop
 font_style_property_value:
     font_style_exclusive_property_value
   | kNormalToken maybe_whitespace {
@@ -3448,7 +3448,7 @@ font_weight_exclusive_property_value:
 
 // The weight of glyphs in the font, their degree of blackness
 // or stroke thickness.
-//   http://www.w3.org/TR/css3-fonts/#font-weight-prop
+//   https://www.w3.org/TR/css3-fonts/#font-weight-prop
 font_weight_property_value:
     font_weight_exclusive_property_value
   | kNormalToken maybe_whitespace {
@@ -3515,7 +3515,7 @@ non_empty_optional_font_value_list:
   ;
 
 // Font shorthand property.
-//   http://www.w3.org/TR/css3-fonts/#font-prop
+//   https://www.w3.org/TR/css3-fonts/#font-prop
 font_property_value:
     optional_font_value_list positive_length_percent_property_value
         comma_separated_font_family_name_list {
@@ -3567,7 +3567,7 @@ font_property_value:
   ;
 
 // Specifies the content height of boxes.
-//   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
+//   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
 height_property_value:
     positive_length_percent_property_value
   | auto
@@ -3575,14 +3575,14 @@ height_property_value:
   ;
 
 // Specifies the minimum content height of boxes.
-//   http://www.w3.org/TR/CSS21/visudet.html#propdef-min-height
+//   https://www.w3.org/TR/CSS21/visudet.html#propdef-min-height
 min_height_property_value:
     positive_length_percent_property_value
   | common_values
   ;
 
 // Specifies the maximum content height of boxes.
-//   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+//   https://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
 max_height_property_value:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -3593,7 +3593,7 @@ max_height_property_value:
 
 
 // Specifies the minimal height of line boxes within the element.
-//   http://www.w3.org/TR/CSS21/visudet.html#line-height
+//   https://www.w3.org/TR/CSS21/visudet.html#line-height
 line_height_property_value:
     kNormalToken maybe_whitespace  {
     $$ = AddRef(cssom::KeywordValue::GetNormal().get());
@@ -3603,7 +3603,7 @@ line_height_property_value:
   ;
 
 // <margin-width> value type.
-//   http://www.w3.org/TR/CSS21/box.html#value-def-margin-width
+//   https://www.w3.org/TR/CSS21/box.html#value-def-margin-width
 margin_width:
     length_percent_property_value
   | auto
@@ -3611,7 +3611,7 @@ margin_width:
 
 // Specifies the width of a top, right, bottom, or left side of the margin area
 // of a box.
-//   http://www.w3.org/TR/CSS21/box.html#margin-properties
+//   https://www.w3.org/TR/CSS21/box.html#margin-properties
 margin_side_property_value:
     margin_width
   | common_values
@@ -3619,7 +3619,7 @@ margin_side_property_value:
 
 // The "margin" property is a shorthand property for setting "margin-top",
 // "margin-right", "margin-bottom", and "margin-left" at the same place.
-//   http://www.w3.org/TR/CSS21/box.html#margin-properties
+//   https://www.w3.org/TR/CSS21/box.html#margin-properties
 margin_property_value:
     // If there is only one component value, it applies to all sides.
     margin_width {
@@ -3672,7 +3672,7 @@ margin_property_value:
 
 // Specifies top, right, bottom, or left offset of the box relatively
 // to the container block.
-//   http://www.w3.org/TR/CSS21/visuren.html#position-props
+//   https://www.w3.org/TR/CSS21/visuren.html#position-props
 offset_property_value:
     length_percent_property_value
   | auto
@@ -3681,7 +3681,7 @@ offset_property_value:
 
 // Specifies how to blend the element (including its descendants)
 // into the current composite rendering.
-//   http://www.w3.org/TR/css3-color/#transparency
+//   https://www.w3.org/TR/css3-color/#transparency
 opacity_property_value:
     alpha { $$ = AddRef(new cssom::NumberValue($1)); }
   | common_values
@@ -3689,7 +3689,7 @@ opacity_property_value:
 
 // Specifies whether content of a block container element is clipped when it
 // overflows the element's box.
-//   http://www.w3.org/TR/CSS2/visufx.html#overflow
+//   https://www.w3.org/TR/CSS2/visufx.html#overflow
 overflow_property_value:
     kHiddenToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetHidden().get());
@@ -3703,7 +3703,7 @@ overflow_property_value:
 // Specifies whether the user agent may arbitrarily break within a word to
 // prevent overflow when an otherwise unbreakable string is too long to
 // fit within the line box.
-//   http://www.w3.org/TR/css-text-3/#overflow-wrap-property
+//   https://www.w3.org/TR/css-text-3/#overflow-wrap-property
 overflow_wrap_property_value:
     kBreakWordToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetBreakWord().get());
@@ -3716,10 +3716,10 @@ overflow_wrap_property_value:
 
 // <padding-width> value type is the same as
 // positive_length_percent_property_value.
-//   http://www.w3.org/TR/CSS21/box.html#value-def-padding-width
+//   https://www.w3.org/TR/CSS21/box.html#value-def-padding-width
 // Specifies the width of a top, right, bottom, or left side of the padding area
 // of a box.
-//   http://www.w3.org/TR/CSS21/box.html#padding-properties
+//   https://www.w3.org/TR/CSS21/box.html#padding-properties
 padding_side_property_value:
     positive_length_percent_property_value
   | common_values
@@ -3727,7 +3727,7 @@ padding_side_property_value:
 
 // The "padding" property is a shorthand property for setting "padding-top",
 // "padding-right", "padding-bottom", and "padding-left" at the same place.
-//   http://www.w3.org/TR/CSS21/box.html#padding-properties
+//   https://www.w3.org/TR/CSS21/box.html#padding-properties
 padding_property_value:
     // If there is only one component value, it applies to all sides.
     positive_length_percent_property_value {
@@ -3787,7 +3787,7 @@ padding_property_value:
 
 // Determines which of the positioning algorithms is used to calculate
 // the position of a box.
-//   http://www.w3.org/TR/CSS21/visuren.html#choose-position
+//   https://www.w3.org/TR/CSS21/visuren.html#choose-position
 position_property_value:
     kAbsoluteToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetAbsolute().get());
@@ -3805,7 +3805,7 @@ position_property_value:
   ;
 
 // If the second parameter is not provided, it takes a value equal to the first.
-//   http://www.w3.org/TR/css3-transforms/#funcdef-scale
+//   https://www.w3.org/TR/css3-transforms/#funcdef-scale
 scale_function_parameters:
     number {
     $$ = new cssom::ScaleFunction($1, $1);
@@ -3817,7 +3817,7 @@ scale_function_parameters:
 
 // This property describes how inline-level content of a block container is
 // aligned.
-//   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+//   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
 text_align_property_value:
     kLeftToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetLeft().get());
@@ -3833,7 +3833,7 @@ text_align_property_value:
 
 // This property specifies the indentation applied to lines of inline content in
 // a block.
-//   http://www.w3.org/TR/css-text-3/#text-indent
+//   https://www.w3.org/TR/css-text-3/#text-indent
 text_indent_property_value:
     length {
     $$ = $1;
@@ -3843,7 +3843,7 @@ text_indent_property_value:
 
 // This property specifies rendering when inline content overflows its line box
 // edge in the inline progression direction of its block container element.
-//   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+//   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
 text_overflow_property_value:
     kClipToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetClip().get());
@@ -3919,7 +3919,7 @@ comma_separated_text_shadow_list:
 
 // This property accepts a comma-seperated list of shadow effects to be applied
 // to the text of the element.
-//   http://www.w3.org/TR/css-text-decor-3/#text-shadow-property
+//   https://www.w3.org/TR/css-text-decor-3/#text-shadow-property
 text_shadow_property_value:
     comma_separated_text_shadow_list {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
@@ -3932,7 +3932,7 @@ text_shadow_property_value:
   ;
 
 // This property controls capitalization effects of an element's text.
-//   http://www.w3.org/TR/css3-text/#text-transform-property
+//   https://www.w3.org/TR/css3-text/#text-transform-property
 text_transform_property_value:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -3944,7 +3944,7 @@ text_transform_property_value:
   ;
 
 // The set of allowed transform functions.
-//   http://www.w3.org/TR/css3-transforms/#transform-functions
+//   https://www.w3.org/TR/css3-transforms/#transform-functions
 transform_function:
   // Specifies an arbitrary affine 2D transformation.
     kMatrixFunctionToken maybe_whitespace number comma number comma number
@@ -3953,27 +3953,27 @@ transform_function:
         new cssom::MatrixFunction($3, $5, $7, $9, $11, $13));
   }
   // Specifies a 2D rotation around the z-axis.
-  //   http://www.w3.org/TR/css3-transforms/#funcdef-rotate
+  //   https://www.w3.org/TR/css3-transforms/#funcdef-rotate
   | kRotateFunctionToken maybe_whitespace angle ')'
       maybe_whitespace {
     $<transform_functions>0->push_back(new cssom::RotateFunction($3));
   }
   // Specifies a 2D scale operation by the scaling vector.
-  //   http://www.w3.org/TR/css3-transforms/#funcdef-scale
+  //   https://www.w3.org/TR/css3-transforms/#funcdef-scale
   | kScaleFunctionToken maybe_whitespace scale_function_parameters ')'
       maybe_whitespace {
     $<transform_functions>0->push_back($3);
   }
   // Specifies a 2D scale operation using the [sx, 1] scaling vector, where sx
   // is given as the parameter.
-  //   http://www.w3.org/TR/css3-transforms/#funcdef-scalex
+  //   https://www.w3.org/TR/css3-transforms/#funcdef-scalex
   | kScaleXFunctionToken maybe_whitespace number ')'
       maybe_whitespace {
     $<transform_functions>0->push_back(new cssom::ScaleFunction($3, 1.0f));
   }
   // Specifies a 2D scale operation using the [1, sy] scaling vector, where sy
   // is given as the parameter.
-  //   http://www.w3.org/TR/css3-transforms/#funcdef-scaley
+  //   https://www.w3.org/TR/css3-transforms/#funcdef-scaley
   | kScaleYFunctionToken maybe_whitespace number ')'
       maybe_whitespace {
     $<transform_functions>0->push_back(new cssom::ScaleFunction(1.0f, $3));
@@ -3981,7 +3981,7 @@ transform_function:
   // Specifies a 2D translation by the vector [tx, ty], where tx is the first
   // translation-value parameter and ty is the optional second translation-value
   // parameter. If <ty> is not provided, ty has zero as a value.
-  //   http://www.w3.org/TR/css3-transforms/#funcdef-translate
+  //   https://www.w3.org/TR/css3-transforms/#funcdef-translate
   | kTranslateFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
     $<transform_functions>0->push_back(new cssom::TranslateFunction(
@@ -3999,14 +3999,14 @@ transform_function:
         cssom::TranslateFunction::kYAxis, MakeScopedRefPtrAndRelease($5)));
   }
   // Specifies a translation by the given amount in the X direction.
-  //   http://www.w3.org/TR/css3-transforms/#funcdef-translatex
+  //   https://www.w3.org/TR/css3-transforms/#funcdef-translatex
   | kTranslateXFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
     $<transform_functions>0->push_back(new cssom::TranslateFunction(
         cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
   }
   // Specifies a translation by the given amount in the Y direction.
-  //   http://www.w3.org/TR/css3-transforms/#funcdef-translatey
+  //   https://www.w3.org/TR/css3-transforms/#funcdef-translatey
   | kTranslateYFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
     $<transform_functions>0->push_back(new cssom::TranslateFunction(
@@ -4014,7 +4014,7 @@ transform_function:
   }
   // Specifies a 3D translation by the vector [0,0,z] with the given amount
   // in the Z direction.
-  //   http://www.w3.org/TR/css3-transforms/#funcdef-translatez
+  //   https://www.w3.org/TR/css3-transforms/#funcdef-translatez
   | kTranslateZFunctionToken maybe_whitespace length ')'
       maybe_whitespace {
     $<transform_functions>0->push_back(new cssom::TranslateFunction(
@@ -4023,7 +4023,7 @@ transform_function:
   ;
 
 // One or more transform functions separated by whitespace.
-//   http://www.w3.org/TR/css3-transforms/#typedef-transform-list
+//   https://www.w3.org/TR/css3-transforms/#typedef-transform-list
 transform_list:
     /* empty */ {
     $$ = new cssom::TransformFunctionListValue::Builder();
@@ -4035,7 +4035,7 @@ transform_list:
 
 // A transformation that is applied to the coordinate system an element
 // renders in.
-//   http://www.w3.org/TR/css3-transforms/#transform-property
+//   https://www.w3.org/TR/css3-transforms/#transform-property
 transform_property_value:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -4073,7 +4073,7 @@ validated_two_position_list_elements:
 
 // The transform-origin property lets you modify the origin for transformations
 // of an element.
-//   http://www.w3.org/TR/css3-transforms/#propdef-transform-origin
+//   https://www.w3.org/TR/css3-transforms/#propdef-transform-origin
 transform_origin_property_value:
     position_list_element {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value(
@@ -4100,7 +4100,7 @@ transform_origin_property_value:
   ;
 
 // Determines the vertical alignment of a box.
-//   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+//   https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
 vertical_align_property_value:
     kBottomToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetBottom().get());
@@ -4119,7 +4119,7 @@ vertical_align_property_value:
 
 // The 'visibility' property specifies whether the boxes generated by an element
 // are rendered.
-//   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
+//   https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
 visibility_property_value:
     kHiddenToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetHidden().get());
@@ -4243,12 +4243,12 @@ timing_function_list_property_value:
   ;
 
 // The 'animation-delay' property defines when the animation will start.
-//  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-delay-property
+//  https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-delay-property
 animation_delay_property_value: time_list_property_value;
 
 // The 'animation-direction' property defines which direction time should flow
 // given the current iteration number.
-//  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
+//  https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-direction-property
 animation_direction_list_element:
     kNormalToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNormal().get());
@@ -4293,12 +4293,12 @@ animation_direction_property_value:
 
 // The 'animation-duration' property defines the length of time that an
 // animation takes to complete one cycle.
-//  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-duration-property
+//  https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-duration-property
 animation_duration_property_value: time_list_property_value;
 
 // The 'animation-fill-mode' property defines what values are applied by the
 // animation outside the time it is executing.
-//  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-fill-mode-property
+//  https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-fill-mode-property
 animation_fill_mode_list_element:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -4343,7 +4343,7 @@ animation_fill_mode_property_value:
 
 // The 'animation-iteration-count' property specifies the number of times an
 // animation cycle is played.
-//  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-iteration-count-property
+//  https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-iteration-count-property
 animation_iteration_count_list_element:
     kInfiniteToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetInfinite().get());
@@ -4381,7 +4381,7 @@ animation_iteration_count_property_value:
   ;
 
 // The 'animation-name' property defines a list of animations that apply.
-//  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-name-property
+//  https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-name-property
 animation_name_list_element:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -4420,7 +4420,7 @@ animation_name_property_value:
 
 // The 'animation-timing-function' property describes how the animation will
 // progress over one cycle of its duration.
-//  http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-timing-function-property
+//  https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-timing-function-property
 animation_timing_function_property_value: timing_function_list_property_value;
 
 // single_animation_element represents a component of a single animation.
@@ -4550,7 +4550,7 @@ comma_separated_animation_list:
   ;
 
 // Animation shorthand property.
-//   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-shorthand-property
+//   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-shorthand-property
 animation_property_value:
     comma_separated_animation_list {
     scoped_ptr<AnimationShorthandBuilder> animation_builder($1);
@@ -4590,19 +4590,19 @@ animation_property_value:
   ;
 
 // Parse a list of time values for transition-delay.
-//   http://www.w3.org/TR/css3-transitions/#transition-delay
+//   https://www.w3.org/TR/css3-transitions/#transition-delay
 transition_delay_property_value: time_list_property_value;
 
 // Parse a list of time values for transition-duration.
-//   http://www.w3.org/TR/css3-transitions/#transition-duration
+//   https://www.w3.org/TR/css3-transitions/#transition-duration
 transition_duration_property_value: time_list_property_value;
 
 // Parse a list of timing function values for transition-timing-function.
-//   http://www.w3.org/TR/css3-transitions/#transition-timing-function-property
+//   https://www.w3.org/TR/css3-transitions/#transition-timing-function-property
 transition_timing_function_property_value: timing_function_list_property_value;
 
 // One or more property names separated by commas.
-//   http://www.w3.org/TR/css3-transitions/#transition-property
+//   https://www.w3.org/TR/css3-transitions/#transition-property
 comma_separated_animatable_property_name_list:
     animatable_property_token maybe_whitespace {
     $$ = new cssom::PropertyKeyListValue::Builder();
@@ -4620,7 +4620,7 @@ comma_separated_animatable_property_name_list:
   ;
 
 // Parse a list of references to property names.
-//   http://www.w3.org/TR/css3-transitions/#transition-property
+//   https://www.w3.org/TR/css3-transitions/#transition-property
 transition_property_property_value:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -4738,7 +4738,7 @@ comma_separated_transition_list:
   ;
 
 // Transition shorthand property.
-//   http://www.w3.org/TR/css3-transitions/#transition
+//   https://www.w3.org/TR/css3-transitions/#transition
 transition_property_value:
     comma_separated_transition_list {
     scoped_ptr<TransitionShorthandBuilder> transition_builder($1);
@@ -4811,7 +4811,7 @@ comma_separated_unicode_range_list:
   ;
 
 // This property declares how white space inside the element is handled.
-//   http://www.w3.org/TR/css3-text/#white-space-property
+//   https://www.w3.org/TR/css3-text/#white-space-property
 white_space_property_value:
     kNormalToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNormal().get());
@@ -4826,7 +4826,7 @@ white_space_property_value:
   ;
 
 // Specifies the content width of boxes.
-//   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
+//   https://www.w3.org/TR/CSS21/visudet.html#the-width-property
 width_property_value:
     positive_length_percent_property_value
   | auto
@@ -4834,14 +4834,14 @@ width_property_value:
   ;
 
 // Specifies the minimum content width of boxes.
-//   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
+//   https://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
 min_width_property_value:
     positive_length_percent_property_value
   | common_values
   ;
 
 // Specifies the maximum content width of boxes.
-//   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
+//   https://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
 max_width_property_value:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
@@ -4872,7 +4872,7 @@ z_index_property_value:
 // in animatable property lists.
 // Note that for Cobalt we modify this list to contain only the properties that
 // are supported for animations in Cobalt.
-//   http://www.w3.org/TR/css3-transitions/#animatable-css
+//   https://www.w3.org/TR/css3-transitions/#animatable-css
 animatable_property_token:
     kAllToken {
     $$ = cssom::kAllProperty;
@@ -4900,7 +4900,7 @@ animatable_property_token:
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
 // Consume a declaration.
-//   http://www.w3.org/TR/css3-syntax/#consume-a-declaration0
+//   https://www.w3.org/TR/css3-syntax/#consume-a-declaration0
 maybe_declaration:
     /* empty */ { $$ = NULL; }
   | kAnimationDelayToken maybe_whitespace colon
@@ -5781,7 +5781,7 @@ maybe_declaration:
 semicolon: ';' maybe_whitespace ;
 
 // Consume a list of declarations.
-//   http://www.w3.org/TR/css3-syntax/#consume-a-list-of-declarations0
+//   https://www.w3.org/TR/css3-syntax/#consume-a-list-of-declarations0
 style_declaration_list:
     maybe_declaration {
     $$ = AddRef(new cssom::CSSStyleDeclarationData());
@@ -5842,7 +5842,7 @@ rule_list_block:
 
 // A style rule is a qualified rule that associates a selector list with a list
 // of property declarations.
-//   http://www.w3.org/TR/css3-syntax/#style-rule
+//   https://www.w3.org/TR/css3-syntax/#style-rule
 style_rule:
     selector_list style_declaration_block {
     scoped_ptr<cssom::Selectors> selectors($1);
@@ -5859,7 +5859,7 @@ style_rule:
 
 // To parse a CSS stylesheet, interpret all of the resulting top-level qualified
 // rules as style rules.
-//   http://www.w3.org/TR/css3-syntax/#css-stylesheets
+//   https://www.w3.org/TR/css3-syntax/#css-stylesheets
 qualified_rule: style_rule;
 
 invalid_rule:
@@ -5878,7 +5878,7 @@ invalid_rule:
   ;
 
 // Consume a list of rules.
-//   http://www.w3.org/TR/css3-syntax/#consume-a-list-of-rules
+//   https://www.w3.org/TR/css3-syntax/#consume-a-list-of-rules
 rule:
     kSgmlCommentDelimiterToken maybe_whitespace { $$ = NULL; }
   | qualified_rule { $$ = $1; }
@@ -5908,7 +5908,7 @@ rule_list:
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
 // To parse a stylesheet, consume a list of rules.
-//   http://www.w3.org/TR/css3-syntax/#parse-a-stylesheet
+//   https://www.w3.org/TR/css3-syntax/#parse-a-stylesheet
 style_sheet: rule_list {
     $$ = AddRef(new cssom::CSSStyleSheet(parser_impl->css_parser()));
     $$->set_css_rules(MakeScopedRefPtrAndRelease($1));

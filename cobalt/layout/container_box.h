@@ -73,7 +73,7 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // Returns true if the given style allows a container box to act as a
   // containing block for fixed positioned elements.  For example it will
   // be true if this box is transformed, as indicated at the bottom of this
-  // section: http://www.w3.org/TR/css3-transforms/#transform-rendering.
+  // section: https://www.w3.org/TR/css3-transforms/#transform-rendering.
   bool IsContainingBlockForPositionFixedElements() const;
 
   // Returns true if this container box serves as a stacking context for
@@ -128,14 +128,14 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
 
   // Updates used values of left/top/right/bottom given the child_box's
   // 'position' property is set to 'relative'.
-  //    http://www.w3.org/TR/CSS21/visuren.html#relative-positioning
+  //    https://www.w3.org/TR/CSS21/visuren.html#relative-positioning
   void UpdateOffsetOfRelativelyPositionedChildBox(
       Box* child_box, const LayoutParams& child_layout_params);
 
   // Updates the sizes of absolutely (and fixed) position of the child box.
   // This is meant to be called by UpdateRectOfPositionedChildBoxes(), after the
   // child has gone through the in-flow layout.
-  //    http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
+  //    https://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
   void UpdateRectOfAbsolutelyPositionedChildBox(
       Box* child_box, const LayoutParams& child_layout_params);
 

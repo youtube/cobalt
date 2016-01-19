@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#dictdef-keyframe
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#dictdef-keyframe
 
 // TODO(***REMOVED***): This should actually be a dictionary, so we may be able to
 //               remove it when we support dictionaries.

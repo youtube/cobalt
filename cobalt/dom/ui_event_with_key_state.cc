@@ -36,7 +36,7 @@ COMPILE_ASSERT(UIEventWithKeyState::kNoModifier ==
 
 bool UIEventWithKeyState::GetModifierState(const std::string& keyArg) const {
   // Standard names of modifier keys defined here:
-  // http://www.w3.org/TR/DOM-Level-3-Events-key/#keys-modifier
+  // https://www.w3.org/TR/DOM-Level-3-Events-key/#keys-modifier
   if (keyArg == "Alt") {
     return alt_key();
   } else if (keyArg == "Control") {

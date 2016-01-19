@@ -22,7 +22,7 @@
 namespace cobalt {
 namespace dom {
 
-// http://www.w3.org/TR/WebCryptoAPI/#dfn-Crypto-method-getRandomValues
+// https://www.w3.org/TR/WebCryptoAPI/#dfn-Crypto-method-getRandomValues
 // static
 scoped_refptr<ArrayBufferView> Crypto::GetRandomValues(
     const scoped_refptr<ArrayBufferView>& array,

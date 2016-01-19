@@ -227,7 +227,7 @@ void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
   // Check for whether this box or a previous box meets the placement
   // requirement that the first character or atomic inline-level element on a
   // line must appear before the ellipsis
-  // (http://www.w3.org/TR/css3-ui/#propdef-text-overflow).
+  // (https://www.w3.org/TR/css3-ui/#propdef-text-overflow).
   // NOTE: 'Meet' is used in this context to to indicate that either this box or
   // a previous box within the line fulfilled the placement requirement.
   // 'Fulfill' only refers to the specific box and does not take into account
@@ -274,7 +274,7 @@ void Box::RenderAndAnimate(
   // If a box is hidden by an ellipsis, then it and its children are hidden:
   // Implementations must hide characters and atomic inline-level elements at
   // the applicable edge(s) of the line as necessary to fit the ellipsis.
-  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   if (IsHiddenByEllipsis()) {
     return;
   }
@@ -285,17 +285,17 @@ void Box::RenderAndAnimate(
   // - background color.
   // - background image.
   // - border.
-  //   http://www.w3.org/TR/CSS21/zindex.html
+  //   https://www.w3.org/TR/CSS21/zindex.html
   //
   // TODO(***REMOVED***): Fully implement the stacking algorithm:
-  //               http://www.w3.org/TR/CSS21/visuren.html#z-index and
-  //               http://www.w3.org/TR/CSS21/zindex.html.
+  //               https://www.w3.org/TR/CSS21/visuren.html#z-index and
+  //               https://www.w3.org/TR/CSS21/zindex.html.
 
   // When an element has visibility:hidden, the generated box is invisible
   // (fully transparent, nothing is drawn), but still affects layout.
   // Furthermore, descendants of the element will be visible if they have
   // 'visibility: visible'.
-  //   http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
+  //   https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
   if (computed_style()->visibility() == cssom::KeywordValue::GetVisible()) {
     UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
     computed_style()->border_radius()->Accept(&border_radius_provider);
@@ -743,14 +743,14 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
       // ViewportFilter and RoundedViewportFilter should be mutually exclusive.
       // TODO(***REMOVED***): The "overflow" property specifies whether a box is
       //               clipped to its padding edge.
-      //                 http://www.w3.org/TR/CSS21/visufx.html#overflow
+      //                 https://www.w3.org/TR/CSS21/visufx.html#overflow
       //               Currently it's clipped to a border edge.
       filter_node_builder.viewport_filter =
           ViewportFilter(math::RectF(GetBorderBoxSize()));
 
       // When the overflow is hidden, the content of replaced elements is always
       // trimmed to the content edge curve.
-      //   http://www.w3.org/TR/css3-background/#corner-clipping
+      //   https://www.w3.org/TR/css3-background/#corner-clipping
       UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
       computed_style()->border_radius()->Accept(&border_radius_provider);
       if (!border_radius_provider.rounded_corners().AreSquares()) {
@@ -815,7 +815,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
   return border_node;
 }
 
-// Based on http://www.w3.org/TR/CSS21/visudet.html#blockwidth.
+// Based on https://www.w3.org/TR/CSS21/visudet.html#blockwidth.
 void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
     float containing_block_width, float border_box_width,
     const base::optional<float>& possibly_overconstrained_margin_left,
