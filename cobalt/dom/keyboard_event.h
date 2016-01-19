@@ -26,7 +26,7 @@ namespace dom {
 // The KeyboardEvent provides specific contextual information associated with
 // keyboard devices. Each keyboard event references a key using a value.
 // Keyboard events are commonly directed at the element that has the focus.
-//   http://www.w3.org/TR/DOM-Level-3-Events/#events-keyboardevents
+//   https://www.w3.org/TR/DOM-Level-3-Events/#events-keyboardevents
 class KeyboardEvent : public UIEventWithKeyState {
  public:
   // Web API: KeyboardEvent
@@ -43,7 +43,7 @@ class KeyboardEvent : public UIEventWithKeyState {
                 bool is_repeat);
 
   // Returns a string describing the key event, as defined here:
-  //   http://www.w3.org/TR/DOM-Level-3-Events-key/
+  //   https://www.w3.org/TR/DOM-Level-3-Events-key/
   std::string key() const;
 
   KeyLocationCode location() const { return location_; }
@@ -51,7 +51,7 @@ class KeyboardEvent : public UIEventWithKeyState {
 
   // Non-standard and deprecated.
   // key code for keydown and keyup, character for keypress
-  //   http://www.w3.org/TR/DOM-Level-3-Events/#legacy-key-models
+  //   https://www.w3.org/TR/DOM-Level-3-Events/#legacy-key-models
   int key_code() const;
   int char_code() const;
   KeyLocationCode key_location() const { return location_; }

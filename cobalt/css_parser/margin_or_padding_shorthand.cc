@@ -25,7 +25,7 @@ scoped_ptr<MarginOrPaddingShorthand> MarginOrPaddingShorthand::TryCreate(
     const scoped_refptr<cssom::PropertyValue>& bottom,
     const scoped_refptr<cssom::PropertyValue>& left) {
   // User agents must ignore a declaration with an illegal value.
-  //   http://www.w3.org/TR/CSS21/syndata.html#illegalvalues
+  //   https://www.w3.org/TR/CSS21/syndata.html#illegalvalues
   if (top == NULL || right == NULL || bottom == NULL || left == NULL) {
     return scoped_ptr<MarginOrPaddingShorthand>();
   }

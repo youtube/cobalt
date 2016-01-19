@@ -22,7 +22,7 @@ namespace cssom {
 
 // Lower-case names of CSS media feature values that are not of type length,
 // ratio, integer, or resolution.
-//   http://www.w3.org/TR/css3-mediaqueries/#media1
+//   https://www.w3.org/TR/css3-mediaqueries/#media1
 extern const char kInterlaceMediaFeatureKeywordValueName[];
 extern const char kLandscapeMediaFeatureKeywordValueName[];
 extern const char kPortraitMediaFeatureKeywordValueName[];

@@ -87,7 +87,7 @@ HTMLScriptElement::~HTMLScriptElement() {
 }
 
 // Algorithm for Prepare:
-//   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
+//   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::Prepare() {
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -305,7 +305,7 @@ void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
 }
 
 // Algorithm for OnLoadingDone:
-//   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
+//   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingDone()");
@@ -376,7 +376,7 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
 }
 
 // Algorithm for OnLoadingError:
-//   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
+//   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingError(const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingError()");
@@ -416,7 +416,7 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
 }
 
 // Algorithm for Execute:
-//   http://www.w3.org/TR/html5/scripting-1.html#execute-the-script-block
+//   https://www.w3.org/TR/html5/scripting-1.html#execute-the-script-block
 void HTMLScriptElement::Execute(const std::string& content,
                                 const base::SourceLocation& script_location,
                                 bool is_external) {

@@ -21,7 +21,7 @@
 webdriverExecutor.executeScriptHarness = function(functionBody, jsonArgString) {
 
   // Run the JSON deserialize algorithm on the value.
-  // http://www.w3.org/TR/webdriver/#dfn-json-deserialize
+  // https://www.w3.org/TR/webdriver/#dfn-json-deserialize
   var deserialize = function(value) {
     if (value instanceof Array) {
       // Deserialize each of the array's values;
@@ -47,7 +47,7 @@ webdriverExecutor.executeScriptHarness = function(functionBody, jsonArgString) {
   };
 
   // Run the JSON clone algorithm on the value.
-  // http://www.w3.org/TR/webdriver/#dfn-internal-json-clone-algorithm
+  // https://www.w3.org/TR/webdriver/#dfn-internal-json-clone-algorithm
   var serialize = function(value, seen) {
     if (value === undefined || value === null) {
       return null;

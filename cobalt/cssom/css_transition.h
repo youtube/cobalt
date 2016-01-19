@@ -32,7 +32,7 @@ class PropertyValue;
 // A Transition object represents a persistant transition from one CSS style
 // value to another.  Most of the data members of this class are defined with
 // names based off of the concepts named here:
-//   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#starting
+//   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#starting
 class Transition {
  public:
   Transition(PropertyKey target_property,
@@ -65,7 +65,7 @@ class Transition {
   // These members help us know how to modify the reversing transition to have
   // the same duration as the cancelled initial transition.  They are described
   // here:
-  //   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#reversing
+  //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#reversing
   const scoped_refptr<PropertyValue>& reversing_adjusted_start_value() const {
     return reversing_adjusted_start_value_;
   }

@@ -28,7 +28,7 @@ class CSSStyleDeclarationData;
 // The computed value is the result of resolving the specified value,
 // generally absolutizing it. The computed value is the value that is
 // transferred from parent to child during inheritance.
-//   http://www.w3.org/TR/css-cascade-3/#computed
+//   https://www.w3.org/TR/css-cascade-3/#computed
 
 // Converts specified values into computed values in place.
 // If the element has no parent, |parent_computed_style| can be NULL
@@ -42,8 +42,8 @@ void PromoteToComputedStyle(
 // inline boxes. The inheritable properties of anonymous boxes are inherited
 // from the enclosing non-anonymous box. Non-inherited properties have their
 // initial value.
-//   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
-//   http://www.w3.org/TR/CSS21/visuren.html#anonymous
+//   https://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
+//   https://www.w3.org/TR/CSS21/visuren.html#anonymous
 scoped_refptr<CSSStyleDeclarationData> GetComputedStyleOfAnonymousBox(
     const scoped_refptr<const CSSStyleDeclarationData>& parent_computed_style);
 

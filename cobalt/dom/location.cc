@@ -153,7 +153,7 @@ void Location::set_search(const std::string& search) {
 }
 
 // Algorithm for Navigate:
-//   http://www.w3.org/TR/html5/browsers.html#navigate
+//   https://www.w3.org/TR/html5/browsers.html#navigate
 void Location::Navigate(const GURL& url) {
   // Custom, not in any spec.
   if (!url.is_valid()) {

@@ -24,7 +24,7 @@ namespace cobalt {
 namespace math {
 
 // This structure is based off of the specification provided by the W3C here:
-//   http://www.w3.org/TR/css-transforms/#interpolation-of-2d-matrices
+//   https://www.w3.org/TR/css-transforms/#interpolation-of-2d-matrices
 struct DecomposedMatrix {
   float translation[2];
   float scale[2];
@@ -37,23 +37,23 @@ struct DecomposedMatrix {
 
 // Decompose a matrix into basic transformations:
 // (translation/scale/rotation/skew)
-//   http://www.w3.org/TR/css-transforms/#decomposing-a-2d-matrix
+//   https://www.w3.org/TR/css-transforms/#decomposing-a-2d-matrix
 DecomposedMatrix DecomposeMatrix(const math::Matrix3F& matrix);
 
 // Interpolate between two decomposed matrices a and b by the specified
 // progress.
-//   http://www.w3.org/TR/css-transforms/#interpolation-of-decomposed-2d-matrix-values
+//   https://www.w3.org/TR/css-transforms/#interpolation-of-decomposed-2d-matrix-values
 DecomposedMatrix InterpolateMatrixDecompositions(const DecomposedMatrix& a,
                                                  const DecomposedMatrix& b,
                                                  float progress);
 
 // Reconstruct a matrix from a given matrix decomposition.
-//   http://www.w3.org/TR/css-transforms/#recomposing-to-a-2d-matrix
+//   https://www.w3.org/TR/css-transforms/#recomposing-to-a-2d-matrix
 math::Matrix3F RecomposeMatrix(const DecomposedMatrix& decomposition);
 
 // Interpolates from matrix a to matrix b according to the specified progress.
 // The algorithm used to do this interpolation is described here:
-//   http://www.w3.org/TR/css-transforms/#interpolation-of-2d-matrices
+//   https://www.w3.org/TR/css-transforms/#interpolation-of-2d-matrices
 math::Matrix3F InterpolateMatrices(const math::Matrix3F& a,
                                    const math::Matrix3F& b, float progress);
 

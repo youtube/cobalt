@@ -30,7 +30,7 @@ namespace cssom {
 class TransformFunctionVisitor;
 
 // Scale function specifies a 2D scale operation by the scaling vector.
-//   http://www.w3.org/TR/css-transforms-1/#funcdef-scale
+//   https://www.w3.org/TR/css-transforms-1/#funcdef-scale
 class ScaleFunction : public TransformFunction {
  public:
   ScaleFunction(float x_factor, float y_factor)

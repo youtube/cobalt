@@ -138,7 +138,7 @@ bool TextBox::DoesFulfillEllipsisPlacementRequirement() const {
   // This box has non-collapsed text and fulfills the requirement that the first
   // character or inline-level element must appear on the line before ellipsing
   // can occur if it has non-collapsed characters.
-  //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   return GetNonCollapsedTextStartPosition() < GetNonCollapsedTextEndPosition();
 }
 
@@ -234,7 +234,7 @@ void TextBox::RenderAndAnimateContent(
   // text using a fallback font. In cases where the font download fails user
   // agents must display text, simply leaving transparent text is considered
   // non-conformant behavior."
-  //   http://www.w3.org/TR/css3-fonts/#font-face-loading
+  //   https://www.w3.org/TR/css3-fonts/#font-face-loading
   if (HasVisibleText() && used_font_->IsVisible()) {
     render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
@@ -328,7 +328,7 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // and not simply at soft wrap locations. If the placement requirement has
   // already been satisfied, then the ellipsis can appear anywhere within the
   // text box. Otherwise, it can only appear after the first character
-  // (http://www.w3.org/TR/css3-ui/#propdef-text-overflow).
+  // (https://www.w3.org/TR/css3-ui/#propdef-text-overflow).
   if (paragraph_->FindBreakPosition(
           used_font_, start_position, end_position, desired_offset,
           !(*is_placement_requirement_met), Paragraph::kBreakWord,

@@ -233,7 +233,7 @@ TEST_P(KeyframeEffectReadOnlyDataSingleParameterKeyframeTests,
   // If iteration progress is less than 0 and we have multiple keyframes with
   // offset 0, we should return the value of the first of these.
   // Step 10 from:
-  //   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-effect-value-of-a-keyframe-animation-effect
+  //   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-effect-value-of-a-keyframe-animation-effect
   KeyframeEffectReadOnly::Data effect =
       CreateKeyframeEffectWithTwoNumberKeyframes(
           cssom::kOpacityProperty, GetParam(), 0.0, 0.2f, 0.0, 0.8f);
@@ -253,7 +253,7 @@ TEST_P(KeyframeEffectReadOnlyDataSingleParameterKeyframeTests,
   // If iteration progress is greater than 1 and we have multiple keyframes with
   // offset 1, we should return the value of the last of these.
   // Step 10 from:
-  //   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-effect-value-of-a-keyframe-animation-effect
+  //   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-effect-value-of-a-keyframe-animation-effect
   KeyframeEffectReadOnly::Data effect =
       CreateKeyframeEffectWithTwoNumberKeyframes(
           cssom::kOpacityProperty, GetParam(), 1.0, 0.2f, 1.0, 0.8f);

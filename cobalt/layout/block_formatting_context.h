@@ -27,7 +27,7 @@ namespace layout {
 
 // In a block formatting context, boxes are laid out one after the other,
 // vertically, beginning at the top of a containing block.
-//   http://www.w3.org/TR/CSS21/visuren.html#block-formatting
+//   https://www.w3.org/TR/CSS21/visuren.html#block-formatting
 //
 // A block formatting context is a short-lived object that is constructed
 // and destroyed during the layout. The block formatting context does not own

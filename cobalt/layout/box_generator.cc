@@ -173,7 +173,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
 };
 
 void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
-  // See http://www.w3.org/TR/CSS21/visuren.html#display-prop.
+  // See https://www.w3.org/TR/CSS21/visuren.html#display-prop.
   switch (keyword->value()) {
     // Generate a block-level replaced box.
     case cssom::KeywordValue::kBlock:
@@ -252,9 +252,9 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // A replaced box is formatted as an atomic inline element. It is treated
   // directionally as a neutral character and its line breaking behavior is
   // equivalent to that of the Object Replacement Character.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
-  //   http://www.w3.org/TR/CSS21/visuren.html#propdef-unicode-bidi
-  //   http://www.w3.org/TR/css3-text/#line-break-details
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+  //   https://www.w3.org/TR/CSS21/visuren.html#propdef-unicode-bidi
+  //   https://www.w3.org/TR/css3-text/#line-break-details
   int32 text_position =
       (*paragraph_)->AppendCodePoint(
           Paragraph::kObjectReplacementCharacterCodePoint);
@@ -276,7 +276,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
     // on layout. Descendant elements do not generate any boxes either.
     // This behavior cannot be overridden by setting the "display" property on
     // the descendants.
-    //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
+    //   https://www.w3.org/TR/CSS21/visuren.html#display-prop
     return;
   }
 
@@ -288,7 +288,7 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
 
   // The content of replaced elements is not considered in the CSS rendering
   // model.
-  //   http://www.w3.org/TR/CSS21/conform.html#replaced-element
+  //   https://www.w3.org/TR/CSS21/conform.html#replaced-element
 }
 
 void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
@@ -368,7 +368,7 @@ ContainerBoxGenerator::~ContainerBoxGenerator() {
 }
 
 void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
-  // See http://www.w3.org/TR/CSS21/visuren.html#display-prop.
+  // See https://www.w3.org/TR/CSS21/visuren.html#display-prop.
   switch (keyword->value()) {
     // Generate a block-level block container box.
     case cssom::KeywordValue::kBlock:
@@ -390,13 +390,13 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     // Generate an inline-level block container box. The inside of
     // an inline-block is formatted as a block box, and the element itself
     // is formatted as an atomic inline-level box.
-    //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+    //   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
     case cssom::KeywordValue::kInlineBlock: {
       // An inline block is is treated directionally as a neutral character and
       // its line breaking behavior is equivalent to that of the Object
       // Replacement Character.
-      //   http://www.w3.org/TR/CSS21/visuren.html#propdef-unicode-bidi
-      //   http://www.w3.org/TR/css3-text/#line-break-details
+      //   https://www.w3.org/TR/CSS21/visuren.html#propdef-unicode-bidi
+      //   https://www.w3.org/TR/css3-text/#line-break-details
       int32 text_position =
           (*paragraph_)->AppendCodePoint(
               Paragraph::kObjectReplacementCharacterCodePoint);
@@ -489,7 +489,7 @@ void BoxGenerator::AppendChildBoxToLine(const scoped_refptr<Box>& child_box) {
   // the block-level box. The line boxes before the break and after
   // the break are enclosed in anonymous block boxes, and the block-level
   // box becomes a sibling of those anonymous boxes.
-  //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
+  //   https://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
   //
   // * CSS 2.1 says "the same line box" but line boxes are not real boxes
   //   in Cobalt, see |LineBox| for details.
@@ -531,7 +531,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kNone:
       case cssom::KeywordValue::kNormal:
         // The pseudo-element is not generated.
-        //   http://www.w3.org/TR/CSS21/generate.html#propdef-content
+        //   https://www.w3.org/TR/CSS21/generate.html#propdef-content
         is_element_generated_ = false;
         break;
       case cssom::KeywordValue::kAbsolute:
@@ -594,7 +594,7 @@ void BoxGenerator::AppendPseudoElementToLine(
     dom::PseudoElementType pseudo_element_type) {
   // Add boxes with generated content from :before or :after pseudo elements to
   // the line.
-  //   http://www.w3.org/TR/CSS21/generate.html#before-after-content
+  //   https://www.w3.org/TR/CSS21/generate.html#before-after-content
   dom::PseudoElement* pseudo_element =
       html_element->pseudo_element(pseudo_element_type);
   if (pseudo_element) {
@@ -650,7 +650,7 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
     // on layout. Descendant elements do not generate any boxes either.
     // This behavior cannot be overridden by setting the "display" property on
     // the descendants.
-    //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
+    //   https://www.w3.org/TR/CSS21/visuren.html#display-prop
     return;
   }
 
@@ -698,7 +698,7 @@ void BoxGenerator::Visit(dom::DocumentType* /*document_type*/) { NOTREACHED(); }
 //
 // During layout, the text boxes are potentially split further, as the paragraph
 // determines line breaking locations for its text at soft wrap opportunities
-// (http://www.w3.org/TR/css-text-3/#soft-wrap-opportunity) according to the
+// (https://www.w3.org/TR/css-text-3/#soft-wrap-opportunity) according to the
 // Unicode line breaking algorithm (http://www.unicode.org/reports/tr14/).
 void BoxGenerator::Visit(dom::Text* text) {
   scoped_refptr<cssom::ComputedStyleState> computed_style_state =
@@ -722,7 +722,7 @@ void BoxGenerator::Visit(dom::Text* text) {
     size_t newline_sequence_length;
 
     // Phase I: Segment Break Transformation Rules
-    // http://www.w3.org/TR/css3-text/#line-break-transform
+    // https://www.w3.org/TR/css3-text/#line-break-transform
     bool generates_newline = false;
     if (computed_style_state->style()->white_space() ==
         cssom::KeywordValue::GetPre()) {
@@ -737,7 +737,7 @@ void BoxGenerator::Visit(dom::Text* text) {
         original_text.substr(start_index, end_index - start_index);
 
     // Phase I: Collapsing and Transformation
-    //   http://www.w3.org/TR/css3-text/#white-space-phase-1
+    //   https://www.w3.org/TR/css3-text/#white-space-phase-1
     if (computed_style_state->style()->white_space() !=
         cssom::KeywordValue::GetPre()) {
       CollapseWhiteSpace(&modifiable_text);
@@ -774,7 +774,7 @@ void BoxGenerator::Visit(dom::Text* text) {
                                  generates_newline, used_style_provider_));
 
     // Newline sequences should be transformed into a preserved line feed.
-    //   http://www.w3.org/TR/css3-text/#line-break-transform
+    //   https://www.w3.org/TR/css3-text/#line-break-transform
     if (generates_newline) {
       (*paragraph_)->AppendCodePoint(Paragraph::kLineFeedCodePoint);
     }

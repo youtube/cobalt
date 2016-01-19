@@ -28,7 +28,7 @@ namespace web_animations {
 
 // Animation effects are represented in the Web Animations API by the
 // AnimationEffectReadOnly interface.
-//   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animationeffectreadonly-interface
+//   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animationeffectreadonly-interface
 // This class hosts the timing timing information for the given effect, and
 // acts as a base class to its only (in the current spec) subclass:
 // KeyframeEffectReadOnly, which contains keyframe information for an effect.

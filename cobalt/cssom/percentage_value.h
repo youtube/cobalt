@@ -33,7 +33,7 @@ class PropertyValueVisitor;
 // Percentage values are always relative to another value, for example a length.
 // Each property that allows percentages also defines the value to which
 // the percentage refers.
-//   http://www.w3.org/TR/css3-values/#percentages
+//   https://www.w3.org/TR/css3-values/#percentages
 class PercentageValue : public PropertyValue {
  public:
   // A |value| is a normalized factor, where 1 means 100%.

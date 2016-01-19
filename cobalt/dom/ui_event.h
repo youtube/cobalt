@@ -28,7 +28,7 @@ namespace dom {
 
 // The UIEvent provides specific contextual information associated with User
 // Interface events.
-//   http://www.w3.org/TR/DOM-Level-3-Events/#events-uievents
+//   https://www.w3.org/TR/DOM-Level-3-Events/#events-uievents
 class UIEvent : public Event {
  public:
   // Creates an event with its "initialized flag" unset.

@@ -229,7 +229,7 @@ TEST_F(HTMLElementTest, GetBoundingClientRectWithoutLayoutBox) {
 }
 
 // Algorithm for client_top:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
 TEST_F(HTMLElementTest, ClientTop) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
@@ -263,7 +263,7 @@ TEST_F(HTMLElementTest, ClientTop) {
 }
 
 // Algorithm for client_left:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
 TEST_F(HTMLElementTest, ClientLeft) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
@@ -297,7 +297,7 @@ TEST_F(HTMLElementTest, ClientLeft) {
 }
 
 // Algorithm for client_width:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientwidth
 TEST_F(HTMLElementTest, ClientWidth) {
   const char* element_names[] = {"html", "body", "div", "div", NULL};
   scoped_refptr<HTMLElement> root_html_element =
@@ -345,7 +345,7 @@ TEST_F(HTMLElementTest, ClientWidth) {
 }
 
 // Algorithm for client_height:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientheight
 TEST_F(HTMLElementTest, ClientHeight) {
   const char* element_names[] = {"html", "body", "div", "div", NULL};
   scoped_refptr<HTMLElement> root_html_element =
@@ -403,7 +403,7 @@ TEST_F(HTMLElementTest, OffsetParent) {
             root_html_element->first_element_child()->AsHTMLElement());
 
   // Algorithm for offsetParent:
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
 
   // Return null if the element is the root element.
   EXPECT_FALSE(root_html_element->offset_parent());
@@ -446,7 +446,7 @@ TEST_F(HTMLElementTest, OffsetParent) {
 }
 
 // Algorithm for offset_top:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsettop
 TEST_F(HTMLElementTest, OffsetTop) {
   const char* element_names[] = {"html", "body", "div", "div", NULL};
   scoped_refptr<HTMLElement> root_html_element =
@@ -495,7 +495,7 @@ TEST_F(HTMLElementTest, OffsetTop) {
 }
 
 // Algorithm for offset_left:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetleft
 TEST_F(HTMLElementTest, OffsetLeft) {
   const char* element_names[] = {"html", "body", "div", "div", NULL};
   scoped_refptr<HTMLElement> root_html_element =
@@ -544,7 +544,7 @@ TEST_F(HTMLElementTest, OffsetLeft) {
 }
 
 // Algorithm for offset_width:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
 TEST_F(HTMLElementTest, OffsetWidth) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
@@ -567,7 +567,7 @@ TEST_F(HTMLElementTest, OffsetWidth) {
 }
 
 // Algorithm for offset_height:
-//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
+//   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
 TEST_F(HTMLElementTest, OffsetHeight) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();

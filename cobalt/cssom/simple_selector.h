@@ -45,7 +45,7 @@ enum SimpleSelectorRanks {
 
 // A simple selector is either a type selector, universal selector, attribute
 // selector, class selector, ID selector, or pseudo-class.
-//   http://www.w3.org/TR/selectors4/#simple
+//   https://www.w3.org/TR/selectors4/#simple
 class SimpleSelector : public Selector {
  public:
   ~SimpleSelector() OVERRIDE {}

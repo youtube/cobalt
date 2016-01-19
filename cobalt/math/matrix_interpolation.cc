@@ -24,7 +24,7 @@ namespace cobalt {
 namespace math {
 
 // All algorithms here are based on the specifications provided by the W3C here:
-//   http://www.w3.org/TR/css-transforms/#interpolation-of-2d-matrices
+//   https://www.w3.org/TR/css-transforms/#interpolation-of-2d-matrices
 DecomposedMatrix DecomposeMatrix(const math::Matrix3F& matrix) {
   DecomposedMatrix decomposition;
 
@@ -154,7 +154,7 @@ DecomposedMatrix InterpolateMatrixDecompositions(const DecomposedMatrix& a,
 }
 
 // Reconstruct a matrix from a given matrix decomposition.
-//   http://www.w3.org/TR/css-transforms/#recomposing-to-a-2d-matrix
+//   https://www.w3.org/TR/css-transforms/#recomposing-to-a-2d-matrix
 math::Matrix3F RecomposeMatrix(const DecomposedMatrix& decomposition) {
   math::Matrix3F matrix(math::Matrix3F::Identity());
 

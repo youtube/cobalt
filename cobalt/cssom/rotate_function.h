@@ -32,7 +32,7 @@ class TransformFunctionVisitor;
 
 // The rotate function specifies a 2D rotation operation by the the specified
 // angle.
-//   http://www.w3.org/TR/css-transforms-1/#funcdef-rotate
+//   https://www.w3.org/TR/css-transforms-1/#funcdef-rotate
 class RotateFunction : public TransformFunction {
  public:
   explicit RotateFunction(float clockwise_angle_in_radians)

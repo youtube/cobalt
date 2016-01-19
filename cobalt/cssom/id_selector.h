@@ -33,7 +33,7 @@ class SelectorVisitor;
 
 // An ID selector represents an element instance that has an identifier that
 // matches the identifier in the ID selector.
-//   http://www.w3.org/TR/selectors4/#id-selector
+//   https://www.w3.org/TR/selectors4/#id-selector
 class IdSelector : public SimpleSelector {
  public:
   explicit IdSelector(const std::string& id) : id_(id) {}

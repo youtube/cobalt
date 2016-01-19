@@ -25,7 +25,7 @@ namespace dom {
 
 // The EventListener interface represents a callable object that will be called
 // when an event is fired.
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#eventtarget
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#eventtarget
 class EventListener {
  public:
   // Web API: EventListener

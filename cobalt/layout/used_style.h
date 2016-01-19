@@ -40,7 +40,7 @@ namespace layout {
 // remaining calculations to make it the absolute theoretical value used in
 // the layout of the document. If the property does not apply to this element,
 // then the element has no used value for that property.
-//   http://www.w3.org/TR/css-cascade-3/#used
+//   https://www.w3.org/TR/css-cascade-3/#used
 
 // All used values are expressed in terms of render tree.
 //
@@ -249,7 +249,7 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   // Half the leading is added above ascent (A) and the other half below
   // descent (D), giving the glyph and its leading (L) a total height above
   // the baseline of A' = A + L/2 and a total depth of D' = D + L/2.
-  //   http://www.w3.org/TR/CSS21/visudet.html#leading
+  //   https://www.w3.org/TR/CSS21/visudet.html#leading
   float baseline_offset_from_top() const {
     return font_metrics_.ascent + half_leading_;
   }

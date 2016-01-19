@@ -15,7 +15,7 @@
  */
 
 // From the spec HTML5
-//   http://www.w3.org/TR/html5/dom.html#the-document-object
+//   https://www.w3.org/TR/html5/dom.html#the-document-object
 
 [OverrideBuiltins]
 partial /*sealed*/ interface Document {

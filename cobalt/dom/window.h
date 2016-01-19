@@ -65,7 +65,7 @@ class Storage;
 class WindowTimers;
 
 // The window object represents a window containing a DOM document.
-//   http://www.w3.org/TR/html5/browsers.html#the-window-object
+//   https://www.w3.org/TR/html5/browsers.html#the-window-object
 //
 // TODO(***REMOVED***): Properly handle viewport resolution change event.
 class Window : public EventTarget {
@@ -105,7 +105,7 @@ class Window : public EventTarget {
   const scoped_refptr<Navigator>& navigator() const;
 
   // Web API: Timing control for script-based animations (partial interface)
-  //   http://www.w3.org/TR/animation-timing/#Window-interface-extensions
+  //   https://www.w3.org/TR/animation-timing/#Window-interface-extensions
   int32 RequestAnimationFrame(
       const AnimationFrameRequestCallbackList::FrameRequestCallbackArg&);
   void CancelAnimationFrame(int32 handle);
@@ -118,45 +118,45 @@ class Window : public EventTarget {
 
   // As its name suggests, the Screen interface represents information about the
   // screen of the output device.
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#the-screen-interface
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#the-screen-interface
   const scoped_refptr<Screen>& screen();
 
   // The innerWidth attribute must return the viewport width including the size
   // of a rendered scroll bar (if any), or zero if there is no viewport.
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-innerwidth
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-innerwidth
   float inner_width() const { return static_cast<float>(width_); }
   // The innerHeight attribute must return the viewport height including the
   // size of a rendered scroll bar (if any), or zero if there is no viewport.
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-innerheight
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-innerheight
   float inner_height() const { return static_cast<float>(height_); }
 
   // The screenX attribute must return the x-coordinate, relative to the origin
   // of the screen of the output device, of the left of the client window as
   // number of pixels, or zero if there is no such thing.
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-screenx
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-screenx
   float screen_x() const { return 0.0f; }
   // The screenY attribute must return the y-coordinate, relative to the origin
   // of the screen of the output device, of the top of the client window as
   // number of pixels, or zero if there is no such thing.
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-screeny
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-screeny
   float screen_y() const { return 0.0f; }
   // The outerWidth attribute must return the width of the client window.
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-outerwidth
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-outerwidth
   float outer_width() const { return static_cast<float>(width_); }
   // The outerHeight attribute must return the height of the client window.
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-outerheight
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-outerheight
   float outer_height() const { return static_cast<float>(height_); }
   // The devicePixelRatio attribute returns the ratio of CSS pixels per device
   // pixel.
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-devicepixelratio
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-devicepixelratio
   float device_pixel_ratio() const { return 1.0f; }
 
   // Web API: GlobalCrypto (implements)
-  //   http://www.w3.org/TR/WebCryptoAPI/#crypto-interface
+  //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
   scoped_refptr<Crypto> crypto() const;
 
   // Web API: WindowTimers (implements)
-  //   http://www.w3.org/TR/html5/webappapis.html#timers
+  //   https://www.w3.org/TR/html5/webappapis.html#timers
   //
   int SetTimeout(const WindowTimers::TimerCallbackArg& handler) {
     return SetTimeout(handler, 0);

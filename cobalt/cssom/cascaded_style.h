@@ -29,12 +29,12 @@ class CSSStyleDeclarationData;
 // The cascaded value represents the result of the cascade: it is the declared
 // value that wins the cascade (is sorted first in the output of the cascade).
 // If the output of the cascade is an empty list, there is no cascaded value.
-//   http://www.w3.org/TR/css-cascade-3/#cascaded
+//   https://www.w3.org/TR/css-cascade-3/#cascaded
 
 // Given list of rules that match the element, sorts them by specificity and
 // applies the declared values contained in the rules on top of the inline style
 // according to the cascading algorithm.
-//   http://www.w3.org/TR/css-cascade-3/#cascading
+//   https://www.w3.org/TR/css-cascade-3/#cascading
 void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
                             RulesWithCascadePriority* matching_rules,
                             GURLMap* property_key_to_base_url_map);

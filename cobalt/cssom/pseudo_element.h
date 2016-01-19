@@ -36,7 +36,7 @@ class BeforePseudoElement;
 // refer to content that does not exist in the source document (e.g., the
 // ::before and ::after pseudo-elements give access to generated content in
 // CSS).
-//   http://www.w3.org/TR/selectors4/#pseudo-elements
+//   https://www.w3.org/TR/selectors4/#pseudo-elements
 class PseudoElement : public SimpleSelector {
  public:
   ~PseudoElement() OVERRIDE {}

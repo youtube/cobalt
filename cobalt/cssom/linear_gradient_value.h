@@ -39,7 +39,7 @@ namespace cssom {
 // the length of the gradient line, with 0% being at the starting point and 100%
 // being at the ending point. Lengths are measured from the starting point in
 // the direction of the ending point.
-// See http://www.w3.org/TR/css3-images/#linear-gradients
+// See https://www.w3.org/TR/css3-images/#linear-gradients
 // 4.4. Gradient Color-Stops for details.
 class ColorStop {
  public:
@@ -66,7 +66,7 @@ class ColorStop {
 
 // The angle or side_or_corner specifies the gradient line, which gives the
 // gradient a direction and determines how color-stops are positioned.
-//   http://www.w3.org/TR/css3-images/#linear-gradients
+//   https://www.w3.org/TR/css3-images/#linear-gradients
 class LinearGradientValue : public PropertyValue {
  public:
   // A list of ColorStopValue. Color-stops are points placed along the line

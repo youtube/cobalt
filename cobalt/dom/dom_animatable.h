@@ -33,7 +33,7 @@ namespace dom {
 // it to DOM.  Note that this informally implements the specification statement
 // that Element and PseudoElement should "implement" Animatable, as indicated
 // in the IDL Index:
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#idl-index
+// https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#idl-index
 class DOMAnimatable : public web_animations::Animatable {
  public:
   explicit DOMAnimatable(Element* element)

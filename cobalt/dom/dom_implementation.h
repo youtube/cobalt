@@ -31,7 +31,7 @@ namespace dom {
 // The DOMImplementation interface represent an object providing methods which
 // are not dependent on any particular document. Such an object is returned by
 // the Document.implementation property.
-//   http://www.w3.org/TR/2015/WD-dom-20150618/#interface-domimplementation
+//   https://www.w3.org/TR/2015/WD-dom-20150618/#interface-domimplementation
 class DOMImplementation : public script::Wrappable {
  public:
   DOMImplementation() {}

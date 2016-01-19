@@ -30,14 +30,14 @@ namespace layout {
 // the initial containing block. For continuous media, it has the dimensions
 // of the viewport and is anchored at the canvas origin. This calculates the
 // style for the initial containing block.
-//   http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
+//   https://www.w3.org/TR/CSS2/visudet.html#containing-block-details
 scoped_refptr<cssom::CSSStyleDeclarationData>
     CreateInitialContainingBlockComputedStyle(
         const scoped_refptr<dom::Window>& window);
 
 // This creates the initial containing block after adding background color
 // and image to the initial style, when needed.
-//   http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
+//   https://www.w3.org/TR/CSS2/visudet.html#containing-block-details
 scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
     const scoped_refptr<cssom::CSSStyleDeclarationData>&
         initial_containing_block_style,

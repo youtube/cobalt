@@ -37,7 +37,7 @@ class CSSStyleDeclaration;
 class CSSStyleSheet;
 
 // The CSSStyleRule interface represents a style rule.
-//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylerule-interface
+//   https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylerule-interface
 class CSSStyleRule : public CSSRule {
  public:
   CSSStyleRule();

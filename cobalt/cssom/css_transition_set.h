@@ -66,7 +66,7 @@ class TransitionSet {
   // state.  This may mean removing transitions that were canceled or
   // completed, updating existing transitions with new values, or creating new
   // transitions.  The implementation of this method is defined here:
-  //   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#starting
+  //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#starting
   void UpdateTransitions(const base::TimeDelta& current_time,
                          const CSSStyleDeclarationData& source,
                          const CSSStyleDeclarationData& destination);

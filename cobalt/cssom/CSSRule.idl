@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssrule-interface
+// https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssrule-interface
 
 interface CSSRule {
   const unsigned short STYLE_RULE = 1;
@@ -25,7 +25,7 @@ interface CSSRule {
   const unsigned short PAGE_RULE = 6;
 
   // KEYFRAMES_RULE and KEYFRAME_RULE are specified in CSS Animations:
-  //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSRule-interface
+  //   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#CSSRule-interface
   const unsigned short KEYFRAMES_RULE = 7;
   const unsigned short KEYFRAME_RULE = 8;
 

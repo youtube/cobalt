@@ -116,56 +116,56 @@ scoped_refptr<PropertyListValue> CreateSinglePropertyListWithValue(
 }
 
 NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
-  // http://www.w3.org/TR/css3-animations/#animation-delay-property
+  // https://www.w3.org/TR/css3-animations/#animation-delay-property
   SetPropertyDefinition(kAnimationDelayProperty, "animation-delay",
                         kInheritedNo, kAnimatableNo,
                         CreateTimeListWithZeroSeconds());
 
-  // http://www.w3.org/TR/css3-animations/#animation-direction-property
+  // https://www.w3.org/TR/css3-animations/#animation-direction-property
   SetPropertyDefinition(
       kAnimationDirectionProperty, "animation-direction", kInheritedNo,
       kAnimatableNo,
       CreateSinglePropertyListWithValue(KeywordValue::GetNormal()));
 
-  // http://www.w3.org/TR/css3-animations/#animation-duration-property
+  // https://www.w3.org/TR/css3-animations/#animation-duration-property
   SetPropertyDefinition(kAnimationDurationProperty, "animation-duration",
                         kInheritedNo, kAnimatableNo,
                         CreateTimeListWithZeroSeconds());
 
-  // http://www.w3.org/TR/css3-animations/#animation-fill-mode-property
+  // https://www.w3.org/TR/css3-animations/#animation-fill-mode-property
   SetPropertyDefinition(
       kAnimationFillModeProperty, "animation-fill-mode", kInheritedNo,
       kAnimatableNo,
       CreateSinglePropertyListWithValue(KeywordValue::GetNone()));
 
-  // http://www.w3.org/TR/css3-animations/#animation-iteration-count-property
+  // https://www.w3.org/TR/css3-animations/#animation-iteration-count-property
   SetPropertyDefinition(
       kAnimationIterationCountProperty, "animation-iteration-count",
       kInheritedNo, kAnimatableNo,
       CreateSinglePropertyListWithValue(new NumberValue(1.0f)));
 
-  // http://www.w3.org/TR/css3-animations/#animation-name-property
+  // https://www.w3.org/TR/css3-animations/#animation-name-property
   SetPropertyDefinition(
       kAnimationNameProperty, "animation-name", kInheritedNo, kAnimatableNo,
       CreateSinglePropertyListWithValue(KeywordValue::GetNone()));
 
-  // http://www.w3.org/TR/css3-animations/#animation-timing-function-property
+  // https://www.w3.org/TR/css3-animations/#animation-timing-function-property
   SetPropertyDefinition(kAnimationTimingFunctionProperty,
                         "animation-timing-function", kInheritedNo,
                         kAnimatableNo,
                         CreateTransitionTimingFunctionListWithEase());
 
-  // http://www.w3.org/TR/css3-background/#the-background-color
+  // https://www.w3.org/TR/css3-background/#the-background-color
   SetPropertyDefinition(kBackgroundColorProperty, "background-color",
                         kInheritedNo, kAnimatableYes,
                         new RGBAColorValue(0x00000000));
 
-  // http://www.w3.org/TR/css3-background/#background-image
+  // https://www.w3.org/TR/css3-background/#background-image
   SetPropertyDefinition(
       kBackgroundImageProperty, "background-image", kInheritedNo, kAnimatableNo,
       CreateSinglePropertyListWithValue(KeywordValue::GetNone()));
 
-  // http://www.w3.org/TR/css3-background/#the-background-position
+  // https://www.w3.org/TR/css3-background/#the-background-position
   scoped_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder());
   background_position_builder->reserve(2);
@@ -181,7 +181,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // The first value is for the horizontal direction, and the second for the
   // vertical one. If only one 'repeat' is given, the second is assumed to be
   // 'repeat'.
-  //   http://www.w3.org/TR/css3-background/#the-background-repeat
+  //   https://www.w3.org/TR/css3-background/#the-background-repeat
   scoped_ptr<PropertyListValue::Builder> background_repeat_builder(
       new PropertyListValue::Builder());
   background_repeat_builder->reserve(2);
@@ -195,7 +195,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // The first value gives the width of the corresponding image, and the second
   // value gives its height. If only one value is given, the second is assumed
   // to be 'auto'.
-  //   http://www.w3.org/TR/css3-background/#background-size
+  //   https://www.w3.org/TR/css3-background/#background-size
   scoped_ptr<PropertyListValue::Builder> background_size_builder(
       new PropertyListValue::Builder());
   background_size_builder->reserve(2);
@@ -208,7 +208,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
 
   // This sets the foreground color of the border specified by the border-style
   // property.
-  //   http://www.w3.org/TR/css3-background/#border-color
+  //   https://www.w3.org/TR/css3-background/#border-color
   SetPropertyDefinition(kBorderTopColorProperty, "border-top-color",
                         kInheritedNo, kAnimatableYes,
                         KeywordValue::GetCurrentColor());
@@ -225,7 +225,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kInheritedNo, kAnimatableYes,
                         KeywordValue::GetCurrentColor());
 
-  //   http://www.w3.org/TR/css3-background/#border-style
+  //   https://www.w3.org/TR/css3-background/#border-style
   SetPropertyDefinition(kBorderTopStyleProperty, "border-top-style",
                         kInheritedNo, kAnimatableNo, KeywordValue::GetNone());
 
@@ -242,7 +242,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   // According to the spec., make the thickness depend on the 'medium' font
   // size: one choice might be 1, 3, & 5px (thin, medium, and thick) when the
   // 'medium' font size is 17 px or less.
-  //   http://www.w3.org/TR/css3-background/#border-width
+  //   https://www.w3.org/TR/css3-background/#border-width
   SetPropertyDefinition(kBorderTopWidthProperty, "border-top-width",
                         kInheritedNo, kAnimatableNo,
                         new LengthValue(3, kPixelsUnit));
@@ -260,158 +260,158 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         new LengthValue(3, kPixelsUnit));
 
   // Cobalt only support a single length value that applies to all borders.
-  //   http://www.w3.org/TR/css3-background/#the-border-radius
+  //   https://www.w3.org/TR/css3-background/#the-border-radius
   SetPropertyDefinition(kBorderRadiusProperty, "border-radius", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/CSS2/visuren.html#propdef-bottom
+  // https://www.w3.org/TR/CSS2/visuren.html#propdef-bottom
   SetPropertyDefinition(kBottomProperty, "bottom", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // http://www.w3.org/TR/css3-background/#the-box-shadow
+  // https://www.w3.org/TR/css3-background/#the-box-shadow
   SetPropertyDefinition(kBoxShadowProperty, "box-shadow", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetNone());
 
   // Opaque black in Chromium and Cobalt.
-  //   http://www.w3.org/TR/css3-color/#foreground
+  //   https://www.w3.org/TR/css3-color/#foreground
   SetPropertyDefinition(kColorProperty, "color", kInheritedYes, kAnimatableYes,
                         new RGBAColorValue(0x000000ff));
 
-  // http://www.w3.org/TR/CSS21/generate.html#content
+  // https://www.w3.org/TR/CSS21/generate.html#content
   SetPropertyDefinition(kContentProperty, "content", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetNormal());
 
-  // http://www.w3.org/TR/CSS21/visuren.html#display-prop
+  // https://www.w3.org/TR/CSS21/visuren.html#display-prop
   SetPropertyDefinition(kDisplayProperty, "display", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetInline());
 
   // Varies by platform in Chromium, Roboto in Cobalt.
-  //   http://www.w3.org/TR/css3-fonts/#font-family-prop
+  //   https://www.w3.org/TR/css3-fonts/#font-family-prop
   SetPropertyDefinition(
       kFontFamilyProperty, "font-family", kInheritedYes, kAnimatableNo,
       CreateSinglePropertyListWithValue(new StringValue("Roboto")));
 
   // "medium" translates to 16px in Chromium.
   // Cobalt does not support keyword sizes, so we simply hardcode 16px.
-  //   http://www.w3.org/TR/css3-fonts/#font-size-prop
+  //   https://www.w3.org/TR/css3-fonts/#font-size-prop
   SetPropertyDefinition(kFontSizeProperty, "font-size", kInheritedYes,
                         kAnimatableNo, new LengthValue(16, kPixelsUnit));
 
-  // http://www.w3.org/TR/css3-fonts/#font-style-prop
+  // https://www.w3.org/TR/css3-fonts/#font-style-prop
   SetPropertyDefinition(kFontStyleProperty, "font-style", kInheritedYes,
                         kAnimatableNo, FontStyleValue::GetNormal());
 
-  // http://www.w3.org/TR/css3-fonts/#font-weight-prop
+  // https://www.w3.org/TR/css3-fonts/#font-weight-prop
   SetPropertyDefinition(kFontWeightProperty, "font-weight", kInheritedYes,
                         kAnimatableNo, FontWeightValue::GetNormalAka400());
 
-  // http://www.w3.org/TR/CSS21/visudet.html#the-height-property
+  // https://www.w3.org/TR/CSS21/visudet.html#the-height-property
   SetPropertyDefinition(kHeightProperty, "height", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // http://www.w3.org/TR/CSS2/visuren.html#propdef-left
+  // https://www.w3.org/TR/CSS2/visuren.html#propdef-left
   SetPropertyDefinition(kLeftProperty, "left", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // http://www.w3.org/TR/CSS21/visudet.html#line-height
+  // https://www.w3.org/TR/CSS21/visudet.html#line-height
   SetPropertyDefinition(kLineHeightProperty, "line-height", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNormal());
 
-  // http://www.w3.org/TR/CSS21/box.html#margin-properties
+  // https://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginBottomProperty, "margin-bottom", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/CSS21/box.html#margin-properties
+  // https://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginLeftProperty, "margin-left", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/CSS21/box.html#margin-properties
+  // https://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginRightProperty, "margin-right", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/CSS21/box.html#margin-properties
+  // https://www.w3.org/TR/CSS21/box.html#margin-properties
   SetPropertyDefinition(kMarginTopProperty, "margin-top", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+  // https://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
   SetPropertyDefinition(kMaxHeightProperty, "max-height", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetNone());
 
-  // http://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
+  // https://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
   SetPropertyDefinition(kMaxWidthProperty, "max-width", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetNone());
 
-  // http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
+  // https://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
   SetPropertyDefinition(kMinHeightProperty, "min-height", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
+  // https://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
   SetPropertyDefinition(kMinWidthProperty, "min-width", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/css3-color/#opacity
+  // https://www.w3.org/TR/css3-color/#opacity
   SetPropertyDefinition(kOpacityProperty, "opacity", kInheritedNo,
                         kAnimatableYes, new NumberValue(1.0f));
 
-  // http://www.w3.org/TR/css-overflow-3/#overflow-properties
+  // https://www.w3.org/TR/css-overflow-3/#overflow-properties
   SetPropertyDefinition(kOverflowProperty, "overflow", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetVisible());
 
-  // http://www.w3.org/TR/css-text-3/#overflow-wrap
+  // https://www.w3.org/TR/css-text-3/#overflow-wrap
   SetPropertyDefinition(kOverflowWrapProperty, "overflow-wrap", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNormal());
 
-  // http://www.w3.org/TR/CSS21/box.html#padding-properties
+  // https://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingBottomProperty, "padding-bottom", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/CSS21/box.html#padding-properties
+  // https://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingLeftProperty, "padding-left", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/CSS21/box.html#padding-properties
+  // https://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingRightProperty, "padding-right", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/CSS21/box.html#padding-properties
+  // https://www.w3.org/TR/CSS21/box.html#padding-properties
   SetPropertyDefinition(kPaddingTopProperty, "padding-top", kInheritedNo,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/css3-positioning/#position-property
+  // https://www.w3.org/TR/css3-positioning/#position-property
   SetPropertyDefinition(kPositionProperty, "position", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetStatic());
 
-  // http://www.w3.org/TR/CSS2/visuren.html#propdef-right
+  // https://www.w3.org/TR/CSS2/visuren.html#propdef-right
   SetPropertyDefinition(kRightProperty, "right", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
   // TODO(***REMOVED***): Currently this initial value is fixed to be 'left'. Properly
   // set this according to direction.
-  //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+  //   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
   SetPropertyDefinition(kTextAlignProperty, "text-align", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetLeft());
 
-  // http://www.w3.org/TR/CSS21/text.html#propdef-text-indent
+  // https://www.w3.org/TR/CSS21/text.html#propdef-text-indent
   SetPropertyDefinition(kTextIndentProperty, "text-indent", kInheritedYes,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
 
-  // http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  // https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   SetPropertyDefinition(kTextOverflowProperty, "text-overflow", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetClip());
 
-  // http://www.w3.org/TR/css-text-decor-3/#text-shadow-property
+  // https://www.w3.org/TR/css-text-decor-3/#text-shadow-property
   SetPropertyDefinition(kTextShadowProperty, "text-shadow", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNone());
 
-  // http://www.w3.org/TR/css3-text/#text-transform-property
+  // https://www.w3.org/TR/css3-text/#text-transform-property
   SetPropertyDefinition(kTextTransformProperty, "text-transform", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNone());
 
-  // http://www.w3.org/TR/CSS2/visuren.html#propdef-top
+  // https://www.w3.org/TR/CSS2/visuren.html#propdef-top
   SetPropertyDefinition(kTopProperty, "top", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // http://www.w3.org/TR/css3-transforms/#transform-property
+  // https://www.w3.org/TR/css3-transforms/#transform-property
   SetPropertyDefinition(kTransformProperty, "transform", kInheritedNo,
                         kAnimatableYes, KeywordValue::GetNone());
 
@@ -428,68 +428,68 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kTransformOriginProperty, "transform-origin",
                         kInheritedNo, kAnimatableNo, transform_origin_list);
 
-  // http://www.w3.org/TR/css3-transitions/#transition-delay-property
+  // https://www.w3.org/TR/css3-transitions/#transition-delay-property
   SetPropertyDefinition(kTransitionDelayProperty, "transition-delay",
                         kInheritedNo, kAnimatableNo,
                         CreateTimeListWithZeroSeconds());
 
-  // http://www.w3.org/TR/css3-transitions/#transition-duration-property
+  // https://www.w3.org/TR/css3-transitions/#transition-duration-property
   SetPropertyDefinition(kTransitionDurationProperty, "transition-duration",
                         kInheritedNo, kAnimatableNo,
                         CreateTimeListWithZeroSeconds());
 
-  // http://www.w3.org/TR/css3-transitions/#transition-property-property
+  // https://www.w3.org/TR/css3-transitions/#transition-property-property
   SetPropertyDefinition(kTransitionPropertyProperty, "transition-property",
                         kInheritedNo, kAnimatableNo,
                         CreatePropertyKeyListWithAll());
 
-  // http://www.w3.org/TR/css3-transitions/#transition-timing-function-property
+  // https://www.w3.org/TR/css3-transitions/#transition-timing-function-property
   SetPropertyDefinition(kTransitionTimingFunctionProperty,
                         "transition-timing-function", kInheritedNo,
                         kAnimatableNo,
                         CreateTransitionTimingFunctionListWithEase());
 
-  // http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+  // https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
   SetPropertyDefinition(kVerticalAlignProperty, "vertical-align", kInheritedNo,
                         kAnimatableNo, KeywordValue::GetBaseline());
 
-  // http://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
+  // https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
   SetPropertyDefinition(kVisibilityProperty, "visibility", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetVisible());
 
-  // http://www.w3.org/TR/css3-text/#white-space-property
+  // https://www.w3.org/TR/css3-text/#white-space-property
   SetPropertyDefinition(kWhiteSpaceProperty, "white-space", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNormal());
 
-  // http://www.w3.org/TR/CSS21/visudet.html#the-width-property
+  // https://www.w3.org/TR/CSS21/visudet.html#the-width-property
   SetPropertyDefinition(kWidthProperty, "width", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // http://www.w3.org/TR/CSS21/visuren.html#z-index
+  // https://www.w3.org/TR/CSS21/visuren.html#z-index
   SetPropertyDefinition(kZIndexProperty, "z-index", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
   // This property name can appear as a keyword for the transition-property
   // property.
-  //   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-property-property
+  //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-property-property
   SetPropertyDefinition(kAllProperty, "all", kInheritedNo, kAnimatableNo, NULL);
 
   // This is a descriptor for @font-face at-rules.
-  //   http://www.w3.org/TR/css3-fonts/#unicode-range-desc
+  //   https://www.w3.org/TR/css3-fonts/#unicode-range-desc
   SetPropertyDefinition(kUnicodeRangeProperty, "unicode-range", kInheritedNo,
                         kAnimatableNo, new UnicodeRangeValue(0, 0x10FFFF));
 
   // This is an alias for kOverflowWrap
-  //   http://www.w3.org/TR/css-text-3/#overflow-wrap
+  //   https://www.w3.org/TR/css-text-3/#overflow-wrap
   SetPropertyDefinition(kWordWrapProperty, "word-wrap", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetNormal());
 
-  //   http://www.w3.org/TR/css3-fonts/#descdef-src
+  //   https://www.w3.org/TR/css3-fonts/#descdef-src
   SetPropertyDefinition(kSrcProperty, "src", kInheritedNo, kAnimatableNo, NULL);
 
   // Shorthand properties.
 
-  //   http://www.w3.org/TR/css3-background/#the-background
+  //   https://www.w3.org/TR/css3-background/#the-background
   LonghandPropertySet background_longhand_properties;
   background_longhand_properties.insert(kBackgroundColorProperty);
   background_longhand_properties.insert(kBackgroundImageProperty);
@@ -499,7 +499,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBackgroundProperty, "background",
                                  background_longhand_properties);
 
-  //    http://www.w3.org/TR/css3-background/#border-color
+  //    https://www.w3.org/TR/css3-background/#border-color
   LonghandPropertySet border_color_longhand_properties;
   border_color_longhand_properties.insert(kBorderTopColorProperty);
   border_color_longhand_properties.insert(kBorderRightColorProperty);
@@ -508,7 +508,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBorderColorProperty, "border-color",
                                  border_color_longhand_properties);
 
-  //    http://www.w3.org/TR/css3-background/#border-style
+  //    https://www.w3.org/TR/css3-background/#border-style
   LonghandPropertySet border_style_longhand_properties;
   border_style_longhand_properties.insert(kBorderTopStyleProperty);
   border_style_longhand_properties.insert(kBorderRightStyleProperty);
@@ -517,7 +517,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBorderStyleProperty, "border-style",
                                  border_style_longhand_properties);
 
-  //   http://www.w3.org/TR/css3-background/#border-width
+  //   https://www.w3.org/TR/css3-background/#border-width
   LonghandPropertySet border_width_longhand_properties;
   border_width_longhand_properties.insert(kBorderTopWidthProperty);
   border_width_longhand_properties.insert(kBorderRightWidthProperty);
@@ -526,7 +526,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBorderWidthProperty, "border-width",
                                  border_width_longhand_properties);
 
-  //   http://www.w3.org/TR/css3-background/#border
+  //   https://www.w3.org/TR/css3-background/#border
   LonghandPropertySet border_longhand_properties;
   border_longhand_properties.insert(kBorderColorProperty);
   border_longhand_properties.insert(kBorderStyleProperty);
@@ -562,7 +562,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kBorderLeftProperty, "border-left",
                                  border_left_longhand_properties);
 
-  //   http://www.w3.org/TR/css3-fonts/#font-prop
+  //   https://www.w3.org/TR/css3-fonts/#font-prop
   LonghandPropertySet font_longhand_properties;
   font_longhand_properties.insert(kFontStyleProperty);
   font_longhand_properties.insert(kFontWeightProperty);
@@ -571,7 +571,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kFontProperty, "font",
                                  font_longhand_properties);
 
-  //   http://www.w3.org/TR/CSS21/box.html#propdef-margin
+  //   https://www.w3.org/TR/CSS21/box.html#propdef-margin
   LonghandPropertySet margin_longhand_properties;
   margin_longhand_properties.insert(kMarginBottomProperty);
   margin_longhand_properties.insert(kMarginLeftProperty);
@@ -580,7 +580,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kMarginProperty, "margin",
                                  margin_longhand_properties);
 
-  //   http://www.w3.org/TR/CSS21/box.html#propdef-padding
+  //   https://www.w3.org/TR/CSS21/box.html#propdef-padding
   LonghandPropertySet padding_longhand_properties;
   padding_longhand_properties.insert(kPaddingBottomProperty);
   padding_longhand_properties.insert(kPaddingLeftProperty);
@@ -589,7 +589,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kPaddingProperty, "padding",
                                  padding_longhand_properties);
 
-  //   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-shorthand-property
+  //   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-shorthand-property
   LonghandPropertySet animation_longhand_properties;
   animation_longhand_properties.insert(kAnimationDelayProperty);
   animation_longhand_properties.insert(kAnimationDirectionProperty);
@@ -601,7 +601,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kAnimationProperty, "animation",
                                  animation_longhand_properties);
 
-  //   http://www.w3.org/TR/css3-transitions/#transition-shorthand-property
+  //   https://www.w3.org/TR/css3-transitions/#transition-shorthand-property
   LonghandPropertySet transition_longhand_properties;
   transition_longhand_properties.insert(kTransitionDelayProperty);
   transition_longhand_properties.insert(kTransitionDurationProperty);

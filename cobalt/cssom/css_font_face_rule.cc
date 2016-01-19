@@ -150,8 +150,8 @@ void CSSFontFaceRule::SetPropertyValue(const std::string& property_name,
 }
 
 // font-family and src are required for an @font-face rule to be valid:
-//   http://www.w3.org/TR/css3-fonts/#descdef-font-family
-//   http://www.w3.org/TR/css3-fonts/#descdef-src
+//   https://www.w3.org/TR/css3-fonts/#descdef-font-family
+//   https://www.w3.org/TR/css3-fonts/#descdef-src
 bool CSSFontFaceRule::IsValid() const {
   return !family().empty() && !src().empty();
 }

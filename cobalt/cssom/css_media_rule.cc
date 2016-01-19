@@ -36,7 +36,7 @@ const scoped_refptr<MediaList>& CSSMediaRule::media() const {
 
 std::string CSSMediaRule::css_text() const {
   // TODO(***REMOVED***): Serialize the media rule to implement css_text.
-  //   http://www.w3.org/TR/cssom/#dom-cssrule-csstext
+  //   https://www.w3.org/TR/cssom/#dom-cssrule-csstext
   NOTIMPLEMENTED() << "CSSMediaRule serialization not implemented yet.";
   return "";
 }

@@ -76,7 +76,7 @@ enum PseudoElementType {
 
 // The basic interface, from which all the HTML elements' interfaces inherit,
 // and which must be used by elements that have no additional requirements.
-//   http://www.w3.org/TR/html5/dom.html#htmlelement
+//   https://www.w3.org/TR/html5/dom.html#htmlelement
 class HTMLElement : public Element, public cssom::MutationObserver {
  public:
   struct RuleMatchingState {
@@ -96,12 +96,12 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void Blur();
 
   // Web API: ElementCSSInlineStyle (implements)
-  //   http://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
+  //   https://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
   const scoped_refptr<cssom::CSSStyleDeclaration>& style() { return style_; }
 
   // Web API: CSSOM View Module: Extensions to the Element Interface (partial
   // interface)
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
   scoped_refptr<DOMRectList> GetClientRects() OVERRIDE;
   float client_top() OVERRIDE;
   float client_left() OVERRIDE;
@@ -110,7 +110,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Web API: CSSOM View Module: Extensions to the HTMLElement Interface
   // (partial interface)
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface
   scoped_refptr<Element> offset_parent();
   float offset_top();
   float offset_left();
@@ -168,7 +168,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Computed style related methods.
   //
   // Used by layout engine to cache the computed values.
-  // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
+  // See https://www.w3.org/TR/css-cascade-3/#computed for the definition of
   // computed value.
   scoped_refptr<cssom::ComputedStyleState>& computed_style_state() {
     return computed_style_state_;
@@ -181,7 +181,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     computed_style_state_->set_style(computed_style);
   }
   // Updates the cached computed style of one HTML element.
-  //   http://www.w3.org/TR/css-cascade-3/#value-stages
+  //   https://www.w3.org/TR/css-cascade-3/#value-stages
   void UpdateComputedStyle(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>&
           parent_computed_style,
@@ -245,7 +245,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void OnBackgroundImageLoaded();
 
   // Returns true if the element is the root element as defined in
-  // http://www.w3.org/TR/html5/semantics.html#the-root-element.
+  // https://www.w3.org/TR/html5/semantics.html#the-root-element.
   bool IsRootElement();
 
   // The inline style specified via attribute's in the element's HTML tag, or

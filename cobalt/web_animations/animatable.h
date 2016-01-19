@@ -29,7 +29,7 @@ namespace web_animations {
 
 // Objects that may be the target of an KeyframeEffectReadOnly object implement
 // the Animatable interface.
-//   http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animatable-interface
+//   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animatable-interface
 // We unfortunately are not able to express this in IDL currently as it
 // represents an interface that dom::Element and dom::PseudoElement must
 // implement, but we don't have an IDL inheritance mechanism in place right now.

@@ -90,7 +90,7 @@ bool FindNextNewlineSequence(const std::string& utf8_text, size_t index,
 
   // For CSS processing... CRLF sequence (U+000D U+000A), carriage return
   // (U+000D), and line feed (U+000A) in the text is treated as a segment break.
-  //   http://www.w3.org/TR/css3-text/#white-space-processing
+  //   https://www.w3.org/TR/css3-text/#white-space-processing
   for (; index < utf8_text.size(); ++index) {
     char character = utf8_text[index];
     if (character == '\r') {

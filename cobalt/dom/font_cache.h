@@ -83,7 +83,7 @@ class FontCache {
     // text from briefly displaying a fallback font. However, permanently hiding
     // the text while waiting for it to load is considered non-conformant
     // behavior by the spec, so after the timer expires, the fallback font
-    // becomes visible (http://www.w3.org/TR/css3-fonts/#font-face-loading).
+    // becomes visible (https://www.w3.org/TR/css3-fonts/#font-face-loading).
     scoped_ptr<base::Timer> request_timer_;
   };
 

@@ -1078,7 +1078,7 @@ TEST(PromoteToComputedStyle, HeightPercentageInUnspecifiedHeightBlockIsAuto) {
   // If the height is specified as a percentage and the height of the containing
   // block is not specified explicitly, and this element is not absolutely
   // positioned, the value computes to 'auto'.
-  //   http://www.w3.org/TR/CSS2/visudet.html#the-height-property
+  //   https://www.w3.org/TR/CSS2/visudet.html#the-height-property
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
   computed_style->set_height(new PercentageValue(0.50f));
@@ -1096,7 +1096,7 @@ TEST(PromoteToComputedStyle,
   // If the max-height is specified as a percentage and the height of the
   // containing block is not specified explicitly, and this element is not
   // absolutely positioned, the percentage value is treated as '0'.
-  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
+  //   https://www.w3.org/TR/CSS2/visudet.html#propdef-max-height
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
   computed_style->set_max_height(new PercentageValue(0.50f));
@@ -1114,7 +1114,7 @@ TEST(PromoteToComputedStyle,
   // If the min-height is specified as a percentage and the height of the
   // containing block is not specified explicitly, and this element is not
   // absolutely positioned, the percentage value is treated as 'none'.
-  //   http://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
+  //   https://www.w3.org/TR/CSS2/visudet.html#propdef-min-height
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
   computed_style->set_min_height(new PercentageValue(0.50f));
@@ -1134,7 +1134,7 @@ TEST(PromoteToComputedStyle,
 TEST(PromoteToComputedStyle, MaxWidthPercentageInNegativeWidthBlockIsZero) {
   // If the max-width is specified as a percentage and the containing block's
   // width is negative, the used value is zero.
-  //  http://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
+  //  https://www.w3.org/TR/CSS2/visudet.html#propdef-max-width
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
   computed_style->set_max_width(new PercentageValue(0.50f));
@@ -1159,7 +1159,7 @@ TEST(PromoteToComputedStyle, MaxWidthPercentageInNegativeWidthBlockIsZero) {
 TEST(PromoteToComputedStyle, MinWidthPercentageInNegativeWidthBlockIsZero) {
   // If the min-width is specified as a percentage and the containing block's
   // width is negative, the used value is zero.
-  //  http://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
+  //  https://www.w3.org/TR/CSS2/visudet.html#propdef-min-width
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
   computed_style->set_min_width(new PercentageValue(0.50f));
@@ -1184,7 +1184,7 @@ TEST(PromoteToComputedStyle, MinWidthPercentageInNegativeWidthBlockIsZero) {
 TEST(PromoteToComputedStyle, LineHeightPercentageIsRelativeToFontSize) {
   // The computed value of the property is this percentage multiplied by the
   // element's computed font size. Negative values are illegal.
-  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  //   https://www.w3.org/TR/CSS21/visudet.html#line-height
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());
   computed_style->set_font_size(

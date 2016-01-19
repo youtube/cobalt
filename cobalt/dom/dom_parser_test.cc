@@ -55,7 +55,7 @@ DOMParserTest::DOMParserTest()
 TEST_F(DOMParserTest, ParsesXML) {
   const std::string input =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-      "<MPD xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
+      "<MPD xmlns:xsi=\"https://www.w3.org/2001/XMLSchema-instance\""
       " xmlns=\"urn:mpeg:DASH:schema:MPD:2011\""
       " xsi:schemaLocation=\"urn:mpeg:DASH:schema:MPD:2011 DASH-MPD.xsd\">\n"
       "  <Period>\n"

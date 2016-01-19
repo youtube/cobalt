@@ -66,7 +66,7 @@ class ConstNodeVisitor {
 
 // A Node is an interface from which a number of DOM types inherit, and allows
 // these various types to be treated (or tested) similarly.
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-node
+//   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-node
 //
 // Memory management:
 // ------------------
@@ -174,7 +174,7 @@ class Node : public EventTarget {
   // Web API: ParentNode (implements)
   // The ParentNode interface contains methods that are particular to Node
   // objects that can have children.
-  //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-parentnode
+  //   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-parentnode
   scoped_refptr<HTMLCollection> children();
   scoped_refptr<Element> first_element_child();
   scoped_refptr<Element> last_element_child();
@@ -183,7 +183,7 @@ class Node : public EventTarget {
   // Web API: NonDocumentTypeChildNode (implements)
   // The NonDocumentTypeChildNode interface contains methods that are particular
   // to Node objects that can have a parent.
-  //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-nondocumenttypechildnode
+  //   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-nondocumenttypechildnode
   scoped_refptr<Element> previous_element_sibling();
   scoped_refptr<Element> next_element_sibling();
 
@@ -209,7 +209,7 @@ class Node : public EventTarget {
 
   // Each node has an associated node document, set upon creation, that is a
   // document.
-  //   http://www.w3.org/TR/2015/WD-dom-20150618/#concept-node-document
+  //   https://www.w3.org/TR/2015/WD-dom-20150618/#concept-node-document
   // Returns the node document if it still exists, NULL if not.
   Document* node_document() const { return node_document_.get(); }
 

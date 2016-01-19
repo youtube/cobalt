@@ -33,7 +33,7 @@ class SelectorVisitor;
 // pseudo-elements specify the location of content before and after an element's
 // document tree content. The 'content' property, in conjunction with these
 // pseudo-elements, specifies what is inserted.
-//   http://www.w3.org/TR/CSS21/generate.html#before-after-content
+//   https://www.w3.org/TR/CSS21/generate.html#before-after-content
 class BeforePseudoElement : public PseudoElement {
  public:
   BeforePseudoElement() {}

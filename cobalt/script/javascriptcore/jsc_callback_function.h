@@ -74,7 +74,7 @@ class JSCCallbackFunction<R(void)>
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
-    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
     JSC::JSValue this_value = JSC::jsNull();
     JSC::MarkedArgumentBuffer args;
@@ -121,7 +121,7 @@ class JSCCallbackFunction<R(A1)>
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
-    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
     JSC::JSValue this_value = JSC::jsNull();
     JSC::MarkedArgumentBuffer args;
@@ -170,7 +170,7 @@ class JSCCallbackFunction<R(A1, A2)>
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
-    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
     JSC::JSValue this_value = JSC::jsNull();
     JSC::MarkedArgumentBuffer args;
@@ -221,7 +221,7 @@ class JSCCallbackFunction<R(A1, A2, A3)>
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
-    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
     JSC::JSValue this_value = JSC::jsNull();
     JSC::MarkedArgumentBuffer args;
@@ -274,7 +274,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
-    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
     JSC::JSValue this_value = JSC::jsNull();
     JSC::MarkedArgumentBuffer args;
@@ -330,7 +330,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
-    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
     JSC::JSValue this_value = JSC::jsNull();
     JSC::MarkedArgumentBuffer args;
@@ -388,7 +388,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
-    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
     JSC::JSValue this_value = JSC::jsNull();
     JSC::MarkedArgumentBuffer args;
@@ -448,7 +448,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
     JSC::JSLockHolder lock(global_object->globalData());
 
-    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
     // Callback 'this' is set to null, unless overridden by other specifications
     JSC::JSValue this_value = JSC::jsNull();
     JSC::MarkedArgumentBuffer args;

@@ -35,7 +35,7 @@ class MutationObserver;
 // The CSSStyleDeclaration interface represents a CSS declaration block,
 // including its underlying state, where this underlying state depends
 // upon the source of the CSSStyleDeclaration instance.
-//   http://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstyledeclaration-interface
+//   https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstyledeclaration-interface
 class CSSStyleDeclaration : public script::Wrappable {
  public:
   explicit CSSStyleDeclaration(CSSParser* css_parser);

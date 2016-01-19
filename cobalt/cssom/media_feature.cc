@@ -35,36 +35,36 @@ namespace {
 // The 'color-index' media feature describes the number of entries in the color
 // lookup table of the output device. If the device does not use a color lookup
 // table, the value is zero.
-//   http://www.w3.org/TR/css3-mediaqueries/#color-index
+//   https://www.w3.org/TR/css3-mediaqueries/#color-index
 static const int kColorIndexMediaFeatureValue = 0;
 
 // The 'color' media feature describes the number of bits per color component of
 // the output device. If the device is not a color device, the value is zero.
-//   http://www.w3.org/TR/css3-mediaqueries/#color
+//   https://www.w3.org/TR/css3-mediaqueries/#color
 static const int kColorMediaFeatureValue = 8;
 
 // The 'monochrome' media feature describes the number of bits per pixel in a
 // monochrome frame buffer. If the device is not a monochrome device, the output
 // device value will be 0.
-//   http://www.w3.org/TR/css3-mediaqueries/#monochrome
+//   https://www.w3.org/TR/css3-mediaqueries/#monochrome
 static const int kMonochromeMediaFeatureValue = 0;
 
 // The 'grid' media feature is used to query whether the output device is grid
 // or bitmap. If the output device is grid-based (e.g., a "tty" terminal, or a
 // phone display with only one fixed font), the value will be 1. Otherwise, the
 // value will be 0.
-//   http://www.w3.org/TR/css3-mediaqueries/#grid
+//   https://www.w3.org/TR/css3-mediaqueries/#grid
 static const int kGridMediaFeatureValue = 0;
 
 // The 'resolution' media feature describes the resolution of the output device,
 // i.e. the density of the pixels.
-//   http://www.w3.org/TR/css3-mediaqueries/#resolution
+//   https://www.w3.org/TR/css3-mediaqueries/#resolution
 // We calculate the pixel density from the length of the screen diagonal.
 static const float kScreenDiagonalInInches = 55.0f;
 
 // The 'scan' media feature describes the scanning process of "tv" output
 // devices.
-//   http://www.w3.org/TR/css3-mediaqueries/#scan
+//   https://www.w3.org/TR/css3-mediaqueries/#scan
 static const MediaFeatureKeywordValue::Value kScanMediaFeatureValue =
     MediaFeatureKeywordValue::kProgressive;
 
@@ -122,7 +122,7 @@ bool MediaFeature::CompareLengthValue(int length_in_pixels) {
     LengthValue* specified_value =
         base::polymorphic_downcast<LengthValue*>(value_.get());
     // TODO(***REMOVED***): Support 'em' units for media features.
-    //                http://www.w3.org/TR/css3-mediaqueries/#units
+    //                https://www.w3.org/TR/css3-mediaqueries/#units
     DCHECK_EQ(kPixelsUnit, specified_value->unit());
 
     switch (operator_) {

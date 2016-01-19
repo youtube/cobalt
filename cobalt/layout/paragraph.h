@@ -44,7 +44,7 @@ namespace layout {
 //
 // During layout, the the text paragraph determines line breaking locations for
 // its text at soft wrap opportunities
-// (http://www.w3.org/TR/css-text-3/#soft-wrap-opportunity), according to the
+// (https://www.w3.org/TR/css-text-3/#soft-wrap-opportunity), according to the
 // Unicode line breaking algorithm (http://www.unicode.org/reports/tr14/),
 // which can result in text boxes being split.
 class Paragraph : public base::RefCounted<Paragraph> {

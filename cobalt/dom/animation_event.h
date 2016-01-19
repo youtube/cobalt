@@ -26,7 +26,7 @@ namespace cobalt {
 namespace dom {
 
 // The completion of a CSS Animation generates a corresponding DOM Event.
-//   http://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-events
+//   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-events
 class AnimationEvent : public Event {
  public:
   AnimationEvent(const std::string& type, const std::string& animation_name,

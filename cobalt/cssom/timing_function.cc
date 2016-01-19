@@ -28,7 +28,7 @@ namespace {
 
 struct NonTrivialStaticFields {
   // Values for keyword timing values are provided by the specification:
-  //  http://www.w3.org/TR/css3-transitions/#transition-timing-function-property
+  //  https://www.w3.org/TR/css3-transitions/#transition-timing-function-property
   NonTrivialStaticFields()
       : ease(new CubicBezierTimingFunction(0.25f, 0.1f, 0.25f, 1.0f)),
         ease_in(new CubicBezierTimingFunction(0.42f, 0.0f, 1.0f, 1.0f)),

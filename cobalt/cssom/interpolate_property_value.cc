@@ -57,7 +57,7 @@ namespace cssom {
 // conceptually is a start CSS style value and an end CSS style value that are
 // of the same type.  Technically though, we can only visit on one of them, so
 // the end value is passed into the constructor and the start value is visited.
-//   http://www.w3.org/TR/css3-transitions/#animatable-types
+//   https://www.w3.org/TR/css3-transitions/#animatable-types
 class InterpolateVisitor : public PropertyValueVisitor {
  public:
   InterpolateVisitor(const scoped_refptr<PropertyValue>& end_value,
@@ -126,7 +126,7 @@ typename base::enable_if<!std::numeric_limits<T>::is_integer, T>::type Round(
 
 // Linearly interpolate from value a to value b, and then apply a round on the
 // results before returning if we are interpolating integer types (as specified
-// by http://www.w3.org/TR/css3-transitions/#animatable-types).
+// by https://www.w3.org/TR/css3-transitions/#animatable-types).
 template <typename T>
 T Lerp(const T& a, const T& b, float progress) {
   return Round<T>(a * (1 - progress) + b * progress);
@@ -280,7 +280,7 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
                                               const PropertyValue* end_value,
                                               float progress) {
   // The process for animating a transform list are described here:
-  //  http://www.w3.org/TR/2012/WD-css3-transforms-20120228/#animation
+  //  https://www.w3.org/TR/2012/WD-css3-transforms-20120228/#animation
 
   // If both start and end values are "none", then the animated value is
   // "none" also and we are done.
@@ -336,7 +336,7 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
   } else {
     // The transform lists do not match up type for type. Collapse each list
     // into a matrix and animate the matrix using the algorithm described here:
-    //   http://www.w3.org/TR/2012/WD-css3-transforms-20120228/#matrix-decomposition
+    //   https://www.w3.org/TR/2012/WD-css3-transforms-20120228/#matrix-decomposition
     DCHECK(end_transform);
     return new TransformMatrixFunctionValue(InterpolateTransformMatrices(
         start_transform->ToMatrix(), end_transform->ToMatrix(), progress));

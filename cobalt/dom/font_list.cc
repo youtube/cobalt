@@ -76,7 +76,7 @@ bool FontList::IsVisible() const {
     // fallback font. In cases where the font download fails user agents must
     // display text, simply leaving transparent text is considered
     // non-conformant behavior."
-    //   http://www.w3.org/TR/css3-fonts/#font-face-loading
+    //   https://www.w3.org/TR/css3-fonts/#font-face-loading
     if (fonts_[i].state() == FontListFont::kLoadingWithTimerActiveState) {
       return false;
     }

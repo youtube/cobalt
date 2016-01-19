@@ -35,7 +35,7 @@ class UsedStyleProvider;
 //
 // Most of the code conforms to CSS Level 3 specifications, although the basic
 // box model is intentionally implemented after CSS 2.1
-// (http://www.w3.org/TR/CSS2/visuren.html) as recommended by a newer draft
+// (https://www.w3.org/TR/CSS2/visuren.html) as recommended by a newer draft
 // (http://dev.w3.org/csswg/css-box/) which is undergoing active changes.
 
 struct RenderTreeWithAnimations {

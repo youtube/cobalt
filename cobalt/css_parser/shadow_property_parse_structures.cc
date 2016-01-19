@@ -22,13 +22,13 @@ namespace css_parser {
 bool ShadowPropertyInfo::IsShadowPropertyValid(ShadowType type) {
   switch (type) {
     case kBoxShadow:
-      //  http://www.w3.org/TR/css3-background/#box-shadow
+      //  https://www.w3.org/TR/css3-background/#box-shadow
       if (length_vector.size() >= 2 && length_vector.size() <= 4) {
         return true;
       }
       break;
     case kTextShadow:
-      //  http://www.w3.org/TR/css-text-decor-3/#text-shadow-property
+      //  https://www.w3.org/TR/css-text-decor-3/#text-shadow-property
       if (length_vector.size() >= 2 && length_vector.size() <= 3 &&
           !has_inset) {
         return true;
