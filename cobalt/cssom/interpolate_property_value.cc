@@ -85,6 +85,7 @@ class InterpolateVisitor : public PropertyValueVisitor {
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
   void VisitPropertyKeyList(
       PropertyKeyListValue* property_key_list_value) OVERRIDE;
+  void VisitRadialGradient(RadialGradientValue* radial_gradient_value) OVERRIDE;
   void VisitRatio(RatioValue* start_ratio_value) OVERRIDE;
   void VisitResolution(ResolutionValue* start_resolution_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* start_color_value) OVERRIDE;
@@ -434,6 +435,12 @@ void InterpolateVisitor::VisitPropertyList(
 void InterpolateVisitor::VisitPropertyKeyList(
     PropertyKeyListValue* /*property_key_list_value*/) {
   NOTIMPLEMENTED();
+  interpolated_value_ = end_value_;
+}
+
+void InterpolateVisitor::VisitRadialGradient(
+    RadialGradientValue* /*radial_gradient_value*/) {
+  NOTREACHED();
   interpolated_value_ = end_value_;
 }
 

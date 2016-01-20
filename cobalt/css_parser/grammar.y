@@ -169,6 +169,7 @@
 %token kAlternateToken                  // alternate
 %token kAlternateReverseToken           // alternate-reverse
 %token kAquaToken                       // aqua
+%token kAtToken                         // at
 %token kAutoToken                       // auto
 %token kBackwardsToken                  // backwards
 %token kBaselineToken                   // baseline
@@ -179,7 +180,10 @@
 %token kBothToken                       // both
 %token kBreakWordToken                  // break-word
 %token kCenterToken                     // center
+%token kCircleToken                     // circle
 %token kClipToken                       // clip
+%token kClosestCornerToken              // closest-corner
+%token kClosestSideToken                // closest-side
 %token kContainToken                    // contain
 %token kCoverToken                      // cover
 %token kCursiveToken                    // cursive
@@ -187,9 +191,12 @@
 %token kEaseInToken                     // ease-in
 %token kEaseOutToken                    // ease-out
 %token kEaseToken                       // ease
+%token kEllipseToken                    // ellipse
 %token kEllipsisToken                   // ellipsis
 %token kEndToken                        // end
 %token kFantasyToken                    // fantasy
+%token kFarthestCornerToken             // farthest-corner
+%token kFarthestSideToken               // farthest-side
 %token kFixedToken                      // fixed
 %token kForwardsToken                   // forwards
 %token kFromToken                       // from
@@ -360,6 +367,7 @@
 %token kTranslateXFunctionToken         // translateX(
 %token kTranslateYFunctionToken         // translateY(
 %token kTranslateZFunctionToken         // translateZ(
+%token kRadialGradientFunctionToken     // radial-gradient(
 %token kRGBFunctionToken                // rgb(
 %token kRGBAFunctionToken               // rgba(
 
@@ -434,7 +442,7 @@
 %type <color_stop> color_stop
 %destructor { delete $$; } <color_stop>
 
-%union { cssom::LinearGradientValue::ColorStopList* color_stop_list; }
+%union { cssom::ColorStopList* color_stop_list; }
 %type <color_stop_list> comma_separated_color_stop_list
 %destructor { delete $$; } <color_stop_list>
 
@@ -546,6 +554,7 @@
                        position_list_element
                        position_property_value
                        positive_length_percent_property_value
+                       radial_gradient_params
                        scan_media_feature_keyword_value
                        text_align_property_value
                        text_indent_property_value
@@ -562,7 +571,6 @@
                        transition_timing_function_property_value
                        unicode_range_property_value
                        url
-                       validated_background_position_property
                        validated_box_shadow_list
                        validated_text_shadow_list
                        vertical_align_property_value
@@ -735,6 +743,14 @@
                       validated_two_position_list_elements
 %destructor { delete $$; } <property_list>
 
+%union { cssom::PropertyListValue* property_list_value; }
+%type <property_list_value> at_position
+                            circle_with_positive_length
+                            ellipse_with_2_positive_length_percents
+                            maybe_at_position
+                            validated_position_property
+%destructor { $$->Release(); } <property_list_value>
+
 %union { cssom::TransformFunction* transform_function; }
 %type <transform_function> scale_function_parameters
 %destructor { delete $$; } <transform_function>
@@ -788,7 +804,7 @@
 %destructor { delete $$; } <background_shorthand_layer>
 
 %union { PositionParseStructure* position_structure; }
-%type <position_structure> background_position_property_list
+%type <position_structure> position_list
 %destructor { delete $$; } <position_structure>
 
 %union { BorderShorthand* border_shorthand; }
@@ -798,6 +814,10 @@
 %union { ShadowPropertyInfo* shadow_info; }
 %type <shadow_info> box_shadow_list text_shadow_list
 %destructor { delete $$; } <shadow_info>
+
+%union { cssom::RadialGradientValue::SizeKeyword size_keyword; }
+%type <size_keyword> circle_with_size_keyword
+                     maybe_ellipse_with_size_keyword size_keyword
 
 %%
 
@@ -1518,6 +1538,9 @@ identifier_token:
   | kAquaToken {
     $$ = TrivialStringPiece::FromCString(cssom::kAquaKeywordName);
   }
+  | kAtToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kAtKeywordName);
+  }
   | kAutoToken {
     $$ = TrivialStringPiece::FromCString(cssom::kAutoKeywordName);
   }
@@ -1549,8 +1572,17 @@ identifier_token:
   | kCenterToken {
     $$ = TrivialStringPiece::FromCString(cssom::kCenterKeywordName);
   }
+  | kCircleToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kCircleKeywordName);
+  }
   | kClipToken {
     $$ = TrivialStringPiece::FromCString(cssom::kClipKeywordName);
+  }
+  | kClosestCornerToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kClosestCornerKeywordName);
+  }
+  | kClosestSideToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kClosestSideKeywordName);
   }
   | kContainToken {
     $$ = TrivialStringPiece::FromCString(cssom::kContainKeywordName);
@@ -1573,6 +1605,9 @@ identifier_token:
   | kEaseToken {
     $$ = TrivialStringPiece::FromCString(cssom::kEaseKeywordName);
   }
+  | kEllipseToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEllipseKeywordName);
+  }
   | kEllipsisToken {
     $$ = TrivialStringPiece::FromCString(cssom::kEllipsisKeywordName);
   }
@@ -1581,6 +1616,12 @@ identifier_token:
   }
   | kFantasyToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFantasyKeywordName);
+  }
+  | kFarthestCornerToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFarthestCornerKeywordName);
+  }
+  | kFarthestSideToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFarthestSideKeywordName);
   }
   | kFixedToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFixedKeywordName);
@@ -2427,7 +2468,7 @@ maybe_background_size_property_value:
   ;
 
 background_position_and_size_shorthand_property_value:
-    validated_background_position_property
+    validated_position_property
     maybe_background_size_property_value {
     scoped_ptr<BackgroundShorthandLayer> shorthand_layer(
         new BackgroundShorthandLayer());
@@ -2553,7 +2594,7 @@ color_stop:
 
 comma_separated_color_stop_list:
     color_stop {
-    $$ = new cssom::LinearGradientValue::ColorStopList();
+    $$ = new cssom::ColorStopList();
     $$->push_back($1);
   }
   | comma_separated_color_stop_list comma color_stop {
@@ -2618,23 +2659,200 @@ side_or_corner:
 
 linear_gradient_params:
     comma_separated_color_stop_list {
+    scoped_ptr<cssom::ColorStopList> color_stop_list($1);
     // If the first argument to the linear gradient function is omitted, it
     // defaults to 'to bottom'.
     $$ = AddRef(new cssom::LinearGradientValue(
-             cssom::LinearGradientValue::kBottom, $1));
+             cssom::LinearGradientValue::kBottom, color_stop_list->Pass()));
   }
   | angle comma comma_separated_color_stop_list {
-    $$ = AddRef(new cssom::LinearGradientValue($1, $3));
+    scoped_ptr<cssom::ColorStopList> color_stop_list($3);
+    $$ = AddRef(new cssom::LinearGradientValue($1, color_stop_list->Pass()));
   }
   | kToToken kWhitespaceToken maybe_whitespace side_or_corner comma
     comma_separated_color_stop_list {
-    $$ = AddRef(new cssom::LinearGradientValue($4, $6));
+    scoped_ptr<cssom::ColorStopList> color_stop_list($6);
+    $$ = AddRef(new cssom::LinearGradientValue($4, color_stop_list->Pass()));
+  }
+  ;
+
+size_keyword:
+    kClosestSideToken maybe_whitespace {
+    $$ = cssom::RadialGradientValue::kClosestSide;
+  }
+  | kFarthestSideToken maybe_whitespace {
+    $$ = cssom::RadialGradientValue::kFarthestSide;
+  }
+  | kClosestCornerToken maybe_whitespace {
+    $$ = cssom::RadialGradientValue::kClosestCorner;
+  }
+  | kFarthestCornerToken maybe_whitespace {
+    $$ = cssom::RadialGradientValue::kFarthestCorner;
+  }
+  ;
+
+circle_with_size_keyword:
+    kCircleToken maybe_whitespace size_keyword {
+    $$ = $3;
+  }
+  | size_keyword kCircleToken maybe_whitespace {
+    $$ = $1;
+  }
+  ;
+
+// If <shape> is specified as 'circle' or is omitted, the <size> may be
+// given explicitly as a single <length> which gives the radius of the
+// circle explicitly. Negative values are invalid.
+circle_with_positive_length:
+    positive_length {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+       new cssom::PropertyListValue::Builder());
+    property_value->reserve(1);
+    property_value->push_back(MakeScopedRefPtrAndRelease($1));
+    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+  }
+  | positive_length kCircleToken maybe_whitespace {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+       new cssom::PropertyListValue::Builder());
+    property_value->reserve(1);
+    property_value->push_back(MakeScopedRefPtrAndRelease($1));
+    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+  }
+  | kCircleToken maybe_whitespace positive_length {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+       new cssom::PropertyListValue::Builder());
+    property_value->reserve(1);
+    property_value->push_back(MakeScopedRefPtrAndRelease($3));
+    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+  }
+  ;
+
+maybe_ellipse_with_size_keyword:
+    kEllipseToken maybe_whitespace size_keyword {
+    $$ = $3;
+  }
+  | size_keyword kEllipseToken maybe_whitespace {
+    $$ = $1;
+  }
+  | size_keyword {
+    // If only a size keyword is specified, the ending shape defaults to an
+    // ellipse.
+    $$ = $1;
+  }
+  ;
+
+// If <shape> is specified as 'ellipse' or is omitted, the <size> may be
+// given explicitly as [<length> | <percentage>]{2} which gives the size of
+// the ellipse explicitly. Negative values are invalid.
+ellipse_with_2_positive_length_percents:
+    positive_length_percent_property_value
+    positive_length_percent_property_value {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+        new cssom::PropertyListValue::Builder());
+    property_value->reserve(2);
+    property_value->push_back(MakeScopedRefPtrAndRelease($1));
+    property_value->push_back(MakeScopedRefPtrAndRelease($2));
+    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+  }
+  | positive_length_percent_property_value
+    positive_length_percent_property_value kEllipseToken maybe_whitespace {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+        new cssom::PropertyListValue::Builder());
+    property_value->reserve(2);
+    property_value->push_back(MakeScopedRefPtrAndRelease($1));
+    property_value->push_back(MakeScopedRefPtrAndRelease($2));
+    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+  }
+  | kEllipseToken maybe_whitespace positive_length_percent_property_value
+    positive_length_percent_property_value {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+        new cssom::PropertyListValue::Builder());
+    property_value->reserve(2);
+    property_value->push_back(MakeScopedRefPtrAndRelease($3));
+    property_value->push_back(MakeScopedRefPtrAndRelease($4));
+    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+  }
+  ;
+
+at_position:
+    kAtToken maybe_whitespace validated_position_property {
+    $$ = $3;
+  }
+  ;
+
+maybe_at_position:
+    /* empty */ {
+    $$ = NULL;
+  }
+  | at_position
+  ;
+
+//   https://www.w3.org/TR/css3-images/#radial-gradients
+radial_gradient_params:
+    circle_with_positive_length maybe_at_position comma
+    comma_separated_color_stop_list {
+    scoped_ptr<cssom::ColorStopList> color_stop_list($4);
+    $$ = AddRef(
+        new cssom::RadialGradientValue(cssom::RadialGradientValue::kCircle,
+                                       MakeScopedRefPtrAndRelease($1),
+                                       MakeScopedRefPtrAndRelease($2),
+                                       color_stop_list->Pass()));
+  }
+  | ellipse_with_2_positive_length_percents maybe_at_position comma
+    comma_separated_color_stop_list {
+    scoped_ptr<cssom::ColorStopList> color_stop_list($4);
+    $$ = AddRef(
+        new cssom::RadialGradientValue(cssom::RadialGradientValue::kEllipse,
+                                       MakeScopedRefPtrAndRelease($1),
+                                       MakeScopedRefPtrAndRelease($2),
+                                       color_stop_list->Pass()));
+  }
+  | circle_with_size_keyword maybe_at_position comma
+    comma_separated_color_stop_list {
+    scoped_ptr<cssom::ColorStopList> color_stop_list($4);
+    $$ = AddRef(
+        new cssom::RadialGradientValue(cssom::RadialGradientValue::kCircle,
+                                       $1,
+                                       MakeScopedRefPtrAndRelease($2),
+                                       color_stop_list->Pass()));
+  }
+  | maybe_ellipse_with_size_keyword maybe_at_position comma
+    comma_separated_color_stop_list {
+    scoped_ptr<cssom::ColorStopList> color_stop_list($4);
+    $$ = AddRef(
+        new cssom::RadialGradientValue(cssom::RadialGradientValue::kEllipse,
+                                       $1,
+                                       MakeScopedRefPtrAndRelease($2),
+                                       color_stop_list->Pass()));
+  }
+  | at_position comma comma_separated_color_stop_list {
+    // If no size is specified, the ending shape defaults to an ellipse and
+    // it defaults to 'farthest-corner'.
+    scoped_ptr<cssom::ColorStopList> color_stop_list($3);
+    $$ = AddRef(new cssom::RadialGradientValue(
+            cssom::RadialGradientValue::kEllipse,
+            cssom::RadialGradientValue::kFarthestCorner,
+            MakeScopedRefPtrAndRelease($1),
+            color_stop_list->Pass()));
+  }
+  | comma_separated_color_stop_list {
+    // If position is omitted, the ending shape defaults to an ellipse and
+    // it defaults to 'farthest-corner'.
+    scoped_ptr<cssom::ColorStopList> color_stop_list($1);
+    $$ = AddRef(new cssom::RadialGradientValue(
+            cssom::RadialGradientValue::kEllipse,
+            cssom::RadialGradientValue::kFarthestCorner,
+            NULL,
+            color_stop_list->Pass()));
   }
   ;
 
 background_image_property_list_element:
     url { $$ = $1; }
   | kLinearGradientFunctionToken maybe_whitespace linear_gradient_params ')' {
+    $$ = $3;
+  }
+  | kRadialGradientFunctionToken maybe_whitespace radial_gradient_params ')' {
     $$ = $3;
   }
   | kNoneToken maybe_whitespace {
@@ -2686,14 +2904,14 @@ position_list_element:
   | length_percent_property_value
   ;
 
-background_position_property_list:
+position_list:
     position_list_element {
     scoped_ptr<PositionParseStructure> position_info(
         new PositionParseStructure());
     position_info->PushBackElement(MakeScopedRefPtrAndRelease($1));
     $$ = position_info.release();
   }
-  | background_position_property_list
+  | position_list
     position_list_element {
     scoped_ptr<PositionParseStructure> position_info($1);
     scoped_refptr<cssom::PropertyValue> element = MakeScopedRefPtrAndRelease($2);
@@ -2707,8 +2925,8 @@ background_position_property_list:
   }
   ;
 
-validated_background_position_property:
-    background_position_property_list {
+validated_position_property:
+    position_list {
     scoped_ptr<PositionParseStructure> position_info($1);
     scoped_ptr<cssom::PropertyListValue::Builder> property_value;
 
@@ -2739,7 +2957,9 @@ validated_background_position_property:
 // positioning area.
 //   https://www.w3.org/TR/css3-background/#the-background-position
 background_position_property_value:
-    validated_background_position_property
+    validated_position_property {
+    $$ = $1;
+  }
   | common_values
   ;
 

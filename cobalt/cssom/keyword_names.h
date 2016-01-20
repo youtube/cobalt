@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_KEYWORD_NAMES_H_
-#define CSSOM_KEYWORD_NAMES_H_
+#ifndef COBALT_CSSOM_KEYWORD_NAMES_H_
+#define COBALT_CSSOM_KEYWORD_NAMES_H_
 
 namespace cobalt {
 namespace cssom {
@@ -25,6 +25,7 @@ extern const char kAbsoluteKeywordName[];
 extern const char kAlternateKeywordName[];
 extern const char kAlternateReverseKeywordName[];
 extern const char kAquaKeywordName[];
+extern const char kAtKeywordName[];
 extern const char kAutoKeywordName[];
 extern const char kBackwardsKeywordName[];
 extern const char kBaselineKeywordName[];
@@ -36,7 +37,10 @@ extern const char kBothKeywordName[];
 extern const char kBottomKeywordName[];
 extern const char kBreakWordKeywordName[];
 extern const char kCenterKeywordName[];
+extern const char kCircleKeywordName[];
 extern const char kClipKeywordName[];
+extern const char kClosestCornerKeywordName[];
+extern const char kClosestSideKeywordName[];
 extern const char kContainKeywordName[];
 extern const char kCoverKeywordName[];
 extern const char kCurrentColorKeywordName[];
@@ -45,9 +49,12 @@ extern const char kEaseInKeywordName[];
 extern const char kEaseInOutKeywordName[];
 extern const char kEaseKeywordName[];
 extern const char kEaseOutKeywordName[];
+extern const char kEllipseKeywordName[];
 extern const char kEllipsisKeywordName[];
 extern const char kEndKeywordName[];
 extern const char kFantasyKeywordName[];
+extern const char kFarthestCornerKeywordName[];
+extern const char kFarthestSideKeywordName[];
 extern const char kFixedKeywordName[];
 extern const char kForwardsKeywordName[];
 extern const char kFromKeywordName[];
@@ -104,4 +111,4 @@ extern const char kYellowKeywordName[];
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_KEYWORD_NAMES_H_
+#endif  // COBALT_CSSOM_KEYWORD_NAMES_H_

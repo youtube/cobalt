@@ -1712,6 +1712,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
 
   switch (name.size()) {
     case 2:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kAtKeywordName)) {
+        *property_value_token = kAtToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kToKeywordName)) {
         *property_value_token = kToToken;
         return true;
@@ -1855,6 +1859,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kCenterToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kCircleKeywordName)) {
+        *property_value_token = kCircleToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kHiddenKeywordName)) {
         *property_value_token = kHiddenToken;
         return true;
@@ -1920,6 +1928,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kEaseInKeywordName)) {
         *property_value_token = kEaseInToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kEllipseKeywordName)) {
+        *property_value_token = kEllipseToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kFantasyKeywordName)) {
@@ -2045,8 +2057,35 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       return false;
 
     case 12:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kClosestSideKeywordName)) {
+        *property_value_token = kClosestSideToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kInlineBlockKeywordName)) {
         *property_value_token = kInlineBlockToken;
+        return true;
+      }
+      return false;
+
+    case 13:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFarthestSideKeywordName)) {
+        *property_value_token = kFarthestSideToken;
+        return true;
+      }
+      return false;
+
+    case 14:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kClosestCornerKeywordName)) {
+        *property_value_token = kClosestCornerToken;
+        return true;
+      }
+      return false;
+
+    case 15:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kFarthestCornerKeywordName)) {
+        *property_value_token = kFarthestCornerToken;
         return true;
       }
       return false;
@@ -2281,6 +2320,10 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
     case 15:
       if (IsEqualToCssIdentifier(name.begin, "linear-gradient")) {
         *known_function_token = kLinearGradientFunctionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "radial-gradient")) {
+        *known_function_token = kRadialGradientFunctionToken;
         return true;
       }
       return false;
