@@ -93,8 +93,9 @@
           'type': 'none',
           'dependencies': [
             '<(DEPTH)/net/net.gyp:net',
-            '<(DEPTH)/starboard/starboard.gyp:starboard',
             '<(DEPTH)/starboard/examples/examples.gyp:*',
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
+            '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
           ],
         },
         {
