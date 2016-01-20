@@ -205,8 +205,6 @@
         'type_selector.h',
         'unicode_range_value.cc',
         'unicode_range_value.h',
-        'unsupported_pseudo_class.cc',
-        'unsupported_pseudo_class.h',
         'user_agent_style_sheet.cc',
         'user_agent_style_sheet.h',
         'url_src_value.cc',
