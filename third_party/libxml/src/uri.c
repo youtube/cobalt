@@ -11,8 +11,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
-
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/uri.h>
 #include <libxml/globals.h>
@@ -984,7 +985,7 @@ xmlCreateURI(void) {
 		"xmlCreateURI: out of memory\n");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlURI));
+    XML_MEMSET(ret, 0, sizeof(xmlURI));
     return(ret);
 }
 
@@ -1686,7 +1687,7 @@ xmlURIUnescapeString(const char *str, int len, char *target) {
 
     if (str == NULL)
 	return(NULL);
-    if (len <= 0) len = strlen(str);
+    if (len <= 0) len = XML_STRLEN(str);
     if (len < 0) return(NULL);
 
     if (target == NULL) {
@@ -2128,9 +2129,9 @@ xmlBuildURI(const xmlChar *URI, const xmlChar *base) {
      */
     len = 2; /* extra / and 0 */
     if (ref->path != NULL)
-	len += strlen(ref->path);
+	len += XML_STRLEN(ref->path);
     if (bas->path != NULL)
-	len += strlen(bas->path);
+	len += XML_STRLEN(bas->path);
     res->path = (char *) xmlMallocAtomic(len);
     if (res->path == NULL) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -2414,10 +2415,10 @@ xmlBuildRelativeURI (const xmlChar * URI, const xmlChar * base)
     if (uptr != NULL) {
         if ((vptr > val) && (len > 0) &&
 	    (uptr[0] == '/') && (vptr[-1] == '/')) {
-	    memcpy (vptr, uptr + 1, len - 1);
+	    XML_MEMCPY(vptr, uptr + 1, len - 1);
 	    vptr[len - 2] = 0;
 	} else {
-	    memcpy (vptr, uptr, len);
+	    XML_MEMCPY(vptr, uptr, len);
 	    vptr[len - 1] = 0;
 	}
     } else {
@@ -2623,7 +2624,7 @@ xmlPathToURI(const xmlChar *path)
 	ret++;
     }
 #endif
-    memset(&temp, 0, sizeof(temp));
+    XML_MEMSET(&temp, 0, sizeof(temp));
     temp.path = (char *) cal;
     ret = xmlSaveUri(&temp);
     xmlFree(cal);

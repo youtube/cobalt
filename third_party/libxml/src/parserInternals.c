@@ -16,7 +16,9 @@
 #define XML_DIR_SEP '/'
 #endif
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
 #endif
@@ -1198,13 +1200,13 @@ xmlSwitchInputEncodingInt(xmlParserCtxtPtr ctxt, xmlParserInputPtr input,
              * UTF-16
              */
             if ((handler->name != NULL) &&
-                (!strcmp(handler->name, "UTF-16LE") ||
-                 !strcmp(handler->name, "UTF-16")) &&
+                (!XML_STRCMP(handler->name, "UTF-16LE") ||
+                 !XML_STRCMP(handler->name, "UTF-16")) &&
                 (input->cur[0] == 0xFF) && (input->cur[1] == 0xFE)) {
                 input->cur += 2;
             }
             if ((handler->name != NULL) &&
-                (!strcmp(handler->name, "UTF-16BE")) &&
+                (!XML_STRCMP(handler->name, "UTF-16BE")) &&
                 (input->cur[0] == 0xFE) && (input->cur[1] == 0xFF)) {
                 input->cur += 2;
             }
@@ -1214,7 +1216,7 @@ xmlSwitchInputEncodingInt(xmlParserCtxtPtr ctxt, xmlParserInputPtr input,
              * UTF-8
              */
             if ((handler->name != NULL) &&
-                (!strcmp(handler->name, "UTF-8")) &&
+                (!XML_STRCMP(handler->name, "UTF-8")) &&
                 (input->cur[0] == 0xEF) &&
                 (input->cur[1] == 0xBB) && (input->cur[2] == 0xBF)) {
                 input->cur += 3;
@@ -1385,7 +1387,7 @@ xmlNewInputStream(xmlParserCtxtPtr ctxt) {
         xmlErrMemory(ctxt,  "couldn't allocate a new input stream\n");
 	return(NULL);
     }
-    memset(input, 0, sizeof(xmlParserInput));
+    XML_MEMSET(input, 0, sizeof(xmlParserInput));
     input->line = 1;
     input->col = 1;
     input->standalone = -1;
@@ -1865,7 +1867,7 @@ xmlNewParserCtxt(void)
 	xmlErrMemory(NULL, "cannot allocate parser context\n");
 	return(NULL);
     }
-    memset(ctxt, 0, sizeof(xmlParserCtxt));
+    XML_MEMSET(ctxt, 0, sizeof(xmlParserCtxt));
     if (xmlInitParserCtxt(ctxt) < 0) {
         xmlFreeParserCtxt(ctxt);
 	return(NULL);

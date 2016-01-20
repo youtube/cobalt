@@ -18,8 +18,12 @@
 #include "libxml.h"
 
 #ifdef LIBXML_READER_ENABLED
+#ifdef HAVE_STRING_H
 #include <string.h> /* for memset() only ! */
+#endif
+#ifdef HAVE_STDARG_H
 #include <stdarg.h>
+#endif
 
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
@@ -45,6 +49,10 @@
 #endif
 
 #define MAX_ERR_MSG_SIZE 64000
+
+#ifdef STARBOARD
+  #define VA_COPY(dest, src) SB_VA_COPY(dest, src)
+#endif
 
 /*
  * The following VA_COPY was coded following an example in
@@ -2045,7 +2053,7 @@ xmlNewTextReader(xmlParserInputBufferPtr input, const char *URI) {
 		"xmlNewTextReader : malloc failed\n");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlTextReader));
+    XML_MEMSET(ret, 0, sizeof(xmlTextReader));
     ret->doc = NULL;
     ret->entTab = NULL;
     ret->entMax = 0;
@@ -5164,7 +5172,7 @@ xmlReaderWalker(xmlDocPtr doc)
 		"xmlNewTextReader : malloc failed\n");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlTextReader));
+    XML_MEMSET(ret, 0, sizeof(xmlTextReader));
     ret->entNr = 0;
     ret->input = NULL;
     ret->mode = XML_TEXTREADER_MODE_INITIAL;

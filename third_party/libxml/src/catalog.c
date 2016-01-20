@@ -31,7 +31,9 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/hash.h>
 #include <libxml/uri.h>
@@ -414,7 +416,7 @@ xmlCreateNewCatalog(xmlCatalogType type, xmlCatalogPrefer prefer) {
         xmlCatalogErrMemory("allocating catalog");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlCatalog));
+    XML_MEMSET(ret, 0, sizeof(xmlCatalog));
     ret->type = type;
     ret->catalNr = 0;
     ret->catalMax = XML_MAX_SGML_CATA_DEPTH;
@@ -3087,8 +3089,10 @@ xmlInitializeCatalogData(void) {
     if (xmlCatalogInitialized != 0)
 	return;
 
+#ifdef HAVE_GETENV
     if (getenv("XML_DEBUG_CATALOG")) 
 	xmlDebugCatalogs = 1;
+#endif
     xmlCatalogMutex = xmlNewRMutex();
 
     xmlCatalogInitialized = 1;
@@ -3108,8 +3112,10 @@ xmlInitializeCatalog(void) {
     xmlInitializeCatalogData();
     xmlRMutexLock(xmlCatalogMutex);
 
+#ifdef HAVE_GETENV
     if (getenv("XML_DEBUG_CATALOG")) 
 	xmlDebugCatalogs = 1;
+#endif
 
     if (xmlDefaultCatalog == NULL) {
 	const char *catalogs;
@@ -3118,7 +3124,9 @@ xmlInitializeCatalog(void) {
 	xmlCatalogPtr catal;
 	xmlCatalogEntryPtr *nextent;
 
+#ifdef HAVE_GETENV
 	catalogs = (const char *) getenv("XML_CATALOG_FILES");
+#endif
 	if (catalogs == NULL)
 #if defined(_WIN32) && defined(_MSC_VER) && !defined(__LB_XB1__) &&     \
     !defined(__LB_XB360__)

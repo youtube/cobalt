@@ -12,7 +12,9 @@
 #include "libxml.h"
 
 #ifdef LIBXML_XPTR_ENABLED
+#ifdef HAVE_STRING_H
 #include <string.h> /* for memset() only */
+#endif
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
 #endif

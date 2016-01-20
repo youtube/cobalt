@@ -9,8 +9,12 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_STDARG_H
 #include <stdarg.h>
+#endif
 #include <libxml/parser.h>
 #include <libxml/xmlerror.h>
 #include <libxml/xmlmemory.h>
@@ -877,7 +881,7 @@ xmlResetError(xmlErrorPtr err)
         xmlFree(err->str2);
     if (err->str3 != NULL)
         xmlFree(err->str3);
-    memset(err, 0, sizeof(xmlError));
+    XML_MEMSET(err, 0, sizeof(xmlError));
     err->code = XML_ERR_OK;
 }
 

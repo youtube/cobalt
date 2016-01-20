@@ -9,10 +9,13 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+
 #include <libxml/xmlmemory.h>
 #include <libxml/hash.h>
 #include <libxml/entities.h>
@@ -154,7 +157,7 @@ xmlCreateEntity(xmlDictPtr dict, const xmlChar *name, int type,
         xmlEntitiesErrMemory("xmlCreateEntity: malloc failed");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlEntity));
+    XML_MEMSET(ret, 0, sizeof(xmlEntity));
     ret->type = XML_ENTITY_DECL;
     ret->checked = 0;
 
@@ -832,7 +835,7 @@ xmlCopyEntity(xmlEntityPtr ent) {
         xmlEntitiesErrMemory("xmlCopyEntity:: malloc failed");
 	return(NULL);
     }
-    memset(cur, 0, sizeof(xmlEntity));
+    XML_MEMSET(cur, 0, sizeof(xmlEntity));
     cur->type = XML_ENTITY_DECL;
 
     cur->etype = ent->etype;

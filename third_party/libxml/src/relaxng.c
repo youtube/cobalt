@@ -18,8 +18,12 @@
 
 #ifdef LIBXML_SCHEMAS_ENABLED
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
@@ -765,7 +769,7 @@ xmlRelaxNGNewRelaxNG(xmlRelaxNGParserCtxtPtr ctxt)
         xmlRngPErrMemory(ctxt, NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNG));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNG));
 
     return (ret);
 }
@@ -844,7 +848,7 @@ xmlRelaxNGNewGrammar(xmlRelaxNGParserCtxtPtr ctxt)
         xmlRngPErrMemory(ctxt, NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGGrammar));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGGrammar));
 
     return (ret);
 }
@@ -919,7 +923,7 @@ xmlRelaxNGNewDefine(xmlRelaxNGParserCtxtPtr ctxt, xmlNodePtr node)
         xmlRngPErrMemory(ctxt, "allocating define\n");
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGDefine));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGDefine));
     ctxt->defTab[ctxt->defNr++] = ret;
     ret->node = node;
     ret->depth = -1;
@@ -1212,7 +1216,7 @@ xmlRelaxNGNewValidState(xmlRelaxNGValidCtxtPtr ctxt, xmlNodePtr node)
             xmlRngVErrMemory(ctxt, "allocating states\n");
             return (NULL);
         }
-        memset(ret, 0, sizeof(xmlRelaxNGValidState));
+        XML_MEMSET(ret, 0, sizeof(xmlRelaxNGValidState));
     }
     ret->value = NULL;
     ret->endvalue = NULL;
@@ -1250,7 +1254,7 @@ xmlRelaxNGNewValidState(xmlRelaxNGValidCtxtPtr ctxt, xmlNodePtr node)
         }
         ret->nbAttrs = nbAttrs;
         if (nbAttrs < MAX_ATTR) {
-            memcpy(ret->attrs, attrs, sizeof(xmlAttrPtr) * nbAttrs);
+            XML_MEMCPY(ret->attrs, attrs, sizeof(xmlAttrPtr) * nbAttrs);
         } else {
             attr = node->properties;
             nbAttrs = 0;
@@ -1294,11 +1298,11 @@ xmlRelaxNGCopyValidState(xmlRelaxNGValidCtxtPtr ctxt,
             xmlRngVErrMemory(ctxt, "allocating states\n");
             return (NULL);
         }
-        memset(ret, 0, sizeof(xmlRelaxNGValidState));
+        XML_MEMSET(ret, 0, sizeof(xmlRelaxNGValidState));
     }
     attrs = ret->attrs;
     maxAttrs = ret->maxAttrs;
-    memcpy(ret, state, sizeof(xmlRelaxNGValidState));
+    XML_MEMCPY(ret, state, sizeof(xmlRelaxNGValidState));
     ret->attrs = attrs;
     ret->maxAttrs = maxAttrs;
     if (state->nbAttrs > 0) {
@@ -1324,8 +1328,8 @@ xmlRelaxNGCopyValidState(xmlRelaxNGValidCtxtPtr ctxt,
             ret->maxAttrs = state->maxAttrs;
             ret->attrs = tmp;
         }
-        memcpy(ret->attrs, state->attrs,
-               state->nbAttrs * sizeof(xmlAttrPtr));
+        XML_MEMCPY(ret->attrs, state->attrs,
+                   state->nbAttrs * sizeof(xmlAttrPtr));
     }
     return (ret);
 }
@@ -1638,7 +1642,7 @@ xmlRelaxNGLoadInclude(xmlRelaxNGParserCtxtPtr ctxt, const xmlChar * URL,
         xmlFreeDoc(doc);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGInclude));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGInclude));
     ret->doc = doc;
     ret->href = xmlStrdup(URL);
     ret->next = ctxt->includes;
@@ -1968,7 +1972,7 @@ xmlRelaxNGLoadExternalRef(xmlRelaxNGParserCtxtPtr ctxt,
         xmlFreeDoc(doc);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGDocument));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGDocument));
     ret->doc = doc;
     ret->href = xmlStrdup(URL);
     ret->next = ctxt->documents;
@@ -2777,7 +2781,7 @@ xmlRelaxNGRegisterTypeLibrary(const xmlChar * namespace, void *data,
         xmlRngVErrMemory(NULL, "adding types library\n");
         return (-1);
     }
-    memset(lib, 0, sizeof(xmlRelaxNGTypeLibrary));
+    XML_MEMSET(lib, 0, sizeof(xmlRelaxNGTypeLibrary));
     lib->namespace = xmlStrdup(namespace);
     lib->data = data;
     lib->have = have;
@@ -3784,7 +3788,7 @@ xmlRelaxNGCompareNameClasses(xmlRelaxNGDefinePtr def1,
     xmlNs ns;
     xmlRelaxNGValidCtxt ctxt;
 
-    memset(&ctxt, 0, sizeof(xmlRelaxNGValidCtxt));
+    XML_MEMSET(&ctxt, 0, sizeof(xmlRelaxNGValidCtxt));
 
     ctxt.flags = FLAGS_IGNORABLE | FLAGS_NOERROR;
 
@@ -4370,7 +4374,7 @@ xmlRelaxNGComputeInterleaves(xmlRelaxNGDefinePtr def,
         xmlMalloc(sizeof(xmlRelaxNGPartition));
     if (partitions == NULL)
         goto error;
-    memset(partitions, 0, sizeof(xmlRelaxNGPartition));
+    XML_MEMSET(partitions, 0, sizeof(xmlRelaxNGPartition));
     partitions->nbgroups = nbgroups;
     partitions->triage = xmlHashCreate(nbgroups);
     for (i = 0; i < nbgroups; i++) {
@@ -6733,7 +6737,7 @@ xmlRelaxNGNewParserCtxt(const char *URL)
         xmlRngPErrMemory(NULL, "building parser\n");
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGParserCtxt));
     ret->URL = xmlStrdup((const xmlChar *) URL);
     ret->error = xmlGenericError;
     ret->userData = xmlGenericErrorContext;
@@ -6764,7 +6768,7 @@ xmlRelaxNGNewMemParserCtxt(const char *buffer, int size)
         xmlRngPErrMemory(NULL, "building parser\n");
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGParserCtxt));
     ret->buffer = buffer;
     ret->size = size;
     ret->error = xmlGenericError;
@@ -6800,7 +6804,7 @@ xmlRelaxNGNewDocParserCtxt(xmlDocPtr doc)
         xmlRngPErrMemory(NULL, "building parser\n");
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGParserCtxt));
     ret->document = copy;
     ret->freedoc = 1;
     ret->userData = xmlGenericErrorContext;
@@ -9289,13 +9293,13 @@ xmlRelaxNGValidateInterleave(xmlRelaxNGValidCtxtPtr ctxt,
         xmlRngVErrMemory(ctxt, "validating\n");
         return (-1);
     }
-    memset(list, 0, nbgroups * sizeof(xmlNodePtr));
+    XML_MEMSET(list, 0, nbgroups * sizeof(xmlNodePtr));
     lasts = (xmlNodePtr *) xmlMalloc(nbgroups * sizeof(xmlNodePtr));
     if (lasts == NULL) {
         xmlRngVErrMemory(ctxt, "validating\n");
         return (-1);
     }
-    memset(lasts, 0, nbgroups * sizeof(xmlNodePtr));
+    XML_MEMSET(lasts, 0, nbgroups * sizeof(xmlNodePtr));
 
     /*
      * Walk the sequence of children finding the right group and
@@ -10742,7 +10746,7 @@ xmlRelaxNGValidateDocument(xmlRelaxNGValidCtxtPtr ctxt, xmlDocPtr doc)
     if (ctxt->idref == 1) {
         xmlValidCtxt vctxt;
 
-        memset(&vctxt, 0, sizeof(xmlValidCtxt));
+        XML_MEMSET(&vctxt, 0, sizeof(xmlValidCtxt));
         vctxt.valid = 1;
         vctxt.error = ctxt->error;
         vctxt.warning = ctxt->warning;
@@ -10836,7 +10840,7 @@ xmlRelaxNGNewValidCtxt(xmlRelaxNGPtr schema)
         xmlRngVErrMemory(NULL, "building context\n");
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlRelaxNGValidCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlRelaxNGValidCtxt));
     ret->schema = schema;
     ret->error = xmlGenericError;
     ret->userData = xmlGenericErrorContext;
