@@ -18,13 +18,13 @@
 
 #include <vector>
 
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/css_keyframes_rule.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/dom/animation_event.h"
 #include "cobalt/dom/dom_animatable.h"
-#include "cobalt/dom/event_names.h"
 #include "cobalt/web_animations/keyframe.h"
 #include "cobalt/web_animations/keyframe_effect_read_only.h"
 
@@ -209,7 +209,7 @@ void CSSAnimationsAdapter::HandleAnimationEnterAfterPhase(
     const cssom::Animation& css_animation) {
   // https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-animations-events
   animatable_->GetEventTarget()->DispatchEvent(new AnimationEvent(
-      EventNames::GetInstance()->animationend(), css_animation.name(),
+      base::Tokens::animationend(), css_animation.name(),
       static_cast<float>(css_animation.duration().InMillisecondsF() *
                          css_animation.iteration_count())));
 }

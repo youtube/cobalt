@@ -45,7 +45,7 @@ uint32 GetModifierBitfield(const scoped_refptr<dom::KeyboardEvent>& event) {
 }
 
 std::string GetType(const scoped_refptr<dom::KeyboardEvent>& event) {
-  return event->type();
+  return event->type().c_str();
 }
 
 int GetLocation(const scoped_refptr<dom::KeyboardEvent>& event) {

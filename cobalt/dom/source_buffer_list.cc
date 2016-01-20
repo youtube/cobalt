@@ -21,6 +21,7 @@
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 
 namespace cobalt {
@@ -64,7 +65,7 @@ void SourceBufferList::Add(const scoped_refptr<SourceBuffer>& source_buffer) {
       << "SourceBuffer " << source_buffer->id() << " has been added";
   if (iter == source_buffers_.end()) {
     source_buffers_.push_back(source_buffer);
-    event_queue_->Enqueue(new Event("addsourcebuffer"));
+    event_queue_->Enqueue(new Event(base::Tokens::addsourcebuffer()));
   }
 }
 
@@ -80,7 +81,7 @@ bool SourceBufferList::Remove(
 
   source_buffer->Close();
   source_buffers_.erase(iter);
-  event_queue_->Enqueue(new Event("removesourcebuffer"));
+  event_queue_->Enqueue(new Event(base::Tokens::removesourcebuffer()));
   return true;
 }
 

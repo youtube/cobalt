@@ -16,7 +16,7 @@
 
 #include "cobalt/dom/media_key_message_event.h"
 
-#include "cobalt/dom/event_names.h"
+#include "cobalt/base/tokens.h"
 
 namespace cobalt {
 namespace dom {
@@ -24,8 +24,7 @@ namespace dom {
 MediaKeyMessageEvent::MediaKeyMessageEvent(
     const std::string& key_system, const std::string& session_id,
     const scoped_refptr<Uint8Array>& message, const std::string& default_url)
-    : Event(EventNames::GetInstance()->keymessage(), kNotBubbles,
-            kNotCancelable),
+    : Event(base::Tokens::keymessage(), kNotBubbles, kNotCancelable),
       key_system_(key_system),
       session_id_(session_id),
       default_url_(default_url),

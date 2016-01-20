@@ -24,11 +24,11 @@
 #include "base/guid.h"
 #include "base/logging.h"
 #include "base/message_loop_proxy.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/media_key_complete_event.h"
 #include "cobalt/dom/media_key_error_event.h"
@@ -307,7 +307,7 @@ float HTMLMediaElement::default_playback_rate() const {
 void HTMLMediaElement::set_default_playback_rate(float rate) {
   if (default_playback_rate_ != rate) {
     default_playback_rate_ = rate;
-    ScheduleEvent(EventNames::GetInstance()->ratechange());
+    ScheduleEvent(base::Tokens::ratechange());
   }
 }
 
@@ -316,7 +316,7 @@ float HTMLMediaElement::playback_rate() const { return playback_rate_; }
 void HTMLMediaElement::set_playback_rate(float rate) {
   if (playback_rate_ != rate) {
     playback_rate_ = rate;
-    ScheduleEvent(EventNames::GetInstance()->ratechange());
+    ScheduleEvent(base::Tokens::ratechange());
   }
 
   if (player_ && PotentiallyPlaying()) {
@@ -381,12 +381,12 @@ void HTMLMediaElement::Play() {
 
   if (paused_) {
     paused_ = false;
-    ScheduleEvent(EventNames::GetInstance()->play());
+    ScheduleEvent(base::Tokens::play());
 
     if (ready_state_ <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-      ScheduleEvent(EventNames::GetInstance()->waiting());
+      ScheduleEvent(base::Tokens::waiting());
     } else if (ready_state_ >= WebMediaPlayer::kReadyStateHaveFutureData) {
-      ScheduleEvent(EventNames::GetInstance()->playing());
+      ScheduleEvent(base::Tokens::playing());
     }
   }
   autoplaying_ = false;
@@ -405,7 +405,7 @@ void HTMLMediaElement::Pause() {
   if (!paused_) {
     paused_ = true;
     ScheduleTimeupdateEvent(false);
-    ScheduleEvent(EventNames::GetInstance()->pause());
+    ScheduleEvent(base::Tokens::pause());
   }
 
   UpdatePlayState();
@@ -434,7 +434,7 @@ void HTMLMediaElement::set_volume(float vol,
   if (volume_ != vol) {
     volume_ = vol;
     UpdateVolume();
-    ScheduleEvent(EventNames::GetInstance()->volumechange());
+    ScheduleEvent(base::Tokens::volumechange());
   }
 }
 
@@ -449,7 +449,7 @@ void HTMLMediaElement::set_muted(bool muted) {
         player_->SetVolume(muted_ ? 0 : volume_);
       }
     }
-    ScheduleEvent(EventNames::GetInstance()->volumechange());
+    ScheduleEvent(base::Tokens::volumechange());
   }
 }
 
@@ -506,7 +506,7 @@ void HTMLMediaElement::PrepareForLoad() {
   // kNetworkIdle, queue a task to fire a simple event named abort at the media
   // element.
   if (network_state_ == kNetworkLoading || network_state_ == kNetworkIdle) {
-    ScheduleEvent(EventNames::GetInstance()->abort());
+    ScheduleEvent(base::Tokens::abort());
   }
 
   SetSourceState(MediaSource::kReadyStateClosed);
@@ -521,7 +521,7 @@ void HTMLMediaElement::PrepareForLoad() {
     ready_state_maximum_ = WebMediaPlayer::kReadyStateHaveNothing;
     paused_ = true;
     seeking_ = false;
-    ScheduleEvent(EventNames::GetInstance()->emptied());
+    ScheduleEvent(base::Tokens::emptied());
   }
 
   // 5 - Set the playbackRate attribute to the value of the defaultPlaybackRate
@@ -574,7 +574,7 @@ void HTMLMediaElement::LoadInternal() {
 
   // 5 - Queue a task to fire a simple event named loadstart at the media
   // element.
-  ScheduleEvent(EventNames::GetInstance()->loadstart());
+  ScheduleEvent(base::Tokens::loadstart());
 
   // 6 - If mode is kAttribute, then run these substeps.
   if (mode == kAttribute) {
@@ -688,7 +688,7 @@ void HTMLMediaElement::NoneSupported() {
   network_state_ = kNetworkNoSource;
 
   // 7 - Queue a task to fire a simple event named error at the media element.
-  ScheduleEvent(EventNames::GetInstance()->error());
+  ScheduleEvent(base::Tokens::error());
 
   SetSourceState(MediaSource::kReadyStateClosed);
 }
@@ -730,11 +730,11 @@ void HTMLMediaElement::OnProgressEventTimer() {
   double time_delta = time - previous_progress_time_;
 
   if (player_->DidLoadingProgress()) {
-    ScheduleEvent(EventNames::GetInstance()->progress());
+    ScheduleEvent(base::Tokens::progress());
     previous_progress_time_ = time;
     sent_stalled_event_ = false;
   } else if (time_delta > 3.0 && !sent_stalled_event_) {
-    ScheduleEvent(EventNames::GetInstance()->stalled());
+    ScheduleEvent(base::Tokens::stalled());
     sent_stalled_event_ = true;
   }
 }
@@ -773,12 +773,12 @@ void HTMLMediaElement::StopPeriodicTimers() {
   playback_progress_timer_.Stop();
 }
 
-void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodicEvent) {
+void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodic_event) {
   double now = base::Time::Now().ToDoubleT();
   double time_delta = now - last_time_update_event_wall_time_;
 
   // throttle the periodic events
-  if (periodicEvent && time_delta < kMaxTimeupdateEventFrequency) {
+  if (periodic_event && time_delta < kMaxTimeupdateEventFrequency) {
     return;
   }
 
@@ -786,15 +786,15 @@ void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodicEvent) {
   // but we only want one event at a given time so filter here
   float movie_time = current_time(NULL);
   if (movie_time != last_time_update_event_movie_time_) {
-    ScheduleEvent(EventNames::GetInstance()->timeupdate());
+    ScheduleEvent(base::Tokens::timeupdate());
     last_time_update_event_wall_time_ = now;
     last_time_update_event_movie_time_ = movie_time;
   }
 }
 
-void HTMLMediaElement::ScheduleEvent(const std::string& eventName) {
+void HTMLMediaElement::ScheduleEvent(base::Token event_name) {
   scoped_refptr<Event> event =
-      new Event(eventName, Event::kNotBubbles, Event::kCancelable);
+      new Event(event_name, Event::kNotBubbles, Event::kCancelable);
   event->set_target(this);
 
   event_queue_.Enqueue(event);
@@ -831,7 +831,7 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
     // 4.8.10.9, step 11
     if (was_potentially_playing &&
         ready_state_ < WebMediaPlayer::kReadyStateHaveFutureData) {
-      ScheduleEvent(EventNames::GetInstance()->waiting());
+      ScheduleEvent(base::Tokens::waiting());
     }
     // 4.8.10.10 step 14 & 15.
     if (ready_state_ >= WebMediaPlayer::kReadyStateHaveCurrentData) {
@@ -842,49 +842,49 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
         ready_state_ < WebMediaPlayer::kReadyStateHaveFutureData) {
       // 4.8.10.8
       ScheduleTimeupdateEvent(false);
-      ScheduleEvent(EventNames::GetInstance()->waiting());
+      ScheduleEvent(base::Tokens::waiting());
     }
   }
 
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata &&
       old_state < WebMediaPlayer::kReadyStateHaveMetadata) {
-    ScheduleEvent(EventNames::GetInstance()->durationchange());
-    ScheduleEvent(EventNames::GetInstance()->loadedmetadata());
+    ScheduleEvent(base::Tokens::durationchange());
+    ScheduleEvent(base::Tokens::loadedmetadata());
   }
 
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveCurrentData &&
       old_state < WebMediaPlayer::kReadyStateHaveCurrentData &&
       !have_fired_loaded_data_) {
     have_fired_loaded_data_ = true;
-    ScheduleEvent(EventNames::GetInstance()->loadeddata());
+    ScheduleEvent(base::Tokens::loadeddata());
   }
 
   bool is_potentially_playing = PotentiallyPlaying();
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveFutureData &&
       old_state <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-    ScheduleEvent(EventNames::GetInstance()->canplay());
+    ScheduleEvent(base::Tokens::canplay());
     if (is_potentially_playing) {
-      ScheduleEvent(EventNames::GetInstance()->playing());
+      ScheduleEvent(base::Tokens::playing());
     }
   }
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveEnoughData &&
       old_state < WebMediaPlayer::kReadyStateHaveEnoughData) {
     if (old_state <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-      ScheduleEvent(EventNames::GetInstance()->canplay());
+      ScheduleEvent(base::Tokens::canplay());
     }
 
-    ScheduleEvent(EventNames::GetInstance()->canplaythrough());
+    ScheduleEvent(base::Tokens::canplaythrough());
 
     if (is_potentially_playing &&
         old_state <= WebMediaPlayer::kReadyStateHaveCurrentData) {
-      ScheduleEvent(EventNames::GetInstance()->playing());
+      ScheduleEvent(base::Tokens::playing());
     }
 
     if (autoplaying_ && paused_ && autoplay()) {
       paused_ = false;
-      ScheduleEvent(EventNames::GetInstance()->play());
-      ScheduleEvent(EventNames::GetInstance()->playing());
+      ScheduleEvent(base::Tokens::play());
+      ScheduleEvent(base::Tokens::playing());
     }
   }
 
@@ -933,8 +933,8 @@ void HTMLMediaElement::ChangeNetworkStateFromLoadingToIdle() {
 
   // Schedule one last progress event so we guarantee that at least one is fired
   // for files that load very quickly.
-  ScheduleEvent(EventNames::GetInstance()->progress());
-  ScheduleEvent(EventNames::GetInstance()->suspend());
+  ScheduleEvent(base::Tokens::progress());
+  ScheduleEvent(base::Tokens::suspend());
   network_state_ = kNetworkIdle;
 }
 
@@ -991,9 +991,9 @@ void HTMLMediaElement::Seek(float time) {
 
   if (no_seek_required) {
     if (time == now) {
-      ScheduleEvent(EventNames::GetInstance()->seeking());
+      ScheduleEvent(base::Tokens::seeking());
       ScheduleTimeupdateEvent(false);
-      ScheduleEvent(EventNames::GetInstance()->seeked());
+      ScheduleEvent(base::Tokens::seeked());
     }
     seeking_ = false;
     return;
@@ -1012,7 +1012,7 @@ void HTMLMediaElement::Seek(float time) {
   player_->Seek(time);
 
   // 9 - Queue a task to fire a simple event named seeking at the element.
-  ScheduleEvent(EventNames::GetInstance()->seeking());
+  ScheduleEvent(base::Tokens::seeking());
 
   // 10 - Queue a task to fire a simple event named timeupdate at the element.
   ScheduleTimeupdateEvent(false);
@@ -1026,7 +1026,7 @@ void HTMLMediaElement::FinishSeek() {
   seeking_ = false;
 
   // 4.8.10.9 Seeking step 15
-  ScheduleEvent(EventNames::GetInstance()->seeked());
+  ScheduleEvent(base::Tokens::seeked());
 }
 
 void HTMLMediaElement::AddPlayedRange(float start, float end) {
@@ -1155,14 +1155,14 @@ void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
   error_ = error;
 
   // 3 - Queue a task to fire a simple event named error at the media element.
-  ScheduleEvent(EventNames::GetInstance()->error());
+  ScheduleEvent(base::Tokens::error());
 
   SetSourceState(MediaSource::kReadyStateClosed);
 
   // 4 - Set the element's networkState attribute to the kNetworkEmpty value and
   // queue a task to fire a simple event called emptied at the element.
   network_state_ = kNetworkEmpty;
-  ScheduleEvent(EventNames::GetInstance()->emptied());
+  ScheduleEvent(base::Tokens::emptied());
 }
 
 void HTMLMediaElement::NetworkStateChanged() {
@@ -1214,12 +1214,12 @@ void HTMLMediaElement::TimeChanged() {
         // changes paused to true and fires a simple event named pause at the
         // media element.
         paused_ = true;
-        ScheduleEvent(EventNames::GetInstance()->pause());
+        ScheduleEvent(base::Tokens::pause());
       }
       // Queue a task to fire a simple event named ended at the media element.
       if (!sent_end_event_) {
         sent_end_event_ = true;
-        ScheduleEvent(EventNames::GetInstance()->ended());
+        ScheduleEvent(base::Tokens::ended());
       }
     }
   } else {
@@ -1233,7 +1233,7 @@ void HTMLMediaElement::TimeChanged() {
 void HTMLMediaElement::DurationChanged() {
   BeginProcessingMediaPlayerCallback();
 
-  ScheduleEvent(EventNames::GetInstance()->durationchange());
+  ScheduleEvent(base::Tokens::durationchange());
 
   float now = current_time(NULL);
   float dur = duration();

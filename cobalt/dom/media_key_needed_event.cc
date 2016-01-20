@@ -16,7 +16,7 @@
 
 #include "cobalt/dom/media_key_needed_event.h"
 
-#include "cobalt/dom/event_names.h"
+#include "cobalt/base/tokens.h"
 
 namespace cobalt {
 namespace dom {
@@ -24,7 +24,7 @@ namespace dom {
 MediaKeyNeededEvent::MediaKeyNeededEvent(
     const std::string& key_system, const std::string& session_id,
     const scoped_refptr<Uint8Array>& init_data)
-    : Event(EventNames::GetInstance()->needkey(), kNotBubbles, kNotCancelable),
+    : Event(base::Tokens::needkey(), kNotBubbles, kNotCancelable),
       key_system_(key_system),
       session_id_(session_id),
       init_data_(init_data) {}

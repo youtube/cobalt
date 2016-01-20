@@ -53,7 +53,7 @@ class EventQueueTest : public ::testing::Test {
 
 TEST_F(EventQueueTest, EventWithoutTargetTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event = new Event("event");
+  scoped_refptr<Event> event = new Event(base::Token("event"));
   scoped_ptr<MockEventListener> event_listener =
       MockEventListener::CreateAsNonAttribute();
   EventQueue event_queue(event_target.get());
@@ -69,7 +69,7 @@ TEST_F(EventQueueTest, EventWithoutTargetTest) {
 
 TEST_F(EventQueueTest, EventWithTargetTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event = new Event("event");
+  scoped_refptr<Event> event = new Event(base::Token("event"));
   scoped_ptr<MockEventListener> event_listener =
       MockEventListener::CreateAsNonAttribute();
   EventQueue event_queue(event_target.get());
@@ -86,7 +86,7 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
 
 TEST_F(EventQueueTest, CancelAllEventsTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event = new Event("event");
+  scoped_refptr<Event> event = new Event(base::Token("event"));
   scoped_ptr<MockEventListener> event_listener =
       MockEventListener::CreateAsNonAttribute();
   EventQueue event_queue(event_target.get());
@@ -107,7 +107,7 @@ TEST_F(EventQueueTest, CancelAllEventsTest) {
 TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
   scoped_refptr<EventTarget> event_target_1 = new EventTarget;
   scoped_refptr<EventTarget> event_target_2 = new EventTarget;
-  scoped_refptr<Event> event = new Event("event");
+  scoped_refptr<Event> event = new Event(base::Token("event"));
   scoped_ptr<MockEventListener> event_listener =
       MockEventListener::CreateAsNonAttribute();
 

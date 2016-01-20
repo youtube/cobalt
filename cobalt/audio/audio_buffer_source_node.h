@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef AUDIO_AUDIO_BUFFER_SOURCE_NODE_H_
-#define AUDIO_AUDIO_BUFFER_SOURCE_NODE_H_
+#ifndef COBALT_AUDIO_AUDIO_BUFFER_SOURCE_NODE_H_
+#define COBALT_AUDIO_AUDIO_BUFFER_SOURCE_NODE_H_
 
 #include <vector>
 
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_node.h"
+#include "cobalt/base/tokens.h"
 #include "media/base/shell_audio_bus.h"
 
 namespace cobalt {
@@ -65,11 +66,10 @@ class AudioBufferSourceNode : public AudioNode {
   // buffer for an AudioBufferSourceNode is finished, an event of type Event
   // will be dispatched to the event handler.
   const EventListenerScriptObject* onended() const {
-    return GetAttributeEventListener(dom::EventNames::GetInstance()->ended());
+    return GetAttributeEventListener(base::Tokens::ended());
   }
   void set_onended(const EventListenerScriptObject& event_listener) {
-    SetAttributeEventListener(dom::EventNames::GetInstance()->ended(),
-                              event_listener);
+    SetAttributeEventListener(base::Tokens::ended(), event_listener);
   }
 
   scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
@@ -98,4 +98,4 @@ class AudioBufferSourceNode : public AudioNode {
 }  // namespace audio
 }  // namespace cobalt
 
-#endif  // AUDIO_AUDIO_BUFFER_SOURCE_NODE_H_
+#endif  // COBALT_AUDIO_AUDIO_BUFFER_SOURCE_NODE_H_

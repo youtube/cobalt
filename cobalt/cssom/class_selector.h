@@ -21,7 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/base/token.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
@@ -37,7 +37,8 @@ class SelectorVisitor;
 class ClassSelector : public SimpleSelector {
  public:
   explicit ClassSelector(const std::string& class_name)
-      : class_name_(class_name) {}
+      : SimpleSelector(kClassSelector, base::Tokens::class_selector_prefix(),
+                       base::Token(class_name)) {}
   ~ClassSelector() OVERRIDE {}
 
   // From Selector.
@@ -45,22 +46,14 @@ class ClassSelector : public SimpleSelector {
   Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
 
   // From SimpleSelector.
-  ClassSelector* AsClassSelector() OVERRIDE { return this; }
-  int GetRank() const OVERRIDE { return kClassSelectorRank; }
-  std::string GetSelectorText() const OVERRIDE {
-    return "." + class_name_.str();
-  }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) OVERRIDE;
 
   // Rest of public methods.
-
-  base::Token class_name() const { return class_name_; }
+  base::Token class_name() const { return text(); }
 
  private:
-  const base::Token class_name_;
-
   DISALLOW_COPY_AND_ASSIGN(ClassSelector);
 };
 

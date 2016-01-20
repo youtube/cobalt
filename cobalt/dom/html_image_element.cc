@@ -110,7 +110,7 @@ void HTMLImageElement::UpdateImageData() {
                         ->image_cache()
                         ->CreateCachedResource(selected_source);
     if (cached_image_->TryGetResource()) {
-      PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->load());
+      PostToDispatchEvent(FROM_HERE, base::Tokens::load());
       return;
     }
   } else {
@@ -118,7 +118,7 @@ void HTMLImageElement::UpdateImageData() {
     // 10. If selected source is null, then set the element to the broken state,
     // queue a task to fire a simple event named error at the img element, and
     // abort these steps.
-    PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
+    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
     return;
   }
 
@@ -143,13 +143,13 @@ void HTMLImageElement::UpdateImageData() {
 
 void HTMLImageElement::OnLoadingDone() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingDone()");
-  PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->load());
+  PostToDispatchEvent(FROM_HERE, base::Tokens::load());
   node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
 }
 
 void HTMLImageElement::OnLoadingError() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingError()");
-  PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
+  PostToDispatchEvent(FROM_HERE, base::Tokens::error());
   node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
 }
 

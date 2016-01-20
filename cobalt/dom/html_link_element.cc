@@ -117,7 +117,7 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   // reason (e.g. DNS error, HTTP 404 response, a connection being prematurely
   // closed, unsupported Content-Type), queue a task to fire a simple event
   // named error at the link element.
-  PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->load());
+  PostToDispatchEvent(FROM_HERE, base::Tokens::load());
 
   // The element must delay the load event of the element's document until all
   // the attempts to obtain the resource and its critical subresources are
@@ -141,7 +141,7 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
   // reason (e.g. DNS error, HTTP 404 response, a connection being prematurely
   // closed, unsupported Content-Type), queue a task to fire a simple event
   // named error at the link element.
-  PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
+  PostToDispatchEvent(FROM_HERE, base::Tokens::error());
 
   // The element must delay the load event of the element's document until all
   // the attempts to obtain the resource and its critical subresources are

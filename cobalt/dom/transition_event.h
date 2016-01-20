@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_TRANSITION_EVENT_H_
-#define DOM_TRANSITION_EVENT_H_
+#ifndef COBALT_DOM_TRANSITION_EVENT_H_
+#define COBALT_DOM_TRANSITION_EVENT_H_
 
 #include <string>
 
@@ -29,7 +29,7 @@ namespace dom {
 //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-events
 class TransitionEvent : public Event {
  public:
-  TransitionEvent(const std::string& type, cssom::PropertyKey property,
+  TransitionEvent(base::Token type, cssom::PropertyKey property,
                   float elapsed_time)
       : Event(type, kBubbles, kCancelable),
         property_(property),
@@ -55,4 +55,4 @@ class TransitionEvent : public Event {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_TRANSITION_EVENT_H_
+#endif  // COBALT_DOM_TRANSITION_EVENT_H_

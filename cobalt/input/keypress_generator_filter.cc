@@ -16,7 +16,7 @@
 
 #include "cobalt/input/keypress_generator_filter.h"
 
-#include "cobalt/dom/event_names.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/keycode.h"
 
 namespace cobalt {
@@ -41,7 +41,7 @@ void KeypressGeneratorFilter::HandleKeyboardEvent(
 bool KeypressGeneratorFilter::ConditionallyGenerateKeypressEvent(
     const scoped_refptr<dom::KeyboardEvent>& orig_event) {
   // Ignore everything but keydown events.
-  if (orig_event->type() != dom::EventNames::GetInstance()->keydown()) {
+  if (orig_event->type() != base::Tokens::keydown()) {
     return false;
   }
 
@@ -59,9 +59,8 @@ bool KeypressGeneratorFilter::ConditionallyGenerateKeypressEvent(
 
   if (char_code > 0) {
     scoped_refptr<dom::KeyboardEvent> keypress_event(new dom::KeyboardEvent(
-        dom::EventNames::GetInstance()->keypress(),
-        dom::KeyboardEvent::kDomKeyLocationStandard, orig_event->modifiers(),
-        key_code, char_code, orig_event->repeat()));
+        base::Tokens::keypress(), dom::KeyboardEvent::kDomKeyLocationStandard,
+        orig_event->modifiers(), key_code, char_code, orig_event->repeat()));
     DispatchKeyboardEvent(keypress_event);
     return true;
   }

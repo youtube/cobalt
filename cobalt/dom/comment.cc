@@ -17,6 +17,7 @@
 #include "cobalt/dom/comment.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 
@@ -33,9 +34,8 @@ Comment::Comment(script::EnvironmentSettings* env_settings,
 Comment::Comment(Document* document, const base::StringPiece& comment)
     : CharacterData(document, comment) {}
 
-std::string Comment::node_name() const {
-  static const char kCommentName[] = "#comment";
-  return kCommentName;
+base::Token Comment::node_name() const {
+  return base::Tokens::comment_node_name();
 }
 
 void Comment::Accept(NodeVisitor* visitor) { visitor->Visit(this); }

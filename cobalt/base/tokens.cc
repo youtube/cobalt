@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,13 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/progress_event.h"
+#include "cobalt/base/tokens.h"
 
-namespace cobalt {
-namespace dom {
+namespace base {
 
-ProgressEvent::ProgressEvent(base::Token type)
-    : Event(type), loaded_(0), total_(0), length_computable_(false) {}
+// static
+Tokens* Tokens::GetInstance() {
+  return Singleton<Tokens, LeakySingletonTraits<Tokens> >::get();
+}
 
-ProgressEvent::ProgressEvent(base::Token type, uint64 loaded, uint64 total,
-                             bool length_computable)
-    : Event(type),
-      loaded_(loaded),
-      total_(total),
-      length_computable_(length_computable) {}
-
-}  // namespace dom
-}  // namespace cobalt
+}  // namespace base

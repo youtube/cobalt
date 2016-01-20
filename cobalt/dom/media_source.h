@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_MEDIA_SOURCE_H_
-#define DOM_MEDIA_SOURCE_H_
+#ifndef COBALT_DOM_MEDIA_SOURCE_H_
+#define COBALT_DOM_MEDIA_SOURCE_H_
 
 #include <string>
 
@@ -93,7 +93,7 @@ class MediaSource : public EventTarget {
   // TODO(***REMOVED***) : Invent a MediaSourceClient interface and make
   //                   WebMediaPlayer inherit from it.
   void SetPlayer(::media::WebMediaPlayer* player);
-  void ScheduleEvent(const std::string& event_name);
+  void ScheduleEvent(base::Token event_name);
 
   // Methods used by SourceBuffer.
   scoped_refptr<TimeRanges> GetBuffered(
@@ -123,4 +123,4 @@ class MediaSource : public EventTarget {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_MEDIA_SOURCE_H_
+#endif  // COBALT_DOM_MEDIA_SOURCE_H_

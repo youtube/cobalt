@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_PSEUDO_ELEMENT_H_
-#define CSSOM_PSEUDO_ELEMENT_H_
+#ifndef COBALT_CSSOM_PSEUDO_ELEMENT_H_
+#define COBALT_CSSOM_PSEUDO_ELEMENT_H_
 
 #include "base/compiler_specific.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
@@ -39,6 +40,9 @@ class BeforePseudoElement;
 //   https://www.w3.org/TR/selectors4/#pseudo-elements
 class PseudoElement : public SimpleSelector {
  public:
+  explicit PseudoElement(base::Token text)
+      : SimpleSelector(kPseudoElement,
+                       base::Tokens::pseudo_element_selector_prefix(), text) {}
   ~PseudoElement() OVERRIDE {}
 
   // From Selector.
@@ -46,7 +50,6 @@ class PseudoElement : public SimpleSelector {
 
   // From SimpleSelector.
   PseudoElement* AsPseudoElement() OVERRIDE { return this; }
-  int GetRank() const OVERRIDE { return kPseudoElementRank; }
   void IndexSelectorTreeNode(SelectorTree::Node* /* parent_node */,
                              SelectorTree::Node* /* child_node */,
                              CombinatorType /* combinator */) OVERRIDE {}
@@ -59,4 +62,4 @@ class PseudoElement : public SimpleSelector {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_PSEUDO_ELEMENT_H_
+#endif  // COBALT_CSSOM_PSEUDO_ELEMENT_H_
