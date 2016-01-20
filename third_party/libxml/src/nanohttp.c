@@ -16,8 +16,9 @@
 #include "libxml.h"
 
 #ifdef LIBXML_HTTP_ENABLED
+#ifdef HAVE_STRING_H
 #include <string.h>
-
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif

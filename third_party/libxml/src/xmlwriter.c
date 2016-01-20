@@ -10,7 +10,10 @@
 
 #define IN_LIBXML
 #include "libxml.h"
+
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
@@ -23,6 +26,10 @@
 
 #define B64LINELEN 72
 #define B64CRLF "\r\n"
+
+#ifdef STARBOARD
+  #define VA_COPY(dest, src) SB_VA_COPY(dest, src)
+#endif
 
 /*
  * The following VA_COPY was coded following an example in
@@ -180,7 +187,7 @@ xmlNewTextWriter(xmlOutputBufferPtr out)
                         "xmlNewTextWriter : out of memory!\n");
         return NULL;
     }
-    memset(ret, 0, (size_t) sizeof(xmlTextWriter));
+    XML_MEMSET(ret, 0, (size_t) sizeof(xmlTextWriter));
 
     ret->nodes = xmlListCreate((xmlListDeallocator)
                                xmlFreeTextWriterStackEntry,
@@ -361,7 +368,7 @@ xmlNewTextWriterDoc(xmlDocPtr * doc, int compression)
     xmlSAXHandler saxHandler;
     xmlParserCtxtPtr ctxt;
 
-    memset(&saxHandler, '\0', sizeof(saxHandler));
+    XML_MEMSET(&saxHandler, '\0', sizeof(saxHandler));
     xmlSAX2InitDefaultSAXHandler(&saxHandler, 1);
     saxHandler.startDocument = xmlTextWriterStartDocumentCallback;
     saxHandler.startElement = xmlSAX2StartElement;
@@ -430,7 +437,7 @@ xmlNewTextWriterTree(xmlDocPtr doc, xmlNodePtr node, int compression)
         return NULL;
     }
 
-    memset(&saxHandler, '\0', sizeof(saxHandler));
+    XML_MEMSET(&saxHandler, '\0', sizeof(saxHandler));
     xmlSAX2InitDefaultSAXHandler(&saxHandler, 1);
     saxHandler.startDocument = xmlTextWriterStartDocumentCallback;
     saxHandler.startElement = xmlSAX2StartElement;

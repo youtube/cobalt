@@ -9,9 +9,15 @@
 
 #define IN_LIBXML
 #include "libxml.h"
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -1824,7 +1830,7 @@ xmlSAX2TextNode(xmlParserCtxtPtr ctxt, const xmlChar *str, int len) {
         xmlErrMemory(ctxt, "xmlSAX2Characters");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlNode));
+    XML_MEMSET(ret, 0, sizeof(xmlNode));
     /*
      * intern the formatting blanks found between tags, or the
      * very short strings
@@ -1836,7 +1842,7 @@ xmlSAX2TextNode(xmlParserCtxtPtr ctxt, const xmlChar *str, int len) {
 	    (ctxt->options & XML_PARSE_COMPACT)) {
 	    /* store the string in the node overrithing properties and nsDef */
 	    xmlChar *tmp = (xmlChar *) &(ret->properties);
-	    memcpy(tmp, str, len);
+	    XML_MEMCPY(tmp, str, len);
 	    tmp[len] = 0;
 	    intern = tmp;
 	} else if ((len <= 3) && ((cur == '"') || (cur == '\'') ||
@@ -1943,7 +1949,7 @@ xmlSAX2AttributeNs(xmlParserCtxtPtr ctxt,
         ret = ctxt->freeAttrs;
 	ctxt->freeAttrs = ret->next;
 	ctxt->freeAttrsNr--;
-	memset(ret, 0, sizeof(xmlAttr));
+	XML_MEMSET(ret, 0, sizeof(xmlAttr));
 	ret->type = XML_ATTRIBUTE_NODE;
 
 	ret->parent = ctxt->node; 
@@ -2188,7 +2194,7 @@ xmlSAX2StartElementNs(void *ctx,
         ret = ctxt->freeElems;
 	ctxt->freeElems = ret->next;
 	ctxt->freeElemsNr--;
-	memset(ret, 0, sizeof(xmlNode));
+	XML_MEMSET(ret, 0, sizeof(xmlNode));
 	ret->type = XML_ELEMENT_NODE;
 
 	if (ctxt->dictNames)
@@ -2506,7 +2512,7 @@ xmlSAX2Characters(void *ctx, const xmlChar *ch, int len)
 		ctxt->nodemem = size;
 		lastChild->content = newbuf;
 	    }
-	    memcpy(&lastChild->content[ctxt->nodelen], ch, len);
+	    XML_MEMCPY(&lastChild->content[ctxt->nodelen], ch, len);
 	    ctxt->nodelen += len;
 	    lastChild->content[ctxt->nodelen] = 0;
 	} else if (coalesceText) {

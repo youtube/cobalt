@@ -11,7 +11,10 @@
 #ifndef __HTML_TREE_H__
 #define __HTML_TREE_H__
 
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
+
 #include <libxml/xmlversion.h>
 #include <libxml/tree.h>
 #include <libxml/HTMLparser.h>
@@ -144,4 +147,3 @@ XMLPUBFUN int XMLCALL
 #endif /* LIBXML_HTML_ENABLED */
 
 #endif /* __HTML_TREE_H__ */
-

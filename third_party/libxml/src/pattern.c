@@ -26,7 +26,10 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+
 #include <libxml/xmlmemory.h>
 #include <libxml/tree.h>
 #include <libxml/hash.h>
@@ -206,7 +209,7 @@ xmlNewPattern(void) {
 		"xmlNewPattern : malloc failed\n");
 	return(NULL);
     }
-    memset(cur, 0, sizeof(xmlPattern));
+    XML_MEMSET(cur, 0, sizeof(xmlPattern));
     cur->maxStep = 10;
     cur->steps = (xmlStepOpPtr) xmlMalloc(cur->maxStep * sizeof(xmlStepOp));
     if (cur->steps == NULL) {
@@ -252,7 +255,7 @@ xmlFreePattern(xmlPatternPtr comp) {
     if (comp->dict != NULL)
         xmlDictFree(comp->dict);
 
-    memset(comp, -1, sizeof(xmlPattern));
+    XML_MEMSET(comp, -1, sizeof(xmlPattern));
     xmlFree(comp);
 }
 
@@ -299,7 +302,7 @@ xmlNewPatParserContext(const xmlChar *pattern, xmlDictPtr dict,
 		"xmlNewPatParserContext : malloc failed\n");
 	return(NULL);
     }
-    memset(cur, 0, sizeof(xmlPatParserContext));
+    XML_MEMSET(cur, 0, sizeof(xmlPatParserContext));
     cur->dict = dict;
     cur->cur = pattern;
     cur->base = pattern;
@@ -324,7 +327,7 @@ static void
 xmlFreePatParserContext(xmlPatParserContextPtr ctxt) {
     if (ctxt == NULL)
 	return;    
-    memset(ctxt, -1, sizeof(xmlPatParserContext));
+    XML_MEMSET(ctxt, -1, sizeof(xmlPatParserContext));
     xmlFree(ctxt);
 }
 
@@ -1496,7 +1499,7 @@ xmlNewStreamComp(int size) {
 		"xmlNewStreamComp: malloc failed\n");
 	return(NULL);
     }
-    memset(cur, 0, sizeof(xmlStreamComp));
+    XML_MEMSET(cur, 0, sizeof(xmlStreamComp));
     cur->steps = (xmlStreamStepPtr) xmlMalloc(size * sizeof(xmlStreamStep));
     if (cur->steps == NULL) {
 	xmlFree(cur);
@@ -1761,7 +1764,7 @@ xmlNewStreamCtxt(xmlStreamCompPtr stream) {
 		"xmlNewStreamCtxt: malloc failed\n");
 	return(NULL);
     }
-    memset(cur, 0, sizeof(xmlStreamCtxt));
+    XML_MEMSET(cur, 0, sizeof(xmlStreamCtxt));
     cur->states = (int *) xmlMalloc(4 * 2 * sizeof(int));
     if (cur->states == NULL) {
 	xmlFree(cur);

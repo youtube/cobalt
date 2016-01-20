@@ -10,7 +10,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include <libxml/threads.h>
 #include <libxml/globals.h>
@@ -189,7 +191,7 @@ xmlNewMutex(void)
 {
     xmlMutexPtr tok;
 
-    if ((tok = malloc(sizeof(xmlMutex))) == NULL)
+    if ((tok = XML_MALLOC(sizeof(xmlMutex))) == NULL)
         return (NULL);
 #ifdef HAVE_PTHREAD_H
     if (libxml_is_threaded != 0)
@@ -198,7 +200,7 @@ xmlNewMutex(void)
     tok->mutex = CreateMutex(NULL, FALSE, NULL);
 #elif defined HAVE_BEOS_THREADS
     if ((tok->sem = create_sem(1, "xmlMutex")) < B_OK) {
-        free(tok);
+        XML_FREE(tok);
         return NULL;
     }
     tok->tid = -1;
@@ -227,7 +229,7 @@ xmlFreeMutex(xmlMutexPtr tok)
 #elif defined HAVE_BEOS_THREADS
     delete_sem(tok->sem);
 #endif
-    free(tok);
+    XML_FREE(tok);
 }
 
 /**
@@ -298,7 +300,7 @@ xmlNewRMutex(void)
 {
     xmlRMutexPtr tok;
 
-    if ((tok = malloc(sizeof(xmlRMutex))) == NULL)
+    if ((tok = XML_MALLOC(sizeof(xmlRMutex))) == NULL)
         return (NULL);
 #ifdef HAVE_PTHREAD_H
     if (libxml_is_threaded != 0) {
@@ -312,7 +314,7 @@ xmlNewRMutex(void)
     tok->count = 0;
 #elif defined HAVE_BEOS_THREADS
     if ((tok->lock = xmlNewMutex()) == NULL) {
-        free(tok);
+        XML_FREE(tok);
         return NULL;
     }
     tok->count = 0;
@@ -342,7 +344,7 @@ xmlFreeRMutex(xmlRMutexPtr tok ATTRIBUTE_UNUSED)
 #elif defined HAVE_BEOS_THREADS
     xmlFreeMutex(tok->lock);
 #endif
-    free(tok);
+    XML_FREE(tok);
 }
 
 /**
@@ -466,7 +468,7 @@ __xmlGlobalInitMutexLock(void)
          * allocated by this thread. */
         if (global_init_lock != cs) {
             DeleteCriticalSection(cs);
-            free(cs);
+            XML_FREE(cs);
         }
     }
 
@@ -531,7 +533,7 @@ __xmlGlobalInitMutexDestroy(void)
 #elif defined HAVE_WIN32_THREADS
     if (global_init_lock != NULL) {
         DeleteCriticalSection(global_init_lock);
-        free(global_init_lock);
+        XML_FREE(global_init_lock);
         global_init_lock = NULL;
     }
 #endif
@@ -562,7 +564,7 @@ xmlFreeGlobalState(void *state)
 
     /* free any memory allocated in the thread's xmlLastError */
     xmlResetError(&(gs->xmlLastError));
-    free(state);
+    XML_FREE(state);
 }
 
 /**
@@ -609,7 +611,7 @@ xmlGlobalStateCleanupHelper(void *p)
     WaitForSingleObject(params->thread, INFINITE);
     CloseHandle(params->thread);
     xmlFreeGlobalState(params->memory);
-    free(params);
+    XML_FREE(params);
     _endthread();
 }
 #else /* LIBXML_STATIC && !LIBXML_STATIC_FOR_DLL */
@@ -924,7 +926,7 @@ xmlCleanupThreads(void)
 
             p = p->next;
             xmlFreeGlobalState(temp->memory);
-            free(temp);
+            XML_FREE(temp);
         }
         cleanup_helpers_head = 0;
         LeaveCriticalSection(&cleanup_helpers_cs);
@@ -1020,7 +1022,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
                     if (p->next != NULL)
                         p->next->prev = p->prev;
                     LeaveCriticalSection(&cleanup_helpers_cs);
-                    free(p);
+                    XML_FREE(p);
                 }
             }
             break;

@@ -9,7 +9,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/parserInternals.h>
 #include <libxml/tree.h>
@@ -334,13 +336,13 @@ xmlSaveCtxtInit(xmlSaveCtxtPtr ctxt)
         ctxt->escape = xmlEscapeEntities;
     len = xmlStrlen((xmlChar *)xmlTreeIndentString);
     if ((xmlTreeIndentString == NULL) || (len == 0)) {
-        memset(&ctxt->indent[0], 0, MAX_INDENT + 1);
+        XML_MEMSET(&ctxt->indent[0], 0, MAX_INDENT + 1);
     } else {
 	ctxt->indent_size = len;
 	ctxt->indent_nr = MAX_INDENT / ctxt->indent_size;
 	for (i = 0;i < ctxt->indent_nr;i++)
-	    memcpy(&ctxt->indent[i * ctxt->indent_size], xmlTreeIndentString,
-		   ctxt->indent_size);
+	    XML_MEMCPY(&ctxt->indent[i * ctxt->indent_size], xmlTreeIndentString,
+                       ctxt->indent_size);
         ctxt->indent[ctxt->indent_nr * ctxt->indent_size] = 0;
     }
 
@@ -382,7 +384,7 @@ xmlNewSaveCtxt(const char *encoding, int options)
 	xmlSaveErrMemory("creating saving context");
 	return ( NULL );
     }
-    memset(ret, 0, sizeof(xmlSaveCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlSaveCtxt));
 
     if (encoding != NULL) {
         ret->handler = xmlFindCharEncodingHandler(encoding);
@@ -2034,7 +2036,7 @@ xmlNodeDump(xmlBufferPtr buf, xmlDocPtr doc, xmlNodePtr cur, int level,
         xmlSaveErrMemory("creating buffer");
         return (-1);
     }
-    memset(outbuf, 0, (size_t) sizeof(xmlOutputBuffer));
+    XML_MEMSET(outbuf, 0, (size_t) sizeof(xmlOutputBuffer));
     outbuf->buffer = buf;
     outbuf->encoder = NULL;
     outbuf->writecallback = NULL;
@@ -2128,7 +2130,7 @@ xmlNodeDumpOutput(xmlOutputBufferPtr buf, xmlDocPtr doc, xmlNodePtr cur,
     if (encoding == NULL)
         encoding = "UTF-8";
 
-    memset(&ctxt, 0, sizeof(ctxt));
+    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
     ctxt.doc = doc;
     ctxt.buf = buf;
     ctxt.level = level;
@@ -2214,7 +2216,7 @@ xmlDocDumpFormatMemoryEnc(xmlDocPtr out_doc, xmlChar **doc_txt_ptr,
         return;
     }
 
-    memset(&ctxt, 0, sizeof(ctxt));
+    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
     ctxt.doc = out_doc;
     ctxt.buf = out_buff;
     ctxt.level = 0;
@@ -2333,7 +2335,7 @@ xmlDocFormatDump(FILE *f, xmlDocPtr cur, int format) {
     }
     buf = xmlOutputBufferCreateFile(f, handler);
     if (buf == NULL) return(-1);
-    memset(&ctxt, 0, sizeof(ctxt));
+    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
     ctxt.doc = cur;
     ctxt.buf = buf;
     ctxt.level = 0;
@@ -2383,7 +2385,7 @@ xmlSaveFileTo(xmlOutputBufferPtr buf, xmlDocPtr cur, const char *encoding) {
         xmlOutputBufferClose(buf);
 	return(-1);
     }
-    memset(&ctxt, 0, sizeof(ctxt));
+    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
     ctxt.doc = cur;
     ctxt.buf = buf;
     ctxt.level = 0;
@@ -2423,7 +2425,7 @@ xmlSaveFormatFileTo(xmlOutputBufferPtr buf, xmlDocPtr cur,
         xmlOutputBufferClose(buf);
 	return(-1);
     }
-    memset(&ctxt, 0, sizeof(ctxt));
+    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
     ctxt.doc = cur;
     ctxt.buf = buf;
     ctxt.level = 0;
@@ -2478,7 +2480,7 @@ xmlSaveFormatFileEnc( const char * filename, xmlDocPtr cur,
      */
     buf = xmlOutputBufferCreateFilename(filename, handler, cur->compression);
     if (buf == NULL) return(-1);
-    memset(&ctxt, 0, sizeof(ctxt));
+    XML_MEMSET(&ctxt, 0, sizeof(ctxt));
     ctxt.doc = cur;
     ctxt.buf = buf;
     ctxt.level = 0;
