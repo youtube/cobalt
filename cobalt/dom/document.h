@@ -84,23 +84,26 @@ class DocumentObserver {
 class Document : public Node, public cssom::MutationObserver {
  public:
   struct Options {
-    Options() : cookie_jar(NULL) {}
+    Options() : cookie_jar(NULL), disable_csp(false) {}
     explicit Options(const GURL& url_value)
-        : url(url_value), cookie_jar(NULL) {}
+        : url(url_value), cookie_jar(NULL), disable_csp(false) {}
     Options(const GURL& url_value,
             const scoped_refptr<base::Clock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
             const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet,
             const base::optional<math::Size>& viewport_size,
             network_bridge::CookieJar* cookie_jar,
-            const network_bridge::NetPosterFactory& net_poster_factory)
+            const network_bridge::NetPosterFactory& net_poster_factory,
+            const std::string& default_security_policy, bool disable_csp)
         : url(url_value),
           navigation_start_clock(navigation_start_clock_value),
           navigation_callback(navigation_callback),
           user_agent_style_sheet(user_agent_style_sheet),
           viewport_size(viewport_size),
           cookie_jar(cookie_jar),
-          net_poster_factory(net_poster_factory) {}
+          net_poster_factory(net_poster_factory),
+          default_security_policy(default_security_policy),
+          disable_csp(disable_csp) {}
 
     GURL url;
     scoped_refptr<base::Clock> navigation_start_clock;
@@ -109,6 +112,8 @@ class Document : public Node, public cssom::MutationObserver {
     base::optional<math::Size> viewport_size;
     network_bridge::CookieJar* cookie_jar;
     network_bridge::NetPosterFactory net_poster_factory;
+    std::string default_security_policy;
+    bool disable_csp;
   };
 
   Document(HTMLElementContext* html_element_context,
@@ -185,14 +190,7 @@ class Document : public Node, public cssom::MutationObserver {
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
-
-  scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new Document(
-        html_element_context_,
-        Options(location_->url(), navigation_start_clock_,
-                location_->navigation_callback(), user_agent_style_sheet_,
-                viewport_size_, cookie_jar_, net_poster_factory_));
-  }
+  scoped_refptr<Node> Duplicate() const OVERRIDE;
 
   // Custom, not in any spec.
   //
@@ -310,9 +308,6 @@ class Document : public Node, public cssom::MutationObserver {
   }
 
   void NotifyUrlChanged(const GURL& url);
-  const network_bridge::NetPosterFactory& net_poster_factory() const {
-    return net_poster_factory_;
-  }
 
   DEFINE_WRAPPABLE_TYPE(Document);
 
@@ -328,9 +323,6 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<DOMImplementation> implementation_;
   // Associated location object.
   scoped_refptr<Location> location_;
-
-  // Creates NetPosters for use by CSPDelegate.
-  network_bridge::NetPosterFactory net_poster_factory_;
 
   // Content Security Policy enforcement for this document.
   scoped_ptr<CSPDelegate> csp_delegate_;

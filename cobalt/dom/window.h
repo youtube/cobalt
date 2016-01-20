@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_WINDOW_H_
-#define DOM_WINDOW_H_
+#ifndef COBALT_DOM_WINDOW_H_
+#define COBALT_DOM_WINDOW_H_
 
 #include <string>
 
@@ -93,7 +93,8 @@ class Window : public EventTarget {
          const base::Callback<void(const GURL&)> navigation_callback,
          const base::Callback<void(const std::string&)>& error_callback,
          network_bridge::CookieJar* cookie_jar,
-         const network_bridge::NetPosterFactory& net_poster_factory);
+         const network_bridge::NetPosterFactory& net_poster_factory,
+         const std::string& default_security_policy, bool disable_csp);
 
   // Web API: Window
   //
@@ -245,4 +246,4 @@ class Window : public EventTarget {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_WINDOW_H_
+#endif  // COBALT_DOM_WINDOW_H_

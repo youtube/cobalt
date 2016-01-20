@@ -23,62 +23,73 @@
 namespace cobalt {
 namespace dom {
 
-TEST(LocationTest, AssignShouldNotChangeURLPartsOtherThanHash) {
-  scoped_refptr<Location> location =
-      new Location(GURL("https://www.youtube.com/tv/foo;bar?q=a#ref"));
-  location->Assign("https://www.youtube.com/tv/foo;bar?q=a#new-ref");
-  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#new-ref", location->href());
-
-  location->Assign("https://www.google.com/");
-  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#new-ref", location->href());
+namespace {
+void DummyNavigateCallback(const GURL& /*url*/) {}
+bool DummySecurityCallback(const GURL& /*url*/, bool /*did_redirect*/) {
+  return true;
+}
 }
 
-TEST(LocationTest, Href) {
-  scoped_refptr<Location> location =
-      new Location(GURL("https://www.youtube.com/tv/foo;bar?q=a#ref"));
-  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#ref", location->href());
+class LocationTest : public ::testing::Test {
+ protected:
+  void Init(const GURL& url) {
+    location_ = new Location(url, base::Bind(&DummyNavigateCallback),
+                             base::Bind(&DummySecurityCallback));
+  }
+  scoped_refptr<Location> location_;
+};
 
-  location->set_href("https://www.youtube.com/tv/foo;bar?q=a#new-ref");
-  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#new-ref", location->href());
+TEST_F(LocationTest, AssignShouldNotChangeURLPartsOtherThanHash) {
+  Init(GURL("https://www.youtube.com/tv/foo;bar?q=a#ref"));
+  location_->Assign("https://www.youtube.com/tv/foo;bar?q=a#new-ref");
+  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#new-ref",
+            location_->href());
+
+  location_->Assign("https://www.google.com/");
+  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#new-ref",
+            location_->href());
 }
 
-TEST(LocationTest, Protocol) {
-  scoped_refptr<Location> location =
-      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("https:", location->protocol());
+TEST_F(LocationTest, Href) {
+  Init(GURL("https://www.youtube.com/tv/foo;bar?q=a#ref"));
+  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#ref", location_->href());
+
+  location_->set_href("https://www.youtube.com/tv/foo;bar?q=a#new-ref");
+  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#new-ref",
+            location_->href());
 }
 
-TEST(LocationTest, Host) {
-  scoped_refptr<Location> location =
-      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("google.com:99", location->host());
+TEST_F(LocationTest, Protocol) {
+  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
+  EXPECT_EQ("https:", location_->protocol());
 }
 
-TEST(LocationTest, Hostname) {
-  scoped_refptr<Location> location =
-      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("google.com", location->hostname());
+TEST_F(LocationTest, Host) {
+  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
+  EXPECT_EQ("google.com:99", location_->host());
 }
 
-TEST(LocationTest, Port) {
-  scoped_refptr<Location> location =
-      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("99", location->port());
+TEST_F(LocationTest, Hostname) {
+  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
+  EXPECT_EQ("google.com", location_->hostname());
 }
 
-TEST(LocationTest, Hash) {
-  scoped_refptr<Location> location =
-      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("#ref", location->hash());
-
-  location->set_hash("new-ref");
-  EXPECT_EQ("#new-ref", location->hash());
+TEST_F(LocationTest, Port) {
+  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
+  EXPECT_EQ("99", location_->port());
 }
 
-TEST(LocationTest, Search) {
-  scoped_refptr<Location> location =
-      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("?q=a", location->search());
+TEST_F(LocationTest, Hash) {
+  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
+  EXPECT_EQ("#ref", location_->hash());
+
+  location_->set_hash("new-ref");
+  EXPECT_EQ("#new-ref", location_->hash());
+}
+
+TEST_F(LocationTest, Search) {
+  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
+  EXPECT_EQ("?q=a", location_->search());
 }
 
 }  // namespace dom

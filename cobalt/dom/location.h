@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef DOM_LOCATION_H_
-#define DOM_LOCATION_H_
+#ifndef COBALT_DOM_LOCATION_H_
+#define COBALT_DOM_LOCATION_H_
 
 #include <string>
 
 #include "base/callback.h"
+#include "cobalt/csp/content_security_policy.h"
 #include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"
 
@@ -31,9 +32,9 @@ namespace dom {
 //   https://www.w3.org/TR/html5/browsers.html#the-location-interface
 class Location : public script::Wrappable {
  public:
-  explicit Location(const GURL& url);
   Location(const GURL& url,
-           const base::Callback<void(const GURL&)>& navigation_callback);
+           const base::Callback<void(const GURL&)>& navigation_callback,
+           const csp::SecurityCallback& security_callback);
 
   // Web API: Location
   //
@@ -89,6 +90,7 @@ class Location : public script::Wrappable {
 
   GURL url_;
   base::Callback<void(const GURL&)> navigation_callback_;
+  csp::SecurityCallback security_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(Location);
 };
@@ -96,4 +98,4 @@ class Location : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_LOCATION_H_
+#endif  // COBALT_DOM_LOCATION_H_

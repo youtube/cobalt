@@ -97,7 +97,10 @@ class FakeSettings : public dom::DOMSettings {
 
 class MockCSPDelegate : public dom::CSPDelegate {
  public:
-  MockCSPDelegate() : dom::CSPDelegate(NULL) {}
+  MockCSPDelegate()
+      : dom::CSPDelegate(
+            base::Callback<scoped_ptr<network_bridge::NetPoster>()>(),
+            std::string() /* default policy */, false /* enable csp */) {}
   MOCK_CONST_METHOD3(CanLoad,
                      bool(dom::CSPDelegate::ResourceType, const GURL&, bool));
 };

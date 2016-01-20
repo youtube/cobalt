@@ -43,7 +43,7 @@ ReferrerPolicy MergeReferrerPolicies(ReferrerPolicy a, ReferrerPolicy b) {
 #define FOR_ALL_POLICIES_1(AllowFunc, arg0)               \
   for (PolicyList::const_iterator it = policies_.begin(); \
        it != policies_.end(); ++it) {                     \
-    if ((*it)->AllowFunc((arg0)) == false) return false;  \
+    if (!(*it)->AllowFunc((arg0))) return false;          \
   }                                                       \
   return true
 
@@ -136,6 +136,9 @@ const char ContentSecurityPolicy::kPluginTypes[] = "plugin-types";
 const char ContentSecurityPolicy::kReflectedXSS[] = "reflected-xss";
 const char ContentSecurityPolicy::kReferrer[] = "referrer";
 
+// Custom Cobalt directive to enforce navigation restrictions.
+const char ContentSecurityPolicy::kLocationSrc[] = "h5vcc-location-src";
+
 // CSP Editor's Draft:
 // https://w3c.github.io/webappsec/specs/content-security-policy
 const char ContentSecurityPolicy::kManifestSrc[] = "manifest-src";
@@ -161,6 +164,7 @@ bool ContentSecurityPolicy::IsDirectiveName(const std::string& name) {
           lower_name == kFontSrc ||
           lower_name == kFrameSrc ||
           lower_name == kImgSrc ||
+          lower_name == kLocationSrc ||
           lower_name == kMediaSrc ||
           lower_name == kObjectSrc ||
           lower_name == kReportURI ||
@@ -190,6 +194,10 @@ ContentSecurityPolicy::ContentSecurityPolicy()
 
 ContentSecurityPolicy::~ContentSecurityPolicy() {}
 
+void ContentSecurityPolicy::BindDelegate(Delegate* delegate) {
+  delegate_ = delegate;
+}
+
 void ContentSecurityPolicy::OnReceiveHeaders(const ResponseHeaders& headers) {
   DCHECK(delegate_);
   if (!headers.content_security_policy().empty()) {
@@ -203,15 +211,18 @@ void ContentSecurityPolicy::OnReceiveHeaders(const ResponseHeaders& headers) {
   ApplyPolicy();
 }
 
-void ContentSecurityPolicy::BindDelegate(Delegate* delegate) {
-  delegate_ = delegate;
-}
-
 void ContentSecurityPolicy::OnReceiveHeader(const std::string& header,
                                             HeaderType type,
                                             HeaderSource source) {
   DCHECK(delegate_);
   AddPolicyFromHeaderValue(header, type, source);
+  ApplyPolicy();
+}
+
+void ContentSecurityPolicy::SetNavigationFallbackPolicy(
+    const std::string& policy) {
+  navigation_fallback_policy_.reset(new DirectiveList(
+      this, base::StringPiece(policy), kHeaderTypeEnforce, kHeaderSourceHTTP));
   ApplyPolicy();
 }
 
@@ -464,6 +475,40 @@ bool ContentSecurityPolicy::AllowImageFromSource(
     ContentSecurityPolicy::ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowImageFromSource, url, redirect_status,
                      reporting_status);
+}
+
+bool ContentSecurityPolicy::AllowNavigateToSource(
+    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
+    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+  // Note that this is a Cobalt-specific policy to prevent navigation
+  // to any unexpected URLs. Navigation is restrictive by default, as
+  // opposed to the permissive policy for other directives.
+  // If a location policy has been set, respect it. Otherwise, use the
+  // default location policy, which should have been set by the
+  // Document during initialization.
+  if (!navigation_fallback_policy_) {
+    DLOG(ERROR) << "SetNavigationFallbackPolicy() was not called.";
+    return false;
+  }
+
+  bool any_policy_set = false;
+  for (PolicyList::const_iterator it = policies_.begin(); it != policies_.end();
+       ++it) {
+    if ((*it)->has_location_src()) {
+      // Some kind of location policy was received, so we should respect it.
+      any_policy_set = true;
+      break;
+    }
+  }
+  if (any_policy_set) {
+    FOR_ALL_POLICIES_3(AllowNavigateToSource, url, redirect_status,
+                       reporting_status);
+  } else {
+    // No location policy was received from the server. Fall back to our
+    // default.
+    return navigation_fallback_policy_->AllowNavigateToSource(
+        url, redirect_status, reporting_status);
+  }
 }
 
 bool ContentSecurityPolicy::AllowStyleFromSource(
