@@ -134,6 +134,7 @@
 
 #endif
 
+#if !defined(STARBOARD)
 #if defined(__MSDOS__) && !defined(MSDOS)
 #  define MSDOS
 #endif
@@ -155,6 +156,7 @@
 #    endif
 #  endif
 #endif
+#endif  // !defined(STARBOARD)
 
 /*
  * Compile with -DMAXSEG_64K if the alloc function cannot allocate more
@@ -273,6 +275,19 @@
 #  endif
 #endif
 
+#if defined(STARBOARD)
+#  ifdef ZLIB_DLL
+#    include "starboard/export.h"
+#    ifdef ZLIB_INTERNAL
+#      define ZEXPORT SB_EXPORT_PLATFORM
+#      define ZEXPORTVA SB_EXPORT_PLATFORM
+#    else  // ZLIB_INTERNAL
+#      define ZEXPORT SB_IMPORT_PLATFORM
+#      define ZEXPORTVA SB_IMPORT_PLATFORM
+#    endif  // ZLIB_INTERNAL
+#  endif  // ZLIB_DLL
+#  define ZEXTERN
+#else
 #if defined(WINDOWS) || defined(WIN32)
    /* If building or using zlib as a DLL, define ZLIB_DLL.
     * This is not mandatory, but it offers a little performance increase.
@@ -317,6 +332,7 @@
 #    endif
 #  endif
 #endif
+#endif  // !defined(STARBOARD)
 
 #ifndef ZEXTERN
 #  define ZEXTERN extern
@@ -359,11 +375,15 @@ typedef uLong FAR uLongf;
    typedef Byte       *voidp;
 #endif
 
+#if !defined(STARBOARD)
 #ifdef HAVE_UNISTD_H    /* may be set to #if 1 by ./configure */
 #  define Z_HAVE_UNISTD_H
 #endif
+#endif
 
-#ifdef STDC
+#if defined(STARBOARD)
+#  include "starboard/types.h"
+#elif defined(STDC)
 #  include <sys/types.h>    /* for off_t */
 #endif
 
@@ -409,6 +429,13 @@ typedef uLong FAR uLongf;
 
 #if defined(__MVS__)
 #  define NO_vsnprintf
+#endif
+
+#if defined(STARBOARD)
+#  define NO_ERRNO_H
+/* zlib pulls in a lot more dependencies in DEBUG mode. So, for now, zlib
+ * debugging is disabled in STARBOARD. */
+#  undef DEBUG
 #endif
 
 /* MVS linker does not support external names larger than 8 bytes */

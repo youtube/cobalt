@@ -5,17 +5,10 @@
 #include "starboard/string.h"
 #include "starboard/types.h"
 
-/* config.h.in.  Generated from configure.in by autoheader.  */
+/* Manually adapted from config.h.in. */
 #define PACKAGE "libxml2"
 #define VERSION "2.7.7"
-#define HAVE_LIBZ 1
 #undef HAVE_LIBM
-#undef HAVE_ISINF
-#undef HAVE_ISNAN
-#undef HAVE_LIBHISTORY
-#undef HAVE_LIBREADLINE
-#undef HAVE_LIBPTHREAD
-#undef HAVE_PTHREAD_H
 
 /* Define if IPV6 support is there */
 #undef SUPPORT_IP6
@@ -114,6 +107,7 @@
 #undef HAVE_LIBREADLINE
 
 /* Have compression library */
+/* NOTE(iffy): We actually do have this, but do not need the integration. */
 #undef HAVE_LIBZ
 
 /* Define to 1 if you have the <limits.h> header file. */
@@ -255,7 +249,8 @@
 #undef HAVE_VSPRINTF
 
 /* Define to 1 if you have the <zlib.h> header file. */
-#define HAVE_ZLIB_H 1
+/* NOTE(iffy): We actually do have this, but do not need the integration. */
+#undef HAVE_ZLIB_H
 
 /* Define to 1 if you have the `_stat' function. */
 #undef HAVE__STAT

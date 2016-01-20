@@ -1169,6 +1169,10 @@ ZEXTERN int ZEXPORT uncompress OF((Bytef *dest,   uLongf *destLen,
 
 typedef voidp gzFile;       /* opaque gzip file descriptor */
 
+#if !defined(STARBOARD)
+/* NOTE(iffy): Disabled in Starboard because Cobalt doesn't use it, and I don't
+   want to port it. */
+
 ZEXTERN gzFile ZEXPORT gzopen OF((const char *path, const char *mode));
 /*
      Opens a gzip (.gz) file for reading or writing.  The mode parameter is as
@@ -1437,6 +1441,7 @@ ZEXTERN int ZEXPORT gzclose_w OF((gzFile file));
    decompression code will be included the application when linking to a static
    zlib library.
 */
+#endif  // !defined(STARBOARD)
 
 ZEXTERN const char * ZEXPORT gzerror OF((gzFile file, int *errnum));
 /*
