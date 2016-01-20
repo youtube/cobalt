@@ -14,66 +14,29 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_LINEAR_GRADIENT_VALUE_H_
-#define CSSOM_LINEAR_GRADIENT_VALUE_H_
+#ifndef COBALT_CSSOM_LINEAR_GRADIENT_VALUE_H_
+#define COBALT_CSSOM_LINEAR_GRADIENT_VALUE_H_
 
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/scoped_vector.h"
 #include "base/optional.h"
 #include "cobalt/base/polymorphic_equatable.h"
-#include "cobalt/cssom/keyword_names.h"
-#include "cobalt/cssom/length_value.h"
-#include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/color_stop.h"
 #include "cobalt/cssom/property_value.h"
-#include "cobalt/cssom/rgba_color_value.h"
 
 namespace cobalt {
 namespace cssom {
-
-// A color stop is a combination of a color and a position. Percentages refer to
-// the length of the gradient line, with 0% being at the starting point and 100%
-// being at the ending point. Lengths are measured from the starting point in
-// the direction of the ending point.
-// See https://www.w3.org/TR/css3-images/#linear-gradients
-// 4.4. Gradient Color-Stops for details.
-class ColorStop {
- public:
-  explicit ColorStop(const scoped_refptr<RGBAColorValue>& rgba)
-      : rgba_(rgba), position_(NULL) {}
-
-  ColorStop(const scoped_refptr<RGBAColorValue>& rgba,
-            const scoped_refptr<PropertyValue>& position)
-      : rgba_(rgba), position_(position) {}
-
-  scoped_refptr<RGBAColorValue> rgba() const { return rgba_; }
-  scoped_refptr<PropertyValue> position() const { return position_; }
-
-  std::string ToString() const;
-
-  bool operator==(const ColorStop& other) const;
-
- private:
-  const scoped_refptr<RGBAColorValue> rgba_;
-  const scoped_refptr<PropertyValue> position_;
-
-  DISALLOW_COPY_AND_ASSIGN(ColorStop);
-};
 
 // The angle or side_or_corner specifies the gradient line, which gives the
 // gradient a direction and determines how color-stops are positioned.
 //   https://www.w3.org/TR/css3-images/#linear-gradients
 class LinearGradientValue : public PropertyValue {
  public:
-  // A list of ColorStopValue. Color-stops are points placed along the line
-  // defined by gradient line at the beginning of the rule. Color-stops must be
-  // specified in order.
-  typedef ScopedVector<ColorStop> ColorStopList;
-
   enum SideOrCorner {
     kBottom,
     kBottomLeft,
@@ -85,13 +48,14 @@ class LinearGradientValue : public PropertyValue {
     kTopRight,
   };
 
-  LinearGradientValue(float angle_in_radians, ColorStopList* color_stop_list)
+  LinearGradientValue(float angle_in_radians, ColorStopList color_stop_list)
       : angle_in_radians_(angle_in_radians),
-        color_stop_list_(color_stop_list) {}
+        color_stop_list_(color_stop_list.Pass()) {}
 
   LinearGradientValue(SideOrCorner side_or_corner,
-                      ColorStopList* color_stop_list)
-      : side_or_corner_(side_or_corner), color_stop_list_(color_stop_list) {}
+                      ColorStopList color_stop_list)
+      : side_or_corner_(side_or_corner),
+        color_stop_list_(color_stop_list.Pass()) {}
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
@@ -99,7 +63,7 @@ class LinearGradientValue : public PropertyValue {
   base::optional<SideOrCorner> side_or_corner() const {
     return side_or_corner_;
   }
-  const ColorStopList* color_stop_list() const {
+  const std::vector<cssom::ColorStop*>& color_stop_list() const {
     return color_stop_list_.get();
   }
 
@@ -115,7 +79,7 @@ class LinearGradientValue : public PropertyValue {
   // Exactly one of |angle_in_radians_| and |side_or_corner_| is engaged.
   const base::optional<float> angle_in_radians_;
   const base::optional<SideOrCorner> side_or_corner_;
-  const scoped_ptr<ColorStopList> color_stop_list_;
+  const ColorStopList color_stop_list_;
 
   DISALLOW_COPY_AND_ASSIGN(LinearGradientValue);
 };
@@ -123,4 +87,4 @@ class LinearGradientValue : public PropertyValue {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_LINEAR_GRADIENT_VALUE_H_
+#endif  // COBALT_CSSOM_LINEAR_GRADIENT_VALUE_H_

@@ -31,6 +31,7 @@
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_list_value.h"
+#include "cobalt/cssom/radial_gradient_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -111,6 +112,11 @@ void DefaultingPropertyValueVisitor::VisitPropertyKeyList(
 void DefaultingPropertyValueVisitor::VisitPropertyList(
     PropertyListValue* property_list_value) {
   VisitDefault(property_list_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitRadialGradient(
+    RadialGradientValue* radial_gradient_value) {
+  VisitDefault(radial_gradient_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitRatio(RatioValue* ratio_value) {

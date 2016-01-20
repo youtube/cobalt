@@ -31,6 +31,7 @@
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_list_value.h"
+#include "cobalt/cssom/radial_gradient_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -154,6 +155,70 @@ TEST(PropertyValueToStringTest, PropertyKeyListValue) {
   EXPECT_EQ(property->ToString(), "background-color, opacity");
 }
 
+TEST(PropertyValueToStringTest, RadialGradientValueSizeKeyword) {
+  ColorStopList color_stop_list;
+  scoped_refptr<RGBAColorValue> property_color_1(
+      new RGBAColorValue(100, 0, 50, 255));
+  scoped_refptr<LengthValue> property_length_1(
+      new LengthValue(212, kPixelsUnit));
+  color_stop_list.push_back(new ColorStop(property_color_1, property_length_1));
+  scoped_refptr<RGBAColorValue> property_color_2(
+      new RGBAColorValue(55, 66, 77, 255));
+  scoped_refptr<LengthValue> property_length_2(
+      new LengthValue(42, kPixelsUnit));
+  color_stop_list.push_back(new ColorStop(property_color_2, property_length_2));
+
+  scoped_ptr<PropertyListValue::Builder> position_value_builder(
+      new PropertyListValue::Builder());
+  position_value_builder->push_back(new PercentageValue(0.50f));
+  position_value_builder->push_back(new LengthValue(128, kPixelsUnit));
+  scoped_refptr<PropertyListValue> position_property(
+      new PropertyListValue(position_value_builder.Pass()));
+
+  scoped_refptr<RadialGradientValue> property(new RadialGradientValue(
+      RadialGradientValue::kEllipse, RadialGradientValue::kClosestCorner,
+      position_property, color_stop_list.Pass()));
+
+  EXPECT_EQ(property->ToString(),
+            "ellipse closest-corner at 50% 128px, rgb(100,0,50) 212px, "
+            "rgb(55,66,77) 42px");
+}
+
+TEST(PropertyValueToStringTest, RadialGradientValueSizeValue) {
+  ColorStopList color_stop_list;
+  scoped_refptr<RGBAColorValue> property_color_1(
+      new RGBAColorValue(100, 0, 50, 255));
+  scoped_refptr<LengthValue> property_length_1(
+      new LengthValue(212, kPixelsUnit));
+  color_stop_list.push_back(new ColorStop(property_color_1, property_length_1));
+  scoped_refptr<RGBAColorValue> property_color_2(
+      new RGBAColorValue(55, 66, 77, 255));
+  scoped_refptr<LengthValue> property_length_2(
+      new LengthValue(42, kPixelsUnit));
+  color_stop_list.push_back(new ColorStop(property_color_2, property_length_2));
+
+  scoped_ptr<PropertyListValue::Builder> size_value_builder(
+      new PropertyListValue::Builder());
+  size_value_builder->push_back(new LengthValue(0.5, kFontSizesAkaEmUnit));
+  scoped_refptr<PropertyListValue> size_property(
+      new PropertyListValue(size_value_builder.Pass()));
+
+  scoped_ptr<PropertyListValue::Builder> position_value_builder(
+      new PropertyListValue::Builder());
+  position_value_builder->push_back(KeywordValue::GetCenter());
+  position_value_builder->push_back(KeywordValue::GetTop());
+  scoped_refptr<PropertyListValue> position_property(
+      new PropertyListValue(position_value_builder.Pass()));
+
+  scoped_refptr<RadialGradientValue> property(
+      new RadialGradientValue(RadialGradientValue::kCircle, size_property,
+                              position_property, color_stop_list.Pass()));
+
+  EXPECT_EQ(
+      property->ToString(),
+      "circle 0.5em at center top, rgb(100,0,50) 212px, rgb(55,66,77) 42px");
+}
+
 TEST(PropertyValueToStringTest, RatioValue) {
   scoped_refptr<RatioValue> property(new RatioValue(math::Rational(16, 9)));
   EXPECT_EQ(property->ToString(), "16/9");
@@ -177,46 +242,40 @@ TEST(PropertyValueToStringTest, RGBAColorValue) {
 }
 
 TEST(PropertyValueToStringTest, LinearGradientValueAngle) {
-  LinearGradientValue::ColorStopList *color_stop_list =
-      new LinearGradientValue::ColorStopList;
+  ColorStopList color_stop_list;
   scoped_refptr<RGBAColorValue> property_color_1(
       new RGBAColorValue(100, 0, 50, 255));
   scoped_refptr<LengthValue> property_length_1(
       new LengthValue(212, kPixelsUnit));
-  color_stop_list->push_back(
-      new ColorStop(property_color_1, property_length_1));
+  color_stop_list.push_back(new ColorStop(property_color_1, property_length_1));
   scoped_refptr<RGBAColorValue> property_color_2(
       new RGBAColorValue(55, 66, 77, 255));
   scoped_refptr<LengthValue> property_length_2(
       new LengthValue(42, kPixelsUnit));
-  color_stop_list->push_back(
-      new ColorStop(property_color_2, property_length_2));
+  color_stop_list.push_back(new ColorStop(property_color_2, property_length_2));
 
   scoped_refptr<LinearGradientValue> property(
-      new LinearGradientValue(123.0f, color_stop_list));
+      new LinearGradientValue(123.0f, color_stop_list.Pass()));
 
   EXPECT_EQ(property->ToString(),
             "123rad, rgb(100,0,50) 212px, rgb(55,66,77) 42px");
 }
 
 TEST(PropertyValueToStringTest, LinearGradientValueSideOrCorner) {
-  LinearGradientValue::ColorStopList *color_stop_list =
-      new LinearGradientValue::ColorStopList;
+  ColorStopList color_stop_list;
   scoped_refptr<RGBAColorValue> property_color_1(
       new RGBAColorValue(100, 0, 50, 255));
   scoped_refptr<LengthValue> property_length_1(
       new LengthValue(212, kPixelsUnit));
-  color_stop_list->push_back(
-      new ColorStop(property_color_1, property_length_1));
+  color_stop_list.push_back(new ColorStop(property_color_1, property_length_1));
   scoped_refptr<RGBAColorValue> property_color_2(
       new RGBAColorValue(55, 66, 77, 255));
   scoped_refptr<LengthValue> property_length_2(
       new LengthValue(42, kPixelsUnit));
-  color_stop_list->push_back(
-      new ColorStop(property_color_2, property_length_2));
+  color_stop_list.push_back(new ColorStop(property_color_2, property_length_2));
 
-  scoped_refptr<LinearGradientValue> property(
-      new LinearGradientValue(LinearGradientValue::kBottom, color_stop_list));
+  scoped_refptr<LinearGradientValue> property(new LinearGradientValue(
+      LinearGradientValue::kBottom, color_stop_list.Pass()));
 
   EXPECT_EQ(property->ToString(),
             "to bottom, rgb(100,0,50) 212px, rgb(55,66,77) 42px");
