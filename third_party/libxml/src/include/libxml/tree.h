@@ -12,7 +12,10 @@
 #ifndef __XML_TREE_H__
 #define __XML_TREE_H__
 
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
+
 #include <libxml/xmlversion.h>
 #include <libxml/xmlstring.h>
 
@@ -1250,4 +1253,3 @@ XMLPUBFUN xmlNodePtr XMLCALL
 #endif
 
 #endif /* __XML_TREE_H__ */
-

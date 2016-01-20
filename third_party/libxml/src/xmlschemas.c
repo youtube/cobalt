@@ -55,7 +55,9 @@
 
 #ifdef LIBXML_SCHEMAS_ENABLED
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
@@ -3244,7 +3246,7 @@ xmlSchemaNewSchema(xmlSchemaParserCtxtPtr ctxt)
         xmlSchemaPErrMemory(ctxt, "allocating schema", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchema));
+    XML_MEMSET(ret, 0, sizeof(xmlSchema));
     ret->dict = ctxt->dict;
     xmlDictReference(ret->dict);
 
@@ -3267,7 +3269,7 @@ xmlSchemaNewFacet(void)
     if (ret == NULL) {
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaFacet));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaFacet));
 
     return (ret);
 }
@@ -3291,7 +3293,7 @@ xmlSchemaNewAnnot(xmlSchemaParserCtxtPtr ctxt, xmlNodePtr node)
         xmlSchemaPErrMemory(ctxt, "allocating annotation", node);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaAnnot));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaAnnot));
     ret->content = node;
     return (ret);
 }
@@ -3307,7 +3309,7 @@ xmlSchemaItemListCreate(void)
 	    "allocating an item list structure", NULL);
 	return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaItemList));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaItemList));
     return (ret);
 }
 
@@ -3552,7 +3554,7 @@ xmlSchemaBucketCreate(xmlSchemaParserCtxtPtr pctxt,
 	xmlSchemaPErrMemory(NULL, "allocating schema bucket", NULL);
 	return(NULL);
     }
-    memset(ret, 0, size);
+    XML_MEMSET(ret, 0, size);
     ret->targetNamespace = targetNamespace;
     ret->type = type;
     ret->globals = xmlSchemaItemListCreate();
@@ -5123,7 +5125,7 @@ xmlSchemaAddNotation(xmlSchemaParserCtxtPtr ctxt, xmlSchemaPtr schema,
         xmlSchemaPErrMemory(ctxt, "add annotation", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaNotation));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaNotation));
     ret->type = XML_SCHEMA_TYPE_NOTATION;
     ret->name = name;
     ret->targetNamespace = nsName;
@@ -5160,7 +5162,7 @@ xmlSchemaAddAttribute(xmlSchemaParserCtxtPtr ctxt, xmlSchemaPtr schema,
         xmlSchemaPErrMemory(ctxt, "allocating attribute", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaAttribute));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaAttribute));
     ret->type = XML_SCHEMA_TYPE_ATTRIBUTE;
     ret->node = node;
     ret->name = name;
@@ -5200,7 +5202,7 @@ xmlSchemaAddAttributeUse(xmlSchemaParserCtxtPtr pctxt,
         xmlSchemaPErrMemory(pctxt, "allocating attribute", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaAttributeUse));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaAttributeUse));
     ret->type = XML_SCHEMA_TYPE_ATTRIBUTE_USE;
     ret->node = node;
 
@@ -5230,7 +5232,7 @@ xmlSchemaAddRedef(xmlSchemaParserCtxtPtr pctxt,
 	    "allocating redefinition info", NULL);
 	return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaRedef));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaRedef));
     ret->item = item;
     ret->targetBucket = targetBucket;
     ret->refName = refName;
@@ -5274,7 +5276,7 @@ xmlSchemaAddAttributeGroupDefinition(xmlSchemaParserCtxtPtr pctxt,
 	xmlSchemaPErrMemory(pctxt, "allocating attribute group", NULL);
 	return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaAttributeGroup));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaAttributeGroup));
     ret->type = XML_SCHEMA_TYPE_ATTRIBUTEGROUP;
     ret->name = name;
     ret->targetNamespace = nsName;
@@ -5323,7 +5325,7 @@ xmlSchemaAddElement(xmlSchemaParserCtxtPtr ctxt,
         xmlSchemaPErrMemory(ctxt, "allocating element", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaElement));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaElement));
     ret->type = XML_SCHEMA_TYPE_ELEMENT;
     ret->name = name;
     ret->targetNamespace = nsName;
@@ -5365,7 +5367,7 @@ xmlSchemaAddType(xmlSchemaParserCtxtPtr ctxt, xmlSchemaPtr schema,
         xmlSchemaPErrMemory(ctxt, "allocating type", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaType));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaType));
     ret->type = type;
     ret->name = name;
     ret->targetNamespace = nsName;
@@ -5427,7 +5429,7 @@ xmlSchemaAddAttributeUseProhib(xmlSchemaParserCtxtPtr pctxt)
 	    "allocating attribute use prohibition", NULL);
 	return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaAttributeUseProhib));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaAttributeUseProhib));
     ret->type = XML_SCHEMA_EXTRA_ATTR_USE_PROHIB;
     WXS_ADD_LOCAL(pctxt, ret);
     return (ret);
@@ -5464,7 +5466,7 @@ xmlSchemaAddModelGroup(xmlSchemaParserCtxtPtr ctxt,
 	    NULL);
 	return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaModelGroup));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaModelGroup));
     ret->type = type;
     ret->node = node;
     WXS_ADD_LOCAL(ctxt, ret);
@@ -5552,7 +5554,7 @@ xmlSchemaAddModelGroupDefinition(xmlSchemaParserCtxtPtr ctxt,
         xmlSchemaPErrMemory(ctxt, "adding group", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaModelGroupDef));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaModelGroupDef));
     ret->name = name;
     ret->type = XML_SCHEMA_TYPE_GROUP;
     ret->node = node;
@@ -5612,7 +5614,7 @@ xmlSchemaAddIDC(xmlSchemaParserCtxtPtr ctxt, xmlSchemaPtr schema,
 	    "allocating an identity-constraint definition", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaIDC));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaIDC));
     /* The target namespace of the parent element declaration. */
     ret->targetNamespace = nsName;
     ret->name = name;
@@ -5652,7 +5654,7 @@ xmlSchemaAddWildcard(xmlSchemaParserCtxtPtr ctxt, xmlSchemaPtr schema,
         xmlSchemaPErrMemory(ctxt, "adding wildcard", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaWildcard));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaWildcard));
     ret->type = type;
     ret->node = node;
     WXS_ADD_LOCAL(ctxt, ret);
@@ -5688,7 +5690,7 @@ xmlSchemaSubstGroupAdd(xmlSchemaParserCtxtPtr pctxt,
 	    "allocating a substitution group container", NULL);
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaSubstGroup));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaSubstGroup));
     ret->head = head;
     /* Create list of members. */
     ret->members = xmlSchemaItemListCreate();
@@ -5798,7 +5800,7 @@ xmlSchemaPValAttrNodeQNameValue(xmlSchemaParserCtxtPtr ctxt,
     } else if (ret < 0)
 	return (-1);
 
-    if (!strchr((char *) value, ':')) {
+    if (!XML_STRCHR((char *) value, ':')) {
 	ns = xmlSearchNs(attr->doc, attr->parent, NULL);
 	if (ns)
 	    *uri = xmlDictLookup(ctxt->dict, ns->href, -1);
@@ -8227,7 +8229,7 @@ xmlSchemaParseIDCSelectorAndField(xmlSchemaParserCtxtPtr ctxt,
 	    NULL);
         return (NULL);
     }
-    memset(item, 0, sizeof(xmlSchemaIDCSelect));
+    XML_MEMSET(item, 0, sizeof(xmlSchemaIDCSelect));
     /*
     * Attribute "xpath" (mandatory).
     */
@@ -9843,7 +9845,7 @@ xmlSchemaSchemaRelationCreate(void)
 	xmlSchemaPErrMemory(NULL, "allocating schema relation", NULL);
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaSchemaRelation));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaSchemaRelation));
     return(ret);
 }
 
@@ -9902,7 +9904,7 @@ xmlSchemaConstructionCtxtCreate(xmlDictPtr dict)
 	    "allocating schema construction context", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaConstructionCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaConstructionCtxt));
 
     ret->buckets = xmlSchemaItemListCreate();
     if (ret->buckets == NULL) {
@@ -9934,7 +9936,7 @@ xmlSchemaParserCtxtCreate(void)
                             NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaParserCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaParserCtxt));
     ret->type = XML_SCHEMA_CTXT_PARSER;
     ret->attrProhibs = xmlSchemaItemListCreate();
     if (ret->attrProhibs == NULL) {
@@ -22018,7 +22020,7 @@ xmlSchemaIDCNewBinding(xmlSchemaIDCPtr idcDef)
 	    "allocating a PSVI IDC binding item", NULL);
 	return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaPSVIIDCBinding));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaPSVIIDCBinding));
     ret->definition = idcDef;
     return (ret);
 }
@@ -22383,7 +22385,7 @@ xmlSchemaIDCAddStateObject(xmlSchemaValidCtxtPtr vctxt,
 		"allocating an IDC state object", NULL);
 	    return (-1);
 	}
-	memset(sto, 0, sizeof(xmlSchemaIDCStateObj));
+	XML_MEMSET(sto, 0, sizeof(xmlSchemaIDCStateObj));
     }
     /*
     * Add to global list.
@@ -22783,9 +22785,9 @@ xmlSchemaXPathProcessHistory(xmlSchemaValidCtxtPtr vctxt,
 			    NULL);
 			return(-1);
 		    }
-		    memset(matcher->keySeqs, 0,
-			matcher->sizeKeySeqs *
-			sizeof(xmlSchemaPSVIIDCKeyPtr *));
+		    XML_MEMSET(matcher->keySeqs, 0,
+                               matcher->sizeKeySeqs *
+                               sizeof(xmlSchemaPSVIIDCKeyPtr *));
 		} else if (pos >= matcher->sizeKeySeqs) {
 		    int i = matcher->sizeKeySeqs;
 
@@ -22851,8 +22853,8 @@ create_sequence:
 			"allocating an IDC key-sequence", NULL);
 		    return(-1);
 		}
-		memset(keySeq, 0, matcher->aidc->def->nbFields *
-		    sizeof(xmlSchemaPSVIIDCKeyPtr));
+		XML_MEMSET(keySeq, 0, matcher->aidc->def->nbFields *
+                           sizeof(xmlSchemaPSVIIDCKeyPtr));
 		matcher->keySeqs[pos] = keySeq;
 create_key:
 		/*
@@ -23022,7 +23024,7 @@ create_key:
 		*keySeq = NULL;
 		return(-1);
 	    }
-	    memset(ntItem, 0, sizeof(xmlSchemaPSVIIDCNode));
+	    XML_MEMSET(ntItem, 0, sizeof(xmlSchemaPSVIIDCNode));
 
 	    /*
 	    * Store the node-table item in a global list.
@@ -23236,7 +23238,7 @@ xmlSchemaIDCRegisterMatchers(xmlSchemaValidCtxtPtr vctxt,
 		    "allocating an IDC matcher", NULL);
 		return (-1);
 	    }
-	    memset(matcher, 0, sizeof(xmlSchemaIDCMatcher));
+	    XML_MEMSET(matcher, 0, sizeof(xmlSchemaIDCMatcher));
 	}
 	if (last == NULL)
 	    vctxt->inode->idcMatchers = matcher;
@@ -23715,8 +23717,8 @@ xmlSchemaBubbleIDCNodeTables(xmlSchemaValidCtxtPtr vctxt)
 		    }
 		    parBind->sizeNodes = bind->nbNodes;
 		    parBind->nbNodes = bind->nbNodes;
-		    memcpy(parBind->nodeTable, bind->nodeTable,
-			bind->nbNodes * sizeof(xmlSchemaPSVIIDCNodePtr));
+		    XML_MEMCPY(parBind->nodeTable, bind->nodeTable,
+                               bind->nbNodes * sizeof(xmlSchemaPSVIIDCNodePtr));
 		}
 	    }
 	    if (bind->dupls) {
@@ -23921,7 +23923,7 @@ xmlSchemaGetFreshAttrInfo(xmlSchemaValidCtxtPtr vctxt)
 	xmlSchemaVErrMemory(vctxt, "creating new attribute info", NULL);
 	return (NULL);
     }
-    memset(iattr, 0, sizeof(xmlSchemaAttrInfo));
+    XML_MEMSET(iattr, 0, sizeof(xmlSchemaAttrInfo));
     iattr->nodeType = XML_ATTRIBUTE_NODE;
     vctxt->attrInfos[vctxt->nbAttrInfos++] = iattr;
 
@@ -24073,7 +24075,7 @@ xmlSchemaGetFreshElemInfo(xmlSchemaValidCtxtPtr vctxt)
 		"allocating the element info array", NULL);
 	    return (NULL);
 	}
-	memset(vctxt->elemInfos, 0, 10 * sizeof(xmlSchemaNodeInfoPtr));
+	XML_MEMSET(vctxt->elemInfos, 0, 10 * sizeof(xmlSchemaNodeInfoPtr));
 	vctxt->sizeElemInfos = 10;
     } else if (vctxt->sizeElemInfos <= vctxt->depth) {
 	int i = vctxt->sizeElemInfos;
@@ -24112,7 +24114,7 @@ xmlSchemaGetFreshElemInfo(xmlSchemaValidCtxtPtr vctxt)
 	    return (NULL);
 	}
     }
-    memset(info, 0, sizeof(xmlSchemaNodeInfo));
+    XML_MEMSET(info, 0, sizeof(xmlSchemaNodeInfo));
     info->nodeType = XML_ELEMENT_NODE;
     info->depth = vctxt->depth;
 
@@ -25152,7 +25154,7 @@ xmlSchemaClearAttrInfos(xmlSchemaValidCtxtPtr vctxt)
 	    xmlSchemaFreeValue(attr->val);
 	    attr->val = NULL;
 	}
-	memset(attr, 0, sizeof(xmlSchemaAttrInfo));
+	XML_MEMSET(attr, 0, sizeof(xmlSchemaAttrInfo));
     }
     vctxt->nbAttrInfos = 0;
 }
@@ -27441,7 +27443,7 @@ xmlSchemaNewValidCtxt(xmlSchemaPtr schema)
         xmlSchemaVErrMemory(NULL, "allocating validation context", NULL);
         return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaValidCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaValidCtxt));
     ret->type = XML_SCHEMA_CTXT_VALIDATOR;
     ret->dict = xmlDictCreate();
     ret->nodeQNames = xmlSchemaItemListCreate();
@@ -28492,7 +28494,7 @@ xmlSchemaSAXPlug(xmlSchemaValidCtxtPtr ctxt,
     if (ret == NULL) {
         return(NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaSAXPlugStruct));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaSAXPlugStruct));
     ret->magic = XML_SAX_PLUG_MAGIC;
     ret->schemas_sax.initialized = XML_SAX2_MAGIC;
     ret->ctxt = ctxt;

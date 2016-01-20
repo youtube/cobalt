@@ -17,8 +17,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
-
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -9425,7 +9426,7 @@ xmlXPathLangFunction(xmlXPathParserContextPtr ctxt, int nargs) {
     theLang = xmlNodeGetLang(ctxt->context->node);
     if ((theLang != NULL) && (lang != NULL)) {
         for (i = 0;lang[i] != 0;i++)
-	    if (toupper(lang[i]) != toupper(theLang[i]))
+	    if (XML_TOUPPER(lang[i]) != XML_TOUPPER(theLang[i]))
 	        goto not_equal;
 	if ((theLang[i] == 0) || (theLang[i] == '-'))
 	    ret = 1;

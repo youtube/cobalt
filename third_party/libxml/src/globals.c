@@ -17,7 +17,9 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include <libxml/globals.h>
 #include <libxml/xmlmemory.h>
@@ -94,7 +96,7 @@ static void* size_checked_malloc(size_t size) {
     *(volatile char*)0 = '\0';
     return NULL;
   }
-  return malloc(size);
+  return XML_MALLOC(size);
 }
 
 static void* size_checked_realloc(void* ptr, size_t size) {
@@ -102,7 +104,7 @@ static void* size_checked_realloc(void* ptr, size_t size) {
     *(volatile char*)0 = '\0';
     return NULL;
   }
-  return realloc(ptr, size);
+  return XML_REALLOC(ptr, size);
 }
 
 /**
@@ -111,7 +113,7 @@ static void* size_checked_realloc(void* ptr, size_t size) {
  *
  * The variable holding the libxml free() implementation
  */
-xmlFreeFunc xmlFree = (xmlFreeFunc) free;
+xmlFreeFunc xmlFree = (xmlFreeFunc) XML_FREE;
 /**
  * xmlMalloc:
  * @size:  the size requested in bytes
@@ -551,10 +553,10 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
     gs->xmlRealloc = (xmlReallocFunc) xmlMemRealloc;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
 #else
-    gs->xmlFree = (xmlFreeFunc) free;
-    gs->xmlMalloc = (xmlMallocFunc) malloc;
-    gs->xmlMallocAtomic = (xmlMallocFunc) malloc;
-    gs->xmlRealloc = (xmlReallocFunc) realloc;
+    gs->xmlFree = (xmlFreeFunc) XML_FREE;
+    gs->xmlMalloc = (xmlMallocFunc) XML_MALLOC;
+    gs->xmlMallocAtomic = (xmlMallocFunc) XML_MALLOC;
+    gs->xmlRealloc = (xmlReallocFunc) XML_REALLOC;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlStrdup;
 #endif
     gs->xmlGetWarningsDefaultValue = xmlGetWarningsDefaultValueThrDef;
@@ -579,7 +581,7 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
 
 	gs->xmlParserInputBufferCreateFilenameValue = xmlParserInputBufferCreateFilenameValueThrDef;
 	gs->xmlOutputBufferCreateFilenameValue = xmlOutputBufferCreateFilenameValueThrDef;
-    memset(&gs->xmlLastError, 0, sizeof(xmlError));
+    XML_MEMSET(&gs->xmlLastError, 0, sizeof(xmlError));
 
     xmlMutexUnlock(xmlThrDefMutex);
 }

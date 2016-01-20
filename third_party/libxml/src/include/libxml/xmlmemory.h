@@ -12,7 +12,10 @@
 #ifndef __DEBUG_MEMORY_ALLOC__
 #define __DEBUG_MEMORY_ALLOC__
 
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
+
 #include <libxml/xmlversion.h>
 
 /**
@@ -221,4 +224,3 @@ XMLPUBFUN char * XMLCALL
 #endif
 
 #endif  /* __DEBUG_MEMORY_ALLOC__ */
-
