@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSP_DIRECTIVE_LIST_H_
-#define CSP_DIRECTIVE_LIST_H_
+#ifndef COBALT_CSP_DIRECTIVE_LIST_H_
+#define COBALT_CSP_DIRECTIVE_LIST_H_
 
 #include <string>
 #include <vector>
@@ -85,6 +85,9 @@ class DirectiveList {
   bool AllowConnectToSource(
       const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
       ContentSecurityPolicy::ReportingStatus reporting_status) const;
+  bool AllowNavigateToSource(
+      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
+      ContentSecurityPolicy::ReportingStatus reporting_status) const;
   bool AllowFormAction(
       const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
       ContentSecurityPolicy::ReportingStatus reporting_status) const;
@@ -108,6 +111,7 @@ class DirectiveList {
   const std::vector<std::string>& report_endpoints() const {
     return report_endpoints_;
   }
+  bool has_location_src() const { return location_src_ != NULL; }
 
   // Used to copy plugin-types into a plugin document in a nested
   // browsing context.
@@ -213,6 +217,7 @@ class DirectiveList {
   scoped_ptr<SourceListDirective> frame_ancestors_;
   scoped_ptr<SourceListDirective> frame_src_;
   scoped_ptr<SourceListDirective> img_src_;
+  scoped_ptr<SourceListDirective> location_src_;
   scoped_ptr<SourceListDirective> media_src_;
   scoped_ptr<SourceListDirective> manifest_src_;
   scoped_ptr<SourceListDirective> object_src_;
@@ -226,4 +231,4 @@ class DirectiveList {
 }  // namespace csp
 }  // namespace cobalt
 
-#endif  // CSP_DIRECTIVE_LIST_H_
+#endif  // COBALT_CSP_DIRECTIVE_LIST_H_

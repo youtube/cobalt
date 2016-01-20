@@ -115,7 +115,8 @@ WebModule::WebModule(
           script_runner_.get(), &media_source_registry_, initial_url,
           network_module->user_agent(), network_module->preferred_language(),
           options.navigation_callback, error_callback,
-          network_module->cookie_jar(), network_module->net_poster_factory())),
+          network_module->cookie_jar(), network_module->net_poster_factory(),
+          options.default_security_policy, options.disable_csp)),
       window_weak_(base::AsWeakPtr(window_.get())),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), network_module, window_,

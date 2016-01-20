@@ -24,6 +24,7 @@ namespace switches {
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
 extern const char kAllowHttp[];
 extern const char kDebugConsoleMode[];
+extern const char kDisableCsp[];
 extern const char kEnableWebDriver[];
 extern const char kExtraWebFileDir[];
 extern const char kIgnoreCertificateErrors[];

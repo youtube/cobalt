@@ -37,7 +37,7 @@ void HTMLMetaElement::OnInsertedIntoDocument() {
   if (LowerCaseEqualsASCII(http_equiv_attribute, kContentSecurityPolicy)) {
     std::string csp_text = GetAttribute("content").value_or("");
 
-    owner_document()->csp_delegate()->csp()->OnReceiveHeader(
+    owner_document()->csp_delegate()->OnReceiveHeader(
         csp_text, csp::kHeaderTypeEnforce, csp::kHeaderSourceMeta);
   }
 }
