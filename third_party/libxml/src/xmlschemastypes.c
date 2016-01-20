@@ -12,7 +12,10 @@
 
 #ifdef LIBXML_SCHEMAS_ENABLED
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
@@ -226,7 +229,7 @@ xmlSchemaNewValue(xmlSchemaValType type) {
     if (value == NULL) {
 	return(NULL);
     }
-    memset(value, 0, sizeof(xmlSchemaVal));
+    XML_MEMSET(value, 0, sizeof(xmlSchemaVal));
     value->type = type;
     return(value);
 }
@@ -263,7 +266,7 @@ xmlSchemaInitBasicType(const char *name, xmlSchemaValType type,
         xmlSchemaTypeErrMemory(NULL, "could not initialize basic types");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaType));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaType));
     ret->name = (const xmlChar *)name;
     ret->targetNamespace = XML_SCHEMAS_NAMESPACE_NAME;
     ret->type = XML_SCHEMA_TYPE_BASIC;
@@ -371,7 +374,7 @@ xmlSchemaAddParticle(void)
 	xmlSchemaTypeErrMemory(NULL, "allocating particle component");
 	return (NULL);
     }
-    memset(ret, 0, sizeof(xmlSchemaParticle));
+    XML_MEMSET(ret, 0, sizeof(xmlSchemaParticle));
     ret->type = XML_SCHEMA_TYPE_PARTICLE;
     ret->minOccurs = 1;
     ret->maxOccurs = 1;
@@ -419,7 +422,7 @@ xmlSchemaInitTypes(void)
 	    xmlSchemaTypeErrMemory(NULL, "allocating model group component");
 	    return;
 	}
-	memset(sequence, 0, sizeof(xmlSchemaModelGroup));
+	XML_MEMSET(sequence, 0, sizeof(xmlSchemaModelGroup));
 	sequence->type = XML_SCHEMA_TYPE_SEQUENCE;	
 	particle->children = (xmlSchemaTreeItemPtr) sequence;
 	/* Second particle. */
@@ -435,7 +438,7 @@ xmlSchemaInitTypes(void)
 	    xmlSchemaTypeErrMemory(NULL, "allocating wildcard component");
 	    return;
 	}
-	memset(wild, 0, sizeof(xmlSchemaWildcard));
+	XML_MEMSET(wild, 0, sizeof(xmlSchemaWildcard));
 	wild->type = XML_SCHEMA_TYPE_ANY;
 	wild->any = 1;	
 	wild->processContents = XML_SCHEMAS_ANY_LAX;	
@@ -449,7 +452,7 @@ xmlSchemaInitTypes(void)
 		"wildcard on anyType");
 	    return;
 	}
-	memset(wild, 0, sizeof(xmlSchemaWildcard));
+	XML_MEMSET(wild, 0, sizeof(xmlSchemaWildcard));
 	wild->any = 1;
 	wild->processContents = XML_SCHEMAS_ANY_LAX;	
 	xmlSchemaTypeAnyTypeDef->attributeWildcard = wild;
@@ -944,7 +947,7 @@ xmlSchemaNewStringValue(xmlSchemaValType type,
     if (val == NULL) {
 	return(NULL);
     }
-    memset(val, 0, sizeof(xmlSchemaVal));
+    XML_MEMSET(val, 0, sizeof(xmlSchemaVal));
     val->type = type;
     val->value.str = (xmlChar *) value;
     return(val);
@@ -3626,7 +3629,7 @@ xmlSchemaCompareDurations(xmlSchemaValPtr x, xmlSchemaValPtr y)
 /*
  * macros for adding date/times and durations
  */
-#define FQUOTIENT(a,b)                  (floor(((double)a/(double)b)))
+#define FQUOTIENT(a,b)                  (XML_FLOOR(((double)a/(double)b)))
 #define MODULO(a,b)                     (a - FQUOTIENT(a,b) * b)
 #define FQUOTIENT_RANGE(a,low,high)     (FQUOTIENT((a-low),(high-low)))
 #define MODULO_RANGE(a,low,high)        ((MODULO((a-low),(high-low)))+low)
@@ -3647,7 +3650,7 @@ xmlSchemaDupVal (xmlSchemaValPtr v)
     if (ret == NULL)
         return NULL;
     
-    memcpy(ret, v, sizeof(xmlSchemaVal));
+    XML_MEMCPY(ret, v, sizeof(xmlSchemaVal));
     ret->next = NULL;
     return ret;
 }
@@ -5599,7 +5602,7 @@ xmlSchemaFormatFloat(double number, char buffer[], int buffersize)
 	    double absolute_value;
 	    int size;
 
-	    absolute_value = fabs(number);
+	    absolute_value = XML_FABS(number);
 
 	    /*
 	     * Result is in work, and after_fraction points
@@ -5625,7 +5628,7 @@ xmlSchemaFormatFloat(double number, char buffer[], int buffersize)
 		work[buffersize - 1] = 0;
 		size = buffersize;
 	    }
-	    memmove(buffer, work, size);
+	    XML_MEMMOVE(buffer, work, size);
 	}
 	break;
     }
@@ -5754,7 +5757,7 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 			/*
 			* Insert the decimal point.
 			*/
-			memmove(offs + diff + 1, offs + diff, dec.frac +1);
+			XML_MEMMOVE(offs + diff + 1, offs + diff, dec.frac +1);
 			offs[diff] = '.';
 		    } else {
 			unsigned int i = 0;
@@ -5764,8 +5767,8 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 			while (*(offs + i) != 0)
 			    i++;
 			if (i < dec.total) {
-			    memmove(offs + (dec.total - i), offs, i +1);
-			    memset(offs, '0', dec.total - i);
+			    XML_MEMMOVE(offs + (dec.total - i), offs, i +1);
+			    XML_MEMSET(offs, '0', dec.total - i);
 			}
 		    }
 		} else {
@@ -5848,11 +5851,11 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		* recoverable. Think about extending the structure to
 		* provide a field for every property.
 		*/
-		year = (unsigned long) FQUOTIENT(labs(val->value.dur.mon), 12);
-		mon = labs(val->value.dur.mon) - 12 * year;
+		year = (unsigned long) FQUOTIENT(XML_LABS(val->value.dur.mon), 12);
+		mon = XML_LABS(val->value.dur.mon) - 12 * year;
 
-		day = (unsigned long) FQUOTIENT(fabs(val->value.dur.sec), 86400);
-		left = fabs(val->value.dur.sec) - day * 86400;
+		day = (unsigned long) FQUOTIENT(XML_FABS(val->value.dur.sec), 86400);
+		left = XML_FABS(val->value.dur.sec) - day * 86400;
 		if (left > 0) {
 		    hour = (unsigned long) FQUOTIENT(left, 3600);
 		    left = left - (hour * 3600);
@@ -5914,7 +5917,7 @@ xmlSchemaGetCanonValue(xmlSchemaValPtr val, const xmlChar **retValue)
 		/* TODO: What to do with the timezone? */
 		if (val->value.date.year < 0)
 		    snprintf(buf, 35, "-%04ld-%02u",
-			labs(val->value.date.year), 
+			XML_LABS(val->value.date.year), 
 			val->value.date.mon);
 		else
 		    snprintf(buf, 35, "%04ld-%02u",
