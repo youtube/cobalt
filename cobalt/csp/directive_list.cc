@@ -272,6 +272,8 @@ bool DirectiveList::CheckSourceAndReportViolation(
     prefix = "Refused to frame '";
   } else if (ContentSecurityPolicy::kImgSrc == effective_directive) {
     prefix = "Refused to load the image '";
+  } else if (ContentSecurityPolicy::kLocationSrc == effective_directive) {
+    prefix = "Refused to navigate to '";
   } else if (ContentSecurityPolicy::kMediaSrc == effective_directive) {
     prefix = "Refused to load media from '";
   } else if (ContentSecurityPolicy::kManifestSrc == effective_directive) {
@@ -451,6 +453,18 @@ bool DirectiveList::AllowConnectToSource(
                    ContentSecurityPolicy::kConnectSrc, redirect_status)
              : CheckSource(OperativeDirective(connect_src_.get()), url,
                            redirect_status);
+}
+
+bool DirectiveList::AllowNavigateToSource(
+    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
+    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+  // No fallback to default for h5vcc-location-src policy, so we don't use
+  // OperativeDirective() in this case.
+  return reporting_status == ContentSecurityPolicy::kSendReport
+             ? CheckSourceAndReportViolation(
+                   location_src_.get(), url,
+                   ContentSecurityPolicy::kLocationSrc, redirect_status)
+             : CheckSource(location_src_.get(), url, redirect_status);
 }
 
 bool DirectiveList::AllowFormAction(
@@ -823,6 +837,8 @@ void DirectiveList::AddDirective(const std::string& name,
     policy_->set_uses_style_hash_algorithms(style_src_->hash_algorithms_used());
   } else if (lower_name == ContentSecurityPolicy::kFontSrc) {
     SetCSPDirective(name, value, &font_src_);
+  } else if (lower_name == ContentSecurityPolicy::kLocationSrc) {
+    SetCSPDirective(name, value, &location_src_);
   } else if (lower_name == ContentSecurityPolicy::kMediaSrc) {
     SetCSPDirective(name, value, &media_src_);
   } else if (lower_name == ContentSecurityPolicy::kConnectSrc) {

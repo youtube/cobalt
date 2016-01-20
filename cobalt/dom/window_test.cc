@@ -58,7 +58,9 @@ class WindowTest : public ::testing::Test {
             base::Callback<void(const GURL &)>(),
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)),
-            NULL, base::Callback<scoped_ptr<network_bridge::NetPoster>()>())) {}
+            NULL, base::Callback<scoped_ptr<network_bridge::NetPoster>()>(),
+            std::string() /* default security policy */,
+            false /* disable csp */)) {}
 
   ~WindowTest() OVERRIDE {}
 
