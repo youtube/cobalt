@@ -19,13 +19,13 @@
 #include <algorithm>
 
 #include "base/string_util.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/dom_token_list.h"
-#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
@@ -533,7 +533,7 @@ HTMLElementContext* Element::html_element_context() {
 }
 
 void Element::PostToDispatchEvent(const tracked_objects::Location& location,
-                                  const std::string& event_name) {
+                                  base::Token event_name) {
   MessageLoop::current()->PostTask(
       location, base::Bind(base::IgnoreResult(&Element::DispatchEvent),
                            base::AsWeakPtr<Element>(this),

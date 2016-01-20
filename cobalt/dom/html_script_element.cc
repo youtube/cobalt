@@ -21,9 +21,9 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/string_util.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/sync_loader.h"
@@ -54,7 +54,7 @@ void HTMLScriptElement::OnInsertedIntoDocument() {
   }
   // TODO(***REMOVED***): Remove the following code once we support Promise.
   // See b/25387308 for more details.
-  PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->readystatechange());
+  PostToDispatchEvent(FROM_HERE, base::Tokens::readystatechange());
 }
 
 void HTMLScriptElement::OnParserStartTag(
@@ -152,7 +152,7 @@ void HTMLScriptElement::Prepare() {
   if (HasAttribute("src") && src() == "") {
     LOG(WARNING) << "src attribute of script element is empty.";
 
-    PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
+    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
     return;
   }
 
@@ -164,7 +164,7 @@ void HTMLScriptElement::Prepare() {
   if (!url_.is_valid()) {
     LOG(WARNING) << src() << " cannot be resolved based on " << base_url << ".";
 
-    PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->error());
+    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
     return;
   }
 
@@ -229,11 +229,11 @@ void HTMLScriptElement::Prepare() {
 
         // If the script is from an external file, fire a simple event named
         // load at the script element.
-        DispatchEvent(new Event(EventNames::GetInstance()->load()));
+        DispatchEvent(new Event(base::Tokens::load()));
       } else {
         // Executing the script block must just consist of firing a simple event
         // named error at the element.
-        DispatchEvent(new Event(EventNames::GetInstance()->error()));
+        DispatchEvent(new Event(base::Tokens::error()));
       }
     } break;
     case 4: {
@@ -388,7 +388,7 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
 
   // Executing the script block must just consist of firing a simple event
   // named error at the element.
-  DispatchEvent(new Event(EventNames::GetInstance()->error()));
+  DispatchEvent(new Event(base::Tokens::error()));
 
   switch (load_option_) {
     case 4: {
@@ -438,9 +438,9 @@ void HTMLScriptElement::Execute(const std::string& content,
   // Otherwise, the script is internal; queue a task to fire a simple event
   // named load at the script element.
   if (is_external) {
-    DispatchEvent(new Event(EventNames::GetInstance()->load()));
+    DispatchEvent(new Event(base::Tokens::load()));
   } else {
-    PostToDispatchEvent(FROM_HERE, EventNames::GetInstance()->load());
+    PostToDispatchEvent(FROM_HERE, base::Tokens::load());
   }
 }
 

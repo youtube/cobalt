@@ -22,6 +22,8 @@ namespace cssom {
 
 // Define the following enum here instead of inside simple_selector.h to avoid
 // circular dependency between header files.
+// It is also used as the order to normalize simple selectors in a compound
+// selector.
 enum SimpleSelectorType {
   kTypeSelector,
   kClassSelector,

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_COMMENT_H_
-#define DOM_COMMENT_H_
+#ifndef COBALT_DOM_COMMENT_H_
+#define COBALT_DOM_COMMENT_H_
 
 #include <string>
 
@@ -38,7 +38,7 @@ class Comment : public CharacterData {
 
   // Web API: Node
   //
-  std::string node_name() const OVERRIDE;
+  base::Token node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kCommentNode; }
 
   // Custom, not in any spec: Node.
@@ -59,4 +59,4 @@ class Comment : public CharacterData {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_COMMENT_H_
+#endif  // COBALT_DOM_COMMENT_H_

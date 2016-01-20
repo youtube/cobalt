@@ -62,7 +62,7 @@ class Element : public Node {
 
   // Web API: Node
   //
-  std::string node_name() const OVERRIDE { return tag_name().str(); }
+  base::Token node_name() const OVERRIDE { return tag_name(); }
   NodeType node_type() const OVERRIDE { return Node::kElementNode; }
 
   base::optional<std::string> text_content() const OVERRIDE;
@@ -184,7 +184,7 @@ class Element : public Node {
   // Post a task on the current MessageLoop to call DispatchEvent().
   // Creates a new Event with the given name.
   void PostToDispatchEvent(const tracked_objects::Location& location,
-                           const std::string& event_name);
+                           base::Token event_name);
 
  private:
   virtual void OnSetAttribute(const std::string& /* name */,

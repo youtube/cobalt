@@ -16,7 +16,7 @@
 
 #include "cobalt/xhr/xml_http_request_event_target.h"
 
-#include "cobalt/dom/event_names.h"
+#include "cobalt/base/tokens.h"
 
 namespace cobalt {
 namespace xhr {
@@ -65,41 +65,37 @@ XMLHttpRequestEventTarget::ontimeout() const {
 void XMLHttpRequestEventTarget::set_onabort(
     const EventListenerScriptObject& listener) {
   onabort_listener_.emplace(this, listener);
-  SetAttributeEventListener(dom::EventNames::GetInstance()->abort(), listener);
+  SetAttributeEventListener(base::Tokens::abort(), listener);
 }
 void XMLHttpRequestEventTarget::set_onerror(
     const EventListenerScriptObject& listener) {
   onerror_listener_.emplace(this, listener);
-  SetAttributeEventListener(dom::EventNames::GetInstance()->error(), listener);
+  SetAttributeEventListener(base::Tokens::error(), listener);
 }
 void XMLHttpRequestEventTarget::set_onload(
     const EventListenerScriptObject& listener) {
   onload_listener_.emplace(this, listener);
-  SetAttributeEventListener(dom::EventNames::GetInstance()->load(), listener);
+  SetAttributeEventListener(base::Tokens::load(), listener);
 }
 void XMLHttpRequestEventTarget::set_onloadend(
     const EventListenerScriptObject& listener) {
   onloadend_listener_.emplace(this, listener);
-  SetAttributeEventListener(dom::EventNames::GetInstance()->loadend(),
-                            listener);
+  SetAttributeEventListener(base::Tokens::loadend(), listener);
 }
 void XMLHttpRequestEventTarget::set_onloadstart(
     const EventListenerScriptObject& listener) {
   onloadstart_listener_.emplace(this, listener);
-  SetAttributeEventListener(dom::EventNames::GetInstance()->loadstart(),
-                            listener);
+  SetAttributeEventListener(base::Tokens::loadstart(), listener);
 }
 void XMLHttpRequestEventTarget::set_onprogress(
     const EventListenerScriptObject& listener) {
   onprogress_listener_.emplace(this, listener);
-  SetAttributeEventListener(dom::EventNames::GetInstance()->progress(),
-                            listener);
+  SetAttributeEventListener(base::Tokens::progress(), listener);
 }
 void XMLHttpRequestEventTarget::set_ontimeout(
     const EventListenerScriptObject& listener) {
   ontimeout_listener_.emplace(this, listener);
-  SetAttributeEventListener(dom::EventNames::GetInstance()->timeout(),
-                            listener);
+  SetAttributeEventListener(base::Tokens::timeout(), listener);
 }
 }  // namespace xhr
 }  // namespace cobalt

@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
@@ -15,13 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_FOCUS_PSEUDO_CLASS_H_
-#define CSSOM_FOCUS_PSEUDO_CLASS_H_
-
-#include <string>
+#ifndef COBALT_CSSOM_FOCUS_PSEUDO_CLASS_H_
+#define COBALT_CSSOM_FOCUS_PSEUDO_CLASS_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/pseudo_class.h"
 #include "cobalt/cssom/selector_tree.h"
 
@@ -35,14 +33,14 @@ class SelectorVisitor;
 //   https://www.w3.org/TR/selectors4/#focus-pseudo
 class FocusPseudoClass : public PseudoClass {
  public:
-  FocusPseudoClass() {}
+  FocusPseudoClass()
+      : PseudoClass(base::Tokens::focus_pseudo_class_selector()) {}
   ~FocusPseudoClass() OVERRIDE {}
 
   // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
   // From SimpleSelector.
-  std::string GetSelectorText() const OVERRIDE { return ":focus"; }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) OVERRIDE;
@@ -57,4 +55,4 @@ class FocusPseudoClass : public PseudoClass {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_FOCUS_PSEUDO_CLASS_H_
+#endif  // COBALT_CSSOM_FOCUS_PSEUDO_CLASS_H_

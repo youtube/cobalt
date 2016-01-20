@@ -26,9 +26,9 @@
 #include "base/logging.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/dom/event_names.h"
 
 namespace cobalt {
 namespace dom {
@@ -259,7 +259,7 @@ void MediaSource::SetPlayer(WebMediaPlayer* player) {
   player_ = player;
 }
 
-void MediaSource::ScheduleEvent(const std::string& event_name) {
+void MediaSource::ScheduleEvent(base::Token event_name) {
   event_queue_.Enqueue(new Event(event_name));
 }
 
@@ -359,17 +359,17 @@ void MediaSource::SetReadyState(ReadyState ready_state) {
   if (ready_state_ == kReadyStateClosed) {
     source_buffers_->Clear();
     player_ = NULL;
-    ScheduleEvent(EventNames::GetInstance()->sourceclose());
+    ScheduleEvent(base::Tokens::sourceclose());
     return;
   }
 
   if (old_state == kReadyStateOpen && ready_state_ == kReadyStateEnded) {
-    ScheduleEvent(EventNames::GetInstance()->sourceended());
+    ScheduleEvent(base::Tokens::sourceended());
     return;
   }
 
   if (ready_state_ == kReadyStateOpen) {
-    ScheduleEvent(EventNames::GetInstance()->sourceopen());
+    ScheduleEvent(base::Tokens::sourceopen());
   }
 }
 

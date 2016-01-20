@@ -39,20 +39,16 @@ class Token {
   explicit Token(const char* str);
   explicit Token(const std::string& str);
 
-  const char* c_str() const { return str_->c_str(); }
-  // TODO(***REMOVED***): Remove this accessor once all code are Token friendly.
-  const std::string& str() const { return *str_; }
+  const char* c_str() const { return str_; }
 
   bool operator==(const Token& that) const { return str_ == that.str_; }
 
  private:
   void Initialize(const char* str);
 
-  const std::string* str_;
+  const char* str_;
 };
 
-// TODO(***REMOVED***): Remove implicit comparison functions to non Token type once
-// all places using them are converted into explicit comparison.
 inline bool operator==(const Token& lhs, const std::string& rhs) {
   return strcmp(lhs.c_str(), rhs.c_str()) == 0;
 }
@@ -74,11 +70,11 @@ inline bool operator!=(const std::string& lhs, const Token& rhs) {
 }
 
 inline bool operator<(const Token& lhs, const Token& rhs) {
-  return strcmp(lhs.c_str(), rhs.c_str()) < 0;
+  return lhs.c_str() < rhs.c_str();
 }
 
 inline std::ostream& operator<<(std::ostream& os, base::Token token) {
-  os << token.str();
+  os << token.c_str();
   return os;
 }
 
@@ -93,7 +89,7 @@ namespace BASE_HASH_NAMESPACE {
 template <>
 struct hash<base::Token> {
   std::size_t operator()(const base::Token& token) const {
-    return reinterpret_cast<size_t>(&(token.str()));
+    return reinterpret_cast<size_t>(token.c_str());
   }
 };
 
@@ -102,7 +98,7 @@ struct hash<base::Token> {
 
 template <>
 inline size_t hash_value<base::Token>(const base::Token& token) {
-  return reinterpret_cast<size_t>(&(token.str()));
+  return reinterpret_cast<size_t>(token.c_str());
 }
 
 #endif  // COMPILER

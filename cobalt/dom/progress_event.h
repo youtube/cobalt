@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_PROGRESS_EVENT_H_
-#define DOM_PROGRESS_EVENT_H_
+#ifndef COBALT_DOM_PROGRESS_EVENT_H_
+#define COBALT_DOM_PROGRESS_EVENT_H_
 
 #include <string>
 
@@ -26,8 +26,8 @@ namespace dom {
 
 class ProgressEvent : public Event {
  public:
-  explicit ProgressEvent(const std::string& type);
-  ProgressEvent(const std::string& type, uint64 loaded, uint64 total,
+  explicit ProgressEvent(base::Token type);
+  ProgressEvent(base::Token type, uint64 loaded, uint64 total,
                 bool length_computable);
 
   bool length_computable() const { return length_computable_; }
@@ -47,4 +47,4 @@ class ProgressEvent : public Event {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_PROGRESS_EVENT_H_
+#endif  // COBALT_DOM_PROGRESS_EVENT_H_

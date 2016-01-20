@@ -28,7 +28,7 @@ void TypeSelector::Accept(SelectorVisitor* visitor) {
 void TypeSelector::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                                          SelectorTree::Node* child_node,
                                          CombinatorType combinator) {
-  parent_node->AppendSimpleSelector(element_name_, kTypeSelector, combinator,
+  parent_node->AppendSimpleSelector(element_name(), kTypeSelector, combinator,
                                     child_node);
 }
 

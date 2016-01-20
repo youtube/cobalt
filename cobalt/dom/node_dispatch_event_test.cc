@@ -138,8 +138,8 @@ NodeDispatchEventTest::~NodeDispatchEventTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(NodeDispatchEventTest, NonBubblingEventPropagation) {
-  scoped_refptr<Event> event =
-      new Event("fired", Event::kNotBubbles, Event::kNotCancelable);
+  scoped_refptr<Event> event = new Event(
+      base::Token("fired"), Event::kNotBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
   ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
@@ -156,7 +156,7 @@ TEST_F(NodeDispatchEventTest, NonBubblingEventPropagation) {
 
 TEST_F(NodeDispatchEventTest, BubblingEventPropagation) {
   scoped_refptr<Event> event =
-      new Event("fired", Event::kBubbles, Event::kNotCancelable);
+      new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
   ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
@@ -177,7 +177,7 @@ TEST_F(NodeDispatchEventTest, BubblingEventPropagation) {
 
 TEST_F(NodeDispatchEventTest, StopPropagationAtCapturePhase) {
   scoped_refptr<Event> event =
-      new Event("fired", Event::kBubbles, Event::kNotCancelable);
+      new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
   ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
@@ -189,7 +189,7 @@ TEST_F(NodeDispatchEventTest, StopPropagationAtCapturePhase) {
 
 TEST_F(NodeDispatchEventTest, StopPropagationAtAtTargetPhase) {
   scoped_refptr<Event> event =
-      new Event("fired", Event::kBubbles, Event::kNotCancelable);
+      new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
   ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
@@ -205,7 +205,7 @@ TEST_F(NodeDispatchEventTest, StopPropagationAtAtTargetPhase) {
 
 TEST_F(NodeDispatchEventTest, StopPropagationAtBubblingPhase) {
   scoped_refptr<Event> event =
-      new Event("fired", Event::kBubbles, Event::kNotCancelable);
+      new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
   ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
@@ -224,7 +224,7 @@ TEST_F(NodeDispatchEventTest, StopPropagationAtBubblingPhase) {
 
 TEST_F(NodeDispatchEventTest, StopImmediatePropagation) {
   scoped_refptr<Event> event =
-      new Event("fired", Event::kBubbles, Event::kNotCancelable);
+      new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
   ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
@@ -238,7 +238,7 @@ TEST_F(NodeDispatchEventTest, StopImmediatePropagation) {
 
 TEST_F(NodeDispatchEventTest, PreventDefaultOnNonCancelableEvent) {
   scoped_refptr<Event> event =
-      new Event("fired", Event::kBubbles, Event::kNotCancelable);
+      new Event(base::Token("fired"), Event::kBubbles, Event::kNotCancelable);
 
   InSequence in_sequence;
   ExpectHandleEventCall(event_listener_capture_.get(), event, child_,
@@ -251,7 +251,7 @@ TEST_F(NodeDispatchEventTest, PreventDefaultOnNonCancelableEvent) {
 
 TEST_F(NodeDispatchEventTest, PreventDefaultOnCancelableEvent) {
   scoped_refptr<Event> event =
-      new Event("fired", Event::kBubbles, Event::kCancelable);
+      new Event(base::Token("fired"), Event::kBubbles, Event::kCancelable);
 
   InSequence in_sequence;
   ExpectHandleEventCall(event_listener_capture_.get(), event, child_,

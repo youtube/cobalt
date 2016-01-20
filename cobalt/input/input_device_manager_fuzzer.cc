@@ -19,7 +19,7 @@
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/rand_util.h"
-#include "cobalt/dom/event_names.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/keycode.h"
 
 namespace cobalt {
@@ -35,8 +35,7 @@ InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
                            dom::keycode::kReturn, dom::keycode::kEscape};
   for (int i = 0; i < arraysize(kKeyCodes); ++i) {
     sample_events_.push_back(new dom::KeyboardEvent(
-        dom::EventNames::GetInstance()->keydown(),
-        dom::KeyboardEvent::kDomKeyLocationStandard,
+        base::Tokens::keydown(), dom::KeyboardEvent::kDomKeyLocationStandard,
         dom::KeyboardEvent::kNoModifier, kKeyCodes[i], 0, false));
   }
 

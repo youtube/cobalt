@@ -22,10 +22,10 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
-#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/progress_event.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/window.h"
@@ -109,21 +109,21 @@ bool IsForbiddenMethod(const std::string& method) {
   return false;
 }
 
-const std::string& RequestErrorTypeName(XMLHttpRequest::RequestErrorType type) {
+base::Token RequestErrorTypeName(XMLHttpRequest::RequestErrorType type) {
   switch (type) {
     case XMLHttpRequest::kNetworkError:
-      return dom::EventNames::GetInstance()->error();
+      return base::Tokens::error();
     case XMLHttpRequest::kTimeoutError:
-      return dom::EventNames::GetInstance()->timeout();
+      return base::Tokens::timeout();
     case XMLHttpRequest::kAbortError:
-      return dom::EventNames::GetInstance()->abort();
+      return base::Tokens::abort();
   }
   NOTREACHED();
-  return EmptyString();
+  return base::Token();
 }
 
 void FireProgressEvent(XMLHttpRequestEventTarget* target,
-                       const std::string& event_name) {
+                       base::Token event_name) {
   if (!target) {
     return;
   }
@@ -131,8 +131,8 @@ void FireProgressEvent(XMLHttpRequestEventTarget* target,
 }
 
 void FireProgressEvent(XMLHttpRequestEventTarget* target,
-                       const std::string& event_name, uint64 loaded,
-                       uint64 total, bool length_computable) {
+                       base::Token event_name, uint64 loaded, uint64 total,
+                       bool length_computable) {
   if (!target) {
     return;
   }
@@ -348,9 +348,9 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   // Now that a send is happening, prevent this object
   // from being collected until it's complete or aborted.
   PreventGarbageCollection();
-  FireProgressEvent(this, dom::EventNames::GetInstance()->loadstart());
+  FireProgressEvent(this, base::Tokens::loadstart());
   if (!upload_complete_) {
-    FireProgressEvent(upload_, dom::EventNames::GetInstance()->loadstart());
+    FireProgressEvent(upload_, base::Tokens::loadstart());
   }
 
   StartRequest(request_body_text);
@@ -605,15 +605,15 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
   uint64 current = static_cast<uint64>(current_val);
   uint64 total = static_cast<uint64>(total_val);
 
-  FireProgressEvent(upload_, dom::EventNames::GetInstance()->progress(),
-                    current, total, total != 0);
+  FireProgressEvent(upload_, base::Tokens::progress(), current, total,
+                    total != 0);
 
   if (current == total && !upload_complete_) {
     upload_complete_ = true;
-    FireProgressEvent(upload_, dom::EventNames::GetInstance()->load(), current,
-                      total, total != 0);
-    FireProgressEvent(upload_, dom::EventNames::GetInstance()->loadend(),
-                      current, total, total != 0);
+    FireProgressEvent(upload_, base::Tokens::load(), current, total,
+                      total != 0);
+    FireProgressEvent(upload_, base::Tokens::loadend(), current, total,
+                      total != 0);
   }
 }
 
@@ -651,19 +651,19 @@ void XMLHttpRequest::HandleRequestError(
   // Change state and fire readystatechange event.
   ChangeState(kDone);
 
-  const std::string& error_name = RequestErrorTypeName(request_error_type);
+  base::Token error_name = RequestErrorTypeName(request_error_type);
   // Step 5
   if (!upload_complete_) {
     upload_complete_ = true;
-    FireProgressEvent(upload_, dom::EventNames::GetInstance()->progress());
+    FireProgressEvent(upload_, base::Tokens::progress());
     FireProgressEvent(upload_, error_name);
-    FireProgressEvent(upload_, dom::EventNames::GetInstance()->loadend());
+    FireProgressEvent(upload_, base::Tokens::loadend());
   }
 
   // Steps 6-8
-  FireProgressEvent(this, dom::EventNames::GetInstance()->progress());
+  FireProgressEvent(this, base::Tokens::progress());
   FireProgressEvent(this, error_name);
-  FireProgressEvent(this, dom::EventNames::GetInstance()->loadend());
+  FireProgressEvent(this, base::Tokens::loadend());
   AllowGarbageCollection();
 }
 
@@ -690,8 +690,7 @@ void XMLHttpRequest::ChangeState(XMLHttpRequest::State new_state) {
 
   state_ = new_state;
   if (state_ != kUnsent) {
-    DispatchEvent(
-        new dom::Event(dom::EventNames::GetInstance()->readystatechange()));
+    DispatchEvent(new dom::Event(base::Tokens::readystatechange()));
   }
 }
 
@@ -725,14 +724,14 @@ void XMLHttpRequest::UpdateProgress() {
                            << total << ") " << *this;
 
   if (state_ == kDone) {
-    FireProgressEvent(this, dom::EventNames::GetInstance()->load(),
+    FireProgressEvent(this, base::Tokens::load(),
                       static_cast<uint64>(received_length), total,
                       length_computable);
-    FireProgressEvent(this, dom::EventNames::GetInstance()->loadend(),
+    FireProgressEvent(this, base::Tokens::loadend(),
                       static_cast<uint64>(received_length), total,
                       length_computable);
   } else {
-    FireProgressEvent(this, dom::EventNames::GetInstance()->progress(),
+    FireProgressEvent(this, base::Tokens::progress(),
                       static_cast<uint64>(received_length), total,
                       length_computable);
   }
@@ -750,15 +749,14 @@ void XMLHttpRequest::AllowGarbageCollection() {
 
   bool is_active = (state_ == kOpened && sent_) || state_ == kHeadersReceived ||
                    state_ == kLoading;
-  dom::EventNames* names = dom::EventNames::GetInstance();
   bool has_event_listeners =
-      GetAttributeEventListener(names->readystatechange()) ||
-      GetAttributeEventListener(names->progress()) ||
-      GetAttributeEventListener(names->abort()) ||
-      GetAttributeEventListener(names->error()) ||
-      GetAttributeEventListener(names->load()) ||
-      GetAttributeEventListener(names->timeout()) ||
-      GetAttributeEventListener(names->loadend());
+      GetAttributeEventListener(base::Tokens::readystatechange()) ||
+      GetAttributeEventListener(base::Tokens::progress()) ||
+      GetAttributeEventListener(base::Tokens::abort()) ||
+      GetAttributeEventListener(base::Tokens::error()) ||
+      GetAttributeEventListener(base::Tokens::load()) ||
+      GetAttributeEventListener(base::Tokens::timeout()) ||
+      GetAttributeEventListener(base::Tokens::loadend());
 
   DCHECK_EQ((is_active && has_event_listeners), false);
 
