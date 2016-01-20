@@ -21,11 +21,13 @@
 
 #include "base/bind.h"
 #include "base/file_util.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 #include "base/string_util.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/debug/json_object.h"
 #include "net/base/ip_endpoint.h"
+#include "net/base/net_errors.h"
 #include "net/base/tcp_listen_socket.h"
 #include "net/server/http_server_request_info.h"
 
@@ -101,8 +103,8 @@ DebugWebServer::DebugWebServer(
     : http_server_thread_("DebugWebServer"),
       create_debugger_callback_(create_debugger_callback),
       websocket_id_(-1),
-      // Actual local address will be set when the web server is started.
-      local_address_("DevTools.Server", "0.0.0.0:0",
+      // Local address will be set when the web server is successfully started.
+      local_address_("DevTools.Server", "<NOT RUNNING>",
                      "Address to connect to for remote debugging.") {
   // Construct the content root directory to serve files from.
   PathService::Get(paths::DIR_COBALT_WEB_ROOT, &content_root_dir_);
@@ -245,10 +247,13 @@ void DebugWebServer::OnDebuggerDetach(const std::string& reason) const {
   DLOG(INFO) << "Got detach notification: " << reason;
 }
 
-std::string DebugWebServer::GetLocalAddress() const {
+int DebugWebServer::GetLocalAddress(std::string* out) const {
   net::IPEndPoint ip_addr;
-  server_->GetLocalAddress(&ip_addr);
-  return std::string("http://") + ip_addr.ToString();
+  int result = server_->GetLocalAddress(&ip_addr);
+  if (result == net::OK) {
+    *out = std::string("http://") + ip_addr.ToString();
+  }
+  return result;
 }
 
 void DebugWebServer::StartServer(int port) {
@@ -256,10 +261,17 @@ void DebugWebServer::StartServer(int port) {
 
   // Create http server
   const std::string ip_addr = GetLocalIpAddress();
-  DLOG(INFO) << "Starting debug web server at: " << ip_addr << ":" << port;
   factory_.reset(new net::TCPListenSocketFactory(ip_addr, port));
   server_ = new net::HttpServer(*factory_, this);
-  local_address_ = GetLocalAddress();
+
+  std::string address;
+  int result = GetLocalAddress(&address);
+  if (result == net::OK) {
+    DLOG(INFO) << "Debug web server running at: " << address;
+    local_address_ = address;
+  } else {
+    DLOG(WARNING) << "Could not start debug web server";
+  }
 }
 
 }  // namespace debug
