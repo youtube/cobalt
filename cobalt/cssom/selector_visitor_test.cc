@@ -28,7 +28,6 @@
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/type_selector.h"
-#include "cobalt/cssom/unsupported_pseudo_class.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -50,8 +49,6 @@ class MockSelectorVisitor : public SelectorVisitor {
   MOCK_METHOD1(VisitHoverPseudoClass,
                void(HoverPseudoClass* hover_pseudo_class));
   MOCK_METHOD1(VisitNotPseudoClass, void(NotPseudoClass* not_pseudo_class));
-  MOCK_METHOD1(VisitUnsupportedPseudoClass,
-               void(UnsupportedPseudoClass* unsupported_pseudo_class));
 
   MOCK_METHOD1(VisitAfterPseudoElement,
                void(AfterPseudoElement* after_pseudo_element));
@@ -117,14 +114,6 @@ TEST(SelectorVisitorTest, VisitsNotPseudoClass) {
   MockSelectorVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitNotPseudoClass(&not_pseudo_class));
   not_pseudo_class.Accept(&mock_visitor);
-}
-
-TEST(SelectorVisitorTest, VisitsUnsupportedPseudoClass) {
-  UnsupportedPseudoClass unsupported_pseudo_class;
-  MockSelectorVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor,
-              VisitUnsupportedPseudoClass(&unsupported_pseudo_class));
-  unsupported_pseudo_class.Accept(&mock_visitor);
 }
 
 TEST(SelectorVisitorTest, VisitsAfterPseudoElement) {

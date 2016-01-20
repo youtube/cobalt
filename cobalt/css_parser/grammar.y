@@ -608,8 +608,6 @@
 %type <rule_list> rule_list rule_list_block
 %destructor { $$->Release(); } <rule_list>
 
-%type <string> unsupported_pseudo_class_token
-
 %union { cssom::SimpleSelector* simple_selector; }
 %type <simple_selector> class_selector_token
                         id_selector_token
@@ -1796,39 +1794,6 @@ id_selector_token:
   }
   ;
 
-// Allows to indicate single elements or all elements at regularly-spaced
-// intervals in a list.
-//   https://www.w3.org/TR/css-syntax-3/#anb
-an_plus_b:
-    integer
-  | kNthToken maybe_whitespace
-  ;
-
-// Gracefully handling known but unsupported pseudo-classes to work around
-// violation of Cobalt API subset by ***REMOVED***.
-//
-// TODO(***REMOVED***): This is a non-compliant behavior, invalid selectors should
-//               cause the entire rule to be rejected. Remove this reduction
-//               once all tracking bugs below are resolved.
-unsupported_pseudo_class_token:
-  // Tracked by b/19149783.
-    kNthChildFunctionToken an_plus_b ')' {
-    $$ = TrivialStringPiece::FromCString("nth-child");
-  }
-  // Tracked by b/19149783.
-  | kNthLastChildFunctionToken an_plus_b ')' {
-    $$ = TrivialStringPiece::FromCString("nth-last-child");
-  }
-  // Tracked by b/19149783.
-  | kNthLastOfTypeFunctionToken an_plus_b ')' {
-    $$ = TrivialStringPiece::FromCString("nth-last-of-type");
-  }
-  // Tracked by b/19149783.
-  | kNthOfTypeFunctionToken an_plus_b ')' {
-    $$ = TrivialStringPiece::FromCString("nth-of-type");
-  }
-  ;
-
 // The pseudo-class concept is introduced to permit selection based on
 // information that lies outside of the document tree or that can be awkward or
 // impossible to express using the other simple selectors.
@@ -1875,34 +1840,19 @@ pseudo_class_token:
   //   https://www.w3.org/TR/selectors4/#negation-pseudo
   | ':' kNotFunctionToken compound_selector_token ')' {
     scoped_ptr<cssom::CompoundSelector> compound_selector($3);
-    scoped_ptr<cssom::NotPseudoClass> not_pseudo_class(new
-        cssom::NotPseudoClass());
-    not_pseudo_class->set_selector(compound_selector.Pass());
-    $$ = not_pseudo_class.release();
+    if (compound_selector) {
+      scoped_ptr<cssom::NotPseudoClass> not_pseudo_class(new
+          cssom::NotPseudoClass());
+      not_pseudo_class->set_selector(compound_selector.Pass());
+      $$ = not_pseudo_class.release();
+    } else {
+      parser_impl->LogWarning(@1, "unsupported selector within :not()");
+      $$ = NULL;
+    }
   }
   | ':' kNotFunctionToken errors ')' {
     parser_impl->LogWarning(@1, "unsupported selector within :not()");
     $$ = NULL;
-  }
-  | ':' unsupported_pseudo_class_token {
-#ifdef __LB_SHELL__FORCE_LOGGING__
-    DCHECK(non_trivial_static_fields.Get().
-        thread_checker.CalledOnValidThread());
-    base::hash_set<std::string>& pseudo_classes_warned_about =
-        non_trivial_static_fields.Get().pseudo_classes_warned_about;
-
-    // TODO(***REMOVED***): Stop deduplicating warnings after fixing CSS in ***REMOVED***
-    //               (b/24955665).
-    std::string pseudo_class_name = $2.ToString();
-    if (pseudo_classes_warned_about.find(pseudo_class_name) ==
-        pseudo_classes_warned_about.end()) {
-      pseudo_classes_warned_about.insert(pseudo_class_name);
-      parser_impl->LogWarning(@1,
-                              "unsupported pseudo-class " + pseudo_class_name);
-    }
-#endif  // __LB_SHELL__FORCE_LOGGING__
-
-    $$ = new cssom::UnsupportedPseudoClass();
   }
   | ':' errors {
     parser_impl->LogWarning(@1, "unsupported pseudo-class");
