@@ -32,6 +32,7 @@
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_list_value.h"
+#include "cobalt/cssom/radial_gradient_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -72,6 +73,8 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitPropertyKeyList,
                void(PropertyKeyListValue* property_key_list_value));
   MOCK_METHOD1(VisitPropertyList, void(PropertyListValue* property_list_value));
+  MOCK_METHOD1(VisitRadialGradient,
+               void(RadialGradientValue* radial_gradient_value));
   MOCK_METHOD1(VisitRatio, void(RatioValue* ratio_value));
   MOCK_METHOD1(VisitResolution, void(ResolutionValue* resolution_value));
   MOCK_METHOD1(VisitRGBAColor, void(RGBAColorValue* color_value));
@@ -138,7 +141,7 @@ TEST(PropertyValueVisitorTest, VisitsKeywordValue) {
 TEST(PropertyValueVisitorTest, VisitsLinearGradientValue) {
   scoped_refptr<LinearGradientValue> linear_gradient_value =
       new LinearGradientValue(LinearGradientValue::kTopLeft,
-                              new ScopedVector<ColorStop>());
+                              ScopedVector<ColorStop>());
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitLinearGradient(linear_gradient_value.get()));
   linear_gradient_value->Accept(&mock_visitor);
@@ -197,6 +200,16 @@ TEST(PropertyValueVisitorTest, VisitsPropertyListValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitPropertyList(property_list_value.get()));
   property_list_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsRadialGradientValue) {
+  scoped_refptr<RadialGradientValue> radial_gradient_value =
+      new RadialGradientValue(RadialGradientValue::kCircle,
+                              RadialGradientValue::kClosestCorner, NULL,
+                              ScopedVector<ColorStop>());
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitRadialGradient(radial_gradient_value.get()));
+  radial_gradient_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsRatioValue) {

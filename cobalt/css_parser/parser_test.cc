@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <string>
+#include <vector>
 
 #include "base/bind.h"
 #include "cobalt/cssom/active_pseudo_class.h"
@@ -60,6 +61,7 @@
 #include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
+#include "cobalt/cssom/radial_gradient_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
@@ -1097,14 +1099,14 @@ TEST_F(ParserTest, ParsesBackgroundWithLinearGradient) {
   EXPECT_EQ(cssom::LinearGradientValue::kBottom,
             *linear_gradient_value->side_or_corner());
 
-  const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
       linear_gradient_value->color_stop_list();
-  EXPECT_EQ(2, color_stop_list_value->size());
+  EXPECT_EQ(2, color_stop_list_value.size());
 
   float color_list[2] = {0x0000008E, 0x000000E5};
 
-  for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
-    const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -1131,14 +1133,54 @@ TEST_F(ParserTest, ParsesBackgroundWithLinearGradientContainsTransparent) {
   EXPECT_EQ(cssom::LinearGradientValue::kBottom,
             *linear_gradient_value->side_or_corner());
 
-  const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
       linear_gradient_value->color_stop_list();
-  EXPECT_EQ(3, color_stop_list_value->size());
+  EXPECT_EQ(3, color_stop_list_value.size());
 
   float color_list[3] = {0x0000008E, 0x000000E5, 0x00000000};
 
-  for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
-    const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_TRUE(color);
+    EXPECT_EQ(color_list[i], color->value());
+    EXPECT_FALSE(color_stop_value->position());
+  }
+}
+
+TEST_F(ParserTest, ParsesBackgroundWithRadialGradient) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "background: radial-gradient(closest-corner, "
+          "rgba(0,0,0,0.56), rgba(0,0,0,0.9));",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::RadialGradientValue> radial_gradient_value =
+      dynamic_cast<cssom::RadialGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_EQ(cssom::RadialGradientValue::kEllipse,
+            radial_gradient_value->shape());
+  EXPECT_EQ(cssom::RadialGradientValue::kClosestCorner,
+            radial_gradient_value->size_keyword());
+  EXPECT_FALSE(radial_gradient_value->size_value());
+
+  scoped_refptr<cssom::PropertyListValue> position =
+      radial_gradient_value->position();
+  EXPECT_FALSE(position);
+
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
+      radial_gradient_value->color_stop_list();
+  EXPECT_EQ(2, color_stop_list_value.size());
+
+  float color_list[2] = {0x0000008E, 0x000000E5};
+
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(color_list[i], color->value());
@@ -1469,14 +1511,14 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithDirection) {
                   *linear_gradient_value->angle_in_radians());
   EXPECT_FALSE(linear_gradient_value->side_or_corner());
 
-  const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
       linear_gradient_value->color_stop_list();
-  EXPECT_EQ(2, color_stop_list_value->size());
+  EXPECT_EQ(2, color_stop_list_value.size());
 
   float percentage_list[2] = {50.0f, 100.0f};
 
-  for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
-    const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(0x22222200, color->value());
@@ -1507,12 +1549,12 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithoutDirection) {
   EXPECT_EQ(cssom::LinearGradientValue::kBottom,
             *linear_gradient_value->side_or_corner());
 
-  const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
       linear_gradient_value->color_stop_list();
-  EXPECT_EQ(2, color_stop_list_value->size());
+  EXPECT_EQ(2, color_stop_list_value.size());
 
-  for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
-    const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(0x22222200, color->value());
@@ -1548,12 +1590,12 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientAndURL) {
   EXPECT_EQ(cssom::LinearGradientValue::kTopRight,
             *linear_gradient_value->side_or_corner());
 
-  const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
       linear_gradient_value->color_stop_list();
-  EXPECT_EQ(2, color_stop_list_value->size());
+  EXPECT_EQ(2, color_stop_list_value.size());
 
-  for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
-    const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
     ASSERT_TRUE(color);
     EXPECT_EQ(0x22222200, color->value());
@@ -1580,6 +1622,323 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientAndURL) {
       dynamic_cast<cssom::URLValue*>(background_image_list->value()[2].get());
   ASSERT_TRUE(background_image_2);
   EXPECT_EQ("bar.jpg", background_image_2->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithShapeAndSizeKeyword) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "background-image: radial-gradient(ellipse closest-side, "
+          "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%, rgba(0,0,0,0));",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::RadialGradientValue> radial_gradient_value =
+      dynamic_cast<cssom::RadialGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_EQ(cssom::RadialGradientValue::kEllipse,
+            radial_gradient_value->shape());
+  EXPECT_EQ(cssom::RadialGradientValue::kClosestSide,
+            radial_gradient_value->size_keyword());
+  EXPECT_FALSE(radial_gradient_value->size_value());
+
+  scoped_refptr<cssom::PropertyListValue> position =
+      radial_gradient_value->position();
+  EXPECT_FALSE(position);
+
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
+      radial_gradient_value->color_stop_list();
+  EXPECT_EQ(3, color_stop_list_value.size());
+
+  uint32 color_list[3] = {0x00000033, 0x00000019, 0x00000000};
+  float color_stop_position_list[2] = {0.25f, 0.6f};
+
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_TRUE(color);
+    EXPECT_EQ(color_list[i], color->value());
+
+    if (i < 2) {
+      scoped_refptr<cssom::PercentageValue> position_value =
+          dynamic_cast<cssom::PercentageValue*>(
+              color_stop_value->position().get());
+      EXPECT_FLOAT_EQ(color_stop_position_list[i], position_value->value());
+    } else {
+      EXPECT_FALSE(color_stop_value->position());
+    }
+  }
+}
+
+TEST_F(ParserTest,
+       ParsesBackgroundImageRadialGradientWithShapeSizeLengthAndPosition) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "background-image: radial-gradient(circle 20px at top center, "
+          "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%);",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::RadialGradientValue> radial_gradient_value =
+      dynamic_cast<cssom::RadialGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_EQ(cssom::RadialGradientValue::kCircle,
+            radial_gradient_value->shape());
+  EXPECT_FALSE(radial_gradient_value->size_keyword());
+
+  scoped_refptr<cssom::PropertyListValue> size =
+      radial_gradient_value->size_value();
+  ASSERT_TRUE(size);
+  EXPECT_EQ(1, size->value().size());
+
+  scoped_refptr<cssom::LengthValue> size_value =
+      dynamic_cast<cssom::LengthValue*>(size->value()[0].get());
+  EXPECT_FLOAT_EQ(20.0f, size_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, size_value->unit());
+
+  scoped_refptr<cssom::PropertyListValue> position =
+      radial_gradient_value->position();
+  ASSERT_TRUE(position);
+  EXPECT_EQ(2, position->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetTop(), position->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetCenter(), position->value()[1]);
+
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
+      radial_gradient_value->color_stop_list();
+  EXPECT_EQ(2, color_stop_list_value.size());
+
+  uint32 color_list[2] = {0x00000033, 0x00000019};
+  float color_stop_position_list[2] = {0.25f, 0.6f};
+
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_TRUE(color);
+    EXPECT_EQ(color_list[i], color->value());
+
+    scoped_refptr<cssom::PercentageValue> color_stop_position_value =
+        dynamic_cast<cssom::PercentageValue*>(
+            color_stop_value->position().get());
+    EXPECT_FLOAT_EQ(color_stop_position_list[i],
+                    color_stop_position_value->value());
+  }
+}
+
+TEST_F(ParserTest,
+       ParsesBackgroundImageRadialGradientWithSizeShapeAndPosition) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "background-image: radial-gradient(2em circle at top center, "
+          "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%);",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::RadialGradientValue> radial_gradient_value =
+      dynamic_cast<cssom::RadialGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_EQ(cssom::RadialGradientValue::kCircle,
+            radial_gradient_value->shape());
+  EXPECT_FALSE(radial_gradient_value->size_keyword());
+
+  scoped_refptr<cssom::PropertyListValue> size =
+      radial_gradient_value->size_value();
+  ASSERT_TRUE(size);
+  EXPECT_EQ(1, size->value().size());
+
+  scoped_refptr<cssom::LengthValue> size_value =
+      dynamic_cast<cssom::LengthValue*>(size->value()[0].get());
+  EXPECT_FLOAT_EQ(2.0f, size_value->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, size_value->unit());
+
+  scoped_refptr<cssom::PropertyListValue> position =
+      radial_gradient_value->position();
+  ASSERT_TRUE(position);
+  EXPECT_EQ(2, position->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetTop(), position->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetCenter(), position->value()[1]);
+
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
+      radial_gradient_value->color_stop_list();
+  EXPECT_EQ(2, color_stop_list_value.size());
+
+  uint32 color_list[2] = {0x00000033, 0x00000019};
+  float color_stop_position_list[2] = {0.25f, 0.6f};
+
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_TRUE(color);
+    EXPECT_EQ(color_list[i], color->value());
+
+    scoped_refptr<cssom::PercentageValue> color_stop_position_value =
+        dynamic_cast<cssom::PercentageValue*>(
+            color_stop_value->position().get());
+    EXPECT_FLOAT_EQ(color_stop_position_list[i],
+                    color_stop_position_value->value());
+  }
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithSizeLength) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "background-image: radial-gradient(20px 60%, "
+          "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%);",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::RadialGradientValue> radial_gradient_value =
+      dynamic_cast<cssom::RadialGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_EQ(cssom::RadialGradientValue::kEllipse,
+            radial_gradient_value->shape());
+  EXPECT_FALSE(radial_gradient_value->size_keyword());
+
+  scoped_refptr<cssom::PropertyListValue> size =
+      radial_gradient_value->size_value();
+  ASSERT_TRUE(size);
+  EXPECT_EQ(2, size->value().size());
+
+  scoped_refptr<cssom::LengthValue> side_value_horizontal =
+      dynamic_cast<cssom::LengthValue*>(size->value()[0].get());
+  EXPECT_FLOAT_EQ(20.0f, side_value_horizontal->value());
+  EXPECT_EQ(cssom::kPixelsUnit, side_value_horizontal->unit());
+
+  scoped_refptr<cssom::PercentageValue> side_value_vertical =
+      dynamic_cast<cssom::PercentageValue*>(size->value()[1].get());
+  EXPECT_FLOAT_EQ(0.6f, side_value_vertical->value());
+
+  scoped_refptr<cssom::PropertyListValue> position =
+      radial_gradient_value->position();
+  EXPECT_FALSE(position);
+
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
+      radial_gradient_value->color_stop_list();
+  EXPECT_EQ(2, color_stop_list_value.size());
+
+  uint32 color_list[2] = {0x00000033, 0x00000019};
+  float color_stop_position_list[2] = {0.25f, 0.6f};
+
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_TRUE(color);
+    EXPECT_EQ(color_list[i], color->value());
+
+    scoped_refptr<cssom::PercentageValue> color_stop_position_value =
+        dynamic_cast<cssom::PercentageValue*>(
+            color_stop_value->position().get());
+    EXPECT_FLOAT_EQ(color_stop_position_list[i],
+                    color_stop_position_value->value());
+  }
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithoutShapeAndSize) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "background-image: radial-gradient(at left, "
+          "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%);",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::RadialGradientValue> radial_gradient_value =
+      dynamic_cast<cssom::RadialGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_EQ(cssom::RadialGradientValue::kEllipse,
+            radial_gradient_value->shape());
+  EXPECT_EQ(cssom::RadialGradientValue::kFarthestCorner,
+            radial_gradient_value->size_keyword());
+  EXPECT_FALSE(radial_gradient_value->size_value());
+
+  scoped_refptr<cssom::PropertyListValue> position =
+      radial_gradient_value->position();
+  ASSERT_TRUE(position);
+  EXPECT_EQ(1, position->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetLeft(), position->value()[0]);
+
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
+      radial_gradient_value->color_stop_list();
+  EXPECT_EQ(2, color_stop_list_value.size());
+
+  uint32 color_list[2] = {0x00000033, 0x00000019};
+  float color_stop_position_list[2] = {0.25f, 0.6f};
+
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_TRUE(color);
+    EXPECT_EQ(color_list[i], color->value());
+
+    scoped_refptr<cssom::PercentageValue> color_stop_position_value =
+        dynamic_cast<cssom::PercentageValue*>(
+            color_stop_value->position().get());
+    EXPECT_FLOAT_EQ(color_stop_position_list[i],
+                    color_stop_position_value->value());
+  }
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageRadialGradientOnlyHasColorStop) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "background-image: radial-gradient("
+          "rgba(0,0,0,0.2) 25%, rgba(0,0,0,0.1) 60%);",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::RadialGradientValue> radial_gradient_value =
+      dynamic_cast<cssom::RadialGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_EQ(cssom::RadialGradientValue::kEllipse,
+            radial_gradient_value->shape());
+  EXPECT_EQ(cssom::RadialGradientValue::kFarthestCorner,
+            radial_gradient_value->size_keyword());
+  EXPECT_FALSE(radial_gradient_value->size_value());
+
+  scoped_refptr<cssom::PropertyListValue> position =
+      radial_gradient_value->position();
+  EXPECT_FALSE(position);
+
+  const std::vector<cssom::ColorStop*> color_stop_list_value =
+      radial_gradient_value->color_stop_list();
+  EXPECT_EQ(2, color_stop_list_value.size());
+
+  uint32 color_list[2] = {0x00000033, 0x00000019};
+  float color_stop_position_list[2] = {0.25f, 0.6f};
+
+  for (size_t i = 0; i < color_stop_list_value.size(); ++i) {
+    const cssom::ColorStop* color_stop_value = color_stop_list_value[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_TRUE(color);
+    EXPECT_EQ(color_list[i], color->value());
+
+    scoped_refptr<cssom::PercentageValue> color_stop_position_value =
+        dynamic_cast<cssom::PercentageValue*>(
+            color_stop_value->position().get());
+    EXPECT_FLOAT_EQ(color_stop_position_list[i],
+                    color_stop_position_value->value());
+  }
 }
 
 TEST_F(ParserTest, ParsesBackgroundPositionCenter) {
