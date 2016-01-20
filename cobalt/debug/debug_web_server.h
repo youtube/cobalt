@@ -70,7 +70,7 @@ class DebugWebServer : private net::HttpServer::Delegate {
   void OnDebuggerDetach(const std::string& reason) const;
 
  private:
-  std::string GetLocalAddress() const;
+  int GetLocalAddress(std::string* out) const;
 
   void StartServer(int port);
 
