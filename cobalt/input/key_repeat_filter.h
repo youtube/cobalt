@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef INPUT_KEY_REPEAT_FILTER_H_
-#define INPUT_KEY_REPEAT_FILTER_H_
+#ifndef COBALT_INPUT_KEY_REPEAT_FILTER_H_
+#define COBALT_INPUT_KEY_REPEAT_FILTER_H_
 
 #include <string>
 
@@ -43,7 +43,7 @@ class KeyRepeatFilter : public KeyEventHandler {
   base::RepeatingTimer<KeyRepeatFilter> key_repeat_timer_;
 
   // Information needed to reconstruct the keyboard event.
-  std::string keyboard_event_type_;
+  base::Token keyboard_event_type_;
   dom::KeyboardEvent::KeyLocationCode keyboard_event_location_;
   unsigned int keyboard_event_modifiers_;
   int keyboard_event_key_code_;
@@ -53,4 +53,4 @@ class KeyRepeatFilter : public KeyEventHandler {
 }  // namespace input
 }  // namespace cobalt
 
-#endif  // INPUT_KEY_REPEAT_FILTER_H_
+#endif  // COBALT_INPUT_KEY_REPEAT_FILTER_H_

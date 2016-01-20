@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_TEXT_H_
-#define DOM_TEXT_H_
+#ifndef COBALT_DOM_TEXT_H_
+#define COBALT_DOM_TEXT_H_
 
 #include <string>
 
@@ -37,7 +37,7 @@ class Text : public CharacterData {
 
   // Web API: Node
   //
-  std::string node_name() const OVERRIDE;
+  base::Token node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kTextNode; }
 
   // Custom, not in any spec: Node.
@@ -60,4 +60,4 @@ class Text : public CharacterData {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_TEXT_H_
+#endif  // COBALT_DOM_TEXT_H_

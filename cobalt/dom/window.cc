@@ -20,12 +20,12 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/user_agent_style_sheet.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/history.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
@@ -52,7 +52,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
                 static_cast<bool (Window::*)(const scoped_refptr<Event>&)>(
                     &Window::DispatchEvent)),
             base::AsWeakPtr<Window>(window_),
-            make_scoped_refptr(new Event("load"))));
+            make_scoped_refptr(new Event(base::Tokens::load()))));
   }
   void OnMutation() OVERRIDE {}
 
@@ -211,9 +211,9 @@ void Window::RunAnimationFrameCallbacks() {
 
 void Window::InjectEvent(const scoped_refptr<Event>& event) {
   // Forward the event on to the correct object in DOM.
-  if (event->type() == EventNames::GetInstance()->keydown() ||
-      event->type() == EventNames::GetInstance()->keypress() ||
-      event->type() == EventNames::GetInstance()->keyup()) {
+  if (event->type() == base::Tokens::keydown() ||
+      event->type() == base::Tokens::keypress() ||
+      event->type() == base::Tokens::keyup()) {
     // Event.target:focused element processing the key event or if no element
     // focused, then the body element if available, otherwise the root element.
     //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keydown

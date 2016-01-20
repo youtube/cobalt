@@ -21,7 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/base/token.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
@@ -36,7 +36,9 @@ class SelectorVisitor;
 //   https://www.w3.org/TR/selectors4/#id-selector
 class IdSelector : public SimpleSelector {
  public:
-  explicit IdSelector(const std::string& id) : id_(id) {}
+  explicit IdSelector(const std::string& id)
+      : SimpleSelector(kIdSelector, base::Tokens::id_selector_prefix(),
+                       base::Token(id)) {}
   ~IdSelector() OVERRIDE {}
 
   // From Selector.
@@ -44,20 +46,14 @@ class IdSelector : public SimpleSelector {
   Specificity GetSpecificity() const OVERRIDE { return Specificity(1, 0, 0); }
 
   // From SimpleSelector.
-  IdSelector* AsIdSelector() OVERRIDE { return this; }
-  int GetRank() const OVERRIDE { return kIdSelectorRank; }
-  std::string GetSelectorText() const OVERRIDE { return "#" + id_.str(); }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) OVERRIDE;
 
   // Rest of public methods.
-
-  base::Token id() const { return id_; }
+  base::Token id() const { return text(); }
 
  private:
-  const base::Token id_;
-
   DISALLOW_COPY_AND_ASSIGN(IdSelector);
 };
 

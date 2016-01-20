@@ -58,10 +58,10 @@ void InputDeviceManagerDesktop::HandleKeyboardEvent(const base::Event* event) {
   DCHECK(key_event->type() == system_window::KeyboardEvent::kKeyDown ||
          key_event->type() == system_window::KeyboardEvent::kKeyUp);
 
-  const std::string& event_name =
+  base::Token event_name =
       key_event->type() == system_window::KeyboardEvent::kKeyDown
-          ? dom::EventNames::GetInstance()->keydown()
-          : dom::EventNames::GetInstance()->keyup();
+          ? base::Tokens::keydown()
+          : base::Tokens::keyup();
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
       new dom::KeyboardEvent(event_name, location, modifiers, key_code,
                              key_code, key_event->is_repeat()));

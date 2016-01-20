@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_BEFORE_PSEUDO_ELEMENT_H_
-#define CSSOM_BEFORE_PSEUDO_ELEMENT_H_
-
-#include <string>
+#ifndef COBALT_CSSOM_BEFORE_PSEUDO_ELEMENT_H_
+#define COBALT_CSSOM_BEFORE_PSEUDO_ELEMENT_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/pseudo_element.h"
 
 namespace cobalt {
@@ -36,14 +35,12 @@ class SelectorVisitor;
 //   https://www.w3.org/TR/CSS21/generate.html#before-after-content
 class BeforePseudoElement : public PseudoElement {
  public:
-  BeforePseudoElement() {}
+  BeforePseudoElement()
+      : PseudoElement(base::Tokens::before_pseudo_element_selector()) {}
   ~BeforePseudoElement() OVERRIDE {}
 
   // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
-
-  // From SimpleSelector.
-  std::string GetSelectorText() const OVERRIDE { return "::before"; }
 
   // From PseudoElement.
   BeforePseudoElement* AsBeforePseudoElement() OVERRIDE { return this; }
@@ -55,4 +52,4 @@ class BeforePseudoElement : public PseudoElement {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_BEFORE_PSEUDO_ELEMENT_H_
+#endif  // COBALT_CSSOM_BEFORE_PSEUDO_ELEMENT_H_

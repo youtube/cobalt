@@ -159,8 +159,8 @@ class HTMLMediaElement : public HTMLElement,
   void StopPeriodicTimers();
 
   // Events
-  void ScheduleTimeupdateEvent(bool periodicEvent);
-  void ScheduleEvent(const std::string& eventName);
+  void ScheduleTimeupdateEvent(bool periodic_event);
+  void ScheduleEvent(base::Token event_name);
   void CancelPendingEventsAndCallbacks();
   bool ProcessingMediaPlayerCallback() const {
     return processing_media_player_callback_ > 0;

@@ -142,8 +142,7 @@ class SelectorTree {
 
   typedef std::vector<SimpleSelectorNode> SimpleSelectorNodes;
   typedef std::vector<PseudoClassNode> PseudoClassNodes;
-  typedef base::SmallMap<base::hash_map<base::Token, SimpleSelectorNodes>, 2>
-      SelectorTextToNodesMap;
+  typedef std::map<base::Token, SimpleSelectorNodes> SelectorTextToNodesMap;
 
   class Node {
    public:

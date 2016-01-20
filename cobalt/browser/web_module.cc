@@ -22,6 +22,7 @@
 #include "base/logging.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/h5vcc/h5vcc.h"
@@ -153,7 +154,7 @@ WebModule::WebModule(
 WebModule::~WebModule() {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  window_->DispatchEvent(new dom::Event("unload"));
+  window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
 }
 
 void WebModule::InjectEvent(const scoped_refptr<dom::Event>& event) {
@@ -165,8 +166,8 @@ void WebModule::InjectEvent(const scoped_refptr<dom::Event>& event) {
     return;
   }
 
-  TRACE_EVENT1("cobalt::browser", "WebModule::InjectEvent()",
-               "type", event->type());
+  TRACE_EVENT1("cobalt::browser", "WebModule::InjectEvent()", "type",
+               event->type().c_str());
   window_->InjectEvent(event);
 }
 

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_DOCUMENT_TYPE_H_
-#define DOM_DOCUMENT_TYPE_H_
+#ifndef COBALT_DOM_DOCUMENT_TYPE_H_
+#define COBALT_DOM_DOCUMENT_TYPE_H_
 
 #include <string>
 
@@ -29,9 +29,9 @@ namespace dom {
 //   https://www.w3.org/TR/2015/WD-dom-20150618/#documenttype
 class DocumentType : public Node {
  public:
-  DocumentType(Document* document, const std::string& name)
+  DocumentType(Document* document, base::Token name)
       : Node(document), name_(name) {}
-  DocumentType(Document* document, const std::string& name,
+  DocumentType(Document* document, base::Token name,
                const std::string& public_id, const std::string& system_id)
       : Node(document),
         name_(name),
@@ -40,10 +40,10 @@ class DocumentType : public Node {
 
   // WebAPI: Node
   NodeType node_type() const OVERRIDE { return Node::kDocumentTypeNode; }
-  std::string node_name() const OVERRIDE { return name_; }
+  base::Token node_name() const OVERRIDE { return name_; }
 
   // WebAPI: DocumentType
-  const std::string& name() const { return name_; }
+  base::Token name() const { return name_; }
   const std::string& public_id() const { return public_id_; }
   const std::string& system_id() const { return system_id_; }
 
@@ -63,7 +63,7 @@ class DocumentType : public Node {
  private:
   ~DocumentType() OVERRIDE {}
 
-  std::string name_;
+  base::Token name_;
   std::string public_id_;
   std::string system_id_;
 };
@@ -71,4 +71,4 @@ class DocumentType : public Node {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_DOCUMENT_TYPE_H_
+#endif  // COBALT_DOM_DOCUMENT_TYPE_H_

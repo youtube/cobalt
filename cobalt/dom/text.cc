@@ -17,6 +17,7 @@
 #include "cobalt/dom/text.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_settings.h"
 
 namespace cobalt {
@@ -33,10 +34,7 @@ Text::Text(script::EnvironmentSettings* env_settings,
 Text::Text(Document* document, const base::StringPiece& text)
     : CharacterData(document, text) {}
 
-std::string Text::node_name() const {
-  static const char kTextName[] = "#text";
-  return kTextName;
-}
+base::Token Text::node_name() const { return base::Tokens::text_node_name(); }
 
 void Text::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 

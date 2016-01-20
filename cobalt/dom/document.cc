@@ -24,6 +24,7 @@
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_rule_list.h"
@@ -117,9 +118,8 @@ Document::Document(HTMLElementContext* html_element_context,
   OnInsertedIntoDocument();
 }
 
-std::string Document::node_name() const {
-  static const char kDocumentName[] = "#document";
-  return kDocumentName;
+base::Token Document::node_name() const {
+  return base::Tokens::document_name();
 }
 
 scoped_refptr<Element> Document::document_element() {
@@ -340,7 +340,7 @@ void Document::DispatchOnLoadEvent() {
   UpdateComputedStyles();
 
   // Dispatch the document's onload event.
-  DispatchEvent(new Event("load"));
+  DispatchEvent(new Event(base::Tokens::load()));
 
   // After all JavaScript OnLoad event handlers have executed, signal to let
   // any Document observers know that a load event has occurred.

@@ -88,6 +88,10 @@ JSC::JSValue StringToJSValue(JSC::JSGlobalData* global_data,
 void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
                      std::string* out_string);
 
+// Convert base::Token in utf8 encoding to a JSValue representing the string.
+JSC::JSValue TokenToJSValue(JSC::JSGlobalData* global_data,
+                            base::Token utf8_string);
+
 // For a given JSObject* get a pointer to the corresponding Cobalt
 // implementation.
 template <class T>
@@ -197,7 +201,7 @@ inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
 // base::Token -> JSValue
 inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
                               base::Token in_token) {
-  return StringToJSValue(&(global_object->globalData()), in_token.str());
+  return TokenToJSValue(&(global_object->globalData()), in_token);
 }
 
 // object -> JSValue

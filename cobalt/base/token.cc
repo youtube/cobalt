@@ -37,7 +37,7 @@ class TokenStorage {
  public:
   static TokenStorage* GetInstance() { return Singleton<TokenStorage>::get(); }
 
-  const std::string* GetStorage(const char* str);
+  const char* GetStorage(const char* str);
 
  private:
   friend struct DefaultSingletonTraits<TokenStorage>;
@@ -79,11 +79,11 @@ Token::Token(const char* str)
 Token::Token(const std::string& str)
     : str_(TokenStorage::GetInstance()->GetStorage(str.c_str())) {}
 
-const std::string* TokenStorage::GetStorage(const char* str) {
+const char* TokenStorage::GetStorage(const char* str) {
   DCHECK(str);
 
   if (!str || str[0] == 0) {
-    return &empty_;
+    return empty_.c_str();
   }
 
   uint32 slot = hash(str) % Token::kHashSlotCount;
@@ -94,7 +94,7 @@ const std::string* TokenStorage::GetStorage(const char* str) {
       break;
     }
     if (hash_table_[index] == str) {
-      return &hash_table_[index];
+      return hash_table_[index].c_str();
     }
   }
 
@@ -104,7 +104,7 @@ const std::string* TokenStorage::GetStorage(const char* str) {
     uint32 index = slot * Token::kStringsPerSlot + i;
     if (hash_table_[index].empty()) {
       hash_table_[index] = str;
-      return &hash_table_[index];
+      return hash_table_[index].c_str();
     }
   }
 
@@ -117,9 +117,9 @@ const std::string* TokenStorage::GetStorage(const char* str) {
 
   std::set<std::string>::iterator iter = collision_table_.find(str);
   if (iter != collision_table_.end()) {
-    return &*iter;
+    return iter->c_str();
   }
-  return &*(collision_table_.insert(str).first);
+  return collision_table_.insert(str).first->c_str();
 }
 
 }  // namespace base

@@ -19,6 +19,7 @@
 #include <map>
 
 #include "base/string_number_conversions.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/cascaded_style.h"
 #include "cobalt/cssom/computed_style.h"
@@ -93,10 +94,11 @@ void HTMLElement::Focus() {
   document->SetActiveElement(this);
 
   if (old_active_element) {
-    old_active_element->DispatchEvent(new FocusEvent("blur", this));
+    old_active_element->DispatchEvent(
+        new FocusEvent(base::Tokens::blur(), this));
   }
 
-  DispatchEvent(new FocusEvent("focus", old_active_element));
+  DispatchEvent(new FocusEvent(base::Tokens::focus(), old_active_element));
 }
 
 void HTMLElement::Blur() {
@@ -104,7 +106,7 @@ void HTMLElement::Blur() {
   if (document->active_element() == this->AsElement()) {
     document->SetActiveElement(NULL);
 
-    DispatchEvent(new FocusEvent("blur", NULL));
+    DispatchEvent(new FocusEvent(base::Tokens::blur(), NULL));
   }
 }
 

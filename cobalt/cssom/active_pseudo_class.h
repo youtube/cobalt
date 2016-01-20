@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_ACTIVE_PSEUDO_CLASS_H_
-#define CSSOM_ACTIVE_PSEUDO_CLASS_H_
-
-#include <string>
+#ifndef COBALT_CSSOM_ACTIVE_PSEUDO_CLASS_H_
+#define COBALT_CSSOM_ACTIVE_PSEUDO_CLASS_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/pseudo_class.h"
 #include "cobalt/cssom/selector_tree.h"
 
@@ -37,14 +36,14 @@ class SelectorVisitor;
 //   https://www.w3.org/TR/selectors4/#active-pseudo
 class ActivePseudoClass : public PseudoClass {
  public:
-  ActivePseudoClass() {}
+  ActivePseudoClass()
+      : PseudoClass(base::Tokens::active_pseudo_class_selector()) {}
   ~ActivePseudoClass() OVERRIDE {}
 
   // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
   // From SimpleSelector.
-  std::string GetSelectorText() const OVERRIDE { return ":active"; }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) OVERRIDE;
@@ -59,4 +58,4 @@ class ActivePseudoClass : public PseudoClass {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_ACTIVE_PSEUDO_CLASS_H_
+#endif  // COBALT_CSSOM_ACTIVE_PSEUDO_CLASS_H_

@@ -117,7 +117,7 @@ class Document : public Node, public cssom::MutationObserver {
   // Web API: Node
   //
   NodeType node_type() const OVERRIDE { return Node::kDocumentNode; }
-  std::string node_name() const OVERRIDE;
+  base::Token node_name() const OVERRIDE;
 
   // Web API: Document
   //
