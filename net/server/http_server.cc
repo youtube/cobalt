@@ -12,6 +12,7 @@
 #include "base/string_util.h"
 #include "base/sys_byteorder.h"
 #include "build/build_config.h"
+#include "net/base/net_errors.h"
 #include "net/base/tcp_listen_socket.h"
 #include "net/server/http_connection.h"
 #include "net/server/http_server_request_info.h"
@@ -23,7 +24,9 @@ HttpServer::HttpServer(const StreamListenSocketFactory& factory,
                        HttpServer::Delegate* delegate)
     : delegate_(delegate),
       ALLOW_THIS_IN_INITIALIZER_LIST(server_(factory.CreateAndListen(this))) {
-  DCHECK(server_);
+  if (!server_) {
+    DLOG(WARNING) << "Could not start HTTP server.";
+  }
 }
 
 void HttpServer::AcceptWebSocket(
@@ -98,7 +101,11 @@ void HttpServer::Close(int connection_id) {
 }
 
 int HttpServer::GetLocalAddress(IPEndPoint* address) {
-  return server_->GetLocalAddress(address);
+  if (server_) {
+    return server_->GetLocalAddress(address);
+  } else {
+    return net::ERR_FAILED;
+  }
 }
 
 void HttpServer::DidAccept(StreamListenSocket* server,
