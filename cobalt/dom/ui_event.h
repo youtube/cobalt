@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-#ifndef DOM_UI_EVENT_H_
-#define DOM_UI_EVENT_H_
+#ifndef COBALT_DOM_UI_EVENT_H_
+#define COBALT_DOM_UI_EVENT_H_
+
+#include <string>
 
 #include "base/string_piece.h"
 #include "cobalt/dom/document.h"
@@ -49,8 +51,8 @@ class UIEvent : public Event {
   DEFINE_WRAPPABLE_TYPE(UIEvent);
 
  protected:
-  explicit UIEvent(const std::string& type);
-  UIEvent(const std::string& type, Bubbles bubbles, Cancelable cancelable);
+  explicit UIEvent(base::Token type);
+  UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable);
 
   ~UIEvent() OVERRIDE {}
 
@@ -60,4 +62,4 @@ class UIEvent : public Event {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_UI_EVENT_H_
+#endif  // COBALT_DOM_UI_EVENT_H_

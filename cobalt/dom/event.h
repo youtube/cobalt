@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef DOM_EVENT_H_
-#define DOM_EVENT_H_
+#ifndef COBALT_DOM_EVENT_H_
+#define COBALT_DOM_EVENT_H_
+
+#include <string>
 
 #include "base/memory/weak_ptr.h"
-#include "base/string_piece.h"
+#include "cobalt/base/token.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -53,13 +55,13 @@ class Event : public script::Wrappable {
   explicit Event(UninitializedFlag uninitialized_flag);
 
   // Creates an event that cannot be bubbled and cancelled.
-  explicit Event(const std::string& type);
-  Event(const std::string& type, Bubbles bubbles, Cancelable cancelable);
+  explicit Event(base::Token type);
+  Event(base::Token type, Bubbles bubbles, Cancelable cancelable);
   ~Event() OVERRIDE;
 
   // Web API: Event
   //
-  const std::string& type() const { return type_; }
+  base::Token type() const { return type_; }
   const scoped_refptr<EventTarget>& target() const;
   const scoped_refptr<EventTarget>& current_target() const;
   EventPhase event_phase() const { return event_phase_; }
@@ -93,7 +95,7 @@ class Event : public script::Wrappable {
   // a non-empty type.  Note that the spec doesn't explicitly prevent an Event
   // to have empty string as its type but it is reasonable to make this
   // assumption and Chrome has the same behavior.
-  bool initialized_flag() const { return !type_.empty(); }
+  bool initialized_flag() const { return type_ != ""; }
 
   // The event dispatching process usually looks like:
   //
@@ -118,10 +120,9 @@ class Event : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(Event);
 
  private:
-  void InitEventInternal(const std::string& type, bool bubbles,
-                         bool cancelable);
+  void InitEventInternal(base::Token type, bool bubbles, bool cancelable);
 
-  std::string type_;
+  base::Token type_;
 
   scoped_refptr<EventTarget> target_;
   scoped_refptr<EventTarget> current_target_;
@@ -140,4 +141,4 @@ class Event : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_EVENT_H_
+#endif  // COBALT_DOM_EVENT_H_

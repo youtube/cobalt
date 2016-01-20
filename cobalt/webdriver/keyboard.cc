@@ -406,21 +406,18 @@ class KeyTranslator {
   }
 
   void AddKeyDownEvent(int key_code, int char_code, KeyLocationCode location) {
-    AddKeyEvent(dom::EventNames::GetInstance()->keydown(), key_code, char_code,
-                location);
+    AddKeyEvent(base::Tokens::keydown(), key_code, char_code, location);
   }
 
   void AddKeyPressEvent(int key_code, int char_code, KeyLocationCode location) {
-    AddKeyEvent(dom::EventNames::GetInstance()->keypress(), key_code, char_code,
-                location);
+    AddKeyEvent(base::Tokens::keypress(), key_code, char_code, location);
   }
 
   void AddKeyUpEvent(int key_code, int char_code, KeyLocationCode location) {
-    AddKeyEvent(dom::EventNames::GetInstance()->keyup(), key_code, char_code,
-                location);
+    AddKeyEvent(base::Tokens::keyup(), key_code, char_code, location);
   }
 
-  void AddKeyEvent(const std::string& type, int key_code, int char_code,
+  void AddKeyEvent(base::Token type, int key_code, int char_code,
                    KeyLocationCode location) {
     const bool kIsRepeat = false;
     uint32 modifiers = GetModifierStateBitfield();

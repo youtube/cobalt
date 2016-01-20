@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_EVENT_TARGET_H_
-#define DOM_EVENT_TARGET_H_
+#ifndef COBALT_DOM_EVENT_TARGET_H_
+#define COBALT_DOM_EVENT_TARGET_H_
 
 #include <string>
 #include <vector>
@@ -23,10 +23,10 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
-#include "base/string_piece.h"
+#include "cobalt/base/token.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_listener.h"
-#include "cobalt/dom/event_names.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
@@ -67,63 +67,56 @@ class EventTarget : public script::Wrappable,
   //   https://www.w3.org/TR/html5/webappapis.html#globaleventhandlers
   //
   const EventListenerScriptObject* onblur() {
-    return GetAttributeEventListener(EventNames::GetInstance()->blur());
+    return GetAttributeEventListener(base::Tokens::blur());
   }
   void set_onblur(const EventListenerScriptObject& event_listener) {
-    SetAttributeEventListener(EventNames::GetInstance()->blur(),
-                              event_listener);
+    SetAttributeEventListener(base::Tokens::blur(), event_listener);
   }
 
   const EventListenerScriptObject* onerror() {
-    return GetAttributeEventListener(EventNames::GetInstance()->error());
+    return GetAttributeEventListener(base::Tokens::error());
   }
   void set_onerror(const EventListenerScriptObject& event_listener) {
-    SetAttributeEventListener(EventNames::GetInstance()->error(),
-                              event_listener);
+    SetAttributeEventListener(base::Tokens::error(), event_listener);
   }
 
   const EventListenerScriptObject* onfocus() {
-    return GetAttributeEventListener(EventNames::GetInstance()->focus());
+    return GetAttributeEventListener(base::Tokens::focus());
   }
   void set_onfocus(const EventListenerScriptObject& event_listener) {
-    SetAttributeEventListener(EventNames::GetInstance()->focus(),
-                              event_listener);
+    SetAttributeEventListener(base::Tokens::focus(), event_listener);
   }
 
   const EventListenerScriptObject* onload() {
-    return GetAttributeEventListener(EventNames::GetInstance()->load());
+    return GetAttributeEventListener(base::Tokens::load());
   }
   void set_onload(const EventListenerScriptObject& event_listener) {
-    SetAttributeEventListener(EventNames::GetInstance()->load(),
-                              event_listener);
+    SetAttributeEventListener(base::Tokens::load(), event_listener);
   }
 
   const EventListenerScriptObject* onreadystatechange() const {
-    return GetAttributeEventListener(
-        EventNames::GetInstance()->readystatechange());
+    return GetAttributeEventListener(base::Tokens::readystatechange());
   }
   void set_onreadystatechange(const EventListenerScriptObject& event_listener) {
-    SetAttributeEventListener(EventNames::GetInstance()->readystatechange(),
-                              event_listener);
+    SetAttributeEventListener(base::Tokens::readystatechange(), event_listener);
   }
 
   const EventListenerScriptObject* onunload() {
-    return GetAttributeEventListener(EventNames::GetInstance()->unload());
+    return GetAttributeEventListener(base::Tokens::unload());
   }
   void set_onunload(const EventListenerScriptObject& event_listener) {
-    SetAttributeEventListener(EventNames::GetInstance()->unload(),
-                              event_listener);
+    SetAttributeEventListener(base::Tokens::unload(), event_listener);
   }
 
   // Set an event listener assigned as an attribute. Overwrite the existing one
   // if there is any.
-  void SetAttributeEventListener(const std::string& type,
+  void SetAttributeEventListener(base::Token type,
                                  const EventListenerScriptObject& listener);
 
   // Get the event listener currently assigned to an attribute, or NULL if
   // there is none.
   const EventListenerScriptObject* GetAttributeEventListener(
-      const std::string& type) const;
+      base::Token type) const;
 
   // script::Wrappable
   //
@@ -139,17 +132,16 @@ class EventTarget : public script::Wrappable,
 
  private:
   struct EventListenerInfo {
-    EventListenerInfo(const std::string& type,
-                      const EventTarget* const event_target,
+    EventListenerInfo(base::Token type, const EventTarget* const event_target,
                       const EventListenerScriptObject& listener,
                       bool use_capture);
-    std::string type;
+    base::Token type;
     script::ScriptObject<EventListener>::Reference listener;
     bool use_capture;
   };
   typedef ScopedVector<EventListenerInfo> EventListenerInfos;
 
-  void AddEventListenerInternal(const std::string& type,
+  void AddEventListenerInternal(base::Token type,
                                 const EventListenerScriptObject& listener,
                                 bool use_capture);
 
@@ -159,4 +151,4 @@ class EventTarget : public script::Wrappable,
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_EVENT_TARGET_H_
+#endif  // COBALT_DOM_EVENT_TARGET_H_

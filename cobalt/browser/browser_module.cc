@@ -23,10 +23,10 @@
 #include "base/path_service.h"
 #include "base/stl_util.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/browser/resource_provider_array_buffer_allocator.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/keycode.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
@@ -416,7 +416,7 @@ bool BrowserModule::FilterKeyEventForHotkeys(
 #else
   if (event->key_code() == dom::keycode::kF1 ||
       (event->ctrl_key() && event->key_code() == dom::keycode::kO)) {
-    if (event->type() == dom::EventNames::GetInstance()->keydown()) {
+    if (event->type() == base::Tokens::keydown()) {
       // Ctrl+O toggles the debug console display.
       debug_console_->CycleMode();
     }

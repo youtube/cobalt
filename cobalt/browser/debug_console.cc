@@ -24,7 +24,6 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/dom/event_names.h"
 
 namespace cobalt {
 namespace browser {

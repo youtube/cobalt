@@ -46,6 +46,15 @@ void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
   *out_string = FromWTFString(wtf_string);
 }
 
+JSC::JSValue TokenToJSValue(JSC::JSGlobalData* global_data,
+                            base::Token utf8_string) {
+  WTF::String wtf_string = ToWTFString(utf8_string.c_str());
+  JSC::JSString* js_string = JSC::jsString(global_data, wtf_string);
+  JSC::JSValue string_value(js_string);
+  DCHECK(string_value.isString());
+  return string_value;
+}
+
 WTF::String ToWTFString(const std::string& utf8_string) {
   DCHECK(IsStringUTF8(utf8_string));
 
@@ -63,7 +72,6 @@ std::string FromWTFString(const WTF::String& wtf_string) {
   WTF::CString utf8_string = wtf_string.utf8();
   return std::string(utf8_string.data(), utf8_string.length());
 }
-
 
 }  // namespace javascriptcore
 }  // namespace script

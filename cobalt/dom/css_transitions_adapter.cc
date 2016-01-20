@@ -18,10 +18,10 @@
 
 #include <vector>
 
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_animatable.h"
 #include "cobalt/dom/element.h"
-#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/pseudo_element.h"
 #include "cobalt/dom/transition_event.h"
@@ -123,7 +123,7 @@ void CSSTransitionsAdapter::HandleAnimationEnterAfterPhase(
   // so we should correspondingly fire the transitionend event.
   //   https://drafts.csswg.org/date/2015-03-02/web-animations-css-integration/#css-transitions-events
   animatable_->GetEventTarget()->DispatchEvent(new TransitionEvent(
-      EventNames::GetInstance()->transitionend(), transition.target_property(),
+      base::Tokens::transitionend(), transition.target_property(),
       static_cast<float>(transition.duration().InMillisecondsF())));
 }
 

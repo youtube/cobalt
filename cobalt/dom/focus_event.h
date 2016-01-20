@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_FOCUS_EVENT_H_
-#define DOM_FOCUS_EVENT_H_
+#ifndef COBALT_DOM_FOCUS_EVENT_H_
+#define COBALT_DOM_FOCUS_EVENT_H_
 
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/ui_event.h"
@@ -28,7 +28,7 @@ namespace dom {
 //   https://www.w3.org/TR/uievents/#interface-FocusEvent
 class FocusEvent : public UIEvent {
  public:
-  FocusEvent(const std::string& type,
+  FocusEvent(base::Token type,
              const scoped_refptr<EventTarget>& related_target);
 
   // Web API: FocusEvent
@@ -46,4 +46,4 @@ class FocusEvent : public UIEvent {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_FOCUS_EVENT_H_
+#endif  // COBALT_DOM_FOCUS_EVENT_H_

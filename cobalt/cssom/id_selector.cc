@@ -28,7 +28,7 @@ void IdSelector::Accept(SelectorVisitor* visitor) {
 void IdSelector::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                                        SelectorTree::Node* child_node,
                                        CombinatorType combinator) {
-  parent_node->AppendSimpleSelector(id_, kIdSelector, combinator, child_node);
+  parent_node->AppendSimpleSelector(id(), kIdSelector, combinator, child_node);
 }
 
 }  // namespace cssom

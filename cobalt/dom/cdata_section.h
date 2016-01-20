@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_CDATA_SECTION_H_
-#define DOM_CDATA_SECTION_H_
+#ifndef COBALT_DOM_CDATA_SECTION_H_
+#define COBALT_DOM_CDATA_SECTION_H_
 
 #include <string>
 
@@ -39,7 +39,7 @@ class CDATASection : public Text {
 
   // Web API: Node
   //
-  std::string node_name() const OVERRIDE;
+  base::Token node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kCdataSectionNode; }
 
   // Custom, not in any spec: Node.
@@ -60,4 +60,4 @@ class CDATASection : public Text {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_CDATA_SECTION_H_
+#endif  // COBALT_DOM_CDATA_SECTION_H_

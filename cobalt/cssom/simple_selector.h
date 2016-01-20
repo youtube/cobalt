@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SIMPLE_SELECTOR_H_
-#define CSSOM_SIMPLE_SELECTOR_H_
-
-#include <string>
+#ifndef COBALT_CSSOM_SIMPLE_SELECTOR_H_
+#define COBALT_CSSOM_SIMPLE_SELECTOR_H_
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_vector.h"
+#include "cobalt/base/token.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/selector_tree.h"
+#include "cobalt/cssom/simple_selector_type.h"
 
 namespace cobalt {
 namespace cssom {
@@ -34,46 +34,40 @@ class PseudoClass;
 class PseudoElement;
 class TypeSelector;
 
-// The order used in normalizing simple selectors in a compound selector.
-enum SimpleSelectorRanks {
-  kTypeSelectorRank,
-  kClassSelectorRank,
-  kIdSelectorRank,
-  kPseudoClassRank,
-  kPseudoElementRank,
-};
-
 // A simple selector is either a type selector, universal selector, attribute
 // selector, class selector, ID selector, or pseudo-class.
 //   https://www.w3.org/TR/selectors4/#simple
 class SimpleSelector : public Selector {
  public:
+  SimpleSelector(SimpleSelectorType type, base::Token prefix, base::Token text)
+      : type_(type), prefix_(prefix), text_(text) {}
   ~SimpleSelector() OVERRIDE {}
 
   // From Selector.
   SimpleSelector* AsSimpleSelector() OVERRIDE { return this; }
 
   // Rest of public methods.
-
-  virtual TypeSelector* AsTypeSelector() { return NULL; }
-  virtual ClassSelector* AsClassSelector() { return NULL; }
-  virtual IdSelector* AsIdSelector() { return NULL; }
-  virtual PseudoClass* AsPseudoClass() { return NULL; }
   virtual PseudoElement* AsPseudoElement() { return NULL; }
 
   // Used to sort simple selectors when normalizing compound selector.
-  virtual int GetRank() const = 0;
-
-  // Returns string representation of the selector.
-  virtual std::string GetSelectorText() const = 0;
+  SimpleSelectorType type() const { return type_; }
 
   // Used to index selector tree node's children.
   virtual void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                                      SelectorTree::Node* child_node,
                                      CombinatorType combinator) = 0;
+
+  // Returns token representation of the selector.
+  base::Token prefix() const { return prefix_; }
+  base::Token text() const { return text_; }
+
+ private:
+  SimpleSelectorType type_;
+  base::Token prefix_;
+  base::Token text_;
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_SIMPLE_SELECTOR_H_
+#endif  // COBALT_CSSOM_SIMPLE_SELECTOR_H_

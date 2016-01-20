@@ -52,6 +52,8 @@
         'system_poller.h',
         'token.cc',
         'token.h',
+        'tokens.cc',
+        'tokens.h',
         'type_id.h',
         'unused.h',
       ],

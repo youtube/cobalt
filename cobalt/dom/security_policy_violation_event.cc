@@ -16,7 +16,7 @@
 
 #include "cobalt/dom/security_policy_violation_event.h"
 
-#include "cobalt/dom/event_names.h"
+#include "cobalt/base/tokens.h"
 
 namespace cobalt {
 namespace dom {
@@ -27,7 +27,7 @@ SecurityPolicyViolationEvent::SecurityPolicyViolationEvent(
     const std::string& effective_directive, const std::string& original_policy,
     const std::string& source_file, int status_code, int line_number,
     int column_number)
-    : Event(EventNames::GetInstance()->securitypolicyviolation()),
+    : Event(base::Tokens::securitypolicyviolation()),
       document_uri_(document_uri),
       referrer_(referrer),
       blocked_uri_(blocked_uri),
