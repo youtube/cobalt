@@ -148,6 +148,7 @@ void FontList::GenerateFontRunList(const std::string& text,
 }
 
 math::RectF FontList::GetBounds(const std::string& text) {
+  float width = 0;
   math::RectF text_bounds(0, 0);
 
   FontRunList run_list;
@@ -161,10 +162,11 @@ math::RectF FontList::GetBounds(const std::string& text) {
     math::RectF cur_text_bounds =
         run.font->GetBounds(std::string(text, run.start_position, run.length));
 
-    text_bounds.set_width(text_bounds.width() + cur_text_bounds.width());
+    width += cur_text_bounds.width();
     text_bounds.Union(cur_text_bounds);
   }
 
+  text_bounds.set_width(width);
   return text_bounds;
 }
 
