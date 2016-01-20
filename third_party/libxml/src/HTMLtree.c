@@ -11,7 +11,9 @@
 #include "libxml.h"
 #ifdef LIBXML_HTML_ENABLED
 
+#ifdef HAVE_STRING_H
 #include <string.h> /* for memset() only ! */
+#endif
 
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
@@ -418,7 +420,7 @@ htmlNodeDumpFormat(xmlBufferPtr buf, xmlDocPtr doc, xmlNodePtr cur,
         htmlSaveErrMemory("allocating HTML output buffer");
 	return (-1);
     }
-    memset(outbuf, 0, (size_t) sizeof(xmlOutputBuffer));
+    XML_MEMSET(outbuf, 0, (size_t) sizeof(xmlOutputBuffer));
     outbuf->buffer = buf;
     outbuf->encoder = NULL;
     outbuf->writecallback = NULL;

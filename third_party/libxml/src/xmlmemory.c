@@ -7,7 +7,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -171,7 +173,7 @@ xmlMallocLoc(size_t size, const char * file, int line)
 
     TEST_POINT
 
-    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
+    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -239,7 +241,7 @@ xmlMallocAtomicLoc(size_t size, const char * file, int line)
 
     TEST_POINT
 
-    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
+    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -342,7 +344,7 @@ xmlReallocLoc(void *ptr,size_t size, const char * file, int line)
 #endif
     xmlMutexUnlock(xmlMemMutex);
 
-    p = (MEMHDR *) realloc(p,RESERVE_SIZE+size);
+    p = (MEMHDR *) XML_REALLOC(p,RESERVE_SIZE+size);
     if (!p) {
 	 goto error;
     }
@@ -435,7 +437,7 @@ xmlMemFree(void *ptr)
     }
     if (xmlMemStopAtBlock == p->mh_number) xmlMallocBreakpoint();
     p->mh_tag = ~MEMTAG;
-    memset(target, -1, p->mh_size);
+    XML_MEMSET(target, -1, p->mh_size);
     xmlMutexLock(xmlMemMutex);
     debugMemSize -= p->mh_size;
     debugMemBlocks--;
@@ -447,7 +449,7 @@ xmlMemFree(void *ptr)
 #endif
     xmlMutexUnlock(xmlMemMutex);
 
-    free(p);
+    XML_FREE(p);
 
     TEST_POINT
 
@@ -480,13 +482,13 @@ char *
 xmlMemStrdupLoc(const char *str, const char *file, int line)
 {
     char *s;
-    size_t size = strlen(str) + 1;
+    size_t size = XML_STRLEN(str) + 1;
     MEMHDR *p;
 
     if (!xmlMemInitialized) xmlInitMemory();
     TEST_POINT
 
-    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
+    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
     if (!p) {
       goto error;
     }
@@ -510,7 +512,7 @@ xmlMemStrdupLoc(const char *str, const char *file, int line)
     if (xmlMemStopAtBlock == p->mh_number) xmlMallocBreakpoint();
 
     if (s != NULL)
-      strcpy(s,str);
+      XML_STRNCPY(s,str,size);
     else
       goto error;
 
