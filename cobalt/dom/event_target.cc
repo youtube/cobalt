@@ -33,7 +33,7 @@ void EventTarget::AddEventListener(const std::string& type,
 
   DCHECK(!listener_reference.value().IsAttribute());
 
-  AddEventListenerInternal(type, listener, use_capture);
+  AddEventListenerInternal(base::Token(type), listener, use_capture);
 }
 
 void EventTarget::RemoveEventListener(const std::string& type,
@@ -45,7 +45,7 @@ void EventTarget::RemoveEventListener(const std::string& type,
 
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->type == type &&
+    if ((*iter)->type == type.c_str() &&
         (*iter)->listener.value().EqualTo(listener_reference.value()) &&
         (*iter)->use_capture == use_capture) {
       event_listener_infos_.erase(iter);
@@ -84,7 +84,7 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
 }
 
 void EventTarget::SetAttributeEventListener(
-    const std::string& type, const EventListenerScriptObject& listener) {
+    base::Token type, const EventListenerScriptObject& listener) {
   // Remove existing attribute listener of the same type.
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
@@ -109,7 +109,7 @@ void EventTarget::SetAttributeEventListener(
 }
 
 const EventTarget::EventListenerScriptObject*
-EventTarget::GetAttributeEventListener(const std::string& type) const {
+EventTarget::GetAttributeEventListener(base::Token type) const {
   for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->listener.value().IsAttribute() && (*iter)->type == type) {
@@ -162,7 +162,7 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
 }
 
 void EventTarget::AddEventListenerInternal(
-    const std::string& type, const EventListenerScriptObject& listener,
+    base::Token type, const EventListenerScriptObject& listener,
     bool use_capture) {
   DCHECK(!listener.IsNull());
 
@@ -182,7 +182,7 @@ void EventTarget::AddEventListenerInternal(
 }
 
 EventTarget::EventListenerInfo::EventListenerInfo(
-    const std::string& type, const EventTarget* const event_target,
+    base::Token type, const EventTarget* const event_target,
     const EventListenerScriptObject& listener, bool use_capture)
     : type(type), listener(event_target, listener), use_capture(use_capture) {}
 

@@ -149,8 +149,10 @@ TEST_F(XhrTest, Open) {
       MockEventListener::CreateAsAttribute();
   FakeScriptObject script_object(listener.get());
   xhr_->set_onreadystatechange(script_object);
-  EXPECT_CALL(*listener, HandleEvent(Pointee(Property(
-                             &dom::Event::type, "readystatechange")))).Times(1);
+  EXPECT_CALL(*listener,
+              HandleEvent(Pointee(Property(&dom::Event::type,
+                                           base::Token("readystatechange")))))
+      .Times(1);
   xhr_->Open("GET", "https://www.google.com", &exception_state_);
 
   EXPECT_EQ(XMLHttpRequest::kOpened, xhr_->ready_state());

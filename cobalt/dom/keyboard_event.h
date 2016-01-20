@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-#ifndef DOM_KEYBOARD_EVENT_H_
-#define DOM_KEYBOARD_EVENT_H_
+#ifndef COBALT_DOM_KEYBOARD_EVENT_H_
+#define COBALT_DOM_KEYBOARD_EVENT_H_
+
+#include <string>
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/ui_event_with_key_state.h"
@@ -38,7 +40,7 @@ class KeyboardEvent : public UIEventWithKeyState {
     kDomKeyLocationNumpad = 0x03,
   };
 
-  KeyboardEvent(const std::string& type, KeyLocationCode location,
+  KeyboardEvent(base::Token type, KeyLocationCode location,
                 unsigned int modifiers, int key_code, int char_code,
                 bool is_repeat);
 
@@ -82,4 +84,4 @@ class KeyboardEvent : public UIEventWithKeyState {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_KEYBOARD_EVENT_H_
+#endif  // COBALT_DOM_KEYBOARD_EVENT_H_

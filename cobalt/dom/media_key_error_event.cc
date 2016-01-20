@@ -16,7 +16,7 @@
 
 #include "cobalt/dom/media_key_error_event.h"
 
-#include "cobalt/dom/event_names.h"
+#include "cobalt/base/tokens.h"
 
 namespace cobalt {
 namespace dom {
@@ -25,7 +25,7 @@ MediaKeyErrorEvent::MediaKeyErrorEvent(const std::string& key_system,
                                        const std::string& session_id,
                                        MediaKeyError::Code error_code,
                                        uint16 system_code)
-    : Event(EventNames::GetInstance()->keyerror(), kNotBubbles, kNotCancelable),
+    : Event(base::Tokens::keyerror(), kNotBubbles, kNotCancelable),
       key_system_(key_system),
       session_id_(session_id),
       error_code_(static_cast<uint16>(error_code)),

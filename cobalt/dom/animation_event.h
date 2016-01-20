@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_ANIMATION_EVENT_H_
-#define DOM_ANIMATION_EVENT_H_
+#ifndef COBALT_DOM_ANIMATION_EVENT_H_
+#define COBALT_DOM_ANIMATION_EVENT_H_
 
 #include <string>
 
@@ -29,7 +29,7 @@ namespace dom {
 //   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-events
 class AnimationEvent : public Event {
  public:
-  AnimationEvent(const std::string& type, const std::string& animation_name,
+  AnimationEvent(base::Token type, const std::string& animation_name,
                  float elapsed_time)
       : Event(type, kBubbles, kNotCancelable),
         animation_name_(animation_name),
@@ -55,4 +55,4 @@ class AnimationEvent : public Event {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_ANIMATION_EVENT_H_
+#endif  // COBALT_DOM_ANIMATION_EVENT_H_

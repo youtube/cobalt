@@ -24,7 +24,7 @@ namespace cobalt {
 namespace dom {
 
 TEST(EventTest, DefaultConstructor) {
-  scoped_refptr<Event> event = new Event("event");
+  scoped_refptr<Event> event = new Event(base::Token("event"));
 
   EXPECT_EQ("event", event->type());
   EXPECT_EQ(NULL, event->target());
@@ -40,7 +40,7 @@ TEST(EventTest, DefaultConstructor) {
 
 TEST(EventTest, NonDefaultConstructor) {
   scoped_refptr<Event> event =
-      new Event("event", Event::kBubbles, Event::kCancelable);
+      new Event(base::Token("event"), Event::kBubbles, Event::kCancelable);
 
   EXPECT_EQ("event", event->type());
   EXPECT_EQ(NULL, event->target());
@@ -62,13 +62,13 @@ TEST(EventTest, TimeStamp) {
   // issue.
   uint64 now_in_js = static_cast<uint64>(base::Time::Now().ToJsTime());
   uint64 episilon_in_ms = base::Time::kMillisecondsPerSecond * 60;
-  scoped_refptr<Event> event = new Event("event");
+  scoped_refptr<Event> event = new Event(base::Token("event"));
 
   EXPECT_GE(event->time_stamp(), now_in_js - episilon_in_ms);
 }
 
 TEST(EventTest, InitEvent) {
-  scoped_refptr<Event> event = new Event("event_1");
+  scoped_refptr<Event> event = new Event(base::Token("event_1"));
   double time_stamp = static_cast<double>(event->time_stamp());
 
   event->StopImmediatePropagation();
@@ -98,31 +98,32 @@ TEST(EventTest, InitEvent) {
 }
 
 TEST(EventTest, StopPropagation) {
-  scoped_refptr<Event> event = new Event("event");
+  scoped_refptr<Event> event = new Event(base::Token("event"));
   event->StopPropagation();
   EXPECT_TRUE(event->propagation_stopped());
 }
 
 TEST(EventTest, StopImmediatePropagation) {
-  scoped_refptr<Event> event = new Event("event");
+  scoped_refptr<Event> event = new Event(base::Token("event"));
   event->StopImmediatePropagation();
   EXPECT_TRUE(event->propagation_stopped());
   EXPECT_TRUE(event->immediate_propagation_stopped());
 }
 
 TEST(EventTest, PreventDefault) {
-  scoped_refptr<Event> event =
-      new Event("event", Event::kNotBubbles, Event::kNotCancelable);
+  scoped_refptr<Event> event = new Event(
+      base::Token("event"), Event::kNotBubbles, Event::kNotCancelable);
   event->PreventDefault();
   EXPECT_FALSE(event->default_prevented());
   // explicitly init it to non-cancelable.
-  event = new Event("event", Event::kNotBubbles, Event::kCancelable);
+  event =
+      new Event(base::Token("event"), Event::kNotBubbles, Event::kCancelable);
   event->PreventDefault();
   EXPECT_TRUE(event->default_prevented());
 }
 
 TEST(EventTest, EventPhase) {
-  scoped_refptr<Event> event = new Event("event");
+  scoped_refptr<Event> event = new Event(base::Token("event"));
   event->set_event_phase(Event::kCapturingPhase);
   EXPECT_EQ(Event::kCapturingPhase, event->event_phase());
   EXPECT_TRUE(event->IsBeingDispatched());

@@ -138,7 +138,7 @@ void NodeCollection<NodeIterator>::EnumerateNamedProperties(
   for (size_t i = 0; i < cached_collection_.size(); ++i) {
     scoped_refptr<Element> element = cached_collection_[i];
     if (element) {
-      enumerator->AddProperty(element->id().str());
+      enumerator->AddProperty(element->id().c_str());
     }
   }
 }

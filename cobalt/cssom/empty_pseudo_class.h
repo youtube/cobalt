@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_EMPTY_PSEUDO_CLASS_H_
-#define CSSOM_EMPTY_PSEUDO_CLASS_H_
-
-#include <string>
+#ifndef COBALT_CSSOM_EMPTY_PSEUDO_CLASS_H_
+#define COBALT_CSSOM_EMPTY_PSEUDO_CLASS_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/cssom/pseudo_class.h"
 #include "cobalt/cssom/selector_tree.h"
 
@@ -38,14 +37,14 @@ class SelectorVisitor;
 //   https://www.w3.org/TR/selectors4/#empty-pseudo
 class EmptyPseudoClass : public PseudoClass {
  public:
-  EmptyPseudoClass() {}
+  EmptyPseudoClass()
+      : PseudoClass(base::Tokens::empty_pseudo_class_selector()) {}
   ~EmptyPseudoClass() OVERRIDE {}
 
   // From Selector.
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
   // From SimpleSelector.
-  std::string GetSelectorText() const OVERRIDE { return ":empty"; }
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) OVERRIDE;
@@ -60,4 +59,4 @@ class EmptyPseudoClass : public PseudoClass {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_EMPTY_PSEUDO_CLASS_H_
+#endif  // COBALT_CSSOM_EMPTY_PSEUDO_CLASS_H_

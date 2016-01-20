@@ -92,7 +92,7 @@ void DispatchEventOnCurrentTarget(const scoped_refptr<Event>& event) {
 TEST(EventTargetTest, SingleEventListenerFired) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event = new Event("fired");
+  scoped_refptr<Event> event = new Event(base::Token("fired"));
   scoped_ptr<MockEventListener> event_listener =
       MockEventListener::CreateAsNonAttribute();
 
@@ -105,7 +105,7 @@ TEST(EventTargetTest, SingleEventListenerFired) {
 TEST(EventTargetTest, SingleEventListenerNotFired) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event = new Event("fired");
+  scoped_refptr<Event> event = new Event(base::Token("fired"));
   scoped_ptr<MockEventListener> event_listener =
       MockEventListener::CreateAsNonAttribute();
 
@@ -120,7 +120,7 @@ TEST(EventTargetTest, SingleEventListenerNotFired) {
 TEST(EventTargetTest, MultipleEventListeners) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event = new Event("fired");
+  scoped_refptr<Event> event = new Event(base::Token("fired"));
   scoped_ptr<MockEventListener> event_listener_fired_1 =
       MockEventListener::CreateAsNonAttribute();
   scoped_ptr<MockEventListener> event_listener_fired_2 =
@@ -146,7 +146,7 @@ TEST(EventTargetTest, MultipleEventListeners) {
 TEST(EventTargetTest, AddRemoveEventListener) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event = new Event("fired");
+  scoped_refptr<Event> event = new Event(base::Token("fired"));
   scoped_ptr<MockEventListener> event_listener =
       MockEventListener::CreateAsNonAttribute();
 
@@ -170,7 +170,7 @@ TEST(EventTargetTest, AddRemoveEventListener) {
 TEST(EventTargetTest, AttributeListener) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event = new Event("fired");
+  scoped_refptr<Event> event = new Event(base::Token("fired"));
   scoped_ptr<MockEventListener> non_attribute_event_listener =
       MockEventListener::CreateAsNonAttribute();
   scoped_ptr<MockEventListener> attribute_event_listener_1 =
@@ -185,7 +185,7 @@ TEST(EventTargetTest, AttributeListener) {
                         event_target);
   ExpectHandleEventCall(attribute_event_listener_1.get(), event, event_target);
   event_target->SetAttributeEventListener(
-      "fired", FakeScriptObject(attribute_event_listener_1.get()));
+      base::Token("fired"), FakeScriptObject(attribute_event_listener_1.get()));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   ExpectHandleEventCall(non_attribute_event_listener.get(), event,
@@ -193,14 +193,15 @@ TEST(EventTargetTest, AttributeListener) {
   ExpectNoHandleEventCall(attribute_event_listener_1.get());
   ExpectHandleEventCall(attribute_event_listener_2.get(), event, event_target);
   event_target->SetAttributeEventListener(
-      "fired", FakeScriptObject(attribute_event_listener_2.get()));
+      base::Token("fired"), FakeScriptObject(attribute_event_listener_2.get()));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   ExpectHandleEventCall(non_attribute_event_listener.get(), event,
                         event_target);
   ExpectNoHandleEventCall(attribute_event_listener_1.get());
   ExpectNoHandleEventCall(attribute_event_listener_2.get());
-  event_target->SetAttributeEventListener("fired", FakeScriptObject(NULL));
+  event_target->SetAttributeEventListener(base::Token("fired"),
+                                          FakeScriptObject(NULL));
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
@@ -208,8 +209,8 @@ TEST(EventTargetTest, AttributeListener) {
 TEST(EventTargetTest, EventListenerReuse) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event_1 = new Event("fired_1");
-  scoped_refptr<Event> event_2 = new Event("fired_2");
+  scoped_refptr<Event> event_1 = new Event(base::Token("fired_1"));
+  scoped_refptr<Event> event_2 = new Event(base::Token("fired_2"));
   scoped_ptr<MockEventListener> event_listener =
       MockEventListener::CreateAsNonAttribute();
 
@@ -245,7 +246,7 @@ TEST(EventTargetTest, EventListenerReuse) {
 TEST(EventTargetTest, StopPropagation) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event = new Event("fired");
+  scoped_refptr<Event> event = new Event(base::Token("fired"));
   scoped_ptr<MockEventListener> event_listener_fired_1 =
       MockEventListener::CreateAsNonAttribute();
   scoped_ptr<MockEventListener> event_listener_fired_2 =
@@ -266,7 +267,7 @@ TEST(EventTargetTest, StopPropagation) {
 TEST(EventTargetTest, StopImmediatePropagation) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<Event> event = new Event("fired");
+  scoped_refptr<Event> event = new Event(base::Token("fired"));
   scoped_ptr<MockEventListener> event_listener_fired_1 =
       MockEventListener::CreateAsNonAttribute();
   scoped_ptr<MockEventListener> event_listener_fired_2 =
@@ -292,12 +293,14 @@ TEST(EventTargetTest, PreventDefault) {
 
   event_target->AddEventListener(
       "fired", FakeScriptObject(event_listener_fired.get()), false);
-  event = new Event("fired", Event::kNotBubbles, Event::kNotCancelable);
+  event = new Event(base::Token("fired"), Event::kNotBubbles,
+                    Event::kNotCancelable);
   ExpectHandleEventCall(event_listener_fired.get(), event, event_target,
                         &Event::PreventDefault);
   EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
-  event = new Event("fired", Event::kNotBubbles, Event::kCancelable);
+  event =
+      new Event(base::Token("fired"), Event::kNotBubbles, Event::kCancelable);
   ExpectHandleEventCall(event_listener_fired.get(), event, event_target,
                         &Event::PreventDefault);
   EXPECT_FALSE(event_target->DispatchEvent(event, &exception_state));
@@ -332,7 +335,8 @@ TEST(EventTargetTest, RaiseException) {
 
   event_target->AddEventListener("fired",
                                  FakeScriptObject(event_listener.get()), false);
-  event = new Event("fired", Event::kNotBubbles, Event::kNotCancelable);
+  event = new Event(base::Token("fired"), Event::kNotBubbles,
+                    Event::kNotCancelable);
   // Dispatch event again when it is being dispatched.
   EXPECT_CALL(*event_listener, HandleEvent(_))
       .WillOnce(Invoke(DispatchEventOnCurrentTarget));

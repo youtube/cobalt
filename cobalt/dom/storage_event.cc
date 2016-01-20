@@ -16,20 +16,20 @@
 
 #include "cobalt/dom/storage_event.h"
 
-#include "cobalt/dom/event_names.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/storage.h"
 
 namespace cobalt {
 namespace dom {
 
-StorageEvent::StorageEvent() : Event(EventNames::GetInstance()->storage()) {}
+StorageEvent::StorageEvent() : Event(base::Tokens::storage()) {}
 
 StorageEvent::StorageEvent(const base::optional<std::string>& key,
                            const base::optional<std::string>& old_value,
                            const base::optional<std::string>& new_value,
                            const std::string& url,
                            const scoped_refptr<Storage>& storage_area)
-    : Event(dom::EventNames::GetInstance()->storage()),
+    : Event(base::Tokens::storage()),
       key_(key),
       old_value_(old_value),
       new_value_(new_value),

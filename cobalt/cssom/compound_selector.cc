@@ -25,11 +25,17 @@ namespace cobalt {
 namespace cssom {
 namespace {
 
-bool CompareSimpleSelectors(const SimpleSelector* lhs,
-                            const SimpleSelector* rhs) {
-  return (lhs->GetRank() < rhs->GetRank()) ||
-         (lhs->GetRank() == rhs->GetRank() &&
-          lhs->GetSelectorText() < rhs->GetSelectorText());
+bool SimpleSelectorsLessThan(const SimpleSelector* lhs,
+                             const SimpleSelector* rhs) {
+  if (lhs->type() < rhs->type()) {
+    return true;
+  }
+  if (lhs->type() > rhs->type()) {
+    return false;
+  }
+
+  return (lhs->prefix() < rhs->prefix()) ||
+         (lhs->prefix() == rhs->prefix() && lhs->text() < rhs->text());
 }
 
 }  // namespace
@@ -58,11 +64,12 @@ const std::string& CompoundSelector::GetNormalizedSelectorText() {
   if (should_normalize_) {
     should_normalize_ = false;
     std::sort(simple_selectors_.begin(), simple_selectors_.end(),
-              CompareSimpleSelectors);
+              SimpleSelectorsLessThan);
     normalized_selector_text_ = "";
     for (SimpleSelectors::iterator it = simple_selectors_.begin();
          it != simple_selectors_.end(); ++it) {
-      normalized_selector_text_ += (*it)->GetSelectorText();
+      normalized_selector_text_ += (*it)->prefix().c_str();
+      normalized_selector_text_ += (*it)->text().c_str();
     }
   }
   return normalized_selector_text_;

@@ -60,7 +60,7 @@ base::optional<std::string> DOMTokenList::Item(unsigned int index) const {
   if (index >= tokens_.size()) return base::nullopt;
 
   // 2. Return the indexth token in tokens.
-  return tokens_[index].str();
+  return std::string(tokens_[index].c_str());
 }
 
 // Algorithm for Contains:
@@ -156,7 +156,7 @@ void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
 std::string DOMTokenList::AnonymousStringifier() const {
   std::string result;
   for (size_t i = 0; i < tokens_.size(); ++i) {
-    result += tokens_[i].str();
+    result += tokens_[i].c_str();
     result += ' ';
   }
   if (!result.empty()) result.resize(result.size() - 1);

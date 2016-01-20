@@ -16,14 +16,14 @@
 
 #include "cobalt/dom/media_key_complete_event.h"
 
-#include "cobalt/dom/event_names.h"
+#include "cobalt/base/tokens.h"
 
 namespace cobalt {
 namespace dom {
 
 MediaKeyCompleteEvent::MediaKeyCompleteEvent(const std::string& key_system,
                                              const std::string& session_id)
-    : Event(EventNames::GetInstance()->keyadded(), kNotBubbles, kNotCancelable),
+    : Event(base::Tokens::keyadded(), kNotBubbles, kNotCancelable),
       key_system_(key_system),
       session_id_(session_id) {}
 

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_PSEUDO_CLASS_H_
-#define CSSOM_PSEUDO_CLASS_H_
+#ifndef COBALT_CSSOM_PSEUDO_CLASS_H_
+#define COBALT_CSSOM_PSEUDO_CLASS_H_
 
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/simple_selector.h"
@@ -36,14 +36,13 @@ class NotPseudoClass;
 //   https://www.w3.org/TR/selectors4/#pseudo-classes
 class PseudoClass : public SimpleSelector {
  public:
+  explicit PseudoClass(base::Token text)
+      : SimpleSelector(kPseudoClass,
+                       base::Tokens::pseudo_class_selector_prefix(), text) {}
   ~PseudoClass() OVERRIDE {}
 
   // From Selector.
   Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
-
-  // From SimpleSelector.
-  PseudoClass* AsPseudoClass() OVERRIDE { return this; }
-  int GetRank() const OVERRIDE { return kPseudoClassRank; }
 
   // Rest of public methods.
   virtual ActivePseudoClass* AsActivePseudoClass() { return NULL; }
@@ -56,4 +55,4 @@ class PseudoClass : public SimpleSelector {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_PSEUDO_CLASS_H_
+#endif  // COBALT_CSSOM_PSEUDO_CLASS_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_UI_EVENT_WITH_KEY_STATE_H_
-#define DOM_UI_EVENT_WITH_KEY_STATE_H_
+#ifndef COBALT_DOM_UI_EVENT_WITH_KEY_STATE_H_
+#define COBALT_DOM_UI_EVENT_WITH_KEY_STATE_H_
 
 #include <string>
 
@@ -47,8 +47,8 @@ class UIEventWithKeyState : public UIEvent {
   bool GetModifierState(const std::string& keyArg) const;
 
  protected:
-  UIEventWithKeyState(const std::string& type, Bubbles bubbles,
-                      Cancelable cancelable, uint32 modifiers)
+  UIEventWithKeyState(base::Token type, Bubbles bubbles, Cancelable cancelable,
+                      uint32 modifiers)
       : UIEvent(type, bubbles, cancelable), modifiers_(modifiers) {}
 
   ~UIEventWithKeyState() OVERRIDE {}
@@ -59,4 +59,4 @@ class UIEventWithKeyState : public UIEvent {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_UI_EVENT_WITH_KEY_STATE_H_
+#endif  // COBALT_DOM_UI_EVENT_WITH_KEY_STATE_H_

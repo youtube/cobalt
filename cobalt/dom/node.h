@@ -22,6 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
+#include "cobalt/base/token.h"
 #include "cobalt/dom/event_target.h"
 
 namespace cobalt {
@@ -134,7 +135,7 @@ class Node : public EventTarget {
   // Web API: Node
   //
   virtual NodeType node_type() const = 0;
-  virtual std::string node_name() const = 0;
+  virtual base::Token node_name() const = 0;
 
   scoped_refptr<Document> owner_document() const;
   scoped_refptr<Node> parent_node() const { return parent_.get(); }

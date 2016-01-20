@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/cdata_section.h"
 
+#include "cobalt/base/tokens.h"
+
 namespace cobalt {
 namespace dom {
 
@@ -27,9 +29,8 @@ CDATASection::CDATASection(Document* document,
                            const base::StringPiece& cdata_section)
     : Text(document, cdata_section) {}
 
-std::string CDATASection::node_name() const {
-  static const char kCommentName[] = "#cdata_section";
-  return kCommentName;
+base::Token CDATASection::node_name() const {
+  return base::Tokens::cdata_section_node_name();
 }
 
 void CDATASection::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
