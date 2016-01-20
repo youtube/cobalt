@@ -1008,6 +1008,7 @@ class ComputedBackgroundImageSingleLayerProvider
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
+  void VisitRadialGradient(RadialGradientValue* radial_gradient_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
 
   const scoped_refptr<PropertyValue>& computed_background_image() const {
@@ -1079,6 +1080,13 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
 void ComputedBackgroundImageSingleLayerProvider::VisitLinearGradient(
     LinearGradientValue* /*linear_gradient_value*/) {
   // TODO(***REMOVED***): Deal with linear gradient value.
+  NOTIMPLEMENTED();
+  computed_background_image_ = cssom::KeywordValue::GetNone();
+}
+
+void ComputedBackgroundImageSingleLayerProvider::VisitRadialGradient(
+    RadialGradientValue* /*radial_gradient_value*/) {
+  // TODO(***REMOVED***): Deal with radial gradient value.
   NOTIMPLEMENTED();
   computed_background_image_ = cssom::KeywordValue::GetNone();
 }
