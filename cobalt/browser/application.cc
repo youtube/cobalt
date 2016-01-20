@@ -37,6 +37,7 @@ namespace cobalt {
 namespace browser {
 
 namespace {
+const char kDefaultURL[] = "https://www.youtube.com/tv";
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
 int GetRemoteDebuggingPort() {
@@ -96,7 +97,6 @@ GURL GetInitialURL() {
   }
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
-  static const char kDefaultURL[] = "https://www.youtube.com/tv";
   return GURL(kDefaultURL);
 }
 
@@ -137,6 +137,12 @@ FilePath GetExtraWebFileDir() {
   return result;
 }
 
+// Restrict navigation to a couple of whitelisted URLs by default. This will
+// be overridden when the server delivers the entire CSP policy.
+const char kNavigationPolicy[] = {"h5vcc-location-src 'self'"};
+
+std::string GetDefaultSecurityPolicy() { return kNavigationPolicy; }
+
 }  // namespace
 
 Application::Application()
@@ -168,12 +174,17 @@ Application::Application()
   options.network_module_options.preferred_language = language;
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
-
+  options.web_module_options.default_security_policy =
+      GetDefaultSecurityPolicy();
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(browser::switches::kProxy)) {
     options.network_module_options.custom_proxy =
         command_line->GetSwitchValueASCII(browser::switches::kProxy);
+  }
+
+  if (command_line->HasSwitch(browser::switches::kDisableCsp)) {
+    options.web_module_options.disable_csp = true;
   }
 
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)

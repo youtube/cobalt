@@ -111,20 +111,42 @@ void GatherSecurityPolicyViolationEventData(
 
 }  // namespace
 
-CSPDelegate::CSPDelegate(Document* document) : document_(document) {
+CSPDelegate::CSPDelegate(
+    const network_bridge::NetPosterFactory& net_poster_factory,
+    const std::string& default_security_policy, bool disable_csp)
+    : document_(NULL),
+      net_poster_factory_(net_poster_factory),
+      default_security_policy_(default_security_policy) {
+#if defined(COBALT_BUILD_TYPE_GOLD)
+  UNREFERENCED_PARAMETER(disable_csp);
+#else
+  disable_csp_ = disable_csp;
+#endif
+
   csp_.reset(new csp::ContentSecurityPolicy());
-  if (document_ && !document_->net_poster_factory().is_null()) {
-    net_poster_ = document_->net_poster_factory().Run().Pass();
-  }
-  csp_->BindDelegate(this);
 }
 
 CSPDelegate::~CSPDelegate() {}
 
-csp::ContentSecurityPolicy* CSPDelegate::csp() const { return csp_.get(); }
+void CSPDelegate::SetDocument(Document* document) {
+  document_ = document;
+  csp_->BindDelegate(this);
+  SetLocationPolicy(default_security_policy_);
+}
 
 bool CSPDelegate::CanLoad(ResourceType type, const GURL& url,
                           bool did_redirect) const {
+  DCHECK(document_) << "SetDocument() was not called.";
+
+// Gold builds always have CSP enabled.
+#if defined(COBALT_BUILD_TYPE_GOLD)
+  CHECK(!disable_csp());
+#else
+  if (disable_csp()) {
+    return true;
+  }
+#endif  // defined(COBALT_BUILD_TYPE_GOLD)
+
   csp::ContentSecurityPolicy::RedirectStatus redirect_status =
       did_redirect ? csp::ContentSecurityPolicy::kDidRedirect
                    : csp::ContentSecurityPolicy::kDidNotRedirect;
@@ -133,6 +155,8 @@ bool CSPDelegate::CanLoad(ResourceType type, const GURL& url,
       return csp_->AllowFontFromSource(url, redirect_status);
     case kImage:
       return csp_->AllowImageFromSource(url, redirect_status);
+    case kLocation:
+      return csp_->AllowNavigateToSource(url, redirect_status);
     case kMedia:
       return csp_->AllowMediaFromSource(url, redirect_status);
     case kScript:
@@ -146,6 +170,16 @@ bool CSPDelegate::CanLoad(ResourceType type, const GURL& url,
   }
   NOTREACHED() << "Invalid resource type " << type;
   return true;
+}
+
+void CSPDelegate::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
+  csp_->OnReceiveHeaders(headers);
+}
+
+void CSPDelegate::OnReceiveHeader(const std::string& header,
+                                  csp::HeaderType header_type,
+                                  csp::HeaderSource header_source) {
+  csp_->OnReceiveHeader(header, header_type, header_source);
 }
 
 GURL CSPDelegate::url() const { return document_->url_as_gurl(); }
@@ -169,7 +203,7 @@ void CSPDelegate::ReportViolation(const std::string& directive_text,
       violation_data.source_file, violation_data.status_code,
       violation_data.line_number, violation_data.column_number));
 
-  if (endpoints.empty() || !net_poster_) {
+  if (endpoints.empty() || net_poster_factory_.is_null()) {
     return;
   }
 
@@ -215,12 +249,12 @@ void CSPDelegate::SendViolationReports(
     return;
   }
   violation_reports_sent_.insert(report_hash);
-
+  scoped_ptr<network_bridge::NetPoster> net_poster(net_poster_factory_.Run());
   const GURL& origin_url = document_->url_as_gurl();
   for (std::vector<std::string>::const_iterator it = endpoints.begin();
        it != endpoints.end(); ++it) {
     GURL resolved_endpoint = origin_url.Resolve(*it);
-    net_poster_->Send(resolved_endpoint, kCspReportContentType, report);
+    net_poster->Send(resolved_endpoint, kCspReportContentType, report);
   }
 }
 
@@ -228,6 +262,19 @@ void CSPDelegate::SetReferrerPolicy(csp::ReferrerPolicy policy) {
   // TODO(***REMOVED***): Set the referrer policy on the document.
   UNREFERENCED_PARAMETER(policy);
   NOTIMPLEMENTED();
+}
+
+void CSPDelegate::SetLocationPolicy(const std::string& policy) {
+  if (!policy.length()) {
+    return;
+  }
+
+  if (policy.find(csp::ContentSecurityPolicy::kLocationSrc) ==
+      std::string::npos) {
+    LOG(FATAL) << csp::ContentSecurityPolicy::kLocationSrc << " not found in "
+               << policy;
+  }
+  csp_->SetNavigationFallbackPolicy(policy);
 }
 
 }  // namespace dom

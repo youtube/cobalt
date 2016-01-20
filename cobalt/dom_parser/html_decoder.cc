@@ -53,7 +53,7 @@ void HTMLDecoder::OnResponseStarted(
   }
 
   csp::ResponseHeaders csp_headers(headers);
-  document_->csp_delegate()->csp()->OnReceiveHeaders(csp_headers);
+  document_->csp_delegate()->OnReceiveHeaders(csp_headers);
 }
 
 void HTMLDecoder::DecodeChunk(const char* data, size_t size) {

@@ -79,7 +79,8 @@ class WebModule {
     Options()
         : name("WebModule"),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation),
-          array_buffer_allocator(NULL) {}
+          array_buffer_allocator(NULL),
+          disable_csp(false) {}
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to
@@ -113,6 +114,14 @@ class WebModule {
     // the following member on some platforms so ArrayBuffer can possibly use
     // memory that is not part of the heap.
     dom::ArrayBuffer::Allocator* array_buffer_allocator;
+
+    // Content Security Policy to be enforced if no CSP is received from the
+    // server. This is intended to implement a navigation jail so that location
+    // can't be changed from the whitelisted origins.
+    std::string default_security_policy;
+
+    // Disable Content Security Policy enforcement for this web module.
+    bool disable_csp;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

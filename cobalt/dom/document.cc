@@ -63,9 +63,6 @@ Document::Document(HTMLElementContext* html_element_context,
     : ALLOW_THIS_IN_INITIALIZER_LIST(Node(this)),
       html_element_context_(html_element_context),
       implementation_(new DOMImplementation()),
-      location_(new Location(options.url, options.navigation_callback)),
-      net_poster_factory_(options.net_poster_factory),
-      ALLOW_THIS_IN_INITIALIZER_LIST(csp_delegate_(new CSPDelegate(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           style_sheets_(new cssom::StyleSheetList(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(font_cache_(new FontCache(
@@ -87,6 +84,22 @@ Document::Document(HTMLElementContext* html_element_context,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           default_timeline_(new DocumentTimeline(this, 0))),
       user_agent_style_sheet_(options.user_agent_style_sheet) {
+  DCHECK(options.url.is_empty() || options.url.is_valid());
+
+  csp_delegate_.reset(new CSPDelegate(options.net_poster_factory,
+                                      options.default_security_policy,
+                                      options.disable_csp));
+
+  location_ = new Location(
+      options.url, options.navigation_callback,
+      base::Bind(&CSPDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
+                 CSPDelegate::kLocation));
+  // CSPDelegate relies on location to exist, so that it can query the
+  // Document's origin. Location relies on CSPDelegate to exist, to bind its
+  // security callback.
+  // So only bind the document to the delegate once both are constructed.
+  csp_delegate_->SetDocument(this);
+
   if (html_element_context_ && html_element_context_->remote_font_cache()) {
     html_element_context_->remote_font_cache()->set_security_callback(
         base::Bind(&CSPDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
@@ -99,12 +112,10 @@ Document::Document(HTMLElementContext* html_element_context,
                    CSPDelegate::kImage));
   }
 
-  DCHECK(options.url.is_empty() || options.url.is_valid());
   if (options.viewport_size) {
     SetViewport(*options.viewport_size);
   }
   cookie_jar_ = options.cookie_jar;
-  net_poster_factory_ = options.net_poster_factory;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   partial_layout_is_enabled_ = true;
@@ -288,6 +299,16 @@ std::string Document::cookie() const {
 void Document::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 void Document::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
+
+scoped_refptr<Node> Document::Duplicate() const {
+  return new Document(
+      html_element_context_,
+      Options(location_->url(), navigation_start_clock_,
+              location_->navigation_callback(), user_agent_style_sheet_,
+              viewport_size_, cookie_jar_, csp_delegate_->net_poster_factory(),
+              csp_delegate_->default_security_policy(),
+              csp_delegate_->disable_csp()));
+}
 
 scoped_refptr<HTMLHtmlElement> Document::html() const { return html_.get(); }
 
