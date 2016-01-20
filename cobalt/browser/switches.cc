@@ -27,6 +27,9 @@ const char kAllowHttp[] = "allow_http";
 // Switches different debug console modes: on | hud | off
 const char kDebugConsoleMode[] = "debug_console";
 
+// Disable the content security policy.
+const char kDisableCsp[] = "disable_csp";
+
 // Create WebDriver server.
 const char kEnableWebDriver[] = "enable_webdriver";
 

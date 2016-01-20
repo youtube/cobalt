@@ -21,11 +21,12 @@
 namespace cobalt {
 namespace dom {
 
-Location::Location(const GURL& url) : url_(url) {}
-
 Location::Location(const GURL& url,
-                   const base::Callback<void(const GURL&)>& navigation_callback)
-    : url_(url), navigation_callback_(navigation_callback) {}
+                   const base::Callback<void(const GURL&)>& navigation_callback,
+                   const csp::SecurityCallback& security_callback)
+    : url_(url),
+      navigation_callback_(navigation_callback),
+      security_callback_(security_callback) {}
 
 void Location::Replace(const std::string& url) {
   // When the replace(url) method is invoked, the UA must resolve the argument,
@@ -158,6 +159,12 @@ void Location::Navigate(const GURL& url) {
   // Custom, not in any spec.
   if (!url.is_valid()) {
     DLOG(INFO) << "URL " << url << " is not valid, aborting the navigation.";
+    return;
+  }
+
+  if (!security_callback_.Run(url, false /* did redirect */)) {
+    DLOG(INFO) << "URL was rejected by policy, aborting the navigation: "
+               << url;
     return;
   }
 

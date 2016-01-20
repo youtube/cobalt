@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_CSP_DELEGATE_H_
-#define DOM_CSP_DELEGATE_H_
+#ifndef COBALT_DOM_CSP_DELEGATE_H_
+#define COBALT_DOM_CSP_DELEGATE_H_
 
 #include <string>
 #include <vector>
@@ -36,14 +36,14 @@ class Document;
 // reports to any reporting endpoints described by the policy.
 class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
  public:
-  explicit CSPDelegate(Document* document);
+  CSPDelegate(const network_bridge::NetPosterFactory& net_poster_factory,
+              const std::string& default_security_policy, bool disable_csp);
   ~CSPDelegate() OVERRIDE;
-
-  csp::ContentSecurityPolicy* csp() const;
 
   enum ResourceType {
     kFont,
     kImage,
+    kLocation,
     kMedia,
     kScript,
     kStyle,
@@ -51,8 +51,17 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
   };
 
   // virtual for overriding by mocks.
+  virtual void SetDocument(Document* document);
+
+  // Return |true| if the given resource type can be loaded from |url|.
+  // Set |did_redirect| if url was the result of a redirect.
   virtual bool CanLoad(ResourceType type, const GURL& url,
                        bool did_redirect) const;
+  // Signal to the CSP object that CSP policy directives have been received.
+  virtual void OnReceiveHeaders(const csp::ResponseHeaders& headers);
+  virtual void OnReceiveHeader(const std::string& header,
+                               csp::HeaderType header_type,
+                               csp::HeaderSource header_source);
 
   // From csp::ContentSecurityPolicyDelegate
   GURL url() const OVERRIDE;
@@ -64,14 +73,32 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
                        const std::string& header) OVERRIDE;
   void SetReferrerPolicy(csp::ReferrerPolicy policy) OVERRIDE;
 
+  const network_bridge::NetPosterFactory& net_poster_factory() const {
+    return net_poster_factory_;
+  }
+  const std::string& default_security_policy() const {
+    return default_security_policy_;
+  }
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  bool disable_csp() const { return disable_csp_; }
+#else
+  bool disable_csp() const { return false; }
+#endif
+
  private:
   void SendViolationReports(const std::vector<std::string>& endpoints,
                             const std::string& report);
+  void SetLocationPolicy(const std::string& policy);
 
   Document* document_;
   scoped_ptr<csp::ContentSecurityPolicy> csp_;
   base::hash_set<uint32> violation_reports_sent_;
-  scoped_ptr<network_bridge::NetPoster> net_poster_;
+  network_bridge::NetPosterFactory net_poster_factory_;
+
+  std::string default_security_policy_;
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  bool disable_csp_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(CSPDelegate);
 };
@@ -79,4 +106,4 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_CSP_DELEGATE_H_
+#endif  // COBALT_DOM_CSP_DELEGATE_H_

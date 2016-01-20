@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSP_CONTENT_SECURITY_POLICY_H_
-#define CSP_CONTENT_SECURITY_POLICY_H_
+#ifndef COBALT_CSP_CONTENT_SECURITY_POLICY_H_
+#define COBALT_CSP_CONTENT_SECURITY_POLICY_H_
 
 #include <string>
 #include <vector>
@@ -103,6 +103,9 @@ class ContentSecurityPolicy {
   static const char kReflectedXSS[];
   static const char kReferrer[];
 
+  // Custom CSP directive for Cobalt
+  static const char kLocationSrc[];
+
   // Manifest Directives (to be merged into CSP Level 2)
   // https://w3c.github.io/manifest/#content-security-policy
   static const char kManifestSrc[];
@@ -140,6 +143,7 @@ class ContentSecurityPolicy {
   void OnReceiveHeaders(const ResponseHeaders& headers);
   void OnReceiveHeader(const std::string& header, HeaderType header_type,
                        HeaderSource header_source);
+  void SetNavigationFallbackPolicy(const std::string& header);
 
   bool UrlMatchesSelf(const GURL& url) const;
   bool SchemeMatchesSelf(const GURL& url) const;
@@ -207,6 +211,10 @@ class ContentSecurityPolicy {
   bool AllowConnectToSource(const GURL& url,
                             RedirectStatus redirect = kDidNotRedirect,
                             ReportingStatus report = kSendReport) const;
+  bool AllowNavigateToSource(const GURL& url,
+                             RedirectStatus redirect = kDidNotRedirect,
+                             ReportingStatus report = kSendReport) const;
+
   bool AllowFormAction(const GURL& url,
                        RedirectStatus redirect = kDidNotRedirect,
                        ReportingStatus report = kSendReport) const;
@@ -247,6 +255,7 @@ class ContentSecurityPolicy {
                                 HeaderSource source);
 
   PolicyList policies_;
+  scoped_ptr<DirectiveList> navigation_fallback_policy_;
   scoped_ptr<Source> self_source_;
   std::string self_scheme_;
   std::string disable_eval_error_message_;
@@ -265,4 +274,4 @@ class ContentSecurityPolicy {
 }  // namespace csp
 }  // namespace cobalt
 
-#endif  // CSP_CONTENT_SECURITY_POLICY_H_
+#endif  // COBALT_CSP_CONTENT_SECURITY_POLICY_H_
