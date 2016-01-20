@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_PROPERTY_VALUE_VISITOR_H_
-#define CSSOM_PROPERTY_VALUE_VISITOR_H_
+#ifndef COBALT_CSSOM_PROPERTY_VALUE_VISITOR_H_
+#define COBALT_CSSOM_PROPERTY_VALUE_VISITOR_H_
 
 #include "base/compiler_specific.h"
 
@@ -37,6 +37,7 @@ class PercentageValue;
 class PropertyKeyListValue;
 class PropertyListValue;
 class PropertyValue;
+class RadialGradientValue;
 class RatioValue;
 class ResolutionValue;
 class RGBAColorValue;
@@ -72,6 +73,8 @@ class PropertyValueVisitor {
   virtual void VisitPropertyKeyList(
       PropertyKeyListValue* property_key_list_value) = 0;
   virtual void VisitPropertyList(PropertyListValue* property_list_value) = 0;
+  virtual void VisitRadialGradient(
+      RadialGradientValue* radial_gradient_value) = 0;
   virtual void VisitRatio(RatioValue* ratio_value) = 0;
   virtual void VisitResolution(ResolutionValue* resolution_value) = 0;
   virtual void VisitRGBAColor(RGBAColorValue* color_value) = 0;
@@ -113,6 +116,7 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
   void VisitPropertyKeyList(
       PropertyKeyListValue* property_key_list_value) OVERRIDE;
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+  void VisitRadialGradient(RadialGradientValue* radial_gradient_value) OVERRIDE;
   void VisitRatio(RatioValue* ratio_value) OVERRIDE;
   void VisitResolution(ResolutionValue* resolution_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* color_value) OVERRIDE;
@@ -145,4 +149,4 @@ class NotReachedPropertyValueVisitor : public DefaultingPropertyValueVisitor {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_PROPERTY_VALUE_VISITOR_H_
+#endif  // COBALT_CSSOM_PROPERTY_VALUE_VISITOR_H_

@@ -27,6 +27,7 @@
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_key_list_value.h"
+#include "cobalt/cssom/radial_gradient_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -266,17 +267,15 @@ TEST(PropertyValueIsEqualTest, LinearGradientValuesAreEqual) {
       new RGBAColorValue(100, 0, 50, 255));
   scoped_refptr<LengthValue> property_length(new LengthValue(212, kPixelsUnit));
 
-  LinearGradientValue::ColorStopList *color_stop_list_a =
-      new LinearGradientValue::ColorStopList;
-  color_stop_list_a->push_back(new ColorStop(property_color, property_length));
-  LinearGradientValue::ColorStopList *color_stop_list_b =
-      new LinearGradientValue::ColorStopList;
-  color_stop_list_b->push_back(new ColorStop(property_color, property_length));
+  ColorStopList color_stop_list_a;
+  color_stop_list_a.push_back(new ColorStop(property_color, property_length));
+  ColorStopList color_stop_list_b;
+  color_stop_list_b.push_back(new ColorStop(property_color, property_length));
 
   scoped_refptr<LinearGradientValue> value_a(
-      new LinearGradientValue(123.0f, color_stop_list_a));
+      new LinearGradientValue(123.0f, color_stop_list_a.Pass()));
   scoped_refptr<LinearGradientValue> value_b(
-      new LinearGradientValue(123.0f, color_stop_list_b));
+      new LinearGradientValue(123.0f, color_stop_list_b.Pass()));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
@@ -286,26 +285,100 @@ TEST(PropertyValueIsEqualTest, LinearGradientValuesAreNotEqual) {
       new RGBAColorValue(100, 0, 50, 255));
   scoped_refptr<LengthValue> property_length(new LengthValue(212, kPixelsUnit));
 
-  LinearGradientValue::ColorStopList *color_stop_list_a =
-      new LinearGradientValue::ColorStopList;
-  color_stop_list_a->push_back(new ColorStop(property_color, property_length));
-  LinearGradientValue::ColorStopList *color_stop_list_b =
-      new LinearGradientValue::ColorStopList;
-  color_stop_list_b->push_back(new ColorStop(property_color, property_length));
+  ColorStopList color_stop_list_a;
+  color_stop_list_a.push_back(new ColorStop(property_color, property_length));
+  ColorStopList color_stop_list_b;
+  color_stop_list_b.push_back(new ColorStop(property_color, property_length));
 
   scoped_refptr<RGBAColorValue> property_color_c(
       new RGBAColorValue(10, 10, 10, 255));
-  LinearGradientValue::ColorStopList *color_stop_list_c =
-      new LinearGradientValue::ColorStopList;
-  color_stop_list_c->push_back(
-      new ColorStop(property_color_c, property_length));
+  ColorStopList color_stop_list_c;
+  color_stop_list_c.push_back(new ColorStop(property_color_c, property_length));
 
   scoped_refptr<LinearGradientValue> value_a(
-      new LinearGradientValue(123.0f, color_stop_list_a));
+      new LinearGradientValue(123.0f, color_stop_list_a.Pass()));
   scoped_refptr<LinearGradientValue> value_b(
-      new LinearGradientValue(456.0f, color_stop_list_b));
+      new LinearGradientValue(456.0f, color_stop_list_b.Pass()));
   scoped_refptr<LinearGradientValue> value_c(
-      new LinearGradientValue(123.0f, color_stop_list_c));
+      new LinearGradientValue(123.0f, color_stop_list_c.Pass()));
+
+  EXPECT_FALSE(value_a->Equals(*value_b));
+}
+
+TEST(PropertyValueIsEqualTest, RadialGradientValuesAreEqual) {
+  scoped_refptr<RGBAColorValue> property_color(
+      new RGBAColorValue(100, 0, 50, 255));
+  scoped_refptr<LengthValue> property_length(new LengthValue(212, kPixelsUnit));
+
+  ColorStopList color_stop_list_a;
+  color_stop_list_a.push_back(new ColorStop(property_color, property_length));
+  ColorStopList color_stop_list_b;
+  color_stop_list_b.push_back(new ColorStop(property_color, property_length));
+
+  scoped_ptr<PropertyListValue::Builder> position_a_builder(
+      new PropertyListValue::Builder());
+  position_a_builder->push_back(new LengthValue(1.5f, kPixelsUnit));
+  scoped_refptr<PropertyListValue> position_a(
+      new PropertyListValue(position_a_builder.Pass()));
+
+  scoped_ptr<PropertyListValue::Builder> position_b_builder(
+      new PropertyListValue::Builder());
+  position_b_builder->push_back(new LengthValue(1.5f, kPixelsUnit));
+  scoped_refptr<PropertyListValue> position_b(
+      new PropertyListValue(position_b_builder.Pass()));
+
+  scoped_refptr<RadialGradientValue> value_a(new RadialGradientValue(
+      RadialGradientValue::kCircle, RadialGradientValue::kFarthestSide,
+      position_a, color_stop_list_a.Pass()));
+
+  scoped_refptr<RadialGradientValue> value_b(new RadialGradientValue(
+      RadialGradientValue::kCircle, RadialGradientValue::kFarthestSide,
+      position_b, color_stop_list_b.Pass()));
+
+  EXPECT_TRUE(value_a->Equals(*value_b));
+}
+
+TEST(PropertyValueIsEqualTest, RadialGradientValuesAreNotEqual) {
+  scoped_refptr<RGBAColorValue> property_color(
+      new RGBAColorValue(100, 0, 50, 255));
+  scoped_refptr<LengthValue> property_length(new LengthValue(212, kPixelsUnit));
+
+  ColorStopList color_stop_list_a;
+  color_stop_list_a.push_back(new ColorStop(property_color, property_length));
+  ColorStopList color_stop_list_b;
+  color_stop_list_b.push_back(new ColorStop(property_color, property_length));
+
+  scoped_ptr<PropertyListValue::Builder> size_a_builder(
+      new PropertyListValue::Builder());
+  size_a_builder->push_back(new LengthValue(1.5f, kPixelsUnit));
+  scoped_refptr<PropertyListValue> size_a(
+      new PropertyListValue(size_a_builder.Pass()));
+
+  scoped_ptr<PropertyListValue::Builder> size_b_builder(
+      new PropertyListValue::Builder());
+  size_b_builder->push_back(new LengthValue(2.5f, kPixelsUnit));
+  scoped_refptr<PropertyListValue> size_b(
+      new PropertyListValue(size_b_builder.Pass()));
+
+  scoped_ptr<PropertyListValue::Builder> position_a_builder(
+      new PropertyListValue::Builder());
+  position_a_builder->push_back(new LengthValue(3.0f, kFontSizesAkaEmUnit));
+  scoped_refptr<PropertyListValue> position_a(
+      new PropertyListValue(position_a_builder.Pass()));
+
+  scoped_ptr<PropertyListValue::Builder> position_b_builder(
+      new PropertyListValue::Builder());
+  position_b_builder->push_back(new LengthValue(1.5f, kPixelsUnit));
+  scoped_refptr<PropertyListValue> position_b(
+      new PropertyListValue(position_b_builder.Pass()));
+
+  scoped_refptr<RadialGradientValue> value_a(
+      new RadialGradientValue(RadialGradientValue::kCircle, size_a, position_a,
+                              color_stop_list_a.Pass()));
+
+  scoped_refptr<RadialGradientValue> value_b(
+      new RadialGradientValue(RadialGradientValue::kCircle, size_b, position_b,
+                              color_stop_list_b.Pass()));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
