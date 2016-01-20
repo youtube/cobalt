@@ -807,11 +807,15 @@ xmlNop(void) {
  */
 static int
 xmlFdRead (void * context, char * buffer, int len) {
+#if !defined(COBALT)
     int ret;
 
     ret = read((int) (long) context, &buffer[0], len);
     if (ret < 0) xmlIOErr(0, "read()");
     return(ret);
+#else
+    return -1;
+#endif
 }
 
 #ifdef LIBXML_OUTPUT_ENABLED
@@ -827,6 +831,7 @@ xmlFdRead (void * context, char * buffer, int len) {
  */
 static int
 xmlFdWrite (void * context, const char * buffer, int len) {
+#if !defined(COBALT)
     int ret = 0;
 
     if (len > 0) {
@@ -834,6 +839,9 @@ xmlFdWrite (void * context, const char * buffer, int len) {
 	if (ret < 0) xmlIOErr(0, "write()");
     }
     return(ret);
+#else
+    return -1;
+#endif
 }
 #endif /* LIBXML_OUTPUT_ENABLED */
 
@@ -847,10 +855,14 @@ xmlFdWrite (void * context, const char * buffer, int len) {
  */
 static int
 xmlFdClose (void * context) {
+#if !defined(COBALT)
     int ret;
     ret = close((int) (long) context);
     if (ret < 0) xmlIOErr(0, "close()");
     return(ret);
+#else
+    return -1;
+#endif
 }
 
 /**
@@ -3653,10 +3665,12 @@ xmlParserGetDirectory(const char *filename) {
 	else *cur = 0;
 	ret = xmlMemStrdup(dir);
     } else {
+#if !defined(STARBOARD)
         if (getcwd(dir, 1024) != NULL) {
 	    dir[1023] = 0;
 	    ret = xmlMemStrdup(dir);
 	}
+#endif
     }
     return(ret);
 #undef IS_XMLPGD_SEP

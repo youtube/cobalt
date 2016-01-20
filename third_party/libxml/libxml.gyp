@@ -211,6 +211,11 @@
             ],
           },
           'conditions': [
+            ['OS=="starboard" or OS=="lb_shell"', {
+              'dependencies!': [
+                '../zlib/zlib.gyp:zlib',
+              ],
+            }],
             ['OS=="linux"', {
               'link_settings': {
                 'libraries': [

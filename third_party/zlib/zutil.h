@@ -21,13 +21,15 @@
 
 #include "zlib.h"
 
-#ifdef STDC
+#if defined(STARBOARD)
+#  include "starboard/memory.h"
+#elif defined(STDC)
 #  if !(defined(_WIN32_WCE) && defined(_MSC_VER))
 #    include <stddef.h>
 #  endif
 #  include <string.h>
 #  include <stdlib.h>
-#endif
+#endif  // defined(STARBOARD)
 #ifdef NO_ERRNO_H
 #   ifdef _WIN32_WCE
       /* The Microsoft C Run-Time Library for Windows CE doesn't have
@@ -90,7 +92,7 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #define PRESET_DICT 0x20 /* preset dictionary flag in zlib header */
 
         /* target dependencies */
-
+#if !defined(STARBOARD)
 #if defined(MSDOS) || (defined(WINDOWS) && !defined(WIN32))
 #  define OS_CODE  0x00
 #  if defined(__TURBOC__) || defined(__BORLANDC__)
@@ -151,12 +153,13 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #ifdef __50SERIES /* Prime/PRIMOS */
 #  define OS_CODE  0x0f
 #endif
+#endif  // !defined(STARBOARD)
 
-#if defined(_BEOS_) || defined(RISCOS)
+#if defined(STARBOARD)
+#    define fdopen(fd,mode) NULL /* No fdopen() */
+#elif defined(_BEOS_) || defined(RISCOS)
 #  define fdopen(fd,mode) NULL /* No fdopen() */
-#endif
-
-#if (defined(_MSC_VER) && (_MSC_VER > 600)) && !defined __INTERIX && !defined(__LB_XB1__) && !defined(__LB_XB360__)
+#elif (defined(_MSC_VER) && (_MSC_VER > 600)) && !defined __INTERIX && !defined(__LB_XB1__) && !defined(__LB_XB360__)
 #  if defined(_WIN32_WCE)
 #    define fdopen(fd,mode) NULL /* No fdopen() */
 #    ifndef _PTRDIFF_T_DEFINED
@@ -186,23 +189,28 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #  define OS_CODE  0x03  /* assume Unix */
 #endif
 
+#if defined(STARBOARD)
+#  define F_OPEN(name, mode) NULL
+#endif
+
 #ifndef F_OPEN
 #  define F_OPEN(name, mode) fopen((name), (mode))
 #endif
 
          /* functions */
 
-#if defined(STDC99) || (defined(__TURBOC__) && __TURBOC__ >= 0x550)
+#if defined(STARBOARD)
+/* Suppress platform detection here. */
+#elif defined(STDC99) || (defined(__TURBOC__) && __TURBOC__ >= 0x550)
+#  ifndef HAVE_VSNPRINTF
+#    define HAVE_VSNPRINTF
+#  endif
+#elif defined(__CYGWIN__)
 #  ifndef HAVE_VSNPRINTF
 #    define HAVE_VSNPRINTF
 #  endif
 #endif
-#if defined(__CYGWIN__)
-#  ifndef HAVE_VSNPRINTF
-#    define HAVE_VSNPRINTF
-#  endif
-#endif
-#ifndef HAVE_VSNPRINTF
+#if !defined(HAVE_VSNPRINTF) && !defined(NO_vsnprintf)
 #  ifdef MSDOS
      /* vsnprintf may exist on some MS-DOS compilers (DJGPP?),
         but for now we just assume it doesn't. */
@@ -226,6 +234,9 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #ifdef VMS
 #  define NO_vsnprintf
 #endif
+#if !defined(HAVE_VSNPRINTF) && !defined(NO_vsnprintf)
+#  define NO_vsnprintf
+#endif
 
 #if defined(pyr)
 #  define NO_MEMCPY
@@ -245,6 +256,10 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #    define zmemcpy _fmemcpy
 #    define zmemcmp _fmemcmp
 #    define zmemzero(dest, len) _fmemset(dest, 0, len)
+#  elif defined(STARBOARD)
+#    define zmemcpy SbMemoryCopy
+#    define zmemcmp(a, b) SbMemoryCompare((a), (b), kSbInt32Max)
+#    define zmemzero(dest, len) SbMemorySet(dest, 0, len)
 #  else
 #    define zmemcpy memcpy
 #    define zmemcmp memcmp
@@ -257,7 +272,7 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #endif
 
 /* Diagnostic functions */
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(STARBOARD)
 #  include <stdio.h>
    extern int ZLIB_INTERNAL z_verbose;
    extern void ZLIB_INTERNAL z_error OF((char *m));
