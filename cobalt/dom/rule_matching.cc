@@ -235,11 +235,6 @@ class SelectorMatcher : public cssom::SelectorVisitor {
     }
   }
 
-  // Unsupported pseudo-class never matches.
-  void VisitUnsupportedPseudoClass(cssom::UnsupportedPseudoClass*) OVERRIDE {
-    element_ = NULL;
-  }
-
   // Pseudo elements doesn't affect whether the selector matches or not.
 
   // The :after pseudo-element represents a generated element.

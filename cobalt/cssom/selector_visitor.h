@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SELECTOR_VISITOR_H_
-#define CSSOM_SELECTOR_VISITOR_H_
+#ifndef COBALT_CSSOM_SELECTOR_VISITOR_H_
+#define COBALT_CSSOM_SELECTOR_VISITOR_H_
 
 namespace cobalt {
 namespace cssom {
@@ -32,7 +32,6 @@ class HoverPseudoClass;
 class IdSelector;
 class NotPseudoClass;
 class TypeSelector;
-class UnsupportedPseudoClass;
 
 // Type-safe branching on a class hierarchy of CSS selectors,
 // implemented after a classical GoF pattern (see
@@ -52,8 +51,6 @@ class SelectorVisitor {
   virtual void VisitFocusPseudoClass(FocusPseudoClass* focus_pseudo_class) = 0;
   virtual void VisitHoverPseudoClass(HoverPseudoClass* hover_pseudo_class) = 0;
   virtual void VisitNotPseudoClass(NotPseudoClass* not_pseudo_class) = 0;
-  virtual void VisitUnsupportedPseudoClass(
-      UnsupportedPseudoClass* unsupported_pseudo_class) = 0;
 
   // Pseudo elements.
   virtual void VisitAfterPseudoElement(
@@ -76,4 +73,4 @@ class SelectorVisitor {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_SELECTOR_VISITOR_H_
+#endif  // COBALT_CSSOM_SELECTOR_VISITOR_H_
