@@ -168,7 +168,7 @@ bool DialHttpServer::DispatchToHandler(int conn_id,
   TRACE_EVENT0("net::dial", __FUNCTION__);
 
   std::string handler_path;
-  DialServiceHandler* handler =
+  scoped_refptr<DialServiceHandler> handler =
       dial_service_->GetHandler(info.path, &handler_path);
   if (handler == NULL) {
     return false;

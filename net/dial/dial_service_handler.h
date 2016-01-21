@@ -38,11 +38,11 @@ struct HttpServerResponseInfo {
 
 // Abstract class that provides a response to a request from the dial server.
 // DialServiceHandlers should be Register()ed with a DialService object.
-class DialServiceHandler {
+class DialServiceHandler
+    : public base::RefCountedThreadSafe<DialServiceHandler> {
  public:
   typedef base::Callback<void(scoped_ptr<HttpServerResponseInfo> response,
                               bool result)> CompletionCB;
-  virtual ~DialServiceHandler() {}
   // Called by the DialHttpServer to satisfy an incoming request.
   // It is expected that this will be handled asynchronously and the completion
   // callback must be called in all cases. If the request is handled
@@ -54,6 +54,10 @@ class DialServiceHandler {
                              const CompletionCB& completion_cb) = 0;
   // The name of the DIAL service this handler implements.
   virtual const std::string& service_name() const = 0;
+
+ protected:
+  friend class base::RefCountedThreadSafe<DialServiceHandler>;
+  virtual ~DialServiceHandler() {}
 };
 
 } // namespace net

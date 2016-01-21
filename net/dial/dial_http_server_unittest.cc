@@ -51,12 +51,10 @@ class DialHttpServerTest : public testing::Test {
   IPEndPoint addr_;
   scoped_refptr<HttpNetworkSession> session_;
   scoped_ptr<HttpNetworkTransaction> client_;
-  scoped_ptr<MockServiceHandler> handler_;
+  scoped_refptr<MockServiceHandler> handler_;
   scoped_ptr<ResponseData> test_response_;
 
-  DialHttpServerTest() {
-    handler_.reset(new MockServiceHandler("Foo"));
-  }
+  DialHttpServerTest() { handler_ = new MockServiceHandler("Foo"); }
 
   void InitHttpClientLibrary() {
     HttpNetworkSession::Params params;
@@ -70,14 +68,14 @@ class DialHttpServerTest : public testing::Test {
 
   virtual void SetUp() OVERRIDE {
     dial_service_.reset(new DialService());
-    dial_service_->Register(handler_.get());
+    dial_service_->Register(handler_);
     EXPECT_EQ(OK, dial_service_->http_server()->GetLocalAddress(&addr_));
     EXPECT_NE(0, addr_.port());
     InitHttpClientLibrary();
   }
 
   virtual void TearDown() OVERRIDE {
-    dial_service_->Deregister(handler_.get());
+    dial_service_->Deregister(handler_);
     dial_service_.reset(NULL);
 
     const HttpNetworkSession::Params& params = session_->params();
@@ -230,7 +228,7 @@ TEST_F(DialHttpServerTest, CallbackNormalTest) {
   test_response_->headers_.push_back("X-Test-Header: Baz");
 
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/bar");
-  EXPECT_CALL(*handler_.get(), HandleRequest(Eq("/bar"), _, _))
+  EXPECT_CALL(*handler_, HandleRequest(Eq("/bar"), _, _))
       .WillOnce(DoAll(Invoke(this, &DialHttpServerTest::Capture), Return()));
 
   const HttpResponseInfo* resp = GetResponse(req);
@@ -253,7 +251,7 @@ TEST_F(DialHttpServerTest, CallbackExceptionInServiceHandler) {
   test_response_->response_code_ = HTTP_OK;
 
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/?throw=1");
-  EXPECT_CALL(*handler_.get(), HandleRequest(Eq("/?throw=1"), _, _))
+  EXPECT_CALL(*handler_, HandleRequest(Eq("/?throw=1"), _, _))
       .WillOnce(DoAll(Invoke(this, &DialHttpServerTest::Capture), Return()));
 
   const HttpResponseInfo* resp = GetResponse(req);
@@ -265,7 +263,7 @@ TEST_F(DialHttpServerTest, CallbackHandleRequestReturnsFalse) {
   test_response_.reset(new ResponseData());
   test_response_->response_code_ = HTTP_NOT_FOUND;
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/false/app");
-  EXPECT_CALL(*handler_.get(), HandleRequest(Eq("/false/app"), _, _))
+  EXPECT_CALL(*handler_, HandleRequest(Eq("/false/app"), _, _))
       .WillOnce(DoAll(Invoke(this, &DialHttpServerTest::Capture), Return()));
 
   const HttpResponseInfo* resp = GetResponse(req);
