@@ -24,6 +24,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/network/network_module.h"
+#include "net/dial/dial_service_handler.h"
 #include "net/server/http_server_request_info.h"
 
 namespace cobalt {
@@ -45,25 +46,51 @@ DialServer::Method StringToMethod(const std::string& method) {
 
 }  // namespace
 
+class DialServer::ServiceHandler : public net::DialServiceHandler {
+ public:
+  ServiceHandler(const base::WeakPtr<DialServer>& dial_server,
+                 const std::string& sevice_name);
+
+  // net::DialServiceHandler implementation.
+  const std::string& service_name() const OVERRIDE { return service_name_; }
+  void HandleRequest(const std::string& path,
+                     const net::HttpServerRequestInfo& request,
+                     const CompletionCB& completion_cb) OVERRIDE;
+
+ private:
+  ~ServiceHandler();
+  void OnHandleRequest(const std::string& path,
+                       const net::HttpServerRequestInfo& request,
+                       const CompletionCB& completion_cb);
+
+  // Keep a weak ptr to the dial server, so that it can be safely destroyed
+  // while we are deregistering our handler from the DialService.
+  base::WeakPtr<DialServer> dial_server_;
+  std::string service_name_;
+  // The message loop we should dispatch HandleRequest to. This is the
+  // message loop we were constructed on.
+  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+};
+
 DialServer::DialServer(script::EnvironmentSettings* settings,
-                       const std::string& service_name)
-    : service_name_(service_name) {
-  message_loop_proxy_ = base::MessageLoopProxy::current();
+                       const std::string& service_name) {
+  service_handler_ = new ServiceHandler(AsWeakPtr(), service_name);
   dom::DOMSettings* dom_settings =
       base::polymorphic_downcast<dom::DOMSettings*>(settings);
   DCHECK(dom_settings);
 
   if (dom_settings->network_module() && dom_settings->network_module()) {
-    dial_service_ = dom_settings->network_module()->dial_service();
+    dial_service_proxy_ = dom_settings->network_module()->dial_service_proxy();
   }
-  if (dial_service_) {
-    dial_service_->Register(this);
+  if (dial_service_proxy_) {
+    dial_service_proxy_->Register(service_handler_);
   }
 }
 
 DialServer::~DialServer() {
-  if (dial_service_) {
-    dial_service_->Deregister(this);
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (dial_service_proxy_) {
+    dial_service_proxy_->Deregister(service_handler_);
   }
 }
 
@@ -85,24 +112,14 @@ bool DialServer::OnPost(
   return AddHandler(kPost, path, handler);
 }
 
-// We dispatch the request to a JS handler, and call the completion CB
-// when finished.
-void DialServer::HandleRequest(const std::string& path,
-                               const net::HttpServerRequestInfo& request,
-                               const CompletionCB& completion_cb) {
-  // This gets called on the DialService thread.
-  // Post it to the browser thread.
-  DCHECK_NE(base::MessageLoopProxy::current(), message_loop_proxy_);
-  Method method = StringToMethod(request.method);
-  message_loop_proxy_->PostTask(
-      FROM_HERE, base::Bind(&DialServer::OnHandleRequest, this, method, path,
-                            request, completion_cb));
+const std::string& DialServer::service_name() const {
+  return service_handler_->service_name();
 }
 
 bool DialServer::AddHandler(
     Method method, const std::string& path,
     const DialHttpRequestCallbackWrapper::ScriptObject& handler) {
-  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
+  DCHECK(thread_checker_.CalledOnValidThread());
   scoped_refptr<DialHttpRequestCallbackWrapper> callback =
       new DialHttpRequestCallbackWrapper(this, handler);
 
@@ -111,30 +128,63 @@ bool DialServer::AddHandler(
   return ret.second;
 }
 
-void DialServer::OnHandleRequest(Method method, const std::string& path,
-                                 const net::HttpServerRequestInfo& request,
-                                 const CompletionCB& completion_cb) {
-  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
-  DCHECK(dial_service_);
+// Transform the net request info into a JS version and run the script
+// callback, if there is one registered. Return the response and status.
+bool DialServer::RunCallback(
+    const std::string& path, const net::HttpServerRequestInfo& request,
+    scoped_ptr<net::HttpServerResponseInfo>* response) {
+  DCHECK(thread_checker_.CalledOnValidThread());
 
+  Method method = StringToMethod(request.method);
   CallbackMap::const_iterator it = callback_map_[method].find(path);
   if (it == callback_map_[method].end()) {
     // No handler for this method. Signal failure.
-    completion_cb.Run(scoped_ptr<net::HttpServerResponseInfo>(), false);
+    return false;
   }
 
-  // Transform the net request info into a JS version and run the script
-  // callback. Run the completion callback when finished.
   scoped_refptr<DialHttpRequestCallbackWrapper> callback = it->second;
   scoped_refptr<DialHttpRequest> dial_request = new DialHttpRequest(
-      path, request.method, request.data, dial_service_->http_host_address());
+      path, request.method, request.data, dial_service_proxy_->host_address());
   scoped_refptr<DialHttpResponse> dial_response =
       new DialHttpResponse(path, request.method);
   script::CallbackResult<bool> ret =
       callback->callback.value().Run(dial_request, dial_response);
-  scoped_ptr<net::HttpServerResponseInfo> response =
-      dial_response->ToHttpServerResponseInfo();
-  completion_cb.Run(response.Pass(), ret.result);
+  *response = dial_response->ToHttpServerResponseInfo();
+  return ret.result;
+}
+
+DialServer::ServiceHandler::ServiceHandler(
+    const base::WeakPtr<DialServer>& dial_server,
+    const std::string& service_name)
+    : dial_server_(dial_server), service_name_(service_name) {
+  message_loop_proxy_ = base::MessageLoopProxy::current();
+}
+
+DialServer::ServiceHandler::~ServiceHandler() {}
+
+void DialServer::ServiceHandler::HandleRequest(
+    const std::string& path, const net::HttpServerRequestInfo& request,
+    const CompletionCB& completion_cb) {
+  // This gets called on the DialService/Network thread.
+  // Post it to the WebModule thread.
+  DCHECK_NE(base::MessageLoopProxy::current(), message_loop_proxy_);
+  message_loop_proxy_->PostTask(
+      FROM_HERE, base::Bind(&ServiceHandler::OnHandleRequest, this, path,
+                            request, completion_cb));
+}
+
+void DialServer::ServiceHandler::OnHandleRequest(
+    const std::string& path, const net::HttpServerRequestInfo& request,
+    const CompletionCB& completion_cb) {
+  DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
+  if (!dial_server_) {
+    completion_cb.Run(scoped_ptr<net::HttpServerResponseInfo>(), false);
+    return;
+  }
+
+  scoped_ptr<net::HttpServerResponseInfo> response;
+  bool result = dial_server_->RunCallback(path, request, &response);
+  completion_cb.Run(response.Pass(), result);
 }
 
 }  // namespace dial
