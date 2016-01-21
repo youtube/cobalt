@@ -27,16 +27,6 @@
 namespace cobalt {
 namespace network {
 
-namespace {
-// Do-nothing callback, intended to release these resources
-// on the IO thread. Called during NetworkModule destruction.
-void OnDestroy(scoped_ptr<network_bridge::CookieJar> /* cookie_jar*/,
-               scoped_ptr<URLRequestContext> /* url_request_context */,
-               scoped_ptr<NetworkDelegate> /* network_delegate */,
-               scoped_ptr<net::DialService> /* dial_service */
-               ) {}
-}  // namespace
-
 NetworkModule::NetworkModule() : storage_manager_(NULL) {
   Initialize(NULL /* event_dispatcher */);
 }
@@ -60,11 +50,15 @@ NetworkModule::~NetworkModule() {
   // by URLRequestContext will destroy their ObjectWatchers, which need the
   // multiplexer.)
   url_request_context_getter_ = NULL;
-  message_loop_proxy()->PostTask(
-      FROM_HERE, base::Bind(&OnDestroy, base::Passed(&cookie_jar_),
-                            base::Passed(&url_request_context_),
-                            base::Passed(&network_delegate_),
-                            base::Passed(&dial_service_)));
+#if defined(DIAL_SERVER)
+  dial_service_proxy_ = NULL;
+  message_loop_proxy()->DeleteSoon(FROM_HERE, dial_service_.release());
+#endif
+
+  message_loop_proxy()->DeleteSoon(FROM_HERE, cookie_jar_.release());
+  message_loop_proxy()->DeleteSoon(FROM_HERE, url_request_context_.release());
+  message_loop_proxy()->DeleteSoon(FROM_HERE, network_delegate_.release());
+
   // This will run the above task, and then stop the thread.
   thread_.reset(NULL);
   object_watch_multiplexer_.reset(NULL);
@@ -116,6 +110,7 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   cookie_jar_.reset(new CookieJarImpl(url_request_context_->cookie_store()));
 #if defined(DIAL_SERVER)
   dial_service_.reset(new net::DialService());
+  dial_service_proxy_ = new net::DialServiceProxy(dial_service_->AsWeakPtr());
 #endif
 
   creation_event->Signal();
