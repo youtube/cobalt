@@ -142,6 +142,13 @@ int SbStringCompareWide(const wchar_t* string1,
 // higher than |string2|. Meant to be a drop-in replacement of strncmp.
 int SbStringCompare(const char* string1, const char* string2, size_t count);
 
+// Compares all the characters of |string1| and |string2|, which are 8-bit
+// character strings, up to their natural termination. Returns < 0 if |string1|
+// is ASCII-betically lower than |string2|, 0 if they are equal, and > 0 if
+// |string1| is ASCII-betically higher than |string2|. Meant to be a drop-in
+// replacement of strcmp.
+int SbStringCompareAll(const char* string1, const char* string2);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

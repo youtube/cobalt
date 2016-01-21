@@ -95,13 +95,13 @@ typedef struct SbThreadLocalKeyPrivate SbThreadLocalKeyPrivate;
 typedef SbThreadLocalKeyPrivate* SbThreadLocalKey;
 
 // Well-defined constant value to mean "no thread ID."
-const SbThreadId kSbThreadInvalidId = (SbThreadId)0;
+#define kSbThreadInvalidId (SbThreadId)0
 
 // Well-defined constant value to mean "no affinity."
-const SbThreadAffinity kSbThreadNoAffinity = (SbThreadAffinity)kSbInvalidInt;
+#define kSbThreadNoAffinity (SbThreadAffinity) kSbInvalidInt
 
 // Well-defined constant value to mean "no thread local key."
-const SbThreadLocalKey kSbThreadLocalKeyInvalid = (SbThreadLocalKey)NULL;
+#define kSbThreadLocalKeyInvalid (SbThreadLocalKey) NULL
 
 // Returns whether the given thread handle is valid.
 SB_C_INLINE bool SbThreadIsValid(SbThread thread) {
