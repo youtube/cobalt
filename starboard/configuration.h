@@ -110,9 +110,8 @@ struct CompileAssert {};
       bool(expr))>              /* NOLINT(readability/casting) */ \
       msg[bool(expr) ? 1 : -1]  // NOLINT(readability/casting)
 #else
-// Doesn't work in straight-C, but we will at least define it to make things
-// easier.
-#define SB_COMPILE_ASSERT(expr, msg)
+#define SB_COMPILE_ASSERT(expr, msg) \
+  extern char _COMPILE_ASSERT_##msg[(expr) ? 1 : -1]
 #endif
 
 // Causes the annotated (at the end) function to generate a warning if the

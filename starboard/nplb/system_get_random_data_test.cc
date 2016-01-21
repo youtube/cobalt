@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,12 +20,18 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSystemGetRandomUInt64Test, ProducesBothValuesOfAllBits) {
-  TestProducesBothValuesOfAllBits(&SbSystemGetRandomUInt64);
+uint64_t GetRandom64Bits() {
+  uint64_t value;
+  SbSystemGetRandomData(&value, sizeof(value));
+  return value;
 }
 
-TEST(SbSystemGetRandomUInt64Test, IsFairlyUniform) {
-  TestIsFairlyUniform(&SbSystemGetRandomUInt64);
+TEST(SbSystemGetRandomDataTest, ProducesBothValuesOfAllBits) {
+  TestProducesBothValuesOfAllBits(&GetRandom64Bits);
+}
+
+TEST(SbSystemGetRandomDataTest, IsFairlyUniform) {
+  TestIsFairlyUniform(&GetRandom64Bits);
 }
 
 }  // namespace
