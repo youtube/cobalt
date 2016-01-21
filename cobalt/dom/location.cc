@@ -162,12 +162,6 @@ void Location::Navigate(const GURL& url) {
     return;
   }
 
-  if (!security_callback_.Run(url, false /* did redirect */)) {
-    DLOG(INFO) << "URL was rejected by policy, aborting the navigation: "
-               << url;
-    return;
-  }
-
   DLOG(INFO) << "Navigating to " << url;
 
   // 7. Fragment identifiers: Apply the URL parser algorithm to the absolute URL
@@ -189,6 +183,12 @@ void Location::Navigate(const GURL& url) {
     url_ = url;
     // TODO(***REMOVED***): Fire "hashchange" event at the window object.
   } else {
+    if (!security_callback_.Run(url, false /* did redirect */)) {
+      DLOG(INFO) << "URL was rejected by policy, aborting the navigation: "
+                 << url;
+      return;
+    }
+
     if (!navigation_callback_.is_null()) {
       navigation_callback_.Run(url);
     }
