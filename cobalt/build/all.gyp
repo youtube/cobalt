@@ -96,6 +96,7 @@
             '<(DEPTH)/starboard/examples/examples.gyp:*',
             '<(DEPTH)/starboard/starboard.gyp:starboard',
             '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
+            '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
           ],
         },
         {
