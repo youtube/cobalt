@@ -3934,41 +3934,51 @@ transform_function:
   //   https://www.w3.org/TR/css3-transforms/#funcdef-translate
   | kTranslateFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
-    $<transform_functions>0->push_back(new cssom::TranslateFunction(
-        cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
-    $<transform_functions>0->push_back(new cssom::TranslateFunction(
-        cssom::TranslateFunction::kYAxis,
-        scoped_refptr<cssom::LengthValue>(
-            new cssom::LengthValue(0, cssom::kPixelsUnit))));
+    if ($3) {
+      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+          cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
+      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+          cssom::TranslateFunction::kYAxis,
+          scoped_refptr<cssom::LengthValue>(
+              new cssom::LengthValue(0, cssom::kPixelsUnit))));
+    }
   }
   | kTranslateFunctionToken maybe_whitespace length_percent_property_value comma
     length_percent_property_value ')' maybe_whitespace {
-    $<transform_functions>0->push_back(new cssom::TranslateFunction(
-        cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
-    $<transform_functions>0->push_back(new cssom::TranslateFunction(
-        cssom::TranslateFunction::kYAxis, MakeScopedRefPtrAndRelease($5)));
+    if ($3 && $5) {
+      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+          cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
+      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+          cssom::TranslateFunction::kYAxis, MakeScopedRefPtrAndRelease($5)));
+    }
   }
   // Specifies a translation by the given amount in the X direction.
   //   https://www.w3.org/TR/css3-transforms/#funcdef-translatex
   | kTranslateXFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
-    $<transform_functions>0->push_back(new cssom::TranslateFunction(
-        cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
+    if ($3) {
+      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+          cssom::TranslateFunction::kXAxis, MakeScopedRefPtrAndRelease($3)));
+    }
   }
   // Specifies a translation by the given amount in the Y direction.
   //   https://www.w3.org/TR/css3-transforms/#funcdef-translatey
   | kTranslateYFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
-    $<transform_functions>0->push_back(new cssom::TranslateFunction(
-        cssom::TranslateFunction::kYAxis, MakeScopedRefPtrAndRelease($3)));
+    if ($3) {
+      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+          cssom::TranslateFunction::kYAxis, MakeScopedRefPtrAndRelease($3)));
+    }
   }
   // Specifies a 3D translation by the vector [0,0,z] with the given amount
   // in the Z direction.
   //   https://www.w3.org/TR/css3-transforms/#funcdef-translatez
   | kTranslateZFunctionToken maybe_whitespace length ')'
       maybe_whitespace {
-    $<transform_functions>0->push_back(new cssom::TranslateFunction(
-        cssom::TranslateFunction::kZAxis, MakeScopedRefPtrAndRelease($3)));
+    if ($3) {
+      $<transform_functions>0->push_back(new cssom::TranslateFunction(
+          cssom::TranslateFunction::kZAxis, MakeScopedRefPtrAndRelease($3)));
+    }
   }
   ;
 
@@ -3993,8 +4003,9 @@ transform_property_value:
   | transform_list {
     scoped_ptr<cssom::TransformFunctionListValue::Builder>
         transform_functions($1);
-    $$ = AddRef(new cssom::TransformFunctionListValue(
-             transform_functions->Pass()));
+    $$ = transform_functions->size() == 0u ? NULL :
+            AddRef(new cssom::TransformFunctionListValue(
+                transform_functions->Pass()));
   }
   | transform_list errors {
     scoped_ptr<cssom::TransformFunctionListValue::Builder>
