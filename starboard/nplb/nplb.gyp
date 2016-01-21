@@ -29,6 +29,7 @@
         'condition_variable_signal_test.cc',
         'condition_variable_wait_test.cc',
         'condition_variable_wait_timed_test.cc',
+        'configuration_test.cc',
         'directory_can_open_test.cc',
         'directory_close_test.cc',
         'directory_create_test.cc',
