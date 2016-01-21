@@ -21,6 +21,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/webdriver/algorithms.h"
 #include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/search.h"
 #include "cobalt/webdriver/util/call_on_message_loop.h"
@@ -31,11 +32,6 @@ namespace {
 std::string GetTagName(dom::Element* element) {
   DCHECK(element);
   return element->tag_name().c_str();
-}
-
-std::string GetVisibleText(dom::Element* element) {
-  DCHECK(element);
-  return element->text_content().value_or("");
 }
 
 bool IsHidden(dom::Element* element) {
@@ -160,7 +156,7 @@ util::CommandResult<std::string> ElementDriver::GetText() {
   return util::CallWeakOnMessageLoopAndReturnResult(
       element_message_loop_,
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
-      base::Bind(&::cobalt::webdriver::GetVisibleText),
+      base::Bind(&algorithms::GetElementText),
       protocol::Response::kStaleElementReference);
 }
 
