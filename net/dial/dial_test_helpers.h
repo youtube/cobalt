@@ -23,6 +23,7 @@ class MockServiceHandler : public DialServiceHandler {
   const std::string& service_name() const OVERRIDE { return service_name_; }
 
  private:
+  ~MockServiceHandler() {}
   std::string service_name_;
 };
 
