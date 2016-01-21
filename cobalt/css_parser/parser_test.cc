@@ -4297,6 +4297,19 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
             transform_list->value()[1]->GetTypeId());
 }
 
+TEST_F(ParserTest, ParsesTranslateXTransformWithoutUnit) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:12: warning: non-zero length is "
+                        "not allowed without unit identifier"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform: translateX(20);",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::GetPropertyInitialValue(cssom::kTransformProperty),
+            style->transform());
+}
+
 TEST_F(ParserTest, ParsesTransformOriginWithOneValue) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("transform-origin: 20%;",
