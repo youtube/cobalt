@@ -235,7 +235,7 @@ FontFaceUpdater::~FontFaceUpdater() {
 
 void FontFaceUpdater::ProcessCSSStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet) {
-  if (style_sheet->css_rules()) {
+  if (style_sheet && style_sheet->css_rules()) {
     style_sheet->css_rules()->Accept(this);
   }
 }
@@ -246,9 +246,8 @@ void FontFaceUpdater::ProcessStyleSheetList(
        style_sheet_index < style_sheet_list->length(); ++style_sheet_index) {
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
         style_sheet_list->Item(style_sheet_index)->AsCSSStyleSheet();
-    if (style_sheet) {
-      ProcessCSSStyleSheet(style_sheet);
-    }
+    // ProcessCSSStyleSheet handles a NULL CSSStyleSheet.
+    ProcessCSSStyleSheet(style_sheet);
   }
 }
 
