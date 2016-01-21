@@ -91,32 +91,48 @@ typedef SB_UINTPTR uintptr_t;
 #define NULL ((void*)0)
 #endif
 
-#if defined(_MSC_VER)
-#define SB_INT64_C(x) x##I64
-#define SB_UINT64_C(x) x##UI64
-#else  // defined(_MSC_VER)
-#define SB_INT64_C(x) x##LL
-#define SB_UINT64_C(x) x##ULL
-#endif  // defined(_MSC_VER)
+// Simulate needed portions of limits.h for platforms that don't provide it.
 
-// Simulate portions of limits.h for platforms that don't provide it.
-#if !SB_HAS(LIMITS_H)
 // Assume int is 32-bits until we find a platform for which that fails.
 SB_COMPILE_ASSERT(sizeof(int) == sizeof(int32_t),  // NOLINT[runtime/int]
                   starboard_int_is_32_bits);
-#define INT_MIN ((int)0x80000000)  // NOLINT[runtime/int]
-#define INT_MAX ((int)0x7FFFFFFF)  // NOLINT[runtime/int]
-
-// Assume long is 32-bits until we find a platform for which that fails.
-SB_COMPILE_ASSERT(sizeof(long) == sizeof(int32_t),  // NOLINT[runtime/int]
-                  starboard_long_is_32_bits);
-#define LONG_MIN ((long)0x80000000)  // NOLINT[runtime/int]
-#define LONG_MAX ((long)0x7FFFFFFF)  // NOLINT[runtime/int]
+#if !defined(UINT_MAX)
+#define UINT_MAX 0xFFFFFFFFU
 #endif
 
-#if !defined(PRId32)
-#error "inttypes.h should provide the portable formatting macros."
+#if !defined(INT_MIN)
+#define INT_MIN 0x80000000
 #endif
+
+#if !defined(INT_MAX)
+#define INT_MAX 0x7FFFFFFF
+#endif
+
+#if SB_IS(32_BIT)
+
+SB_COMPILE_ASSERT(sizeof(long) == sizeof(int),  // NOLINT[runtime/int]
+                  starboard_long_is_int);
+#if !defined(LONG_MIN)
+#define LONG_MIN INT_MIN
+#endif
+
+#if !defined(LONG_MAX)
+#define LONG_MAX INT_MAX
+#endif
+
+#else  // SB_IS(32_BIT)
+
+SB_COMPILE_ASSERT(sizeof(long) == sizeof(int64_t),  // NOLINT[runtime/int]
+                  starboard_long_is_64_bits);
+#if !defined(LONG_MIN)
+#define LONG_MIN SB_INT64_C(0x8000000000000000)
+#endif
+
+#if !defined(LONG_MAX)
+#define LONG_MAX SB_INT64_C(0x7FFFFFFFFFFFFFFF)
+#endif
+
+#endif  // SB_IS(32_BIT)
 
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -145,6 +161,23 @@ static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
 
 // A value that represents an int that is probably invalid.
 #define kSbInvalidInt kSbInt32Min
+
+// --- Standard Include Emulation Audits -------------------------------------
+
+#if !defined(UINT_MAX) || !defined(INT_MIN) || !defined(INT_MAX) || \
+    !defined(LONG_MIN) || !defined(LONG_MAX)
+#error "limits.h or emulation did not provide a needed limit macro."
+#endif
+
+#if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \
+    (LONG_MIN + 1 == LONG_MAX - 1)
+// This should always evaluate to false, but ensures that the limits macros can
+// be used arithmetically in the preprocessor.
+#endif
+
+#if !defined(PRId32)
+#error "inttypes.h should provide the portable formatting macros."
+#endif
 
 #ifdef __cplusplus
 }  // extern "C"
