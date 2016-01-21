@@ -23,6 +23,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/lazy_instance.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/threading/thread.h"
 #include "net/dial/dial_http_server.h"
 #include "net/dial/dial_service_handler.h"
@@ -36,16 +37,16 @@ namespace net {
 // Clients register their DialServiceHandlers in order to get called back
 // by the server when requests come in.
 // Each registered DialServiceHandler should have a unique service path.
-class NET_EXPORT DialService {
+class NET_EXPORT DialService : public base::SupportsWeakPtr<DialService> {
  public:
   DialService();
   ~DialService();
 
-  void Register(DialServiceHandler* handler);
-  void Deregister(DialServiceHandler* handler);
+  void Register(const scoped_refptr<DialServiceHandler>& handler);
+  void Deregister(const scoped_refptr<DialServiceHandler>& handler);
 
-  DialServiceHandler* GetHandler(const std::string& service_name,
-                                 std::string* remaining_handler);
+  scoped_refptr<DialServiceHandler> GetHandler(const std::string& service_name,
+                                               std::string* remaining_handler);
 
   const std::string& http_host_address() const;
 
@@ -56,19 +57,47 @@ class NET_EXPORT DialService {
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialServiceTest, GetHandler);
-  FRIEND_TEST_ALL_PREFIXES(DialServiceTest, DestructedHandler);
+  FRIEND_TEST_ALL_PREFIXES(DialServiceTest, ReleasedHandler);
 
   // Called in DialService destructor.
   void Terminate();
 
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
   scoped_refptr<net::DialHttpServer> http_server_;
   scoped_ptr<net::DialUdpServer> udp_server_;
-  typedef std::map<std::string, DialServiceHandler*> ServiceHandlerMap;
+  typedef std::map<std::string, scoped_refptr<DialServiceHandler> >
+      ServiceHandlerMap;
   ServiceHandlerMap handlers_;
   std::string http_host_address_;
+  base::ThreadChecker thread_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(DialService);
+};
+
+// Thread-safe, refcounted interface to DialService.
+// Each function call will dispatch to the DialService's thread.
+// Keeps a WeakPtr to the DialService so if it has been destroyed nothing
+// happens.
+class NET_EXPORT DialServiceProxy
+    : public base::RefCountedThreadSafe<DialServiceProxy> {
+ public:
+  DialServiceProxy(const base::WeakPtr<DialService>& dial_service);
+  void Register(const scoped_refptr<DialServiceHandler>& handler);
+  void Deregister(const scoped_refptr<DialServiceHandler>& handler);
+  std::string host_address() const { return host_address_; }
+
+ private:
+  friend class base::RefCountedThreadSafe<DialServiceProxy>;
+  virtual ~DialServiceProxy();
+  void OnRegister(const scoped_refptr<DialServiceHandler>& handler);
+  void OnDeregister(const scoped_refptr<DialServiceHandler>& handler);
+
+  base::WeakPtr<DialService> dial_service_;
+  std::string host_address_;
+
+  // Message loop to call DialService methods on.
+  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+
+  DISALLOW_COPY_AND_ASSIGN(DialServiceProxy);
 };
 
 } // namespace net

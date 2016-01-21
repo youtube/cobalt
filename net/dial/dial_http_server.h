@@ -32,7 +32,6 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
     public base::RefCountedThreadSafe<DialHttpServer> {
  public:
   explicit DialHttpServer(DialService* dial_service);
-  virtual ~DialHttpServer();
 
   // HttpServer::Delegate implementation
   virtual void OnHttpRequest(int conn_id,
@@ -63,6 +62,8 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
   int GetLocalAddress(IPEndPoint* addr);
 
  private:
+  friend class base::RefCountedThreadSafe<DialHttpServer>;
+  virtual ~DialHttpServer();
   void Start();
   void Stop();
 
