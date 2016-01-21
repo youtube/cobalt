@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/nplb/random_helpers.h"
-#include "starboard/system.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "starboard/character.h"
 
-namespace starboard {
-namespace nplb {
-namespace {
+#include <ctype.h>
 
-TEST(SbSystemGetRandomUInt64Test, ProducesBothValuesOfAllBits) {
-  TestProducesBothValuesOfAllBits(&SbSystemGetRandomUInt64);
+bool SbCharacterIsAlphanumeric(int c) {
+  return isalnum(c);
 }
-
-TEST(SbSystemGetRandomUInt64Test, IsFairlyUniform) {
-  TestIsFairlyUniform(&SbSystemGetRandomUInt64);
-}
-
-}  // namespace
-}  // namespace nplb
-}  // namespace starboard

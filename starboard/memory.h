@@ -93,6 +93,13 @@ SB_EXPORT int SbMemoryCompare(const void* buffer1,
                               const void* buffer2,
                               size_t count);
 
+// Finds the lower 8-bits of |value| in the first |count| bytes of |buffer|,
+// returning a pointer to the first found occurrence, or NULL if not
+// found. Meant to be a drop-in replacement for memchr.
+SB_EXPORT const void* SbMemoryFindByte(const void* buffer,
+                                       int value,
+                                       size_t count);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

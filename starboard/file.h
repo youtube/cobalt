@@ -103,7 +103,7 @@ typedef struct SbFileInfo {
 } SbFileInfo;
 
 // Well-defined value for an invalid file handle.
-const SbFile kSbFileInvalid = (SbFile)NULL;
+#define kSbFileInvalid (SbFile) NULL
 
 // Returns whether the given file handle is valid.
 SB_C_INLINE bool SbFileIsValid(SbFile file) {
@@ -174,6 +174,9 @@ SB_EXPORT bool SbFileExists(const char* path);
 // which must be absolute.
 SB_EXPORT bool SbFileCanOpen(const char* path, int flags);
 
+// Converts an ISO fopen() mode string into flags that can be equivalently
+// passed into SbFileOpen().
+SB_EXPORT int SbFileModeStringToFlags(const char* mode);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

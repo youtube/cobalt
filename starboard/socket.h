@@ -122,7 +122,7 @@ typedef struct SbSocketResolution {
 } SbSocketResolution;
 
 // Well-defined value for an invalid socket handle.
-const SbSocket kSbSocketInvalid = (SbSocket)NULL;
+#define kSbSocketInvalid ((SbSocket)NULL)
 
 // Returns whether the given socket handle is valid.
 SB_C_INLINE bool SbSocketIsValid(SbSocket socket) {
@@ -176,6 +176,10 @@ SB_EXPORT bool SbSocketIsConnectedAndIdle(SbSocket socket);
 // Returns the last error set on |socket|. If |socket| is not valid, always
 // returns kSbSocketErrorFailed.
 SB_EXPORT SbSocketError SbSocketGetLastError(SbSocket socket);
+
+// Clears the last error set on |socket|. Returns whether the socket error was
+// cleared.
+SB_EXPORT bool SbSocketClearLastError(SbSocket socket);
 
 // Gets the address that this socket is bound to locally, if the socket is
 // connected. Returns whether getting the address was successful.

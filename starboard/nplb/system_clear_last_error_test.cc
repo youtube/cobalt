@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/nplb/random_helpers.h"
+#include "starboard/file.h"
+#include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -20,12 +21,15 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSystemGetRandomUInt64Test, ProducesBothValuesOfAllBits) {
-  TestProducesBothValuesOfAllBits(&SbSystemGetRandomUInt64);
-}
+TEST(SbSystemClearLastErrorTest, SunnyDay) {
+  // Opening a non-existant file should generate an error on all platforms.
+  ScopedRandomFile random_file(ScopedRandomFile::kDontCreate);
+  SbFile file = SbFileOpen(random_file.filename().c_str(),
+                           kSbFileOpenOnly | kSbFileRead, NULL, NULL);
 
-TEST(SbSystemGetRandomUInt64Test, IsFairlyUniform) {
-  TestIsFairlyUniform(&SbSystemGetRandomUInt64);
+  EXPECT_NE(0, SbSystemGetLastError());
+  SbSystemClearLastError();
+  EXPECT_EQ(0, SbSystemGetLastError());
 }
 
 }  // namespace
