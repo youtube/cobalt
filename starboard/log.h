@@ -25,6 +25,7 @@
 #endif
 
 #include "starboard/export.h"
+#include "starboard/system.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,8 +61,9 @@ SB_EXPORT void SbLogFormat(const char* format, va_list args)
     SB_PRINTF_FORMAT(1, 0);
 
 // Inline wrapper of SbLogFormat to convert from ellipsis to va_args.
-SB_C_INLINE void SbLogFormatF(const char* format, ...) SB_PRINTF_FORMAT(1, 2);
-SB_C_INLINE void SbLogFormatF(const char* format, ...) {
+static SB_C_INLINE void SbLogFormatF(const char* format, ...)
+    SB_PRINTF_FORMAT(1, 2);
+void SbLogFormatF(const char* format, ...) {
   va_list args;
   va_start(args, format);
   SbLogFormat(format, args);
@@ -78,15 +80,15 @@ SB_EXPORT bool SbLogIsTty();
 }  // extern "C"
 #endif
 
-#ifdef __cplusplus
-// If we are a C++ program, then we provide a selected subset of base/logging
-// macros and assertions. See that file for more comments.
-
 #if defined(__LB_SHELL__FOR_RELEASE__)
 #define SB_LOGGING_IS_OFFICIAL_BUILD 1
 #else
 #define SB_LOGGING_IS_OFFICIAL_BUILD 0
 #endif
+
+#ifdef __cplusplus
+// If we are a C++ program, then we provide a selected subset of base/logging
+// macros and assertions. See that file for more comments.
 
 namespace starboard {
 namespace logging {
@@ -203,6 +205,13 @@ class LogMessageVoidify {
 #define SB_DSTACK(severity) SB_STACK_IF(severity, SB_DLOG_IS_ON(severity))
 #define SB_NOTREACHED() SB_DCHECK(false)
 
+#if SB_IS(COMPILER_GCC)
+#define SB_NOTIMPLEMENTED_MSG \
+  "Not implemented reached in " << __PRETTY_FUNCTION__
+#else
+#define SB_NOTIMPLEMENTED_MSG "Not implemented reached in " << __FUNCTION__
+#endif
+
 #if !defined(SB_NOTIMPLEMENTED_POLICY)
 #if SB_LOGGING_IS_OFFICIAL_BUILD
 #define SB_NOTIMPLEMENTED_POLICY 0
@@ -210,13 +219,6 @@ class LogMessageVoidify {
 #define SB_NOTIMPLEMENTED_POLICY 5
 #endif
 #endif  // !defined(SB_NOTIMPLEMENTED_POLICY)
-
-#if defined(COMPILER_GCC)
-#define SB_NOTIMPLEMENTED_MSG \
-  "Not implemented reached in " << __PRETTY_FUNCTION__
-#else
-#define SB_NOTIMPLEMENTED_MSG "Not implemented reached in " << __FUNCTION__
-#endif
 
 #if SB_NOTIMPLEMENTED_POLICY == 0
 #define SB_NOTIMPLEMENTED() SB_EAT_STREAM_PARAMETERS
@@ -236,6 +238,39 @@ class LogMessageVoidify {
   } while (0);                                               \
   SB_EAT_STREAM_PARAMETERS
 #endif
+
+#else  // __cplusplus
+// We also provide a very small subset for straight-C users.
+
+#if SB_IS(COMPILER_GCC)
+#define SB_NOTIMPLEMENTED_MSG "Not implemented reached in " __PRETTY_FUNCTION__
+#else
+#define SB_NOTIMPLEMENTED_MSG "Not implemented reached in " __FUNCTION__
+#endif
+
+#define SB_CHECK(condition)                                        \
+  do {                                                             \
+    if (!(condition)) {                                            \
+      SbLog(kSbLogPriorityError, "Check failed: " #condition "."); \
+      SbSystemBreakIntoDebugger();                                 \
+    }                                                              \
+  } while (0)
+
+#if SB_LOGGING_IS_OFFICIAL_BUILD
+#define SB_NOTIMPLEMENTED()
+#define SB_DCHECK(condition)
+#else
+#define SB_DCHECK(condition) SB_CHECK(condition)
+#define SB_NOTIMPLEMENTED()                              \
+  do {                                                   \
+    static int count = 0;                                \
+    if (0 == count++) {                                  \
+      SbLog(kSbLogPriorityError, SB_NOTIMPLEMENTED_MSG); \
+    }                                                    \
+  } while (0)
+#endif
+
+#define SB_NOTREACHED() SB_DCHECK(false)
 
 #endif  // __cplusplus
 

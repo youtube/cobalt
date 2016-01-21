@@ -37,6 +37,26 @@ int SbCharacterToUpper(int c);
 // will just return the character as-is.
 int SbCharacterToLower(int c);
 
+// Returns whether the given 8-bit character |c| (as an int) is a space in the
+// current locale.
+bool SbCharacterIsSpace(int c);
+
+// Returns whether the given 8-bit character |c| (as an int) is uppercase in the
+// current locale.
+bool SbCharacterIsUpper(int c);
+
+// Returns whether the given 8-bit character |c| (as an int) is a decimal digit
+// in the current locale.
+bool SbCharacterIsDigit(int c);
+
+// Returns whether the given 8-bit character |c| (as an int) is a hexidecimal
+// digit in the current locale.
+bool SbCharacterIsHexDigit(int c);
+
+// Returns whether the given 8-bit character |c| (as an int) is alphanumeric in
+// the current locale.
+bool SbCharacterIsAlphanumeric(int c);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

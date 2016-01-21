@@ -129,13 +129,22 @@ SB_EXPORT bool SbSystemGetProperty(SbSystemPropertyId property_id,
 // http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html
 SB_EXPORT const char* SbSystemGetLocaleId();
 
-// Gets a pseudorandom number uniformly distributed between the minimum and
-// maximum limits of uint64_t. This is expected to be a cryptographically secure
-// random number generator, and doesn't require manual seeding.
+// Gets sixty-four random bits returned as an uint64_t. This is expected to be a
+// cryptographically secure random number generator, and doesn't require manual
+// seeding.
 SB_EXPORT uint64_t SbSystemGetRandomUInt64();
+
+// Produces an arbitrary non-negative number, |buffer_size|, of random bytes
+// which must not be negative, placing the result in |out_buffer|, which must
+// not be null. This is expected to be a cryptographically secure random number
+// generator, and doesn't require manual seeding.
+SB_EXPORT void SbSystemGetRandomData(void* out_buffer, int buffer_size);
 
 // Gets the last error produced by any Starboard call in the current thread.
 SB_EXPORT SbSystemError SbSystemGetLastError();
+
+// Clears the last error set by a Starboard call in the current thread.
+SB_EXPORT void SbSystemClearLastError();
 
 // Writes a human-readable string for |error|, up to |string_length| bytes, into
 // the provided |out_string|. Returns the total desired length of the string.

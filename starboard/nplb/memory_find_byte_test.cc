@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/nplb/random_helpers.h"
-#include "starboard/system.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbSystemGetRandomUInt64Test, ProducesBothValuesOfAllBits) {
-  TestProducesBothValuesOfAllBits(&SbSystemGetRandomUInt64);
+const char kTestString[] = "012345678901234567890123456789";
+const char* kNull = NULL;
+
+TEST(SbMemoryFindByteTest, SunnyDay) {
+  for (int i = 0; i < 10; ++i) {
+    EXPECT_EQ(kTestString + i, SbMemoryFindByte(kTestString, '0' + i,
+                                                SB_ARRAY_SIZE(kTestString)));
+  }
 }
 
-TEST(SbSystemGetRandomUInt64Test, IsFairlyUniform) {
-  TestIsFairlyUniform(&SbSystemGetRandomUInt64);
+TEST(SbMemoryFindByteTest, RainyDayNotFound) {
+  EXPECT_EQ(kNull,
+            SbMemoryFindByte(kTestString, 'X', SB_ARRAY_SIZE(kTestString)));
+  EXPECT_EQ(kNull, SbMemoryFindByte(kTestString, '9', 9));
 }
 
 }  // namespace
