@@ -22,6 +22,8 @@
       'conditions': [
         ['enable_webdriver==1', {
           'sources': [
+            'algorithms.cc',
+            'algorithms.h',
             'dispatcher.cc',
             'dispatcher.h',
             'element_driver.cc',
@@ -79,6 +81,7 @@
       'conditions': [
         ['enable_webdriver==1', {
           'sources': [
+            'get_element_text_test.cc',
             'keyboard_test.cc',
           ],
         }],
@@ -86,6 +89,7 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
