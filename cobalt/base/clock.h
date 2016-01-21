@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef BASE_CLOCK_H_
-#define BASE_CLOCK_H_
+#ifndef COBALT_BASE_CLOCK_H_
+#define COBALT_BASE_CLOCK_H_
 
+#include "base/logging.h"
+#include "base/memory/ref_counted.h"
 #include "base/time.h"
 
 namespace base {
@@ -72,4 +74,4 @@ class OffsetClock : public Clock {
 
 }  // namespace base
 
-#endif  // BASE_CLOCK_H_
+#endif  // COBALT_BASE_CLOCK_H_
