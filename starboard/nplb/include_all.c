@@ -38,3 +38,7 @@
 #include "starboard/time_zone.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
+
+// This doesn't really belong here, but ensures that SB_COMPILE_ASSERT works in
+// a straight-C context.
+SB_COMPILE_ASSERT(1 == 1, compile_assert_test_one_equals_one);
