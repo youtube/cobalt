@@ -21,8 +21,9 @@
 #include <map>
 #include <string>
 
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
-#include "base/synchronization/lock.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/h5vcc/dial/dial_http_request.h"
 #include "cobalt/h5vcc/dial/dial_http_response.h"
 #include "cobalt/script/callback_function.h"
@@ -30,7 +31,6 @@
 #include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
 #include "net/dial/dial_service.h"
-#include "net/dial/dial_service_handler.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -47,7 +47,8 @@ class ScriptCallbackWrapper
   typename ScriptObject::Reference callback;
 };
 
-class DialServer : public script::Wrappable, net::DialServiceHandler {
+class DialServer : public script::Wrappable,
+                   public base::SupportsWeakPtr<DialServer> {
  public:
   enum Method {
     kDelete,
@@ -64,7 +65,6 @@ class DialServer : public script::Wrappable, net::DialServiceHandler {
 
   DialServer(script::EnvironmentSettings* environment_settings,
              const std::string& service_name);
-  ~DialServer();
 
   // Register a Javascript callback for various DIAL methods.
   bool OnDelete(const std::string& path,
@@ -73,28 +73,28 @@ class DialServer : public script::Wrappable, net::DialServiceHandler {
              const DialHttpRequestCallbackWrapper::ScriptObject& handler);
   bool OnPost(const std::string& path,
               const DialHttpRequestCallbackWrapper::ScriptObject& handler);
+  const std::string& service_name() const;
 
-  // net::DialServiceHandler implementation.
-  const std::string& service_name() const OVERRIDE { return service_name_; }
-  void HandleRequest(const std::string& path,
-                     const net::HttpServerRequestInfo& request,
-                     const CompletionCB& completion_cb) OVERRIDE;
+  bool RunCallback(const std::string& path,
+                   const net::HttpServerRequestInfo& request,
+                   scoped_ptr<net::HttpServerResponseInfo>* response);
 
   DEFINE_WRAPPABLE_TYPE(DialServer);
 
  private:
+  class ServiceHandler;
+
+  ~DialServer();
   bool AddHandler(Method method, const std::string& path,
                   const DialHttpRequestCallbackWrapper::ScriptObject& handler);
-  void OnHandleRequest(Method method, const std::string& path,
-                       const net::HttpServerRequestInfo& request,
-                       const CompletionCB& completion_cb);
 
   typedef std::map<std::string, scoped_refptr<DialHttpRequestCallbackWrapper> >
       CallbackMap;
+  base::ThreadChecker thread_checker_;
   CallbackMap callback_map_[kMethodCount];
-  std::string service_name_;
-  net::DialService* dial_service_;
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+
+  scoped_refptr<net::DialServiceProxy> dial_service_proxy_;
+  scoped_refptr<ServiceHandler> service_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(DialServer);
 };

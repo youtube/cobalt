@@ -41,14 +41,6 @@ namespace base {
 class WaitableEvent;
 }  // namespace base
 
-#if !defined(DIAL_SERVER)
-namespace net {
-// Empty stub that should never be instantiated.
-// Just here so that we can use a scoped_ptr below.
-class DialService {};
-}
-#endif  // defined(DIAL_SERVER)
-
 namespace cobalt {
 
 namespace storage {
@@ -104,7 +96,11 @@ class NetworkModule {
   storage::StorageManager* storage_manager() const { return storage_manager_; }
   network_bridge::CookieJar* cookie_jar() const { return cookie_jar_.get(); }
   network_bridge::NetPosterFactory net_poster_factory();
-  net::DialService* dial_service() const { return dial_service_.get(); }
+#if defined(DIAL_SERVER)
+  scoped_refptr<net::DialServiceProxy> dial_service_proxy() const {
+    return dial_service_proxy_;
+  }
+#endif
 
  private:
   void Initialize(base::EventDispatcher* event_dispatcher);
@@ -120,8 +116,10 @@ class NetworkModule {
   scoped_ptr<UserAgent> user_agent_;
   scoped_ptr<NetworkSystem> network_system_;
   scoped_ptr<network_bridge::CookieJar> cookie_jar_;
+#if defined(DIAL_SERVER)
   scoped_ptr<net::DialService> dial_service_;
-
+  scoped_refptr<net::DialServiceProxy> dial_service_proxy_;
+#endif
   Options options_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);
