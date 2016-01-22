@@ -47,5 +47,36 @@
       },
       'includes': [ '../../build/deploy.gypi' ],
     },
+
+    {
+      'target_name': 'scaling_text_sandbox',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'scaling_text_sandbox_main.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
+        '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
+        '<(DEPTH)/cobalt/renderer/test/scenes/scenes.gyp:scenes',
+        '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
+      ],
+    },
+
+    # This target will build a sandbox application that allows for easy
+    # experimentation with the renderer's handling of text where its scale
+    # is constantly animating, which for many implementations can be a
+    # performance problem.
+    {
+      'target_name': 'scaling_text_sandbox_deploy',
+      'type': 'none',
+      'dependencies': [
+        'renderer_sandbox',
+      ],
+      'variables': {
+        'executable_name': 'renderer_sandbox',
+      },
+      'includes': [ '../../build/deploy.gypi' ],
+    },
   ],
 }
