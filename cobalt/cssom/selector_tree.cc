@@ -27,6 +27,11 @@
 namespace cobalt {
 namespace cssom {
 
+bool SelectorTree::CompoundNodeLessThan::operator()(
+    const CompoundSelector* lhs, const CompoundSelector* rhs) const {
+  return *lhs < *rhs;
+}
+
 SelectorTree::Node::Node()
     : combinator_mask_(0),
       compound_selector_(NULL),
@@ -96,24 +101,19 @@ SelectorTree::Node* SelectorTree::GetOrCreateNodeForCompoundSelector(
     has_sibling_combinators_ = true;
   }
 
-  const std::string& selector_text =
-      compound_selector->GetNormalizedSelectorText();
   OwnedNodes& owned_nodes =
       owned_nodes_map_[std::make_pair(parent_node, combinator)];
-  OwnedNodes::iterator child_node_it = owned_nodes.find(selector_text);
+  OwnedNodes::iterator child_node_it = owned_nodes.find(compound_selector);
   if (child_node_it != owned_nodes.end()) {
     return child_node_it->second;
   }
   Node* child_node =
       new Node(compound_selector, parent_node->cumulative_specificity());
   parent_node->combinator_mask_ |= (1 << combinator);
-  owned_nodes[selector_text] = child_node;
+  owned_nodes[compound_selector] = child_node;
 
-  for (CompoundSelector::SimpleSelectors::const_iterator it =
-           compound_selector->simple_selectors().begin();
-       it != compound_selector->simple_selectors().end(); ++it) {
-    (*it)->IndexSelectorTreeNode(parent_node, child_node, combinator);
-  }
+  (*compound_selector->simple_selectors().begin())
+      ->IndexSelectorTreeNode(parent_node, child_node, combinator);
   return child_node;
 }
 

@@ -117,9 +117,16 @@ class SelectorTree {
     std::vector<const Node*> nodes_vector_;
   };
 
+  struct CompoundNodeLessThan {
+    bool operator()(const CompoundSelector* lhs,
+                    const CompoundSelector* rhs) const;
+  };
+
   // This class holds references to Nodes allocated on the heap that are owned
   // by the same parent Node.  It deletes all contained Nodes on destruction.
-  class OwnedNodes : public base::SmallMap<std::map<std::string, Node*>, 1> {
+  class OwnedNodes
+      : public base::SmallMap<
+            std::map<CompoundSelector*, Node*, CompoundNodeLessThan>, 2> {
    public:
     ~OwnedNodes() {
       for (iterator iter = begin(); iter != end(); ++iter) {

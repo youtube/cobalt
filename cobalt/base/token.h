@@ -73,6 +73,10 @@ inline bool operator<(const Token& lhs, const Token& rhs) {
   return lhs.c_str() < rhs.c_str();
 }
 
+inline bool operator>(const Token& lhs, const Token& rhs) {
+  return lhs.c_str() > rhs.c_str();
+}
+
 inline std::ostream& operator<<(std::ostream& os, base::Token token) {
   os << token.c_str();
   return os;
