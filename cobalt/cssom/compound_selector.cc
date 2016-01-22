@@ -40,8 +40,7 @@ bool SimpleSelectorsLessThan(const SimpleSelector* lhs,
 
 }  // namespace
 
-CompoundSelector::CompoundSelector()
-    : should_normalize_(false), pseudo_element_(NULL), left_combinator_(NULL) {}
+CompoundSelector::CompoundSelector() : left_combinator_(NULL) {}
 
 CompoundSelector::~CompoundSelector() {}
 
@@ -52,27 +51,14 @@ void CompoundSelector::Accept(SelectorVisitor* visitor) {
 void CompoundSelector::AppendSelector(
     scoped_ptr<SimpleSelector> simple_selector) {
   specificity_.AddFrom(simple_selector->GetSpecificity());
-  if (simple_selector->AsPseudoElement()) {
-    DCHECK(!pseudo_element_);
-    pseudo_element_ = simple_selector->AsPseudoElement();
-  }
+  bool should_sort =
+      !simple_selectors_.empty() &&
+      SimpleSelectorsLessThan(simple_selector.get(), simple_selectors_.back());
   simple_selectors_.push_back(simple_selector.release());
-  should_normalize_ = true;
-}
-
-const std::string& CompoundSelector::GetNormalizedSelectorText() {
-  if (should_normalize_) {
-    should_normalize_ = false;
+  if (should_sort) {
     std::sort(simple_selectors_.begin(), simple_selectors_.end(),
               SimpleSelectorsLessThan);
-    normalized_selector_text_ = "";
-    for (SimpleSelectors::iterator it = simple_selectors_.begin();
-         it != simple_selectors_.end(); ++it) {
-      normalized_selector_text_ += (*it)->prefix().c_str();
-      normalized_selector_text_ += (*it)->text().c_str();
-    }
   }
-  return normalized_selector_text_;
 }
 
 void CompoundSelector::set_right_combinator(scoped_ptr<Combinator> combinator) {
