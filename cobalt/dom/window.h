@@ -44,6 +44,7 @@
 #include "cobalt/loader/loader.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
@@ -190,6 +191,8 @@ class Window : public EventTarget {
 #if defined(ENABLE_TEST_RUNNER)
   const scoped_refptr<TestRunner>& test_runner() const;
 #endif  // ENABLE_TEST_RUNNER
+
+  void Gc(script::EnvironmentSettings* settings);
 
   HTMLElementContext* html_element_context() const;
 
