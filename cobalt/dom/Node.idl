@@ -16,6 +16,7 @@
 
 // https://www.w3.org/TR/2015/WD-dom-20150428/#interface-node
 
+[KeepAlive=parent_node]
 interface Node : EventTarget {
   const unsigned short ELEMENT_NODE = 1;
   const unsigned short TEXT_NODE = 3;

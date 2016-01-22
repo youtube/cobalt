@@ -29,6 +29,7 @@
   //
   readonly attribute Console console;
   [Conditional=ENABLE_TEST_RUNNER] readonly attribute TestRunner testRunner;
+  [CallWith=EnvironmentSettings] void gc();
 };
 Window implements GlobalCrypto;
 Window implements GlobalEventHandlers;

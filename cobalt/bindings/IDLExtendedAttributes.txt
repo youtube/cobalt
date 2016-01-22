@@ -57,6 +57,12 @@ PrimaryGlobal
 # http://heycam.github.io/webidl/#Exposed
 Exposed=TestWindow|Window|Worker
 
+# This interface's object will keep another object alive as long as itself is
+# alive. Value should be the name (with no parentheses) of a function that
+# returns a Wrappable pointer. The object being kept alive is identified by
+# calling the given function with no parameter.
+KeepAlive=*
+
 # Call the Cobalt function this property is bound to with the corresponding
 # object added to the head of the function's parameters.
 CallWith=EnvironmentSettings
