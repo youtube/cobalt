@@ -23,6 +23,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
@@ -31,7 +32,6 @@ namespace cssom {
 class Combinator;
 class PseudoElement;
 class SelectorVisitor;
-class SimpleSelector;
 
 // A compound selector is a chain of simple selectors that are not separated by
 // a combinator.
@@ -52,8 +52,15 @@ class CompoundSelector : public Selector {
 
   void AppendSelector(scoped_ptr<SimpleSelector> selector);
   const SimpleSelectors& simple_selectors() { return simple_selectors_; }
-  PseudoElement* pseudo_element() { return pseudo_element_; }
-  const std::string& GetNormalizedSelectorText();
+  PseudoElement* pseudo_element() {
+    for (SimpleSelectors::iterator iter = simple_selectors_.begin();
+         iter != simple_selectors_.end(); ++iter) {
+      if ((*iter)->AsPseudoElement()) {
+        return (*iter)->AsPseudoElement();
+      }
+    }
+    return NULL;
+  }
 
   Combinator* left_combinator() { return left_combinator_; }
   void set_left_combinator(Combinator* combinator) {
@@ -63,15 +70,45 @@ class CompoundSelector : public Selector {
   Combinator* right_combinator() { return right_combinator_.get(); }
   void set_right_combinator(scoped_ptr<Combinator> combinator);
 
- private:
-  bool should_normalize_;
-  PseudoElement* pseudo_element_;
-  Combinator* left_combinator_;
+  bool operator<(const CompoundSelector& that) const {
+    if (simple_selectors_.size() < that.simple_selectors_.size()) {
+      return true;
+    }
+    if (simple_selectors_.size() > that.simple_selectors_.size()) {
+      return false;
+    }
 
+    for (size_t i = 0; i < simple_selectors_.size(); ++i) {
+      if (simple_selectors_[i]->type() < that.simple_selectors_[i]->type()) {
+        return true;
+      }
+      if (simple_selectors_[i]->type() > that.simple_selectors_[i]->type()) {
+        return false;
+      }
+      if (simple_selectors_[i]->prefix() <
+          that.simple_selectors_[i]->prefix()) {
+        return true;
+      }
+      if (simple_selectors_[i]->prefix() >
+          that.simple_selectors_[i]->prefix()) {
+        return false;
+      }
+      if (simple_selectors_[i]->text() < that.simple_selectors_[i]->text()) {
+        return true;
+      }
+      if (simple_selectors_[i]->text() > that.simple_selectors_[i]->text()) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+ private:
+  Combinator* left_combinator_;
   scoped_ptr<Combinator> right_combinator_;
   SimpleSelectors simple_selectors_;
   Specificity specificity_;
-  std::string normalized_selector_text_;
 
   DISALLOW_COPY_AND_ASSIGN(CompoundSelector);
 };
