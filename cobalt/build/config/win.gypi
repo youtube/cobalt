@@ -25,6 +25,7 @@
     'actual_target_arch': 'win',
     'posix_emulation_target_type': 'static_library',
     'angle_api': 'win32',
+    'enable_remote_debugging': 0,
 
     'compiler_flags_host': [
     ],
