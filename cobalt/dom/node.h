@@ -67,7 +67,7 @@ class ConstNodeVisitor {
 
 // A Node is an interface from which a number of DOM types inherit, and allows
 // these various types to be treated (or tested) similarly.
-//   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-node
+//   https://www.w3.org/TR/dom/#interface-node
 //
 // Memory management:
 // ------------------
@@ -77,34 +77,14 @@ class ConstNodeVisitor {
 // example is a circular reference between DOM and JavaScript:
 //   http://www.javascriptkit.com/javatutors/closuresleak/index3.shtml
 //
-// DOM requires each Node to store references to its parent, first and last
-// children, and previous and next siblings. To conserve memory, these
-// references are also used to enforce the life-time of Node objects.
-// Using strong references, each parent owns its first sibling, and each
-// sibling owns its next sibling. All other references are weak.
+// Using strong shared references, each node owns its first child and next
+// sibling. The references to parent and previous sibling are weak. In addition,
+// a JavaScript wrapper, which is a JavaScript reference for a node, will also
+// have a strong shared reference to the node, and the bindings layer ensures
+// that a JavaScript wrapper exists for all ancestors of the node.
+// As a result, any JavaScript reference to a node will keep the whole DOM tree
+// that the node belongs to alive, which is a conforming behavior.
 //
-// Under certain rare conditions, this may cause a behavior that differs from
-// a normal browser behavior. For example:
-//   <body>
-//     <div id="a"><div id="b"></div></div>
-//     <script>
-//       (function() {
-//         var b = document.querySelector('#b');
-//         document.body.removeChild(document.body.firstElementChild);
-//         window.setTimeout(function() {
-//           // Chrome: <div id="a"/>
-//           // Cobalt: null
-//           console.log(b.parentNode);
-//           // Both: null
-//           console.log(b.parentNode.parentNode);
-//         }, 5000);
-//       })();
-//     </script>
-//   </body>
-//
-// If required, these limitation can be fixed by using a garbage collection
-// scheme similar to Oilpan:
-//   http://www.chromium.org/blink/blink-gc
 class Node : public EventTarget {
  public:
   // Web API: Node
@@ -264,16 +244,10 @@ class Node : public EventTarget {
   // Node generation counter.
   uint32_t node_generation_;
 
-  // Weak reference to the parent node.
-  base::WeakPtr<Node> parent_;
-  // Strong reference that owns the next sibling node.
-  scoped_refptr<Node> next_sibling_;
-  // Weak reference to the previous sibling node.
-  base::WeakPtr<Node> previous_sibling_;
-  // Strong reference that owns the first child in the subtree defined by
-  // this node.
   scoped_refptr<Node> first_child_;
-  // Weak reference to the last child in the subtree defined by this node.
+  scoped_refptr<Node> next_sibling_;
+  base::WeakPtr<Node> parent_;
+  base::WeakPtr<Node> previous_sibling_;
   base::WeakPtr<Node> last_child_;
 
   DISALLOW_COPY_AND_ASSIGN(Node);

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
-#define BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
+#ifndef COBALT_BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
+#define COBALT_BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 
 #include <string>
 
@@ -58,6 +58,8 @@ class BindingsTestBase : public ::testing::Test {
     return global_object_proxy_->EvaluateScript(source, out_result);
   }
 
+  void CollectGarbage() { engine_->CollectGarbage(); }
+
  protected:
   const scoped_ptr<script::EnvironmentSettings> environment_settings_;
   const scoped_ptr<script::JavaScriptEngine> engine_;
@@ -86,4 +88,4 @@ class InterfaceBindingsTest : public BindingsTestBase {
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
+#endif  // COBALT_BINDINGS_TESTING_BINDINGS_TEST_BASE_H_

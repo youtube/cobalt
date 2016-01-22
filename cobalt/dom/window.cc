@@ -20,10 +20,12 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/user_agent_style_sheet.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/history.h"
@@ -34,6 +36,7 @@
 #include "cobalt/dom/screen.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/window_timers.h"
+#include "cobalt/script/javascript_engine.h"
 
 namespace cobalt {
 namespace dom {
@@ -191,6 +194,14 @@ const scoped_refptr<TestRunner>& Window::test_runner() const {
   return test_runner_;
 }
 #endif  // ENABLE_TEST_RUNNER
+
+void Window::Gc(script::EnvironmentSettings* settings) {
+  if (settings) {
+    DOMSettings* dom_settings =
+        base::polymorphic_downcast<dom::DOMSettings*>(settings);
+    dom_settings->javascript_engine()->CollectGarbage();
+  }
+}
 
 HTMLElementContext* Window::html_element_context() const {
   return html_element_context_.get();

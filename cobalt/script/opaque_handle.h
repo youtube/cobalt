@@ -13,11 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_OPAQUE_HANDLE_H_
-#define SCRIPT_OPAQUE_HANDLE_H_
+#ifndef COBALT_SCRIPT_OPAQUE_HANDLE_H_
+#define COBALT_SCRIPT_OPAQUE_HANDLE_H_
 
-#include "base/memory/scoped_ptr.h"
-#include "base/optional.h"
 #include "cobalt/script/script_object.h"
 
 namespace cobalt {
@@ -37,4 +35,4 @@ typedef ScriptObject<OpaqueHandle> OpaqueHandleHolder;
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_OPAQUE_HANDLE_H_
+#endif  // COBALT_SCRIPT_OPAQUE_HANDLE_H_
