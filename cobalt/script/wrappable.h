@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_WRAPPABLE_H_
-#define SCRIPT_WRAPPABLE_H_
+#ifndef COBALT_SCRIPT_WRAPPABLE_H_
+#define COBALT_SCRIPT_WRAPPABLE_H_
 
 #include "base/bind.h"
 #include "base/logging.h"
@@ -22,7 +22,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/type_id.h"
-#include "cobalt/script/opaque_handle.h"
 
 namespace cobalt {
 namespace script {
@@ -109,4 +108,4 @@ class Wrappable : public base::RefCounted<Wrappable> {
     return base::SourceLocation(GetSourceLocationName(), 1, 1);   \
   }
 
-#endif  // SCRIPT_WRAPPABLE_H_
+#endif  // COBALT_SCRIPT_WRAPPABLE_H_
