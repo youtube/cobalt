@@ -247,6 +247,7 @@
       'variables' : {
         'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,
+        'enable_remote_debugging%': 1,
         'enable_screenshot': 1,
       },
     },
@@ -254,19 +255,8 @@
       'variables' : {
         'cobalt_copy_debug_console': 0,
         'cobalt_copy_test_data': 0,
+        'enable_remote_debugging%': 0,
         'enable_screenshot': 0,
-      },
-    }],
-    # Enable remote debugging in non-Gold builds, except on Windows, where we
-    # don't currently have full network support.
-    ['cobalt_config != "Gold" and actual_target_arch != "win"', {
-      'variables' : {
-        'enable_remote_debugging': 1
-      },
-    },
-    {
-      'variables' : {
-        'enable_remote_debugging': 0
       },
     }],
   ],
