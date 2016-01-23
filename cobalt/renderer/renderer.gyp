@@ -124,5 +124,16 @@
         'renderer',
       ],
     },
+    {
+      'target_name': 'renderer_benchmark_deploy',
+      'type': 'none',
+      'dependencies': [
+        'renderer_benchmark',
+      ],
+      'variables': {
+        'executable_name': 'renderer_benchmark',
+      },
+      'includes': [ '../build/deploy.gypi' ],
+    },
   ],
 }
