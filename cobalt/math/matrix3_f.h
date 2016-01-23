@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_MATRIX3_F_H_
-#define MATH_MATRIX3_F_H_
+#ifndef COBALT_MATH_MATRIX3_F_H_
+#define COBALT_MATH_MATRIX3_F_H_
 
 #include "base/logging.h"
 #include "cobalt/math/point_f.h"
@@ -37,6 +37,8 @@ class Matrix3F {
     data_[7] = m21;
     data_[8] = m22;
   }
+
+  bool IsIdentity() const;
 
   bool IsEqual(const Matrix3F& rhs) const;
 
@@ -128,4 +130,4 @@ inline std::ostream& operator<<(std::ostream& stream, const Matrix3F& matrix) {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_MATRIX3_F_H_
+#endif  // COBALT_MATH_MATRIX3_F_H_
