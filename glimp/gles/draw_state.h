@@ -36,8 +36,15 @@ namespace gles {
 
 // Types passed in as parameters to draw calls (like DrawArrays()) to
 // describe the set of only enabled vertex attributes.
-typedef std::vector<std::pair<unsigned int, VertexAttribute*> >
+typedef std::vector<std::pair<unsigned int, VertexAttributeArray*> >
     EnabledVertexAttributeList;
+
+// If a vertex attribute constant is specified (e.g. through a call to
+// glVertexAttribXfv()) for a location, and the vertex attribute array is
+// disabled at that location, then this constant value will be included into
+// the draw state.
+typedef std::vector<std::pair<unsigned int, VertexAttributeConstant*> >
+    ConstantVertexAttributeList;
 
 // Similar to EnabledVertexAttributeList, but lists only samplers with
 // textures bound to them.
@@ -135,6 +142,7 @@ struct DrawState {
 
   // The list of vertex attribute binding information for the next draw call.
   EnabledVertexAttributeList vertex_attributes;
+  ConstantVertexAttributeList constant_vertex_attributes;
 
   // The scissor rectangle.  Draw calls should not modify pixels outside of
   // this.
