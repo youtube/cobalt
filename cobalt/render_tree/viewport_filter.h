@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_VIEWPORT_FILTER_H_
-#define RENDER_TREE_VIEWPORT_FILTER_H_
+#ifndef COBALT_RENDER_TREE_VIEWPORT_FILTER_H_
+#define COBALT_RENDER_TREE_VIEWPORT_FILTER_H_
 
+#include "base/optional.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/render_tree/rounded_corners.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -29,15 +31,21 @@ namespace render_tree {
 class ViewportFilter {
  public:
   explicit ViewportFilter(const math::RectF& viewport) : viewport_(viewport) {}
+  explicit ViewportFilter(const math::RectF& viewport,
+                          const RoundedCorners& rounded_corners)
+      : viewport_(viewport), rounded_corners_(rounded_corners) {}
 
-  void set_viewport(const math::RectF& viewport) { viewport_ = viewport; }
   const math::RectF& viewport() const { return viewport_; }
+
+  bool has_rounded_corners() const { return !!rounded_corners_; }
+  const RoundedCorners& rounded_corners() const { return *rounded_corners_; }
 
  private:
   math::RectF viewport_;
+  base::optional<RoundedCorners> rounded_corners_;
 };
 
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_VIEWPORT_FILTER_H_
+#endif  // COBALT_RENDER_TREE_VIEWPORT_FILTER_H_

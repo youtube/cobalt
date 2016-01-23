@@ -730,9 +730,8 @@ void Box::RenderAndAnimateBackgroundImage(
       if (!rounded_corners.AreSquares()) {
         // Apply rounded viewport filter to the background image.
         FilterNode::Builder filter_node_builder(background_node);
-        filter_node_builder.rounded_viewport_filter =
-            render_tree::RoundedViewportFilter(math::RectF(GetBorderBoxSize()),
-                                               rounded_corners);
+        filter_node_builder.viewport_filter =
+            ViewportFilter(math::RectF(GetBorderBoxSize()), rounded_corners);
         background_node = new FilterNode(filter_node_builder);
       }
 
@@ -754,8 +753,6 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     FilterNode::Builder filter_node_builder(border_node);
 
     if (overflow_hidden) {
-      // TODO(***REMOVED***): Once RoundedViewportFilter is implemented, applying
-      // ViewportFilter and RoundedViewportFilter should be mutually exclusive.
       // TODO(***REMOVED***): The "overflow" property specifies whether a box is
       //               clipped to its padding edge.
       //                 https://www.w3.org/TR/CSS21/visufx.html#overflow
@@ -769,10 +766,9 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
       UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
       computed_style()->border_radius()->Accept(&border_radius_provider);
       if (!border_radius_provider.rounded_corners().AreSquares()) {
-        filter_node_builder.rounded_viewport_filter =
-            render_tree::RoundedViewportFilter(
-                math::RectF(GetBorderBoxSize()),
-                border_radius_provider.rounded_corners());
+        filter_node_builder.viewport_filter =
+            ViewportFilter(math::RectF(GetBorderBoxSize()),
+                           border_radius_provider.rounded_corners());
       }
     }
 

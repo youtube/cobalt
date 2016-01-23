@@ -46,6 +46,12 @@ struct RoundedCorners {
         bottom_right(corner),
         bottom_left(corner) {}
 
+  RoundedCorners(float horizontal, float vertical)
+      : top_left(horizontal, vertical),
+        top_right(horizontal, vertical),
+        bottom_right(horizontal, vertical),
+        bottom_left(horizontal, vertical) {}
+
   RoundedCorners(const RoundedCorners& radiuses)
       : top_left(radiuses.top_left),
         top_right(radiuses.top_right),
