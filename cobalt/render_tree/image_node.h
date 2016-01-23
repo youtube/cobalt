@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_IMAGE_NODE_H_
-#define RENDER_TREE_IMAGE_NODE_H_
+#ifndef COBALT_RENDER_TREE_IMAGE_NODE_H_
+#define COBALT_RENDER_TREE_IMAGE_NODE_H_
 
 #include "base/compiler_specific.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/image.h"
@@ -72,6 +73,10 @@ class ImageNode : public Node {
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;
 
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<ImageNode>();
+  }
+
   const Builder& data() const { return data_; }
 
  private:
@@ -81,4 +86,4 @@ class ImageNode : public Node {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_IMAGE_NODE_H_
+#endif  // COBALT_RENDER_TREE_IMAGE_NODE_H_

@@ -47,16 +47,21 @@ namespace layout {
 namespace {
 
 struct BackgroundImageTransformData {
-  BackgroundImageTransformData(math::SizeF image_node_size,
-                               math::Matrix3F image_node_transform_matrix,
-                               math::Matrix3F composition_node_transform_matrix)
+  BackgroundImageTransformData(
+      const math::SizeF& image_node_size,
+      const math::Matrix3F& image_node_transform_matrix,
+      const math::PointF& composition_node_translation)
       : image_node_size(image_node_size),
         image_node_transform_matrix(image_node_transform_matrix),
-        composition_node_transform_matrix(composition_node_transform_matrix) {}
+        composition_node_translation(composition_node_translation) {}
 
   math::SizeF image_node_size;
+
+  // Transformation to be applied to the image's internal texture coordinates.
   math::Matrix3F image_node_transform_matrix;
-  math::Matrix3F composition_node_transform_matrix;
+
+  // Translation to be applied to the entire image.
+  math::PointF composition_node_translation;
 };
 
 render_tree::FontStyle ConvertCSSOMFontValuesToRenderTreeFontStyle(
@@ -152,8 +157,8 @@ BackgroundImageTransformData GetImageTransformationData(
                                              image_node_translate_matrix_y) *
                            math::ScaleMatrix(image_node_scale_matrix_x,
                                              image_node_scale_matrix_y),
-      math::TranslateMatrix(composition_node_translate_matrix_x,
-                            composition_node_translate_matrix_y));
+      math::PointF(composition_node_translate_matrix_x,
+                   composition_node_translate_matrix_y));
   return background_image_transform_data;
 }
 
@@ -504,21 +509,27 @@ void UsedBackgroundNodeProvider::VisitAbsoluteURL(
     UsedBackgroundRepeatProvider used_background_repeat_provider;
     background_repeat_->Accept(&used_background_repeat_provider);
 
-    BackgroundImageTransformData background_image_transform_data =
+    BackgroundImageTransformData image_transform_data =
         GetImageTransformationData(
             &used_background_size_provider, &used_background_position_provider,
             &used_background_repeat_provider, frame_size_, single_image_size);
 
     scoped_refptr<render_tree::ImageNode> image_node(new render_tree::ImageNode(
-        used_background_image, background_image_transform_data.image_node_size,
-        background_image_transform_data.image_node_transform_matrix));
+        used_background_image, image_transform_data.image_node_size,
+        image_transform_data.image_node_transform_matrix));
 
-    render_tree::CompositionNode::Builder image_composition_node_builder;
-    image_composition_node_builder.AddChild(
-        image_node,
-        background_image_transform_data.composition_node_transform_matrix);
-    background_node_ =
-        new render_tree::CompositionNode(image_composition_node_builder.Pass());
+    if (!image_transform_data.composition_node_translation.IsOrigin()) {
+      render_tree::CompositionNode::Builder image_composition_node_builder;
+      image_composition_node_builder.AddChild(
+          image_node,
+          math::TranslateMatrix(
+              image_transform_data.composition_node_translation.x(),
+              image_transform_data.composition_node_translation.y()));
+      background_node_ = new render_tree::CompositionNode(
+          image_composition_node_builder.Pass());
+    } else {
+      background_node_ = image_node;
+    }
   }
 }
 

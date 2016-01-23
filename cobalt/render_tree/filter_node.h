@@ -19,9 +19,9 @@
 
 #include "base/compiler_specific.h"
 #include "base/optional.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/opacity_filter.h"
-#include "cobalt/render_tree/rounded_viewport_filter.h"
 #include "cobalt/render_tree/viewport_filter.h"
 
 namespace cobalt {
@@ -42,9 +42,6 @@ class FilterNode : public Node {
     Builder(const ViewportFilter& viewport_filter,
             const scoped_refptr<render_tree::Node>& source);
 
-    Builder(const RoundedViewportFilter& rounded_viewport_filter,
-            const scoped_refptr<render_tree::Node>& source);
-
     // The source tree, which will be used as the input to the filters specified
     // in this FilterNode.
     scoped_refptr<render_tree::Node> source;
@@ -55,12 +52,8 @@ class FilterNode : public Node {
 
     // If set, this filter will specify the viewport of source content. Only
     // the source content within the viewport rectangle will be rendered.
+    // Rounded corners may be specified on this filter.
     base::optional<ViewportFilter> viewport_filter;
-
-    // If set, this filter will specify the rounded viewport of source content
-    // including the 4 rounded corners. Only the source content within the
-    // filter will be rendered.
-    base::optional<RoundedViewportFilter> rounded_viewport_filter;
   };
 
   explicit FilterNode(const Builder& builder) : data_(builder) {}
@@ -71,11 +64,12 @@ class FilterNode : public Node {
   FilterNode(const ViewportFilter& viewport_filter,
              const scoped_refptr<render_tree::Node>& source);
 
-  FilterNode(const RoundedViewportFilter& rounded_viewport_filter,
-             const scoped_refptr<render_tree::Node>& source);
-
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;
+
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<FilterNode>();
+  }
 
   const Builder& data() const { return data_; }
 

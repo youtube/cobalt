@@ -19,6 +19,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/border.h"
 #include "cobalt/render_tree/brush.h"
@@ -95,6 +96,10 @@ class RectNode : public Node {
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;
+
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<RectNode>();
+  }
 
   const Builder& data() const { return data_; }
 
