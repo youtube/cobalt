@@ -17,9 +17,7 @@
 #include "cobalt/webdriver/element_driver.h"
 
 #include "cobalt/cssom/property_value.h"
-#include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/webdriver/algorithms.h"
 #include "cobalt/webdriver/keyboard.h"
@@ -29,82 +27,10 @@
 namespace cobalt {
 namespace webdriver {
 namespace {
+
 std::string GetTagName(dom::Element* element) {
   DCHECK(element);
   return element->tag_name().c_str();
-}
-
-bool IsHidden(dom::Element* element) {
-  base::optional<std::string> display_property =
-      element->GetAttribute("display");
-  return display_property && display_property.value() == "hidden";
-}
-
-bool DisplayStyleIsNone(dom::Element* element) {
-  scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
-  DCHECK(html_element);
-  DCHECK(html_element->computed_style());
-  scoped_refptr<cssom::StringValue> none(new cssom::StringValue("none"));
-  scoped_refptr<cssom::PropertyValue> display =
-      html_element->computed_style()->display();
-  return display && display->Equals(*none.get());
-}
-
-bool IsTransparentDocumentRoot(dom::Element* element) {
-  scoped_refptr<dom::Document> element_as_document = element->AsDocument();
-  scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
-  if (element_as_document && html_element && html_element->computed_style()) {
-    scoped_refptr<cssom::StringValue> transparent_property(
-        new cssom::StringValue("transparent"));
-    return html_element->computed_style() &&
-           html_element->computed_style()->background_color() &&
-           html_element->computed_style()->background_color()->Equals(
-               *transparent_property.get());
-  }
-  return false;
-}
-
-bool HasTransparentBody(dom::Element* element) {
-  scoped_refptr<dom::Document> element_as_document = element->AsDocument();
-  DCHECK(element_as_document);
-  scoped_refptr<cssom::StringValue> transparent_property(
-      new cssom::StringValue("transparent"));
-  return element_as_document->body() &&
-      element_as_document->body()->computed_style() &&
-      element_as_document->body()->computed_style()->background_color() &&
-      element_as_document->body()
-          ->computed_style()
-          ->background_color()
-          ->Equals(*transparent_property.get());
-}
-
-// https://w3c.github.io/webdriver/webdriver-spec.html#element-displayedness
-bool IsDisplayed(dom::Element* element) {
-  DCHECK(element);
-  // 1. If the attribute hidden is set, return false.
-  if (IsHidden(element)) {
-    return false;
-  }
-  // 2. If the computed value of the display style property is "none", return
-  //    false.
-  if (DisplayStyleIsNone(element)) {
-    return false;
-  }
-  // 4. If element is the document's root element...
-  // 4.1. If the computed value of the background-color property is
-  //      "transparent".
-  if (IsTransparentDocumentRoot(element)) {
-    // 4.1.1. If the body is also transparent.
-    return HasTransparentBody(element);
-  }
-  // 8. If element is a [DOM] text node, return true.
-  if (element->IsText()) {
-    return true;
-  }
-  // TODO(***REMOVED***): Check for visible children and whether this element
-  // is hidden by a parent's overflow behaviour once getBoundingRect and
-  // getClientRects are implemented.
-  return true;
 }
 
 base::optional<std::string> GetAttribute(const std::string& attribute_name,
@@ -164,7 +90,7 @@ util::CommandResult<bool> ElementDriver::IsDisplayed() {
   return util::CallWeakOnMessageLoopAndReturnResult(
       element_message_loop_,
       base::Bind(&ElementDriver::GetWeakElement, base::Unretained(this)),
-      base::Bind(&::cobalt::webdriver::IsDisplayed),
+      base::Bind(&algorithms::IsDisplayed),
       protocol::Response::kStaleElementReference);
 }
 
@@ -238,7 +164,7 @@ util::CommandResult<void> ElementDriver::SendKeysInternal(
     return CommandResult(protocol::Response::kStaleElementReference);
   }
   // First ensure that the element is displayed, and return an error if not.
-  if (!::cobalt::webdriver::IsDisplayed(element_.get())) {
+  if (!algorithms::IsDisplayed(element_.get())) {
     return CommandResult(protocol::Response::kElementNotVisible);
   }
 
