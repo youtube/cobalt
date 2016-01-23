@@ -1105,39 +1105,82 @@ void GL_APIENTRY glValidateProgram(GLuint program) {
 }
 
 void GL_APIENTRY glVertexAttrib1f(GLuint indx, GLfloat x) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->VertexAttribfv(indx, 1, &x);
 }
 
 void GL_APIENTRY glVertexAttrib1fv(GLuint indx, const GLfloat* values) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->VertexAttribfv(indx, 1, values);
 }
 
 void GL_APIENTRY glVertexAttrib2f(GLuint indx, GLfloat x, GLfloat y) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  GLfloat values[2] = {x, y};
+  return context->VertexAttribfv(indx, 2, values);
 }
 
 void GL_APIENTRY glVertexAttrib2fv(GLuint indx, const GLfloat* values) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->VertexAttribfv(indx, 2, values);
 }
 
 void GL_APIENTRY glVertexAttrib3f(GLuint indx,
                                   GLfloat x,
                                   GLfloat y,
                                   GLfloat z) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  GLfloat values[3] = {x, y, z};
+  return context->VertexAttribfv(indx, 3, values);
 }
 
 void GL_APIENTRY glVertexAttrib3fv(GLuint indx, const GLfloat* values) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->VertexAttribfv(indx, 3, values);
 }
 
 void GL_APIENTRY
 glVertexAttrib4f(GLuint indx, GLfloat x, GLfloat y, GLfloat z, GLfloat w) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  GLfloat values[4] = {x, y, z, w};
+  return context->VertexAttribfv(indx, 4, values);
 }
 
 void GL_APIENTRY glVertexAttrib4fv(GLuint indx, const GLfloat* values) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->VertexAttribfv(indx, 4, values);
 }
 
 void GL_APIENTRY glVertexAttribPointer(GLuint indx,
