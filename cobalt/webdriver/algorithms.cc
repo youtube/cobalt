@@ -25,11 +25,14 @@
 #include "base/string16.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/math/rect.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -230,8 +233,8 @@ void GetElementTextInternal(dom::Element* element,
       GetComputedStyle(element, &cssom::CSSStyleDeclarationData::white_space);
   base::optional<std::string> text_transform_style = GetComputedStyle(
       element, &cssom::CSSStyleDeclarationData::text_transform);
-  // TODO(***REMOVED***): Implement when IsDisplayed is refactored into this file.
-  bool is_displayed = true;
+
+  bool is_displayed = IsDisplayed(element);
 
   scoped_refptr<dom::NodeList> children = element->child_nodes();
   // https://www.w3.org/TR/webdriver/#getelementtext
@@ -265,6 +268,119 @@ void GetElementTextInternal(dom::Element* element,
   if (is_block && LastLineIsNonEmpty(*lines)) {
     lines->push_back("");
   }
+}
+
+bool DisplayStyleIsNone(dom::Element* element) {
+  base::optional<std::string> display_style =
+      GetComputedStyle(element, &cssom::CSSStyleDeclarationData::display);
+  return display_style && *display_style == cssom::kNoneKeywordName;
+}
+
+// Return true if opacity is set to zero.
+bool IsTransparent(dom::Element* element) {
+  base::optional<std::string> opacity_style =
+      GetComputedStyle(element, &cssom::CSSStyleDeclarationData::opacity);
+  return opacity_style && *opacity_style == "0";
+}
+
+// Return true if this element and all its ancestors have display style set to
+// none.
+bool AreElementAndAncestorsDisplayed(dom::Element* element) {
+  DCHECK(element);
+  if (DisplayStyleIsNone(element)) {
+    return false;
+  }
+  scoped_refptr<dom::Element> parent = element->parent_element();
+  return !parent || AreElementAndAncestorsDisplayed(parent.get());
+}
+
+// Returns true if this element has non-zero dimensions, or if any of its
+// children have non-zero dimensions and this element's overflow style is not
+// set to hidden.
+bool HasPositiveSizeDimensions(dom::Element* element) {
+  DCHECK(element);
+  scoped_refptr<dom::DOMRect> rect = element->GetBoundingClientRect();
+  DCHECK(rect);
+  if (rect->height() > 0 && rect->width() > 0) {
+    return true;
+  }
+  // Zero-sized elements should still be considered to have positive size
+  // if they have a child element or text node with positive size, unless
+  // the element has an 'overflow' style of 'hidden'.
+  base::optional<std::string> overflow_style =
+      GetComputedStyle(element, &cssom::CSSStyleDeclarationData::overflow);
+  if (overflow_style && *overflow_style == cssom::kHiddenKeywordName) {
+    return false;
+  }
+  scoped_refptr<dom::NodeList> child_nodes = element->child_nodes();
+  DCHECK(child_nodes);
+  for (uint32 i = 0; i < child_nodes->length(); ++i) {
+    scoped_refptr<dom::Node> child = child_nodes->Item(i);
+    if (child->IsText() ||
+        (child->IsElement() &&
+         HasPositiveSizeDimensions(child->AsElement().get()))) {
+      return true;
+    }
+  }
+  // Neither this element nor any of its children have positive size dimensions.
+  return false;
+}
+
+math::Rect GetRect(dom::Element* element) {
+  scoped_refptr<dom::DOMRect> element_rect = element->GetBoundingClientRect();
+  return math::Rect(element_rect->x(), element_rect->y(), element_rect->width(),
+                    element_rect->height());
+}
+
+// Returns true if this element is completely hidden by overflow.
+bool IsHiddenByOverflow(dom::Element* element) {
+  math::Rect element_rect = GetRect(element);
+  // Check each ancestor of this element and if the ancestor's overflow style
+  // is set to hidden, check if this element completely overflows or underflows
+  // the element and is thus not visible.
+  dom::Element* parent = element->parent_element().get();
+  while (parent) {
+    // Only block level elements will hide children due to overflow.
+    if (IsBlockLevelElement(parent)) {
+      // Cobalt doesn't support overflow-x or overflow-y, so just check for
+      // overflow.
+      base::optional<std::string> overflow_style =
+          GetComputedStyle(parent, &cssom::CSSStyleDeclarationData::overflow);
+      if (overflow_style && *overflow_style == cssom::kHiddenKeywordName) {
+        // Get the parent's rect. If the element's rect does not intersect the
+        // parent's rect, then it is hidden by overflow.
+        math::Rect parent_rect = GetRect(parent);
+        if (!element_rect.Intersects(parent_rect)) {
+          return true;
+        }
+      }
+    }
+    parent = parent->parent_element().get();
+  }
+  return false;
+}
+
+// Returns true if this element and all its children are completely hidden
+// due to overflow.
+bool AreElementAndChildElementsHiddenByOverflow(dom::Element* element) {
+  if (!IsHiddenByOverflow(element)) {
+    return false;
+  }
+  scoped_refptr<dom::NodeList> child_nodes = element->child_nodes();
+  DCHECK(child_nodes);
+  // Check if all child elements are also hidden by overflow.
+  for (uint32 i = 0; i < child_nodes->length(); ++i) {
+    scoped_refptr<dom::Node> child = child_nodes->Item(i);
+    if (child->IsElement()) {
+      scoped_refptr<dom::Element> child_as_element = child->AsElement();
+      if (AreElementAndChildElementsHiddenByOverflow(child_as_element.get()) ||
+          !HasPositiveSizeDimensions(child_as_element.get())) {
+        return false;
+      }
+    }
+  }
+  // All child elements are hidden by overflow.
+  return true;
 }
 
 }  // namespace
@@ -301,6 +417,62 @@ std::string GetElementText(dom::Element* element) {
   // Convert non-breaking spaces to regular spaces.
   std::replace(joined.begin(), joined.end(), kNonBreakingSpace, ' ');
   return joined;
+}
+
+// There is a spec for "displayedness" available:
+//   https://w3c.github.io/webdriver/webdriver-spec.html#element-displayedness
+// However, the algorithm described in the spec does not match existing
+// implementations of WebDriver.
+// IsDisplayed will match the existing implementations, using the implementation
+// in selenium's github repository as a reference.
+// https://github.com/SeleniumHQ/selenium/blob/master/javascript/atoms/dom.js#L577
+bool IsDisplayed(dom::Element* element) {
+  DCHECK(element);
+  // By convention, BODY element is always shown: BODY represents the document
+  // and even if there's nothing rendered in there, user can always see there's
+  // the document.
+  if (element->tag_name() == dom::HTMLBodyElement::kTagName) {
+    return true;
+  }
+
+  // Any element with hidden/collapsed visibility is not shown.
+  base::optional<std::string> visiblity_style =
+      GetComputedStyle(element, &cssom::CSSStyleDeclarationData::visibility);
+  if (visiblity_style && *visiblity_style == cssom::kHiddenKeywordName) {
+    return false;
+  }
+
+  // If element and its ancestors are not displayed, return false.
+  if (!AreElementAndAncestorsDisplayed(element)) {
+    return false;
+  }
+
+  if (IsTransparent(element)) {
+    return false;
+  }
+
+  // Any element without positive size dimensions is not shown.
+  if (!HasPositiveSizeDimensions(element)) {
+    return false;
+  }
+
+  if (IsHiddenByOverflow(element)) {
+    scoped_refptr<dom::NodeList> child_nodes = element->child_nodes();
+    DCHECK(child_nodes);
+    // If all children are hidden, then this one is hidden.
+    for (uint32 i = 0; i < child_nodes->length(); ++i) {
+      scoped_refptr<dom::Node> child = child_nodes->Item(i);
+      scoped_refptr<dom::Element> child_as_element = child->AsElement();
+      bool child_is_hidden = !child_as_element ||
+                             IsHiddenByOverflow(child_as_element.get()) ||
+                             !HasPositiveSizeDimensions(child_as_element.get());
+      if (!child_is_hidden) {
+        return false;
+      }
+    }
+    return false;
+  }
+  return true;
 }
 
 }  // namespace algorithms

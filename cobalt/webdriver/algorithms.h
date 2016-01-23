@@ -32,6 +32,12 @@ namespace algorithms {
 // implementation will follow the de-facto standards where they differ.
 std::string GetElementText(dom::Element* element);
 
+// https://w3c.github.io/webdriver/webdriver-spec.html#element-displayedness
+// The spec does not exactly match the behavior of existing WebDriver
+// implementations. Consistency with existing implementations will be preferred
+// over strict conformance to the draft spec.
+bool IsDisplayed(dom::Element* element);
+
 }  // namespace algorithms
 }  // namespace webdriver
 }  // namespace cobalt
