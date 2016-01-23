@@ -172,6 +172,7 @@ class Context {
                            const GLvoid* ptr);
   void EnableVertexAttribArray(GLuint index);
   void DisableVertexAttribArray(GLuint index);
+  void VertexAttribfv(GLuint indx, int elem_size, const GLfloat* values);
 
   GLint GetUniformLocation(GLuint program, const GLchar* name);
   void Uniformiv(GLint location,
@@ -276,7 +277,15 @@ class Context {
   // A mapping from an integer index (specified by the index parameter of
   // glBindAttribLocation(), glVertexAttribPointer(), and others) to vertex
   // attribute information structure.
-  std::map<unsigned int, VertexAttribute> vertex_attrib_map_;
+  std::map<unsigned int, VertexAttributeArray> vertex_attrib_map_;
+
+  // This map is populated by calls to glVertexAttribXfv() and contains
+  // attribute values that, when used, should apply to ALL vertices in a draw
+  // call.  These attribute values will be used instead of those set by
+  // glVertexAttribPointer() whenever the corresponding vertex attribute id
+  // (the key of this map) attribute array is disabled through a call to
+  // glDisableVertexAttribArray().
+  std::map<unsigned int, VertexAttributeConstant> const_vertex_attrib_map_;
 
   // Keeps track of which vertex attributes are enabled.  This set is modified
   // through calls to glEnableVertexAttribArray() and

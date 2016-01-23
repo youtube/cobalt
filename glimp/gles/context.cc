@@ -26,6 +26,7 @@
 #include "glimp/gles/pixel_format.h"
 #include "glimp/nb/pointer_arithmetic.h"
 #include "starboard/log.h"
+#include "starboard/memory.h"
 #include "starboard/once.h"
 
 namespace glimp {
@@ -1467,22 +1468,22 @@ void Context::Scissor(GLint x, GLint y, GLsizei width, GLsizei height) {
 namespace {
 // Converts from the GLenum passed into glVertexAttribPointer() to the enum
 // defined in VertexAttribute.
-static VertexAttribute::Type VertexAttributeTypeFromGLEnum(GLenum type) {
+static VertexAttributeType VertexAttributeTypeFromGLEnum(GLenum type) {
   switch (type) {
     case GL_BYTE:
-      return VertexAttribute::kTypeByte;
+      return kVertexAttributeTypeByte;
     case GL_UNSIGNED_BYTE:
-      return VertexAttribute::kTypeUnsignedByte;
+      return kVertexAttributeTypeUnsignedByte;
     case GL_SHORT:
-      return VertexAttribute::kTypeShort;
+      return kVertexAttributeTypeShort;
     case GL_UNSIGNED_SHORT:
-      return VertexAttribute::kTypeUnsignedShort;
+      return kVertexAttributeTypeUnsignedShort;
     case GL_FIXED:
-      return VertexAttribute::kTypeFixed;
+      return kVertexAttributeTypeFixed;
     case GL_FLOAT:
-      return VertexAttribute::kTypeFloat;
+      return kVertexAttributeTypeFloat;
     default:
-      return VertexAttribute::kTypeInvalid;
+      return kVertexAttributeTypeInvalid;
   }
 }
 }  // namespace
@@ -1506,16 +1507,16 @@ void Context::VertexAttribPointer(GLuint indx,
     return;
   }
 
-  VertexAttribute::Type vertex_attribute_type =
+  VertexAttributeType vertex_attribute_type =
       VertexAttributeTypeFromGLEnum(type);
-  if (vertex_attribute_type == VertexAttribute::kTypeInvalid) {
+  if (vertex_attribute_type == kVertexAttributeTypeInvalid) {
     SetError(GL_INVALID_ENUM);
     return;
   }
 
   vertex_attrib_map_[indx] =
-      VertexAttribute(size, vertex_attribute_type, normalized, stride,
-                      reinterpret_cast<int>(ptr));
+      VertexAttributeArray(size, vertex_attribute_type, normalized, stride,
+                           reinterpret_cast<int>(ptr));
   if (enabled_vertex_attribs_.find(indx) != enabled_vertex_attribs_.end()) {
     enabled_vertex_attribs_dirty_ = true;
   }
@@ -1538,6 +1539,23 @@ void Context::DisableVertexAttribArray(GLuint index) {
   }
 
   enabled_vertex_attribs_.erase(index);
+  enabled_vertex_attribs_dirty_ = true;
+}
+
+void Context::VertexAttribfv(GLuint indx,
+                             int elem_size,
+                             const GLfloat* values) {
+  SB_DCHECK(elem_size > 0);
+  SB_DCHECK(elem_size <= 4);
+
+  VertexAttributeConstant* value = &const_vertex_attrib_map_[indx];
+  SbMemorySet(value, 0, sizeof(*value));
+  for (int i = 0; i < elem_size; ++i) {
+    value->data[i] = values[i];
+  }
+  value->size = elem_size;
+  value->type = kVertexAttributeTypeFloat;
+
   enabled_vertex_attribs_dirty_ = true;
 }
 
@@ -1862,6 +1880,19 @@ void Context::UpdateVertexAttribsInDrawState() {
        iter != enabled_vertex_attribs_.end(); ++iter) {
     draw_state_.vertex_attributes.push_back(
         std::make_pair(*iter, &vertex_attrib_map_[*iter]));
+  }
+
+  draw_state_.constant_vertex_attributes.clear();
+  for (std::map<unsigned int, VertexAttributeConstant>::iterator iter =
+           const_vertex_attrib_map_.begin();
+       iter != const_vertex_attrib_map_.end(); ++iter) {
+    // Add constant vertex attributes only if they do not have a vertex
+    // attribute array enabled for them.
+    if (enabled_vertex_attribs_.find(iter->first) ==
+        enabled_vertex_attribs_.end()) {
+      draw_state_.constant_vertex_attributes.push_back(
+          std::make_pair(iter->first, &iter->second));
+    }
   }
 
   draw_state_dirty_flags_.vertex_attributes_dirty = true;
