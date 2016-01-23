@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_NODE_H_
-#define RENDER_TREE_NODE_H_
+#ifndef COBALT_RENDER_TREE_NODE_H_
+#define COBALT_RENDER_TREE_NODE_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
 
 namespace cobalt {
@@ -35,6 +36,10 @@ class Node : public base::RefCountedThreadSafe<Node> {
   // units of pixels.
   virtual math::RectF GetBounds() const = 0;
 
+  // Returns an ID that is unique to the node type.  This can be used to
+  // polymorphically identify what type a node is.
+  virtual base::TypeId GetTypeId() const = 0;
+
  protected:
   virtual ~Node() {}
   friend class base::RefCountedThreadSafe<Node>;
@@ -43,4 +48,4 @@ class Node : public base::RefCountedThreadSafe<Node> {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_NODE_H_
+#endif  // COBALT_RENDER_TREE_NODE_H_
