@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_TEXT_NODE_H_
-#define RENDER_TREE_TEXT_NODE_H_
+#ifndef COBALT_RENDER_TREE_TEXT_NODE_H_
+#define COBALT_RENDER_TREE_TEXT_NODE_H_
+
+#include <string>
 
 #include "base/compiler_specific.h"
 #include "base/string_piece.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/font.h"
@@ -59,6 +62,10 @@ class TextNode : public Node {
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;
 
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<TextNode>();
+  }
+
   const Builder& data() const { return data_; }
 
  private:
@@ -68,4 +75,4 @@ class TextNode : public Node {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_TEXT_NODE_H_
+#endif  // COBALT_RENDER_TREE_TEXT_NODE_H_
