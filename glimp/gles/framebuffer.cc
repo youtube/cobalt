@@ -69,6 +69,28 @@ GLenum Framebuffer::CheckFramebufferStatus() const {
     return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
   }
 
+  if (depth_attachment_) {
+    if (depth_attachment_->format() != GL_DEPTH_COMPONENT16) {
+      return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
+    }
+
+    if (GetWidth() != depth_attachment_->width() ||
+        GetHeight() != depth_attachment_->height()) {
+      return GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS;
+    }
+  }
+
+  if (stencil_attachment_) {
+    if (stencil_attachment_->format() != GL_STENCIL_INDEX8) {
+      return GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT;
+    }
+
+    if (GetWidth() != stencil_attachment_->width() ||
+        GetHeight() != stencil_attachment_->height()) {
+      return GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS;
+    }
+  }
+
   return GL_FRAMEBUFFER_COMPLETE;
 }
 
@@ -76,6 +98,16 @@ void Framebuffer::UpdateColorSurface(egl::Surface* surface) {
   SB_DCHECK(!color_attachment_texture_);
   SB_DCHECK(color_attachment_surface_);
   color_attachment_surface_ = surface;
+}
+
+void Framebuffer::SetDepthAttachment(
+    const nb::scoped_refptr<Renderbuffer>& depth_attachment) {
+  depth_attachment_ = depth_attachment;
+}
+
+void Framebuffer::SetStencilAttachment(
+    const nb::scoped_refptr<Renderbuffer>& stencil_attachment) {
+  stencil_attachment_ = stencil_attachment;
 }
 
 }  // namespace gles
