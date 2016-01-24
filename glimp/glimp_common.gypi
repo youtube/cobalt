@@ -57,6 +57,8 @@
     'gles/program.h',
     'gles/program_impl.h',
     'gles/ref_counted_resource_map.h',
+    'gles/renderbuffer.cc',
+    'gles/renderbuffer.h',
     'gles/resource_manager.cc',
     'gles/resource_manager.h',
     'gles/sampler.h',

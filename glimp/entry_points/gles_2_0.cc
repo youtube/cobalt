@@ -81,7 +81,12 @@ void GL_APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer) {
 }
 
 void GL_APIENTRY glBindRenderbuffer(GLenum target, GLuint renderbuffer) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->BindRenderbuffer(target, renderbuffer);
 }
 
 void GL_APIENTRY glBindTexture(GLenum target, GLuint texture) {
@@ -183,7 +188,12 @@ void GL_APIENTRY glClearDepthf(GLfloat depth) {
 }
 
 void GL_APIENTRY glClearStencil(GLint s) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->ClearStencil(s);
 }
 
 void GL_APIENTRY glColorMask(GLboolean red,
@@ -302,7 +312,12 @@ void GL_APIENTRY glDeleteProgram(GLuint program) {
 }
 
 void GL_APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->DeleteRenderbuffers(n, renderbuffers);
 }
 
 void GL_APIENTRY glDeleteShader(GLuint shader) {
@@ -423,7 +438,13 @@ void GL_APIENTRY glFramebufferRenderbuffer(GLenum target,
                                            GLenum attachment,
                                            GLenum renderbuffertarget,
                                            GLuint renderbuffer) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->FramebufferRenderbuffer(target, attachment,
+                                          renderbuffertarget, renderbuffer);
 }
 
 void GL_APIENTRY glFramebufferTexture2D(GLenum target,
@@ -467,7 +488,12 @@ void GL_APIENTRY glGenFramebuffers(GLsizei n, GLuint* framebuffers) {
 }
 
 void GL_APIENTRY glGenRenderbuffers(GLsizei n, GLuint* renderbuffers) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->GenRenderbuffers(n, renderbuffers);
 }
 
 void GL_APIENTRY glGenTextures(GLsizei n, GLuint* textures) {
@@ -758,7 +784,12 @@ void GL_APIENTRY glRenderbufferStorage(GLenum target,
                                        GLenum internalformat,
                                        GLsizei width,
                                        GLsizei height) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->RenderbufferStorage(target, internalformat, width, height);
 }
 
 void GL_APIENTRY glSampleCoverage(GLfloat value, GLboolean invert) {
@@ -806,7 +837,12 @@ void GL_APIENTRY glStencilFuncSeparate(GLenum face,
 }
 
 void GL_APIENTRY glStencilMask(GLuint mask) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->StencilMask(mask);
 }
 
 void GL_APIENTRY glStencilMaskSeparate(GLenum face, GLuint mask) {
