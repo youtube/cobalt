@@ -37,12 +37,10 @@ uint32_t FinalizeHash(uint32_t hash) {
   hash += (hash << 15);
   return hash;
 }
-}  // namespace
 
-uint32_t HashGLSLSource(const char* source) {
-  uint32_t hash = 0;
-  for (uint32_t i = 0; source[i] != '\0'; ++i) {
-    // Do not hash whitespace characters.
+const char* ScanUntilNonWhitespace(const char* source) {
+  uint32_t i = 0;
+  for (; source[i] != '\0'; ++i) {
     if (source[i] == ' ' || source[i] == '\t' || source[i] == '\n') {
       continue;
     }
@@ -58,8 +56,46 @@ uint32_t HashGLSLSource(const char* source) {
         continue;
       }
     }
+    break;
+  }
 
-    hash = UpdateHash(hash, source[i]);
+  return &source[i];
+}
+
+const char* ScanUntilHashableCharacter(const char* source) {
+  while (true) {
+    const char* next_char = ScanUntilNonWhitespace(source);
+
+    // If we find empty scopes (e.g:
+    //
+    // {
+    //   // Stage 0: Texture
+    // }
+    //
+    // Skip past them without hashing those characters.
+    if (*next_char == '{') {
+      const char* next_next_char = ScanUntilNonWhitespace(next_char + 1);
+      if (*next_next_char == '}') {
+        source = next_next_char + 1;
+        continue;
+      }
+    }
+    return next_char;
+  }
+}
+}  // namespace
+
+uint32_t HashGLSLSource(const char* source) {
+  uint32_t hash = 0;
+  const char* cur_char = source;
+  while (true) {
+    cur_char = ScanUntilHashableCharacter(cur_char);
+    if (*cur_char == '\0') {
+      break;
+    }
+
+    hash = UpdateHash(hash, *cur_char);
+    ++cur_char;
   }
   return FinalizeHash(hash);
 }

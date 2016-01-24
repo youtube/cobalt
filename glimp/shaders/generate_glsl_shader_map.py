@@ -225,11 +225,17 @@ def HashGLSLShaderFile(glsl_filename):
     return (a ^ b) & 0xffffffff
 
   hash_value = 0
-  glsl_contents_without_comments = re.sub(r'//.*\n', '', glsl_contents)
 
-  for c in glsl_contents_without_comments:
-    if c in [' ', '\n', '\t']:
-      continue
+  # Introduce a generator function for returning only the hashable characters.
+  def GetHashableCharacters(hash_string):
+    str_without_comments = re.sub(r'//.*\n', '', hash_string)
+    str_without_whitespace = re.sub(r'[ \n\t]', '', str_without_comments);
+    str_without_empty_braces = str_without_whitespace.replace('{}', '')
+
+    for c in str_without_empty_braces:
+      yield c
+
+  for c in GetHashableCharacters(glsl_contents):
     hash_value = AddUint32(hash_value, ord(c))
     hash_value = AddUint32(hash_value, hash_value << 10)
     hash_value = XorUint32(hash_value, hash_value >> 6)
