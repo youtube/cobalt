@@ -27,6 +27,12 @@ RectNode::Builder::Builder(const math::SizeF& size) : size(size) {}
 RectNode::Builder::Builder(const math::SizeF& size, scoped_ptr<Border> border)
     : size(size), border(border.Pass()) {}
 
+RectNode::Builder::Builder(const math::SizeF& size, scoped_ptr<Border> border,
+                           scoped_ptr<RoundedCorners> rounded_corners)
+    : size(size),
+      border(border.Pass()),
+      rounded_corners(rounded_corners.Pass()) {}
+
 RectNode::Builder::Builder(const math::SizeF& size,
                            scoped_ptr<Brush> background_brush)
     : size(size), background_brush(background_brush.Pass()) {}
@@ -48,6 +54,15 @@ RectNode::Builder::Builder(const math::SizeF& size,
     : size(size),
       background_brush(background_brush.Pass()),
       border(border.Pass()) {}
+
+RectNode::Builder::Builder(const math::SizeF& size,
+                           scoped_ptr<Brush> background_brush,
+                           scoped_ptr<Border> border,
+                           scoped_ptr<RoundedCorners> rounded_corners)
+    : size(size),
+      background_brush(background_brush.Pass()),
+      border(border.Pass()),
+      rounded_corners(rounded_corners.Pass()) {}
 
 RectNode::Builder::Builder(const Builder& other) {
   size = other.size;
