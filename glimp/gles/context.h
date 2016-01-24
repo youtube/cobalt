@@ -160,6 +160,21 @@ class Context {
                             GLuint texture,
                             GLint level);
   GLenum CheckFramebufferStatus(GLenum target);
+  void FramebufferRenderbuffer(GLenum target,
+                               GLenum attachment,
+                               GLenum renderbuffertarget,
+                               GLuint renderbuffer);
+
+  void GenRenderbuffers(GLsizei n, GLuint* renderbuffers);
+  void DeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers);
+  void BindRenderbuffer(GLenum target, GLuint renderbuffer);
+  void RenderbufferStorage(GLenum target,
+                           GLenum internalformat,
+                           GLsizei width,
+                           GLsizei height);
+
+  void StencilMask(GLuint mask);
+  void ClearStencil(GLint s);
 
   void Viewport(GLint x, GLint y, GLsizei width, GLsizei height);
   void Scissor(GLint x, GLint y, GLsizei width, GLsizei height);
@@ -337,6 +352,11 @@ class Context {
   // Keeps track of the set of EGLSurfaces that are bound to textures
   // currently.
   std::map<egl::Surface*, nb::scoped_refptr<Texture> > bound_egl_surfaces_;
+
+  // The currently bound renderbuffer, specified through a call to
+  // glBindRenderbuffer().
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBindRenderbuffer.xml
+  nb::scoped_refptr<Renderbuffer> bound_renderbuffer_;
 
   // The last GL ES error raised.
   GLenum error_;

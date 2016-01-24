@@ -18,6 +18,7 @@
 #define GLIMP_GLES_FRAMEBUFFER_H_
 
 #include "glimp/egl/surface.h"
+#include "glimp/gles/renderbuffer.h"
 #include "glimp/gles/texture.h"
 #include "glimp/nb/ref_counted.h"
 
@@ -40,6 +41,7 @@ class Framebuffer : public nb::RefCountedThreadSafe<Framebuffer> {
   // framebuffer cannot later have separate attachments made to it.
   explicit Framebuffer(egl::Surface* surface);
 
+  // Returns the attached color buffer's width and height.
   int GetWidth() const;
   int GetHeight() const;
 
@@ -61,12 +63,24 @@ class Framebuffer : public nb::RefCountedThreadSafe<Framebuffer> {
   // framebuffer).
   void UpdateColorSurface(egl::Surface* surface);
 
+  void SetDepthAttachment(const nb::scoped_refptr<Renderbuffer>& depth_buffer);
+  void SetStencilAttachment(
+      const nb::scoped_refptr<Renderbuffer>& stencil_buffer);
+
   const nb::scoped_refptr<Texture>& color_attachment_texture() const {
     return color_attachment_texture_;
   }
 
   egl::Surface* color_attachment_surface() const {
     return color_attachment_surface_;
+  }
+
+  const nb::scoped_refptr<Renderbuffer>& depth_attachment() const {
+    return depth_attachment_;
+  }
+
+  const nb::scoped_refptr<Renderbuffer>& stencil_attachment() const {
+    return stencil_attachment_;
   }
 
  private:
@@ -79,7 +93,8 @@ class Framebuffer : public nb::RefCountedThreadSafe<Framebuffer> {
   nb::scoped_refptr<Texture> color_attachment_texture_;
   egl::Surface* color_attachment_surface_;
 
-  // Depth and stencil framebuffers are not supported in glimp.
+  nb::scoped_refptr<Renderbuffer> depth_attachment_;
+  nb::scoped_refptr<Renderbuffer> stencil_attachment_;
 };
 
 }  // namespace gles
