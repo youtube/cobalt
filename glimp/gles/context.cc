@@ -1449,6 +1449,178 @@ GLenum Context::CheckFramebufferStatus(GLenum target) {
   return draw_state_.framebuffer->CheckFramebufferStatus();
 }
 
+void Context::FramebufferRenderbuffer(GLenum target,
+                                      GLenum attachment,
+                                      GLenum renderbuffertarget,
+                                      GLuint renderbuffer) {
+  if (target != GL_FRAMEBUFFER || renderbuffertarget != GL_RENDERBUFFER) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  SB_DCHECK(attachment != GL_COLOR_ATTACHMENT0)
+      << "glimp does not support attaching color renderbuffers to "
+         "framebuffers.";
+
+  if (IsDefaultDrawFramebufferBound()) {
+    SetError(GL_INVALID_OPERATION);
+    return;
+  }
+
+  nb::scoped_refptr<Renderbuffer> renderbuffer_object = NULL;
+
+  // Resolve the actual render buffer object to bind if we are not binding
+  // render buffer 0, in which case we leave the value to set as NULL.
+  if (renderbuffer != 0) {
+    renderbuffer_object = resource_manager_->GetRenderbuffer(renderbuffer);
+
+    if (!renderbuffer_object) {
+      SetError(GL_INVALID_OPERATION);
+      return;
+    }
+  }
+
+  switch (attachment) {
+    case GL_DEPTH_ATTACHMENT:
+      draw_state_.framebuffer->SetDepthAttachment(renderbuffer_object);
+      break;
+    case GL_STENCIL_ATTACHMENT:
+      draw_state_.framebuffer->SetStencilAttachment(renderbuffer_object);
+      break;
+    default:
+      SetError(GL_INVALID_ENUM);
+  }
+}
+
+void Context::GenRenderbuffers(GLsizei n, GLuint* renderbuffers) {
+  if (n < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  for (GLsizei i = 0; i < n; ++i) {
+    nb::scoped_refptr<Renderbuffer> renderbuffer(new Renderbuffer());
+
+    renderbuffers[i] = resource_manager_->RegisterRenderbuffer(renderbuffer);
+  }
+}
+
+void Context::DeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers) {
+  if (n < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  for (GLsizei i = 0; i < n; ++i) {
+    if (renderbuffers[i] == 0) {
+      // Silently ignore 0 renderbuffers.
+      continue;
+    }
+
+    nb::scoped_refptr<Renderbuffer> renderbuffer_object =
+        resource_manager_->DeregisterRenderbuffer(renderbuffers[i]);
+
+    if (!renderbuffer_object) {
+      // The specification does not indicate that any error should be set
+      // in the case that there was an error deleting a specific renderbuffer.
+      //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glDeleteRenderbuffers.xml
+      return;
+    }
+
+    // If we're deleting the currently bound renderbuffer, set the currently
+    // bound render buffer to NULL.
+    if (renderbuffer_object == bound_renderbuffer_) {
+      bound_renderbuffer_ = NULL;
+    }
+  }
+}
+
+void Context::BindRenderbuffer(GLenum target, GLuint renderbuffer) {
+  if (target != GL_RENDERBUFFER) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (renderbuffer == 0) {
+    bound_renderbuffer_ = NULL;
+    return;
+  }
+
+  nb::scoped_refptr<Renderbuffer> renderbuffer_object =
+      resource_manager_->GetRenderbuffer(renderbuffer);
+
+  if (!renderbuffer_object) {
+    // According to the specification, no error is generated if the buffer is
+    // invalid.
+    //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBindRenderbuffer.xml
+    SB_DLOG(WARNING)
+        << "Could not glBindRenderbuffer() to invalid renderbuffer.";
+    return;
+  }
+
+  bound_renderbuffer_ = renderbuffer_object;
+}
+
+namespace {
+// Valid formats as listed here:
+//   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glRenderbufferStorage.xml
+bool RenderbufferStorageFormatIsValid(GLenum internalformat) {
+  switch (internalformat) {
+    case GL_RGBA4:
+    case GL_RGB565:
+    case GL_RGB5_A1:
+    case GL_DEPTH_COMPONENT16:
+    case GL_STENCIL_INDEX8:
+      return true;
+    default:
+      return false;
+  }
+}
+}  // namespace
+
+void Context::RenderbufferStorage(GLenum target,
+                                  GLenum internalformat,
+                                  GLsizei width,
+                                  GLsizei height) {
+  if (target != GL_RENDERBUFFER) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (!RenderbufferStorageFormatIsValid(internalformat)) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  if (width < 0 || height < 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  if (bound_renderbuffer_ == 0) {
+    SetError(GL_INVALID_OPERATION);
+    return;
+  }
+
+  bound_renderbuffer_->Initialize(internalformat, width, height);
+}
+
+void Context::StencilMask(GLuint mask) {
+  if (mask != 0xFFFFFFFF) {
+    // If we are not setting stencil mask to its initial value then indicate
+    // that our implementation is lacking.
+    SB_NOTIMPLEMENTED();
+  }
+}
+
+void Context::ClearStencil(GLint s) {
+  if (s != 0) {
+    // If we are not setting stencil clear to its initial value then indicate
+    // that our implementation is lacking.
+    SB_NOTIMPLEMENTED();
+  }
+}
+
 void Context::Viewport(GLint x, GLint y, GLsizei width, GLsizei height) {
   draw_state_.viewport.rect = nb::Rect<int>(x, y, width, height);
   draw_state_dirty_flags_.viewport_dirty = true;
