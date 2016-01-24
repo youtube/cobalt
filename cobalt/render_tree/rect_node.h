@@ -42,6 +42,8 @@ class RectNode : public Node {
 
     explicit Builder(const math::SizeF& size);
     Builder(const math::SizeF& size, scoped_ptr<Border> border);
+    Builder(const math::SizeF& size, scoped_ptr<Border> border,
+            scoped_ptr<RoundedCorners> rounded_corners);
     Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush);
     Builder(const math::SizeF& size,
             scoped_ptr<RoundedCorners> rounded_corners);
@@ -49,7 +51,8 @@ class RectNode : public Node {
             scoped_ptr<Border> border);
     Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush,
             scoped_ptr<RoundedCorners> rounded_corners);
-    Builder(const math::SizeF& size, scoped_ptr<Border> border,
+    Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush,
+            scoped_ptr<Border> border,
             scoped_ptr<RoundedCorners> rounded_corners);
     explicit Builder(const Builder& other);
     explicit Builder(Moved moved);
@@ -73,6 +76,11 @@ class RectNode : public Node {
       : data_(size, border.Pass()) {
     DCheckData(data_);
   }
+  RectNode(const math::SizeF& size, scoped_ptr<Border> border,
+           scoped_ptr<RoundedCorners> rounded_corners)
+      : data_(size, border.Pass(), rounded_corners.Pass()) {
+    DCheckData(data_);
+  }
   RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush)
       : data_(size, background_brush.Pass()) {
     DCheckData(data_);
@@ -85,6 +93,13 @@ class RectNode : public Node {
   RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush,
            scoped_ptr<RoundedCorners> rounded_corners)
       : data_(size, background_brush.Pass(), rounded_corners.Pass()) {
+    DCheckData(data_);
+  }
+  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush,
+           scoped_ptr<Border> border,
+           scoped_ptr<RoundedCorners> rounded_corners)
+      : data_(size, background_brush.Pass(), border.Pass(),
+              rounded_corners.Pass()) {
     DCheckData(data_);
   }
   explicit RectNode(const Builder& builder) : data_(builder) {
