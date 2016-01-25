@@ -41,6 +41,9 @@ using dom::DOMException;
 
 namespace {
 
+// How many milliseconds must elapse between each progress event notification.
+const int kProgressPeriodMs = 50;
+
 // Allocate 64KB on receiving the first chunk to avoid allocating small buffer
 // too many times.
 const size_t kInitialReceivingBufferSize = 64 * 1024;
@@ -360,6 +363,9 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   if (timeout_ms_) {
     StartTimer(base::TimeDelta());
   }
+  // Timer for throttling progress events.
+  upload_last_progress_time_ = base::Time();
+  last_progress_time_ = base::Time();
 }
 
 base::optional<std::string> XMLHttpRequest::GetResponseHeader(
@@ -576,7 +582,13 @@ void XMLHttpRequest::OnURLFetchDownloadData(
                         download_data->size());
   ChangeState(kLoading);
 
-  UpdateProgress();
+  // Send a progress notification if at least 50ms have elapsed.
+  const base::Time now = base::Time::Now();
+  const base::TimeDelta elapsed(now - last_progress_time_);
+  if (elapsed > base::TimeDelta::FromMilliseconds(kProgressPeriodMs)) {
+    last_progress_time_ = now;
+    UpdateProgress();
+  }
 }
 
 void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
@@ -602,14 +614,28 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
                                               int64 total_val) {
   UNREFERENCED_PARAMETER(source);
   DCHECK(thread_checker_.CalledOnValidThread());
+  if (upload_complete_) {
+    return;
+  }
+
   uint64 current = static_cast<uint64>(current_val);
   uint64 total = static_cast<uint64>(total_val);
-
-  FireProgressEvent(upload_, base::Tokens::progress(), current, total,
-                    total != 0);
-
-  if (current == total && !upload_complete_) {
+  if (current == total) {
     upload_complete_ = true;
+  }
+
+  // Fire a progress event if either the upload just completed, or if enough
+  // time has elapsed since we sent the last one.
+  const base::Time now = base::Time::Now();
+  const base::TimeDelta elapsed(now - upload_last_progress_time_);
+  if (upload_complete_ ||
+      (elapsed > base::TimeDelta::FromMilliseconds(kProgressPeriodMs))) {
+    FireProgressEvent(upload_, base::Tokens::progress(), current, total,
+                      total != 0);
+    upload_last_progress_time_ = now;
+  }
+
+  if (upload_complete_) {
     FireProgressEvent(upload_, base::Tokens::load(), current, total,
                       total != 0);
     FireProgressEvent(upload_, base::Tokens::loadend(), current, total,
