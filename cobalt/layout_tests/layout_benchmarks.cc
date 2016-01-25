@@ -146,7 +146,6 @@ LayoutBenchmark::LayoutBenchmark(const TestInfo& test_info)
   // std::vector<double>()).
   layout_samples_[layout::kBenchmarkStatLayout];
   layout_samples_[dom::kBenchmarkStatUpdateSelectorTree];
-  layout_samples_[dom::kBenchmarkStatUpdateMatchingRules];
   layout_samples_[dom::kBenchmarkStatUpdateComputedStyles];
   layout_samples_[layout::kBenchmarkStatBoxGeneration];
   layout_samples_[layout::kBenchmarkStatUpdateCrossReferences];
