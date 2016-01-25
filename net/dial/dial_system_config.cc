@@ -69,7 +69,6 @@ void DialSystemConfig::CreateDialUuid() {
            md_value[5], md_value[6], md_value[7], md_value[8], md_value[9]);
 
   DCHECK_EQ(22, strlen(s_dial_uuid));
-  DLOG(INFO) << "Dial USN UID : " << s_dial_uuid;
 }
 
 }  // namespace net

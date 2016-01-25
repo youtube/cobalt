@@ -41,8 +41,8 @@ struct HttpServerResponseInfo {
 class DialServiceHandler
     : public base::RefCountedThreadSafe<DialServiceHandler> {
  public:
-  typedef base::Callback<void(scoped_ptr<HttpServerResponseInfo> response,
-                              bool result)> CompletionCB;
+  typedef base::Callback<void(scoped_ptr<HttpServerResponseInfo> response)>
+      CompletionCB;
   // Called by the DialHttpServer to satisfy an incoming request.
   // It is expected that this will be handled asynchronously and the completion
   // callback must be called in all cases. If the request is handled

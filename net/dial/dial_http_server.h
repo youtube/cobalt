@@ -79,11 +79,11 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
 
   // Callback from WebKit thread when the HTTP task is complete.
   // Post the response info to DIAL service thread.
-  void AsyncReceivedResponse(
-      int conn_id, scoped_ptr<HttpServerResponseInfo> response, bool ok);
+  void AsyncReceivedResponse(int conn_id,
+                             scoped_ptr<HttpServerResponseInfo> response);
   // Handles DIAL response.
-  void OnReceivedResponse(
-      int conn_id, scoped_ptr<HttpServerResponseInfo> response, bool ok);
+  void OnReceivedResponse(int conn_id,
+                          scoped_ptr<HttpServerResponseInfo> response);
 
   scoped_ptr<TCPListenSocketFactory> factory_;
   scoped_refptr<HttpServer> http_server_;

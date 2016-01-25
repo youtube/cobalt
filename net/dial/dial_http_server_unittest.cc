@@ -109,6 +109,10 @@ class DialHttpServerTest : public testing::Test {
   void Capture(const std::string& path,
                const HttpServerRequestInfo& request,
                const DialServiceHandler::CompletionCB& on_completion) {
+    if (!test_response_->succeeded_) {
+      on_completion.Run(scoped_ptr<HttpServerResponseInfo>());
+      return;
+    }
     // This function simulates a DialServiceHandler response.
     scoped_ptr<HttpServerResponseInfo> response(new HttpServerResponseInfo);
     response->body = test_response_->response_body_;
@@ -116,7 +120,7 @@ class DialHttpServerTest : public testing::Test {
     response->response_code = test_response_->response_code_;
     response->headers = test_response_->headers_;
 
-    on_completion.Run(response.Pass(), test_response_->succeeded_);
+    on_completion.Run(response.Pass());
   }
 
   void DoResponseCheck(const HttpResponseInfo* resp, bool has_contents) {
