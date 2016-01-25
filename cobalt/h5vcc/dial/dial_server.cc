@@ -83,6 +83,8 @@ DialServer::DialServer(script::EnvironmentSettings* settings,
     dial_service_proxy_ = dom_settings->network_module()->dial_service_proxy();
   }
   if (dial_service_proxy_) {
+    DLOG(INFO) << "DialServer running at: "
+               << dial_service_proxy_->host_address();
     dial_service_proxy_->Register(service_handler_);
   }
 }
@@ -130,16 +132,16 @@ bool DialServer::AddHandler(
 
 // Transform the net request info into a JS version and run the script
 // callback, if there is one registered. Return the response and status.
-bool DialServer::RunCallback(
-    const std::string& path, const net::HttpServerRequestInfo& request,
-    scoped_ptr<net::HttpServerResponseInfo>* response) {
+scoped_ptr<net::HttpServerResponseInfo> DialServer::RunCallback(
+    const std::string& path, const net::HttpServerRequestInfo& request) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
+  scoped_ptr<net::HttpServerResponseInfo> response;
   Method method = StringToMethod(request.method);
   CallbackMap::const_iterator it = callback_map_[method].find(path);
   if (it == callback_map_[method].end()) {
     // No handler for this method. Signal failure.
-    return false;
+    return response.Pass();
   }
 
   scoped_refptr<DialHttpRequestCallbackWrapper> callback = it->second;
@@ -149,8 +151,10 @@ bool DialServer::RunCallback(
       new DialHttpResponse(path, request.method);
   script::CallbackResult<bool> ret =
       callback->callback.value().Run(dial_request, dial_response);
-  *response = dial_response->ToHttpServerResponseInfo();
-  return ret.result;
+  if (ret.result) {
+    response = dial_response->ToHttpServerResponseInfo();
+  }
+  return response.Pass();
 }
 
 DialServer::ServiceHandler::ServiceHandler(
@@ -178,13 +182,13 @@ void DialServer::ServiceHandler::OnHandleRequest(
     const CompletionCB& completion_cb) {
   DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_proxy_);
   if (!dial_server_) {
-    completion_cb.Run(scoped_ptr<net::HttpServerResponseInfo>(), false);
+    completion_cb.Run(scoped_ptr<net::HttpServerResponseInfo>());
     return;
   }
 
-  scoped_ptr<net::HttpServerResponseInfo> response;
-  bool result = dial_server_->RunCallback(path, request, &response);
-  completion_cb.Run(response.Pass(), result);
+  scoped_ptr<net::HttpServerResponseInfo> response =
+      dial_server_->RunCallback(path, request);
+  completion_cb.Run(response.Pass());
 }
 
 }  // namespace dial
