@@ -17,6 +17,10 @@
 #ifndef COBALT_RENDER_TREE_ROUNDED_CORNERS_H_
 #define COBALT_RENDER_TREE_ROUNDED_CORNERS_H_
 
+#include <algorithm>
+
+#include "cobalt/math/insets_f.h"
+
 namespace cobalt {
 namespace render_tree {
 
@@ -30,6 +34,11 @@ struct RoundedCorner {
 
   //  If either length is zero, the corner is square, not rounded.
   bool IsSquare() const { return horizontal == 0.0f || vertical == 0.0f; }
+
+  RoundedCorner Inset(float x, float y) const {
+    return RoundedCorner(std::max(0.0f, horizontal - x),
+                         std::max(0.0f, vertical - y));
+  }
 
   // |horizontal| and |vertial| represent the horizontal radius and vertical
   // radius of a corner.
@@ -65,6 +74,16 @@ struct RoundedCorners {
         top_right(top_right),
         bottom_right(bottom_right),
         bottom_left(bottom_left) {}
+
+  RoundedCorners Inset(float left, float top, float right, float bottom) const {
+    return RoundedCorners(
+        top_left.Inset(left, top), top_right.Inset(right, top),
+        bottom_right.Inset(right, bottom), bottom_left.Inset(left, bottom));
+  }
+
+  RoundedCorners Inset(const math::InsetsF& insets) const {
+    return Inset(insets.left(), insets.top(), insets.right(), insets.bottom());
+  }
 
   bool AreSquares() const {
     return top_left.IsSquare() && top_right.IsSquare() &&

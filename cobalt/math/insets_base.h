@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_INSETS_BASE_H_
-#define MATH_INSETS_BASE_H_
+#ifndef COBALT_MATH_INSETS_BASE_H_
+#define COBALT_MATH_INSETS_BASE_H_
 
 namespace cobalt {
 namespace math {
@@ -30,6 +30,10 @@ class InsetsBase {
     top_ = top;
     right_ = right;
     bottom_ = bottom;
+  }
+
+  bool zero() const {
+    return left_ == 0 && top_ == 0 && right_ == 0 && bottom_ == 0;
   }
 
   bool operator==(const Class& insets) const {
@@ -66,4 +70,4 @@ class InsetsBase {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_INSETS_BASE_H_
+#endif  // COBALT_MATH_INSETS_BASE_H_
