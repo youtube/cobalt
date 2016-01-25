@@ -21,6 +21,7 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/console_commands.h"
@@ -82,6 +83,13 @@ class BrowserModule {
   // Pauses/resumes all media players and blocks the browser thread. Should
   // be called on a thread other than |self_message_loop_|.
   void SetPaused(bool paused);
+
+  // Lets the web browser know that the application is about to quit. We use
+  // this not to start the web players when the thread is unpaused.
+  void SetWillQuit();
+
+  // Whether |SetWillQuit| has been called.
+  bool WillQuit();
 
 #if defined(ENABLE_SCREENSHOT)
   // Request a screenshot to be written to the specified path. Callback will
@@ -255,6 +263,15 @@ class BrowserModule {
 
   // Reset when the browser is paused, signalled to resume.
   base::WaitableEvent has_resumed_;
+
+  // Set when the application is about to quit. May be set from a thread other
+  // than the one hosting this object, and read from another.
+  bool will_quit_;
+
+  // The |will_quit_| flag may be set from one thread (e.g. not the one hosting
+  // this object) and read from another. This lock is used to
+  // ensure synchronous access.
+  base::Lock quit_lock_;
 };
 
 }  // namespace browser

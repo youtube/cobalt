@@ -167,7 +167,8 @@ BrowserModule::BrowserModule(const GURL& url,
           h5vcc_url_handler_(this, system_window, account_manager)),
       initial_url_(url),
       web_module_options_(options.web_module_options),
-      has_resumed_(true, false) {
+      has_resumed_(true, false),
+      will_quit_(false) {
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
@@ -303,6 +304,16 @@ void BrowserModule::SetPaused(bool paused) {
   }
 }
 
+void BrowserModule::SetWillQuit() {
+  base::AutoLock lock(quit_lock_);
+  will_quit_ = true;
+}
+
+bool BrowserModule::WillQuit() {
+  base::AutoLock lock(quit_lock_);
+  return will_quit_;
+}
+
 void BrowserModule::Pause() {
   // This method must be called on the browser's own thread.
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
@@ -316,7 +327,9 @@ void BrowserModule::Pause() {
   DLOG(INFO) << "Resuming browser loop with " << self_message_loop_->Size()
              << " items in queue.";
 
-  media_module_->ResumeAllPlayers();
+  if (!WillQuit()) {
+    media_module_->ResumeAllPlayers();
+  }
 }
 
 #if defined(ENABLE_SCREENSHOT)
