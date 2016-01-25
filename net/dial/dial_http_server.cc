@@ -133,7 +133,6 @@ void DialHttpServer::ConfigureApplicationUrl() {
   DCHECK(!addr.empty());
 
   server_url_ = base::StringPrintf("http://%s/", addr.c_str());
-  LOG(INFO) << "DIAL HTTP server URL: " << server_url_;
 }
 
 void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
@@ -182,10 +181,9 @@ bool DialHttpServer::DispatchToHandler(int conn_id,
 
 void DialHttpServer::OnReceivedResponse(
     int conn_id,
-    scoped_ptr<HttpServerResponseInfo> response,
-    bool ok) {
+    scoped_ptr<HttpServerResponseInfo> response) {
   TRACE_EVENT0("net::dial", __FUNCTION__);
-  if (ok && response) {
+  if (response) {
     http_server_->Send(conn_id,
                        static_cast<HttpStatusCode>(response->response_code),
                        response->body,

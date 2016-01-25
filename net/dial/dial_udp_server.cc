@@ -64,7 +64,6 @@ DialUdpServer::~DialUdpServer() {
 void DialUdpServer::CreateAndBind() {
   DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
   socket_ = factory_->CreateAndBind(GetAddressForAllInterfaces(1900), this);
-  DLOG_IF(INFO, socket_) << "Starting the Dial UDP Server";
   DLOG_IF(WARNING, !socket_) << "Failed to bind socket for Dial UDP Server";
 }
 
@@ -87,9 +86,7 @@ void DialUdpServer::Stop() {
       &DialUdpServer::Shutdown, base::Unretained(this)));
 }
 
-void DialUdpServer::DidClose(UDPListenSocket* server) {
-  DLOG(INFO) << "Stopping the Dial UDP Server";
-}
+void DialUdpServer::DidClose(UDPListenSocket* server) {}
 
 void DialUdpServer::DidRead(UDPListenSocket* server,
                             const char* data,
