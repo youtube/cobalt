@@ -488,17 +488,17 @@ class Box : public base::RefCounted<Box> {
 
   // Helper methods used by |RenderAndAnimate|.
   void RenderAndAnimateBorder(
-      const render_tree::RoundedCorners& rounded_corners,
+      const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
   void RenderAndAnimateBackgroundColor(
-      const render_tree::RoundedCorners& rounded_corners,
+      const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
   void RenderAndAnimateBackgroundImage(
-      const render_tree::RoundedCorners& rounded_corners,
+      const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
