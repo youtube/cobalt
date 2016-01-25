@@ -703,20 +703,20 @@ void UsedBackgroundSizeProvider::ConvertWidthAndHeightScale(
 
 UsedBorderRadiusProvider::UsedBorderRadiusProvider(
     const math::SizeF& frame_size)
-    : rounded_corners_(render_tree::RoundedCorner()), frame_size_(frame_size) {}
+    : frame_size_(frame_size) {}
 
 void UsedBorderRadiusProvider::VisitLength(cssom::LengthValue* length) {
-  render_tree::RoundedCorner rounded_corner =
-      render_tree::RoundedCorner(length->value(), length->value());
-  rounded_corners_ = render_tree::RoundedCorners(rounded_corner);
+  if (length->value() > 0) {
+    rounded_corners_.emplace(length->value(), length->value());
+  }
 }
 
 void UsedBorderRadiusProvider::VisitPercentage(
     cssom::PercentageValue* percentage) {
-  render_tree::RoundedCorner rounded_corner =
-      render_tree::RoundedCorner(percentage->value() * frame_size_.width(),
-                                 percentage->value() * frame_size_.height());
-  rounded_corners_ = render_tree::RoundedCorners(rounded_corner);
+  if (percentage->value() > 0) {
+    rounded_corners_.emplace(percentage->value() * frame_size_.width(),
+                             percentage->value() * frame_size_.height());
+  }
 }
 
 UsedLineHeightProvider::UsedLineHeightProvider(
