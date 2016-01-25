@@ -52,6 +52,7 @@
 #include "cobalt/dom/html_title_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/html_video_element.h"
+#include "cobalt/dom/rule_matching.h"
 
 namespace cobalt {
 namespace dom {
@@ -449,7 +450,7 @@ scoped_refptr<HTMLVideoElement> HTMLElement::AsHTMLVideoElement() {
   return NULL;
 }
 
-void HTMLElement::InvalidateMatchingRules() {
+void HTMLElement::InvalidateMatchingRulesRecursively() {
   if (!matching_rules_valid_) {
     return;
   }
@@ -473,7 +474,7 @@ void HTMLElement::InvalidateMatchingRules() {
        element = element->next_element_sibling()) {
     HTMLElement* html_element = element->AsHTMLElement();
     DCHECK(html_element);
-    html_element->InvalidateMatchingRules();
+    html_element->InvalidateMatchingRulesRecursively();
   }
 
   // Invalidate matching rules on all following siblings if sibling combinators
@@ -483,8 +484,89 @@ void HTMLElement::InvalidateMatchingRules() {
          element = element->next_element_sibling()) {
       HTMLElement* html_element = element->AsHTMLElement();
       DCHECK(html_element);
-      html_element->InvalidateMatchingRules();
+      html_element->InvalidateMatchingRulesRecursively();
     }
+  }
+}
+
+void HTMLElement::UpdateComputedStyleRecursively(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+        parent_computed_style,
+    const base::TimeDelta& style_change_event_time, bool ancestors_were_valid) {
+  // Update computed style for this element.
+  bool is_valid = ancestors_were_valid && computed_style_valid_;
+  if (!is_valid) {
+    UpdateComputedStyle(parent_computed_style, style_change_event_time);
+    computed_style_valid_ = true;
+  }
+
+  // Do not update computed style for descendants of "display: none" elements,
+  // since they do not participate in layout. Note the "display: node" elements
+  // themselves still need to have their computed style updated, in case the
+  // value of display is changed.
+  if (computed_style()->display() == cssom::KeywordValue::GetNone()) {
+    return;
+  }
+
+  // Update computed style for this element's descendants.
+  for (Element* element = first_element_child(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    DCHECK(html_element);
+    html_element->UpdateComputedStyleRecursively(
+        computed_style(), style_change_event_time, is_valid);
+  }
+}
+
+void HTMLElement::InvalidateLayoutBoxesFromNodeAndAncestors() {
+  layout_boxes_.reset();
+  Node::InvalidateLayoutBoxesFromNodeAndAncestors();
+}
+
+void HTMLElement::InvalidateLayoutBoxesFromNodeAndDescendants() {
+  layout_boxes_.reset();
+  Node::InvalidateLayoutBoxesFromNodeAndDescendants();
+}
+
+HTMLElement::HTMLElement(Document* document, base::Token tag_name)
+    : Element(document, tag_name),
+      style_(new cssom::CSSStyleDeclaration(
+          document->html_element_context()->css_parser())),
+      computed_style_valid_(false),
+      computed_style_state_(new cssom::ComputedStyleState()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          transitions_adapter_(new DOMAnimatable(this))),
+      css_transitions_(&transitions_adapter_),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          animations_adapter_(new DOMAnimatable(this))),
+      css_animations_(&animations_adapter_),
+      matching_rules_valid_(false) {
+  computed_style_state_->set_animations(animations());
+  style_->set_mutation_observer(this);
+}
+
+HTMLElement::~HTMLElement() {}
+
+void HTMLElement::OnInsertBefore(
+    const scoped_refptr<Node>& /* new_child */,
+    const scoped_refptr<Node>& /* reference_child */) {
+  InvalidateMatchingRulesRecursively();
+}
+
+void HTMLElement::OnRemoveChild(const scoped_refptr<Node>& /* node */) {
+  InvalidateMatchingRulesRecursively();
+}
+
+void HTMLElement::OnSetAttribute(const std::string& name,
+                                 const std::string& /* value */) {
+  if (name == "class" || name == "id") {
+    InvalidateMatchingRulesRecursively();
+  }
+}
+
+void HTMLElement::OnRemoveAttribute(const std::string& name) {
+  if (name == "class" || name == "id") {
+    InvalidateMatchingRulesRecursively();
   }
 }
 
@@ -588,6 +670,12 @@ void HTMLElement::UpdateComputedStyle(
   DCHECK(document) << "Element should be attached to document in order to "
                       "participate in layout.";
 
+  // Update matching rules if necessary.
+  if (!matching_rules_valid_) {
+    UpdateMatchingRules(this);
+    matching_rules_valid_ = true;
+  }
+
   // TODO(***REMOVED***): It maybe helpful to generalize this mapping framework in the
   // future to allow more data and context about where a cssom::PropertyValue
   // came from.
@@ -645,80 +733,6 @@ void HTMLElement::UpdateComputedStyle(
   if (invalidate_layout_boxes) {
     InvalidateLayoutBoxesFromNodeAndAncestors();
     InvalidateLayoutBoxesFromNodeAndDescendants();
-  }
-
-  computed_style_valid_ = true;
-}
-
-void HTMLElement::UpdateComputedStyleRecursively(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-        parent_computed_style,
-    const base::TimeDelta& style_change_event_time, bool ancestors_were_valid) {
-  bool is_valid = ancestors_were_valid && computed_style_valid_;
-  if (!is_valid) {
-    UpdateComputedStyle(parent_computed_style, style_change_event_time);
-    DCHECK(computed_style_valid_);
-  }
-
-  // Update computed style for this element's descendants.
-  for (Element* element = first_element_child(); element;
-       element = element->next_element_sibling()) {
-    HTMLElement* html_element = element->AsHTMLElement();
-    DCHECK(html_element);
-    html_element->UpdateComputedStyleRecursively(
-        computed_style(), style_change_event_time, is_valid);
-  }
-}
-
-void HTMLElement::InvalidateLayoutBoxesFromNodeAndAncestors() {
-  layout_boxes_.reset();
-  Node::InvalidateLayoutBoxesFromNodeAndAncestors();
-}
-
-void HTMLElement::InvalidateLayoutBoxesFromNodeAndDescendants() {
-  layout_boxes_.reset();
-  Node::InvalidateLayoutBoxesFromNodeAndDescendants();
-}
-
-HTMLElement::HTMLElement(Document* document, base::Token tag_name)
-    : Element(document, tag_name),
-      style_(new cssom::CSSStyleDeclaration(
-          document->html_element_context()->css_parser())),
-      computed_style_valid_(false),
-      computed_style_state_(new cssom::ComputedStyleState()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          transitions_adapter_(new DOMAnimatable(this))),
-      css_transitions_(&transitions_adapter_),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          animations_adapter_(new DOMAnimatable(this))),
-      css_animations_(&animations_adapter_),
-      matching_rules_valid_(false) {
-  computed_style_state_->set_animations(animations());
-  style_->set_mutation_observer(this);
-}
-
-HTMLElement::~HTMLElement() {}
-
-void HTMLElement::OnInsertBefore(
-    const scoped_refptr<Node>& /* new_child */,
-    const scoped_refptr<Node>& /* reference_child */) {
-  InvalidateMatchingRules();
-}
-
-void HTMLElement::OnRemoveChild(const scoped_refptr<Node>& /* node */) {
-  InvalidateMatchingRules();
-}
-
-void HTMLElement::OnSetAttribute(const std::string& name,
-                                 const std::string& /* value */) {
-  if (name == "class" || name == "id") {
-    InvalidateMatchingRules();
-  }
-}
-
-void HTMLElement::OnRemoveAttribute(const std::string& name) {
-  if (name == "class" || name == "id") {
-    InvalidateMatchingRules();
   }
 }
 

@@ -154,16 +154,13 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Rule matching related methods.
   //
-  // Returns pointer to cached rule matching results.
+  // Returns the cached matching rules of this element.
   cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
-  // Returns rule matching state.
+  // Returns the rule matching state of this element.
   RuleMatchingState* rule_matching_state() { return &rule_matching_state_; }
-  // Returns whether the matching rules are valid.
-  bool matching_rules_valid() const { return matching_rules_valid_; }
-  // Sets the flag indicating matching rules are valid.
-  void SetMatchingRulesValid() { matching_rules_valid_ = true; }
-  // Invalidates the matching rules and rule matching state in this element.
-  void InvalidateMatchingRules();
+  // Invalidates the matching rules and rule matching state in this element and
+  // its descendants.
+  void InvalidateMatchingRulesRecursively();
 
   // Computed style related methods.
   //
@@ -180,13 +177,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
       scoped_refptr<cssom::CSSStyleDeclarationData> computed_style) {
     computed_style_state_->set_style(computed_style);
   }
-  // Updates the cached computed style of one HTML element.
-  //   https://www.w3.org/TR/css-cascade-3/#value-stages
-  void UpdateComputedStyle(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-          parent_computed_style,
-      const base::TimeDelta& style_change_event_time);
-  // Calls UpdateComputedStyle() on itself and all descendants.
+  // Updates the cached computed style of this element and its descendants.
   void UpdateComputedStyleRecursively(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>&
           parent_computed_style,
@@ -237,6 +228,12 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void OnSetAttribute(const std::string& name,
                       const std::string& value) OVERRIDE;
   void OnRemoveAttribute(const std::string& name) OVERRIDE;
+
+  // Updates the cached computed style of this element.
+  void UpdateComputedStyle(
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+          parent_computed_style,
+      const base::TimeDelta& style_change_event_time);
 
   void UpdateCachedBackgroundImagesFromComputedStyle();
 
