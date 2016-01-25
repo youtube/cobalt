@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_BRUSH_H_
-#define RENDER_TREE_BRUSH_H_
+#ifndef COBALT_RENDER_TREE_BRUSH_H_
+#define COBALT_RENDER_TREE_BRUSH_H_
+
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/math/point_f.h"
 #include "cobalt/render_tree/brush_visitor.h"
 #include "cobalt/render_tree/color_rgba.h"
 
@@ -47,12 +50,54 @@ class SolidColorBrush : public Brush {
   ColorRGBA color_;
 };
 
+// ColorStops are used to describe linear and radial gradients.  For linear
+// gradients, |position| represents the faction between the source and
+// destination points that |color| should be applied.  For radial gradients,
+// it represents the fraction between the center point and radius at which
+// |color| should apply.  In both cases, 0 <= |position| <= 1.
+struct ColorStop {
+  ColorStop() : position(-1) {}
+  ColorStop(float position, const ColorRGBA& color)
+      : position(position), color(color) {}
+
+  float position;
+  ColorRGBA color;
+};
+typedef std::vector<ColorStop> ColorStopList;
+
+// Linear gradient brushes can be used to fill a shape with a linear color
+// gradient with arbitrary many color stops.  It is specified by a source
+// and destination point, which define a line segment along which the color
+// stops apply, each having a position between 0 and 1 representing the
+// position of the stop along that line.
 class LinearGradientBrush : public Brush {
  public:
+  // The ColorStopList passed into LienarGradientBrush must have at least two
+  // stops and they must be sorted in order of increasing position.
+  LinearGradientBrush(const math::PointF& source, const math::PointF& dest,
+                      const ColorStopList& color_stops);
+
+  // Creates a 2-stop linear gradient from source to dest.
+  LinearGradientBrush(const math::PointF& source, const math::PointF& dest,
+                      const ColorRGBA& source_color,
+                      const ColorRGBA& dest_color);
+
   // A type-safe branching.
   void Accept(BrushVisitor* visitor) const OVERRIDE;
 
-  // TODO(***REMOVED***): Define linear gradient.
+  // Returns the source and destination points of the linear gradient.
+  const math::PointF& source() const { return source_; }
+  const math::PointF& dest() const { return dest_; }
+
+  // Returns the list of color stops along the line segment between the source
+  // and destination points.
+  const ColorStopList& color_stops() const { return color_stops_; }
+
+ private:
+  math::PointF source_;
+  math::PointF dest_;
+
+  ColorStopList color_stops_;
 };
 
 scoped_ptr<Brush> CloneBrush(const Brush* brush);
@@ -60,4 +105,4 @@ scoped_ptr<Brush> CloneBrush(const Brush* brush);
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_BRUSH_H_
+#endif  // COBALT_RENDER_TREE_BRUSH_H_
