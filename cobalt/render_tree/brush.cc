@@ -47,6 +47,32 @@ void SolidColorBrush::Accept(BrushVisitor* visitor) const {
   visitor->Visit(this);
 }
 
+LinearGradientBrush::LinearGradientBrush(const math::PointF& source,
+                                         const math::PointF& dest,
+                                         const ColorStopList& color_stops)
+    : source_(source), dest_(dest), color_stops_(color_stops) {
+  // Verify that the data is valid.  In particular, there should be at least
+  // two color stops and they should be sorted by position.
+  DCHECK_LE(2, color_stops_.size());
+  for (size_t i = 0; i < color_stops_.size(); ++i) {
+    DCHECK_LE(0.0f, color_stops_[i].position);
+    DCHECK_GE(1.0f, color_stops_[i].position);
+    if (i > 0) {
+      DCHECK_GT(color_stops_[i].position, color_stops_[i - 1].position);
+    }
+  }
+}
+
+LinearGradientBrush::LinearGradientBrush(const math::PointF& source,
+                                         const math::PointF& dest,
+                                         const ColorRGBA& source_color,
+                                         const ColorRGBA& dest_color)
+    : source_(source), dest_(dest) {
+  color_stops_.reserve(2);
+  color_stops_.push_back(ColorStop(0, source_color));
+  color_stops_.push_back(ColorStop(1, dest_color));
+}
+
 void LinearGradientBrush::Accept(BrushVisitor* visitor) const {
   visitor->Visit(this);
 }
