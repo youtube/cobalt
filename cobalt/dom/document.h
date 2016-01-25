@@ -254,27 +254,9 @@ class Document : public Node, public cssom::MutationObserver {
   // Called when the inline style of an element is modified.
   void OnElementInlineStyleMutation();
 
-  // Updates the cached matching rules on all the elements in the document.
-  // Media rules will be reevaluated using given root_computed_style.
-  // Only a subset of selectors is supported as specified here:
-  //   http://***REMOVED***cobalt-css#heading=h.s82z8u3l3se
-  // Those selectors that are supported are implemented after Selectors Level 4.
-  //   https://www.w3.org/TR/selectors4/
-  void UpdateMatchingRules();
-
-  void UpdateMediaRules();
-
   // Updates the computed styles of all of this document's HTML elements.
+  // Matching rules, media rules, font faces and key frames are also updated.
   void UpdateComputedStyles();
-
-  // Scans the user agent style sheet and all style sheets in the document's
-  // style sheet list and updates the font faces available in the document.
-  void UpdateFontFaces();
-
-  // Scans the user agent style sheet and all style sheets in the document's
-  // style sheet list and compiles/updates a set of all declared CSS
-  // keyframes used to define CSS Animations.
-  void UpdateKeyframes();
 
   // Manages the clock used by Web Animations.
   //     https://www.w3.org/TR/web-animations
@@ -309,6 +291,10 @@ class Document : public Node, public cssom::MutationObserver {
 
   void NotifyUrlChanged(const GURL& url);
 
+  // Updates the selector tree using all the style sheets in the document.
+  // Exposed for test purposes.
+  void UpdateSelectorTree();
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
@@ -316,6 +302,16 @@ class Document : public Node, public cssom::MutationObserver {
 
  private:
   void DispatchOnLoadEvent();
+
+  // Updates the media rules in all the style sheets in the document.
+  void UpdateMediaRules();
+
+  // Updates the font faces in all the style sheets in the document.
+  void UpdateFontFaces();
+
+  // Compiles/updates a set of all declared CSS keyframes used to define CSS
+  // Animations, using all the style sheets in the document.
+  void UpdateKeyframes();
 
   // Reference to HTML element context.
   HTMLElementContext* const html_element_context_;
@@ -342,7 +338,6 @@ class Document : public Node, public cssom::MutationObserver {
   // Indicates if rule matching/computed style is dirty and needs to be
   // recomputed before the next layout.
   bool is_selector_tree_dirty_;
-  bool is_rule_matching_result_dirty_;
   bool is_computed_style_dirty_;
   bool are_font_faces_dirty_;
   bool are_keyframes_dirty_;

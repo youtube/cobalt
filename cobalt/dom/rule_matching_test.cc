@@ -29,6 +29,7 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom_parser/parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -69,8 +70,16 @@ void RuleMatchingTest::MatchRules(Element* element) {
   DCHECK(html_element);
 
   document_->style_sheets()->Append(css_style_sheet_);
-
-  document_->UpdateMatchingRules();
+  document_->UpdateSelectorTree();
+  NodeDescendantsIterator iterator(document_);
+  Node* child = iterator.First();
+  while (child) {
+    if (child->AsElement()) {
+      DCHECK(child->AsElement()->AsHTMLElement());
+      UpdateMatchingRules(child->AsElement()->AsHTMLElement());
+    }
+    child = iterator.Next();
+  }
 
   matching_rules_ = html_element->matching_rules();
 

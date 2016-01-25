@@ -76,7 +76,6 @@ Document::Document(HTMLElementContext* html_element_context,
       loading_counter_(0),
       should_dispatch_load_event_(true),
       is_selector_tree_dirty_(true),
-      is_rule_matching_result_dirty_(true),
       is_computed_style_dirty_(true),
       are_font_faces_dirty_(true),
       are_keyframes_dirty_(true),
@@ -349,25 +348,6 @@ void Document::SetActiveElement(Element* active_element) {
 
 void Document::IncreaseLoadingCounter() { ++loading_counter_; }
 
-void Document::DispatchOnLoadEvent() {
-  TRACE_EVENT0("cobalt::dom", "Document::DispatchOnLoadEvent()");
-
-  // Update the current timeline sample time and then update computed styles
-  // before dispatching the onload event.  This guarantees that computed styles
-  // have been calculated before JavaScript executes onload event handlers,
-  // which may wish to start a CSS Transition (requiring that computed values
-  // previously exist).
-  SampleTimelineTime();
-  UpdateComputedStyles();
-
-  // Dispatch the document's onload event.
-  DispatchEvent(new Event(base::Tokens::load()));
-
-  // After all JavaScript OnLoad event handlers have executed, signal to let
-  // any Document observers know that a load event has occurred.
-  SignalOnLoadToObservers();
-}
-
 void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent(
     bool load_succeeded) {
   if (!load_succeeded) {
@@ -420,7 +400,6 @@ void Document::OnCSSMutation() {
   // Something in the document's CSS rules has been modified, but we don't know
   // what, so set the flag indicating that rule matching needs to be done.
   is_selector_tree_dirty_ = true;
-  is_rule_matching_result_dirty_ = true;
   is_computed_style_dirty_ = true;
   are_font_faces_dirty_ = true;
   are_keyframes_dirty_ = true;
@@ -431,7 +410,6 @@ void Document::OnCSSMutation() {
 void Document::OnDOMMutation() {
   // Something in the document's DOM has been modified, but we don't know what,
   // so set the flag indicating that rule matching needs to be done.
-  is_rule_matching_result_dirty_ = true;
   is_computed_style_dirty_ = true;
 
   RecordMutation();
@@ -504,63 +482,16 @@ void UpdateSelectorTreeFromCSSStyleSheet(
 
 }  // namespace
 
-void Document::UpdateMediaRules() {
-  TRACE_EVENT0("cobalt::dom", "Document::UpdateMediaRules()");
-  if (viewport_size_) {
-    if (user_agent_style_sheet_) {
-      user_agent_style_sheet_->EvaluateMediaRules(*viewport_size_);
-    }
-    for (unsigned int style_sheet_index = 0;
-         style_sheet_index < style_sheets_->length(); ++style_sheet_index) {
-      scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
-          style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
-
-      css_style_sheet->EvaluateMediaRules(*viewport_size_);
-    }
-  }
-}
-
-void Document::UpdateMatchingRules() {
-  TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
-  DCHECK(html());
-
-  if (is_selector_tree_dirty_) {
-    TRACE_EVENT0("cobalt::dom", kBenchmarkStatUpdateSelectorTree);
-
-    UpdateMediaRules();
-
-    if (user_agent_style_sheet_) {
-      UpdateSelectorTreeFromCSSStyleSheet(&selector_tree_,
-                                          user_agent_style_sheet_);
-    }
-
-    for (unsigned int style_sheet_index = 0;
-         style_sheet_index < style_sheets_->length(); ++style_sheet_index) {
-      scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
-          style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
-
-      UpdateSelectorTreeFromCSSStyleSheet(&selector_tree_, css_style_sheet);
-    }
-
-    html()->InvalidateMatchingRules();
-    is_selector_tree_dirty_ = false;
-  }
-
-  if (is_rule_matching_result_dirty_) {
-    TRACE_EVENT0("cobalt::dom", kBenchmarkStatUpdateMatchingRules);
-
-    UpdateMatchingRulesUsingSelectorTree(html(), &selector_tree_);
-    is_rule_matching_result_dirty_ = false;
-  }
-}
-
 void Document::UpdateComputedStyles() {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateComputedStyles()");
 
-  UpdateMatchingRules();
+  UpdateSelectorTree();
   UpdateKeyframes();
+  UpdateFontFaces();
 
   if (is_computed_style_dirty_) {
+    TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateComputedStyles);
+
     // Determine the official time that this style change event took place. This
     // is needed (as opposed to repeatedly calling base::Time::Now()) because
     // all animations that may be triggered here must start at the exact same
@@ -569,33 +500,10 @@ void Document::UpdateComputedStyles() {
     base::TimeDelta style_change_event_time =
         base::TimeDelta::FromMillisecondsD(*default_timeline_->current_time());
 
-    TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateComputedStyles);
     html()->UpdateComputedStyleRecursively(root_computed_style_,
                                            style_change_event_time, true);
 
     is_computed_style_dirty_ = false;
-  }
-
-  UpdateFontFaces();
-}
-
-void Document::UpdateFontFaces() {
-  if (are_font_faces_dirty_) {
-    TRACE_EVENT0("cobalt::dom", "Document::UpdateFontFaces()");
-    FontFaceUpdater font_face_updater(location_->url(), font_cache_.get());
-    font_face_updater.ProcessCSSStyleSheet(user_agent_style_sheet_);
-    font_face_updater.ProcessStyleSheetList(style_sheets());
-    are_font_faces_dirty_ = false;
-  }
-}
-
-void Document::UpdateKeyframes() {
-  if (are_keyframes_dirty_) {
-    TRACE_EVENT0("cobalt::layout", "Document::UpdateKeyframes()");
-    KeyframesMapUpdater keyframes_map_updater(&keyframes_map_);
-    keyframes_map_updater.ProcessCSSStyleSheet(user_agent_style_sheet_);
-    keyframes_map_updater.ProcessStyleSheetList(style_sheets());
-    are_keyframes_dirty_ = false;
   }
 }
 
@@ -641,6 +549,86 @@ Document::~Document() {
   // Some objects that will be released while this destructor runs may
   // have weak ptrs to |this|.
   InvalidateWeakPtrs();
+}
+
+void Document::UpdateSelectorTree() {
+  TRACE_EVENT0("cobalt::dom", "Document::UpdateSelectorTree()");
+  if (is_selector_tree_dirty_) {
+    TRACE_EVENT0("cobalt::dom", kBenchmarkStatUpdateSelectorTree);
+
+    UpdateMediaRules();
+
+    if (user_agent_style_sheet_) {
+      UpdateSelectorTreeFromCSSStyleSheet(&selector_tree_,
+                                          user_agent_style_sheet_);
+    }
+    for (unsigned int style_sheet_index = 0;
+         style_sheet_index < style_sheets_->length(); ++style_sheet_index) {
+      scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
+          style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
+
+      UpdateSelectorTreeFromCSSStyleSheet(&selector_tree_, css_style_sheet);
+    }
+
+    html()->InvalidateMatchingRulesRecursively();
+
+    is_selector_tree_dirty_ = false;
+  }
+}
+
+void Document::DispatchOnLoadEvent() {
+  TRACE_EVENT0("cobalt::dom", "Document::DispatchOnLoadEvent()");
+
+  // Update the current timeline sample time and then update computed styles
+  // before dispatching the onload event.  This guarantees that computed styles
+  // have been calculated before JavaScript executes onload event handlers,
+  // which may wish to start a CSS Transition (requiring that computed values
+  // previously exist).
+  SampleTimelineTime();
+  UpdateComputedStyles();
+
+  // Dispatch the document's onload event.
+  DispatchEvent(new Event(base::Tokens::load()));
+
+  // After all JavaScript OnLoad event handlers have executed, signal to let
+  // any Document observers know that a load event has occurred.
+  SignalOnLoadToObservers();
+}
+
+void Document::UpdateMediaRules() {
+  TRACE_EVENT0("cobalt::dom", "Document::UpdateMediaRules()");
+  if (viewport_size_) {
+    if (user_agent_style_sheet_) {
+      user_agent_style_sheet_->EvaluateMediaRules(*viewport_size_);
+    }
+    for (unsigned int style_sheet_index = 0;
+         style_sheet_index < style_sheets_->length(); ++style_sheet_index) {
+      scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
+          style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
+
+      css_style_sheet->EvaluateMediaRules(*viewport_size_);
+    }
+  }
+}
+
+void Document::UpdateFontFaces() {
+  TRACE_EVENT0("cobalt::dom", "Document::UpdateFontFaces()");
+  if (are_font_faces_dirty_) {
+    FontFaceUpdater font_face_updater(location_->url(), font_cache_.get());
+    font_face_updater.ProcessCSSStyleSheet(user_agent_style_sheet_);
+    font_face_updater.ProcessStyleSheetList(style_sheets());
+    are_font_faces_dirty_ = false;
+  }
+}
+
+void Document::UpdateKeyframes() {
+  TRACE_EVENT0("cobalt::layout", "Document::UpdateKeyframes()");
+  if (are_keyframes_dirty_) {
+    KeyframesMapUpdater keyframes_map_updater(&keyframes_map_);
+    keyframes_map_updater.ProcessCSSStyleSheet(user_agent_style_sheet_);
+    keyframes_map_updater.ProcessStyleSheetList(style_sheets());
+    are_keyframes_dirty_ = false;
+  }
 }
 
 }  // namespace dom
