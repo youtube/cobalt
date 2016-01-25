@@ -39,7 +39,6 @@ DialService::DialService() {
   IPEndPoint addr;
   if (http_server_->GetLocalAddress(&addr) == net::OK) {
     http_host_address_ = addr.ToString();
-    DLOG(INFO) << "Dial Server is now running on " << http_host_address_;
   } else {
     DLOG(WARNING) << "Could not start Dial Server";
   }
