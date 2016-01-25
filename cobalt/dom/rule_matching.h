@@ -21,7 +21,6 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/cssom/selector_tree.h"
 
 namespace cobalt {
 namespace dom {
@@ -31,10 +30,15 @@ class HTMLElement;
 class NodeList;
 class Node;
 
-// Updates the matching rules on an element and its children, using the given
-// selector tree.
-void UpdateMatchingRulesUsingSelectorTree(
-    HTMLElement* dom_root, const cssom::SelectorTree* selector_tree);
+// Only a subset of selectors is supported as specified here:
+//   http://***REMOVED***cobalt-css#heading=h.s82z8u3l3se
+// Those selectors that are supported are implemented after Selectors Level 4.
+//   https://www.w3.org/TR/selectors4/
+
+// Updates the matching rules on an element. The parent and previous sibling
+// need to have their matching rules updated before, since the current element's
+// rule matching will depend on their rule matching states.
+void UpdateMatchingRules(HTMLElement* current_element);
 
 // Returns the first element in the subtree that matches the given selector.
 scoped_refptr<Element> QuerySelector(Node* node, const std::string& selectors,

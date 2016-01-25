@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_BENCHMARK_STAT_NAMES_H_
-#define DOM_BENCHMARK_STAT_NAMES_H_
+#ifndef COBALT_DOM_BENCHMARK_STAT_NAMES_H_
+#define COBALT_DOM_BENCHMARK_STAT_NAMES_H_
 
 namespace cobalt {
 namespace dom {
@@ -26,10 +26,9 @@ namespace dom {
 // the benchmarks are uploaded to.  See ***REMOVED***steel-build-stats-doc.
 
 extern const char kBenchmarkStatUpdateComputedStyles[];
-extern const char kBenchmarkStatUpdateMatchingRules[];
 extern const char kBenchmarkStatUpdateSelectorTree[];
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_BENCHMARK_STAT_NAMES_H_
+#endif  // COBALT_DOM_BENCHMARK_STAT_NAMES_H_
