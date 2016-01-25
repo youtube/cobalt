@@ -75,9 +75,8 @@ class DialServer : public script::Wrappable,
               const DialHttpRequestCallbackWrapper::ScriptObject& handler);
   const std::string& service_name() const;
 
-  bool RunCallback(const std::string& path,
-                   const net::HttpServerRequestInfo& request,
-                   scoped_ptr<net::HttpServerResponseInfo>* response);
+  scoped_ptr<net::HttpServerResponseInfo> RunCallback(
+      const std::string& path, const net::HttpServerRequestInfo& request);
 
   DEFINE_WRAPPABLE_TYPE(DialServer);
 
