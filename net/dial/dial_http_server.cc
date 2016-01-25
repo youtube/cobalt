@@ -185,15 +185,14 @@ void DialHttpServer::OnReceivedResponse(
     scoped_ptr<HttpServerResponseInfo> response,
     bool ok) {
   TRACE_EVENT0("net::dial", __FUNCTION__);
-  DCHECK(response);
-  if (!ok) {
-    http_server_->Send404(conn_id);
-  } else {
+  if (ok && response) {
     http_server_->Send(conn_id,
                        static_cast<HttpStatusCode>(response->response_code),
                        response->body,
                        response->mime_type,
                        response->headers);
+  } else {
+    http_server_->Send404(conn_id);
   }
 }
 
