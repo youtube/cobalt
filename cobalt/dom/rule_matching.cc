@@ -42,9 +42,11 @@
 #include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/pseudo_element.h"
+#include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/selector_visitor.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/type_selector.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element.h"
@@ -467,8 +469,30 @@ void ForEachChildOnNodes(
   }
 }
 
-void CalculateMatchingRules(HTMLElement* current_element,
-                            const SelectorTree* selector_tree) {
+bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
+  for (cssom::Selectors::const_iterator selector_iterator =
+           rule->selectors().begin();
+       selector_iterator != rule->selectors().end(); ++selector_iterator) {
+    DCHECK(*selector_iterator);
+    if (MatchSelectorAndElement(*selector_iterator, element, true)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+//////////////////////////////////////////////////////////////////////////
+// Public APIs
+//////////////////////////////////////////////////////////////////////////
+
+void UpdateMatchingRules(HTMLElement* current_element) {
+  DCHECK(current_element);
+  DCHECK(current_element->node_document());
+  SelectorTree* selector_tree =
+      current_element->node_document()->selector_tree();
+
   // Get parent and previous sibling of the current element.
   HTMLElement* parent = current_element->parent_element()
                             ? current_element->parent_element()->AsHTMLElement()
@@ -541,47 +565,6 @@ void CalculateMatchingRules(HTMLElement* current_element,
             current_element->rule_matching_state()->matching_nodes.begin(),
             current_element->rule_matching_state()->matching_nodes.end());
   }
-
-  // Set the valid flag on the element.
-  current_element->SetMatchingRulesValid();
-}
-
-void CalculateMatchingRulesRecursively(HTMLElement* current_element,
-                                       const SelectorTree* selector_tree) {
-  if (!current_element->matching_rules_valid()) {
-    CalculateMatchingRules(current_element, selector_tree);
-  }
-
-  // Calculate matching rules for current element's children.
-  for (Element* element = current_element->first_element_child(); element;
-       element = element->next_element_sibling()) {
-    HTMLElement* html_element = element->AsHTMLElement();
-    DCHECK(html_element);
-    CalculateMatchingRulesRecursively(html_element, selector_tree);
-  }
-}
-
-}  // namespace
-
-//////////////////////////////////////////////////////////////////////////
-// Public APIs
-//////////////////////////////////////////////////////////////////////////
-
-bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
-  for (cssom::Selectors::const_iterator selector_iterator =
-           rule->selectors().begin();
-       selector_iterator != rule->selectors().end(); ++selector_iterator) {
-    DCHECK(*selector_iterator);
-    if (MatchSelectorAndElement(*selector_iterator, element, true)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-void UpdateMatchingRulesUsingSelectorTree(HTMLElement* dom_root,
-                                          const SelectorTree* selector_tree) {
-  CalculateMatchingRulesRecursively(dom_root, selector_tree);
 }
 
 scoped_refptr<Element> QuerySelector(Node* node, const std::string& selectors,
