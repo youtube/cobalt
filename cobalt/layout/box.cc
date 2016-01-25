@@ -304,10 +304,23 @@ void Box::RenderAndAnimate(
     UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
     computed_style()->border_radius()->Accept(&border_radius_provider);
 
-    RenderAndAnimateBackgroundColor(border_radius_provider.rounded_corners(),
+    // If we have rounded corners and a non-zero border, then we need to compute
+    // the "inner" rounded corners, as the ones specified by CSS apply to the
+    // outer border edge.
+    base::optional<RoundedCorners> padding_rounded_corners_if_different;
+    if (border_radius_provider.rounded_corners() && !border_insets_.zero()) {
+      padding_rounded_corners_if_different =
+          border_radius_provider.rounded_corners()->Inset(border_insets_);
+    }
+    const base::optional<RoundedCorners>& padding_rounded_corners =
+        padding_rounded_corners_if_different
+            ? padding_rounded_corners_if_different
+            : border_radius_provider.rounded_corners();
+
+    RenderAndAnimateBackgroundColor(padding_rounded_corners,
                                     &border_node_builder,
                                     node_animations_map_builder);
-    RenderAndAnimateBackgroundImage(border_radius_provider.rounded_corners(),
+    RenderAndAnimateBackgroundImage(padding_rounded_corners,
                                     &border_node_builder,
                                     node_animations_map_builder);
     RenderAndAnimateBorder(border_radius_provider.rounded_corners(),
@@ -360,16 +373,16 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
 
 namespace {
 void SetupBackgroundNodeFromStyle(
-    const RoundedCorners& rounded_corners,
+    const base::optional<RoundedCorners>& rounded_corners,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
     RectNode::Builder* rect_node_builder) {
   rect_node_builder->background_brush =
       scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
           GetUsedColor(style->background_color())));
 
-  if (!rounded_corners.AreSquares()) {
+  if (rounded_corners) {
     rect_node_builder->rounded_corners =
-        scoped_ptr<RoundedCorners>(new RoundedCorners(rounded_corners));
+        scoped_ptr<RoundedCorners>(new RoundedCorners(*rounded_corners));
   }
 }
 
@@ -420,15 +433,15 @@ Border CreateBorderFromStyle(
 }
 
 void SetupBorderNodeFromStyle(
-    const RoundedCorners& rounded_corners,
+    const base::optional<RoundedCorners>& rounded_corners,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
     RectNode::Builder* rect_node_builder) {
   rect_node_builder->border =
       scoped_ptr<Border>(new Border(CreateBorderFromStyle(style)));
 
-  if (!rounded_corners.AreSquares()) {
+  if (rounded_corners) {
     rect_node_builder->rounded_corners =
-        scoped_ptr<RoundedCorners>(new RoundedCorners(rounded_corners));
+        scoped_ptr<RoundedCorners>(new RoundedCorners(*rounded_corners));
   }
 }
 }  // namespace
@@ -642,7 +655,7 @@ bool HasAnimatedBorder(const web_animations::AnimationSet* animation_set) {
 }  // namespace
 
 void Box::RenderAndAnimateBorder(
-    const RoundedCorners& rounded_corners,
+    const base::optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   // If the border is absent or all borders are transparent, there is no need
@@ -667,7 +680,7 @@ void Box::RenderAndAnimateBorder(
 }
 
 void Box::RenderAndAnimateBackgroundColor(
-    const RoundedCorners& rounded_corners,
+    const base::optional<RoundedCorners>& rounded_corners,
     render_tree::CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   // Only create the RectNode if the background color is not the initial value
@@ -701,10 +714,12 @@ void Box::RenderAndAnimateBackgroundColor(
 }
 
 void Box::RenderAndAnimateBackgroundImage(
-    const RoundedCorners& rounded_corners,
+    const base::optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   UNREFERENCED_PARAMETER(node_animations_map_builder);
+
+  math::SizeF image_frame_size(GetPaddingBoxSize());
 
   cssom::PropertyListValue* property_list =
       base::polymorphic_downcast<cssom::PropertyListValue*>(
@@ -719,7 +734,7 @@ void Box::RenderAndAnimateBackgroundImage(
     }
 
     UsedBackgroundNodeProvider background_node_provider(
-        GetPaddingBoxSize(), computed_style()->background_size(),
+        image_frame_size, computed_style()->background_size(),
         computed_style()->background_position(),
         computed_style()->background_repeat(), used_style_provider_);
     (*image_iterator)->Accept(&background_node_provider);
@@ -727,11 +742,11 @@ void Box::RenderAndAnimateBackgroundImage(
         background_node_provider.background_node();
 
     if (background_node) {
-      if (!rounded_corners.AreSquares()) {
+      if (rounded_corners) {
         // Apply rounded viewport filter to the background image.
         FilterNode::Builder filter_node_builder(background_node);
         filter_node_builder.viewport_filter =
-            ViewportFilter(math::RectF(GetBorderBoxSize()), rounded_corners);
+            ViewportFilter(math::RectF(image_frame_size), *rounded_corners);
         background_node = new FilterNode(filter_node_builder);
       }
 
@@ -765,10 +780,10 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
       //   https://www.w3.org/TR/css3-background/#corner-clipping
       UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
       computed_style()->border_radius()->Accept(&border_radius_provider);
-      if (!border_radius_provider.rounded_corners().AreSquares()) {
+      if (border_radius_provider.rounded_corners()) {
         filter_node_builder.viewport_filter =
             ViewportFilter(math::RectF(GetBorderBoxSize()),
-                           border_radius_provider.rounded_corners());
+                           *border_radius_provider.rounded_corners());
       }
     }
 
