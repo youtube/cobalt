@@ -30,9 +30,6 @@
 namespace cobalt {
 namespace render_tree {
 
-// TODO(***REMOVED***): Define the shadow.
-class Shadow;
-
 // A filled rectangle with a border and rounded corners.
 class RectNode : public Node {
  public:

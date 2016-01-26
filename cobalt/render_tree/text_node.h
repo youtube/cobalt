@@ -30,9 +30,6 @@
 namespace cobalt {
 namespace render_tree {
 
-// TODO(***REMOVED***): Define the shadow.
-class Shadow;
-
 // A single line of text or a directional run as specified by Unicode
 // Bidirectional Algorithm (http://www.unicode.org/reports/tr9/).
 // When rendering the text node, the origin will horizontally be on the far left
