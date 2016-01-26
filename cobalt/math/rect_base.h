@@ -81,8 +81,8 @@ class RectBase {
   void operator-=(const VectorClass& offset);
 
   InsetsClass InsetsFrom(const Class& inner) const {
-    return InsetsClass(inner.y() - y(), inner.x() - x(),
-                       bottom() - inner.bottom(), right() - inner.right());
+    return InsetsClass(inner.x() - x(), inner.y() - y(),
+                       right() - inner.right(), bottom() - inner.bottom());
   }
 
   // Returns true if the area of the rectangle is zero.

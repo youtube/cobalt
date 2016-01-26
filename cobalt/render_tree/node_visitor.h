@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_NODE_VISITOR_H_
-#define RENDER_TREE_NODE_VISITOR_H_
+#ifndef COBALT_RENDER_TREE_NODE_VISITOR_H_
+#define COBALT_RENDER_TREE_NODE_VISITOR_H_
 
 namespace cobalt {
 namespace render_tree {
@@ -24,6 +24,7 @@ class CompositionNode;
 class FilterNode;
 class ImageNode;
 class RectNode;
+class RectShadowNode;
 class TextNode;
 
 // Type-safe branching on a class hierarchy of render tree nodes,
@@ -35,6 +36,7 @@ class NodeVisitor {
   virtual void Visit(FilterNode* text) = 0;
   virtual void Visit(ImageNode* image) = 0;
   virtual void Visit(RectNode* rect) = 0;
+  virtual void Visit(RectShadowNode* rect) = 0;
   virtual void Visit(TextNode* text) = 0;
 
  protected:
@@ -44,4 +46,4 @@ class NodeVisitor {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_NODE_VISITOR_H_
+#endif  // COBALT_RENDER_TREE_NODE_VISITOR_H_
