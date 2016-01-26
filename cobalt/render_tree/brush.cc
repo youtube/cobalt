@@ -53,7 +53,7 @@ LinearGradientBrush::LinearGradientBrush(const math::PointF& source,
     : source_(source), dest_(dest), color_stops_(color_stops) {
   // Verify that the data is valid.  In particular, there should be at least
   // two color stops and they should be sorted by position.
-  DCHECK_LE(2, color_stops_.size());
+  DCHECK_LE(2U, color_stops_.size());
   for (size_t i = 0; i < color_stops_.size(); ++i) {
     DCHECK_LE(0.0f, color_stops_[i].position);
     DCHECK_GE(1.0f, color_stops_[i].position);
