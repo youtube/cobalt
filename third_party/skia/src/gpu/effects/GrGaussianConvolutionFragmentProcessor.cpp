@@ -203,7 +203,13 @@ GrGaussianConvolutionFragmentProcessor::GrGaussianConvolutionFragmentProcessor(
         : INHERITED{ModulationFlags(proxy->config()),
                     GR_PROXY_MOVE(proxy),
                     direction,
+#if defined(COBALT)
+                    // Limit the number of possible shaders used on Cobalt by
+                    // always assuming the maximum width. Performance sadface.
+                    kMaxKernelRadius}
+#else
                     radius}
+#endif
         , fMode(mode) {
     this->initClassID<GrGaussianConvolutionFragmentProcessor>();
     SkASSERT(radius <= kMaxKernelRadius);
