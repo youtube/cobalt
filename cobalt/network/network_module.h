@@ -28,7 +28,6 @@
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/url_request_context.h"
 #include "cobalt/network/url_request_context_getter.h"
-#include "cobalt/network/user_agent.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/static_cookie_policy.h"
 #if defined(DIAL_SERVER)
@@ -36,6 +35,7 @@
 // don't have StreamListenSocket.
 #include "net/dial/dial_service.h"
 #endif
+#include "net/url_request/http_user_agent_settings.h"
 
 namespace base {
 class WaitableEvent;
@@ -83,7 +83,7 @@ class NetworkModule {
   NetworkDelegate* network_delegate() const {
     return network_delegate_.get();
   }
-  const std::string& user_agent() const { return user_agent_->user_agent(); }
+  const std::string& GetUserAgent() const;
   const std::string& preferred_language() const {
     return options_.preferred_language;
   }
@@ -95,7 +95,7 @@ class NetworkModule {
   }
   storage::StorageManager* storage_manager() const { return storage_manager_; }
   network_bridge::CookieJar* cookie_jar() const { return cookie_jar_.get(); }
-  network_bridge::NetPosterFactory net_poster_factory();
+  network_bridge::NetPosterFactory GetNetPosterFactory();
 #if defined(DIAL_SERVER)
   scoped_refptr<net::DialServiceProxy> dial_service_proxy() const {
     return dial_service_proxy_;
@@ -114,8 +114,8 @@ class NetworkModule {
   scoped_ptr<URLRequestContext> url_request_context_;
   scoped_refptr<URLRequestContextGetter> url_request_context_getter_;
   scoped_ptr<NetworkDelegate> network_delegate_;
-  scoped_ptr<UserAgent> user_agent_;
   scoped_ptr<NetworkSystem> network_system_;
+  scoped_ptr<net::HttpUserAgentSettings> http_user_agent_settings_;
   scoped_ptr<network_bridge::CookieJar> cookie_jar_;
 #if defined(DIAL_SERVER)
   scoped_ptr<net::DialService> dial_service_;

@@ -17,8 +17,8 @@
 #include "cobalt/h5vcc/h5vcc_system.h"
 
 #include "base/stringprintf.h"
-#include "cobalt/cobalt_version.h"
 #include "cobalt/deprecated/platform_delegate.h"
+#include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
 
 namespace cobalt {

@@ -110,9 +110,9 @@ WebModule::WebModule(
           resource_provider, image_cache_.get(), remote_font_cache_.get(),
           &local_storage_database_, media_module, execution_state_.get(),
           script_runner_.get(), &media_source_registry_, initial_url,
-          network_module->user_agent(), network_module->preferred_language(),
+          network_module->GetUserAgent(), network_module->preferred_language(),
           options.navigation_callback, error_callback,
-          network_module->cookie_jar(), network_module->net_poster_factory(),
+          network_module->cookie_jar(), network_module->GetNetPosterFactory(),
           options.default_security_policy, options.csp_enforcement_mode)),
       window_weak_(base::AsWeakPtr(window_.get())),
       environment_settings_(new dom::DOMSettings(
