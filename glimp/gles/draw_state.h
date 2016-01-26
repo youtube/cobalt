@@ -46,9 +46,9 @@ typedef std::vector<std::pair<unsigned int, VertexAttributeArray*> >
 typedef std::vector<std::pair<unsigned int, VertexAttributeConstant*> >
     ConstantVertexAttributeList;
 
-// Similar to EnabledVertexAttributeList, but lists only samplers with
+// Similar to EnabledVertexAttributeList, but lists only texture units with
 // textures bound to them.
-typedef std::vector<std::pair<unsigned int, Sampler*> > EnabledSamplerList;
+typedef std::vector<std::pair<unsigned int, Texture*> > EnabledTextureList;
 
 struct ViewportState {
   ViewportState() : rect(-1, -1, -1, -1) {}
@@ -138,7 +138,7 @@ struct DrawState {
   egl::Surface* draw_surface;
 
   // The list of all active samplers that are available to the next draw call.
-  EnabledSamplerList samplers;
+  EnabledTextureList textures;
 
   // The list of vertex attribute binding information for the next draw call.
   EnabledVertexAttributeList vertex_attributes;
@@ -185,7 +185,7 @@ struct DrawStateDirtyFlags {
     clear_color_dirty = true;
     color_mask_dirty = true;
     draw_surface_dirty = true;
-    samplers_dirty = true;
+    textures_dirty = true;
     vertex_attributes_dirty = true;
     scissor_dirty = true;
     viewport_dirty = true;
@@ -200,7 +200,7 @@ struct DrawStateDirtyFlags {
   bool clear_color_dirty;
   bool color_mask_dirty;
   bool draw_surface_dirty;
-  bool samplers_dirty;
+  bool textures_dirty;
   bool vertex_attributes_dirty;
   bool scissor_dirty;
   bool viewport_dirty;

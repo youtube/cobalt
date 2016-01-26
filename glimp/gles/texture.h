@@ -22,6 +22,7 @@
 #include "glimp/egl/surface.h"
 #include "glimp/gles/buffer.h"
 #include "glimp/gles/pixel_format.h"
+#include "glimp/gles/sampler.h"
 #include "glimp/gles/texture_impl.h"
 #include "glimp/nb/ref_counted.h"
 #include "glimp/nb/scoped_ptr.h"
@@ -111,6 +112,9 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
     return pixel_format_;
   }
 
+  Sampler* sampler_parameters() { return &sampler_parameters_; }
+  const Sampler* sampler_parameters() const { return &sampler_parameters_; }
+
  private:
   friend class nb::RefCountedThreadSafe<Texture>;
   ~Texture() {}
@@ -138,6 +142,9 @@ class Texture : public nb::RefCountedThreadSafe<Texture> {
   // Non-null if we are currently bound to an egl::Surface (e.g. from a
   // call to eglBindTexImage()).
   egl::Surface* bound_to_surface_;
+
+  // Sampler parameters that are associated with this texture.
+  Sampler sampler_parameters_;
 };
 
 }  // namespace gles
