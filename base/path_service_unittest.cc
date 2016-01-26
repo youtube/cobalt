@@ -143,10 +143,6 @@ TEST_F(PathServiceTest, Get) {
 #elif defined(OS_POSIX)
   for (int key = base::PATH_POSIX_START + 1; key < base::PATH_POSIX_END;
        ++key) {
-#if defined(__LB_SHELL__)
-    if (key == base::DIR_HOME)
-      continue;  // lb_shell doesn't implement DIR_HOME;
-#endif
     EXPECT_PRED1(ReturnsValidPath, key);
   }
 #endif
