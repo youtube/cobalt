@@ -47,6 +47,7 @@
         'resource_provider_stub.h',
         'rounded_corners.h',
         'rounded_viewport_filter.h',
+        'shadow.h',
         'text_node.cc',
         'text_node.h',
         'viewport_filter.h',
