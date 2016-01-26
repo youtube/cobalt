@@ -18,15 +18,15 @@ StaticHttpUserAgentSettings::StaticHttpUserAgentSettings(
 StaticHttpUserAgentSettings::~StaticHttpUserAgentSettings() {
 }
 
-std::string StaticHttpUserAgentSettings::GetAcceptLanguage() const {
+const std::string& StaticHttpUserAgentSettings::GetAcceptLanguage() const {
   return accept_language_;
 }
 
-std::string StaticHttpUserAgentSettings::GetAcceptCharset() const {
+const std::string& StaticHttpUserAgentSettings::GetAcceptCharset() const {
   return accept_charset_;
 }
 
-std::string StaticHttpUserAgentSettings::GetUserAgent(const GURL& url) const {
+const std::string& StaticHttpUserAgentSettings::GetUserAgent() const {
   return user_agent_;
 }
 

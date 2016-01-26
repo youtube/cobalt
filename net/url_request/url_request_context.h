@@ -182,9 +182,8 @@ class NET_EXPORT URLRequestContext
   std::string GetAcceptCharset() const;
   // Gets the value of 'Accept-Language' header field.
   std::string GetAcceptLanguage() const;
-  // Gets the UA string to use for the given URL.  Pass an invalid URL (such as
-  // GURL()) to get the default UA string.
-  std::string GetUserAgent(const GURL& url) const;
+  // Gets the UA string.
+  std::string GetUserAgent() const;
   // ---------------------------------------------------------------------------
 
   const URLRequestJobFactory* job_factory() const { return job_factory_; }
