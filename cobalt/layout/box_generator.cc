@@ -24,6 +24,7 @@
 #include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_element.h"
@@ -38,6 +39,7 @@
 #include "cobalt/layout/used_style.h"
 #include "cobalt/layout/white_space_processing.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/web_animations/keyframe_effect_read_only.h"
 #include "media/base/shell_video_frame_provider.h"
 
 namespace cobalt {
@@ -64,12 +66,11 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
 }  // namespace
 
 BoxGenerator::BoxGenerator(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-        parent_computed_style,
+    const scoped_refptr<cssom::ComputedStyleState>& parent_computed_style_state,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     scoped_refptr<Paragraph>* paragraph)
-    : parent_computed_style_(parent_computed_style),
+    : parent_computed_style_state_(parent_computed_style_state),
       used_style_provider_(used_style_provider),
       line_break_iterator_(line_break_iterator),
       paragraph_(paragraph) {}
@@ -619,7 +620,7 @@ void BoxGenerator::AppendPseudoElementToLine(
         scoped_refptr<dom::Text> child_node(new dom::Text(
             html_element->owner_document(), content_provider.content_string()));
 
-        BoxGenerator child_box_generator(pseudo_element->computed_style(),
+        BoxGenerator child_box_generator(pseudo_element->computed_style_state(),
                                          used_style_provider_,
                                          line_break_iterator_, paragraph_);
         child_node->Accept(&child_box_generator);
@@ -665,7 +666,7 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   // Generate child boxes.
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
        child_node; child_node = child_node->next_sibling()) {
-    BoxGenerator child_box_generator(html_element->computed_style(),
+    BoxGenerator child_box_generator(html_element->computed_style_state(),
                                      used_style_provider_, line_break_iterator_,
                                      paragraph_);
     child_node->Accept(&child_box_generator);
@@ -687,6 +688,31 @@ void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
 
 void BoxGenerator::Visit(dom::DocumentType* /*document_type*/) { NOTREACHED(); }
 
+namespace {
+scoped_refptr<web_animations::AnimationSet> GetAnimationsForAnonymousBox(
+    const scoped_refptr<const web_animations::AnimationSet>&
+        parent_animations) {
+  scoped_refptr<web_animations::AnimationSet> animations(
+      new web_animations::AnimationSet);
+  const web_animations::AnimationSet::InternalSet& animation_set =
+      parent_animations->animations();
+
+  for (web_animations::AnimationSet::InternalSet::const_iterator iter =
+           animation_set.begin();
+       iter != animation_set.end(); ++iter) {
+    const web_animations::KeyframeEffectReadOnly* keyframe_effect =
+        base::polymorphic_downcast<
+            const web_animations::KeyframeEffectReadOnly*>(
+            (*iter)->effect().get());
+    if (keyframe_effect->data().IsPropertyAnimated(cssom::kColorProperty)) {
+      animations->AddAnimation(*iter);
+    }
+  }
+
+  return animations;
+}
+}  // namespace
+
 // Append the text from the text node to the text paragraph and create the
 // node's initial text box. The text box has indices that map to the paragraph,
 // which allows it to retrieve its underlying text. Initially, a single text box
@@ -704,8 +730,11 @@ void BoxGenerator::Visit(dom::Text* text) {
   scoped_refptr<cssom::ComputedStyleState> computed_style_state =
       new cssom::ComputedStyleState();
   computed_style_state->set_style(
-      GetComputedStyleOfAnonymousBox(parent_computed_style_));
-  computed_style_state->set_animations(new web_animations::AnimationSet());
+      GetComputedStyleOfAnonymousBox(parent_computed_style_state_->style()));
+
+  // Copy the animations we're interested in from the parent.
+  computed_style_state->set_animations(
+      GetAnimationsForAnonymousBox(parent_computed_style_state_->animations()));
 
   DCHECK(text);
   DCHECK(computed_style_state->style());
@@ -750,9 +779,6 @@ void BoxGenerator::Visit(dom::Text* text) {
         return;
       }
     }
-
-    // TODO(***REMOVED***): Determine which transitions to propagate to the text box,
-    //               instead of none at all.
 
     // TODO(***REMOVED***):  Include bidi markup in appended text.
 
