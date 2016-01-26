@@ -54,7 +54,7 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
       current_thread_(kSbThreadInvalid),
       has_been_current_(false),
       active_texture_(GL_TEXTURE0),
-      enabled_samplers_dirty_(true),
+      enabled_textures_dirty_(true),
       enabled_vertex_attribs_dirty_(true),
       pack_alignment_(4),
       unpack_alignment_(4),
@@ -68,7 +68,8 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
 
   SetupExtensionsString();
 
-  samplers_.reset(new Sampler[impl_->GetMaxFragmentTextureUnits()]);
+  texture_units_.reset(
+      new nb::scoped_refptr<Texture>[impl_->GetMaxFragmentTextureUnits()]);
 }
 
 Context* Context::GetTLSCurrentContext() {
@@ -927,7 +928,7 @@ nb::scoped_refptr<Buffer>* Context::GetBoundBufferForTarget(GLenum target) {
 nb::scoped_refptr<Texture>* Context::GetBoundTextureForTarget(GLenum target) {
   switch (target) {
     case GL_TEXTURE_2D:
-      return &(samplers_[active_texture_ - GL_TEXTURE0].bound_texture);
+      return &(texture_units_[active_texture_ - GL_TEXTURE0]);
     case GL_TEXTURE_CUBE_MAP:
       SB_NOTREACHED() << "Currently unimplemented in glimp.";
       return NULL;
@@ -998,7 +999,7 @@ void Context::DeleteTextures(GLsizei n, const GLuint* textures) {
     // If a bound texture is deleted, set the bound texture to NULL.
     if (texture_object->target_valid()) {
       *GetBoundTextureForTarget(texture_object->target()) = NULL;
-      enabled_samplers_dirty_ = true;
+      enabled_textures_dirty_ = true;
     }
   }
 }
@@ -1022,7 +1023,7 @@ void Context::BindTexture(GLenum target, GLuint texture) {
   if (texture == 0) {
     // Unbind the current texture if 0 is passed in for texture.
     *GetBoundTextureForTarget(target) = NULL;
-    enabled_samplers_dirty_ = true;
+    enabled_textures_dirty_ = true;
     return;
   }
 
@@ -1038,7 +1039,7 @@ void Context::BindTexture(GLenum target, GLuint texture) {
 
   texture_object->SetTarget(target);
   *GetBoundTextureForTarget(target) = texture_object;
-  enabled_samplers_dirty_ = true;
+  enabled_textures_dirty_ = true;
 }
 
 namespace {
@@ -1087,7 +1088,8 @@ Sampler::WrapMode WrapModeFromGLEnum(GLenum wrap_mode) {
 }  // namespace
 
 void Context::TexParameteri(GLenum target, GLenum pname, GLint param) {
-  Sampler* active_sampler = &samplers_[active_texture_ - GL_TEXTURE0];
+  Sampler* active_sampler =
+      (*GetBoundTextureForTarget(target))->sampler_parameters();
 
   switch (pname) {
     case GL_TEXTURE_MAG_FILTER: {
@@ -1128,7 +1130,7 @@ void Context::TexParameteri(GLenum target, GLenum pname, GLint param) {
     }
   }
 
-  enabled_samplers_dirty_ = true;
+  enabled_textures_dirty_ = true;
 }
 
 namespace {
@@ -2073,17 +2075,17 @@ void Context::UpdateVertexAttribsInDrawState() {
 
 void Context::UpdateSamplersInDrawState() {
   // Setup the list of enabled samplers.
-  draw_state_.samplers.clear();
+  draw_state_.textures.clear();
   int max_active_textures = impl_->GetMaxFragmentTextureUnits();
   for (int i = 0; i < max_active_textures; ++i) {
-    if (samplers_[i].bound_texture) {
-      draw_state_.samplers.push_back(
-          std::make_pair(static_cast<unsigned int>(i), &samplers_[i]));
+    if (texture_units_[i]) {
+      draw_state_.textures.push_back(std::make_pair(
+          static_cast<unsigned int>(i), texture_units_[i].get()));
     }
   }
 
-  draw_state_dirty_flags_.samplers_dirty = true;
-  enabled_samplers_dirty_ = false;
+  draw_state_dirty_flags_.textures_dirty = true;
+  enabled_textures_dirty_ = false;
 }
 
 void Context::CompressDrawStateForDrawCall() {
@@ -2092,9 +2094,9 @@ void Context::CompressDrawStateForDrawCall() {
     SB_DCHECK(enabled_vertex_attribs_dirty_ == false);
   }
 
-  if (enabled_samplers_dirty_) {
+  if (enabled_textures_dirty_) {
     UpdateSamplersInDrawState();
-    SB_DCHECK(enabled_samplers_dirty_ == false);
+    SB_DCHECK(enabled_textures_dirty_ == false);
   }
 }
 
@@ -2103,7 +2105,7 @@ void Context::MarkUsedProgramDirty() {
   // Switching programs marks all uniforms, samplers and vertex attributes
   // as being dirty as well, since they are all properties of the program.
   draw_state_dirty_flags_.vertex_attributes_dirty = true;
-  draw_state_dirty_flags_.samplers_dirty = true;
+  draw_state_dirty_flags_.textures_dirty = true;
   draw_state_dirty_flags_.uniforms_dirty.MarkAll();
 }
 

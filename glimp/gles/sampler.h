@@ -17,17 +17,12 @@
 #ifndef GLIMP_GLES_SAMPLER_H_
 #define GLIMP_GLES_SAMPLER_H_
 
-#include "glimp/gles/texture.h"
 #include "glimp/nb/ref_counted.h"
 
 namespace glimp {
 namespace gles {
 
-// Helper function to represent what GL ES calls an "active texture unit".
-// This is what you would select between by calling the glActiveTexture()
-// function.  It is called sampler here because this terminology is more widely
-// used outside of OpenGL and more clearly disambiguates the function of
-// sampler objects and texture objects.
+// Helper function to represent what GL ES texture parameters.
 struct Sampler {
   enum MinFilter {
     kMinFilterNearest,
@@ -64,11 +59,6 @@ struct Sampler {
   MinFilter min_filter;
   WrapMode wrap_s;
   WrapMode wrap_t;
-
-  // The currently bound 2D texture, set by calling
-  // glBindTexture(GL_TEXTURE_2D) to affect the current sampler (e.g.
-  // active texture) slot.
-  nb::scoped_refptr<Texture> bound_texture;
 };
 
 }  // namespace gles
