@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_BRUSH_VISITOR_H_
-#define RENDER_TREE_BRUSH_VISITOR_H_
+#ifndef COBALT_RENDER_TREE_BRUSH_VISITOR_H_
+#define COBALT_RENDER_TREE_BRUSH_VISITOR_H_
 
 namespace cobalt {
 namespace render_tree {
 
 class LinearGradientBrush;
+class RadialGradientBrush;
 class SolidColorBrush;
 
 // Type-safe branching on a class hierarchy of render tree brushes,
@@ -41,6 +42,10 @@ class SolidColorBrush;
 //       void Visit(LinearGradientBrush* linear_gradient_brush) OVERRIDE {
 //         shader_ = new SkGradientShader(...);
 //       }
+//
+//       void Visit(RadialGradientBrush* radial_gradient_brush) OVERRIDE {
+//         shader_ = new SkGradientShader(...);
+//       }
 //     };
 //
 //     ShaderFactory shader_factory;
@@ -51,6 +56,7 @@ class BrushVisitor {
  public:
   virtual void Visit(const SolidColorBrush* solid_color_brush) = 0;
   virtual void Visit(const LinearGradientBrush* linear_gradient_brush) = 0;
+  virtual void Visit(const RadialGradientBrush* radial_gradient_brush) = 0;
 
  protected:
   ~BrushVisitor() {}
@@ -59,4 +65,4 @@ class BrushVisitor {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_BRUSH_VISITOR_H_
+#endif  // COBALT_RENDER_TREE_BRUSH_VISITOR_H_

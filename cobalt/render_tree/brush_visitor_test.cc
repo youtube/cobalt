@@ -28,6 +28,7 @@ class MockBrushVisitor : public BrushVisitor {
  public:
   MOCK_METHOD1(Visit, void(const SolidColorBrush* solid_color_brush));
   MOCK_METHOD1(Visit, void(const LinearGradientBrush* linear_gradient_brush));
+  MOCK_METHOD1(Visit, void(const RadialGradientBrush* radial_gradient_brush));
 };
 
 TEST(BrushVisitorTest, VisitsSolidColorBrush) {
@@ -44,6 +45,15 @@ TEST(BrushVisitorTest, VisitsLinearGradientBrush) {
   MockBrushVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(&linear_gradient_brush));
   linear_gradient_brush.Accept(&mock_visitor);
+}
+
+TEST(BrushVisitorTest, VisitsRadialGradientBrush) {
+  RadialGradientBrush radial_gradient_brush(math::PointF(0.0f, 0.0f), 1.0f,
+                                            ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f),
+                                            ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f));
+  MockBrushVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, Visit(&radial_gradient_brush));
+  radial_gradient_brush.Accept(&mock_visitor);
 }
 
 }  // namespace render_tree

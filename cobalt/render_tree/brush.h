@@ -100,6 +100,51 @@ class LinearGradientBrush : public Brush {
   ColorStopList color_stops_;
 };
 
+// A radial gradient brush can be used to fill a shape with a color gradient
+// that expands from a given center point up to a specified radius.  The list
+// of color stops have position values between 0 and 1 which represent the
+// distance between the center point and the specified radius that the color
+// should apply to.
+class RadialGradientBrush : public Brush {
+ public:
+  // The ColorStopList passed into RadialGradientBrush must have at least two
+  // stops and they must be sorted in order of increasing position.
+  RadialGradientBrush(const math::PointF& center, float radius,
+                      const ColorStopList& color_stops);
+
+  // Constructor that allows for ellipses instead of circles.
+  RadialGradientBrush(const math::PointF& center, float radius_x,
+                      float radius_y, const ColorStopList& color_stops);
+
+  // Creates a 2-stop radial gradient.
+  RadialGradientBrush(const math::PointF& center, float radius,
+                      const ColorRGBA& source_color,
+                      const ColorRGBA& dest_color);
+
+  // Constructor for ellipses instead of circles.
+  RadialGradientBrush(const math::PointF& center, float radius_x,
+                      float radius_y, const ColorRGBA& source_color,
+                      const ColorRGBA& dest_color);
+
+  // A type-safe branching.
+  void Accept(BrushVisitor* visitor) const OVERRIDE;
+
+  // Returns the source and destination points of the linear gradient.
+  const math::PointF& center() const { return center_; }
+  float radius_x() const { return radius_x_; }
+  float radius_y() const { return radius_y_; }
+
+  // Returns the list of color stops from the center point to the radius.
+  const ColorStopList& color_stops() const { return color_stops_; }
+
+ private:
+  math::PointF center_;
+  float radius_x_;
+  float radius_y_;
+
+  ColorStopList color_stops_;
+};
+
 scoped_ptr<Brush> CloneBrush(const Brush* brush);
 
 }  // namespace render_tree
