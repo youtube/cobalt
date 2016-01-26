@@ -54,6 +54,19 @@ bool PathProviderShell(int key, FilePath* result) {
       DCHECK(!plat->temp_path().empty());
       *result = FilePath(plat->temp_path()).Append("cache");
       return true;
+    case base::DIR_HOME: {
+#if defined(COBALT_LINUX)
+      const char* home_dir = getenv("HOME");
+      if (home_dir && home_dir[0]) {
+        *result = FilePath(home_dir);
+        return true;
+      } else {
+        return PathProviderShell(base::DIR_TEMP, result);
+      }
+#else
+      return PathProviderShell(base::DIR_EXE, result);
+#endif  // defined(COBALT_LINUX)
+    }
   }
 
   return false;
