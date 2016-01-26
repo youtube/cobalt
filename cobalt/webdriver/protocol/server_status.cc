@@ -19,7 +19,7 @@
 // TODO(***REMOVED***): Support running WebDriver on platforms other than Linux.
 #include <sys/utsname.h>
 
-#include "cobalt/cobalt_version.h"
+#include "cobalt/version.h"
 
 namespace cobalt {
 namespace webdriver {

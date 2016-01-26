@@ -70,7 +70,7 @@ class BrowserModule {
                 const Options& options);
   ~BrowserModule();
 
-  const std::string& GetUserAgent() { return network_module_.user_agent(); }
+  const std::string& GetUserAgent() { return network_module_.GetUserAgent(); }
 
   // Navigation related functions.
   void Navigate(const GURL& url);

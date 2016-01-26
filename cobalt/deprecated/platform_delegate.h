@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef DEPRECATED_PLATFORM_DELEGATE_H_
-#define DEPRECATED_PLATFORM_DELEGATE_H_
+#ifndef COBALT_DEPRECATED_PLATFORM_DELEGATE_H_
+#define COBALT_DEPRECATED_PLATFORM_DELEGATE_H_
 
 #include <string>
 
-#include "cobalt/cobalt_export.h"
+#include "cobalt/export.h"
 
 namespace cobalt {
 namespace deprecated {
@@ -81,4 +81,4 @@ class COBALT_EXPORT PlatformDelegate {
 }   // namespace deprecated
 }   // namespace cobalt
 
-#endif  // DEPRECATED_PLATFORM_DELEGATE_H_
+#endif  // COBALT_DEPRECATED_PLATFORM_DELEGATE_H_
