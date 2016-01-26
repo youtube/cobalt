@@ -48,6 +48,7 @@ class MockNodeVisitor : public NodeVisitor {
   MOCK_METHOD1(Visit, void(FilterNode* image));
   MOCK_METHOD1(Visit, void(ImageNode* image));
   MOCK_METHOD1(Visit, void(RectNode* rect));
+  MOCK_METHOD1(Visit, void(RectShadowNode* rect));
   MOCK_METHOD1(Visit, void(TextNode* text));
 };
 
@@ -97,6 +98,15 @@ TEST(NodeVisitorTest, VisitsRect) {
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(rect.get()));
   rect->Accept(&mock_visitor);
+}
+
+TEST(NodeVisitorTest, VisitsRectShadow) {
+  scoped_refptr<RectShadowNode> rect_shadow(new RectShadowNode(
+      cobalt::math::SizeF(), Shadow(math::Vector2dF(1.0f, 1.0f), 1.0f, 1.0f,
+                                    ColorRGBA(0, 0, 0, 1.0f))));
+  MockNodeVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, Visit(rect_shadow.get()));
+  rect_shadow->Accept(&mock_visitor);
 }
 
 namespace {

@@ -44,6 +44,7 @@
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_radial_gradient_many_colors.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_radial_gradient_three_colors.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_radial_gradient_two_colors.glsl',
+      '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_rect_blur.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_texcoords_and_color.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_texcoords_and_color_with_edge_clamped_texels.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_texture_domain.glsl',
