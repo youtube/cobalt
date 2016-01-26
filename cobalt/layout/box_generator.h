@@ -14,11 +14,11 @@
  * limitations under the License.`
  */
 
-#ifndef LAYOUT_BOX_GENERATOR_H_
-#define LAYOUT_BOX_GENERATOR_H_
+#ifndef COBALT_LAYOUT_BOX_GENERATOR_H_
+#define COBALT_LAYOUT_BOX_GENERATOR_H_
 
 #include "base/memory/scoped_vector.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/node.h"
@@ -48,8 +48,8 @@ class UsedStyleProvider;
 // As a side-effect, computed styles of visited HTML elements are updated.
 class BoxGenerator : public dom::NodeVisitor {
  public:
-  BoxGenerator(const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-                   parent_computed_style,
+  BoxGenerator(const scoped_refptr<cssom::ComputedStyleState>&
+                   parent_computed_style_state,
                UsedStyleProvider* used_style_provider,
                icu::BreakIterator* line_break_iterator,
                scoped_refptr<Paragraph>* paragraph);
@@ -73,8 +73,7 @@ class BoxGenerator : public dom::NodeVisitor {
   void AppendPseudoElementToLine(dom::HTMLElement* html_element,
                                  dom::PseudoElementType pseudo_element_type);
 
-  const scoped_refptr<const cssom::CSSStyleDeclarationData>
-      parent_computed_style_;
+  const scoped_refptr<cssom::ComputedStyleState> parent_computed_style_state_;
   UsedStyleProvider* const used_style_provider_;
   icu::BreakIterator* const line_break_iterator_;
   scoped_refptr<Paragraph>* paragraph_;
@@ -89,4 +88,4 @@ class BoxGenerator : public dom::NodeVisitor {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_BOX_GENERATOR_H_
+#endif  // COBALT_LAYOUT_BOX_GENERATOR_H_
