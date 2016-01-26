@@ -9,8 +9,8 @@
 // rectangles with negative width and/or height), but there will be assertions
 // in the operations (such as Contains()) to complain in this case.
 
-#ifndef MATH_RECT_BASE_H_
-#define MATH_RECT_BASE_H_
+#ifndef COBALT_MATH_RECT_BASE_H_
+#define COBALT_MATH_RECT_BASE_H_
 
 #include <string>
 
@@ -55,11 +55,22 @@ class RectBase {
     Inset(horizontal, vertical, horizontal, vertical);
   }
 
+  // Enlarge the rectangle by a horizontal and vertical distance on all sides.
+  void Outset(Type horizontal, Type vertical) { Inset(-horizontal, -vertical); }
+
   // Shrink the rectangle by the given insets.
   void Inset(const InsetsClass& insets);
 
+  // Enlarge the rectangle by the given insets.
+  void Outset(const InsetsClass& insets) { Inset(-insets); }
+
   // Shrink the rectangle by the specified amount on each side.
   void Inset(Type left, Type top, Type right, Type bottom);
+
+  // Enlarge the rectangle by the specified amount on each side.
+  void Outset(Type left, Type top, Type right, Type bottom) {
+    Inset(-left, -top, -right, -bottom);
+  }
 
   // Move the rectangle by a horizontal and vertical distance.
   void Offset(Type horizontal, Type vertical);
@@ -161,4 +172,4 @@ class RectBase {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_RECT_BASE_H_
+#endif  // COBALT_MATH_RECT_BASE_H_
