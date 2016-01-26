@@ -22,6 +22,7 @@
 #include "cobalt/base/type_id.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/opacity_filter.h"
+#include "cobalt/render_tree/shadow.h"
 #include "cobalt/render_tree/viewport_filter.h"
 
 namespace cobalt {
@@ -42,6 +43,9 @@ class FilterNode : public Node {
     Builder(const ViewportFilter& viewport_filter,
             const scoped_refptr<render_tree::Node>& source);
 
+    Builder(const Shadow& shadow_filter,
+            const scoped_refptr<render_tree::Node>& source);
+
     // The source tree, which will be used as the input to the filters specified
     // in this FilterNode.
     scoped_refptr<render_tree::Node> source;
@@ -54,6 +58,10 @@ class FilterNode : public Node {
     // the source content within the viewport rectangle will be rendered.
     // Rounded corners may be specified on this filter.
     base::optional<ViewportFilter> viewport_filter;
+
+    // If this is set, then a drop shadow will be applied to the filter source
+    // based on the alpha of the source.
+    base::optional<Shadow> shadow_filter;
   };
 
   explicit FilterNode(const Builder& builder) : data_(builder) {}
@@ -62,6 +70,9 @@ class FilterNode : public Node {
              const scoped_refptr<render_tree::Node>& source);
 
   FilterNode(const ViewportFilter& viewport_filter,
+             const scoped_refptr<render_tree::Node>& source);
+
+  FilterNode(const Shadow& shadow_filter,
              const scoped_refptr<render_tree::Node>& source);
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
