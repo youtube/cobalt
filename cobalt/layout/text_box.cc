@@ -21,6 +21,7 @@
 
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/math.h"
+#include "cobalt/layout/render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/text_node.h"
@@ -213,6 +214,14 @@ float TextBox::GetBaselineOffsetFromTopMarginEdge() const {
   return *baseline_offset_from_top_;
 }
 
+namespace {
+void SetupTextNodeFromStyle(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    render_tree::TextNode::Builder* text_node_builder) {
+  text_node_builder->color = GetUsedColor(style->color());
+}
+}  // namespace
+
 void TextBox::RenderAndAnimateContent(
     render_tree::CompositionNode::Builder* border_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
@@ -236,10 +245,14 @@ void TextBox::RenderAndAnimateContent(
   // non-conformant behavior."
   //   https://www.w3.org/TR/css3-fonts/#font-face-loading
   if (HasVisibleText() && used_font_->IsVisible()) {
+    bool is_color_animated =
+        animations()->IsPropertyAnimated(cssom::kColorProperty);
+
     render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
-    // Only render the text if it is not completely transparent.
-    if (used_color.a() > 0.0f) {
+    // Only render the text if it is not completely transparent, or if the
+    // color is animated, in which case it could become non-transparent.
+    if (used_color.a() > 0.0f || is_color_animated) {
       std::string text = GetVisibleText();
       dom::FontRunList font_run_list;
       used_font_->GenerateFontRunList(text, &font_run_list);
@@ -252,11 +265,20 @@ void TextBox::RenderAndAnimateContent(
         std::string font_string =
             text.substr(font_run.start_position, font_run.length);
 
+        scoped_refptr<render_tree::TextNode> text_node(
+            new render_tree::TextNode(font_string, font_run.font, used_color));
+
         // The render tree API considers text coordinates to be a position of
         // a baseline, offset the text node accordingly.
         border_node_builder->AddChild(
-            new render_tree::TextNode(font_string, font_run.font, used_color),
+            text_node,
             math::TranslateMatrix(leading_width, *baseline_offset_from_top_));
+
+        if (is_color_animated) {
+          AddAnimations<render_tree::TextNode>(
+              base::Bind(&SetupTextNodeFromStyle), *computed_style_state(),
+              text_node, node_animations_map_builder);
+        }
 
         if (i < font_run_list.size() - 1) {
           leading_width += font_run.font->GetBounds(font_string).width();

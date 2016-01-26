@@ -55,8 +55,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
     scoped_refptr<Paragraph> paragraph;
     BoxGenerator root_box_generator(
-        (*initial_containing_block)->computed_style(), used_style_provider,
-        line_break_iterator, &paragraph);
+        (*initial_containing_block)->computed_style_state(),
+        used_style_provider, line_break_iterator, &paragraph);
     document->html()->Accept(&root_box_generator);
     const Boxes& root_boxes = root_box_generator.boxes();
     for (Boxes::const_iterator root_box_iterator = root_boxes.begin();
