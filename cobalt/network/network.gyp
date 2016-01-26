@@ -25,6 +25,7 @@
       'sources': [
         '<(actual_target_arch)/network_system.cc',
         '<(actual_target_arch)/proxy_config_service.cc',
+        '<(actual_target_arch)/user_agent_string_factory_<(actual_target_arch).cc',
         'cookie_jar_impl.cc',
         'cookie_jar_impl.h',
         'net_poster.cc',
@@ -42,8 +43,8 @@
         'url_request_context.h',
         'url_request_context_getter.cc',
         'url_request_context_getter.h',
-        'user_agent.cc',
-        'user_agent.h',
+        'user_agent_string_factory.cc',
+        'user_agent_string_factory.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -78,7 +79,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'persistent_cookie_store_test.cc',
-        'user_agent_test.cc',
+        'user_agent_string_factory_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
