@@ -35,6 +35,10 @@ class BrushCloner : public BrushVisitor {
     cloned_.reset(new LinearGradientBrush(*linear_gradient_brush));
   }
 
+  void Visit(const RadialGradientBrush* radial_gradient_brush) OVERRIDE {
+    cloned_.reset(new RadialGradientBrush(*radial_gradient_brush));
+  }
+
   scoped_ptr<Brush> PassClone() { return cloned_.Pass(); }
 
  private:
@@ -47,20 +51,26 @@ void SolidColorBrush::Accept(BrushVisitor* visitor) const {
   visitor->Visit(this);
 }
 
+namespace {
+void ValidateColorStops(const ColorStopList& color_stops) {
+  // Verify that the data is valid.  In particular, there should be at least
+  // two color stops and they should be sorted by position.
+  DCHECK_LE(2U, color_stops.size());
+  for (size_t i = 0; i < color_stops.size(); ++i) {
+    DCHECK_LE(0.0f, color_stops[i].position);
+    DCHECK_GE(1.0f, color_stops[i].position);
+    if (i > 0) {
+      DCHECK_GT(color_stops[i].position, color_stops[i - 1].position);
+    }
+  }
+}
+}  // namespace
+
 LinearGradientBrush::LinearGradientBrush(const math::PointF& source,
                                          const math::PointF& dest,
                                          const ColorStopList& color_stops)
     : source_(source), dest_(dest), color_stops_(color_stops) {
-  // Verify that the data is valid.  In particular, there should be at least
-  // two color stops and they should be sorted by position.
-  DCHECK_LE(2U, color_stops_.size());
-  for (size_t i = 0; i < color_stops_.size(); ++i) {
-    DCHECK_LE(0.0f, color_stops_[i].position);
-    DCHECK_GE(1.0f, color_stops_[i].position);
-    if (i > 0) {
-      DCHECK_GT(color_stops_[i].position, color_stops_[i - 1].position);
-    }
-  }
+  ValidateColorStops(color_stops_);
 }
 
 LinearGradientBrush::LinearGradientBrush(const math::PointF& source,
@@ -74,6 +84,50 @@ LinearGradientBrush::LinearGradientBrush(const math::PointF& source,
 }
 
 void LinearGradientBrush::Accept(BrushVisitor* visitor) const {
+  visitor->Visit(this);
+}
+
+RadialGradientBrush::RadialGradientBrush(const math::PointF& center,
+                                         float radius,
+                                         const ColorStopList& color_stops)
+    : center_(center),
+      radius_x_(radius),
+      radius_y_(radius),
+      color_stops_(color_stops) {
+  ValidateColorStops(color_stops_);
+}
+
+RadialGradientBrush::RadialGradientBrush(const math::PointF& center,
+                                         float radius_x, float radius_y,
+                                         const ColorStopList& color_stops)
+    : center_(center),
+      radius_x_(radius_x),
+      radius_y_(radius_y),
+      color_stops_(color_stops) {
+  ValidateColorStops(color_stops_);
+}
+
+RadialGradientBrush::RadialGradientBrush(const math::PointF& center,
+                                         float radius,
+                                         const ColorRGBA& source_color,
+                                         const ColorRGBA& dest_color)
+    : center_(center), radius_x_(radius), radius_y_(radius) {
+  color_stops_.reserve(2);
+  color_stops_.push_back(ColorStop(0, source_color));
+  color_stops_.push_back(ColorStop(1, dest_color));
+}
+
+RadialGradientBrush::RadialGradientBrush(const math::PointF& center,
+                                         float radius_x, float radius_y,
+                                         const ColorRGBA& source_color,
+                                         const ColorRGBA& dest_color)
+    : center_(center), radius_x_(radius_x), radius_y_(radius_y) {
+  color_stops_.reserve(2);
+  color_stops_.push_back(ColorStop(0, source_color));
+  color_stops_.push_back(ColorStop(1, dest_color));
+}
+
+void RadialGradientBrush::Accept(BrushVisitor* visitor) const {
   visitor->Visit(this);
 }
 
