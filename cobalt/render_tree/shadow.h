@@ -27,8 +27,8 @@ namespace cobalt {
 namespace render_tree {
 
 // Describes a shadow effect that can be applied as a filter or to a shape.
-// The blur values are given in units of Gaussian standard deviations for the
-// Gaussian kernel that will be used to blur them.
+// The |blur_sigma| value is given in units of Gaussian standard deviations for
+// the Gaussian kernel that will be used to blur them.
 struct Shadow {
   Shadow(const math::Vector2dF& offset, float blur_sigma,
          const ColorRGBA& color)

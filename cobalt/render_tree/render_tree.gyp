@@ -43,6 +43,8 @@
         'opacity_filter.h',
         'rect_node.cc',
         'rect_node.h',
+        'rect_shadow_node.cc',
+        'rect_shadow_node.h',
         'resource_provider.h',
         'resource_provider_stub.h',
         'rounded_corners.h',
