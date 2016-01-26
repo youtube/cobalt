@@ -97,9 +97,9 @@ std::string URLRequestContext::GetAcceptLanguage() const {
       http_user_agent_settings_->GetAcceptLanguage() : EmptyString();
 }
 
-std::string URLRequestContext::GetUserAgent(const GURL& url) const {
-  return http_user_agent_settings_ ?
-      http_user_agent_settings_->GetUserAgent(url) : EmptyString();
+std::string URLRequestContext::GetUserAgent() const {
+  return http_user_agent_settings_ ? http_user_agent_settings_->GetUserAgent()
+                                   : EmptyString();
 }
 
 void URLRequestContext::AssertNoURLRequests() const {
