@@ -16,6 +16,7 @@
 
 #include "cobalt/render_tree/brush_visitor.h"
 
+#include "cobalt/math/point.h"
 #include "cobalt/render_tree/brush.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,7 +38,9 @@ TEST(BrushVisitorTest, VisitsSolidColorBrush) {
 }
 
 TEST(BrushVisitorTest, VisitsLinearGradientBrush) {
-  LinearGradientBrush linear_gradient_brush;
+  LinearGradientBrush linear_gradient_brush(
+      math::PointF(0.0f, 0.0f), math::PointF(1.0f, 1.0f),
+      ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f));
   MockBrushVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(&linear_gradient_brush));
   linear_gradient_brush.Accept(&mock_visitor);
