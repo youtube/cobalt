@@ -286,8 +286,8 @@ class Context {
   GLenum active_texture_;
 
   // The set of sampler units, of which |active_texture_| indexes.
-  nb::scoped_array<Sampler> samplers_;
-  bool enabled_samplers_dirty_;
+  nb::scoped_array<nb::scoped_refptr<Texture> > texture_units_;
+  bool enabled_textures_dirty_;
 
   // A mapping from an integer index (specified by the index parameter of
   // glBindAttribLocation(), glVertexAttribPointer(), and others) to vertex
