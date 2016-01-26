@@ -17,7 +17,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/values.h"
-#include "cobalt/cobalt_version.h"
+#include "cobalt/version.h"
 
 namespace cobalt {
 namespace webdriver {

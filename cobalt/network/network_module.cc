@@ -23,6 +23,8 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/network/network_system.h"
+#include "cobalt/network/user_agent_string_factory.h"
+#include "net/url_request/static_http_user_agent_settings.h"
 
 namespace cobalt {
 namespace network {
@@ -65,7 +67,11 @@ NetworkModule::~NetworkModule() {
   network_system_.reset(NULL);
 }
 
-network_bridge::NetPosterFactory NetworkModule::net_poster_factory() {
+const std::string& NetworkModule::GetUserAgent() const {
+  return http_user_agent_settings_->GetUserAgent();
+}
+
+network_bridge::NetPosterFactory NetworkModule::GetNetPosterFactory() {
   return base::Bind(&NetworkModule::CreateNetPoster, base::Unretained(this));
 }
 
@@ -79,9 +85,10 @@ void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
 void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
   thread_.reset(new base::Thread("NetworkModule"));
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
-  user_agent_.reset(new UserAgent(options_.preferred_language));
-
   network_system_ = NetworkSystem::Create(event_dispatcher);
+  http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
+      options_.preferred_language, "utf-8",
+      UserAgentStringFactory::ForCurrentPlatform()->CreateUserAgentString()));
 
   // Launch the IO thread.
   base::Thread::Options thread_options;
@@ -112,7 +119,8 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
                             options_.ignore_certificate_errors));
   network_delegate_.reset(
       new NetworkDelegate(options_.cookie_policy, options_.require_https));
-  url_request_context_->set_http_user_agent_settings(user_agent_.get());
+  url_request_context_->set_http_user_agent_settings(
+      http_user_agent_settings_.get());
   url_request_context_->set_network_delegate(network_delegate_.get());
   cookie_jar_.reset(new CookieJarImpl(url_request_context_->cookie_store()));
 #if defined(DIAL_SERVER)
