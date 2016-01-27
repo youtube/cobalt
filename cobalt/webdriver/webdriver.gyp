@@ -36,6 +36,8 @@
             'protocol/element_id.h',
             'protocol/keys.cc',
             'protocol/keys.h',
+            'protocol/proxy.cc',
+            'protocol/proxy.h',
             'protocol/response.cc',
             'protocol/response.h',
             'protocol/search_strategy.cc',

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_WEB_DRIVER_MODULE_H_
-#define WEBDRIVER_WEB_DRIVER_MODULE_H_
+#ifndef COBALT_WEBDRIVER_WEB_DRIVER_MODULE_H_
+#define COBALT_WEBDRIVER_WEB_DRIVER_MODULE_H_
 
 #include <string>
 
@@ -47,9 +47,11 @@ class WebDriverModule {
       ScreenshotCompleteCallback;
   typedef base::Callback<void(const ScreenshotCompleteCallback&)>
       GetScreenshotFunction;
+  typedef base::Callback<void(const std::string&)> SetProxyFunction;
   WebDriverModule(int server_port,
                   const CreateSessionDriverCB& create_session_driver_cb,
                   const GetScreenshotFunction& get_screenshot_function,
+                  const SetProxyFunction& set_proxy_function,
                   const base::Closure& shutdown_cb);
   ~WebDriverModule();
 
@@ -116,6 +118,9 @@ class WebDriverModule {
   // Request a screenshot to be created and written to a file.
   GetScreenshotFunction get_screenshot_function_;
 
+  // Configure custom proxy settings.
+  SetProxyFunction set_proxy_function_;
+
   // Callback to shut down the application.
   base::Closure shutdown_cb_;
 
@@ -138,4 +143,4 @@ class WebDriverModule {
 }  // namespace webdriver
 }  // namespace cobalt
 
-#endif  // WEBDRIVER_WEB_DRIVER_MODULE_H_
+#endif  // COBALT_WEBDRIVER_WEB_DRIVER_MODULE_H_
