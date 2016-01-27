@@ -24,6 +24,7 @@
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
+#include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/text_node.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -40,6 +41,7 @@ using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::NodeVisitor;
 using cobalt::render_tree::OpacityFilter;
 using cobalt::render_tree::RectNode;
+using cobalt::render_tree::RectShadowNode;
 using cobalt::render_tree::TextNode;
 
 class MockNodeVisitor : public NodeVisitor {
@@ -48,7 +50,7 @@ class MockNodeVisitor : public NodeVisitor {
   MOCK_METHOD1(Visit, void(FilterNode* image));
   MOCK_METHOD1(Visit, void(ImageNode* image));
   MOCK_METHOD1(Visit, void(RectNode* rect));
-  MOCK_METHOD1(Visit, void(RectShadowNode* rect));
+  MOCK_METHOD1(Visit, void(RectShadowNode* rect_shadow));
   MOCK_METHOD1(Visit, void(TextNode* text));
 };
 
@@ -102,8 +104,10 @@ TEST(NodeVisitorTest, VisitsRect) {
 
 TEST(NodeVisitorTest, VisitsRectShadow) {
   scoped_refptr<RectShadowNode> rect_shadow(new RectShadowNode(
-      cobalt::math::SizeF(), Shadow(math::Vector2dF(1.0f, 1.0f), 1.0f, 1.0f,
-                                    ColorRGBA(0, 0, 0, 1.0f))));
+      cobalt::math::SizeF(),
+      cobalt::render_tree::Shadow(
+          cobalt::math::Vector2dF(1.0f, 1.0f), 1.0f,
+          ColorRGBA(0, 0, 0, 1.0f))));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(rect_shadow.get()));
   rect_shadow->Accept(&mock_visitor);
