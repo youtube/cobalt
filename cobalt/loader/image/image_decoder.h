@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_IMAGE_IMAGE_DECODER_H_
-#define LOADER_IMAGE_IMAGE_DECODER_H_
+#ifndef COBALT_LOADER_IMAGE_IMAGE_DECODER_H_
+#define COBALT_LOADER_IMAGE_IMAGE_DECODER_H_
+
+#include <string>
 
 #include "base/callback.h"
+#include "cobalt/loader/decoder.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -52,12 +55,12 @@ class ImageDecoder : public Decoder {
     kUnsupportedImageFormat,
   };
 
-  // The current longest signature is PNG signature.
-  static const int kLengthOfLongestSignature = 8;
+  // The current longest signature is WEBP signature.
+  static const size_t kLengthOfLongestSignature = 14;
 
   struct SignatureCache {
     uint8 data[kLengthOfLongestSignature];
-    int position;
+    size_t position;
   };
 
   render_tree::ResourceProvider* const resource_provider_;
@@ -72,4 +75,4 @@ class ImageDecoder : public Decoder {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_IMAGE_IMAGE_DECODER_H_
+#endif  // COBALT_LOADER_IMAGE_IMAGE_DECODER_H_

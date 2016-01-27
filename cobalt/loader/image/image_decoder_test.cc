@@ -16,6 +16,9 @@
 
 #include "cobalt/loader/image/image_decoder.h"
 
+#include <string>
+#include <vector>
+
 #include "base/bind.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -233,6 +236,81 @@ TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
   uint8 g = 88;
   uint8 b = 0;
   uint8 a = 255;
+  uint32 expected_color =
+      static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
+
+  render_tree::ImageStub* data =
+      base::polymorphic_downcast<render_tree::ImageStub*>(
+          image_decoder_result.image.get());
+
+  math::Size size = data->GetSize();
+  uint8* pixels = data->GetImageData()->GetMemory();
+
+  EXPECT_TRUE(
+      CheckSameColor(pixels, size.width(), size.height(), expected_color));
+}
+
+// Test that we can properly decode the WEBP image.
+TEST(ImageDecoderTest, DecodeWEBPImage) {
+  render_tree::ResourceProviderStub resource_provider;
+
+  ImageDecoderCallback image_decoder_result;
+  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
+      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
+                                     base::Unretained(&image_decoder_result)),
+      base::Bind(&ImageDecoderCallback::ErrorCallback,
+                 base::Unretained(&image_decoder_result))));
+
+  std::vector<uint8> image_data =
+      GetImageData(GetTestImagePath("image_decoder_test_webp_image.webp"));
+  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
+                             image_data.size());
+  image_decoder->Finish();
+
+  // All pixels in the WEBP image should have RGBA values of (16, 8, 70, 70).
+  uint8 r = 16;
+  uint8 g = 8;
+  uint8 b = 70;
+  uint8 a = 70;
+  uint32 expected_color =
+      static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
+
+  render_tree::ImageStub* data =
+      base::polymorphic_downcast<render_tree::ImageStub*>(
+          image_decoder_result.image.get());
+
+  math::Size size = data->GetSize();
+  uint8* pixels = data->GetImageData()->GetMemory();
+
+  EXPECT_TRUE(
+      CheckSameColor(pixels, size.width(), size.height(), expected_color));
+}
+
+// Test that we can properly decode the WEBP image with multiple chunks.
+TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
+  render_tree::ResourceProviderStub resource_provider;
+
+  ImageDecoderCallback image_decoder_result;
+  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
+      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
+                                     base::Unretained(&image_decoder_result)),
+      base::Bind(&ImageDecoderCallback::ErrorCallback,
+                 base::Unretained(&image_decoder_result))));
+
+  std::vector<uint8> image_data =
+      GetImageData(GetTestImagePath("image_decoder_test_webp_image.webp"));
+  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 2);
+  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[2]), 4);
+  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
+  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[100]),
+                             image_data.size() - 100);
+  image_decoder->Finish();
+
+  // All pixels in the WEBP image should have RGBA values of (16, 8, 70, 70).
+  uint8 r = 16;
+  uint8 g = 8;
+  uint8 b = 70;
+  uint8 a = 70;
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
