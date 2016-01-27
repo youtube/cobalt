@@ -27,7 +27,8 @@ event-loadend.htm,PASS
 event-load.htm,PASS
 event-loadstart.htm,PASS
 event-progress.htm,PASS
-event-readystatechange-loaded.htm,PASS
+# b/26037221 - we intentionally fire multiple LOADING events.
+event-readystatechange-loaded.htm,DISABLE
 event-timeout.htm,PASS
 event-upload-progress-crossorigin.sub.htm,PASS
 event-upload-progress.htm,PASS
