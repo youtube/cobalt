@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_TESTS_WEB_PLATFORM_TEST_PARSER_H_
-#define LAYOUT_TESTS_WEB_PLATFORM_TEST_PARSER_H_
+#ifndef COBALT_LAYOUT_TESTS_WEB_PLATFORM_TEST_PARSER_H_
+#define COBALT_LAYOUT_TESTS_WEB_PLATFORM_TEST_PARSER_H_
 
 #include <string>
 #include <vector>
@@ -25,22 +25,20 @@ namespace layout_tests {
 
 // Final parsed information about an individual WebPlatform test entry.
 struct WebPlatformTestInfo {
-  enum ExpectedState {
+  enum State {
     // Test should pass.
-    kExpectedPass,
-    // Test is currently known to fail due to a bug.
-    kExpectedFail,
-    // Feature under test is unsupported, so failure is expected.
-    // No expectation this will ever be fixed, so don't log the JS errors.
-    // But we shouldn't crash.
-    kExpectedFailQuiet,
+    kPass,
+    // Test is expected to fail.
+    kFail,
     // Test crashes or takes too long, etc., so don't run it at all.
-    kExpectedDisable,
+    kDisable,
   };
   // URL of the web-platform-tests test case to run.
   std::string url;
 
-  ExpectedState expectation;
+  State expectation;
+
+  bool operator<(const WebPlatformTestInfo& rhs) const { return url < rhs.url; }
 };
 
 // Define operator<< so that this test parameter can be printed by gtest if
@@ -55,4 +53,4 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
 }  // namespace layout_tests
 }  // namespace cobalt
 
-#endif  // LAYOUT_TESTS_WEB_PLATFORM_TEST_PARSER_H_
+#endif  // COBALT_LAYOUT_TESTS_WEB_PLATFORM_TEST_PARSER_H_
