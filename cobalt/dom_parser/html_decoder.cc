@@ -39,7 +39,7 @@ HTMLDecoder::HTMLDecoder(
 
 HTMLDecoder::~HTMLDecoder() {}
 
-void HTMLDecoder::OnResponseStarted(
+loader::LoadResponseType HTMLDecoder::OnResponseStarted(
     loader::Fetcher* fetcher,
     const scoped_refptr<net::HttpResponseHeaders>& headers) {
   DCHECK(headers);
@@ -53,7 +53,12 @@ void HTMLDecoder::OnResponseStarted(
   }
 
   csp::ResponseHeaders csp_headers(headers);
-  document_->csp_delegate()->OnReceiveHeaders(csp_headers);
+  if (document_->csp_delegate()->OnReceiveHeaders(csp_headers)) {
+    return loader::kLoadResponseContinue;
+  } else {
+    DLOG(ERROR) << "Failure receiving Content Security Policy headers";
+    return loader::kLoadResponseAbort;
+  }
 }
 
 void HTMLDecoder::DecodeChunk(const char* data, size_t size) {
