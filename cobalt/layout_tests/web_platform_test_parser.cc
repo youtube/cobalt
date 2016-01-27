@@ -15,6 +15,9 @@
  */
 #include "cobalt/layout_tests/web_platform_test_parser.h"
 
+#include <set>
+#include <utility>
+
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/optional.h"
@@ -28,34 +31,30 @@ namespace layout_tests {
 
 namespace {
 
-std::string ExpectationToString(WebPlatformTestInfo::ExpectedState state) {
+std::string ExpectationToString(WebPlatformTestInfo::State state) {
   switch (state) {
-    case WebPlatformTestInfo::kExpectedPass:
+    case WebPlatformTestInfo::kPass:
       return "PASS";
-    case WebPlatformTestInfo::kExpectedFail:
+    case WebPlatformTestInfo::kFail:
       return "FAIL";
-    case WebPlatformTestInfo::kExpectedFailQuiet:
-      return "FAIL (QUIET)";
-    case WebPlatformTestInfo::kExpectedDisable:
+    case WebPlatformTestInfo::kDisable:
       return "DISABLE";
   }
   NOTREACHED();
   return "FAIL";
 }
 
-WebPlatformTestInfo::ExpectedState StringToExpectation(
+WebPlatformTestInfo::State StringToExpectation(
     const std::string& lower_case_string) {
   if (LowerCaseEqualsASCII(lower_case_string, "pass")) {
-    return WebPlatformTestInfo::kExpectedPass;
+    return WebPlatformTestInfo::kPass;
   } else if (LowerCaseEqualsASCII(lower_case_string, "fail")) {
-    return WebPlatformTestInfo::kExpectedFail;
-  } else if (LowerCaseEqualsASCII(lower_case_string, "quiet")) {
-    return WebPlatformTestInfo::kExpectedFailQuiet;
+    return WebPlatformTestInfo::kFail;
   } else if (LowerCaseEqualsASCII(lower_case_string, "disable")) {
-    return WebPlatformTestInfo::kExpectedDisable;
+    return WebPlatformTestInfo::kDisable;
   } else {
     NOTREACHED() << "Invalid test expectation " << lower_case_string;
-    return WebPlatformTestInfo::kExpectedFail;
+    return WebPlatformTestInfo::kFail;
   }
 }
 
@@ -72,9 +71,8 @@ base::optional<WebPlatformTestInfo> ParseWebPlatformTestCaseLine(
   TrimWhitespaceASCII(test_case_tokens[1], TRIM_ALL, &test_case_tokens[1]);
 
   std::string test_expect = StringToLowerASCII(test_case_tokens[1]);
-  WebPlatformTestInfo::ExpectedState expectation =
-      StringToExpectation(test_expect);
-  if (expectation == WebPlatformTestInfo::kExpectedDisable) {
+  WebPlatformTestInfo::State expectation = StringToExpectation(test_expect);
+  if (expectation == WebPlatformTestInfo::kDisable) {
     return base::nullopt;
   } else {
     WebPlatformTestInfo test_info;
@@ -112,7 +110,8 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
 
     const char kCommentChar = '#';
 
-    std::vector<WebPlatformTestInfo> test_info_list;
+    typedef std::set<WebPlatformTestInfo> TestInfoSet;
+    TestInfoSet all_test_infos;
     for (std::vector<std::string>::const_iterator iter = line_tokens.begin();
          iter != line_tokens.end(); ++iter) {
       std::string trimmed_line;
@@ -128,9 +127,16 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
       if (parsed_test_info) {
         WebPlatformTestInfo& test_info = *parsed_test_info;
         test_info.url = top_level + "/" + test_info.url;
-        test_info_list.push_back(test_info);
+        std::pair<TestInfoSet::iterator, bool> ret =
+            all_test_infos.insert(test_info);
+        if (ret.second == false) {
+          NOTREACHED() << "Duplicate entry found: " << test_info;
+        }
       }
     }
+
+    std::vector<WebPlatformTestInfo> test_info_list(all_test_infos.begin(),
+                                                    all_test_infos.end());
     return test_info_list;
   }
 }
