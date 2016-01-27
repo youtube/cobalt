@@ -28,11 +28,6 @@ namespace image {
 
 namespace {
 
-// Since there is no theoretical maximum of JPEG header, we set a very large
-// buffer size to hold the data. The max capacity for CircularBufferShell can be
-// set to anything, and it will only allocate enough to hold what is needs to.
-// (within a factor of 2).
-uint32 kMaxBufferSizeBytes = 1024 * 1024L;
 JDIMENSION kInvalidHeight = 0xFFFFFF;
 
 void ErrorManagerExit(j_common_ptr common_ptr) {
@@ -88,9 +83,7 @@ void SourceManagerSkipInputData(j_decompress_ptr decompress_ptr,
 
 JPEGImageDecoder::JPEGImageDecoder(
     render_tree::ResourceProvider* resource_provider)
-    : ImageDataDecoder(resource_provider),
-      state_(kWaitingForHeader),
-      data_buffer_(new base::CircularBufferShell(kMaxBufferSizeBytes)) {
+    : ImageDataDecoder(resource_provider) {
   memset(&info_, 0, sizeof(info_));
   memset(&source_manager_, 0, sizeof(source_manager_));
 
@@ -116,19 +109,8 @@ JPEGImageDecoder::~JPEGImageDecoder() {
   jpeg_destroy_decompress(&info_);
 }
 
-void JPEGImageDecoder::DecodeChunk(const char* data, size_t size) {
-  TRACE_EVENT0("cobalt::loader::image_decoder",
-               "JPEGImageDecoder::DecodeChunk");
-  if (state_ == kError) {
-    // Previous chunk causes an error, so there is nothing to do in here.
-    return;
-  }
-
-  if (size == 0) {
-    DLOG(WARNING) << "Decoder received 0 bytes.";
-    return;
-  }
-
+size_t JPEGImageDecoder::DecodeChunkInternal(const uint8* data,
+                                             size_t input_byte) {
   // |client_data| is available for use by application.
   jmp_buf jump_buffer;
   info_.client_data = &jump_buffer;
@@ -146,88 +128,50 @@ MSVC_PUSH_DISABLE_WARNING(4611);
   // warning C4611: interaction between '_setjmp' and C++ object destruction is
   // non-portable.
   if (setjmp(jump_buffer)) {
-    // |image_data_| is empty.
+    // image data is empty.
     DLOG(WARNING) << "Decoder encounters an error.";
-    state_ = kError;
-    return;
+    set_state(kError);
+    return 0;
   }
 MSVC_POP_WARNING();
 
-  const char* next_input_byte;
-  size_t bytes_in_buffer;
-  scoped_array<char> input_byte;
-
-  if (data_buffer_->GetLength() == 0) {
-    // No need to save the data to |data_buffer_|.
-    next_input_byte = data;
-    bytes_in_buffer = size;
-  } else {
-    // Append the new data to the end of |data_buffer_|.
-    size_t bytes = 0;
-    DCHECK_LT(size, kMaxBufferSizeBytes - data_buffer_->GetLength());
-    data_buffer_->Write(data, size, &bytes);
-    DCHECK_EQ(bytes, size);
-
-    size_t data_length = data_buffer_->GetLength();
-    input_byte.reset(new char[data_length]);
-    data_buffer_->Read(input_byte.get(), data_length, &bytes);
-    DCHECK_EQ(bytes, data_length);
-
-    next_input_byte = input_byte.get();
-    bytes_in_buffer = data_length;
-  }
-
   // Next byte to read from buffer.
-  info_.src->next_input_byte = reinterpret_cast<const JOCTET*>(next_input_byte);
+  info_.src->next_input_byte = reinterpret_cast<const JOCTET*>(data);
   // Number of bytes remaining in buffer.
-  info_.src->bytes_in_buffer = bytes_in_buffer;
+  info_.src->bytes_in_buffer = input_byte;
 
-  if (state_ == kWaitingForHeader) {
+  if (state() == kWaitingForHeader) {
     if (!ReadHeader()) {
-      DCHECK_EQ(0, data_buffer_->GetLength());
-
-      // Data is not enough for decoding the header. Save the undecoded bytes
-      // in |data_buffer_|.
-      size_t bytes_written = 0;
-      data_buffer_->Write(next_input_byte, bytes_in_buffer, &bytes_written);
-      DCHECK_EQ(bytes_written, bytes_in_buffer);
-      return;
+      // Data is not enough for decoding the header.
+      return 0;
     }
 
     if (!StartDecompress()) {
-      DLOG(WARNING) << "Start decompressor failed.";
-      state_ = kError;
-      return;
+      return 0;
     }
-    state_ = kReadLines;
+    set_state(kReadLines);
   }
 
-  if (state_ == kReadLines) {
+  if (state() == kReadLines) {
     if (info_.buffered_image) {  // Progressive JPEG.
       if (!DecodeProgressiveJPEG()) {
-        CacheSourceBytesToBuffer();
-        return;
+        // The size of undecoded bytes is info_.src->bytes_in_buffer.
+        return input_byte - info_.src->bytes_in_buffer;
       }
     } else if (!ReadLines()) {  // Baseline sequential JPEG.
-      CacheSourceBytesToBuffer();
-      return;
+      // The size of undecoded bytes is info_.src->bytes_in_buffer.
+      return input_byte - info_.src->bytes_in_buffer;
     }
 
     if (!jpeg_finish_decompress(&info_)) {
-      DLOG(ERROR) << "Data source requests suspension of the decompressor.";
-      state_ = kError;
-      return;
+      // In this case, we did read all the rows, so we don't really have to
+      // treat this as an error.
+      DLOG(WARNING) << "Data source requests suspension of the decompressor.";
     }
-    state_ = kDone;
+    set_state(kDone);
   }
-}
 
-void JPEGImageDecoder::Finish() {
-  TRACE_EVENT0("cobalt::loader::image_decoder", "JPEGImageDecoder::Finish");
-
-  if (state_ != kDone) {
-    image_data_.reset();
-  }
+  return input_byte;
 }
 
 bool JPEGImageDecoder::ReadHeader() {
@@ -255,6 +199,8 @@ bool JPEGImageDecoder::StartDecompress() {
   jpeg_calc_output_dimensions(&info_);
 
   if (!jpeg_start_decompress(&info_)) {
+    LOG(WARNING) << "Start decompressor failed.";
+    set_state(kError);
     return false;
   }
 
@@ -356,9 +302,10 @@ bool JPEGImageDecoder::ReadLines() {
       return false;
     }
 
-    // Write the decoded row pixels to the |image_data_|.
-    uint8* pixel_data = image_data_->GetMemory() +
-                        image_data_->GetDescriptor().pitch_in_bytes * row_index;
+    // Write the decoded row pixels to image data.
+    uint8* pixel_data =
+        image_data()->GetMemory() +
+        image_data()->GetDescriptor().pitch_in_bytes * row_index;
 
     JSAMPLE* sample_buffer = *buffer;
     for (uint32 x = 0; x < info_.output_width; ++x, sample_buffer += 3) {
@@ -370,25 +317,6 @@ bool JPEGImageDecoder::ReadLines() {
   }
 
   return true;
-}
-
-void JPEGImageDecoder::AllocateImageData(const math::Size& size) {
-  image_data_ = resource_provider_->AllocateImageData(
-      size, render_tree::kPixelFormatRGBA8,
-      render_tree::kAlphaFormatPremultiplied);
-}
-
-void JPEGImageDecoder::CacheSourceBytesToBuffer() {
-  if (info_.src->bytes_in_buffer != 0) {
-    const uint8* data =
-        reinterpret_cast<const uint8*>(info_.src->next_input_byte);
-    size_t size = info_.src->bytes_in_buffer;
-
-    // Save the undecoded bytes in |data_buffer_|.
-    size_t bytes_written = 0;
-    data_buffer_->Write(data, size, &bytes_written);
-    DCHECK_EQ(size, bytes_written);
-  }
 }
 
 }  // namespace image
