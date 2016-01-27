@@ -701,7 +701,7 @@ TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
   EXPECT_TRUE(style->transform());
 }
 
-TEST_F(ParserTest, WarnsAboutInvalidStandardAndWebKitProperties) {
+TEST_F(ParserTest, WarnsAboutInvalidDeclaration) {
   EXPECT_CALL(
       parser_observer_,
       OnWarning("[object ParserTest]:1:1: warning: unsupported property pony"));
@@ -712,7 +712,10 @@ TEST_F(ParserTest, WarnsAboutInvalidStandardAndWebKitProperties) {
           "color: #9edbf9;\n",
           source_location_);
 
-  EXPECT_TRUE(style->color());
+  scoped_refptr<cssom::RGBAColorValue> color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
+  ASSERT_TRUE(color);
+  EXPECT_EQ(0x9edbf9ff, color->value());
 }
 
 TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
