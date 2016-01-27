@@ -55,11 +55,11 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
     } else {
       size_t fill_buffer_size =
           std::min(kMaxBufferSizeBytes - data_buffer_.size(), size - offset);
-      size_t previous_bytes = data_buffer_.size();
 
       // Append new data to data_buffer
-      data_buffer_.insert(data_buffer_.begin() + data_buffer_.size(),
-                          data + offset, data + offset + fill_buffer_size);
+      data_buffer_.insert(
+          data_buffer_.begin() + static_cast<int64>(data_buffer_.size()),
+          data + offset, data + offset + fill_buffer_size);
 
       input_bytes = &data_buffer_[0];
       input_size = data_buffer_.size();
@@ -79,8 +79,9 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
         data_buffer_.assign(data + offset - undecoded_size, data + offset);
       } else if (decoded_size != 0) {
         // data_buffer is not empty, so erase the decoded data from it.
-        data_buffer_.erase(data_buffer_.begin(),
-                           data_buffer_.begin() + decoded_size);
+        data_buffer_.erase(
+            data_buffer_.begin(),
+            data_buffer_.begin() + static_cast<int64>(decoded_size));
       }
     }
   }
