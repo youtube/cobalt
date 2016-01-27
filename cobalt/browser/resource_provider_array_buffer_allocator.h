@@ -28,7 +28,7 @@ namespace browser {
 class ResourceProviderArrayBufferAllocator
     : public dom::ArrayBuffer::Allocator {
  public:
-  static const size_t kPoolSize = 8 * 1024 * 1024;
+  static const size_t kPoolSize = 32 * 1024 * 1024;
   static const size_t kAlignment = 128;
 
   explicit ResourceProviderArrayBufferAllocator(
