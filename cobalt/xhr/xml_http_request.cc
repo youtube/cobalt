@@ -710,7 +710,10 @@ void XMLHttpRequest::StartTimer(base::TimeDelta time_since_send) {
 }
 
 void XMLHttpRequest::ChangeState(XMLHttpRequest::State new_state) {
-  if (state_ == new_state) {
+  // Always dispatch state change events for LOADING, also known as
+  // INTERACTIVE, so that clients can get partial data (XHR streaming).
+  // This is to match the behavior of Chrome (which took it from Firefox).
+  if (state_ == new_state && new_state != kLoading) {
     return;
   }
 
