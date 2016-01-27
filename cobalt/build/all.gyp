@@ -48,6 +48,7 @@
         '<(DEPTH)/cobalt/input/input.gyp:*',
         '<(DEPTH)/cobalt/layout/layout.gyp:*',
         '<(DEPTH)/cobalt/layout_tests/layout_tests.gyp:*',
+        '<(DEPTH)/cobalt/loader/image/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/loader/loader.gyp:*',
         '<(DEPTH)/cobalt/math/math.gyp:*',
         '<(DEPTH)/cobalt/media/sandbox/sandbox.gyp:*',
