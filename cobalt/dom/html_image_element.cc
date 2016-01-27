@@ -74,8 +74,7 @@ void HTMLImageElement::UpdateImageData() {
   // element, then abort that algorithm, discarding any pending tasks generated
   // by that algorithm.
   // 3. Forget the img element's current image data, if any.
-  cached_image_loaded_callback_handler_.reset();
-  cached_image_ = NULL;
+  DCHECK(!cached_image_loaded_callback_handler_);
 
   // 4. If the user agent cannot support images, or its support for images has
   // been disabled, then abort these steps.
@@ -88,6 +87,8 @@ void HTMLImageElement::UpdateImageData() {
   // 6. Not needed by Cobalt.
 
   // 7. If selected source is not null, run these substeps:
+  scoped_refptr<loader::image::CachedImage> cached_image;
+
   if (!src.empty()) {
     // 7.1. Resolve selected source, relative to the element. If that is not
     // successful, abort these steps.
@@ -105,11 +106,11 @@ void HTMLImageElement::UpdateImageData() {
     // the img element to the completely available state, update the
     // presentation of the image appropriately, queue a task to fire a simple
     // event named load at the img element, and abort these steps.
-    cached_image_ = node_document()
-                        ->html_element_context()
-                        ->image_cache()
-                        ->CreateCachedResource(selected_source);
-    if (cached_image_->TryGetResource()) {
+    cached_image = node_document()
+                       ->html_element_context()
+                       ->image_cache()
+                       ->CreateCachedResource(selected_source);
+    if (cached_image->TryGetResource()) {
       PostToDispatchEvent(FROM_HERE, base::Tokens::load());
       return;
     }
@@ -134,7 +135,7 @@ void HTMLImageElement::UpdateImageData() {
   // error at the img element.
   cached_image_loaded_callback_handler_.reset(
       new loader::image::CachedImage::OnLoadedCallbackHandler(
-          cached_image_,
+          cached_image,
           base::Bind(&HTMLImageElement::OnLoadingDone, base::Unretained(this)),
           base::Bind(&HTMLImageElement::OnLoadingError,
                      base::Unretained(this))));
@@ -145,12 +146,14 @@ void HTMLImageElement::OnLoadingDone() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingDone()");
   PostToDispatchEvent(FROM_HERE, base::Tokens::load());
   node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+  cached_image_loaded_callback_handler_.reset();
 }
 
 void HTMLImageElement::OnLoadingError() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingError()");
   PostToDispatchEvent(FROM_HERE, base::Tokens::error());
   node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+  cached_image_loaded_callback_handler_.reset();
 }
 
 }  // namespace dom
