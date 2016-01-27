@@ -28,10 +28,10 @@ namespace {
 const char kDefaultSavegamePath[] = ".cobalt.sav";
 
 FilePath GetSavegamePath() {
-  FilePath exe_dir;
-  bool ok = PathService::Get(base::DIR_EXE, &exe_dir);
+  FilePath home_dir;
+  bool ok = PathService::Get(base::DIR_HOME, &home_dir);
   DCHECK_EQ(true, ok);
-  return exe_dir.Append(kDefaultSavegamePath);
+  return home_dir.Append(kDefaultSavegamePath);
 }
 
 }  // namespace
