@@ -101,6 +101,7 @@ class NetworkModule {
     return dial_service_proxy_;
   }
 #endif
+  void SetProxy(const std::string& custom_proxy_rules);
 
  private:
   void Initialize(base::EventDispatcher* event_dispatcher);

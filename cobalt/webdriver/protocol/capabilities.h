@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_PROTOCOL_CAPABILITIES_H_
-#define WEBDRIVER_PROTOCOL_CAPABILITIES_H_
+#ifndef COBALT_WEBDRIVER_PROTOCOL_CAPABILITIES_H_
+#define COBALT_WEBDRIVER_PROTOCOL_CAPABILITIES_H_
 
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/values.h"
+#include "cobalt/webdriver/protocol/proxy.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -40,6 +41,8 @@ class Capabilities {
 
   // Return true if we support all the capabilities listed here.
   bool AreCapabilitiesSupported() const;
+
+  base::optional<Proxy> proxy() const { return proxy_; }
 
  private:
   Capabilities() {}
@@ -61,7 +64,7 @@ class Capabilities {
   base::optional<bool> rotatable_;
   base::optional<bool> accept_ssl_certs_;
   base::optional<bool> native_events_;
-  // TODO(***REMOVED***): Read proxy capability.
+  base::optional<Proxy> proxy_;
 };
 
 // Clients can provide two sets of Capabilities objects - one specifying
@@ -88,4 +91,4 @@ class RequestedCapabilities {
 }  // namespace protocol
 }  // namespace webdriver
 }  // namespace cobalt
-#endif  // WEBDRIVER_PROTOCOL_CAPABILITIES_H_
+#endif  // COBALT_WEBDRIVER_PROTOCOL_CAPABILITIES_H_

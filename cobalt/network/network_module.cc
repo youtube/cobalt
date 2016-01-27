@@ -69,6 +69,13 @@ network_bridge::NetPosterFactory NetworkModule::net_poster_factory() {
   return base::Bind(&NetworkModule::CreateNetPoster, base::Unretained(this));
 }
 
+void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
+  message_loop_proxy()->PostTask(
+      FROM_HERE, base::Bind(&URLRequestContext::SetProxy,
+                            base::Unretained(url_request_context_.get()),
+                            custom_proxy_rules));
+}
+
 void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
   thread_.reset(new base::Thread("NetworkModule"));
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
