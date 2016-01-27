@@ -15,6 +15,7 @@
  */
 
 #include <ostream>
+#include <sstream>
 #include <vector>
 
 #include "base/command_line.h"
@@ -170,40 +171,38 @@ std::vector<TestResult> ParseResults(const std::string& json_results) {
   return test_results;
 }
 
-// Return true if the test results match the expectation.
-bool HandleResults(const std::vector<TestResult>& results,
-                   WebPlatformTestInfo::ExpectedState expectation) {
-  bool any_failure = results.size() == 0;
+::testing::AssertionResult CheckResults(
+    const char* /* expectation_str */, const char* /* results_str */,
+    WebPlatformTestInfo::State expectation,
+    const std::vector<TestResult>& results) {
+  WebPlatformTestInfo::State outcome = WebPlatformTestInfo::kPass;
+  if (results.size() == 0) {
+    outcome = WebPlatformTestInfo::kFail;
+  }
 
+  std::ostringstream output;
   for (std::vector<TestResult>::const_iterator it = results.begin();
        it != results.end(); ++it) {
     if (it->status != kPass) {
-      any_failure = true;
-      // If the test failed, and we're not ignoring it, print out all
-      // the info we have.
-      // For "Quiet" tests, we only care that we didn't crash, so suppress
-      // the output.
-      if (expectation != WebPlatformTestInfo::kExpectedFailQuiet) {
-        DLOG(INFO) << "Test \"" << it->name << "\" failed with status "
-                   << TestStatusToString(it->status);
-        if (!it->message.empty()) {
-          DLOG(INFO) << it->message;
-        }
-        if (!it->stack.empty()) {
-          // Stack looks better all on separate lines.
-          DLOG(INFO) << std::endl << it->stack;
-        }
-      }
+      outcome = WebPlatformTestInfo::kFail;
+    }
+    output << "Test \"" << it->name
+           << "\" status: " << TestStatusToString(it->status);
+    if (!it->message.empty()) {
+      output << std::endl << it->message;
+    }
+    if (!it->stack.empty()) {
+      output << std::endl << it->stack;
     }
   }
 
-  if (any_failure && expectation == WebPlatformTestInfo::kExpectedPass) {
-    return false;
-  } else if (!any_failure &&
-             expectation != WebPlatformTestInfo::kExpectedPass) {
-    return false;
+  if (outcome == expectation) {
+    return ::testing::AssertionSuccess();
   } else {
-    return true;
+    return ::testing::AssertionFailure()
+           << "Expected: " << TestStatusToString(expectation) << std::endl
+           << "Actual: " << TestStatusToString(outcome) << std::endl
+           << output.str();
   }
 }
 
@@ -221,11 +220,11 @@ TEST_P(WebPlatformTest, WebPlatformTest) {
   }
   GURL test_url = GURL(test_server).Resolve(GetParam().url);
 
-  std::cout << "(" << GetParam() << ")" << std::endl;
+  std::cout << "(" << test_url << ")" << std::endl;
 
   std::string json_results = RunWebPlatformTest(test_url);
   std::vector<TestResult> results = ParseResults(json_results);
-  EXPECT_EQ(true, HandleResults(results, GetParam().expectation));
+  EXPECT_PRED_FORMAT2(CheckResults, GetParam().expectation, results);
 }
 
 // Disable on Windows until network stack is implemented.
