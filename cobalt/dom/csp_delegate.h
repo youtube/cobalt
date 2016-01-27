@@ -36,9 +36,19 @@ class Document;
 // reports to any reporting endpoints described by the policy.
 class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
  public:
-  CSPDelegate(const network_bridge::NetPosterFactory& net_poster_factory,
-              const std::string& default_security_policy, bool disable_csp);
-  ~CSPDelegate() OVERRIDE;
+  enum EnforcementType {
+    // Require CSP policy to be delivered in HTTP headers, otherwise consider
+    // it an error. The main web module should *require* CSP.
+    kEnforcementRequire,
+    // Enable CSP checks, if policy is received. This is the standard browser
+    // policy (except for our custom Location restrictions).
+    kEnforcementEnable,
+#if !defined(COBALT_FORCE_CSP)
+    // Do no CSP checks, regardless of policy from the server. This is
+    // for testing, so CSP can be disabled on the command line.
+    kEnforcementDisable,
+#endif
+  };
 
   enum ResourceType {
     kFont,
@@ -50,6 +60,10 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
     kXhr,
   };
 
+  CSPDelegate(const network_bridge::NetPosterFactory& net_poster_factory,
+              const std::string& default_security_policy, EnforcementType mode);
+  ~CSPDelegate() OVERRIDE;
+
   // virtual for overriding by mocks.
   virtual void SetDocument(Document* document);
 
@@ -58,7 +72,8 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
   virtual bool CanLoad(ResourceType type, const GURL& url,
                        bool did_redirect) const;
   // Signal to the CSP object that CSP policy directives have been received.
-  virtual void OnReceiveHeaders(const csp::ResponseHeaders& headers);
+  // Return |true| if success, |false| if failure and load should be aborted.
+  virtual bool OnReceiveHeaders(const csp::ResponseHeaders& headers);
   virtual void OnReceiveHeader(const std::string& header,
                                csp::HeaderType header_type,
                                csp::HeaderSource header_source);
@@ -79,11 +94,8 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
   const std::string& default_security_policy() const {
     return default_security_policy_;
   }
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-  bool disable_csp() const { return disable_csp_; }
-#else
-  bool disable_csp() const { return false; }
-#endif
+
+  EnforcementType enforcement_mode() const { return enforcement_mode_; }
 
  private:
   void SendViolationReports(const std::vector<std::string>& endpoints,
@@ -95,10 +107,12 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
   base::hash_set<uint32> violation_reports_sent_;
   network_bridge::NetPosterFactory net_poster_factory_;
 
+  // Policy to enforce by default in the absence of anything else.
   std::string default_security_policy_;
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-  bool disable_csp_;
-#endif
+  EnforcementType enforcement_mode_;
+  // In "Require" enforcement mode, we disallow all loads if CSP headers
+  // weren't received. This tracks if we did get a valid header.
+  bool was_header_received_;
 
   DISALLOW_COPY_AND_ASSIGN(CSPDelegate);
 };

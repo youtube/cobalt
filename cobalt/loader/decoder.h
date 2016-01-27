@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_DECODER_H_
-#define LOADER_DECODER_H_
+#ifndef COBALT_LOADER_DECODER_H_
+#define COBALT_LOADER_DECODER_H_
 
+#include "cobalt/loader/loader_types.h"
 #include "net/http/http_response_headers.h"
 
 namespace cobalt {
@@ -31,9 +32,12 @@ class Decoder {
 
   // A loader may want to signal the beginning of a decode and can send
   // the HTTP headers, if this was a network request.
-  virtual void OnResponseStarted(
+  virtual LoadResponseType OnResponseStarted(
       Fetcher* /*fetcher*/,
-      const scoped_refptr<net::HttpResponseHeaders>& /*headers*/) {}
+      const scoped_refptr<net::HttpResponseHeaders>& /*headers*/)
+      WARN_UNUSED_RESULT {
+    return kLoadResponseContinue;
+  }
 
   // This is the interface that chunks of bytes can be sent in to be decoded.
   virtual void DecodeChunk(const char* data, size_t size) = 0;
@@ -45,4 +49,4 @@ class Decoder {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_DECODER_H_
+#endif  // COBALT_LOADER_DECODER_H_

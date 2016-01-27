@@ -35,11 +35,13 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
       : decoder_(decoder), error_callback_(error_callback) {}
 
   // From Fetcher::Handler.
-  void OnResponseStarted(
+  LoadResponseType OnResponseStarted(
       Fetcher* fetcher,
       const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE {
     if (headers) {
-      decoder_->OnResponseStarted(fetcher, headers);
+      return decoder_->OnResponseStarted(fetcher, headers);
+    } else {
+      return kLoadResponseContinue;
     }
   }
 

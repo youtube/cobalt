@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_FETCHER_H_
-#define LOADER_FETCHER_H_
+#ifndef COBALT_LOADER_FETCHER_H_
+#define COBALT_LOADER_FETCHER_H_
 
 #include <string>
 
 #include "base/callback.h"
+#include "cobalt/loader/loader_types.h"
 #include "googleurl/src/gurl.h"
 #include "net/http/http_response_headers.h"
 
@@ -32,11 +33,13 @@ class Fetcher {
    public:
     // The function will be called by supported Fetcher (like NetFetcher) before
     // any OnReceived() is called so the Handler can preview the response.
-    virtual void OnResponseStarted(
+    virtual LoadResponseType OnResponseStarted(
         Fetcher* fetcher,
-        const scoped_refptr<net::HttpResponseHeaders>& headers) {
+        const scoped_refptr<net::HttpResponseHeaders>& headers)
+        WARN_UNUSED_RESULT {
       UNREFERENCED_PARAMETER(fetcher);
       UNREFERENCED_PARAMETER(headers);
+      return kLoadResponseContinue;
     }
     virtual void OnReceived(Fetcher* fetcher, const char* data,
                             size_t size) = 0;
@@ -67,4 +70,4 @@ class Fetcher {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_FETCHER_H_
+#endif  // COBALT_LOADER_FETCHER_H_

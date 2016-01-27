@@ -87,7 +87,7 @@ Document::Document(HTMLElementContext* html_element_context,
 
   csp_delegate_.reset(new CSPDelegate(options.net_poster_factory,
                                       options.default_security_policy,
-                                      options.disable_csp));
+                                      options.csp_enforcement_mode));
 
   location_ = new Location(
       options.url, options.navigation_callback,
@@ -314,7 +314,7 @@ scoped_refptr<Node> Document::Duplicate() const {
               location_->navigation_callback(), user_agent_style_sheet_,
               viewport_size_, cookie_jar_, csp_delegate_->net_poster_factory(),
               csp_delegate_->default_security_policy(),
-              csp_delegate_->disable_csp()));
+              csp_delegate_->enforcement_mode()));
 }
 
 scoped_refptr<HTMLHtmlElement> Document::html() const { return html_.get(); }
