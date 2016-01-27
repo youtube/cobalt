@@ -152,6 +152,10 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     CSS3FontsLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-fonts")));
+// Custom CSS Text Decor (https://www.w3.org/TR/css-text-decor-3/) test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSS3TextDecorLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-text-decor")));
 // Custom CSS UI (https://www.w3.org/TR/css3-ui/) test cases.
 INSTANTIATE_TEST_CASE_P(CSS3UILayoutTests, LayoutTest,
                         ::testing::ValuesIn(EnumerateLayoutTests("css3-ui")));
