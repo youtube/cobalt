@@ -691,8 +691,8 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 
 void UsedBackgroundSizeProvider::ConvertWidthAndHeightScale(
     float width_scale, float height_scale) {
-  if (frame_size_.width() <= 0 || frame_size_.height() <= 0) {
-    DLOG(WARNING) << "Frame size is not positive.";
+  if (frame_size_.width() < 0 || frame_size_.height() < 0) {
+    DLOG(WARNING) << "Frame size is negative.";
     width_ = height_ = 0.0f;
     return;
   }
