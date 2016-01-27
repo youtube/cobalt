@@ -31,9 +31,9 @@ FilterNode::Builder::Builder(const ViewportFilter& viewport_filter,
                              const scoped_refptr<render_tree::Node>& source)
     : source(source), viewport_filter(viewport_filter) {}
 
-FilterNode::Builder::Builder(const Shadow& shadow_filter,
+FilterNode::Builder::Builder(const BlurFilter& blur_filter,
                              const scoped_refptr<render_tree::Node>& source)
-    : source(source), shadow_filter(shadow_filter) {}
+    : source(source), blur_filter(blur_filter) {}
 
 FilterNode::FilterNode(const OpacityFilter& opacity_filter,
                        const scoped_refptr<render_tree::Node>& source)
@@ -43,27 +43,26 @@ FilterNode::FilterNode(const ViewportFilter& viewport_filter,
                        const scoped_refptr<render_tree::Node>& source)
     : data_(viewport_filter, source) {}
 
-FilterNode::FilterNode(const Shadow& shadow_filter,
+FilterNode::FilterNode(const BlurFilter& blur_filter,
                        const scoped_refptr<render_tree::Node>& source)
-    : data_(shadow_filter, source) {}
+    : data_(blur_filter, source) {}
 
 void FilterNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
-math::RectF FilterNode::GetBounds() const {
-  math::RectF source_bounds = data_.source->GetBounds();
+math::RectF FilterNode::Builder::GetBounds() const {
+  math::RectF source_bounds = source->GetBounds();
   math::RectF destination_bounds;
 
-  if (data_.viewport_filter) {
+  if (viewport_filter) {
     destination_bounds =
-        math::IntersectRects(source_bounds, data_.viewport_filter->viewport());
+        math::IntersectRects(source_bounds, viewport_filter->viewport());
   } else {
     destination_bounds = source_bounds;
   }
 
-  if (data_.shadow_filter) {
-    math::RectF shadow_bounds =
-        data_.shadow_filter->ToShadowBounds(destination_bounds);
-    destination_bounds.Union(shadow_bounds);
+  if (blur_filter) {
+    float blur_radius = blur_filter->blur_sigma() * 3;
+    destination_bounds.Outset(blur_radius, blur_radius);
   }
 
   return destination_bounds;
