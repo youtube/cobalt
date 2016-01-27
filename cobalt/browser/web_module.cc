@@ -34,7 +34,7 @@ namespace browser {
 namespace {
 
 // TODO(***REMOVED***): These numbers should be adjusted by the size of client memory.
-const uint32 kImageCacheCapacity = 32U * 1024 * 1024;
+const uint32 kImageCacheCapacity = 64U * 1024 * 1024;
 const uint32 kRemoteFontCacheCapacity = 5U * 1024 * 1024;
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
