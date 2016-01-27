@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_RESOURCE_CACHE_H_
-#define LOADER_RESOURCE_CACHE_H_
+#ifndef COBALT_LOADER_RESOURCE_CACHE_H_
+#define COBALT_LOADER_RESOURCE_CACHE_H_
 
 #include <list>
 #include <map>
@@ -252,8 +252,10 @@ void CachedResource<CacheType>::OnLoadingDone(
   resource_ = resource;
 
   loader_.reset();
-  RunCallbacks(kOnLoadingDoneCallbackType);
   resource_cache_->NotifyResourceLoaded(this);
+  // To avoid the last reference of this object get deleted in the callbacks.
+  scoped_refptr<CachedResource<CacheType> > holder(this);
+  RunCallbacks(kOnLoadingDoneCallbackType);
 }
 
 template <typename CacheType>
@@ -263,6 +265,8 @@ void CachedResource<CacheType>::OnLoadingError(const std::string& error) {
   LOG(ERROR) << "Error while loading '" << url_ << "': " << error;
 
   loader_.reset();
+  // To avoid the last reference of this object get deleted in the callbacks.
+  scoped_refptr<CachedResource<CacheType> > holder(this);
   RunCallbacks(kOnLoadingErrorCallbackType);
 }
 
@@ -290,7 +294,8 @@ template <typename CacheType>
 void CachedResource<CacheType>::RunCallbacks(CallbackType type) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
-  CallbackList& callback_list = callback_lists[type];
+  // To avoid the list gets altered in the callbacks.
+  CallbackList callback_list = callback_lists[type];
   CallbackListIterator callback_iter;
   for (callback_iter = callback_list.begin();
        callback_iter != callback_list.end(); ++callback_iter) {
@@ -543,4 +548,4 @@ void ResourceCache<CacheType>::ReclaimMemory() {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_RESOURCE_CACHE_H_
+#endif  // COBALT_LOADER_RESOURCE_CACHE_H_

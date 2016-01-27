@@ -65,7 +65,6 @@ class HTMLImageElement : public HTMLElement {
   void OnLoadingDone();
   void OnLoadingError();
 
-  scoped_refptr<loader::image::CachedImage> cached_image_;
   scoped_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
       cached_image_loaded_callback_handler_;
 };
