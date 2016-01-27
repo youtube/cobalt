@@ -27,6 +27,7 @@
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/crypto.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/media_source.h"
@@ -95,7 +96,8 @@ class Window : public EventTarget {
          const base::Callback<void(const std::string&)>& error_callback,
          network_bridge::CookieJar* cookie_jar,
          const network_bridge::NetPosterFactory& net_poster_factory,
-         const std::string& default_security_policy, bool disable_csp);
+         const std::string& default_security_policy,
+         dom::CSPDelegate::EnforcementType csp_enforcement_mode);
 
   // Web API: Window
   //

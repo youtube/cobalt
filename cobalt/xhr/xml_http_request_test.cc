@@ -100,7 +100,8 @@ class MockCSPDelegate : public dom::CSPDelegate {
   MockCSPDelegate()
       : dom::CSPDelegate(
             base::Callback<scoped_ptr<network_bridge::NetPoster>()>(),
-            std::string() /* default policy */, false /* enable csp */) {}
+            std::string() /* default policy */,
+            dom::CSPDelegate::kEnforcementEnable) {}
   MOCK_CONST_METHOD3(CanLoad,
                      bool(dom::CSPDelegate::ResourceType, const GURL&, bool));
 };

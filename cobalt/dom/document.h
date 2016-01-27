@@ -32,6 +32,7 @@
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document_timeline.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/location.h"
@@ -46,7 +47,6 @@ namespace cobalt {
 namespace dom {
 
 class Attr;
-class CSPDelegate;
 class DOMImplementation;
 class Element;
 class FontCache;
@@ -84,9 +84,13 @@ class DocumentObserver {
 class Document : public Node, public cssom::MutationObserver {
  public:
   struct Options {
-    Options() : cookie_jar(NULL), disable_csp(false) {}
+    Options()
+        : cookie_jar(NULL),
+          csp_enforcement_mode(CSPDelegate::kEnforcementEnable) {}
     explicit Options(const GURL& url_value)
-        : url(url_value), cookie_jar(NULL), disable_csp(false) {}
+        : url(url_value),
+          cookie_jar(NULL),
+          csp_enforcement_mode(CSPDelegate::kEnforcementEnable) {}
     Options(const GURL& url_value,
             const scoped_refptr<base::Clock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
@@ -94,7 +98,8 @@ class Document : public Node, public cssom::MutationObserver {
             const base::optional<math::Size>& viewport_size,
             network_bridge::CookieJar* cookie_jar,
             const network_bridge::NetPosterFactory& net_poster_factory,
-            const std::string& default_security_policy, bool disable_csp)
+            const std::string& default_security_policy,
+            CSPDelegate::EnforcementType csp_enforcement_mode)
         : url(url_value),
           navigation_start_clock(navigation_start_clock_value),
           navigation_callback(navigation_callback),
@@ -103,7 +108,7 @@ class Document : public Node, public cssom::MutationObserver {
           cookie_jar(cookie_jar),
           net_poster_factory(net_poster_factory),
           default_security_policy(default_security_policy),
-          disable_csp(disable_csp) {}
+          csp_enforcement_mode(csp_enforcement_mode) {}
 
     GURL url;
     scoped_refptr<base::Clock> navigation_start_clock;
@@ -113,7 +118,7 @@ class Document : public Node, public cssom::MutationObserver {
     network_bridge::CookieJar* cookie_jar;
     network_bridge::NetPosterFactory net_poster_factory;
     std::string default_security_policy;
-    bool disable_csp;
+    CSPDelegate::EnforcementType csp_enforcement_mode;
   };
 
   Document(HTMLElementContext* html_element_context,
