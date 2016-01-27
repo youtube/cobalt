@@ -116,6 +116,9 @@ class BrowserModule {
   }
 #endif  // ENABLE_DEBUG_CONSOLE
 
+  // Change the network proxy settings while the application is running.
+  void SetProxy(const std::string& proxy_rules);
+
  private:
   // Internal Navigation function and its internal verison. Replaces the current
   // WebModule with a new one that is displaying the specified URL. After

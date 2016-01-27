@@ -518,5 +518,10 @@ scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
 }
 #endif
 
+void BrowserModule::SetProxy(const std::string& proxy_rules) {
+  // NetworkModule will ensure this happens on the correct thread.
+  network_module_.SetProxy(proxy_rules);
+}
+
 }  // namespace browser
 }  // namespace cobalt
