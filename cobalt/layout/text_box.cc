@@ -231,6 +231,39 @@ void SetupTextNodeFromStyle(
     render_tree::TextNode::Builder* text_node_builder) {
   text_node_builder->color = GetUsedColor(style->color());
 }
+
+void AddTextShadows(render_tree::TextNode::Builder* builder,
+                    cssom::PropertyListValue* shadow_list) {
+  if (shadow_list->value().empty()) {
+    return;
+  }
+
+  builder->shadows.emplace();
+  builder->shadows->reserve(shadow_list->value().size());
+
+  for (size_t s = 0; s < shadow_list->value().size(); ++s) {
+    cssom::ShadowValue* shadow_value =
+        base::polymorphic_downcast<cssom::ShadowValue*>(
+            shadow_list->value()[s].get());
+
+    math::Vector2dF offset(shadow_value->offset_x()->value(),
+                           shadow_value->offset_y()->value());
+
+    // Since most of a Gaussian fits within 3 standard deviations from
+    // the mean, we setup here the Gaussian blur sigma to be a third of
+    // the blur radius.
+    float shadow_blur_sigma =
+        shadow_value->blur_radius()
+            ? GetUsedLength(shadow_value->blur_radius()) / 3.0f
+            : 0;
+
+    render_tree::ColorRGBA shadow_color = GetUsedColor(shadow_value->color());
+
+    builder->shadows->push_back(
+        render_tree::Shadow(offset, shadow_blur_sigma, shadow_color));
+  }
+}
+
 }  // namespace
 
 void TextBox::RenderAndAnimateContent(
@@ -261,9 +294,13 @@ void TextBox::RenderAndAnimateContent(
 
     render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
+    const scoped_refptr<cssom::PropertyValue>& text_shadow =
+        computed_style()->text_shadow();
+
     // Only render the text if it is not completely transparent, or if the
     // color is animated, in which case it could become non-transparent.
-    if (used_color.a() > 0.0f || is_color_animated) {
+    if (used_color.a() > 0.0f || is_color_animated ||
+        text_shadow != cssom::KeywordValue::GetNone()) {
       std::string text = GetVisibleText();
       dom::FontRunList font_run_list;
       used_font_->GenerateFontRunList(text, &font_run_list);
@@ -278,15 +315,25 @@ void TextBox::RenderAndAnimateContent(
         std::string font_string =
             text.substr(font_run.start_position, font_run.length);
 
-        scoped_refptr<render_tree::TextNode> text_node(
-            new render_tree::TextNode(font_string, font_run.font, used_color));
+        render_tree::TextNode::Builder text_node_builder(
+            font_string, font_run.font, used_color);
 
-        // The render tree API considers text coordinates to be a position of
-        // a baseline, offset the text node accordingly.
+        if (text_shadow != cssom::KeywordValue::GetNone()) {
+          cssom::PropertyListValue* shadow_list =
+              base::polymorphic_downcast<cssom::PropertyListValue*>(
+                  computed_style()->text_shadow().get());
+
+          AddTextShadows(&text_node_builder, shadow_list);
+        }
+
+        scoped_refptr<render_tree::TextNode> text_node =
+            new render_tree::TextNode(text_node_builder);
+
+        // The render tree API considers text coordinates to be a position
+        // of a baseline, offset the text node accordingly.
         border_node_builder->AddChild(
             text_node,
             math::TranslateMatrix(leading_width, baseline_offset_from_top));
-
         if (is_color_animated) {
           AddAnimations<render_tree::TextNode>(
               base::Bind(&SetupTextNodeFromStyle), *computed_style_state(),

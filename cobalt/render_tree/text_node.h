@@ -18,14 +18,17 @@
 #define COBALT_RENDER_TREE_TEXT_NODE_H_
 
 #include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/node.h"
+#include "cobalt/render_tree/shadow.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -50,11 +53,16 @@ class TextNode : public Node {
 
     // The foreground color of the text.
     ColorRGBA color;
+
+    // Shadows to be applied under the text.  These will be drawn in
+    // back-to-front order, so the last shadow will be on the bottom.
+    base::optional<std::vector<Shadow> > shadows;
   };
 
   explicit TextNode(const Builder& builder) : data_(builder) {}
   TextNode(const std::string& text, const scoped_refptr<Font>& font,
-           const ColorRGBA& color) : data_(text, font, color) {}
+           const ColorRGBA& color)
+      : data_(text, font, color) {}
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;

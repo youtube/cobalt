@@ -20,6 +20,7 @@
 #include "base/compiler_specific.h"
 #include "base/optional.h"
 #include "cobalt/base/type_id.h"
+#include "cobalt/render_tree/blur_filter.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/opacity_filter.h"
 #include "cobalt/render_tree/shadow.h"
@@ -43,8 +44,10 @@ class FilterNode : public Node {
     Builder(const ViewportFilter& viewport_filter,
             const scoped_refptr<render_tree::Node>& source);
 
-    Builder(const Shadow& shadow_filter,
+    Builder(const BlurFilter& blur_filter,
             const scoped_refptr<render_tree::Node>& source);
+
+    math::RectF GetBounds() const;
 
     // The source tree, which will be used as the input to the filters specified
     // in this FilterNode.
@@ -59,9 +62,9 @@ class FilterNode : public Node {
     // Rounded corners may be specified on this filter.
     base::optional<ViewportFilter> viewport_filter;
 
-    // If this is set, then a drop shadow will be applied to the filter source
-    // based on the alpha of the source.
-    base::optional<Shadow> shadow_filter;
+    // If set, then a Gaussian blur will be applied to the source with a
+    // Gaussian kernel of standard deviation |blur_sigma|.
+    base::optional<BlurFilter> blur_filter;
   };
 
   explicit FilterNode(const Builder& builder) : data_(builder) {}
@@ -72,11 +75,11 @@ class FilterNode : public Node {
   FilterNode(const ViewportFilter& viewport_filter,
              const scoped_refptr<render_tree::Node>& source);
 
-  FilterNode(const Shadow& shadow_filter,
+  FilterNode(const BlurFilter& blur_filter,
              const scoped_refptr<render_tree::Node>& source);
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
-  math::RectF GetBounds() const OVERRIDE;
+  math::RectF GetBounds() const OVERRIDE { return data_.GetBounds(); }
 
   base::TypeId GetTypeId() const OVERRIDE {
     return base::GetTypeId<FilterNode>();
