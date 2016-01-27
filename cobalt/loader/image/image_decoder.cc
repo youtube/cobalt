@@ -16,8 +16,11 @@
 
 #include "cobalt/loader/image/image_decoder.h"
 
+#include <algorithm>
+
 #include "cobalt/loader/image/jpeg_image_decoder.h"
 #include "cobalt/loader/image/png_image_decoder.h"
+#include "cobalt/loader/image/webp_image_decoder.h"
 
 namespace cobalt {
 namespace loader {
@@ -31,6 +34,10 @@ bool MatchesPNGSignature(const uint8* contents) {
 
 bool MatchesJPEGSignature(const uint8* contents) {
   return !memcmp(contents, "\xFF\xD8\xFF", 3);
+}
+
+bool MatchesWEBPSignature(const uint8* contents) {
+  return !memcmp(contents, "RIFF", 4) && !memcmp(contents + 8, "WEBPVP", 6);
 }
 
 }  // namespace
@@ -54,25 +61,28 @@ void ImageDecoder::DecodeChunk(const char* data, size_t size) {
     return;
   }
 
+  if (size == 0) {
+    DLOG(WARNING) << "Decoder received 0 bytes.";
+    return;
+  }
+
+  const uint8* input_bytes = reinterpret_cast<const uint8*>(data);
   // Call different types of decoders by matching the image signature. If it is
   // the first time decoding a chunk, create an internal specific image decoder,
   // otherwise just call DecodeChunk.
   if (decoder_) {
-    decoder_->DecodeChunk(data, size);
+    decoder_->DecodeChunk(input_bytes, size);
     return;
   }
-  // If the first chunk is less than |kLengthOfLongestSignature|, the next
-  // chunk could have more signature information.
-  const int index = signature_cache_.position;
-  int data_offset = kLengthOfLongestSignature - index;
-  if (index + size < kLengthOfLongestSignature) {
-    memcpy(signature_cache_.data + index, data, size);
-    signature_cache_.position += static_cast<int>(size);
+
+  const size_t index = signature_cache_.position;
+  size_t data_offset = kLengthOfLongestSignature - index;
+  size_t fill_size = std::min(data_offset, size);
+  memcpy(signature_cache_.data + index, input_bytes, fill_size);
+  signature_cache_.position += fill_size;
+  if (size < data_offset) {
+    // Data is not enough for matching signature.
     return;
-  } else {
-    memcpy(signature_cache_.data + index, data,
-           static_cast<size_t>(data_offset));
-    signature_cache_.position += data_offset;
   }
 
   if (MatchesJPEGSignature(signature_cache_.data)) {
@@ -81,6 +91,9 @@ void ImageDecoder::DecodeChunk(const char* data, size_t size) {
   } else if (MatchesPNGSignature(signature_cache_.data)) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider_));
+  } else if (MatchesWEBPSignature(signature_cache_.data)) {
+    decoder_ = make_scoped_ptr<ImageDataDecoder>(
+        new WEBPImageDecoder(resource_provider_));
   } else {
     error_state_ = kUnsupportedImageFormat;
     return;
@@ -88,12 +101,11 @@ void ImageDecoder::DecodeChunk(const char* data, size_t size) {
 
   if (index == 0) {
     // This case means the first chunk is large enough for matching signature.
-    decoder_->DecodeChunk(data, size);
+    decoder_->DecodeChunk(input_bytes, size);
   } else {
-    decoder_->DecodeChunk(reinterpret_cast<char*>(signature_cache_.data),
-                          kLengthOfLongestSignature);
-    data += data_offset;
-    decoder_->DecodeChunk(data, size - data_offset);
+    decoder_->DecodeChunk(signature_cache_.data, kLengthOfLongestSignature);
+    input_bytes += data_offset;
+    decoder_->DecodeChunk(input_bytes, size - data_offset);
   }
 }
 

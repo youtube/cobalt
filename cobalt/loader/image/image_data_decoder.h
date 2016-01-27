@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_IMAGE_IMAGE_DATA_DECODER_H_
-#define LOADER_IMAGE_IMAGE_DATA_DECODER_H_
+#ifndef COBALT_LOADER_IMAGE_IMAGE_DATA_DECODER_H_
+#define COBALT_LOADER_IMAGE_IMAGE_DATA_DECODER_H_
 
-#include "cobalt/loader/decoder.h"
+#include <string>
+#include <vector>
+
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -30,10 +32,9 @@ namespace image {
 // decoders. This class is intended to decode image data based on the type,
 // but leaves the responsibility of handling callbacks and producing the final
 // image to ImageDecoder.
-class ImageDataDecoder : public Decoder {
+class ImageDataDecoder {
  public:
-  explicit ImageDataDecoder(render_tree::ResourceProvider* resource_provider)
-      : resource_provider_(resource_provider) {}
+  explicit ImageDataDecoder(render_tree::ResourceProvider* resource_provider);
 
   virtual ~ImageDataDecoder() {}
 
@@ -43,14 +44,42 @@ class ImageDataDecoder : public Decoder {
     return image_data_.Pass();
   }
 
+  void DecodeChunk(const uint8* data, size_t size);
+  void Finish();
+
  protected:
+  enum State {
+    kWaitingForHeader,
+    kReadLines,
+    kDone,
+    kError,
+  };
+
+  // Every subclass of ImageDataDecoder should override this function to do
+  // the internal decoding. The return value of this function is the number of
+  // decoded data.
+  virtual size_t DecodeChunkInternal(const uint8* data, size_t input_byte) = 0;
+
+  void AllocateImageData(const math::Size& size);
+
+  render_tree::ImageData* image_data() const { return image_data_.get(); }
+
+  void set_state(State state) { state_ = state; }
+  State state() const { return state_; }
+
+ private:
   // |resource_provider_| is used to allocate render_tree::ImageData
   render_tree::ResourceProvider* const resource_provider_;
+  // Decoded image data.
   scoped_ptr<render_tree::ImageData> image_data_;
+  // |data_buffer_| is used to cache the undecoded data.
+  std::vector<uint8> data_buffer_;
+  // Record the current decoding status.
+  State state_;
 };
 
 }  // namespace image
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_IMAGE_IMAGE_DATA_DECODER_H_
+#endif  // COBALT_LOADER_IMAGE_IMAGE_DATA_DECODER_H_
