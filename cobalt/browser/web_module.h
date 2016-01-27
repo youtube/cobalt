@@ -30,6 +30,7 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/debug/debug_server.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/media_source.h"
@@ -85,8 +86,8 @@ class WebModule {
         : name("WebModule"),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation),
           array_buffer_allocator(NULL),
-          disable_csp(false),
-          image_cache_capacity(kImageCacheCapacity) {}
+          image_cache_capacity(kImageCacheCapacity),
+          csp_enforcement_mode(dom::CSPDelegate::kEnforcementEnable) {}
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to
@@ -126,11 +127,11 @@ class WebModule {
     // can't be changed from the whitelisted origins.
     std::string default_security_policy;
 
-    // Disable Content Security Policy enforcement for this web module.
-    bool disable_csp;
-
     // Image cache capaticy in bytes.
     uint32 image_cache_capacity;
+
+    // Content Security Policy enforcement mode for this web module.
+    dom::CSPDelegate::EnforcementType csp_enforcement_mode;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

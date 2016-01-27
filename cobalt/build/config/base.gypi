@@ -231,6 +231,7 @@
         'ldflags': [ '<@(linker_flags_gold)' ],
         'defines': [
           'COBALT_BUILD_TYPE_GOLD',
+          'COBALT_FORCE_CSP',
           'COBALT_FORCE_HTTPS',
           '__LB_SHELL__FOR_RELEASE__',
           'NDEBUG',

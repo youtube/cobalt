@@ -113,16 +113,12 @@ void GatherSecurityPolicyViolationEventData(
 
 CSPDelegate::CSPDelegate(
     const network_bridge::NetPosterFactory& net_poster_factory,
-    const std::string& default_security_policy, bool disable_csp)
+    const std::string& default_security_policy, EnforcementType mode)
     : document_(NULL),
       net_poster_factory_(net_poster_factory),
-      default_security_policy_(default_security_policy) {
-#if defined(COBALT_BUILD_TYPE_GOLD)
-  UNREFERENCED_PARAMETER(disable_csp);
-#else
-  disable_csp_ = disable_csp;
-#endif
-
+      default_security_policy_(default_security_policy),
+      was_header_received_(false) {
+  enforcement_mode_ = mode;
   csp_.reset(new csp::ContentSecurityPolicy());
 }
 
@@ -138,48 +134,74 @@ bool CSPDelegate::CanLoad(ResourceType type, const GURL& url,
                           bool did_redirect) const {
   DCHECK(document_) << "SetDocument() was not called.";
 
-// Gold builds always have CSP enabled.
-#if defined(COBALT_BUILD_TYPE_GOLD)
-  CHECK(!disable_csp());
-#else
-  if (disable_csp()) {
+#if !defined(COBALT_FORCE_CSP)
+  if (enforcement_mode() == kEnforcementDisable) {
     return true;
   }
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !defined(COBALT_FORCE_CSP)
 
-  csp::ContentSecurityPolicy::RedirectStatus redirect_status =
+  const csp::ContentSecurityPolicy::RedirectStatus redirect_status =
       did_redirect ? csp::ContentSecurityPolicy::kDidRedirect
                    : csp::ContentSecurityPolicy::kDidNotRedirect;
+
+  // Special case for "offline" mode- in the absence of any server policy,
+  // we check our default navigation policy, to permit navigation to
+  // and from the main site and error pages, and disallow everything else.
+  if (enforcement_mode() == kEnforcementRequire && !was_header_received_) {
+    if (type == kLocation) {
+      return csp_->AllowNavigateToSource(url, redirect_status);
+    } else {
+      return false;
+    }
+  }
+
+  bool can_load = false;
   switch (type) {
     case kFont:
-      return csp_->AllowFontFromSource(url, redirect_status);
+      can_load = csp_->AllowFontFromSource(url, redirect_status);
+      break;
     case kImage:
-      return csp_->AllowImageFromSource(url, redirect_status);
+      can_load = csp_->AllowImageFromSource(url, redirect_status);
+      break;
     case kLocation:
-      return csp_->AllowNavigateToSource(url, redirect_status);
+      can_load = csp_->AllowNavigateToSource(url, redirect_status);
+      break;
     case kMedia:
-      return csp_->AllowMediaFromSource(url, redirect_status);
+      can_load = csp_->AllowMediaFromSource(url, redirect_status);
+      break;
     case kScript:
-      return csp_->AllowScriptFromSource(url, redirect_status);
+      can_load = csp_->AllowScriptFromSource(url, redirect_status);
+      break;
     case kStyle:
-      return csp_->AllowStyleFromSource(url, redirect_status);
+      can_load = csp_->AllowStyleFromSource(url, redirect_status);
+      break;
     case kXhr:
-      return csp_->AllowConnectToSource(url, redirect_status);
+      can_load = csp_->AllowConnectToSource(url, redirect_status);
+      break;
     default:
+      NOTREACHED() << "Invalid resource type " << type;
       break;
   }
-  NOTREACHED() << "Invalid resource type " << type;
-  return true;
+  return can_load;
 }
 
-void CSPDelegate::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
+bool CSPDelegate::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
+  if (enforcement_mode() == kEnforcementRequire &&
+      headers.content_security_policy().empty() &&
+      headers.content_security_policy_report_only().empty()) {
+    // Didn't find any CSP-related headers.
+    return false;
+  }
   csp_->OnReceiveHeaders(headers);
+  was_header_received_ = true;
+  return true;
 }
 
 void CSPDelegate::OnReceiveHeader(const std::string& header,
                                   csp::HeaderType header_type,
                                   csp::HeaderSource header_source) {
   csp_->OnReceiveHeader(header, header_type, header_source);
+  was_header_received_ = true;
 }
 
 GURL CSPDelegate::url() const { return document_->url_as_gurl(); }

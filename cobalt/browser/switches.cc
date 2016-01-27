@@ -27,8 +27,11 @@ const char kAllowHttp[] = "allow_http";
 // Switches different debug console modes: on | hud | off
 const char kDebugConsoleMode[] = "debug_console";
 
-// Disable the content security policy.
-const char kDisableCsp[] = "disable_csp";
+// Set the content security policy enforcement mode: disable | enable | require
+// disable: allow all resource loads- ignore CSP totally.
+// enable: respect CSP policy if received from the server.
+// require: require CSP headers or fail initial document load.
+const char kCspMode[] = "csp_mode";
 
 // Create WebDriver server.
 const char kEnableWebDriver[] = "enable_webdriver";

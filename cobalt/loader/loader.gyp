@@ -47,6 +47,7 @@
         'image/webp_image_decoder.h',
         'loader.cc',
         'loader.h',
+        'loader_types.h',
         'net_fetcher.cc',
         'net_fetcher.h',
         'resource_cache.h',

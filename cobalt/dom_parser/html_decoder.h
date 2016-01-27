@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_PARSER_HTML_DECODER_H_
-#define DOM_PARSER_HTML_DECODER_H_
+#ifndef COBALT_DOM_PARSER_HTML_DECODER_H_
+#define COBALT_DOM_PARSER_HTML_DECODER_H_
 
 #include <string>
 
@@ -53,7 +53,7 @@ class HTMLDecoder : public loader::Decoder {
   ~HTMLDecoder();
 
   // From Decoder.
-  void OnResponseStarted(
+  loader::LoadResponseType OnResponseStarted(
       loader::Fetcher* fetcher,
       const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
@@ -73,4 +73,4 @@ class HTMLDecoder : public loader::Decoder {
 }  // namespace dom_parser
 }  // namespace cobalt
 
-#endif  // DOM_PARSER_HTML_DECODER_H_
+#endif  // COBALT_DOM_PARSER_HTML_DECODER_H_
