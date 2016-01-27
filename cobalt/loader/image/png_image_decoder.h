@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_IMAGE_PNG_IMAGE_DECODER_H_
-#define LOADER_IMAGE_PNG_IMAGE_DECODER_H_
+#ifndef COBALT_LOADER_IMAGE_PNG_IMAGE_DECODER_H_
+#define COBALT_LOADER_IMAGE_PNG_IMAGE_DECODER_H_
+
+#include <string>
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
@@ -26,28 +28,28 @@ namespace cobalt {
 namespace loader {
 namespace image {
 
-// TODO(***REMOVED***): support decoding PNG image with multiple chunks.
 class PNGImageDecoder : public ImageDataDecoder {
  public:
   explicit PNGImageDecoder(render_tree::ResourceProvider* resource_provider);
   ~PNGImageDecoder() OVERRIDE;
 
-  // From Decoder.
-  void DecodeChunk(const char* data, size_t size) OVERRIDE;
-  void Finish() OVERRIDE;
-
   // From ImageDataDecoder
   std::string GetTypeString() const OVERRIDE { return "PNGImageDecoder"; }
 
  private:
-  static void HeaderAvailable(png_structp png, png_infop);
+  // From ImageDataDecoder
+  size_t DecodeChunkInternal(const uint8* data, size_t input_byte) OVERRIDE;
+
+  // Callbacks which feed libpng.
+  static void HeaderAvailable(png_structp png, png_infop info);
   static void RowAvailable(png_structp png, png_bytep row_buffer,
                            png_uint_32 row_index, int interlace_pass);
+  static void DecodeDone(png_structp png, png_infop info);
 
+  // Functions which are called by libpng Callbacks.
   void HeaderAvailableCallback();
   void RowAvailableCallback(png_bytep row_buffer, png_uint_32 row_index);
-
-  void AllocateImageData(const math::Size& size);
+  void DecodeDoneCallback();
 
   png_structp png_;
   png_infop info_;
@@ -59,4 +61,4 @@ class PNGImageDecoder : public ImageDataDecoder {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_IMAGE_PNG_IMAGE_DECODER_H_
+#endif  // COBALT_LOADER_IMAGE_PNG_IMAGE_DECODER_H_
