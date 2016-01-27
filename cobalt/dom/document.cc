@@ -281,18 +281,26 @@ scoped_refptr<NodeList> Document::QuerySelectorAll(
 }
 
 void Document::set_cookie(const std::string& cookie) {
+#if defined(COBALT_BUILD_TYPE_GOLD)
+  UNREFERENCED_PARAMETER(cookie);
+#else
   if (cookie_jar_) {
     cookie_jar_->SetCookie(url_as_gurl(), cookie);
   }
+#endif
 }
 
 std::string Document::cookie() const {
+#if defined(COBALT_BUILD_TYPE_GOLD)
+  return std::string();
+#else
   if (cookie_jar_) {
     return cookie_jar_->GetCookies(url_as_gurl());
   } else {
     DLOG(WARNING) << "Document has no cookie jar";
     return "";
   }
+#endif
 }
 
 void Document::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
