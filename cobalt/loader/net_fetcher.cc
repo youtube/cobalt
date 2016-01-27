@@ -26,6 +26,7 @@ namespace cobalt {
 namespace loader {
 
 namespace {
+
 bool IsResponseCodeSuccess(int response_code) {
   // NetFetcher only considers success to be if the network request
   // was successful *and* we get a 2xx response back.
@@ -66,9 +67,9 @@ void NetFetcher::Start() {
       security_callback_.Run(original_url, false /* did not redirect */)) {
     url_fetcher_->Start();
   } else {
-    handler()->OnError(this,
-                       base::StringPrintf("URL %s rejected by security policy.",
-                                          original_url.spec().c_str()));
+    std::string msg(base::StringPrintf("URL %s rejected by security policy.",
+                                       original_url.spec().c_str()));
+    return HandleError(msg).InvalidateThis();
   }
 }
 
@@ -78,18 +79,22 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
     // A redirect occured. Re-check the security policy.
     if (!security_callback_.is_null() &&
         !security_callback_.Run(source->GetURL(), true /* did redirect */)) {
-      handler()->OnError(
-          this,
-          base::StringPrintf(
-              "URL %s rejected by security policy after a redirect from %s.",
-              source->GetURL().spec().c_str(),
-              source->GetOriginalURL().spec().c_str()));
-      return;
+      std::string msg(base::StringPrintf(
+          "URL %s rejected by security policy after a redirect from %s.",
+          source->GetURL().spec().c_str(),
+          source->GetOriginalURL().spec().c_str()));
+      return HandleError(msg).InvalidateThis();
     }
   }
 
   if (IsResponseCodeSuccess(source->GetResponseCode())) {
-    handler()->OnResponseStarted(this, source->GetResponseHeaders());
+    if (handler()->OnResponseStarted(this, source->GetResponseHeaders()) ==
+        kLoadResponseAbort) {
+      std::string msg(
+          base::StringPrintf("Handler::OnResponseStarted aborted URL %s",
+                             source->GetURL().spec().c_str()));
+      return HandleError(msg).InvalidateThis();
+    }
   }
 }
 
@@ -100,11 +105,11 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   if (status.is_success() && IsResponseCodeSuccess(response_code)) {
     handler()->OnDone(this);
   } else {
-    handler()->OnError(
-        this,
+    std::string msg(
         base::StringPrintf("NetFetcher error on %s: %s, response code %d",
                            source->GetURL().spec().c_str(),
                            net::ErrorToString(status.error()), response_code));
+    return HandleError(msg).InvalidateThis();
   }
 }
 
@@ -120,6 +125,12 @@ void NetFetcher::OnURLFetchDownloadData(const net::URLFetcher* source,
 NetFetcher::~NetFetcher() {
   DCHECK(thread_checker_.CalledOnValidThread());
   start_callback_.Cancel();
+}
+
+NetFetcher::ReturnWrapper NetFetcher::HandleError(const std::string& message) {
+  url_fetcher_.reset();
+  handler()->OnError(this, message);
+  return ReturnWrapper();
 }
 
 }  // namespace loader

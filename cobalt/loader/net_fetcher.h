@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_NET_FETCHER_H_
-#define LOADER_NET_FETCHER_H_
+#ifndef COBALT_LOADER_NET_FETCHER_H_
+#define COBALT_LOADER_NET_FETCHER_H_
 
 #include <string>
 
@@ -61,6 +61,21 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
  private:
   void Start();
 
+  // Empty struct to ensure the caller of |HandleError()| knows that |this|
+  // may have been destroyed and handles it appropriately.
+  struct ReturnWrapper {
+    void InvalidateThis() {}
+  };
+
+  // Call our Handler to indicate an error, and cancel the ongoing fetch.
+  // It may be that the Handler::OnError() callback  will result in
+  // destroying |this|. The caller should return immediately after calling
+  // this function.
+  // TODO(***REMOVED***): Fetchers should probably be refcounted so they can
+  // guard against being destroyed by callbacks.
+  ReturnWrapper HandleError(const std::string& error_message)
+      WARN_UNUSED_RESULT;
+
   // Thread checker ensures all calls to the NetFetcher are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
@@ -76,4 +91,4 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_NET_FETCHER_H_
+#endif  // COBALT_LOADER_NET_FETCHER_H_

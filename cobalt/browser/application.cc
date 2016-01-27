@@ -38,7 +38,15 @@ namespace cobalt {
 namespace browser {
 
 namespace {
+#if defined(COBALT_FORCE_CSP)
+// TODO(***REMOVED***): Force experiment to serve CSP to Cobalt. This is needed
+// because csp mode is "Require". Remove this once this experiment is
+// launched 100%.
+const char kDefaultURL[] =
+    "https://www.youtube.com/tv?forced_experiments=9426306";
+#else
 const char kDefaultURL[] = "https://www.youtube.com/tv";
+#endif
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
 int GetRemoteDebuggingPort() {
@@ -149,9 +157,25 @@ void EnableUsingStubImageDecoderIfRequired() {
 
 // Restrict navigation to a couple of whitelisted URLs by default. This will
 // be overridden when the server delivers the entire CSP policy.
-const char kNavigationPolicy[] = {"h5vcc-location-src 'self'"};
+const char kNavigationPolicy[] = "h5vcc-location-src 'self' h5vcc:";
 
 std::string GetDefaultSecurityPolicy() { return kNavigationPolicy; }
+
+#if !defined(COBALT_FORCE_CSP)
+dom::CSPDelegate::EnforcementType StringToCspMode(const std::string& mode) {
+  if (mode == "disable") {
+    return dom::CSPDelegate::kEnforcementDisable;
+  } else if (mode == "enable") {
+    return dom::CSPDelegate::kEnforcementEnable;
+  } else if (mode == "require") {
+    return dom::CSPDelegate::kEnforcementRequire;
+  } else {
+    DLOG(INFO) << "Invalid CSP mode: " << mode
+               << ": use [disable|enable|require]";
+    return dom::CSPDelegate::kEnforcementEnable;
+  }
+}
+#endif  // !defined(COBALT_FORCE_CSP)
 
 }  // namespace
 
@@ -186,6 +210,12 @@ Application::Application()
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
   options.web_module_options.default_security_policy =
       GetDefaultSecurityPolicy();
+
+#if defined(COBALT_FORCE_CSP)
+  options.web_module_options.csp_enforcement_mode =
+      dom::CSPDelegate::kEnforcementRequire;
+#endif  // defined(COBALT_FORCE_CSP)
+
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(browser::switches::kProxy)) {
@@ -193,9 +223,12 @@ Application::Application()
         command_line->GetSwitchValueASCII(browser::switches::kProxy);
   }
 
-  if (command_line->HasSwitch(browser::switches::kDisableCsp)) {
-    options.web_module_options.disable_csp = true;
+#if !defined(COBALT_FORCE_CSP)
+  if (command_line->HasSwitch(browser::switches::kCspMode)) {
+    options.web_module_options.csp_enforcement_mode = StringToCspMode(
+        command_line->GetSwitchValueASCII(browser::switches::kCspMode));
   }
+#endif  // !defined(COBALT_FORCE_CSP)
 
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   if (command_line->HasSwitch(browser::switches::kIgnoreCertificateErrors)) {
