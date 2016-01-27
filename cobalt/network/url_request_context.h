@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_URL_REQUEST_CONTEXT_H_
-#define NETWORK_URL_REQUEST_CONTEXT_H_
+#ifndef COBALT_NETWORK_URL_REQUEST_CONTEXT_H_
+#define COBALT_NETWORK_URL_REQUEST_CONTEXT_H_
 
 #include <string>
 
@@ -38,6 +38,8 @@ class URLRequestContext : public net::URLRequestContext {
                     bool ignore_certificate_errors);
   ~URLRequestContext() OVERRIDE;
 
+  void SetProxy(const std::string& custom_proxy_rules);
+
  private:
   net::URLRequestContextStorage storage_;
   scoped_refptr<net::CookieMonster::PersistentCookieStore>
@@ -48,4 +50,4 @@ class URLRequestContext : public net::URLRequestContext {
 }  // namespace network
 }  // namespace cobalt
 
-#endif  // NETWORK_URL_REQUEST_CONTEXT_H_
+#endif  // COBALT_NETWORK_URL_REQUEST_CONTEXT_H_

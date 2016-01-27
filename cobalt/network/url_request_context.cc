@@ -39,6 +39,14 @@
 
 namespace cobalt {
 namespace network {
+namespace {
+net::ProxyConfig CreateCustomProxyConfig(const std::string& proxy_rules) {
+  net::ProxyConfig proxy_config = net::ProxyConfig::CreateDirect();
+  proxy_config.set_source(net::PROXY_CONFIG_SOURCE_CUSTOM);
+  proxy_config.proxy_rules().ParseFromString(proxy_rules);
+  return proxy_config;
+}
+}  // namespace
 
 URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager,
                                      const std::string& custom_proxy,
@@ -55,9 +63,7 @@ URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager,
 
   base::optional<net::ProxyConfig> proxy_config;
   if (!custom_proxy.empty()) {
-    proxy_config = net::ProxyConfig::CreateDirect();
-    proxy_config->set_source(net::PROXY_CONFIG_SOURCE_CUSTOM);
-    proxy_config->proxy_rules().ParseFromString(custom_proxy);
+    proxy_config = CreateCustomProxyConfig(custom_proxy);
   }
 
   scoped_ptr<net::ProxyConfigService> proxy_config_service(
@@ -109,6 +115,12 @@ URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager,
 }
 
 URLRequestContext::~URLRequestContext() {}
+
+void URLRequestContext::SetProxy(const std::string& proxy_rules) {
+  net::ProxyConfig proxy_config = CreateCustomProxyConfig(proxy_rules);
+  // ProxyService takes ownership of the ProxyConfigService.
+  proxy_service()->ResetConfigService(new ProxyConfigService(proxy_config));
+}
 
 }  // namespace network
 }  // namespace cobalt

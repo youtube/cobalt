@@ -230,6 +230,8 @@ Application::Application()
                                    base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::RequestScreenshotToBuffer,
                    base::Unretained(browser_module_.get())),
+        base::Bind(&BrowserModule::SetProxy,
+                   base::Unretained(browser_module_.get())),
         base::Bind(&Application::Quit, base::Unretained(this))));
   }
 #endif  // ENABLE_COMMAND_LINE_SWITCHES

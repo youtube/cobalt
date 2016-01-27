@@ -161,9 +161,11 @@ void OnPNGEncodeComplete(ScreenshotResultContext* context,
 WebDriverModule::WebDriverModule(
     int server_port, const CreateSessionDriverCB& create_session_driver_cb,
     const GetScreenshotFunction& get_screenshot_function,
+    const SetProxyFunction& set_proxy_function,
     const base::Closure& shutdown_cb)
     : create_session_driver_cb_(create_session_driver_cb),
       get_screenshot_function_(get_screenshot_function),
+      set_proxy_function_(set_proxy_function),
       shutdown_cb_(shutdown_cb),
       webdriver_dispatcher_(new WebDriverDispatcher()) {
   get_session_driver_ =
@@ -595,6 +597,14 @@ WebDriverModule::CreateSessionInternal(
     // Some failure to create the new session.
     return CommandResult(protocol::Response::kUnknownError,
                          kUnknownSessionCreationError);
+  }
+
+  // If proxy settings were requested when the session was created, set them
+  // now.
+  if (requested_capabilities.required() &&
+      requested_capabilities.required()->proxy()) {
+    set_proxy_function_.Run(
+        requested_capabilities.required()->proxy()->rules());
   }
 
   return session_->GetCapabilities();

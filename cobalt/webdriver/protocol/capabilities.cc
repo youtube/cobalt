@@ -75,6 +75,18 @@ class CapabilityReader {
     }
   }
 
+  template <typename T, base::optional<T> Capabilities::*member>
+  void TryReadCapability(const char* key) {
+    const base::DictionaryValue* dictionary_value;
+    if (capabilities_value_->GetDictionary(key, &dictionary_value)) {
+      (capabilities_->*member) = T::FromValue(dictionary_value);
+      if (capabilities_->*member) {
+        bool removed = capabilities_value_->Remove(key, NULL);
+        DCHECK(removed);
+      }
+    }
+  }
+
  private:
   Capabilities* capabilities_;
   base::DictionaryValue* capabilities_value_;
@@ -179,9 +191,9 @@ base::optional<Capabilities> Capabilities::FromValue(const base::Value* value) {
       kAcceptSslCertsKey);
   reader.TryReadCapability<&Capabilities::native_events_>(kNativeEventsKey);
 
+  reader.TryReadCapability<Proxy, &Capabilities::proxy_>(kProxyKey);
   return capabilities;
 }
-
 
 Capabilities Capabilities::CreateActualCapabilities() {
   Capabilities capabilities;
@@ -212,7 +224,7 @@ base::optional<RequestedCapabilities> RequestedCapabilities::FromValue(
   const base::Value* capabilities_value = NULL;
   if (requested_capabilities_value->Get(kDesiredCapabilitiesKey,
                                         &capabilities_value)) {
-    desired = Capabilities::FromValue(value);
+    desired = Capabilities::FromValue(capabilities_value);
   }
   if (!desired) {
     // Desired capabilities are required.
@@ -221,7 +233,7 @@ base::optional<RequestedCapabilities> RequestedCapabilities::FromValue(
   base::optional<Capabilities> required;
   if (requested_capabilities_value->Get(kRequiredCapabilitiesKey,
                                         &capabilities_value)) {
-    required = Capabilities::FromValue(value);
+    required = Capabilities::FromValue(capabilities_value);
   }
   if (required) {
     return RequestedCapabilities(desired.value(), required.value());
@@ -229,7 +241,6 @@ base::optional<RequestedCapabilities> RequestedCapabilities::FromValue(
     return RequestedCapabilities(desired.value());
   }
 }
-
 
 }  // namespace protocol
 }  // namespace webdriver
