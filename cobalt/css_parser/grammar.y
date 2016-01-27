@@ -1144,6 +1144,21 @@ keyframe_rule:
     keyframe_selector style_declaration_block {
     scoped_ptr<std::vector<float> > offsets($1);
 
+    scoped_refptr<const cssom::CSSStyleDeclarationData> data = $2->data();
+    cssom::CSSStyleDeclarationData::PropertyValueConstIterator
+        property_iterator = data->BeginPropertyValueConstIterator();
+    for (; !property_iterator.Done(); property_iterator.Next()) {
+      if (property_iterator.ConstValue() ==
+          cssom::KeywordValue::GetInherit() ||
+          property_iterator.ConstValue() ==
+          cssom::KeywordValue::GetInitial()) {
+        parser_impl->LogError(
+            @2, "Cobalt does not support keyframe properties cannot be initial "
+                "or inherited.");
+        YYERROR;
+      }
+    }
+
     $$ = AddRef(new cssom::CSSKeyframeRule(
         *offsets, MakeScopedRefPtrAndRelease($2)));
   }
