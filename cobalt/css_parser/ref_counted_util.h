@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSS_PARSER_REF_COUNTED_UTIL_H_
-#define CSS_PARSER_REF_COUNTED_UTIL_H_
+#ifndef COBALT_CSS_PARSER_REF_COUNTED_UTIL_H_
+#define COBALT_CSS_PARSER_REF_COUNTED_UTIL_H_
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -40,18 +40,23 @@ inline T* AddRef(T* ptr) {
   return ptr;
 }
 
+template <typename T>
+inline void SafeRelease(T* ptr) {
+  if (ptr) {
+    ptr->Release();
+  }
+}
+
 // Takes ownership over reference-counted object.
 // NULL pointers are allowed.
 template <typename T>
 inline scoped_refptr<T> MakeScopedRefPtrAndRelease(T* ptr) {
   scoped_refptr<T> refptr(ptr);
-  if (ptr) {
-    ptr->Release();
-  }
+  SafeRelease(ptr);
   return refptr;
 }
 
 }  // namespace css_parser
 }  // namespace cobalt
 
-#endif  // CSS_PARSER_REF_COUNTED_UTIL_H_
+#endif  // COBALT_CSS_PARSER_REF_COUNTED_UTIL_H_
