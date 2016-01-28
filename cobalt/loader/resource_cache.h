@@ -504,22 +504,19 @@ void ResourceCache<CacheType>::NotifyResourceDestroyed(
          unreference_cached_resource_map_.end());
   // Check to see if this was a loaded resource.
   if (cached_resource->TryGetResource()) {
-    // If the cache is over our memory limit, then immediately reclaim the
-    // resource.
-    if (size_in_bytes_ > cache_capacity_) {
-      size_in_bytes_ -=
-          CacheType::GetEstimatedSizeInBytes(cached_resource->TryGetResource());
-      // Otherwise, add it into the unreferenced cached resource map, so that it
-      // will be retained while memory is available for it in the cache.
-    } else {
-      unreference_cached_resource_map_.insert(
-          std::make_pair(url, cached_resource->TryGetResource()));
-    }
+    // Add it into the unreferenced cached resource map, so that it will be
+    // retained while memory is available for it in the cache.
+    unreference_cached_resource_map_.insert(
+        std::make_pair(url, cached_resource->TryGetResource()));
+    // Try to reclaim some memory.
+    ReclaimMemory();
   }
 }
 
 template <typename CacheType>
 void ResourceCache<CacheType>::ReclaimMemory() {
+  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+
   while (size_in_bytes_ > cache_capacity_ &&
          !unreference_cached_resource_map_.empty()) {
     // The first element is the earliest-inserted element.
