@@ -688,31 +688,6 @@ void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
 
 void BoxGenerator::Visit(dom::DocumentType* /*document_type*/) { NOTREACHED(); }
 
-namespace {
-scoped_refptr<web_animations::AnimationSet> GetAnimationsForAnonymousBox(
-    const scoped_refptr<const web_animations::AnimationSet>&
-        parent_animations) {
-  scoped_refptr<web_animations::AnimationSet> animations(
-      new web_animations::AnimationSet);
-  const web_animations::AnimationSet::InternalSet& animation_set =
-      parent_animations->animations();
-
-  for (web_animations::AnimationSet::InternalSet::const_iterator iter =
-           animation_set.begin();
-       iter != animation_set.end(); ++iter) {
-    const web_animations::KeyframeEffectReadOnly* keyframe_effect =
-        base::polymorphic_downcast<
-            const web_animations::KeyframeEffectReadOnly*>(
-            (*iter)->effect().get());
-    if (keyframe_effect->data().IsPropertyAnimated(cssom::kColorProperty)) {
-      animations->AddAnimation(*iter);
-    }
-  }
-
-  return animations;
-}
-}  // namespace
-
 // Append the text from the text node to the text paragraph and create the
 // node's initial text box. The text box has indices that map to the paragraph,
 // which allows it to retrieve its underlying text. Initially, a single text box
@@ -732,9 +707,9 @@ void BoxGenerator::Visit(dom::Text* text) {
   computed_style_state->set_style(
       GetComputedStyleOfAnonymousBox(parent_computed_style_state_->style()));
 
-  // Copy the animations we're interested in from the parent.
+  // Copy the animations from the parent.
   computed_style_state->set_animations(
-      GetAnimationsForAnonymousBox(parent_computed_style_state_->animations()));
+      parent_computed_style_state_->animations());
 
   DCHECK(text);
   DCHECK(computed_style_state->style());
