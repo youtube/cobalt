@@ -189,7 +189,7 @@ int MapOpenSSLError(int err, const crypto::OpenSSLErrStackTracer& tracer) {
     case SSL_ERROR_WANT_WRITE:
       return ERR_IO_PENDING;
     case SSL_ERROR_SYSCALL:
-      DVLOG(1) << "OpenSSL SYSCALL error, errno " << errno;
+      DVPLOG(1) << "OpenSSL SYSCALL error: ";
       return ERR_SSL_PROTOCOL_ERROR;
     case SSL_ERROR_SSL:
       return MapOpenSSLErrorSSL();
