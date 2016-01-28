@@ -401,6 +401,10 @@ const LogSeverity LOG_0 = LOG_ERROR;
 #define VPLOG_STREAM(verbose_level) \
   logging::ErrnoLogMessage(__FILE__, __LINE__, -verbose_level, \
     ::logging::GetLastSystemErrorCode()).stream()
+#elif defined(OS_STARBOARD)
+#define VPLOG_STREAM(verbose_level) \
+  logging::StarboardLogMessage(__FILE__, __LINE__, -verbose_level, \
+    ::logging::GetLastSystemErrorCode()).stream()
 #endif
 
 #define VPLOG(verbose_level) \
