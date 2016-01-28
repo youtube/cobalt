@@ -125,16 +125,21 @@ TEST_F(SourceListTest, WildcardMatching) {
   EXPECT_TRUE(source_list.Matches(GURL("http://example1.com:8000/foo/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://example1.com:9000/foo/")));
   EXPECT_TRUE(source_list.Matches(GURL("https://foo.example2.com/bar/")));
-  EXPECT_TRUE(source_list.Matches(GURL("https://example2.com/bar/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://foo.test/")));
   EXPECT_TRUE(source_list.Matches(GURL("http://foo.bar.test/")));
+  EXPECT_TRUE(source_list.Matches(GURL("https://example1.com/foo/")));
+  EXPECT_TRUE(source_list.Matches(GURL("https://example1.com:8000/foo/")));
+  EXPECT_TRUE(source_list.Matches(GURL("https://example1.com:9000/foo/")));
+  EXPECT_TRUE(source_list.Matches(GURL("https://foo.test/")));
+  EXPECT_TRUE(source_list.Matches(GURL("https://foo.bar.test/")));
 
   EXPECT_FALSE(source_list.Matches(GURL("https://example1.com:8000/foo")));
   EXPECT_FALSE(source_list.Matches(GURL("https://example2.com:8000/bar")));
   EXPECT_FALSE(source_list.Matches(GURL("https://foo.example2.com:8000/bar")));
   EXPECT_FALSE(source_list.Matches(GURL("https://example2.foo.com/bar")));
-  EXPECT_FALSE(source_list.Matches(GURL("https://foo.test/")));
   EXPECT_FALSE(source_list.Matches(GURL("http://foo.test.bar/")));
+  EXPECT_FALSE(source_list.Matches(GURL("https://example2.com/bar/")));
+  EXPECT_FALSE(source_list.Matches(GURL("http://test/")));
 }
 
 TEST_F(SourceListTest, RedirectMatching) {
@@ -150,10 +155,12 @@ TEST_F(SourceListTest, RedirectMatching) {
                                   ContentSecurityPolicy::kDidRedirect));
   EXPECT_TRUE(source_list.Matches(GURL("http://example2.com/foo/"),
                                   ContentSecurityPolicy::kDidRedirect));
+  EXPECT_TRUE(source_list.Matches(GURL("https://example1.com/foo/"),
+                                  ContentSecurityPolicy::kDidRedirect));
+  EXPECT_TRUE(source_list.Matches(GURL("https://example1.com/bar/"),
+                                  ContentSecurityPolicy::kDidRedirect));
 
   EXPECT_FALSE(source_list.Matches(GURL("http://example3.com/foo/"),
-                                   ContentSecurityPolicy::kDidRedirect));
-  EXPECT_FALSE(source_list.Matches(GURL("https://example1.com/foo/"),
                                    ContentSecurityPolicy::kDidRedirect));
 }
 
