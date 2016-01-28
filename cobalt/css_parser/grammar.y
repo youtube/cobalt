@@ -436,7 +436,7 @@
 
 %union { cssom::RGBAColorValue* color; }
 %type <color> color
-%destructor { $$->Release(); } <color>
+%destructor { SafeRelease($$); } <color>
 
 %union { cssom::ColorStop* color_stop; }
 %type <color_stop> color_stop
@@ -448,26 +448,26 @@
 
 %union { cssom::PercentageValue* percentage; }
 %type <percentage> percentage positive_percentage
-%destructor { $$->Release(); } <percentage>
+%destructor { SafeRelease($$); } <percentage>
 
 %union { cssom::LengthValue* length; }
 %type <length> length positive_length
-%destructor { $$->Release(); } <length>
+%destructor { SafeRelease($$); } <length>
 
 %union { cssom::RatioValue* ratio; }
 %type <ratio> ratio
-%destructor { $$->Release(); } <ratio>
+%destructor { SafeRelease($$); } <ratio>
 
 %union { cssom::ResolutionValue* resolution; }
 %type <resolution> resolution
-%destructor { $$->Release(); } <resolution>
+%destructor { SafeRelease($$); } <resolution>
 
 %union { cssom::StringValue* string_value; }
 %type <string_value> font_family_name_identifier_list
                      font_family_string_name
                      font_family_specific_name
                      font_family_specific_name_no_single_identifier
-%destructor { $$->Release(); } <string_value>
+%destructor { SafeRelease($$); } <string_value>
 
 // base::TimeDelta's internal value.  One can construct a base::TimeDelta from
 // this value using the function base::TimeDelta::FromInternalValue().  We use
@@ -578,7 +578,7 @@
                        white_space_property_value
                        width_property_value
                        z_index_property_value
-%destructor { $$->Release(); } <property_value>
+%destructor { SafeRelease($$); } <property_value>
 
 %union { MarginOrPaddingShorthand* margin_or_padding_shorthand; }
 %type <margin_or_padding_shorthand> margin_property_value padding_property_value
@@ -610,11 +610,11 @@
 
 %union { cssom::CSSStyleSheet* style_sheet; }
 %type <style_sheet> style_sheet
-%destructor { $$->Release(); } <style_sheet>
+%destructor { SafeRelease($$); } <style_sheet>
 
 %union { cssom::CSSRuleList* rule_list; }
 %type <rule_list> rule_list rule_list_block
-%destructor { $$->Release(); } <rule_list>
+%destructor { SafeRelease($$); } <rule_list>
 
 %union { cssom::SimpleSelector* simple_selector; }
 %type <simple_selector> class_selector_token
@@ -655,27 +655,27 @@
 
 %union { cssom::CSSStyleDeclarationData* style_declaration_data; }
 %type <style_declaration_data> style_declaration_list
-%destructor { $$->Release(); } <style_declaration_data>
+%destructor { SafeRelease($$); } <style_declaration_data>
 
 %union { cssom::CSSStyleDeclaration* style_declaration; }
 %type <style_declaration> style_declaration_block
-%destructor { $$->Release(); } <style_declaration>
+%destructor { SafeRelease($$); } <style_declaration>
 
 %union { cssom::CSSFontFaceRule* font_face_rule; }
 %type <font_face_rule> at_font_face_rule
-%destructor { $$->Release(); } <font_face_rule>
+%destructor { SafeRelease($$); } <font_face_rule>
 
 %union { cssom::CSSKeyframeRule* keyframe_rule; }
 %type <keyframe_rule> keyframe_rule
-%destructor { $$->Release(); } <keyframe_rule>
+%destructor { SafeRelease($$); } <keyframe_rule>
 
 %union { cssom::CSSKeyframesRule* keyframes_rule; }
 %type <keyframes_rule> at_keyframes_rule
-%destructor { $$->Release(); } <keyframes_rule>
+%destructor { SafeRelease($$); } <keyframes_rule>
 
 %union { cssom::CSSRuleList* keyframe_rule_list; }
 %type <keyframe_rule_list> keyframe_rule_list
-%destructor { $$->Release(); } <keyframe_rule_list>
+%destructor { SafeRelease($$); } <keyframe_rule_list>
 
 %union { float keyframe_offset; }
 %type <keyframe_offset> keyframe_offset
@@ -686,19 +686,19 @@
 
 %union { cssom::CSSFontFaceDeclarationData* font_face_declaration_data; }
 %type <font_face_declaration_data> font_face_declaration_list
-%destructor { $$->Release(); } <font_face_declaration_data>
+%destructor { SafeRelease($$); } <font_face_declaration_data>
 
 %union { cssom::CSSMediaRule* media_rule; }
 %type <media_rule> at_media_rule
-%destructor { $$->Release(); } <media_rule>
+%destructor { SafeRelease($$); } <media_rule>
 
 %union { cssom::MediaList* media_list; }
 %type <media_list> media_list
-%destructor { $$->Release(); } <media_list>
+%destructor { SafeRelease($$); } <media_list>
 
 %union { cssom::MediaQuery* media_query; }
 %type <media_query> media_query
-%destructor { $$->Release(); } <media_query>
+%destructor { SafeRelease($$); } <media_query>
 
 %union { bool evaluated_media_type; }
 %type <evaluated_media_type> evaluated_media_type media_type_specified
@@ -712,18 +712,18 @@
                       media_feature_with_value media_feature_without_value
                       media_feature_allowing_operator_with_value
 
-%destructor { $$->Release(); } <media_feature>
+%destructor { SafeRelease($$); } <media_feature>
 
 %union { cssom::MediaFeatureOperator media_feature_operator; }
 %type <media_feature_operator> media_feature_operator
 
 %union { cssom::CSSStyleRule* style_rule; }
 %type <style_rule> qualified_rule style_rule
-%destructor { $$->Release(); } <style_rule>
+%destructor { SafeRelease($$); } <style_rule>
 
 %union { cssom::CSSRule* css_rule; }
 %type <css_rule> rule
-%destructor { $$->Release(); } <css_rule>
+%destructor { SafeRelease($$); } <css_rule>
 
 %union { cssom::PropertyListValue::Builder* property_list; }
 %type <property_list> background_size_property_list
@@ -749,7 +749,7 @@
                             ellipse_with_2_positive_length_percents
                             maybe_at_position
                             validated_position_property
-%destructor { $$->Release(); } <property_list_value>
+%destructor { SafeRelease($$); } <property_list_value>
 
 %union { cssom::TransformFunction* transform_function; }
 %type <transform_function> scale_function_parameters
@@ -775,7 +775,7 @@
 
 %union { cssom::TimingFunction* timing_function; }
 %type <timing_function> single_timing_function
-%destructor { $$->Release(); } <timing_function>
+%destructor { SafeRelease($$); } <timing_function>
 
 %union {
   cssom::TimingFunctionListValue::Builder*
@@ -4791,8 +4791,11 @@ comma_separated_animatable_property_name_list:
   }
   | comma_separated_animatable_property_name_list comma
     animatable_property_token maybe_whitespace {
-    $$ = $1;
-    $$->push_back($3);
+    scoped_ptr<cssom::PropertyKeyListValue::Builder> property_name_list($1);
+    if (property_name_list) {
+      property_name_list->push_back($3);
+    }
+    $$ = property_name_list.release();
   }
   | errors {
     parser_impl->LogError(@1, "unsupported property value for animation");
