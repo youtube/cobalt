@@ -45,9 +45,20 @@ class CreateOrOpenHelper {
     error_ = task.Run(&file_handle_, &created_);
   }
 
-  void Reply(const FileUtilProxy::CreateOrOpenCallback& callback) {
+  void Reply(const FileUtilProxy::CreateOrOpenCallback& callback,
+             const FileUtilProxy::CreateOrOpenTask& open_task) {
     DCHECK(!callback.is_null());
-    callback.Run(error_, PassPlatformFile(&file_handle_), created_);
+    if (error_ != PLATFORM_FILE_ERROR_TOO_MANY_OPENED) {
+      callback.Run(error_, PassPlatformFile(&file_handle_), created_);
+      return;
+    }
+    DLOG(WARNING) << "Too many files are opened, retrying ...";
+    CreateOrOpenHelper* helper =
+        new CreateOrOpenHelper(task_runner_, close_task_);
+    task_runner_->PostTaskAndReply(
+        FROM_HERE,
+        Bind(&CreateOrOpenHelper::RunWork, Unretained(helper), open_task),
+        Bind(&CreateOrOpenHelper::Reply, Owned(helper), callback, open_task));
   }
 
  private:
@@ -422,7 +433,7 @@ bool FileUtilProxy::RelayCreateOrOpen(
   return task_runner->PostTaskAndReply(
       FROM_HERE,
       Bind(&CreateOrOpenHelper::RunWork, Unretained(helper), open_task),
-      Bind(&CreateOrOpenHelper::Reply, Owned(helper), callback));
+      Bind(&CreateOrOpenHelper::Reply, Owned(helper), callback, open_task));
 }
 
 // static
