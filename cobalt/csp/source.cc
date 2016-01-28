@@ -60,16 +60,24 @@ bool Source::SchemeMatches(const GURL& url) const {
   if (config_.scheme.empty()) {
     return policy_->SchemeMatchesSelf(url);
   }
+  if (LowerCaseEqualsASCII(config_.scheme, "http")) {
+    return url.SchemeIs("http") || url.SchemeIs("https");
+  }
+  if (LowerCaseEqualsASCII(config_.scheme, "ws")) {
+    return url.SchemeIs("ws") || url.SchemeIs("wss");
+  }
   return url.SchemeIs(config_.scheme.c_str());
 }
 
 bool Source::HostMatches(const GURL& url) const {
   const std::string& host = url.host();
-  if (LowerCaseEqualsASCII(host, config_.host.c_str())) {
-    return true;
+  bool match;
+  if (config_.host_wildcard == SourceConfig::kHasWildcard) {
+    match = EndsWith(host, "." + config_.host, false /* case_sensitive */);
+  } else {
+    match = LowerCaseEqualsASCII(host, config_.host.c_str());
   }
-  return config_.host_wildcard == SourceConfig::kHasWildcard &&
-         EndsWith(host, "." + config_.host, false /* case_sensitive */);
+  return match;
 }
 
 bool Source::PathMatches(const GURL& url) const {
