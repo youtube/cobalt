@@ -3918,6 +3918,21 @@ TEST_F(ParserTest, ParsesMarginWith3Values) {
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_left());
 }
 
+TEST_F(ParserTest, ParseMarginUnsupportedValue) {
+  // Test the case where margin has two warnings. Ensure this doesn't crash
+  // releasing a NULL pointer.
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:7: warning: non-zero length is "
+                        "not allowed without unit identifier"));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:7: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "margin: 1em 1 340282366920938463463374607431768211455;",
+          source_location_);
+}
+
 TEST_F(ParserTest, ParsesMarginWith4Values) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("margin: 10px 20px 30px 40px;",
@@ -5799,6 +5814,16 @@ TEST_F(ParserTest, ParsesTransitionPropertyWithNoneValue) {
   scoped_refptr<cssom::KeywordValue> transition_property =
       dynamic_cast<cssom::KeywordValue*>(style->transition_property().get());
   EXPECT_EQ(cssom::KeywordValue::GetNone().get(), transition_property.get());
+}
+
+TEST_F(ParserTest, ParseUnsupportedTransitionProperty) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:22: error: unsupported property "
+                      "value for animation"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transition-property: left, all;",
+                                        source_location_);
 }
 
 TEST_F(ParserTest, ParsesTimeListWithSingleValue) {
