@@ -81,12 +81,15 @@ TEST_F(SourceTest, WildcardMatching) {
 
   Source source(csp_.get(), config);
 
-  EXPECT_TRUE(source.Matches(GURL("http://example.com:8000/")));
-  EXPECT_TRUE(source.Matches(GURL("http://example.com:8000/foo")));
-  EXPECT_TRUE(source.Matches(GURL("http://example.com:9000/foo/")));
+  EXPECT_TRUE(source.Matches(GURL("http://foo.example.com:8000/")));
+  EXPECT_TRUE(source.Matches(GURL("http://foo.example.com:8000/foo")));
+  EXPECT_TRUE(source.Matches(GURL("http://foo.example.com:9000/foo/")));
   EXPECT_TRUE(source.Matches(GURL("http://foo.example.com:8000/")));
   EXPECT_TRUE(source.Matches(GURL("HTTP://FOO.EXAMPLE.com:8000/foo/BAR")));
 
+  EXPECT_FALSE(source.Matches(GURL("http://example.com:8000/")));
+  EXPECT_FALSE(source.Matches(GURL("http://example.com:8000/foo")));
+  EXPECT_FALSE(source.Matches(GURL("http://example.com:9000/foo/")));
   EXPECT_FALSE(source.Matches(GURL("http://example.foo.com:8000/")));
   EXPECT_FALSE(source.Matches(GURL("https://example.foo.com:8000/")));
   EXPECT_FALSE(source.Matches(GURL("https://example.com:8000/bar/")));
@@ -105,14 +108,73 @@ TEST_F(SourceTest, RedirectMatching) {
                              ContentSecurityPolicy::kDidRedirect));
   EXPECT_TRUE(source.Matches(GURL("http://example.com:8000/foo"),
                              ContentSecurityPolicy::kDidRedirect));
+  EXPECT_TRUE(source.Matches(GURL("https://example.com:8000/foo"),
+                             ContentSecurityPolicy::kDidRedirect));
 
-  EXPECT_FALSE(source.Matches(GURL("https://example.com:8000/foo"),
-                              ContentSecurityPolicy::kDidRedirect));
   EXPECT_FALSE(source.Matches(GURL("http://not-example.com:8000/foo"),
                               ContentSecurityPolicy::kDidRedirect));
   EXPECT_FALSE(source.Matches(GURL("http://example.com:9000/foo/")));
 }
 
+TEST_F(SourceTest, InsecureSourceMatchesSecure) {
+  SourceConfig config;
+  config.scheme = "http";
+  config.path = "/";
+  config.port_wildcard = SourceConfig::kHasWildcard;
+  Source source(csp_.get(), config);
+
+  EXPECT_TRUE(source.Matches(GURL("http://example.com:8000/")));
+  EXPECT_TRUE(source.Matches(GURL("https://example.com:8000/")));
+  EXPECT_TRUE(source.Matches(GURL("http://not-example.com:8000/")));
+  EXPECT_TRUE(source.Matches(GURL("https://not-example.com:8000/")));
+
+  EXPECT_FALSE(source.Matches(GURL("ftp://example.com:8000/")));
+}
+
+TEST_F(SourceTest, SecureSourceDoesntMatchInsecure) {
+  SourceConfig config;
+  config.scheme = "https";
+  config.path = "/";
+  config.port_wildcard = SourceConfig::kHasWildcard;
+  Source source(csp_.get(), config);
+
+  EXPECT_TRUE(source.Matches(GURL("https://example.com:8000/")));
+  EXPECT_TRUE(source.Matches(GURL("https://example.com:8000/")));
+  EXPECT_TRUE(source.Matches(GURL("https://not-example.com:8000/")));
+
+  EXPECT_FALSE(source.Matches(GURL("http://not-example.com:8000/")));
+  EXPECT_FALSE(source.Matches(GURL("ftp://example.com:8000/")));
+}
+
+TEST_F(SourceTest, InsecureHostMatchesSecure) {
+  SourceConfig config;
+  config.scheme = "http";
+  config.host = "example.com";
+  config.path = "/";
+  config.port_wildcard = SourceConfig::kHasWildcard;
+  Source source(csp_.get(), config);
+
+  EXPECT_TRUE(source.Matches(GURL("http://example.com:8000/")));
+  EXPECT_TRUE(source.Matches(GURL("https://example.com:8000/")));
+
+  EXPECT_FALSE(source.Matches(GURL("http://not-example.com:8000/")));
+  EXPECT_FALSE(source.Matches(GURL("https://not-example.com:8000/")));
+}
+
+TEST_F(SourceTest, SecureHostDoesntMatchesInsecure) {
+  SourceConfig config;
+  config.scheme = "https";
+  config.host = "example.com";
+  config.path = "/";
+  config.port_wildcard = SourceConfig::kHasWildcard;
+  Source source(csp_.get(), config);
+
+  EXPECT_TRUE(source.Matches(GURL("https://example.com:8000/")));
+
+  EXPECT_FALSE(source.Matches(GURL("http://not-example.com:8000/")));
+  EXPECT_FALSE(source.Matches(GURL("http://example.com:8000/")));
+  EXPECT_FALSE(source.Matches(GURL("https://not-example.com:8000/")));
+}
 }  // namespace
 
 }  // namespace csp
