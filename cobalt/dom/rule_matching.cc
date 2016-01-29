@@ -46,6 +46,7 @@
 #include "cobalt/cssom/selector_visitor.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/type_selector.h"
+#include "cobalt/cssom/universal_selector.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/element.h"
@@ -158,6 +159,11 @@ class SelectorMatcher : public cssom::SelectorVisitor {
       : element_(element), matching_combinators_(matching_combinators) {
     DCHECK(element);
   }
+
+  // The universal selector represents the qualified name of any element type.
+  //   https://www.w3.org/TR/selectors4/#universal-selector
+  void VisitUniversalSelector(
+      cssom::UniversalSelector* /* universal_selector */) OVERRIDE {}
 
   // A type selector represents an instance of the element type in the document
   // tree.
@@ -409,6 +415,13 @@ void ForEachChildOnNodes(
     SelectorTree::NodeSet<kRuleMatchingNodeSetSize> candidate_nodes;
 
     // Gather candidate sets in node's children under the given combinator.
+
+    // Universal selector.
+    if (node->HasSimpleSelector(cssom::kUniversalSelector, combinator_type)) {
+      GatherCandidateNodesFromMap(cssom::kUniversalSelector, combinator_type,
+                                  node->selector_nodes_map(), base::Token(),
+                                  &candidate_nodes);
+    }
 
     // Type selector.
     if (node->HasSimpleSelector(cssom::kTypeSelector, combinator_type)) {
