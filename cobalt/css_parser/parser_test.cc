@@ -75,6 +75,7 @@
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/type_selector.h"
 #include "cobalt/cssom/unicode_range_value.h"
+#include "cobalt/cssom/universal_selector.h"
 #include "cobalt/cssom/url_src_value.h"
 #include "cobalt/cssom/url_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -563,6 +564,31 @@ TEST_F(ParserTest, ParsesTypeSelector) {
           compound_selector->simple_selectors()[0]));
   ASSERT_TRUE(type_selector);
   EXPECT_EQ("div", type_selector->element_name());
+}
+
+TEST_F(ParserTest, ParsesUniversalSelector) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("* {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::CompoundSelector* compound_selector =
+      complex_selector->first_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->simple_selectors().size());
+  cssom::UniversalSelector* universal_selector =
+      dynamic_cast<cssom::UniversalSelector*>(
+          const_cast<cssom::SimpleSelector*>(
+              compound_selector->simple_selectors()[0]));
+  ASSERT_TRUE(universal_selector);
 }
 
 TEST_F(ParserTest, ParsesCompoundSelector) {

@@ -1806,20 +1806,20 @@ identifier_token:
   }
   ;
 
+// The universal selector represents an element with any name.
+//   https://www.w3.org/TR/selectors4/#universal-selector
+universal_selector_token:
+    '*' {
+    $$ = new cssom::UniversalSelector();
+  }
+  ;
+
 // A type selector represents an instance of the element type in the document
 // tree.
 //   https://www.w3.org/TR/selectors4/#type-selector
 type_selector_token:
     identifier_token {
     $$ = new cssom::TypeSelector($1.ToString());
-  }
-  ;
-
-// The universal selector represents an element with any name.
-//   https://www.w3.org/TR/selectors4/#universal-selector
-universal_selector_token: '*' {
-    parser_impl->LogWarning(@1, "universal selector is not implemented yet");
-    $$ = NULL;  // TODO(***REMOVED***): Implement.
   }
   ;
 

@@ -40,9 +40,6 @@ class CSSStyleRule;
 class PropertyValue;
 class StyleSheetList;
 
-typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;
-typedef base::hash_map<std::string, CSSRuleSet> StringToCSSRuleSetMap;
-
 // The CSSStyleSheet interface represents a CSS style sheet.
 //   https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylesheet-interface
 class CSSStyleSheet : public StyleSheet, public MutationObserver {
@@ -77,19 +74,6 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
 
   void set_css_rules(const scoped_refptr<CSSRuleList>& css_rule_list);
 
-  const StringToCSSRuleSetMap& class_selector_rules_map() const {
-    return class_selector_rules_map_;
-  }
-  const StringToCSSRuleSetMap& id_selector_rules_map() const {
-    return id_selector_rules_map_;
-  }
-  const StringToCSSRuleSetMap& type_selector_rules_map() const {
-    return type_selector_rules_map_;
-  }
-  const CSSRuleSet& empty_pseudo_class_rules() const {
-    return empty_pseudo_class_rules_;
-  }
-
   Origin origin() const { return origin_; }
   void set_origin(Origin origin) { origin_ = origin; }
 
@@ -104,11 +88,6 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
 
  private:
   ~CSSStyleSheet() OVERRIDE;
-
-  StringToCSSRuleSetMap class_selector_rules_map_;
-  StringToCSSRuleSetMap id_selector_rules_map_;
-  StringToCSSRuleSetMap type_selector_rules_map_;
-  CSSRuleSet empty_pseudo_class_rules_;
 
   scoped_refptr<CSSRuleList> css_rule_list_;
 

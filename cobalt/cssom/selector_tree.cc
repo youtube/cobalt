@@ -16,13 +16,9 @@
 
 #include "cobalt/cssom/selector_tree.h"
 
-#include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_style_rule.h"
-#include "cobalt/cssom/empty_pseudo_class.h"
-#include "cobalt/cssom/id_selector.h"
-#include "cobalt/cssom/type_selector.h"
 
 namespace cobalt {
 namespace cssom {

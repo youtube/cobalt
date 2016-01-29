@@ -25,19 +25,25 @@
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/simple_selector.h"
 #include "cobalt/cssom/type_selector.h"
+#include "cobalt/cssom/universal_selector.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace cssom {
 
+TEST(SelectorTest, UniversalSelectorSpecificity) {
+  scoped_ptr<SimpleSelector> universal_selector(new UniversalSelector());
+  EXPECT_EQ(Specificity(0, 0, 0), universal_selector->GetSpecificity());
+}
+
+TEST(SelectorTest, TypeSelectorSpecificity) {
+  scoped_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
+  EXPECT_EQ(Specificity(0, 0, 1), type_selector->GetSpecificity());
+}
+
 TEST(SelectorTest, ClassSelectorSpecificity) {
   scoped_ptr<SimpleSelector> class_selector(new ClassSelector("my-class"));
   EXPECT_EQ(Specificity(0, 1, 0), class_selector->GetSpecificity());
-}
-
-TEST(SelectorTest, EmptyPseudoClassSpecificity) {
-  scoped_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
-  EXPECT_EQ(Specificity(0, 1, 0), empty_pseudo_class->GetSpecificity());
 }
 
 TEST(SelectorTest, IdSelectorSpecificity) {
@@ -45,9 +51,9 @@ TEST(SelectorTest, IdSelectorSpecificity) {
   EXPECT_EQ(Specificity(1, 0, 0), id_selector->GetSpecificity());
 }
 
-TEST(SelectorTest, TypeSelectorSpecificity) {
-  scoped_ptr<SimpleSelector> type_selector(new TypeSelector("div"));
-  EXPECT_EQ(Specificity(0, 0, 1), type_selector->GetSpecificity());
+TEST(SelectorTest, EmptyPseudoClassSpecificity) {
+  scoped_ptr<SimpleSelector> empty_pseudo_class(new EmptyPseudoClass());
+  EXPECT_EQ(Specificity(0, 1, 0), empty_pseudo_class->GetSpecificity());
 }
 
 TEST(SelectorTest, CompoundSelectorSpecificity) {

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_STYLE_RULE_H_
-#define CSSOM_CSS_STYLE_RULE_H_
+#ifndef COBALT_CSSOM_CSS_STYLE_RULE_H_
+#define COBALT_CSSOM_CSS_STYLE_RULE_H_
 
 #include <string>
 #include <utility>
@@ -79,7 +79,6 @@ class CSSStyleRule : public CSSRule {
   DISALLOW_COPY_AND_ASSIGN(CSSStyleRule);
 };
 
-typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;
 typedef std::pair<scoped_refptr<CSSStyleRule>, CascadePriority>
     RuleWithCascadePriority;
 typedef std::vector<RuleWithCascadePriority> RulesWithCascadePriority;
@@ -87,4 +86,4 @@ typedef std::vector<RuleWithCascadePriority> RulesWithCascadePriority;
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_STYLE_RULE_H_
+#endif  // COBALT_CSSOM_CSS_STYLE_RULE_H_
