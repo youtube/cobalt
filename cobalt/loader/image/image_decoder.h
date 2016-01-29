@@ -48,6 +48,10 @@ class ImageDecoder : public Decoder {
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
 
+  // Call this function to use the StubImageDecoder which produces a small image
+  // without decoding.
+  static void UseStubImageDecoder();
+
  private:
   // True if an error has occurred and we should not continue decoding.
   enum Error {

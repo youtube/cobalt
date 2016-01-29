@@ -28,6 +28,7 @@
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/deprecated/platform_delegate.h"
+#include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/network/network_event.h"
 #include "cobalt/system_window/application_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
@@ -137,6 +138,15 @@ FilePath GetExtraWebFileDir() {
   return result;
 }
 
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+void EnableUsingStubImageDecoderIfRequired() {
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kStubImageDecoder)) {
+    loader::image::ImageDecoder::UseStubImageDecoder();
+  }
+}
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
+
 // Restrict navigation to a couple of whitelisted URLs by default. This will
 // be overridden when the server delivers the entire CSP policy.
 const char kNavigationPolicy[] = {"h5vcc-location-src 'self'"};
@@ -199,6 +209,8 @@ Application::Application()
     options.network_module_options.require_https = false;
   }
 #endif  // !defined(COBALT_FORCE_HTTPS)
+
+  EnableUsingStubImageDecoderIfRequired();
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
   system_window_ = system_window::CreateSystemWindow(&event_dispatcher_);
