@@ -17,6 +17,7 @@
 #include "cobalt/css_parser/scanner.h"
 
 #include <limits>
+#include <stack>
 
 #include "base/string_util.h"
 #include "cobalt/base/compiler.h"
@@ -330,6 +331,65 @@ Scanner::Scanner(const char* input_iterator, StringPool* string_pool)
       line_number_(1),
       line_start_(input_iterator) {}
 
+void Scanner::ScanUnrecognizedAtRule() {
+  std::stack<char> brace_stack;
+  bool enter_rule_body = false;
+  // Until a no matching closing curly-brace <}-token> is scanned, reach
+  // the end of input or encounter a semicolon token before entering rule body.
+  while (*input_iterator_ != '\0') {
+    char first_input_iterator(*input_iterator_++);
+    if (first_input_iterator == '\n') {
+      ++line_number_;
+      line_start_ = input_iterator_;
+      continue;
+    }
+
+    if (!enter_rule_body && first_input_iterator == ';') {
+      // Encountering a <semicolon-token> ends the at-rule immediately.
+      return;
+    }
+    if (!enter_rule_body && first_input_iterator == '{') {
+      // Encountering an opening curly-brace <{-token> starts the at-rule's
+      // body.
+      enter_rule_body = true;
+      continue;
+    }
+
+    // The at-rule seeks forward, matching blocks
+    // (content surrounded by (), {}, or []).
+    if (first_input_iterator == '(' || first_input_iterator == '{' ||
+        first_input_iterator == '[') {
+      // Push the open brace to stack.
+      brace_stack.push(first_input_iterator);
+      continue;
+    }
+
+    if (first_input_iterator == ')' || first_input_iterator == '}' ||
+        first_input_iterator == ']') {
+      // Encountering a closing curly-brace <}-token> that isn't matched by
+      // anything else or inside of another block.
+      if (first_input_iterator == '}' && brace_stack.empty()) {
+        return;
+      }
+
+      if (brace_stack.empty()) {
+        // no matching found with ')' and ']' end brace, skip it. The scanner
+        // does not care about the at rule grammar.
+        continue;
+      }
+
+      if ((first_input_iterator == ')' && brace_stack.top() == '(') ||
+          (first_input_iterator == '}' && brace_stack.top() == '{') ||
+          (first_input_iterator == ']' && brace_stack.top() == '[')) {
+        // Pop the open brace from stack when encourtering a match.
+        brace_stack.pop();
+
+        continue;
+      }
+    }
+  }
+}
+
 Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
   // Loop until non-comment token is scanned.
   while (true) {
@@ -393,8 +453,15 @@ Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
         return ScanFromPlus(token_value);
       case kLessCharacter:
         return ScanFromLess();
-      case kAtCharacter:
-        return ScanFromAt(token_value);
+      case kAtCharacter: {
+        Token token(ScanFromAt(token_value));
+        // Ignore other browsers at rule and not supported at rule.
+        if (token == kInvalidAtBlockToken ||
+            token == kOtherBrowserAtBlockToken) {
+          ScanUnrecognizedAtRule();
+        }
+        return token;
+      }
       case kBackSlashCharacter:
         return ScanFromBackSlash(token_value);
       case kXorCharacter:
@@ -949,11 +1016,16 @@ Token Scanner::ScanFromAt(TokenValue* token_value) {
 
     Token at_token;
     if (DetectAtTokenAndMaybeChangeParsingMode(name, has_escape, &at_token)) {
-      return at_token;
+      if (at_token == kKeyframesToken || at_token == kMediaToken ||
+          at_token == kFontFaceToken || at_token == kOtherBrowserAtBlockToken) {
+        // We only return the at_token when matched these four at rules at this
+        // point, and any other kinds of at rules are not supported.
+        return at_token;
+      }
     }
 
     token_value->string = name;
-    return kInvalidAtToken;
+    return kInvalidAtBlockToken;
   }
 
   return '@';
@@ -3138,39 +3210,8 @@ inline bool Scanner::DetectAtTokenAndMaybeChangeParsingMode(
       return false;
 
     case '-':
-      switch (length) {
-        case 15:
-          if (has_escape) {
-            return false;
-          }
-
-          if (IsAsciiAlphaCaselessEqual(name.begin[14], 'n') &&
-              IsEqualToCssIdentifier(name.begin + 2, "webkit-regio")) {
-            *at_token = kWebkitRegionToken;
-            return true;
-          }
-          return false;
-
-        case 17:
-          if (has_escape) {
-            return false;
-          }
-
-          if (IsAsciiAlphaCaselessEqual(name.begin[16], 't') &&
-              IsEqualToCssIdentifier(name.begin + 2, "webkit-viewpor")) {
-            *at_token = kWebkitViewportToken;
-            return true;
-          }
-          return false;
-
-        case 18:
-          if (IsEqualToCssIdentifier(name.begin + 2, "webkit-keyframes")) {
-            *at_token = kWebkitKeyframesToken;
-            return true;
-          }
-          return false;
-      }
-      return false;
+      *at_token = kOtherBrowserAtBlockToken;
+      return true;
   }
   return false;
 }

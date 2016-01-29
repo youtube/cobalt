@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSS_PARSER_SCANNER_H_
-#define CSS_PARSER_SCANNER_H_
+#ifndef COBALT_CSS_PARSER_SCANNER_H_
+#define COBALT_CSS_PARSER_SCANNER_H_
 
 #include <deque>
 #include <string>
@@ -177,6 +177,7 @@ class Scanner {
                                               bool has_escape, Token* at_token);
 
   bool DetectMediaFeatureNamePrefix(Token* token);
+  void ScanUnrecognizedAtRule();
 
   const char* input_iterator_;
   StringPool* const string_pool_;
@@ -201,4 +202,4 @@ inline Token yylex(TokenValue* token_value, YYLTYPE* token_location,
 }  // namespace css_parser
 }  // namespace cobalt
 
-#endif  // CSS_PARSER_SCANNER_H_
+#endif  // COBALT_CSS_PARSER_SCANNER_H_
