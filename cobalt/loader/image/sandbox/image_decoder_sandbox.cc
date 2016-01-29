@@ -110,7 +110,7 @@ void DecodeImages(ResourceProvider* resource_provider, const char* extension) {
     if (image_decoder_result.image) {
       base::TimeDelta decoding_time = base::Time::Now() - start;
       total_time += decoding_time;
-      total_size += image_data.size();
+      total_size += image_decoder_result.image->GetEstimatedSizeInBytes();
       LOG(INFO) << "Decoding " << paths[i].BaseName().value() << " takes "
                 << decoding_time.InMicroseconds() << " microseconds";
     }
