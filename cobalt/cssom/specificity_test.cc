@@ -16,13 +16,6 @@
 
 #include "cobalt/cssom/specificity.h"
 
-#include "cobalt/cssom/child_combinator.h"
-#include "cobalt/cssom/class_selector.h"
-#include "cobalt/cssom/complex_selector.h"
-#include "cobalt/cssom/compound_selector.h"
-#include "cobalt/cssom/descendant_combinator.h"
-#include "cobalt/cssom/id_selector.h"
-#include "cobalt/cssom/type_selector.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
