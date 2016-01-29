@@ -72,6 +72,12 @@ typedef enum SbSystemPropertyId {
   kSbSystemPropertyPlatformUuid,
 } SbSystemPropertyId;
 
+// Pointer to a function to compare two items, returning less than zero, zero,
+// or greater than zero depending on whether |a| is less than |b|, equal to |b|,
+// or
+// greater than |b|, respectively (standard *cmp semantics).
+typedef int (*SbSystemComparator)(const void* a, const void* b);
+
 // Breaks the current program into the debugger, if a debugger is
 // attached. Aborts the program otherwise.
 SB_EXPORT void SbSystemBreakIntoDebugger();
@@ -184,6 +190,14 @@ SB_EXPORT bool SbSystemSymbolize(const void* address,
 // finally terminates, it will return |error_level|, if that has any meaning on
 // the current platform.
 SB_EXPORT void SbSystemRequestStop(int error_level);
+
+// Sorts an array of elements |base|, with |element_count| elements of
+// |element_width| bytes each, using |comparator| as the comparison function.
+// Meant to be a drop-in replacement for qsort.
+SB_EXPORT void SbSystemSort(void* base,
+                            size_t element_count,
+                            size_t element_width,
+                            SbSystemComparator comparator);
 
 #ifdef __cplusplus
 }  // extern "C"
