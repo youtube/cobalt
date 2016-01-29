@@ -23,6 +23,9 @@
 namespace cobalt {
 namespace css_parser {
 
+// When we support any of the at rule which already has a DISABLED test listed
+// below, this DISABLED test should be enabled.
+
 class ScannerTest : public ::testing::Test {
  protected:
   StringPool string_pool_;
@@ -645,10 +648,21 @@ TEST_F(ScannerTest, ScansLess) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansInvalidAtKeyword) {
-  Scanner scanner("@cobalt-magic", &string_pool_);
+TEST_F(ScannerTest, ScansInvalidAtRuleBlock) {
+  Scanner scanner("@cobalt-magic { foo[()]; bar[{ }] }", &string_pool_);
 
-  ASSERT_EQ(kInvalidAtToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kInvalidAtBlockToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("@cobalt-magic", token_value_.string);
+
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansInvalidAtRuleBlockEndsWithSemicolon) {
+  Scanner scanner("@cobalt-magic;", &string_pool_);
+
+  ASSERT_EQ(kInvalidAtBlockToken,
+            yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ("@cobalt-magic", token_value_.string);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
@@ -729,7 +743,7 @@ TEST_F(ScannerTest, ScansUtf8Identifier) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansSupportsOr) {
+TEST_F(ScannerTest, DISABLED_ScansSupportsOr) {
   Scanner scanner("@supports or", &string_pool_);
 
   ASSERT_EQ(kSupportsToken, yylex(&token_value_, &token_location_, &scanner));
@@ -738,7 +752,7 @@ TEST_F(ScannerTest, ScansSupportsOr) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansSupportsAnd) {
+TEST_F(ScannerTest, DISABLED_ScansSupportsAnd) {
   Scanner scanner("@supports and", &string_pool_);
 
   ASSERT_EQ(kSupportsToken, yylex(&token_value_, &token_location_, &scanner));
@@ -748,7 +762,7 @@ TEST_F(ScannerTest, ScansSupportsAnd) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansSupportsNot) {
+TEST_F(ScannerTest, DISABLED_ScansSupportsNot) {
   Scanner scanner("@supports not", &string_pool_);
 
   ASSERT_EQ(kSupportsToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1183,14 +1197,14 @@ TEST_F(ScannerTest, ScansWebkitCalc) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansBottomLeft) {
+TEST_F(ScannerTest, DISABLED_ScansBottomLeft) {
   Scanner scanner("@bottom-left", &string_pool_);
 
   ASSERT_EQ(kBottomLeftToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansBottomRight) {
+TEST_F(ScannerTest, DISABLED_ScansBottomRight) {
   Scanner scanner("@bottom-right", &string_pool_);
 
   ASSERT_EQ(kBottomRightToken,
@@ -1198,7 +1212,7 @@ TEST_F(ScannerTest, ScansBottomRight) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansBottomCenter) {
+TEST_F(ScannerTest, DISABLED_ScansBottomCenter) {
   Scanner scanner("@bottom-center", &string_pool_);
 
   ASSERT_EQ(kBottomCenterToken,
@@ -1206,7 +1220,7 @@ TEST_F(ScannerTest, ScansBottomCenter) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansBottomLeftCorner) {
+TEST_F(ScannerTest, DISABLED_ScansBottomLeftCorner) {
   Scanner scanner("@bottom-left-corner", &string_pool_);
 
   ASSERT_EQ(kBottomLeftCornerToken,
@@ -1214,7 +1228,7 @@ TEST_F(ScannerTest, ScansBottomLeftCorner) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansBottomRightCorner) {
+TEST_F(ScannerTest, DISABLED_ScansBottomRightCorner) {
   Scanner scanner("@bottom-right-corner", &string_pool_);
 
   ASSERT_EQ(kBottomRightCornerToken,
@@ -1222,7 +1236,7 @@ TEST_F(ScannerTest, ScansBottomRightCorner) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansCharset) {
+TEST_F(ScannerTest, DISABLED_ScansCharset) {
   Scanner scanner("@charset", &string_pool_);
 
   ASSERT_EQ(kCharsetToken, yylex(&token_value_, &token_location_, &scanner));
@@ -1236,56 +1250,56 @@ TEST_F(ScannerTest, ScansFontFace) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansImport) {
+TEST_F(ScannerTest, DISABLED_ScansImport) {
   Scanner scanner("@import", &string_pool_);
 
   ASSERT_EQ(kImportToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansLeftTop) {
+TEST_F(ScannerTest, DISABLED_ScansLeftTop) {
   Scanner scanner("@left-top", &string_pool_);
 
   ASSERT_EQ(kLeftTopToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansLeftMiddle) {
+TEST_F(ScannerTest, DISABLED_ScansLeftMiddle) {
   Scanner scanner("@left-middle", &string_pool_);
 
   ASSERT_EQ(kLeftMiddleToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansLeftBottom) {
+TEST_F(ScannerTest, DISABLED_ScansLeftBottom) {
   Scanner scanner("@left-bottom", &string_pool_);
 
   ASSERT_EQ(kLeftBottomToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansNamespace) {
+TEST_F(ScannerTest, DISABLED_ScansNamespace) {
   Scanner scanner("@namespace", &string_pool_);
 
   ASSERT_EQ(kNamespaceToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansPage) {
+TEST_F(ScannerTest, DISABLED_ScansPage) {
   Scanner scanner("@page", &string_pool_);
 
   ASSERT_EQ(kPageToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansRightTop) {
+TEST_F(ScannerTest, DISABLED_ScansRightTop) {
   Scanner scanner("@right-top", &string_pool_);
 
   ASSERT_EQ(kRightTopToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansRightMiddle) {
+TEST_F(ScannerTest, DISABLED_ScansRightMiddle) {
   Scanner scanner("@right-middle", &string_pool_);
 
   ASSERT_EQ(kRightMiddleToken,
@@ -1293,7 +1307,7 @@ TEST_F(ScannerTest, ScansRightMiddle) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansRightBottom) {
+TEST_F(ScannerTest, DISABLED_ScansRightBottom) {
   Scanner scanner("@right-bottom", &string_pool_);
 
   ASSERT_EQ(kRightBottomToken,
@@ -1301,28 +1315,28 @@ TEST_F(ScannerTest, ScansRightBottom) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansTopLeft) {
+TEST_F(ScannerTest, DISABLED_ScansTopLeft) {
   Scanner scanner("@top-left", &string_pool_);
 
   ASSERT_EQ(kTopLeftToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansTopRight) {
+TEST_F(ScannerTest, DISABLED_ScansTopRight) {
   Scanner scanner("@top-right", &string_pool_);
 
   ASSERT_EQ(kTopRightToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansTopCenter) {
+TEST_F(ScannerTest, DISABLED_ScansTopCenter) {
   Scanner scanner("@top-center", &string_pool_);
 
   ASSERT_EQ(kTopCenterToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansTopLeftCorner) {
+TEST_F(ScannerTest, DISABLED_ScansTopLeftCorner) {
   Scanner scanner("@top-left-corner", &string_pool_);
 
   ASSERT_EQ(kTopLeftCornerToken,
@@ -1330,7 +1344,7 @@ TEST_F(ScannerTest, ScansTopLeftCorner) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansTopRightCorner) {
+TEST_F(ScannerTest, DISABLED_ScansTopRightCorner) {
   Scanner scanner("@top-right-corner", &string_pool_);
 
   ASSERT_EQ(kTopRightCornerToken,
@@ -1338,26 +1352,11 @@ TEST_F(ScannerTest, ScansTopRightCorner) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansWebkitRegion) {
-  Scanner scanner("@-webkit-region", &string_pool_);
+TEST_F(ScannerTest, ScansWebkitAtRule) {
+  Scanner scanner("@-webkit-region foo {foo[ baz( abc; ) ], bar[baz { efg }] }",
+                  &string_pool_);
 
-  ASSERT_EQ(kWebkitRegionToken,
-            yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
-}
-
-TEST_F(ScannerTest, ScansWebkitViewport) {
-  Scanner scanner("@-webkit-viewport", &string_pool_);
-
-  ASSERT_EQ(kWebkitViewportToken,
-            yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
-}
-
-TEST_F(ScannerTest, ScansWebkitKeyframes) {
-  Scanner scanner("@-webkit-keyframes", &string_pool_);
-
-  ASSERT_EQ(kWebkitKeyframesToken,
+  ASSERT_EQ(kOtherBrowserAtBlockToken,
             yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -1423,7 +1422,7 @@ TEST_F(ScannerTest, EntersAndExitsMediaQueryMode) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, EntersAndExitsSupportsMode) {
+TEST_F(ScannerTest, DISABLED_EntersAndExitsSupportsMode) {
   Scanner scanner("@supports or; or", &string_pool_);
 
   // Entered "supports" mode, "or" should be a keyword.
