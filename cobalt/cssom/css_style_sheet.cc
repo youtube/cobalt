@@ -16,12 +16,6 @@
 
 #include "cobalt/cssom/css_style_sheet.h"
 
-#include "cobalt/cssom/after_pseudo_element.h"
-#include "cobalt/cssom/before_pseudo_element.h"
-#include "cobalt/cssom/child_combinator.h"
-#include "cobalt/cssom/class_selector.h"
-#include "cobalt/cssom/complex_selector.h"
-#include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_condition_rule.h"
 #include "cobalt/cssom/css_font_face_rule.h"
 #include "cobalt/cssom/css_grouping_rule.h"
@@ -31,13 +25,7 @@
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
-#include "cobalt/cssom/descendant_combinator.h"
-#include "cobalt/cssom/empty_pseudo_class.h"
-#include "cobalt/cssom/id_selector.h"
-#include "cobalt/cssom/selector.h"
-#include "cobalt/cssom/selector_visitor.h"
 #include "cobalt/cssom/style_sheet_list.h"
-#include "cobalt/cssom/type_selector.h"
 
 namespace cobalt {
 namespace cssom {

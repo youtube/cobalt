@@ -32,6 +32,7 @@ class HoverPseudoClass;
 class IdSelector;
 class NotPseudoClass;
 class TypeSelector;
+class UniversalSelector;
 
 // Type-safe branching on a class hierarchy of CSS selectors,
 // implemented after a classical GoF pattern (see
@@ -40,6 +41,8 @@ class SelectorVisitor {
  public:
   // Simple selectors.
 
+  virtual void VisitUniversalSelector(
+      UniversalSelector* universal_selector) = 0;
   virtual void VisitTypeSelector(TypeSelector* type_selector) = 0;
   virtual void VisitClassSelector(ClassSelector* class_selector) = 0;
   virtual void VisitIdSelector(IdSelector* id_selector) = 0;
