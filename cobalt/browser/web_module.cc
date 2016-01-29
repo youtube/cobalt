@@ -33,10 +33,6 @@ namespace browser {
 
 namespace {
 
-// TODO(***REMOVED***): These numbers should be adjusted by the size of client memory.
-const uint32 kImageCacheCapacity = 64U * 1024 * 1024;
-const uint32 kRemoteFontCacheCapacity = 5U * 1024 * 1024;
-
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 // Help string for the 'partial_layout' command.
 const char kPartialLayoutCommandShortHelp[] =
@@ -96,7 +92,8 @@ WebModule::WebModule(
                                                   options.extra_web_file_dir)),
       image_cache_(loader::image::CreateImageCache(
           base::StringPrintf("%s.ImageCache", name_.c_str()),
-          kImageCacheCapacity, resource_provider, fetcher_factory_.get())),
+          options.image_cache_capacity, resource_provider,
+          fetcher_factory_.get())),
       remote_font_cache_(loader::font::CreateRemoteFontCache(
           base::StringPrintf("%s.RemoteFontCache", name_.c_str()),
           kRemoteFontCacheCapacity, resource_provider, fetcher_factory_.get())),
