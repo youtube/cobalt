@@ -26,22 +26,6 @@ namespace cobalt {
 namespace loader {
 namespace image {
 
-namespace {
-
-bool MatchesPNGSignature(const uint8* contents) {
-  return !memcmp(contents, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8);
-}
-
-bool MatchesJPEGSignature(const uint8* contents) {
-  return !memcmp(contents, "\xFF\xD8\xFF", 3);
-}
-
-bool MatchesWEBPSignature(const uint8* contents) {
-  return !memcmp(contents, "RIFF", 4) && !memcmp(contents + 8, "WEBPVP", 6);
-}
-
-}  // namespace
-
 ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
                            const SuccessCallback& success_callback,
                            const ErrorCallback& error_callback)
@@ -85,13 +69,13 @@ void ImageDecoder::DecodeChunk(const char* data, size_t size) {
     return;
   }
 
-  if (MatchesJPEGSignature(signature_cache_.data)) {
+  if (JPEGImageDecoder::IsValidSignature(signature_cache_.data)) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new JPEGImageDecoder(resource_provider_));
-  } else if (MatchesPNGSignature(signature_cache_.data)) {
+  } else if (PNGImageDecoder::IsValidSignature(signature_cache_.data)) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider_));
-  } else if (MatchesWEBPSignature(signature_cache_.data)) {
+  } else if (WEBPImageDecoder::IsValidSignature(signature_cache_.data)) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new WEBPImageDecoder(resource_provider_));
   } else {
