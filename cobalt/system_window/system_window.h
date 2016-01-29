@@ -64,8 +64,8 @@ class SystemWindow {
     DialogCallback callback;
   };
 
-  explicit SystemWindow(base::EventDispatcher* event_dispatcher,
-                        const math::Size& window_size)
+  SystemWindow(base::EventDispatcher* event_dispatcher,
+               const math::Size& window_size)
       : event_dispatcher_(event_dispatcher), window_size_(window_size) {}
   virtual ~SystemWindow();
 

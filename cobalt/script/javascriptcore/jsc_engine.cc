@@ -17,10 +17,11 @@
 
 #include "base/logging.h"
 #include "base/memory/singleton.h"
+#include "base/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "cobalt/base/console_values.h"
-#include "cobalt/base/system_poller.h"
+#include "cobalt/base/poller.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/InitializeThreading.h"
@@ -35,14 +36,7 @@ namespace {
 
 class JSCEngineStats {
  public:
-  JSCEngineStats()
-      : js_memory_("Memory.JS", 0,
-                   "Total memory occupied by the JSC page allocator."),
-        js_engine_count_("JS.EngineCount", 0,
-                         "Total JavaScript engine registered."),
-        poller_registrar_(
-            base::Bind(&JSCEngineStats::Update, base::Unretained(this)),
-            base::TimeDelta::FromMilliseconds(20)) {}
+  JSCEngineStats();
 
   static JSCEngineStats* GetInstance() {
     return Singleton<JSCEngineStats,
@@ -63,7 +57,7 @@ class JSCEngineStats {
   friend struct StaticMemorySingletonTraits<JSCEngineStats>;
 
   void Update() {
-    base::AutoLock audo_lock(lock_);
+    base::AutoLock auto_lock(lock_);
     if (js_engine_count_ > 0) {
       js_memory_ = OSAllocator::getCurrentBytesAllocated();
     }
@@ -72,8 +66,22 @@ class JSCEngineStats {
   base::Lock lock_;
   base::CVal<size_t> js_memory_;
   base::CVal<size_t> js_engine_count_;
-  base::SystemPoller::Registrar poller_registrar_;
+  scoped_ptr<base::Poller> poller_;
 };
+
+JSCEngineStats::JSCEngineStats()
+    : js_memory_("Memory.JS", 0,
+                 "Total memory occupied by the JSC page allocator."),
+      js_engine_count_("JS.EngineCount", 0,
+                       "Total JavaScript engine registered.") {
+  // Register to get polled if there is a message loop. Otherwise, do nothing.
+  // (Some unit tests won't have a message loop).
+  if (MessageLoop::current()) {
+    poller_.reset(new base::Poller(
+        base::Bind(&JSCEngineStats::Update, base::Unretained(this)),
+        base::TimeDelta::FromMilliseconds(20)));
+  }
+}
 
 }  // namespace
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
