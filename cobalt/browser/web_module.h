@@ -67,6 +67,11 @@ namespace browser {
 // private, since these structures expect to be accessed from only one thread.
 class WebModule {
  public:
+  // TODO(***REMOVED***): These numbers should be adjusted according to the size of
+  // client memory.
+  static const uint32 kImageCacheCapacity = 64U * 1024 * 1024;
+  static const uint32 kRemoteFontCacheCapacity = 5U * 1024 * 1024;
+
   struct Options {
     typedef base::Callback<scoped_refptr<script::Wrappable>()>
         CreateObjectFunction;
@@ -80,7 +85,8 @@ class WebModule {
         : name("WebModule"),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation),
           array_buffer_allocator(NULL),
-          disable_csp(false) {}
+          disable_csp(false),
+          image_cache_capacity(kImageCacheCapacity) {}
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to
@@ -122,6 +128,9 @@ class WebModule {
 
     // Disable Content Security Policy enforcement for this web module.
     bool disable_csp;
+
+    // Image cache capaticy in bytes.
+    uint32 image_cache_capacity;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
