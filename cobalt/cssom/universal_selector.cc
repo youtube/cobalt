@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_CSSOM_SIMPLE_SELECTOR_TYPE_H_
-#define COBALT_CSSOM_SIMPLE_SELECTOR_TYPE_H_
+#include "cobalt/cssom/universal_selector.h"
+
+#include "cobalt/cssom/selector_visitor.h"
 
 namespace cobalt {
 namespace cssom {
 
-// Define the following enum here instead of inside simple_selector.h to avoid
-// circular dependency between header files.
-// It is also used as the order to normalize simple selectors in a compound
-// selector.
-enum SimpleSelectorType {
-  kUniversalSelector,
-  kTypeSelector,
-  kClassSelector,
-  kIdSelector,
-  kPseudoClass,
-  kPseudoElement,
-  kSimpleSelectorTypeCount,
-};
+void UniversalSelector::Accept(SelectorVisitor* visitor) {
+  visitor->VisitUniversalSelector(this);
+}
+
+void UniversalSelector::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
+                                              SelectorTree::Node* child_node,
+                                              CombinatorType combinator) {
+  parent_node->AppendSimpleSelector(base::Token(), kUniversalSelector,
+                                    combinator, child_node);
+}
 
 }  // namespace cssom
 }  // namespace cobalt
-
-#endif  // COBALT_CSSOM_SIMPLE_SELECTOR_TYPE_H_
