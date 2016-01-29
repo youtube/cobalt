@@ -42,6 +42,7 @@
         'image/jpeg_image_decoder.h',
         'image/png_image_decoder.cc',
         'image/png_image_decoder.h',
+        'image/stub_image_decoder.h',
         'image/webp_image_decoder.cc',
         'image/webp_image_decoder.h',
         'loader.cc',
