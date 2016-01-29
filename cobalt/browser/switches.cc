@@ -60,6 +60,9 @@ const char kRemoteDebuggingPort[] = "remote_debugging_port";
 // number of seconds have passed.
 const char kShutdownAfter[] = "shutdown_after";
 
+// Decode all images using StubImageDecoder.
+const char kStubImageDecoder[] = "stub_image_decoder";
+
 // If this is set, then a trace (see base/debug/trace_eventh.h) is started on
 // Cobalt startup.  A value must also be specified for this switch, which is
 // the duration in seconds of how long the trace will be done for before ending
