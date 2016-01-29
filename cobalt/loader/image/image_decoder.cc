@@ -20,11 +20,18 @@
 
 #include "cobalt/loader/image/jpeg_image_decoder.h"
 #include "cobalt/loader/image/png_image_decoder.h"
+#include "cobalt/loader/image/stub_image_decoder.h"
 #include "cobalt/loader/image/webp_image_decoder.h"
 
 namespace cobalt {
 namespace loader {
 namespace image {
+
+namespace {
+
+bool s_use_stub_image_decoder = false;
+
+}  // namespace
 
 ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
                            const SuccessCallback& success_callback,
@@ -69,7 +76,10 @@ void ImageDecoder::DecodeChunk(const char* data, size_t size) {
     return;
   }
 
-  if (JPEGImageDecoder::IsValidSignature(signature_cache_.data)) {
+  if (s_use_stub_image_decoder) {
+    decoder_ = make_scoped_ptr<ImageDataDecoder>(
+        new StubImageDecoder(resource_provider_));
+  } else if (JPEGImageDecoder::IsValidSignature(signature_cache_.data)) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new JPEGImageDecoder(resource_provider_));
   } else if (PNGImageDecoder::IsValidSignature(signature_cache_.data)) {
@@ -116,6 +126,9 @@ void ImageDecoder::Finish() {
       break;
   }
 }
+
+// static
+void ImageDecoder::UseStubImageDecoder() { s_use_stub_image_decoder = true; }
 
 }  // namespace image
 }  // namespace loader
