@@ -120,13 +120,38 @@ TEST_F(ParserTest, ParsesEmptyInput) {
   EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
 
-TEST_F(ParserTest, HandlesUnrecoverableSyntaxError) {
+TEST_F(ParserTest, HandlesInvalidAtRuleEndsWithSemicolons) {
   EXPECT_CALL(
       parser_observer_,
-      OnError("[object ParserTest]:1:1: error: unrecoverable syntax error"));
+      OnWarning(
+          "[object ParserTest]:1:1: warning: invalid rule @casino-royale"));
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("@casino-royale;", source_location_);
+  ASSERT_TRUE(style_sheet);
+  EXPECT_EQ(0, style_sheet->css_rules()->length());
+}
+
+TEST_F(ParserTest, HandlesInvalidAtRuleWithoutSemicolonsAtTheEndOfFile) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning(
+          "[object ParserTest]:1:1: warning: invalid rule @casino-royale"));
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("@casino-royale", source_location_);
+  ASSERT_TRUE(style_sheet);
+  EXPECT_EQ(0, style_sheet->css_rules()->length());
+}
+
+TEST_F(ParserTest, HandlesInvalidAtRuleWithNoMatchingEndBrace) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning(
+          "[object ParserTest]:1:1: warning: invalid rule @casino-royale"));
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("@casino-royale }", source_location_);
   ASSERT_TRUE(style_sheet);
   EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
@@ -163,8 +188,10 @@ TEST_F(ParserTest, IgnoresSgmlCommentDelimiters) {
 }
 
 TEST_F(ParserTest, RecoversFromInvalidAtToken) {
-  EXPECT_CALL(parser_observer_,
-              OnWarning("[object ParserTest]:1:9: warning: invalid rule"));
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning(
+          "[object ParserTest]:1:9: warning: invalid rule @cobalt-magic"));
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "body {} @cobalt-magic; div {}", source_location_);
@@ -173,8 +200,9 @@ TEST_F(ParserTest, RecoversFromInvalidAtToken) {
 }
 
 TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
-  EXPECT_CALL(parser_observer_,
-              OnWarning("[object ParserTest]:1:9: warning: invalid rule"));
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:9: warning: invalid rule @charset"));
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "body {} @charset 'utf-8'; div {}", source_location_);
@@ -183,13 +211,25 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
 }
 
 TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithBlock) {
-  EXPECT_CALL(parser_observer_,
-              OnWarning("[object ParserTest]:1:9: warning: invalid rule"));
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:9: warning: invalid qualified rule"));
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("body {} !important {} div {}", source_location_);
   ASSERT_TRUE(style_sheet);
+  EXPECT_EQ(2, style_sheet->css_rules()->length());
+}
+
+TEST_F(ParserTest, SemicolonsDonotEndQualifiedRules) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:1: warning: invalid qualified rule"));
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("foo; bar {} div {}", source_location_);
   ASSERT_TRUE(style_sheet);
+  EXPECT_EQ(1, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, ParsesClassSelector) {
@@ -718,6 +758,14 @@ TEST_F(ParserTest, WarnsAboutInvalidDeclaration) {
   EXPECT_EQ(0x9edbf9ff, color->value());
 }
 
+TEST_F(ParserTest, WarnsAboutInvalidDeclarationAtTheEndOfBlock) {
+  EXPECT_CALL(parser_observer_, OnWarning("[object ParserTest]:1:10: warning: "
+                                          "unsupported property hallelujah"));
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
+      ":empty { hallelujah: rainbowdash }", source_location_);
+}
+
 TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
   EXPECT_CALL(
       parser_observer_,
@@ -732,6 +780,50 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
   EXPECT_EQ(cssom::GetPropertyInitialValue(cssom::kBackgroundColorProperty),
             style->background_color());
   EXPECT_TRUE(style->color());
+}
+
+TEST_F(ParserTest, WarnsAboutInvalidAtRule) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:1: warning: invalid rule @wuli-style"));
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
+      "@wuli-style winners-list {"
+      "  from ["
+      "    opacity: 0.6;"
+      "  ]"
+      "  to ["
+      "    opacity: 0.8;"
+      "  ]"
+      "}\n"
+      "#my-id {} \n",
+      source_location_);
+
+  EXPECT_EQ(1, style_sheet->css_rules()->length());
+  EXPECT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+}
+
+TEST_F(ParserTest, WarnsAboutInvalidAtRuleCurlyBraceInsideOfAnotherBlock) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:1: warning: invalid rule @foo-style"));
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
+      "@foo-style winners-list {"
+      "  from ["
+      "    opacity: 0.6; }"
+      "  ]"
+      "  to ["
+      "    opacity: 0.8;"
+      "  ]"
+      "}\n"
+      "#my-id {} \n",
+      source_location_);
+
+  EXPECT_EQ(1, style_sheet->css_rules()->length());
+  EXPECT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
 }
 
 TEST_F(ParserTest, ParsesInherit) {
@@ -5222,11 +5314,6 @@ TEST_F(ParserTest, ParsesKeyframesRule) {
 }
 
 TEST_F(ParserTest, IgnoresOtherBrowserKeyframesRules) {
-  EXPECT_CALL(parser_observer_,
-              OnWarning("[object ParserTest]:1:1: warning: invalid rule"));
-  EXPECT_CALL(parser_observer_,
-              OnWarning("[object ParserTest]:2:1: warning: invalid rule"));
-
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "@-webkit-keyframes foo1 {"
       "  from {"

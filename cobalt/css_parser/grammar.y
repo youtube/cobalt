@@ -320,9 +320,6 @@
 %token kCharsetToken                    // @charset
 %token kNamespaceToken                  // @namespace
 %token kSupportsToken                   // @supports
-%token kWebkitKeyframesToken            // @-webkit-keyframes
-%token kWebkitRegionToken               // @-webkit-region
-%token kWebkitViewportToken             // @-webkit-viewport
 
 // Paged media tokens.
 %token kTopLeftCornerToken              // @top-left-corner
@@ -382,7 +379,8 @@
 %token <string> kInvalidNumberToken     // ... (digits)
 %token <string> kInvalidDimensionToken  // XXyy, where XX - number,
                                         //             yy - identifier
-%token <string> kInvalidAtToken         // @...
+%token <string> kInvalidAtBlockToken    // @... { ... }, @... ... ;
+%token <string> kOtherBrowserAtBlockToken    // @-... { ... }
 
 // Tokens with an integer value.
 // WARNING: Use |integer| rule if you want to handle the sign.
@@ -6059,20 +6057,22 @@ style_rule:
 // To parse a CSS stylesheet, interpret all of the resulting top-level qualified
 // rules as style rules.
 //   https://www.w3.org/TR/css3-syntax/#css-stylesheets
-qualified_rule: style_rule;
-
-invalid_rule:
-    error ';' maybe_whitespace { parser_impl->LogWarning(@1, "invalid rule"); }
-  | error maybe_whitespace kIdentifierToken maybe_whitespace '{'
-    maybe_whitespace keyframe_rule_list '}' maybe_whitespace {
-      scoped_refptr<cssom::CSSRuleList> unused_rule_list =
-          MakeScopedRefPtrAndRelease($7);
-      parser_impl->LogWarning(@1, "invalid rule");
-    }
+qualified_rule:
+    style_rule
   | error style_declaration_block {
     scoped_refptr<cssom::CSSStyleDeclaration> unused_style =
         MakeScopedRefPtrAndRelease($2);
-    parser_impl->LogWarning(@1, "invalid rule");
+    parser_impl->LogWarning(@1, "invalid qualified rule");
+    $$ = NULL;
+  }
+  ;
+
+invalid_rule:
+    kInvalidAtBlockToken maybe_whitespace {
+    parser_impl->LogWarning(@1, "invalid rule " + $1.ToString());
+  }
+  | kOtherBrowserAtBlockToken maybe_whitespace {
+    // Do not warn about other browser at rules.
   }
   ;
 
