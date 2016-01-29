@@ -45,6 +45,7 @@ base::optional<Proxy> Proxy::FromValue(const base::Value* value) {
   if (!dictionary_value->GetString(kProxyTypeKey, &proxy_type_string)) {
     return base::nullopt;
   }
+  StringToLowerASCII(&proxy_type_string);
   if (proxy_type_string == kManualProxyType) {
     std::vector<std::string> proxy_rules;
     std::string http_proxy;
