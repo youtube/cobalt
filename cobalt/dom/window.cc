@@ -79,7 +79,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const base::Callback<void(const GURL&)> navigation_callback,
                const base::Callback<void(const std::string&)>& error_callback,
                network_bridge::CookieJar* cookie_jar,
-               const network_bridge::NetPosterFactory& net_poster_factory,
+               const network_bridge::PostSender& post_sender,
                const std::string& default_security_policy,
                CSPDelegate::EnforcementType csp_enforcement_mode)
     : width_(width),
@@ -94,7 +94,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           Document::Options(
               url, performance_->timing()->GetNavigationStartClock(),
               navigation_callback, ParseUserAgentStyleSheet(css_parser),
-              math::Size(width_, height_), cookie_jar, net_poster_factory,
+              math::Size(width_, height_), cookie_jar, post_sender,
               default_security_policy, csp_enforcement_mode))),
       document_loader_(new loader::Loader(
           base::Bind(&loader::FetcherFactory::CreateFetcher,

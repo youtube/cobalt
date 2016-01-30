@@ -46,6 +46,7 @@ const char kCspReport[] = "csp-report";
 const char kCspReportContentType[] = "application/csp-report";
 
 struct ViolationEvent {
+  ViolationEvent() : line_number(0), column_number(0), status_code(0) {}
   std::string document_uri;
   std::string blocked_uri;
   std::string referrer;
@@ -93,7 +94,6 @@ void GatherSecurityPolicyViolationEventData(
   event_data->effective_directive = effective_directive;
   event_data->original_policy = header;
 
-  std::string source_url;
   script::GlobalObjectProxy* global_object_proxy =
       document->html_element_context()->script_runner()->GetGlobalObjectProxy();
   const std::vector<script::StackFrame>& stack_trace =
@@ -111,11 +111,11 @@ void GatherSecurityPolicyViolationEventData(
 
 }  // namespace
 
-CSPDelegate::CSPDelegate(
-    const network_bridge::NetPosterFactory& net_poster_factory,
-    const std::string& default_security_policy, EnforcementType mode)
+CSPDelegate::CSPDelegate(const network_bridge::PostSender& post_sender,
+                         const std::string& default_security_policy,
+                         EnforcementType mode)
     : document_(NULL),
-      net_poster_factory_(net_poster_factory),
+      post_sender_(post_sender),
       default_security_policy_(default_security_policy),
       was_header_received_(false) {
   enforcement_mode_ = mode;
@@ -185,6 +185,35 @@ bool CSPDelegate::CanLoad(ResourceType type, const GURL& url,
   return can_load;
 }
 
+bool CSPDelegate::IsValidNonce(ResourceType type,
+                               const std::string& nonce) const {
+  bool is_valid = false;
+  if (type == kScript) {
+    is_valid = csp_->AllowScriptWithNonce(nonce);
+  } else if (type == kStyle) {
+    is_valid = csp_->AllowStyleWithNonce(nonce);
+  } else {
+    NOTREACHED() << "Invalid resource type " << type;
+  }
+  return is_valid;
+}
+
+bool CSPDelegate::AllowInline(ResourceType type,
+                              const base::SourceLocation& location,
+                              const std::string& content) const {
+  bool can_load = false;
+  if (type == kScript) {
+    can_load = csp_->AllowInlineScript(location.file_path, location.line_number,
+                                       content);
+  } else if (type == kStyle) {
+    can_load = csp_->AllowInlineStyle(location.file_path, location.line_number,
+                                      content);
+  } else {
+    NOTREACHED() << "Invalid resource type" << type;
+  }
+  return can_load;
+}
+
 bool CSPDelegate::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
   if (enforcement_mode() == kEnforcementRequire &&
       headers.content_security_policy().empty() &&
@@ -225,7 +254,7 @@ void CSPDelegate::ReportViolation(const std::string& directive_text,
       violation_data.source_file, violation_data.status_code,
       violation_data.line_number, violation_data.column_number));
 
-  if (endpoints.empty() || net_poster_factory_.is_null()) {
+  if (endpoints.empty() || post_sender_.is_null()) {
     return;
   }
 
@@ -271,12 +300,11 @@ void CSPDelegate::SendViolationReports(
     return;
   }
   violation_reports_sent_.insert(report_hash);
-  scoped_ptr<network_bridge::NetPoster> net_poster(net_poster_factory_.Run());
   const GURL& origin_url = document_->url_as_gurl();
   for (std::vector<std::string>::const_iterator it = endpoints.begin();
        it != endpoints.end(); ++it) {
     GURL resolved_endpoint = origin_url.Resolve(*it);
-    net_poster->Send(resolved_endpoint, kCspReportContentType, report);
+    post_sender_.Run(resolved_endpoint, kCspReportContentType, report);
   }
 }
 

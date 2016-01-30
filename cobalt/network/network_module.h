@@ -95,7 +95,7 @@ class NetworkModule {
   }
   storage::StorageManager* storage_manager() const { return storage_manager_; }
   network_bridge::CookieJar* cookie_jar() const { return cookie_jar_.get(); }
-  network_bridge::NetPosterFactory GetNetPosterFactory();
+  network_bridge::PostSender GetPostSender() const;
 #if defined(DIAL_SERVER)
   scoped_refptr<net::DialServiceProxy> dial_service_proxy() const {
     return dial_service_proxy_;
@@ -121,6 +121,7 @@ class NetworkModule {
   scoped_ptr<net::DialService> dial_service_;
   scoped_refptr<net::DialServiceProxy> dial_service_proxy_;
 #endif
+  scoped_ptr<network_bridge::NetPoster> net_poster_;
   Options options_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);
