@@ -176,11 +176,12 @@ base::optional<std::string> GetComputedStyle(dom::Element* element,
                                              style_getter_function getter) {
   scoped_refptr<dom::HTMLElement> html_element(element->AsHTMLElement());
   DCHECK(html_element);
-  DCHECK(html_element->computed_style());
-  scoped_refptr<cssom::PropertyValue> property_value =
-      (html_element->computed_style()->*getter)();
-  if (property_value) {
-    return property_value->ToString();
+  if (html_element->computed_style()) {
+    scoped_refptr<cssom::PropertyValue> property_value =
+        (html_element->computed_style()->*getter)();
+    if (property_value) {
+      return property_value->ToString();
+    }
   }
   return base::nullopt;
 }
@@ -428,6 +429,12 @@ std::string GetElementText(dom::Element* element) {
 // https://github.com/SeleniumHQ/selenium/blob/master/javascript/atoms/dom.js#L577
 bool IsDisplayed(dom::Element* element) {
   DCHECK(element);
+
+  // Update the computed styles first to ensure we get up-to-date computed
+  // styles.
+  DCHECK(element->owner_document());
+  element->owner_document()->UpdateComputedStyles();
+
   // By convention, BODY element is always shown: BODY represents the document
   // and even if there's nothing rendered in there, user can always see there's
   // the document.
@@ -467,7 +474,7 @@ bool IsDisplayed(dom::Element* element) {
                              IsHiddenByOverflow(child_as_element.get()) ||
                              !HasPositiveSizeDimensions(child_as_element.get());
       if (!child_is_hidden) {
-        return false;
+        return true;
       }
     }
     return false;
