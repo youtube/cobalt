@@ -59,6 +59,8 @@ class ImageDataDecoder {
   // the internal decoding. The return value of this function is the number of
   // decoded data.
   virtual size_t DecodeChunkInternal(const uint8* data, size_t input_byte) = 0;
+  // Subclass can override this function to get a last chance to do some work.
+  virtual void FinishInternal() {}
 
   void AllocateImageData(const math::Size& size);
 
