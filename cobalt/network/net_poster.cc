@@ -27,11 +27,18 @@ namespace network {
 NetPoster::NetPoster(NetworkModule* network_module)
     : network_module_(network_module) {}
 
-NetPoster::~NetPoster() { DCHECK(thread_checker_.CalledOnValidThread()); }
+NetPoster::~NetPoster() {}
 
 void NetPoster::Send(const GURL& url, const std::string& content_type,
                      const std::string& data) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  if (network_module_->message_loop_proxy() !=
+      base::MessageLoopProxy::current()) {
+    network_module_->message_loop_proxy()->PostTask(
+        FROM_HERE, base::Bind(&NetPoster::Send, base::Unretained(this), url,
+                              content_type, data));
+    return;
+  }
+
   net::URLFetcher* url_fetcher =
       net::URLFetcher::Create(url, net::URLFetcher::POST, this);
 
@@ -49,7 +56,10 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
 }
 
 void NetPoster::OnURLFetchComplete(const net::URLFetcher* source) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  // Make sure the thread that created the fetcher is the same one that deletes
+  // it. Otherwise we have unsafe access to the fetchers_ list.
+  DCHECK_EQ(base::MessageLoopProxy::current(),
+            network_module_->message_loop_proxy());
   net::URLRequestStatus status = source->GetStatus();
   if (!status.is_success()) {
     DLOG(WARNING) << "NetPoster failed to POST to " << source->GetURL()

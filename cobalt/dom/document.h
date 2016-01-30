@@ -97,7 +97,7 @@ class Document : public Node, public cssom::MutationObserver {
             const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet,
             const base::optional<math::Size>& viewport_size,
             network_bridge::CookieJar* cookie_jar,
-            const network_bridge::NetPosterFactory& net_poster_factory,
+            const network_bridge::PostSender& post_sender,
             const std::string& default_security_policy,
             CSPDelegate::EnforcementType csp_enforcement_mode)
         : url(url_value),
@@ -106,7 +106,7 @@ class Document : public Node, public cssom::MutationObserver {
           user_agent_style_sheet(user_agent_style_sheet),
           viewport_size(viewport_size),
           cookie_jar(cookie_jar),
-          net_poster_factory(net_poster_factory),
+          post_sender(post_sender),
           default_security_policy(default_security_policy),
           csp_enforcement_mode(csp_enforcement_mode) {}
 
@@ -116,7 +116,7 @@ class Document : public Node, public cssom::MutationObserver {
     scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet;
     base::optional<math::Size> viewport_size;
     network_bridge::CookieJar* cookie_jar;
-    network_bridge::NetPosterFactory net_poster_factory;
+    network_bridge::PostSender post_sender;
     std::string default_security_policy;
     CSPDelegate::EnforcementType csp_enforcement_mode;
   };

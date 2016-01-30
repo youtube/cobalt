@@ -98,7 +98,7 @@ bool SourceList::AllowHash(const HashValue& hash_value) const {
 }
 
 bool SourceList::hash_or_nonce_present() const {
-  return nonces_.size() == 0 || hash_algorithms_used_ != kHashAlgorithmNone;
+  return nonces_.size() > 0 || hash_algorithms_used_ != kHashAlgorithmNone;
 }
 
 // source-list       = *WSP [ source *( 1*WSP source ) *WSP ]
