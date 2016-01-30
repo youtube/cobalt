@@ -18,7 +18,11 @@
 
 #include <algorithm>
 
+#if defined(__LB_PS3__)
+#include "cobalt/loader/image/jpeg_image_decoder_ps3.h"
+#else  // defined(__LB_PS3__)
 #include "cobalt/loader/image/jpeg_image_decoder.h"
+#endif  // defined(__LB_PS3__)
 #include "cobalt/loader/image/png_image_decoder.h"
 #include "cobalt/loader/image/stub_image_decoder.h"
 #include "cobalt/loader/image/webp_image_decoder.h"
@@ -79,9 +83,15 @@ void ImageDecoder::DecodeChunk(const char* data, size_t size) {
   if (s_use_stub_image_decoder) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new StubImageDecoder(resource_provider_));
+#if defined(__LB_PS3__)
+  } else if (JPEGImageDecoderPS3::IsValidSignature(signature_cache_.data)) {
+    decoder_ = make_scoped_ptr<ImageDataDecoder>(
+        new JPEGImageDecoderPS3(resource_provider_));
+#else   // defined(__LB_PS3__)
   } else if (JPEGImageDecoder::IsValidSignature(signature_cache_.data)) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new JPEGImageDecoder(resource_provider_));
+#endif  // defined(__LB_PS3__)
   } else if (PNGImageDecoder::IsValidSignature(signature_cache_.data)) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider_));
