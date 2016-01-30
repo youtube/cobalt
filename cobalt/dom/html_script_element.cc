@@ -34,6 +34,12 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+
+bool PermitAnyURL(const GURL&, bool) { return true; }
+
+}  // namespace
+
 // static
 const char HTMLScriptElement::kTagName[] = "script";
 
@@ -165,10 +171,6 @@ void HTMLScriptElement::Prepare() {
     return;
   }
 
-  csp::SecurityCallback csp_callback = base::Bind(
-      &CSPDelegate::CanLoad, base::Unretained(document_->csp_delegate()),
-      CSPDelegate::kScript);
-
   //   5. Do a potentially CORS-enabled fetch of the resulting absolute URL,
   // with the mode being the current state of the element's crossorigin
   // content attribute, the origin being the origin of the script element's
@@ -196,6 +198,23 @@ void HTMLScriptElement::Prepare() {
     // Option 6
     // Otherwise.
     load_option_ = 6;
+  }
+
+  // https://www.w3.org/TR/CSP2/#directive-script-src
+
+  CSPDelegate* csp_delegate = document_->csp_delegate();
+  // If the script element has a valid nonce, we always permit it, regardless
+  // of its URL or inline nature.
+  const bool bypass_csp =
+      csp_delegate->IsValidNonce(CSPDelegate::kScript, nonce());
+
+  csp::SecurityCallback csp_callback;
+  if (bypass_csp) {
+    csp_callback = base::Bind(&PermitAnyURL);
+  } else {
+    csp_callback =
+        base::Bind(&CSPDelegate::CanLoad, base::Unretained(csp_delegate),
+                   CSPDelegate::kScript);
   }
 
   switch (load_option_) {
@@ -284,7 +303,14 @@ void HTMLScriptElement::Prepare() {
 
       // The user agent must immediately execute the script block, even if other
       // scripts are already executing.
-      ExecuteInternal();
+      if (bypass_csp ||
+          csp_delegate->AllowInline(CSPDelegate::kScript,
+                                    inline_script_location_,
+                                    text_content().value())) {
+        ExecuteInternal();
+      } else {
+        PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+      }
     } break;
     default: { NOTREACHED(); }
   }

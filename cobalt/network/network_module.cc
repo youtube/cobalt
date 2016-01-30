@@ -58,6 +58,7 @@ NetworkModule::~NetworkModule() {
 #endif
 
   message_loop_proxy()->DeleteSoon(FROM_HERE, cookie_jar_.release());
+  message_loop_proxy()->DeleteSoon(FROM_HERE, net_poster_.release());
   message_loop_proxy()->DeleteSoon(FROM_HERE, url_request_context_.release());
   message_loop_proxy()->DeleteSoon(FROM_HERE, network_delegate_.release());
 
@@ -71,8 +72,9 @@ const std::string& NetworkModule::GetUserAgent() const {
   return http_user_agent_settings_->GetUserAgent();
 }
 
-network_bridge::NetPosterFactory NetworkModule::GetNetPosterFactory() {
-  return base::Bind(&NetworkModule::CreateNetPoster, base::Unretained(this));
+network_bridge::PostSender NetworkModule::GetPostSender() const {
+  return base::Bind(&network_bridge::NetPoster::Send,
+                    base::Unretained(net_poster_.get()));
 }
 
 void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
@@ -128,12 +130,9 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   dial_service_proxy_ = new net::DialServiceProxy(dial_service_->AsWeakPtr());
 #endif
 
-  creation_event->Signal();
-}
+  net_poster_.reset(new NetPoster(this));
 
-scoped_ptr<network_bridge::NetPoster> NetworkModule::CreateNetPoster() {
-  scoped_ptr<network_bridge::NetPoster> ret(new NetPoster(this));
-  return ret.Pass();
+  creation_event->Signal();
 }
 
 }  // namespace network
