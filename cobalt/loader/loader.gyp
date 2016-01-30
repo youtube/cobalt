@@ -66,6 +66,14 @@
         '<(DEPTH)/third_party/libwebp/libwebp.gyp:libwebp',
         'embed_resources_as_header_files',
       ],
+      'conditions': [
+        ['target_arch == "ps3"', {
+          'sources': [
+            'image/jpeg_image_decoder_ps3.cc',
+            'image/jpeg_image_decoder_ps3.h',
+          ],
+        }],
+      ],
     },
 
     {
