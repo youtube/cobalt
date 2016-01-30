@@ -52,9 +52,6 @@ void HTMLScriptElement::OnInsertedIntoDocument() {
   if (!is_parser_inserted_) {
     Prepare();
   }
-  // TODO(***REMOVED***): Remove the following code once we support Promise.
-  // See b/25387308 for more details.
-  PostToDispatchEvent(FROM_HERE, base::Tokens::readystatechange());
 }
 
 void HTMLScriptElement::OnParserStartTag(
@@ -437,10 +434,14 @@ void HTMLScriptElement::Execute(const std::string& content,
   // at the script element.
   // Otherwise, the script is internal; queue a task to fire a simple event
   // named load at the script element.
+  // TODO(***REMOVED***): Remove the firing of readystatechange once we support
+  // Promise. See b/25387308 for more details.
   if (is_external) {
     DispatchEvent(new Event(base::Tokens::load()));
+    DispatchEvent(new Event(base::Tokens::readystatechange()));
   } else {
     PostToDispatchEvent(FROM_HERE, base::Tokens::load());
+    PostToDispatchEvent(FROM_HERE, base::Tokens::readystatechange());
   }
 }
 
