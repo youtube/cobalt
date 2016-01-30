@@ -85,7 +85,7 @@ Document::Document(HTMLElementContext* html_element_context,
       user_agent_style_sheet_(options.user_agent_style_sheet) {
   DCHECK(options.url.is_empty() || options.url.is_valid());
 
-  csp_delegate_.reset(new CSPDelegate(options.net_poster_factory,
+  csp_delegate_.reset(new CSPDelegate(options.post_sender,
                                       options.default_security_policy,
                                       options.csp_enforcement_mode));
 
@@ -312,7 +312,7 @@ scoped_refptr<Node> Document::Duplicate() const {
       html_element_context_,
       Options(location_->url(), navigation_start_clock_,
               location_->navigation_callback(), user_agent_style_sheet_,
-              viewport_size_, cookie_jar_, csp_delegate_->net_poster_factory(),
+              viewport_size_, cookie_jar_, csp_delegate_->post_sender(),
               csp_delegate_->default_security_policy(),
               csp_delegate_->enforcement_mode()));
 }

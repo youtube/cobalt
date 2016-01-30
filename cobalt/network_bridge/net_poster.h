@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_BRIDGE_NET_POSTER_H_
-#define NETWORK_BRIDGE_NET_POSTER_H_
+#ifndef COBALT_NETWORK_BRIDGE_NET_POSTER_H_
+#define COBALT_NETWORK_BRIDGE_NET_POSTER_H_
 
 #include <string>
 
@@ -43,9 +43,10 @@ class NetPoster {
   DISALLOW_COPY_AND_ASSIGN(NetPoster);
 };
 
-typedef base::Callback<scoped_ptr<NetPoster>()> NetPosterFactory;
+typedef base::Callback<void(const GURL& url, const std::string& content_type,
+                            const std::string& data)> PostSender;
 
 }  // namespace network_bridge
 }  // namespace cobalt
 
-#endif  // NETWORK_BRIDGE_NET_POSTER_H_
+#endif  // COBALT_NETWORK_BRIDGE_NET_POSTER_H_

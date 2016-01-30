@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/hash_tables.h"
+#include "cobalt/base/source_location.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/network_bridge/net_poster.h"
 
@@ -60,7 +61,7 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
     kXhr,
   };
 
-  CSPDelegate(const network_bridge::NetPosterFactory& net_poster_factory,
+  CSPDelegate(const network_bridge::PostSender& post_sender,
               const std::string& default_security_policy, EnforcementType mode);
   ~CSPDelegate() OVERRIDE;
 
@@ -71,6 +72,12 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
   // Set |did_redirect| if url was the result of a redirect.
   virtual bool CanLoad(ResourceType type, const GURL& url,
                        bool did_redirect) const;
+  virtual bool IsValidNonce(ResourceType type, const std::string& nonce) const;
+
+  virtual bool AllowInline(ResourceType type,
+                           const base::SourceLocation& location,
+                           const std::string& script_content) const;
+
   // Signal to the CSP object that CSP policy directives have been received.
   // Return |true| if success, |false| if failure and load should be aborted.
   virtual bool OnReceiveHeaders(const csp::ResponseHeaders& headers);
@@ -88,9 +95,7 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
                        const std::string& header) OVERRIDE;
   void SetReferrerPolicy(csp::ReferrerPolicy policy) OVERRIDE;
 
-  const network_bridge::NetPosterFactory& net_poster_factory() const {
-    return net_poster_factory_;
-  }
+  const network_bridge::PostSender& post_sender() const { return post_sender_; }
   const std::string& default_security_policy() const {
     return default_security_policy_;
   }
@@ -105,7 +110,7 @@ class CSPDelegate : public csp::ContentSecurityPolicy::Delegate {
   Document* document_;
   scoped_ptr<csp::ContentSecurityPolicy> csp_;
   base::hash_set<uint32> violation_reports_sent_;
-  network_bridge::NetPosterFactory net_poster_factory_;
+  network_bridge::PostSender post_sender_;
 
   // Policy to enforce by default in the absence of anything else.
   std::string default_security_policy_;

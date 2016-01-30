@@ -52,6 +52,9 @@ class HTMLScriptElement : public HTMLElement {
   bool async() const { return GetBooleanAttribute("async"); }
   void set_async(bool value) { SetBooleanAttribute("async", value); }
 
+  std::string nonce() const { return GetAttribute("nonce").value_or(""); }
+  void set_nonce(const std::string& value) { SetAttribute("nonce", value); }
+
   // Custom, not in any spec.
   //
   // From Node.
