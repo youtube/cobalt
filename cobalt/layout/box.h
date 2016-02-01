@@ -510,6 +510,12 @@ class Box : public base::RefCounted<Box> {
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
+  void RenderAndAnimateBoxShadow(
+      const base::optional<render_tree::RoundedCorners>& rounded_corners,
+      render_tree::CompositionNode::Builder* border_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const;
+
   // If opacity is animated or other than 1, wraps a border node into a filter
   // node. Otherwise returns the original border node.
   scoped_refptr<render_tree::Node> RenderAndAnimateOpacity(

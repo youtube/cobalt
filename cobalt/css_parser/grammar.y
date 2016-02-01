@@ -4080,7 +4080,8 @@ validated_text_shadow_list:
       $$ = NULL;
     } else {
       $$ = AddRef(new cssom::ShadowValue(
-              shadow_property_info->length_vector, shadow_property_info->color));
+              shadow_property_info->length_vector, shadow_property_info->color,
+              false));
     }
   }
   ;
