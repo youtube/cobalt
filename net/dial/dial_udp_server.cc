@@ -10,6 +10,7 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
+#include "base/hash.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "base/string_util.h"
@@ -163,7 +164,14 @@ const std::string DialUdpServer::ConstructSearchResponse() const {
   ret.append("CACHE-CONTROL: max-age=1800\r\n");
   ret.append("EXT:\r\n");
   ret.append("BOOTID.UPNP.ORG: 1\r\n");
-  ret.append("CONFIGID.UPNP.ORG: 1\r\n");
+  // CONFIGID represents the state of the device description. Can be any
+  // non-negative integer from 0 to 2^24 - 1.
+  // DIAL clients like the Cast extension will cache the response based on this,
+  // so we ensure each location change has a different config id.
+  // This way when the app restarts with a new IP or port, the client updates
+  // its cache of DIAL devices accordingly.
+  uint32 location_hash = base::Hash(location_url_) >> 8;
+  ret.append(base::StringPrintf("CONFIGID.UPNP.ORG: %u\r\n", location_hash));
   ret.append(base::StringPrintf("SERVER: %s\r\n", server_agent_.c_str()));
   ret.append(base::StringPrintf("ST: %s\r\n", kDialStRequest));
   ret.append(base::StringPrintf("USN: uuid:%s::%s\r\n",
