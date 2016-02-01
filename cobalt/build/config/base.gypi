@@ -248,6 +248,7 @@
       'variables' : {
         'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,
+        'enable_about_scheme': 1,
         'enable_remote_debugging%': 1,
         'enable_screenshot': 1,
       },
@@ -256,6 +257,7 @@
       'variables' : {
         'cobalt_copy_debug_console': 0,
         'cobalt_copy_test_data': 0,
+        'enable_about_scheme': 0,
         'enable_remote_debugging%': 0,
         'enable_screenshot': 0,
       },
