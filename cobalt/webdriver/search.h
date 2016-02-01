@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_SEARCH_H_
-#define WEBDRIVER_SEARCH_H_
+#ifndef COBALT_WEBDRIVER_SEARCH_H_
+#define COBALT_WEBDRIVER_SEARCH_H_
 
 #include <vector>
 
@@ -41,25 +41,19 @@ class Search {
       case protocol::SearchStrategy::kClassName: {
         scoped_refptr<dom::HTMLCollection> collection =
             node->GetElementsByClassName(strategy.parameter());
-        if (collection) {
-          for (uint32 i = 0; i < collection->length(); ++i) {
-            found_elements.push_back(collection->Item(i).get());
-          }
-        }
+        HTMLCollectionToElementVector(collection, &found_elements);
+        break;
+      }
+      case protocol::SearchStrategy::kTagName: {
+        scoped_refptr<dom::HTMLCollection> collection =
+            node->GetElementsByTagName(strategy.parameter());
+        HTMLCollectionToElementVector(collection, &found_elements);
         break;
       }
       case protocol::SearchStrategy::kCssSelector: {
         scoped_refptr<dom::NodeList> node_list =
             node->QuerySelectorAll(strategy.parameter());
-        if (node_list) {
-          for (uint32 i = 0; i < node_list->length(); ++i) {
-            scoped_refptr<dom::Element> element =
-                node_list->Item(i)->AsElement();
-            if (element) {
-              found_elements.push_back(element.get());
-            }
-          }
-        }
+        NodeListToElementVector(node_list, &found_elements);
         break;
       }
       default:
@@ -75,8 +69,15 @@ class Search {
   template <typename T>
   static util::CommandResult<T> PopulateFindResults(
       const ElementVector& found_elements, ElementMapping* element_mapping);
+
+  static void HTMLCollectionToElementVector(
+      const scoped_refptr<dom::HTMLCollection>& html_collection,
+      ElementVector* element_vector);
+  static void NodeListToElementVector(
+      const scoped_refptr<dom::NodeList>& node_list,
+      ElementVector* element_vector);
 };
 
 }  // namespace webdriver
 }  // namespace cobalt
-#endif  // WEBDRIVER_SEARCH_H_
+#endif  // COBALT_WEBDRIVER_SEARCH_H_
