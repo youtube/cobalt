@@ -240,6 +240,11 @@ WebDriverModule::WebDriverModule(
       StringPrintf("/session/%s/url", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::Navigate)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/alert_text", kSessionIdVariable),
+      session_command_factory->GetCommandHandler(
+          base::Bind(&SessionDriver::GetAlertText)));
 
   // Specified window commands.
   webdriver_dispatcher_->RegisterCommand(

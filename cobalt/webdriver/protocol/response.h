@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_PROTOCOL_RESPONSE_H_
-#define WEBDRIVER_PROTOCOL_RESPONSE_H_
+#ifndef COBALT_WEBDRIVER_PROTOCOL_RESPONSE_H_
+#define COBALT_WEBDRIVER_PROTOCOL_RESPONSE_H_
 
 #include <string>
 
@@ -61,6 +61,9 @@ class Response {
     // The specified window has been closed, or otherwise couldn't be found.
     kNoSuchWindow = 23,
 
+    // An attempt was made to operate on a modal dialog when one was not open.
+    kNoAlertOpenError = 27,
+
     // A new session could not be created.
     kSessionNotCreatedException = 33,
   };
@@ -82,4 +85,4 @@ class Response {
 }  // namespace protocol
 }  // namespace webdriver
 }  // namespace cobalt
-#endif  // WEBDRIVER_PROTOCOL_RESPONSE_H_
+#endif  // COBALT_WEBDRIVER_PROTOCOL_RESPONSE_H_

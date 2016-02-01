@@ -79,6 +79,11 @@ util::CommandResult<void> SessionDriver::Navigate(const GURL& url) {
   return util::CommandResult<void>(protocol::Response::kSuccess);
 }
 
+util::CommandResult<std::string> SessionDriver::GetAlertText() {
+  return util::CommandResult<std::string>(
+      protocol::Response::kNoAlertOpenError);
+}
+
 protocol::WindowId SessionDriver::GetUniqueWindowId() {
   DCHECK(thread_checker_.CalledOnValidThread());
   std::string window_id = base::StringPrintf("window-%d", next_window_id_++);

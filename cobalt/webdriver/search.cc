@@ -51,5 +51,28 @@ Search::PopulateFindResults(const ElementVector& found_elements,
   return CommandResult(id_vector);
 }
 
+void Search::HTMLCollectionToElementVector(
+    const scoped_refptr<dom::HTMLCollection>& html_collection,
+    ElementVector* element_vector) {
+  if (html_collection) {
+    for (uint32 i = 0; i < html_collection->length(); ++i) {
+      element_vector->push_back(html_collection->Item(i).get());
+    }
+  }
+}
+
+void Search::NodeListToElementVector(
+    const scoped_refptr<dom::NodeList>& node_list,
+    ElementVector* element_vector) {
+  if (node_list) {
+    for (uint32 i = 0; i < node_list->length(); ++i) {
+      scoped_refptr<dom::Element> element = node_list->Item(i)->AsElement();
+      if (element) {
+        element_vector->push_back(element.get());
+      }
+    }
+  }
+}
+
 }  // namespace webdriver
 }  // namespace cobalt
