@@ -1718,12 +1718,13 @@ void ComputedShadowProvider::VisitPropertyList(
     ShadowValue* shadow_value = base::polymorphic_downcast<ShadowValue*>(
         property_list_value->value()[i].get());
 
-    std::vector<scoped_refptr<LengthValue> > lengths;
-    for (size_t j = 0; j < shadow_value->lengths().size(); ++j) {
-      LengthValue* specified_length = base::polymorphic_downcast<LengthValue*>(
-          shadow_value->lengths()[j].get());
-      lengths.push_back(
-          ProvideAbsoluteLength(specified_length, computed_font_size_));
+    scoped_refptr<LengthValue> computed_lengths[ShadowValue::kMaxLengths];
+    for (int j = 0; j < ShadowValue::kMaxLengths; ++j) {
+      LengthValue* specified_length = shadow_value->lengths()[j].get();
+      if (specified_length) {
+        computed_lengths[j] =
+            ProvideAbsoluteLength(specified_length, computed_font_size_);
+      }
     }
 
     scoped_refptr<RGBAColorValue> color = shadow_value->color();
@@ -1732,7 +1733,7 @@ void ComputedShadowProvider::VisitPropertyList(
     }
 
     builder->push_back(
-        new ShadowValue(lengths, color, shadow_value->has_inset()));
+        new ShadowValue(computed_lengths, color, shadow_value->has_inset()));
   }
 
   computed_shadow_ = new PropertyListValue(builder.Pass());

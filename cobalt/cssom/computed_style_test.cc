@@ -692,7 +692,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithEmLengthAndColor) {
   lengths.push_back(new cssom::LengthValue(10, cssom::kFontSizesAkaEmUnit));
 
   scoped_refptr<cssom::ShadowValue> shadow(
-      new cssom::ShadowValue(lengths, cssom::RGBAColorValue::GetAqua()));
+      new cssom::ShadowValue(lengths, cssom::RGBAColorValue::GetAqua(), false));
   builder->push_back(shadow);
 
   computed_style->set_box_shadow(new PropertyListValue(builder.Pass()));
@@ -711,13 +711,11 @@ TEST(PromoteToComputedStyle, BoxShadowWithEmLengthAndColor) {
   scoped_refptr<cssom::ShadowValue> box_shadow =
       dynamic_cast<cssom::ShadowValue*>(box_shadow_list->value()[0].get());
 
-  float length_value[] = {100.0f, 500.0f};
-  for (size_t i = 0; i < box_shadow->lengths().size(); ++i) {
-    scoped_refptr<cssom::LengthValue> length =
-        dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[i].get());
-    EXPECT_EQ(length_value[i], length->value());
-    EXPECT_EQ(cssom::kPixelsUnit, length->unit());
-  }
+  EXPECT_EQ(100.0f, box_shadow->offset_x()->value());
+  EXPECT_EQ(cssom::kPixelsUnit, box_shadow->offset_x()->unit());
+
+  EXPECT_EQ(500.0f, box_shadow->offset_y()->value());
+  EXPECT_EQ(cssom::kPixelsUnit, box_shadow->offset_y()->unit());
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(box_shadow->color().get());
@@ -756,13 +754,11 @@ TEST(PromoteToComputedStyle, BoxShadowWithInset) {
   scoped_refptr<cssom::ShadowValue> box_shadow =
       dynamic_cast<cssom::ShadowValue*>(box_shadow_list->value()[0].get());
 
-  float length_value[] = {100.0f, 30.0f};
-  for (size_t i = 0; i < box_shadow->lengths().size(); ++i) {
-    scoped_refptr<cssom::LengthValue> length =
-        dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[i].get());
-    EXPECT_EQ(length_value[i], length->value());
-    EXPECT_EQ(cssom::kPixelsUnit, length->unit());
-  }
+  EXPECT_EQ(100.0f, box_shadow->offset_x()->value());
+  EXPECT_EQ(cssom::kPixelsUnit, box_shadow->offset_x()->unit());
+
+  EXPECT_EQ(30.0f, box_shadow->offset_y()->value());
+  EXPECT_EQ(cssom::kPixelsUnit, box_shadow->offset_y()->unit());
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(box_shadow->color().get());
@@ -784,7 +780,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
   lengths.push_back(new cssom::LengthValue(200, cssom::kPixelsUnit));
 
   scoped_refptr<cssom::ShadowValue> shadow(
-      new cssom::ShadowValue(lengths, NULL));
+      new cssom::ShadowValue(lengths, NULL, false));
   builder->push_back(shadow);
 
   computed_style->set_box_shadow(new PropertyListValue(builder.Pass()));
@@ -802,18 +798,14 @@ TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
   scoped_refptr<cssom::ShadowValue> box_shadow =
       dynamic_cast<cssom::ShadowValue*>(box_shadow_list->value()[0].get());
 
-  float length_value[] = {100.0f, 200.0f};
-  for (size_t i = 0; i < box_shadow->lengths().size(); ++i) {
-    scoped_refptr<cssom::LengthValue> length =
-        dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[i].get());
-    EXPECT_EQ(length_value[i], length->value());
-    EXPECT_EQ(cssom::kPixelsUnit, length->unit());
-  }
+  EXPECT_EQ(100.0f, box_shadow->offset_x()->value());
+  EXPECT_EQ(cssom::kPixelsUnit, box_shadow->offset_x()->unit());
 
-  scoped_refptr<cssom::RGBAColorValue> color =
-      dynamic_cast<cssom::RGBAColorValue*>(box_shadow->color().get());
-  ASSERT_TRUE(color);
-  EXPECT_EQ(0x0047abff, color->value());
+  EXPECT_EQ(200.0f, box_shadow->offset_y()->value());
+  EXPECT_EQ(cssom::kPixelsUnit, box_shadow->offset_y()->unit());
+
+  ASSERT_TRUE(box_shadow->color());
+  EXPECT_EQ(0x0047abff, box_shadow->color()->value());
 
   EXPECT_FALSE(box_shadow->has_inset());
 }
@@ -866,22 +858,27 @@ TEST(PromoteToComputedStyle, BoxShadowWithShadowList) {
         dynamic_cast<cssom::ShadowValue*>(box_shadow_list->value()[i].get());
 
     if (i == 0) {
-      EXPECT_EQ(3, box_shadow->lengths().size());
+      EXPECT_TRUE(box_shadow->offset_x());
+      EXPECT_TRUE(box_shadow->offset_y());
+      EXPECT_TRUE(box_shadow->blur_radius());
+      EXPECT_FALSE(box_shadow->spread_radius());
     } else {
-      EXPECT_EQ(2, box_shadow->lengths().size());
+      EXPECT_TRUE(box_shadow->offset_x());
+      EXPECT_TRUE(box_shadow->offset_y());
+      EXPECT_FALSE(box_shadow->blur_radius());
+      EXPECT_FALSE(box_shadow->spread_radius());
     }
 
-    for (size_t j = 0; j < box_shadow->lengths().size(); ++j) {
-      scoped_refptr<cssom::LengthValue> length =
-          dynamic_cast<cssom::LengthValue*>(box_shadow->lengths()[j].get());
-      EXPECT_EQ(expected_length_value[i][j], length->value());
-      EXPECT_EQ(cssom::kPixelsUnit, length->unit());
+    for (int j = 0; j < ShadowValue::kMaxLengths; ++j) {
+      scoped_refptr<cssom::LengthValue> length = box_shadow->lengths()[j];
+      if (length) {
+        EXPECT_EQ(expected_length_value[i][j], length->value());
+        EXPECT_EQ(cssom::kPixelsUnit, length->unit());
+      }
     }
 
-    scoped_refptr<cssom::RGBAColorValue> color =
-        dynamic_cast<cssom::RGBAColorValue*>(box_shadow->color().get());
-    ASSERT_TRUE(color);
-    EXPECT_EQ(expected_color[i], color->value());
+    ASSERT_TRUE(box_shadow->color());
+    EXPECT_EQ(expected_color[i], box_shadow->color()->value());
 
     EXPECT_EQ(expected_has_inset[i], box_shadow->has_inset());
   }
@@ -912,7 +909,7 @@ TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
   lengths.push_back(new cssom::LengthValue(10, cssom::kFontSizesAkaEmUnit));
 
   scoped_refptr<cssom::ShadowValue> shadow(
-      new cssom::ShadowValue(lengths, cssom::RGBAColorValue::GetAqua()));
+      new cssom::ShadowValue(lengths, cssom::RGBAColorValue::GetAqua(), false));
   builder->push_back(shadow);
 
   computed_style->set_text_shadow(new PropertyListValue(builder.Pass()));
@@ -931,18 +928,14 @@ TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
   scoped_refptr<cssom::ShadowValue> text_shadow =
       dynamic_cast<cssom::ShadowValue*>(text_shadow_list->value()[0].get());
 
-  float length_value[] = {100.0f, 500.0f};
-  for (size_t i = 0; i < text_shadow->lengths().size(); ++i) {
-    scoped_refptr<cssom::LengthValue> length =
-        dynamic_cast<cssom::LengthValue*>(text_shadow->lengths()[i].get());
-    EXPECT_EQ(length_value[i], length->value());
-    EXPECT_EQ(cssom::kPixelsUnit, length->unit());
-  }
+  EXPECT_EQ(100.0f, text_shadow->offset_x()->value());
+  EXPECT_EQ(cssom::kPixelsUnit, text_shadow->offset_x()->unit());
 
-  scoped_refptr<cssom::RGBAColorValue> color =
-      dynamic_cast<cssom::RGBAColorValue*>(text_shadow->color().get());
-  ASSERT_TRUE(color);
-  EXPECT_EQ(0x00FFFFFF, color->value());
+  EXPECT_EQ(500.0f, text_shadow->offset_y()->value());
+  EXPECT_EQ(cssom::kPixelsUnit, text_shadow->offset_y()->unit());
+
+  ASSERT_TRUE(text_shadow->color());
+  EXPECT_EQ(0x00FFFFFF, text_shadow->color()->value());
 
   EXPECT_FALSE(text_shadow->has_inset());
 }
@@ -959,7 +952,7 @@ TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
   lengths.push_back(new cssom::LengthValue(200, cssom::kPixelsUnit));
 
   scoped_refptr<cssom::ShadowValue> shadow(
-      new cssom::ShadowValue(lengths, NULL));
+      new cssom::ShadowValue(lengths, NULL, false));
   builder->push_back(shadow);
 
   computed_style->set_text_shadow(new PropertyListValue(builder.Pass()));
@@ -977,18 +970,14 @@ TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
   scoped_refptr<cssom::ShadowValue> text_shadow =
       dynamic_cast<cssom::ShadowValue*>(text_shadow_list->value()[0].get());
 
-  float length_value[] = {100.0f, 200.0f};
-  for (size_t i = 0; i < text_shadow->lengths().size(); ++i) {
-    scoped_refptr<cssom::LengthValue> length =
-        dynamic_cast<cssom::LengthValue*>(text_shadow->lengths()[i].get());
-    EXPECT_EQ(length_value[i], length->value());
-    EXPECT_EQ(cssom::kPixelsUnit, length->unit());
-  }
+  EXPECT_EQ(100.0f, text_shadow->offset_x()->value());
+  EXPECT_EQ(cssom::kPixelsUnit, text_shadow->offset_x()->unit());
 
-  scoped_refptr<cssom::RGBAColorValue> color =
-      dynamic_cast<cssom::RGBAColorValue*>(text_shadow->color().get());
-  ASSERT_TRUE(color);
-  EXPECT_EQ(0x0047abff, color->value());
+  EXPECT_EQ(200.0f, text_shadow->offset_y()->value());
+  EXPECT_EQ(cssom::kPixelsUnit, text_shadow->offset_y()->unit());
+
+  ASSERT_TRUE(text_shadow->color());
+  EXPECT_EQ(0x0047abff, text_shadow->color()->value());
 
   EXPECT_FALSE(text_shadow->has_inset());
 }
@@ -1005,14 +994,14 @@ TEST(PromoteToComputedStyle, TextShadowWithShadowList) {
   lengths_1.push_back(new cssom::LengthValue(30, cssom::kPixelsUnit));
   lengths_1.push_back(new cssom::LengthValue(3, cssom::kFontSizesAkaEmUnit));
   scoped_refptr<cssom::ShadowValue> shadow_1(
-      new cssom::ShadowValue(lengths_1, NULL));
+      new cssom::ShadowValue(lengths_1, NULL, false));
   builder->push_back(shadow_1);
 
   std::vector<scoped_refptr<LengthValue> > lengths_2;
   lengths_2.push_back(new cssom::LengthValue(2, cssom::kFontSizesAkaEmUnit));
   lengths_2.push_back(new cssom::LengthValue(40, cssom::kPixelsUnit));
-  scoped_refptr<cssom::ShadowValue> shadow_2(
-      new cssom::ShadowValue(lengths_2, cssom::RGBAColorValue::GetNavy()));
+  scoped_refptr<cssom::ShadowValue> shadow_2(new cssom::ShadowValue(
+      lengths_2, cssom::RGBAColorValue::GetNavy(), false));
 
   builder->push_back(shadow_2);
 
@@ -1040,22 +1029,27 @@ TEST(PromoteToComputedStyle, TextShadowWithShadowList) {
         dynamic_cast<cssom::ShadowValue*>(text_shadow_list->value()[i].get());
 
     if (i == 0) {
-      EXPECT_EQ(3, text_shadow->lengths().size());
+      EXPECT_TRUE(text_shadow->offset_x());
+      EXPECT_TRUE(text_shadow->offset_y());
+      EXPECT_TRUE(text_shadow->blur_radius());
+      EXPECT_FALSE(text_shadow->spread_radius());
     } else {
-      EXPECT_EQ(2, text_shadow->lengths().size());
+      EXPECT_TRUE(text_shadow->offset_x());
+      EXPECT_TRUE(text_shadow->offset_y());
+      EXPECT_FALSE(text_shadow->blur_radius());
+      EXPECT_FALSE(text_shadow->spread_radius());
     }
 
-    for (size_t j = 0; j < text_shadow->lengths().size(); ++j) {
-      scoped_refptr<cssom::LengthValue> length =
-          dynamic_cast<cssom::LengthValue*>(text_shadow->lengths()[j].get());
-      EXPECT_EQ(expected_length_value[i][j], length->value());
-      EXPECT_EQ(cssom::kPixelsUnit, length->unit());
+    for (size_t j = 0; j < ShadowValue::kMaxLengths; ++j) {
+      scoped_refptr<cssom::LengthValue> length = text_shadow->lengths()[j];
+      if (length) {
+        EXPECT_EQ(expected_length_value[i][j], length->value());
+        EXPECT_EQ(cssom::kPixelsUnit, length->unit());
+      }
     }
 
-    scoped_refptr<cssom::RGBAColorValue> color =
-        dynamic_cast<cssom::RGBAColorValue*>(text_shadow->color().get());
-    ASSERT_TRUE(color);
-    EXPECT_EQ(expected_color[i], color->value());
+    ASSERT_TRUE(text_shadow->color());
+    EXPECT_EQ(expected_color[i], text_shadow->color()->value());
 
     EXPECT_FALSE(text_shadow->has_inset());
   }
