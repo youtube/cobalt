@@ -77,3 +77,12 @@
 5-0-border-radius-with-background-image
 5-0-border-radius-with-background-image-and-border
 5-0-border-radius-with-border-only
+7-1-1-box-shadow-with-inset
+7-1-1-box-shadow-with-inset-and-blur-and-spread
+7-1-1-box-shadow-with-spread
+7-1-2-box-shadow-with-blur
+7-1-box-shadow-offset-top-left
+7-1-box-shadow-with-inset-and-outset-blur
+7-1-box-shadow-with-spread-and-blur
+7-1-simple-black-box-shadow
+7-1-simple-red-box-shadow

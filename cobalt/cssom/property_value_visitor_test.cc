@@ -238,7 +238,7 @@ TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {
 TEST(PropertyValueVisitorTest, VisitsShadowValue) {
   scoped_refptr<ShadowValue> shadow_value =
       new ShadowValue(std::vector<scoped_refptr<LengthValue> >(),
-                      new RGBAColorValue(0x0047abff));
+                      new RGBAColorValue(0x0047abff), false);
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitShadow(shadow_value.get()));
   shadow_value->Accept(&mock_visitor);
