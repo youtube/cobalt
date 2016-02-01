@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SHADOW_VALUE_H_
-#define CSSOM_SHADOW_VALUE_H_
+#ifndef COBALT_CSSOM_SHADOW_VALUE_H_
+#define COBALT_CSSOM_SHADOW_VALUE_H_
 
 #include <string>
 #include <vector>
@@ -33,18 +33,47 @@ class PropertyValueVisitor;
 
 class ShadowValue : public PropertyValue {
  public:
-  ShadowValue(const std::vector<scoped_refptr<LengthValue> >& lengths,
-              const scoped_refptr<RGBAColorValue>& color)
-      : lengths_(lengths), color_(color), has_inset_(false) {}
+  // Defines the meaning of the value for each index in the lengths_ array.
+  enum LengthsIndex {
+    kLengthsIndexOffsetX,
+    kLengthsIndexOffsetY,
+    kLengthsIndexBlurRadius,
+    kLengthsIndexSpreadRadius,
+    kMaxLengths,
+  };
 
   ShadowValue(const std::vector<scoped_refptr<LengthValue> >& lengths,
               const scoped_refptr<RGBAColorValue>& color, bool has_inset)
-      : lengths_(lengths), color_(color), has_inset_(has_inset) {}
+      : color_(color), has_inset_(has_inset) {
+    DCHECK_LE(lengths.size(), kMaxLengths);
+    for (size_t i = 0; i < lengths.size(); ++i) {
+      lengths_[i] = lengths[i];
+    }
+  }
+
+  ShadowValue(const scoped_refptr<LengthValue>* lengths,
+              const scoped_refptr<RGBAColorValue>& color, bool has_inset)
+      : color_(color), has_inset_(has_inset) {
+    for (int i = 0; i < kMaxLengths; ++i) {
+      lengths_[i] = lengths[i];
+    }
+  }
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
-  const std::vector<scoped_refptr<LengthValue> >& lengths() const {
-    return lengths_;
+  const scoped_refptr<LengthValue>* lengths() const { return lengths_; }
+
+  const scoped_refptr<LengthValue>& offset_x() const {
+    return lengths_[kLengthsIndexOffsetX];
+  }
+  const scoped_refptr<LengthValue>& offset_y() const {
+    return lengths_[kLengthsIndexOffsetY];
+  }
+  const scoped_refptr<LengthValue>& blur_radius() const {
+    return lengths_[kLengthsIndexBlurRadius];
+  }
+  const scoped_refptr<LengthValue>& spread_radius() const {
+    return lengths_[kLengthsIndexSpreadRadius];
   }
 
   const scoped_refptr<RGBAColorValue>& color() const { return color_; }
@@ -53,17 +82,14 @@ class ShadowValue : public PropertyValue {
 
   std::string ToString() const OVERRIDE;
 
-  bool operator==(const ShadowValue& other) const {
-    return lengths_ == other.lengths_ && color_ == other.color_ &&
-           has_inset_ == other.has_inset_;
-  }
+  bool operator==(const ShadowValue& other) const;
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(ShadowValue);
 
  private:
   ~ShadowValue() OVERRIDE {}
 
-  const std::vector<scoped_refptr<LengthValue> > lengths_;
+  scoped_refptr<LengthValue> lengths_[kMaxLengths];
   const scoped_refptr<RGBAColorValue> color_;
   const bool has_inset_;
 
@@ -73,4 +99,4 @@ class ShadowValue : public PropertyValue {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_SHADOW_VALUE_H_
+#endif  // COBALT_CSSOM_SHADOW_VALUE_H_

@@ -28,8 +28,10 @@ void ShadowValue::Accept(PropertyValueVisitor* visitor) {
 
 std::string ShadowValue::ToString() const {
   std::string result;
-  for (size_t i = 0; i < lengths_.size(); ++i) {
-    result.append(lengths_[i]->ToString());
+  for (size_t i = 0; i < kMaxLengths; ++i) {
+    if (lengths_[i]) {
+      result.append(lengths_[i]->ToString());
+    }
   }
 
   if (color_) {
@@ -41,6 +43,19 @@ std::string ShadowValue::ToString() const {
   }
 
   return result;
+}
+
+bool ShadowValue::operator==(const ShadowValue& other) const {
+  for (int i = 0; i < kMaxLengths; ++i) {
+    if (!lengths_[i] != !other.lengths_[i]) {
+      return false;
+    }
+    if (lengths_[i] && !(lengths_[i] == other.lengths_[i])) {
+      return false;
+    }
+  }
+
+  return color_ == other.color_ && has_inset_ == other.has_inset_;
 }
 
 }  // namespace cssom
