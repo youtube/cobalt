@@ -73,6 +73,13 @@
             'image/jpeg_image_decoder_ps3.h',
           ],
         }],
+        ['enable_about_scheme == 1', {
+          'defines': [ 'ENABLE_ABOUT_SCHEME' ],
+          'sources': [
+            'about_fetcher.cc',
+            'about_fetcher.h',
+          ]
+        }],
       ],
     },
 
