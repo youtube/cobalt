@@ -25,6 +25,7 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_list_value.h"
+#include "cobalt/cssom/shadow_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/layout/container_box.h"
@@ -36,7 +37,9 @@
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/rect_node.h"
+#include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/rounded_corners.h"
+#include "cobalt/render_tree/shadow.h"
 
 using cobalt::render_tree::Border;
 using cobalt::render_tree::Brush;
@@ -329,6 +332,9 @@ void Box::RenderAndAnimate(
                                     node_animations_map_builder);
     RenderAndAnimateBorder(border_radius_provider.rounded_corners(),
                            &border_node_builder, node_animations_map_builder);
+    RenderAndAnimateBoxShadow(border_radius_provider.rounded_corners(),
+                              &border_node_builder,
+                              node_animations_map_builder);
   }
 
   RenderAndAnimateContent(&border_node_builder, node_animations_map_builder);
@@ -657,6 +663,59 @@ bool HasAnimatedBorder(const web_animations::AnimationSet* animation_set) {
 }
 
 }  // namespace
+
+void Box::RenderAndAnimateBoxShadow(
+    const base::optional<RoundedCorners>& rounded_corners,
+    CompositionNode::Builder* border_node_builder,
+    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+  UNREFERENCED_PARAMETER(node_animations_map_builder);
+
+  if (computed_style()->box_shadow() != cssom::KeywordValue::GetNone()) {
+    if (rounded_corners) {
+      NOTIMPLEMENTED() << "Box shadows with rounded corners are not supported "
+                          "in Cobalt right now.";
+      return;
+    }
+
+    const cssom::PropertyListValue* box_shadow_list =
+        base::polymorphic_downcast<const cssom::PropertyListValue*>(
+            computed_style()->box_shadow().get());
+
+    for (size_t i = 0; i < box_shadow_list->value().size(); ++i) {
+      // According to the spec, shadows are layered front to back, so we render
+      // each shadow in reverse list order.
+      //   https://www.w3.org/TR/2014/CR-css3-background-20140909/#shadow-layers
+      size_t shadow_index = box_shadow_list->value().size() - i - 1;
+      const cssom::ShadowValue* shadow_value =
+          base::polymorphic_downcast<const cssom::ShadowValue*>(
+              box_shadow_list->value()[shadow_index].get());
+
+      // Since most of a Gaussian fits within 3 standard deviations from the
+      // mean, we setup here the Gaussian blur sigma to be a third of the blur
+      // radius.
+      float shadow_blur_sigma =
+          shadow_value->blur_radius()
+              ? GetUsedLength(shadow_value->blur_radius()) / 3.0f
+              : 0;
+
+      // Setup the spread radius, defaulting it to 0 if it was never specified.
+      float spread_radius = shadow_value->spread_radius()
+                                ? GetUsedLength(shadow_value->spread_radius())
+                                : 0;
+
+      // Finally, create our shadow node.
+      border_node_builder->AddChild(
+          new render_tree::RectShadowNode(
+              GetBorderBoxSize(),
+              render_tree::Shadow(
+                  math::Vector2dF(GetUsedLength(shadow_value->offset_x()),
+                                  GetUsedLength(shadow_value->offset_y())),
+                  shadow_blur_sigma, GetUsedColor(shadow_value->color())),
+              shadow_value->has_inset(), spread_radius),
+          math::Matrix3F::Identity());
+    }
+  }
+}
 
 void Box::RenderAndAnimateBorder(
     const base::optional<RoundedCorners>& rounded_corners,
