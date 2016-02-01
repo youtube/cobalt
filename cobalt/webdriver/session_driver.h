@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_SESSION_DRIVER_H_
-#define WEBDRIVER_SESSION_DRIVER_H_
+#ifndef COBALT_WEBDRIVER_SESSION_DRIVER_H_
+#define COBALT_WEBDRIVER_SESSION_DRIVER_H_
 
 #if defined(ENABLE_WEBDRIVER)
 
@@ -61,6 +61,7 @@ class SessionDriver {
   util::CommandResult<std::vector<protocol::WindowId> > GetWindowHandles();
 
   util::CommandResult<void> Navigate(const GURL& url);
+  util::CommandResult<std::string> GetAlertText();
 
  private:
   protocol::WindowId GetUniqueWindowId();
@@ -78,4 +79,4 @@ class SessionDriver {
 }  // namespace cobalt
 
 #endif  // defined(ENABLE_WEBDRIVER)
-#endif  // WEBDRIVER_SESSION_DRIVER_H_
+#endif  // COBALT_WEBDRIVER_SESSION_DRIVER_H_
