@@ -21,6 +21,7 @@
 #include "base/bind.h"
 #include "base/file_path.h"
 #include "base/path_service.h"
+#include "cobalt/loader/about_fetcher.h"
 #include "cobalt/loader/embedded_fetcher.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/net_fetcher.h"
@@ -31,6 +32,9 @@ namespace loader {
 namespace {
 
 const char kEmbeddedScheme[] = "h5vcc-embedded";
+#if defined(ENABLE_ABOUT_SCHEME)
+const char kAboutScheme[] = "about";
+#endif
 
 bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
   DCHECK(url.is_valid() && url.SchemeIsFile());
@@ -93,7 +97,13 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
       options.extra_search_dir = extra_search_dir_;
       fetcher.reset(new FileFetcher(file_path, handler, options));
     }
-  } else {
+  }
+#if defined(ENABLE_ABOUT_SCHEME)
+  else if (url.SchemeIs(kAboutScheme)) {  // NOLINT(readability/braces)
+    fetcher.reset(new AboutFetcher(handler));
+  }
+#endif
+  else {  // NOLINT(readability/braces)
     DCHECK(network_module_) << "Network module required.";
     NetFetcher::Options options;
     fetcher.reset(new NetFetcher(url, url_security_callback, handler,
