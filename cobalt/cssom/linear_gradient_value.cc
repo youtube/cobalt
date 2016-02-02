@@ -95,19 +95,8 @@ bool LinearGradientValue::operator==(const LinearGradientValue& other) const {
       (side_or_corner_ && !(side_or_corner_ == other.side_or_corner_))) {
     return false;
   }
-  // The stop lists have to be empty or have the same size.
-  size_t stop_list_size = color_stop_list_.size();
-  size_t other_stop_list_size = other.color_stop_list_.size();
-  if (stop_list_size != other_stop_list_size) {
-    return false;
-  }
-  // Each color stop has to be the same.
-  for (size_t i = 0; i < stop_list_size; ++i) {
-    if (!(*color_stop_list_[i] == *other.color_stop_list_[i])) {
-      return false;
-    }
-  }
-  return true;
+  // The stop lists must be equal.
+  return ColorStopListsEqual(color_stop_list_, other.color_stop_list_);
 }
 
 }  // namespace cssom
