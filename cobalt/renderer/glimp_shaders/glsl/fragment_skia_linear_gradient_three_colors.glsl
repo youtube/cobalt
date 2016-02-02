@@ -15,7 +15,6 @@ void main()
     vec4 colorTemp = clamp(oneMinus2t, 0.0, 1.0) * uGradientStartColor_Stage0;
     colorTemp += (1.0 - min(abs(oneMinus2t), 1.0)) * uGradientMidColor_Stage0;
     colorTemp += clamp(-oneMinus2t, 0.0, 1.0) * uGradientEndColor_Stage0;
-    colorTemp.rgb *= colorTemp.a;
     output_Stage0 = (vColor * colorTemp);
   }
 

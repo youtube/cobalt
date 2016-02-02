@@ -69,7 +69,8 @@ typedef std::vector<ColorStop> ColorStopList;
 // gradient with arbitrary many color stops.  It is specified by a source
 // and destination point, which define a line segment along which the color
 // stops apply, each having a position between 0 and 1 representing the
-// position of the stop along that line.
+// position of the stop along that line.  Interpolation occurs in premultiplied
+// alpha space.
 class LinearGradientBrush : public Brush {
  public:
   // The ColorStopList passed into LienarGradientBrush must have at least two
@@ -104,7 +105,7 @@ class LinearGradientBrush : public Brush {
 // that expands from a given center point up to a specified radius.  The list
 // of color stops have position values between 0 and 1 which represent the
 // distance between the center point and the specified radius that the color
-// should apply to.
+// should apply to.  Interpolation occurs in premultiplied alpha space.
 class RadialGradientBrush : public Brush {
  public:
   // The ColorStopList passed into RadialGradientBrush must have at least two
