@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_PROTOCOL_WINDOW_ID_H_
-#define WEBDRIVER_PROTOCOL_WINDOW_ID_H_
+#ifndef COBALT_WEBDRIVER_PROTOCOL_WINDOW_ID_H_
+#define COBALT_WEBDRIVER_PROTOCOL_WINDOW_ID_H_
 
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "base/values.h"
 
 namespace cobalt {
@@ -28,6 +30,7 @@ namespace protocol {
 // Opaque type that uniquely identifies a window from a WebDriver session.
 class WindowId {
  public:
+  static base::optional<WindowId> FromValue(const base::Value* value);
   static scoped_ptr<base::Value> ToValue(const WindowId& window_id) {
     return make_scoped_ptr<base::Value>(new base::StringValue(window_id.id_));
   }
@@ -49,4 +52,4 @@ class WindowId {
 }  // namespace protocol
 }  // namespace webdriver
 }  // namespace cobalt
-#endif  // WEBDRIVER_PROTOCOL_WINDOW_ID_H_
+#endif  // COBALT_WEBDRIVER_PROTOCOL_WINDOW_ID_H_
