@@ -508,6 +508,50 @@ void CSSStyleDeclaration::set_line_height(const std::string& line_height) {
   SetPropertyValueStringByKey(kLineHeightProperty, line_height);
 }
 
+std::string CSSStyleDeclaration::margin() const {
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other margin properties.
+  NOTIMPLEMENTED();
+  return "";
+}
+
+void CSSStyleDeclaration::set_margin(const std::string& margin) {
+  SetPropertyValueStringByKey(kMarginProperty, margin);
+}
+
+std::string CSSStyleDeclaration::margin_bottom() const {
+  return data_->GetDeclaredPropertyValueString(kMarginBottomProperty);
+}
+
+void CSSStyleDeclaration::set_margin_bottom(const std::string& margin_bottom) {
+  SetPropertyValueStringByKey(kMarginBottomProperty, margin_bottom);
+}
+
+std::string CSSStyleDeclaration::margin_left() const {
+  return data_->GetDeclaredPropertyValueString(kMarginLeftProperty);
+}
+
+void CSSStyleDeclaration::set_margin_left(const std::string& margin_left) {
+  SetPropertyValueStringByKey(kMarginLeftProperty, margin_left);
+}
+
+std::string CSSStyleDeclaration::margin_right() const {
+  return data_->GetDeclaredPropertyValueString(kMarginRightProperty);
+}
+
+void CSSStyleDeclaration::set_margin_right(const std::string& margin_right) {
+  SetPropertyValueStringByKey(kMarginRightProperty, margin_right);
+}
+
+std::string CSSStyleDeclaration::margin_top() const {
+  return data_->GetDeclaredPropertyValueString(kMarginTopProperty);
+}
+
+void CSSStyleDeclaration::set_margin_top(const std::string& margin_top) {
+  SetPropertyValueStringByKey(kMarginTopProperty, margin_top);
+}
+
 std::string CSSStyleDeclaration::max_height() const {
   return data_->GetDeclaredPropertyValueString(kMaxHeightProperty);
 }
@@ -562,6 +606,51 @@ std::string CSSStyleDeclaration::overflow_wrap() const {
 
 void CSSStyleDeclaration::set_overflow_wrap(const std::string& overflow_wrap) {
   SetPropertyValueStringByKey(kOverflowWrapProperty, overflow_wrap);
+}
+
+std::string CSSStyleDeclaration::padding() const {
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other padding properties.
+  NOTIMPLEMENTED();
+  return "";
+}
+
+void CSSStyleDeclaration::set_padding(const std::string& padding) {
+  SetPropertyValueStringByKey(kPaddingProperty, padding);
+}
+
+std::string CSSStyleDeclaration::padding_bottom() const {
+  return data_->GetDeclaredPropertyValueString(kPaddingBottomProperty);
+}
+
+void CSSStyleDeclaration::set_padding_bottom(
+    const std::string& padding_bottom) {
+  SetPropertyValueStringByKey(kPaddingBottomProperty, padding_bottom);
+}
+
+std::string CSSStyleDeclaration::padding_left() const {
+  return data_->GetDeclaredPropertyValueString(kPaddingLeftProperty);
+}
+
+void CSSStyleDeclaration::set_padding_left(const std::string& padding_left) {
+  SetPropertyValueStringByKey(kPaddingLeftProperty, padding_left);
+}
+
+std::string CSSStyleDeclaration::padding_right() const {
+  return data_->GetDeclaredPropertyValueString(kPaddingRightProperty);
+}
+
+void CSSStyleDeclaration::set_padding_right(const std::string& padding_right) {
+  SetPropertyValueStringByKey(kPaddingRightProperty, padding_right);
+}
+
+std::string CSSStyleDeclaration::padding_top() const {
+  return data_->GetDeclaredPropertyValueString(kPaddingTopProperty);
+}
+
+void CSSStyleDeclaration::set_padding_top(const std::string& padding_top) {
+  SetPropertyValueStringByKey(kPaddingTopProperty, padding_top);
 }
 
 std::string CSSStyleDeclaration::position() const {
