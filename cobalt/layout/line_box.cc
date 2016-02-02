@@ -157,14 +157,38 @@ void LineBox::BeginEstimateStaticPosition(Box* child_box) {
   DCHECK(child_box->IsAbsolutelyPositioned());
 
   // The term "static position" (of an element) refers, roughly, to the position
-  // an element would have had in the normal flow.
+  // an element would have had in the normal flow. More precisely:
+  //
+  // The static-position containing block is the containing block of a
+  // hypothetical box that would have been the first box of the element if its
+  // specified 'position' value had been 'static'.
+  //
+  // The static position for 'left' is the distance from the left edge of the
+  // containing block to the left margin edge of a hypothetical box that would
+  // have been the first box of the element if its 'position' property had been
+  // 'static' and 'float' had been 'none'. The value is negative if the
+  // hypothetical box is to the left of the containing block.
   //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
 
-  // TODO(***REMOVED***): Reimplement this crude approximation of static position
-  //               in order to take horizontal and vertical alignments
-  //               into consideration (for inline-level children) and line
-  //               height (for block-level children).
-  child_box->set_left(shrink_to_fit_width_);
+  // For the purposes of this section and the next, the term "static position"
+  // (of an element) refers, roughly, to the position an element would have had
+  // in the normal flow. More precisely, the static position for 'top' is the
+  // distance from the top edge of the containing block to the top margin edge
+  // of a hypothetical box that would have been the first box of the element if
+  // its specified 'position' value had been 'static'.
+  //   https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height
+
+  switch (child_box->GetLevel()) {
+    case Box::kInlineLevel:
+      child_box->set_left(shrink_to_fit_width_);
+      break;
+    case Box::kBlockLevel:
+      child_box->set_left(0);
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
   child_box->set_top(0);
 }
 
