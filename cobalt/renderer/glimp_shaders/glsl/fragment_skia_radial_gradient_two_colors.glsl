@@ -11,7 +11,6 @@ void main()
   {
     // Stage 0: Radial Gradient
     vec4 colorTemp = mix(uGradientStartColor_Stage0, uGradientEndColor_Stage0, clamp(length(vMatrixCoord_Stage0), 0.0, 1.0));
-    colorTemp.rgb *= colorTemp.a;
     output_Stage0 = (vColor * colorTemp);
   }
 
