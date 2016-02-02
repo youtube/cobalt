@@ -93,10 +93,13 @@
           'target_name': 'starboard_working',
           'type': 'none',
           'dependencies': [
+            '<(DEPTH)/base/base.gyp:base',
+            '<(DEPTH)/crypto/crypto.gyp:crypto',
             '<(DEPTH)/net/net.gyp:net',
             '<(DEPTH)/starboard/examples/examples.gyp:*',
             '<(DEPTH)/starboard/starboard.gyp:starboard',
             '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
+            '<(DEPTH)/third_party/openssl/openssl.gyp:openssl',
             '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
           ],
         },
@@ -108,6 +111,7 @@
           'dependencies': [
             'starboard_working',
             '<(DEPTH)/base/base.gyp:base_unittests',
+            '<(DEPTH)/crypto/crypto.gyp:crypto_unittests',
             '<(DEPTH)/net/net.gyp:net_unittests',
             '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
           ],
