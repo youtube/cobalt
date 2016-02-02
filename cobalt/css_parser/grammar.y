@@ -2838,9 +2838,27 @@ radial_gradient_params:
                                        MakeScopedRefPtrAndRelease($2),
                                        color_stop_list->Pass()));
   }
+  | kCircleToken maybe_whitespace maybe_at_position comma
+    comma_separated_color_stop_list {
+    scoped_ptr<cssom::ColorStopList> color_stop_list($5);
+    $$ = AddRef(new cssom::RadialGradientValue(
+            cssom::RadialGradientValue::kCircle,
+            cssom::RadialGradientValue::kFarthestCorner,
+            MakeScopedRefPtrAndRelease($3),
+            color_stop_list->Pass()));
+  }
+  | kEllipseToken maybe_whitespace maybe_at_position comma
+    comma_separated_color_stop_list {
+    scoped_ptr<cssom::ColorStopList> color_stop_list($5);
+    $$ = AddRef(new cssom::RadialGradientValue(
+            cssom::RadialGradientValue::kEllipse,
+            cssom::RadialGradientValue::kFarthestCorner,
+            MakeScopedRefPtrAndRelease($3),
+            color_stop_list->Pass()));
+  }
   | at_position comma comma_separated_color_stop_list {
-    // If no size is specified, the ending shape defaults to an ellipse and
-    // it defaults to 'farthest-corner'.
+    // If no size or shape is specified, the ending shape defaults to an ellipse
+    // and the size defaults to 'farthest-corner'.
     scoped_ptr<cssom::ColorStopList> color_stop_list($3);
     $$ = AddRef(new cssom::RadialGradientValue(
             cssom::RadialGradientValue::kEllipse,
@@ -2849,8 +2867,8 @@ radial_gradient_params:
             color_stop_list->Pass()));
   }
   | comma_separated_color_stop_list {
-    // If position is omitted, the ending shape defaults to an ellipse and
-    // it defaults to 'farthest-corner'.
+    // If position is omitted as well, it defaults to 'center', indicated by
+    // passing in NULL.
     scoped_ptr<cssom::ColorStopList> color_stop_list($1);
     $$ = AddRef(new cssom::RadialGradientValue(
             cssom::RadialGradientValue::kEllipse,
