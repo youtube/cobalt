@@ -40,6 +40,10 @@ class Response {
     // parameters.
     kNoSuchElement = 7,
 
+    // A request to switch to a frame could not be satisfied because the frame
+    // could not be found.
+    kNoSuchFrame = 8,
+
     // The requested resource could not be found, or a request was received
     // using an HTTP method that is not supported by the mapped resource.
     kUnknownCommand = 9,

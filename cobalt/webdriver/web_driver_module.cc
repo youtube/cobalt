@@ -245,6 +245,11 @@ WebDriverModule::WebDriverModule(
       StringPrintf("/session/%s/alert_text", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::GetAlertText)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/window", kSessionIdVariable),
+      session_command_factory->GetCommandHandler(
+          base::Bind(&SessionDriver::SwitchToWindow)));
 
   // Specified window commands.
   webdriver_dispatcher_->RegisterCommand(
@@ -290,6 +295,16 @@ WebDriverModule::WebDriverModule(
       StringPrintf("/session/%s/keys", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::SendKeys)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/element/active", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::GetActiveElement)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/frame", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::SwitchFrame)));
 
   // Element commands.
   webdriver_dispatcher_->RegisterCommand(

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_WINDOW_DRIVER_H_
-#define WEBDRIVER_WINDOW_DRIVER_H_
+#ifndef COBALT_WEBDRIVER_WINDOW_DRIVER_H_
+#define COBALT_WEBDRIVER_WINDOW_DRIVER_H_
 
 #if defined(ENABLE_WEBDRIVER)
 
@@ -34,6 +34,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/element_driver.h"
 #include "cobalt/webdriver/element_mapping.h"
+#include "cobalt/webdriver/protocol/frame_id.h"
 #include "cobalt/webdriver/protocol/keys.h"
 #include "cobalt/webdriver/protocol/script.h"
 #include "cobalt/webdriver/protocol/search_strategy.h"
@@ -73,6 +74,8 @@ class WindowDriver : private ElementMapping {
   util::CommandResult<protocol::ScriptResult> Execute(
       const protocol::Script& script);
   util::CommandResult<void> SendKeys(const protocol::Keys& keys);
+  util::CommandResult<protocol::ElementId> GetActiveElement();
+  util::CommandResult<void> SwitchFrame(const protocol::FrameId& frame_id);
 
  private:
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
@@ -106,6 +109,8 @@ class WindowDriver : private ElementMapping {
 
   util::CommandResult<void> SendKeysInternal(
       scoped_ptr<KeyboardEventVector> keyboard_events);
+
+  util::CommandResult<protocol::ElementId> GetActiveElementInternal();
 
   const protocol::WindowId window_id_;
 
@@ -143,4 +148,4 @@ class WindowDriver : private ElementMapping {
 }  // namespace cobalt
 
 #endif  // defined(ENABLE_WEBDRIVER)
-#endif  // WEBDRIVER_WINDOW_DRIVER_H_
+#endif  // COBALT_WEBDRIVER_WINDOW_DRIVER_H_
