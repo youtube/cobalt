@@ -46,6 +46,7 @@ class UserAgentStringFactory {
 
   struct YouTubeTVInfo {
     enum DeviceType {
+      kInvalidDeviceType,
       kBlueRayDiskPlayer,
       kGameConsole,
       kOverTheTopBox,
@@ -57,6 +58,8 @@ class UserAgentStringFactory {
       kWiredConnection,
       kWirelessConnection,
     };
+
+    YouTubeTVInfo() : device_type(kInvalidDeviceType) {}
 
     std::string network_operator;
     DeviceType device_type;

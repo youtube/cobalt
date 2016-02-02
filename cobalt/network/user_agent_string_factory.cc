@@ -92,6 +92,7 @@ std::string UserAgentStringFactory::CreateDeviceTypeString() {
       return "STB";
     case YouTubeTVInfo::kTV:
       return "TV";
+    case YouTubeTVInfo::kInvalidDeviceType:
     default:
       NOTREACHED();
       return "";
