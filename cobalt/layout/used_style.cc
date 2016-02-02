@@ -16,7 +16,10 @@
 
 #include "cobalt/layout/used_style.h"
 
+#include <algorithm>
+#include <cmath>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -37,8 +40,10 @@
 #include "cobalt/cssom/transform_matrix_function_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/math/transform_2d.h"
+#include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/rounded_corners.h"
 
 namespace cobalt {
@@ -531,6 +536,248 @@ void UsedBackgroundNodeProvider::VisitAbsoluteURL(
       background_node_ = image_node;
     }
   }
+}
+
+namespace {
+std::pair<math::PointF, math::PointF> LinearGradientPointsFromDirection(
+    cssom::LinearGradientValue::SideOrCorner from,
+    const math::SizeF& frame_size) {
+  switch (from) {
+    case cssom::LinearGradientValue::kBottom:
+      return std::make_pair(math::PointF(0, 0),
+                            math::PointF(0, frame_size.height()));
+    case cssom::LinearGradientValue::kBottomLeft:
+      return std::make_pair(math::PointF(frame_size.width(), 0),
+                            math::PointF(0, frame_size.height()));
+    case cssom::LinearGradientValue::kBottomRight:
+      return std::make_pair(
+          math::PointF(0, 0),
+          math::PointF(frame_size.width(), frame_size.height()));
+    case cssom::LinearGradientValue::kLeft:
+      return std::make_pair(math::PointF(frame_size.width(), 0),
+                            math::PointF(0, 0));
+    case cssom::LinearGradientValue::kRight:
+      return std::make_pair(math::PointF(0, 0),
+                            math::PointF(frame_size.width(), 0));
+    case cssom::LinearGradientValue::kTop:
+      return std::make_pair(math::PointF(0, frame_size.height()),
+                            math::PointF(0, 0));
+    case cssom::LinearGradientValue::kTopLeft:
+      return std::make_pair(
+          math::PointF(frame_size.width(), frame_size.height()),
+          math::PointF(0, 0));
+    case cssom::LinearGradientValue::kTopRight:
+      return std::make_pair(math::PointF(0, frame_size.height()),
+                            math::PointF(frame_size.width(), 0));
+    default:
+      NOTREACHED();
+      return std::make_pair(math::PointF(0, 0), math::PointF(0, 0));
+  }
+}
+
+// Returns the corner points that should be used to calculate the source and
+// destination gradient points.  This is determined by which quadrant the
+// gradient direction vector lies within.
+std::pair<math::PointF, math::PointF>
+GetSourceAndDestinationPointsFromGradientVector(
+    const math::Vector2dF& gradient_vector, const math::SizeF& frame_size) {
+  std::pair<math::PointF, math::PointF> ret;
+  if (gradient_vector.x() >= 0 && gradient_vector.y() >= 0) {
+    ret.first = math::PointF(0, 0);
+    ret.second = math::PointF(frame_size.width(), frame_size.height());
+  } else if (gradient_vector.x() < 0 && gradient_vector.y() >= 0) {
+    ret.first = math::PointF(frame_size.width(), 0);
+    ret.second = math::PointF(0, frame_size.height());
+  } else if (gradient_vector.x() < 0 && gradient_vector.y() < 0) {
+    ret.first = math::PointF(frame_size.width(), frame_size.height());
+    ret.second = math::PointF(0, 0);
+  } else if (gradient_vector.x() >= 0 && gradient_vector.y() < 0) {
+    ret.first = math::PointF(0, frame_size.height());
+    ret.second = math::PointF(frame_size.width(), 0);
+  } else {
+    NOTREACHED();
+  }
+
+  return ret;
+}
+
+math::PointF IntersectLines(math::PointF point_a, math::Vector2dF dir_a,
+                            math::PointF point_b, math::Vector2dF dir_b) {
+  DCHECK(dir_a.y() != 0 || dir_b.y() != 0);
+
+  if (dir_a.x() == 0) {
+    // Swap a and b so that we are guaranteed not to divide by 0.
+    std::swap(point_a, point_b);
+    std::swap(dir_a, dir_b);
+  }
+
+  float slope_a = dir_a.y() / dir_a.x();
+
+  // Calculate how far from |point_b| we should travel in units of |dir_b|
+  // in order to reach the point of intersection.
+  float distance_from_point_b =
+      (point_a.y() - point_b.y() + slope_a * (point_b.x() - point_a.x())) /
+      (dir_b.y() - slope_a * dir_b.x());
+
+  dir_b.Scale(distance_from_point_b);
+  return point_b + dir_b;
+}
+
+std::pair<math::PointF, math::PointF> LinearGradientPointsFromAngle(
+    float angle_in_radians, const math::SizeF& frame_size) {
+  // The method of defining the source and destination points for the linear
+  // gradient are defined here:
+  //   https://www.w3.org/TR/2012/CR-css3-images-20120417/#linear-gradients
+  //
+  // "Starting from the center of the gradient box, extend a line at the
+  //  specified angle in both directions. The ending point is the point on the
+  //  gradient line where a line drawn perpendicular to the gradient line would
+  //  intersect the corner of the gradient box in the specified direction. The
+  //  starting point is determined identically, but in the opposite direction."
+
+  // First determine the line parallel to the gradient angle.
+  math::PointF gradient_line_point(frame_size.width() / 2.0f,
+                                   frame_size.height() / 2.0f);
+
+  // The angle specified by linear gradient has "up" as its origin direction
+  // and rotates clockwise as the angle increases.  We must convert this to
+  // an angle that has "right" as its origin and moves counter clockwise before
+  // we can pass it into the trigonometric functions cos() and sin().
+  float ccw_angle_from_right = -angle_in_radians + static_cast<float>(M_PI / 2);
+
+  // Note that we flip the y value here since we move down in our screen space
+  // as y increases.
+  math::Vector2dF gradient_vector(
+      static_cast<float>(cos(ccw_angle_from_right)),
+      static_cast<float>(-sin(ccw_angle_from_right)));
+
+  // Determine the line direction that is perpendicular to the gradient line.
+  math::Vector2dF perpendicular_vector(-gradient_vector.y(),
+                                       gradient_vector.x());
+
+  // Determine the corner points that should be used to calculate the source
+  // and destination points, based on which quadrant the gradient direction
+  // vector lies within.
+  std::pair<math::PointF, math::PointF> corners =
+      GetSourceAndDestinationPointsFromGradientVector(gradient_vector,
+                                                      frame_size);
+
+  // Intersect the perpendicular line running through the source corner with
+  // the gradient line to get our source point.
+  return std::make_pair(IntersectLines(gradient_line_point, gradient_vector,
+                                       corners.first, perpendicular_vector),
+                        IntersectLines(gradient_line_point, gradient_vector,
+                                       corners.second, perpendicular_vector));
+}
+
+// The specifications indicate that if positions are not specified for color
+// stops, then they should be filled in automatically by evenly spacing them
+// between the two neighbooring color stops that DO have positions specified.
+// This function implements this.  It assumes that unspecified position values
+// are indicated by a value of -1.0f.
+void InterpolateUnspecifiedColorStopPositions(
+    render_tree::ColorStopList* color_stops) {
+  size_t last_specified_index = 0;
+  for (size_t i = 1; i < color_stops->size(); ++i) {
+    const render_tree::ColorStop& color_stop = (*color_stops)[i];
+    if (color_stop.position >= 0.0f) {
+      // This is a specified value, so we may need to fill in previous
+      // unspecified values.
+      if (last_specified_index != i - 1) {
+        float step_size = (color_stop.position -
+                           (*color_stops)[last_specified_index].position) /
+                          (i - last_specified_index);
+
+        for (size_t j = last_specified_index + 1; j < i; ++j) {
+          DCHECK_LT((*color_stops)[j].position, 0);
+          (*color_stops)[j].position = (j - last_specified_index) * step_size;
+        }
+      }
+      last_specified_index = i;
+    }
+  }
+}
+
+render_tree::ColorStopList ConvertToRenderTreeColorStopList(
+    const cssom::ColorStopList& css_color_stop_list,
+    float gradient_line_length) {
+  render_tree::ColorStopList ret;
+
+  // The description of this process is defined here:
+  //   https://www.w3.org/TR/css3-images/#color-stop-syntax
+  float largest_position = 0.0f;
+  for (size_t i = 0; i < css_color_stop_list.size(); ++i) {
+    const cssom::ColorStop& css_color_stop = *css_color_stop_list[i];
+
+    render_tree::ColorRGBA render_tree_color =
+        GetUsedColor(css_color_stop.rgba());
+
+    const scoped_refptr<cssom::PropertyValue>& css_position =
+        css_color_stop.position();
+
+    float render_tree_position;
+    if (css_position) {
+      // If the position is specified, enter it directly.
+      if (css_position->GetTypeId() == base::GetTypeId<cssom::LengthValue>()) {
+        float length_value =
+            base::polymorphic_downcast<cssom::LengthValue*>(css_position.get())
+                ->value();
+        render_tree_position = length_value / gradient_line_length;
+      } else {
+        render_tree_position =
+            base::polymorphic_downcast<cssom::PercentageValue*>(
+                css_position.get())
+                ->value();
+      }
+
+      // Ensure that it is larger than all previous stop positions.
+      render_tree_position = std::max(largest_position, render_tree_position);
+      largest_position = render_tree_position;
+    } else {
+      // If the position is not specified, fill it in as 0 if it is the first,
+      // or 1 if it is last.
+      if (i == 0) {
+        render_tree_position = 0.0f;
+      } else if (i == css_color_stop_list.size() - 1) {
+        render_tree_position = 1.0f;
+      } else {
+        // Otherwise, we set it to -1.0f and we'll come back to it later to
+        // interpolate evenly between the two closest specified values.
+        render_tree_position = -1.0f;
+      }
+    }
+
+    ret.push_back(
+        render_tree::ColorStop(render_tree_position, render_tree_color));
+  }
+
+  InterpolateUnspecifiedColorStopPositions(&ret);
+
+  return ret;
+}
+}  // namespace
+
+void UsedBackgroundNodeProvider::VisitLinearGradient(
+    cssom::LinearGradientValue* linear_gradient_value) {
+  std::pair<math::PointF, math::PointF> source_and_dest;
+  if (linear_gradient_value->side_or_corner()) {
+    source_and_dest = LinearGradientPointsFromDirection(
+        *linear_gradient_value->side_or_corner(), frame_size_);
+  } else {
+    source_and_dest = LinearGradientPointsFromAngle(
+        *linear_gradient_value->angle_in_radians(), frame_size_);
+  }
+
+  render_tree::ColorStopList color_stop_list = ConvertToRenderTreeColorStopList(
+      linear_gradient_value->color_stop_list(),
+      (source_and_dest.second - source_and_dest.first).Length());
+
+  scoped_ptr<render_tree::LinearGradientBrush> brush(
+      new render_tree::LinearGradientBrush(
+          source_and_dest.first, source_and_dest.second, color_stop_list));
+
+  background_node_ = new render_tree::RectNode(
+      frame_size_, brush.PassAs<render_tree::Brush>());
 }
 
 //   https://www.w3.org/TR/css3-background/#the-background-position

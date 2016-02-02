@@ -120,6 +120,10 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     CSSColor3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-color")));
+// Custom CSS Images (https://www.w3.org/TR/css3-images/) test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSSImages3LayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-images")));
 // Custom CSS Text (https://www.w3.org/TR/css-text-3/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSText3LayoutTests, LayoutTest,

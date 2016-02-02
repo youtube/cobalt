@@ -82,8 +82,8 @@ class RadialGradientValue : public PropertyValue {
 
   const scoped_refptr<PropertyListValue>& position() const { return position_; }
 
-  const std::vector<cssom::ColorStop*>& color_stop_list() const {
-    return color_stop_list_.get();
+  const ColorStopList& color_stop_list() const {
+    return color_stop_list_;
   }
 
   std::string ToString() const OVERRIDE;
