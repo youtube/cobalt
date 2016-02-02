@@ -18,6 +18,7 @@
 
 #include "base/debug/trace_event_impl.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/trace_event/event_parser.h"
@@ -79,6 +80,29 @@ ScopedEventParserTrace::~ScopedEventParserTrace() {
       base::Bind(&EventParser::ParseEvent, base::Unretained(&event_parser)),
       json_output_callback);
 }
+
+namespace {
+void EndEventParserTrace(scoped_ptr<ScopedEventParserTrace> trace,
+                         base::Closure callback) {
+  trace.reset();
+  callback.Run();
+}
+}  // namespace
+
+void TraceWithEventParserForDuration(
+    const EventParser::ScopedEventFlowEndCallback& flow_end_event_callback,
+    const base::Closure& flow_end_event_finish_callback,
+    const base::TimeDelta& duration) {
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&EndEventParserTrace,
+                 base::Passed(make_scoped_ptr(
+                     new ScopedEventParserTrace(flow_end_event_callback))),
+                 flow_end_event_finish_callback),
+      duration);
+}
+
+bool IsTracing() { return base::debug::TraceLog::GetInstance()->IsEnabled(); }
 
 }  // namespace trace_event
 }  // namespace cobalt
