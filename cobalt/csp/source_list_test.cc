@@ -67,6 +67,22 @@ TEST_F(SourceListTest, BasicMatchingNone) {
   EXPECT_FALSE(source_list.Matches(GURL("https://example.test/")));
 }
 
+TEST_F(SourceListTest, BasicMatchingStar) {
+  std::string sources = "*";
+  SourceList source_list(csp_.get(), "script-src");
+  ParseSourceList(&source_list, sources);
+
+  EXPECT_TRUE(source_list.Matches(GURL("http://example.com/")));
+  EXPECT_TRUE(source_list.Matches(GURL("https://example.com/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://example.com/bar")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://foo.example.com/")));
+  EXPECT_TRUE(source_list.Matches(GURL("http://foo.example.com/bar")));
+
+  EXPECT_FALSE(source_list.Matches(GURL("data:https://example.test/")));
+  EXPECT_FALSE(source_list.Matches(GURL("blob:https://example.test/")));
+  EXPECT_FALSE(source_list.Matches(GURL("filesystem:https://example.test/")));
+}
+
 TEST_F(SourceListTest, BasicMatchingSelf) {
   std::string sources = "'self'";
   SourceList source_list(csp_.get(), "script-src");

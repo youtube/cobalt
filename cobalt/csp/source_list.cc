@@ -53,6 +53,11 @@ HashPrefix kSupportedPrefixes[] = {
     {"'sha-384-", kHashAlgorithmSha384}, {"'sha-512-", kHashAlgorithmSha512},
 };
 
+bool SchemeCanMatchStar(const GURL& url) {
+  return !(url.SchemeIs("blob") || url.SchemeIs("data") ||
+           url.SchemeIs("filesystem"));
+}
+
 }  // namespace
 
 SourceList::SourceList(ContentSecurityPolicy* policy,
@@ -68,7 +73,7 @@ SourceList::SourceList(ContentSecurityPolicy* policy,
 bool SourceList::Matches(
     const GURL& url,
     ContentSecurityPolicy::RedirectStatus redirect_status) const {
-  if (allow_star_) {
+  if (allow_star_ && SchemeCanMatchStar(url)) {
     return true;
   }
 
