@@ -20,10 +20,12 @@
 #include <limits>
 
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/shadow_value.h"
 #include "cobalt/layout/math.h"
 #include "cobalt/layout/render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
+#include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/text_node.h"
 
 namespace cobalt {

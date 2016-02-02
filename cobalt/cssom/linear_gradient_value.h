@@ -59,13 +59,13 @@ class LinearGradientValue : public PropertyValue {
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
-  base::optional<float> angle_in_radians() const { return angle_in_radians_; }
-  base::optional<SideOrCorner> side_or_corner() const {
+  const base::optional<float>& angle_in_radians() const {
+    return angle_in_radians_;
+  }
+  const base::optional<SideOrCorner>& side_or_corner() const {
     return side_or_corner_;
   }
-  const std::vector<cssom::ColorStop*>& color_stop_list() const {
-    return color_stop_list_.get();
-  }
+  const ColorStopList& color_stop_list() const { return color_stop_list_; }
 
   std::string ToString() const OVERRIDE;
 
