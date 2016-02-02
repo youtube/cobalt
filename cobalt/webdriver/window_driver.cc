@@ -237,6 +237,24 @@ util::CommandResult<void> WindowDriver::SendKeys(const protocol::Keys& keys) {
                  base::Passed(&events)));
 }
 
+util::CommandResult<protocol::ElementId> WindowDriver::GetActiveElement() {
+  return util::CallOnMessageLoop(
+      window_message_loop_, base::Bind(&WindowDriver::GetActiveElementInternal,
+                                       base::Unretained(this)));
+}
+
+util::CommandResult<void> WindowDriver::SwitchFrame(
+    const protocol::FrameId& frame_id) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  // Cobalt doesn't support frames, but if a WebDriver client requests to
+  // switch to the top-level browsing context, trivially return success.
+  if (frame_id.is_top_level_browsing_context()) {
+    return util::CommandResult<void>(protocol::Response::kSuccess);
+  } else {
+    return util::CommandResult<void>(protocol::Response::kNoSuchFrame);
+  }
+}
+
 protocol::ElementId WindowDriver::ElementToId(
     const scoped_refptr<dom::Element>& element) {
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
@@ -326,6 +344,21 @@ util::CommandResult<void> WindowDriver::SendKeysInternal(
     window_->InjectEvent((*events)[i]);
   }
   return CommandResult(protocol::Response::kSuccess);
+}
+
+util::CommandResult<protocol::ElementId>
+WindowDriver::GetActiveElementInternal() {
+  typedef util::CommandResult<protocol::ElementId> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  if (!window_) {
+    return CommandResult(protocol::Response::kNoSuchWindow);
+  }
+  scoped_refptr<dom::Element> active = window_->document()->active_element();
+  if (active) {
+    return CommandResult(ElementToId(active));
+  } else {
+    return CommandResult(protocol::Response::kUnknownError);
+  }
 }
 
 }  // namespace webdriver

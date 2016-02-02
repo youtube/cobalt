@@ -84,6 +84,16 @@ util::CommandResult<std::string> SessionDriver::GetAlertText() {
       protocol::Response::kNoAlertOpenError);
 }
 
+util::CommandResult<void> SessionDriver::SwitchToWindow(
+    const protocol::WindowId& window_id) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (window_id == window_driver_->window_id()) {
+    return util::CommandResult<void>(protocol::Response::kSuccess);
+  } else {
+    return util::CommandResult<void>(protocol::Response::kNoSuchWindow);
+  }
+}
+
 protocol::WindowId SessionDriver::GetUniqueWindowId() {
   DCHECK(thread_checker_.CalledOnValidThread());
   std::string window_id = base::StringPrintf("window-%d", next_window_id_++);
