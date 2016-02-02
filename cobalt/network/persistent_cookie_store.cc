@@ -59,6 +59,7 @@ std::vector<net::CanonicalCookie*> GetAllCookies(sql::Connection* conn) {
         base::Time::FromInternalValue(get_all.ColumnInt64(9)));
     actual_cookies.push_back(cookie);
   }
+
   return actual_cookies;
 }
 
@@ -185,6 +186,14 @@ void SqlDeleteCookie(const net::CanonicalCookie& cc,
   sql_context->Flush();
 }
 
+void SqlSendEmptyCookieList(
+    const PersistentCookieStore::LoadedCallback& loaded_callback,
+    storage::SqlContext* sql_context) {
+  UNREFERENCED_PARAMETER(sql_context);
+  std::vector<net::CanonicalCookie*> empty_cookie_list;
+  loaded_callback.Run(empty_cookie_list);
+}
+
 }  // namespace
 
 PersistentCookieStore::PersistentCookieStore(storage::StorageManager* storage)
@@ -199,11 +208,12 @@ void PersistentCookieStore::Load(const LoadedCallback& loaded_callback) {
 void PersistentCookieStore::LoadCookiesForKey(
     const std::string& key, const LoadedCallback& loaded_callback) {
   UNREFERENCED_PARAMETER(key);
-  // This is always called after Load(), so there's nothing to do.
-  // See comments in the header for more information.
-  std::vector<net::CanonicalCookie*> empty_cookie_list;
-  MessageLoop::current()->PostTask(
-      FROM_HERE, base::Bind(loaded_callback, empty_cookie_list));
+  // We don't support loading of individual cookies.
+  // This is always called after Load(), so just post the callback to the SQL
+  // thread to make sure it is run after Load() has finished.
+  // See comments in net/cookie_monster.cc for more information.
+  storage_->GetSqlContext(base::Bind(&SqlSendEmptyCookieList,
+                                     loaded_callback));
 }
 
 void PersistentCookieStore::AddCookie(const net::CanonicalCookie& cc) {
@@ -229,7 +239,6 @@ void PersistentCookieStore::SetForceKeepSessionState() {
 void PersistentCookieStore::Flush(const base::Closure& callback) {
   storage_->FlushNow(callback);
 }
-
 
 }  // namespace network
 }  // namespace cobalt
