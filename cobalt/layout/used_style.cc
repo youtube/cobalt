@@ -480,6 +480,57 @@ float GetUsedLength(const scoped_refptr<cssom::PropertyValue>& length_refptr) {
   return length->value();
 }
 
+class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  explicit UsedLengthValueProvider(float percentage_base,
+                                   bool calc_permitted = false)
+      : percentage_base_(percentage_base), calc_permitted_(calc_permitted) {}
+
+  void VisitLength(cssom::LengthValue* length) OVERRIDE {
+    depends_on_containing_block_ = false;
+
+    DCHECK_EQ(cssom::kPixelsUnit, length->unit());
+    used_length_ = length->value();
+  }
+
+  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE {
+    depends_on_containing_block_ = true;
+    used_length_ = percentage->value() * percentage_base_;
+  }
+
+  void VisitCalc(cssom::CalcValue* calc) OVERRIDE {
+    if (!calc_permitted_) {
+      NOTREACHED();
+    }
+    depends_on_containing_block_ = true;
+    used_length_ = calc->length_value()->value() +
+                   calc->percentage_value()->value() * percentage_base_;
+  }
+
+  bool depends_on_containing_block() const {
+    return depends_on_containing_block_;
+  }
+  const base::optional<float>& used_length() const { return used_length_; }
+
+ protected:
+  bool depends_on_containing_block_;
+
+ private:
+  const float percentage_base_;
+  const bool calc_permitted_;
+
+  base::optional<float> used_length_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedLengthValueProvider);
+};
+
+float GetUsedLengthPercentageOrCalcValue(cssom::PropertyValue* property_value,
+                                         float percentage_base) {
+  UsedLengthValueProvider used_length_value_provider(percentage_base, true);
+  property_value->Accept(&used_length_value_provider);
+  return *used_length_value_provider.used_length();
+}
+
 UsedBackgroundNodeProvider::UsedBackgroundNodeProvider(
     const math::SizeF& frame_size,
     const scoped_refptr<cssom::PropertyValue>& background_size,
@@ -780,6 +831,176 @@ void UsedBackgroundNodeProvider::VisitLinearGradient(
       frame_size_, brush.PassAs<render_tree::Brush>());
 }
 
+namespace {
+
+std::pair<float, float> RadialGradientAxesFromSizeKeyword(
+    cssom::RadialGradientValue::Shape shape,
+    cssom::RadialGradientValue::SizeKeyword size, const math::PointF& center,
+    const math::SizeF& frame_size) {
+  float closest_side_x =
+      std::min(std::abs(center.x()), std::abs(frame_size.width() - center.x()));
+  float closest_side_y = std::min(std::abs(center.y()),
+                                  std::abs(frame_size.height() - center.y()));
+  float farthest_side_x =
+      std::max(std::abs(center.x()), std::abs(frame_size.width() - center.x()));
+  float farthest_side_y = std::max(std::abs(center.y()),
+                                   std::abs(frame_size.height() - center.y()));
+
+  math::Vector2dF to_top_left(center.x(), center.y());
+  math::Vector2dF to_top_right(frame_size.width() - center.x(), center.y());
+  math::Vector2dF to_bottom_right(frame_size.width() - center.x(),
+                                  frame_size.height() - center.y());
+  math::Vector2dF to_bottom_left(center.x(), frame_size.height() - center.y());
+  math::Vector2dF* corners[] = {&to_top_left, &to_top_right, &to_bottom_right,
+                                &to_bottom_left};
+
+  math::Vector2dF* closest_corner = corners[0];
+  double closest_distance_sq = closest_corner->LengthSquared();
+  for (size_t i = 1; i < arraysize(corners); ++i) {
+    double length_sq = corners[i]->LengthSquared();
+    if (length_sq < closest_distance_sq) {
+      closest_distance_sq = length_sq;
+      closest_corner = corners[i];
+    }
+  }
+
+  math::Vector2dF* farthest_corner = corners[0];
+  double farthest_distance_sq = farthest_corner->LengthSquared();
+  for (size_t i = 1; i < arraysize(corners); ++i) {
+    double length_sq = corners[i]->LengthSquared();
+    if (length_sq > farthest_distance_sq) {
+      farthest_distance_sq = length_sq;
+      farthest_corner = corners[i];
+    }
+  }
+
+  switch (shape) {
+    case cssom::RadialGradientValue::kCircle: {
+      switch (size) {
+        case cssom::RadialGradientValue::kClosestSide: {
+          float closest_side = std::min(closest_side_x, closest_side_y);
+          return std::make_pair(closest_side, closest_side);
+        }
+        case cssom::RadialGradientValue::kFarthestSide: {
+          float farthest_side = std::max(farthest_side_x, farthest_side_y);
+          return std::make_pair(farthest_side, farthest_side);
+        }
+        case cssom::RadialGradientValue::kClosestCorner: {
+          float distance = closest_corner->Length();
+          return std::make_pair(distance, distance);
+        }
+        case cssom::RadialGradientValue::kFarthestCorner: {
+          float distance = farthest_corner->Length();
+          return std::make_pair(distance, distance);
+        }
+      }
+    } break;
+    case cssom::RadialGradientValue::kEllipse: {
+      switch (size) {
+        case cssom::RadialGradientValue::kClosestSide: {
+          return std::make_pair(closest_side_x, closest_side_y);
+        }
+        case cssom::RadialGradientValue::kFarthestSide: {
+          return std::make_pair(farthest_side_x, farthest_side_y);
+        }
+        // For the next two cases, we must compute the ellipse that touches the
+        // closest [or farthest] corner, but has the same ratio as if we had
+        // selected the closest [or farthest] side.
+        case cssom::RadialGradientValue::kClosestCorner: {
+          float ratio = closest_side_y / closest_side_x;
+          float y_over_ratio = closest_corner->y() / ratio;
+          float horizontal_axis = static_cast<float>(
+              sqrt(closest_corner->x() * closest_corner->x() +
+                   y_over_ratio * y_over_ratio));
+          return std::make_pair(horizontal_axis, horizontal_axis * ratio);
+        }
+        case cssom::RadialGradientValue::kFarthestCorner: {
+          float ratio = farthest_side_y / farthest_side_x;
+          float y_over_ratio = farthest_corner->y() / ratio;
+          float horizontal_axis = static_cast<float>(
+              sqrt(farthest_corner->x() * farthest_corner->x() +
+                   y_over_ratio * y_over_ratio));
+          return std::make_pair(horizontal_axis, horizontal_axis * ratio);
+        }
+      }
+    } break;
+  }
+
+  NOTREACHED();
+  return std::make_pair(0.0f, 0.0f);
+}
+
+std::pair<float, float> RadialGradientAxesFromSizeValue(
+    cssom::RadialGradientValue::Shape shape,
+    const cssom::PropertyListValue& size, const math::SizeF& frame_size) {
+  switch (shape) {
+    case cssom::RadialGradientValue::kCircle: {
+      DCHECK_EQ(1U, size.value().size());
+      cssom::LengthValue* size_as_length =
+          base::polymorphic_downcast<cssom::LengthValue*>(
+              size.value()[0].get());
+      return std::make_pair(size_as_length->value(), size_as_length->value());
+    } break;
+    case cssom::RadialGradientValue::kEllipse: {
+      DCHECK_EQ(2U, size.value().size());
+      float radii[2];
+      float dimensions[2] = {frame_size.width(), frame_size.height()};
+      for (size_t i = 0; i < 2; ++i) {
+        radii[i] = GetUsedLengthPercentageOrCalcValue(size.value()[i].get(),
+                                                      dimensions[i]);
+      }
+      return std::make_pair(radii[0], radii[1]);
+    } break;
+  }
+
+  NOTREACHED();
+  return std::make_pair(0.0f, 0.0f);
+}
+
+math::PointF RadialGradientCenterFromCSSOM(
+    const scoped_refptr<cssom::PropertyListValue>& position,
+    const math::SizeF& frame_size) {
+  if (!position) {
+    return math::PointF(frame_size.width() / 2.0f, frame_size.height() / 2.0f);
+  }
+
+  DCHECK_EQ(position->value().size(), 2);
+  return math::PointF(GetUsedLengthPercentageOrCalcValue(
+                          position->value()[0].get(), frame_size.width()),
+                      GetUsedLengthPercentageOrCalcValue(
+                          position->value()[1].get(), frame_size.height()));
+}
+
+}  // namespace
+
+void UsedBackgroundNodeProvider::VisitRadialGradient(
+    cssom::RadialGradientValue* radial_gradient_value) {
+  math::PointF center = RadialGradientCenterFromCSSOM(
+      radial_gradient_value->position(), frame_size_);
+
+  std::pair<float, float> major_and_minor_axes;
+  if (radial_gradient_value->size_keyword()) {
+    major_and_minor_axes = RadialGradientAxesFromSizeKeyword(
+        radial_gradient_value->shape(), *radial_gradient_value->size_keyword(),
+        center, frame_size_);
+  } else {
+    major_and_minor_axes = RadialGradientAxesFromSizeValue(
+        radial_gradient_value->shape(), *radial_gradient_value->size_value(),
+        frame_size_);
+  }
+
+  render_tree::ColorStopList color_stop_list = ConvertToRenderTreeColorStopList(
+      radial_gradient_value->color_stop_list(), major_and_minor_axes.first);
+
+  scoped_ptr<render_tree::RadialGradientBrush> brush(
+      new render_tree::RadialGradientBrush(center, major_and_minor_axes.first,
+                                           major_and_minor_axes.second,
+                                           color_stop_list));
+
+  background_node_ = new render_tree::RectNode(
+      frame_size_, brush.PassAs<render_tree::Brush>());
+}
+
 //   https://www.w3.org/TR/css3-background/#the-background-position
 UsedBackgroundPositionProvider::UsedBackgroundPositionProvider(
     const math::SizeF& frame_size, const math::SizeF& image_actual_size)
@@ -1032,39 +1253,6 @@ cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value) {
 }
 
 namespace {
-
-class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
- public:
-  explicit UsedLengthValueProvider(float percentage_base)
-      : percentage_base_(percentage_base) {}
-
-  void VisitLength(cssom::LengthValue* length) OVERRIDE {
-    depends_on_containing_block_ = false;
-
-    DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-    used_length_ = length->value();
-  }
-
-  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE {
-    depends_on_containing_block_ = true;
-    used_length_ = percentage->value() * percentage_base_;
-  }
-
-  bool depends_on_containing_block() const {
-    return depends_on_containing_block_;
-  }
-  const base::optional<float>& used_length() const { return used_length_; }
-
- protected:
-  bool depends_on_containing_block_;
-
- private:
-  const float percentage_base_;
-
-  base::optional<float> used_length_;
-
-  DISALLOW_COPY_AND_ASSIGN(UsedLengthValueProvider);
-};
 
 class UsedLengthProvider : public UsedLengthValueProvider {
  public:
