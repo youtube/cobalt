@@ -76,23 +76,19 @@ bool LayoutBoxes::IsInlineLevel() const {
 }
 
 float LayoutBoxes::GetBorderEdgeLeft() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()->GetBorderBoxLeftEdge();
+  return GetBoundingBorderRectangle().x();
 }
 
 float LayoutBoxes::GetBorderEdgeTop() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()->GetBorderBoxTopEdge();
+  return GetBoundingBorderRectangle().y();
 }
 
 float LayoutBoxes::GetBorderEdgeWidth() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()->GetBorderBoxWidth();
+  return GetBoundingBorderRectangle().width();
 }
 
 float LayoutBoxes::GetBorderEdgeHeight() const {
-  DCHECK(!boxes_.empty());
-  return boxes_.front()->GetBorderBoxHeight();
+  return GetBoundingBorderRectangle().height();
 }
 
 float LayoutBoxes::GetBorderLeftWidth() const {
@@ -133,6 +129,29 @@ float LayoutBoxes::GetPaddingEdgeWidth() const {
 float LayoutBoxes::GetPaddingEdgeHeight() const {
   DCHECK(!boxes_.empty());
   return boxes_.front()->GetPaddingBoxHeight();
+}
+
+math::RectF LayoutBoxes::GetBoundingBorderRectangle() const {
+  // In the CSSOM View extensions to the HTMLElement interface, at
+  // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface,
+  // the standard mentions the 'first CSS layout box associated with the
+  // element' and links to a definition 'The term CSS layout box refers to the
+  // same term in CSS', which is followed by a note 'ISSUE 2' that mentions 'The
+  // terms CSS layout box and SVG layout box are not currently defined by CSS or
+  // SVG', at https://www.w3.org/TR/2013/WD-cssom-view-20131217/#css-layout-box.
+  // This function calculates the bounding box of the border boxes of the layout
+  // boxes, mirroring behavior of most other browsers for the 'first CSS layout
+  // box associated with the element'.
+  if (boxes_.empty()) return math::RectF();
+  Boxes::const_iterator box_iterator = boxes_.begin();
+  const Box* box = *box_iterator;
+  math::RectF bounding_rectangle(box->GetBorderBox());
+  ++box_iterator;
+  for (; box_iterator != boxes_.end(); ++box_iterator) {
+    box = *box_iterator;
+    bounding_rectangle.Union(box->GetBorderBox());
+  }
+  return bounding_rectangle;
 }
 
 }  // namespace layout

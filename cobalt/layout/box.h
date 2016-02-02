@@ -29,6 +29,7 @@
 #include "cobalt/layout/math.h"
 #include "cobalt/math/insets_f.h"
 #include "cobalt/math/point_f.h"
+#include "cobalt/math/rect_f.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -193,6 +194,7 @@ class Box : public base::RefCounted<Box> {
   // Border box.
   float GetBorderBoxWidth() const;
   float GetBorderBoxHeight() const;
+  math::RectF GetBorderBox() const;
   math::SizeF GetBorderBoxSize() const;
   float GetBorderBoxLeftEdge() const;
   float GetBorderBoxTopEdge() const;
