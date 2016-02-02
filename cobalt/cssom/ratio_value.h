@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_RATIO_VALUE_H_
-#define CSSOM_RATIO_VALUE_H_
+#ifndef COBALT_CSSOM_RATIO_VALUE_H_
+#define COBALT_CSSOM_RATIO_VALUE_H_
 
 #include <string>
 
@@ -61,7 +61,7 @@ class RatioValue : public PropertyValue {
  private:
   ~RatioValue() OVERRIDE {}
 
-  const math::Rational& value_;
+  const math::Rational value_;
 
   DISALLOW_COPY_AND_ASSIGN(RatioValue);
 };
@@ -69,4 +69,4 @@ class RatioValue : public PropertyValue {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_RATIO_VALUE_H_
+#endif  // COBALT_CSSOM_RATIO_VALUE_H_
