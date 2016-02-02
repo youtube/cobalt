@@ -186,7 +186,8 @@ std::vector<TestResult> ParseResults(const std::string& json_results) {
     if (it->status != kPass) {
       outcome = WebPlatformTestInfo::kFail;
     }
-    output << "Test \"" << it->name
+    output << std::endl
+           << "Test \"" << it->name
            << "\" status: " << TestStatusToString(it->status);
     if (!it->message.empty()) {
       output << std::endl << it->message;
@@ -209,7 +210,7 @@ std::vector<TestResult> ParseResults(const std::string& json_results) {
 }  // namespace
 
 class WebPlatformTest : public ::testing::TestWithParam<WebPlatformTestInfo> {};
-TEST_P(WebPlatformTest, WebPlatformTest) {
+TEST_P(WebPlatformTest, Run) {
   // Output the name of the current input file so that it is visible in test
   // output.
   std::string test_server =
@@ -231,8 +232,12 @@ TEST_P(WebPlatformTest, WebPlatformTest) {
 #if !defined(COBALT_WIN)
 // XML Http Request test cases.
 INSTANTIATE_TEST_CASE_P(
-    XMLHttpRequestTests, WebPlatformTest,
+    xhr, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("XMLHttpRequest")));
+
+INSTANTIATE_TEST_CASE_P(
+    csp, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("content-security-policy")));
 #endif  // !defined(COBALT_WIN)
 
 }  // namespace layout_tests
