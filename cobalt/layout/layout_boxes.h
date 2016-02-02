@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_LAYOUT_BOXES_H_
-#define LAYOUT_LAYOUT_BOXES_H_
+#ifndef COBALT_LAYOUT_LAYOUT_BOXES_H_
+#define COBALT_LAYOUT_LAYOUT_BOXES_H_
 
 #include <vector>
 
@@ -23,6 +23,7 @@
 #include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/layout_boxes.h"
 #include "cobalt/layout/box.h"
+#include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace layout {
@@ -61,10 +62,13 @@ class LayoutBoxes : public dom::LayoutBoxes {
   const Boxes& boxes() { return boxes_; }
 
  private:
+  // Returns the bounding rectangle of the border edges of the boxes.
+  math::RectF GetBoundingBorderRectangle() const;
+
   Boxes boxes_;
 };
 
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_LAYOUT_BOXES_H_
+#endif  // COBALT_LAYOUT_LAYOUT_BOXES_H_
