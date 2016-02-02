@@ -22,7 +22,9 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "cobalt/deprecated/platform_delegate.h"
+#if !defined(OS_STARBOARD)
 #include "lbshell/src/lb_memory_manager.h"
+#endif
 
 namespace cobalt {
 namespace {
@@ -31,7 +33,7 @@ void AtExitCallback(void* /*param*/) {
   deprecated::PlatformDelegate::Teardown();
 }
 
-#if LB_ENABLE_MEMORY_DEBUGGING
+#if LB_ENABLE_MEMORY_DEBUGGING && !defined(OS_STARBOARD)
 
 // Define some functions that will be used by the memory log writer system which
 // does not have access to base::Time.
@@ -59,7 +61,7 @@ void InitCobalt(int argc, char* argv[]) {
   // This will fail if AtExitManager wasn't created before calling InitCobalt.
   base::AtExitManager::RegisterCallback(&AtExitCallback, NULL);
 
-#if LB_ENABLE_MEMORY_DEBUGGING
+#if LB_ENABLE_MEMORY_DEBUGGING && !defined(OS_STARBOARD)
   if (LB::Memory::IsContinuousLogEnabled()) {
     SetupProgramStartTime();
     // Initialize the writer (we should already be recording to memory) now that

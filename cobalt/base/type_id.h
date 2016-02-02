@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_TYPE_ID_H_
-#define BASE_TYPE_ID_H_
+#ifndef COBALT_BASE_TYPE_ID_H_
+#define COBALT_BASE_TYPE_ID_H_
 
 #include "base/hash_tables.h"
 
@@ -49,7 +49,6 @@ bool TypeIdHelper<T>::dummy_ = false;
 
 }  // namespace internal
 
-
 class TypeId {
  public:
   bool operator==(const TypeId& other) const { return value_ == other.value_; }
@@ -60,7 +59,7 @@ class TypeId {
   explicit TypeId(intptr_t value) : value_(value) {}
   intptr_t value_;
   template <typename T> friend TypeId GetTypeId();
-#if defined(COMPILER_GCC) && defined(__LB_LINUX__)
+#if defined(BASE_HASH_USE_HASH_STRUCT)
   friend struct BASE_HASH_NAMESPACE::hash<TypeId>;
 #else
   template <typename T, typename Predicate>
@@ -86,7 +85,7 @@ namespace BASE_HASH_NAMESPACE {
 //
 // GCC-flavored hash functor.
 //
-#if defined(COMPILER_GCC) && defined(__LB_LINUX__)
+#if defined(BASE_HASH_USE_HASH_STRUCT)
 
 // Forward declaration in case <hash_fun.h> is not #include'd.
 template <typename Key>
@@ -140,4 +139,4 @@ class hash_compare<base::TypeId, Predicate> {
 #endif
 }  // namespace BASE_HASH_NAMESPACE
 
-#endif  // BASE_TYPE_ID_H_
+#endif  // COBALT_BASE_TYPE_ID_H_

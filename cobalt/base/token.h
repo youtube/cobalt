@@ -85,10 +85,7 @@ inline std::ostream& operator<<(std::ostream& os, base::Token token) {
 }  // namespace base
 
 namespace BASE_HASH_NAMESPACE {
-#if defined(COMPILER_GCC) &&                                 \
-    (!(defined(__LB_SHELL__) && !defined(__LB_LINUX__)) ||   \
-     (defined(OS_STARBOARD) && defined(SB_HAS_HASH_VALUE) && \
-      SB_HAS_HASH_VALUE))
+#if defined(BASE_HASH_USE_HASH_STRUCT)
 
 template <>
 struct hash<base::Token> {
@@ -97,15 +94,14 @@ struct hash<base::Token> {
   }
 };
 
-#elif defined(COMPILER_MSVC) || defined(__LB_SHELL__) || \
-    (defined(OS_STARBOARD) && defined(SB_HAS_HASH_VALUE) && SB_HAS_HASH_VALUE)
+#else
 
 template <>
 inline size_t hash_value<base::Token>(const base::Token& token) {
   return reinterpret_cast<size_t>(token.c_str());
 }
 
-#endif  // COMPILER
+#endif  // BASE_HASH_USE_STRUCT
 }  // namespace BASE_HASH_NAMESPACE
 
 #endif  // COBALT_BASE_TOKEN_H_
