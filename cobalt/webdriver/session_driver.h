@@ -62,6 +62,7 @@ class SessionDriver {
 
   util::CommandResult<void> Navigate(const GURL& url);
   util::CommandResult<std::string> GetAlertText();
+  util::CommandResult<void> SwitchToWindow(const protocol::WindowId& window_id);
 
  private:
   protocol::WindowId GetUniqueWindowId();
