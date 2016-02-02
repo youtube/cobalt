@@ -24,8 +24,6 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/account/account_manager.h"
-#include "cobalt/base/console_commands.h"
-#include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
 #include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/screen_shot_writer.h"
@@ -40,8 +38,12 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/storage/storage_manager.h"
-#include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "cobalt/webdriver/session_driver.h"
+#ifdef ENABLE_DEBUG_CONSOLE
+#include "cobalt/base/console_commands.h"
+#include "cobalt/browser/debug_console.h"
+#include "cobalt/browser/trace_manager.h"
+#endif  // ENABLE_DEBUG_CONSOLE
 
 namespace cobalt {
 namespace browser {
@@ -133,11 +135,6 @@ class BrowserModule {
   void OnRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
 
-  // Glue function to deal with the production of the debug console render tree,
-  // and will manage handing it off to the renderer.
-  void OnDebugConsoleRenderTreeProduced(
-      const browser::WebModule::LayoutResults& layout_results);
-
   // Calls the ExecuteJavascript for the current WebModule.
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location) {
@@ -166,11 +163,6 @@ class BrowserModule {
   // false if it was consumed within this function.
   bool FilterKeyEventForHotkeys(const scoped_refptr<dom::KeyboardEvent>& event);
 
-  // Message handler callback for trace messages from debug console.
-  void OnTraceMessage(const std::string& message);
-
-  void StartOrStopTrace();
-
   // Tries all registered URL handlers for a URL. Returns true if one of the
   // handlers handled the URL, false if otherwise.
   bool TryURLHandlers(const GURL& url);
@@ -181,6 +173,13 @@ class BrowserModule {
   // Pauses all active web players and blocks the main thread until the
   // |has_resumed_| event is signalled. Must be called on |self_message_loop_|.
   void Pause();
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // Glue function to deal with the production of the debug console render tree,
+  // and will manage handing it off to the renderer.
+  void OnDebugConsoleRenderTreeProduced(
+      const browser::WebModule::LayoutResults& layout_results);
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::WindowDriver> CreateWindowDriver(
@@ -217,11 +216,6 @@ class BrowserModule {
   // into the renderer module.
   scoped_ptr<WebModule> web_module_;
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-  // Manages a second web module to implement the debug console.
-  scoped_ptr<DebugConsole> debug_console_;
-#endif  // defined(ENABLE_DEBUG_CONSOLE)
-
   // The browser module runs on this message loop.
   MessageLoop* const self_message_loop_;
 
@@ -229,12 +223,11 @@ class BrowserModule {
   // the web module.
   scoped_ptr<input::InputDeviceManager> input_device_manager_;
 
-  // This object can be set to start a trace if a hotkey (like F3) is pressed.
-  // While initialized, it means that a trace is on-going.
-  scoped_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // Manages a second web module to implement the debug console.
+  scoped_ptr<DebugConsole> debug_console_;
 
-  // Command handler object for trace commands from the debug console.
-  base::ConsoleCommandManager::CommandHandler trace_command_handler_;
+  TraceManager trace_manager;
 
   // Command handler object for navigate command from the debug console.
   base::ConsoleCommandManager::CommandHandler navigate_command_handler_;
@@ -248,7 +241,8 @@ class BrowserModule {
 
   // Helper object to create screen shots of the last layout tree.
   scoped_ptr<ScreenShotWriter> screen_shot_writer_;
-#endif
+#endif  // defined(ENABLE_SCREENSHOT)
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Handler object for h5vcc URLs.
   H5vccURLHandler h5vcc_url_handler_;
