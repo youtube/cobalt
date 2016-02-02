@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-#include "js_object_cache.h"
+#include "cobalt/script/javascriptcore/js_object_cache.h"
 
-#if defined(COBALT) && !defined(__LB_LINUX__)
+#include <utility>
+
+#include "base/hash_tables.h"
+
+#if !defined(BASE_HASH_USE_HASH_STRUCT)
 namespace BASE_HASH_NAMESPACE {
 template<>
 inline size_t hash_value(const JSC::WriteBarrier<JSC::JSObject>& value) {
