@@ -146,6 +146,182 @@ TEST(CSSStyleDeclarationTest, BackgroundSizeSetter) {
   style->set_background_size(background_size);
 }
 
+TEST(CSSStyleDeclarationTest, BorderSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderProperty), border, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border(border);
+}
+
+TEST(CSSStyleDeclarationTest, BorderBottomSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_bottom = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderBottomProperty), border_bottom, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_bottom(border_bottom);
+}
+
+TEST(CSSStyleDeclarationTest, BorderBottomColorSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_bottom_color = "#010203";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kBorderBottomColorProperty), border_bottom_color, _,
+          const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_bottom_color(border_bottom_color);
+}
+
+TEST(CSSStyleDeclarationTest, BorderBottomStyleSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_bottom_style = "solid";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kBorderBottomStyleProperty), border_bottom_style, _,
+          const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_bottom_style(border_bottom_style);
+}
+
+TEST(CSSStyleDeclarationTest, BorderBottomWidthSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> width =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_bottom_width = "10px";
+  MockMutationObserver observer;
+  width->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kBorderBottomWidthProperty), border_bottom_width, _,
+          const_cast<CSSStyleDeclarationData*>(width->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  width->set_border_bottom_width(border_bottom_width);
+}
+
+TEST(CSSStyleDeclarationTest, BorderColorSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_color = "#010203";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderColorProperty), border_color, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_color(border_color);
+}
+
+TEST(CSSStyleDeclarationTest, BorderLeftSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_left = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderLeftProperty), border_left, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_left(border_left);
+}
+
+TEST(CSSStyleDeclarationTest, BorderLeftColorSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_left_color = "#010203";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kBorderLeftColorProperty), border_left_color, _,
+          const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_left_color(border_left_color);
+}
+
+TEST(CSSStyleDeclarationTest, BorderLeftStyleSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_left_style = "solid";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kBorderLeftStyleProperty), border_left_style, _,
+          const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_left_style(border_left_style);
+}
+
+TEST(CSSStyleDeclarationTest, BorderLeftWidthSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> width =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_left_width = "10px";
+  MockMutationObserver observer;
+  width->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kBorderLeftWidthProperty), border_left_width, _,
+          const_cast<CSSStyleDeclarationData*>(width->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  width->set_border_left_width(border_left_width);
+}
+
 TEST(CSSStyleDeclarationTest, BorderRadiusSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
@@ -161,6 +337,196 @@ TEST(CSSStyleDeclarationTest, BorderRadiusSetter) {
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
   style->set_border_radius(border_radius);
+}
+
+TEST(CSSStyleDeclarationTest, BorderRightSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_right = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderRightProperty), border_right, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_right(border_right);
+}
+
+TEST(CSSStyleDeclarationTest, BorderRightColorSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_right_color = "#010203";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kBorderRightColorProperty), border_right_color, _,
+          const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_right_color(border_right_color);
+}
+
+TEST(CSSStyleDeclarationTest, BorderRightStyleSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_right_style = "solid";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kBorderRightStyleProperty), border_right_style, _,
+          const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_right_style(border_right_style);
+}
+
+TEST(CSSStyleDeclarationTest, BorderRightWidthSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> width =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_right_width = "10px";
+  MockMutationObserver observer;
+  width->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kBorderRightWidthProperty), border_right_width, _,
+          const_cast<CSSStyleDeclarationData*>(width->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  width->set_border_right_width(border_right_width);
+}
+
+TEST(CSSStyleDeclarationTest, BorderStyleSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_style = "solid";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderStyleProperty), border_style, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_style(border_style);
+}
+
+TEST(CSSStyleDeclarationTest, BorderTopSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_top = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderTopProperty), border_top, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_top(border_top);
+}
+
+TEST(CSSStyleDeclarationTest, BorderTopColorSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_top_color = "#010203";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderTopColorProperty), border_top_color, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_top_color(border_top_color);
+}
+
+TEST(CSSStyleDeclarationTest, BorderTopStyleSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_top_style = "solid";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderTopStyleProperty), border_top_style, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_top_style(border_top_style);
+}
+
+TEST(CSSStyleDeclarationTest, BorderTopWidthSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> width =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string border_top_width = "10px";
+  MockMutationObserver observer;
+  width->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderTopWidthProperty), border_top_width, _,
+                  const_cast<CSSStyleDeclarationData*>(width->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  width->set_border_top_width(border_top_width);
+}
+
+TEST(CSSStyleDeclarationTest, BottomSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string bottom = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBottomProperty), bottom, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_bottom(bottom);
+}
+
+TEST(CSSStyleDeclarationTest, BoxShadowSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string box_shadow = "none";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBoxShadowProperty), box_shadow, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_box_shadow(box_shadow);
 }
 
 TEST(CSSStyleDeclarationTest, ColorSetter) {
@@ -214,6 +580,23 @@ TEST(CSSStyleDeclarationTest, DisplaySetter) {
   style->set_display(display);
 }
 
+TEST(CSSStyleDeclarationTest, FontSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string font = "inherit";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kFontProperty), font, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_font(font);
+}
+
 TEST(CSSStyleDeclarationTest, FontFamilySetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
@@ -246,6 +629,23 @@ TEST(CSSStyleDeclarationTest, FontSizeSetter) {
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
   style->set_font_size(font_size);
+}
+
+TEST(CSSStyleDeclarationTest, FontStyleSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string font_style = "italic";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kFontStyleProperty), font_style, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_font_style(font_style);
 }
 
 TEST(CSSStyleDeclarationTest, FontWeightSetter) {
@@ -282,6 +682,23 @@ TEST(CSSStyleDeclarationTest, HeightSetter) {
   style->set_height(height);
 }
 
+TEST(CSSStyleDeclarationTest, LeftSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string left = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kLeftProperty), left, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_left(left);
+}
+
 TEST(CSSStyleDeclarationTest, LineHeightSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
@@ -297,6 +714,159 @@ TEST(CSSStyleDeclarationTest, LineHeightSetter) {
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
   style->set_line_height(line_height);
+}
+
+TEST(CSSStyleDeclarationTest, MarginSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string margin = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kMarginProperty), margin, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_margin(margin);
+}
+
+TEST(CSSStyleDeclarationTest, MarginBottomSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string margin_bottom = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kMarginBottomProperty), margin_bottom, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_margin_bottom(margin_bottom);
+}
+
+TEST(CSSStyleDeclarationTest, MarginLeftSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string margin_left = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kMarginLeftProperty), margin_left, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_margin_left(margin_left);
+}
+
+TEST(CSSStyleDeclarationTest, MarginRightSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string margin_right = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kMarginRightProperty), margin_right, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_margin_right(margin_right);
+}
+
+TEST(CSSStyleDeclarationTest, MarginTopSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string margin_top = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kMarginTopProperty), margin_top, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_margin_top(margin_top);
+}
+
+TEST(CSSStyleDeclarationTest, MaxHeightSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string max_height = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kMaxHeightProperty), max_height, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_max_height(max_height);
+}
+
+TEST(CSSStyleDeclarationTest, MaxWidthSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string max_width = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kMaxWidthProperty), max_width, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_max_width(max_width);
+}
+
+TEST(CSSStyleDeclarationTest, MinHeightSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string min_height = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kMinHeightProperty), min_height, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_min_height(min_height);
+}
+
+TEST(CSSStyleDeclarationTest, MinWidthSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string min_width = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kMinWidthProperty), min_width, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_min_width(min_width);
 }
 
 TEST(CSSStyleDeclarationTest, OpacitySetter) {
@@ -351,6 +921,91 @@ TEST(CSSStyleDeclarationTest, OverflowWrapSetter) {
   style->set_overflow_wrap(overflow_wrap);
 }
 
+TEST(CSSStyleDeclarationTest, PaddingSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string padding = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kPaddingProperty), padding, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_padding(padding);
+}
+
+TEST(CSSStyleDeclarationTest, PaddingBottomSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string padding_bottom = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kPaddingBottomProperty), padding_bottom, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_padding_bottom(padding_bottom);
+}
+
+TEST(CSSStyleDeclarationTest, PaddingLeftSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string padding_left = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kPaddingLeftProperty), padding_left, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_padding_left(padding_left);
+}
+
+TEST(CSSStyleDeclarationTest, PaddingRightSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string padding_right = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kPaddingRightProperty), padding_right, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_padding_right(padding_right);
+}
+
+TEST(CSSStyleDeclarationTest, PaddingTopSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string padding_top = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kPaddingTopProperty), padding_top, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_padding_top(padding_top);
+}
+
 TEST(CSSStyleDeclarationTest, PositionSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
@@ -366,6 +1021,23 @@ TEST(CSSStyleDeclarationTest, PositionSetter) {
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
   style->set_position(position);
+}
+
+TEST(CSSStyleDeclarationTest, RightSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string right = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kRightProperty), right, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_right(right);
 }
 
 TEST(CSSStyleDeclarationTest, TextAlignSetter) {
@@ -421,6 +1093,24 @@ TEST(CSSStyleDeclarationTest, TextOverflowSetter) {
   style->set_text_overflow(text_overflow);
 }
 
+TEST(CSSStyleDeclarationTest, TextShadowSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string text_shadow = "inherit";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kTextShadowProperty), text_shadow, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_text_shadow(text_shadow);
+}
+
 TEST(CSSStyleDeclarationTest, TextTransformSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
@@ -439,6 +1129,23 @@ TEST(CSSStyleDeclarationTest, TextTransformSetter) {
   style->set_text_transform(text_transform);
 }
 
+TEST(CSSStyleDeclarationTest, TopSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string top = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kTopProperty), top, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_top(top);
+}
+
 TEST(CSSStyleDeclarationTest, TransformSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
@@ -454,6 +1161,113 @@ TEST(CSSStyleDeclarationTest, TransformSetter) {
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
   style->set_transform(transform);
+}
+
+TEST(CSSStyleDeclarationTest, TransformOriginSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string transform_origin = "20% 40%";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kTransformOriginProperty), transform_origin, _,
+          const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_transform_origin(transform_origin);
+}
+
+TEST(CSSStyleDeclarationTest, TransitionSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string transition = "inherit";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kTransitionProperty), transition, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_transition(transition);
+}
+
+TEST(CSSStyleDeclarationTest, TransitionDelaySetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string transition_delay = "2s";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kTransitionDelayProperty), transition_delay, _,
+          const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_transition_delay(transition_delay);
+}
+
+TEST(CSSStyleDeclarationTest, TransitionDurationSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string transition_duration = "2s";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kTransitionDurationProperty), transition_duration, _,
+          const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_transition_duration(transition_duration);
+}
+
+TEST(CSSStyleDeclarationTest, TransitionPropertySetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string transition_property = "width";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(
+      css_parser,
+      ParsePropertyIntoDeclarationData(
+          GetPropertyName(kTransitionPropertyProperty), transition_property, _,
+          const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_transition_property(transition_property);
+}
+
+TEST(CSSStyleDeclarationTest, TransitionTimingFunctionSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string transition_timing_function = "linear";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kTransitionTimingFunctionProperty),
+                  transition_timing_function, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_transition_timing_function(transition_timing_function);
 }
 
 TEST(CSSStyleDeclarationTest, VerticalAlignSetter) {
@@ -541,6 +1355,24 @@ TEST(CSSStyleDeclarationTest, WordWrapSetter) {
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
 
   style->set_word_wrap(word_wrap);
+}
+
+TEST(CSSStyleDeclarationTest, ZIndexSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string z_index = "-1";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kZIndexProperty), z_index, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_z_index(z_index);
 }
 
 TEST(CSSStyleDeclarationTest, CSSTextSetter) {
