@@ -1003,8 +1003,9 @@ void ComputedMinMaxWidthProvider::VisitPercentage(PercentageValue* percentage) {
 class ComputedBackgroundImageSingleLayerProvider
     : public NotReachedPropertyValueVisitor {
  public:
-  explicit ComputedBackgroundImageSingleLayerProvider(const GURL& base_url)
-      : base_url_(base_url) {}
+  explicit ComputedBackgroundImageSingleLayerProvider(
+      const GURL& base_url, const LengthValue* computed_font_size)
+      : base_url_(base_url), computed_font_size_(computed_font_size) {}
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
@@ -1017,6 +1018,7 @@ class ComputedBackgroundImageSingleLayerProvider
 
  private:
   const GURL base_url_;
+  const LengthValue* computed_font_size_;
 
   scoped_refptr<PropertyValue> computed_background_image_;
 };
@@ -1077,11 +1079,50 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
   }
 }
 
+namespace {
+cssom::ColorStopList ComputeColorStopList(
+    const cssom::ColorStopList& color_stops,
+    const LengthValue* computed_font_size) {
+  cssom::ColorStopList computed_color_stops;
+  computed_color_stops.reserve(color_stops.size());
+
+  for (cssom::ColorStopList::const_iterator iter = color_stops.begin();
+       iter != color_stops.end(); ++iter) {
+    const cssom::ColorStop& color_stop = **iter;
+
+    if (color_stop.position() &&
+        color_stop.position()->GetTypeId() == base::GetTypeId<LengthValue>()) {
+      scoped_refptr<LengthValue> length_value =
+          base::polymorphic_downcast<LengthValue*>(color_stop.position().get());
+
+      computed_color_stops.push_back(new cssom::ColorStop(
+          color_stop.rgba(),
+          ProvideAbsoluteLength(length_value, computed_font_size)));
+    } else {
+      computed_color_stops.push_back(
+          new cssom::ColorStop(color_stop.rgba(), color_stop.position()));
+    }
+  }
+
+  return computed_color_stops.Pass();
+}
+}  // namespace
+
 void ComputedBackgroundImageSingleLayerProvider::VisitLinearGradient(
-    LinearGradientValue* /*linear_gradient_value*/) {
-  // TODO(***REMOVED***): Deal with linear gradient value.
-  NOTIMPLEMENTED();
-  computed_background_image_ = cssom::KeywordValue::GetNone();
+    LinearGradientValue* linear_gradient_value) {
+  // We must walk through the list of color stop positions and absolutize the
+  // any length values.
+  cssom::ColorStopList computed_color_stops = ComputeColorStopList(
+      linear_gradient_value->color_stop_list(), computed_font_size_);
+
+  if (linear_gradient_value->angle_in_radians()) {
+    computed_background_image_ =
+        new LinearGradientValue(*linear_gradient_value->angle_in_radians(),
+                                computed_color_stops.Pass());
+  } else {
+    computed_background_image_ = new LinearGradientValue(
+        *linear_gradient_value->side_or_corner(), computed_color_stops.Pass());
+  }
 }
 
 void ComputedBackgroundImageSingleLayerProvider::VisitRadialGradient(
@@ -1110,8 +1151,9 @@ void ComputedBackgroundImageSingleLayerProvider::VisitURL(URLValue* url_value) {
 
 class ComputedBackgroundImageProvider : public NotReachedPropertyValueVisitor {
  public:
-  explicit ComputedBackgroundImageProvider(const GURL& base_url)
-      : base_url_(base_url) {}
+  explicit ComputedBackgroundImageProvider(
+      const GURL& base_url, const LengthValue* computed_font_size)
+      : base_url_(base_url), computed_font_size_(computed_font_size) {}
 
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
 
@@ -1121,6 +1163,7 @@ class ComputedBackgroundImageProvider : public NotReachedPropertyValueVisitor {
 
  private:
   const GURL base_url_;
+  const LengthValue* computed_font_size_;
 
   scoped_refptr<PropertyValue> computed_background_image_;
 };
@@ -1131,7 +1174,8 @@ void ComputedBackgroundImageProvider::VisitPropertyList(
       new PropertyListValue::Builder());
   builder->reserve(property_list_value->value().size());
 
-  ComputedBackgroundImageSingleLayerProvider single_layer_provider(base_url_);
+  ComputedBackgroundImageSingleLayerProvider single_layer_provider(
+      base_url_, computed_font_size_);
   for (size_t i = 0; i < property_list_value->value().size(); ++i) {
     property_list_value->value()[i]->Accept(&single_layer_provider);
     scoped_refptr<PropertyValue> computed_background_image =
@@ -2415,7 +2459,8 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBackgroundImageProperty: {
       if (property_key_to_base_url_map_) {
         ComputedBackgroundImageProvider background_image_provider(
-            (*property_key_to_base_url_map_)[kBackgroundImageProperty]);
+            (*property_key_to_base_url_map_)[kBackgroundImageProperty],
+            GetFontSize());
         property_value_iterator.Value()->Accept(&background_image_provider);
         property_value_iterator.SetValue(
             background_image_provider.computed_background_image());

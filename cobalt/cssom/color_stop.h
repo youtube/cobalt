@@ -45,8 +45,8 @@ class ColorStop {
             const scoped_refptr<PropertyValue>& position)
       : rgba_(rgba), position_(position) {}
 
-  scoped_refptr<RGBAColorValue> rgba() const { return rgba_; }
-  scoped_refptr<PropertyValue> position() const { return position_; }
+  const scoped_refptr<RGBAColorValue>& rgba() const { return rgba_; }
+  const scoped_refptr<PropertyValue>& position() const { return position_; }
 
   std::string ToString() const;
 
