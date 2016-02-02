@@ -648,6 +648,8 @@ bool NewComputedStyleInvalidatesLayoutBoxes(
              *new_computed_style->line_height()) ||
          !old_computed_style->overflow_wrap()->Equals(
              *new_computed_style->overflow_wrap()) ||
+         !old_computed_style->position()->Equals(
+             *new_computed_style->position()) ||
          !old_computed_style->text_align()->Equals(
              *new_computed_style->text_align()) ||
          !old_computed_style->text_indent()->Equals(
