@@ -24,7 +24,14 @@ namespace render_tree {
 void RectShadowNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 math::RectF RectShadowNode::GetBounds() const {
-  return data_.shadow.ToShadowBounds(math::RectF(data_.size));
+  if (data_.inset) {
+    return math::RectF(data_.size);
+  } else {
+    math::RectF shadow_bounds =
+        data_.shadow.ToShadowBounds(math::RectF(data_.size));
+    shadow_bounds.Outset(data_.spread, data_.spread);
+    return shadow_bounds;
+  }
 }
 
 }  // namespace render_tree
