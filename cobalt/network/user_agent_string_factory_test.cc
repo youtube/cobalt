@@ -110,6 +110,7 @@ class UserAgentStringFactoryWithWiredConnection
     os_name_and_version_ = "GLaDOS 3.11";
     youtube_tv_info_ = YouTubeTVInfo();
     youtube_tv_info_->connection_type = YouTubeTVInfo::kWiredConnection;
+    youtube_tv_info_->device_type = YouTubeTVInfo::kOverTheTopBox;
   }
 };
 
@@ -126,6 +127,7 @@ class UserAgentStringFactoryWithWirelessConnection
     os_name_and_version_ = "GLaDOS 3.11";
     youtube_tv_info_ = YouTubeTVInfo();
     youtube_tv_info_->connection_type = YouTubeTVInfo::kWirelessConnection;
+    youtube_tv_info_->device_type = YouTubeTVInfo::kOverTheTopBox;
   }
 };
 
