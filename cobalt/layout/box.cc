@@ -160,6 +160,11 @@ float Box::GetBorderBoxHeight() const {
   return border_top_width() + GetPaddingBoxHeight() + border_bottom_width();
 }
 
+math::RectF Box::GetBorderBox() const {
+  return math::RectF(GetBorderBoxLeftEdge(), GetBorderBoxTopEdge(),
+                     GetBorderBoxWidth(), GetBorderBoxHeight());
+}
+
 math::SizeF Box::GetBorderBoxSize() const {
   return math::SizeF(GetBorderBoxWidth(), GetBorderBoxHeight());
 }
