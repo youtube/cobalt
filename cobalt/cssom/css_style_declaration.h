@@ -94,62 +94,62 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string border_bottom() const;
   void set_border_bottom(const std::string& border_bottom);
 
-  std::string border_left() const;
-  void set_border_left(const std::string& border_left);
-
-  std::string border_right() const;
-  void set_border_right(const std::string& border_right);
-
-  std::string border_top() const;
-  void set_border_top(const std::string& border_top);
-
-  std::string border_color() const;
-  void set_border_color(const std::string& border_color);
-
-  std::string border_top_color() const;
-  void set_border_top_color(const std::string& border_top_color);
-
-  std::string border_right_color() const;
-  void set_border_right_color(const std::string& border_right_color);
-
   std::string border_bottom_color() const;
   void set_border_bottom_color(const std::string& border_bottom_color);
-
-  std::string border_left_color() const;
-  void set_border_left_color(const std::string& border_left_color);
-
-  std::string border_style() const;
-  void set_border_style(const std::string& border_style);
-
-  std::string border_top_style() const;
-  void set_border_top_style(const std::string& border_top_style);
-
-  std::string border_right_style() const;
-  void set_border_right_style(const std::string& border_right_style);
 
   std::string border_bottom_style() const;
   void set_border_bottom_style(const std::string& border_bottom_style);
 
-  std::string border_left_style() const;
-  void set_border_left_style(const std::string& border_left_style);
-
-  std::string border_width() const;
-  void set_border_width(const std::string& border_width);
-
-  std::string border_top_width() const;
-  void set_border_top_width(const std::string& border_top_width);
-
-  std::string border_right_width() const;
-  void set_border_right_width(const std::string& border_right_width);
-
   std::string border_bottom_width() const;
   void set_border_bottom_width(const std::string& border_bottom_width);
+
+  std::string border_color() const;
+  void set_border_color(const std::string& border_color);
+
+  std::string border_left() const;
+  void set_border_left(const std::string& border_left);
+
+  std::string border_left_color() const;
+  void set_border_left_color(const std::string& border_left_color);
+
+  std::string border_left_style() const;
+  void set_border_left_style(const std::string& border_left_style);
 
   std::string border_left_width() const;
   void set_border_left_width(const std::string& border_left_width);
 
   std::string border_radius() const;
   void set_border_radius(const std::string& border_radius);
+
+  std::string border_right() const;
+  void set_border_right(const std::string& border_right);
+
+  std::string border_right_color() const;
+  void set_border_right_color(const std::string& border_right_color);
+
+  std::string border_right_style() const;
+  void set_border_right_style(const std::string& border_right_style);
+
+  std::string border_right_width() const;
+  void set_border_right_width(const std::string& border_right_width);
+
+  std::string border_top() const;
+  void set_border_top(const std::string& border_top);
+
+  std::string border_top_color() const;
+  void set_border_top_color(const std::string& border_top_color);
+
+  std::string border_top_style() const;
+  void set_border_top_style(const std::string& border_top_style);
+
+  std::string border_top_width() const;
+  void set_border_top_width(const std::string& border_top_width);
+
+  std::string border_style() const;
+  void set_border_style(const std::string& border_style);
+
+  std::string border_width() const;
+  void set_border_width(const std::string& border_width);
 
   std::string bottom() const;
   void set_bottom(const std::string& bottom);
@@ -190,6 +190,21 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string line_height() const;
   void set_line_height(const std::string& line_height);
 
+  std::string margin() const;
+  void set_margin(const std::string& margin);
+
+  std::string margin_bottom() const;
+  void set_margin_bottom(const std::string& margin_bottom);
+
+  std::string margin_left() const;
+  void set_margin_left(const std::string& margin_left);
+
+  std::string margin_right() const;
+  void set_margin_right(const std::string& margin_right);
+
+  std::string margin_top() const;
+  void set_margin_top(const std::string& margin_top);
+
   std::string max_height() const;
   void set_max_height(const std::string& max_height);
 
@@ -210,6 +225,21 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   std::string overflow_wrap() const;
   void set_overflow_wrap(const std::string& overflow_wrap);
+
+  std::string padding() const;
+  void set_padding(const std::string& padding);
+
+  std::string padding_bottom() const;
+  void set_padding_bottom(const std::string& padding_bottom);
+
+  std::string padding_left() const;
+  void set_padding_left(const std::string& padding_left);
+
+  std::string padding_right() const;
+  void set_padding_right(const std::string& padding_right);
+
+  std::string padding_top() const;
+  void set_padding_top(const std::string& padding_top);
 
   std::string position() const;
   void set_position(const std::string& position);
