@@ -216,9 +216,13 @@ bool CSPDelegate::AllowInline(ResourceType type,
 
 bool CSPDelegate::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
   if (enforcement_mode() == kEnforcementRequire &&
-      headers.content_security_policy().empty() &&
-      headers.content_security_policy_report_only().empty()) {
-    // Didn't find any CSP-related headers.
+      headers.content_security_policy().empty()) {
+    // Didn't find Content-Security-Policy header.
+    if (!headers.content_security_policy_report_only().empty()) {
+      DLOG(INFO)
+          << "Content-Security-Policy-Report-Only headers were "
+             "received, but Content-Security-Policy headers are required.";
+    }
     return false;
   }
   csp_->OnReceiveHeaders(headers);
@@ -230,7 +234,14 @@ void CSPDelegate::OnReceiveHeader(const std::string& header,
                                   csp::HeaderType header_type,
                                   csp::HeaderSource header_source) {
   csp_->OnReceiveHeader(header, header_type, header_source);
-  was_header_received_ = true;
+  // In "require" mode we don't consider a Report-Only header to be sufficient.
+  if (enforcement_mode() == kEnforcementRequire) {
+    if (header_type == csp::kHeaderTypeEnforce) {
+      was_header_received_ = true;
+    }
+  } else {
+    was_header_received_ = true;
+  }
 }
 
 GURL CSPDelegate::url() const { return document_->url_as_gurl(); }
