@@ -64,6 +64,8 @@ class ColorStop {
 // specified in order.
 typedef ScopedVector<ColorStop> ColorStopList;
 
+bool ColorStopListsEqual(const ColorStopList& lhs, const ColorStopList& rhs);
+
 }  // namespace cssom
 }  // namespace cobalt
 

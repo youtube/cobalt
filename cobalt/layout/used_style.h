@@ -22,6 +22,7 @@
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
+#include "cobalt/cssom/radial_gradient_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/transform_matrix.h"
 #include "cobalt/dom/font_cache.h"
@@ -123,6 +124,8 @@ class UsedBackgroundNodeProvider
   void VisitAbsoluteURL(cssom::AbsoluteURLValue* url_value) OVERRIDE;
   void VisitLinearGradient(
       cssom::LinearGradientValue* linear_gradient_value) OVERRIDE;
+  void VisitRadialGradient(
+      cssom::RadialGradientValue* radial_gradient_value) OVERRIDE;
 
   scoped_refptr<render_tree::Node> background_node() {
     return background_node_;

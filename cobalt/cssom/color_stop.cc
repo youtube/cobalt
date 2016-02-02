@@ -44,5 +44,19 @@ bool ColorStop::operator==(const ColorStop& other) const {
          (!position_ || position_->Equals(*other.position_));
 }
 
+bool ColorStopListsEqual(const ColorStopList& lhs, const ColorStopList& rhs) {
+  if (lhs.size() != rhs.size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < lhs.size(); ++i) {
+    if (!(*lhs[i] == *rhs[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 }  // namespace cssom
 }  // namespace cobalt

@@ -86,36 +86,33 @@ bool RadialGradientValue::operator==(const RadialGradientValue& other) const {
   }
 
   // The optionals must match.
-  if (!(size_keyword_ == other.size_keyword_) ||
-      ((!size_value_ && other.size_value_) ||
-       (size_value_ && !other.size_value_) ||
-       (size_value_ && !(size_value_->Equals(*other.size_value_))))) {
+  if (!size_keyword_ != !other.size_keyword_) {
     return false;
   }
-  // Exactly one of the optionals is engaged.
-  if ((size_keyword_ && other.size_value_) ||
-      (size_value_ && other.size_keyword_)) {
-    return false;
-  }
-
-  if ((!position_ && other.position_) || (position_ && !other.position_) ||
-      (position_ && !(position_->Equals(*other.position_)))) {
-    return false;
-  }
-
-  // The stop lists have to be empty or have the same size.
-  size_t stop_list_size = color_stop_list_.size();
-  size_t other_stop_list_size = other.color_stop_list_.size();
-  if (stop_list_size != other_stop_list_size) {
-    return false;
-  }
-  // Each color stop has to be the same.
-  for (size_t i = 0; i < stop_list_size; ++i) {
-    if (!(*color_stop_list_[i] == *other.color_stop_list_[i])) {
+  if (size_keyword_) {
+    if (!(*size_keyword_ == *other.size_keyword_)) {
       return false;
     }
   }
-  return true;
+
+  if (!size_value_ != !other.size_value_) {
+    return false;
+  }
+  if (size_value_) {
+    if (!(*size_value_ == *other.size_value_)) {
+      return false;
+    }
+  }
+
+  if (!position_ != !other.position_) {
+    return false;
+  }
+  if (position_ && !(*position_ == *other.position_)) {
+    return false;
+  }
+
+  // The stop lists must be equal.
+  return ColorStopListsEqual(color_stop_list_, other.color_stop_list_);
 }
 
 }  // namespace cssom
