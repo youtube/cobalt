@@ -18,6 +18,7 @@
 #define COBALT_LAYOUT_USED_STYLE_H_
 
 #include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
@@ -120,6 +121,8 @@ class UsedBackgroundNodeProvider
       UsedStyleProvider* used_style_provider);
 
   void VisitAbsoluteURL(cssom::AbsoluteURLValue* url_value) OVERRIDE;
+  void VisitLinearGradient(
+      cssom::LinearGradientValue* linear_gradient_value) OVERRIDE;
 
   scoped_refptr<render_tree::Node> background_node() {
     return background_node_;

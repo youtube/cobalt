@@ -1220,7 +1220,7 @@ TEST_F(ParserTest, ParsesBackgroundWithLinearGradient) {
   EXPECT_EQ(cssom::LinearGradientValue::kBottom,
             *linear_gradient_value->side_or_corner());
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       linear_gradient_value->color_stop_list();
   EXPECT_EQ(2, color_stop_list_value.size());
 
@@ -1254,7 +1254,7 @@ TEST_F(ParserTest, ParsesBackgroundWithLinearGradientContainsTransparent) {
   EXPECT_EQ(cssom::LinearGradientValue::kBottom,
             *linear_gradient_value->side_or_corner());
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       linear_gradient_value->color_stop_list();
   EXPECT_EQ(3, color_stop_list_value.size());
 
@@ -1294,7 +1294,7 @@ TEST_F(ParserTest, ParsesBackgroundWithRadialGradient) {
       radial_gradient_value->position();
   EXPECT_FALSE(position);
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       radial_gradient_value->color_stop_list();
   EXPECT_EQ(2, color_stop_list_value.size());
 
@@ -1632,7 +1632,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithDirection) {
                   *linear_gradient_value->angle_in_radians());
   EXPECT_FALSE(linear_gradient_value->side_or_corner());
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       linear_gradient_value->color_stop_list();
   EXPECT_EQ(2, color_stop_list_value.size());
 
@@ -1670,7 +1670,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithoutDirection) {
   EXPECT_EQ(cssom::LinearGradientValue::kBottom,
             *linear_gradient_value->side_or_corner());
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       linear_gradient_value->color_stop_list();
   EXPECT_EQ(2, color_stop_list_value.size());
 
@@ -1711,7 +1711,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientAndURL) {
   EXPECT_EQ(cssom::LinearGradientValue::kTopRight,
             *linear_gradient_value->side_or_corner());
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       linear_gradient_value->color_stop_list();
   EXPECT_EQ(2, color_stop_list_value.size());
 
@@ -1770,7 +1770,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithShapeAndSizeKeyword) {
       radial_gradient_value->position();
   EXPECT_FALSE(position);
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       radial_gradient_value->color_stop_list();
   EXPECT_EQ(3, color_stop_list_value.size());
 
@@ -1831,7 +1831,7 @@ TEST_F(ParserTest,
   EXPECT_EQ(cssom::KeywordValue::GetTop(), position->value()[0]);
   EXPECT_EQ(cssom::KeywordValue::GetCenter(), position->value()[1]);
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       radial_gradient_value->color_stop_list();
   EXPECT_EQ(2, color_stop_list_value.size());
 
@@ -1889,7 +1889,7 @@ TEST_F(ParserTest,
   EXPECT_EQ(cssom::KeywordValue::GetTop(), position->value()[0]);
   EXPECT_EQ(cssom::KeywordValue::GetCenter(), position->value()[1]);
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       radial_gradient_value->color_stop_list();
   EXPECT_EQ(2, color_stop_list_value.size());
 
@@ -1947,7 +1947,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithSizeLength) {
       radial_gradient_value->position();
   EXPECT_FALSE(position);
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       radial_gradient_value->color_stop_list();
   EXPECT_EQ(2, color_stop_list_value.size());
 
@@ -1995,7 +1995,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientWithoutShapeAndSize) {
   EXPECT_EQ(1, position->value().size());
   EXPECT_EQ(cssom::KeywordValue::GetLeft(), position->value()[0]);
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       radial_gradient_value->color_stop_list();
   EXPECT_EQ(2, color_stop_list_value.size());
 
@@ -2041,7 +2041,7 @@ TEST_F(ParserTest, ParsesBackgroundImageRadialGradientOnlyHasColorStop) {
       radial_gradient_value->position();
   EXPECT_FALSE(position);
 
-  const std::vector<cssom::ColorStop*> color_stop_list_value =
+  const cssom::ColorStopList& color_stop_list_value =
       radial_gradient_value->color_stop_list();
   EXPECT_EQ(2, color_stop_list_value.size());
 
