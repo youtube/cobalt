@@ -30,7 +30,6 @@
 #include "cobalt/dom/keycode.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
-#include "cobalt/trace_event/scoped_trace_to_file.h"
 
 namespace cobalt {
 namespace browser {
@@ -38,15 +37,7 @@ namespace {
 
 // TODO(***REMOVED***): Subscribe to viewport size changes.
 
-// Name of the channel to listen for trace commands from the debug console.
-const char kTraceCommandChannel[] = "trace";
-
-// Help strings for the trace command channel.
-const char kTraceCommandShortHelp[] = "Starts/stops execution tracing.";
-const char kTraceCommandLongHelp[] =
-    "Starts/stops execution tracing.\n"
-    "If a trace is currently running, stops it and saves the result; "
-    "otherwise starts a new trace.";
+#if defined(ENABLE_DEBUG_CONSOLE)
 
 // Command to navigate to a URL.
 const char kNavigateCommand[] = "navigate";
@@ -75,7 +66,7 @@ const char kScreenshotCommandShortHelp[] = "Takes a screenshot.";
 const char kScreenshotCommandLongHelp[] =
     "Creates a screenshot of the most recent layout tree and writes it "
     "to disk. Logs the filename of the screenshot to the console when done.";
-#endif
+#endif  // defined(ENABLE_SCREENSHOT)
 
 void OnNavigateMessage(BrowserModule* browser_module,
                        const std::string& message) {
@@ -119,6 +110,8 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 }
 #endif  // defined(ENABLE_SCREENSHOT)
 
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
 scoped_refptr<script::Wrappable> CreateH5VCC(
     const h5vcc::H5vcc::Settings& settings) {
   return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
@@ -142,10 +135,7 @@ BrowserModule::BrowserModule(const GURL& url,
                       options.network_module_options),
       render_tree_combiner_(renderer_module_.pipeline()),
       self_message_loop_(MessageLoop::current()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(trace_command_handler_(
-          kTraceCommandChannel,
-          base::Bind(&BrowserModule::OnTraceMessage, base::Unretained(this)),
-          kTraceCommandShortHelp, kTraceCommandLongHelp)),
+#if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(navigate_command_handler_(
           kNavigateCommand,
           base::Bind(&OnNavigateMessage, base::Unretained(this)),
@@ -160,6 +150,7 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
       screen_shot_writer_(new ScreenShotWriter(renderer_module_.pipeline())),
 #endif  // defined(ENABLE_SCREENSHOT)
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           h5vcc_url_handler_(this, system_window, account_manager)),
       initial_url_(url),
@@ -359,6 +350,8 @@ void BrowserModule::OnRenderTreeProduced(
 #endif
 }
 
+#if defined(ENABLE_DEBUG_CONSOLE)
+
 void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser",
@@ -368,6 +361,8 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
                                      layout_results.animations,
                                      layout_results.layout_time));
 }
+
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
 void BrowserModule::OnKeyEventProduced(
     const scoped_refptr<dom::KeyboardEvent>& event) {
@@ -380,11 +375,16 @@ void BrowserModule::OnKeyEventProduced(
 
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnKeyEventProduced()");
 
-  // Filter the key event and inject into the web module if it wasn't
-  // processed anywhere else.
-  if (FilterKeyEvent(event)) {
-    web_module_->InjectEvent(event);
+  // Filter the key event.
+  if (!FilterKeyEvent(event)) {
+    return;
   }
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  trace_manager.OnKeyEventProduced();
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+  web_module_->InjectEvent(event);
 }
 
 void BrowserModule::OnError(const std::string& error) {
@@ -438,44 +438,6 @@ bool BrowserModule::FilterKeyEventForHotkeys(
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   return true;
-}
-
-void BrowserModule::OnTraceMessage(const std::string& message) {
-  UNREFERENCED_PARAMETER(message);
-  if (MessageLoop::current() == self_message_loop_) {
-    StartOrStopTrace();
-  } else {
-    self_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&BrowserModule::StartOrStopTrace, base::Unretained(this)));
-  }
-}
-
-void BrowserModule::StartOrStopTrace() {
-  bool timed_trace_active = false;
-
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kTimedTrace)) {
-    timed_trace_active = true;
-  }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
-
-  if (timed_trace_active) {
-    DLOG(WARNING)
-        << "Cannot manually trigger a trace when timed_trace is active.";
-  } else {
-    static const char* kOutputTraceFilename = "triggered_trace.json";
-    if (trace_to_file_) {
-      DLOG(INFO) << "Ending trace.";
-      DLOG(INFO) << "Trace results in file \"" << kOutputTraceFilename << "\"";
-      trace_to_file_.reset();
-    } else {
-      DLOG(INFO) << "Starting trace...";
-      trace_to_file_.reset(
-          new trace_event::ScopedTraceToFile(FilePath(kOutputTraceFilename)));
-    }
-  }
 }
 
 void BrowserModule::AddURLHandler(
