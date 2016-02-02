@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_PERSISTENT_COOKIE_STORE_H_
-#define NETWORK_PERSISTENT_COOKIE_STORE_H_
+#ifndef COBALT_NETWORK_PERSISTENT_COOKIE_STORE_H_
+#define COBALT_NETWORK_PERSISTENT_COOKIE_STORE_H_
 
 #include <string>
 #include <vector>
@@ -54,4 +54,4 @@ class PersistentCookieStore : public net::CookieMonster::PersistentCookieStore {
 }  // namespace network
 }  // namespace cobalt
 
-#endif  // NETWORK_PERSISTENT_COOKIE_STORE_H_
+#endif  // COBALT_NETWORK_PERSISTENT_COOKIE_STORE_H_
