@@ -143,6 +143,12 @@
 #undef PNG_NO_PROGRESSIVE_READ
 #undef PNG_NO_SEQUENTIAL_READ
 
+#if defined(STARBOARD)
+#define PNG_NO_STDIO
+#define PNG_NO_SETJMP_SUPPORTED
+#define PNG_NO_CONVERT_tIME
+#endif
+
 /* Mangle names of exported libpng functions so different libpng versions
    can coexist. It is recommended that if you do this, you give your
    library a different name such as "libwkpng" instead of "libpng". */
