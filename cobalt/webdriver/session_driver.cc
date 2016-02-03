@@ -16,8 +16,30 @@
 
 #include "cobalt/webdriver/session_driver.h"
 
+#include "base/logging.h"
+#include "cobalt/base/log_message_handler.h"
+
 namespace cobalt {
 namespace webdriver {
+namespace {
+
+const char kBrowserLog[] = "browser";
+
+protocol::LogEntry::LogLevel SeverityToLogLevel(int severity) {
+  switch (severity) {
+    case logging::LOG_INFO:
+      return protocol::LogEntry::kInfo;
+    case logging::LOG_WARNING:
+    case logging::LOG_ERROR:
+    case logging::LOG_ERROR_REPORT:
+      return protocol::LogEntry::kWarning;
+    case logging::LOG_FATAL:
+      return protocol::LogEntry::kSevere;
+  }
+  return protocol::LogEntry::kInfo;
+}
+
+}  // namespace
 
 SessionDriver::SessionDriver(
     const protocol::SessionId& session_id,
@@ -27,8 +49,17 @@ SessionDriver::SessionDriver(
       capabilities_(protocol::Capabilities::CreateActualCapabilities()),
       navigate_callback_(navigate_callback),
       create_window_driver_callback_(create_window_driver_callback),
-      next_window_id_(0) {
+      next_window_id_(0),
+      logging_callback_id_(0) {
+  logging_callback_id_ = base::LogMessageHandler::GetInstance()->AddCallback(
+      base::Bind(&SessionDriver::LogMessageHandler, base::Unretained(this)));
   window_driver_ = create_window_driver_callback_.Run(GetUniqueWindowId());
+}
+
+SessionDriver::~SessionDriver() {
+  // No more calls to LogMessageHandler will be made after this, so we can
+  // safely be destructed.
+  base::LogMessageHandler::GetInstance()->RemoveCallback(logging_callback_id_);
 }
 
 WindowDriver* SessionDriver::GetWindow(const protocol::WindowId& window_id) {
@@ -79,6 +110,30 @@ util::CommandResult<void> SessionDriver::Navigate(const GURL& url) {
   return util::CommandResult<void>(protocol::Response::kSuccess);
 }
 
+util::CommandResult<std::vector<std::string> > SessionDriver::GetLogTypes() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  typedef util::CommandResult<std::vector<std::string> > CommandResult;
+
+  std::vector<std::string> log_types;
+  // Only "browser" log is supported.
+  log_types.push_back(kBrowserLog);
+  return CommandResult(log_types);
+}
+
+util::CommandResult<std::vector<protocol::LogEntry> > SessionDriver::GetLog(
+    const protocol::LogType& type) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  typedef util::CommandResult<std::vector<protocol::LogEntry> > CommandResult;
+  // Return an empty log vector for unsupported log types.
+  CommandResult result((LogEntryVector()));
+  if (type.type() == kBrowserLog) {
+    base::AutoLock auto_lock(log_lock_);
+    result = CommandResult(log_entries_);
+    log_entries_.clear();
+  }
+  return result;
+}
+
 util::CommandResult<std::string> SessionDriver::GetAlertText() {
   return util::CommandResult<std::string>(
       protocol::Response::kNoAlertOpenError);
@@ -98,6 +153,19 @@ protocol::WindowId SessionDriver::GetUniqueWindowId() {
   DCHECK(thread_checker_.CalledOnValidThread());
   std::string window_id = base::StringPrintf("window-%d", next_window_id_++);
   return protocol::WindowId(window_id);
+}
+
+bool SessionDriver::LogMessageHandler(int severity, const char* file, int line,
+                                      size_t message_start,
+                                      const std::string& str) {
+  // Could be called from an arbitrary thread.
+  base::Time log_time = base::Time::Now();
+  protocol::LogEntry::LogLevel level = SeverityToLogLevel(severity);
+
+  base::AutoLock auto_lock(log_lock_);
+  log_entries_.push_back(protocol::LogEntry(log_time, level, str));
+  // Don't capture this log entry - give other handlers a shot at it.
+  return false;
 }
 
 }  // namespace webdriver
