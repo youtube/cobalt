@@ -75,7 +75,7 @@ void QuicSendScheduler::SentPacket(QuicPacketSequenceNumber sequence_number,
     pending_packets_[sequence_number] =
         new PendingPacket(bytes, clock_->Now());
   }
-  DLOG(INFO) << "Sent sequence number:" << sequence_number;
+  DVLOG(1) << "Sent sequence number:" << sequence_number;
 }
 
 void QuicSendScheduler::OnIncomingQuicCongestionFeedbackFrame(
@@ -121,7 +121,7 @@ void QuicSendScheduler::OnIncomingAckFrame(const QuicAckFrame& ack_frame) {
     send_algorithm_->OnIncomingAck(it_acked_packets->first,
                                    it_acked_packets->second,
                                    rtt);
-    DLOG(INFO) << "ACKed sequence number:" << it_acked_packets->first;
+    DVLOG(1) << "ACKed sequence number:" << it_acked_packets->first;
   }
 }
 
