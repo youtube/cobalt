@@ -368,8 +368,6 @@ TEST_F(QuicSequencerRandomTest, RandomFramesNoDroppingNoBackup) {
 
   while (list_.size() != 0) {
     int index = OneToN(list_.size()) - 1;
-    LOG(ERROR) << "Sending index " << index << " "
-               << list_[index].second.data();
     EXPECT_TRUE(sequencer_->OnFrame(
         list_[index].first, list_[index].second.data(),
         list_[index].second.size()));
@@ -391,8 +389,6 @@ TEST_F(QuicSequencerRandomTest, RandomFramesDroppingNoBackup) {
 
   while (list_.size() != 0) {
     int index = OneToN(list_.size()) - 1;
-    LOG(ERROR) << "Sending index " << index << " "
-               << list_[index].second.data();
     bool acked = sequencer_->OnFrame(
         list_[index].first, list_[index].second.data(),
         list_[index].second.size());

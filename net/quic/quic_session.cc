@@ -30,7 +30,7 @@ bool QuicSession::OnPacket(const IPEndPoint& self_address,
                            const QuicPacketHeader& header,
                            const vector<QuicStreamFrame>& frames) {
   if (header.guid != connection()->guid()) {
-    DLOG(INFO) << "Got packet header for invalid GUID: " << header.guid;
+    DVLOG(1) << "Got packet header for invalid GUID: " << header.guid;
     return false;
   }
   for (size_t i = 0; i < frames.size(); ++i) {
@@ -109,11 +109,11 @@ void QuicSession::SendRstStream(QuicStreamId id,
 }
 
 void QuicSession::CloseStream(QuicStreamId stream_id) {
-  DLOG(INFO) << "Closing stream " << stream_id;
+  DVLOG(1) << "Closing stream " << stream_id;
 
   ReliableStreamMap::iterator it = stream_map_.find(stream_id);
   if (it == stream_map_.end()) {
-    DLOG(INFO) << "Stream is already closed: " << stream_id;
+    DVLOG(1) << "Stream is already closed: " << stream_id;
     return;
   }
   stream_map_.erase(it);
@@ -128,8 +128,8 @@ void QuicSession::OnCryptoHandshakeComplete(QuicErrorCode error) {
 }
 
 void QuicSession::ActivateStream(ReliableQuicStream* stream) {
-  LOG(INFO) << "num_streams: " << stream_map_.size()
-            << ". activating " << stream->id();
+  DVLOG(1) << "num_streams: " << stream_map_.size() << ". activating "
+           << stream->id();
   DCHECK(stream_map_.count(stream->id()) == 0);
   stream_map_[stream->id()] = stream;
 }
