@@ -879,8 +879,6 @@ ProxyService* ProxyService::CreateUsingSystemProxyResolver(
   DCHECK(proxy_config_service);
 
   if (!ProxyResolverFactoryForSystem::IsSupported()) {
-    LOG(WARNING) << "PAC support disabled because there is no "
-                    "system implementation";
     return CreateWithoutProxyResolver(proxy_config_service, net_log);
   }
 

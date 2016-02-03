@@ -57,7 +57,7 @@ void TcpCubicSender::OnIncomingAck(
   CongestionAvoidance(acked_sequence_number);
   AckAccounting(rtt);
   if (end_sequence_number_ == acked_sequence_number) {
-    DLOG(INFO) << "Start update end sequence number @" << acked_sequence_number;
+    DVLOG(1) << "Start update end sequence number @" << acked_sequence_number;
     update_end_sequence_number_ = true;
   }
 }
@@ -89,7 +89,7 @@ void TcpCubicSender::SentPacket(QuicPacketSequenceNumber sequence_number,
     end_sequence_number_ = sequence_number;
     if (AvailableCongestionWindow() == 0) {
       update_end_sequence_number_ = false;
-      DLOG(INFO) << "Stop update end sequence number @" << sequence_number;
+      DVLOG(1) << "Stop update end sequence number @" << sequence_number;
     }
   }
 }
@@ -146,7 +146,7 @@ void TcpCubicSender::CongestionAvoidance(QuicPacketSequenceNumber ack) {
   if (!IsCwndLimited()) {
     // We don't update the congestion window unless we are close to using the
     // window we have available.
-    DLOG(INFO) << "Congestion avoidance window not limited";
+    DVLOG(1) << "Congestion avoidance window not limited";
     return;
   }
   if (congestion_window_ < slowstart_threshold_) {
@@ -159,7 +159,7 @@ void TcpCubicSender::CongestionAvoidance(QuicPacketSequenceNumber ack) {
       // TCP slow start, exponentail growth, increase by one for each ACK.
       congestion_window_++;
     }
-    DLOG(INFO) << "Slow start; congestion window:" << congestion_window_;
+    DVLOG(1) << "Slow start; congestion window:" << congestion_window_;
   } else {
     if (congestion_window_ < kMaxCongestionWindow) {
       if (reno_) {
@@ -170,11 +170,11 @@ void TcpCubicSender::CongestionAvoidance(QuicPacketSequenceNumber ack) {
         } else {
           congestion_window_count_++;
         }
-        DLOG(INFO) << "Reno; congestion window:" << congestion_window_;
+        DVLOG(1) << "Reno; congestion window:" << congestion_window_;
       } else {
         congestion_window_ = cubic_.CongestionWindowAfterAck(congestion_window_,
                                                              delay_min_);
-        DLOG(INFO) << "Cubic; congestion window:" << congestion_window_;
+        DVLOG(1) << "Cubic; congestion window:" << congestion_window_;
       }
     }
   }

@@ -50,9 +50,9 @@ size_t PacedSender::AvailableWindow(size_t available_congestion_window) {
   size_t accuracy_window = (kMaxSchedulingDelayUs * pace_in_bytes_per_s_) /
       base::Time::kMicrosecondsPerSecond;
   size_t min_burst_window = kMinPacketBurstSize * kMaxPacketSize;
-  DLOG(INFO) << "Available congestion window:" << available_congestion_window
-      << " accuracy window:" << accuracy_window
-      << " min burst window:" << min_burst_window;
+  DVLOG(1) << "Available congestion window:" << available_congestion_window
+           << " accuracy window:" << accuracy_window
+           << " min burst window:" << min_burst_window;
 
   // Should we limit the window to pace the data?
   if (available_congestion_window > min_burst_window &&
