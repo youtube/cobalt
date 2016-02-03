@@ -28,14 +28,14 @@ RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline)
 RenderTreeCombiner::~RenderTreeCombiner() {}
 
 void RenderTreeCombiner::UpdateMainRenderTree(
-    const renderer::Pipeline::Submission& render_tree_submission) {
+    const renderer::Submission& render_tree_submission) {
   main_render_tree_ = render_tree_submission;
   main_render_tree_receipt_time_ = base::TimeTicks::HighResNow();
   SubmitToRenderer();
 }
 
 void RenderTreeCombiner::UpdateDebugConsoleRenderTree(
-    const renderer::Pipeline::Submission& render_tree_submission) {
+    const renderer::Submission& render_tree_submission) {
   debug_console_render_tree_ = render_tree_submission;
   SubmitToRenderer();
 }
@@ -54,7 +54,7 @@ void RenderTreeCombiner::SubmitToRenderer() {
       // Setup time to be based off of the main submitted tree only.
       // TODO(***REMOVED***): Setup a "layers" interface on the Pipeline so that
       // trees can be combined and animated there, properly.
-      renderer::Pipeline::Submission combined_submission(*main_render_tree_);
+      renderer::Submission combined_submission(*main_render_tree_);
       combined_submission.render_tree = combined_tree;
       combined_submission.time_offset =
           main_render_tree_->time_offset +
@@ -75,12 +75,12 @@ RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline)
 RenderTreeCombiner::~RenderTreeCombiner() {}
 
 void RenderTreeCombiner::UpdateMainRenderTree(
-    const renderer::Pipeline::Submission& render_tree_submission) {
+    const renderer::Submission& render_tree_submission) {
   renderer_pipeline_->Submit(render_tree_submission);
 }
 
 void RenderTreeCombiner::UpdateDebugConsoleRenderTree(
-    const renderer::Pipeline::Submission& render_tree_submission) {
+    const renderer::Submission& render_tree_submission) {
   UNREFERENCED_PARAMETER(render_tree_submission);
 }
 #endif  // ENABLE_DEBUG_CONSOLE

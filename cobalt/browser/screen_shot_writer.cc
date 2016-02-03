@@ -68,7 +68,7 @@ void ScreenShotWriter::RequestScreenshotToMemory(
     const PNGEncodeCompleteCallback& callback) {
   DCHECK(!callback.is_null());
   DCHECK(last_submission_);
-  renderer::Pipeline::Submission submission(last_submission_.value());
+  renderer::Submission submission(last_submission_.value());
   submission.time_offset +=
       base::TimeTicks::HighResNow() - last_submission_time_;
   pipeline_->RasterizeToRGBAPixels(
@@ -77,7 +77,7 @@ void ScreenShotWriter::RequestScreenshotToMemory(
 }
 
 void ScreenShotWriter::SetLastPipelineSubmission(
-    const renderer::Pipeline::Submission& submission) {
+    const renderer::Submission& submission) {
   DCHECK(submission.render_tree.get());
   last_submission_ = submission;
   last_submission_time_ = base::TimeTicks::HighResNow();

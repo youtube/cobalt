@@ -30,6 +30,11 @@
         'renderer_module.cc',
         'renderer_module.h',
         'renderer_module_default_options_<(actual_target_arch).cc',
+        'smoothed_value.cc',
+        'smoothed_value.h',
+        'submission.h',
+        'submission_queue.cc',
+        'submission_queue.h',
       ],
 
       'includes': [

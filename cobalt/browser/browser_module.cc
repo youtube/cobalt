@@ -368,12 +368,12 @@ void BrowserModule::RequestScreenshotToBuffer(
 void BrowserModule::OnRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
-  render_tree_combiner_.UpdateMainRenderTree(renderer::Pipeline::Submission(
+  render_tree_combiner_.UpdateMainRenderTree(renderer::Submission(
       layout_results.render_tree, layout_results.animations,
       layout_results.layout_time));
 
 #if defined(ENABLE_SCREENSHOT)
-  screen_shot_writer_->SetLastPipelineSubmission(renderer::Pipeline::Submission(
+  screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
       layout_results.render_tree, layout_results.animations,
       layout_results.layout_time));
 #endif
@@ -385,10 +385,9 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
-  render_tree_combiner_.UpdateDebugConsoleRenderTree(
-      renderer::Pipeline::Submission(layout_results.render_tree,
-                                     layout_results.animations,
-                                     layout_results.layout_time));
+  render_tree_combiner_.UpdateDebugConsoleRenderTree(renderer::Submission(
+      layout_results.render_tree, layout_results.animations,
+      layout_results.layout_time));
 }
 
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
