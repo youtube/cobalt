@@ -45,7 +45,7 @@ namespace net {
 namespace {
 
 const int kReadBufSize = 4096;
-#if defined(__LB_PS4__)
+#if defined(__LB_PS4__) || defined(__LB_LINUX__)
 // Don't send SIGPIPE when the other end disconnects.
 // We will still receive an EPIPE as expected.
 const int kDefaultMsgFlags = MSG_NOSIGNAL;
