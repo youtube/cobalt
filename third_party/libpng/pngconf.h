@@ -339,7 +339,8 @@
 #endif
 
 /* enough people need this for various reasons to include it here */
-#if !defined(MACOS) && !defined(RISCOS) && !defined(_WIN32_WCE)
+#if !defined(MACOS) && !defined(RISCOS) && !defined(_WIN32_WCE) && \
+    !defined(STARBOARD)
 #  include <sys/types.h>
 #endif
 
@@ -396,7 +397,9 @@
 /* Other defines for things like memory and the like can go here.  */
 #ifdef PNG_INTERNAL
 
+#if !defined(STARBOARD)
 #include <stdlib.h>
+#endif
 
 /* The functions exported by PNG_EXTERN are PNG_INTERNAL functions, which
  * aren't usually used outside the library (as far as I know), so it is
@@ -420,7 +423,7 @@
 #    if !defined(__MATH_H__) && !defined(__MATH_H) && !defined(__cmath__)
 #      include <fp.h>
 #    endif
-#  else
+#  elif !defined(STARBOARD)
 #    include <math.h>
 #  endif
 #  if defined(_AMIGA) && defined(__SASC) && defined(_M68881)
@@ -443,9 +446,11 @@
 #endif
 
 /* I have no idea why is this necessary... */
-#if defined(_MSC_VER) && (defined(WIN32) || defined(_Windows) || \
-    defined(_WINDOWS) || defined(_WIN32) || defined(__WIN32__))
-#  include <malloc.h>
+#if !defined(STARBOARD)
+#  if defined(_MSC_VER) && (defined(WIN32) || defined(_Windows) || \
+      defined(_WINDOWS) || defined(_WIN32) || defined(__WIN32__))
+#    include <malloc.h>
+#  endif
 #endif
 
 /* This controls how fine the dithering gets.  As this allocates
