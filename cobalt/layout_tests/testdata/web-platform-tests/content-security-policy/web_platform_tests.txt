@@ -15,5 +15,5 @@ script-src/script-src-1_4_1.html,FAIL
 script-src/script-src-1_4_2.html,FAIL
 blink-contrib-2/scriptnonce-allowed.sub.html,PASS
 blink-contrib-2/scriptnonce-basic-blocked.sub.html,PASS
-blink-contrib-2/scriptnonce-redirect.sub.html,PASS
+blink-contrib-2/scriptnonce-redirect.sub.html,DISABLE
 blink-contrib-2/script-src-wildcards-disallowed.html,PASS
