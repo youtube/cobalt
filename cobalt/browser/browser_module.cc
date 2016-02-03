@@ -80,7 +80,7 @@ void OnNavigateMessage(BrowserModule* browser_module,
 void OnReloadMessage(BrowserModule* browser_module,
                      const std::string& message) {
   UNREFERENCED_PARAMETER(message);
-  browser_module->Reload();
+  browser_module->Navigate(GURL());
 }
 
 #if defined(ENABLE_SCREENSHOT)
@@ -215,14 +215,11 @@ BrowserModule::BrowserModule(const GURL& url,
 
 BrowserModule::~BrowserModule() {}
 
+// Algorithm for Navigate:
+//   https://www.w3.org/TR/html5/browsers.html#navigate
 void BrowserModule::Navigate(const GURL& url) {
-  // Do not check message loop, it'll be dealt with in the following function.
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   NavigateWithCallback(url, base::Closure());
-}
-
-void BrowserModule::Reload() {
-  // Do not check message loop, it'll be dealt with in the following function.
-  NavigateWithCallback(web_module_->url(), base::Closure());
 }
 
 void BrowserModule::NavigateWithCallback(const GURL& url,
@@ -235,11 +232,43 @@ void BrowserModule::NavigateWithCallback(const GURL& url,
 
 void BrowserModule::NavigateWithCallbackInternal(
     const GURL& url, const base::Closure& loaded_callback) {
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  GURL new_url;
+
+  if (url.is_empty()) {
+    DCHECK(web_module_);
+    new_url = web_module_->url();
+    DLOG(INFO) << "Reloading " << new_url;
+  } else {
+    new_url = url;
+    if (web_module_) {
+      GURL old_url = web_module_->url();
+      DLOG(INFO) << "Navigating to " << new_url << " from " << old_url;
+      // 7. Fragment identifiers: Apply the URL parser algorithm to the absolute
+      // URL of the new resource and the address of the active document of the
+      // browsing context being navigated. If all the components of the
+      // resulting parsed URLs, ignoring any fragment components, are identical,
+      // and the new resource is to be fetched using HTTP GET or equivalent, and
+      // the parsed URL of the new resource has a fragment component that is not
+      // null (even if it is empty), then navigate to that fragment identifier
+      // and abort these steps.
+      // NOTE(***REMOVED***): This means, if the new url doesn't have hash, we should
+      // always navigate to the new url, even if it is the same as the current
+      // one.
+      GURL::Replacements replacements;
+      replacements.ClearRef();
+      if (new_url.has_ref() &&
+          new_url.ReplaceComponents(replacements) ==
+              old_url.ReplaceComponents(replacements)) {
+        web_module_->set_url(new_url);
+        web_module_->InjectEvent(new dom::Event(base::Tokens::hashchange()));
+        return;
+      }
+    }
+  }
 
   // First try the registered handlers (e.g. for h5vcc://). If one of these
   // handles the URL, we don't use the web module.
-  if (TryURLHandlers(url)) {
+  if (TryURLHandlers(new_url)) {
     return;
   }
 
@@ -272,7 +301,7 @@ void BrowserModule::NavigateWithCallbackInternal(
   options.array_buffer_allocator = array_buffer_allocator_.get();
 
   web_module_.reset(new WebModule(
-      url,
+      new_url,
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,

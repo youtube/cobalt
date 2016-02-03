@@ -39,7 +39,7 @@ void Location::Replace(const std::string& url) {
 
 void Location::Reload() {
   if (!navigation_callback_.is_null()) {
-    navigation_callback_.Run(url_);
+    navigation_callback_.Run(GURL());
   }
 }
 
@@ -153,45 +153,20 @@ void Location::set_search(const std::string& search) {
   Navigate(new_url);
 }
 
-// Algorithm for Navigate:
-//   https://www.w3.org/TR/html5/browsers.html#navigate
 void Location::Navigate(const GURL& url) {
   // Custom, not in any spec.
   if (!url.is_valid()) {
     DLOG(INFO) << "URL " << url << " is not valid, aborting the navigation.";
     return;
   }
+  if (!security_callback_.Run(url, false /* did redirect */)) {
+    DLOG(INFO) << "URL " << url
+               << " is rejected by policy, aborting the navigation.";
+    return;
+  }
 
-  DLOG(INFO) << "Navigating to " << url;
-
-  // 7. Fragment identifiers: Apply the URL parser algorithm to the absolute URL
-  // of the new resource and the address of the active document of the browsing
-  // context being navigated. If all the components of the resulting parsed
-  // URLs, ignoring any fragment components, are identical, and the new resource
-  // is to be fetched using HTTP GET or equivalent, and the parsed URL of the
-  // new resource has a fragment component that is not null (even if it is
-  // empty), then navigate to that fragment identifier and abort these steps.
-  // NOTE(***REMOVED***): This means, if the new url doesn't have hash, we should
-  // always navigate to the new url, even if it is the same as the current one.
-  url_parse::Component component;
-  component.len = 0;
-  GURL::Replacements replacements;
-  replacements.SetRef("", component);
-  if (url.ReplaceComponents(replacements) ==
-          url_.ReplaceComponents(replacements) &&
-      url.has_ref()) {
-    url_ = url;
-    // TODO(***REMOVED***): Fire "hashchange" event at the window object.
-  } else {
-    if (!security_callback_.Run(url, false /* did redirect */)) {
-      DLOG(INFO) << "URL was rejected by policy, aborting the navigation: "
-                 << url;
-      return;
-    }
-
-    if (!navigation_callback_.is_null()) {
-      navigation_callback_.Run(url);
-    }
+  if (!navigation_callback_.is_null()) {
+    navigation_callback_.Run(url);
   }
 }
 

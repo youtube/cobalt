@@ -63,24 +63,9 @@ class LocationTest : public ::testing::Test {
   scoped_refptr<Location> location_;
 };
 
-TEST_F(LocationTest, AssignShouldNotChangeURLPartsOtherThanHash) {
-  Init(GURL("https://www.youtube.com/tv/foo;bar?q=a#ref"));
-  location_->Assign("https://www.youtube.com/tv/foo;bar?q=a#new-ref");
-  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#new-ref",
-            location_->href());
-
-  location_->Assign("https://www.google.com/");
-  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#new-ref",
-            location_->href());
-}
-
 TEST_F(LocationTest, Href) {
   Init(GURL("https://www.youtube.com/tv/foo;bar?q=a#ref"));
   EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#ref", location_->href());
-
-  location_->set_href("https://www.youtube.com/tv/foo;bar?q=a#new-ref");
-  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#new-ref",
-            location_->href());
 }
 
 TEST_F(LocationTest, Protocol) {
@@ -106,9 +91,6 @@ TEST_F(LocationTest, Port) {
 TEST_F(LocationTest, Hash) {
   Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
   EXPECT_EQ("#ref", location_->hash());
-
-  location_->set_hash("new-ref");
-  EXPECT_EQ("#new-ref", location_->hash());
 }
 
 TEST_F(LocationTest, Search) {
@@ -135,11 +117,15 @@ class LocationTestWithParams : public testing::TestWithParam<bool> {
 TEST_P(LocationTestWithParams, SetHash) {
   StrictMock<MockSecurityCallback> security_mock;
   GURL url("https://www.example.com/foo");
+  GURL new_url("https://www.example.com/foo#bar");
+  bool permissive = GetParam();
   Init(url, security_mock.NavigateCb(), security_mock.LoadCb());
 
-  // Hash changes should *not* navigate, just change the hash.
+  EXPECT_CALL(security_mock, CanLoad(new_url, _)).WillOnce(Return(permissive));
+  if (permissive) {
+    EXPECT_CALL(security_mock, Navigate(new_url));
+  }
   location_->set_hash("bar");
-  EXPECT_EQ(location_->hash(), "#bar");
 }
 
 TEST_P(LocationTestWithParams, SetHost) {
