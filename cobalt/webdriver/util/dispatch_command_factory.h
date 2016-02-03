@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_UTIL_DISPATCH_COMMAND_FACTORY_H_
-#define WEBDRIVER_UTIL_DISPATCH_COMMAND_FACTORY_H_
+#ifndef COBALT_WEBDRIVER_UTIL_DISPATCH_COMMAND_FACTORY_H_
+#define COBALT_WEBDRIVER_UTIL_DISPATCH_COMMAND_FACTORY_H_
 
 #include <string>
 #include <vector>
@@ -39,7 +39,7 @@ template <typename T>
 scoped_ptr<base::Value> ToValue(const std::vector<T>& value) {
   scoped_ptr<base::ListValue> list_value(new base::ListValue());
   for (int i = 0; i < value.size(); ++i) {
-    list_value->Append(T::ToValue(value[i]).release());
+    list_value->Append(ToValue<T>(value[i]).release());
   }
   return list_value.PassAs<base::Value>();
 }
@@ -304,4 +304,4 @@ class DispatchCommandFactory
 }  // namespace webdriver
 }  // namespace cobalt
 
-#endif  // WEBDRIVER_UTIL_DISPATCH_COMMAND_FACTORY_H_
+#endif  // COBALT_WEBDRIVER_UTIL_DISPATCH_COMMAND_FACTORY_H_

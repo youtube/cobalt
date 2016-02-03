@@ -25,8 +25,12 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
+#include "base/synchronization/lock.h"
+#include "base/time.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/protocol/capabilities.h"
+#include "cobalt/webdriver/protocol/log_entry.h"
+#include "cobalt/webdriver/protocol/log_type.h"
 #include "cobalt/webdriver/protocol/session_id.h"
 #include "cobalt/webdriver/util/command_result.h"
 #include "cobalt/webdriver/window_driver.h"
@@ -61,11 +65,19 @@ class SessionDriver {
   util::CommandResult<std::vector<protocol::WindowId> > GetWindowHandles();
 
   util::CommandResult<void> Navigate(const GURL& url);
+  util::CommandResult<std::vector<std::string> > GetLogTypes();
+  util::CommandResult<std::vector<protocol::LogEntry> > GetLog(
+      const protocol::LogType& type);
   util::CommandResult<std::string> GetAlertText();
   util::CommandResult<void> SwitchToWindow(const protocol::WindowId& window_id);
 
+  ~SessionDriver();
+
  private:
   protocol::WindowId GetUniqueWindowId();
+
+  bool LogMessageHandler(int severity, const char* file, int line,
+                         size_t message_start, const std::string& str);
 
   base::ThreadChecker thread_checker_;
   const protocol::SessionId session_id_;
@@ -74,6 +86,11 @@ class SessionDriver {
   CreateWindowDriverCallback create_window_driver_callback_;
   int32 next_window_id_;
   scoped_ptr<WindowDriver> window_driver_;
+
+  int logging_callback_id_;
+  typedef std::vector<protocol::LogEntry> LogEntryVector;
+  LogEntryVector log_entries_;
+  base::Lock log_lock_;
 };
 
 }  // namespace webdriver
