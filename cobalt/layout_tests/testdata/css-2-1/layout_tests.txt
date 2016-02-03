@@ -52,6 +52,7 @@
 10-8-large-elements-can-increase-the-distance-between-succesive-baselines
 10-8-line-height-and-font-size-and-borders-in-nested-inline-boxes-do-no-affect-alignment
 10-8-line-height-should-be-used-for-vertical-align-with-inline-non-replaced-boxes
+10-8-line-height-should-not-affect-relative-vertical-placement-of-child-boxes
 10-8-line-height-should-specify-minimum-height-of-line-boxes
 10-8-margin-box-should-be-used-for-vertical-align-with-most-boxes
 10-8-vertical-align-top-and-bottom-affect-height-and-baseline

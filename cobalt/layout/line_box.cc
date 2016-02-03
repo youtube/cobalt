@@ -626,7 +626,8 @@ void LineBox::MaybePlaceEllipsis() {
 
 // Returns the height of half the given box above the 'middle' of the line box.
 float LineBox::GetHeightAboveMiddleAlignmentPoint(Box* child_box) {
-  return (child_box->height() + font_metrics_.x_height()) / 2.0f;
+  return (child_box->GetInlineLevelBoxHeight() + font_metrics_.x_height()) /
+         2.0f;
 }
 
 }  // namespace layout
