@@ -28,6 +28,13 @@ namespace renderer {
 namespace {
 // The frequency we signal a new rasterization fo the render tree.
 const float kRefreshRate = 60.0f;
+const size_t kMaxSubmissionQueueSize = 200u;
+
+// How quickly the renderer time adjusts to changing submission times.
+// 500ms is chosen as a default because it is fast enough that the user will not
+// usually notice input lag from a slow timeline renderer, but slow enough that
+// quick updates while a quick animation is playing should not jank.
+const double kTimeToConvergeInMS = 500.0;
 }  // namespace
 
 Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
@@ -36,6 +43,9 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
     : rasterizer_created_event_(true, false),
       render_target_(render_target),
       graphics_context_(graphics_context),
+      submission_queue_(
+          kMaxSubmissionQueueSize,
+          base::TimeDelta::FromMillisecondsD(kTimeToConvergeInMS)),
       refresh_rate_(kRefreshRate),
       rasterizer_thread_(base::in_place, "Rasterizer") {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Pipeline()");
@@ -69,41 +79,17 @@ Pipeline::~Pipeline() {
   rasterizer_thread_ = base::nullopt;
 }
 
-void Pipeline::InitializeRasterizerThread(
-    const CreateRasterizerFunction& create_rasterizer_function) {
-  TRACE_EVENT0("cobalt::renderer", "Pipeline::InitializeRasterizerThread");
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
-  rasterizer_ = create_rasterizer_function.Run();
-  rasterizer_created_event_.Signal();
-}
-
-void Pipeline::ShutdownRasterizerThread() {
-  TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownRasterizerThread()");
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
-  // Stop and shutdown the raterizer timer.
-  refresh_rate_timer_ = base::nullopt;
-
-  // Do not retain any more references to the current render tree (which
-  // may refer to rasterizer resources) or animations which may refer to
-  // render trees.
-  last_submission_ = base::nullopt;
-
-  // Finally, destroy the rasterizer.
-  rasterizer_.reset();
-}
-
 render_tree::ResourceProvider* Pipeline::GetResourceProvider() {
   rasterizer_created_event_.Wait();
   return rasterizer_->GetResourceProvider();
 }
 
-void Pipeline::Submit(const Submission& render_tree_submission,
-                      const base::Closure& submit_complete_callback) {
+void Pipeline::Submit(const Submission& render_tree_submission) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
   // Execute the actual set of the new render tree on the rasterizer tree.
   rasterizer_thread_->message_loop()->PostTask(
       FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
-                            render_tree_submission, submit_complete_callback));
+                            render_tree_submission));
 }
 
 void Pipeline::Clear() {
@@ -146,23 +132,13 @@ void Pipeline::RasterizeToRGBAPixels(
                render_target_->GetSurfaceInfo().size);
 }
 
-void Pipeline::SetNewRenderTree(const Submission& render_tree_submission,
-                                const base::Closure& submit_complete_callback) {
+void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   DCHECK(render_tree_submission.render_tree.get());
 
-  if (last_submission_) {
-    TRACE_EVENT_FLOW_END0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
-                          last_submission_->render_tree.get());
-    last_submission_ = base::nullopt;
-  }
-  TRACE_EVENT_FLOW_BEGIN0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
-                          render_tree_submission.render_tree.get());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
 
-  last_submission_ = render_tree_submission;
-  last_submission_render_start_time_ = base::nullopt;
-  last_submission_complete_callback_ = submit_complete_callback;
+  submission_queue_.PushSubmission(render_tree_submission);
 
   // Start the rasterization timer if it is not yet started.
   if (!refresh_rate_timer_) {
@@ -195,13 +171,9 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission,
 void Pipeline::ClearCurrentRenderTree(
     const base::Closure& clear_complete_callback) {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
-  if (last_submission_) {
-    TRACE_EVENT_FLOW_END0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
-                          last_submission_->render_tree.get());
-    last_submission_ = base::nullopt;
-  }
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ClearCurrentRenderTree()");
 
+  submission_queue_.Reset();
   refresh_rate_timer_ = base::nullopt;
 
   if (!clear_complete_callback.is_null()) {
@@ -211,31 +183,11 @@ void Pipeline::ClearCurrentRenderTree(
 
 void Pipeline::RasterizeCurrentTree() {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
-  DCHECK(last_submission_);
-  DCHECK(last_submission_->render_tree.get());
-  TRACE_EVENT_FLOW_STEP0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
-                         last_submission_->render_tree.get(),
-                         "Pipeline::RasterizeCurrentTree()");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
-  if (!last_submission_render_start_time_) {
-    last_submission_render_start_time_ = base::TimeTicks::HighResNow();
-  }
-
-  // Calculate the time elapsed since rendering for this Submission began.
-  base::TimeDelta time_since_submission =
-      base::TimeTicks::HighResNow() -
-      last_submission_render_start_time_.value();
-
-  Submission submission(last_submission_.value());
-  submission.time_offset += time_since_submission;
-
   // Rasterize the last submitted render tree.
-  RasterizeSubmissionToRenderTarget(submission, render_target_);
-
-  if (!last_submission_complete_callback_.is_null()) {
-    last_submission_complete_callback_.Run();
-  }
+  RasterizeSubmissionToRenderTarget(submission_queue_.GetCurrentSubmission(),
+                                    render_target_);
 }
 
 void Pipeline::RasterizeSubmissionToRenderTarget(
@@ -249,6 +201,33 @@ void Pipeline::RasterizeSubmissionToRenderTarget(
 
   // Rasterize the animated render tree.
   rasterizer_->Submit(animated_render_tree, render_target);
+
+  if (!submission.on_rasterized_callback.is_null()) {
+    submission.on_rasterized_callback.Run();
+  }
+}
+
+void Pipeline::InitializeRasterizerThread(
+    const CreateRasterizerFunction& create_rasterizer_function) {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::InitializeRasterizerThread");
+  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  rasterizer_ = create_rasterizer_function.Run();
+  rasterizer_created_event_.Signal();
+}
+
+void Pipeline::ShutdownRasterizerThread() {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownRasterizerThread()");
+  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  // Stop and shutdown the raterizer timer.
+  refresh_rate_timer_ = base::nullopt;
+
+  // Do not retain any more references to the current render tree (which
+  // may refer to rasterizer resources) or animations which may refer to
+  // render trees.
+  submission_queue_.Reset();
+
+  // Finally, destroy the rasterizer.
+  rasterizer_.reset();
 }
 
 }  // namespace renderer

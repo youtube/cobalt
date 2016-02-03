@@ -20,7 +20,9 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/math/size.h"
+#include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/renderer_module.h"
+#include "cobalt/renderer/submission.h"
 #include "cobalt/renderer/test/scenes/scaling_text_scene.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
@@ -68,7 +70,7 @@ int main(int argc, char** argv) {
 
   // Pass the render tree along with associated animations into the renderer
   // module to be displayed.
-  renderer_module.pipeline()->Submit(cobalt::renderer::Pipeline::Submission(
+  renderer_module.pipeline()->Submit(cobalt::renderer::Submission(
       scene.render_tree, scene.animations, start_time));
 
   base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(30));
