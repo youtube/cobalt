@@ -852,6 +852,84 @@ TEST_F(ParserTest, WarnsAboutInvalidAtRuleCurlyBraceInsideOfAnotherBlock) {
             style_sheet->css_rules()->Item(0)->type());
 }
 
+TEST_F(ParserTest, StyleSheetEndsWhileRuleIsStillOpen) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
+      "@keyframes foo3 {"
+      "  from {"
+      "    opacity: 0.6;"
+      "  }"
+      "  to {"
+      "    opacity: 0.8;",
+      source_location_);
+
+  ASSERT_TRUE(style_sheet);
+  EXPECT_EQ(1, style_sheet->css_rules()->length());
+
+  cssom::CSSKeyframesRule* keyframes_rule =
+      dynamic_cast<cssom::CSSKeyframesRule*>(
+          style_sheet->css_rules()->Item(0).get());
+  ASSERT_TRUE(keyframes_rule);
+  EXPECT_EQ("foo3", keyframes_rule->name());
+
+  ASSERT_EQ(2, keyframes_rule->css_rules()->length());
+}
+
+TEST_F(ParserTest, StyleSheetEndsWhileUnrecognizedAtRuleIsStillOpen) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning(
+          "[object ParserTest]:1:1: warning: invalid rule @user-defined"));
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("@user-defined { abc[", source_location_);
+}
+
+TEST_F(ParserTest, StyleSheetEndsWhileDeclarationIsStillOpen) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-color: inherit",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_color());
+}
+
+TEST_F(ParserTest, StyleSheetEndsWhileUrlIsStillOpen) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-image: url(foo.png",
+                                        source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_TRUE(background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::URLValue> url_value =
+      dynamic_cast<cssom::URLValue*>(background_image_list->value()[0].get());
+  EXPECT_EQ("foo.png", url_value->value());
+}
+
+TEST_F(ParserTest, StyleSheetEndsWhileFunctionIsStillOpen) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("transform: translateX(20%",
+                                        source_location_);
+
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_TRUE(transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::TranslateFunction* translate_function =
+      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+  ASSERT_TRUE(translate_function);
+
+  ASSERT_EQ(cssom::TranslateFunction::kPercentage,
+            translate_function->offset_type());
+  scoped_refptr<cssom::PercentageValue> offset =
+      translate_function->offset_as_percentage();
+  EXPECT_FLOAT_EQ(0.2f, offset->value());
+  EXPECT_EQ(cssom::TranslateFunction::kXAxis, translate_function->axis());
+}
+
 TEST_F(ParserTest, ParsesInherit) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("background-color: inherit;",
