@@ -250,6 +250,16 @@ WebDriverModule::WebDriverModule(
       StringPrintf("/session/%s/window", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::SwitchToWindow)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/log_types", kSessionIdVariable),
+      session_command_factory->GetCommandHandler(
+          base::Bind(&SessionDriver::GetLogTypes)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/log", kSessionIdVariable),
+      session_command_factory->GetCommandHandler(
+          base::Bind(&SessionDriver::GetLog)));
 
   // Specified window commands.
   webdriver_dispatcher_->RegisterCommand(
@@ -353,10 +363,6 @@ WebDriverModule::WebDriverModule(
                    kElementId, kCssPropertyName),
       base::Bind(&WebDriverModule::GetCssProperty, base::Unretained(this)));
 
-  webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kGet,
-      StringPrintf("/session/%s/log/types", kSessionIdVariable),
-      base::Bind(&WebDriverModule::LogTypesCommand, base::Unretained(this)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
       StringPrintf("/session/%s/timeouts", kSessionIdVariable),
@@ -568,17 +574,6 @@ void WebDriverModule::GetCssProperty(
                                      result_handler.get());
     }
   }
-}
-
-void WebDriverModule::LogTypesCommand(
-    const base::Value* parameters,
-    const WebDriverDispatcher::PathVariableMap* path_variables,
-    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  // TODO(***REMOVED***): Implement logging for WebDriver.
-  return result_handler->SendResult(
-      protocol::SessionId(kWebDriverSessionId),
-      protocol::Response::kSuccess,
-      make_scoped_ptr<base::Value>(new base::ListValue()));
 }
 
 void WebDriverModule::IgnoreCommand(
