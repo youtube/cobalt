@@ -158,8 +158,9 @@ class WebModule {
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location);
 
-  // Returns the URL of the current Document.
-  GURL url() const { return url_; }
+  // Returns and sets the URL of the current Document.
+  const GURL& url() const { return window_->location()->url(); }
+  void set_url(const GURL& url) { window_->location()->set_url(url); }
 
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that
@@ -254,9 +255,6 @@ class WebModule {
 
   // Triggers layout whenever the document changes.
   layout::LayoutManager layout_manager_;
-
-  // URL for the current document.
-  const GURL url_;
 
   // DocumentObserver that observes the loading document.
   scoped_ptr<DocumentLoadedObserver> document_load_observer_;

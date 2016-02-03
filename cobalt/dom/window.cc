@@ -238,6 +238,8 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
     } else {
       document_->DispatchEvent(event);
     }
+  } else if (event->type() == base::Tokens::hashchange()) {
+    DispatchEvent(event);
   } else {
     NOTREACHED();
   }
