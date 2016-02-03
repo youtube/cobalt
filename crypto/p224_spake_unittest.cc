@@ -89,7 +89,7 @@ TEST(MutualAuth, Fuzz) {
       server_message = server.GetMessage();
 
       if ((rand & 1) == round) {
-        const bool server_or_client = rand & 2;
+        const bool server_or_client = (rand & 2) != 0;
         std::string* m = server_or_client ? &server_message : &client_message;
         if (rand & 4) {
           // Truncate
