@@ -374,7 +374,7 @@
 %token <string> kNthToken               // an+b, where a, b - integers
 %token <string> kHexToken               // #...
 %token <string> kIdSelectorToken        // #...
-%token <string> kUriToken               // url(...)
+%token <string> kUriToken               // url(...
 %token <string> kInvalidFunctionToken   // ...(
 %token <string> kInvalidNumberToken     // ... (digits)
 %token <string> kInvalidDimensionToken  // XXyy, where XX - number,
@@ -2418,7 +2418,7 @@ color:
   ;
 
 url:
-    kUriToken maybe_whitespace {
+    kUriToken ')' maybe_whitespace {
     $$ = AddRef(new cssom::URLValue($1.ToString()));
   }
   ;
