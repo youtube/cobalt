@@ -39,6 +39,7 @@
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/webdriver/session_driver.h"
+#include "googleurl/src/gurl.h"
 #ifdef ENABLE_DEBUG_CONSOLE
 #include "cobalt/base/console_commands.h"
 #include "cobalt/browser/debug_console.h"
@@ -74,9 +75,8 @@ class BrowserModule {
 
   const std::string& GetUserAgent() { return network_module_.GetUserAgent(); }
 
-  // Navigation related functions.
+  // If url is empty, then reload the current url, otherwise load the given url.
   void Navigate(const GURL& url);
-  void Reload();
 
   // Adds/removes a URL handler.
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);

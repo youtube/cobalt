@@ -121,8 +121,7 @@ WebModule::WebModule(
           javascript_engine_.get(), global_object_proxy_.get())),
       layout_manager_(window_.get(), render_tree_produced_callback,
                       options.layout_trigger, layout_refresh_rate,
-                      network_module->preferred_language()),
-      url_(initial_url) {
+                      network_module->preferred_language()) {
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
   InjectCustomWindowAttributes(options.injected_window_attributes);

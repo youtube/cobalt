@@ -30,6 +30,8 @@ namespace dom {
 // Each Document object in a browsing context's session history is associated
 // with a unique instance of a Location object.
 //   https://www.w3.org/TR/html5/browsers.html#the-location-interface
+// Note(***REMOVED***): The Location object itself will not change its URL. The
+// navigation callback should call set_url() or create new Location object.
 class Location : public script::Wrappable {
  public:
   Location(const GURL& url,
@@ -74,11 +76,12 @@ class Location : public script::Wrappable {
 
   // Custom, not in any spec.
   //
-  const GURL& url() const { return url_; }
   const base::Callback<void(const GURL&)>& navigation_callback() const {
     return navigation_callback_;
   }
-  // Overwrite the URL without doing any navigation.
+
+  // Gets and sets the URL without doing any navigation.
+  const GURL& url() const { return url_; }
   void set_url(const GURL& url) { url_ = url; }
 
   DEFINE_WRAPPABLE_TYPE(Location);
