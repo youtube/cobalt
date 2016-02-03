@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_RENDER_TREE_COMBINER_H_
-#define BROWSER_RENDER_TREE_COMBINER_H_
+#ifndef COBALT_BROWSER_RENDER_TREE_COMBINER_H_
+#define COBALT_BROWSER_RENDER_TREE_COMBINER_H_
 
 #include "cobalt/renderer/pipeline.h"
+#include "cobalt/renderer/submission.h"
 
 namespace cobalt {
 namespace browser {
@@ -32,12 +33,11 @@ class RenderTreeCombiner {
   ~RenderTreeCombiner();
 
   // Update the main web module render tree.
-  void UpdateMainRenderTree(
-      const renderer::Pipeline::Submission& render_tree_submission);
+  void UpdateMainRenderTree(const renderer::Submission& render_tree_submission);
 
   // Update the debug console render tree.
   void UpdateDebugConsoleRenderTree(
-      const renderer::Pipeline::Submission& render_tree_submission);
+      const renderer::Submission& render_tree_submission);
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   bool render_debug_console() const { return render_debug_console_; }
@@ -64,7 +64,7 @@ class RenderTreeCombiner {
 
   // Local references to the main and debug console render trees/animation maps
   // so we can combine them.
-  base::optional<renderer::Pipeline::Submission> main_render_tree_;
+  base::optional<renderer::Submission> main_render_tree_;
 
   // This is the time that we received the last main render tree submission.
   // used so that we know what time to forward the submission to the pipeline
@@ -72,7 +72,7 @@ class RenderTreeCombiner {
   base::optional<base::TimeTicks> main_render_tree_receipt_time_;
 
   // The debug console render tree submission.
-  base::optional<renderer::Pipeline::Submission> debug_console_render_tree_;
+  base::optional<renderer::Submission> debug_console_render_tree_;
 #else   // ENABLE_DEBUG_CONSOLE
   // Use this local reference even in release builds to submit the main tree.
   renderer::Pipeline* renderer_pipeline_;
@@ -82,4 +82,4 @@ class RenderTreeCombiner {
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // BROWSER_RENDER_TREE_COMBINER_H_
+#endif  // COBALT_BROWSER_RENDER_TREE_COMBINER_H_

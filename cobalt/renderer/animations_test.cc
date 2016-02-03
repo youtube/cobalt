@@ -23,7 +23,9 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/render_target.h"
+#include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/renderer_module.h"
+#include "cobalt/renderer/submission.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -160,7 +162,7 @@ TEST(ResourceProviderTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
 
     // Submit the render tree and animation to the rendering pipeline for
     // rasterization (and the execution of our animation callback).
-    pipeline.Submit(Pipeline::Submission(
+    pipeline.Submit(Submission(
         test_node, new NodeAnimationsMap(animations.Pass()),
         base::Time::Now() - base::Time::UnixEpoch()));
 

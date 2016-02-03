@@ -22,7 +22,9 @@
 #include "cobalt/layout_tests/layout_snapshot.h"
 #include "cobalt/layout_tests/test_parser.h"
 #include "cobalt/math/size.h"
+#include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/renderer_module.h"
+#include "cobalt/renderer/submission.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/benchmark.h"
 #include "googleurl/src/gurl.h"
@@ -60,14 +62,13 @@ class RendererBenchmarkRunner {
     samples_to_gather_ = samples_to_gather;
     done_gathering_samples_.Reset();
 
-    renderer::Pipeline::Submission submission_with_callback(
+    renderer::Submission submission_with_callback(
         layout_results.render_tree, layout_results.animations,
         layout_results.layout_time);
+    submission_with_callback.on_rasterized_callback = base::Bind(
+        &RendererBenchmarkRunner::OnSubmitComplete, base::Unretained(this));
 
-    renderer_module_.pipeline()->Submit(
-        submission_with_callback,
-        base::Bind(&RendererBenchmarkRunner::OnSubmitComplete,
-                   base::Unretained(this)));
+    renderer_module_.pipeline()->Submit(submission_with_callback);
 
     done_gathering_samples_.Wait();
 

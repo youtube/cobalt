@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_SCREEN_SHOT_WRITER_H_
-#define BROWSER_SCREEN_SHOT_WRITER_H_
+#ifndef COBALT_BROWSER_SCREEN_SHOT_WRITER_H_
+#define COBALT_BROWSER_SCREEN_SHOT_WRITER_H_
 
 #include "base/callback.h"
 #include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "cobalt/renderer/pipeline.h"
+#include "cobalt/renderer/submission.h"
 
 namespace cobalt {
 namespace browser {
@@ -54,8 +55,7 @@ class ScreenShotWriter {
   // This should be called whenever a new render tree is produced. The render
   // tree that is submitted here is the one that will be rasterized when a
   // screenshot is requested.
-  void SetLastPipelineSubmission(
-      const renderer::Pipeline::Submission& submission);
+  void SetLastPipelineSubmission(const renderer::Submission& submission);
 
  private:
   // Callback function that will be fired from the rasterizer thread when
@@ -75,7 +75,7 @@ class ScreenShotWriter {
                         scoped_array<uint8> png_data, size_t num_bytes);
 
   renderer::Pipeline* pipeline_;
-  base::optional<renderer::Pipeline::Submission> last_submission_;
+  base::optional<renderer::Submission> last_submission_;
   base::TimeTicks last_submission_time_;
 
   base::Thread screenshot_thread_;
@@ -84,4 +84,4 @@ class ScreenShotWriter {
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // BROWSER_SCREEN_SHOT_WRITER_H_
+#endif  // COBALT_BROWSER_SCREEN_SHOT_WRITER_H_
