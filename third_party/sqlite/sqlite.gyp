@@ -144,7 +144,7 @@
                 '-Wno-pointer-to-int-cast',
               ],
             }],
-            ['OS=="lb_shell"', {
+            ['OS=="lb_shell" or OS=="starboard"', {
               'include_dirs': [
                 '../..'
               ],
@@ -157,7 +157,27 @@
                 'SQLITE_NO_SYNC',
                 # disable sqlite plugins
                 'SQLITE_OMIT_LOAD_EXTENSION',
+                # Localtime functions are not accurate on all platforms.
+                'SQLITE_OMIT_LOCALTIME',
                 'HAVE_USLEEP=1',
+              ],
+              'defines!': [
+                # We don't need full text search.
+                'SQLITE_ENABLE_BROKEN_FTS2',
+                'SQLITE_ENABLE_FTS2',
+                'SQLITE_ENABLE_FTS3',
+              ],
+              'sources!': [
+                # I said, "We don't need full text search."
+                'src/ext/fts2/fts2.c',
+                'src/ext/fts2/fts2.h',
+                'src/ext/fts2/fts2_hash.c',
+                'src/ext/fts2/fts2_hash.h',
+                'src/ext/fts2/fts2_icu.c',
+                'src/ext/fts2/fts2_porter.c',
+                'src/ext/fts2/fts2_tokenizer.c',
+                'src/ext/fts2/fts2_tokenizer.h',
+                'src/ext/fts2/fts2_tokenizer1.c',
               ],
             }],
             ['clang==1', {
@@ -174,7 +194,7 @@
                 '-Wno-tautological-compare',
               ],
             }],
-            ['clang==1 and OS=="lb_shell" and target_arch=="linux"', {
+            ['clang==1 and (OS=="lb_shell" or OS=="starboard") and target_arch=="linux"', {
               'cflags': [
                 # Only recent versions of clang have this warning.
                 '-Wno-pointer-bool-conversion',
