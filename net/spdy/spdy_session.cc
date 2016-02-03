@@ -1666,6 +1666,10 @@ void SpdySession::SendWindowUpdate(SpdyStreamId stream_id,
 // Given a cwnd that we would have sent to the server, modify it based on the
 // field trial policy.
 uint32 ApplyCwndFieldTrialPolicy(int cwnd) {
+#if defined(COBALT)
+  // Cobalt doesn't support field trials.
+  return cwnd;
+#else
   base::FieldTrial* trial = base::FieldTrialList::Find("SpdyCwnd");
   if (!trial) {
       LOG(WARNING) << "Could not find \"SpdyCwnd\" in FieldTrialList";
@@ -1683,6 +1687,7 @@ uint32 ApplyCwndFieldTrialPolicy(int cwnd) {
     return cwnd;
   NOTREACHED();
   return cwnd;
+#endif
 }
 
 void SpdySession::SendInitialSettings() {

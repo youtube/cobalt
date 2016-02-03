@@ -22,7 +22,7 @@ FixRateSender::FixRateSender(const QuicClock* clock)
       fix_rate_leaky_bucket_(clock, kInitialBitrate),
       paced_sender_(clock, kInitialBitrate),
       bytes_in_flight_(0) {
-  DLOG(INFO) << "FixRateSender";
+  DVLOG(1) << "FixRateSender";
 }
 
 void FixRateSender::OnIncomingQuicCongestionFeedbackFrame(
