@@ -20,6 +20,12 @@
 #define PNG_INTERNAL
 #define PNG_NO_PEDANTIC_WARNINGS
 #include "png.h"
+
+#if defined(STARBOARD)
+#  include "starboard/memory.h"
+#  define malloc SbMemoryAllocate
+#  define free SbMemoryFree
+#endif
 #if defined(PNG_READ_SUPPORTED) || defined(PNG_WRITE_SUPPORTED)
 
 /* Borland DOS special memory handler */
