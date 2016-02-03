@@ -17,7 +17,6 @@
 #include "cobalt/css_parser/scanner.h"
 
 #include <limits>
-#include <stack>
 
 #include "base/string_util.h"
 #include "cobalt/base/compiler.h"
@@ -390,6 +389,24 @@ void Scanner::ScanUnrecognizedAtRule() {
   }
 }
 
+void Scanner::HandleBraceIfExists(char character) {
+  if (character == '[' || character == '(' || character == '{') {
+    open_braces_.push(character);
+  }
+
+  if (character == ']' || character == ')' || character == '}') {
+    if (!open_braces_.empty()) {
+      char top = open_braces_.top();
+      if ((top == '[' && character == ']') ||
+          (top == '(' && character == ')') ||
+          (top == '{' && character == '}')) {
+        // Found a match, then pop the top element.
+        open_braces_.pop();
+      }
+    }
+  }
+}
+
 Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
   // Loop until non-comment token is scanned.
   while (true) {
@@ -406,6 +423,7 @@ Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
     }
 
     char first_character(*input_iterator_);
+    HandleBraceIfExists(first_character);
     CharacterType character_type(
         first_character >= 0 ? kTypesOfAsciiCharacters
                                    [static_cast<unsigned char>(first_character)]
@@ -547,6 +565,9 @@ Token Scanner::ScanFromIdentifierStart(TokenValue* token_value) {
   }
 
   if (UNLIKELY(*input_iterator_ == '(')) {
+    // Cache the open brace.
+    open_braces_.push('(');
+
     if (parsing_mode_ == kSupportsMode && !has_escape) {
       Token supports_token;
       if (DetectSupportsToken(token_value->string, &supports_token)) {
@@ -740,6 +761,9 @@ Token Scanner::ScanFromDash(TokenValue* token_value) {
     }
 
     if (*input_iterator_ == '(') {
+      // Cache the open brace.
+      open_braces_.push('(');
+
       ++input_iterator_;
 
       Token known_function_token;
@@ -814,7 +838,22 @@ Token Scanner::ScanFromOtherCharacter() {
   return *input_iterator_++;
 }
 
-Token Scanner::ScanFromNull() const {
+Token Scanner::ScanFromNull() {
+  // If there are still unmatched open braces at the end of input, pop the open
+  // braces and return the their matched close braces.
+  if (!open_braces_.empty()) {
+    char pop_element = open_braces_.top();
+    open_braces_.pop();
+
+    if (pop_element == '[') {
+      return ']';
+    } else if (pop_element == '{') {
+      return '}';
+    } else if (pop_element == '(') {
+      return ')';
+    }
+  }
+
   // Do not advance pointer at the end of input.
   return kEndOfFileToken;
 }
@@ -2618,7 +2657,7 @@ bool Scanner::TryScanUri(TrivialStringPiece* uri) {
     CHECK(TryScanAndMaybeCopyUri<true>(quote, uri,
                                        string_pool_->AllocateString()));
   }
-  input_iterator_ = uri_end + 1;
+  input_iterator_ = uri_end;
   return true;
 }
 
@@ -2647,7 +2686,7 @@ bool Scanner::FindUri(const char** uri_start, const char** uri_end,
   }
 
   *uri_end = SkipWhiteSpace(*uri_end);
-  return **uri_end == ')';
+  return **uri_end == ')' || **uri_end == '\0';
 }
 
 template <bool copy>
