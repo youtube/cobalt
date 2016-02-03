@@ -131,7 +131,7 @@ Connection::~Connection() {
 bool Connection::Open(const FilePath& path) {
 #if defined(OS_WIN)
   return OpenInternal(WideToUTF8(path.value()));
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   return OpenInternal(path.value());
 #endif
 }
@@ -150,11 +150,11 @@ void Connection::Close() {
   // sqlite3_close() needs all prepared statements to be finalized.
   // Release all cached statements, then assert that the client has
   // released all statements.
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   statement_cache_lock_.Acquire();
 #endif
   statement_cache_.clear();
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   statement_cache_lock_.Release();
 #endif
   DCHECK(open_statements_.empty());
@@ -412,7 +412,7 @@ bool Connection::ExecuteWithTimeout(const char* sql, base::TimeDelta timeout) {
 }
 
 bool Connection::HasCachedStatement(const StatementID& id) const {
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   base::AutoLock lock(statement_cache_lock_);
 #endif
   return statement_cache_.find(id) != statement_cache_.end();
@@ -421,7 +421,7 @@ bool Connection::HasCachedStatement(const StatementID& id) const {
 scoped_refptr<Connection::StatementRef> Connection::GetCachedStatement(
     const StatementID& id,
     const char* sql) {
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   base::AutoLock lock(statement_cache_lock_);
 #endif
   CachedStatementMap::iterator i = statement_cache_.find(id);
@@ -663,7 +663,7 @@ void Connection::DoRollback() {
 }
 
 void Connection::StatementRefCreated(StatementRef* ref) {
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   base::AutoLock lock(open_statements_lock_);
 #endif
   DCHECK(open_statements_.find(ref) == open_statements_.end());
@@ -671,7 +671,7 @@ void Connection::StatementRefCreated(StatementRef* ref) {
 }
 
 void Connection::StatementRefDeleted(StatementRef* ref) {
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   base::AutoLock lock(open_statements_lock_);
 #endif
   StatementRefSet::iterator i = open_statements_.find(ref);
@@ -682,23 +682,23 @@ void Connection::StatementRefDeleted(StatementRef* ref) {
 }
 
 void Connection::ClearCache() {
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   statement_cache_lock_.Acquire();
 #endif
   statement_cache_.clear();
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   statement_cache_lock_.Release();
 #endif
   // The cache clear will get most statements. There may be still be references
   // to some statements that are held by others (including one-shot statements).
   // This will deactivate them so they can't be used again.
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   open_statements_lock_.Acquire();
 #endif
   for (StatementRefSet::iterator i = open_statements_.begin();
        i != open_statements_.end(); ++i)
     (*i)->Close();
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   open_statements_lock_.Release();
 #endif
 }
