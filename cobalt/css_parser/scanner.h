@@ -18,6 +18,7 @@
 #define COBALT_CSS_PARSER_SCANNER_H_
 
 #include <deque>
+#include <stack>
 #include <string>
 
 #include "base/basictypes.h"
@@ -98,8 +99,8 @@ class Scanner {
   Token ScanFromNumber(TokenValue* token_value);
   Token ScanFromDash(TokenValue* token_value);
   Token ScanFromOtherCharacter();
-  Token ScanFromNull() const;  // Does not advance input_iterator_ beyond
-                               // the end of input.
+  Token ScanFromNull();  // Does not advance input_iterator_ beyond
+                         // the end of input.
   Token ScanFromWhitespace();
   Token ScanFromEndMediaQueryOrSupports();
   Token ScanFromEndNthChild();
@@ -178,6 +179,7 @@ class Scanner {
 
   bool DetectMediaFeatureNamePrefix(Token* token);
   void ScanUnrecognizedAtRule();
+  void HandleBraceIfExists(char character);
 
   const char* input_iterator_;
   StringPool* const string_pool_;
@@ -188,6 +190,10 @@ class Scanner {
   const char* line_start_;
 
   std::deque<Token> prepended_tokens_;
+
+  // Used to cache the open braces and close them if no matching at the end of
+  // input.
+  std::stack<char> open_braces_;
 
   DISALLOW_COPY_AND_ASSIGN(Scanner);
 };

@@ -118,6 +118,17 @@ TEST_F(ScannerTest, ScansUnquotedUri) {
   ASSERT_EQ(kUriToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ("https://www.youtube.com/tv#/", token_value_.string);
 
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansUriWithoutEndBrace) {
+  Scanner scanner("url(https://www.youtube.com/tv#/", &string_pool_);
+
+  ASSERT_EQ(kUriToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("https://www.youtube.com/tv#/", token_value_.string);
+
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
@@ -127,6 +138,7 @@ TEST_F(ScannerTest, ScansQuotedUri) {
   ASSERT_EQ(kUriToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ("https://www.youtube.com/tv#/", token_value_.string);
 
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
@@ -185,6 +197,19 @@ TEST_F(ScannerTest, ScansFunctionLikeMediaAnd) {
 
 TEST_F(ScannerTest, ScansNPlusOne) {
   Scanner scanner("nth-child(n+1)", &string_pool_);
+
+  ASSERT_EQ(kNthChildFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+
+  ASSERT_EQ(kNthToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("n+1", token_value_.string);
+
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansNPlusOneWithoutClosingAtTheEnd) {
+  Scanner scanner("nth-child(n+1", &string_pool_);
 
   ASSERT_EQ(kNthChildFunctionToken,
             yylex(&token_value_, &token_location_, &scanner));
@@ -349,6 +374,17 @@ TEST_F(ScannerTest, ScansUnknownDashFunction) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
+TEST_F(ScannerTest, ScansUnknownDashFunctionWithoutClosingAtEnd) {
+  Scanner scanner("-cobalt-magic(", &string_pool_);
+
+  ASSERT_EQ(kInvalidFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("-cobalt-magic", token_value_.string);
+
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
 TEST_F(ScannerTest, ScansMinusNPlusConstant) {
   Scanner scanner("nth-child(-n+2)", &string_pool_);
 
@@ -470,6 +506,7 @@ TEST_F(ScannerTest, ScansEndMediaQuery) {
   ASSERT_EQ(kMediaToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(';', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ('{', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ('}', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
@@ -500,6 +537,15 @@ TEST_F(ScannerTest, ScansQuote) {
   ASSERT_EQ("hello", token_value_.string);
 
   ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansQuoteAtEndOfFile) {
+  Scanner scanner("'hello", &string_pool_);
+
+  ASSERT_EQ(kStringToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("hello", token_value_.string);
+
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
@@ -650,6 +696,16 @@ TEST_F(ScannerTest, ScansLess) {
 
 TEST_F(ScannerTest, ScansInvalidAtRuleBlock) {
   Scanner scanner("@cobalt-magic { foo[()]; bar[{ }] }", &string_pool_);
+
+  ASSERT_EQ(kInvalidAtBlockToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("@cobalt-magic", token_value_.string);
+
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansInvalidAtRuleBlockWithoutClosingBraceAtEndOfFile) {
+  Scanner scanner("@cobalt-magic { foo[(", &string_pool_);
 
   ASSERT_EQ(kInvalidAtBlockToken,
             yylex(&token_value_, &token_location_, &scanner));
@@ -813,6 +869,25 @@ TEST_F(ScannerTest, ScansLocalFunction) {
   Scanner scanner("local()", &string_pool_);
 
   ASSERT_EQ(kLocalFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansScaleFunction) {
+  Scanner scanner("scale()", &string_pool_);
+
+  ASSERT_EQ(kScaleFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+// Test if we add a closing ')' for the function at end of file.
+TEST_F(ScannerTest, ScansScaleFunctionWithoutEndBraceAtEndOfFile) {
+  Scanner scanner("scale(", &string_pool_);
+
+  ASSERT_EQ(kScaleFunctionToken,
             yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
