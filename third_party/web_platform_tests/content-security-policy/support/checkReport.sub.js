@@ -32,7 +32,11 @@
     }
   }
 
-  var timeout = document.querySelector("meta[name=timeout][content=long]") ? 50 : 5;
+  var meta = document.querySelector("meta");
+  var timeout = 5;
+  if (meta && (meta.name == "timeout" || meta.content == "long")) {
+    timeout = 50;
+  }
   var reportLocation = location.protocol + "//" + location.host + "/content-security-policy/support/report.py?op=take&timeout=" + timeout + "&reportID=" + reportID;
 
   var reportTest = async_test("Violation report status OK.");
