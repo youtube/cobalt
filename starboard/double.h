@@ -31,6 +31,9 @@ SB_EXPORT double SbDoubleFloor(double d);
 // number |d|, preserving NaN and Infinity.
 SB_EXPORT double SbDoubleAbsolute(double d);
 
+// Returns |base| taken to the power of |exponent|.
+SB_EXPORT double SbDoubleExponent(const double base, const double exponent);
+
 // Determines whether double-precision floating-point number |d| represents a
 // fininte number. |d| is a pointer to a double to avoid copying the whole
 // double, similar to using a const reference in C++.
