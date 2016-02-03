@@ -358,9 +358,8 @@ void QuicConnection::OnConnectionCloseFrame(
 
 void QuicConnection::OnPacketComplete() {
   if (!last_packet_revived_) {
-    DLOG(INFO) << "Got packet " << last_header_.packet_sequence_number
-               << " with " << frames_.size()
-               << " frames for " << last_header_.guid;
+    DVLOG(1) << "Got packet " << last_header_.packet_sequence_number << " with "
+             << frames_.size() << " frames for " << last_header_.guid;
     collector_->RecordIncomingPacket(last_size_,
                                      last_header_.packet_sequence_number,
                                      clock_->Now(),
@@ -563,9 +562,9 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
 
   scoped_ptr<QuicEncryptedPacket> encrypted(framer_.EncryptPacket(*packet));
   int error;
-  DLOG(INFO) << "Sending packet : "
-             << (should_resend ? "data bearing " : " ack only ")
-             << "packet " << sequence_number;
+  DVLOG(1) << "Sending packet : "
+           << (should_resend ? "data bearing " : " ack only ") << "packet "
+           << sequence_number;
   DCHECK(encrypted->length() <= kMaxPacketSize)
       << "Packet " << sequence_number << " will not be read; too large: "
       << packet->length() << " " << encrypted->length() << " " << outgoing_ack_;
