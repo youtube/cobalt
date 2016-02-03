@@ -9,11 +9,16 @@
 #include <set>
 #include <string>
 
+#include "build/build_config.h"
+#if defined(__LB_SHELL__) || defined(OS_STARBOARD)
+#define SQL_CONNECTION_EXTRA_LOCKING
+#endif
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
 #include "base/synchronization/lock.h"
 #endif
 #include "base/threading/thread_restrictions.h"
@@ -468,7 +473,7 @@ class SQL_EXPORT Connection {
   scoped_ptr<ErrorDelegate> error_delegate_;
 
 
-#if defined(__LB_SHELL__)
+#if defined(SQL_CONNECTION_EXTRA_LOCKING)
   // In lb shell this object is used in multiple threads, and STL objects are
   // not thread safe by themselves. These locks are used to protect
   // statement_cache_ and open_statements_.
