@@ -21,6 +21,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/rasterizer.h"
+#include "cobalt/renderer/submission.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -127,7 +128,7 @@ class RendererPipelineTest : public ::testing::Test {
 TEST_F(
     RendererPipelineTest,
     FLAKY_RasterizerSubmitCalledAtExpectedFrequencyAfterSinglePipelineSubmit) {
-  pipeline_->Submit(Pipeline::Submission(dummy_render_tree_));
+  pipeline_->Submit(cobalt::renderer::Submission(dummy_render_tree_));
 
   // Wait a little bit to give the pipeline some time to rasterize the submitted
   // render tree.
@@ -160,7 +161,7 @@ TEST_F(
       break;
     }
 
-    pipeline_->Submit(Pipeline::Submission(dummy_render_tree_));
+    pipeline_->Submit(cobalt::renderer::Submission(dummy_render_tree_));
   }
 
   // Shut down the pipeline so that Submit will no longer be called.

@@ -28,7 +28,9 @@
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/renderer_module.h"
+#include "cobalt/renderer/submission.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
@@ -84,7 +86,7 @@ class MediaSandbox::Impl {
     node_animations_map_builder.Add(
         image_node, base::Bind(&Impl::AnimateCB, base::Unretained(this)));
 
-    renderer_module_.pipeline()->Submit(renderer::Pipeline::Submission(
+    renderer_module_.pipeline()->Submit(renderer::Submission(
         image_node, new render_tree::animations::NodeAnimationsMap(
                         node_animations_map_builder.Pass()),
         base::TimeDelta()));
