@@ -41,6 +41,7 @@
         'directory_get_next_test.cc',
         'directory_open_test.cc',
         'double_absolute_test.cc',
+        'double_exponent_test.cc',
         'double_floor_test.cc',
         'double_is_finite_test.cc',
         'double_is_nan_test.cc',
