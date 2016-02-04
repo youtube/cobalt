@@ -46,12 +46,18 @@
 #define HAVE_UNSIGNED_SHORT 
 /* #define void char */
 /* #define const */
+#if defined(STARBOARD)
+#define NEED_STARBOARD_MEMORY
+#define NO_GETENV
+#define JPEG_NO_STDIO
+#else
 #ifndef HAVE_STDDEF_H 
 #define HAVE_STDDEF_H 
 #endif /* HAVE_STDDEF_H */
 #ifndef HAVE_STDLIB_H
 #define HAVE_STDLIB_H 
 #endif /* HAVE_STDLIB_H */
+#endif
 #undef NEED_BSD_STRINGS
 #undef NEED_SYS_TYPES_H
 #undef NEED_FAR_POINTERS

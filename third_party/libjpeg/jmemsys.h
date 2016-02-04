@@ -160,7 +160,7 @@ typedef struct backing_store_struct {
   short temp_file;		/* file reference number to temp file */
   FSSpec tempSpec;		/* the FSSpec for the temp file */
   char temp_name[TEMP_NAME_LENGTH]; /* name if it's a file */
-#else
+#elif !defined(JPEG_NO_STDIO)
   /* For a typical implementation with temp files, we need: */
   FILE * temp_file;		/* stdio reference to temp file */
   char temp_name[TEMP_NAME_LENGTH]; /* name of temp file */

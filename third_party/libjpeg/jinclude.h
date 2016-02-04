@@ -43,7 +43,9 @@
 #include <sys/types.h>
 #endif
 
+#if !defined(JPEG_NO_STDIO)
 #include <stdio.h>
+#endif
 
 /*
  * We need memory copying and zeroing functions, plus strncpy().
@@ -60,6 +62,12 @@
 #include <strings.h>
 #define MEMZERO(target,size)	bzero((void *)(target), (size_t)(size))
 #define MEMCOPY(dest,src,size)	bcopy((const void *)(src), (void *)(dest), (size_t)(size))
+
+#elif defined(NEED_STARBOARD_MEMORY)
+
+#include "starboard/memory.h"
+#define MEMZERO(target,size)	SbMemorySet((void *)(target), 0, (size_t)(size))
+#define MEMCOPY(dest,src,size)	SbMemoryCopy((void *)(dest), (const void *)(src), (size_t)(size))
 
 #else /* not BSD, assume ANSI/SysV string lib */
 
