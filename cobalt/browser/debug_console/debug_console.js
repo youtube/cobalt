@@ -39,13 +39,20 @@ function createDebuggerClient() {
 function showBlockElem(elem, doShow) {
   if (elem) {
     var display = doShow ? 'block' : 'none';
-    elem.style.display = display;
+    if (elem.style.display != display) {
+      elem.style.display = display;
+    }
   }
 }
 
 function showConsole(doShow) {
   showBlockElem(document.getElementById('consoleFrame'), doShow);
   messageLog.setVisible(doShow);
+}
+
+function isConsoleVisible() {
+  var mode = window.debugHub.getDebugConsoleMode();
+  return mode >= window.debugHub.DEBUG_CONSOLE_ON;
 }
 
 function printToMessageLog(severity, message) {
@@ -62,9 +69,12 @@ function printToHud(message) {
 }
 
 function updateHud(time) {
-  consoleValues.update();
-  var cvalString = consoleValues.toString();
-  printToHud(cvalString);
+  var mode = window.debugHub.getDebugConsoleMode();
+  if (mode >= window.debugHub.DEBUG_CONSOLE_HUD) {
+    consoleValues.update();
+    var cvalString = consoleValues.toString();
+    printToHud(cvalString);
+  }
 }
 
 function updateMode() {
@@ -77,7 +87,9 @@ function updateMode() {
 function animate(time) {
   updateMode();
   updateHud(time);
-  commandInput.animateBlink();
+  if (isConsoleVisible()) {
+    commandInput.animateBlink();
+  }
   window.requestAnimationFrame(animate);
 }
 
