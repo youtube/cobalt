@@ -26,7 +26,7 @@
 10-3-7-multiple-absolute-positioned-elements-share-same-static-position
 10-3-7-none-of-left-and-width-and-right-is-auto
 10-3-7-some-of-left-and-width-and-right-are-auto
-10-3-7-static-position-for-block-level-elements-is-the-position-an-element-would-have-had-in-the-normal-flow
+10-3-7-static-position-for-block-level-elements
 10-3-9-auto-margin-should-become-zero-in-inline-block-non-replaced-elements
 10-3-9-child-width-should-be-calculated-after-width-of-inline-block-parent
 10-3-9-inline-block-non-replaced-and-br-elements-with-auto-width-should-shrink-to-fit
