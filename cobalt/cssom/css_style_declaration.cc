@@ -849,13 +849,20 @@ void CSSStyleDeclaration::set_css_text(const std::string& css_text) {
       css_parser_->ParseStyleDeclarationList(
           css_text, non_trivial_static_fields.Get().location);
 
+  bool changed = true;
+
   if (declaration) {
+    if (*data_ == *declaration) {
+      changed = false;
+    }
     data_ = declaration;
   } else {
     data_ = new CSSStyleDeclarationData();
   }
 
-  RecordMutation();
+  if (changed) {
+    RecordMutation();
+  }
 }
 
 // The length attribute must return the number of CSS declarations in the
