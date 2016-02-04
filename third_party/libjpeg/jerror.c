@@ -28,6 +28,15 @@
 #include <windows.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/string.h"
+#include "starboard/system.h"
+#define sprintf SbStringFormatF
+// Applications should not leave the standard error handler registered.
+#define exit(x) SbSystemBreakIntoDebugger
+#endif
+
 #ifndef EXIT_FAILURE		/* define exit() codes if not provided */
 #define EXIT_FAILURE  1
 #endif
@@ -106,6 +115,8 @@ output_message (j_common_ptr cinfo)
   /* Display it in a message dialog box */
   MessageBox(GetActiveWindow(), buffer, "JPEG Library Error",
 	     MB_OK | MB_ICONERROR);
+#elif defined(STARBOARD)
+  SbLogFormatF("%s\n", buffer);
 #else
   /* Send it to stderr, adding a newline */
   fprintf(stderr, "%s\n", buffer);
