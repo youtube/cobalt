@@ -156,7 +156,13 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
     case 5:
       if (attr_name == kStyleAttributeName) {
         SetStyleAttribute(value);
-        break;
+        if (named_node_map_) {
+          named_node_map_->SetAttributeInternal(attr_name, value);
+        }
+        OnSetAttribute(name, value);
+        // Return now as SetStyleAttribute() will call OnDOMMutation() when
+        // necessary.
+        return;
       }
     // fall-through if not style attribute name
     default: {
