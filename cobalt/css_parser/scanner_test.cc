@@ -363,6 +363,35 @@ TEST_F(ScannerTest, ScansInvalidNumber) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
+TEST_F(ScannerTest, ScansScientificNotationNumber) {
+  // Scientific notation is required by the standard but is not supported
+  // by WebKit or Blink. So we don't support it either.
+  Scanner scanner("1e-14", &string_pool_);
+
+  ASSERT_EQ(kInvalidNumberToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("1", token_value_.string);
+
+  ASSERT_EQ(kIdentifierToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("e-14", token_value_.string);
+
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansHexadecimalNumber) {
+  // We don't support scanning of hexadecimal numbers.
+  Scanner scanner("0x0", &string_pool_);
+
+  ASSERT_EQ(kInvalidNumberToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("0", token_value_.string);
+
+  ASSERT_EQ(kIdentifierToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("x0", token_value_.string);
+
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
 TEST_F(ScannerTest, ScansUnknownDashFunction) {
   Scanner scanner("-cobalt-magic()", &string_pool_);
 

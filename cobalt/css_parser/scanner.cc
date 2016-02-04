@@ -701,9 +701,9 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
   //   - C++03 doesn't have std::strtof() function;
   //   - |float|'s significand is not large enough to represent |int| precisely.
   double real_as_double(std::strtod(number.begin, &number_end));
-  DCHECK_EQ(number_end, number.end);
 
-  if (real_as_double != real_as_double ||  // n != n if and only if it's NaN.
+  if (number_end != number.end ||
+      real_as_double != real_as_double ||  // n != n if and only if it's NaN.
       real_as_double == std::numeric_limits<float>::infinity() ||
       real_as_double > std::numeric_limits<float>::max()) {
     token_value->string.begin = number.begin;
