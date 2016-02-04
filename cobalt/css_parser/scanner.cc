@@ -700,6 +700,10 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
   // We parse into |double| for two reasons:
   //   - C++03 doesn't have std::strtof() function;
   //   - |float|'s significand is not large enough to represent |int| precisely.
+  // |number_end| is used by std::strtod() as a pure output parameter - it's
+  // input value is not used. std::strtod() may parse more of the number than
+  // we expect, e.g. in the case of scientific notation or hexadecimal format.
+  // In these cases (number_end != number.end), return an invalid number token.
   double real_as_double(std::strtod(number.begin, &number_end));
 
   if (number_end != number.end ||
