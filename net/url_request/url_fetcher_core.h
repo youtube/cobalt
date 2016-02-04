@@ -305,10 +305,8 @@ class URLFetcherCore
 #endif  // defined(COBALT)
   void InformDelegateUploadProgress();
   void InformDelegateUploadProgressInDelegateThread(int64 current, int64 total);
-  void InformDelegateDownloadProgress();
-  void InformDelegateDownloadProgressInDelegateThread(int64 current,
-                                                      int64 total);
   void InformDelegateDownloadDataIfNecessary(int bytes_read);
+  void InformDelegateDownloadData();
   void InformDelegateDownloadDataInDelegateThread(
       scoped_ptr<std::string> download_data);
 
@@ -330,8 +328,9 @@ class URLFetcherCore
   int response_code_;                // HTTP status code for the request
   std::string data_;                 // Results of the request, when we are
                                      // storing the response as a string.
-  scoped_refptr<IOBuffer> buffer_;
-                                     // Read buffer
+  scoped_refptr<IOBuffer> buffer_;   // Read buffer
+  // Caches the data to be sent to the request thread to minimize task posting.
+  scoped_ptr<std::string> download_data_cache_;
   scoped_refptr<URLRequestContextGetter> request_context_getter_;
                                      // Cookie/cache info for the request
   GURL first_party_for_cookies_;     // The first party URL for the request

@@ -11,9 +11,6 @@ void URLFetcherDelegate::OnURLFetchResponseStarted(
     const URLFetcher* source) {}
 #endif  // defined(COBALT)
 
-void URLFetcherDelegate::OnURLFetchDownloadProgress(
-    const URLFetcher* source, int64 current, int64 total) {}
-
 void URLFetcherDelegate::OnURLFetchDownloadData(
     const URLFetcher* source, scoped_ptr<std::string> download_data) {}
 
