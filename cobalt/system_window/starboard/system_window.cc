@@ -20,14 +20,15 @@ namespace cobalt {
 namespace system_window {
 
 SystemWindowStarboard::SystemWindowStarboard(
-    base::EventDispatcher* event_dispatcher)
-    : SystemWindow(event_dispatcher) {}
+    base::EventDispatcher* event_dispatcher, const math::Size& window_size)
+    : SystemWindow(event_dispatcher, window_size) {}
 
 SystemWindowStarboard::~SystemWindowStarboard() {}
 
 scoped_ptr<SystemWindow> CreateSystemWindow(
-    base::EventDispatcher* event_dispatcher) {
-  return scoped_ptr<SystemWindow>(new SystemWindowStarboard(event_dispatcher));
+    base::EventDispatcher* event_dispatcher, const math::Size& window_size) {
+  return scoped_ptr<SystemWindow>(
+      new SystemWindowStarboard(event_dispatcher, window_size));
 }
 
 }  // namespace system_window

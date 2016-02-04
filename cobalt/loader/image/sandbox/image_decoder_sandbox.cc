@@ -23,6 +23,7 @@
 #include "base/time.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/loader/image/image_decoder.h"
+#include "cobalt/math/size.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
@@ -32,6 +33,8 @@ namespace loader {
 namespace image {
 namespace sandbox {
 namespace {
+const int kViewportWidth = 1920;
+const int kViewportHeight = 1080;
 
 using renderer::RendererModule;
 using render_tree::ResourceProvider;
@@ -134,7 +137,9 @@ int SandboxMain(int argc, char** argv) {
   base::EventDispatcher event_dispatcher;
   // Create a system window to use as a render target.
   scoped_ptr<SystemWindow> system_window =
-      cobalt::system_window::CreateSystemWindow(&event_dispatcher);
+      cobalt::system_window::CreateSystemWindow(
+          &event_dispatcher,
+          cobalt::math::Size(kViewportWidth, kViewportHeight));
 
   // Construct a renderer module using default options.
   RendererModule::Options renderer_module_options;

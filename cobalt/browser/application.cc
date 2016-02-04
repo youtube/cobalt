@@ -17,18 +17,21 @@
 #include "cobalt/browser/application.h"
 
 #include <string>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/string_number_conversions.h"
+#include "base/string_split.h"
 #include "cobalt/account/account_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/loader/image/image_decoder.h"
+#include "cobalt/math/size.h"
 #include "cobalt/network/network_event.h"
 #include "cobalt/system_window/application_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
@@ -38,6 +41,9 @@ namespace cobalt {
 namespace browser {
 
 namespace {
+const int kDefaultViewportWidth = 1920;
+const int kDefaultViewportHeight = 1080;
+
 #if defined(COBALT_FORCE_CSP)
 // TODO(***REMOVED***): Force experiment to serve CSP to Cobalt. This is needed
 // because csp mode is "Require". Remove this once this experiment is
@@ -211,6 +217,8 @@ Application::Application()
   options.web_module_options.default_security_policy =
       GetDefaultSecurityPolicy();
 
+  math::Size viewport_size(kDefaultViewportWidth, kDefaultViewportHeight);
+
 #if defined(COBALT_FORCE_CSP)
   options.web_module_options.csp_enforcement_mode =
       dom::CSPDelegate::kEnforcementRequire;
@@ -244,9 +252,48 @@ Application::Application()
 #endif  // !defined(COBALT_FORCE_HTTPS)
 
   EnableUsingStubImageDecoderIfRequired();
+
+  if (command_line->HasSwitch(browser::switches::kViewport)) {
+    const std::string switchValue =
+        command_line->GetSwitchValueASCII(browser::switches::kViewport);
+    std::vector<std::string> lengths;
+    base::SplitString(switchValue, 'x', &lengths);
+    if (lengths.size() >= 1) {
+      int width;
+      if (!base::StringToInt(lengths[0], &width) || width < 1) {
+        DLOG(ERROR) << "Invalid value specified for viewport width: "
+                    << switchValue
+                    << ". Using default viewport: " << viewport_size.width()
+                    << "x" << viewport_size.height();
+      } else {
+        viewport_size.set_width(width);
+        if (lengths.size() >= 2) {
+          int height;
+          if (!base::StringToInt(lengths[1], &height) || height < 1) {
+            DLOG(ERROR) << "Invalid value specified for viewport height: "
+                        << switchValue << ". Using default viewport height: "
+                        << viewport_size.width() << "x"
+                        << viewport_size.height();
+          } else {
+            viewport_size.set_height(height);
+          }
+        } else {
+          // Allow shorthand specification of the viewport by only giving the
+          // width. This calculates the height at 4:3 aspect ratio for smaller
+          // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
+          if (viewport_size.width() >= 1280) {
+            viewport_size.set_height(9 * viewport_size.width() / 16);
+          } else {
+            viewport_size.set_height(3 * viewport_size.width() / 4);
+          }
+        }
+      }
+    }
+  }
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
-  system_window_ = system_window::CreateSystemWindow(&event_dispatcher_);
+  system_window_ =
+      system_window::CreateSystemWindow(&event_dispatcher_, viewport_size);
   account_manager_ = account::AccountManager::Create(&event_dispatcher_);
   browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),
                                           account_manager_.get(), options));
