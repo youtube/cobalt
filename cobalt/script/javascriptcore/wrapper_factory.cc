@@ -89,7 +89,6 @@ void WrapperFactory::RegisterWrappableType(
   wrapper_class_infos_.insert(class_info);
 }
 
-
 JSC::JSObject* WrapperFactory::GetWrapper(
     JSCGlobalObject* global_object,
     const scoped_refptr<Wrappable>& wrappable) const {
@@ -100,10 +99,16 @@ JSC::JSObject* WrapperFactory::GetWrapper(
   JSC::JSObject* wrapper =
       JSCWrapperHandle::GetJSObject(GetCachedWrapper(wrappable.get()));
   if (!wrapper) {
-    scoped_ptr<Wrappable::WeakWrapperHandle> object_handle =
-        WrapperFactory::CreateWrapper(global_object, wrappable);
-    SetCachedWrapper(wrappable.get(), object_handle.Pass());
-    wrapper = JSCWrapperHandle::GetJSObject(GetCachedWrapper(wrappable.get()));
+    if (global_object->global_interface() == wrappable) {
+      // Wrapper for the global object is a special case.
+      wrapper = global_object;
+    } else {
+      scoped_ptr<Wrappable::WeakWrapperHandle> object_handle =
+      WrapperFactory::CreateWrapper(global_object, wrappable);
+      SetCachedWrapper(wrappable.get(), object_handle.Pass());
+      wrapper = JSCWrapperHandle::GetJSObject(
+          GetCachedWrapper(wrappable.get()));
+    }
   }
   DCHECK(wrapper);
   return wrapper;
@@ -125,7 +130,6 @@ const JSC::ClassInfo* WrapperFactory::GetClassInfo(
   }
   return it->second.class_info;
 }
-
 
 scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
     JSCGlobalObject* global_object,
