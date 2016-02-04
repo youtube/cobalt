@@ -708,16 +708,24 @@ void Box::RenderAndAnimateBoxShadow(
                                 ? GetUsedLength(shadow_value->spread_radius())
                                 : 0;
 
+      // Setup our shadow parameters.
+      render_tree::Shadow shadow(
+          math::Vector2dF(GetUsedLength(shadow_value->offset_x()),
+                          GetUsedLength(shadow_value->offset_y())),
+          shadow_blur_sigma, GetUsedColor(shadow_value->color()));
+
       // Finally, create our shadow node.
-      border_node_builder->AddChild(
-          new render_tree::RectShadowNode(
-              GetBorderBoxSize(),
-              render_tree::Shadow(
-                  math::Vector2dF(GetUsedLength(shadow_value->offset_x()),
-                                  GetUsedLength(shadow_value->offset_y())),
-                  shadow_blur_sigma, GetUsedColor(shadow_value->color())),
-              shadow_value->has_inset(), spread_radius),
-          math::Matrix3F::Identity());
+      if (shadow_value->has_inset()) {
+        border_node_builder->AddChild(
+            new render_tree::RectShadowNode(GetPaddingBoxSize(), shadow, true,
+                                            spread_radius),
+            math::TranslateMatrix(border_left_width(), border_top_width()));
+      } else {
+        border_node_builder->AddChild(
+            new render_tree::RectShadowNode(GetBorderBoxSize(), shadow, false,
+                                            spread_radius),
+            math::Matrix3F::Identity());
+      }
     }
   }
 }
