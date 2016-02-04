@@ -21,6 +21,7 @@
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout_tests/layout_snapshot.h"
 #include "cobalt/layout_tests/test_parser.h"
+#include "cobalt/math/size.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/benchmark.h"
@@ -30,6 +31,8 @@ namespace cobalt {
 namespace layout_tests {
 
 namespace {
+const int kViewportWidth = 1920;
+const int kViewportHeight = 1080;
 
 // The RendererBenchmarkRunner sets up an environment where we can control
 // the number of benchmark samples we acquire from the renderer by counting
@@ -39,7 +42,8 @@ class RendererBenchmarkRunner {
  public:
   RendererBenchmarkRunner()
       : done_gathering_samples_(true, false),
-        system_window_(system_window::CreateSystemWindow(&event_dispatcher_)),
+        system_window_(system_window::CreateSystemWindow(
+            &event_dispatcher_, math::Size(kViewportWidth, kViewportHeight))),
         renderer_module_(system_window_.get(),
                          renderer::RendererModule::Options()) {}
 

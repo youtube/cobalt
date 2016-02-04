@@ -37,8 +37,6 @@ namespace {
 const wchar_t* kClassName = L"CobaltMainWindow";
 const wchar_t* kWindowTitle = L"Cobalt";
 const char kThreadName[] = "Win32 Message Loop";
-const int kWindowWidth = 1920;
-const int kWindowHeight = 1080;
 
 // Lazily created thread local storage to access the SystemWindowWin object
 // defined in the current thread. The WndProc function starts getting called
@@ -70,8 +68,9 @@ unsigned int GetModifierKeyState() {
 }
 }  // namespace
 
-SystemWindowWin::SystemWindowWin(base::EventDispatcher* event_dispatcher)
-    : SystemWindow(event_dispatcher),
+SystemWindowWin::SystemWindowWin(base::EventDispatcher* event_dispatcher,
+                                 const math::Size& window_size)
+    : SystemWindow(event_dispatcher, window_size),
       thread(kThreadName),
       window_initialized(true, false),
       window_handle_(NULL) {
@@ -161,7 +160,8 @@ void SystemWindowWin::Win32WindowThread() {
   window_handle_ = CreateWindowEx(
       WS_EX_APPWINDOW | WS_EX_WINDOWEDGE, kClassName, kWindowTitle,
       WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_OVERLAPPEDWINDOW, 0, 0,
-      kWindowWidth, kWindowHeight, NULL, NULL, module_instance, NULL);
+      window_size().width(), window_size().height(), NULL, NULL,
+      module_instance, NULL);
   CHECK(window_handle_);
 
   ShowWindow(window_handle_, SW_SHOW);
@@ -181,8 +181,9 @@ void SystemWindowWin::Win32WindowThread() {
 }
 
 scoped_ptr<SystemWindow> CreateSystemWindow(
-    base::EventDispatcher* event_dispatcher) {
-  return scoped_ptr<SystemWindow>(new SystemWindowWin(event_dispatcher));
+    base::EventDispatcher* event_dispatcher, const math::Size& window_size) {
+  return scoped_ptr<SystemWindow>(
+      new SystemWindowWin(event_dispatcher, window_size));
 }
 
 }  // namespace system_window

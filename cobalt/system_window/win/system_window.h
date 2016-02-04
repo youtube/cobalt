@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SYSTEM_WINDOW_WIN_SYSTEM_WINDOW_H_
-#define SYSTEM_WINDOW_WIN_SYSTEM_WINDOW_H_
+#ifndef COBALT_SYSTEM_WINDOW_WIN_SYSTEM_WINDOW_H_
+#define COBALT_SYSTEM_WINDOW_WIN_SYSTEM_WINDOW_H_
 
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
@@ -34,7 +34,8 @@ namespace system_window {
 // received and processed.
 class SystemWindowWin : public SystemWindow {
  public:
-  explicit SystemWindowWin(base::EventDispatcher* event_dispatcher);
+  explicit SystemWindowWin(base::EventDispatcher* event_dispatcher,
+                           const math::Size& window_size);
 
   ~SystemWindowWin() OVERRIDE;
 
@@ -60,4 +61,4 @@ class SystemWindowWin : public SystemWindow {
 }  // namespace system_window
 }  // namespace cobalt
 
-#endif  // SYSTEM_WINDOW_WIN_SYSTEM_WINDOW_H_
+#endif  // COBALT_SYSTEM_WINDOW_WIN_SYSTEM_WINDOW_H_

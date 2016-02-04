@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/init_cobalt.h"
+#include "cobalt/math/size.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/test/scenes/scaling_text_scene.h"
 #include "cobalt/system_window/system_window.h"
@@ -30,6 +31,11 @@ using cobalt::renderer::test::scenes::CreateScalingTextScene;
 using cobalt::renderer::test::scenes::RenderTreeWithAnimations;
 using cobalt::system_window::SystemWindow;
 
+namespace {
+const int kViewportWidth = 1920;
+const int kViewportHeight = 1080;
+}  // namespace
+
 int main(int argc, char** argv) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
@@ -40,7 +46,9 @@ int main(int argc, char** argv) {
   base::EventDispatcher event_dispatcher;
   // Create a system window to use as a render target.
   scoped_ptr<SystemWindow> system_window =
-      cobalt::system_window::CreateSystemWindow(&event_dispatcher);
+      cobalt::system_window::CreateSystemWindow(
+          &event_dispatcher,
+          cobalt::math::Size(kViewportWidth, kViewportHeight));
 
   // Construct a renderer module using default options.
   cobalt::renderer::RendererModule::Options renderer_module_options;

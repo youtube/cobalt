@@ -36,6 +36,7 @@ extern const char kRemoteDebuggingPort[];
 extern const char kShutdownAfter[];
 extern const char kStubImageDecoder[];
 extern const char kTimedTrace[];
+extern const char kViewport[];
 extern const char kWebDriverPort[];
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
