@@ -73,6 +73,9 @@ const char kStubImageDecoder[] = "stub_image_decoder";
 // "timed_trace.json" in the log output directory.
 const char kTimedTrace[] = "timed_trace";
 
+// Specifies the viewport size: width ['x' height]
+const char kViewport[] = "viewport";
+
 // Port that the WebDriver server should be listening on.
 const char kWebDriverPort[] = "webdriver_port";
 
