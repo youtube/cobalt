@@ -26,6 +26,7 @@
 namespace {
 
 const int kBufferSize = 4096;
+const int kDownloadCacheSize = 65536;
 const int kUploadProgressTimerInterval = 100;
 bool g_interception_enabled = false;
 bool g_ignore_certificate_requests = false;
@@ -604,13 +605,13 @@ void URLFetcherCore::OnReadCompleted(URLRequest* request,
     url_throttler_entry_ = throttler_manager->RegisterRequestUrl(url_);
   }
 
+  download_data_cache_.reset();
   bool waiting_on_write = false;
   do {
     if (!request_->status().is_success() || bytes_read <= 0)
       break;
 
     current_response_bytes_ += bytes_read;
-    InformDelegateDownloadProgress();
     InformDelegateDownloadDataIfNecessary(bytes_read);
 
     if (!WriteBuffer(bytes_read)) {
@@ -620,6 +621,7 @@ void URLFetcherCore::OnReadCompleted(URLRequest* request,
       break;
     }
   } while (request_->Read(buffer_, kBufferSize, &bytes_read));
+  InformDelegateDownloadData();
 
   const URLRequestStatus status = request_->status();
 
@@ -1079,40 +1081,42 @@ void URLFetcherCore::InformDelegateUploadProgressInDelegateThread(
     delegate_->OnURLFetchUploadProgress(fetcher_, current, total);
 }
 
-void URLFetcherCore::InformDelegateDownloadProgress() {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
-  delegate_task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(
-          &URLFetcherCore::InformDelegateDownloadProgressInDelegateThread,
-          this, current_response_bytes_, total_response_bytes_));
-}
-
-void URLFetcherCore::InformDelegateDownloadProgressInDelegateThread(
-    int64 current, int64 total) {
-  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
-  if (delegate_)
-    delegate_->OnURLFetchDownloadProgress(fetcher_, current, total);
-}
-
 void URLFetcherCore::InformDelegateDownloadDataIfNecessary(int bytes_read) {
   DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (delegate_ && delegate_->ShouldSendDownloadData()) {
-    scoped_ptr<std::string> download_data(
-        new std::string(buffer_->data(), bytes_read));
+    if (!download_data_cache_) {
+      download_data_cache_.reset(new std::string);
+      download_data_cache_->reserve(kDownloadCacheSize);
+    }
+    download_data_cache_->insert(download_data_cache_->end(), buffer_->data(),
+                                 buffer_->data() + bytes_read);
+    if (download_data_cache_->size() >= kDownloadCacheSize) {
+      delegate_task_runner_->PostTask(
+          FROM_HERE,
+          base::Bind(
+              &URLFetcherCore::InformDelegateDownloadDataInDelegateThread, this,
+              base::Passed(&download_data_cache_)));
+    }
+  }
+}
+
+void URLFetcherCore::InformDelegateDownloadData() {
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  if (delegate_ && delegate_->ShouldSendDownloadData() &&
+      download_data_cache_) {
     delegate_task_runner_->PostTask(
         FROM_HERE,
-        base::Bind(
-            &URLFetcherCore::InformDelegateDownloadDataInDelegateThread,
-            this, base::Passed(&download_data)));
+        base::Bind(&URLFetcherCore::InformDelegateDownloadDataInDelegateThread,
+                   this, base::Passed(&download_data_cache_)));
   }
 }
 
 void URLFetcherCore::InformDelegateDownloadDataInDelegateThread(
     scoped_ptr<std::string> download_data) {
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
-  if (delegate_)
+  if (delegate_) {
     delegate_->OnURLFetchDownloadData(fetcher_, download_data.Pass());
+  }
 }
 
 }  // namespace net
