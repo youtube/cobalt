@@ -101,12 +101,17 @@ class Window : public EventTarget {
 
   // Web API: Window
   //
-  scoped_refptr<Window> window() { return this; }
   const scoped_refptr<Document>& document() const;
   const scoped_refptr<History>& history() const;
   scoped_refptr<Location> location() const;
-  scoped_refptr<Window> top() { return this; }
   const scoped_refptr<Navigator>& navigator() const;
+
+  // TODO(b/20952738): Should be WindowProxy
+  scoped_refptr<Window> opener() { return this; }
+  scoped_refptr<Window> parent() { return this; }
+  scoped_refptr<Window> self() { return this; }
+  scoped_refptr<Window> top() { return this; }
+  scoped_refptr<Window> window() { return this; }
 
   // Web API: Timing control for script-based animations (partial interface)
   //   https://www.w3.org/TR/animation-timing/#Window-interface-extensions

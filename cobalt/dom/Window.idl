@@ -22,8 +22,13 @@
   readonly attribute History history;
   [PutForwards=href, Unforgeable] readonly attribute Location location;
   readonly attribute Navigator navigator;
-  // TODO(***REMOVED***): Should be WindowProxy
+
+  // TODO(b/20952738): Should be WindowProxy
   readonly attribute Window opener;
+  readonly attribute Window parent;
+  readonly attribute Window self;
+  readonly attribute Window top;
+  readonly attribute Window window;
 
   // Custom, not in any spec.
   //
