@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "base/debug/trace_event.h"
 #if defined(__LB_PS3__)
 #include "cobalt/loader/image/jpeg_image_decoder_ps3.h"
 #else  // defined(__LB_PS3__)
@@ -50,6 +51,8 @@ ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
 }
 
 void ImageDecoder::DecodeChunk(const char* data, size_t size) {
+  TRACE_EVENT1("cobalt::loader::image_decoder", "ImageDecoder::DecodeChunk",
+               "size", size);
   if (error_state_ != kNoError) {
     // Do not attempt to continue processing data if we are in an error state.
     DCHECK(!decoder_);
@@ -114,6 +117,7 @@ void ImageDecoder::DecodeChunk(const char* data, size_t size) {
 }
 
 void ImageDecoder::Finish() {
+  TRACE_EVENT0("cobalt::loader::image_decoder", "ImageDecoder::Finish");
   switch (error_state_) {
     case kNoError:
       if (decoder_) {
