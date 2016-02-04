@@ -27,12 +27,6 @@ class NET_EXPORT URLFetcherDelegate {
   // Use accessor methods on |source| to get the results.
   virtual void OnURLFetchComplete(const URLFetcher* source) = 0;
 
-  // This will be called when some part of the response is read. |current|
-  // denotes the number of bytes received up to the call, and |total| is the
-  // expected total size of the response (or -1 if not determined).
-  virtual void OnURLFetchDownloadProgress(const URLFetcher* source,
-                                          int64 current, int64 total);
-
   // This will be called when some part of the response is read.
   // |download_data| contains the current bytes received since the last call.
   // This will be called after ShouldSendDownloadData() and only if the latter
