@@ -74,6 +74,20 @@
           },
           'conditions': [
             ['OS!="win"', {'product_name': 'jpeg'}],
+            ['OS=="lb_shell" or OS=="starboard"', {
+              'sources!': [
+                # These are for decoding directly off of disk. They aren't
+                # currently used, and we probably should always be decoding from
+                # memory.
+                'jdatadst.c',
+                'jdatasrc.c',
+              ],
+            }],
+            ['clang==1', {
+              'cflags': [
+                '-Wno-format-security',
+              ],
+            }],
           ],
         },
       ],
