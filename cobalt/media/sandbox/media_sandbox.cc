@@ -22,6 +22,7 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/base/init_cobalt.h"
+#include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
@@ -37,6 +38,8 @@ namespace media {
 namespace sandbox {
 
 namespace {
+const int kViewportWidth = 1920;
+const int kViewportHeight = 1080;
 
 // This class is introduced to ensure that CobaltInit() is called after AtExit
 // is initialized.
@@ -53,7 +56,8 @@ class MediaSandbox::Impl {
       : cobalt_init_(argc, argv),
         trace_to_file_(trace_log_path),
         fetcher_factory_(&network_module_),
-        system_window_(system_window::CreateSystemWindow(&event_dispatcher_)),
+        system_window_(system_window::CreateSystemWindow(
+            &event_dispatcher_, math::Size(kViewportWidth, kViewportHeight))),
         renderer_module_(system_window_.get(),
                          renderer::RendererModule::Options()),
         media_module_(MediaModule::Create(

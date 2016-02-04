@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SYSTEM_WINDOW_STARBOARD_SYSTEM_WINDOW_H_
-#define SYSTEM_WINDOW_STARBOARD_SYSTEM_WINDOW_H_
+#ifndef COBALT_SYSTEM_WINDOW_STARBOARD_SYSTEM_WINDOW_H_
+#define COBALT_SYSTEM_WINDOW_STARBOARD_SYSTEM_WINDOW_H_
 
 #include "base/compiler_specific.h"
 #include "cobalt/system_window/system_window.h"
@@ -25,11 +25,12 @@ namespace system_window {
 
 class SystemWindowStarboard : public SystemWindow {
  public:
-  explicit SystemWindowStarboard(base::EventDispatcher* event_dispatcher);
+  explicit SystemWindowStarboard(base::EventDispatcher* event_dispatcher,
+                                 const math::Size& window_size);
   ~SystemWindowStarboard() OVERRIDE;
 };
 
 }  // namespace system_window
 }  // namespace cobalt
 
-#endif  // SYSTEM_WINDOW_STARBOARD_SYSTEM_WINDOW_H_
+#endif  // COBALT_SYSTEM_WINDOW_STARBOARD_SYSTEM_WINDOW_H_

@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef SYSTEM_WINDOW_SYSTEM_WINDOW_H_
-#define SYSTEM_WINDOW_SYSTEM_WINDOW_H_
+#ifndef COBALT_SYSTEM_WINDOW_SYSTEM_WINDOW_H_
+#define COBALT_SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 
 #include <string>
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/event_dispatcher.h"
+#include "cobalt/math/size.h"
 
 namespace cobalt {
 namespace system_window {
@@ -63,8 +64,9 @@ class SystemWindow {
     DialogCallback callback;
   };
 
-  explicit SystemWindow(base::EventDispatcher* event_dispatcher)
-      : event_dispatcher_(event_dispatcher) {}
+  explicit SystemWindow(base::EventDispatcher* event_dispatcher,
+                        const math::Size& window_size)
+      : event_dispatcher_(event_dispatcher), window_size_(window_size) {}
   virtual ~SystemWindow();
 
   // Launches a system dialog.
@@ -72,17 +74,21 @@ class SystemWindow {
 
   base::EventDispatcher* event_dispatcher() const { return event_dispatcher_; }
 
+  const math::Size& window_size() const { return window_size_; }
+
  private:
   base::EventDispatcher* event_dispatcher_;
+  const math::Size window_size_;
 };
 
 // The implementation of this function should be platform specific, and will
 // create and return a platform-specific system window object. The system
 // window object routes callbacks for user input and provides the information
 // necessary to create a display render target for a graphics system.
-scoped_ptr<SystemWindow> CreateSystemWindow(base::EventDispatcher*);
+scoped_ptr<SystemWindow> CreateSystemWindow(base::EventDispatcher*,
+                                            const math::Size& window_size);
 
 }  // namespace system_window
 }  // namespace cobalt
 
-#endif  // SYSTEM_WINDOW_SYSTEM_WINDOW_H_
+#endif  // COBALT_SYSTEM_WINDOW_SYSTEM_WINDOW_H_

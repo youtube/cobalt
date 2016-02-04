@@ -36,10 +36,7 @@ namespace cobalt {
 namespace browser {
 namespace {
 
-// TODO(***REMOVED***): Request viewport size from graphics pipeline and subscribe to
-// viewport size changes.
-const int kInitialWidth = 1920;
-const int kInitialHeight = 1080;
+// TODO(***REMOVED***): Subscribe to viewport size changes.
 
 // Name of the channel to listen for trace commands from the debug console.
 const char kTraceCommandChannel[] = "trace";
@@ -202,14 +199,15 @@ BrowserModule::BrowserModule(const GURL& url,
     input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
         keyboard_event_callback, system_window);
   }
-
 #if defined(ENABLE_DEBUG_CONSOLE)
+  const math::Size& viewport_size =
+      renderer_module_.render_target()->GetSurfaceInfo().size;
+
   debug_console_.reset(new DebugConsole(
       base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
-      media_module_.get(), &network_module_,
-      math::Size(kInitialWidth, kInitialHeight),
+      media_module_.get(), &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
       renderer_module_.pipeline()->refresh_rate(),
       base::Bind(&BrowserModule::ExecuteJavascript, base::Unretained(this)),
@@ -267,12 +265,15 @@ void BrowserModule::NavigateWithCallbackInternal(
     options.loaded_callbacks.push_back(loaded_callback);
   }
 
+  const math::Size& viewport_size =
+      renderer_module_.render_target()->GetSurfaceInfo().size;
+
   // Show a splash screen while we're waiting for the web page to load.
   DestroySplashScreen();
   splash_screen_.reset(new SplashScreen(
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
-      &network_module_, math::Size(kInitialWidth, kInitialHeight),
+      &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
       renderer_module_.pipeline()->refresh_rate()));
   options.loaded_callbacks.push_back(
@@ -283,8 +284,7 @@ void BrowserModule::NavigateWithCallbackInternal(
       url,
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
-      media_module_.get(), &network_module_,
-      math::Size(kInitialWidth, kInitialHeight),
+      media_module_.get(), &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
       renderer_module_.pipeline()->refresh_rate(), options));
 }
