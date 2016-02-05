@@ -57,7 +57,8 @@ TraceManager::TraceManager():
     ALLOW_THIS_IN_INITIALIZER_LIST(key_trace_command_handler_(
         kKeyTraceCommand,
         base::Bind(&TraceManager::OnKeyTraceMessage, base::Unretained(this)),
-        kKeyTraceCommandShortHelp, kKeyTraceCommandLongHelp)) {}
+        kKeyTraceCommandShortHelp, kKeyTraceCommandLongHelp)),
+    key_tracing_enabled_(false) {}
 
 void TraceManager::OnKeyEventProduced() {
   DCHECK(thread_checker_.CalledOnValidThread());
