@@ -28,17 +28,16 @@ TEST(SbDoubleExponentTest, SunnyDay) {
   EXPECT_EQ(256.0, SbDoubleExponent(2.0, 8.0));
   EXPECT_EQ(0.5, SbDoubleExponent(2.0, -1.0));
 
-  double nan = std::numeric_limits<double>::quiet_NaN();
-  EXPECT_EQ(1.0, SbDoubleExponent(1.0, nan));
-  EXPECT_TRUE(SbDoubleIsNan(SbDoubleExponent(2.0, nan)));
-  EXPECT_TRUE(SbDoubleIsNan(SbDoubleExponent(nan, 1.0)));
-  EXPECT_TRUE(SbDoubleIsNan(SbDoubleExponent(nan, 2.0)));
+  const double kNan = std::numeric_limits<double>::quiet_NaN();
+  EXPECT_EQ(1.0, SbDoubleExponent(1.0, kNan));
+  EXPECT_TRUE(SbDoubleIsNan(SbDoubleExponent(2.0, kNan)));
+  EXPECT_TRUE(SbDoubleIsNan(SbDoubleExponent(kNan, 1.0)));
+  EXPECT_TRUE(SbDoubleIsNan(SbDoubleExponent(kNan, 2.0)));
 
-  double infinity = std::numeric_limits<double>::infinity();
-  EXPECT_EQ(0.0, SbDoubleExponent(0.5, infinity));
-  EXPECT_EQ(1.0, SbDoubleExponent(1.0, infinity));
-  double d = SbDoubleExponent(2.0, infinity);
-  EXPECT_FALSE(SbDoubleIsFinite(&d));
+  const double kInfinity = std::numeric_limits<double>::infinity();
+  EXPECT_EQ(0.0, SbDoubleExponent(0.5, kInfinity));
+  EXPECT_EQ(1.0, SbDoubleExponent(1.0, kInfinity));
+  EXPECT_FALSE(SbDoubleIsFinite(SbDoubleExponent(2.0, kInfinity)));
 }
 
 }  // namespace
