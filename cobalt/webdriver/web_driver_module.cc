@@ -616,10 +616,13 @@ WebDriverModule::CreateSessionInternal(
 
   // If proxy settings were requested when the session was created, set them
   // now.
-  if (requested_capabilities.required() &&
-      requested_capabilities.required()->proxy()) {
-    set_proxy_function_.Run(
-        requested_capabilities.required()->proxy()->rules());
+  base::optional<protocol::Proxy> proxy_settings =
+      requested_capabilities.desired().proxy();
+  if (!proxy_settings && requested_capabilities.required()) {
+    proxy_settings = requested_capabilities.required()->proxy();
+  }
+  if (proxy_settings) {
+    set_proxy_function_.Run(proxy_settings->rules());
   }
 
   return session_->GetCapabilities();
