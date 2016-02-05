@@ -886,7 +886,8 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder,
     math::Matrix3F* border_node_transform) const {
-  if (animations()->IsPropertyAnimated(cssom::kTransformProperty)) {
+  if (IsTransformable() &&
+      animations()->IsPropertyAnimated(cssom::kTransformProperty)) {
     // If the CSS transform is animated, we cannot flatten it into the layout
     // transform, thus we create a new composition node to separate it and
     // animate that node only.
