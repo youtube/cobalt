@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef TRACE_EVENT_JSON_FILE_OUTPUTTER_H_
-#define TRACE_EVENT_JSON_FILE_OUTPUTTER_H_
-
-#include <cstdio>
+#ifndef COBALT_TRACE_EVENT_JSON_FILE_OUTPUTTER_H_
+#define COBALT_TRACE_EVENT_JSON_FILE_OUTPUTTER_H_
 
 #include "base/file_path.h"
-#include "base/file_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/platform_file.h"
 
 namespace cobalt {
 namespace trace_event {
@@ -38,11 +36,14 @@ class JSONFileOutputter {
   void OutputTraceData(
       const scoped_refptr<base::RefCountedString>& event_string);
 
-  bool GetError() const { return !fp_ || ferror(fp_.get()) != 0; }
+  bool GetError() const { return file_ == base::kInvalidPlatformFileValue; }
 
  private:
+  void Write(const char* buffer, size_t length);
+  void Close();
+
   FilePath output_path_;
-  file_util::ScopedFILE fp_;
+  base::PlatformFile file_;
 
   int output_trace_event_call_count_;
 };
@@ -50,4 +51,4 @@ class JSONFileOutputter {
 }  // namespace trace_event
 }  // namespace cobalt
 
-#endif  // TRACE_EVENT_JSON_FILE_OUTPUTTER_H_
+#endif  // COBALT_TRACE_EVENT_JSON_FILE_OUTPUTTER_H_

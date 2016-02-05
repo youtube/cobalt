@@ -16,6 +16,8 @@
 
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 
+#include <vector>
+
 #include "base/debug/trace_event.h"
 #include "base/file_util.h"
 #include "base/logging.h"
@@ -52,7 +54,7 @@ class PNGFileReadContext {
   int height() const { return height_; }
 
  private:
-  FILE* fp_;
+  base::PlatformFile file_;
   png_structp png_;
   png_infop png_metadata_;
 
@@ -77,6 +79,15 @@ void PremultiplyAlphaTransform(png_structp ptr, png_row_infop row_info,
   }
 }
 
+void PNGReadPlatformFile(png_structp png, png_bytep buffer,
+                         png_size_t buffer_size) {
+  intptr_t temp = reinterpret_cast<intptr_t>(png_get_io_ptr(png));
+  base::PlatformFile file = static_cast<base::PlatformFile>(temp);
+  int count = base::ReadPlatformFileAtCurrentPos(
+      file, reinterpret_cast<char*>(buffer), buffer_size);
+  DCHECK_EQ(count, buffer_size);
+}
+
 PNGFileReadContext::PNGFileReadContext(const FilePath& file_path,
                                        AlphaFormat alpha_format) {
   TRACE_EVENT0("renderer::test::png_utils",
@@ -85,11 +96,16 @@ PNGFileReadContext::PNGFileReadContext(const FilePath& file_path,
   // Much of this PNG loading code is based on a section from the libpng manual:
   // http://www.libpng.org/pub/png/libpng-1.2.5-manual.html#section-3
 
-  fp_ = file_util::OpenFile(file_path, "rb");
-  DCHECK(fp_) << "Unable to open: " << file_path.value();
+  file_ = base::CreatePlatformFile(
+      file_path, base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ, NULL,
+      NULL);
+  DCHECK_NE(base::kInvalidPlatformFileValue, file_) << "Unable to open: "
+                                                    << file_path.value();
 
   uint8_t header[8];
-  fread(header, 1, 8, fp_);
+  int count = base::ReadPlatformFileAtCurrentPos(
+      file_, reinterpret_cast<char*>(header), sizeof(header));
+  DCHECK_EQ(sizeof(header), count) << "Invalid file size.";
   DCHECK(!png_sig_cmp(header, 0, 8)) << "Invalid PNG header.";
 
   // Set up a libpng context for reading images.
@@ -107,11 +123,11 @@ PNGFileReadContext::PNGFileReadContext(const FilePath& file_path,
   // If alternative behavior is desired, custom error and warning handler
   // functions can be passed into the png_create_read_struct() call above.
   if (setjmp(png_->jmpbuf)) {
-    DLOG(FATAL) << "libpng returned error reading " << file_path.value();
-    abort();
+    LOG(FATAL) << "libpng returned error reading " << file_path.value();
   }
+
   // Set up for file i/o.
-  png_init_io(png_, fp_);
+  png_set_read_fn(png_, reinterpret_cast<void*>(file_), &PNGReadPlatformFile);
   // Tell png we already read 8 bytes.
   png_set_sig_bytes(png_, 8);
   // Read the image info.
@@ -171,7 +187,7 @@ PNGFileReadContext::~PNGFileReadContext() {
   // Release our png reading context and associated info structs.
   png_destroy_read_struct(&png_, &png_metadata_, &end);
 
-  file_util::CloseFile(fp_);
+  base::ClosePlatformFile(file_);
 }
 
 void PNGFileReadContext::DecodeImageTo(const std::vector<png_bytep>& rows) {
@@ -254,7 +270,6 @@ scoped_refptr<cobalt::render_tree::Image> DecodePNGToRenderTreeImage(
   // And now create a texture out of the image data.
   return resource_provider->CreateImage(data.Pass());
 }
-
 
 }  // namespace png_utils
 }  // namespace test
