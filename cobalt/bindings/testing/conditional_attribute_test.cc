@@ -32,7 +32,7 @@ typedef BindingsTestBase DisabledInterfaceTest;
 
 TEST_F(ConditionalInterfaceTest, HasInterfaceObject) {
   EXPECT_TRUE(
-      EvaluateScript("window.hasOwnProperty(\"ConditionalInterface\");", NULL));
+      EvaluateScript("this.hasOwnProperty(\"ConditionalInterface\");", NULL));
 }
 
 TEST_F(ConditionalInterfaceTest, HasConditionalProperties) {
@@ -50,7 +50,7 @@ TEST_F(ConditionalInterfaceTest, DoesNotHaveDisabledProperties) {
 }
 
 TEST_F(DisabledInterfaceTest, NoInterfaceObject) {
-  EXPECT_TRUE(EvaluateScript("window.DisabledInterface === undefined", NULL));
+  EXPECT_TRUE(EvaluateScript("this.DisabledInterface === undefined", NULL));
 }
 
 }  // namespace testing
