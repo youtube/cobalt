@@ -25,8 +25,8 @@ TEST(SbDoubleAbsoluteTest, SunnyDay) {
   EXPECT_EQ(1.5, SbDoubleAbsolute(1.5));
   EXPECT_EQ(1.5, SbDoubleAbsolute(-1.5));
   EXPECT_EQ(0, SbDoubleAbsolute(0));
-  double d = SbDoubleAbsolute(std::numeric_limits<double>::infinity());
-  EXPECT_FALSE(SbDoubleIsFinite(&d));
+  EXPECT_FALSE(SbDoubleIsFinite(
+      SbDoubleAbsolute(std::numeric_limits<double>::infinity())));
   EXPECT_TRUE(SbDoubleIsNan(SbDoubleAbsolute(
       std::numeric_limits<double>::quiet_NaN())));
 }

@@ -98,7 +98,18 @@
   } while (0)
 #endif
 
-// A way to do compile-time assertions.
+// Makes a pointer parameter restricted so that the compiler can make certain
+// optimizations because it knows the pointers are unique.
+#if SB_IS(COMPILER_MSVC)
+#define SB_CPP_RESTRICT __restrict
+#elif SB_IS(COMPILER_GCC)
+#define SB_CPP_RESTRICT __restrict__
+#else
+#define SB_CPP_RESTRICT
+#endif
+
+// Will cause a compiler error with |msg| if |expr| is false. |msg| must be a
+// valid identifier, and must be a unique type in the scope of the declaration.
 #if defined(__cplusplus)
 namespace starboard {
 template <bool>
