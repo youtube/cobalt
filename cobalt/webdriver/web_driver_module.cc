@@ -252,7 +252,7 @@ WebDriverModule::WebDriverModule(
           base::Bind(&SessionDriver::SwitchToWindow)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
-      StringPrintf("/session/%s/log_types", kSessionIdVariable),
+      StringPrintf("/session/%s/log/types", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::GetLogTypes)));
   webdriver_dispatcher_->RegisterCommand(
