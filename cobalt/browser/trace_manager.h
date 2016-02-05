@@ -54,21 +54,17 @@ class TraceManager {
                         scoped_refptr<trace_event::EventParser::ScopedEvent> >
       StartTimeToEventMap;
 
-  base::ThreadChecker thread_checker_;
-
   // Command handler object for trace command from the debug console.
   base::ConsoleCommandManager::CommandHandler trace_command_handler_;
-
   // Command handler object for key trace command from the debug console.
   base::ConsoleCommandManager::CommandHandler key_trace_command_handler_;
-
   // Whether key tracing is enabled.
   bool key_tracing_enabled_;
 
+  base::ThreadChecker thread_checker_;
   // This object can be set to start a trace if a hotkey (like F3) is pressed.
   // While initialized, it means that a trace is on-going.
   scoped_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
-
   // Record of a list of events we're interested in, ordered by starting time.
   StartTimeToEventMap start_time_to_event_map_;
 };
