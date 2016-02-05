@@ -20,14 +20,9 @@ namespace nplb {
 namespace {
 
 TEST(SbDoubleFloorTest, SunnyDay) {
-  double d = 1.5;
-  EXPECT_EQ(1, SbDoubleFloor(d));
-
-  d = 123.00123;
-  EXPECT_EQ(123, SbDoubleFloor(d));
-
-  d = 123.9987;
-  EXPECT_EQ(123, SbDoubleFloor(d));
+  EXPECT_EQ(1, SbDoubleFloor(1.5));
+  EXPECT_EQ(123, SbDoubleFloor(123.00123));
+  EXPECT_EQ(123, SbDoubleFloor(123.9987));
 }
 
 }  // namespace

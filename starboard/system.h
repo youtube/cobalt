@@ -74,8 +74,7 @@ typedef enum SbSystemPropertyId {
 
 // Pointer to a function to compare two items, returning less than zero, zero,
 // or greater than zero depending on whether |a| is less than |b|, equal to |b|,
-// or
-// greater than |b|, respectively (standard *cmp semantics).
+// or greater than |b|, respectively (standard *cmp semantics).
 typedef int (*SbSystemComparator)(const void* a, const void* b);
 
 // Breaks the current program into the debugger, if a debugger is
