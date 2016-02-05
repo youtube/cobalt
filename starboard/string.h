@@ -95,6 +95,7 @@ SB_EXPORT int SbStringFormat(char* out_buffer,
                              va_list arguments) SB_PRINTF_FORMAT(3, 0);
 
 // Inline wrapper of SbStringFormat to convert from ellipsis to va_args.
+// Meant to be a drop-in replacement for snprintf.
 static SB_C_INLINE int SbStringFormatF(char* out_buffer,
                                        size_t buffer_size,
                                        const char* format,
@@ -106,6 +107,21 @@ static SB_C_INLINE int SbStringFormatF(char* out_buffer,
   va_list arguments;
   va_start(arguments, format);
   int result = SbStringFormat(out_buffer, buffer_size, format, arguments);
+  va_end(arguments);
+  return result;
+}
+
+// Inline wrapper of SbStringFormat to be a drop-in replacement for the unsafe
+// but commonly used sprintf.
+static SB_C_INLINE int SbStringFormatUnsafeF(char* out_buffer,
+                                             const char* format,
+                                             ...) SB_PRINTF_FORMAT(2, 3);
+static SB_C_INLINE int SbStringFormatUnsafeF(char* out_buffer,
+                                             const char* format,
+                                             ...) {
+  va_list arguments;
+  va_start(arguments, format);
+  int result = SbStringFormat(out_buffer, UINT_MAX, format, arguments);
   va_end(arguments);
   return result;
 }

@@ -19,7 +19,6 @@
 
 #include "starboard/log.h"
 
-bool SbDoubleIsFinite(const double* d) {
-  SB_DCHECK(d != NULL);
-  return (!d ? false : fpclassify(*d) != FP_INFINITE);
+bool SbDoubleIsFinite(const double d) {
+  return (fpclassify(d) != FP_INFINITE);
 }

@@ -22,11 +22,8 @@ namespace nplb {
 namespace {
 
 TEST(SbDoubleIsFiniteTest, SunnyDay) {
-  double d = 1;
-  EXPECT_TRUE(SbDoubleIsFinite(&d));
-
-  d = std::numeric_limits<double>::infinity();
-  EXPECT_FALSE(SbDoubleIsFinite(&d));
+  EXPECT_TRUE(SbDoubleIsFinite(1.0));
+  EXPECT_FALSE(SbDoubleIsFinite(std::numeric_limits<double>::infinity()));
 }
 
 }  // namespace
