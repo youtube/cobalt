@@ -15,6 +15,10 @@
 #define PNG_INTERNAL
 #define PNG_NO_PEDANTIC_WARNINGS
 #include "png.h"
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define abort SbSystemBreakIntoDebugger
+#endif
 #ifdef PNG_WRITE_SUPPORTED
 
 /* Writes all the PNG information.  This is the suggested way to use the
