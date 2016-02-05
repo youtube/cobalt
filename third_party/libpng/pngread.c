@@ -16,6 +16,10 @@
 
 #define PNG_INTERNAL
 #define PNG_NO_PEDANTIC_WARNINGS
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define abort SbSystemBreakIntoDebugger
+#endif
 #include "png.h"
 #ifdef PNG_READ_SUPPORTED
 

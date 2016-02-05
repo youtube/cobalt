@@ -145,7 +145,6 @@
 
 #if defined(STARBOARD)
 #define PNG_NO_STDIO
-#define PNG_NO_SETJMP_SUPPORTED
 #define PNG_NO_CONVERT_tIME
 #endif
 
