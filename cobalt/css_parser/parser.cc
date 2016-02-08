@@ -26,6 +26,7 @@
 #include "base/bind.h"
 #include "base/hash_tables.h"
 #include "base/lazy_instance.h"
+#include "base/optional.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -137,6 +138,7 @@ class ParserImpl {
 
   void LogWarning(const YYLTYPE& source_location, const std::string& message);
   void LogError(const YYLTYPE& source_location, const std::string& message);
+  void LogError(const std::string& message);
 
   void set_media_list(const scoped_refptr<cssom::MediaList>& media_list) {
     media_list_ = media_list;
@@ -171,6 +173,9 @@ class ParserImpl {
   bool Parse();
 
   std::string FormatMessage(const std::string& message_type,
+                            const std::string& message);
+
+  std::string FormatMessage(const std::string& message_type,
                             const YYLTYPE& source_location,
                             const std::string& message);
 
@@ -185,7 +190,7 @@ class ParserImpl {
 
   StringPool string_pool_;
   Scanner scanner_;
-  YYLTYPE last_syntax_error_location_;
+  base::optional<YYLTYPE> last_syntax_error_location_;
 
   // Parsing results, named after entry points.
   // Only one of them may be non-NULL.
@@ -344,9 +349,14 @@ void ParserImpl::LogError(const YYLTYPE& source_location,
   on_error_callback_.Run(FormatMessage("error", source_location, message));
 }
 
+void ParserImpl::LogError(const std::string& message) {
+  on_error_callback_.Run(FormatMessage("error", message));
+}
+
 bool ParserImpl::Parse() {
   // For more information on error codes
   // see http://www.gnu.org/software/bison/manual/html_node/Parser-Function.html
+  last_syntax_error_location_ = base::nullopt;
   int error_code(yyparse(this));
   switch (error_code) {
     case 0:
@@ -354,7 +364,12 @@ bool ParserImpl::Parse() {
       return true;
     case 1:
       // Failed to recover from errors.
-      LogError(last_syntax_error_location_, "unrecoverable syntax error");
+      if (last_syntax_error_location_) {
+        LogError(last_syntax_error_location_.value(),
+                 "unrecoverable syntax error");
+      } else {
+        LogError("unrecoverable syntax error");
+      }
       return false;
     default:
       NOTREACHED();
@@ -376,6 +391,11 @@ std::string GetLineString(const char* line_start) {
 }
 
 }  // namespace
+
+std::string ParserImpl::FormatMessage(const std::string& message_type,
+                                      const std::string& message) {
+  return message_type + ": " + message;
+}
 
 std::string ParserImpl::FormatMessage(const std::string& message_type,
                                       const YYLTYPE& source_location,
@@ -476,15 +496,16 @@ inline void yyerror(YYLTYPE* source_location, ParserImpl* parser_impl,
 
 namespace {
 
-void LogWarning(const std::string& message) { LOG(WARNING) << message; }
+void LogWarningCallback(const std::string& message) { LOG(WARNING) << message; }
 
-void LogError(const std::string& message) { LOG(ERROR) << message; }
+void LogErrorCallback(const std::string& message) { LOG(ERROR) << message; }
 
 }  // namespace
 
 scoped_ptr<Parser> Parser::Create() {
-  return make_scoped_ptr(new Parser(base::Bind(&LogWarning),
-                                    base::Bind(&LogError), Parser::kVerbose));
+  return make_scoped_ptr(new Parser(base::Bind(&LogWarningCallback),
+                                    base::Bind(&LogErrorCallback),
+                                    Parser::kVerbose));
 }
 
 Parser::Parser(const OnMessageCallback& on_warning_callback,
