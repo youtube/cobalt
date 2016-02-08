@@ -5646,6 +5646,42 @@ TEST_F(ParserTest, ParsesAnimationIterationCountWithMultipleValues) {
   EXPECT_EQ(0.5f, third_value->value());
 }
 
+TEST_F(ParserTest, ParsesAnimationIterationCountWithNegativeValues_1) {
+  EXPECT_CALL(parser_observer_, OnError("[object ParserTest]:1:28: error: "
+                                        "number value must not be negative"));
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:28: error: unsupported property "
+                      "value for animation-iteration-count"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-iteration-count: -49, 6;",
+                                        source_location_);
+}
+
+TEST_F(ParserTest, ParsesAnimationIterationCountWithNegativeValues_2) {
+  EXPECT_CALL(parser_observer_, OnError("[object ParserTest]:1:31: error: "
+                                        "number value must not be negative"));
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:26: error: unsupported property "
+                      "value for animation-iteration-count"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-iteration-count: 6, -49;",
+                                        source_location_);
+}
+
+TEST_F(ParserTest, ParsesAnimationIterationCountWithNegativeValues_3) {
+  EXPECT_CALL(parser_observer_, OnError("[object ParserTest]:1:28: error: "
+                                        "number value must not be negative"));
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:28: error: unsupported property "
+                      "value for animation-iteration-count"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-iteration-count: -6, -49;",
+                                        source_location_);
+}
+
 TEST_F(ParserTest, ParsesAnimationNameWithArbitraryName) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("animation-name: foo;",

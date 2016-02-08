@@ -4577,11 +4577,6 @@ comma_separated_animation_iteration_count_list:
     $$ = $1;
     $$->push_back(MakeScopedRefPtrAndRelease($3));
   }
-  | errors {
-    parser_impl->LogError(
-        @1, "unsupported property value for animation-iteration-count");
-    $$ = NULL;
-  }
   ;
 
 animation_iteration_count_property_value:
@@ -4592,6 +4587,11 @@ animation_iteration_count_property_value:
          : NULL;
   }
   | common_values_without_errors
+  | errors {
+    parser_impl->LogError(
+        @1, "unsupported property value for animation-iteration-count");
+    $$ = NULL;
+  }
   ;
 
 // The 'animation-name' property defines a list of animations that apply.
