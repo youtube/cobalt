@@ -32,6 +32,23 @@
 namespace cobalt {
 namespace layout {
 
+namespace {
+
+class ScopedParagraph {
+ public:
+  explicit ScopedParagraph(const scoped_refptr<Paragraph>& paragraph)
+      : paragraph_(paragraph) {}
+
+  ~ScopedParagraph() { paragraph_->Close(); }
+
+  scoped_refptr<Paragraph>& get() { return paragraph_; }
+
+ private:
+  scoped_refptr<Paragraph> paragraph_;
+};
+
+}  // namespace
+
 void UpdateComputedStylesAndLayoutBoxTree(
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
@@ -53,10 +70,11 @@ void UpdateComputedStylesAndLayoutBoxTree(
   // Generate boxes.
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
-    scoped_refptr<Paragraph> paragraph;
+    ScopedParagraph scoped_paragraph(new Paragraph(
+        line_break_iterator, Paragraph::kLeftToRightBaseDirection));
     BoxGenerator root_box_generator(
         (*initial_containing_block)->computed_style_state(),
-        used_style_provider, line_break_iterator, &paragraph);
+        used_style_provider, line_break_iterator, &(scoped_paragraph.get()));
     document->html()->Accept(&root_box_generator);
     const Boxes& root_boxes = root_box_generator.boxes();
     for (Boxes::const_iterator root_box_iterator = root_boxes.begin();
