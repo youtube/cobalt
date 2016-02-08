@@ -28,7 +28,11 @@ namespace renderer {
 namespace {
 // The frequency we signal a new rasterization fo the render tree.
 const float kRefreshRate = 60.0f;
-const size_t kMaxSubmissionQueueSize = 200u;
+
+// In order to put a bound on memory we set a maximum submission queue size that
+// is empirically found to be a nice balance between animation smoothing and
+// memory usage.
+const size_t kMaxSubmissionQueueSize = 4u;
 
 // How quickly the renderer time adjusts to changing submission times.
 // 500ms is chosen as a default because it is fast enough that the user will not
