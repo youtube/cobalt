@@ -29,6 +29,7 @@
 #include "cobalt/dom/font_list.h"
 #include "cobalt/loader/font/remote_font_cache.h"
 #include "cobalt/render_tree/font.h"
+#include "cobalt/render_tree/glyph.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "googleurl/src/gurl.h"
 
@@ -119,8 +120,8 @@ class FontCache {
       RequestedRemoteFontMap;
 
   // Character glyph map related
-  typedef std::map<int32, render_tree::GlyphIndex> FontCharacterGlyphMap;
-  typedef std::map<render_tree::TypefaceId, FontCharacterGlyphMap>
+  typedef std::map<render_tree::TypefaceId,
+                   scoped_refptr<render_tree::CharacterGlyphMap> >
       TypefaceToFontCharacterGlyphMap;
 
   // Character fallback related
@@ -149,8 +150,8 @@ class FontCache {
 
   // Retrieves the character glyph map associated with the font's typeface id.
   // If it does not exist, it is created. This is guaranteed to not return NULL.
-  FontCharacterGlyphMap* GetFontCharacterGlyphMap(
-      scoped_refptr<render_tree::Font> font);
+  const scoped_refptr<render_tree::CharacterGlyphMap>& GetFontCharacterGlyphMap(
+      const scoped_refptr<render_tree::Font>& font);
 
   // Looks up the typeface id associated with a UTF-32 character and style. If
   // one is not associated yet, it requests the fallback font from the resource
@@ -175,6 +176,16 @@ class FontCache {
                                               render_tree::FontStyle style,
                                               float size,
                                               FontListFont::State* state);
+
+  // Given a string of text, returns the glyph buffer needed to render it.
+  scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
+      const char16* text_buffer, int32 text_length, bool is_rtl,
+      FontList* font_list);
+
+  // Given a string of text, return its width. This is faster than
+  // CreateGlyphBuffer().
+  float GetTextWidth(const char16* text_buffer, int32 text_length, bool is_rtl,
+                     FontList* font_list);
 
  private:
   // Returns the font if it is in the remote font cache and available;
@@ -204,6 +215,7 @@ class FontCache {
   void OnRemoteFontLoadEvent(const GURL& url);
 
   render_tree::ResourceProvider* const resource_provider_;
+
   // TODO(***REMOVED***): Explore eliminating the remote font cache and moving its
   // logic into the font cache when the loader interface improves.
   loader::font::RemoteFontCache* const remote_font_cache_;

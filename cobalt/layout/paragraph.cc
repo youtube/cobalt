@@ -15,34 +15,16 @@
  */
 
 #include "cobalt/layout/paragraph.h"
-#include "base/i18n/bidi_line_iterator.h"
+
 #include "base/i18n/char_iterator.h"
-#include "base/i18n/rtl.h"
-#include "base/string16.h"
+
+#include "third_party/icu/public/common/unicode/ubidi.h"
+
 
 namespace cobalt {
 namespace layout {
 
 namespace {
-
-base::i18n::TextDirection ConvertBaseDirectionToTextDirection(
-    Paragraph::BaseDirection base_direction) {
-  base::i18n::TextDirection text_direction;
-
-  switch (base_direction) {
-    case Paragraph::kRightToLeftBaseDirection:
-      text_direction = base::i18n::RIGHT_TO_LEFT;
-      break;
-    case Paragraph::kLeftToRightBaseDirection:
-      text_direction = base::i18n::LEFT_TO_RIGHT;
-      break;
-    case Paragraph::kUnknownBaseDirection:
-    default:
-      text_direction = base::i18n::UNKNOWN_DIRECTION;
-  }
-
-  return text_direction;
-}
 
 int ConvertBaseDirectionToBidiLevel(Paragraph::BaseDirection base_direction) {
   return base_direction == Paragraph::kRightToLeftBaseDirection ? 1 : 0;
@@ -81,6 +63,7 @@ int32 Paragraph::AppendUtf8String(const std::string& utf8_string,
 
     unicode_text_ += unicode_string;
   }
+
   return start_position;
 }
 
@@ -150,14 +133,6 @@ bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
   return false;
 }
 
-float Paragraph::CalculateSubStringWidth(
-    const scoped_refptr<dom::FontList>& used_font, int32 start_position,
-    int32 end_position) const {
-  std::string utf8_sub_string =
-      RetrieveUtf8SubString(start_position, end_position);
-  return used_font->GetBounds(utf8_sub_string).width();
-}
-
 std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
                                              int32 end_position) const {
   return RetrieveUtf8SubString(start_position, end_position, kLogicalTextOrder);
@@ -175,8 +150,7 @@ std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
     // Odd bidi levels signify RTL directionality. If the text is being
     // retrieved in visual order and has RTL directionality, then reverse the
     // text.
-    if (text_order == kVisualTextOrder &&
-        GetBidiLevel(start_position) % 2 == 1) {
+    if (text_order == kVisualTextOrder && IsRTL(start_position)) {
       unicode_sub_string.reverse();
     }
 
@@ -186,12 +160,20 @@ std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
   return utf8_sub_string;
 }
 
+const char16* Paragraph::GetTextBuffer() const {
+  return unicode_text_.getBuffer();
+}
+
 Paragraph::BaseDirection Paragraph::GetBaseDirection() const {
   return base_direction_;
 }
 
 int Paragraph::GetBidiLevel(int32 position) const {
   return level_runs_[GetRunIndex(position)].level_;
+}
+
+bool Paragraph::IsRTL(int32 position) const {
+  return (GetBidiLevel(position) % 2) == 1;
 }
 
 bool Paragraph::IsSpace(int32 position) const {
@@ -281,9 +263,9 @@ bool Paragraph::TryIncludeSegmentWithinAvailableWidth(
   // that causes the available width to be exceeded. The previous break position
   // is the last usable one. However, if overflow is allowed and no segment has
   // been found, then the first overflowing segment is accepted.
-  std::string utf8_sub_string =
-      RetrieveUtf8SubString(segment_start, segment_end);
-  float segment_width = used_font->GetBounds(utf8_sub_string).width();
+  float segment_width = used_font->GetTextWidth(
+      unicode_text_.getBuffer() + segment_start, segment_end - segment_start,
+      IsRTL(segment_start));
 
   if (!*allow_overflow && *break_width + segment_width > available_width) {
     return false;
@@ -302,33 +284,63 @@ bool Paragraph::TryIncludeSegmentWithinAvailableWidth(
   return true;
 }
 
+namespace {
+
+// This class guarantees that a UBiDi object is closed when it goes out of
+// scope.
+class ScopedUBiDiPtr {
+ public:
+  explicit ScopedUBiDiPtr(UBiDi* ubidi) : ubidi_(ubidi) {}
+
+  ~ScopedUBiDiPtr() { ubidi_close(ubidi_); }
+
+  UBiDi* get() const { return ubidi_; }
+
+ private:
+  UBiDi* ubidi_;
+};
+
+}  // namespace
+
 // Should only be called by Close().
 void Paragraph::GenerateBidiLevelRuns() {
   DCHECK(is_closed_);
 
-  // TODO(***REMOVED***): Change logic so that the extra copy of the data isn't
-  // required.
-  string16 bidi_string(unicode_text_.getBuffer(),
-                       static_cast<size_t>(unicode_text_.length()));
+  UErrorCode error = U_ZERO_ERROR;
 
-  base::i18n::BiDiLineIterator bidi_iterator;
-  if (bidi_iterator.Open(
-          bidi_string, ConvertBaseDirectionToTextDirection(base_direction_))) {
-    level_runs_.clear();
-    level_runs_.reserve(size_t(bidi_iterator.CountRuns()));
+  // Create a scoped ubidi ptr when opening the text. It guarantees that the
+  // UBiDi object will be closed when it goes out of scope.
+  ScopedUBiDiPtr ubidi(ubidi_openSized(unicode_text_.length(), 0, &error));
+  if (U_FAILURE(error)) {
+    return;
+  }
 
-    int run_start_position = 0;
-    int run_end_position;
-    UBiDiLevel run_ubidi_level;
+  ubidi_setPara(ubidi.get(), unicode_text_.getBuffer(), unicode_text_.length(),
+                UBiDiLevel(ConvertBaseDirectionToBidiLevel(base_direction_)),
+                NULL, &error);
+  if (U_FAILURE(error)) {
+    return;
+  }
 
-    int32 text_end_position = GetTextEndPosition();
-    while (run_start_position < text_end_position) {
-      bidi_iterator.GetLogicalRun(run_start_position, &run_end_position,
-                                  &run_ubidi_level);
-      level_runs_.push_back(
-          BidiLevelRun(run_start_position, static_cast<int>(run_ubidi_level)));
-      run_start_position = run_end_position;
-    }
+  const int runs = ubidi_countRuns(ubidi.get(), &error);
+  if (U_FAILURE(error)) {
+    return;
+  }
+
+  level_runs_.clear();
+  level_runs_.reserve(size_t(runs));
+
+  int run_start_position = 0;
+  int run_end_position;
+  UBiDiLevel run_ubidi_level;
+
+  int32 text_end_position = GetTextEndPosition();
+  while (run_start_position < text_end_position) {
+    ubidi_getLogicalRun(ubidi.get(), run_start_position, &run_end_position,
+                        &run_ubidi_level);
+    level_runs_.push_back(
+        BidiLevelRun(run_start_position, static_cast<int>(run_ubidi_level)));
+    run_start_position = run_end_position;
   }
 }
 
