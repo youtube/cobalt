@@ -44,24 +44,25 @@ SubmissionQueue::SubmissionQueue(size_t max_queue_size,
 void SubmissionQueue::PushSubmission(const Submission& submission) {
   TRACE_EVENT0("cobalt::renderer", "SubmissionQueue::PushSubmission()");
 
-  if (!submission_queue_.empty()) {
-    if (submission.time_offset < submission_queue_.back().time_offset) {
-      // We don't support non-monotonically increasing submission times.  If
-      // this happens, it is likely due to a source change, so in this case we
-      // just reset our state.
-      Reset();
-    }
-  }
-
-  base::TimeDelta latest_to_submission_time_ =
+  base::TimeDelta latest_to_submission_time =
       submission.time_offset - render_time();
 
-  float latest_to_submission_time_in_ms_ =
-      static_cast<float>(latest_to_submission_time_.InMillisecondsF());
+  double latest_to_submission_time_in_ms =
+      latest_to_submission_time.InMillisecondsF();
 
-  to_submission_time_in_ms_.SetTarget(latest_to_submission_time_in_ms_);
+  to_submission_time_in_ms_.SetTarget(latest_to_submission_time_in_ms);
+
+  if (!submission_queue_.empty() &&
+      submission.time_offset < submission_queue_.back().time_offset) {
+    // We don't support non-monotonically increasing submission times.  If
+    // this happens, it is likely due to a source change, so in this case we
+    // just reset our state.
+    Reset();
+    to_submission_time_in_ms_.SnapToTarget();
+  }
+
   // Snap time backwards if the incoming submission is in the past.
-  if (latest_to_submission_time_in_ms_ <
+  if (latest_to_submission_time_in_ms <
       to_submission_time_in_ms_.GetCurrentValue()) {
     to_submission_time_in_ms_.SnapToTarget();
   }
@@ -95,7 +96,7 @@ Submission SubmissionQueue::GetCurrentSubmission() {
   Submission updated_time_submission(submission_queue_.front());
   updated_time_submission.time_offset =
       base::TimeDelta::FromMillisecondsD(
-          static_cast<double>(to_submission_time_in_ms_.GetCurrentValue())) +
+          to_submission_time_in_ms_.GetCurrentValue()) +
       render_time();
 
   return updated_time_submission;
@@ -108,15 +109,13 @@ base::TimeDelta SubmissionQueue::render_time() const {
 void SubmissionQueue::PurgeStaleSubmissionsFromQueue() {
   TRACE_EVENT0("cobalt::renderer",
                "SubmissionQueue::PurgeStaleSubmissionsFromQueue()");
+  double current_to_submission_time_in_ms =
+      to_submission_time_in_ms_.GetCurrentValue();
+  base::TimeDelta current_to_submission_time =
+      base::TimeDelta::FromMillisecondsD(current_to_submission_time_in_ms);
 
   SubmissionQueueInternal::iterator submission = submission_queue_.end();
   --submission;
-
-  float current_to_submission_time_in_ms =
-      to_submission_time_in_ms_.GetCurrentValue();
-  base::TimeDelta current_to_submission_time =
-      base::TimeDelta::FromMillisecondsD(
-          static_cast<double>(current_to_submission_time_in_ms));
 
   // Skip past the submissions that are in the future.  This means we start
   // from the back because the queue is sorted in ascending order of time.
