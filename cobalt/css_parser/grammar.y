@@ -2183,9 +2183,10 @@ length:
     if ($1 == 0) {
       $$ = AddRef(new cssom::LengthValue(0, cssom::kPixelsUnit));
     } else {
-      parser_impl->LogWarning(
-          @1, "non-zero length is not allowed without unit identifier");
       $$ = NULL;
+      parser_impl->LogError(
+          @1, "non-zero length is not allowed without unit identifier");
+      YYERROR;
     }
   }
   // Relative lengths.
