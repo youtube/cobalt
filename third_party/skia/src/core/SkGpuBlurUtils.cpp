@@ -233,6 +233,12 @@ sk_sp<GrRenderTargetContext> GaussianBlur(GrContext* context,
 
     sk_sp<GrRenderTargetContext> dstRenderTargetContext;
 
+    // In order to reduce the total number of shaders used to implement
+    // convolutions, we always use two passes of 1D convolutions instead
+    // of a combination of 1D convolutions and 2D convolutions depending
+    // on the case.  The downside to this is that we may miss out on
+    // additional performance for these cases.
+#if !defined(COBALT)
     // For really small blurs (certainly no wider than 5x5 on desktop gpus) it is faster to just
     // launch a single non separable kernel vs two launches
     if (sigmaX > 0.0f && sigmaY > 0.0f &&
@@ -252,6 +258,7 @@ sk_sp<GrRenderTargetContext> GaussianBlur(GrContext* context,
 
         return dstRenderTargetContext;
     }
+#endif
 
     SkASSERT(SkIsPow2(scaleFactorX) && SkIsPow2(scaleFactorY));
 
