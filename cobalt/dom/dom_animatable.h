@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_DOM_ANIMATABLE_H_
-#define DOM_DOM_ANIMATABLE_H_
+#ifndef COBALT_DOM_DOM_ANIMATABLE_H_
+#define COBALT_DOM_DOM_ANIMATABLE_H_
 
 #include "base/compiler_specific.h"
 #include "base/memory/weak_ptr.h"
@@ -40,7 +40,7 @@ class DOMAnimatable : public web_animations::Animatable {
       : element_(element), pseudo_element_(NULL) {}
 
   explicit DOMAnimatable(PseudoElement* pseudo_element)
-      : pseudo_element_(pseudo_element) {}
+      : element_(NULL), pseudo_element_(pseudo_element) {}
 
   // Returns the default timeline associated with the document that is
   // associated with the underlying Element or PseudoElement.
@@ -65,4 +65,4 @@ class DOMAnimatable : public web_animations::Animatable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_DOM_ANIMATABLE_H_
+#endif  // COBALT_DOM_DOM_ANIMATABLE_H_
