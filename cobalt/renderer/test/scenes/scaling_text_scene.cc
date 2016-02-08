@@ -23,6 +23,8 @@
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/composition_node.h"
+#include "cobalt/render_tree/font.h"
+#include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
 
@@ -35,6 +37,7 @@ using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Font;
 using cobalt::render_tree::FontStyle;
+using cobalt::render_tree::GlyphBuffer;
 using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::TextNode;
 using cobalt::render_tree::animations::Animation;
@@ -67,13 +70,16 @@ RenderTreeWithAnimations CreateScalingTextScene(
   const float kBaseFontSize = 20.0f;
   scoped_refptr<Font> font =
       resource_provider->GetLocalFont("Roboto", FontStyle(), kBaseFontSize);
+  scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
+      resource_provider->CreateGlyphBuffer(kText, font);
+  RectF bounds(glyph_buffer->GetBounds());
 
   // Add the actual text node to our composition.
   CompositionNode::Builder text_collection_builder;
   for (int i = 0; i < 60; ++i) {
     text_collection_builder.AddChild(
         make_scoped_refptr(
-            new TextNode(kText, font, ColorRGBA(0.0f, 0.0f, 0.0f))),
+            new TextNode(glyph_buffer, ColorRGBA(0.0f, 0.0f, 0.0f))),
         TranslateMatrix(100, 50 + i * (10)) * ScaleMatrix(1 + i * 0.03f));
   }
 

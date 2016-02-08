@@ -26,6 +26,7 @@
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/filter_node.h"
+#include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/text_node.h"
 
 namespace cobalt {
@@ -88,10 +89,13 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   DCHECK_EQ(0.0f, GetUsedMarginBottomIfNotAuto(
                       computed_style(), layout_params.containing_block_size));
 
+  int32 text_start_position = GetNonCollapsibleTextStartPosition();
   float non_collapsible_text_width =
       HasNonCollapsibleText()
-          ? RoundToFixedPointPrecision(
-                used_font_->GetBounds(GetNonCollapsibleText()).width())
+          ? RoundToFixedPointPrecision(used_font_->GetTextWidth(
+                paragraph_->GetTextBuffer() + text_start_position,
+                GetNonCollapsibleTextLength(),
+                paragraph_->IsRTL(text_start_position)))
           : 0;
   set_width(GetLeadingWhiteSpaceWidth() + non_collapsible_text_width +
             GetTrailingWhiteSpaceWidth());
@@ -301,48 +305,38 @@ void TextBox::RenderAndAnimateContent(
     // color is animated, in which case it could become non-transparent.
     if (used_color.a() > 0.0f || is_color_animated ||
         text_shadow != cssom::KeywordValue::GetNone()) {
-      std::string text = GetVisibleText();
-      dom::FontRunList font_run_list;
-      used_font_->GenerateFontRunList(text, &font_run_list);
+      int32 text_start_position = GetNonCollapsibleTextStartPosition();
+      scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
+          used_font_->CreateGlyphBuffer(
+              paragraph_->GetTextBuffer() + text_start_position,
+              GetVisibleTextLength(), paragraph_->IsRTL(text_start_position));
 
-      float leading_width = GetLeadingWhiteSpaceWidth();
       float baseline_offset_from_top =
           used_font_->GetFontMetrics().baseline_offset_from_top();
 
-      for (size_t i = 0; i < font_run_list.size(); ++i) {
-        const dom::FontRun& font_run = font_run_list[i];
+      render_tree::TextNode::Builder text_node_builder(glyph_buffer,
+                                                       used_color);
 
-        std::string font_string =
-            text.substr(font_run.start_position, font_run.length);
+      if (text_shadow != cssom::KeywordValue::GetNone()) {
+        cssom::PropertyListValue* shadow_list =
+            base::polymorphic_downcast<cssom::PropertyListValue*>(
+                computed_style()->text_shadow().get());
 
-        render_tree::TextNode::Builder text_node_builder(
-            font_string, font_run.font, used_color);
+        AddTextShadows(&text_node_builder, shadow_list);
+      }
 
-        if (text_shadow != cssom::KeywordValue::GetNone()) {
-          cssom::PropertyListValue* shadow_list =
-              base::polymorphic_downcast<cssom::PropertyListValue*>(
-                  computed_style()->text_shadow().get());
+      scoped_refptr<render_tree::TextNode> text_node =
+          new render_tree::TextNode(text_node_builder);
 
-          AddTextShadows(&text_node_builder, shadow_list);
-        }
-
-        scoped_refptr<render_tree::TextNode> text_node =
-            new render_tree::TextNode(text_node_builder);
-
-        // The render tree API considers text coordinates to be a position
-        // of a baseline, offset the text node accordingly.
-        border_node_builder->AddChild(
-            text_node,
-            math::TranslateMatrix(leading_width, baseline_offset_from_top));
-        if (is_color_animated) {
-          AddAnimations<render_tree::TextNode>(
-              base::Bind(&SetupTextNodeFromStyle), *computed_style_state(),
-              text_node, node_animations_map_builder);
-        }
-
-        if (i < font_run_list.size() - 1) {
-          leading_width += font_run.font->GetBounds(font_string).width();
-        }
+      // The render tree API considers text coordinates to be a position
+      // of a baseline, offset the text node accordingly.
+      border_node_builder->AddChild(
+          text_node, math::TranslateMatrix(GetLeadingWhiteSpaceWidth(),
+                                           baseline_offset_from_top));
+      if (is_color_animated) {
+        AddAnimations<render_tree::TextNode>(
+            base::Bind(&SetupTextNodeFromStyle), *computed_style_state(),
+            text_node, node_animations_map_builder);
       }
     }
   }
@@ -519,9 +513,13 @@ int32 TextBox::GetNonCollapsibleTextEndPosition() const {
                                         : text_end_position_;
 }
 
+int32 TextBox::GetNonCollapsibleTextLength() const {
+  return GetNonCollapsibleTextEndPosition() -
+         GetNonCollapsibleTextStartPosition();
+}
+
 bool TextBox::HasNonCollapsibleText() const {
-  return GetNonCollapsibleTextStartPosition() <
-         GetNonCollapsibleTextEndPosition();
+  return GetNonCollapsibleTextLength() > 0;
 }
 
 std::string TextBox::GetNonCollapsibleText() const {
@@ -535,9 +533,11 @@ int32 TextBox::GetVisibleTextEndPosition() const {
                   truncated_text_end_position_);
 }
 
-bool TextBox::HasVisibleText() const {
-  return GetNonCollapsibleTextStartPosition() < GetVisibleTextEndPosition();
+int32 TextBox::GetVisibleTextLength() const {
+  return GetVisibleTextEndPosition() - GetNonCollapsibleTextStartPosition();
 }
+
+bool TextBox::HasVisibleText() const { return GetVisibleTextLength() > 0; }
 
 std::string TextBox::GetVisibleText() const {
   return paragraph_->RetrieveUtf8SubString(GetNonCollapsibleTextStartPosition(),

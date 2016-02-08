@@ -103,9 +103,17 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
   }
 }
 
-FontCache::FontCharacterGlyphMap* FontCache::GetFontCharacterGlyphMap(
-    scoped_refptr<render_tree::Font> font) {
-  return &(typeface_id_to_character_glyph_map_[font->GetTypefaceId()]);
+const scoped_refptr<render_tree::CharacterGlyphMap>&
+FontCache::GetFontCharacterGlyphMap(
+    const scoped_refptr<render_tree::Font>& font) {
+  scoped_refptr<render_tree::CharacterGlyphMap>& glyph_map =
+      typeface_id_to_character_glyph_map_[font->GetTypefaceId()];
+
+  if (!glyph_map) {
+    glyph_map = make_scoped_refptr(new render_tree::CharacterGlyphMap);
+  }
+
+  return glyph_map;
 }
 
 render_tree::TypefaceId FontCache::GetCharacterFallbackTypefaceId(
@@ -194,6 +202,21 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
   } else {
     return TryGetLocalFont(family, style, size, state);
   }
+}
+
+scoped_refptr<render_tree::GlyphBuffer> FontCache::CreateGlyphBuffer(
+    const char16* text_buffer, int32 text_length, bool is_rtl,
+    FontList* font_list) {
+  return resource_provider_->CreateGlyphBuffer(text_buffer,
+                                               static_cast<size_t>(text_length),
+                                               language_, is_rtl, font_list);
+}
+
+float FontCache::GetTextWidth(const char16* text_buffer, int32 text_length,
+                              bool is_rtl, FontList* font_list) {
+  return resource_provider_->GetTextWidth(text_buffer,
+                                          static_cast<size_t>(text_length),
+                                          language_, is_rtl, font_list);
 }
 
 scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(

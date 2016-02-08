@@ -21,12 +21,13 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
-#include "cobalt/render_tree/font.h"
+#include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/shadow.h"
 
@@ -42,14 +43,11 @@ namespace render_tree {
 class TextNode : public Node {
  public:
   struct Builder {
-    Builder(const std::string& text, const scoped_refptr<Font>& font,
+    Builder(const scoped_refptr<GlyphBuffer>& glyph_buffer,
             const ColorRGBA& color);
 
-    // A text to draw. Guaranteed not to contain newlines.
-    std::string text;
-
-    // The font to draw the text with.
-    scoped_refptr<Font> font;
+    // All of the glyph data needed to render the text.
+    scoped_refptr<GlyphBuffer> glyph_buffer;
 
     // The foreground color of the text.
     ColorRGBA color;
@@ -60,9 +58,9 @@ class TextNode : public Node {
   };
 
   explicit TextNode(const Builder& builder) : data_(builder) {}
-  TextNode(const std::string& text, const scoped_refptr<Font>& font,
+  TextNode(const scoped_refptr<GlyphBuffer>& glyph_buffer,
            const ColorRGBA& color)
-      : data_(text, font, color) {}
+      : data_(glyph_buffer, color) {}
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;

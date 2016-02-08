@@ -22,6 +22,8 @@
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/composition_node.h"
+#include "cobalt/render_tree/font.h"
+#include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
 
@@ -34,6 +36,7 @@ using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Font;
 using cobalt::render_tree::FontStyle;
+using cobalt::render_tree::GlyphBuffer;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::ResourceProvider;
@@ -49,6 +52,14 @@ namespace test {
 namespace scenes {
 
 namespace {
+
+scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
+    ResourceProvider* resource_provider, FontStyle font_style, int font_size,
+    const std::string& text) {
+  scoped_refptr<Font> font =
+      resource_provider->GetLocalFont("Roboto", font_style, font_size);
+  return resource_provider->CreateGlyphBuffer(text, font);
+}
 
 void AnimateMarqueeElement(base::TimeDelta start_time, int child_index,
                            const RectF& text_bounds,
@@ -87,13 +98,13 @@ RenderTreeWithAnimations CreateMarqueeScene(
 
   // Load a font for use with text rendering.
   const float kFontSize = 40.0f;
-  scoped_refptr<Font> test_font =
-      resource_provider->GetLocalFont("Roboto", FontStyle(), kFontSize);
+  scoped_refptr<render_tree::GlyphBuffer> glyph_buffer = CreateGlyphBuffer(
+      resource_provider, FontStyle(), kFontSize, kMarqueeText);
+  RectF text_bounds(glyph_buffer->GetBounds());
 
   // Use information about the string we are rendering to properly position
   // it in the vertical center of the screen and far enough offscreen that
   // a switch from the right side to the left is not noticed.
-  RectF text_bounds = test_font->GetBounds(kMarqueeText);
 
   // Center the text's bounding box vertically on the screen.
   float y_position =
@@ -113,7 +124,7 @@ RenderTreeWithAnimations CreateMarqueeScene(
   // Add the actual text node to our composition.
   marquee_scene_builder.AddChild(
       make_scoped_refptr(
-          new TextNode(kMarqueeText, test_font, ColorRGBA(0.0f, 0.0f, 0.0f))),
+          new TextNode(glyph_buffer, ColorRGBA(0.0f, 0.0f, 0.0f))),
       TranslateMatrix(0, y_position));
   marquee_animations.animations.push_back(base::Bind(
       &AnimateMarqueeElement, start_time, 1, text_bounds, output_dimensions));

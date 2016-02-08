@@ -54,6 +54,9 @@
         'tokens.cc',
         'tokens.h',
         'type_id.h',
+        'unicode/character.cc',
+        'unicode/character.h',
+        'unicode/character_names.h',
         'unused.h',
       ],
       'includes': [
@@ -63,6 +66,7 @@
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/base/base.gyp:base_i18n',
         '<(DEPTH)/cobalt/deprecated/deprecated.gyp:platform_delegate',
+        '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
       ],
       'include_dirs': [
