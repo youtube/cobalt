@@ -24,7 +24,23 @@ namespace dom {
 
 namespace {
 
-const char* kHorizontalEllipsisUtf8Value = "\xe2\x80\xa6";
+const char16 kHorizontalEllipsisValue = 0x2026;
+
+// Returns the glyph for the specified character from the glyph map. If the
+// character is not found within the map, the character's glyph is retrieved
+// from the font.
+render_tree::GlyphIndex GetGlyph(
+    const scoped_refptr<render_tree::Font>& font, int32 utf32_character,
+    render_tree::CharacterGlyphMap* character_glyph_map) {
+  render_tree::GlyphIndex& glyph_index =
+      character_glyph_map->GetCharacterGlyph(utf32_character);
+
+  if (glyph_index == render_tree::kUnknownGlyphIndex) {
+    glyph_index = font->GetGlyphForCharacter(utf32_character);
+  }
+
+  return glyph_index;
+}
 
 }  // namespace
 
@@ -33,19 +49,9 @@ FontListFont::FontListFont(const std::string& family_name)
       state_(kUnrequestedState),
       character_glyph_map_(NULL) {}
 
-bool FontListFont::HasGlyphForCharacter(int32 utf32_character) {
-  CharacterGlyphMap::iterator map_iterator =
-      character_glyph_map_->find(utf32_character);
-  if (map_iterator != character_glyph_map_->end()) {
-    return map_iterator->second != render_tree::kInvalidGlyphIndex;
-  }
-
-  // The character map wasn't already populated with this character's glyph.
-  // Both set the character map's glyph and return whether or not it is a valid
-  // glyph to the caller.
-  return ((*character_glyph_map_)[utf32_character] =
-              font_->GetGlyphForCharacter(utf32_character)) !=
-         render_tree::kInvalidGlyphIndex;
+render_tree::GlyphIndex FontListFont::GetGlyphForCharacter(
+    int32 utf32_character) {
+  return GetGlyph(font_, utf32_character, character_glyph_map_);
 }
 
 FontList::FontList(FontCache* font_cache, const FontListKey& font_list_key)
@@ -109,65 +115,14 @@ void FontList::ResetLoadingFonts() {
   }
 }
 
-void FontList::GenerateFontRunList(const std::string& text,
-                                   FontRunList* run_list) {
-  run_list->clear();
-
-  base::i18n::UTF8CharIterator iter(&text);
-  scoped_refptr<render_tree::Font> font = GetPrimaryFont();
-
-  // Walk each character in the character iterator, grabbing the proper font
-  // to use. If the previous character's typeface id isn't the same as the
-  // current character's font id, then the run has ended and it should be added
-  // to the font run list. There is one exception to this when the length of the
-  // run is 0. This means that the first font wasn't the primary font, and a run
-  // hasn't started yet.
-  int32 start_array_index = 0;
-  for (; !iter.end(); iter.Advance()) {
-    const scoped_refptr<render_tree::Font>& current_font =
-        GetCharacterFont(iter.get());
-
-    if (font->GetTypefaceId() != current_font->GetTypefaceId()) {
-      int32 length = iter.array_pos() - start_array_index;
-      if (length > 0) {
-        run_list->push_back(FontRun(static_cast<size_t>(start_array_index),
-                                    static_cast<size_t>(length), font));
-      }
-
-      font = current_font;
-      start_array_index = iter.array_pos();
-    }
-  }
-
-  // Add in the final run.
-  int32 length = static_cast<int32>(text.size()) - start_array_index;
-  if (length > 0) {
-    run_list->push_back(FontRun(static_cast<size_t>(start_array_index),
-                                static_cast<size_t>(length), font));
-  }
+scoped_refptr<render_tree::GlyphBuffer> FontList::CreateGlyphBuffer(
+    const char16* text_buffer, int32 text_length, bool is_rtl) {
+  return font_cache_->CreateGlyphBuffer(text_buffer, text_length, is_rtl, this);
 }
 
-math::RectF FontList::GetBounds(const std::string& text) {
-  float width = 0;
-  math::RectF text_bounds(0, 0);
-
-  FontRunList run_list;
-  GenerateFontRunList(text, &run_list);
-
-  // Walk the font run list representing the full text, adding the rect of each
-  // run into the rect representing the full text.
-  for (size_t i = 0; i < run_list.size(); ++i) {
-    FontRun& run = run_list[i];
-
-    math::RectF cur_text_bounds =
-        run.font->GetBounds(std::string(text, run.start_position, run.length));
-
-    width += cur_text_bounds.width();
-    text_bounds.Union(cur_text_bounds);
-  }
-
-  text_bounds.set_width(width);
-  return text_bounds;
+float FontList::GetTextWidth(const char16* text_buffer, int32 text_length,
+                             bool is_rtl) {
+  return font_cache_->GetTextWidth(text_buffer, text_length, is_rtl, this);
 }
 
 const render_tree::FontMetrics& FontList::GetFontMetrics() {
@@ -181,20 +136,7 @@ const render_tree::FontMetrics& FontList::GetFontMetrics() {
   return font_metrics_;
 }
 
-float FontList::GetSpaceWidth() {
-  // The space width is lazily generated. If it hasn't been set yet, it's time
-  // to set it.
-  if (!is_space_width_set_) {
-    is_space_width_set_ = true;
-    space_width_ = GetPrimaryFont()->GetBounds(" ").width();
-  }
-
-  return space_width_;
-}
-
-std::string FontList::GetEllipsisString() const {
-  return kHorizontalEllipsisUtf8Value;
-}
+char16 FontList::GetEllipsisValue() const { return kHorizontalEllipsisValue; }
 
 const scoped_refptr<render_tree::Font>& FontList::GetEllipsisFont() {
   GenerateEllipsisInfo();
@@ -204,6 +146,105 @@ const scoped_refptr<render_tree::Font>& FontList::GetEllipsisFont() {
 float FontList::GetEllipsisWidth() {
   GenerateEllipsisInfo();
   return ellipsis_width_;
+}
+
+const scoped_refptr<render_tree::CharacterGlyphMap>&
+FontList::GetFontCharacterGlyphMap(
+    const scoped_refptr<render_tree::Font>& font) {
+  return font_cache_->GetFontCharacterGlyphMap(font);
+}
+
+const scoped_refptr<render_tree::Font>& FontList::GetCharacterFont(
+    int32 utf32_character, render_tree::GlyphIndex* glyph_index) {
+  // Walk the list of fonts, requesting any encountered that are in an
+  // unrequested state. The first font encountered that has the character is the
+  // character font.
+  for (size_t i = 0; i < fonts_.size(); ++i) {
+    FontListFont& font_list_font = fonts_[i];
+
+    if (font_list_font.state() == FontListFont::kUnrequestedState) {
+      RequestFont(i);
+    }
+
+    if (font_list_font.state() == FontListFont::kLoadedState) {
+      *glyph_index = font_list_font.GetGlyphForCharacter(utf32_character);
+      if (*glyph_index != render_tree::kInvalidGlyphIndex) {
+        return font_list_font.font();
+      }
+    }
+  }
+
+  return GetFallbackCharacterFont(utf32_character, glyph_index);
+}
+
+float FontList::GetSpaceWidth() {
+  // The space width is lazily generated. If it hasn't been set yet, it's time
+  // to set it.
+  if (!is_space_width_set_) {
+    is_space_width_set_ = true;
+    const scoped_refptr<render_tree::Font>& primary_font = GetPrimaryFont();
+    render_tree::GlyphIndex space_glyph =
+        primary_font->GetGlyphForCharacter(' ');
+    space_width_ = primary_font->GetGlyphWidth(space_glyph);
+  }
+
+  return space_width_;
+}
+
+const scoped_refptr<render_tree::Font>& FontList::GetFallbackCharacterFont(
+    int32 utf32_character, render_tree::GlyphIndex* glyph_index) {
+  // In the case that no fonts within the font list had the requested character,
+  // the typeface id supporting the character needs to be requested from the
+  // font cache.
+  render_tree::TypefaceId fallback_typeface_id =
+      font_cache_->GetCharacterFallbackTypefaceId(utf32_character, style_,
+                                                  size_);
+
+  FallbackFontInfo* font_info;
+
+  // Check to see if the typeface id already maps to a specific font. If it does
+  // simply return that font.
+  FallbackTypefaceToFontInfo::iterator fallback_iterator =
+      fallback_typeface_to_font_info_.find(fallback_typeface_id);
+  if (fallback_iterator != fallback_typeface_to_font_info_.end()) {
+    font_info = &(fallback_iterator->second);
+    // Otherwise, request the specific font from the font cache. This is both
+    // added to the map so that it will immediately be available next time and
+    // returned to the caller.
+  } else {
+    font_info = &(fallback_typeface_to_font_info_[fallback_typeface_id]);
+    font_info->font = font_cache_->GetFallbackFont(fallback_typeface_id, size_);
+    font_info->character_glyph_map =
+        font_cache_->GetFontCharacterGlyphMap(font_info->font);
+  }
+
+  *glyph_index = GetGlyph(font_info->font, utf32_character,
+                          font_info->character_glyph_map);
+  return font_info->font;
+}
+
+const scoped_refptr<render_tree::Font>& FontList::GetPrimaryFont() {
+  // The primary font is lazily generated. If it hasn't been set yet, then it's
+  // time to do it now.
+  if (!primary_font_) {
+    // Walk the list of fonts, requesting any encountered that are in an
+    // unrequested state. The first font encountered that is loaded is
+    // the primary font.
+    for (size_t i = 0; i < fonts_.size(); ++i) {
+      FontListFont& font_list_font = fonts_[i];
+
+      if (font_list_font.state() == FontListFont::kUnrequestedState) {
+        RequestFont(i);
+      }
+
+      if (font_list_font.state() == FontListFont::kLoadedState) {
+        primary_font_ = font_list_font.font();
+        break;
+      }
+    }
+  }
+
+  return primary_font_;
 }
 
 void FontList::RequestFont(size_t index) {
@@ -246,77 +287,13 @@ void FontList::RequestFont(size_t index) {
   }
 }
 
-const scoped_refptr<render_tree::Font>& FontList::GetPrimaryFont() {
-  // The primary font is lazily generated. If it hasn't been set yet, then it's
-  // time to do it now.
-  if (!primary_font_) {
-    // Walk the list of fonts, requesting any encountered that are in an
-    // unrequested state. The first font encountered that is loaded is
-    // the primary font.
-    for (size_t i = 0; i < fonts_.size(); ++i) {
-      FontListFont& font_list_font = fonts_[i];
-
-      if (font_list_font.state() == FontListFont::kUnrequestedState) {
-        RequestFont(i);
-      }
-
-      if (font_list_font.state() == FontListFont::kLoadedState) {
-        primary_font_ = font_list_font.font();
-        break;
-      }
-    }
-  }
-
-  return primary_font_;
-}
-
-const scoped_refptr<render_tree::Font>& FontList::GetCharacterFont(
-    int32 utf32_character) {
-  // Walk the list of fonts, requesting any encountered that are in an
-  // unrequested state. The first font encountered that has the character is the
-  // character font.
-  for (size_t i = 0; i < fonts_.size(); ++i) {
-    FontListFont& font_list_font = fonts_[i];
-
-    if (font_list_font.state() == FontListFont::kUnrequestedState) {
-      RequestFont(i);
-    }
-
-    if (font_list_font.state() == FontListFont::kLoadedState &&
-        font_list_font.HasGlyphForCharacter(utf32_character)) {
-      return font_list_font.font();
-    }
-  }
-
-  // In the case that no fonts within the font list had the requested character,
-  // the typeface id supporting the character needs to be requested from the
-  // font cache.
-  render_tree::TypefaceId fallback_typeface_id =
-      font_cache_->GetCharacterFallbackTypefaceId(utf32_character, style_,
-                                                  size_);
-
-  // Check to see if the typeface id already maps to a specific font. If it does
-  // simply return that font.
-  FallbackTypefaceToFontMap::iterator fallback_iterator =
-      fallback_typeface_to_font_map_.find(fallback_typeface_id);
-  if (fallback_iterator != fallback_typeface_to_font_map_.end()) {
-    return fallback_iterator->second;
-  }
-
-  // Otherwise, request the specific font from the font cache. This is both
-  // added to the map so that it will immediately be available next time and
-  // returned to the caller.
-  return fallback_typeface_to_font_map_[fallback_typeface_id] =
-             font_cache_->GetFallbackFont(fallback_typeface_id, size_);
-}
-
 void FontList::GenerateEllipsisInfo() {
   if (!is_ellipsis_info_set_) {
     is_ellipsis_info_set_ = true;
-    std::string ellipsis_string(kHorizontalEllipsisUtf8Value);
+    render_tree::GlyphIndex ellipsis_glyph = render_tree::kInvalidGlyphIndex;
     ellipsis_font_ =
-        GetCharacterFont(base::i18n::UTF8CharIterator(&ellipsis_string).get());
-    ellipsis_width_ = ellipsis_font_->GetBounds(ellipsis_string).width();
+        GetCharacterFont(kHorizontalEllipsisValue, &ellipsis_glyph);
+    ellipsis_width_ = ellipsis_font_->GetGlyphWidth(ellipsis_glyph);
   }
 }
 

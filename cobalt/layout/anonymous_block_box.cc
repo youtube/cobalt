@@ -20,6 +20,7 @@
 #include "cobalt/layout/inline_formatting_context.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
+#include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/text_node.h"
 
 namespace cobalt {
@@ -84,6 +85,10 @@ void AnonymousBlockBox::RenderAndAnimateContent(
 
     // Only render the ellipses if the color is not completely transparent.
     if (used_color.a() > 0.0f) {
+      char16 ellipsis_value = used_font_->GetEllipsisValue();
+      scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
+          used_font_->CreateGlyphBuffer(&ellipsis_value, 1, false);
+
       for (EllipsesCoordinates::const_iterator iterator =
                ellipses_coordinates_.begin();
            iterator != ellipses_coordinates_.end(); ++iterator) {
@@ -92,9 +97,7 @@ void AnonymousBlockBox::RenderAndAnimateContent(
         // The render tree API considers text coordinates to be a position of
         // a baseline, offset the text node accordingly.
         border_node_builder->AddChild(
-            new render_tree::TextNode(used_font_->GetEllipsisString(),
-                                      used_font_->GetEllipsisFont(),
-                                      used_color),
+            new render_tree::TextNode(glyph_buffer, used_color),
             math::TranslateMatrix(ellipsis_coordinates.x(),
                                   ellipsis_coordinates.y()));
       }

@@ -26,29 +26,14 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/font.h"
+#include "cobalt/render_tree/font_fallback_list.h"
+#include "cobalt/render_tree/glyph.h"
+#include "cobalt/render_tree/glyph_buffer.h"
 
 namespace cobalt {
 namespace dom {
 
 class FontCache;
-
-// A font run specifies a run of contiguous text that will be displayed in a
-// single font. While the text itself is external to the font run, the font
-// run contains a reference to its font along with the offset and length
-// information needed to determine the specific text contained within the run.
-struct FontRun {
-  FontRun(size_t run_start_position, size_t run_length,
-          const scoped_refptr<render_tree::Font>& run_font)
-      : start_position(run_start_position),
-        length(run_length),
-        font(run_font) {}
-
-  size_t start_position;
-  size_t length;
-  scoped_refptr<render_tree::Font> font;
-};
-
-typedef std::vector<FontRun> FontRunList;
 
 // A specific font family within a font list. It has an internal state, which
 // lets the font list know whether or not the font has already been requested,
@@ -56,8 +41,6 @@ typedef std::vector<FontRun> FontRunList;
 // will only be non-NULL in the case where |state_| is set to |kLoadedState|.
 class FontListFont {
  public:
-  typedef std::map<int32, render_tree::GlyphIndex> CharacterGlyphMap;
-
   enum State {
     kUnrequestedState,
     kLoadingWithTimerActiveState,
@@ -77,16 +60,17 @@ class FontListFont {
   const scoped_refptr<render_tree::Font>& font() const { return font_; }
   void set_font(const scoped_refptr<render_tree::Font> font) { font_ = font; }
 
-  void set_character_glyph_map(CharacterGlyphMap* character_glyph_map) {
+  void set_character_glyph_map(
+      render_tree::CharacterGlyphMap* character_glyph_map) {
     character_glyph_map_ = character_glyph_map;
   }
 
-  // Whether or not the font has the specified UTF-32 character. If the map does
-  // not already contain the character, the underlying font is checked for
-  // having the character and the map is updated with the return value, ensuring
-  // that the underlying font will only ever need to be queried once for a
-  // character.
-  bool HasGlyphForCharacter(int32 utf32_character);
+  // The glyph that the font provides for the specified UTF-32 character. If the
+  // map does not already contain a glyph for the character, the underlying font
+  // is checked for having the character and the map is updated with the return
+  // value, ensuring that the underlying font will only ever need to be queried
+  // once for a character.
+  render_tree::GlyphIndex GetGlyphForCharacter(int32 utf32_character);
 
  private:
   std::string family_name_;
@@ -106,7 +90,7 @@ class FontListFont {
   // means that it has not been queried yet, and not that the character is not
   // supported. It is only non-NULL in the case where |state_| is set to
   // |kLoadedState|.
-  CharacterGlyphMap* character_glyph_map_;
+  render_tree::CharacterGlyphMap* character_glyph_map_;
 };
 
 // The key used for maps with a |FontList| value. It is also used for
@@ -143,11 +127,16 @@ struct FontListKey {
 // which it lazily requests from the font cache as required. It uses these to
 // determine the font metrics for the font properties, as well as the specific
 // fonts that should be used to render passed in text.
-class FontList : public base::RefCounted<FontList> {
+class FontList : public render_tree::FontFallbackList,
+                 public base::RefCounted<FontList> {
  public:
-  typedef base::SmallMap<
-      std::map<render_tree::TypefaceId, scoped_refptr<render_tree::Font> >, 4>
-      FallbackTypefaceToFontMap;
+  struct FallbackFontInfo {
+    scoped_refptr<render_tree::Font> font;
+    render_tree::CharacterGlyphMap* character_glyph_map;
+  };
+
+  typedef base::SmallMap<std::map<render_tree::TypefaceId, FallbackFontInfo>, 4>
+      FallbackTypefaceToFontInfo;
   typedef std::vector<FontListFont> FontListFonts;
 
   FontList(FontCache* font_cache, const FontListKey& font_list_key);
@@ -162,20 +151,20 @@ class FontList : public base::RefCounted<FontList> {
   // reset, as they may change if the loading font is now available.
   void ResetLoadingFonts();
 
-  // Given a string of text, this determines the font to use for each character
-  // in the string and populates a passed in font run list with the information.
-  void GenerateFontRunList(const std::string& text, FontRunList* list);
+  // Given a string of text, returns the glyph buffer needed to render it. In
+  // the case where |maybe_bounds| is non-NULL, it will also be populated with
+  // the bounds of the rect.
+  scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
+      const char16* text_buffer, int32 text_length, bool is_rtl);
 
-  // Given a string of text, return its bounding rectangle.
-  // This is accomplished by generating the font runs for the text and then
-  // calculating the bounds by combining the rectangles of each of the runs.
-  math::RectF GetBounds(const std::string& text);
+  // Given a string of text, return its width. This is faster than
+  // CreateGlyphBuffer().
+  float GetTextWidth(const char16* text_buffer, int32 text_length, bool is_rtl);
 
   const render_tree::FontMetrics& GetFontMetrics();
-  float GetSpaceWidth();
 
-  // Returns the UTF-8 string that signifies an ellipsis code point.
-  std::string GetEllipsisString() const;
+  // Returns the text run that signifies an ellipsis code point.
+  char16 GetEllipsisValue() const;
   // Returns the first font in the font-list that supports the ellipsis code
   // point. In the case where the ellipsis font has not already been calculated,
   // it lazily generates it.
@@ -184,14 +173,32 @@ class FontList : public base::RefCounted<FontList> {
   // the width has not already been calculated, it lazily generates it.
   float GetEllipsisWidth();
 
+  // From render_tree::FontFallbackList
+
+  const scoped_refptr<render_tree::CharacterGlyphMap>& GetFontCharacterGlyphMap(
+      const scoped_refptr<render_tree::Font>& font) OVERRIDE;
+
+  // Returns the first font in the font list that supports the specified
+  // UTF-32 character or a fallback font provided by the font cache if none of
+  // them do.
+  // |GetPrimaryFont()| causes |RequestFont()| to be called on each font with a
+  // state of |kUnrequestedState| in the list, until a font is encountered with
+  // that has the specified character or all fonts in the list have been
+  // requested.
+  const scoped_refptr<render_tree::Font>& GetCharacterFont(
+      int32 utf32_character, render_tree::GlyphIndex* glyph_index) OVERRIDE;
+
+  // Returns the width of the space in the firts font in the font list that
+  // supports the space character. In the case where the width has not already
+  // been calculated, it lazily generates it.
+  float GetSpaceWidth() OVERRIDE;
+
   render_tree::FontStyle style() const { return style_; }
   float size() const { return size_; }
 
  private:
-  // Request a font from the font cache and update its state depending on the
-  // results of the request. If the font is successfully set, then both its
-  // |font_| and |character_map_| are non-NULL after this call.
-  void RequestFont(size_t index);
+  const scoped_refptr<render_tree::Font>& GetFallbackCharacterFont(
+      int32 utf32_character, render_tree::GlyphIndex* glyph_index);
 
   // The primary font is the first successfully loaded font among the font list
   // fonts. A loading font will potentially later become the primary font if it
@@ -202,15 +209,10 @@ class FontList : public base::RefCounted<FontList> {
   // a state of |kLoadedState|.
   const scoped_refptr<render_tree::Font>& GetPrimaryFont();
 
-  // Returns the first font in the font list that supports the specified
-  // UTF-32 character or a fallback font provided by the font cache if none of
-  // them do.
-  // |GetPrimaryFont()| causes |RequestFont()| to be called on each font with a
-  // state of |kUnrequestedState| in the list, until a font is encountered with
-  // that has the specified character or all fonts in the list have been
-  // requested.
-  const scoped_refptr<render_tree::Font>& GetCharacterFont(
-      int32 utf32_character);
+  // Request a font from the font cache and update its state depending on the
+  // results of the request. If the font is successfully set, then both its
+  // |font_| and |character_map_| are non-NULL after this call.
+  void RequestFont(size_t index);
 
   // Lazily generates the ellipsis ellipsis font and ellipsis width. If the info
   // is already generated, it is immediately returned.
@@ -246,7 +248,10 @@ class FontList : public base::RefCounted<FontList> {
   // character fallback. This allows the font list to request the typeface id
   // that supports a character from the font cache, rather than the font itself,
   // allowing the font cache to avoid creating a font on each request.
-  FallbackTypefaceToFontMap fallback_typeface_to_font_map_;
+  FallbackTypefaceToFontInfo fallback_typeface_to_font_info_;
+
+  // Allow the reference counting system access to our destructor.
+  friend class base::RefCounted<FontFallbackList>;
 };
 
 }  // namespace dom
