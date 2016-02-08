@@ -32,52 +32,52 @@ class SmoothedValue {
 
   // Sets the target value that GetCurrentValue() will smoothly converge
   // towards.
-  void SetTarget(float target);
+  void SetTarget(double target);
 
   // Snaps GetCurrentValue() to the last set target value.
   void SnapToTarget();
 
   // Returns the current value, which is always converging slowly towards
   // the last set target value.
-  float GetCurrentValue() const;
+  double GetCurrentValue() const;
 
  private:
   // The following methods return the parameters for the cubic bezier equation.
   //   https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B.C3.A9zier_curves
 
   // Returns the value of t to be used in cubic bezier equations.
-  float t() const;
+  double t() const;
 
-  float P0() const { return *previous_target_; }
+  double P0() const { return *previous_target_; }
 
   // Returns the value of P1 to be used in cubic bezier equations.
   // Here, we calculate it from |previous_derivative_| and |previous_target_|
   // in such a way that it results in a curve that at t = 0 has a derivative
   // equal to |previous_deriviative_|.
-  float P1() const;
+  double P1() const;
 
   // Returns the value of P2 to be used in cubic bezier equations.
   // For us, we set it in such a way that the derivative at t = 1 is 0.
-  float P2() const;
+  double P2() const;
 
-  float P3() const { return *target_; }
+  double P3() const { return *target_; }
 
   // Returns the current derivative of GetCurrentValue() over time.
-  float GetCurrentDerivative() const;
+  double GetCurrentDerivative() const;
 
   const base::TimeDelta time_to_converge_;
 
   // The current target value that we are converging towards.
-  base::optional<float> target_;
+  base::optional<double> target_;
 
   // Tracks when |target_| was last set.
   base::TimeTicks target_set_time_;
 
   // The previous value of |target_|.
-  base::optional<float> previous_target_;
+  base::optional<double> previous_target_;
 
   // The derivative of GetCurrentValue() when target was last set.
-  float previous_derivative_;
+  double previous_derivative_;
 };
 
 }  // namespace renderer
