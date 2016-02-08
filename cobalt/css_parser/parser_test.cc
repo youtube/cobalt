@@ -2681,6 +2681,21 @@ TEST_F(ParserTest, ParsesBackgroundSizeOnePercentageOneAuto) {
             background_size_list->value()[1].get());
 }
 
+TEST_F(ParserTest, ParsesBackgroundSizeWithoutUnitIdentifier) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:16: error: non-zero length is "
+                      "not allowed without unit identifier"));
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:16: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("background-size: 13px 12;",
+                                        source_location_);
+  EXPECT_EQ(cssom::GetPropertyInitialValue(cssom::kBackgroundSizeProperty),
+            style->background_size());
+}
+
 TEST_F(ParserTest, ParsesBackgroundSizeWithKeywordInitial) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("background-size: initial;",
@@ -4099,8 +4114,8 @@ TEST_F(ParserTest, ParseMarginUnsupportedValue) {
   // Test the case where margin has two warnings. Ensure this doesn't crash
   // releasing a NULL pointer.
   EXPECT_CALL(parser_observer_,
-              OnWarning("[object ParserTest]:1:7: warning: non-zero length is "
-                        "not allowed without unit identifier"));
+              OnError("[object ParserTest]:1:7: error: non-zero length is "
+                      "not allowed without unit identifier"));
   EXPECT_CALL(parser_observer_,
               OnWarning("[object ParserTest]:1:7: warning: unsupported value"));
 
@@ -4853,8 +4868,11 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
 
 TEST_F(ParserTest, ParsesTranslateXTransformWithoutUnit) {
   EXPECT_CALL(parser_observer_,
-              OnWarning("[object ParserTest]:1:12: warning: non-zero length is "
-                        "not allowed without unit identifier"));
+              OnError("[object ParserTest]:1:12: error: non-zero length is "
+                      "not allowed without unit identifier"));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:12: warning: invalid transform "
+                        "function"));
 
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("transform: translateX(20);",
