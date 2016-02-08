@@ -20,6 +20,8 @@
 #include <string>
 
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/render_tree/font.h"
+#include "cobalt/render_tree/font_fallback_list.h"
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -77,15 +79,12 @@ class FontStub : public Font {
   FontStub(const void* data, size_t size)
       : font_data_size_(static_cast<uint32>(size)) {
     UNREFERENCED_PARAMETER(data);
+    FontMetrics font_metrics = GetFontMetrics();
+    glyph_bounds_ =
+        math::RectF(0, 0, 1, font_metrics.ascent() + font_metrics.descent());
   }
 
   TypefaceId GetTypefaceId() const OVERRIDE { return 0; }
-
-  math::RectF GetBounds(const std::string& text) const OVERRIDE {
-    FontMetrics font_metrics = GetFontMetrics();
-    return math::RectF(0, 0, static_cast<float>(text.length() * 10),
-                       font_metrics.ascent() + font_metrics.descent());
-  }
 
   FontMetrics GetFontMetrics() const OVERRIDE {
     return FontMetrics(10, 5, 3, 6);
@@ -93,8 +92,7 @@ class FontStub : public Font {
 
   uint32 GetEstimatedSizeInBytes() const OVERRIDE { return font_data_size_; }
 
-  scoped_refptr<render_tree::Font> CloneWithSize(
-      float font_size) const OVERRIDE {
+  scoped_refptr<Font> CloneWithSize(float font_size) const OVERRIDE {
     UNREFERENCED_PARAMETER(font_size);
     return make_scoped_refptr(new FontStub(NULL, 0));
   }
@@ -104,10 +102,21 @@ class FontStub : public Font {
     return GlyphIndex(1);
   }
 
+  const math::RectF& GetGlyphBounds(GlyphIndex glyph) const OVERRIDE {
+    UNREFERENCED_PARAMETER(glyph);
+    return glyph_bounds_;
+  }
+
+  float GetGlyphWidth(GlyphIndex glyph) const OVERRIDE {
+    UNREFERENCED_PARAMETER(glyph);
+    return 1;
+  }
+
  private:
   ~FontStub() OVERRIDE {}
 
   uint32 font_data_size_;
+  math::RectF glyph_bounds_;
 };
 
 // Return the stub versions defined above for each resource.
@@ -173,6 +182,39 @@ class ResourceProviderStub : public ResourceProvider {
     UNREFERENCED_PARAMETER(raw_data);
     UNREFERENCED_PARAMETER(error_string);
     return make_scoped_refptr(new FontStub(NULL, 0));
+  }
+
+  float GetTextWidth(const char16* text_buffer, size_t text_length,
+                     const std::string& language, bool is_rtl,
+                     render_tree::FontFallbackList* font_list) OVERRIDE {
+    UNREFERENCED_PARAMETER(text_buffer);
+    UNREFERENCED_PARAMETER(language);
+    UNREFERENCED_PARAMETER(is_rtl);
+    UNREFERENCED_PARAMETER(font_list);
+    return static_cast<float>(text_length);
+  }
+
+  // Creates a glyph buffer, which is populated with shaped text, and used to
+  // render that text.
+  scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
+      const char16* text_buffer, size_t text_length,
+      const std::string& language, bool is_rtl,
+      render_tree::FontFallbackList* font_list) OVERRIDE {
+    UNREFERENCED_PARAMETER(text_buffer);
+    UNREFERENCED_PARAMETER(language);
+    UNREFERENCED_PARAMETER(is_rtl);
+    UNREFERENCED_PARAMETER(font_list);
+    return make_scoped_refptr(
+        new GlyphBuffer(math::RectF(0, 0, static_cast<float>(text_length), 1)));
+  }
+
+  // Creates a glyph buffer, which is populated with shaped text, and used to
+  // render that text.
+  scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
+      const std::string& text, const scoped_refptr<Font>& font) OVERRIDE {
+    UNREFERENCED_PARAMETER(font);
+    return make_scoped_refptr(
+        new GlyphBuffer(math::RectF(0, 0, static_cast<float>(text.size()), 1)));
   }
 };
 

@@ -21,21 +21,21 @@
 namespace cobalt {
 namespace render_tree {
 
-TextNode::Builder::Builder(const std::string& text,
-                           const scoped_refptr<Font>& font,
-                           const ColorRGBA& color)
-    : text(text), font(font), color(color) {}
+TextNode::Builder::Builder(
+    const scoped_refptr<render_tree::GlyphBuffer>& glyph_buffer,
+    const ColorRGBA& color)
+    : glyph_buffer(glyph_buffer), color(color) {}
 
 void TextNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 math::RectF TextNode::GetBounds() const {
-  const math::RectF text_bounds = data_.font->GetBounds(data_.text);
   if (!data_.shadows) {
-    return text_bounds;
+    return data_.glyph_buffer->GetBounds();
   } else {
-    math::RectF bounds = text_bounds;
+    math::RectF bounds = data_.glyph_buffer->GetBounds();
     for (size_t i = 0; i < data_.shadows->size(); ++i) {
-      bounds.Union((*data_.shadows)[i].ToShadowBounds(text_bounds));
+      bounds.Union(
+          (*data_.shadows)[i].ToShadowBounds(data_.glyph_buffer->GetBounds()));
     }
 
     return bounds;

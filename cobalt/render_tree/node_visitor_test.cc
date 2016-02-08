@@ -18,10 +18,12 @@
 
 #include <string>
 
+#include "cobalt/math/rect_f.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/font.h"
+#include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/rect_shadow_node.h"
@@ -36,6 +38,7 @@ using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::FilterNode;
 using cobalt::render_tree::Font;
 using cobalt::render_tree::FontMetrics;
+using cobalt::render_tree::GlyphBuffer;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::NodeVisitor;
@@ -117,12 +120,9 @@ namespace {
 
 class DummyFont : public Font {
  public:
-  cobalt::render_tree::TypefaceId GetTypefaceId() const OVERRIDE { return 0; }
+  DummyFont() : bounds_(cobalt::math::RectF(0, 0, 1, 1)) {}
 
-  cobalt::math::RectF GetBounds(const std::string& text) const OVERRIDE {
-    UNREFERENCED_PARAMETER(text);
-    return cobalt::math::RectF();
-  }
+  cobalt::render_tree::TypefaceId GetTypefaceId() const OVERRIDE { return 0; }
 
   FontMetrics GetFontMetrics() const OVERRIDE {
     return FontMetrics(0, 0, 0, 0);
@@ -140,14 +140,28 @@ class DummyFont : public Font {
     UNREFERENCED_PARAMETER(utf32_character);
     return cobalt::render_tree::GlyphIndex(1);
   }
+
+  const cobalt::math::RectF& GetGlyphBounds(
+      cobalt::render_tree::GlyphIndex glyph) const OVERRIDE {
+    UNREFERENCED_PARAMETER(glyph);
+    return bounds_;
+  }
+
+  float GetGlyphWidth(cobalt::render_tree::GlyphIndex glyph) const OVERRIDE {
+    UNREFERENCED_PARAMETER(glyph);
+    return bounds_.width();
+  }
+
+ private:
+  cobalt::math::RectF bounds_;
 };
 
 }  // namespace
 
 TEST(NodeVisitorTest, VisitsText) {
-  scoped_refptr<TextNode> text(new TextNode("foobar",
-                                            make_scoped_refptr(new DummyFont()),
-                                            ColorRGBA(0.0f, 0.0f, 0.0f)));
+  scoped_refptr<TextNode> text(
+      new TextNode(new GlyphBuffer(cobalt::math::RectF(0, 0, 1, 1)),
+                   ColorRGBA(0.0f, 0.0f, 0.0f)));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(text.get()));
   text->Accept(&mock_visitor);

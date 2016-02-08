@@ -23,6 +23,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/render_tree/glyph.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -84,30 +85,18 @@ struct FontStyle {
 
 typedef uint32_t TypefaceId;
 
-typedef uint16_t GlyphIndex;
-static const GlyphIndex kInvalidGlyphIndex = 0;
-
 // The Font class is an abstract base class representing all information
 // required by the rasterizer to determine the font metrics for a given
-// string of text.  Typically this implies that a font typeface, size, and
-// style must at least be described when instantiating a concrete Font derived
-// class.  Since Font objects may be created in the frontend, but must be
-// accessed by the rasterizer, it is expected that they will be downcast again
-// to a rasterizer-specific type through base::Downcast().
-class Font : public base::RefCountedThreadSafe<Font> {
+// glyph.  Typically this implies that a font typeface, size, and style must at
+// least be described when instantiating a concrete Font derived class.  Since
+// Font objects may be created in the frontend, but must be accessed by the
+// rasterizer, it is expected that they will be downcast again to a
+// rasterizer-specific type through base::Downcast().
+class Font : public base::RefCounted<Font> {
  public:
   // Returns the font typeface's id, which is guaranteed to be unique among the
   // typefaces registered with the font's resource provider.
   virtual TypefaceId GetTypefaceId() const = 0;
-
-  // Returns the bounding box for a given text string.  The size is guaranteed
-  // to be consistent with |text| in this font, including the possible spaces
-  // around the glyphs in the characters.  While left is always zero, note that
-  // since the text is output with the origin vertically on the baseline, the
-  // top of the bounding box will likely be non-zero and is used to indicate the
-  // offset of the text bounding box from the origin.  The return value is given
-  // in units of pixels.
-  virtual math::RectF GetBounds(const std::string& text) const = 0;
 
   // Returns the metrics common for all glyphs in the font. Used to calculate
   // the recommended line height and spacing between the lines.
@@ -127,11 +116,26 @@ class Font : public base::RefCountedThreadSafe<Font> {
   // kInvalidGlyphIndex.
   virtual GlyphIndex GetGlyphForCharacter(int32 utf32_character) const = 0;
 
+  // Returns the bounding box for a given glyph. While left is always zero,
+  // note that since the glyph is output with the origin vertically on the
+  // baseline, the top of the bounding box will likely be non-zero and is used
+  // to indicate the offset of the glyph bounding box from the origin.  The
+  // return value is given in units of pixels.
+  // NOTE: GetGlyphBounds is not guaranteed to be thread-safe and should only
+  // be called from a single thread.
+  virtual const math::RectF& GetGlyphBounds(GlyphIndex glyph) const = 0;
+
+  // Returns the width of a given glyph. The return value is given in units of
+  // pixels.
+  // NOTE: GetGlyphWidth is not guaranteed to be thread-safe and should only
+  // be called from a single thread.
+  virtual float GetGlyphWidth(GlyphIndex glyph) const = 0;
+
  protected:
   virtual ~Font() {}
 
   // Allow the reference counting system access to our destructor.
-  friend class base::RefCountedThreadSafe<Font>;
+  friend class base::RefCounted<Font>;
 };
 
 }  // namespace render_tree

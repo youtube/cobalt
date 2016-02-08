@@ -23,7 +23,9 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/font_list.h"
 #include "cobalt/render_tree/font.h"
+
 #include "third_party/icu/public/common/unicode/brkiter.h"
+#include "third_party/icu/public/common/unicode/unistr.h"
 
 namespace cobalt {
 namespace layout {
@@ -99,16 +101,17 @@ class Paragraph : public base::RefCounted<Paragraph> {
                          float available_width, bool allow_overflow,
                          BreakPolicy break_policy, int32* break_position,
                          float* break_width);
-  float CalculateSubStringWidth(const scoped_refptr<dom::FontList>& used_font,
-                                int32 start_position, int32 end_position) const;
 
   std::string RetrieveUtf8SubString(int32 start_position,
                                     int32 end_position) const;
   std::string RetrieveUtf8SubString(int32 start_position, int32 end_position,
                                     TextOrder text_order) const;
+  const char16* GetTextBuffer() const;
+
 
   BaseDirection GetBaseDirection() const;
   int GetBidiLevel(int32 position) const;
+  bool IsRTL(int32 position) const;
   bool IsSpace(int32 position) const;
   bool GetNextRunPosition(int32 position, int32* next_run_position) const;
   int32 GetTextEndPosition() const;
@@ -201,6 +204,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // the same index as the previous one, or retrieve a neighboring index.
   mutable size_t last_retrieved_run_index_;
 
+  // Allow the reference counting system access to our destructor.
   friend class base::RefCounted<Paragraph>;
 };
 
