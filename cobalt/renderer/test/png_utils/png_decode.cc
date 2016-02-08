@@ -81,8 +81,15 @@ void PremultiplyAlphaTransform(png_structp ptr, png_row_infop row_info,
 
 void PNGReadPlatformFile(png_structp png, png_bytep buffer,
                          png_size_t buffer_size) {
+#if defined(OS_STARBOARD)
+  // Casting between two pointer types.
+  base::PlatformFile file =
+      reinterpret_cast<base::PlatformFile>(png_get_io_ptr(png));
+#else
+  // Casting from a pointer to an int type.
   intptr_t temp = reinterpret_cast<intptr_t>(png_get_io_ptr(png));
   base::PlatformFile file = static_cast<base::PlatformFile>(temp);
+#endif
   int count = base::ReadPlatformFileAtCurrentPos(
       file, reinterpret_cast<char*>(buffer), buffer_size);
   DCHECK_EQ(count, buffer_size);
