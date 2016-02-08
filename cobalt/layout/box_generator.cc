@@ -359,7 +359,7 @@ ContainerBoxGenerator::~ContainerBoxGenerator() {
     // If the prior paragraph was closed, then replace it with a new paragraph
     // that has the same direction as the previous one. Otherwise, restore the
     // prior one.
-    if (prior_paragraph_ && prior_paragraph_->IsClosed()) {
+    if (prior_paragraph_->IsClosed()) {
       *paragraph_ = new Paragraph(line_break_iterator_,
                                   prior_paragraph_->GetBaseDirection());
     } else {
@@ -470,7 +470,7 @@ void ContainerBoxGenerator::CreateScopedParagraph(
   paragraph_scoped_ = true;
   prior_paragraph_ = *paragraph_;
 
-  if (prior_paragraph_ && close_prior_paragraph == kCloseParagraph) {
+  if (close_prior_paragraph == kCloseParagraph) {
     prior_paragraph_->Close();
   }
 
