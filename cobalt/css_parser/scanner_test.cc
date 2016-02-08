@@ -379,9 +379,19 @@ TEST_F(ScannerTest, ScansScientificNotationNumber) {
 }
 
 TEST_F(ScannerTest, ScansHexadecimalNumber) {
-  // We don't support scanning of hexadecimal numbers.
+  // We don't support scanning of hexadecimal numbers. This test is just to
+  // confirm that we recover without crashing.
   Scanner scanner("0x0", &string_pool_);
 
+#if defined(COBALT_WIN) && _MSC_VER < 1900
+  // On Windows, with a MSVS version prior to VS2015, the behavior of
+  // |std::strtod| used to scan a number doesn't conform to the standard, so
+  // we get a different result on that platform.
+  ASSERT_EQ(kInvalidDimensionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("0x0", token_value_.string);
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+#else
   ASSERT_EQ(kInvalidNumberToken,
             yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ("0", token_value_.string);
@@ -390,6 +400,7 @@ TEST_F(ScannerTest, ScansHexadecimalNumber) {
   ASSERT_EQ("x0", token_value_.string);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+#endif
 }
 
 TEST_F(ScannerTest, ScansUnknownDashFunction) {
