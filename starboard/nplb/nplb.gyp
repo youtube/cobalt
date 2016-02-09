@@ -21,6 +21,7 @@
       'target_name': 'nplb',
       'type': '<(gtest_target_type)',
       'sources': [
+        'byte_swap_test.cc',
         'character_is_alphanumeric_test.cc',
         'character_is_digit_test.cc',
         'character_is_hex_digit_test.cc',
