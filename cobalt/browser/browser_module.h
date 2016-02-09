@@ -61,6 +61,7 @@ class BrowserModule {
     renderer::RendererModule::Options renderer_module_options;
     storage::StorageManager::Options storage_manager_options;
     WebModule::Options web_module_options;
+    media::MediaModule::Options media_module_options;
     std::string language;
   };
 
