@@ -139,7 +139,9 @@ void LibxmlParserWrapper::OnStartDocument() { node_stack_.push(parent_node_); }
 
 void LibxmlParserWrapper::OnEndDocument() {
   node_stack_.pop();
-  DCHECK(node_stack_.empty());
+  if (!node_stack_.empty()) {
+    error_callback_.Run("Node stack not empty at end of document.");
+  }
 }
 
 void LibxmlParserWrapper::OnStartElement(
@@ -155,9 +157,17 @@ void LibxmlParserWrapper::OnStartElement(
 }
 
 void LibxmlParserWrapper::OnEndElement(const std::string& name) {
-  DCHECK_EQ(node_stack_.top()->node_name(), name);
-  node_stack_.top()->AsElement()->OnParserEndTag();
-  node_stack_.pop();
+  while (!node_stack_.empty()) {
+    scoped_refptr<dom::Element> element = node_stack_.top()->AsElement();
+    node_stack_.pop();
+    element->OnParserEndTag();
+    if (element->node_name() == name) {
+      return;
+    }
+  }
+  if (node_stack_.empty()) {
+    error_callback_.Run("Node stack empty when encountering end tag.");
+  }
 }
 
 void LibxmlParserWrapper::OnCharacters(const std::string& value) {
@@ -183,6 +193,9 @@ void LibxmlParserWrapper::OnComment(const std::string& comment) {
 
 void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
                                          const std::string& message) {
+  if (severity > issue_level_) {
+    issue_level_ = severity;
+  }
   if (severity == LibxmlParserWrapper::kFatal) {
     error_callback_.Run(message);
   }
