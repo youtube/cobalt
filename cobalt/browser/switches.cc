@@ -73,6 +73,10 @@ const char kStubImageDecoder[] = "stub_image_decoder";
 // "timed_trace.json" in the log output directory.
 const char kTimedTrace[] = "timed_trace";
 
+// Use the NullAudioStreamer. Audio will be decoded but will not play back. No
+// audio output library will be initialized or used.
+const char kUseNullAudioStreamer[] = "use_null_audio_streamer";
+
 // Specifies the viewport size: width ['x' height]
 const char kViewport[] = "viewport";
 

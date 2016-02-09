@@ -137,7 +137,8 @@ BrowserModule::BrowserModule(const GURL& url,
           renderer_module_.pipeline()->GetResourceProvider())),
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       media_module_(media::MediaModule::Create(
-          renderer_module_.pipeline()->GetResourceProvider())),
+          renderer_module_.pipeline()->GetResourceProvider(),
+          options.media_module_options)),
       network_module_(&storage_manager_, system_window->event_dispatcher(),
                       options.network_module_options),
       render_tree_combiner_(renderer_module_.pipeline()),
