@@ -21,6 +21,7 @@
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
@@ -330,6 +331,31 @@ TEST_F(HTMLDecoderTest, AttributesShouldBeCaseInsensitive) {
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(1, element->attributes()->length());
   EXPECT_EQ("a", element->attributes()->Item(0)->name());
+}
+
+TEST_F(HTMLDecoderTest, LibxmlDecodingErrorShouldTerminateParsing) {
+  const std::string input =
+      "<html>"
+      "<head>"
+      "<meta content='text/html; charset=gb2312' http-equiv=Content-Type>"
+      "</head>"
+      "<body>陈绮贞</body>"
+      "</html>";
+  html_decoder_.reset(new HTMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  html_decoder_->DecodeChunk(input.c_str(), input.length());
+  html_decoder_->Finish();
+
+  root_ = document_->first_element_child();
+  ASSERT_TRUE(root_);
+  EXPECT_EQ("html", root_->tag_name());
+  EXPECT_EQ(1, root_->children()->length());
+
+  dom::Element* head = root_->first_element_child();
+  ASSERT_TRUE(head);
+  EXPECT_EQ("head", head->tag_name());
 }
 
 }  // namespace dom_parser
