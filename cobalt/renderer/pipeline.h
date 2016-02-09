@@ -40,9 +40,9 @@ namespace renderer {
 // pushes the submitted render tree through a rendering pipeline that eventually
 // results in the render tree being submitted to the passed in rasterizer which
 // can output the render tree to the display.  A new thread is created which
-// hosts the rasterizer submit calls.  A timer is setup on the rasterizer thread
-// so that rasterizations of the last submitted render tree are rate-limited
-// to a specific frequency, such as 60hz, the refresh rate of most displays.
+// hosts the rasterizer submit calls.  Render trees are rasterized as fast
+// as the rasterizer will accept them, which is likely to be the display's
+// refresh rate.
 class Pipeline {
  public:
   typedef base::Callback<scoped_ptr<Rasterizer>()> CreateRasterizerFunction;
@@ -59,8 +59,8 @@ class Pipeline {
   ~Pipeline();
 
   // Submit a new render tree to the renderer pipeline.  After calling this
-  // method, the submitted render tree will be the one rendered by the
-  // rasterizer at the refresh rate.
+  // method, the submitted render tree will be the one that is continuously
+  // animated and rendered by the rasterizer.
   void Submit(const Submission& render_tree_submission);
 
   // Clears the currently submitted render tree submission and waits for the
@@ -72,10 +72,6 @@ class Pipeline {
   // will be called with the pixel data and the dimensions of the image.
   void RasterizeToRGBAPixels(const Submission& render_tree_submission,
                              const RasterizationCompleteCallback& complete);
-
-  // Returns the rate, in hertz, at which the current render tree is rasterized
-  // and submitted to the display.
-  float refresh_rate() const { return refresh_rate_; }
 
   // Returns a thread-safe object from which one can produce renderer resources
   // like images and fonts which can be referenced by render trees that are
@@ -94,7 +90,8 @@ class Pipeline {
   // Clears the current render tree and calls the callback when this is done.
   void ClearCurrentRenderTree(const base::Closure& clear_complete_callback);
 
-  // Called at a specified refresh rate (e.g. 60hz) on the rasterizer thread and
+  // Called repeatedly (the rate is limited by the rasterizer, so likely it
+  // will be called every 1/60th of a second) on the rasterizer thread and
   // results in the rasterization of the current tree and submission of it to
   // the render target.
   void RasterizeCurrentTree();
@@ -114,9 +111,6 @@ class Pipeline {
   // needs to be shutdown from there.
   void ShutdownRasterizerThread();
 
-  // The refresh rate of the rasterizer.
-  const float refresh_rate_;
-
   // The rasterizer object that will run on the rasterizer_thread_ and is
   // effectively the last stage of the pipeline, responsible for rasterizing
   // the final render tree and submitting it to the render target.
@@ -131,10 +125,11 @@ class Pipeline {
   SubmissionQueue submission_queue_;
 
   // A timer that signals to the rasterizer to rasterize the next frame.
-  // It is common for this to be set to 60hz, the refresh rate of most displays.
-  // It is an optional so that it can be constructed and destructed in the
-  // rasterizer thread.
-  base::optional<base::Timer> refresh_rate_timer_;
+  // The timer is setup with a period of 0ms so that it will submit as fast
+  // as possible, it is up to the rasterizer to pace the pipeline.  The timer
+  // is used to manage the repeated posting of the rasterize task call and
+  // to make proper shutdown easier.
+  base::optional<base::Timer> rasterize_timer_;
 
   // ThreadChecker for use by the rasterizer_thread_ defined below.
   base::ThreadChecker rasterizer_thread_checker_;
