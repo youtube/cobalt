@@ -15,42 +15,16 @@
  */
 #include "cobalt/deprecated/platform_delegate.h"
 
-#include <ObjBase.h>
-#include <direct.h>
 #include <stdlib.h>
 #include <windows.h>
 
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "lbshell/src/platform/xb1/posix_emulation/pthread.h"
-#include "lbshell/src/platform/xb1/posix_emulation/pthread_internal.h"
-
-// init_seg specifies the static object initialization order, which is compiler
-// -> lib -> user. In this case we use a static PThreadInitializer object to
-// initialize pthread support inside the POSIX emulation layer. init_seg(lib)
-// ensures that __pthread_init() is called before any other initialization in
-// our code.
-// If this doesn't work, try init_seg(".CRT$XCB"). This will explicitly specify
-// the code section, therefore putting the initialization at front most, before
-// those of init_seg(compiler).
-// For more information see init_seg on MSDN.
-#pragma warning(disable : 4073)
-#pragma init_seg(lib)
-class PThreadInitializer {
- public:
-  PThreadInitializer() {
-    CoInitializeEx(NULL, COINIT_MULTITHREADED);
-    __pthread_init();
-  }
-};
 
 namespace cobalt {
 namespace deprecated {
 namespace {
-
-// This will initialize pthread support inside the POSIX emulation layer.
-PThreadInitializer pthread_initializer;
 
 class PlatformDelegateWin : public PlatformDelegate {
  public:
