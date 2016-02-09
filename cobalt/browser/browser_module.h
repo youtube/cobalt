@@ -150,6 +150,12 @@ class BrowserModule {
   // interpretation.
   void OnKeyEventProduced(const scoped_refptr<dom::KeyboardEvent>& event);
 
+  // Injects a key event directly into the main web module, useful for setting
+  // up an input fuzzer whose input should be sent directly to the main
+  // web module and not filtered into the debug console.
+  void InjectKeyEventToMainWebModule(
+      const scoped_refptr<dom::KeyboardEvent>& event);
+
   // Error callback for any error that stops the program.
   void OnError(const std::string& error);
 
@@ -175,6 +181,9 @@ class BrowserModule {
   void Pause();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
+  // Toggles the input fuzzer on/off.  Ignores the parameter.
+  void OnFuzzerToggle(const std::string&);
+
   // Glue function to deal with the production of the debug console render tree,
   // and will manage handing it off to the renderer.
   void OnDebugConsoleRenderTreeProduced(
@@ -224,6 +233,10 @@ class BrowserModule {
   scoped_ptr<input::InputDeviceManager> input_device_manager_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
+  // Possibly null, but if not, will contain a reference to an instance of
+  // a debug fuzzer input device manager.
+  scoped_ptr<input::InputDeviceManager> input_device_manager_fuzzer_;
+
   // Manages a second web module to implement the debug console.
   scoped_ptr<DebugConsole> debug_console_;
 
@@ -234,6 +247,9 @@ class BrowserModule {
 
   // Command handler object for reload command from the debug console.
   base::ConsoleCommandManager::CommandHandler reload_command_handler_;
+
+  // Command handler object for toggline the input fuzzer on/off.
+  base::ConsoleCommandManager::CommandHandler fuzzer_toggle_command_handler_;
 
 #if defined(ENABLE_SCREENSHOT)
   // Command handler object for screenshot command from the debug console.
