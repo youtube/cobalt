@@ -30,7 +30,6 @@
 #include "base/synchronization/lock.h"
 #include "cobalt/base/log_message_handler.h"
 #include "cobalt/base/source_location.h"
-#include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/debugger.h"
 #include "cobalt/debug/system_stats_tracker.h"
 #include "cobalt/script/callback_function.h"

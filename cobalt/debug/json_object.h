@@ -29,6 +29,8 @@ namespace debug {
 
 typedef scoped_ptr<base::DictionaryValue> JSONObject;
 
+typedef scoped_ptr<base::ListValue> JSONList;
+
 JSONObject JSONParse(const std::string& json, int* parse_error);
 
 JSONObject JSONParse(const std::string& json);

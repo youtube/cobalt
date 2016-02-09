@@ -18,17 +18,17 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
-#include "base/synchronization/waitable_event.h"
+#include "base/stl_util.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/debug/json_object.h"
-#include "cobalt/script/global_object_proxy.h"
-#include "cobalt/script/javascript_debugger_interface.h"
 
 namespace cobalt {
 namespace debug {
@@ -38,10 +38,7 @@ namespace debug {
 // https://docs.google.com/document/d/1lZhrBTusQZJsacpt21J3kPgnkj7pyQObhFqYktvm40Y/
 //
 // When a client (either local or remote) wants to connect to the debugger, it
-// should create an instance of this class. Construction of this object will
-// create the subcomponents needed (e.g. JavaScript debugger) and attach to the
-// targets (Window, GlobalObject, etc.) specified in the constructor. When the
-// instance is destructed, it will detach from the debug targets.
+// should create an instance of this class.
 //
 // All client debugging commands and event notifications are routed through an
 // object of this class. The protocol is defined here:
@@ -50,6 +47,10 @@ namespace debug {
 // a command asynchronously and returns its result via a callback.
 // DebugServer will also send notifications when debugging events occur, using
 // the callbacks specified in the constructor.
+//
+// This class knows nothing about the external modules it may be connecting to.
+// The actual functionality is implemented by objects of classes derived from
+// the |Component| class.
 //
 // DebugServer handles synchronization and (de-)serialization of JSON
 // parameters. Commands can be executed from any thread: the command itself
@@ -65,31 +66,65 @@ namespace debug {
 // of the debug target that sent them - it is the responsibility of the client
 // to re-post to its own message loop if necessary.
 
-class DebugServer {
+class DebugServer : public base::SupportsWeakPtr<DebugServer> {
  public:
-  // Type for command callback function.
+  // Callback to pass a command response to the client.
   typedef base::Callback<void(const base::optional<std::string>& response)>
       CommandCallback;
 
-  // Type for onEvent callback function.
+  // Callback to notify the client when an event occurs.
   typedef base::Callback<void(const std::string& method,
                               const base::optional<std::string>& params)>
       OnEventCallback;
 
-  // Type for onDetach callback function.
+  // Callback to notify the client when the debugger detaches.
   typedef base::Callback<void(const std::string& reason)> OnDetachCallback;
+
+  // A command execution function stored in the command registry.
+  typedef base::Callback<JSONObject(const JSONObject& params)> Command;
+
+  // Objects of this class are used to provide notifications and commands.
+  class Component {
+   public:
+    explicit Component(const base::WeakPtr<DebugServer>& server);
+    virtual ~Component();
+
+   protected:
+    // Adds a command function to the registry of the |DebugServer|
+    // referenced by this object.
+    void AddCommand(const std::string& method,
+                    const DebugServer::Command& callback);
+
+    // Removes a command function from the registry of the |DebugServer|
+    // referenced by this object.
+    void RemoveCommand(const std::string& method);
+
+    // Sends a notification to the |DebugServer| referenced by this object.
+    void SendNotification(const std::string& method, const JSONObject& params);
+
+    bool CalledOnValidThread() const {
+      return thread_checker_.CalledOnValidThread();
+    }
+
+   private:
+    base::WeakPtr<DebugServer> server_;
+    base::ThreadChecker thread_checker_;
+    std::vector<std::string> command_methods_;
+  };
 
   // Constructor may be called from any thread, but all internal operations
   // will run on the message loop specified here, which must be the message
   // loop of the WebModule this debug server is attached to, so that
   // operations are executed synchronously with the other methods of that
   // WebModule.
-  DebugServer(script::GlobalObjectProxy* global_object_proxy,
-              const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
+  DebugServer(const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
               const OnEventCallback& on_event_callback,
               const OnDetachCallback& on_detach_callback);
 
   ~DebugServer();
+
+  // Adds a debug component to this object. This object takes ownership.
+  void AddComponent(scoped_ptr<Component> component);
 
   // Called to send a command to this debug server, with a callback for the
   // response. The command is one from the Chrome Remote Debugging Protocol:
@@ -101,6 +136,10 @@ class DebugServer {
                    CommandCallback callback);
 
  private:
+  // A registry of commands, mapping method names from the protocol
+  // to command callbacks implemented by the debug components.
+  typedef std::map<std::string, Command> CommandRegistry;
+
   // Type to store a command callback and the current message loop.
   struct CommandCallbackInfo {
     explicit CommandCallbackInfo(const CommandCallback& command_callback)
@@ -111,21 +150,10 @@ class DebugServer {
     scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
   };
 
-  // Type for a command execution function stored in the command registry.
-  typedef base::Callback<JSONObject(const JSONObject& params)> CommandExecutor;
-
-  // Type for a registry of commands, mapping method names from the protocol
-  // to command execution callbacks.
-  typedef std::map<std::string, CommandExecutor> CommandRegistry;
-
-  // Creates the JavaScript debugger. Must be run on the message loop of the
-  // JavaScript global object the debugger will connect to, which should be the
-  // message loop passed in the contructor. Will signal completion using the
-  // specified waitable event.
-  void CreateJavaScriptDebugger(script::GlobalObjectProxy* global_object_proxy);
-
-  // Registers the supported commands.
-  void RegisterCommands();
+  // Callback to receive notifications from the debug components.
+  // Serializes the method and params object to a JSON string and passes to the
+  // external |on_event_callback_| specified in the constructor.
+  void OnNotification(const std::string& method, const JSONObject& params);
 
   // Dispatches a command received via |SendCommand| by looking up the method
   // name in the command registry and running the corresponding function.
@@ -134,28 +162,31 @@ class DebugServer {
   void DispatchCommand(std::string method, std::string json_params,
                        CommandCallbackInfo callback_info);
 
-  // Callback to receive onEvent notifications from the JavaScript debugger.
-  // Serializes the method and params object to a JSON string and passes to the
-  // external |on_event_callback_| specified in the constructor.
-  void OnEvent(const std::string& method, const JSONObject& params);
+  // Adds a command to the command registry. This will be called by the
+  // objects referenced by |components_|.
+  void AddCommand(const std::string& method, const Command& callback);
 
-  // Gets the source of a script from the JavaScript debugger.
-  JSONObject GetScriptSource(const JSONObject& params);
+  // Removes a command from the command registry. This will be called by the
+  // objects referenced by |components_|.
+  void RemoveCommand(const std::string& method);
 
   // The message loop to use for all communication with debug targets.
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
 
-  // Notification callbacks.
+  // Notification callbacks to send messages to the client.
   OnEventCallback on_event_callback_;
   OnDetachCallback on_detach_callback_;
-
-  // Handles all debugging interaction with the JavaScript engine.
-  scoped_ptr<script::JavaScriptDebuggerInterface> javascript_debugger_;
 
   // Map of commands, indexed by method name.
   CommandRegistry command_registry_;
 
   base::ThreadChecker thread_checker_;
+
+  // Debug components owned by this object.
+  std::vector<Component*> components_;
+  STLElementDeleter<std::vector<Component*> > components_deleter_;
+
+  friend class DebugCommandHandler;
 };
 
 }  // namespace debug
