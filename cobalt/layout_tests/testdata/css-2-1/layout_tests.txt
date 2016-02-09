@@ -115,6 +115,8 @@
 9-4-2-margin-should-not-overflow-line-box
 9-4-2-multiple-inline-boxes-exceeding-width-of-line-box-should-be-split
 9-4-2-nested-inline-boxes-should-split-at-br-elements
+9-4-2-splitting-of-boxes-can-affect-containing-box-of-children
+9-4-2-splitting-of-boxes-can-affect-stacking-context-of-children
 9-4-2-unsplittable-inline-box-should-overflow
 9-4-3-relative-positioned-element-percentages-resolved-from-parent
 9-4-3-relative-positioned-elements-are-offset-from-normal-flow

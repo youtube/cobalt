@@ -78,6 +78,7 @@ scoped_refptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
   scoped_refptr<ContainerBox> box_after_split(
       new InlineContainerBox(computed_style_state(), used_style_provider()));
 
+  box_after_split->UpdateCrossReferencesFrom(this);
   // When an inline box is split, margins, borders, and padding have no visual
   // effect where the split occurs.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
@@ -460,6 +461,7 @@ scoped_refptr<Box> InlineContainerBox::SplitAtIterator(
   scoped_refptr<InlineContainerBox> box_after_split(
       new InlineContainerBox(computed_style_state(), used_style_provider()));
 
+  box_after_split->UpdateCrossReferencesFrom(this);
   box_after_split->MoveChildrenFrom(box_after_split->child_boxes().end(), this,
                                     child_split_iterator, child_boxes().end());
 

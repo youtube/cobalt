@@ -508,6 +508,13 @@ void Box::UpdateCrossReferences(ContainerBox* fixed_containing_block) {
   UpdateCrossReferencesWithContext(fixed_containing_block, NULL, NULL);
 }
 
+void Box::UpdateCrossReferencesFrom(Box* reference) {
+  if (reference->stacking_context_) {
+    stacking_context_ = reference->stacking_context_;
+    stacking_context_->AddStackingContextChild(this);
+  }
+}
+
 void Box::InvalideBoxAncestryReferences() {
   parent_ = NULL;
   containing_block_ = NULL;

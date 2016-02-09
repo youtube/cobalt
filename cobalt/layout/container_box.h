@@ -127,6 +127,10 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   void AddContainingBlockChild(Box* child_box);
   void AddStackingContextChild(Box* child_box);
 
+  // These helper functions are called from MoveChildrenFrom().
+  void MoveContainingBlockChild(Box* child_box);
+  void MoveStackingContextChild(Box* child_box);
+
   // Updates used values of left/top/right/bottom given the child_box's
   // 'position' property is set to 'relative'.
   //    https://www.w3.org/TR/CSS21/visuren.html#relative-positioning
