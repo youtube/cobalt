@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_MEDIA_MODULE_H_
-#define MEDIA_MEDIA_MODULE_H_
+#ifndef COBALT_MEDIA_MEDIA_MODULE_H_
+#define COBALT_MEDIA_MEDIA_MODULE_H_
 
 #include <map>
 
@@ -36,6 +36,11 @@ namespace media {
 class MediaModule : public WebMediaPlayerFactory,
                     public ::media::WebMediaPlayerDelegate {
  public:
+  struct Options {
+    Options() : use_null_audio_streamer(false) {}
+    bool use_null_audio_streamer;
+  };
+
   typedef ::media::WebMediaPlayer WebMediaPlayer;
   typedef render_tree::Image Image;
 
@@ -86,7 +91,8 @@ class MediaModule : public WebMediaPlayerFactory,
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
   static scoped_ptr<MediaModule> Create(
-      render_tree::ResourceProvider* resource_provider);
+      render_tree::ResourceProvider* resource_provider,
+      const Options& options = Options());
 
  private:
   // When the value of a particular player is true, it means the player is
@@ -98,4 +104,4 @@ class MediaModule : public WebMediaPlayerFactory,
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // MEDIA_MEDIA_MODULE_H_
+#endif  // COBALT_MEDIA_MEDIA_MODULE_H_
