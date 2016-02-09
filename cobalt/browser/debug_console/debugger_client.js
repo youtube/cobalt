@@ -61,7 +61,12 @@ DebuggerClient.prototype.commandCallback = function(callback, responseString) {
   var response = JSON.parse(responseString);
 
   if (response && response.result) {
-    callback(response.result);
+    if (callback) {
+      callback(response.result);
+    } else {
+      printToMessageLog(messageLog.INTERACTIVE,
+                        "Unhandled response: " + responseString);
+    }
   } else if (response && response.error && response.error.message) {
     printToMessageLog(messageLog.INTERACTIVE,
                       "Error: " + response.error.message);

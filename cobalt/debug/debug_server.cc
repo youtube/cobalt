@@ -16,59 +16,75 @@
 
 #include "cobalt/debug/debug_server.h"
 
-#include <cstdlib>
 #include <string>
 
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
 #include "base/values.h"
 
 namespace cobalt {
 namespace debug {
 
-namespace {
-// Command "methods" (names) from the set specified here:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/index
-const char kGetScriptSource[] = "Debugger.getScriptSource";
-}  // namespace
+DebugServer::Component::Component(const base::WeakPtr<DebugServer>& server)
+    : server_(server) {}
+
+DebugServer::Component::~Component() {
+  // Remove all the commands added by this component.
+  for (std::vector<std::string>::const_iterator it = command_methods_.begin();
+       it != command_methods_.end(); ++it) {
+    RemoveCommand(*it);
+  }
+}
+
+void DebugServer::Component::AddCommand(const std::string& method,
+                                        const Command& callback) {
+  if (server_) {
+    server_->AddCommand(method, callback);
+
+    // Store the command methods added by this component, so we can remove on
+    // destruction.
+    command_methods_.push_back(method);
+  }
+}
+
+void DebugServer::Component::RemoveCommand(const std::string& method) {
+  if (server_) {
+    server_->RemoveCommand(method);
+  }
+}
+
+void DebugServer::Component::SendNotification(const std::string& method,
+                                              const JSONObject& params) {
+  if (server_) {
+    server_->OnNotification(method, params);
+  }
+}
 
 DebugServer::DebugServer(
-    script::GlobalObjectProxy* global_object_proxy,
     const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
     const OnEventCallback& on_event_callback,
     const OnDetachCallback& on_detach_callback)
     : message_loop_proxy_(message_loop_proxy),
       on_event_callback_(on_event_callback),
-      on_detach_callback_(on_detach_callback) {
-  if (base::MessageLoopProxy::current() == message_loop_proxy_) {
-    CreateJavaScriptDebugger(global_object_proxy);
-  } else {
-    // Create the debugger components on the message loop of their WebModule
-    // and wait for them to be constructed before continuing.
-    thread_checker_.DetachFromThread();
-    base::WaitableEvent javascript_debugger_created(true, false);
-    message_loop_proxy_->PostTask(
-        FROM_HERE, base::Bind(&DebugServer::CreateJavaScriptDebugger,
-                              base::Unretained(this),
-                              base::Unretained(global_object_proxy)));
-    message_loop_proxy_->PostTask(
-        FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                              base::Unretained(&javascript_debugger_created)));
-    javascript_debugger_created.Wait();
-  }
+      on_detach_callback_(on_detach_callback),
+      components_deleter_(&components_) {}
 
-  RegisterCommands();
+DebugServer::~DebugServer() {
+  // Invalidate weak pointers explicitly, as the weak pointer factory won't be
+  // destroyed until after the debug components that reference this object.
+  InvalidateWeakPtrs();
 }
 
-DebugServer::~DebugServer() {}
+void DebugServer::AddComponent(scoped_ptr<DebugServer::Component> component) {
+  // This object takes ownership of the component here. The objects referenced
+  // in |components_| will be deleted on destruction.
+  components_.push_back(component.release());
+}
 
 void DebugServer::SendCommand(const std::string& method,
                               const std::string& json_params,
                               CommandCallback callback) {
-  DLOG(INFO) << "Executing command: " << method << ": " << json_params;
-
   CommandCallbackInfo callback_info(callback);
   message_loop_proxy_->PostTask(
       FROM_HERE,
@@ -76,36 +92,22 @@ void DebugServer::SendCommand(const std::string& method,
                  json_params, callback_info));
 }
 
-void DebugServer::CreateJavaScriptDebugger(
-    script::GlobalObjectProxy* global_object_proxy) {
-  DCHECK(global_object_proxy);
-  DCHECK(thread_checker_.CalledOnValidThread());
-
-  // We receive event parameters from the JavaScript debugger as Dictionary
-  // objects and use the OnEvent method of this class to serialize to JSON
-  // strings for the external onEvent callback. The external onDetach callback
-  // can be used directly.
-  script::JavaScriptDebuggerInterface::OnEventCallback on_event_callback =
-      base::Bind(&DebugServer::OnEvent, base::Unretained(this));
-
-  javascript_debugger_ = script::JavaScriptDebuggerInterface::CreateDebugger(
-      global_object_proxy, on_event_callback, on_detach_callback_);
-}
-
 void DebugServer::DispatchCommand(std::string method, std::string json_params,
                                   CommandCallbackInfo callback_info) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   // Find the command in the registry and parse the JSON parameter string.
-  // Both of these could fail, so we check below.
+  // The |params| may be NULL, if the command takes no parameters.
   CommandRegistry::iterator iter = command_registry_.find(method);
   JSONObject params = JSONParse(json_params);
   JSONObject response;
 
-  if (iter != command_registry_.end() && params) {
+  if (iter != command_registry_.end()) {
     // Everything is looking good so far - run the command function and take
     // ownership of the response object.
     response.reset(iter->second.Run(params).release());
+  } else {
+    DLOG(WARNING) << "Unknown command: " << method << ": " << json_params;
   }
 
   if (!response) {
@@ -121,19 +123,22 @@ void DebugServer::DispatchCommand(std::string method, std::string json_params,
       FROM_HERE, base::Bind(callback_info.callback, json_response));
 }
 
-void DebugServer::OnEvent(const std::string& method, const JSONObject& params) {
+void DebugServer::OnNotification(const std::string& method,
+                                 const JSONObject& params) {
   // Serialize the event parameters and pass to the external callback.
   const std::string json_params = JSONStringify(params);
   on_event_callback_.Run(method, json_params);
 }
 
-void DebugServer::RegisterCommands() {
-  command_registry_[kGetScriptSource] =
-      base::Bind(&DebugServer::GetScriptSource, base::Unretained(this));
+void DebugServer::AddCommand(const std::string& method,
+                             const Command& callback) {
+  DCHECK_EQ(command_registry_.count(method), 0);
+  command_registry_[method] = callback;
 }
 
-JSONObject DebugServer::GetScriptSource(const JSONObject& params) {
-  return javascript_debugger_->GetScriptSource(params);
+void DebugServer::RemoveCommand(const std::string& method) {
+  DCHECK_EQ(command_registry_.count(method), 1);
+  command_registry_.erase(method);
 }
 
 }  // namespace debug
