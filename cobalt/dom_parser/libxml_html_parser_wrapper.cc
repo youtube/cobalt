@@ -119,13 +119,12 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
 }
 
 void LibxmlHTMLParserWrapper::Finish() {
-  if (html_parser_context_) {
+  if (html_parser_context_ && issue_level() <= kWarning) {
     htmlParseChunk(html_parser_context_, NULL, 0,
                    1 /*terminate*/);  // Triggers EndDocument
-
-    if (IsFullDocument()) {
-      document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
-    }
+  }
+  if (IsFullDocument()) {
+    document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
   }
 }
 
