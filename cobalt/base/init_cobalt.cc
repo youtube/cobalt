@@ -66,7 +66,7 @@ void InitCobalt(int argc, char* argv[]) {
     SetupProgramStartTime();
     // Initialize the writer (we should already be recording to memory) now that
     // the filesystem and threading system are initialized.
-    LB::Memory::InitLogWriter(&GetLifetimeInMS);
+    lb_memory_init_log_writer(&GetLifetimeInMS);
   }
 #endif
 
