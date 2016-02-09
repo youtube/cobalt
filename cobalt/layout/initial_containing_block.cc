@@ -75,8 +75,10 @@ void PropagateBackgroundStyleToInitialStyle(
             html_element->computed_style(),
             initial_containing_block_computed_style)) {
       dom::HTMLBodyElement* body_element = document->body();
-      if (body_element) {
+      if (body_element && body_element->computed_style()) {
         // Otherwise, propagate the background style from the <body> element.
+        // It is possible that the computed style of body element is NULL, when
+        // the display of html element is set to 'none'.
         ConditionalCopyBackgroundStyle(body_element->computed_style(),
                                        initial_containing_block_computed_style);
       }
