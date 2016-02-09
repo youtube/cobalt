@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_PARSER_LIBXML_PARSER_WRAPPER_H_
-#define DOM_PARSER_LIBXML_PARSER_WRAPPER_H_
+#ifndef COBALT_DOM_PARSER_LIBXML_PARSER_WRAPPER_H_
+#define COBALT_DOM_PARSER_LIBXML_PARSER_WRAPPER_H_
 
 #include <stack>
 #include <string>
@@ -60,6 +60,7 @@ void CDATABlock(void* context, const xmlChar* value, int len);
 class LibxmlParserWrapper {
  public:
   enum IssueSeverity {
+    kNoIssue,
     kWarning,
     kError,
     kFatal,
@@ -87,7 +88,8 @@ class LibxmlParserWrapper {
         parent_node_(parent_node),
         reference_node_(reference_node),
         first_chunk_location_(first_chunk_location),
-        error_callback_(error_callback) {}
+        error_callback_(error_callback),
+        issue_level_(kNoIssue) {}
   virtual ~LibxmlParserWrapper() {}
 
   // These functions are for Libxml interface, calls are forwarded here by
@@ -122,6 +124,8 @@ class LibxmlParserWrapper {
     return error_callback_;
   }
 
+  IssueSeverity issue_level() const { return issue_level_; }
+
   const std::stack<scoped_refptr<dom::Node> >& node_stack() {
     return node_stack_;
   }
@@ -132,6 +136,7 @@ class LibxmlParserWrapper {
   const scoped_refptr<dom::Node> reference_node_;
   const base::SourceLocation first_chunk_location_;
   const base::Callback<void(const std::string&)> error_callback_;
+  IssueSeverity issue_level_;
 
   std::stack<scoped_refptr<dom::Node> > node_stack_;
 
@@ -141,4 +146,4 @@ class LibxmlParserWrapper {
 }  // namespace dom_parser
 }  // namespace cobalt
 
-#endif  // DOM_PARSER_LIBXML_PARSER_WRAPPER_H_
+#endif  // COBALT_DOM_PARSER_LIBXML_PARSER_WRAPPER_H_
