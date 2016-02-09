@@ -18,6 +18,8 @@
 #define COBALT_BASE_POLLER_H_
 
 #include "base/callback.h"
+#include "base/message_loop.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/timer.h"
 
 namespace base {
@@ -25,12 +27,50 @@ namespace base {
 // Poller is a wrapper around a base::RepeatingTimer, with simplified semantics.
 class Poller {
  public:
-  Poller(const Closure& user_task, TimeDelta period) {
-    timer_.Start(FROM_HERE, period, user_task);
+  Poller(const Closure& user_task, TimeDelta period) : message_loop_(NULL) {
+    StartTimer(user_task, period);
+  }
+
+  // Using this constructor, you can specify the message loop you would like
+  // the poll task to be run on.
+  Poller(MessageLoop* message_loop, const Closure& user_task, TimeDelta period)
+      : message_loop_(message_loop) {
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&Poller::StartTimer, base::Unretained(this),
+                              user_task, period));
+  }
+
+  ~Poller() {
+    // If our timer is running on an explicit message loop, post a task to
+    // have it shut down on that message loop before completing the destruction
+    // of the Poller.
+    if (!message_loop_) {
+      StopTimer();
+    } else {
+      message_loop_->PostTask(
+          FROM_HERE, base::Bind(&Poller::StopTimer, base::Unretained(this)));
+
+      // Wait for the timer to actually be stopped.
+      base::WaitableEvent timer_stopped(true, false);
+      message_loop_->PostTask(FROM_HERE,
+                              base::Bind(&base::WaitableEvent::Signal,
+                                         base::Unretained(&timer_stopped)));
+      timer_stopped.Wait();
+    }
   }
 
  private:
-  RepeatingTimer<Poller> timer_;
+  void StartTimer(const Closure& user_task, TimeDelta period) {
+    timer_.reset(new RepeatingTimer<Poller>());
+    timer_->Start(FROM_HERE, period, user_task);
+  }
+
+  void StopTimer() {
+    timer_.reset();
+  }
+
+  MessageLoop* message_loop_;
+  scoped_ptr<RepeatingTimer<Poller> > timer_;
   DISALLOW_COPY_AND_ASSIGN(Poller);
 };
 
