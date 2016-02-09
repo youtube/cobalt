@@ -88,6 +88,7 @@ int main(int argc, char** argv) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
 #if defined(NDEBUG)
+  // Get rid of all log output so we only see benchmark results.
   logging::SetMinLogLevel(logging::LOG_FATAL);
 #endif
   BenchmarkResultsMap benchmarks =
