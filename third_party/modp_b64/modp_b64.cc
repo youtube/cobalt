@@ -56,6 +56,16 @@
 /* else for Intel, Amd; uncomment this */
 /* #undef WORDS_BIGENDIAN */
 
+/* On Starboard, use Starboard's configuration. */
+#if defined(STARBOARD)
+#  include "starboard/configuration.h"
+#  if SB_IS(BIG_ENDIAN)
+#    define WORDS_BIGENDIAN 1
+#  else
+#    undef WORDS_BIGENDIAN
+#  endif
+#endif
+
 #include "modp_b64_data.h"
 
 #define BADCHAR 0x01FFFFFF
