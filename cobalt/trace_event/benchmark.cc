@@ -41,9 +41,6 @@ void BenchmarkRegistrar::RegisterBenchmarkCreator(
 }
 
 BenchmarkResultsMap BenchmarkRegistrar::ExecuteBenchmarks() {
-  // Get rid of all log output so we only see benchmark results.
-  logging::SetMinLogLevel(100);
-
   BenchmarkResultsMap result;
 
   for (RegistererList::iterator iter = benchmark_registerers_.begin();
