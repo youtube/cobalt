@@ -32,7 +32,7 @@
 #include "net/server/http_server_request_info.h"
 
 #if defined(__LB_SHELL__)
-#include "lb_network_helpers.h"
+#include "lb_network_helpers.h"  // NOLINT[build/include]
 #endif
 
 namespace cobalt {
@@ -83,7 +83,7 @@ FilePath AppendIndexFile(const FilePath& directory) {
 std::string GetLocalIpAddress() {
   struct sockaddr_in addr = {0};
   addr.sin_family = AF_INET;
-  LB::Platform::GetLocalIpAddress(&addr.sin_addr);
+  lb_get_local_ip_address(&addr.sin_addr);
   net::IPEndPoint ip_addr;
   bool result =
       ip_addr.FromSockAddr(reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
