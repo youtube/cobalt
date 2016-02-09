@@ -25,21 +25,20 @@
 namespace cobalt {
 namespace input {
 
+namespace {
+
+// Initialize the set of key events we are able to produce.
+const int kKeyCodes[] = {dom::keycode::kUp,     dom::keycode::kDown,
+                         dom::keycode::kLeft,   dom::keycode::kRight,
+                         dom::keycode::kReturn, dom::keycode::kEscape};
+
+}  // namespace
+
 InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
     KeyboardEventCallback keyboard_event_callback)
     : keyboard_event_callback_(keyboard_event_callback),
       next_event_timer_(true, true) {
-  // Initialize the set of key events we are able to produce.
-  const int kKeyCodes[] = {dom::keycode::kUp,     dom::keycode::kDown,
-                           dom::keycode::kLeft,   dom::keycode::kRight,
-                           dom::keycode::kReturn, dom::keycode::kEscape};
-  for (int i = 0; i < arraysize(kKeyCodes); ++i) {
-    sample_events_.push_back(new dom::KeyboardEvent(
-        base::Tokens::keydown(), dom::KeyboardEvent::kDomKeyLocationStandard,
-        dom::KeyboardEvent::kNoModifier, kKeyCodes[i], 0, false));
-  }
-
-  next_event_timer_.Start(FROM_HERE, base::TimeDelta::FromMilliseconds(100),
+  next_event_timer_.Start(FROM_HERE, base::TimeDelta::FromMilliseconds(400),
                           base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,
                                      base::Unretained(this)));
 }
@@ -48,15 +47,20 @@ void InputDeviceManagerFuzzer::OnNextEvent() {
   // Uniformly sample from the list of events we can generate and then fire
   // an event based on that.
   int rand_key_event_index =
-      static_cast<int>(base::RandGenerator(sample_events_.size()));
-  scoped_refptr<dom::KeyboardEvent> sample_event =
-      sample_events_[rand_key_event_index];
-  scoped_refptr<dom::KeyboardEvent> duplicated_event(new dom::KeyboardEvent(
-      sample_event->type(), sample_event->location(), sample_event->modifiers(),
-      sample_event->key_code(), sample_event->char_code(),
-      sample_event->repeat()));
+      static_cast<int>(base::RandGenerator(arraysize(kKeyCodes)));
+  int key_code = kKeyCodes[rand_key_event_index];
 
-  keyboard_event_callback_.Run(duplicated_event);
+  scoped_refptr<dom::KeyboardEvent> key_down_event(new dom::KeyboardEvent(
+      base::Tokens::keydown(), dom::KeyboardEvent::kDomKeyLocationStandard,
+      dom::KeyboardEvent::kNoModifier, key_code, 0, false));
+
+  keyboard_event_callback_.Run(key_down_event);
+
+  scoped_refptr<dom::KeyboardEvent> key_up_event(new dom::KeyboardEvent(
+      base::Tokens::keyup(), dom::KeyboardEvent::kDomKeyLocationStandard,
+      dom::KeyboardEvent::kNoModifier, key_code, 0, false));
+
+  keyboard_event_callback_.Run(key_up_event);
 }
 
 }  // namespace input

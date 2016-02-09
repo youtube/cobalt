@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef INPUT_INPUT_DEVICE_MANAGER_FUZZER_H_
-#define INPUT_INPUT_DEVICE_MANAGER_FUZZER_H_
+#ifndef COBALT_INPUT_INPUT_DEVICE_MANAGER_FUZZER_H_
+#define COBALT_INPUT_INPUT_DEVICE_MANAGER_FUZZER_H_
 
 #include <vector>
 
@@ -39,13 +39,10 @@ class InputDeviceManagerFuzzer : public InputDeviceManager {
   void OnNextEvent();
 
   KeyboardEventCallback keyboard_event_callback_;
-
-  // The list of keyboard events we may sample from and produce.
-  std::vector<scoped_refptr<dom::KeyboardEvent> > sample_events_;
   base::Timer next_event_timer_;
 };
 
 }  // namespace input
 }  // namespace cobalt
 
-#endif  // INPUT_INPUT_DEVICE_MANAGER_FUZZER_H_
+#endif  // COBALT_INPUT_INPUT_DEVICE_MANAGER_FUZZER_H_
