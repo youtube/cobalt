@@ -22,7 +22,8 @@ namespace cobalt {
 namespace media {
 
 scoped_ptr<MediaModule> MediaModule::Create(
-    render_tree::ResourceProvider* resource_provider) {
+    render_tree::ResourceProvider* resource_provider,
+    const Options& /* options */) {
   return make_scoped_ptr<MediaModule>(new MediaModuleStub());
 }
 

@@ -290,6 +290,10 @@ Application::Application()
       }
     }
   }
+  if (command_line->HasSwitch(switches::kUseNullAudioStreamer)) {
+    DLOG(INFO) << "Use null audio";
+    options.media_module_options.use_null_audio_streamer = true;
+  }
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
   system_window_ =
