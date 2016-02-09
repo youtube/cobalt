@@ -57,6 +57,13 @@ const char kReloadCommandLongHelp[] =
     "Destroys the current document and window and creates a new one in its "
     "place that displays the current URL.";
 
+const char kFuzzerToggleCommand[] = "fuzzer_toggle";
+const char kFuzzerToggleCommandShortHelp[] = "Toggles the input fuzzer on/off.";
+const char kFuzzerToggleCommandLongHelp[] =
+    "Each time this is called, it will toggle whether the input fuzzer is "
+    "activated or not.  While activated, input will constantly and randomly be "
+    "generated and passed directly into the main web module.";
+
 #if defined(ENABLE_SCREENSHOT)
 // Command to reload the current URL.
 const char kScreenshotCommand[] = "screenshot";
@@ -143,6 +150,10 @@ BrowserModule::BrowserModule(const GURL& url,
       ALLOW_THIS_IN_INITIALIZER_LIST(reload_command_handler_(
           kReloadCommand, base::Bind(&OnReloadMessage, base::Unretained(this)),
           kReloadCommandShortHelp, kReloadCommandLongHelp)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(fuzzer_toggle_command_handler_(
+          kFuzzerToggleCommand,
+          base::Bind(&BrowserModule::OnFuzzerToggle, base::Unretained(this)),
+          kFuzzerToggleCommandShortHelp, kFuzzerToggleCommandLongHelp)),
 #if defined(ENABLE_SCREENSHOT)
       ALLOW_THIS_IN_INITIALIZER_LIST(screenshot_command_handler_(
           kScreenshotCommand,
@@ -167,29 +178,18 @@ BrowserModule::BrowserModule(const GURL& url,
 
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
 
-  input::KeyboardEventCallback keyboard_event_callback =
-      base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this));
-
-  bool use_input_fuzzer = false;
-
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#if defined(ENABLE_DEBUG_CONSOLE)
   if (command_line->HasSwitch(switches::kInputFuzzer)) {
-    use_input_fuzzer = true;
+    OnFuzzerToggle(std::string());
   }
+#endif
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
-  // If the user has asked to activate the input fuzzer, then we wire up the
-  // input fuzzer key generator to our keyboard event callback.  Otherwise, we
-  // create and connect the platform-specific input event generator.
-  if (use_input_fuzzer) {
-    input_device_manager_ = scoped_ptr<input::InputDeviceManager>(
-        new input::InputDeviceManagerFuzzer(keyboard_event_callback));
-  } else {
-    input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
-        keyboard_event_callback, system_window);
-  }
+  input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
+      base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this)),
+      system_window);
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   const math::Size& viewport_size =
       renderer_module_.render_target()->GetSurfaceInfo().size;
@@ -380,6 +380,24 @@ void BrowserModule::OnRenderTreeProduced(
 }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
+void BrowserModule::OnFuzzerToggle(const std::string& message) {
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(FROM_HERE,
+                                 base::Bind(&BrowserModule::OnFuzzerToggle,
+                                            base::Unretained(this), message));
+    return;
+  }
+
+  if (!input_device_manager_fuzzer_) {
+    // Wire up the input fuzzer key generator to the keyboard event callback.
+    input_device_manager_fuzzer_ = scoped_ptr<input::InputDeviceManager>(
+        new input::InputDeviceManagerFuzzer(
+            base::Bind(&BrowserModule::InjectKeyEventToMainWebModule,
+                       base::Unretained(this))));
+  } else {
+    input_device_manager_fuzzer_.reset();
+  }
+}
 
 void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
@@ -412,6 +430,11 @@ void BrowserModule::OnKeyEventProduced(
   trace_manager.OnKeyEventProduced();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
+  InjectKeyEventToMainWebModule(event);
+}
+
+void BrowserModule::InjectKeyEventToMainWebModule(
+    const scoped_refptr<dom::KeyboardEvent>& event) {
   web_module_->InjectEvent(event);
 }
 
