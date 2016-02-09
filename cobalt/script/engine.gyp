@@ -25,7 +25,7 @@
         'javascript_engine.h',
       ],
       'dependencies': [
-        'javascriptcore/javascriptcore.gyp:javascriptcore',
+        'javascriptcore/javascriptcore.gyp:jsc_engine',
       ],
     },
   ],

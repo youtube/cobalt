@@ -15,7 +15,7 @@
 {
   'targets': [
     {
-      'target_name': 'javascriptcore',
+      'target_name': 'jsc_engine',
       'type': 'static_library',
       'sources': [
         'conversion_helpers.cc',
@@ -59,10 +59,14 @@
       'dependencies': [
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
-      ]
+      ],
+      'msvs_disabled_warnings': [
+        # dll-interface warnings. Not easily fixed for template types.
+        4251,
+      ],
     },
     {
-      'target_name': 'javascriptcore_test',
+      'target_name': 'jsc_engine_test',
       'type': '<(gtest_target_type)',
       'sources': [
         'numeric_conversion_test.cc',
@@ -77,7 +81,7 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
-        'javascriptcore',
+        'jsc_engine',
       ]
     }
   ],
