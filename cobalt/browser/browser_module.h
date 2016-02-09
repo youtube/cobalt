@@ -30,7 +30,6 @@
 #include "cobalt/browser/splash_screen.h"
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
-#include "cobalt/debug/debug_server.h"
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/input/input_device_manager.h"
@@ -40,10 +39,11 @@
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
-#ifdef ENABLE_DEBUG_CONSOLE
+#if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/base/console_commands.h"
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/trace_manager.h"
+#include "cobalt/debug/debug_server.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 
 namespace cobalt {

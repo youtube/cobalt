@@ -140,8 +140,10 @@ void JSCDebugger::attach(JSC::JSGlobalObject* global_object) {
 void JSCDebugger::detach(JSC::JSGlobalObject* global_object) {
   DCHECK(global_object);
   JSC::Debugger::detach(global_object);
-  const std::string reason = "canceled_by_user";
-  on_detach_callback_.Run(reason);
+  if (!on_detach_callback_.is_null()) {
+    const std::string reason = "canceled_by_user";
+    on_detach_callback_.Run(reason);
+  }
 }
 
 void JSCDebugger::sourceParsed(JSC::ExecState* exec_state,
@@ -182,71 +184,42 @@ void JSCDebugger::exception(const JSC::DebuggerCallFrame& call_frame,
                             intptr_t source_id, int line_number,
                             int column_number, bool has_handler) {
   UNREFERENCED_PARAMETER(call_frame);
-  DLOG(INFO) << "JSCDebugger::exception";
-  DLOG(INFO) << "source_id: " << source_id;
-  DLOG(INFO) << "line_number: " << line_number;
-  DLOG(INFO) << "column_number: " << column_number;
-  DLOG(INFO) << "has_handler: " << has_handler;
 }
 
 void JSCDebugger::atStatement(const JSC::DebuggerCallFrame& call_frame,
                               intptr_t source_id, int line_number,
                               int column_number) {
   UNREFERENCED_PARAMETER(call_frame);
-  DLOG(INFO) << "JSCDebugger::atStatement";
-  DLOG(INFO) << "source_id: " << source_id;
-  DLOG(INFO) << "line_number: " << line_number;
-  DLOG(INFO) << "column_number: " << column_number;
 }
 
 void JSCDebugger::callEvent(const JSC::DebuggerCallFrame& call_frame,
                             intptr_t source_id, int line_number,
                             int column_number) {
   UNREFERENCED_PARAMETER(call_frame);
-  DLOG(INFO) << "JSCDebugger::callEvent";
-  DLOG(INFO) << "source_id: " << source_id;
-  DLOG(INFO) << "line_number: " << line_number;
-  DLOG(INFO) << "column_number: " << column_number;
 }
 
 void JSCDebugger::returnEvent(const JSC::DebuggerCallFrame& call_frame,
                               intptr_t source_id, int line_number,
                               int column_number) {
   UNREFERENCED_PARAMETER(call_frame);
-  DLOG(INFO) << "JSCDebugger::returnEvent";
-  DLOG(INFO) << "source_id: " << source_id;
-  DLOG(INFO) << "line_number: " << line_number;
-  DLOG(INFO) << "column_number: " << column_number;
 }
 
 void JSCDebugger::willExecuteProgram(const JSC::DebuggerCallFrame& call_frame,
                                      intptr_t source_id, int line_number,
                                      int column_number) {
   UNREFERENCED_PARAMETER(call_frame);
-  DLOG(INFO) << "JSCDebugger::willExecuteProgram";
-  DLOG(INFO) << "source_id: " << source_id;
-  DLOG(INFO) << "line_number: " << line_number;
-  DLOG(INFO) << "column_number: " << column_number;
 }
 
 void JSCDebugger::didExecuteProgram(const JSC::DebuggerCallFrame& call_frame,
                                     intptr_t source_id, int line_number,
                                     int column_number) {
   UNREFERENCED_PARAMETER(call_frame);
-  DLOG(INFO) << "JSCDebugger::didExecuteProgram";
-  DLOG(INFO) << "source_id: " << source_id;
-  DLOG(INFO) << "line_number: " << line_number;
-  DLOG(INFO) << "column_number: " << column_number;
 }
 
 void JSCDebugger::didReachBreakpoint(const JSC::DebuggerCallFrame& call_frame,
                                      intptr_t source_id, int line_number,
                                      int column_number) {
   UNREFERENCED_PARAMETER(call_frame);
-  DLOG(INFO) << "JSCDebugger::didReachBreakpoint";
-  DLOG(INFO) << "source_id: " << source_id;
-  DLOG(INFO) << "line_number: " << line_number;
-  DLOG(INFO) << "column_number: " << column_number;
 }
 
 void JSCDebugger::GatherSourceProviders(JSC::JSGlobalObject* global_object) {

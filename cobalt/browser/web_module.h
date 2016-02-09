@@ -29,7 +29,10 @@
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/css_parser/parser.h"
+#if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/debug/debug_server.h"
+#include "cobalt/debug/render_overlay.h"
+#endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/local_storage_database.h"
@@ -192,6 +195,11 @@ class WebModule {
                                  base::WaitableEvent* got_result,
                                  std::string* result);
 
+  // Called by |layout_mananger_| when it produces a render tree. May modify
+  // the render tree (e.g. to add a debug overlay), then runs the callback
+  // specified in the constructor, |render_tree_produced_callback_|.
+  void OnRenderTreeProduced(const LayoutResults& layout_results);
+
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   void OnPartialLayoutConsoleCommandReceived(const std::string& message);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
@@ -253,8 +261,15 @@ class WebModule {
   // Environment Settings object
   scoped_ptr<dom::DOMSettings> environment_settings_;
 
+  // Called by |OnRenderTreeProduced|.
+  OnRenderTreeProducedCallback render_tree_produced_callback_;
+
   // Triggers layout whenever the document changes.
   layout::LayoutManager layout_manager_;
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  debug::RenderOverlay debug_overlay_;
+#endif  // ENABLE_DEBUG_CONSOLE
 
   // DocumentObserver that observes the loading document.
   scoped_ptr<DocumentLoadedObserver> document_load_observer_;
