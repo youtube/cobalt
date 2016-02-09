@@ -26,9 +26,6 @@ namespace cobalt {
 namespace renderer {
 
 namespace {
-// The frequency we signal a new rasterization fo the render tree.
-const float kRefreshRate = 60.0f;
-
 // In order to put a bound on memory we set a maximum submission queue size that
 // is empirically found to be a nice balance between animation smoothing and
 // memory usage.
@@ -50,7 +47,6 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       submission_queue_(
           kMaxSubmissionQueueSize,
           base::TimeDelta::FromMillisecondsD(kTimeToConvergeInMS)),
-      refresh_rate_(kRefreshRate),
       rasterizer_thread_(base::in_place, "Rasterizer") {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Pipeline()");
   // The actual Pipeline can be constructed from any thread, but we want
@@ -145,30 +141,15 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
   submission_queue_.PushSubmission(render_tree_submission);
 
   // Start the rasterization timer if it is not yet started.
-  if (!refresh_rate_timer_) {
-    // We add 1 to the refresh rate in the following timer_interval calculation
-    // to ensure that we are submitting frames to the rasterizer at least
-    // as fast as it can consume them, thus ensuring we don't miss a frame.
-    // The rasterizer is responsible for pacing us if we submit too quickly,
-    // though this can result in a backed up submission log which can result
-    // in input lag.  Eventually (likely after a profiling system is introduced
-    // to better measure timing issues like this), we will investigate adding
-    // regulator code to attempt to make render tree submissions at times that
-    // result in the least amount of input lag while still providing a
-    // submission for each VSync.
-    // TODO(***REMOVED***): It should instead be investigated if we can trigger
-    //               rasterizer submits based on a platform-specific VSync
-    //               signal instead of relying on a timer that may or may not
-    //               match the precise VSync interval of the hardware.
-    //               b/20423772
-    const float timer_interval =
-        base::Time::kMicrosecondsPerSecond * 1.0f / (kRefreshRate + 1.0f);
-
-    refresh_rate_timer_.emplace(
-        FROM_HERE, base::TimeDelta::FromMicroseconds(timer_interval),
+  if (!rasterize_timer_) {
+    // We submit render trees as fast as the rasterizer can consume them.
+    // Practically, this will result in the rate being limited to the
+    // display's refresh rate.
+    rasterize_timer_.emplace(
+        FROM_HERE, base::TimeDelta(),
         base::Bind(&Pipeline::RasterizeCurrentTree, base::Unretained(this)),
         true);
-    refresh_rate_timer_->Reset();
+    rasterize_timer_->Reset();
   }
 }
 
@@ -178,7 +159,7 @@ void Pipeline::ClearCurrentRenderTree(
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ClearCurrentRenderTree()");
 
   submission_queue_.Reset();
-  refresh_rate_timer_ = base::nullopt;
+  rasterize_timer_ = base::nullopt;
 
   if (!clear_complete_callback.is_null()) {
     clear_complete_callback.Run();
@@ -223,7 +204,7 @@ void Pipeline::ShutdownRasterizerThread() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownRasterizerThread()");
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   // Stop and shutdown the raterizer timer.
-  refresh_rate_timer_ = base::nullopt;
+  rasterize_timer_ = base::nullopt;
 
   // Do not retain any more references to the current render tree (which
   // may refer to rasterizer resources) or animations which may refer to

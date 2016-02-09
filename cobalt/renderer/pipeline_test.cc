@@ -17,6 +17,7 @@
 #include <cmath>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/renderer/pipeline.h"
@@ -29,6 +30,13 @@ using ::testing::Between;
 using ::testing::_;
 using cobalt::renderer::Pipeline;
 using cobalt::renderer::Rasterizer;
+
+namespace {
+// We explicitly state here how long our mock rasterizer will take to complete
+// a submission.  This value is chosen to reflect the refresh rate of a typical
+// display device.
+const base::TimeDelta kRasterizeDelay =
+    base::TimeDelta::FromSecondsD(1.0 / 60.0);
 
 // Unfortunately, we can't make use of gmock to test the number of submission
 // calls that were made.  This is because we need to test our expectations
@@ -45,6 +53,18 @@ class MockRasterizer : public Rasterizer {
   void Submit(
       const scoped_refptr<cobalt::render_tree::Node>&,
       const scoped_refptr<cobalt::renderer::backend::RenderTarget>&) OVERRIDE {
+    if (last_submission_time) {
+      // Simulate a "wait for vsync".
+      base::TimeDelta since_last_submit =
+          base::TimeTicks::Now() - *last_submission_time;
+
+      base::TimeDelta sleep_time = kRasterizeDelay - since_last_submit;
+      if (sleep_time > base::TimeDelta()) {
+        base::PlatformThread::Sleep(kRasterizeDelay - since_last_submit);
+      }
+    }
+    last_submission_time = base::TimeTicks::Now();
+
     ++(*submission_count_);
   }
 
@@ -54,9 +74,9 @@ class MockRasterizer : public Rasterizer {
 
  private:
   int* submission_count_;
+  base::optional<base::TimeTicks> last_submission_time;
 };
 
-namespace {
 scoped_ptr<Rasterizer> CreateMockRasterizer(int* submission_count) {
   return scoped_ptr<Rasterizer>(new MockRasterizer(submission_count));
 }
@@ -66,10 +86,9 @@ class RendererPipelineTest : public ::testing::Test {
  protected:
   RendererPipelineTest() {
     submission_count_ = 0;
-    start_time_ = base::Time::Now();
+    start_time_ = base::TimeTicks::Now();
     pipeline_.reset(new Pipeline(
         base::Bind(&CreateMockRasterizer, &submission_count_), NULL, NULL));
-    refresh_rate_ = pipeline_->refresh_rate();
 
     // We create a render tree here composed of only a single, empty
     // CompositionNode that is meant to act as a dummy/placeholder.
@@ -100,20 +119,19 @@ class RendererPipelineTest : public ::testing::Test {
     const int kFuzzRangeOnExpectedSubmissions = 1;
     ExpectedNumberOfSubmissions number_of_submissions;
     number_of_submissions.lower_bound =
-        static_cast<int>(
-            floor(duration_lower_bound.InSecondsF() * refresh_rate_)) -
+        static_cast<int>(floor(duration_lower_bound.InSecondsF() /
+                               kRasterizeDelay.InSecondsF())) -
         kFuzzRangeOnExpectedSubmissions;
     number_of_submissions.upper_bound =
-        static_cast<int>(
-            ceil(duration_upper_bound.InSecondsF() * refresh_rate_)) +
+        static_cast<int>(ceil(duration_upper_bound.InSecondsF() /
+                              kRasterizeDelay.InSecondsF())) +
         kFuzzRangeOnExpectedSubmissions;
     return number_of_submissions;
   }
 
-  base::Time start_time_;  // Record the time that we started the pipeline.
+  base::TimeTicks start_time_;  // Record the time that we started the pipeline.
   scoped_ptr<Pipeline> pipeline_;
   scoped_refptr<cobalt::render_tree::Node> dummy_render_tree_;
-  float refresh_rate_;
   int submission_count_;
 };
 
@@ -139,7 +157,7 @@ TEST_F(
   pipeline_.reset();
 
   // Find the time that the pipeline's been active for.
-  base::TimeDelta time_elapsed = base::Time::Now() - start_time_;
+  base::TimeDelta time_elapsed = base::TimeTicks::Now() - start_time_;
 
   ExpectedNumberOfSubmissions expected_submissions =
       GetExpectedNumberOfSubmissions(kDelay, time_elapsed);
@@ -155,20 +173,27 @@ TEST_F(
   // it to rate-limit its submissions to the rasterizer.
   const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(200);
   while (true) {
-    base::TimeDelta time_elapsed = base::Time::Now() - start_time_;
+    base::TimeDelta time_elapsed = base::TimeTicks::Now() - start_time_;
     // Stop after kDelay seconds have passed.
     if (time_elapsed > kDelay) {
       break;
     }
 
     pipeline_->Submit(cobalt::renderer::Submission(dummy_render_tree_));
+
+    const base::TimeDelta kSubmitDelay(base::TimeDelta::FromMilliseconds(1));
+    // While we want to submit faster than the rasterizer is rasterizing,
+    // we still should pace ourselves so we that we ensure the rasterizer has
+    // enough time to process all the submissions.
+    ASSERT_LT(kSubmitDelay, kRasterizeDelay);
+    base::PlatformThread::Sleep(kSubmitDelay);
   }
 
   // Shut down the pipeline so that Submit will no longer be called.
   pipeline_.reset();
 
   // Find the time that the pipeline's been active for.
-  base::TimeDelta time_elapsed = base::Time::Now() - start_time_;
+  base::TimeDelta time_elapsed = base::TimeTicks::Now() - start_time_;
 
   ExpectedNumberOfSubmissions expected_submissions =
       GetExpectedNumberOfSubmissions(kDelay, time_elapsed);

@@ -35,6 +35,11 @@ namespace cobalt {
 namespace browser {
 namespace {
 
+// This constant defines the maximum rate at which the layout engine will
+// refresh over time.  Since there is little benefit in performing a layout
+// faster than the display's refresh rate, we set this to 60Hz.
+const float kLayoutMaxRefreshFrequencyInHz = 60.0f;
+
 // TODO(***REMOVED***): Subscribe to viewport size changes.
 
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -201,7 +206,7 @@ BrowserModule::BrowserModule(const GURL& url,
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
-      renderer_module_.pipeline()->refresh_rate(),
+      kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::ExecuteJavascript, base::Unretained(this)),
       base::Bind(&BrowserModule::CreateDebugServer, base::Unretained(this))));
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
@@ -296,7 +301,7 @@ void BrowserModule::NavigateWithCallbackInternal(
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
-      renderer_module_.pipeline()->refresh_rate()));
+      kLayoutMaxRefreshFrequencyInHz));
   options.loaded_callbacks.push_back(
       base::Bind(&BrowserModule::DestroySplashScreen, base::Unretained(this)));
   options.array_buffer_allocator = array_buffer_allocator_.get();
@@ -307,7 +312,7 @@ void BrowserModule::NavigateWithCallbackInternal(
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
-      renderer_module_.pipeline()->refresh_rate(), options));
+      kLayoutMaxRefreshFrequencyInHz, options));
 }
 
 void BrowserModule::SetPaused(bool paused) {
