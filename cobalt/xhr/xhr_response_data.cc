@@ -36,7 +36,9 @@ uint8 s_dummy;
 
 XhrResponseData::XhrResponseData() {}
 
-XhrResponseData::~XhrResponseData() {}
+XhrResponseData::~XhrResponseData() {
+  dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+}
 
 void XhrResponseData::Clear() {
   dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
