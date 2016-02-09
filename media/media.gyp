@@ -121,6 +121,8 @@
         'audio/mac/audio_unified_mac.h',
         'audio/null_audio_sink.cc',
         'audio/null_audio_sink.h',
+        'audio/null_audio_streamer.cc',
+        'audio/null_audio_streamer.h',
         'audio/openbsd/audio_manager_openbsd.cc',
         'audio/openbsd/audio_manager_openbsd.h',
         'audio/pulse/pulse_output.cc',
