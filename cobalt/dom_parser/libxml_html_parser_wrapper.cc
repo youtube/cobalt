@@ -119,6 +119,10 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
 }
 
 void LibxmlHTMLParserWrapper::Finish() {
+  // TODO(***REMOVED***): The check on issue level is a workaround for the fact that
+  // libxml doesn't recover fully from error related to encoding. See b/27057101
+  // for more detail. If we update to a newer version libxml, we should
+  // investigate again and remove this if possible.
   if (html_parser_context_ && issue_level() <= kWarning) {
     htmlParseChunk(html_parser_context_, NULL, 0,
                    1 /*terminate*/);  // Triggers EndDocument
