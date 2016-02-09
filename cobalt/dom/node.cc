@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "base/debug/trace_event.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/dom/cdata_section.h"
@@ -41,6 +42,9 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event);
   DCHECK(!event->IsBeingDispatched());
   DCHECK(event->initialized_flag());
+
+  TRACE_EVENT1("cobalt::dom", "Node::DispatchEvent", "event",
+               event->type().c_str());
 
   if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {
     return false;

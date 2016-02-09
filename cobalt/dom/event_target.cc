@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/event_target.h"
 
+#include "base/debug/trace_event.h"
 #include "cobalt/dom/dom_exception.h"
 
 namespace cobalt {
@@ -71,6 +72,8 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event);
   DCHECK(!event->IsBeingDispatched());
   DCHECK(event->initialized_flag());
+  TRACE_EVENT1("cobalt::dom", "EventTarget::DispatchEvent", "event",
+               event->type().c_str());
 
   if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {
     return false;
