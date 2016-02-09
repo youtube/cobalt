@@ -74,6 +74,10 @@ void ContainerBox::MoveChildrenFrom(
     DCHECK_NE(this, child_box->parent())
         << "Move children within the same container node is not supported by "
            "this method.";
+    if (child_box->IsPositioned() || child_box->IsTransformed()) {
+      MoveContainingBlockChild(child_box);
+      MoveStackingContextChild(child_box);
+    }
     child_box->parent_ = NULL;
     child_box->containing_block_ = NULL;
     OnChildAdded(child_box);
@@ -145,6 +149,36 @@ void ContainerBox::AddStackingContextChild(Box* child_box) {
     negative_z_index_child_.insert(child_box);
   } else {
     non_negative_z_index_child_.insert(child_box);
+  }
+}
+
+void ContainerBox::MoveContainingBlockChild(Box* child_box) {
+  DCHECK(child_box->IsPositioned() || child_box->IsTransformed());
+
+  ContainerBox* source_parent = child_box->parent_;
+  std::vector<Box*>::iterator positioned_child_iterator =
+      std::find(source_parent->positioned_child_boxes_.begin(),
+                source_parent->positioned_child_boxes_.end(), child_box);
+  DCHECK(positioned_child_iterator !=
+         source_parent->positioned_child_boxes_.end());
+  source_parent->positioned_child_boxes_.erase(positioned_child_iterator);
+  positioned_child_boxes_.push_back(child_box);
+}
+
+void ContainerBox::MoveStackingContextChild(Box* child_box) {
+  DCHECK(child_box->IsPositioned() || child_box->IsTransformed());
+
+  ContainerBox* source_parent = child_box->parent_;
+  if (child_box->stacking_context_ == source_parent) {
+    int child_z_index = child_box->GetZIndex();
+    if (child_z_index < 0) {
+      source_parent->negative_z_index_child_.erase(child_box);
+      negative_z_index_child_.insert(child_box);
+    } else {
+      source_parent->non_negative_z_index_child_.erase(child_box);
+      non_negative_z_index_child_.insert(child_box);
+    }
+    child_box->stacking_context_ = this;
   }
 }
 
