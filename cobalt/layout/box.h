@@ -369,6 +369,11 @@ class Box : public base::RefCounted<Box> {
   // resolve these links for all elements in the box tree.
   void UpdateCrossReferences(ContainerBox* fixed_containing_block);
 
+  // This copies the cross-references from the passed box into the current box.
+  // This is used for newly generated boxes that are created when boxes are
+  // split after layout has performed the UpdateCrossReferences() pass.
+  void UpdateCrossReferencesFrom(Box* reference);
+
   // Invalidates the ancestor references of the box.
   void InvalideBoxAncestryReferences();
 
