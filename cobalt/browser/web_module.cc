@@ -24,6 +24,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/debug/create_debug_server.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/storage/storage_manager.h"
@@ -119,9 +120,17 @@ WebModule::WebModule(
           fetcher_factory_.get(), network_module, window_,
           options.array_buffer_allocator, &media_source_registry_,
           javascript_engine_.get(), global_object_proxy_.get())),
-      layout_manager_(window_.get(), render_tree_produced_callback,
-                      options.layout_trigger, layout_refresh_rate,
-                      network_module->preferred_language()) {
+      render_tree_produced_callback_(render_tree_produced_callback),
+      ALLOW_THIS_IN_INITIALIZER_LIST(layout_manager_(
+          window_.get(),
+          base::Bind(&WebModule::OnRenderTreeProduced, base::Unretained(this)),
+          options.layout_trigger, layout_refresh_rate,
+          network_module->preferred_language()))
+#if defined(ENABLE_DEBUG_CONSOLE)
+      ,
+      debug_overlay_(render_tree_produced_callback)
+#endif  // ENABLE_DEBUG_CONSOLE
+{
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
   InjectCustomWindowAttributes(options.injected_window_attributes);
@@ -195,6 +204,14 @@ void WebModule::ExecuteJavascriptInternal(
   got_result->Signal();
 }
 
+void WebModule::OnRenderTreeProduced(const LayoutResults& layout_results) {
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  debug_overlay_.OnRenderTreeProduced(layout_results);
+#else  // ENABLE_REMOTE_DEBUGGING
+  render_tree_produced_callback_.Run(layout_results);
+#endif  // ENABLE_REMOTE_DEBUGGING
+}
+
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 void WebModule::OnPartialLayoutConsoleCommandReceived(
     const std::string& message) {
@@ -225,9 +242,10 @@ scoped_ptr<debug::DebugServer> WebModule::CreateDebugServer(
     const debug::DebugServer::OnEventCallback& on_event_callback,
     const debug::DebugServer::OnDetachCallback& on_detach_callback) {
   // This may be called from a thread other than self_message_loop_.
-  return scoped_ptr<debug::DebugServer>(new debug::DebugServer(
-      global_object_proxy_, self_message_loop_->message_loop_proxy(),
-      on_event_callback, on_detach_callback));
+  return debug::CreateDebugServerWithComponents(
+      self_message_loop_->message_loop_proxy(), on_event_callback,
+      on_detach_callback, &debug_overlay_, global_object_proxy_,
+      window_->document());
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 
