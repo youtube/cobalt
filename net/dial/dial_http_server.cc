@@ -51,16 +51,20 @@ const int kDialHttpServerPort = 0;  // Random Port.
 
 DialHttpServer::DialHttpServer(DialService* dial_service)
     : factory_(new TCPListenSocketFactory("0.0.0.0", kDialHttpServerPort)),
-      dial_service_(dial_service) {
+      dial_service_(dial_service),
+      message_loop_proxy_(base::MessageLoopProxy::current()) {
   DCHECK(dial_service);
+  DCHECK(message_loop_proxy_);
   Start();
 }
 
 DialHttpServer::~DialHttpServer() {
+  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
   Stop();
 }
 
 void DialHttpServer::Start() {
+  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
   DCHECK(!http_server_);
   DCHECK(server_url_.empty());
 
@@ -70,11 +74,13 @@ void DialHttpServer::Start() {
 }
 
 void DialHttpServer::Stop() {
+  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
   DCHECK(http_server_);
   DCHECK(!server_url_.empty());
 }
 
 int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
+  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
   // get the port information
   int ret = http_server_->GetLocalAddress(addr);
 
@@ -100,6 +106,7 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
 void DialHttpServer::OnHttpRequest(int conn_id,
                                    const HttpServerRequestInfo& info) {
   TRACE_EVENT0("net::dial", "DialHttpServer::OnHttpRequest");
+  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
 
   if (info.method == "GET" && LowerCaseEqualsASCII(info.path, "/dd.xml")) {
     // If dd.xml request
@@ -120,8 +127,7 @@ void DialHttpServer::OnHttpRequest(int conn_id,
   }
 }
 
-void DialHttpServer::OnClose(int conn_id) {
-}
+void DialHttpServer::OnClose(int conn_id) {}
 
 void DialHttpServer::ConfigureApplicationUrl() {
   IPEndPoint end_point;
@@ -136,6 +142,7 @@ void DialHttpServer::ConfigureApplicationUrl() {
 }
 
 void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
+  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
   DialSystemConfig* system_config = DialSystemConfig::GetInstance();
 #if defined(__LB_SHELL__FOR_RELEASE__)
   const char* friendly_name = system_config->friendly_name();
@@ -163,6 +170,7 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
 
 bool DialHttpServer::DispatchToHandler(int conn_id,
                                        const HttpServerRequestInfo& info) {
+  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
   // See if DialService has a handler for this request.
   TRACE_EVENT0("net::dial", __FUNCTION__);
 
@@ -182,6 +190,15 @@ bool DialHttpServer::DispatchToHandler(int conn_id,
 void DialHttpServer::OnReceivedResponse(
     int conn_id,
     scoped_ptr<HttpServerResponseInfo> response) {
+  if (message_loop_proxy_ != base::MessageLoopProxy::current()) {
+    message_loop_proxy_->PostTask(
+        FROM_HERE,
+        base::Bind(&DialHttpServer::OnReceivedResponse, this,
+                   conn_id, base::Passed(&response)));
+    return;
+  }
+
+  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
   TRACE_EVENT0("net::dial", __FUNCTION__);
   if (response) {
     http_server_->Send(conn_id,
