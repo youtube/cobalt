@@ -32,6 +32,7 @@ HttpServer::HttpServer(const StreamListenSocketFactory& factory,
 void HttpServer::AcceptWebSocket(
     int connection_id,
     const HttpServerRequestInfo& request) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   HttpConnection* connection = FindConnection(connection_id);
   if (connection == NULL)
     return;
@@ -42,6 +43,7 @@ void HttpServer::AcceptWebSocket(
 
 void HttpServer::SendOverWebSocket(int connection_id,
                                    const std::string& data) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   HttpConnection* connection = FindConnection(connection_id);
   if (connection == NULL)
     return;
@@ -54,6 +56,7 @@ void HttpServer::Send(int connection_id,
                       const std::string& data,
                       const std::string& content_type,
                       const std::vector<std::string>& headers) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   HttpConnection* connection = FindConnection(connection_id);
   if (connection == NULL)
     return;
@@ -64,6 +67,7 @@ void HttpServer::Send(int connection_id,
                       HttpStatusCode status_code,
                       const std::string& data,
                       const std::string& content_type) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   Send(connection_id, status_code, data, content_type,
        std::vector<std::string>());
 }
@@ -71,11 +75,13 @@ void HttpServer::Send(int connection_id,
 void HttpServer::Send200(int connection_id,
                          const std::string& data,
                          const std::string& content_type) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   Send(connection_id, HTTP_OK, data, content_type);
 }
 
 void HttpServer::Send302(int connection_id,
                          const std::string& location) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   HttpConnection* connection = FindConnection(connection_id);
   if (connection == NULL)
     return;
@@ -83,14 +89,17 @@ void HttpServer::Send302(int connection_id,
 }
 
 void HttpServer::Send404(int connection_id) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   Send(connection_id, HTTP_NOT_FOUND, "", "text/html");
 }
 
 void HttpServer::Send500(int connection_id, const std::string& message) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   Send(connection_id, HTTP_INTERNAL_SERVER_ERROR, message, "text/html");
 }
 
 void HttpServer::Close(int connection_id) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   HttpConnection* connection = FindConnection(connection_id);
   if (connection == NULL)
     return;
@@ -101,6 +110,7 @@ void HttpServer::Close(int connection_id) {
 }
 
 int HttpServer::GetLocalAddress(IPEndPoint* address) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   if (server_) {
     return server_->GetLocalAddress(address);
   } else {
@@ -110,6 +120,7 @@ int HttpServer::GetLocalAddress(IPEndPoint* address) {
 
 void HttpServer::DidAccept(StreamListenSocket* server,
                            StreamListenSocket* socket) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   HttpConnection* connection = new HttpConnection(this, socket);
   id_to_connection_[connection->id()] = connection;
   socket_to_connection_[socket] = connection;
@@ -118,6 +129,7 @@ void HttpServer::DidAccept(StreamListenSocket* server,
 void HttpServer::DidRead(StreamListenSocket* socket,
                          const char* data,
                          int len) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   HttpConnection* connection = FindConnection(socket);
   DCHECK(connection != NULL);
   if (connection == NULL)
@@ -176,6 +188,7 @@ void HttpServer::DidRead(StreamListenSocket* socket,
 }
 
 void HttpServer::DidClose(StreamListenSocket* socket) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   HttpConnection* connection = FindConnection(socket);
   DCHECK(connection != NULL);
   id_to_connection_.erase(connection->id());
@@ -184,6 +197,7 @@ void HttpServer::DidClose(StreamListenSocket* socket) {
 }
 
 HttpServer::~HttpServer() {
+  DCHECK(thread_checker_.CalledOnValidThread());
   STLDeleteContainerPairSecondPointers(
       id_to_connection_.begin(), id_to_connection_.end());
   server_ = NULL;

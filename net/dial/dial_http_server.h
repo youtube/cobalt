@@ -88,8 +88,13 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
   scoped_ptr<TCPListenSocketFactory> factory_;
   scoped_refptr<HttpServer> http_server_;
   std::string server_url_;
-  // DialService owns this object and has application lifetime.
+  // DialService owns this object.
   DialService* dial_service_;
+
+  // Message Loop of the thread that created us. We make sure http server
+  // is only called on the proper thread.
+  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
+
   DISALLOW_COPY_AND_ASSIGN(DialHttpServer);
 };
 
