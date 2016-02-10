@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef AUDIO_AUDIO_FILE_READER_WAV_H_
-#define AUDIO_AUDIO_FILE_READER_WAV_H_
+#ifndef COBALT_AUDIO_AUDIO_FILE_READER_WAV_H_
+#define COBALT_AUDIO_AUDIO_FILE_READER_WAV_H_
 
 #include "cobalt/audio/audio_file_reader.h"
 
@@ -54,4 +54,4 @@ class AudioFileReaderWAV : public AudioFileReader {
 }  // namespace audio
 }  // namespace cobalt
 
-#endif  // AUDIO_AUDIO_FILE_READER_WAV_H_
+#endif  // COBALT_AUDIO_AUDIO_FILE_READER_WAV_H_

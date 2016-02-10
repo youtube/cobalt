@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_LAYOUT_MANAGER_H_
-#define LAYOUT_LAYOUT_MANAGER_H_
+#ifndef COBALT_LAYOUT_LAYOUT_MANAGER_H_
+#define COBALT_LAYOUT_LAYOUT_MANAGER_H_
 
 #include <string>
 
@@ -81,4 +81,4 @@ class LayoutManager {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_LAYOUT_MANAGER_H_
+#endif  // COBALT_LAYOUT_LAYOUT_MANAGER_H_

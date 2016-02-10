@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SPECIFICITY_H_
-#define CSSOM_SPECIFICITY_H_
+#ifndef COBALT_CSSOM_SPECIFICITY_H_
+#define COBALT_CSSOM_SPECIFICITY_H_
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -73,4 +73,4 @@ class Specificity {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_SPECIFICITY_H_
+#endif  // COBALT_CSSOM_SPECIFICITY_H_

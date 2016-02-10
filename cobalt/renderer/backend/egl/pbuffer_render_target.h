@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_BACKEND_EGL_PBUFFER_RENDER_TARGET_H_
-#define RENDERER_BACKEND_EGL_PBUFFER_RENDER_TARGET_H_
+#ifndef COBALT_RENDERER_BACKEND_EGL_PBUFFER_RENDER_TARGET_H_
+#define COBALT_RENDERER_BACKEND_EGL_PBUFFER_RENDER_TARGET_H_
 
 #include <EGL/egl.h>
 
@@ -55,4 +55,4 @@ class PBufferRenderTargetEGL : public RenderTargetEGL {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_BACKEND_EGL_PBUFFER_RENDER_TARGET_H_
+#endif  // COBALT_RENDERER_BACKEND_EGL_PBUFFER_RENDER_TARGET_H_

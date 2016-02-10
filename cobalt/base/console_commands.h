@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_CONSOLE_COMMANDS_H_
-#define BASE_CONSOLE_COMMANDS_H_
+#ifndef COBALT_BASE_CONSOLE_COMMANDS_H_
+#define COBALT_BASE_CONSOLE_COMMANDS_H_
 
 #include <map>
 #include <set>
@@ -105,4 +105,4 @@ class ConsoleCommandManager {
 
 }  // namespace base
 
-#endif  // BASE_CONSOLE_COMMANDS_H_
+#endif  // COBALT_BASE_CONSOLE_COMMANDS_H_

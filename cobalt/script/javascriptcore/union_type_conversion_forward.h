@@ -19,8 +19,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_FORWARD_H_
-#define SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_FORWARD_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_FORWARD_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_FORWARD_H_
 
 #include "cobalt/script/javascriptcore/jsc_exception_state.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
@@ -63,4 +63,4 @@ void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_FORWARD_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_UNION_TYPE_CONVERSION_FORWARD_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_TRANSITION_H_
-#define CSSOM_CSS_TRANSITION_H_
+#ifndef COBALT_CSSOM_CSS_TRANSITION_H_
+#define COBALT_CSSOM_CSS_TRANSITION_H_
 
 #include <algorithm>
 
@@ -98,4 +98,4 @@ class Transition {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_TRANSITION_H_
+#endif  // COBALT_CSSOM_CSS_TRANSITION_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSP_DIRECTIVE_H_
-#define CSP_DIRECTIVE_H_
+#ifndef COBALT_CSP_DIRECTIVE_H_
+#define COBALT_CSP_DIRECTIVE_H_
 
 #include <string>
 
@@ -47,4 +47,4 @@ class Directive {
 }  // namespace csp
 }  // namespace cobalt
 
-#endif  // CSP_DIRECTIVE_H_
+#endif  // COBALT_CSP_DIRECTIVE_H_

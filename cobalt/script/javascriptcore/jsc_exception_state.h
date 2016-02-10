@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_EXCEPTION_STATE_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_EXCEPTION_STATE_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_EXCEPTION_STATE_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_EXCEPTION_STATE_H_
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/exception_state.h"
@@ -47,4 +47,4 @@ class JSCExceptionState : public ExceptionState {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_EXCEPTION_STATE_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_EXCEPTION_STATE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_BACKEND_DISPLAY_H_
-#define RENDERER_BACKEND_DISPLAY_H_
+#ifndef COBALT_RENDERER_BACKEND_DISPLAY_H_
+#define COBALT_RENDERER_BACKEND_DISPLAY_H_
 
 #include "base/memory/ref_counted.h"
 
@@ -44,4 +44,4 @@ class Display {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_BACKEND_DISPLAY_H_
+#endif  // COBALT_RENDERER_BACKEND_DISPLAY_H_

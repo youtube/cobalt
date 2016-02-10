@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_QUAD_F_H_
-#define MATH_QUAD_F_H_
+#ifndef COBALT_MATH_QUAD_F_H_
+#define COBALT_MATH_QUAD_F_H_
 
 #include <algorithm>
 #include <cmath>
@@ -121,4 +121,4 @@ QuadF operator-(const QuadF& lhs, const Vector2dF& rhs);
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_QUAD_F_H_
+#endif  // COBALT_MATH_QUAD_F_H_

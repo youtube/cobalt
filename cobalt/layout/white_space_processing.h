@@ -14,8 +14,8 @@
  * limitations under the License.`
  */
 
-#ifndef LAYOUT_WHITE_SPACE_PROCESSING_H_
-#define LAYOUT_WHITE_SPACE_PROCESSING_H_
+#ifndef COBALT_LAYOUT_WHITE_SPACE_PROCESSING_H_
+#define COBALT_LAYOUT_WHITE_SPACE_PROCESSING_H_
 
 #include <string>
 #include <vector>
@@ -36,4 +36,4 @@ bool FindNextNewlineSequence(const std::string& utf8_text, size_t index,
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_WHITE_SPACE_PROCESSING_H_
+#endif  // COBALT_LAYOUT_WHITE_SPACE_PROCESSING_H_

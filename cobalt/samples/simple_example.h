@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SAMPLES_SIMPLE_EXAMPLE_H_
-#define SAMPLES_SIMPLE_EXAMPLE_H_
+#ifndef COBALT_SAMPLES_SIMPLE_EXAMPLE_H_
+#define COBALT_SAMPLES_SIMPLE_EXAMPLE_H_
 
 namespace cobalt {
 namespace samples {
@@ -39,4 +39,4 @@ class SimpleExample {
 }  // namespace samples
 }  // namespace cobalt
 
-#endif  // SAMPLES_SIMPLE_EXAMPLE_H_
+#endif  // COBALT_SAMPLES_SIMPLE_EXAMPLE_H_

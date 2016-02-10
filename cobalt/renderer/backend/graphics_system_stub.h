@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_BACKEND_GRAPHICS_SYSTEM_STUB_H_
-#define RENDERER_BACKEND_GRAPHICS_SYSTEM_STUB_H_
+#ifndef COBALT_RENDERER_BACKEND_GRAPHICS_SYSTEM_STUB_H_
+#define COBALT_RENDERER_BACKEND_GRAPHICS_SYSTEM_STUB_H_
 
 #include "cobalt/renderer/backend/display_stub.h"
 #include "cobalt/renderer/backend/graphics_context_stub.h"
@@ -61,4 +61,4 @@ class GraphicsSystemStub : public GraphicsSystem {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_BACKEND_GRAPHICS_SYSTEM_STUB_H_
+#endif  // COBALT_RENDERER_BACKEND_GRAPHICS_SYSTEM_STUB_H_

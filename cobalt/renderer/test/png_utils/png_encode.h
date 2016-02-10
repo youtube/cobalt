@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_TEST_PNG_UTILS_PNG_ENCODE_H_
-#define RENDERER_TEST_PNG_UTILS_PNG_ENCODE_H_
+#ifndef COBALT_RENDERER_TEST_PNG_UTILS_PNG_ENCODE_H_
+#define COBALT_RENDERER_TEST_PNG_UTILS_PNG_ENCODE_H_
 
 #include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
@@ -39,4 +39,4 @@ scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_TEST_PNG_UTILS_PNG_ENCODE_H_
+#endif  // COBALT_RENDERER_TEST_PNG_UTILS_PNG_ENCODE_H_

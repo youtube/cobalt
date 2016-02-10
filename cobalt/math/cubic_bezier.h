@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_CUBIC_BEZIER_H_
-#define MATH_CUBIC_BEZIER_H_
+#ifndef COBALT_MATH_CUBIC_BEZIER_H_
+#define COBALT_MATH_CUBIC_BEZIER_H_
 
 namespace cobalt {
 namespace math {
@@ -57,4 +57,4 @@ class CubicBezier {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_CUBIC_BEZIER_H_
+#endif  // COBALT_MATH_CUBIC_BEZIER_H_

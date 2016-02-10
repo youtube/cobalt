@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_FLOAT32_ARRAY_H_
-#define DOM_FLOAT32_ARRAY_H_
+#ifndef COBALT_DOM_FLOAT32_ARRAY_H_
+#define COBALT_DOM_FLOAT32_ARRAY_H_
 
 #include "cobalt/dom/typed_array.h"
 
@@ -27,4 +27,4 @@ DEFINE_TYPED_ARRAY(Float32Array, float);
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_FLOAT32_ARRAY_H_
+#endif  // COBALT_DOM_FLOAT32_ARRAY_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_ANIMATIONS_ANIMATION_LIST_H_
-#define RENDER_TREE_ANIMATIONS_ANIMATION_LIST_H_
+#ifndef COBALT_RENDER_TREE_ANIMATIONS_ANIMATION_LIST_H_
+#define COBALT_RENDER_TREE_ANIMATIONS_ANIMATION_LIST_H_
 
 #include <list>
 
@@ -129,4 +129,4 @@ class AnimationList : public AnimationListBase {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_ANIMATIONS_ANIMATION_LIST_H_
+#endif  // COBALT_RENDER_TREE_ANIMATIONS_ANIMATION_LIST_H_

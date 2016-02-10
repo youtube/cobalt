@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_BORDER_H_
-#define RENDER_TREE_BORDER_H_
+#ifndef COBALT_RENDER_TREE_BORDER_H_
+#define COBALT_RENDER_TREE_BORDER_H_
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/math/rect_f.h"
@@ -57,4 +57,4 @@ struct Border {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_BORDER_H_
+#endif  // COBALT_RENDER_TREE_BORDER_H_

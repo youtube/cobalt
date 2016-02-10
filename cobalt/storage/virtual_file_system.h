@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef STORAGE_VIRTUAL_FILE_SYSTEM_H_
-#define STORAGE_VIRTUAL_FILE_SYSTEM_H_
+#ifndef COBALT_STORAGE_VIRTUAL_FILE_SYSTEM_H_
+#define COBALT_STORAGE_VIRTUAL_FILE_SYSTEM_H_
 
 #include <map>
 #include <string>
@@ -86,4 +86,4 @@ class VirtualFileSystem {
 }  // namespace storage
 }  // namespace cobalt
 
-#endif  // STORAGE_VIRTUAL_FILE_SYSTEM_H_
+#endif  // COBALT_STORAGE_VIRTUAL_FILE_SYSTEM_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_PARSER_PARSER_H_
-#define DOM_PARSER_PARSER_H_
+#ifndef COBALT_DOM_PARSER_PARSER_H_
+#define COBALT_DOM_PARSER_PARSER_H_
 
 #include <string>
 
@@ -78,4 +78,4 @@ class Parser : public dom::Parser {
 }  // namespace dom_parser
 }  // namespace cobalt
 
-#endif  // DOM_PARSER_PARSER_H_
+#endif  // COBALT_DOM_PARSER_PARSER_H_

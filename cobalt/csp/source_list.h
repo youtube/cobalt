@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSP_SOURCE_LIST_H_
-#define CSP_SOURCE_LIST_H_
+#ifndef COBALT_CSP_SOURCE_LIST_H_
+#define COBALT_CSP_SOURCE_LIST_H_
 
 #include <set>
 #include <string>
@@ -84,4 +84,4 @@ class SourceList {
 }  // namespace csp
 }  // namespace cobalt
 
-#endif  // CSP_SOURCE_LIST_H_
+#endif  // COBALT_CSP_SOURCE_LIST_H_

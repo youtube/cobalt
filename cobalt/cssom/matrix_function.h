@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_MATRIX_FUNCTION_H_
-#define CSSOM_MATRIX_FUNCTION_H_
+#ifndef COBALT_CSSOM_MATRIX_FUNCTION_H_
+#define COBALT_CSSOM_MATRIX_FUNCTION_H_
 
 #include <string>
 
@@ -58,4 +58,4 @@ class MatrixFunction : public TransformFunction {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_MATRIX_FUNCTION_H_
+#endif  // COBALT_CSSOM_MATRIX_FUNCTION_H_

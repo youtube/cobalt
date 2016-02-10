@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_PROXY_CONFIG_SERVICE_H_
-#define NETWORK_PROXY_CONFIG_SERVICE_H_
+#ifndef COBALT_NETWORK_PROXY_CONFIG_SERVICE_H_
+#define COBALT_NETWORK_PROXY_CONFIG_SERVICE_H_
 
 #include "base/logging.h"
 #include "base/optional.h"
@@ -42,4 +42,4 @@ class ProxyConfigService : public net::ProxyConfigServiceFixed {
 }  // namespace network
 }  // namespace cobalt
 
-#endif  // NETWORK_PROXY_CONFIG_SERVICE_H_
+#endif  // COBALT_NETWORK_PROXY_CONFIG_SERVICE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_SOURCE_BUFFER_H_
-#define DOM_SOURCE_BUFFER_H_
+#ifndef COBALT_DOM_SOURCE_BUFFER_H_
+#define COBALT_DOM_SOURCE_BUFFER_H_
 
 #include <string>
 
@@ -68,4 +68,4 @@ class SourceBuffer : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_SOURCE_BUFFER_H_
+#endif  // COBALT_DOM_SOURCE_BUFFER_H_

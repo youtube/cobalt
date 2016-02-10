@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_SCRIPT_EXECUTOR_H_
-#define WEBDRIVER_SCRIPT_EXECUTOR_H_
+#ifndef COBALT_WEBDRIVER_SCRIPT_EXECUTOR_H_
+#define COBALT_WEBDRIVER_SCRIPT_EXECUTOR_H_
 
 #if defined(ENABLE_WEBDRIVER)
 
@@ -73,4 +73,4 @@ class ScriptExecutor :
 
 #endif  // defined(ENABLE_WEBDRIVER)
 
-#endif  // WEBDRIVER_SCRIPT_EXECUTOR_H_
+#endif  // COBALT_WEBDRIVER_SCRIPT_EXECUTOR_H_

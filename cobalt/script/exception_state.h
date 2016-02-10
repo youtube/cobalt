@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_EXCEPTION_STATE_H_
-#define SCRIPT_EXCEPTION_STATE_H_
+#ifndef COBALT_SCRIPT_EXCEPTION_STATE_H_
+#define COBALT_SCRIPT_EXCEPTION_STATE_H_
 
 #include <string>
 
@@ -45,4 +45,4 @@ class ExceptionState {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_EXCEPTION_STATE_H_
+#endif  // COBALT_SCRIPT_EXCEPTION_STATE_H_

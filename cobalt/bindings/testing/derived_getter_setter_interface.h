@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
-#define BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
+#ifndef COBALT_BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
+#define COBALT_BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
 
 #include <string>
 
@@ -45,4 +45,4 @@ class DerivedGetterSetterInterface : public NamedIndexedGetterInterface {
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_
+#endif  // COBALT_BINDINGS_TESTING_DERIVED_GETTER_SETTER_INTERFACE_H_

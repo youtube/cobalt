@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_FONT_FACE_H_
-#define DOM_FONT_FACE_H_
+#ifndef COBALT_DOM_FONT_FACE_H_
+#define COBALT_DOM_FONT_FACE_H_
 
 #include <set>
 #include <string>
@@ -107,4 +107,4 @@ class FontFaceStyleSet {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_FONT_FACE_H_
+#endif  // COBALT_DOM_FONT_FACE_H_

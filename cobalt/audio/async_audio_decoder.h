@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef AUDIO_ASYNC_AUDIO_DECODER_H_
-#define AUDIO_ASYNC_AUDIO_DECODER_H_
+#ifndef COBALT_AUDIO_ASYNC_AUDIO_DECODER_H_
+#define COBALT_AUDIO_ASYNC_AUDIO_DECODER_H_
 
 #include "base/callback.h"
 #include "base/threading/thread.h"
@@ -46,4 +46,4 @@ class AsyncAudioDecoder {
 }  // namespace audio
 }  // namespace cobalt
 
-#endif  // AUDIO_ASYNC_AUDIO_DECODER_H_
+#endif  // COBALT_AUDIO_ASYNC_AUDIO_DECODER_H_

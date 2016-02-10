@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_IMPL_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_IMPL_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_IMPL_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_IMPL_H_
 
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
 #include "cobalt/script/javascriptcore/jsc_callback_function.h"
@@ -51,4 +51,4 @@ inline CallbackResult<void> ConvertReturnValue(JSC::ExecState* exec_state,
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_IMPL_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_IMPL_H_

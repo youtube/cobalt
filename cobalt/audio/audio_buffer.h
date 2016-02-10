@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef AUDIO_AUDIO_BUFFER_H_
-#define AUDIO_AUDIO_BUFFER_H_
+#ifndef COBALT_AUDIO_AUDIO_BUFFER_H_
+#define COBALT_AUDIO_AUDIO_BUFFER_H_
 
 #include <vector>
 
@@ -83,4 +83,4 @@ class AudioBuffer : public script::Wrappable {
 }  // namespace audio
 }  // namespace cobalt
 
-#endif  // AUDIO_AUDIO_BUFFER_H_
+#endif  // COBALT_AUDIO_AUDIO_BUFFER_H_

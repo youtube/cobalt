@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_COLLECTION_H_
-#define DOM_HTML_COLLECTION_H_
+#ifndef COBALT_DOM_HTML_COLLECTION_H_
+#define COBALT_DOM_HTML_COLLECTION_H_
 
 #include <string>
 
@@ -76,4 +76,4 @@ class HTMLCollection : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_COLLECTION_H_
+#endif  // COBALT_DOM_HTML_COLLECTION_H_

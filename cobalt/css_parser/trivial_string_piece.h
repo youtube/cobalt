@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSS_PARSER_TRIVIAL_STRING_PIECE_H_
-#define CSS_PARSER_TRIVIAL_STRING_PIECE_H_
+#ifndef COBALT_CSS_PARSER_TRIVIAL_STRING_PIECE_H_
+#define COBALT_CSS_PARSER_TRIVIAL_STRING_PIECE_H_
 
 #include <algorithm>
 #include <iostream>
@@ -88,4 +88,4 @@ inline std::ostream& operator<<(std::ostream& stream,
 }  // namespace css_parser
 }  // namespace cobalt
 
-#endif  // CSS_PARSER_TRIVIAL_STRING_PIECE_H_
+#endif  // COBALT_CSS_PARSER_TRIVIAL_STRING_PIECE_H_

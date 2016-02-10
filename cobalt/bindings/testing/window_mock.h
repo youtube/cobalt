@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_WINDOW_MOCK_H_
-#define BINDINGS_TESTING_WINDOW_MOCK_H_
+#ifndef COBALT_BINDINGS_TESTING_WINDOW_MOCK_H_
+#define COBALT_BINDINGS_TESTING_WINDOW_MOCK_H_
 
 #include "cobalt/bindings/testing/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -37,4 +37,4 @@ class WindowMock : public Window {
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_WINDOW_MOCK_H_
+#endif  // COBALT_BINDINGS_TESTING_WINDOW_MOCK_H_

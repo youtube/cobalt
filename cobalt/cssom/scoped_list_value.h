@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SCOPED_LIST_VALUE_H_
-#define CSSOM_SCOPED_LIST_VALUE_H_
+#ifndef COBALT_CSSOM_SCOPED_LIST_VALUE_H_
+#define COBALT_CSSOM_SCOPED_LIST_VALUE_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -69,4 +69,4 @@ class ScopedListValue : public PropertyValue {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_SCOPED_LIST_VALUE_H_
+#endif  // COBALT_CSSOM_SCOPED_LIST_VALUE_H_

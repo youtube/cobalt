@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_WINDOW_H_
-#define BINDINGS_TESTING_WINDOW_H_
+#ifndef COBALT_BINDINGS_TESTING_WINDOW_H_
+#define COBALT_BINDINGS_TESTING_WINDOW_H_
 
 #include "cobalt/bindings/testing/global_interface_parent.h"
 
@@ -36,4 +36,4 @@ class Window : public GlobalInterfaceParent {
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_WINDOW_H_
+#endif  // COBALT_BINDINGS_TESTING_WINDOW_H_

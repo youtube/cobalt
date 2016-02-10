@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_VECTOR2D_CONVERSIONS_H_
-#define MATH_VECTOR2D_CONVERSIONS_H_
+#ifndef COBALT_MATH_VECTOR2D_CONVERSIONS_H_
+#define COBALT_MATH_VECTOR2D_CONVERSIONS_H_
 
 #include "cobalt/math/vector2d.h"
 #include "cobalt/math/vector2d_f.h"
@@ -23,4 +23,4 @@ Vector2d ToRoundedVector2d(const Vector2dF& vector2d);
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_VECTOR2D_CONVERSIONS_H_
+#endif  // COBALT_MATH_VECTOR2D_CONVERSIONS_H_

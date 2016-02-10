@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_OPACITY_FILTER_H_
-#define RENDER_TREE_OPACITY_FILTER_H_
+#ifndef COBALT_RENDER_TREE_OPACITY_FILTER_H_
+#define COBALT_RENDER_TREE_OPACITY_FILTER_H_
 
 #include "base/logging.h"
 
@@ -43,4 +43,4 @@ class OpacityFilter {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_OPACITY_FILTER_H_
+#endif  // COBALT_RENDER_TREE_OPACITY_FILTER_H_

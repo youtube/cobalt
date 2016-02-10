@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef AUDIO_AUDIO_NODE_INPUT_H_
-#define AUDIO_AUDIO_NODE_INPUT_H_
+#ifndef COBALT_AUDIO_AUDIO_NODE_INPUT_H_
+#define COBALT_AUDIO_AUDIO_NODE_INPUT_H_
 
 #include <set>
 #include <vector>
@@ -62,4 +62,4 @@ class AudioNodeInput : public base::RefCountedThreadSafe<AudioNodeInput> {
 }  // namespace audio
 }  // namespace cobalt
 
-#endif  // AUDIO_AUDIO_NODE_INPUT_H_
+#endif  // COBALT_AUDIO_AUDIO_NODE_INPUT_H_

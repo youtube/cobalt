@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_PROTOCOL_SEARCH_STRATEGY_H_
-#define WEBDRIVER_PROTOCOL_SEARCH_STRATEGY_H_
+#ifndef COBALT_WEBDRIVER_PROTOCOL_SEARCH_STRATEGY_H_
+#define COBALT_WEBDRIVER_PROTOCOL_SEARCH_STRATEGY_H_
 
 #include <string>
 
@@ -56,4 +56,4 @@ class SearchStrategy {
 }  // namespace protocol
 }  // namespace webdriver
 }  // namespace cobalt
-#endif  // WEBDRIVER_PROTOCOL_SEARCH_STRATEGY_H_
+#endif  // COBALT_WEBDRIVER_PROTOCOL_SEARCH_STRATEGY_H_

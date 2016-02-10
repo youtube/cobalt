@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
-#define MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
+#ifndef COBALT_MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
+#define COBALT_MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
 
 #include <string>
 
@@ -123,4 +123,4 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
+#endif  // COBALT_MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_

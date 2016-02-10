@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ACCOUNT_ACCOUNT_MANAGER_STUB_H_
-#define ACCOUNT_ACCOUNT_MANAGER_STUB_H_
+#ifndef COBALT_ACCOUNT_ACCOUNT_MANAGER_STUB_H_
+#define COBALT_ACCOUNT_ACCOUNT_MANAGER_STUB_H_
 
 #include "cobalt/account/account_manager.h"
 
@@ -41,4 +41,4 @@ class AccountManagerStub : public AccountManager {
 }  // namespace account
 }  // namespace cobalt
 
-#endif  // ACCOUNT_ACCOUNT_MANAGER_STUB_H_
+#endif  // COBALT_ACCOUNT_ACCOUNT_MANAGER_STUB_H_

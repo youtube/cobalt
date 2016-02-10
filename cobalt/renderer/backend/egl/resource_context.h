@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_BACKEND_EGL_RESOURCE_CONTEXT_H_
-#define RENDERER_BACKEND_EGL_RESOURCE_CONTEXT_H_
+#ifndef COBALT_RENDERER_BACKEND_EGL_RESOURCE_CONTEXT_H_
+#define COBALT_RENDERER_BACKEND_EGL_RESOURCE_CONTEXT_H_
 
 #include <EGL/egl.h>
 
@@ -89,4 +89,4 @@ class ResourceContext {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_BACKEND_EGL_RESOURCE_CONTEXT_H_
+#endif  // COBALT_RENDERER_BACKEND_EGL_RESOURCE_CONTEXT_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_NULLABLE_TYPES_TEST_INTERFACE_H_
-#define BINDINGS_TESTING_NULLABLE_TYPES_TEST_INTERFACE_H_
+#ifndef COBALT_BINDINGS_TESTING_NULLABLE_TYPES_TEST_INTERFACE_H_
+#define COBALT_BINDINGS_TESTING_NULLABLE_TYPES_TEST_INTERFACE_H_
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
@@ -59,4 +59,4 @@ class NullableTypesTestInterface : public script::Wrappable {
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_NULLABLE_TYPES_TEST_INTERFACE_H_
+#endif  // COBALT_BINDINGS_TESTING_NULLABLE_TYPES_TEST_INTERFACE_H_

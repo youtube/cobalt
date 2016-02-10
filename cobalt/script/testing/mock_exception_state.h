@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_TESTING_MOCK_EXCEPTION_STATE_H_
-#define SCRIPT_TESTING_MOCK_EXCEPTION_STATE_H_
+#ifndef COBALT_SCRIPT_TESTING_MOCK_EXCEPTION_STATE_H_
+#define COBALT_SCRIPT_TESTING_MOCK_EXCEPTION_STATE_H_
 
 #include "cobalt/script/exception_state.h"
 
@@ -37,4 +37,4 @@ class MockExceptionState : public ExceptionState {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_TESTING_MOCK_EXCEPTION_STATE_H_
+#endif  // COBALT_SCRIPT_TESTING_MOCK_EXCEPTION_STATE_H_

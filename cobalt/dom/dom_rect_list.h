@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_DOM_RECT_LIST_H_
-#define DOM_DOM_RECT_LIST_H_
+#ifndef COBALT_DOM_DOM_RECT_LIST_H_
+#define COBALT_DOM_DOM_RECT_LIST_H_
 
 #include <vector>
 
@@ -62,4 +62,4 @@ class DOMRectList : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_DOM_RECT_LIST_H_
+#endif  // COBALT_DOM_DOM_RECT_LIST_H_
