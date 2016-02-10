@@ -17,6 +17,8 @@
 #ifndef COBALT_STORAGE_STORAGE_MANAGER_H_
 #define COBALT_STORAGE_STORAGE_MANAGER_H_
 
+#include <vector>
+
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
@@ -24,7 +26,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
-#include "cobalt/storage/savegame.h"
+#include "cobalt/storage/savegame_thread.h"
 #include "cobalt/storage/sql_vfs.h"
 #include "cobalt/storage/virtual_file_system.h"
 #include "sql/connection.h"
@@ -88,13 +90,20 @@ class StorageManager {
   const Options& options() const { return options_; }
 
  protected:
-  virtual void FlushInternal(const base::Closure& callback);
+  // Queues a flush to be executed as soon as possible.  As soon as possible
+  // will be as soon as any existing flush completes, or right away if no
+  // existing flush is happening.  Note that it is protected and virtual for
+  // white box testing purposes.
+  virtual void QueueFlush(const base::Closure& callback);
 
  private:
   // SqlContext needs access to our internal APIs.
   friend class SqlContext;
   // Give StorageManagerTest access, so we can more easily test some internals.
   friend class StorageManagerTest;
+
+  // Flushes all queued flushes to the savegame thread.
+  virtual void FlushInternal();
 
   // Initialize the SQLite database. This blocks until the savegame load is
   // complete.
@@ -103,22 +112,19 @@ class StorageManager {
   // Callback when flush timer has elapsed.
   void OnFlushTimerFired();
 
+  // Logic to be executed on the SQL thread when a flush completes.  Will
+  // dispatch |flush_processing_callbacks_| callbacks and execute a new flush
+  // if |flush_requested_| is true.
+  void OnFlushIOCompletedSQLCallback();
 
-  // Run on the storage I/O thread to start loading the savegame.
-  void OnInitIO();
-
-  // Callback that runs on the storage I/O thread to write the database
-  // to the savegame's persistent storage.
-  void OnFlushIO(const base::Closure& callback,
-                 scoped_ptr<Savegame::ByteVector> raw_bytes);
+  // This function will not return until all queued I/O is completed.  Since
+  // it will require the SQL message loop to process, it must be called from
+  // outside the SQL message loop (such as from StorageManager's destructor).
+  void FinishIO();
 
   // Called by the destructor, to ensure we destroy certain objects on the
   // sql thread.
   void OnDestroy();
-
-  // Called by the destructor, to ensure we destroy certain objects on the
-  // I/O thread.
-  void OnDestroyIO();
 
   // Internal API for use by SqlContext.
   sql::Connection* sql_connection();
@@ -133,17 +139,9 @@ class StorageManager {
   scoped_ptr<base::Thread> sql_thread_;
   scoped_refptr<base::MessageLoopProxy> sql_message_loop_;
 
-  // Storage I/O (savegame reads/writes) runs on a separate thread.
-  scoped_ptr<base::Thread> storage_thread_;
-  scoped_refptr<base::MessageLoopProxy> storage_message_loop_;
-
   // An interface to the storage manager's SQL database that will run on
   // the correct thread.
   scoped_ptr<SqlContext> sql_context_;
-
-  // The database gets loaded from disk. We block on returning a SQL context
-  // until storage_ready_ is signalled.
-  base::WaitableEvent storage_ready_;
 
   // The in-memory database connection.
   scoped_ptr<sql::Connection> connection_;
@@ -153,9 +151,6 @@ class StorageManager {
 
   // An interface between Sqlite and VirtualFileSystem.
   scoped_ptr<SqlVfs> sql_vfs_;
-
-  // Interface to platform-specific savegame data.
-  scoped_ptr<Savegame> savegame_;
 
   // When the savegame is loaded at startup, we keep the raw data around
   // until we can initialize the database on the correct thread.
@@ -170,6 +165,31 @@ class StorageManager {
   int loaded_database_version_;
   // false until the SQL database is fully configured.
   bool initialized_;
+
+  // True if a flush is currently being processed on the storage message loop.
+  // In this case, we should not issue more flushes, but instead set
+  // |flush_requested_| to true to ensure that a new flush is submitted as
+  // soon as we are done processing the current one.
+  bool flush_processing_;
+
+  // The queue of callbacks that are should be called when the current flush
+  // completes.  If this is not empty, then |flush_processing_| must be true.
+  std::vector<base::Closure> flush_processing_callbacks_;
+
+  // True if |flush_processing_| is true, but we would like to perform a new
+  // flush as soon as it completes.
+  bool flush_requested_;
+
+  // The queue of callbacks that will be called when the flush that follows
+  // the current flush completes.  If this is non-empty, then |flush_requested_|
+  // must be true.
+  std::vector<base::Closure> flush_requested_callbacks_;
+
+  base::WaitableEvent no_flushes_pending_;
+
+  // An object that wraps Savegame inside of an I/O thread so that we can
+  // flush data asynchronously.
+  scoped_ptr<SavegameThread> savegame_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(StorageManager);
 };
