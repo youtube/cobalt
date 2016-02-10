@@ -56,26 +56,37 @@ class BaseTimerTaskInternal {
   Timer* timer_;
 };
 
-Timer::Timer(bool retain_user_task, bool is_repeating)
+Timer::Timer(bool retain_user_task,
+             bool is_repeating,
+             bool is_task_run_before_scheduling_next)
     : scheduled_task_(NULL),
       thread_id_(0),
       is_repeating_(is_repeating),
+      is_task_run_before_scheduling_next_(is_task_run_before_scheduling_next),
       retain_user_task_(retain_user_task),
       is_running_(false) {
+  if (is_task_run_before_scheduling_next_) {
+    DCHECK(is_repeating_);
+  }
 }
 
 Timer::Timer(const tracked_objects::Location& posted_from,
              TimeDelta delay,
              const base::Closure& user_task,
-             bool is_repeating)
+             bool is_repeating,
+             bool is_task_run_before_scheduling_next)
     : scheduled_task_(NULL),
       posted_from_(posted_from),
       delay_(delay),
       user_task_(user_task),
       thread_id_(0),
       is_repeating_(is_repeating),
+      is_task_run_before_scheduling_next_(is_task_run_before_scheduling_next),
       retain_user_task_(true),
       is_running_(false) {
+  if (is_task_run_before_scheduling_next_) {
+    DCHECK(is_repeating_);
+  }
 }
 
 Timer::~Timer() {
@@ -127,6 +138,9 @@ void Timer::SetTaskInfo(const tracked_objects::Location& posted_from,
   user_task_ = user_task;
 }
 
+// This function is not re-implemented using SetupNewScheduledTask() and
+// PostNewScheduledTask() to ensure that the default behavior of Timer is
+// exactly the same as before.
 void Timer::PostNewScheduledTask(TimeDelta delay) {
   DCHECK(scheduled_task_ == NULL);
   is_running_ = true;
@@ -139,6 +153,37 @@ void Timer::PostNewScheduledTask(TimeDelta delay) {
   // later when the task is abandoned to detect misuse from multiple threads.
   if (!thread_id_)
     thread_id_ = static_cast<int>(PlatformThread::CurrentId());
+}
+
+Timer::NewScheduledTaskInfo Timer::SetupNewScheduledTask(
+    TimeDelta expected_delay) {
+  DCHECK(scheduled_task_ == NULL);
+  DCHECK(is_task_run_before_scheduling_next_);
+  DCHECK(thread_id_);
+
+  is_running_ = true;
+  scheduled_task_ = new BaseTimerTaskInternal(this);
+
+  NewScheduledTaskInfo task_info;
+  task_info.posted_from = posted_from_;
+  task_info.task =
+      base::Bind(&BaseTimerTaskInternal::Run, base::Owned(scheduled_task_));
+
+  scheduled_run_time_ = desired_run_time_ = TimeTicks::Now() + expected_delay;
+
+  return task_info;
+}
+
+void Timer::PostNewScheduledTask(NewScheduledTaskInfo task_info,
+                                 TimeDelta delay) {
+  // Some task runners expect a non-zero delay for PostDelayedTask.
+  if (delay.ToInternalValue() == 0) {
+    ThreadTaskRunnerHandle::Get()->PostTask(task_info.posted_from,
+                                            task_info.task);
+  } else {
+    ThreadTaskRunnerHandle::Get()->PostDelayedTask(task_info.posted_from,
+                                                   task_info.task, delay);
+  }
 }
 
 void Timer::AbandonScheduledTask() {
@@ -173,12 +218,28 @@ void Timer::RunScheduledTask() {
   // user_task_ member if retain_user_task_ is false.
   base::Closure task = user_task_;
 
-  if (is_repeating_)
-    PostNewScheduledTask(delay_);
-  else
+  if (!is_repeating_) {
     Stop();
+    task.Run();
+    return;
+  }
 
-  task.Run();
+  if (is_task_run_before_scheduling_next_) {
+    // Setup member variables and the next tasks before the current one runs as
+    // we cannot access any member variables after calling task.Run().
+    NewScheduledTaskInfo task_info = SetupNewScheduledTask(delay_);
+    base::Time task_start_time = base::Time::Now();
+    task.Run();
+    base::TimeDelta task_duration = base::Time::Now() - task_start_time;
+    if (task_duration >= delay_) {
+      PostNewScheduledTask(task_info, base::TimeDelta::FromInternalValue(0));
+    } else {
+      PostNewScheduledTask(task_info, delay_ - task_duration);
+    }
+  } else {
+    PostNewScheduledTask(delay_);
+    task.Run();
+  }
 
   // No more member accesses here: *this could be deleted at this point.
 }

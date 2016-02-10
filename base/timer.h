@@ -71,19 +71,33 @@ class BaseTimerTaskInternal;
 // This class wraps MessageLoop::PostDelayedTask to manage delayed and repeating
 // tasks. It must be destructed on the same thread that starts tasks. There are
 // DCHECKs in place to verify this.
-//
+// For a Timer with repeating task, the user can choose whether the Timer
+// should post the next task T(n+1) before or after running the current task
+// T(n).  As tasks are run in sequence, in the first case T(n+1) is likely to
+// run before other tasks scheduled while the T(n) is running. In the second
+// case T(n+1) will be run after other tasks scheduled while T(n) is running.
+// By default Timer uses the behavior but the user should use the second
+// behavior if the repeating task can be lengthy and is intended to be run at a
+// slightly lower priority.
 class BASE_EXPORT Timer {
  public:
   // Construct a timer in repeating or one-shot mode. Start or SetTaskInfo must
   // be called later to set task info. |retain_user_task| determines whether the
-  // user_task is retained or reset when it runs or stops.
-  Timer(bool retain_user_task, bool is_repeating);
+  // user_task is retained or reset when it runs or stops.  When
+  // |is_task_run_before_scheduling_next| is true, the next task will be posted
+  // after the current one is finished.
+  Timer(bool retain_user_task,
+        bool is_repeating,
+        bool is_task_run_before_scheduling_next = false);
 
-  // Construct a timer with retained task info.
+  // Construct a timer with retained task info.    When
+  // |is_task_run_before_scheduling_next| is true, the next task will be posted
+  // after the current one is finished.
   Timer(const tracked_objects::Location& posted_from,
         TimeDelta delay,
         const base::Closure& user_task,
-        bool is_repeating);
+        bool is_repeating,
+        bool is_task_run_before_scheduling_next = false);
 
   virtual ~Timer();
 
@@ -122,12 +136,25 @@ class BASE_EXPORT Timer {
                    const base::Closure& user_task);
 
  private:
+  struct NewScheduledTaskInfo {
+    tracked_objects::Location posted_from;
+    base::Closure task;
+  };
+
   friend class BaseTimerTaskInternal;
 
   // Allocates a new scheduled_task_ and posts it on the current MessageLoop
   // with the given |delay|. scheduled_task_ must be NULL. scheduled_run_time_
   // and desired_run_time_ are reset to Now() + delay.
   void PostNewScheduledTask(TimeDelta delay);
+  // Allocates a new scheduled_task_ so it can be posted on the current
+  // MessageLoop later.  scheduled_task_ must be NULL. scheduled_run_time_ and
+  // desired_run_time_ are reset to Now() + delay.
+  NewScheduledTaskInfo SetupNewScheduledTask(TimeDelta expected_delay);
+  // Post the task on the current MessageLoop.  Note that the delay isn't the
+  // same as the expected_delay in the above function.  It has been adjusted
+  // according to the duration of the current task.
+  void PostNewScheduledTask(NewScheduledTaskInfo task_info, TimeDelta delay);
 
   // Disable scheduled_task_ and abandon it so that it no longer refers back to
   // this object.
@@ -171,6 +198,10 @@ class BASE_EXPORT Timer {
   // Repeating timers automatically post the task again before calling the task
   // callback.
   const bool is_repeating_;
+
+  // The next task will be scheduled after the current one is finished.  Can
+  // only be true when is_repeating_ is true.
+  const bool is_task_run_before_scheduling_next_;
 
   // If true, hold on to the user_task_ closure object for reuse.
   const bool retain_user_task_;
