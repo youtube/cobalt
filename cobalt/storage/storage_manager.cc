@@ -20,7 +20,9 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/stringprintf.h"
+#include "cobalt/storage/savegame_thread.h"
 #include "cobalt/storage/virtual_file.h"
 #include "cobalt/storage/virtual_file_system.h"
 #include "sql/statement.h"
@@ -111,43 +113,45 @@ void SqlUpdateDatabaseUserVersion(sql::Connection* connection) {
 StorageManager::StorageManager(const Options& options)
     : options_(options),
       sql_thread_(new base::Thread("StorageManager SQL")),
-      storage_thread_(new base::Thread("StorageManager Storage")),
       ALLOW_THIS_IN_INITIALIZER_LIST(sql_context_(new SqlContext(this))),
-      storage_ready_(true /* manual reset */, false /* initially signalled */),
       connection_(new sql::Connection()),
       loaded_database_version_(0),
-      initialized_(false) {
+      initialized_(false),
+      flush_processing_(false),
+      flush_requested_(false),
+      no_flushes_pending_(true /* manual reset */,
+                          true /* initially signalled */) {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  savegame_thread_.reset(new SavegameThread(options_.savegame_options));
   // Start the savegame load immediately.
-  storage_thread_->Start();
-  storage_message_loop_ = storage_thread_->message_loop_proxy();
-  storage_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&StorageManager::OnInitIO, base::Unretained(this)));
-
   sql_thread_->Start();
   sql_message_loop_ = sql_thread_->message_loop_proxy();
 }
 
 StorageManager::~StorageManager() {
-  // Destroy various objects on the proper thread.
-  storage_message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&StorageManager::OnDestroyIO, base::Unretained(this)));
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(!sql_message_loop_->BelongsToCurrentThread());
 
+  // Wait for all I/O operations to complete.
+  FinishIO();
+
+  // Destroy various objects on the proper thread.
   sql_message_loop_->PostTask(FROM_HERE, base::Bind(&StorageManager::OnDestroy,
                                                     base::Unretained(this)));
 
   // Force all tasks to finish. Then we can safely let the rest of our
   // member variables be destroyed.
-  storage_thread_.reset(NULL);
-  sql_thread_.reset(NULL);
+  sql_thread_.reset();
 }
 
 void StorageManager::GetSqlContext(const SqlCallback& callback) {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   sql_message_loop_->PostTask(FROM_HERE,
                               base::Bind(callback, sql_context_.get()));
 }
 
 void StorageManager::Flush() {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   // Make sure this runs on the correct thread.
   if (MessageLoop::current()->message_loop_proxy() != sql_message_loop_) {
     sql_message_loop_->PostTask(
@@ -161,6 +165,7 @@ void StorageManager::Flush() {
 }
 
 void StorageManager::FlushNow(const base::Closure& callback) {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   // Make sure this runs on the correct thread.
   if (MessageLoop::current()->message_loop_proxy() != sql_message_loop_) {
     sql_message_loop_->PostTask(
@@ -169,11 +174,12 @@ void StorageManager::FlushNow(const base::Closure& callback) {
     return;
   }
 
-  FlushInternal(callback);
+  QueueFlush(callback);
 }
 
 bool StorageManager::GetSchemaVersion(const char* table_name,
                                       int* schema_version) {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
   DCHECK(schema_version);
 
@@ -195,6 +201,7 @@ bool StorageManager::GetSchemaVersion(const char* table_name,
 }
 
 void StorageManager::UpdateSchemaVersion(const char* table_name, int version) {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
   DCHECK_GT(version, 0) << "Schema version numbers must be positive.";
 
@@ -202,16 +209,18 @@ void StorageManager::UpdateSchemaVersion(const char* table_name, int version) {
 }
 
 sql::Connection* StorageManager::sql_connection() {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   FinishInit();
   return connection_.get();
 }
 
 void StorageManager::FinishInit() {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
   if (initialized_) {
     return;
   }
-  storage_ready_.Wait();
+
   vfs_.reset(new VirtualFileSystem());
   sql_vfs_.reset(new SqlVfs("cobalt_vfs", vfs_.get()));
   flush_timer_.reset(new base::OneShotTimer<StorageManager>());
@@ -219,8 +228,10 @@ void StorageManager::FinishInit() {
   // Check if the savegame data contains a VFS header.
   // If so, proceed to deserialize it.
   // If not, load the file into the VFS directly.
-  DCHECK(loaded_raw_bytes_);
-  Savegame::ByteVector& raw_bytes = *loaded_raw_bytes_;
+  scoped_ptr<Savegame::ByteVector> loaded_raw_bytes =
+      savegame_thread_->GetLoadedRawBytes();
+  DCHECK(loaded_raw_bytes);
+  Savegame::ByteVector& raw_bytes = *loaded_raw_bytes;
   VirtualFileSystem::SerializedHeader header = {};
   if (raw_bytes.size() > 0) {
     if (raw_bytes.size() >= sizeof(VirtualFileSystem::SerializedHeader)) {
@@ -236,8 +247,6 @@ void StorageManager::FinishInit() {
       vfs_->Deserialize(&raw_bytes[0], static_cast<int>(raw_bytes.size()));
     }
   }
-  // Finished with this, so empty it out.
-  loaded_raw_bytes_.reset(NULL);
 
   std::vector<std::string> filenames = vfs_->ListFiles();
   if (filenames.size() == 0) {
@@ -278,14 +287,71 @@ void StorageManager::FinishInit() {
 }
 
 void StorageManager::OnFlushTimerFired() {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
 
-  FlushInternal(base::Closure());
+  QueueFlush(base::Closure());
 }
 
-void StorageManager::FlushInternal(const base::Closure& callback) {
+void StorageManager::OnFlushIOCompletedSQLCallback() {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  // Make sure this runs on the SQL message loop.
+  if (MessageLoop::current()->message_loop_proxy() != sql_message_loop_) {
+    sql_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&StorageManager::OnFlushIOCompletedSQLCallback,
+                              base::Unretained(this)));
+    return;
+  }
+
+  flush_processing_ = false;
+
+  // Fire all the callbacks waiting on the current flush to complete.
+  for (size_t i = 0; i < flush_processing_callbacks_.size(); ++i) {
+    DCHECK(!flush_processing_callbacks_[i].is_null());
+    flush_processing_callbacks_[i].Run();
+  }
+  flush_processing_callbacks_.clear();
+
+  if (flush_requested_) {
+    // If another flush has been requested while we were processing the one that
+    // just completed, start that next flush now.
+    flush_processing_callbacks_.swap(flush_requested_callbacks_);
+    flush_requested_ = false;
+    FlushInternal();
+    DCHECK(flush_processing_);
+  } else {
+    no_flushes_pending_.Signal();
+  }
+}
+
+void StorageManager::QueueFlush(const base::Closure& callback) {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(sql_message_loop_->BelongsToCurrentThread());
+
+  if (!flush_processing_) {
+    // If no flush is currently in progress, flush immediately.
+    if (!callback.is_null()) {
+      flush_processing_callbacks_.push_back(callback);
+    }
+    FlushInternal();
+    DCHECK(flush_processing_);
+  } else {
+    // Otherwise, indicate that we would like to re-flush as soon as the
+    // current one completes.
+    flush_requested_ = true;
+    if (!callback.is_null()) {
+      flush_requested_callbacks_.push_back(callback);
+    }
+  }
+}
+
+void StorageManager::FlushInternal() {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
   FinishInit();
+
+  flush_processing_ = true;
+  no_flushes_pending_.Reset();
 
   // Serialize the database into a buffer. Then send the bytes
   // to OnFlushIO for a blocking write to the savegame.
@@ -296,50 +362,53 @@ void StorageManager::FlushInternal(const base::Closure& callback) {
     Savegame::ByteVector& raw_bytes = *raw_bytes_ptr;
     vfs_->Serialize(&raw_bytes[0], false /*dry_run*/);
   }
-  storage_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&StorageManager::OnFlushIO, base::Unretained(this),
-                            callback, base::Passed(&raw_bytes_ptr)));
+
+  // Send the savegame bytes off to the SavegameThread object to be
+  // asynchronously written to the savegame file.
+  savegame_thread_->Flush(
+      raw_bytes_ptr.Pass(),
+      base::Bind(&StorageManager::OnFlushIOCompletedSQLCallback,
+                 base::Unretained(this)));
 }
 
-void StorageManager::OnInitIO() {
-  DCHECK(storage_message_loop_->BelongsToCurrentThread());
+void StorageManager::FinishIO() {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(!sql_message_loop_->BelongsToCurrentThread());
 
-  // Create a savegame object on the storage I/O thread.
-  savegame_ = options_.savegame_options.CreateSavegame();
+  // The SQL thread may be communicating with the savegame I/O thread still,
+  // flushing all pending updates.  This process can require back and forth
+  // communication.  This method exists to wait for that communication to
+  // finish and for all pending flushes to complete.
 
-  // Load the save data into our VFS, if it exists.
-  loaded_raw_bytes_.reset(new Savegame::ByteVector());
-  savegame_->Read(loaded_raw_bytes_.get());
+  // Start by finishing all commands currently in the sql message loop queue.
+  // This method is called by the destructor, so the only new tasks posted
+  // after this one will be generated internally.  We need to do this because
+  // it is possible that there are no flushes pending at this instant, but there
+  // are tasks queued on |sql_message_loop_| that will begin a flush, and so
+  // we make sure that these are executed first.
+  base::WaitableEvent current_queue_finished_event_(true, false);
+  sql_message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&base::WaitableEvent::Signal,
+                 base::Unretained(&current_queue_finished_event_)));
+  current_queue_finished_event_.Wait();
 
-  // Signal storage is ready. Anyone waiting for the load will now be unblocked.
-  storage_ready_.Signal();
-}
-
-void StorageManager::OnFlushIO(const base::Closure& callback,
-                               scoped_ptr<Savegame::ByteVector> raw_bytes_ptr) {
-  DCHECK(storage_message_loop_->BelongsToCurrentThread());
-  if (raw_bytes_ptr->size() > 0) {
-    bool ret = savegame_->Write(*raw_bytes_ptr);
-    DCHECK(ret);
-  }
-
-  if (!callback.is_null()) {
-    callback.Run();
-  }
+  // Now wait for all pending flushes to wrap themselves up.  This may involve
+  // the savegame I/O thread and the SQL thread posting tasks to each other.
+  no_flushes_pending_.Wait();
 }
 
 void StorageManager::OnDestroy() {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
+
+  // Stop the savegame thread and have it wrap up any pending I/O operations.
+  savegame_thread_.reset();
+
   // Ensure these objects are destroyed on the proper thread.
   flush_timer_.reset(NULL);
   sql_vfs_.reset(NULL);
   vfs_.reset(NULL);
-}
-
-void StorageManager::OnDestroyIO() {
-  DCHECK(storage_message_loop_->BelongsToCurrentThread());
-  // Ensure these objects are destroyed on the proper thread.
-  savegame_.reset(NULL);
 }
 
 }  // namespace storage

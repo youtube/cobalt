@@ -25,6 +25,8 @@
       'sources': [
         'savegame.cc',
         'savegame.h',
+        'savegame_thread.cc',
+        'savegame_thread.h',
         'sql_vfs.cc',
         'sql_vfs.h',
         'storage_manager.cc',
