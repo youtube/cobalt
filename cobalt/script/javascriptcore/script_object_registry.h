@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_JAVASCRIPTCORE_SCRIPT_OBJECT_REGISTRY_H_
-#define SCRIPT_JAVASCRIPTCORE_SCRIPT_OBJECT_REGISTRY_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_SCRIPT_OBJECT_REGISTRY_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_SCRIPT_OBJECT_REGISTRY_H_
 
 #include "base/hash_tables.h"
 #include "base/threading/thread_checker.h"
@@ -54,4 +54,4 @@ class ScriptObjectRegistry {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_SCRIPT_OBJECT_REGISTRY_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_SCRIPT_OBJECT_REGISTRY_H_

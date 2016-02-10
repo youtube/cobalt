@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSP_PARSERS_H_
-#define CSP_PARSERS_H_
+#ifndef COBALT_CSP_PARSERS_H_
+#define COBALT_CSP_PARSERS_H_
 
 #include <string>
 #include <utility>
@@ -179,4 +179,4 @@ static inline std::string ToString(const char* begin, const char* end) {
 }  // namespace csp
 }  // namespace cobalt
 
-#endif  // CSP_PARSERS_H_
+#endif  // COBALT_CSP_PARSERS_H_

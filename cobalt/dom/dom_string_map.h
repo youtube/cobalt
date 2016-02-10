@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_DOM_STRING_MAP_H_
-#define DOM_DOM_STRING_MAP_H_
+#ifndef COBALT_DOM_DOM_STRING_MAP_H_
+#define COBALT_DOM_DOM_STRING_MAP_H_
 
 #include <string>
 
@@ -69,4 +69,4 @@ class DOMStringMap : public script::Wrappable,
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_DOM_STRING_MAP_H_
+#endif  // COBALT_DOM_DOM_STRING_MAP_H_

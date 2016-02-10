@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_HOLDER_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_HOLDER_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_HOLDER_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_HOLDER_H_
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -75,4 +75,4 @@ class JSCCallbackFunctionHolder : public ScriptObject<CallbackFunction> {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_HOLDER_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_HOLDER_H_

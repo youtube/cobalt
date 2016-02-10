@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_HOLDER_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_HOLDER_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_HOLDER_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_HOLDER_H_
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/javascriptcore/jsc_object_handle.h"
@@ -73,4 +73,4 @@ class JSCObjectHandleHolder : public OpaqueHandleHolder {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_HOLDER_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_HOLDER_H_

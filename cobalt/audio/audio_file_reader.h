@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef AUDIO_AUDIO_FILE_READER_H_
-#define AUDIO_AUDIO_FILE_READER_H_
+#ifndef COBALT_AUDIO_AUDIO_FILE_READER_H_
+#define COBALT_AUDIO_AUDIO_FILE_READER_H_
 
 #include "base/memory/scoped_ptr.h"  // For scoped_array
 
@@ -40,4 +40,4 @@ class AudioFileReader {
 }  // namespace audio
 }  // namespace cobalt
 
-#endif  // AUDIO_AUDIO_FILE_READER_H_
+#endif  // COBALT_AUDIO_AUDIO_FILE_READER_H_

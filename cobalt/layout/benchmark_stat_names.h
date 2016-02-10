@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_BENCHMARK_STAT_NAMES_H_
-#define LAYOUT_BENCHMARK_STAT_NAMES_H_
+#ifndef COBALT_LAYOUT_BENCHMARK_STAT_NAMES_H_
+#define COBALT_LAYOUT_BENCHMARK_STAT_NAMES_H_
 
 namespace cobalt {
 namespace layout {
@@ -35,4 +35,4 @@ extern const char kBenchmarkStatNonMeasuredLayout[];
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_BENCHMARK_STAT_NAMES_H_
+#endif  // COBALT_LAYOUT_BENCHMARK_STAT_NAMES_H_

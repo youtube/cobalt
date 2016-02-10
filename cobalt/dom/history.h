@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HISTORY_H_
-#define DOM_HISTORY_H_
+#ifndef COBALT_DOM_HISTORY_H_
+#define COBALT_DOM_HISTORY_H_
 
 #include "cobalt/script/wrappable.h"
 
@@ -45,4 +45,4 @@ class History : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HISTORY_H_
+#endif  // COBALT_DOM_HISTORY_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CALC_VALUE_H_
-#define CSSOM_CALC_VALUE_H_
+#ifndef COBALT_CSSOM_CALC_VALUE_H_
+#define COBALT_CSSOM_CALC_VALUE_H_
 
 #include <string>
 
@@ -79,4 +79,4 @@ class CalcValue : public PropertyValue {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CALC_VALUE_H_
+#endif  // COBALT_CSSOM_CALC_VALUE_H_

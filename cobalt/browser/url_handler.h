@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_URL_HANDLER_H_
-#define BROWSER_URL_HANDLER_H_
+#ifndef COBALT_BROWSER_URL_HANDLER_H_
+#define COBALT_BROWSER_URL_HANDLER_H_
 
 #include "base/callback.h"
 #include "googleurl/src/gurl.h"
@@ -48,4 +48,4 @@ class URLHandler {
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // BROWSER_URL_HANDLER_H_
+#endif  // COBALT_BROWSER_URL_HANDLER_H_

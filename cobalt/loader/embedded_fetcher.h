@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_EMBEDDED_FETCHER_H_
-#define LOADER_EMBEDDED_FETCHER_H_
+#ifndef COBALT_LOADER_EMBEDDED_FETCHER_H_
+#define COBALT_LOADER_EMBEDDED_FETCHER_H_
 
 #include <limits>
 #include <string>
@@ -54,4 +54,4 @@ class EmbeddedFetcher : public Fetcher {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_EMBEDDED_FETCHER_H_
+#endif  // COBALT_LOADER_EMBEDDED_FETCHER_H_

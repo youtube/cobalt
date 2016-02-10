@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_RENDERER_MODULE_H_
-#define RENDERER_RENDERER_MODULE_H_
+#ifndef COBALT_RENDERER_RENDERER_MODULE_H_
+#define COBALT_RENDERER_RENDERER_MODULE_H_
 
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/display.h"
@@ -62,4 +62,4 @@ class RendererModule {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_RENDERER_MODULE_H_
+#endif  // COBALT_RENDERER_RENDERER_MODULE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
-#define MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
+#ifndef COBALT_MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
+#define COBALT_MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
 
 #include "media/player/web_media_player.h"
 
@@ -40,4 +40,4 @@ class WebMediaPlayerFactory {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
+#endif  // COBALT_MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_

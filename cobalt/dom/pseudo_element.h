@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_PSEUDO_ELEMENT_H_
-#define DOM_PSEUDO_ELEMENT_H_
+#ifndef COBALT_DOM_PSEUDO_ELEMENT_H_
+#define COBALT_DOM_PSEUDO_ELEMENT_H_
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
@@ -97,4 +97,4 @@ class PseudoElement {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_PSEUDO_ELEMENT_H_
+#endif  // COBALT_DOM_PSEUDO_ELEMENT_H_

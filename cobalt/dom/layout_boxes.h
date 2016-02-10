@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_LAYOUT_BOXES_H_
-#define DOM_LAYOUT_BOXES_H_
+#ifndef COBALT_DOM_LAYOUT_BOXES_H_
+#define COBALT_DOM_LAYOUT_BOXES_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/dom_rect_list.h"
@@ -82,4 +82,4 @@ class LayoutBoxes {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_LAYOUT_BOXES_H_
+#endif  // COBALT_DOM_LAYOUT_BOXES_H_

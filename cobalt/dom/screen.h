@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_SCREEN_H_
-#define DOM_SCREEN_H_
+#ifndef COBALT_DOM_SCREEN_H_
+#define COBALT_DOM_SCREEN_H_
 
 #include "cobalt/script/wrappable.h"
 
@@ -66,4 +66,4 @@ class Screen : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_SCREEN_H_
+#endif  // COBALT_DOM_SCREEN_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_TESTING_MOCK_EVENT_LISTENER_H_
-#define DOM_TESTING_MOCK_EVENT_LISTENER_H_
+#ifndef COBALT_DOM_TESTING_MOCK_EVENT_LISTENER_H_
+#define COBALT_DOM_TESTING_MOCK_EVENT_LISTENER_H_
 
 #include "cobalt/dom/event_listener.h"
 
@@ -82,4 +82,4 @@ class FakeScriptObject : public script::ScriptObject<EventListener> {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_TESTING_MOCK_EVENT_LISTENER_H_
+#endif  // COBALT_DOM_TESTING_MOCK_EVENT_LISTENER_H_

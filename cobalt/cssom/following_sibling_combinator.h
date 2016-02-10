@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_FOLLOWING_SIBLING_COMBINATOR_H_
-#define CSSOM_FOLLOWING_SIBLING_COMBINATOR_H_
+#ifndef COBALT_CSSOM_FOLLOWING_SIBLING_COMBINATOR_H_
+#define COBALT_CSSOM_FOLLOWING_SIBLING_COMBINATOR_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -49,4 +49,4 @@ class FollowingSiblingCombinator : public Combinator {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_FOLLOWING_SIBLING_COMBINATOR_H_
+#endif  // COBALT_CSSOM_FOLLOWING_SIBLING_COMBINATOR_H_

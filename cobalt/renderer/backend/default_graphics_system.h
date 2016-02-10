@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_BACKEND_DEFAULT_GRAPHICS_SYSTEM_H_
-#define RENDERER_BACKEND_DEFAULT_GRAPHICS_SYSTEM_H_
+#ifndef COBALT_RENDERER_BACKEND_DEFAULT_GRAPHICS_SYSTEM_H_
+#define COBALT_RENDERER_BACKEND_DEFAULT_GRAPHICS_SYSTEM_H_
 
 #include "cobalt/renderer/backend/graphics_system.h"
 
@@ -33,4 +33,4 @@ scoped_ptr<GraphicsSystem> CreateDefaultGraphicsSystem();
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_BACKEND_DEFAULT_GRAPHICS_SYSTEM_H_
+#endif  // COBALT_RENDERER_BACKEND_DEFAULT_GRAPHICS_SYSTEM_H_

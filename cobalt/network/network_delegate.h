@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_NETWORK_DELEGATE_H_
-#define NETWORK_NETWORK_DELEGATE_H_
+#ifndef COBALT_NETWORK_NETWORK_DELEGATE_H_
+#define COBALT_NETWORK_NETWORK_DELEGATE_H_
 
 #include <string>
 
@@ -94,4 +94,4 @@ class NetworkDelegate : public net::NetworkDelegate {
 }  // namespace network
 }  // namespace cobalt
 
-#endif  // NETWORK_NETWORK_DELEGATE_H_
+#endif  // COBALT_NETWORK_NETWORK_DELEGATE_H_

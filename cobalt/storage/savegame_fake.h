@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef STORAGE_SAVEGAME_FAKE_H_
-#define STORAGE_SAVEGAME_FAKE_H_
+#ifndef COBALT_STORAGE_SAVEGAME_FAKE_H_
+#define COBALT_STORAGE_SAVEGAME_FAKE_H_
 
 #if !defined(UNIT_TEST)
 #error Only for use in unit tests
@@ -50,4 +50,4 @@ class SavegameFake : public Savegame {
 }  // namespace storage
 }  // namespace cobalt
 
-#endif  // STORAGE_SAVEGAME_FAKE_H_
+#endif  // COBALT_STORAGE_SAVEGAME_FAKE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_
-#define WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_
+#ifndef COBALT_WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_
+#define COBALT_WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_
 
 #include "base/bind.h"
 #include "base/callback.h"
@@ -111,4 +111,4 @@ util::CommandResult<ReturnValue> CallWeakOnMessageLoopAndReturnResult(
 }  // namespace webdriver
 }  // namespace cobalt
 
-#endif  // WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_
+#endif  // COBALT_WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_

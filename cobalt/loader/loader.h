@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_LOADER_H_
-#define LOADER_LOADER_H_
+#ifndef COBALT_LOADER_LOADER_H_
+#define COBALT_LOADER_LOADER_H_
 
 #include <string>
 
@@ -54,4 +54,4 @@ class Loader {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_LOADER_H_
+#endif  // COBALT_LOADER_LOADER_H_

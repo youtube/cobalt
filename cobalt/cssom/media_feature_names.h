@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_MEDIA_FEATURE_NAMES_H_
-#define CSSOM_MEDIA_FEATURE_NAMES_H_
+#ifndef COBALT_CSSOM_MEDIA_FEATURE_NAMES_H_
+#define COBALT_CSSOM_MEDIA_FEATURE_NAMES_H_
 
 namespace cobalt {
 namespace cssom {
@@ -56,4 +56,4 @@ enum MediaFeatureName {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_MEDIA_FEATURE_NAMES_H_
+#endif  // COBALT_CSSOM_MEDIA_FEATURE_NAMES_H_

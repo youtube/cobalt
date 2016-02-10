@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_MEDIA_QUERY_LIST_H_
-#define DOM_MEDIA_QUERY_LIST_H_
+#ifndef COBALT_DOM_MEDIA_QUERY_LIST_H_
+#define COBALT_DOM_MEDIA_QUERY_LIST_H_
 
 #include <string>
 
@@ -55,4 +55,4 @@ class MediaQueryList : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_MEDIA_QUERY_LIST_H_
+#endif  // COBALT_DOM_MEDIA_QUERY_LIST_H_

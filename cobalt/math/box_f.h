@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_BOX_F_H_
-#define MATH_BOX_F_H_
+#ifndef COBALT_MATH_BOX_F_H_
+#define COBALT_MATH_BOX_F_H_
 
 #include <iosfwd>
 #include <string>
@@ -149,4 +149,4 @@ inline BoxF operator+(const BoxF& b, const Vector3dF& v) {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_BOX_F_H_
+#endif  // COBALT_MATH_BOX_F_H_

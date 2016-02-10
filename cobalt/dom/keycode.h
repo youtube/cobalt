@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_KEYCODE_H_
-#define DOM_KEYCODE_H_
+#ifndef COBALT_DOM_KEYCODE_H_
+#define COBALT_DOM_KEYCODE_H_
 
 namespace cobalt {
 namespace dom {
@@ -208,4 +208,4 @@ enum {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_KEYCODE_H_
+#endif  // COBALT_DOM_KEYCODE_H_

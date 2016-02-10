@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_TESTING_MOCK_PROPERTY_ENUMERATOR_H_
-#define SCRIPT_TESTING_MOCK_PROPERTY_ENUMERATOR_H_
+#ifndef COBALT_SCRIPT_TESTING_MOCK_PROPERTY_ENUMERATOR_H_
+#define COBALT_SCRIPT_TESTING_MOCK_PROPERTY_ENUMERATOR_H_
 
 #include "cobalt/script/property_enumerator.h"
 
@@ -34,4 +34,4 @@ class MockPropertyEnumerator : public PropertyEnumerator {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_TESTING_MOCK_PROPERTY_ENUMERATOR_H_
+#endif  // COBALT_SCRIPT_TESTING_MOCK_PROPERTY_ENUMERATOR_H_

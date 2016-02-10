@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_PARSER_XML_DECODER_H_
-#define DOM_PARSER_XML_DECODER_H_
+#ifndef COBALT_DOM_PARSER_XML_DECODER_H_
+#define COBALT_DOM_PARSER_XML_DECODER_H_
 
 #include <string>
 
@@ -66,4 +66,4 @@ class XMLDecoder : public loader::Decoder {
 }  // namespace dom_parser
 }  // namespace cobalt
 
-#endif  // DOM_PARSER_XML_DECODER_H_
+#endif  // COBALT_DOM_PARSER_XML_DECODER_H_

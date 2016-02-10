@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_ELEMENT_DRIVER_H_
-#define WEBDRIVER_ELEMENT_DRIVER_H_
+#ifndef COBALT_WEBDRIVER_ELEMENT_DRIVER_H_
+#define COBALT_WEBDRIVER_ELEMENT_DRIVER_H_
 
 #include <string>
 #include <vector>
@@ -98,4 +98,4 @@ class ElementDriver {
 }  // namespace webdriver
 }  // namespace cobalt
 
-#endif  // WEBDRIVER_ELEMENT_DRIVER_H_
+#endif  // COBALT_WEBDRIVER_ELEMENT_DRIVER_H_

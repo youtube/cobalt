@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEB_ANIMATIONS_KEYFRAME_H_
-#define WEB_ANIMATIONS_KEYFRAME_H_
+#ifndef COBALT_WEB_ANIMATIONS_KEYFRAME_H_
+#define COBALT_WEB_ANIMATIONS_KEYFRAME_H_
 
 #include <map>
 #include <string>
@@ -120,4 +120,4 @@ class Keyframe : public script::Wrappable {
 }  // namespace web_animations
 }  // namespace cobalt
 
-#endif  // WEB_ANIMATIONS_KEYFRAME_H_
+#endif  // COBALT_WEB_ANIMATIONS_KEYFRAME_H_

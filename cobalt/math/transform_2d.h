@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MATH_TRANSFORM_2D_H_
-#define MATH_TRANSFORM_2D_H_
+#ifndef COBALT_MATH_TRANSFORM_2D_H_
+#define COBALT_MATH_TRANSFORM_2D_H_
 
 #include "cobalt/math/matrix3_f.h"
 
@@ -30,4 +30,4 @@ cobalt::math::Matrix3F RotateMatrix(float counter_clockwise_angle_in_radians);
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_TRANSFORM_2D_H_
+#endif  // COBALT_MATH_TRANSFORM_2D_H_

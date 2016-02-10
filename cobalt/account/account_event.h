@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ACCOUNT_ACCOUNT_EVENT_H_
-#define ACCOUNT_ACCOUNT_EVENT_H_
+#ifndef COBALT_ACCOUNT_ACCOUNT_EVENT_H_
+#define COBALT_ACCOUNT_ACCOUNT_EVENT_H_
 
 #include "base/compiler_specific.h"
 #include "cobalt/base/event.h"
@@ -39,4 +39,4 @@ class AccountEvent : public base::Event {
 }  // namespace account
 }  // namespace cobalt
 
-#endif  // ACCOUNT_ACCOUNT_EVENT_H_
+#endif  // COBALT_ACCOUNT_ACCOUNT_EVENT_H_

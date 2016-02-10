@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_DISPATCHER_H_
-#define WEBDRIVER_DISPATCHER_H_
+#ifndef COBALT_WEBDRIVER_DISPATCHER_H_
+#define COBALT_WEBDRIVER_DISPATCHER_H_
 
 #include <string>
 #include <vector>
@@ -154,4 +154,4 @@ class WebDriverDispatcher {
 }  // namespace webdriver
 }  // namespace cobalt
 
-#endif  // WEBDRIVER_DISPATCHER_H_
+#endif  // COBALT_WEBDRIVER_DISPATCHER_H_

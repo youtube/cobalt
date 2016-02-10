@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_COMPILER_H_
-#define BASE_COMPILER_H_
+#ifndef COBALT_BASE_COMPILER_H_
+#define COBALT_BASE_COMPILER_H_
 
 // Macro for hinting that an expression is likely to be true.
 #if !defined(LIKELY)
@@ -39,4 +39,4 @@
   #endif  // defined(__GNUC__)
 #endif  // !defined(UNLIKELY)
 
-#endif  // BASE_COMPILER_H_
+#endif  // COBALT_BASE_COMPILER_H_

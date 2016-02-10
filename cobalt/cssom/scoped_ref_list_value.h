@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SCOPED_REF_LIST_VALUE_H_
-#define CSSOM_SCOPED_REF_LIST_VALUE_H_
+#ifndef COBALT_CSSOM_SCOPED_REF_LIST_VALUE_H_
+#define COBALT_CSSOM_SCOPED_REF_LIST_VALUE_H_
 
 #include <vector>
 
@@ -74,4 +74,4 @@ class ScopedRefListValue : public PropertyValue {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_SCOPED_REF_LIST_VALUE_H_
+#endif  // COBALT_CSSOM_SCOPED_REF_LIST_VALUE_H_

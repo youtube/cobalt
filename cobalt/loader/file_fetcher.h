@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_FILE_FETCHER_H_
-#define LOADER_FILE_FETCHER_H_
+#ifndef COBALT_LOADER_FILE_FETCHER_H_
+#define COBALT_LOADER_FILE_FETCHER_H_
 
 #include <limits>
 #include <vector>
@@ -110,4 +110,4 @@ class FileFetcher : public Fetcher {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_FILE_FETCHER_H_
+#endif  // COBALT_LOADER_FILE_FETCHER_H_

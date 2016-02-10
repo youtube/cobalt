@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_COMBINATOR_VISITOR_H_
-#define CSSOM_COMBINATOR_VISITOR_H_
+#ifndef COBALT_CSSOM_COMBINATOR_VISITOR_H_
+#define COBALT_CSSOM_COMBINATOR_VISITOR_H_
 
 namespace cobalt {
 namespace cssom {
@@ -41,4 +41,4 @@ class CombinatorVisitor {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_COMBINATOR_VISITOR_H_
+#endif  // COBALT_CSSOM_COMBINATOR_VISITOR_H_

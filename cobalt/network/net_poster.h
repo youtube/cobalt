@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_NET_POSTER_H_
-#define NETWORK_NET_POSTER_H_
+#ifndef COBALT_NETWORK_NET_POSTER_H_
+#define COBALT_NETWORK_NET_POSTER_H_
 
 #include <string>
 
@@ -57,4 +57,4 @@ class NetPoster : public network_bridge::NetPoster, net::URLFetcherDelegate {
 }  // namespace network
 }  // namespace cobalt
 
-#endif  // NETWORK_NET_POSTER_H_
+#endif  // COBALT_NETWORK_NET_POSTER_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEB_ANIMATIONS_KEYFRAME_EFFECT_READ_ONLY_H_
-#define WEB_ANIMATIONS_KEYFRAME_EFFECT_READ_ONLY_H_
+#ifndef COBALT_WEB_ANIMATIONS_KEYFRAME_EFFECT_READ_ONLY_H_
+#define COBALT_WEB_ANIMATIONS_KEYFRAME_EFFECT_READ_ONLY_H_
 
 #include <set>
 #include <vector>
@@ -111,4 +111,4 @@ class KeyframeEffectReadOnly : public AnimationEffectReadOnly {
 }  // namespace web_animations
 }  // namespace cobalt
 
-#endif  // WEB_ANIMATIONS_KEYFRAME_EFFECT_READ_ONLY_H_
+#endif  // COBALT_WEB_ANIMATIONS_KEYFRAME_EFFECT_READ_ONLY_H_
