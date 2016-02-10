@@ -5,7 +5,7 @@ function ConsoleValues() {
   // Default key used for auto-save, or if the user doesn't specify another.
   this.DEFAULT_KEY = 'default';
   // Reduced space-separated list of CVal prefixes to display at start-up.
-  this.DEFAULT_ACTIVE_SET = 'Cobalt Memory';
+  this.DEFAULT_ACTIVE_SET = 'Cobalt DevTools Memory';
   var names = window.debugHub.getConsoleValueNames();
   this.allCVals = names.split(' ');
   this.initActiveSet();
