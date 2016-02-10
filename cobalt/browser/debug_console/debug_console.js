@@ -60,7 +60,7 @@ function printToMessageLog(severity, message) {
 }
 
 function showHud(doShow) {
-  showBlockElem(document.getElementById('hud'), doShow);
+  showBlockElem(document.getElementById('hudFrame'), doShow);
 }
 
 function printToHud(message) {
