@@ -120,6 +120,7 @@
         'string_format_test.cc',
         'string_format_wide_test.cc',
         'string_parse_signed_integer_test.cc',
+        'string_parse_uint64_test.cc',
         'string_parse_unsigned_integer_test.cc',
         'string_scan_test.cc',
         'system_clear_last_error_test.cc',

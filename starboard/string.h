@@ -211,6 +211,14 @@ SB_EXPORT unsigned long SbStringParseUnsignedInteger(const char* start,
                                                      char** out_end,
                                                      int base);
 
+// Parses a string at the beginning of |start| into a unsigned 64-bit integer in
+// the given |base|.  It will place the pointer to the end of the consumed
+// portion of the string in |out_end|, if it is provided. Meant to be a drop-in
+// replacement for strtoull, but explicity declared to return uint64_t.
+SB_EXPORT uint64_t SbStringParseUInt64(const char* start,
+                                       char** out_end,
+                                       int base);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
