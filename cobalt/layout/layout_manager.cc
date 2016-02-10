@@ -97,7 +97,7 @@ LayoutManager::Impl::Impl(
       on_render_tree_produced_callback_(on_render_tree_produced),
       layout_trigger_(layout_trigger),
       layout_dirty_(true),
-      layout_timer_(true, true),
+      layout_timer_(true, true, true),
       layout_refresh_rate_(layout_refresh_rate) {
   window_->document()->AddObserver(this);
   window_->SetSynchronousLayoutCallback(
