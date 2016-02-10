@@ -30,6 +30,7 @@
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "base/utf_string_conversions.h"
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/margin_or_padding_shorthand.h"
 #include "cobalt/css_parser/property_declaration.h"
@@ -418,7 +419,8 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
     // around the location.
     //
     const int kLineMax = 80;
-    const std::string line = GetLineString(source_location.line_start);
+    const std::wstring line =
+        UTF8ToWide(GetLineString(source_location.line_start));
     const int line_length = static_cast<int>(line.length());
     // The range of index of the substr is [substr_start, substr_end).
     // Shift the range left and right, and trim to the correct length, to make
@@ -442,10 +444,11 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
     const std::string preamble = substr_start == 0 ? "" : "...";
     const std::string postamble = substr_end == line_length ? "" : "...";
 
-    message_stream << std::endl << preamble
-                   << line.substr(
+    message_stream << std::endl
+                   << preamble
+                   << WideToUTF8(line.substr(
                           static_cast<size_t>(substr_start),
-                          static_cast<size_t>(substr_end - substr_start))
+                          static_cast<size_t>(substr_end - substr_start)))
                    << postamble;
 
     // 3rd line: a '^' arrow to indicate the exact column in the line.
