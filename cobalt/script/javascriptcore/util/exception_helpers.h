@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_JAVASCRIPTCORE_UTIL_EXCEPTION_HELPERS_H_
-#define SCRIPT_JAVASCRIPTCORE_UTIL_EXCEPTION_HELPERS_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_UTIL_EXCEPTION_HELPERS_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_UTIL_EXCEPTION_HELPERS_H_
 
 #include <string>
 #include <vector>
@@ -46,4 +46,4 @@ std::vector<StackFrame> GetStackTrace(JSC::ExecState* exec_state,
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_UTIL_EXCEPTION_HELPERS_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_UTIL_EXCEPTION_HELPERS_H_

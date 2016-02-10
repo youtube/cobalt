@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_UNION_TYPE_INTERNAL_H_
-#define SCRIPT_UNION_TYPE_INTERNAL_H_
+#ifndef COBALT_SCRIPT_UNION_TYPE_INTERNAL_H_
+#define COBALT_SCRIPT_UNION_TYPE_INTERNAL_H_
 
 // Details of union type implementation. See union_type.h
 
@@ -94,4 +94,4 @@ struct UnionTypeTraits<base::optional<T> > : UnionTypeDefaultTraits<T> {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_UNION_TYPE_INTERNAL_H_
+#endif  // COBALT_SCRIPT_UNION_TYPE_INTERNAL_H_

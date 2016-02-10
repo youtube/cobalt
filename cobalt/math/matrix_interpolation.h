@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MATH_MATRIX_INTERPOLATION_H_
-#define MATH_MATRIX_INTERPOLATION_H_
+#ifndef COBALT_MATH_MATRIX_INTERPOLATION_H_
+#define COBALT_MATH_MATRIX_INTERPOLATION_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/math/matrix3_f.h"
@@ -60,4 +60,4 @@ math::Matrix3F InterpolateMatrices(const math::Matrix3F& a,
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_MATRIX_INTERPOLATION_H_
+#endif  // COBALT_MATH_MATRIX_INTERPOLATION_H_

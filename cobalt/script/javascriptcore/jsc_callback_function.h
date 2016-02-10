@@ -18,8 +18,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
 
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
@@ -491,4 +491,4 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_

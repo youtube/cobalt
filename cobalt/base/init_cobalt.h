@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_INIT_COBALT_H_
-#define BASE_INIT_COBALT_H_
+#ifndef COBALT_BASE_INIT_COBALT_H_
+#define COBALT_BASE_INIT_COBALT_H_
 
 namespace cobalt {
 
@@ -36,4 +36,4 @@ void InitCobalt(int argc, char* argv[]);
 
 }  // namespace cobalt
 
-#endif  // BASE_INIT_COBALT_H_
+#endif  // COBALT_BASE_INIT_COBALT_H_

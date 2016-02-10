@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_ANIMATION_H_
-#define CSSOM_ANIMATION_H_
+#ifndef COBALT_CSSOM_ANIMATION_H_
+#define COBALT_CSSOM_ANIMATION_H_
 
 #include <string>
 
@@ -112,4 +112,4 @@ class Animation {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_ANIMATION_H_
+#endif  // COBALT_CSSOM_ANIMATION_H_

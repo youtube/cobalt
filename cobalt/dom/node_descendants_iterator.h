@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_NODE_DESCENDANTS_ITERATOR_H_
-#define DOM_NODE_DESCENDANTS_ITERATOR_H_
+#ifndef COBALT_DOM_NODE_DESCENDANTS_ITERATOR_H_
+#define COBALT_DOM_NODE_DESCENDANTS_ITERATOR_H_
 
 #include "cobalt/dom/node.h"
 
@@ -66,4 +66,4 @@ class NodeDescendantsIterator {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_NODE_DESCENDANTS_ITERATOR_H_
+#endif  // COBALT_DOM_NODE_DESCENDANTS_ITERATOR_H_

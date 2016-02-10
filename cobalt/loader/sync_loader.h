@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_SYNC_LOADER_H_
-#define LOADER_SYNC_LOADER_H_
+#ifndef COBALT_LOADER_SYNC_LOADER_H_
+#define COBALT_LOADER_SYNC_LOADER_H_
 
 #include <string>
 
@@ -41,4 +41,4 @@ void LoadSynchronously(
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_SYNC_LOADER_H_
+#endif  // COBALT_LOADER_SYNC_LOADER_H_

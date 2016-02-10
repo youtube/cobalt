@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_COMPUTED_STYLE_H_
-#define CSSOM_COMPUTED_STYLE_H_
+#ifndef COBALT_CSSOM_COMPUTED_STYLE_H_
+#define COBALT_CSSOM_COMPUTED_STYLE_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_definitions.h"
@@ -50,4 +50,4 @@ scoped_refptr<CSSStyleDeclarationData> GetComputedStyleOfAnonymousBox(
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_COMPUTED_STYLE_H_
+#endif  // COBALT_CSSOM_COMPUTED_STYLE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEB_ANIMATIONS_BAKED_ANIMATION_SET_H_
-#define WEB_ANIMATIONS_BAKED_ANIMATION_SET_H_
+#ifndef COBALT_WEB_ANIMATIONS_BAKED_ANIMATION_SET_H_
+#define COBALT_WEB_ANIMATIONS_BAKED_ANIMATION_SET_H_
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
@@ -75,4 +75,4 @@ class BakedAnimationSet {
 }  // namespace web_animations
 }  // namespace cobalt
 
-#endif  // WEB_ANIMATIONS_BAKED_ANIMATION_SET_H_
+#endif  // COBALT_WEB_ANIMATIONS_BAKED_ANIMATION_SET_H_

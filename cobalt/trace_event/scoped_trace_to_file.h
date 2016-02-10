@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TRACE_EVENT_SCOPED_TRACE_TO_FILE_H_
-#define TRACE_EVENT_SCOPED_TRACE_TO_FILE_H_
+#ifndef COBALT_TRACE_EVENT_SCOPED_TRACE_TO_FILE_H_
+#define COBALT_TRACE_EVENT_SCOPED_TRACE_TO_FILE_H_
 
 #include "base/file_path.h"
 #include "base/time.h"
@@ -51,4 +51,4 @@ void TraceToFileForDuration(const FilePath& output_path_relative_to_logs,
 }  // namespace trace_event
 }  // namespace cobalt
 
-#endif  // TRACE_EVENT_SCOPED_TRACE_TO_FILE_H_
+#endif  // COBALT_TRACE_EVENT_SCOPED_TRACE_TO_FILE_H_

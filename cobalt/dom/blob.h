@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_BLOB_H_
-#define DOM_BLOB_H_
+#ifndef COBALT_DOM_BLOB_H_
+#define COBALT_DOM_BLOB_H_
 
 #include "cobalt/script/wrappable.h"
 
@@ -31,4 +31,4 @@ class Blob : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_BLOB_H_
+#endif  // COBALT_DOM_BLOB_H_

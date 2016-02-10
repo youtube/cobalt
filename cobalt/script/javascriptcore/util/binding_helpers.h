@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_JAVASCRIPTCORE_UTIL_BINDING_HELPERS_H_
-#define SCRIPT_JAVASCRIPTCORE_UTIL_BINDING_HELPERS_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_UTIL_BINDING_HELPERS_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_UTIL_BINDING_HELPERS_H_
 
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/interpreter/CallFrame.h"
@@ -35,4 +35,4 @@ bool HasPropertyOnPrototype(JSC::ExecState* exec_state, JSC::JSCell* cell,
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_UTIL_BINDING_HELPERS_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_UTIL_BINDING_HELPERS_H_

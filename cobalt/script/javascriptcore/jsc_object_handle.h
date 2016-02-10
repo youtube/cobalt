@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
 
 #include "cobalt/script/opaque_handle.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSObject.h"
@@ -38,4 +38,4 @@ class JSCObjectHandle : public OpaqueHandle {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_

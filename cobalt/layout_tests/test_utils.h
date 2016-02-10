@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_TESTS_TEST_UTILS_H_
-#define LAYOUT_TESTS_TEST_UTILS_H_
+#ifndef COBALT_LAYOUT_TESTS_TEST_UTILS_H_
+#define COBALT_LAYOUT_TESTS_TEST_UTILS_H_
 
 #include <string>
 
@@ -54,4 +54,4 @@ class LogFilter {
 }  // namespace layout_tests
 }  // namespace cobalt
 
-#endif  // LAYOUT_TESTS_TEST_UTILS_H_
+#endif  // COBALT_LAYOUT_TESTS_TEST_UTILS_H_

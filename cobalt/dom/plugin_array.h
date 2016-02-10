@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_PLUGIN_ARRAY_H_
-#define DOM_PLUGIN_ARRAY_H_
+#ifndef COBALT_DOM_PLUGIN_ARRAY_H_
+#define COBALT_DOM_PLUGIN_ARRAY_H_
 
 #include "cobalt/script/wrappable.h"
 
@@ -44,4 +44,4 @@ class PluginArray : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_PLUGIN_ARRAY_H_
+#endif  // COBALT_DOM_PLUGIN_ARRAY_H_

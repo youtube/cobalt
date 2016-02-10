@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_RENDER_TREE_ANIMATIONS_H_
-#define LAYOUT_RENDER_TREE_ANIMATIONS_H_
+#ifndef COBALT_LAYOUT_RENDER_TREE_ANIMATIONS_H_
+#define COBALT_LAYOUT_RENDER_TREE_ANIMATIONS_H_
 
 #include "base/callback.h"
 #include "base/logging.h"
@@ -89,4 +89,4 @@ void AddAnimations(const typename ApplyStyleToRenderTreeNode<T>::Function&
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_RENDER_TREE_ANIMATIONS_H_
+#endif  // COBALT_LAYOUT_RENDER_TREE_ANIMATIONS_H_

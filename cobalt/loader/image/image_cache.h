@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_IMAGE_IMAGE_CACHE_H_
-#define LOADER_IMAGE_IMAGE_CACHE_H_
+#ifndef COBALT_LOADER_IMAGE_IMAGE_CACHE_H_
+#define COBALT_LOADER_IMAGE_IMAGE_CACHE_H_
 
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/loader/resource_cache.h"
@@ -79,4 +79,4 @@ inline static scoped_ptr<ImageCache> CreateImageCache(
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_IMAGE_IMAGE_CACHE_H_
+#endif  // COBALT_LOADER_IMAGE_IMAGE_CACHE_H_

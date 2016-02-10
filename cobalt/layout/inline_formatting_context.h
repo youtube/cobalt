@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_INLINE_FORMATTING_CONTEXT_H_
-#define LAYOUT_INLINE_FORMATTING_CONTEXT_H_
+#ifndef COBALT_LAYOUT_INLINE_FORMATTING_CONTEXT_H_
+#define COBALT_LAYOUT_INLINE_FORMATTING_CONTEXT_H_
 
 #include <vector>
 
@@ -116,4 +116,4 @@ class InlineFormattingContext : public FormattingContext {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_INLINE_FORMATTING_CONTEXT_H_
+#endif  // COBALT_LAYOUT_INLINE_FORMATTING_CONTEXT_H_

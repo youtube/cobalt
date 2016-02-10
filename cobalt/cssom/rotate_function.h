@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_ROTATE_FUNCTION_H_
-#define CSSOM_ROTATE_FUNCTION_H_
+#ifndef COBALT_CSSOM_ROTATE_FUNCTION_H_
+#define COBALT_CSSOM_ROTATE_FUNCTION_H_
 
 #include <string>
 
@@ -61,4 +61,4 @@ class RotateFunction : public TransformFunction {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_ROTATE_FUNCTION_H_
+#endif  // COBALT_CSSOM_ROTATE_FUNCTION_H_

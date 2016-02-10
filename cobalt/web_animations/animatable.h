@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEB_ANIMATIONS_ANIMATABLE_H_
-#define WEB_ANIMATIONS_ANIMATABLE_H_
+#ifndef COBALT_WEB_ANIMATIONS_ANIMATABLE_H_
+#define COBALT_WEB_ANIMATIONS_ANIMATABLE_H_
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
@@ -59,4 +59,4 @@ class Animatable : public script::Wrappable {
 }  // namespace web_animations
 }  // namespace cobalt
 
-#endif  // WEB_ANIMATIONS_ANIMATABLE_H_
+#endif  // COBALT_WEB_ANIMATIONS_ANIMATABLE_H_

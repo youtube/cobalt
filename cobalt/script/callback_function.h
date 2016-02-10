@@ -18,8 +18,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_CALLBACK_FUNCTION_H_
-#define SCRIPT_CALLBACK_FUNCTION_H_
+#ifndef COBALT_SCRIPT_CALLBACK_FUNCTION_H_
+#define COBALT_SCRIPT_CALLBACK_FUNCTION_H_
 
 #include "base/callback.h"
 #include "base/callback_internal.h"
@@ -186,4 +186,4 @@ class CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_CALLBACK_FUNCTION_H_
+#endif  // COBALT_SCRIPT_CALLBACK_FUNCTION_H_

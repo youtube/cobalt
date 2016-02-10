@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef XHR_XML_HTTP_REQUEST_EVENT_TARGET_H_
-#define XHR_XML_HTTP_REQUEST_EVENT_TARGET_H_
+#ifndef COBALT_XHR_XML_HTTP_REQUEST_EVENT_TARGET_H_
+#define COBALT_XHR_XML_HTTP_REQUEST_EVENT_TARGET_H_
 
 #include "base/optional.h"
 #include "cobalt/dom/event_target.h"
@@ -63,4 +63,4 @@ class XMLHttpRequestEventTarget : public dom::EventTarget {
 }  // namespace xhr
 }  // namespace cobalt
 
-#endif  // XHR_XML_HTTP_REQUEST_EVENT_TARGET_H_
+#endif  // COBALT_XHR_XML_HTTP_REQUEST_EVENT_TARGET_H_

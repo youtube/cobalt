@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_PROTOCOL_SERVER_STATUS_H_
-#define WEBDRIVER_PROTOCOL_SERVER_STATUS_H_
+#ifndef COBALT_WEBDRIVER_PROTOCOL_SERVER_STATUS_H_
+#define COBALT_WEBDRIVER_PROTOCOL_SERVER_STATUS_H_
 
 #include <string>
 
@@ -46,4 +46,4 @@ class ServerStatus {
 }  // namespace protocol
 }  // namespace webdriver
 }  // namespace cobalt
-#endif  // WEBDRIVER_PROTOCOL_SERVER_STATUS_H_
+#endif  // COBALT_WEBDRIVER_PROTOCOL_SERVER_STATUS_H_

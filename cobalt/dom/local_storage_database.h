@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_LOCAL_STORAGE_DATABASE_H_
-#define DOM_LOCAL_STORAGE_DATABASE_H_
+#ifndef COBALT_DOM_LOCAL_STORAGE_DATABASE_H_
+#define COBALT_DOM_LOCAL_STORAGE_DATABASE_H_
 
 #include <string>
 
@@ -61,4 +61,4 @@ class LocalStorageDatabase {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_LOCAL_STORAGE_DATABASE_H_
+#endif  // COBALT_DOM_LOCAL_STORAGE_DATABASE_H_

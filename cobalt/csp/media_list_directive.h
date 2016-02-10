@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSP_MEDIA_LIST_DIRECTIVE_H_
-#define CSP_MEDIA_LIST_DIRECTIVE_H_
+#ifndef COBALT_CSP_MEDIA_LIST_DIRECTIVE_H_
+#define COBALT_CSP_MEDIA_LIST_DIRECTIVE_H_
 
 #include <string>
 
@@ -43,4 +43,4 @@ class MediaListDirective : public Directive {
 }  // namespace csp
 }  // namespace cobalt
 
-#endif  // CSP_MEDIA_LIST_DIRECTIVE_H_
+#endif  // COBALT_CSP_MEDIA_LIST_DIRECTIVE_H_

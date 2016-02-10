@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_POLYMORPHIC_DOWNCAST_H_
-#define BASE_POLYMORPHIC_DOWNCAST_H_
+#ifndef COBALT_BASE_POLYMORPHIC_DOWNCAST_H_
+#define COBALT_BASE_POLYMORPHIC_DOWNCAST_H_
 
 #include "base/logging.h"
 
@@ -34,4 +34,4 @@ Derived polymorphic_downcast(Base base) {
 
 }  // namespace base
 
-#endif  // BASE_POLYMORPHIC_DOWNCAST_H_
+#endif  // COBALT_BASE_POLYMORPHIC_DOWNCAST_H_

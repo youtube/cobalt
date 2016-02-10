@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_URL_REQUEST_CONTEXT_GETTER_H_
-#define NETWORK_URL_REQUEST_CONTEXT_GETTER_H_
+#ifndef COBALT_NETWORK_URL_REQUEST_CONTEXT_GETTER_H_
+#define COBALT_NETWORK_URL_REQUEST_CONTEXT_GETTER_H_
 
 #include "base/threading/thread.h"
 #include "net/url_request/url_request_context_getter.h"
@@ -47,4 +47,4 @@ class URLRequestContextGetter : public net::URLRequestContextGetter {
 }  // namespace network
 }  // namespace cobalt
 
-#endif  // NETWORK_URL_REQUEST_CONTEXT_GETTER_H_
+#endif  // COBALT_NETWORK_URL_REQUEST_CONTEXT_GETTER_H_

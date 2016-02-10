@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_PARSER_H_
-#define CSSOM_CSS_PARSER_H_
+#ifndef COBALT_CSSOM_CSS_PARSER_H_
+#define COBALT_CSSOM_CSS_PARSER_H_
 
 #include <string>
 
@@ -113,4 +113,4 @@ class CSSParser {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_PARSER_H_
+#endif  // COBALT_CSSOM_CSS_PARSER_H_

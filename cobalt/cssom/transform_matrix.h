@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TRANSFORM_MATRIX_H_
-#define CSSOM_TRANSFORM_MATRIX_H_
+#ifndef COBALT_CSSOM_TRANSFORM_MATRIX_H_
+#define COBALT_CSSOM_TRANSFORM_MATRIX_H_
 
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/math/matrix3_f.h"
@@ -120,4 +120,4 @@ TransformMatrix InterpolateTransformMatrices(const TransformMatrix& a,
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TRANSFORM_MATRIX_H_
+#endif  // COBALT_CSSOM_TRANSFORM_MATRIX_H_

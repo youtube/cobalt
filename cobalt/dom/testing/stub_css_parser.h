@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_TESTING_STUB_CSS_PARSER_H_
-#define DOM_TESTING_STUB_CSS_PARSER_H_
+#ifndef COBALT_DOM_TESTING_STUB_CSS_PARSER_H_
+#define COBALT_DOM_TESTING_STUB_CSS_PARSER_H_
 
 #include <string>
 
@@ -75,4 +75,4 @@ class StubCSSParser : public cssom::CSSParser {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_TESTING_STUB_CSS_PARSER_H_
+#endif  // COBALT_DOM_TESTING_STUB_CSS_PARSER_H_

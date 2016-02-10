@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_STACK_FRAME_H_
-#define SCRIPT_STACK_FRAME_H_
+#ifndef COBALT_SCRIPT_STACK_FRAME_H_
+#define COBALT_SCRIPT_STACK_FRAME_H_
 
 #include <string>
 #include <vector>
@@ -37,4 +37,4 @@ std::string StackTraceToString(const std::vector<StackFrame>& stack_frames);
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_STACK_FRAME_H_
+#endif  // COBALT_SCRIPT_STACK_FRAME_H_

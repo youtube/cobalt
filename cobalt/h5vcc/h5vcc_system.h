@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef H5VCC_H5VCC_SYSTEM_H_
-#define H5VCC_H5VCC_SYSTEM_H_
+#ifndef COBALT_H5VCC_H5VCC_SYSTEM_H_
+#define COBALT_H5VCC_H5VCC_SYSTEM_H_
 
 #include <string>
 
@@ -45,4 +45,4 @@ class H5vccSystem : public script::Wrappable {
 }  // namespace h5vcc
 }  // namespace cobalt
 
-#endif  // H5VCC_H5VCC_SYSTEM_H_
+#endif  // COBALT_H5VCC_H5VCC_SYSTEM_H_

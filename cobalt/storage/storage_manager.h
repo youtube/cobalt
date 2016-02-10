@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef STORAGE_STORAGE_MANAGER_H_
-#define STORAGE_STORAGE_MANAGER_H_
+#ifndef COBALT_STORAGE_STORAGE_MANAGER_H_
+#define COBALT_STORAGE_STORAGE_MANAGER_H_
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
@@ -220,4 +220,4 @@ class SqlContext {
 }  // namespace storage
 }  // namespace cobalt
 
-#endif  // STORAGE_STORAGE_MANAGER_H_
+#endif  // COBALT_STORAGE_STORAGE_MANAGER_H_

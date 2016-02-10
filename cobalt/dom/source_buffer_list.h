@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_SOURCE_BUFFER_LIST_H_
-#define DOM_SOURCE_BUFFER_LIST_H_
+#ifndef COBALT_DOM_SOURCE_BUFFER_LIST_H_
+#define COBALT_DOM_SOURCE_BUFFER_LIST_H_
 
 #include <string>
 #include <vector>
@@ -67,4 +67,4 @@ class SourceBufferList : public EventTarget {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_SOURCE_BUFFER_LIST_H_
+#endif  // COBALT_DOM_SOURCE_BUFFER_LIST_H_

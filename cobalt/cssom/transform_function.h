@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TRANSFORM_FUNCTION_H_
-#define CSSOM_TRANSFORM_FUNCTION_H_
+#ifndef COBALT_CSSOM_TRANSFORM_FUNCTION_H_
+#define COBALT_CSSOM_TRANSFORM_FUNCTION_H_
 
 #include <string>
 
@@ -42,4 +42,4 @@ class TransformFunction : public base::PolymorphicEquatable {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TRANSFORM_FUNCTION_H_
+#endif  // COBALT_CSSOM_TRANSFORM_FUNCTION_H_

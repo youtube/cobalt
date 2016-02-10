@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_COBALT_PATHS_H_
-#define BASE_COBALT_PATHS_H_
+#ifndef COBALT_BASE_COBALT_PATHS_H_
+#define COBALT_BASE_COBALT_PATHS_H_
 
 namespace cobalt {
 namespace paths {
@@ -49,4 +49,4 @@ enum CobaltPathKeys {
 }  // namespace paths
 }  // namespace cobalt
 
-#endif  // BASE_COBALT_PATHS_H_
+#endif  // COBALT_BASE_COBALT_PATHS_H_

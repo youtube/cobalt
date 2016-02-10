@@ -19,8 +19,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_UNION_TYPE_H_
-#define SCRIPT_UNION_TYPE_H_
+#ifndef COBALT_SCRIPT_UNION_TYPE_H_
+#define COBALT_SCRIPT_UNION_TYPE_H_
 
 // Implementation of IDL union types.
 // http://heycam.github.io/webidl/#idl-union
@@ -633,4 +633,4 @@ inline std::ostream& operator<<(
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_UNION_TYPE_H_
+#endif  // COBALT_SCRIPT_UNION_TYPE_H_

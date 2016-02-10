@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_CSS_TRANSITIONS_ADAPTER_H_
-#define DOM_CSS_TRANSITIONS_ADAPTER_H_
+#ifndef COBALT_DOM_CSS_TRANSITIONS_ADAPTER_H_
+#define COBALT_DOM_CSS_TRANSITIONS_ADAPTER_H_
 
 #include <map>
 
@@ -79,4 +79,4 @@ class CSSTransitionsAdapter : public cssom::TransitionSet::EventHandler {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_CSS_TRANSITIONS_ADAPTER_H_
+#endif  // COBALT_DOM_CSS_TRANSITIONS_ADAPTER_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_SERIALIZER_H_
-#define DOM_SERIALIZER_H_
+#ifndef COBALT_DOM_SERIALIZER_H_
+#define COBALT_DOM_SERIALIZER_H_
 
 #include <iosfwd>
 
@@ -59,4 +59,4 @@ class Serializer : public ConstNodeVisitor {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_SERIALIZER_H_
+#endif  // COBALT_DOM_SERIALIZER_H_

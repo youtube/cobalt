@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_ELEMENT_MAPPING_H_
-#define WEBDRIVER_ELEMENT_MAPPING_H_
+#ifndef COBALT_WEBDRIVER_ELEMENT_MAPPING_H_
+#define COBALT_WEBDRIVER_ELEMENT_MAPPING_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/element.h"
@@ -38,4 +38,4 @@ class ElementMapping {
 
 }  // namespace webdriver
 }  // namespace cobalt
-#endif  // WEBDRIVER_ELEMENT_MAPPING_H_
+#endif  // COBALT_WEBDRIVER_ELEMENT_MAPPING_H_

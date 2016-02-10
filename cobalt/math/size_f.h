@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_SIZE_F_H_
-#define MATH_SIZE_F_H_
+#ifndef COBALT_MATH_SIZE_F_H_
+#define COBALT_MATH_SIZE_F_H_
 
 #include <iostream>
 #include <string>
@@ -53,4 +53,4 @@ extern template class SizeBase<SizeF, float>;
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_SIZE_F_H_
+#endif  // COBALT_MATH_SIZE_F_H_

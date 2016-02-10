@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef STORAGE_SAVEGAME_H_
-#define STORAGE_SAVEGAME_H_
+#ifndef COBALT_STORAGE_SAVEGAME_H_
+#define COBALT_STORAGE_SAVEGAME_H_
 
 #include <string>
 #include <vector>
@@ -87,4 +87,4 @@ class Savegame {
 }  // namespace storage
 }  // namespace cobalt
 
-#endif  // STORAGE_SAVEGAME_H_
+#endif  // COBALT_STORAGE_SAVEGAME_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_RESOURCE_PROVIDER_H_
-#define RENDER_TREE_RESOURCE_PROVIDER_H_
+#ifndef COBALT_RENDER_TREE_RESOURCE_PROVIDER_H_
+#define COBALT_RENDER_TREE_RESOURCE_PROVIDER_H_
 
 #include <string>
 #include <vector>
@@ -114,4 +114,4 @@ class ResourceProvider {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_RESOURCE_PROVIDER_H_
+#endif  // COBALT_RENDER_TREE_RESOURCE_PROVIDER_H_

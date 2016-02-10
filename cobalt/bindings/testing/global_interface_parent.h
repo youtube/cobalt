@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_GLOBAL_INTERFACE_PARENT_H_
-#define BINDINGS_TESTING_GLOBAL_INTERFACE_PARENT_H_
+#ifndef COBALT_BINDINGS_TESTING_GLOBAL_INTERFACE_PARENT_H_
+#define COBALT_BINDINGS_TESTING_GLOBAL_INTERFACE_PARENT_H_
 
 #include "cobalt/script/wrappable.h"
 
@@ -34,4 +34,4 @@ class GlobalInterfaceParent : public script::Wrappable {
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_GLOBAL_INTERFACE_PARENT_H_
+#endif  // COBALT_BINDINGS_TESTING_GLOBAL_INTERFACE_PARENT_H_

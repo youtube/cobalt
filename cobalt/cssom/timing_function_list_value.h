@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
-#define CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
+#ifndef COBALT_CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
+#define COBALT_CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
 
 #include <string>
 
@@ -49,4 +49,4 @@ class TimingFunctionListValue : public ScopedRefListValue<TimingFunction> {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
+#endif  // COBALT_CSSOM_TIMING_FUNCTION_LIST_VALUE_H_

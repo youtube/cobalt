@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_H5VCC_URL_HANDLER_H_
-#define BROWSER_H5VCC_URL_HANDLER_H_
+#ifndef COBALT_BROWSER_H5VCC_URL_HANDLER_H_
+#define COBALT_BROWSER_H5VCC_URL_HANDLER_H_
 
 #include "cobalt/account/account_manager.h"
 #include "cobalt/browser/url_handler.h"
@@ -54,4 +54,4 @@ class H5vccURLHandler : public URLHandler {
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // BROWSER_H5VCC_URL_HANDLER_H_
+#endif  // COBALT_BROWSER_H5VCC_URL_HANDLER_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_LAYOUT_H_
-#define LAYOUT_LAYOUT_H_
+#ifndef COBALT_LAYOUT_LAYOUT_H_
+#define COBALT_LAYOUT_LAYOUT_H_
 
 #include "cobalt/dom/document.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
@@ -68,4 +68,4 @@ RenderTreeWithAnimations Layout(
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_LAYOUT_H_
+#endif  // COBALT_LAYOUT_LAYOUT_H_

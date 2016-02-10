@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_KEYBOARD_H_
-#define WEBDRIVER_KEYBOARD_H_
+#ifndef COBALT_WEBDRIVER_KEYBOARD_H_
+#define COBALT_WEBDRIVER_KEYBOARD_H_
 
 #include <string>
 #include <vector>
@@ -40,4 +40,4 @@ class Keyboard {
 
 }  // namespace webdriver
 }  // namespace cobalt
-#endif  // WEBDRIVER_KEYBOARD_H_
+#endif  // COBALT_WEBDRIVER_KEYBOARD_H_

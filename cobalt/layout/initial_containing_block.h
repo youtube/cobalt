@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_INITIAL_CONTAINING_BLOCK_H_
-#define LAYOUT_INITIAL_CONTAINING_BLOCK_H_
+#ifndef COBALT_LAYOUT_INITIAL_CONTAINING_BLOCK_H_
+#define COBALT_LAYOUT_INITIAL_CONTAINING_BLOCK_H_
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
@@ -47,4 +47,4 @@ scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_INITIAL_CONTAINING_BLOCK_H_
+#endif  // COBALT_LAYOUT_INITIAL_CONTAINING_BLOCK_H_

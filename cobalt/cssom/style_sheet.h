@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_STYLE_SHEET_H_
-#define CSSOM_STYLE_SHEET_H_
+#ifndef COBALT_CSSOM_STYLE_SHEET_H_
+#define COBALT_CSSOM_STYLE_SHEET_H_
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
@@ -60,4 +60,4 @@ class StyleSheet : public script::Wrappable,
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_STYLE_SHEET_H_
+#endif  // COBALT_CSSOM_STYLE_SHEET_H_

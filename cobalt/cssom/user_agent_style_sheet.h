@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_USER_AGENT_STYLE_SHEET_H_
-#define CSSOM_USER_AGENT_STYLE_SHEET_H_
+#ifndef COBALT_CSSOM_USER_AGENT_STYLE_SHEET_H_
+#define COBALT_CSSOM_USER_AGENT_STYLE_SHEET_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_parser.h"
@@ -32,4 +32,4 @@ scoped_refptr<cssom::CSSStyleSheet> ParseUserAgentStyleSheet(
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_USER_AGENT_STYLE_SHEET_H_
+#endif  // COBALT_CSSOM_USER_AGENT_STYLE_SHEET_H_

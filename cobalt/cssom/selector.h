@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SELECTOR_H_
-#define CSSOM_SELECTOR_H_
+#ifndef COBALT_CSSOM_SELECTOR_H_
+#define COBALT_CSSOM_SELECTOR_H_
 
 #include "base/memory/scoped_vector.h"
 #include "cobalt/cssom/specificity.h"
@@ -56,4 +56,4 @@ typedef ScopedVector<Selector> Selectors;
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_SELECTOR_H_
+#endif  // COBALT_CSSOM_SELECTOR_H_

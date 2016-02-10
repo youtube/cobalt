@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEB_ANIMATIONS_TIMED_TASK_QUEUE_H_
-#define WEB_ANIMATIONS_TIMED_TASK_QUEUE_H_
+#ifndef COBALT_WEB_ANIMATIONS_TIMED_TASK_QUEUE_H_
+#define COBALT_WEB_ANIMATIONS_TIMED_TASK_QUEUE_H_
 
 #include <map>
 #include <set>
@@ -107,4 +107,4 @@ class TimedTaskQueue {
 }  // namespace web_animations
 }  // namespace cobalt
 
-#endif  // WEB_ANIMATIONS_TIMED_TASK_QUEUE_H_
+#endif  // COBALT_WEB_ANIMATIONS_TIMED_TASK_QUEUE_H_

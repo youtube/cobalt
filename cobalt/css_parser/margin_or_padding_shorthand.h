@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSS_PARSER_MARGIN_OR_PADDING_SHORTHAND_H_
-#define CSS_PARSER_MARGIN_OR_PADDING_SHORTHAND_H_
+#ifndef COBALT_CSS_PARSER_MARGIN_OR_PADDING_SHORTHAND_H_
+#define COBALT_CSS_PARSER_MARGIN_OR_PADDING_SHORTHAND_H_
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/property_value.h"
@@ -41,4 +41,4 @@ struct MarginOrPaddingShorthand {
 }  // namespace css_parser
 }  // namespace cobalt
 
-#endif  // CSS_PARSER_MARGIN_OR_PADDING_SHORTHAND_H_
+#endif  // COBALT_CSS_PARSER_MARGIN_OR_PADDING_SHORTHAND_H_

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_ENVIRONMENT_SETTINGS_H_
-#define SCRIPT_ENVIRONMENT_SETTINGS_H_
+#ifndef COBALT_SCRIPT_ENVIRONMENT_SETTINGS_H_
+#define COBALT_SCRIPT_ENVIRONMENT_SETTINGS_H_
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -39,4 +39,4 @@ class EnvironmentSettings {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_ENVIRONMENT_SETTINGS_H_
+#endif  // COBALT_SCRIPT_ENVIRONMENT_SETTINGS_H_
