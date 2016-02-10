@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_SOURCE_CODE_H_
-#define SCRIPT_SOURCE_CODE_H_
+#ifndef COBALT_SCRIPT_SOURCE_CODE_H_
+#define COBALT_SCRIPT_SOURCE_CODE_H_
 
 #include <string>
 
@@ -44,4 +44,4 @@ class SourceCode : public base::RefCounted<SourceCode> {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_SOURCE_CODE_H_
+#endif  // COBALT_SCRIPT_SOURCE_CODE_H_

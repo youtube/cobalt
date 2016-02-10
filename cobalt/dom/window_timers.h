@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_WINDOW_TIMERS_H_
-#define DOM_WINDOW_TIMERS_H_
+#ifndef COBALT_DOM_WINDOW_TIMERS_H_
+#define COBALT_DOM_WINDOW_TIMERS_H_
 
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
@@ -81,4 +81,4 @@ class WindowTimers {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_WINDOW_TIMERS_H_
+#endif  // COBALT_DOM_WINDOW_TIMERS_H_

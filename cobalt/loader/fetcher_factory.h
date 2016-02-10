@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_FETCHER_FACTORY_H_
-#define LOADER_FETCHER_FACTORY_H_
+#ifndef COBALT_LOADER_FETCHER_FACTORY_H_
+#define COBALT_LOADER_FETCHER_FACTORY_H_
 
 #include "base/file_path.h"
 #include "base/threading/thread.h"
@@ -50,4 +50,4 @@ class FetcherFactory {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_FETCHER_FACTORY_H_
+#endif  // COBALT_LOADER_FETCHER_FACTORY_H_

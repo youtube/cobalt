@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_SIZE_CONVERSIONS_H_
-#define MATH_SIZE_CONVERSIONS_H_
+#ifndef COBALT_MATH_SIZE_CONVERSIONS_H_
+#define COBALT_MATH_SIZE_CONVERSIONS_H_
 
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
@@ -23,4 +23,4 @@ Size ToRoundedSize(const SizeF& size);
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_SIZE_CONVERSIONS_H_
+#endif  // COBALT_MATH_SIZE_CONVERSIONS_H_

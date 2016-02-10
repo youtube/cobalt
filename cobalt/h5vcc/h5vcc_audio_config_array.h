@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef H5VCC_H5VCC_AUDIO_CONFIG_ARRAY_H_
-#define H5VCC_H5VCC_AUDIO_CONFIG_ARRAY_H_
+#ifndef COBALT_H5VCC_H5VCC_AUDIO_CONFIG_ARRAY_H_
+#define COBALT_H5VCC_H5VCC_AUDIO_CONFIG_ARRAY_H_
 
 #include <string>
 #include <vector>
@@ -49,4 +49,4 @@ class H5vccAudioConfigArray : public script::Wrappable {
 }  // namespace h5vcc
 }  // namespace cobalt
 
-#endif  // H5VCC_H5VCC_AUDIO_CONFIG_ARRAY_H_
+#endif  // COBALT_H5VCC_H5VCC_AUDIO_CONFIG_ARRAY_H_

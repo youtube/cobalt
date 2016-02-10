@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_NAVIGATOR_H_
-#define DOM_NAVIGATOR_H_
+#ifndef COBALT_DOM_NAVIGATOR_H_
+#define COBALT_DOM_NAVIGATOR_H_
 
 #include <string>
 
@@ -65,4 +65,4 @@ class Navigator : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_NAVIGATOR_H_
+#endif  // COBALT_DOM_NAVIGATOR_H_

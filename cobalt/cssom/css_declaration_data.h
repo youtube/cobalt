@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_DECLARATION_DATA_H_
-#define CSSOM_CSS_DECLARATION_DATA_H_
+#ifndef COBALT_CSSOM_CSS_DECLARATION_DATA_H_
+#define COBALT_CSSOM_CSS_DECLARATION_DATA_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_definitions.h"
@@ -48,4 +48,4 @@ class CSSDeclarationData
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_DECLARATION_DATA_H_
+#endif  // COBALT_CSSOM_CSS_DECLARATION_DATA_H_

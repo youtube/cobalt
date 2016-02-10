@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_TEST_PNG_UTILS_PNG_DECODE_H_
-#define RENDERER_TEST_PNG_UTILS_PNG_DECODE_H_
+#ifndef COBALT_RENDERER_TEST_PNG_UTILS_PNG_DECODE_H_
+#define COBALT_RENDERER_TEST_PNG_UTILS_PNG_DECODE_H_
 
 #include "base/file_path.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -47,4 +47,4 @@ scoped_refptr<cobalt::render_tree::Image> DecodePNGToRenderTreeImage(
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_TEST_PNG_UTILS_PNG_DECODE_H_
+#endif  // COBALT_RENDERER_TEST_PNG_UTILS_PNG_DECODE_H_

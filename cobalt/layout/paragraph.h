@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_PARAGRAPH_H_
-#define LAYOUT_PARAGRAPH_H_
+#ifndef COBALT_LAYOUT_PARAGRAPH_H_
+#define COBALT_LAYOUT_PARAGRAPH_H_
 
 #include <string>
 #include <vector>
@@ -207,4 +207,4 @@ class Paragraph : public base::RefCounted<Paragraph> {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_PARAGRAPH_H_
+#endif  // COBALT_LAYOUT_PARAGRAPH_H_

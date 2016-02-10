@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEB_ANIMATIONS_ANIMATION_H_
-#define WEB_ANIMATIONS_ANIMATION_H_
+#ifndef COBALT_WEB_ANIMATIONS_ANIMATION_H_
+#define COBALT_WEB_ANIMATIONS_ANIMATION_H_
 
 #include <set>
 
@@ -190,4 +190,4 @@ class Animation : public script::Wrappable {
 }  // namespace web_animations
 }  // namespace cobalt
 
-#endif  // WEB_ANIMATIONS_ANIMATION_H_
+#endif  // COBALT_WEB_ANIMATIONS_ANIMATION_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_MEDIA_KEY_COMPLETE_EVENT_H_
-#define DOM_MEDIA_KEY_COMPLETE_EVENT_H_
+#ifndef COBALT_DOM_MEDIA_KEY_COMPLETE_EVENT_H_
+#define COBALT_DOM_MEDIA_KEY_COMPLETE_EVENT_H_
 
 #include <string>
 
@@ -46,4 +46,4 @@ class MediaKeyCompleteEvent : public Event {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_MEDIA_KEY_COMPLETE_EVENT_H_
+#endif  // COBALT_DOM_MEDIA_KEY_COMPLETE_EVENT_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_STYLE_SHEET_LIST_H_
-#define CSSOM_STYLE_SHEET_LIST_H_
+#ifndef COBALT_CSSOM_STYLE_SHEET_LIST_H_
+#define COBALT_CSSOM_STYLE_SHEET_LIST_H_
 
 #include <vector>
 
@@ -71,4 +71,4 @@ class StyleSheetList : public script::Wrappable, public MutationObserver {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_STYLE_SHEET_LIST_H_
+#endif  // COBALT_CSSOM_STYLE_SHEET_LIST_H_

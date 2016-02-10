@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_BACKEND_GRAPHICS_CONTEXT_H_
-#define RENDERER_BACKEND_GRAPHICS_CONTEXT_H_
+#ifndef COBALT_RENDERER_BACKEND_GRAPHICS_CONTEXT_H_
+#define COBALT_RENDERER_BACKEND_GRAPHICS_CONTEXT_H_
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -139,4 +139,4 @@ class GraphicsContext {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_BACKEND_GRAPHICS_CONTEXT_H_
+#endif  // COBALT_RENDERER_BACKEND_GRAPHICS_CONTEXT_H_

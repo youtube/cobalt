@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_DOM_RECT_H_
-#define DOM_DOM_RECT_H_
+#ifndef COBALT_DOM_DOM_RECT_H_
+#define COBALT_DOM_DOM_RECT_H_
 
 #include "cobalt/dom/dom_rect_read_only.h"
 #include "cobalt/script/wrappable.h"
@@ -48,4 +48,4 @@ class DOMRect : public DOMRectReadOnly {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_DOM_RECT_H_
+#endif  // COBALT_DOM_DOM_RECT_H_

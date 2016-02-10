@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_SOURCE_LOCATION_H_
-#define BASE_SOURCE_LOCATION_H_
+#ifndef COBALT_BASE_SOURCE_LOCATION_H_
+#define COBALT_BASE_SOURCE_LOCATION_H_
 
 #include "base/logging.h"
 
@@ -69,4 +69,4 @@ inline void AdjustForStartLocation(int start_line_number,
 
 }  // namespace base
 
-#endif  // BASE_SOURCE_LOCATION_H_
+#endif  // COBALT_BASE_SOURCE_LOCATION_H_

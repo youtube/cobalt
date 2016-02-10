@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_XML_SERIALIZER_H_
-#define DOM_XML_SERIALIZER_H_
+#ifndef COBALT_DOM_XML_SERIALIZER_H_
+#define COBALT_DOM_XML_SERIALIZER_H_
 
 #include <string>
 
@@ -45,4 +45,4 @@ class XMLSerializer : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_XML_SERIALIZER_H_
+#endif  // COBALT_DOM_XML_SERIALIZER_H_

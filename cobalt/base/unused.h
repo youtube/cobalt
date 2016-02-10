@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_UNUSED_H_
-#define BASE_UNUSED_H_
+#ifndef COBALT_BASE_UNUSED_H_
+#define COBALT_BASE_UNUSED_H_
 
 namespace base {
 
@@ -29,4 +29,4 @@ struct Unused {};
 
 }  // namespace base
 
-#endif  // BASE_UNUSED_H_
+#endif  // COBALT_BASE_UNUSED_H_

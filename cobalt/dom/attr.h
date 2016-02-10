@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_ATTR_H_
-#define DOM_ATTR_H_
+#ifndef COBALT_DOM_ATTR_H_
+#define COBALT_DOM_ATTR_H_
 
 #include <string>
 
@@ -82,4 +82,4 @@ class Attr : public script::Wrappable,
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_ATTR_H_
+#endif  // COBALT_DOM_ATTR_H_

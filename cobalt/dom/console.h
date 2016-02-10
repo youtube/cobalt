@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_CONSOLE_H_
-#define DOM_CONSOLE_H_
+#ifndef COBALT_DOM_CONSOLE_H_
+#define COBALT_DOM_CONSOLE_H_
 
 #include <string>
 
@@ -58,4 +58,4 @@ class Console : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_CONSOLE_H_
+#endif  // COBALT_DOM_CONSOLE_H_

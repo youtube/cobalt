@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef H5VCC_H5VCC_STORAGE_H_
-#define H5VCC_H5VCC_STORAGE_H_
+#ifndef COBALT_H5VCC_H5VCC_STORAGE_H_
+#define COBALT_H5VCC_H5VCC_STORAGE_H_
 
 #include "base/optional.h"
 #include "cobalt/network/network_module.h"
@@ -43,4 +43,4 @@ class H5vccStorage : public script::Wrappable {
 }  // namespace h5vcc
 }  // namespace cobalt
 
-#endif  // H5VCC_H5VCC_STORAGE_H_
+#endif  // COBALT_H5VCC_H5VCC_STORAGE_H_

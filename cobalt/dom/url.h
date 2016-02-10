@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_URL_H_
-#define DOM_URL_H_
+#ifndef COBALT_DOM_URL_H_
+#define COBALT_DOM_URL_H_
 
 #include <string>
 
@@ -51,4 +51,4 @@ class URL : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_URL_H_
+#endif  // COBALT_DOM_URL_H_

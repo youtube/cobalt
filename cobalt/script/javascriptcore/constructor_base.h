@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_JAVASCRIPTCORE_CONSTRUCTOR_BASE_H_
-#define SCRIPT_JAVASCRIPTCORE_CONSTRUCTOR_BASE_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_CONSTRUCTOR_BASE_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_CONSTRUCTOR_BASE_H_
 
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
@@ -41,4 +41,4 @@ class ConstructorBase : public JSC::JSFunction {
 }  // namespace javascriptcore
 }  // namespace script
 }  // namespace cobalt
-#endif  // SCRIPT_JAVASCRIPTCORE_CONSTRUCTOR_BASE_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_CONSTRUCTOR_BASE_H_

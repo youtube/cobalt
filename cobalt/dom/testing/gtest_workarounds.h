@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_TESTING_GTEST_WORKAROUNDS_H_
-#define DOM_TESTING_GTEST_WORKAROUNDS_H_
+#ifndef COBALT_DOM_TESTING_GTEST_WORKAROUNDS_H_
+#define COBALT_DOM_TESTING_GTEST_WORKAROUNDS_H_
 
 #include "base/memory/ref_counted.h"
 
@@ -59,4 +59,4 @@ bool operator!=(const int null_value, const scoped_refptr<const T>& p) {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_TESTING_GTEST_WORKAROUNDS_H_
+#endif  // COBALT_DOM_TESTING_GTEST_WORKAROUNDS_H_

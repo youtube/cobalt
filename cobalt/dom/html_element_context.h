@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_ELEMENT_CONTEXT_H_
-#define DOM_HTML_ELEMENT_CONTEXT_H_
+#ifndef COBALT_DOM_HTML_ELEMENT_CONTEXT_H_
+#define COBALT_DOM_HTML_ELEMENT_CONTEXT_H_
 
 #include <string>
 
@@ -105,4 +105,4 @@ class HTMLElementContext {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_ELEMENT_CONTEXT_H_
+#endif  // COBALT_DOM_HTML_ELEMENT_CONTEXT_H_

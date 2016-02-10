@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_BLOCK_FORMATTING_CONTEXT_H_
-#define LAYOUT_BLOCK_FORMATTING_CONTEXT_H_
+#ifndef COBALT_LAYOUT_BLOCK_FORMATTING_CONTEXT_H_
+#define COBALT_LAYOUT_BLOCK_FORMATTING_CONTEXT_H_
 
 #include "base/optional.h"
 #include "cobalt/layout/box.h"
@@ -58,4 +58,4 @@ class BlockFormattingContext : public FormattingContext {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_BLOCK_FORMATTING_CONTEXT_H_
+#endif  // COBALT_LAYOUT_BLOCK_FORMATTING_CONTEXT_H_

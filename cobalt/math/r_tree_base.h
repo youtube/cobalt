@@ -8,8 +8,8 @@
 // internal objects of an RTree, namely Nodes (internal nodes of the tree) and
 // Records, which hold (key, rectangle) pairs.
 
-#ifndef MATH_R_TREE_BASE_H_
-#define MATH_R_TREE_BASE_H_
+#ifndef COBALT_MATH_R_TREE_BASE_H_
+#define COBALT_MATH_R_TREE_BASE_H_
 
 #include <vector>
 
@@ -300,4 +300,4 @@ class RTreeBase {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_R_TREE_BASE_H_
+#endif  // COBALT_MATH_R_TREE_BASE_H_

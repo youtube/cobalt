@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_ENABLE_IF_H_
-#define BASE_ENABLE_IF_H_
+#ifndef COBALT_BASE_ENABLE_IF_H_
+#define COBALT_BASE_ENABLE_IF_H_
 
 namespace base {
 
@@ -32,4 +32,4 @@ struct enable_if<true, T> {
 
 }  // namespace base
 
-#endif  // BASE_ENABLE_IF_H_
+#endif  // COBALT_BASE_ENABLE_IF_H_

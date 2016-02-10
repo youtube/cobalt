@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef INPUT_KEY_EVENT_HANDLER_H_
-#define INPUT_KEY_EVENT_HANDLER_H_
+#ifndef COBALT_INPUT_KEY_EVENT_HANDLER_H_
+#define COBALT_INPUT_KEY_EVENT_HANDLER_H_
 
 #include "base/callback.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -70,4 +70,4 @@ class KeyEventHandler {
 }  // namespace input
 }  // namespace cobalt
 
-#endif  // INPUT_KEY_EVENT_HANDLER_H_
+#endif  // COBALT_INPUT_KEY_EVENT_HANDLER_H_

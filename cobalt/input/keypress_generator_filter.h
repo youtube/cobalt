@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef INPUT_KEYPRESS_GENERATOR_FILTER_H_
-#define INPUT_KEYPRESS_GENERATOR_FILTER_H_
+#ifndef COBALT_INPUT_KEYPRESS_GENERATOR_FILTER_H_
+#define COBALT_INPUT_KEYPRESS_GENERATOR_FILTER_H_
 
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/input/key_event_handler.h"
@@ -47,4 +47,4 @@ class KeypressGeneratorFilter : public KeyEventHandler {
 }  // namespace input
 }  // namespace cobalt
 
-#endif  // INPUT_KEYPRESS_GENERATOR_FILTER_H_
+#endif  // COBALT_INPUT_KEYPRESS_GENERATOR_FILTER_H_

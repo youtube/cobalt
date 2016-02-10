@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_INTERPOLATE_PROPERTY_VALUE_H_
-#define CSSOM_INTERPOLATE_PROPERTY_VALUE_H_
+#ifndef COBALT_CSSOM_INTERPOLATE_PROPERTY_VALUE_H_
+#define COBALT_CSSOM_INTERPOLATE_PROPERTY_VALUE_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_value.h"
@@ -33,4 +33,4 @@ scoped_refptr<PropertyValue> InterpolatePropertyValue(
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_INTERPOLATE_PROPERTY_VALUE_H_
+#endif  // COBALT_CSSOM_INTERPOLATE_PROPERTY_VALUE_H_

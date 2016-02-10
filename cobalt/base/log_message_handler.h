@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_LOG_MESSAGE_HANDLER_H_
-#define BASE_LOG_MESSAGE_HANDLER_H_
+#ifndef COBALT_BASE_LOG_MESSAGE_HANDLER_H_
+#define COBALT_BASE_LOG_MESSAGE_HANDLER_H_
 
 #include <map>
 #include <string>
@@ -100,4 +100,4 @@ class LogMessageHandler {
 
 }  // namespace base
 
-#endif  // BASE_LOG_MESSAGE_HANDLER_H_
+#endif  // COBALT_BASE_LOG_MESSAGE_HANDLER_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_DECLARATION_UTIL_H_
-#define CSSOM_CSS_DECLARATION_UTIL_H_
+#ifndef COBALT_CSSOM_CSS_DECLARATION_UTIL_H_
+#define COBALT_CSSOM_CSS_DECLARATION_UTIL_H_
 
 #include <string>
 
@@ -32,4 +32,4 @@ void AppendPropertyDeclaration(
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_DECLARATION_UTIL_H_
+#endif  // COBALT_CSSOM_CSS_DECLARATION_UTIL_H_

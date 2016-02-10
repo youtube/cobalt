@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_DOCUMENT_TIMELINE_H_
-#define DOM_DOCUMENT_TIMELINE_H_
+#ifndef COBALT_DOM_DOCUMENT_TIMELINE_H_
+#define COBALT_DOM_DOCUMENT_TIMELINE_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -54,4 +54,4 @@ class DocumentTimeline : public web_animations::AnimationTimeline {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_DOCUMENT_TIMELINE_H_
+#endif  // COBALT_DOM_DOCUMENT_TIMELINE_H_

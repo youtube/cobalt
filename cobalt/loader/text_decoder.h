@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_TEXT_DECODER_H_
-#define LOADER_TEXT_DECODER_H_
+#ifndef COBALT_LOADER_TEXT_DECODER_H_
+#define COBALT_LOADER_TEXT_DECODER_H_
 
 #include <string>
 
@@ -61,4 +61,4 @@ class TextDecoder : public Decoder {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // LOADER_TEXT_DECODER_H_
+#endif  // COBALT_LOADER_TEXT_DECODER_H_

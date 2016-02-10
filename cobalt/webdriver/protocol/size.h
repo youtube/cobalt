@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_PROTOCOL_SIZE_H_
-#define WEBDRIVER_PROTOCOL_SIZE_H_
+#ifndef COBALT_WEBDRIVER_PROTOCOL_SIZE_H_
+#define COBALT_WEBDRIVER_PROTOCOL_SIZE_H_
 
 #include "base/memory/scoped_ptr.h"
 #include "base/values.h"
@@ -40,4 +40,4 @@ class Size {
 }  // namespace protocol
 }  // namespace webdriver
 }  // namespace cobalt
-#endif  // WEBDRIVER_PROTOCOL_SIZE_H_
+#endif  // COBALT_WEBDRIVER_PROTOCOL_SIZE_H_

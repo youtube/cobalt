@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_RULE_LIST_H_
-#define CSSOM_CSS_RULE_LIST_H_
+#ifndef COBALT_CSSOM_CSS_RULE_LIST_H_
+#define COBALT_CSSOM_CSS_RULE_LIST_H_
 
 #include <string>
 #include <vector>
@@ -81,4 +81,4 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_RULE_LIST_H_
+#endif  // COBALT_CSSOM_CSS_RULE_LIST_H_

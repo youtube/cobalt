@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TIMING_FUNCTION_H_
-#define CSSOM_TIMING_FUNCTION_H_
+#ifndef COBALT_CSSOM_TIMING_FUNCTION_H_
+#define COBALT_CSSOM_TIMING_FUNCTION_H_
 
 #include <string>
 
@@ -131,4 +131,4 @@ class SteppingTimingFunction : public TimingFunction {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TIMING_FUNCTION_H_
+#endif  // COBALT_CSSOM_TIMING_FUNCTION_H_

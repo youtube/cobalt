@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_OBJECT_TYPE_BINDINGS_INTERFACE_H_
-#define BINDINGS_TESTING_OBJECT_TYPE_BINDINGS_INTERFACE_H_
+#ifndef COBALT_BINDINGS_TESTING_OBJECT_TYPE_BINDINGS_INTERFACE_H_
+#define COBALT_BINDINGS_TESTING_OBJECT_TYPE_BINDINGS_INTERFACE_H_
 
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/base_interface.h"
@@ -47,4 +47,4 @@ class ObjectTypeBindingsInterface : public script::Wrappable {
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_OBJECT_TYPE_BINDINGS_INTERFACE_H_
+#endif  // COBALT_BINDINGS_TESTING_OBJECT_TYPE_BINDINGS_INTERFACE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DEBUG_DEBUGGER_H_
-#define DEBUG_DEBUGGER_H_
+#ifndef COBALT_DEBUG_DEBUGGER_H_
+#define COBALT_DEBUG_DEBUGGER_H_
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
@@ -121,4 +121,4 @@ class Debugger : public script::Wrappable {
 }  // namespace cobalt
 
 #endif  // ENABLE_DEBUG_CONSOLE
-#endif  // DEBUG_DEBUGGER_H_
+#endif  // COBALT_DEBUG_DEBUGGER_H_

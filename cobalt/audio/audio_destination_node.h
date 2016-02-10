@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef AUDIO_AUDIO_DESTINATION_NODE_H_
-#define AUDIO_AUDIO_DESTINATION_NODE_H_
+#ifndef COBALT_AUDIO_AUDIO_DESTINATION_NODE_H_
+#define COBALT_AUDIO_AUDIO_DESTINATION_NODE_H_
 
 #include <vector>
 
@@ -70,4 +70,4 @@ class AudioDestinationNode : public AudioNode,
 }  // namespace audio
 }  // namespace cobalt
 
-#endif  // AUDIO_AUDIO_DESTINATION_NODE_H_
+#endif  // COBALT_AUDIO_AUDIO_DESTINATION_NODE_H_

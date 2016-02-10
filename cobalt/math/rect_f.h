@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_RECT_F_H_
-#define MATH_RECT_F_H_
+#ifndef COBALT_MATH_RECT_F_H_
+#define COBALT_MATH_RECT_F_H_
 
 #include <iosfwd>
 #include <string>
@@ -104,4 +104,4 @@ extern template class RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>;
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_RECT_F_H_
+#endif  // COBALT_MATH_RECT_F_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_PSEUDO_ELEMENT_NAMES_H_
-#define CSSOM_PSEUDO_ELEMENT_NAMES_H_
+#ifndef COBALT_CSSOM_PSEUDO_ELEMENT_NAMES_H_
+#define COBALT_CSSOM_PSEUDO_ELEMENT_NAMES_H_
 
 namespace cobalt {
 namespace cssom {
@@ -27,4 +27,4 @@ extern const char kBeforePseudoElementName[];
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_PSEUDO_ELEMENT_NAMES_H_
+#endif  // COBALT_CSSOM_PSEUDO_ELEMENT_NAMES_H_

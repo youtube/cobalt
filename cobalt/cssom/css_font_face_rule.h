@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_FONT_FACE_RULE_H_
-#define CSSOM_CSS_FONT_FACE_RULE_H_
+#ifndef COBALT_CSSOM_CSS_FONT_FACE_RULE_H_
+#define COBALT_CSSOM_CSS_FONT_FACE_RULE_H_
 
 #include <string>
 
@@ -90,4 +90,4 @@ class CSSFontFaceRule : public CSSRule {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_FONT_FACE_RULE_H_
+#endif  // COBALT_CSSOM_CSS_FONT_FACE_RULE_H_

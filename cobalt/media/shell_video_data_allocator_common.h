@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_SHELL_VIDEO_DATA_ALLOCATOR_COMMON_H_
-#define MEDIA_SHELL_VIDEO_DATA_ALLOCATOR_COMMON_H_
+#ifndef COBALT_MEDIA_SHELL_VIDEO_DATA_ALLOCATOR_COMMON_H_
+#define COBALT_MEDIA_SHELL_VIDEO_DATA_ALLOCATOR_COMMON_H_
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -59,4 +59,4 @@ class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
 
 }  // namespace media
 
-#endif  // MEDIA_SHELL_VIDEO_DATA_ALLOCATOR_COMMON_H_
+#endif  // COBALT_MEDIA_SHELL_VIDEO_DATA_ALLOCATOR_COMMON_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SCALE_FUNCTION_H_
-#define CSSOM_SCALE_FUNCTION_H_
+#ifndef COBALT_CSSOM_SCALE_FUNCTION_H_
+#define COBALT_CSSOM_SCALE_FUNCTION_H_
 
 #include <string>
 
@@ -59,4 +59,4 @@ class ScaleFunction : public TransformFunction {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_SCALE_FUNCTION_H_
+#endif  // COBALT_CSSOM_SCALE_FUNCTION_H_

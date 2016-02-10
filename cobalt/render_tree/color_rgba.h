@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_COLOR_RGBA_H_
-#define RENDER_TREE_COLOR_RGBA_H_
+#ifndef COBALT_RENDER_TREE_COLOR_RGBA_H_
+#define COBALT_RENDER_TREE_COLOR_RGBA_H_
 
 #include "base/logging.h"
 
@@ -109,4 +109,4 @@ inline std::ostream& operator<<(std::ostream& stream, const ColorRGBA& color) {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_COLOR_RGBA_H_
+#endif  // COBALT_RENDER_TREE_COLOR_RGBA_H_

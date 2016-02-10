@@ -9,8 +9,8 @@
 // rectangles with negative width and/or height), but there will be assertions
 // in the operations (such as Contains()) to complain in this case.
 
-#ifndef MATH_RECT_H_
-#define MATH_RECT_H_
+#ifndef COBALT_MATH_RECT_H_
+#define COBALT_MATH_RECT_H_
 
 #include <cmath>
 #include <iosfwd>
@@ -123,4 +123,4 @@ extern template class RectBase<Rect, Point, Size, Insets, Vector2d, int>;
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_RECT_H_
+#endif  // COBALT_MATH_RECT_H_

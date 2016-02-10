@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_SCRIPT_EXCEPTION_H_
-#define SCRIPT_SCRIPT_EXCEPTION_H_
+#ifndef COBALT_SCRIPT_SCRIPT_EXCEPTION_H_
+#define COBALT_SCRIPT_SCRIPT_EXCEPTION_H_
 
 #include "cobalt/script/wrappable.h"
 
@@ -31,4 +31,4 @@ class ScriptException : public Wrappable {
 }  // namespace cobalt
 
 
-#endif  // SCRIPT_SCRIPT_EXCEPTION_H_
+#endif  // COBALT_SCRIPT_SCRIPT_EXCEPTION_H_

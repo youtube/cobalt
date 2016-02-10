@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef AUDIO_AUDIO_DEVICE_H_
-#define AUDIO_AUDIO_DEVICE_H_
+#ifndef COBALT_AUDIO_AUDIO_DEVICE_H_
+#define COBALT_AUDIO_AUDIO_DEVICE_H_
 
 #include <vector>
 
@@ -50,4 +50,4 @@ class AudioDevice {
 }  // namespace audio
 }  // namespace cobalt
 
-#endif  // AUDIO_AUDIO_DEVICE_H_
+#endif  // COBALT_AUDIO_AUDIO_DEVICE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_DOM_RECT_READ_ONLY_H_
-#define DOM_DOM_RECT_READ_ONLY_H_
+#ifndef COBALT_DOM_DOM_RECT_READ_ONLY_H_
+#define COBALT_DOM_DOM_RECT_READ_ONLY_H_
 
 #include <algorithm>
 
@@ -56,4 +56,4 @@ class DOMRectReadOnly : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_DOM_RECT_READ_ONLY_H_
+#endif  // COBALT_DOM_DOM_RECT_READ_ONLY_H_

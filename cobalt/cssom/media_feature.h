@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_MEDIA_FEATURE_H_
-#define CSSOM_MEDIA_FEATURE_H_
+#ifndef COBALT_CSSOM_MEDIA_FEATURE_H_
+#define COBALT_CSSOM_MEDIA_FEATURE_H_
 
 #include <vector>
 
@@ -97,4 +97,4 @@ typedef std::vector<scoped_refptr<MediaFeature> > MediaFeatures;
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_MEDIA_FEATURE_H_
+#endif  // COBALT_CSSOM_MEDIA_FEATURE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_STORAGE_H_
-#define DOM_STORAGE_H_
+#ifndef COBALT_DOM_STORAGE_H_
+#define COBALT_DOM_STORAGE_H_
 
 #include <string>
 
@@ -86,4 +86,4 @@ class Storage : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_STORAGE_H_
+#endif  // COBALT_DOM_STORAGE_H_

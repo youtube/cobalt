@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_SIZE_BASE_H_
-#define MATH_SIZE_BASE_H_
+#ifndef COBALT_MATH_SIZE_BASE_H_
+#define COBALT_MATH_SIZE_BASE_H_
 
 namespace cobalt {
 namespace math {
@@ -58,4 +58,4 @@ class SizeBase {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_SIZE_BASE_H_
+#endif  // COBALT_MATH_SIZE_BASE_H_

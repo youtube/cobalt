@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef STORAGE_VIRTUAL_FILE_H_
-#define STORAGE_VIRTUAL_FILE_H_
+#ifndef COBALT_STORAGE_VIRTUAL_FILE_H_
+#define COBALT_STORAGE_VIRTUAL_FILE_H_
 
 #include <string>
 #include <vector>
@@ -63,4 +63,4 @@ class VirtualFile {
 }  // namespace storage
 }  // namespace cobalt
 
-#endif  // STORAGE_VIRTUAL_FILE_H_
+#endif  // COBALT_STORAGE_VIRTUAL_FILE_H_

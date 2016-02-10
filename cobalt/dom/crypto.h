@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_CRYPTO_H_
-#define DOM_CRYPTO_H_
+#ifndef COBALT_DOM_CRYPTO_H_
+#define COBALT_DOM_CRYPTO_H_
 
 #include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/script/exception_state.h"
@@ -44,4 +44,4 @@ class Crypto : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_CRYPTO_H_
+#endif  // COBALT_DOM_CRYPTO_H_

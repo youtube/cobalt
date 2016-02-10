@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_BACKEND_EGL_UTILS_H_
-#define RENDERER_BACKEND_EGL_UTILS_H_
+#ifndef COBALT_RENDERER_BACKEND_EGL_UTILS_H_
+#define COBALT_RENDERER_BACKEND_EGL_UTILS_H_
 
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
@@ -53,4 +53,4 @@ EGLContext CreateGLES3Context(EGLDisplay display, EGLConfig config,
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_BACKEND_EGL_UTILS_H_
+#endif  // COBALT_RENDERER_BACKEND_EGL_UTILS_H_

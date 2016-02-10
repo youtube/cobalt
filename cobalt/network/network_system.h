@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_NETWORK_SYSTEM_H_
-#define NETWORK_NETWORK_SYSTEM_H_
+#ifndef COBALT_NETWORK_NETWORK_SYSTEM_H_
+#define COBALT_NETWORK_NETWORK_SYSTEM_H_
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
@@ -45,4 +45,4 @@ class NetworkSystem {
 
 }  // namespace network
 }  // namespace cobalt
-#endif  // NETWORK_NETWORK_SYSTEM_H_
+#endif  // COBALT_NETWORK_NETWORK_SYSTEM_H_

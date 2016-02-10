@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBDRIVER_SERVER_H_
-#define WEBDRIVER_SERVER_H_
+#ifndef COBALT_WEBDRIVER_SERVER_H_
+#define COBALT_WEBDRIVER_SERVER_H_
 
 #include <string>
 #include <vector>
@@ -119,4 +119,4 @@ struct hash<cobalt::webdriver::WebDriverServer::HttpMethod> {
 }  // namespace BASE_HASH_NAMESPACE
 #endif  // COMPILER
 
-#endif  // WEBDRIVER_SERVER_H_
+#endif  // COBALT_WEBDRIVER_SERVER_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef INPUT_INPUT_DEVICE_MANAGER_H_
-#define INPUT_INPUT_DEVICE_MANAGER_H_
+#ifndef COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
+#define COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 
 #include "cobalt/input/key_event_handler.h"
 
@@ -48,4 +48,4 @@ class InputDeviceManager {
 }  // namespace input
 }  // namespace cobalt
 
-#endif  // INPUT_INPUT_DEVICE_MANAGER_H_
+#endif  // COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
