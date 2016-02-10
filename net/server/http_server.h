@@ -10,6 +10,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "base/threading/thread_checker.h"
 #include "net/base/stream_listen_socket.h"
 #include "net/http/http_status_code.h"
 
@@ -97,6 +98,7 @@ class HttpServer : public StreamListenSocket::Delegate,
   HttpConnection* FindConnection(int connection_id);
   HttpConnection* FindConnection(StreamListenSocket* socket);
 
+  base::ThreadChecker thread_checker_;
   HttpServer::Delegate* delegate_;
   scoped_refptr<StreamListenSocket> server_;
   typedef std::map<int, HttpConnection*> IdToConnectionMap;
