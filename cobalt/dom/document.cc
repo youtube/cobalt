@@ -356,23 +356,16 @@ void Document::SetActiveElement(Element* active_element) {
 
 void Document::IncreaseLoadingCounter() { ++loading_counter_; }
 
-void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent(
-    bool load_succeeded) {
-  if (!load_succeeded) {
-    // If the document or any dependent script failed loading, load event
-    // shouldn't be dispatched.
+void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent() {
+  DCHECK_GT(loading_counter_, 0);
+  loading_counter_--;
+  if (loading_counter_ == 0 && should_dispatch_load_event_) {
+    DCHECK(MessageLoop::current());
     should_dispatch_load_event_ = false;
-  } else {
-    DCHECK_GT(loading_counter_, 0);
-    loading_counter_--;
-    if (loading_counter_ == 0 && should_dispatch_load_event_) {
-      DCHECK(MessageLoop::current());
-      should_dispatch_load_event_ = false;
 
-      MessageLoop::current()->PostTask(
-          FROM_HERE, base::Bind(&Document::DispatchOnLoadEvent,
-                                base::AsWeakPtr<Document>(this)));
-    }
+    MessageLoop::current()->PostTask(
+        FROM_HERE, base::Bind(&Document::DispatchOnLoadEvent,
+                              base::AsWeakPtr<Document>(this)));
   }
 }
 

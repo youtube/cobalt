@@ -128,7 +128,7 @@ void LibxmlHTMLParserWrapper::Finish() {
                    1 /*terminate*/);  // Triggers EndDocument
   }
   if (IsFullDocument()) {
-    document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+    document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
 }
 
