@@ -122,7 +122,7 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   // The element must delay the load event of the element's document until all
   // the attempts to obtain the resource and its critical subresources are
   // complete.
-  document->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+  document->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
 
   DCHECK(loader_);
   loader_.reset();
@@ -146,7 +146,7 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
   // The element must delay the load event of the element's document until all
   // the attempts to obtain the resource and its critical subresources are
   // complete.
-  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
 
   DCHECK(loader_);
   loader_.reset();
