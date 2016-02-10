@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_COOKIE_JAR_IMPL_H_
-#define NETWORK_COOKIE_JAR_IMPL_H_
+#ifndef COBALT_NETWORK_COOKIE_JAR_IMPL_H_
+#define COBALT_NETWORK_COOKIE_JAR_IMPL_H_
 
 #include <string>
 
@@ -42,4 +42,4 @@ class CookieJarImpl : public network_bridge::CookieJar {
 }  // namespace network
 }  // namespace cobalt
 
-#endif  // NETWORK_COOKIE_JAR_IMPL_H_
+#endif  // COBALT_NETWORK_COOKIE_JAR_IMPL_H_

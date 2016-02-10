@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_EVENT_H_
-#define BASE_EVENT_H_
+#ifndef COBALT_BASE_EVENT_H_
+#define COBALT_BASE_EVENT_H_
 
 #include "cobalt/base/type_id.h"
 
@@ -38,4 +38,4 @@ class Event {
 
 }  // namespace base
 
-#endif  // BASE_EVENT_H_
+#endif  // COBALT_BASE_EVENT_H_

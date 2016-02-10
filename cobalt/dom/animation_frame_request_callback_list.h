@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_ANIMATION_FRAME_REQUEST_CALLBACK_LIST_H_
-#define DOM_ANIMATION_FRAME_REQUEST_CALLBACK_LIST_H_
+#ifndef COBALT_DOM_ANIMATION_FRAME_REQUEST_CALLBACK_LIST_H_
+#define COBALT_DOM_ANIMATION_FRAME_REQUEST_CALLBACK_LIST_H_
 
 #include <vector>
 
@@ -69,4 +69,4 @@ class AnimationFrameRequestCallbackList {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_ANIMATION_FRAME_REQUEST_CALLBACK_LIST_H_
+#endif  // COBALT_DOM_ANIMATION_FRAME_REQUEST_CALLBACK_LIST_H_

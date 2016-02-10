@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_SANDBOX_WEB_MEDIA_PLAYER_HELPER_H_
-#define MEDIA_SANDBOX_WEB_MEDIA_PLAYER_HELPER_H_
+#ifndef COBALT_MEDIA_SANDBOX_WEB_MEDIA_PLAYER_HELPER_H_
+#define COBALT_MEDIA_SANDBOX_WEB_MEDIA_PLAYER_HELPER_H_
 
 #include <string>
 
@@ -59,4 +59,4 @@ class WebMediaPlayerHelper {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // MEDIA_SANDBOX_WEB_MEDIA_PLAYER_HELPER_H_
+#endif  // COBALT_MEDIA_SANDBOX_WEB_MEDIA_PLAYER_HELPER_H_

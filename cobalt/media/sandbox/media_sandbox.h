@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_SANDBOX_MEDIA_SANDBOX_H_
-#define MEDIA_SANDBOX_MEDIA_SANDBOX_H_
+#ifndef COBALT_MEDIA_SANDBOX_MEDIA_SANDBOX_H_
+#define COBALT_MEDIA_SANDBOX_MEDIA_SANDBOX_H_
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
@@ -57,4 +57,4 @@ class MediaSandbox {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // MEDIA_SANDBOX_MEDIA_SANDBOX_H_
+#endif  // COBALT_MEDIA_SANDBOX_MEDIA_SANDBOX_H_

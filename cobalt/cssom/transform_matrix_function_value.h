@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TRANSFORM_MATRIX_FUNCTION_VALUE_H_
-#define CSSOM_TRANSFORM_MATRIX_FUNCTION_VALUE_H_
+#ifndef COBALT_CSSOM_TRANSFORM_MATRIX_FUNCTION_VALUE_H_
+#define COBALT_CSSOM_TRANSFORM_MATRIX_FUNCTION_VALUE_H_
 
 #include <string>
 
@@ -60,4 +60,4 @@ class TransformMatrixFunctionValue : public PropertyValue {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TRANSFORM_MATRIX_FUNCTION_VALUE_H_
+#endif  // COBALT_CSSOM_TRANSFORM_MATRIX_FUNCTION_VALUE_H_

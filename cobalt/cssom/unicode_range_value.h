@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_UNICODE_RANGE_VALUE_H_
-#define CSSOM_UNICODE_RANGE_VALUE_H_
+#ifndef COBALT_CSSOM_UNICODE_RANGE_VALUE_H_
+#define COBALT_CSSOM_UNICODE_RANGE_VALUE_H_
 
 #include <string>
 
@@ -61,4 +61,4 @@ class UnicodeRangeValue : public PropertyValue {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_UNICODE_RANGE_VALUE_H_
+#endif  // COBALT_CSSOM_UNICODE_RANGE_VALUE_H_

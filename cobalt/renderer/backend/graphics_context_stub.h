@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_BACKEND_GRAPHICS_CONTEXT_STUB_H_
-#define RENDERER_BACKEND_GRAPHICS_CONTEXT_STUB_H_
+#ifndef COBALT_RENDERER_BACKEND_GRAPHICS_CONTEXT_STUB_H_
+#define COBALT_RENDERER_BACKEND_GRAPHICS_CONTEXT_STUB_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -99,4 +99,4 @@ class GraphicsContextStub : public GraphicsContext {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_BACKEND_GRAPHICS_CONTEXT_STUB_H_
+#endif  // COBALT_RENDERER_BACKEND_GRAPHICS_CONTEXT_STUB_H_

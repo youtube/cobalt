@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSP_CRYPTO_H_
-#define CSP_CRYPTO_H_
+#ifndef COBALT_CSP_CRYPTO_H_
+#define COBALT_CSP_CRYPTO_H_
 
 #include <string>
 #include <vector>
@@ -42,4 +42,4 @@ bool ComputeDigest(HashAlgorithm algorithm, const char* digestable,
 }  // namespace csp
 }  // namespace cobalt
 
-#endif  // CSP_CRYPTO_H_
+#endif  // COBALT_CSP_CRYPTO_H_

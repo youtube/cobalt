@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_MOVABLE_H_
-#define RENDER_TREE_MOVABLE_H_
+#ifndef COBALT_RENDER_TREE_MOVABLE_H_
+#define COBALT_RENDER_TREE_MOVABLE_H_
 
 // Defines a helper structure and Pass() method that can be used to express
 // that we are passing the structure with move semantics and not copy semantics.
@@ -38,4 +38,4 @@
                                                    \
   Moved Pass() { return Moved(this); }
 
-#endif  // RENDER_TREE_MOVABLE_H_
+#endif  // COBALT_RENDER_TREE_MOVABLE_H_

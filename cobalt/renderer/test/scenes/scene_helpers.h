@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_TEST_SCENES_SCENE_HELPERS_H_
-#define RENDERER_TEST_SCENES_SCENE_HELPERS_H_
+#ifndef COBALT_RENDERER_TEST_SCENES_SCENE_HELPERS_H_
+#define COBALT_RENDERER_TEST_SCENES_SCENE_HELPERS_H_
 
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
@@ -49,4 +49,4 @@ RenderTreeWithAnimations AddBlankBackgroundToScene(
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_TEST_SCENES_SCENE_HELPERS_H_
+#endif  // COBALT_RENDERER_TEST_SCENES_SCENE_HELPERS_H_

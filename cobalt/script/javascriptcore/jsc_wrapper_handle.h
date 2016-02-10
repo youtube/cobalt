@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_WRAPPER_HANDLE_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_WRAPPER_HANDLE_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_WRAPPER_HANDLE_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_WRAPPER_HANDLE_H_
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/wrappable.h"
@@ -48,4 +48,4 @@ class JSCWrapperHandle : public Wrappable::WeakWrapperHandle {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_WRAPPER_HANDLE_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_WRAPPER_HANDLE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_TRANSITION_SET_H_
-#define CSSOM_CSS_TRANSITION_SET_H_
+#ifndef COBALT_CSSOM_CSS_TRANSITION_SET_H_
+#define COBALT_CSSOM_CSS_TRANSITION_SET_H_
 
 #include <map>
 
@@ -121,4 +121,4 @@ class TransitionSet {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_TRANSITION_SET_H_
+#endif  // COBALT_CSSOM_CSS_TRANSITION_SET_H_

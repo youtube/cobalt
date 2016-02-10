@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_TEST_RUNNER_H_
-#define DOM_TEST_RUNNER_H_
+#ifndef COBALT_DOM_TEST_RUNNER_H_
+#define COBALT_DOM_TEST_RUNNER_H_
 
 #if defined(ENABLE_TEST_RUNNER)
 
@@ -74,4 +74,4 @@ class TestRunner : public script::Wrappable {
 
 #endif  // ENABLE_TEST_RUNNER
 
-#endif  // DOM_TEST_RUNNER_H_
+#endif  // COBALT_DOM_TEST_RUNNER_H_

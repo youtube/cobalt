@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_TESTING_STUB_SCRIPT_RUNNER_H_
-#define DOM_TESTING_STUB_SCRIPT_RUNNER_H_
+#ifndef COBALT_DOM_TESTING_STUB_SCRIPT_RUNNER_H_
+#define COBALT_DOM_TESTING_STUB_SCRIPT_RUNNER_H_
 
 #include "cobalt/script/script_runner.h"
 
@@ -33,4 +33,4 @@ class StubScriptRunner : public script::ScriptRunner {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_TESTING_STUB_SCRIPT_RUNNER_H_
+#endif  // COBALT_DOM_TESTING_STUB_SCRIPT_RUNNER_H_

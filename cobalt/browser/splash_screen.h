@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_SPLASH_SCREEN_H_
-#define BROWSER_SPLASH_SCREEN_H_
+#ifndef COBALT_BROWSER_SPLASH_SCREEN_H_
+#define COBALT_BROWSER_SPLASH_SCREEN_H_
 
 #include <string>
 
@@ -53,4 +53,4 @@ class SplashScreen {
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // BROWSER_SPLASH_SCREEN_H_
+#endif  // COBALT_BROWSER_SPLASH_SCREEN_H_

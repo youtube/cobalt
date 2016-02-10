@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEB_ANIMATIONS_ANIMATION_EFFECT_TIMING_READ_ONLY_H_
-#define WEB_ANIMATIONS_ANIMATION_EFFECT_TIMING_READ_ONLY_H_
+#ifndef COBALT_WEB_ANIMATIONS_ANIMATION_EFFECT_TIMING_READ_ONLY_H_
+#define COBALT_WEB_ANIMATIONS_ANIMATION_EFFECT_TIMING_READ_ONLY_H_
 
 #include <string>
 
@@ -184,4 +184,4 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
 }  // namespace web_animations
 }  // namespace cobalt
 
-#endif  // WEB_ANIMATIONS_ANIMATION_EFFECT_TIMING_READ_ONLY_H_
+#endif  // COBALT_WEB_ANIMATIONS_ANIMATION_EFFECT_TIMING_READ_ONLY_H_

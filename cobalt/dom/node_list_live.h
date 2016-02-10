@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_NODE_LIST_LIVE_H_
-#define DOM_NODE_LIST_LIVE_H_
+#ifndef COBALT_DOM_NODE_LIST_LIVE_H_
+#define COBALT_DOM_NODE_LIST_LIVE_H_
 
 #include "cobalt/dom/node_list.h"
 
@@ -59,4 +59,4 @@ class NodeListLive : public NodeList {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_NODE_LIST_LIVE_H_
+#endif  // COBALT_DOM_NODE_LIST_LIVE_H_

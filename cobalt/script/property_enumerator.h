@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_PROPERTY_ENUMERATOR_H_
-#define SCRIPT_PROPERTY_ENUMERATOR_H_
+#ifndef COBALT_SCRIPT_PROPERTY_ENUMERATOR_H_
+#define COBALT_SCRIPT_PROPERTY_ENUMERATOR_H_
 
 #include <string>
 
@@ -31,4 +31,4 @@ class PropertyEnumerator {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_PROPERTY_ENUMERATOR_H_
+#endif  // COBALT_SCRIPT_PROPERTY_ENUMERATOR_H_

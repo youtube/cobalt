@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TRANSLATE_FUNCTION_H_
-#define CSSOM_TRANSLATE_FUNCTION_H_
+#ifndef COBALT_CSSOM_TRANSLATE_FUNCTION_H_
+#define COBALT_CSSOM_TRANSLATE_FUNCTION_H_
 
 #include <string>
 
@@ -89,4 +89,4 @@ class TranslateFunction : public TransformFunction {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TRANSLATE_FUNCTION_H_
+#endif  // COBALT_CSSOM_TRANSLATE_FUNCTION_H_

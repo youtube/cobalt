@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_CSS_ANIMATIONS_ADAPTER_H_
-#define DOM_CSS_ANIMATIONS_ADAPTER_H_
+#ifndef COBALT_DOM_CSS_ANIMATIONS_ADAPTER_H_
+#define COBALT_DOM_CSS_ANIMATIONS_ADAPTER_H_
 
 #include <map>
 #include <string>
@@ -75,4 +75,4 @@ class CSSAnimationsAdapter : public cssom::AnimationSet::EventHandler {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_CSS_ANIMATIONS_ADAPTER_H_
+#endif  // COBALT_DOM_CSS_ANIMATIONS_ADAPTER_H_

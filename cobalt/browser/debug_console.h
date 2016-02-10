@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_DEBUG_CONSOLE_H_
-#define BROWSER_DEBUG_CONSOLE_H_
+#ifndef COBALT_BROWSER_DEBUG_CONSOLE_H_
+#define COBALT_BROWSER_DEBUG_CONSOLE_H_
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
@@ -80,4 +80,4 @@ class DebugConsole {
 }  // namespace cobalt
 
 #endif  // ENABLE_DEBUG_CONSOLE
-#endif  // BROWSER_DEBUG_CONSOLE_H_
+#endif  // COBALT_BROWSER_DEBUG_CONSOLE_H_

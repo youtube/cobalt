@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_RENDER_TREE_PIXEL_TESTER_H_
-#define RENDERER_RENDER_TREE_PIXEL_TESTER_H_
+#ifndef COBALT_RENDERER_RENDER_TREE_PIXEL_TESTER_H_
+#define COBALT_RENDERER_RENDER_TREE_PIXEL_TESTER_H_
 
 #include "base/file_path.h"
 #include "base/memory/ref_counted.h"
@@ -108,4 +108,4 @@ class RenderTreePixelTester {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_RENDER_TREE_PIXEL_TESTER_H_
+#endif  // COBALT_RENDERER_RENDER_TREE_PIXEL_TESTER_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_FORMATTING_CONTEXT_H_
-#define LAYOUT_FORMATTING_CONTEXT_H_
+#ifndef COBALT_LAYOUT_FORMATTING_CONTEXT_H_
+#define COBALT_LAYOUT_FORMATTING_CONTEXT_H_
 
 #include "base/optional.h"
 #include "cobalt/math/size_f.h"
@@ -75,4 +75,4 @@ class FormattingContext {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_FORMATTING_CONTEXT_H_
+#endif  // COBALT_LAYOUT_FORMATTING_CONTEXT_H_

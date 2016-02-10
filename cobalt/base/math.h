@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_MATH_H_
-#define BASE_MATH_H_
+#ifndef COBALT_BASE_MATH_H_
+#define COBALT_BASE_MATH_H_
 
 #include <cmath>
 
@@ -26,4 +26,4 @@
 float roundf(float x);
 #endif  // defined(COMPILER_MSVC)
 
-#endif  // BASE_MATH_H_
+#endif  // COBALT_BASE_MATH_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_PARSER_LIBXML_XML_PARSER_WRAPPER_H_
-#define DOM_PARSER_LIBXML_XML_PARSER_WRAPPER_H_
+#ifndef COBALT_DOM_PARSER_LIBXML_XML_PARSER_WRAPPER_H_
+#define COBALT_DOM_PARSER_LIBXML_XML_PARSER_WRAPPER_H_
 
 #include "cobalt/dom_parser/libxml_parser_wrapper.h"
 
@@ -61,4 +61,4 @@ class LibxmlXMLParserWrapper : LibxmlParserWrapper {
 }  // namespace dom_parser
 }  // namespace cobalt
 
-#endif  // DOM_PARSER_LIBXML_XML_PARSER_WRAPPER_H_
+#endif  // COBALT_DOM_PARSER_LIBXML_XML_PARSER_WRAPPER_H_

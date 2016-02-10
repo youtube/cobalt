@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_DESCENDANT_COMBINATOR_H_
-#define CSSOM_DESCENDANT_COMBINATOR_H_
+#ifndef COBALT_CSSOM_DESCENDANT_COMBINATOR_H_
+#define COBALT_CSSOM_DESCENDANT_COMBINATOR_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -45,4 +45,4 @@ class DescendantCombinator : public Combinator {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_DESCENDANT_COMBINATOR_H_
+#endif  // COBALT_CSSOM_DESCENDANT_COMBINATOR_H_

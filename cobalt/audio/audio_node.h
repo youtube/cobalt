@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef AUDIO_AUDIO_NODE_H_
-#define AUDIO_AUDIO_NODE_H_
+#ifndef COBALT_AUDIO_AUDIO_NODE_H_
+#define COBALT_AUDIO_AUDIO_NODE_H_
 
 #include <vector>
 
@@ -149,4 +149,4 @@ class AudioNode : public dom::EventTarget {
 
 }  // namespace audio
 }  // namespace cobalt
-#endif  // AUDIO_AUDIO_NODE_H_
+#endif  // COBALT_AUDIO_AUDIO_NODE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_KEYFRAMES_MAP_UPDATER_H_
-#define DOM_KEYFRAMES_MAP_UPDATER_H_
+#ifndef COBALT_DOM_KEYFRAMES_MAP_UPDATER_H_
+#define COBALT_DOM_KEYFRAMES_MAP_UPDATER_H_
 
 #include <map>
 #include <string>
@@ -69,4 +69,4 @@ class KeyframesMapUpdater : public cssom::CSSRuleVisitor {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_KEYFRAMES_MAP_UPDATER_H_
+#endif  // COBALT_DOM_KEYFRAMES_MAP_UPDATER_H_

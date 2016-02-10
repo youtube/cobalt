@@ -13,8 +13,8 @@
 // robust access method for points and rectangles', Proc ACM SIGMOD Int Conf on
 // Management of Data, 322-331, 1990
 
-#ifndef MATH_R_TREE_H_
-#define MATH_R_TREE_H_
+#ifndef COBALT_MATH_R_TREE_H_
+#define COBALT_MATH_R_TREE_H_
 
 #include "cobalt/math/r_tree_base.h"
 
@@ -173,4 +173,4 @@ RTree<Key>::Record::~Record() {}
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_R_TREE_H_
+#endif  // COBALT_MATH_R_TREE_H_

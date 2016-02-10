@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_LOCAL_SRC_VALUE_H_
-#define CSSOM_LOCAL_SRC_VALUE_H_
+#ifndef COBALT_CSSOM_LOCAL_SRC_VALUE_H_
+#define COBALT_CSSOM_LOCAL_SRC_VALUE_H_
 
 #include <string>
 
@@ -59,4 +59,4 @@ class LocalSrcValue : public PropertyValue {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_LOCAL_SRC_VALUE_H_
+#endif  // COBALT_CSSOM_LOCAL_SRC_VALUE_H_

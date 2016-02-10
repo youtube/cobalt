@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_FONT_FACE_UPDATER_H_
-#define DOM_FONT_FACE_UPDATER_H_
+#ifndef COBALT_DOM_FONT_FACE_UPDATER_H_
+#define COBALT_DOM_FONT_FACE_UPDATER_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -66,4 +66,4 @@ class FontFaceUpdater : public cssom::CSSRuleVisitor {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_FONT_FACE_UPDATER_H_
+#endif  // COBALT_DOM_FONT_FACE_UPDATER_H_

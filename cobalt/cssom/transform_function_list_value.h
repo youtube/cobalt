@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
-#define CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
+#ifndef COBALT_CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
+#define COBALT_CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
 
 #include <string>
 
@@ -56,4 +56,4 @@ class TransformFunctionListValue : public ScopedListValue<TransformFunction> {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
+#endif  // COBALT_CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_

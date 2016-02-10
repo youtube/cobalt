@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TRACE_EVENT_EVENT_PARSER_H_
-#define TRACE_EVENT_EVENT_PARSER_H_
+#ifndef COBALT_TRACE_EVENT_EVENT_PARSER_H_
+#define COBALT_TRACE_EVENT_EVENT_PARSER_H_
 
 #include <set>
 #include <vector>
@@ -253,4 +253,4 @@ class EventParser {
 }  // namespace trace_event
 }  // namespace cobalt
 
-#endif  // TRACE_EVENT_EVENT_PARSER_H_
+#endif  // COBALT_TRACE_EVENT_EVENT_PARSER_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_SCRIPT_OBJECT_H_
-#define SCRIPT_SCRIPT_OBJECT_H_
+#ifndef COBALT_SCRIPT_SCRIPT_OBJECT_H_
+#define COBALT_SCRIPT_SCRIPT_OBJECT_H_
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -103,4 +103,4 @@ class ScriptObject {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_SCRIPT_OBJECT_H_
+#endif  // COBALT_SCRIPT_SCRIPT_OBJECT_H_

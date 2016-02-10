@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CASCADED_STYLE_H_
-#define CSSOM_CASCADED_STYLE_H_
+#ifndef COBALT_CSSOM_CASCADED_STYLE_H_
+#define COBALT_CSSOM_CASCADED_STYLE_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -42,4 +42,4 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CASCADED_STYLE_H_
+#endif  // COBALT_CSSOM_CASCADED_STYLE_H_

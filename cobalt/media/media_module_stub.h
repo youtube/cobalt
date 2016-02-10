@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MEDIA_MEDIA_MODULE_STUB_H_
-#define MEDIA_MEDIA_MODULE_STUB_H_
+#ifndef COBALT_MEDIA_MEDIA_MODULE_STUB_H_
+#define COBALT_MEDIA_MEDIA_MODULE_STUB_H_
 
 #include "cobalt/media/media_module.h"
 
@@ -33,4 +33,4 @@ class MediaModuleStub : public MediaModule {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // MEDIA_MEDIA_MODULE_STUB_H_
+#endif  // COBALT_MEDIA_MEDIA_MODULE_STUB_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_ARRAY_BUFFER_VIEW_H_
-#define DOM_ARRAY_BUFFER_VIEW_H_
+#ifndef COBALT_DOM_ARRAY_BUFFER_VIEW_H_
+#define COBALT_DOM_ARRAY_BUFFER_VIEW_H_
 
 #include <string>
 
@@ -55,4 +55,4 @@ class ArrayBufferView : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_ARRAY_BUFFER_VIEW_H_
+#endif  // COBALT_DOM_ARRAY_BUFFER_VIEW_H_

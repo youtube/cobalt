@@ -7,8 +7,8 @@
 // produce a vector, and adding a vector to a point produces the point at the
 // vector's distance from the original point.
 
-#ifndef MATH_VECTOR2D_F_H_
-#define MATH_VECTOR2D_F_H_
+#ifndef COBALT_MATH_VECTOR2D_F_H_
+#define COBALT_MATH_VECTOR2D_F_H_
 
 #include <iosfwd>
 #include <string>
@@ -126,4 +126,4 @@ inline Vector2dF ScaleVector2d(const Vector2dF& v, float scale) {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_VECTOR2D_F_H_
+#endif  // COBALT_MATH_VECTOR2D_F_H_

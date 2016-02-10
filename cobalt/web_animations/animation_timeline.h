@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEB_ANIMATIONS_ANIMATION_TIMELINE_H_
-#define WEB_ANIMATIONS_ANIMATION_TIMELINE_H_
+#ifndef COBALT_WEB_ANIMATIONS_ANIMATION_TIMELINE_H_
+#define COBALT_WEB_ANIMATIONS_ANIMATION_TIMELINE_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -86,4 +86,4 @@ class AnimationTimeline : public script::Wrappable {
 }  // namespace web_animations
 }  // namespace cobalt
 
-#endif  // WEB_ANIMATIONS_ANIMATION_TIMELINE_H_
+#endif  // COBALT_WEB_ANIMATIONS_ANIMATION_TIMELINE_H_

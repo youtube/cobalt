@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_SOURCE_CODE_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_SOURCE_CODE_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_SOURCE_CODE_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_SOURCE_CODE_H_
 
 #include <string>
 
@@ -42,4 +42,4 @@ class JSCSourceCode : public SourceCode {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_SOURCE_CODE_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_SOURCE_CODE_H_

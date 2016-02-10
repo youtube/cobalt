@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_EVENT_DISPATCHER_H_
-#define BASE_EVENT_DISPATCHER_H_
+#ifndef COBALT_BASE_EVENT_DISPATCHER_H_
+#define COBALT_BASE_EVENT_DISPATCHER_H_
 
 #include <vector>
 
@@ -58,4 +58,4 @@ class EventDispatcher {
 
 }  // namespace base
 
-#endif  // BASE_EVENT_DISPATCHER_H_
+#endif  // COBALT_BASE_EVENT_DISPATCHER_H_

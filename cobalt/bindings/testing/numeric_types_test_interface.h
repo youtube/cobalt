@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_
-#define BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_
+#ifndef COBALT_BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_
+#define COBALT_BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_
 
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -237,4 +237,4 @@ class UnrestrictedDoubleTypeTest : public NumericTypesTestInterfaceT<double> {
 }  // namespace bindings
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_
+#endif  // COBALT_BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_

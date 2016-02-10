@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_NAMED_NODE_MAP_H_
-#define DOM_NAMED_NODE_MAP_H_
+#ifndef COBALT_DOM_NAMED_NODE_MAP_H_
+#define COBALT_DOM_NAMED_NODE_MAP_H_
 
 #include <string>
 #include <vector>
@@ -91,4 +91,4 @@ class NamedNodeMap : public script::Wrappable,
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_NAMED_NODE_MAP_H_
+#endif  // COBALT_DOM_NAMED_NODE_MAP_H_

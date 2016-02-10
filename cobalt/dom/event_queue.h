@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_EVENT_QUEUE_H_
-#define DOM_EVENT_QUEUE_H_
+#ifndef COBALT_DOM_EVENT_QUEUE_H_
+#define COBALT_DOM_EVENT_QUEUE_H_
 
 #include <vector>
 
@@ -58,4 +58,4 @@ class EventQueue : public base::SupportsWeakPtr<EventQueue> {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_EVENT_QUEUE_H_
+#endif  // COBALT_DOM_EVENT_QUEUE_H_

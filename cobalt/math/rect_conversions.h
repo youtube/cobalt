@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_RECT_CONVERSIONS_H_
-#define MATH_RECT_CONVERSIONS_H_
+#ifndef COBALT_MATH_RECT_CONVERSIONS_H_
+#define COBALT_MATH_RECT_CONVERSIONS_H_
 
 #include "cobalt/math/rect.h"
 #include "cobalt/math/rect_f.h"
@@ -34,4 +34,4 @@ Rect ToFlooredRectDeprecated(const RectF& rect);
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_RECT_CONVERSIONS_H_
+#endif  // COBALT_MATH_RECT_CONVERSIONS_H_

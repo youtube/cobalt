@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_JAVASCRIPTCORE_WRAPPER_BASE_H_
-#define SCRIPT_JAVASCRIPTCORE_WRAPPER_BASE_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_WRAPPER_BASE_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_WRAPPER_BASE_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
@@ -91,4 +91,4 @@ typedef WrapperBase<JSC::ErrorInstance, ScriptException> ExceptionBase;
 }  // namespace javascriptcore
 }  // namespace script
 }  // namespace cobalt
-#endif  // SCRIPT_JAVASCRIPTCORE_WRAPPER_BASE_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_WRAPPER_BASE_H_

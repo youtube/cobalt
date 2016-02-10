@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef AUDIO_AUDIO_CONTEXT_H_
-#define AUDIO_AUDIO_CONTEXT_H_
+#ifndef COBALT_AUDIO_AUDIO_CONTEXT_H_
+#define COBALT_AUDIO_AUDIO_CONTEXT_H_
 
 #include "base/callback.h"
 #include "base/optional.h"
@@ -172,4 +172,4 @@ class AudioContext : public dom::EventTarget {
 }  // namespace audio
 }  // namespace cobalt
 
-#endif  // AUDIO_AUDIO_CONTEXT_H_
+#endif  // COBALT_AUDIO_AUDIO_CONTEXT_H_

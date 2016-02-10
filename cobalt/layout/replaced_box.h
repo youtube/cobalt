@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_REPLACED_BOX_H_
-#define LAYOUT_REPLACED_BOX_H_
+#ifndef COBALT_LAYOUT_REPLACED_BOX_H_
+#define COBALT_LAYOUT_REPLACED_BOX_H_
 
 #include "base/basictypes.h"
 #include "base/callback.h"
@@ -108,4 +108,4 @@ class ReplacedBox : public Box {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_REPLACED_BOX_H_
+#endif  // COBALT_LAYOUT_REPLACED_BOX_H_

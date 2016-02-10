@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_PERFORMANCE_TIMING_H_
-#define DOM_PERFORMANCE_TIMING_H_
+#ifndef COBALT_DOM_PERFORMANCE_TIMING_H_
+#define COBALT_DOM_PERFORMANCE_TIMING_H_
 
 #include "cobalt/script/wrappable.h"
 
@@ -57,4 +57,4 @@ class PerformanceTiming : public script::Wrappable {
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_PERFORMANCE_TIMING_H_
+#endif  // COBALT_DOM_PERFORMANCE_TIMING_H_

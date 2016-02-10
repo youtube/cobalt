@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SYSTEM_WINDOW_KEYBOARD_EVENT_H_
-#define SYSTEM_WINDOW_KEYBOARD_EVENT_H_
+#ifndef COBALT_SYSTEM_WINDOW_KEYBOARD_EVENT_H_
+#define COBALT_SYSTEM_WINDOW_KEYBOARD_EVENT_H_
 
 #include "cobalt/base/event.h"
 
@@ -61,4 +61,4 @@ class KeyboardEvent : public base::Event {
 }  // namespace system_window
 }  // namespace cobalt
 
-#endif  // SYSTEM_WINDOW_KEYBOARD_EVENT_H_
+#endif  // COBALT_SYSTEM_WINDOW_KEYBOARD_EVENT_H_

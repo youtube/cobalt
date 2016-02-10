@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_MEDIA_QUERY_H_
-#define CSSOM_MEDIA_QUERY_H_
+#ifndef COBALT_CSSOM_MEDIA_QUERY_H_
+#define COBALT_CSSOM_MEDIA_QUERY_H_
 
 #include <string>
 #include <vector>
@@ -57,4 +57,4 @@ class MediaQuery : public script::Wrappable {
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_MEDIA_QUERY_H_
+#endif  // COBALT_CSSOM_MEDIA_QUERY_H_

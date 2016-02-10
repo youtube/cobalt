@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_POLYMORPHIC_EQUATABLE_H_
-#define BASE_POLYMORPHIC_EQUATABLE_H_
+#ifndef COBALT_BASE_POLYMORPHIC_EQUATABLE_H_
+#define COBALT_BASE_POLYMORPHIC_EQUATABLE_H_
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/type_id.h"
@@ -54,4 +54,4 @@ class PolymorphicEquatable {
 
 }  // namespace base
 
-#endif  // BASE_POLYMORPHIC_EQUATABLE_H_
+#endif  // COBALT_BASE_POLYMORPHIC_EQUATABLE_H_

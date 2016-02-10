@@ -7,8 +7,8 @@
 // produce a vector, and adding a vector to a point produces the point at the
 // vector's distance from the original point.
 
-#ifndef MATH_VECTOR3D_F_H_
-#define MATH_VECTOR3D_F_H_
+#ifndef COBALT_MATH_VECTOR3D_F_H_
+#define COBALT_MATH_VECTOR3D_F_H_
 
 #include <iosfwd>
 #include <string>
@@ -127,4 +127,4 @@ inline Vector3dF ScaleVector3d(const Vector3dF& v, float scale) {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_VECTOR3D_F_H_
+#endif  // COBALT_MATH_VECTOR3D_F_H_

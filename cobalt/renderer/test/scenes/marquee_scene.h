@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDERER_TEST_SCENES_MARQUEE_SCENE_H_
-#define RENDERER_TEST_SCENES_MARQUEE_SCENE_H_
+#ifndef COBALT_RENDERER_TEST_SCENES_MARQUEE_SCENE_H_
+#define COBALT_RENDERER_TEST_SCENES_MARQUEE_SCENE_H_
 
 #include "base/time.h"
 #include "cobalt/math/size_f.h"
@@ -38,4 +38,4 @@ RenderTreeWithAnimations CreateMarqueeScene(
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // RENDERER_TEST_SCENES_MARQUEE_SCENE_H_
+#endif  // COBALT_RENDERER_TEST_SCENES_MARQUEE_SCENE_H_

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef STORAGE_SQL_VFS_H_
-#define STORAGE_SQL_VFS_H_
+#ifndef COBALT_STORAGE_SQL_VFS_H_
+#define COBALT_STORAGE_SQL_VFS_H_
 
 #include <string>
 
@@ -42,4 +42,4 @@ class SqlVfs {
 }  // namespace storage
 }  // namespace cobalt
 
-#endif  // STORAGE_SQL_VFS_H_
+#endif  // COBALT_STORAGE_SQL_VFS_H_

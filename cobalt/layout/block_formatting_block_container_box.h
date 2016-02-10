@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_
-#define LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_
+#ifndef COBALT_LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_
+#define COBALT_LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_
 
 #include "cobalt/layout/block_container_box.h"
 #include "cobalt/layout/paragraph.h"
@@ -133,4 +133,4 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 }  // namespace layout
 }  // namespace cobalt
 
-#endif  // LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_
+#endif  // COBALT_LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_

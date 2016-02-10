@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef MATH_RATIONAL_H_
-#define MATH_RATIONAL_H_
+#ifndef COBALT_MATH_RATIONAL_H_
+#define COBALT_MATH_RATIONAL_H_
 
 namespace cobalt {
 namespace math {
@@ -63,4 +63,4 @@ class Rational {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_RATIONAL_H_
+#endif  // COBALT_MATH_RATIONAL_H_

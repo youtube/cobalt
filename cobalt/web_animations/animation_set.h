@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEB_ANIMATIONS_ANIMATION_SET_H_
-#define WEB_ANIMATIONS_ANIMATION_SET_H_
+#ifndef COBALT_WEB_ANIMATIONS_ANIMATION_SET_H_
+#define COBALT_WEB_ANIMATIONS_ANIMATION_SET_H_
 
 #include "cobalt/web_animations/animation_set.h"
 
@@ -62,4 +62,4 @@ class AnimationSet : public base::RefCounted<AnimationSet> {
 }  // namespace web_animations
 }  // namespace cobalt
 
-#endif  // WEB_ANIMATIONS_ANIMATION_SET_H_
+#endif  // COBALT_WEB_ANIMATIONS_ANIMATION_SET_H_

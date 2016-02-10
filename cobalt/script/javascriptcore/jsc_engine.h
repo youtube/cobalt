@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_
+#ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_
+#define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_
 
 
 #include "base/threading/thread_checker.h"
@@ -46,4 +46,4 @@ class JSCEngine : public JavaScriptEngine {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_
+#endif  // COBALT_SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_RECT_BASE_IMPL_H_
-#define MATH_RECT_BASE_IMPL_H_
+#ifndef COBALT_MATH_RECT_BASE_IMPL_H_
+#define COBALT_MATH_RECT_BASE_IMPL_H_
 
 #include <algorithm>
 #include <limits>
@@ -264,4 +264,4 @@ Type RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_RECT_BASE_IMPL_H_
+#endif  // COBALT_MATH_RECT_BASE_IMPL_H_

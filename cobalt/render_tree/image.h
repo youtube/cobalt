@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_IMAGE_H_
-#define RENDER_TREE_IMAGE_H_
+#ifndef COBALT_RENDER_TREE_IMAGE_H_
+#define COBALT_RENDER_TREE_IMAGE_H_
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -218,4 +218,4 @@ class Image : public base::RefCountedThreadSafe<Image> {
 }  // namespace render_tree
 }  // namespace cobalt
 
-#endif  // RENDER_TREE_IMAGE_H_
+#endif  // COBALT_RENDER_TREE_IMAGE_H_

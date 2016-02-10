@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef BASE_LOCALIZED_STRINGS_H_
-#define BASE_LOCALIZED_STRINGS_H_
+#ifndef COBALT_BASE_LOCALIZED_STRINGS_H_
+#define COBALT_BASE_LOCALIZED_STRINGS_H_
 
 #include <map>
 #include <string>
@@ -54,4 +54,4 @@ class LocalizedStrings {
 
 }  // namespace base
 
-#endif  // BASE_LOCALIZED_STRINGS_H_
+#endif  // COBALT_BASE_LOCALIZED_STRINGS_H_

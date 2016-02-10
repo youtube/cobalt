@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MATH_POINT3_F_H_
-#define MATH_POINT3_F_H_
+#ifndef COBALT_MATH_POINT3_F_H_
+#define COBALT_MATH_POINT3_F_H_
 
 #include <iosfwd>
 #include <string>
@@ -115,4 +115,4 @@ inline Point3F ScalePoint(const Point3F& p, float scale) {
 }  // namespace math
 }  // namespace cobalt
 
-#endif  // MATH_POINT3_F_H_
+#endif  // COBALT_MATH_POINT3_F_H_

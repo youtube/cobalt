@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_EXECUTION_STATE_H_
-#define SCRIPT_EXECUTION_STATE_H_
+#ifndef COBALT_SCRIPT_EXECUTION_STATE_H_
+#define COBALT_SCRIPT_EXECUTION_STATE_H_
 
 #include <string>
 
@@ -39,4 +39,4 @@ class ExecutionState {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_EXECUTION_STATE_H_
+#endif  // COBALT_SCRIPT_EXECUTION_STATE_H_

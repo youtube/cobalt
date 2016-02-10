@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef NETWORK_NETWORK_EVENT_H_
-#define NETWORK_NETWORK_EVENT_H_
+#ifndef COBALT_NETWORK_NETWORK_EVENT_H_
+#define COBALT_NETWORK_NETWORK_EVENT_H_
 
 #include "base/compiler_specific.h"
 #include "cobalt/base/event.h"
@@ -42,4 +42,4 @@ class NetworkEvent : public base::Event {
 }  // namespace network
 }  // namespace cobalt
 
-#endif  // NETWORK_NETWORK_EVENT_H_
+#endif  // COBALT_NETWORK_NETWORK_EVENT_H_
