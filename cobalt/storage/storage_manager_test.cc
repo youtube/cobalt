@@ -19,11 +19,11 @@
 #include <string>
 
 #include "base/bind.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/synchronization/waitable_event.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/storage/savegame_fake.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -37,12 +37,12 @@ namespace storage {
 
 namespace {
 
-// Used to be able to intercept FlushInternal().
+// Used to be able to intercept QueueFlush().
 class MockStorageManager : public StorageManager {
  public:
   explicit MockStorageManager(const Options& options)
       : StorageManager(options) {}
-  MOCK_METHOD1(FlushInternal, void(const base::Closure& callback));
+  MOCK_METHOD1(QueueFlush, void(const base::Closure& callback));
 };
 
 class CallbackWaiter {
@@ -184,11 +184,11 @@ TEST_F(StorageManagerTest, Flush) {
   MockStorageManager& storage_manager =
       *dynamic_cast<MockStorageManager*>(storage_manager_.get());
 
-  // When FlushInternal() is called, have it also call
+  // When QueueFlush() is called, have it also call
   // FlushWaiter::OnFlushDone(). We will wait for this in TimedWait().
-  ON_CALL(storage_manager, FlushInternal(_))
+  ON_CALL(storage_manager, QueueFlush(_))
       .WillByDefault(InvokeWithoutArgs(&waiter, &FlushWaiter::OnFlushDone));
-  EXPECT_CALL(storage_manager, FlushInternal(_)).Times(1);
+  EXPECT_CALL(storage_manager, QueueFlush(_)).Times(1);
 
   for (int i = 0; i < 10; ++i) {
     storage_manager_->Flush();
