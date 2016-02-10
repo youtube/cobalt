@@ -148,7 +148,7 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
     rasterize_timer_.emplace(
         FROM_HERE, base::TimeDelta(),
         base::Bind(&Pipeline::RasterizeCurrentTree, base::Unretained(this)),
-        true);
+        true, true);
     rasterize_timer_->Reset();
   }
 }
