@@ -145,14 +145,14 @@ void HTMLImageElement::UpdateImageData() {
 void HTMLImageElement::OnLoadingDone() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingDone()");
   PostToDispatchEvent(FROM_HERE, base::Tokens::load());
-  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   cached_image_loaded_callback_handler_.reset();
 }
 
 void HTMLImageElement::OnLoadingError() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingError()");
   PostToDispatchEvent(FROM_HERE, base::Tokens::error());
-  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   cached_image_loaded_callback_handler_.reset();
 }
 

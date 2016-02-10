@@ -378,7 +378,7 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
       // Fetching an external script must delay the load event of the element's
       // document until the task that is queued by the networking task source
       // once the resource has been fetched (defined above) has been run.
-      document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+      document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
     } break;
     case 5: {
       // If the element has a src attribute.
@@ -392,7 +392,7 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
       // Fetching an external script must delay the load event of the element's
       // document until the task that is queued by the networking task source
       // once the resource has been fetched (defined above) has been run.
-      document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+      document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
     } break;
     default: { NOTREACHED(); }
   }
@@ -435,7 +435,7 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
   // Fetching an external script must delay the load event of the element's
   // document until the task that is queued by the networking task source
   // once the resource has been fetched (defined above) has been run.
-  document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+  document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
 }
 
 // Algorithm for Execute:
