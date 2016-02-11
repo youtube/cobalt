@@ -4488,11 +4488,6 @@ comma_separated_animation_direction_list:
     $$ = $1;
     $$->push_back(MakeScopedRefPtrAndRelease($3));
   }
-  | errors {
-    parser_impl->LogError(
-        @1, "unsupported property value for animation-direction");
-    $$ = NULL;
-  }
   ;
 
 animation_direction_property_value:
@@ -4503,6 +4498,11 @@ animation_direction_property_value:
          : NULL;
   }
   | common_values_without_errors
+  | errors {
+    parser_impl->LogError(
+        @1, "unsupported property value for animation-direction");
+    $$ = NULL;
+  }
   ;
 
 // The 'animation-duration' property defines the length of time that an
@@ -4538,11 +4538,6 @@ comma_separated_animation_fill_mode_list:
     $$ = $1;
     $$->push_back(MakeScopedRefPtrAndRelease($3));
   }
-  | errors {
-    parser_impl->LogError(
-        @1, "unsupported property value for animation-fill-mode");
-    $$ = NULL;
-  }
   ;
 
 animation_fill_mode_property_value:
@@ -4553,6 +4548,11 @@ animation_fill_mode_property_value:
          : NULL;
   }
   | common_values_without_errors
+  | errors {
+    parser_impl->LogError(
+        @1, "unsupported property value for animation-fill-mode");
+    $$ = NULL;
+  }
   ;
 
 // The 'animation-iteration-count' property specifies the number of times an
@@ -4615,11 +4615,6 @@ comma_separated_animation_name_list:
     $$ = $1;
     $$->push_back(MakeScopedRefPtrAndRelease($3));
   }
-  | errors {
-    parser_impl->LogError(
-        @1, "unsupported property value for animation-name");
-    $$ = NULL;
-  }
   ;
 
 animation_name_property_value:
@@ -4630,6 +4625,11 @@ animation_name_property_value:
          : NULL;
   }
   | common_values_without_errors
+  | errors {
+    parser_impl->LogError(
+        @1, "unsupported property value for animation-name");
+    $$ = NULL;
+  }
   ;
 
 // The 'animation-timing-function' property describes how the animation will
