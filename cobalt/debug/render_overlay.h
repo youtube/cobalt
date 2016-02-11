@@ -53,6 +53,7 @@ class RenderOverlay {
   OnRenderTreeProducedCallback render_tree_produced_callback_;
   scoped_refptr<render_tree::Node> overlay_;
   LayoutResults input_layout_;
+  base::optional<base::TimeTicks> input_receipt_time_;
 };
 
 }  // namespace debug

@@ -29,6 +29,7 @@ RenderOverlay::RenderOverlay(
 
 void RenderOverlay::OnRenderTreeProduced(const LayoutResults& layout_results) {
   input_layout_ = layout_results;
+  input_receipt_time_ = base::TimeTicks::HighResNow();
   Process();
 }
 
@@ -39,6 +40,12 @@ void RenderOverlay::SetOverlay(
 }
 
 void RenderOverlay::Process() {
+  // Calculate a modified layout time accounting for the offset between now and
+  // the time the input layout was received.
+  base::TimeDelta layout_time =
+      input_layout_.layout_time +
+      (base::TimeTicks::HighResNow() - *input_receipt_time_);
+
   if (overlay_) {
     render_tree::CompositionNode::Builder builder;
     builder.AddChild(input_layout_.render_tree, math::Matrix3F::Identity());
@@ -46,11 +53,11 @@ void RenderOverlay::Process() {
     scoped_refptr<render_tree::Node> combined_tree =
         new render_tree::CompositionNode(builder);
 
-    LayoutResults composite_layout = LayoutResults(
-        combined_tree, input_layout_.animations, input_layout_.layout_time);
-    render_tree_produced_callback_.Run(composite_layout);
+    render_tree_produced_callback_.Run(
+        LayoutResults(combined_tree, input_layout_.animations, layout_time));
   } else {
-    render_tree_produced_callback_.Run(input_layout_);
+    render_tree_produced_callback_.Run(LayoutResults(
+        input_layout_.render_tree, input_layout_.animations, layout_time));
   }
 }
 
