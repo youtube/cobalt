@@ -25,6 +25,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/script/global_object_proxy.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -37,7 +38,8 @@ HTMLImageElement::HTMLImageElement(script::EnvironmentSettings* env_settings)
     : HTMLElement(base::polymorphic_downcast<DOMSettings*>(env_settings)
                       ->window()
                       ->document(),
-                  base::Token(kTagName)) {}
+                  base::Token(kTagName)),
+      prevent_garbage_collection_count_(0) {}
 
 void HTMLImageElement::OnSetAttribute(const std::string& name,
                                       const std::string& /* value */) {
@@ -111,7 +113,7 @@ void HTMLImageElement::UpdateImageData() {
                        ->image_cache()
                        ->CreateCachedResource(selected_source);
     if (cached_image->TryGetResource()) {
-      PostToDispatchEvent(FROM_HERE, base::Tokens::load());
+      PreventGarbageCollectionUntilEventIsDispatched(base::Tokens::load());
       return;
     }
   } else {
@@ -119,7 +121,7 @@ void HTMLImageElement::UpdateImageData() {
     // 10. If selected source is null, then set the element to the broken state,
     // queue a task to fire a simple event named error at the img element, and
     // abort these steps.
-    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+    PreventGarbageCollectionUntilEventIsDispatched(base::Tokens::error());
     return;
   }
 
@@ -133,6 +135,7 @@ void HTMLImageElement::UpdateImageData() {
   // 14. If the download was successful, fire a simple event named load at the
   // img element. Otherwise, queue a task to first fire a simple event named
   // error at the img element.
+  PreventGarbageCollection();
   cached_image_loaded_callback_handler_.reset(
       new loader::image::CachedImage::OnLoadedCallbackHandler(
           cached_image,
@@ -144,16 +147,51 @@ void HTMLImageElement::UpdateImageData() {
 
 void HTMLImageElement::OnLoadingDone() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingDone()");
-  PostToDispatchEvent(FROM_HERE, base::Tokens::load());
+  AllowGarbageCollectionAfterEventIsDispatched(base::Tokens::load());
   node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   cached_image_loaded_callback_handler_.reset();
 }
 
 void HTMLImageElement::OnLoadingError() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingError()");
-  PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+  AllowGarbageCollectionAfterEventIsDispatched(base::Tokens::error());
   node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   cached_image_loaded_callback_handler_.reset();
+}
+
+void HTMLImageElement::PreventGarbageCollectionUntilEventIsDispatched(
+    base::Token event_name) {
+  PreventGarbageCollection();
+  AllowGarbageCollectionAfterEventIsDispatched(event_name);
+}
+
+void HTMLImageElement::AllowGarbageCollectionAfterEventIsDispatched(
+    base::Token event_name) {
+  PostToDispatchEvent(
+      FROM_HERE, event_name,
+      base::Bind(&HTMLImageElement::AllowGarbageCollection, this));
+}
+
+void HTMLImageElement::PreventGarbageCollection() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_GE(prevent_garbage_collection_count_, 0);
+  if (prevent_garbage_collection_count_++ == 0) {
+    html_element_context()
+        ->script_runner()
+        ->GetGlobalObjectProxy()
+        ->PreventGarbageCollection(make_scoped_refptr(this));
+  }
+}
+
+void HTMLImageElement::AllowGarbageCollection() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_GT(prevent_garbage_collection_count_, 0);
+  if (--prevent_garbage_collection_count_ == 0) {
+    html_element_context()
+        ->script_runner()
+        ->GetGlobalObjectProxy()
+        ->AllowGarbageCollection(make_scoped_refptr(this));
+  }
 }
 
 }  // namespace dom
