@@ -121,7 +121,13 @@ DebugWebServer::DebugWebServer(
       base::Bind(&DebugWebServer::StartServer, base::Unretained(this), port));
 }
 
-DebugWebServer::~DebugWebServer() { http_server_thread_.Stop(); }
+DebugWebServer::~DebugWebServer() {
+  net::HttpServer* server = server_.get();
+  server_->AddRef();
+  server_ = NULL;
+  http_server_thread_.message_loop()->ReleaseSoon(FROM_HERE, server);
+  http_server_thread_.Stop();
+}
 
 void DebugWebServer::OnHttpRequest(int connection_id,
                                    const net::HttpServerRequestInfo& info) {
