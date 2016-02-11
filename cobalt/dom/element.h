@@ -186,10 +186,21 @@ class Element : public Node {
   void PostToDispatchEvent(const tracked_objects::Location& location,
                            base::Token event_name);
 
+  // Same as above, but will also run the Closure after the event has been
+  // dispatched.
+  void PostToDispatchEvent(const tracked_objects::Location& location,
+                           base::Token event_name,
+                           const base::Closure& dispatched_callback);
+
  private:
   virtual void OnSetAttribute(const std::string& /* name */,
                               const std::string& /* value */) {}
   virtual void OnRemoveAttribute(const std::string& /* name */) {}
+
+  // Call DispatchEvent for the given event_name, and run dispatched_callback
+  // after DispatchEvent has completed.
+  void DispatchEventAndRunCallback(base::Token event_name,
+                                   const base::Closure& dispatched_callback);
 
   // Callback for error when parsing inner / outer HTML.
   void HTMLParseError(const std::string& error);
