@@ -262,11 +262,29 @@ void BrowserModule::NavigateWithCallbackInternal(
       // one.
       GURL::Replacements replacements;
       replacements.ClearRef();
-      if (new_url.has_ref() &&
-          new_url.ReplaceComponents(replacements) ==
-              old_url.ReplaceComponents(replacements)) {
-        web_module_->set_url(new_url);
-        web_module_->InjectEvent(new dom::Event(base::Tokens::hashchange()));
+      if (new_url.ReplaceComponents(replacements) ==
+              old_url.ReplaceComponents(replacements) &&
+          new_url.has_ref()) {
+        // Navigating to a fragment identifier
+        // https://www.w3.org/TR/html5/browsers.html#scroll-to-fragid
+        // 4. Traverse the history to the new entry, with the asynchronous
+        // events flag set. This will scroll to the fragment identifier given in
+        // what is now the document's address.
+        //
+        // Traverse the history
+        // https://www.w3.org/TR/html5/browsers.html#traverse-the-history
+        // 14. If the asynchronous events flag is not set, then run the
+        // following steps synchronously. Otherwise, the asynchronous events
+        // flag is set; queue a task to run the following substeps.
+        //   2. If hash changed is true, then fire a trusted event with the name
+        //   hashchange at the browsing context's Window object, using the
+        //   HashChangeEvent interface, with the oldURL attribute initialized to
+        //   old URL and the newURL attribute initialized to new URL. This event
+        //   must bubble but not be cancelable and has no default action.
+        if (new_url != old_url) {
+          web_module_->set_url(new_url);
+          web_module_->InjectEvent(new dom::Event(base::Tokens::hashchange()));
+        }
         return;
       }
     }
