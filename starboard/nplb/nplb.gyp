@@ -117,6 +117,7 @@
         'string_duplicate_test.cc',
         'string_find_character_test.cc',
         'string_find_last_character_test.cc',
+        'string_find_string_test.cc',
         'string_format_test.cc',
         'string_format_wide_test.cc',
         'string_parse_signed_integer_test.cc',
