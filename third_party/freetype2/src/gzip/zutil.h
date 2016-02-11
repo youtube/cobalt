@@ -15,6 +15,7 @@
 
 #include "zlib.h"
 
+#if !defined(STARBOARD)
 #ifdef STDC
 #  include <stddef.h>
 #  include <string.h>
@@ -25,6 +26,7 @@
 #else
 #   include <errno.h>
 #endif
+#endif  // !defined(STARBOARD)
 
 #ifndef local
 #  define local static
@@ -68,6 +70,8 @@ typedef unsigned long  ulg;
 #define PRESET_DICT 0x20 /* preset dictionary flag in zlib header */
 
         /* target dependencies */
+
+#if !defined(STARBOARD)
 
 #ifdef MSDOS
 #  define OS_CODE  0x00
@@ -132,6 +136,7 @@ typedef unsigned long  ulg;
 #  define fdopen(fd,type)  _fdopen(fd,type)
 #endif
 
+#endif  // !defined(STARBOARD)
 
         /* Common defaults */
 
@@ -182,7 +187,7 @@ typedef unsigned long  ulg;
 #endif
 
 /* Diagnostic functions */
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(STARBOARD)
 #  include <stdio.h>
    extern int z_verbose;
    extern void z_error    OF((char *m));
