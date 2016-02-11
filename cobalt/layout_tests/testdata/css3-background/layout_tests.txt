@@ -87,5 +87,8 @@
 7-1-box-shadow-offset-top-left
 7-1-box-shadow-with-inset-and-outset-blur
 7-1-box-shadow-with-spread-and-blur
+7-1-circle-box-shadow-offset-top-left
+7-1-circle-box-shadow-with-inset
+7-1-circle-box-shadow-with-spread
 7-1-simple-black-box-shadow
 7-1-simple-red-box-shadow

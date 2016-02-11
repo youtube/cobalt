@@ -33,6 +33,7 @@
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_bounded_y_convolution_filtered_texture.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_circle_masked_texture.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_circle_masked_texture_domain.glsl',
+      '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_circle_outside_masked_circle.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_color_filtered_texture.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_color_only.glsl',
       '<(DEPTH)/cobalt/renderer/glimp_shaders/glsl/fragment_skia_convolution_filtered_texture.glsl',
