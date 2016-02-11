@@ -75,6 +75,23 @@
   /**********************************************************************/
 
 
+#if defined(STARBOARD)
+#include "starboard/string.h"
+#include "starboard/memory.h"
+#define ft_memchr   SbMemoryFindByte
+#define ft_memcmp   SbMemoryCompare
+#define ft_memcpy   SbMemoryCopy
+#define ft_memmove  SbMemoryMove
+#define ft_memset   SbMemorySet
+#define ft_strcat   SbStringConcatUnsafe
+#define ft_strcmp   SbStringCompareAll
+#define ft_strcpy   SbStringCopyUnsafe
+#define ft_strlen   SbStringGetLength
+#define ft_strncmp  SbStringCompare
+#define ft_strncpy  SbStringCopy
+#define ft_strrchr  SbStringFindLastCharacter
+#define ft_strstr   SbStringFindString
+#else
 #include <string.h>
 
 #define ft_memchr   memchr
@@ -90,6 +107,7 @@
 #define ft_strncpy  strncpy
 #define ft_strrchr  strrchr
 #define ft_strstr   strstr
+#endif
 
 
   /**********************************************************************/
@@ -99,6 +117,23 @@
   /**********************************************************************/
 
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#include "starboard/string.h"
+
+#ifndef SEEK_SET
+#define SEEK_SET    kSbFileFromBegin
+#define SEEK_CUR    kSbFileFromCurrent
+#define SEEK_END    kSbFileFromEnd
+#endif
+#define FT_FILE     SbFilePrivate
+#define ft_fclose   SbFileClose
+#define ft_fopen(p, m) SbFileOpen((p), SbFileModeStringToFlags(m), NULL, NULL)
+#define ft_fread(b, s, n, f) SbFileRead((f), (char *)(b), (s) * (n))
+#define ft_fseek(f, o, w) SbFileSeek((f), (w), (o))
+#define ft_ftell(f)    SbFileSeek((f), kSbFileFromCurrent, 0)
+#define ft_sprintf  SbStringFormatUnsafeF
+#else
 #include <stdio.h>
 
 #define FT_FILE     FILE
@@ -108,6 +143,7 @@
 #define ft_fseek    fseek
 #define ft_ftell    ftell
 #define ft_sprintf  sprintf
+#endif
 
 
   /**********************************************************************/
@@ -117,9 +153,14 @@
   /**********************************************************************/
 
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#define ft_qsort  SbSystemSort
+#else
 #include <stdlib.h>
 
 #define ft_qsort  qsort
+#endif
 
 
   /**********************************************************************/
@@ -129,10 +170,27 @@
   /**********************************************************************/
 
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
+  size_t size = nelem * elsize;
+  void *memory = SbMemoryAllocate(size);
+  if (!memory) {
+    return NULL;
+  }
+
+  SbMemorySet(memory, 0, size);
+  return memory;
+}
+#define ft_sfree     SbMemoryFree
+#define ft_smalloc   SbMemoryAllocate
+#define ft_srealloc  SbMemoryReallocate
+#else
 #define ft_scalloc   calloc
 #define ft_sfree     free
 #define ft_smalloc   malloc
 #define ft_srealloc  realloc
+#endif
 
 
   /**********************************************************************/
@@ -142,7 +200,11 @@
   /**********************************************************************/
 
 
+#if defined(STARBOARD)
+#define ft_atol  SbStringAToL
+#else
 #define ft_atol  atol
+#endif
 
 
   /**********************************************************************/
