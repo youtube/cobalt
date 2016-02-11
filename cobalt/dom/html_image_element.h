@@ -36,7 +36,8 @@ class HTMLImageElement : public HTMLElement {
   static const char kTagName[];
 
   explicit HTMLImageElement(Document* document)
-      : HTMLElement(document, base::Token(kTagName)) {}
+      : HTMLElement(document, base::Token(kTagName)),
+        prevent_garbage_collection_count_(0) {}
 
   explicit HTMLImageElement(script::EnvironmentSettings* env_settings);
 
@@ -65,8 +66,15 @@ class HTMLImageElement : public HTMLElement {
   void OnLoadingDone();
   void OnLoadingError();
 
+  void PreventGarbageCollectionUntilEventIsDispatched(base::Token event_name);
+  void AllowGarbageCollectionAfterEventIsDispatched(base::Token event_name);
+  void PreventGarbageCollection();
+  void AllowGarbageCollection();
+
+  base::ThreadChecker thread_checker_;
   scoped_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
       cached_image_loaded_callback_handler_;
+  int prevent_garbage_collection_count_;
 };
 
 }  // namespace dom
