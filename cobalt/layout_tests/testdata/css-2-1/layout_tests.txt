@@ -63,6 +63,7 @@
 11-1-1-overflow-hidden-applied-to-elements-with-display-set-to-inline
 11-1-1-overflow-hidden-applied-to-elements-with-display-set-to-inline-block
 11-1-1-overflow-hidden-div-with-position-absolute-children
+11-1-1-overflow-hidden-masks-padding-box-only
 11-1-1-overflow-hidden-transform
 11-1-1-overflow-hidden-translate
 11-1-1-overflow-visible
