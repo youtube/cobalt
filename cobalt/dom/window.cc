@@ -239,7 +239,15 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
       document_->DispatchEvent(event);
     }
   } else if (event->type() == base::Tokens::hashchange()) {
-    DispatchEvent(event);
+    // Hashchange event should always trigger asychronous event.
+    // See comment in BrowserModule::NavigateWithCallbackInternal.
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(
+            base::IgnoreResult(
+                static_cast<bool (Window::*)(const scoped_refptr<Event>&)>(
+                    &Window::DispatchEvent)),
+            base::AsWeakPtr<Window>(this), event));
   } else {
     NOTREACHED();
   }
