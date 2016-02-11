@@ -654,6 +654,8 @@ bool NewComputedStyleInvalidatesLayoutBoxes(
              *new_computed_style->text_align()) ||
          !old_computed_style->text_indent()->Equals(
              *new_computed_style->text_indent()) ||
+         !old_computed_style->text_shadow()->Equals(
+             *new_computed_style->text_shadow()) ||
          !old_computed_style->text_transform()->Equals(
              *new_computed_style->text_transform()) ||
          !old_computed_style->visibility()->Equals(
