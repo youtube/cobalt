@@ -297,6 +297,22 @@ void Box::RenderAndAnimate(
 
   render_tree::CompositionNode::Builder border_node_builder;
 
+  UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
+  computed_style()->border_radius()->Accept(&border_radius_provider);
+
+  // If we have rounded corners and a non-zero border, then we need to compute
+  // the "inner" rounded corners, as the ones specified by CSS apply to the
+  // outer border edge.
+  base::optional<RoundedCorners> padding_rounded_corners_if_different;
+  if (border_radius_provider.rounded_corners() && !border_insets_.zero()) {
+    padding_rounded_corners_if_different =
+        border_radius_provider.rounded_corners()->Inset(border_insets_);
+  }
+  const base::optional<RoundedCorners>& padding_rounded_corners =
+      padding_rounded_corners_if_different
+          ? padding_rounded_corners_if_different
+          : border_radius_provider.rounded_corners();
+
   // The painting order is:
   // - background color.
   // - background image.
@@ -313,22 +329,6 @@ void Box::RenderAndAnimate(
   // 'visibility: visible'.
   //   https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
   if (computed_style()->visibility() == cssom::KeywordValue::GetVisible()) {
-    UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
-    computed_style()->border_radius()->Accept(&border_radius_provider);
-
-    // If we have rounded corners and a non-zero border, then we need to compute
-    // the "inner" rounded corners, as the ones specified by CSS apply to the
-    // outer border edge.
-    base::optional<RoundedCorners> padding_rounded_corners_if_different;
-    if (border_radius_provider.rounded_corners() && !border_insets_.zero()) {
-      padding_rounded_corners_if_different =
-          border_radius_provider.rounded_corners()->Inset(border_insets_);
-    }
-    const base::optional<RoundedCorners>& padding_rounded_corners =
-        padding_rounded_corners_if_different
-            ? padding_rounded_corners_if_different
-            : border_radius_provider.rounded_corners();
-
     RenderAndAnimateBackgroundColor(padding_rounded_corners,
                                     &border_node_builder,
                                     node_animations_map_builder);
@@ -342,11 +342,44 @@ void Box::RenderAndAnimate(
                               node_animations_map_builder);
   }
 
-  RenderAndAnimateContent(&border_node_builder, node_animations_map_builder);
+  const bool overflow_hidden =
+      computed_style()->overflow().get() == cssom::KeywordValue::GetHidden();
+
+  bool overflow_hidden_needs_to_be_applied = overflow_hidden;
+
+  // In order to avoid the creation of a superfluous CompositionNode, we first
+  // check to see if there is a need to distinguish between content and
+  // background.
+  if (!overflow_hidden ||
+      (computed_style()->box_shadow() == cssom::KeywordValue::GetNone() &&
+       border_insets_.zero())) {
+    // If there's no reason to distinguish between content and background,
+    // just add them all to the same composition node.
+    RenderAndAnimateContent(&border_node_builder, node_animations_map_builder);
+  } else {
+    CompositionNode::Builder content_node_builder;
+    // Otherwise, deal with content specifically so that we can apply overflow:
+    // hidden to the content but not the background.
+    RenderAndAnimateContent(&content_node_builder, node_animations_map_builder);
+    if (!content_node_builder.composed_children().empty()) {
+      border_node_builder.AddChild(
+          RenderAndAnimateOverflow(
+              padding_rounded_corners,
+              new CompositionNode(content_node_builder.Pass()),
+              node_animations_map_builder),
+          math::Matrix3F::Identity());
+    }
+    // We've already applied overflow hidden, no need to apply it again later.
+    overflow_hidden_needs_to_be_applied = false;
+  }
 
   if (!border_node_builder.composed_children().empty()) {
     scoped_refptr<render_tree::Node> border_node =
         new CompositionNode(border_node_builder.Pass());
+    if (overflow_hidden_needs_to_be_applied) {
+      border_node = RenderAndAnimateOverflow(
+          padding_rounded_corners, border_node, node_animations_map_builder);
+    }
     border_node = RenderAndAnimateOpacity(
         border_node, node_animations_map_builder, opacity, opacity_animated);
     math::Matrix3F border_node_transform =
@@ -721,17 +754,23 @@ void Box::RenderAndAnimateBoxShadow(
                           GetUsedLength(shadow_value->offset_y())),
           shadow_blur_sigma, GetUsedColor(shadow_value->color()));
 
+      math::SizeF shadow_rect_size =
+          shadow_value->has_inset() ? GetPaddingBoxSize() : GetBorderBoxSize();
+
+      render_tree::RectShadowNode::Builder shadow_builder(
+          shadow_rect_size, shadow, shadow_value->has_inset(), spread_radius);
+
       // Finally, create our shadow node.
+      scoped_refptr<render_tree::RectShadowNode> rect_shadow_node =
+          new render_tree::RectShadowNode(shadow_builder);
+
       if (shadow_value->has_inset()) {
         border_node_builder->AddChild(
-            new render_tree::RectShadowNode(GetPaddingBoxSize(), shadow, true,
-                                            spread_radius),
+            rect_shadow_node,
             math::TranslateMatrix(border_left_width(), border_top_width()));
       } else {
-        border_node_builder->AddChild(
-            new render_tree::RectShadowNode(GetBorderBoxSize(), shadow, false,
-                                            spread_radius),
-            math::Matrix3F::Identity());
+        border_node_builder->AddChild(rect_shadow_node,
+                                      math::Matrix3F::Identity());
       }
     }
   }
@@ -743,8 +782,7 @@ void Box::RenderAndAnimateBorder(
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   // If the border is absent or all borders are transparent, there is no need
   // to render border.
-  if (GetBorderBoxSize() == GetPaddingBoxSize() ||
-      AreAllBordersTransparent(computed_style())) {
+  if (border_insets_.zero() || AreAllBordersTransparent(computed_style())) {
     return;
   }
 
@@ -845,30 +883,8 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder,
     float opacity, bool opacity_animated) const {
-  bool overflow_hidden =
-      computed_style()->overflow().get() == cssom::KeywordValue::GetHidden();
-  if (overflow_hidden || opacity < 1.0f || opacity_animated) {
+  if (opacity < 1.0f || opacity_animated) {
     FilterNode::Builder filter_node_builder(border_node);
-
-    if (overflow_hidden) {
-      // TODO(***REMOVED***): The "overflow" property specifies whether a box is
-      //               clipped to its padding edge.
-      //                 https://www.w3.org/TR/CSS21/visufx.html#overflow
-      //               Currently it's clipped to a border edge.
-      filter_node_builder.viewport_filter =
-          ViewportFilter(math::RectF(GetBorderBoxSize()));
-
-      // When the overflow is hidden, the content of replaced elements is always
-      // trimmed to the content edge curve.
-      //   https://www.w3.org/TR/css3-background/#corner-clipping
-      UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
-      computed_style()->border_radius()->Accept(&border_radius_provider);
-      if (border_radius_provider.rounded_corners()) {
-        filter_node_builder.viewport_filter =
-            ViewportFilter(math::RectF(GetBorderBoxSize()),
-                           *border_radius_provider.rounded_corners());
-      }
-    }
 
     if (opacity < 1.0f) {
       filter_node_builder.opacity_filter = OpacityFilter(opacity);
@@ -886,6 +902,35 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
   }
 
   return border_node;
+}
+
+scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
+    const base::optional<render_tree::RoundedCorners>& rounded_corners,
+    const scoped_refptr<render_tree::Node>& content_node,
+    render_tree::animations::NodeAnimationsMap::Builder*
+    /* node_animations_map_builder */) const {
+  bool overflow_hidden =
+      computed_style()->overflow().get() == cssom::KeywordValue::GetHidden();
+
+  if (!overflow_hidden) {
+    return content_node;
+  }
+
+  // The "overflow" property specifies whether a box is clipped to its padding
+  // edge.  Use a render_tree viewport filter to implement it.
+  // Note that while it is unintuitive that we clip to the padding box and
+  // not the content box, this behavior is consistent with Chrome and IE.
+  //   https://www.w3.org/TR/CSS21/visufx.html#overflow
+  math::SizeF padding_size = GetPaddingBoxSize();
+  FilterNode::Builder filter_node_builder(content_node);
+  filter_node_builder.viewport_filter =
+      ViewportFilter(math::RectF(border_left_width(), border_top_width(),
+                                 padding_size.width(), padding_size.height()));
+  if (rounded_corners) {
+    filter_node_builder.viewport_filter->set_rounded_corners(*rounded_corners);
+  }
+
+  return scoped_refptr<render_tree::Node>(new FilterNode(filter_node_builder));
 }
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(

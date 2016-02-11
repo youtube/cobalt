@@ -39,6 +39,9 @@ class ViewportFilter {
 
   bool has_rounded_corners() const { return !!rounded_corners_; }
   const RoundedCorners& rounded_corners() const { return *rounded_corners_; }
+  void set_rounded_corners(const RoundedCorners& rounded_corners) {
+    rounded_corners_ = rounded_corners;
+  }
 
  private:
   math::RectF viewport_;
