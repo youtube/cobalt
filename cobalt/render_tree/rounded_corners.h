@@ -40,6 +40,13 @@ struct RoundedCorner {
                          std::max(0.0f, vertical - y));
   }
 
+  bool operator==(const RoundedCorner& other) const {
+    return horizontal == other.horizontal && vertical == other.vertical;
+  }
+  bool operator>=(const RoundedCorner& other) const {
+    return horizontal >= other.horizontal && vertical >= other.vertical;
+  }
+
   // |horizontal| and |vertial| represent the horizontal radius and vertical
   // radius of a corner.
   float horizontal;
@@ -88,6 +95,19 @@ struct RoundedCorners {
   bool AreSquares() const {
     return top_left.IsSquare() && top_right.IsSquare() &&
            bottom_right.IsSquare() && bottom_left.IsSquare();
+  }
+
+  // Returns true if all corners have the same value as the input.
+  bool AllCornersEqual(const RoundedCorner& rhs) const {
+    return top_left == rhs && top_right == rhs && bottom_right == rhs &&
+           bottom_left == rhs;
+  }
+
+  // Returns true if all corners' radii are greater than or equal to the
+  // corresponding radii of the input.
+  bool AllCornersGE(const RoundedCorner& rhs) const {
+    return top_left >= rhs && top_right >= rhs && bottom_right >= rhs &&
+           bottom_left >= rhs;
   }
 
   RoundedCorner top_left;
