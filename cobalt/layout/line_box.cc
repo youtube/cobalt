@@ -134,7 +134,9 @@ bool LineBox::TryBeginUpdateRectAndMaybeSplit(
   // A split occurred, need to re-measure the child box.
   if (*child_box_after_split != NULL) {
     BeginUpdateRectAndMaybeOverflow(child_box);
-    DCHECK(child_box->GetMarginBoxWidth() <= available_width || allow_overflow);
+    // TODO(***REMOVED***): Re-enable the DCHECK() below after implementing b/27134223.
+    // DCHECK(child_box->GetMarginBoxWidth() <= available_width ||
+    //        allow_overflow);
     return true;
   }
 

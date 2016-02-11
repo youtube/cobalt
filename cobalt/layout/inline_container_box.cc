@@ -454,7 +454,8 @@ void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
 scoped_refptr<Box> InlineContainerBox::SplitAtIterator(
     Boxes::const_iterator child_split_iterator) {
   // TODO(***REMOVED***): When an inline box is split, margins, borders, and padding
-  //               have no visual effect where the split occurs.
+  //              have no visual effect where the split occurs.
+  //              Tracked in b/27134223.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
 
   // Move the children after the split into a new box.
