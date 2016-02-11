@@ -83,6 +83,7 @@
 7-1-1-inset-box-shadow-applies-to-padding-box
 7-1-1-outset-box-shadow-applies-to-border-box
 7-1-2-box-shadow-with-blur
+7-1-box-shadow-appears-even-with-overflow-hidden
 7-1-box-shadow-offset-top-left
 7-1-box-shadow-with-inset-and-outset-blur
 7-1-box-shadow-with-spread-and-blur
