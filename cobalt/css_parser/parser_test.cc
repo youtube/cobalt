@@ -5534,6 +5534,33 @@ TEST_F(ParserTest, ParsesAnimationDirectionWithAlternateReverseValue) {
             animation_direction->value()[0]);
 }
 
+TEST_F(ParserTest, ParsesAnimationDirectionWithListOfValues) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "animation-direction: normal, alternate;", source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> animation_direction =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->animation_direction().get());
+  EXPECT_TRUE(animation_direction);
+  ASSERT_EQ(2, animation_direction->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetNormal(), animation_direction->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetAlternate(),
+            animation_direction->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesAnimationDirectionWithInvaildValue) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:22: error: unsupported property "
+                      "value for animation-direction"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-direction: foo, alternate;",
+                                        source_location_);
+  EXPECT_EQ(cssom::GetPropertyInitialValue(cssom::kAnimationDirectionProperty),
+            style->animation_direction());
+}
+
 TEST_F(ParserTest, ParsesAnimationFillModeWithForwardsValue) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("animation-fill-mode: forwards;",
@@ -5592,6 +5619,18 @@ TEST_F(ParserTest, ParsesAnimationFillModeWithListOfValues) {
             animation_fill_mode->value()[1]);
   EXPECT_EQ(cssom::KeywordValue::GetBoth(), animation_fill_mode->value()[2]);
   EXPECT_EQ(cssom::KeywordValue::GetNone(), animation_fill_mode->value()[3]);
+}
+
+TEST_F(ParserTest, ParsesAnimationFillModeWithInvalidValues) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:22: error: unsupported property "
+                      "value for animation-fill-mode"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-fill-mode: foo, bar, baz;",
+                                        source_location_);
+  EXPECT_EQ(cssom::GetPropertyInitialValue(cssom::kAnimationFillModeProperty),
+            style->animation_fill_mode());
 }
 
 TEST_F(ParserTest, ParsesAnimationIterationCountWithIntegerValue) {
@@ -5656,6 +5695,9 @@ TEST_F(ParserTest, ParsesAnimationIterationCountWithNegativeValues_1) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("animation-iteration-count: -49, 6;",
                                         source_location_);
+  EXPECT_EQ(
+      cssom::GetPropertyInitialValue(cssom::kAnimationIterationCountProperty),
+      style->animation_iteration_count());
 }
 
 TEST_F(ParserTest, ParsesAnimationIterationCountWithNegativeValues_2) {
@@ -5668,6 +5710,9 @@ TEST_F(ParserTest, ParsesAnimationIterationCountWithNegativeValues_2) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("animation-iteration-count: 6, -49;",
                                         source_location_);
+  EXPECT_EQ(
+      cssom::GetPropertyInitialValue(cssom::kAnimationIterationCountProperty),
+      style->animation_iteration_count());
 }
 
 TEST_F(ParserTest, ParsesAnimationIterationCountWithNegativeValues_3) {
@@ -5680,6 +5725,9 @@ TEST_F(ParserTest, ParsesAnimationIterationCountWithNegativeValues_3) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("animation-iteration-count: -6, -49;",
                                         source_location_);
+  EXPECT_EQ(
+      cssom::GetPropertyInitialValue(cssom::kAnimationIterationCountProperty),
+      style->animation_iteration_count());
 }
 
 TEST_F(ParserTest, ParsesAnimationNameWithArbitraryName) {
@@ -5727,6 +5775,28 @@ TEST_F(ParserTest, ParsesAnimationNameWithMultipleItems) {
       base::polymorphic_downcast<cssom::StringValue*>(
           animation_name->value()[2].get());
   EXPECT_EQ("bar", third_value->value());
+}
+
+TEST_F(ParserTest, ParsesAnimationNameWithMultipleInvalidQuotedItems) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:17: error: unsupported property "
+                      "value for animation-name"));
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList(
+          "animation-name: \"foo\", none, \'bar\';", source_location_);
+  EXPECT_EQ(cssom::GetPropertyInitialValue(cssom::kAnimationNameProperty),
+            style->animation_name());
+}
+
+TEST_F(ParserTest, ParsesAnimationNameWithInvalidValues) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:17: error: unsupported property "
+                      "value for animation-name"));
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("animation-name: 24, none, 90px;",
+                                        source_location_);
+  EXPECT_EQ(cssom::GetPropertyInitialValue(cssom::kAnimationNameProperty),
+            style->animation_name());
 }
 
 namespace {
