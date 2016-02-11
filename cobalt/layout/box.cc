@@ -716,12 +716,6 @@ void Box::RenderAndAnimateBoxShadow(
   UNREFERENCED_PARAMETER(node_animations_map_builder);
 
   if (computed_style()->box_shadow() != cssom::KeywordValue::GetNone()) {
-    if (rounded_corners) {
-      NOTIMPLEMENTED() << "Box shadows with rounded corners are not supported "
-                          "in Cobalt right now.";
-      return;
-    }
-
     const cssom::PropertyListValue* box_shadow_list =
         base::polymorphic_downcast<const cssom::PropertyListValue*>(
             computed_style()->box_shadow().get());
@@ -759,18 +753,18 @@ void Box::RenderAndAnimateBoxShadow(
 
       render_tree::RectShadowNode::Builder shadow_builder(
           shadow_rect_size, shadow, shadow_value->has_inset(), spread_radius);
+      shadow_builder.rounded_corners = rounded_corners;
 
       // Finally, create our shadow node.
-      scoped_refptr<render_tree::RectShadowNode> rect_shadow_node =
-          new render_tree::RectShadowNode(shadow_builder);
+      scoped_refptr<render_tree::RectShadowNode> shadow_node(
+          new render_tree::RectShadowNode(shadow_builder));
 
       if (shadow_value->has_inset()) {
         border_node_builder->AddChild(
-            rect_shadow_node,
+            shadow_node,
             math::TranslateMatrix(border_left_width(), border_top_width()));
       } else {
-        border_node_builder->AddChild(rect_shadow_node,
-                                      math::Matrix3F::Identity());
+        border_node_builder->AddChild(shadow_node, math::Matrix3F::Identity());
       }
     }
   }

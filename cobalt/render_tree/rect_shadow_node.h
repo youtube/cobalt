@@ -18,9 +18,11 @@
 #define COBALT_RENDER_TREE_RECT_SHADOW_NODE_H_
 
 #include "base/compiler_specific.h"
+#include "base/optional.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/node.h"
+#include "cobalt/render_tree/rounded_corners.h"
 #include "cobalt/render_tree/shadow.h"
 
 namespace cobalt {
@@ -40,6 +42,10 @@ class RectShadowNode : public Node {
 
     // A size of a rectangle (size includes border).
     math::SizeF size;
+
+    // If specified, the source shadow rectangle shape will have rounded
+    // corners.
+    base::optional<RoundedCorners> rounded_corners;
 
     // The shadow parameters that will be cast from the specified rectangle.
     // None of the area within the rectangle will be shaded.
