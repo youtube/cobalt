@@ -530,6 +530,13 @@ class Box : public base::RefCounted<Box> {
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder,
       float opacity, bool opacity_animated) const;
+
+  scoped_refptr<render_tree::Node> RenderAndAnimateOverflow(
+      const base::optional<render_tree::RoundedCorners>& rounded_corners,
+      const scoped_refptr<render_tree::Node>& border_node,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const;
+
   // If transform is not "none", wraps a border node into a composition node if
   // transform is animated or modifies |border_node_transform| otherwise.
   // If transform is "none", returns the original border node and leaves
