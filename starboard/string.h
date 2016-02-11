@@ -41,6 +41,12 @@ SB_EXPORT int SbStringCopy(char* out_destination,
                            const char* source,
                            int destination_size);
 
+// Inline wrapper for an unsafe SbStringCopy that assumes |out_destination| is
+// big enough. Meant to be a drop-in replacement for strcpy.
+SB_C_INLINE int SbStringCopyUnsafe(char* out_destination, const char* source) {
+  return SbStringCopy(out_destination, source, INT_MAX);
+}
+
 // Same as SbStringCopy but for wide characters.
 SB_EXPORT int SbStringCopyWide(wchar_t* out_destination,
                                const wchar_t* source,
@@ -53,6 +59,13 @@ SB_EXPORT int SbStringConcat(char* out_destination,
                              const char* source,
                              int destination_size);
 
+// Inline wrapper for an unsafe SbStringConcat that assumes |out_destination| is
+// big enough. Meant to be a drop-in replacement for strcat.
+static SB_C_INLINE int SbStringConcatUnsafe(char* out_destination,
+                                            const char* source) {
+  return SbStringConcat(out_destination, source, INT_MAX);
+}
+
 // Same as SbStringConcat but for wide characters.
 SB_EXPORT int SbStringConcatWide(wchar_t* out_destination,
                                  const wchar_t* source,
@@ -62,14 +75,21 @@ SB_EXPORT int SbStringConcatWide(wchar_t* out_destination,
 // be freed with SbMemoryFree. Meant to be a drop-in replacement for strdup.
 SB_EXPORT char* SbStringDuplicate(const char* source);
 
-// Finds the first occurence of |character| in |str|, returning a pointer to
-// the found character in the given string, or NULL if not found.
+// Finds the first occurrence of |character| in |str|, returning a pointer to
+// the found character in the given string, or NULL if not found. Meant to be a
+// drop-in replacement for strchr.
 SB_EXPORT const char* SbStringFindCharacter(const char* str, char character);
 
-// Finds the last occurence of |character| in |str|, returning a pointer to
-// the found character in the given string, or NULL if not found.
+// Finds the last occurrence of |character| in |str|, returning a pointer to the
+// found character in the given string, or NULL if not found. Meant to be a
+// drop-in replacement for strrchr.
 SB_EXPORT const char* SbStringFindLastCharacter(const char* str,
                                                 char character);
+
+// Finds the first occurrence of |str2| in |str1|, returning a pointer to the
+// beginning of the found occurrencein |str1|, or NULL if not found.  Meant to
+// be a drop-in replacement for strstr.
+SB_EXPORT const char* SbStringFindString(const char* str1, const char* str2);
 
 // Compares |string1| and |string2|, ignoring differences in case. Returns < 0
 // if |string1| is ASCII-betically lower than |string2|, 0 if they are equal,
@@ -200,6 +220,13 @@ SB_EXPORT long SbStringParseSignedInteger(const char* start,
 static SB_C_INLINE int SbStringAToI(const char* value) {
   // NOLINTNEXTLINE(readability/casting)
   return (int)SbStringParseSignedInteger(value, NULL, 10);
+}
+
+// Shorthand replacement for atol. Parses |value| into a base-10 int.
+// NOLINTNEXTLINE(runtime/int)
+static SB_C_INLINE long SbStringAToL(const char* value) {
+  // NOLINTNEXTLINE(readability/casting)
+  return SbStringParseSignedInteger(value, NULL, 10);
 }
 
 // Parses a string at the beginning of |start| into a unsigned integer in the
