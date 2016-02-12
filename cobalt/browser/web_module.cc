@@ -271,7 +271,7 @@ scoped_ptr<debug::DebugServer> WebModule::CreateDebugServer(
   return debug::CreateDebugServerWithComponents(
       self_message_loop_->message_loop_proxy(), on_event_callback,
       on_detach_callback, &debug_overlay_, global_object_proxy_,
-      window_->document());
+      window_->document(), window_->console());
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 
