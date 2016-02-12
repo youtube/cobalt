@@ -50,6 +50,7 @@
       'target_name': 'csp_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'content_security_policy_test.cc',
         'source_list_test.cc',
         'source_test.cc',
       ],
