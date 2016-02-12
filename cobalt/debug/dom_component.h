@@ -34,8 +34,8 @@ class DOMComponent : public DebugServer::Component {
                dom::Document* document, RenderOverlay* debug_overlay);
 
  private:
-  // Called by |dom_inspector_| to provide notifications to this component.
-  void OnNotification(const std::string& method, const JSONObject& params);
+  JSONObject Enable(const JSONObject& params);
+  JSONObject Disable(const JSONObject& params);
 
   // Gets a JSON representation of the document object, including its children
   // to a few levels deep (subsequent levels will be returned via notification
@@ -51,6 +51,13 @@ class DOMComponent : public DebugServer::Component {
 
   // Hides the node highlighting.
   JSONObject HideHighlight(const JSONObject& params);
+
+  // Called by |dom_inspector_| to provide notifications to this component.
+  void OnNotification(const std::string& method, const JSONObject& params);
+
+  // No ownership.
+  dom::Document* document_;
+  RenderOverlay* debug_overlay_;
 
   // Handles debugging interaction with the DOM.
   scoped_ptr<DOMInspector> dom_inspector_;
