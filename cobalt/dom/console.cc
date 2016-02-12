@@ -21,14 +21,66 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+const char kDebugString[] = "debug";
+const char kErrorString[] = "error";
+const char kInfoString[] = "info";
+const char kLogString[] = "log";
+const char kWarningString[] = "warning";
+}  // namespace
+
+Console::Listener::Listener(Console* console)
+    : console_(console->GetWeakPtr()) {
+  DCHECK(console_);
+  console_->AddListener(this);
+}
+
+Console::Listener::~Listener() {
+  if (console_) {
+    console_->RemoveListener(this);
+  }
+}
+
 Console::Console(script::ExecutionState* execution_state)
-    : execution_state_(execution_state) {}
+    : execution_state_(execution_state),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {}
 
 void Console::Log(const std::string& text) const {
   LOG(INFO) << "[console.log()] " << text;
+  NotifyListeners(text, kLog);
 }
 
 void Console::Trace() const { LOG(INFO) << execution_state_->GetStackTrace(); }
+
+// static
+const char* Console::GetLevelAsString(Level level) {
+  switch (level) {
+    case kDebug:
+      return kDebugString;
+    case kError:
+      return kErrorString;
+    case kInfo:
+      return kInfoString;
+    case kLog:
+      return kLogString;
+    case kWarning:
+      return kWarningString;
+    default:
+      NOTREACHED();
+      return "";
+  }
+}
+
+void Console::AddListener(Listener* listener) { listeners_.insert(listener); }
+
+void Console::RemoveListener(Listener* listener) { listeners_.erase(listener); }
+
+void Console::NotifyListeners(const std::string& message, Level level) const {
+  for (ListenerSet::const_iterator it = listeners_.begin();
+       it != listeners_.end(); ++it) {
+    (*it)->OnMessage(message, level);
+  }
+}
 
 }  // namespace dom
 }  // namespace cobalt

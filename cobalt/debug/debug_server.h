@@ -107,7 +107,7 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
     }
 
     // Generates an error response that can be returned by any command handler.
-    JSONObject ErrorResponse(const std::string& error_message);
+    static JSONObject ErrorResponse(const std::string& error_message);
 
    private:
     base::WeakPtr<DebugServer> server_;

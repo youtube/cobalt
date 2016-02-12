@@ -17,9 +17,11 @@
 #ifndef COBALT_DOM_CONSOLE_H_
 #define COBALT_DOM_CONSOLE_H_
 
+#include <set>
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/wrappable.h"
 
@@ -36,6 +38,18 @@ namespace dom {
 // https://github.com/DeveloperToolsWG/console-object.
 class Console : public script::Wrappable {
  public:
+  enum Level { kDebug, kError, kInfo, kLog, kWarning };
+
+  class Listener {
+   public:
+    explicit Listener(Console* console);
+    virtual ~Listener();
+    virtual void OnMessage(const std::string& message, Level level) = 0;
+
+   private:
+    base::WeakPtr<Console> console_;
+  };
+
   explicit Console(script::ExecutionState* execution_state);
 
   // Web API: Console
@@ -45,12 +59,26 @@ class Console : public script::Wrappable {
   // Outputs a JavaScript stack trace.
   void Trace() const;
 
+  // Gets the string description of a message level.
+  static const char* GetLevelAsString(Level level);
+
   DEFINE_WRAPPABLE_TYPE(Console);
 
  private:
-  ~Console() OVERRIDE {}
+  typedef std::set<Listener*> ListenerSet;
+
+  ~Console() OVERRIDE { weak_ptr_factory_.InvalidateWeakPtrs(); }
+
+  void AddListener(Listener* listener);
+  void RemoveListener(Listener* listener);
+  void NotifyListeners(const std::string& message, Level level) const;
+
+  base::WeakPtr<Console> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
 
   script::ExecutionState* const execution_state_;
+  ListenerSet listeners_;
+
+  base::WeakPtrFactory<Console> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(Console);
 };
