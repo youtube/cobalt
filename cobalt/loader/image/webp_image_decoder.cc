@@ -52,6 +52,10 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
     VP8StatusCode status =
         WebPIAppend(internal_decoder_, next_input_byte, bytes_in_buffer);
     if (status == VP8_STATUS_OK) {
+      DCHECK(image_data());
+      DCHECK(decoder_buffer_.u.RGBA.rgba);
+      memcpy(image_data()->GetMemory(), decoder_buffer_.u.RGBA.rgba,
+             decoder_buffer_.u.RGBA.size);
       DeleteInternalDecoder();
       set_state(kDone);
     } else if (status != VP8_STATUS_SUSPENDED) {
@@ -100,8 +104,9 @@ bool WEBPImageDecoder::CreateInternalDecoder(bool has_alpha) {
   decoder_buffer_.u.RGBA.size =
       static_cast<size_t>(decoder_buffer_.u.RGBA.stride *
                           image_data()->GetDescriptor().size.height());
-  decoder_buffer_.u.RGBA.rgba = image_data()->GetMemory();
-  decoder_buffer_.is_external_memory = 1;
+  // We don't use image buffer as the decoding buffer because libwebp will read
+  // from it while we assume that our image buffer is write only.
+  decoder_buffer_.is_external_memory = 0;
 
   // Creates a new incremental decoder with the supplied buffer parameter.
   internal_decoder_ = WebPINewDecoder(&decoder_buffer_);
@@ -120,6 +125,7 @@ void WEBPImageDecoder::DeleteInternalDecoder() {
     // called if WebPINewDecoder succeeded.
     WebPIDelete(internal_decoder_);
     internal_decoder_ = NULL;
+    WebPFreeDecBuffer(&decoder_buffer_);
   }
 }
 
