@@ -74,7 +74,8 @@ void ContainerBox::MoveChildrenFrom(
     DCHECK_NE(this, child_box->parent())
         << "Move children within the same container node is not supported by "
            "this method.";
-    if (child_box->IsPositioned() || child_box->IsTransformed()) {
+    if (child_box->stacking_context() &&
+        (child_box->IsPositioned() || child_box->IsTransformed())) {
       MoveContainingBlockChild(child_box);
       MoveStackingContextChild(child_box);
     }
