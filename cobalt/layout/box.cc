@@ -548,7 +548,7 @@ void Box::UpdateCrossReferencesFrom(Box* reference) {
   }
 }
 
-void Box::InvalideBoxAncestryReferences() {
+void Box::InvalidateBoxAncestryReferences() {
   parent_ = NULL;
   containing_block_ = NULL;
   stacking_context_ = NULL;
