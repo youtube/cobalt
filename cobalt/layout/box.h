@@ -375,7 +375,7 @@ class Box : public base::RefCounted<Box> {
   void UpdateCrossReferencesFrom(Box* reference);
 
   // Invalidates the ancestor references of the box.
-  void InvalideBoxAncestryReferences();
+  void InvalidateBoxAncestryReferences();
 
  protected:
   UsedStyleProvider* used_style_provider() const {

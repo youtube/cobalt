@@ -111,7 +111,7 @@ void BoxGenerator::Visit(dom::Element* element) {
       for (Boxes::const_iterator box_iterator = boxes_.begin();
            box_iterator != boxes_.end(); ++box_iterator) {
         const scoped_refptr<Box>& box = *box_iterator;
-        box->InvalideBoxAncestryReferences();
+        box->InvalidateBoxAncestryReferences();
         box->InvalidateUpdateSizeInputsOfBoxAndDescendants();
       }
       return;
