@@ -106,6 +106,9 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
       return thread_checker_.CalledOnValidThread();
     }
 
+    // Generates an error response that can be returned by any command handler.
+    JSONObject ErrorResponse(const std::string& error_message);
+
    private:
     base::WeakPtr<DebugServer> server_;
     base::ThreadChecker thread_checker_;

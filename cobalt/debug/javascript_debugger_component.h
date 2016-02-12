@@ -37,8 +37,14 @@ class JavaScriptDebuggerComponent : public DebugServer::Component {
   // component.
   void OnNotification(const std::string& method, const JSONObject& params);
 
+  JSONObject Enable(const JSONObject& params);
+  JSONObject Disable(const JSONObject& params);
+
   // Gets the source of a specified script.
   JSONObject GetScriptSource(const JSONObject& params);
+
+  // No ownership.
+  script::GlobalObjectProxy* global_object_proxy_;
 
   // Handles all debugging interaction with the JavaScript engine.
   scoped_ptr<script::JavaScriptDebuggerInterface> javascript_debugger_;
