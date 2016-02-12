@@ -26,6 +26,11 @@
 namespace cobalt {
 namespace debug {
 
+namespace {
+// Error response message field.
+const char kError[] = "error.message";
+}  // namespace
+
 DebugServer::Component::Component(const base::WeakPtr<DebugServer>& server)
     : server_(server) {}
 
@@ -59,6 +64,13 @@ void DebugServer::Component::SendNotification(const std::string& method,
   if (server_) {
     server_->OnNotification(method, params);
   }
+}
+
+JSONObject DebugServer::Component::ErrorResponse(
+    const std::string& error_message) {
+  JSONObject error_response(new base::DictionaryValue());
+  error_response->SetString(kError, error_message);
+  return error_response.Pass();
 }
 
 DebugServer::DebugServer(
