@@ -16,7 +16,6 @@
 #ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_
 #define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_
 
-
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/javascriptcore/script_object_registry.h"
@@ -35,6 +34,9 @@ class JSCEngine : public JavaScriptEngine {
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
   JSC::JSGlobalData* global_data() { return global_data_.get(); }
+  ScriptObjectRegistry* script_object_registry() {
+    return &script_object_registry_;
+  }
 
  private:
   base::ThreadChecker thread_checker_;
