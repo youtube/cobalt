@@ -231,7 +231,13 @@ bool ContentSecurityPolicy::UrlMatchesSelf(const GURL& url) const {
 }
 
 bool ContentSecurityPolicy::SchemeMatchesSelf(const GURL& url) const {
-  return self_scheme_ == url.scheme();
+  // https://www.w3.org/TR/CSP2/#match-source-expression, section 4.5.1
+  // Allow "upgrade" to https if our document is http.
+  if (LowerCaseEqualsASCII(self_scheme_, "http")) {
+    return url.SchemeIs("http") || url.SchemeIs("https");
+  } else {
+    return self_scheme_ == url.scheme();
+  }
 }
 
 void ContentSecurityPolicy::ReportViolation(
