@@ -66,6 +66,7 @@ void DebugServer::Component::SendNotification(const std::string& method,
   }
 }
 
+// static
 JSONObject DebugServer::Component::ErrorResponse(
     const std::string& error_message) {
   JSONObject error_response(new base::DictionaryValue());
