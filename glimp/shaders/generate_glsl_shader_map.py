@@ -260,7 +260,22 @@ def CreateHashToShaderMap(glsl_to_shader_map):
   return hash_shader_map
 
 
-def main(output_path, all_shaders):
+def GetAllShaderFiles(input_files_filename, input_files_dir):
+  """Returns the list of all GLSL/platform shader files.
+
+  Loads each line of |input_files_filename| into a list and then prepends entry
+  with |input_files_dir|.
+  """
+  files = []
+  with open(input_files_filename) as input_files_file:
+    files = [x.strip() for x in input_files_file.readlines()]
+
+  return [os.path.join(input_files_dir, x) for x in files]
+
+
+def main(output_path, input_files_filename, input_files_dir):
+  all_shaders = GetAllShaderFiles(input_files_filename, input_files_dir)
+
   glsl_to_shader_map = AssociateGLSLFilesWithPlatformFiles(
       all_shaders)
 
@@ -269,4 +284,4 @@ def main(output_path, all_shaders):
   GenerateHeaderFileOutput(output_path, hash_to_shader_map)
 
 if __name__ == '__main__':
-  main(sys.argv[1], sys.argv[2:])
+  main(sys.argv[1], sys.argv[2], sys.argv[3])
