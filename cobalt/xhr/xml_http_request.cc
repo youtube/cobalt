@@ -416,7 +416,7 @@ std::string XMLHttpRequest::GetAllResponseHeaders() {
   return output;
 }
 
-std::string XMLHttpRequest::response_text(
+const std::string& XMLHttpRequest::response_text(
     script::ExceptionState* exception_state) {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsetext-attribute
   if (response_type_ != kDefault && response_type_ != kText) {
@@ -424,11 +424,10 @@ std::string XMLHttpRequest::response_text(
                              exception_state);
   }
   if (error_ || (state_ != kLoading && state_ != kDone)) {
-    return std::string();
+    return EmptyString();
   }
 
-  return std::string(response_body_.data(),
-                     response_body_.data() + response_body_.size());
+  return response_body_.string();
 }
 
 base::optional<std::string> XMLHttpRequest::response_xml(
