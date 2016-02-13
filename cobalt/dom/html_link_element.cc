@@ -80,8 +80,8 @@ void HTMLLinkElement::Obtain() {
   // the default origin behaviour set to taint.
   Document* document = node_document();
   csp::SecurityCallback csp_callback = base::Bind(
-      &CSPDelegate::CanLoad, base::Unretained(document->csp_delegate()),
-      CSPDelegate::kStyle);
+      &CspDelegate::CanLoad, base::Unretained(document->csp_delegate()),
+      CspDelegate::kStyle);
 
   loader_ = make_scoped_ptr(new loader::Loader(
       base::Bind(

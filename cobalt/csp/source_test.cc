@@ -27,7 +27,7 @@ namespace {
 
 class SourceTest : public ::testing::Test {
  public:
-  SourceTest() : csp_(new ContentSecurityPolicy()) {}
+  SourceTest() : csp_(new ContentSecurityPolicy(GURL(), ViolationCallback())) {}
 
  protected:
   scoped_ptr<ContentSecurityPolicy> csp_;
