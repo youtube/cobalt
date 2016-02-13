@@ -85,30 +85,27 @@ Document::Document(HTMLElementContext* html_element_context,
       user_agent_style_sheet_(options.user_agent_style_sheet) {
   DCHECK(options.url.is_empty() || options.url.is_valid());
 
-  csp_delegate_.reset(new CSPDelegate(options.post_sender,
+  scoped_ptr<CspViolationReporter> violation_reporter(
+      new CspViolationReporter(this, options.post_sender));
+  csp_delegate_.reset(new CspDelegate(violation_reporter.Pass(), options.url,
                                       options.default_security_policy,
                                       options.csp_enforcement_mode));
 
   location_ = new Location(
       options.url, options.navigation_callback,
-      base::Bind(&CSPDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
-                 CSPDelegate::kLocation));
-  // CSPDelegate relies on location to exist, so that it can query the
-  // Document's origin. Location relies on CSPDelegate to exist, to bind its
-  // security callback.
-  // So only bind the document to the delegate once both are constructed.
-  csp_delegate_->SetDocument(this);
+      base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
+                 CspDelegate::kLocation));
 
   if (html_element_context_ && html_element_context_->remote_font_cache()) {
     html_element_context_->remote_font_cache()->set_security_callback(
-        base::Bind(&CSPDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
-                   CSPDelegate::kFont));
+        base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
+                   CspDelegate::kFont));
   }
 
   if (html_element_context_ && html_element_context_->image_cache()) {
     html_element_context_->image_cache()->set_security_callback(
-        base::Bind(&CSPDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
-                   CSPDelegate::kImage));
+        base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
+                   CspDelegate::kImage));
   }
 
   if (options.viewport_size) {
@@ -395,7 +392,10 @@ void Document::DoSynchronousLayout() {
   }
 }
 
-void Document::NotifyUrlChanged(const GURL& url) { location_->set_url(url); }
+void Document::NotifyUrlChanged(const GURL& url) {
+  location_->set_url(url);
+  csp_delegate_->NotifyUrlChanged(url);
+}
 
 void Document::OnCSSMutation() {
   // Something in the document's CSS rules has been modified, but we don't know

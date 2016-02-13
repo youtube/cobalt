@@ -60,7 +60,7 @@ class WindowTest : public ::testing::Test {
                                       base::Unretained(&mock_error_callback_)),
                            NULL, network_bridge::PostSender(),
                            std::string() /* default security policy */,
-                           CSPDelegate::kEnforcementEnable)) {}
+                           CspDelegate::kEnforcementEnable)) {}
 
   ~WindowTest() OVERRIDE {}
 
