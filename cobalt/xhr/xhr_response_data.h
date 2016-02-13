@@ -17,7 +17,7 @@
 #ifndef COBALT_XHR_XHR_RESPONSE_DATA_H_
 #define COBALT_XHR_XHR_RESPONSE_DATA_H_
 
-#include <vector>
+#include <string>
 
 #include "base/basictypes.h"
 
@@ -41,11 +41,13 @@ class XhrResponseData {
   const uint8* data() const;
   uint8* data();
 
+  const std::string& string() const { return data_; }
+
   size_t size() const { return data_.size(); }
   size_t capacity() const { return data_.capacity(); }
 
  private:
-  std::vector<uint8> data_;
+  std::string data_;
 };
 
 }  // namespace xhr

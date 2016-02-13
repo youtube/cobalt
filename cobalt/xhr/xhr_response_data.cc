@@ -32,6 +32,10 @@ namespace {
 // data.
 uint8 s_dummy;
 
+// We are using std::string to store binary data so we want to ensure that char
+// occupies one byte.
+COMPILE_ASSERT(sizeof(char) == 1, char_should_occupy_one_byte);
+
 }  // namespace
 
 XhrResponseData::XhrResponseData() {}
@@ -43,7 +47,7 @@ XhrResponseData::~XhrResponseData() {
 void XhrResponseData::Clear() {
   dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
   // Use swap to force free the memory allocated.
-  std::vector<uint8> dummy;
+  std::string dummy;
   data_.swap(dummy);
 }
 
@@ -55,15 +59,18 @@ void XhrResponseData::Reserve(size_t new_capacity_bytes) {
 
 void XhrResponseData::Append(const uint8* source_data, size_t size_bytes) {
   dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
-  data_.insert(data_.end(), source_data, source_data + size_bytes);
+  data_.insert(data_.end(), reinterpret_cast<const char*>(source_data),
+               reinterpret_cast<const char*>(source_data) + size_bytes);
   dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
 }
 
 const uint8* XhrResponseData::data() const {
-  return data_.empty() ? &s_dummy : &data_[0];
+  return data_.empty() ? &s_dummy : reinterpret_cast<const uint8*>(&data_[0]);
 }
 
-uint8* XhrResponseData::data() { return data_.empty() ? &s_dummy : &data_[0]; }
+uint8* XhrResponseData::data() {
+  return data_.empty() ? &s_dummy : reinterpret_cast<uint8*>(&data_[0]);
+}
 
 }  // namespace xhr
 }  // namespace cobalt

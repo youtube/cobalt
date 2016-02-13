@@ -124,7 +124,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   base::optional<std::string> GetResponseHeader(const std::string& header);
   std::string GetAllResponseHeaders();
 
-  std::string response_text(script::ExceptionState* exception_state);
+  const std::string& response_text(script::ExceptionState* exception_state);
   base::optional<std::string> response_xml(
       script::ExceptionState* exception_state);
   std::string status_text();
