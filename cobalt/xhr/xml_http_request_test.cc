@@ -95,14 +95,15 @@ class FakeSettings : public dom::DOMSettings {
   GURL base_url() const OVERRIDE { return GURL("http://example.com"); }
 };
 
-class MockCSPDelegate : public dom::CSPDelegate {
+class MockCspDelegate : public dom::CspDelegate {
  public:
-  MockCSPDelegate()
-      : dom::CSPDelegate(network_bridge::PostSender(),
+  MockCspDelegate()
+      : dom::CspDelegate(scoped_ptr<dom::CspViolationReporter>(),
+                         GURL("http://www.example.com"),
                          std::string() /* default policy */,
-                         dom::CSPDelegate::kEnforcementEnable) {}
+                         dom::CspDelegate::kEnforcementEnable) {}
   MOCK_CONST_METHOD3(CanLoad,
-                     bool(dom::CSPDelegate::ResourceType, const GURL&, bool));
+                     bool(dom::CspDelegate::ResourceType, const GURL&, bool));
 };
 
 // Derive from XMLHttpRequest in order to override its csp_delegate.
@@ -110,12 +111,12 @@ class MockCSPDelegate : public dom::CSPDelegate {
 class FakeXmlHttpRequest : public XMLHttpRequest {
  public:
   FakeXmlHttpRequest(script::EnvironmentSettings* settings,
-                     dom::CSPDelegate* csp_delegate)
+                     dom::CspDelegate* csp_delegate)
       : XMLHttpRequest(settings), csp_delegate_(csp_delegate) {}
-  dom::CSPDelegate* csp_delegate() const OVERRIDE { return csp_delegate_; }
+  dom::CspDelegate* csp_delegate() const OVERRIDE { return csp_delegate_; }
 
  private:
-  dom::CSPDelegate* csp_delegate_;
+  dom::CspDelegate* csp_delegate_;
 };
 
 }  // namespace
@@ -166,7 +167,7 @@ TEST_F(XhrTest, OpenFailConnectSrc) {
   // Verify that opening an XHR to a blocked domain will throw a security
   // exception.
   scoped_refptr<script::ScriptException> exception;
-  StrictMock<MockCSPDelegate> csp_delegate;
+  StrictMock<MockCspDelegate> csp_delegate;
   EXPECT_CALL(exception_state_, SetException(_))
       .WillOnce(SaveArg<0>(&exception));
 

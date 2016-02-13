@@ -202,19 +202,19 @@ void HTMLScriptElement::Prepare() {
 
   // https://www.w3.org/TR/CSP2/#directive-script-src
 
-  CSPDelegate* csp_delegate = document_->csp_delegate();
+  CspDelegate* csp_delegate = document_->csp_delegate();
   // If the script element has a valid nonce, we always permit it, regardless
   // of its URL or inline nature.
   const bool bypass_csp =
-      csp_delegate->IsValidNonce(CSPDelegate::kScript, nonce());
+      csp_delegate->IsValidNonce(CspDelegate::kScript, nonce());
 
   csp::SecurityCallback csp_callback;
   if (bypass_csp) {
     csp_callback = base::Bind(&PermitAnyURL);
   } else {
     csp_callback =
-        base::Bind(&CSPDelegate::CanLoad, base::Unretained(csp_delegate),
-                   CSPDelegate::kScript);
+        base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate),
+                   CspDelegate::kScript);
   }
 
   switch (load_option_) {
@@ -304,7 +304,7 @@ void HTMLScriptElement::Prepare() {
       // The user agent must immediately execute the script block, even if other
       // scripts are already executing.
       if (bypass_csp ||
-          csp_delegate->AllowInline(CSPDelegate::kScript,
+          csp_delegate->AllowInline(CspDelegate::kScript,
                                     inline_script_location_,
                                     text_content().value())) {
         ExecuteInternal();

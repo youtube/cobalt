@@ -641,9 +641,9 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     player_->LoadMediaSource();
   } else {
     csp::SecurityCallback csp_callback =
-        base::Bind(&CSPDelegate::CanLoad,
+        base::Bind(&CspDelegate::CanLoad,
                    base::Unretained(owner_document()->csp_delegate()),
-                   CSPDelegate::kMedia);
+                   CspDelegate::kMedia);
     player_->LoadProgressive(
         url, new media::FetcherBufferedDataSource(
                  base::MessageLoopProxy::current(), url, csp_callback,

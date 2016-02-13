@@ -45,6 +45,8 @@
         'crypto.h',
         'csp_delegate.cc',
         'csp_delegate.h',
+        'csp_violation_reporter.cc',
+        'csp_violation_reporter.h',
         'css_animations_adapter.cc',
         'css_animations_adapter.h',
         'css_transitions_adapter.cc',

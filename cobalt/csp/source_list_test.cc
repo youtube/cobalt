@@ -30,32 +30,15 @@ void ParseSourceList(SourceList* source_list, const std::string& sources) {
   source_list->Parse(characters);
 }
 
-class CSPDelegate : public ContentSecurityPolicy::Delegate {
- public:
-  explicit CSPDelegate(const GURL& url) : url_(url) {}
-
-  GURL url() const OVERRIDE { return url_; }
-
- private:
-  GURL url_;
-};
-
 class SourceListTest : public ::testing::Test {
- public:
-  SourceListTest() : csp_(new ContentSecurityPolicy()) {}
-
  protected:
   virtual void SetUp() {
     GURL secure_url("https://example.test/image.png");
-    csp_delegate_.reset(new CSPDelegate(secure_url));
-    csp_->BindDelegate(csp_delegate_.get());
-    // Call OnReceiveHeader() with unimportant values, for the side-effect of
-    // CSP creating the 'self' policy, which the test relies on.
-    csp_->OnReceiveHeader("", kHeaderTypeEnforce, kHeaderSourceMeta);
+    csp_.reset(new ContentSecurityPolicy(secure_url, violation_callback_));
   }
 
   scoped_ptr<ContentSecurityPolicy> csp_;
-  scoped_ptr<CSPDelegate> csp_delegate_;
+  ViolationCallback violation_callback_;
 };
 
 TEST_F(SourceListTest, BasicMatchingNone) {
