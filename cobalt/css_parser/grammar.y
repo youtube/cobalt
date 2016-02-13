@@ -1122,8 +1122,9 @@ media_list:
 at_keyframes_rule:
     kKeyframesToken maybe_whitespace kIdentifierToken maybe_whitespace '{'
     maybe_whitespace keyframe_rule_list '}' maybe_whitespace {
-    $$ = AddRef(new cssom::CSSKeyframesRule($3.ToString(),
-                                            MakeScopedRefPtrAndRelease($7)));
+    $$ = $7 ? AddRef(
+        new cssom::CSSKeyframesRule($3.ToString(),
+                                    MakeScopedRefPtrAndRelease($7))) : NULL;
   }
   ;
 
@@ -1132,9 +1133,18 @@ keyframe_rule_list:
     $$ = AddRef(new cssom::CSSRuleList());
     $$->AppendCSSRule(MakeScopedRefPtrAndRelease($1));
   }
+  | error {
+    // The error message is logged by |keyframe_rule|, so it is not necessary to
+    // log it again.
+    $$ = NULL;
+  }
   | keyframe_rule_list keyframe_rule {
     $$ = $1;
-    $$->AppendCSSRule(MakeScopedRefPtrAndRelease($2));
+    scoped_refptr<cssom::CSSKeyframeRule> keyframe_rule(
+        MakeScopedRefPtrAndRelease($2));
+    if ($$) {
+      $$->AppendCSSRule(keyframe_rule);
+    }
   }
   ;
 
@@ -1142,25 +1152,22 @@ keyframe_rule:
     keyframe_selector style_declaration_block {
     scoped_ptr<std::vector<float> > offsets($1);
 
-    scoped_refptr<cssom::CSSStyleDeclaration> style =
-        MakeScopedRefPtrAndRelease($2);
-    scoped_refptr<const cssom::CSSStyleDeclarationData> data = style->data();
+    scoped_refptr<cssom::CSSStyleDeclaration> style(
+        MakeScopedRefPtrAndRelease($2));
     cssom::CSSStyleDeclarationData::PropertyValueConstIterator
-        property_iterator = data->BeginPropertyValueConstIterator();
+        property_iterator = style->data()->BeginPropertyValueConstIterator();
     for (; !property_iterator.Done(); property_iterator.Next()) {
       if (property_iterator.ConstValue() ==
           cssom::KeywordValue::GetInherit() ||
           property_iterator.ConstValue() ==
           cssom::KeywordValue::GetInitial()) {
         parser_impl->LogError(
-            @2, "Cobalt does not support keyframe properties cannot be initial "
-                "or inherited.");
+            @2, "keyframe properties with initial or inherit are not supported");
         YYERROR;
       }
     }
 
-    $$ = AddRef(new cssom::CSSKeyframeRule(
-        *offsets, style));
+    $$ = AddRef(new cssom::CSSKeyframeRule(*offsets, style));
   }
   ;
 
@@ -6117,10 +6124,12 @@ rule_list:
 
 // To parse a stylesheet, consume a list of rules.
 //   https://www.w3.org/TR/css3-syntax/#parse-a-stylesheet
-style_sheet: rule_list {
+style_sheet:
+    rule_list {
     $$ = AddRef(new cssom::CSSStyleSheet(parser_impl->css_parser()));
     $$->set_css_rules(MakeScopedRefPtrAndRelease($1));
-}
+  }
+  ;
 
 // Parser entry points.
 //   http://dev.w3.org/csswg/css-syntax/#parser-entry-points
