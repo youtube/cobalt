@@ -168,17 +168,17 @@ const char kNavigationPolicy[] = "h5vcc-location-src 'self' h5vcc:";
 std::string GetDefaultSecurityPolicy() { return kNavigationPolicy; }
 
 #if !defined(COBALT_FORCE_CSP)
-dom::CSPDelegate::EnforcementType StringToCspMode(const std::string& mode) {
+dom::CspDelegate::EnforcementType StringToCspMode(const std::string& mode) {
   if (mode == "disable") {
-    return dom::CSPDelegate::kEnforcementDisable;
+    return dom::CspDelegate::kEnforcementDisable;
   } else if (mode == "enable") {
-    return dom::CSPDelegate::kEnforcementEnable;
+    return dom::CspDelegate::kEnforcementEnable;
   } else if (mode == "require") {
-    return dom::CSPDelegate::kEnforcementRequire;
+    return dom::CspDelegate::kEnforcementRequire;
   } else {
     DLOG(INFO) << "Invalid CSP mode: " << mode
                << ": use [disable|enable|require]";
-    return dom::CSPDelegate::kEnforcementEnable;
+    return dom::CspDelegate::kEnforcementEnable;
   }
 }
 #endif  // !defined(COBALT_FORCE_CSP)
@@ -221,7 +221,7 @@ Application::Application()
 
 #if defined(COBALT_FORCE_CSP)
   options.web_module_options.csp_enforcement_mode =
-      dom::CSPDelegate::kEnforcementRequire;
+      dom::CspDelegate::kEnforcementRequire;
 #endif  // defined(COBALT_FORCE_CSP)
 
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)

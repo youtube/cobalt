@@ -16,7 +16,6 @@
 
 #include "cobalt/csp/content_security_policy.h"
 #include "googleurl/src/gurl.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -24,46 +23,22 @@ namespace csp {
 
 namespace {
 
-using ::testing::Return;
-using ::testing::StrictMock;
-
-class CSPTest : public ::testing::Test {
- public:
-  CSPTest() : csp_(new ContentSecurityPolicy()) {}
-
+class CspTest : public ::testing::Test {
  protected:
+  ViolationCallback callback_;
   scoped_ptr<ContentSecurityPolicy> csp_;
 };
 
-class MockDelegate : public ContentSecurityPolicy::Delegate {
- public:
-  MOCK_CONST_METHOD0(url, GURL(void));
-};
-
-TEST_F(CSPTest, SecureSchemeMatchesSelf) {
-  StrictMock<MockDelegate> delegate;
-  ON_CALL(delegate, url())
-      .WillByDefault(Return(GURL("https://www.example.com")));
-  csp_->BindDelegate(&delegate);
-
-  EXPECT_CALL(delegate, url()).Times(1);
-  csp_->OnReceiveHeader("default-src 'self'", kHeaderTypeEnforce,
-                        kHeaderSourceHTTP);
-
+TEST_F(CspTest, SecureSchemeMatchesSelf) {
+  csp_.reset(
+      new ContentSecurityPolicy(GURL("https://www.example.com"), callback_));
   EXPECT_TRUE(csp_->SchemeMatchesSelf(GURL("https://example.com")));
   EXPECT_FALSE(csp_->SchemeMatchesSelf(GURL("http://example.com")));
 }
 
-TEST_F(CSPTest, InsecureSchemeMatchesSelf) {
-  StrictMock<MockDelegate> delegate;
-  ON_CALL(delegate, url())
-      .WillByDefault(Return(GURL("http://www.example.com")));
-  csp_->BindDelegate(&delegate);
-
-  EXPECT_CALL(delegate, url()).Times(1);
-  csp_->OnReceiveHeader("default-src 'self'", kHeaderTypeEnforce,
-                        kHeaderSourceHTTP);
-
+TEST_F(CspTest, InsecureSchemeMatchesSelf) {
+  csp_.reset(
+      new ContentSecurityPolicy(GURL("http://www.example.com"), callback_));
   EXPECT_TRUE(csp_->SchemeMatchesSelf(GURL("https://example.com")));
   EXPECT_TRUE(csp_->SchemeMatchesSelf(GURL("http://example.com")));
 }

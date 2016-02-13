@@ -26,6 +26,7 @@
       'sources': [
         'comment_test.cc',
         'crypto_test.cc',
+        'csp_delegate_test.cc',
         'data_view_test.cc',
         'document_test.cc',
         'document_type_test.cc',

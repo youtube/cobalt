@@ -185,21 +185,19 @@ bool ContentSecurityPolicy::IsDirectiveName(const std::string& name) {
 }
 // clang-format on
 
-ContentSecurityPolicy::ContentSecurityPolicy()
-    : delegate_(NULL),
+ContentSecurityPolicy::ContentSecurityPolicy(
+    const GURL& url, const ViolationCallback& violation_callback)
+    : violation_callback_(violation_callback),
       script_hash_algorithms_used_(0),
       style_hash_algorithms_used_(0),
       enforce_strict_mixed_content_checking_(false),
-      referrer_policy_(kReferrerPolicyDefault) {}
+      referrer_policy_(kReferrerPolicyDefault) {
+  NotifyUrlChanged(url);
+}
 
 ContentSecurityPolicy::~ContentSecurityPolicy() {}
 
-void ContentSecurityPolicy::BindDelegate(Delegate* delegate) {
-  delegate_ = delegate;
-}
-
 void ContentSecurityPolicy::OnReceiveHeaders(const ResponseHeaders& headers) {
-  DCHECK(delegate_);
   if (!headers.content_security_policy().empty()) {
     AddPolicyFromHeaderValue(headers.content_security_policy(),
                              kHeaderTypeEnforce, kHeaderSourceHTTP);
@@ -208,22 +206,18 @@ void ContentSecurityPolicy::OnReceiveHeaders(const ResponseHeaders& headers) {
     AddPolicyFromHeaderValue(headers.content_security_policy_report_only(),
                              kHeaderTypeReport, kHeaderSourceHTTP);
   }
-  ApplyPolicy();
 }
 
 void ContentSecurityPolicy::OnReceiveHeader(const std::string& header,
                                             HeaderType type,
                                             HeaderSource source) {
-  DCHECK(delegate_);
   AddPolicyFromHeaderValue(header, type, source);
-  ApplyPolicy();
 }
 
 void ContentSecurityPolicy::SetNavigationFallbackPolicy(
     const std::string& policy) {
   navigation_fallback_policy_.reset(new DirectiveList(
       this, base::StringPiece(policy), kHeaderTypeEnforce, kHeaderSourceHTTP));
-  ApplyPolicy();
 }
 
 bool ContentSecurityPolicy::UrlMatchesSelf(const GURL& url) const {
@@ -245,9 +239,18 @@ void ContentSecurityPolicy::ReportViolation(
     const std::string& console_message, const GURL& blocked_url,
     const std::vector<std::string>& report_endpoints,
     const std::string& header) {
-  delegate_->ReportViolation(directive_text, effective_directive,
-                             console_message, blocked_url, report_endpoints,
-                             header);
+  if (violation_callback_.is_null()) {
+    return;
+  }
+
+  ViolationInfo violation_info;
+  violation_info.directive_text = directive_text;
+  violation_info.effective_directive = effective_directive;
+  violation_info.console_message = console_message;
+  violation_info.blocked_url = blocked_url;
+  violation_info.endpoints = report_endpoints;
+  violation_info.header = header;
+  violation_callback_.Run(violation_info);
 }
 
 void ContentSecurityPolicy::ReportInvalidReferrer(
@@ -585,9 +588,9 @@ bool ContentSecurityPolicy::AllowStyleWithHash(
       source, style_hash_algorithms_used_, policies_);
 }
 
-GURL ContentSecurityPolicy::url() const {
-  DCHECK(delegate_);
-  return delegate_->url();
+void ContentSecurityPolicy::NotifyUrlChanged(const GURL& url) {
+  url_ = url;
+  CreateSelfSource();
 }
 
 bool ContentSecurityPolicy::DidSetReferrerPolicy() const {
@@ -600,24 +603,17 @@ bool ContentSecurityPolicy::DidSetReferrerPolicy() const {
   return false;
 }
 
-void ContentSecurityPolicy::ApplyPolicy() {
-  DCHECK(delegate_);
-
+void ContentSecurityPolicy::CreateSelfSource() {
   // Ensure that 'self' processes correctly.
-  GURL self_url = delegate_->url();
-  self_scheme_ = self_url.scheme();
+  self_scheme_ = url_.scheme();
   SourceConfig config;
   config.scheme = self_scheme_;
-  config.host = self_url.host();
+  config.host = url_.host();
   config.path.clear();
-  config.port = self_url.IntPort();
+  config.port = url_.IntPort();
   config.host_wildcard = SourceConfig::kNoWildcard;
   config.port_wildcard = SourceConfig::kNoWildcard;
   self_source_.reset(new Source(this, config));
-
-  if (DidSetReferrerPolicy()) {
-    delegate_->SetReferrerPolicy(referrer_policy_);
-  }
 }
 
 void ContentSecurityPolicy::AddPolicyFromHeaderValue(const std::string& header,

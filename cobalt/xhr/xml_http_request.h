@@ -165,7 +165,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   // Return the CSP delegate from the Settings object.
   // virtual for use by tests.
-  virtual dom::CSPDelegate* csp_delegate() const;
+  virtual dom::CspDelegate* csp_delegate() const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(XhrTest, GetResponseHeader);
