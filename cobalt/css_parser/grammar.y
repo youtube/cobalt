@@ -1142,7 +1142,9 @@ keyframe_rule:
     keyframe_selector style_declaration_block {
     scoped_ptr<std::vector<float> > offsets($1);
 
-    scoped_refptr<const cssom::CSSStyleDeclarationData> data = $2->data();
+    scoped_refptr<cssom::CSSStyleDeclaration> style =
+        MakeScopedRefPtrAndRelease($2);
+    scoped_refptr<const cssom::CSSStyleDeclarationData> data = style->data();
     cssom::CSSStyleDeclarationData::PropertyValueConstIterator
         property_iterator = data->BeginPropertyValueConstIterator();
     for (; !property_iterator.Done(); property_iterator.Next()) {
@@ -1158,7 +1160,7 @@ keyframe_rule:
     }
 
     $$ = AddRef(new cssom::CSSKeyframeRule(
-        *offsets, MakeScopedRefPtrAndRelease($2)));
+        *offsets, style));
   }
   ;
 
@@ -1842,9 +1844,8 @@ id_selector_token:
   | kHexToken {
     if (IsAsciiDigit(*$1.begin)) {
       YYERROR;
-    } else {
-      $$ = new cssom::IdSelector($1.ToString());
     }
+    $$ = new cssom::IdSelector($1.ToString());
   }
   ;
 
@@ -2082,9 +2083,8 @@ zero_or_one:
     if (($1 < 0) || ($1 > 1)) {
       parser_impl->LogError(@1, "integer value must be 0 or 1");
       YYERROR;
-    } else {
-      $$ = $1;
     }
+    $$ = $1;
   }
   ;
 
@@ -2103,9 +2103,8 @@ non_negative_integer:
     if ($1 < 0) {
       parser_impl->LogError(@1, "integer value must not be negative");
       YYERROR;
-    } else {
-      $$ = $1;
     }
+    $$ = $1;
   }
   ;
 
@@ -2115,9 +2114,8 @@ positive_integer:
     if ($1 < 1) {
       parser_impl->LogError(@1, "integer value must be positive");
       YYERROR;
-    } else {
-      $$ = $1;
     }
+    $$ = $1;
   }
   ;
 
@@ -2135,9 +2133,8 @@ non_negative_number:
     if ($1 < 0) {
       parser_impl->LogError(@1, "number value must not be negative");
       YYERROR;
-    } else {
-      $$ = $1;
     }
+    $$ = $1;
   }
   ;
 
@@ -2157,12 +2154,10 @@ positive_percentage:
     scoped_refptr<cssom::PercentageValue> percentage =
         MakeScopedRefPtrAndRelease($1);
     if (percentage && percentage->value() < 0) {
-      $$ = NULL;
       parser_impl->LogError(@1, "negative values of percentage are illegal");
       YYERROR;
-    } else {
-      $$ = AddRef(percentage.get());
     }
+    $$ = AddRef(percentage.get());
   }
   ;
 
@@ -2180,14 +2175,12 @@ alpha:
 //   https://www.w3.org/TR/css3-values/#lengths
 length:
     number {
-    if ($1 == 0) {
-      $$ = AddRef(new cssom::LengthValue(0, cssom::kPixelsUnit));
-    } else {
-      $$ = NULL;
+    if ($1 != 0) {
       parser_impl->LogError(
           @1, "non-zero length is not allowed without unit identifier");
       YYERROR;
     }
+    $$ = AddRef(new cssom::LengthValue(0, cssom::kPixelsUnit));
   }
   // Relative lengths.
   //   https://www.w3.org/TR/css3-values/#relative-lengths
@@ -2205,12 +2198,10 @@ positive_length:
   length {
     scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
     if (length && length->value() < 0) {
-      $$ = NULL;
       parser_impl->LogError(@1, "negative values of length are illegal");
       YYERROR;
-    } else {
-      $$ = AddRef(length.get());
     }
+    $$ = AddRef(length.get());
   }
   ;
 
@@ -3276,9 +3267,8 @@ box_shadow_property_element:
       if (length && length->value() < 0) {
         parser_impl->LogError(@1, "negative values of blur radius are illegal");
         YYERROR;
-      } else {
-        $<shadow_info>0->length_vector.push_back(length);
       }
+      $<shadow_info>0->length_vector.push_back(length);
     } else {
       $<shadow_info>0->length_vector.push_back(
           MakeScopedRefPtrAndRelease($1));
@@ -4064,9 +4054,8 @@ text_shadow_property_element:
       if (length && length->value() < 0) {
         parser_impl->LogError(@1, "negative values of blur radius are illegal");
         YYERROR;
-      } else {
-        $<shadow_info>0->length_vector.push_back(length);
       }
+      $<shadow_info>0->length_vector.push_back(length);
     } else {
       $<shadow_info>0->length_vector.push_back(
           MakeScopedRefPtrAndRelease($1));
