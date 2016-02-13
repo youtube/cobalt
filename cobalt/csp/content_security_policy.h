@@ -34,12 +34,23 @@ namespace csp {
 class DirectiveList;
 class Source;
 
+// Wrap up information about a CSP violation, for passing to the Delegate.
+struct ViolationInfo {
+  std::string directive_text;
+  std::string effective_directive;
+  std::string console_message;
+  GURL blocked_url;
+  std::vector<std::string> endpoints;
+  std::string header;
+};
+
 // A callback that a URL fetcher will call to check if the URL is permitted
 // by our security policy. This may be called multiple times if the URL results
 // in a redirect. The callback should return |true| if the URL is safe to
 // load.
 typedef base::Callback<bool(const GURL& url, bool did_redirect)>
     SecurityCallback;
+typedef base::Callback<void(const ViolationInfo&)> ViolationCallback;
 
 // Extract CSP-related headers from HttpResponseHeaders.
 class ResponseHeaders {
@@ -63,23 +74,6 @@ class ResponseHeaders {
 class ContentSecurityPolicy {
  public:
   typedef ScopedVector<DirectiveList> PolicyList;
-
-  // Interface for the ContentSecurityPolicy object to delegate requests
-  // for talking to the DOM or script engine.
-  class Delegate {
-   public:
-    virtual ~Delegate() {}
-    virtual GURL url() const = 0;
-
-    virtual void ReportViolation(
-        const std::string& /* directive_text */,
-        const std::string& /* effective_directive */,
-        const std::string& /* console_message */, const GURL& /* blocked_url */,
-        const std::vector<std::string>& /* endpoints */,
-        const std::string& /* header */) {}
-
-    virtual void SetReferrerPolicy(ReferrerPolicy /* policy */) {}
-  };
 
   // CSP Level 1 Directives
   static const char kConnectSrc[];
@@ -135,10 +129,9 @@ class ContentSecurityPolicy {
 
   static bool IsDirectiveName(const std::string& name);
 
-  ContentSecurityPolicy();
+  ContentSecurityPolicy(const GURL& url,
+                        const ViolationCallback& violation_callback);
   ~ContentSecurityPolicy();
-
-  void BindDelegate(Delegate* delegate);
 
   void OnReceiveHeaders(const ResponseHeaders& headers);
   void OnReceiveHeader(const std::string& header, HeaderType header_type,
@@ -242,14 +235,18 @@ class ContentSecurityPolicy {
     style_hash_algorithms_used_ |= algorithm;
   }
 
-  GURL url() const;
+  // Configure the origin URL for the document that owns this policy.
+  // This could change during loading if the document load is redirected.
+  void NotifyUrlChanged(const GURL& url);
   bool DidSetReferrerPolicy() const;
+
+  const GURL& url() const { return url_; }
   void set_enforce_strict_mixed_content_checking() {
     enforce_strict_mixed_content_checking_ = true;
   }
 
  private:
-  void ApplyPolicy();
+  void CreateSelfSource();
   // Parses CSP header and creates policy based on that.
   void AddPolicyFromHeaderValue(const std::string& header, HeaderType type,
                                 HeaderSource source);
@@ -259,9 +256,12 @@ class ContentSecurityPolicy {
   scoped_ptr<Source> self_source_;
   std::string self_scheme_;
   std::string disable_eval_error_message_;
+  GURL url_;
+
+  // Callback to use for reporting CSP violations.
+  ViolationCallback violation_callback_;
 
   // Fields needing initialization.
-  Delegate* delegate_;
   // Bitmasks of HashAlgorithm
   uint8 script_hash_algorithms_used_;
   uint8 style_hash_algorithms_used_;

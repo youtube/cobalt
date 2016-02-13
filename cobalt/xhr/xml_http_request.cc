@@ -225,8 +225,8 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
     return;
   }
 
-  dom::CSPDelegate* csp = csp_delegate();
-  if (csp && !csp->CanLoad(dom::CSPDelegate::kXhr, request_url_, false)) {
+  dom::CspDelegate* csp = csp_delegate();
+  if (csp && !csp->CanLoad(dom::CspDelegate::kXhr, request_url_, false)) {
     DOMException::Raise(DOMException::kSecurityErr, exception_state);
     return;
   }
@@ -532,7 +532,7 @@ void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
   if (source->GetURL() != source->GetOriginalURL()) {
     // This was a redirect. Re-check the CSP.
-    if (!csp_delegate()->CanLoad(dom::CSPDelegate::kXhr, source->GetURL(),
+    if (!csp_delegate()->CanLoad(dom::CspDelegate::kXhr, source->GetURL(),
                                  true /* is_redirect */)) {
       HandleRequestError(kNetworkError);
       return;
@@ -647,7 +647,7 @@ XMLHttpRequest::~XMLHttpRequest() {
   dom::Stats::GetInstance()->Remove(this);
 }
 
-dom::CSPDelegate* XMLHttpRequest::csp_delegate() const {
+dom::CspDelegate* XMLHttpRequest::csp_delegate() const {
   DCHECK(settings_);
   if (settings_->window() && settings_->window()->document()) {
     return settings_->window()->document()->csp_delegate();

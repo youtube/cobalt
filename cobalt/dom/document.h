@@ -86,11 +86,11 @@ class Document : public Node, public cssom::MutationObserver {
   struct Options {
     Options()
         : cookie_jar(NULL),
-          csp_enforcement_mode(CSPDelegate::kEnforcementEnable) {}
+          csp_enforcement_mode(CspDelegate::kEnforcementEnable) {}
     explicit Options(const GURL& url_value)
         : url(url_value),
           cookie_jar(NULL),
-          csp_enforcement_mode(CSPDelegate::kEnforcementEnable) {}
+          csp_enforcement_mode(CspDelegate::kEnforcementEnable) {}
     Options(const GURL& url_value,
             const scoped_refptr<base::Clock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
@@ -99,7 +99,7 @@ class Document : public Node, public cssom::MutationObserver {
             network_bridge::CookieJar* cookie_jar,
             const network_bridge::PostSender& post_sender,
             const std::string& default_security_policy,
-            CSPDelegate::EnforcementType csp_enforcement_mode)
+            CspDelegate::EnforcementType csp_enforcement_mode)
         : url(url_value),
           navigation_start_clock(navigation_start_clock_value),
           navigation_callback(navigation_callback),
@@ -118,7 +118,7 @@ class Document : public Node, public cssom::MutationObserver {
     network_bridge::CookieJar* cookie_jar;
     network_bridge::PostSender post_sender;
     std::string default_security_policy;
-    CSPDelegate::EnforcementType csp_enforcement_mode;
+    CspDelegate::EnforcementType csp_enforcement_mode;
   };
 
   Document(HTMLElementContext* html_element_context,
@@ -273,7 +273,7 @@ class Document : public Node, public cssom::MutationObserver {
     return navigation_start_clock_;
   }
 
-  CSPDelegate* csp_delegate() const { return csp_delegate_.get(); }
+  CspDelegate* csp_delegate() const { return csp_delegate_.get(); }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   bool partial_layout_is_enabled() { return partial_layout_is_enabled_; }
@@ -326,7 +326,7 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<Location> location_;
 
   // Content Security Policy enforcement for this document.
-  scoped_ptr<CSPDelegate> csp_delegate_;
+  scoped_ptr<CspDelegate> csp_delegate_;
 
   // List of CSS style sheets.
   scoped_refptr<cssom::StyleSheetList> style_sheets_;
