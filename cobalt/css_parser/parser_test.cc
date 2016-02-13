@@ -5411,6 +5411,38 @@ TEST_F(ParserTest, ParsesKeyframesRule) {
   EXPECT_EQ(0.75f, to_opacity_value->value());
 }
 
+TEST_F(ParserTest, ParsesInvalidKeyframesRuleWithInherit) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:2:8: error: keyframe properties "
+                      "with initial or inherit are not supported"));
+
+  scoped_refptr<cssom::CSSRule> rule = parser_.ParseRule(
+      "@keyframes foo {\n"
+      "  from { opacity: inherit; }\n"
+      "  25%, 75% { opacity: 0.5; }\n"
+      "  to { opacity: 0.75; }\n"
+      "}",
+      source_location_);
+
+  EXPECT_FALSE(rule);
+}
+
+TEST_F(ParserTest, ParsesInvalidKeyframesRuleWithInitial) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:4:6: error: keyframe properties "
+                      "with initial or inherit are not supported"));
+
+  scoped_refptr<cssom::CSSRule> rule = parser_.ParseRule(
+      "@keyframes foo {\n"
+      "  from { opacity: 0.2; }\n"
+      "  25%, 75% { opacity: 0.5; }\n"
+      "  to { opacity: initial; }\n"
+      "}",
+      source_location_);
+
+  EXPECT_FALSE(rule);
+}
+
 TEST_F(ParserTest, IgnoresOtherBrowserKeyframesRules) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "@-webkit-keyframes foo1 {"
