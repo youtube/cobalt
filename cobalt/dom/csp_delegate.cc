@@ -187,6 +187,12 @@ bool CSPDelegate::CanLoad(ResourceType type, const GURL& url,
 
 bool CSPDelegate::IsValidNonce(ResourceType type,
                                const std::string& nonce) const {
+#if !defined(COBALT_FORCE_CSP)
+  if (enforcement_mode() == kEnforcementDisable) {
+    return true;
+  }
+#endif  // !defined(COBALT_FORCE_CSP)
+
   bool is_valid = false;
   if (type == kScript) {
     is_valid = csp_->AllowScriptWithNonce(nonce);
@@ -201,6 +207,12 @@ bool CSPDelegate::IsValidNonce(ResourceType type,
 bool CSPDelegate::AllowInline(ResourceType type,
                               const base::SourceLocation& location,
                               const std::string& content) const {
+#if !defined(COBALT_FORCE_CSP)
+  if (enforcement_mode() == kEnforcementDisable) {
+    return true;
+  }
+#endif  // !defined(COBALT_FORCE_CSP)
+
   bool can_load = false;
   if (type == kScript) {
     can_load = csp_->AllowInlineScript(location.file_path, location.line_number,
