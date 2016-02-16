@@ -38,7 +38,9 @@ COMPILE_ASSERT(sizeof(char) == 1, char_should_occupy_one_byte);
 
 }  // namespace
 
-XhrResponseData::XhrResponseData() {}
+XhrResponseData::XhrResponseData() {
+  dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
+}
 
 XhrResponseData::~XhrResponseData() {
   dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
@@ -49,6 +51,7 @@ void XhrResponseData::Clear() {
   // Use swap to force free the memory allocated.
   std::string dummy;
   data_.swap(dummy);
+  dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
 }
 
 void XhrResponseData::Reserve(size_t new_capacity_bytes) {
