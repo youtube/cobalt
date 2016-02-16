@@ -79,6 +79,7 @@
 
   'dependencies': [
     '<(DEPTH)/glimp/nb/nano_base.gyp:nano_base',
+    '<(DEPTH)/glimp/tracing/tracing.gyp:tracing',
     '<(DEPTH)/starboard/starboard.gyp:starboard',
   ],
 
