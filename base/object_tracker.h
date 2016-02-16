@@ -17,9 +17,10 @@
 #ifndef BASE_OBJECT_TRACKER_H_
 #define BASE_OBJECT_TRACKER_H_
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
-#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
 #include "base/stringprintf.h"
@@ -32,7 +33,7 @@ namespace base {
 // This class can be used to track and dump all objects belongs to a certain
 // type.  For example, we can use the following steps to dump all Nodes:
 // 1. Make Node inherit from ObjectTracker<Node>.
-// 2. Call "Node::Dump(stderr);" on a particular event (like a key press).
+// 2. Call "Node::Dump(log_cb);" on a particular event (like a key press).
 // We can also return false in ShouldDump() to skip certain objects and
 // implement DumpSpecificInfo() to dump information specific to the object like
 // ref count, etc..
@@ -40,11 +41,11 @@ namespace base {
 template <typename Object, uint32 BacktraceLevel = 10>
 class ObjectTracker {
  public:
-  typedef base::Callback<void(const std::string&)> LogCB;
+  typedef void LogCB(const std::string&);
 
-  static void Dump(const LogCB& log_cb) {
+  static void Dump(LogCB log_cb) {
     AutoLock guard(lock_.Get());
-
+    log_cb("============================ start ============================\n");
     // Sort the objects based on their addresses.
     std::vector<ObjectTracker*> trackers;
     trackers.reserve(16 * 1024);
@@ -68,14 +69,15 @@ class ObjectTracker {
           base::StringAppendF(&line, " %" PRIxPTR, current->back_trace_[j]);
         }
         line += "\n";
-        log_cb.Run(line);
+        log_cb(line);
       } else {
         ++skipped;
       }
     }
     if (skipped != 0) {
-      log_cb.Run(base::StringPrintf("Skipped %d items\n", skipped));
+      log_cb(base::StringPrintf("Skipped %d items\n", skipped));
     }
+    log_cb("============================= end =============================\n");
   }
 
  protected:
