@@ -25,8 +25,7 @@ namespace {
 
 TEST(XhrResponseData, InitialState) {
   XhrResponseData empty;
-  EXPECT_EQ(0, empty.size());
-  EXPECT_EQ(0, empty.capacity());
+  EXPECT_EQ(0u, empty.size());
   EXPECT_TRUE(empty.data() != NULL);
 }
 
@@ -37,8 +36,8 @@ TEST(XhrResponseData, Append) {
     raw_data[i] = static_cast<uint8>(i);
   }
   data.Append(raw_data, 64);
-  EXPECT_EQ(64, data.size());
-  EXPECT_EQ(64, data.capacity());
+  EXPECT_EQ(64u, data.size());
+  EXPECT_LE(64u, data.capacity());
 
   for (int i = 0; i < 64; ++i) {
     EXPECT_EQ(raw_data[i], data.data()[i]);
@@ -48,8 +47,8 @@ TEST(XhrResponseData, Append) {
 TEST(XhrResponseData, Reserve) {
   XhrResponseData data;
   data.Reserve(1);
-  EXPECT_EQ(1, data.capacity());
-  EXPECT_EQ(0, data.size());
+  EXPECT_LE(1u, data.capacity());
+  EXPECT_EQ(0u, data.size());
   EXPECT_TRUE(data.data() != NULL);
 }
 
