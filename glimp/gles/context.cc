@@ -25,6 +25,7 @@
 #include "glimp/gles/index_data_type.h"
 #include "glimp/gles/pixel_format.h"
 #include "glimp/nb/pointer_arithmetic.h"
+#include "glimp/tracing/tracing.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
@@ -115,12 +116,14 @@ void Context::ReleaseTLSCurrentContext() {
 }
 
 GLenum Context::GetError() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   GLenum error = error_;
   error_ = GL_NO_ERROR;
   return error;
 }
 
 const GLubyte* Context::GetString(GLenum name) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   switch (name) {
     case GL_EXTENSIONS:
       return reinterpret_cast<const GLubyte*>(extensions_string_.c_str());
@@ -141,6 +144,7 @@ const GLubyte* Context::GetString(GLenum name) {
 }
 
 void Context::GetIntegerv(GLenum pname, GLint* params) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   switch (pname) {
     case GL_MAX_TEXTURE_SIZE:
       *params = impl_->GetMaxTextureSize();
@@ -172,6 +176,7 @@ void Context::GetIntegerv(GLenum pname, GLint* params) {
 }
 
 void Context::GetShaderiv(GLuint shader, GLenum pname, GLint* params) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   nb::scoped_refptr<Shader> shader_object =
       resource_manager_->GetShader(shader);
   if (!shader_object) {
@@ -189,6 +194,7 @@ void Context::GetShaderInfoLog(GLuint shader,
                                GLsizei bufsize,
                                GLsizei* length,
                                GLchar* infolog) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (bufsize < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -205,6 +211,7 @@ void Context::GetShaderInfoLog(GLuint shader,
 }
 
 void Context::GetProgramiv(GLuint program, GLenum pname, GLint* params) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   nb::scoped_refptr<Program> program_object =
       resource_manager_->GetProgram(program);
   if (!program_object) {
@@ -222,6 +229,7 @@ void Context::GetProgramInfoLog(GLuint program,
                                 GLsizei bufsize,
                                 GLsizei* length,
                                 GLchar* infolog) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (bufsize < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -238,6 +246,7 @@ void Context::GetProgramInfoLog(GLuint program,
 }
 
 void Context::PixelStorei(GLenum pname, GLint param) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   switch (pname) {
     case GL_PACK_ALIGNMENT:
     case GL_UNPACK_ALIGNMENT:
@@ -280,6 +289,7 @@ void Context::PixelStorei(GLenum pname, GLint param) {
 }
 
 void Context::Enable(GLenum cap) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   switch (cap) {
     case GL_BLEND:
       draw_state_.blend_state.enabled = true;
@@ -303,6 +313,7 @@ void Context::Enable(GLenum cap) {
 }
 
 void Context::Disable(GLenum cap) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   switch (cap) {
     case GL_BLEND:
       draw_state_.blend_state.enabled = false;
@@ -332,11 +343,13 @@ void Context::ColorMask(GLboolean red,
                         GLboolean green,
                         GLboolean blue,
                         GLboolean alpha) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   draw_state_.color_mask = gles::ColorMask(red, green, blue, alpha);
   draw_state_dirty_flags_.color_mask_dirty = true;
 }
 
 void Context::DepthMask(GLboolean flag) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (flag == GL_TRUE) {
     SB_NOTIMPLEMENTED() << "glimp currently does not support depth buffers.";
     SetError(GL_INVALID_OPERATION);
@@ -344,6 +357,7 @@ void Context::DepthMask(GLboolean flag) {
 }
 
 void Context::Clear(GLbitfield mask) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   impl_->Clear(mask & GL_COLOR_BUFFER_BIT, mask & GL_DEPTH_BUFFER_BIT,
                mask & GL_STENCIL_BUFFER_BIT, draw_state_,
                &draw_state_dirty_flags_);
@@ -353,6 +367,7 @@ void Context::ClearColor(GLfloat red,
                          GLfloat green,
                          GLfloat blue,
                          GLfloat alpha) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   draw_state_.clear_color = gles::ClearColor(red, green, blue, alpha);
   draw_state_dirty_flags_.clear_color_dirty = true;
 }
@@ -397,6 +412,7 @@ BlendState::Factor BlendStateFactorFromGLenum(GLenum blend_factor) {
 }  // namespace
 
 void Context::BlendFunc(GLenum sfactor, GLenum dfactor) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   BlendState::Factor src_factor = BlendStateFactorFromGLenum(sfactor);
   BlendState::Factor dst_factor = BlendStateFactorFromGLenum(dfactor);
   if (src_factor == BlendState::kFactorInvalid ||
@@ -411,6 +427,7 @@ void Context::BlendFunc(GLenum sfactor, GLenum dfactor) {
 }
 
 GLuint Context::CreateProgram() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   nb::scoped_ptr<ProgramImpl> program_impl = impl_->CreateProgram();
   SB_DCHECK(program_impl);
 
@@ -420,6 +437,7 @@ GLuint Context::CreateProgram() {
 }
 
 void Context::DeleteProgram(GLuint program) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   // As indicated by the specification for glDeleteProgram(),
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glDeleteProgram.xml
   // values of 0 will be silently ignored.
@@ -436,6 +454,7 @@ void Context::DeleteProgram(GLuint program) {
 }
 
 void Context::AttachShader(GLuint program, GLuint shader) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   nb::scoped_refptr<Program> program_object =
       resource_manager_->GetProgram(program);
   if (!program_object) {
@@ -457,6 +476,7 @@ void Context::AttachShader(GLuint program, GLuint shader) {
 }
 
 void Context::LinkProgram(GLuint program) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   nb::scoped_refptr<Program> program_object =
       resource_manager_->GetProgram(program);
   if (!program_object) {
@@ -474,6 +494,7 @@ void Context::LinkProgram(GLuint program) {
 void Context::BindAttribLocation(GLuint program,
                                  GLuint index,
                                  const GLchar* name) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (index >= GL_MAX_VERTEX_ATTRIBS) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -499,6 +520,7 @@ void Context::BindAttribLocation(GLuint program,
 }
 
 void Context::UseProgram(GLuint program) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (program == 0) {
     draw_state_.used_program = NULL;
     MarkUsedProgramDirty();
@@ -525,6 +547,7 @@ void Context::UseProgram(GLuint program) {
 }
 
 GLuint Context::CreateShader(GLenum type) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   nb::scoped_ptr<ShaderImpl> shader_impl;
   if (type == GL_VERTEX_SHADER) {
     shader_impl = impl_->CreateVertexShader();
@@ -542,6 +565,7 @@ GLuint Context::CreateShader(GLenum type) {
 }
 
 void Context::DeleteShader(GLuint shader) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   // As indicated by the specification for glDeleteShader(),
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glDeleteShader.xml
   // values of 0 will be silently ignored.
@@ -561,6 +585,7 @@ void Context::ShaderSource(GLuint shader,
                            GLsizei count,
                            const GLchar* const* string,
                            const GLint* length) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (count < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -578,6 +603,7 @@ void Context::ShaderSource(GLuint shader,
 }
 
 void Context::CompileShader(GLuint shader) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   nb::scoped_refptr<Shader> shader_object =
       resource_manager_->GetShader(shader);
 
@@ -590,6 +616,7 @@ void Context::CompileShader(GLuint shader) {
 }
 
 void Context::GenBuffers(GLsizei n, GLuint* buffers) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (n < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -606,6 +633,7 @@ void Context::GenBuffers(GLsizei n, GLuint* buffers) {
 }
 
 void Context::DeleteBuffers(GLsizei n, const GLuint* buffers) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (n < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -663,6 +691,7 @@ bool IsValidBufferTarget(GLenum target) {
 }  // namespace
 
 void Context::BindBuffer(GLenum target, GLuint buffer) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (!IsValidBufferTarget(target)) {
     SetError(GL_INVALID_ENUM);
     return;
@@ -693,6 +722,7 @@ void Context::BufferData(GLenum target,
                          GLsizeiptr size,
                          const GLvoid* data,
                          GLenum usage) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (size < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -732,6 +762,7 @@ void Context::BufferSubData(GLenum target,
                             GLintptr offset,
                             GLsizeiptr size,
                             const GLvoid* data) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (size < 0 || offset < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -801,6 +832,7 @@ void* Context::MapBufferRange(GLenum target,
                               GLintptr offset,
                               GLsizeiptr length,
                               GLbitfield access) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (!IsValidBufferTarget(target)) {
     SetError(GL_INVALID_ENUM);
     return NULL;
@@ -841,6 +873,7 @@ void* Context::MapBufferRange(GLenum target,
 }
 
 bool Context::UnmapBuffer(GLenum target) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (!IsValidBufferTarget(target)) {
     SetError(GL_INVALID_ENUM);
     return GL_FALSE;
@@ -863,6 +896,7 @@ bool Context::UnmapBuffer(GLenum target) {
 }
 
 void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   SB_DCHECK(current_thread_ == kSbThreadInvalid ||
             current_thread_ == SbThreadGetCurrent());
 
@@ -902,6 +936,7 @@ void Context::MakeCurrent(egl::Surface* draw, egl::Surface* read) {
 }
 
 void Context::ReleaseContext() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   SB_DCHECK(current_thread_ != kSbThreadInvalid);
   SB_DCHECK(current_thread_ == SbThreadGetCurrent());
   SB_DCHECK(has_been_current_);
@@ -910,6 +945,7 @@ void Context::ReleaseContext() {
 }
 
 nb::scoped_refptr<Buffer>* Context::GetBoundBufferForTarget(GLenum target) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   switch (target) {
     case GL_ARRAY_BUFFER:
       draw_state_dirty_flags_.array_buffer_dirty = true;
@@ -926,6 +962,7 @@ nb::scoped_refptr<Buffer>* Context::GetBoundBufferForTarget(GLenum target) {
 }
 
 nb::scoped_refptr<Texture>* Context::GetBoundTextureForTarget(GLenum target) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   switch (target) {
     case GL_TEXTURE_2D:
       return &(texture_units_[active_texture_ - GL_TEXTURE0]);
@@ -939,6 +976,7 @@ nb::scoped_refptr<Texture>* Context::GetBoundTextureForTarget(GLenum target) {
 }
 
 void Context::SetupExtensionsString() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   // Extract the list of extensions from the platform-specific implementation
   // and then turn them into a string.
   ContextImpl::ExtensionList impl_extensions = impl_->GetExtensions();
@@ -959,6 +997,7 @@ void Context::SetupExtensionsString() {
 }
 
 void Context::GenTextures(GLsizei n, GLuint* textures) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (n < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -975,6 +1014,7 @@ void Context::GenTextures(GLsizei n, GLuint* textures) {
 }
 
 void Context::DeleteTextures(GLsizei n, const GLuint* textures) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (n < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -1005,6 +1045,7 @@ void Context::DeleteTextures(GLsizei n, const GLuint* textures) {
 }
 
 void Context::ActiveTexture(GLenum texture) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (texture < GL_TEXTURE0 ||
       texture >= GL_TEXTURE0 + impl_->GetMaxFragmentTextureUnits()) {
     SetError(GL_INVALID_ENUM);
@@ -1015,6 +1056,7 @@ void Context::ActiveTexture(GLenum texture) {
 }
 
 void Context::BindTexture(GLenum target, GLuint texture) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (target != GL_TEXTURE_2D && target != GL_TEXTURE_CUBE_MAP) {
     SetError(GL_INVALID_ENUM);
     return;
@@ -1088,6 +1130,7 @@ Sampler::WrapMode WrapModeFromGLEnum(GLenum wrap_mode) {
 }  // namespace
 
 void Context::TexParameteri(GLenum target, GLenum pname, GLint param) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   Sampler* active_sampler =
       (*GetBoundTextureForTarget(target))->sampler_parameters();
 
@@ -1185,6 +1228,7 @@ void Context::TexImage2D(GLenum target,
                          GLenum format,
                          GLenum type,
                          const GLvoid* pixels) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (target != GL_TEXTURE_2D) {
     SB_NOTREACHED() << "Only target=GL_TEXTURE_2D is supported in glimp.";
     SetError(GL_INVALID_ENUM);
@@ -1259,6 +1303,7 @@ void Context::TexSubImage2D(GLenum target,
                             GLenum format,
                             GLenum type,
                             const GLvoid* pixels) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (target != GL_TEXTURE_2D) {
     SB_NOTREACHED() << "Only target=GL_TEXTURE_2D is supported in glimp.";
     SetError(GL_INVALID_ENUM);
@@ -1328,6 +1373,7 @@ void Context::TexSubImage2D(GLenum target,
 }
 
 void Context::GenFramebuffers(GLsizei n, GLuint* framebuffers) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (n < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -1341,6 +1387,7 @@ void Context::GenFramebuffers(GLsizei n, GLuint* framebuffers) {
 }
 
 void Context::DeleteFramebuffers(GLsizei n, const GLuint* framebuffers) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (n < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -1374,6 +1421,7 @@ void Context::DeleteFramebuffers(GLsizei n, const GLuint* framebuffers) {
 }
 
 void Context::BindFramebuffer(GLenum target, GLuint framebuffer) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (target != GL_FRAMEBUFFER) {
     SetError(GL_INVALID_ENUM);
     return;
@@ -1407,6 +1455,7 @@ void Context::FramebufferTexture2D(GLenum target,
                                    GLenum textarget,
                                    GLuint texture,
                                    GLint level) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (target != GL_FRAMEBUFFER) {
     SetError(GL_INVALID_ENUM);
     return;
@@ -1443,6 +1492,7 @@ void Context::FramebufferTexture2D(GLenum target,
 }
 
 GLenum Context::CheckFramebufferStatus(GLenum target) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (target != GL_FRAMEBUFFER) {
     SetError(GL_INVALID_ENUM);
     return 0;
@@ -1455,6 +1505,7 @@ void Context::FramebufferRenderbuffer(GLenum target,
                                       GLenum attachment,
                                       GLenum renderbuffertarget,
                                       GLuint renderbuffer) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (target != GL_FRAMEBUFFER || renderbuffertarget != GL_RENDERBUFFER) {
     SetError(GL_INVALID_ENUM);
     return;
@@ -1495,6 +1546,7 @@ void Context::FramebufferRenderbuffer(GLenum target,
 }
 
 void Context::GenRenderbuffers(GLsizei n, GLuint* renderbuffers) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (n < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -1508,6 +1560,7 @@ void Context::GenRenderbuffers(GLsizei n, GLuint* renderbuffers) {
 }
 
 void Context::DeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (n < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -1538,6 +1591,7 @@ void Context::DeleteRenderbuffers(GLsizei n, const GLuint* renderbuffers) {
 }
 
 void Context::BindRenderbuffer(GLenum target, GLuint renderbuffer) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (target != GL_RENDERBUFFER) {
     SetError(GL_INVALID_ENUM);
     return;
@@ -1584,6 +1638,7 @@ void Context::RenderbufferStorage(GLenum target,
                                   GLenum internalformat,
                                   GLsizei width,
                                   GLsizei height) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (target != GL_RENDERBUFFER) {
     SetError(GL_INVALID_ENUM);
     return;
@@ -1608,6 +1663,7 @@ void Context::RenderbufferStorage(GLenum target,
 }
 
 void Context::StencilMask(GLuint mask) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (mask != 0xFFFFFFFF) {
     // If we are not setting stencil mask to its initial value then indicate
     // that our implementation is lacking.
@@ -1616,6 +1672,7 @@ void Context::StencilMask(GLuint mask) {
 }
 
 void Context::ClearStencil(GLint s) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (s != 0) {
     // If we are not setting stencil clear to its initial value then indicate
     // that our implementation is lacking.
@@ -1624,11 +1681,13 @@ void Context::ClearStencil(GLint s) {
 }
 
 void Context::Viewport(GLint x, GLint y, GLsizei width, GLsizei height) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   draw_state_.viewport.rect = nb::Rect<int>(x, y, width, height);
   draw_state_dirty_flags_.viewport_dirty = true;
 }
 
 void Context::Scissor(GLint x, GLint y, GLsizei width, GLsizei height) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (x < 0) {
     SB_DLOG(WARNING) << "glScissor() x coordinate is set to negative.";
   }
@@ -1668,6 +1727,7 @@ void Context::VertexAttribPointer(GLuint indx,
                                   GLboolean normalized,
                                   GLsizei stride,
                                   const GLvoid* ptr) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (indx >= GL_MAX_VERTEX_ATTRIBS) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -1697,6 +1757,7 @@ void Context::VertexAttribPointer(GLuint indx,
 }
 
 void Context::EnableVertexAttribArray(GLuint index) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (index >= GL_MAX_VERTEX_ATTRIBS) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -1707,6 +1768,7 @@ void Context::EnableVertexAttribArray(GLuint index) {
 }
 
 void Context::DisableVertexAttribArray(GLuint index) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (index >= GL_MAX_VERTEX_ATTRIBS) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -1719,6 +1781,7 @@ void Context::DisableVertexAttribArray(GLuint index) {
 void Context::VertexAttribfv(GLuint indx,
                              int elem_size,
                              const GLfloat* values) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   SB_DCHECK(elem_size > 0);
   SB_DCHECK(elem_size <= 4);
 
@@ -1734,6 +1797,7 @@ void Context::VertexAttribfv(GLuint indx,
 }
 
 GLint Context::GetUniformLocation(GLuint program, const GLchar* name) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (name[0] == 'g' && name[1] == 'l' && name[2] == '_') {
     // |name| is not allowed to begin with the reserved prefix, "gl_".
     return -1;
@@ -1758,6 +1822,7 @@ void Context::Uniformiv(GLint location,
                         GLsizei count,
                         GLsizei elem_size,
                         const GLint* v) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   SB_DCHECK(elem_size >= 1 && elem_size <= 4);
 
   if (count < 0) {
@@ -1783,6 +1848,7 @@ void Context::Uniformfv(GLint location,
                         GLsizei count,
                         GLsizei elem_size,
                         const GLfloat* v) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   SB_DCHECK(elem_size >= 1 && elem_size <= 4);
 
   if (count < 0) {
@@ -1809,6 +1875,7 @@ void Context::UniformMatrixfv(GLint location,
                               GLboolean transpose,
                               GLsizei dim_size,
                               const GLfloat* value) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   SB_DCHECK(dim_size >= 2 && dim_size <= 4);
 
   if (transpose != GL_FALSE) {
@@ -1854,6 +1921,7 @@ DrawMode DrawModeFromGLEnum(GLenum mode) {
 }  // namespace
 
 void Context::DrawArrays(GLenum mode, GLint first, GLsizei count) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (count < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -1897,6 +1965,7 @@ void Context::DrawElements(GLenum mode,
                            GLsizei count,
                            GLenum type,
                            const GLvoid* indices) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (count < 0) {
     SetError(GL_INVALID_VALUE);
     return;
@@ -1967,6 +2036,7 @@ void Context::ReadPixels(GLint x,
                          GLenum format,
                          GLenum type,
                          GLvoid* pixels) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (!ValidReadPixelsFormat(format) || !ValidReadPixelsType(type)) {
     SetError(GL_INVALID_ENUM);
     return;
@@ -1996,19 +2066,23 @@ void Context::ReadPixels(GLint x,
 }
 
 void Context::Flush() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   impl_->Flush();
 }
 
 void Context::Finish() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   impl_->Finish();
 }
 
 void Context::SwapBuffers() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   Flush();
   impl_->SwapBuffers(default_draw_framebuffer_->color_attachment_surface());
 }
 
 bool Context::BindTextureToEGLSurface(egl::Surface* surface) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   SB_DCHECK(surface->GetTextureTarget() == EGL_TEXTURE_2D);
 
   const nb::scoped_refptr<Texture>& current_texture =
@@ -2031,6 +2105,7 @@ bool Context::BindTextureToEGLSurface(egl::Surface* surface) {
 }
 
 bool Context::ReleaseTextureFromEGLSurface(egl::Surface* surface) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   std::map<egl::Surface*, nb::scoped_refptr<Texture> >::iterator found =
       bound_egl_surfaces_.find(surface);
   if (found == bound_egl_surfaces_.end()) {
@@ -2047,6 +2122,7 @@ bool Context::ReleaseTextureFromEGLSurface(egl::Surface* surface) {
 }
 
 void Context::UpdateVertexAttribsInDrawState() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   // Setup the dense list of enabled vertex attributes.
   draw_state_.vertex_attributes.clear();
   for (std::set<unsigned int>::const_iterator iter =
@@ -2074,6 +2150,7 @@ void Context::UpdateVertexAttribsInDrawState() {
 }
 
 void Context::UpdateSamplersInDrawState() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   // Setup the list of enabled samplers.
   draw_state_.textures.clear();
   int max_active_textures = impl_->GetMaxFragmentTextureUnits();
@@ -2089,6 +2166,7 @@ void Context::UpdateSamplersInDrawState() {
 }
 
 void Context::CompressDrawStateForDrawCall() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (enabled_vertex_attribs_dirty_) {
     UpdateVertexAttribsInDrawState();
     SB_DCHECK(enabled_vertex_attribs_dirty_ == false);
@@ -2101,6 +2179,7 @@ void Context::CompressDrawStateForDrawCall() {
 }
 
 void Context::MarkUsedProgramDirty() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   draw_state_dirty_flags_.used_program_dirty = true;
   // Switching programs marks all uniforms, samplers and vertex attributes
   // as being dirty as well, since they are all properties of the program.
@@ -2110,6 +2189,7 @@ void Context::MarkUsedProgramDirty() {
 }
 
 void Context::SetBoundDrawFramebufferToDefault() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (draw_state_.framebuffer != default_draw_framebuffer_) {
     draw_state_.framebuffer = default_draw_framebuffer_;
     draw_state_dirty_flags_.framebuffer_dirty = true;
@@ -2117,20 +2197,24 @@ void Context::SetBoundDrawFramebufferToDefault() {
 }
 
 void Context::SetBoundReadFramebufferToDefault() {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (read_framebuffer_ != default_read_framebuffer_) {
     read_framebuffer_ = default_read_framebuffer_;
   }
 }
 
 bool Context::IsDefaultDrawFramebufferBound() const {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   return draw_state_.framebuffer == default_draw_framebuffer_;
 }
 
 bool Context::IsDefaultReadFramebufferBound() const {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   return read_framebuffer_ == default_read_framebuffer_;
 }
 
 int Context::GetPitchForTextureData(int width, PixelFormat pixel_format) const {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
   // The equations for determining the pitch are described here:
   //   https://www.khronos.org/opengles/sdk/docs/man3/html/glPixelStorei.xhtml
   int n = BytesPerPixel(pixel_format);
