@@ -247,7 +247,6 @@ template <typename CacheType>
 void CachedResource<CacheType>::OnLoadingDone(
     const scoped_refptr<ResourceType>& resource) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
-  DCHECK(resource);
 
   resource_ = resource;
 
@@ -483,12 +482,13 @@ template <typename CacheType>
 void ResourceCache<CacheType>::NotifyResourceLoaded(
     CachedResourceType* cached_resource) {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
-  DCHECK(cached_resource->TryGetResource());
 
-  size_in_bytes_ +=
-      CacheType::GetEstimatedSizeInBytes(cached_resource->TryGetResource());
-  if (size_in_bytes_ > cache_capacity_) {
-    ReclaimMemory();
+  if (cached_resource->TryGetResource()) {
+    size_in_bytes_ +=
+        CacheType::GetEstimatedSizeInBytes(cached_resource->TryGetResource());
+    if (size_in_bytes_ > cache_capacity_) {
+      ReclaimMemory();
+    }
   }
 }
 
