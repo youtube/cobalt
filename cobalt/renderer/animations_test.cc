@@ -144,7 +144,7 @@ TEST(ResourceProviderTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
 
     // Our test render tree will consist of only a single ImageNode.
     scoped_refptr<ImageNode> test_node =
-        new ImageNode(scoped_refptr<Image>(), math::SizeF(1.0f, 1.0f));
+        new ImageNode(scoped_refptr<Image>(), math::RectF(1.0f, 1.0f));
 
     // Animate the ImageNode and pass in our callback function to be executed
     // upon render_tree animation.

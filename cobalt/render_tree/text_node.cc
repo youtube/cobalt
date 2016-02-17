@@ -22,24 +22,23 @@ namespace cobalt {
 namespace render_tree {
 
 TextNode::Builder::Builder(
+    const math::Vector2dF& offset,
     const scoped_refptr<render_tree::GlyphBuffer>& glyph_buffer,
     const ColorRGBA& color)
-    : glyph_buffer(glyph_buffer), color(color) {}
+    : offset(offset), glyph_buffer(glyph_buffer), color(color) {}
 
 void TextNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 math::RectF TextNode::GetBounds() const {
-  if (!data_.shadows) {
-    return data_.glyph_buffer->GetBounds();
-  } else {
-    math::RectF bounds = data_.glyph_buffer->GetBounds();
+  math::RectF bounds = data_.glyph_buffer->GetBounds();
+  if (data_.shadows) {
     for (size_t i = 0; i < data_.shadows->size(); ++i) {
       bounds.Union(
           (*data_.shadows)[i].ToShadowBounds(data_.glyph_buffer->GetBounds()));
     }
-
-    return bounds;
   }
+  bounds.Offset(data_.offset);
+  return bounds;
 }
 
 }  // namespace render_tree

@@ -115,7 +115,7 @@ class UsedBackgroundNodeProvider
     : public cssom::NotReachedPropertyValueVisitor {
  public:
   UsedBackgroundNodeProvider(
-      const math::SizeF& frame_size,
+      const math::RectF& frame,
       const scoped_refptr<cssom::PropertyValue>& background_size,
       const scoped_refptr<cssom::PropertyValue>& background_position,
       const scoped_refptr<cssom::PropertyValue>& background_repeat,
@@ -132,7 +132,7 @@ class UsedBackgroundNodeProvider
   }
 
  private:
-  const math::SizeF frame_size_;
+  const math::RectF frame_;
   const scoped_refptr<cssom::PropertyValue> background_size_;
   const scoped_refptr<cssom::PropertyValue> background_position_;
   const scoped_refptr<cssom::PropertyValue> background_repeat_;
@@ -275,7 +275,7 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   DISALLOW_COPY_AND_ASSIGN(UsedLineHeightProvider);
 };
 
-math::SizeF GetTransformOriginSize(const math::SizeF& used_size,
+math::Vector2dF GetTransformOrigin(const math::RectF& used_rect,
                                    cssom::PropertyValue* value);
 
 cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value);

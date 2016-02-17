@@ -42,6 +42,8 @@
         'glyph_buffer.h',
         'image_node.cc',
         'image_node.h',
+        'matrix_transform_node.cc',
+        'matrix_transform_node.h',
         'node.h',
         'node_visitor.h',
         'opacity_filter.h',
