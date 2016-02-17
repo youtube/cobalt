@@ -245,6 +245,10 @@ class ContentSecurityPolicy {
     enforce_strict_mixed_content_checking_ = true;
   }
 
+  const std::string& disable_eval_error_message() const {
+    return disable_eval_error_message_;
+  }
+
  private:
   void CreateSelfSource();
   // Parses CSP header and creates policy based on that.

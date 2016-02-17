@@ -58,7 +58,8 @@ class CspDelegate {
 
   CspDelegate(scoped_ptr<CspViolationReporter> violation_reporter,
               const GURL& url, const std::string& default_security_policy,
-              EnforcementType mode);
+              EnforcementType mode,
+              const base::Closure& policy_changed_callback);
   virtual ~CspDelegate();
 
   // Return |true| if the given resource type can be loaded from |url|.
@@ -70,6 +71,16 @@ class CspDelegate {
   virtual bool AllowInline(ResourceType type,
                            const base::SourceLocation& location,
                            const std::string& script_content) const;
+
+  // Return |true| if 'unsafe-eval' is set. No report will be generated in any
+  // case. If eval_disabled_message is non-NULL, it will be set with a message
+  // that should be reported when an application attempts to use eval().
+  virtual bool AllowEval(std::string* eval_disabled_message) const;
+
+  // Report that code was generated from a string, such as through eval() or the
+  // Function constructor. If eval() is not allowed, generate a violation
+  // report. Otherwise if eval() is allowed this is a no-op.
+  virtual void ReportEval() const;
 
   // Signal to the CSP object that CSP policy directives have been received.
   // Return |true| if success, |false| if failure and load should be aborted.
@@ -91,6 +102,10 @@ class CspDelegate {
     return reporter_->post_sender();
   }
 
+  const base::Closure& policy_changed_callback() const {
+    return policy_changed_callback_;
+  }
+
  private:
   void SetLocationPolicy(const std::string& policy);
 
@@ -106,6 +121,11 @@ class CspDelegate {
   // In "Require" enforcement mode, we disallow all loads if CSP headers
   // weren't received. This tracks if we did get a valid header.
   bool was_header_received_;
+
+  // This should be called any time the CSP policy changes. For example, after
+  // receiving (and parsing) the headers, or after encountering a CSP directive
+  // in a <meta> tag.
+  base::Closure policy_changed_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(CspDelegate);
 };

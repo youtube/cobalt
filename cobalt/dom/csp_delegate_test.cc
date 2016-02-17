@@ -71,9 +71,9 @@ void CspDelegateTest::SetUp() {
   scoped_ptr<CspViolationReporter> reporter(
       new StrictMock<MockViolationReporter>());
 
-  csp_delegate_.reset(new CspDelegate(reporter.Pass(), origin,
-                                      default_navigation_policy,
-                                      CspDelegate::kEnforcementEnable));
+  csp_delegate_.reset(
+      new CspDelegate(reporter.Pass(), origin, default_navigation_policy,
+                      CspDelegate::kEnforcementEnable, base::Closure()));
   std::string policy =
       base::StringPrintf("default-src none; %s 'self'", GetParam().directive);
   csp_delegate_->OnReceiveHeader(policy, csp::kHeaderTypeEnforce,
