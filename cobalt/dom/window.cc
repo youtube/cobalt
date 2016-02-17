@@ -81,7 +81,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                network_bridge::CookieJar* cookie_jar,
                const network_bridge::PostSender& post_sender,
                const std::string& default_security_policy,
-               CspDelegate::EnforcementType csp_enforcement_mode)
+               CspDelegate::EnforcementType csp_enforcement_mode,
+               const base::Closure& csp_policy_changed_callback)
     : width_(width),
       height_(height),
       html_element_context_(new HTMLElementContext(
@@ -95,7 +96,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
               url, performance_->timing()->GetNavigationStartClock(),
               navigation_callback, ParseUserAgentStyleSheet(css_parser),
               math::Size(width_, height_), cookie_jar, post_sender,
-              default_security_policy, csp_enforcement_mode))),
+              default_security_policy, csp_enforcement_mode,
+              csp_policy_changed_callback))),
       document_loader_(new loader::Loader(
           base::Bind(&loader::FetcherFactory::CreateFetcher,
                      base::Unretained(fetcher_factory), url),
