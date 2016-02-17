@@ -160,6 +160,11 @@
           'DIAL_SERVER',
         ],
       }],
+      ['enable_file_scheme == 1', {
+        'defines': [
+          'COBALT_ENABLE_FILE_SCHEME',
+        ],
+      }],
     ],
 
     # TODO(***REMOVED***): Revisit and remove unused configurations.
@@ -249,6 +254,7 @@
         'cobalt_copy_debug_console': 1,
         'cobalt_copy_test_data': 1,
         'enable_about_scheme': 1,
+        'enable_file_scheme': 1,
         'enable_remote_debugging%': 1,
         'enable_screenshot': 1,
       },
@@ -258,6 +264,7 @@
         'cobalt_copy_debug_console': 0,
         'cobalt_copy_test_data': 0,
         'enable_about_scheme': 0,
+        'enable_file_scheme': 0,
         'enable_remote_debugging%': 0,
         'enable_screenshot': 0,
       },
