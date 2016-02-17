@@ -29,8 +29,9 @@ JSONFileOutputter::JSONFileOutputter(const FilePath& output_path)
       output_trace_event_call_count_(0),
       file_(base::kInvalidPlatformFileValue) {
   file_ = base::CreatePlatformFile(
-      output_path, base::PLATFORM_FILE_OPEN_ALWAYS | base::PLATFORM_FILE_WRITE,
-      NULL, NULL);
+      output_path,
+      base::PLATFORM_FILE_CREATE_ALWAYS | base::PLATFORM_FILE_WRITE, NULL,
+      NULL);
   if (GetError()) {
     DLOG(ERROR) << "Unable to open file for writing: " << output_path.value();
   } else {
