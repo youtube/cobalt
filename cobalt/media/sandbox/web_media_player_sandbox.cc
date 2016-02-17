@@ -30,11 +30,8 @@ namespace media {
 namespace sandbox {
 namespace {
 
-using base::Bind;
-using base::Unretained;
 using render_tree::Image;
 using ::media::VideoFrame;
-using ::media::WebMediaPlayer;
 
 scoped_refptr<Image> FrameCB(WebMediaPlayerHelper* player_helper,
                              const base::TimeDelta& time) {
@@ -45,11 +42,9 @@ scoped_refptr<Image> FrameCB(WebMediaPlayerHelper* player_helper,
 }
 
 int SandboxMain(int argc, char** argv) {
-  // Provide a default video url in the sandbox for convenience.
-  const char kDefaultURL[] =
-      "file:///cobalt/browser/testdata/media-transition-demo/progressive.mp4";
-  const GURL video_url(argc > 1 ? argv[1] : kDefaultURL);
-
+  DCHECK_GT(argc, 1) << " Usage: " << argv[0] << " <url>";
+  GURL video_url(argv[1]);
+  DCHECK(video_url.is_valid()) << " \"" << argv[1] << "\" is not a valid URL.";
   MediaSandbox media_sandbox(
       argc, argv,
       FilePath(FILE_PATH_LITERAL("web_media_player_sandbox_trace.json")));
@@ -58,7 +53,7 @@ int SandboxMain(int argc, char** argv) {
                                      video_url);
 
   media_sandbox.RegisterFrameCB(
-      base::Bind(FrameCB, Unretained(&player_helper)));
+      base::Bind(FrameCB, base::Unretained(&player_helper)));
 
   for (;;) {
     if (player_helper.IsPlaybackFinished()) {
