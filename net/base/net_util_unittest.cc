@@ -2477,12 +2477,10 @@ TEST(NetUtilTest, FormatUrl) {
      // GURL doesn't assume an email address's domain part as a host name.
      L"mailto:foo@xn--l8jvb1ey91xtjb.jp", 7},
 
-#if !defined (__LB_SHELL__) && !defined(COBALT)
     {"file: with Japanese IDN",
      "file://xn--l8jvb1ey91xtjb.jp/config.sys", "ja", default_format_type,
      UnescapeRule::NORMAL,
      L"file://\x671d\x65e5\x3042\x3055\x3072.jp/config.sys", 7},
-#endif // file is not a StandardURLScheme in LB_SHELL or COBALT
 
     {"ftp: with Japanese IDN",
      "ftp://xn--l8jvb1ey91xtjb.jp/config.sys", "ja", default_format_type,
@@ -2583,11 +2581,9 @@ TEST(NetUtilTest, FormatUrl) {
      "data:/", "en", kFormatUrlOmitTrailingSlashOnBareHostname,
      UnescapeRule::NORMAL, L"data:/", 5},
 
-#if !defined(__LB_SHELL__) && !defined(COBALT)
     {"omit slash for file URLs",
      "file:///", "en", kFormatUrlOmitTrailingSlashOnBareHostname,
      UnescapeRule::NORMAL, L"file:///", 7},
-#endif // file is not a StandardURLScheme in LB_SHELL or COBALT
 
     // -------- view-source: --------
     {"view-source",
@@ -2619,7 +2615,7 @@ TEST(NetUtilTest, FormatUrl) {
 
   size_t exceptions[] = {
 #if defined(COBALT)
-    25,
+    27,
 #endif
   };
 

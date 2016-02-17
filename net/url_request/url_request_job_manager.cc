@@ -33,20 +33,29 @@ struct SchemeToFactory {
 
 }  // namespace
 
+#if defined(COBALT)
+static const SchemeToFactory kBuiltinFactories[] = {
+  {"https", URLRequestHttpJob::Factory},
+  {"data", URLRequestDataJob::Factory},
+#if !defined(COBALT_FORCE_HTTPS)
+  { "http", URLRequestHttpJob::Factory },
+#endif
+#if defined(COBALT_ENABLE_FILE_SCHEME)
+  { "file", URLRequestFileJob::Factory },
+#endif
+};
+#else
 static const SchemeToFactory kBuiltinFactories[] = {
   { "http", URLRequestHttpJob::Factory },
   { "https", URLRequestHttpJob::Factory },
 #if !defined(DISABLE_FTP_SUPPORT)
   { "ftp", URLRequestFtpJob::Factory },
 #endif
-#if !defined(__LB_SHELL__)
   { "file", URLRequestFileJob::Factory },
-#else
-  { "local", URLRequestFileJob::Factory },  // local, jailed file content
-#endif
   { "about", URLRequestAboutJob::Factory },
   { "data", URLRequestDataJob::Factory },
 };
+#endif  // defined(COBALT)
 
 // static
 URLRequestJobManager* URLRequestJobManager::GetInstance() {
