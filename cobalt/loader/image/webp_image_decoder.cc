@@ -116,7 +116,7 @@ bool WEBPImageDecoder::CreateInternalDecoder(bool has_alpha) {
 
   // Instantiate a new incremental decoder object with the requested
   // configuration.
-  internal_decoder_ = WebPIDecode(NULL, NULL, &config_);
+  internal_decoder_ = WebPIDecode(NULL, 0, &config_);
 
   if (internal_decoder_ == NULL) {
     DLOG(WARNING) << "Create internal WEBP decoder failed.";
@@ -129,7 +129,7 @@ bool WEBPImageDecoder::CreateInternalDecoder(bool has_alpha) {
 void WEBPImageDecoder::DeleteInternalDecoder() {
   if (internal_decoder_) {
     // Deletes the WebPIDecoder object and associated memory. Must always be
-    // called if WebPINewDecoder succeeded.
+    // called if WebPIDecode succeeded.
     WebPIDelete(internal_decoder_);
     internal_decoder_ = NULL;
     WebPFreeDecBuffer(&config_.output);
