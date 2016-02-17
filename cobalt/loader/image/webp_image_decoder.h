@@ -48,7 +48,7 @@ class WEBPImageDecoder : public ImageDataDecoder {
   void DeleteInternalDecoder();
 
   WebPIDecoder* internal_decoder_;
-  WebPDecBuffer decoder_buffer_;
+  WebPDecoderConfig config_;
 };
 
 }  // namespace image
