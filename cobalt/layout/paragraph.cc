@@ -240,7 +240,7 @@ bool Paragraph::FindBreakWordBreakPosition(
   base::i18n::UTF16CharIterator iter(unicode_text_.getBuffer() + start_position,
                                      size_t(end_position - start_position));
   int32 segment_start = start_position;
-  while (iter.Advance()) {
+  while (iter.Advance() && !iter.end()) {
     int32 segment_end = start_position + iter.array_pos();
 
     if (!TryIncludeSegmentWithinAvailableWidth(
