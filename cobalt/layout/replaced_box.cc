@@ -140,17 +140,16 @@ void ReplacedBox::RenderAndAnimateContent(
     return;
   }
 
-  CompositionNode::Builder composition_node_builder;
+  CompositionNode::Builder composition_node_builder(
+      math::Vector2dF(border_left_width() + padding_left(),
+                      border_top_width() + padding_top()));
 
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
   node_animations_map_builder->Add(
       composition_node,
       base::Bind(AnimateCB, replace_image_cb_, content_box_size()));
-  border_node_builder->AddChild(
-      composition_node,
-      math::TranslateMatrix(border_left_width() + padding_left(),
-                            border_top_width() + padding_top()));
+  border_node_builder->AddChild(composition_node);
 }
 
 void ReplacedBox::UpdateContentSizeAndMargins(

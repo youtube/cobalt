@@ -14,23 +14,18 @@
  * limitations under the License.
  */
 
-#include "cobalt/render_tree/rect_shadow_node.h"
+#include "cobalt/render_tree/matrix_transform_node.h"
 
+#include "cobalt/math/quad_f.h"
 #include "cobalt/render_tree/node_visitor.h"
 
 namespace cobalt {
 namespace render_tree {
 
-void RectShadowNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
+void MatrixTransformNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
-math::RectF RectShadowNode::GetBounds() const {
-  if (data_.inset) {
-    return data_.rect;
-  } else {
-    math::RectF shadow_bounds = data_.shadow.ToShadowBounds(data_.rect);
-    shadow_bounds.Outset(data_.spread, data_.spread);
-    return shadow_bounds;
-  }
+math::RectF MatrixTransformNode::GetBounds() const {
+  return math::QuadF(data_.transform, data_.source->GetBounds()).BoundingBox();
 }
 
 }  // namespace render_tree

@@ -413,7 +413,8 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
     const ZIndexSortedList& z_index_child_list,
     render_tree::CompositionNode::Builder* content_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
-        node_animations_map_builder) const {
+        node_animations_map_builder,
+    const math::Vector2dF& offset_from_parent_node) const {
   // Render all children of the passed in list in sorted order.
   for (ZIndexSortedList::const_iterator iter = z_index_child_list.begin();
        iter != z_index_child_list.end(); ++iter) {
@@ -421,29 +422,11 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
 
     DCHECK_EQ(this, child_box->stacking_context());
     math::Vector2dF position_offset =
-        GetOffsetFromStackingContextToContainingBlock(child_box);
+        GetOffsetFromStackingContextToContainingBlock(child_box) +
+        offset_from_parent_node;
 
-    if (position_offset.x() == 0.0f && position_offset.y() == 0.0f) {
-      // If there is no offset between the child box's containing block
-      // and this box (the stacking context), we do not need a CompositionNode
-      // for positioning.
-      child_box->RenderAndAnimate(content_node_builder,
-                                  node_animations_map_builder);
-    } else {
-      // Since the child box was laid out relative to its containing block,
-      // but we are rendering it from the stacking context box, we must
-      // transform it by the relative transform between the containing block
-      // and stacking context.
-      render_tree::CompositionNode::Builder position_offset_node_builder;
-      child_box->RenderAndAnimate(&position_offset_node_builder,
-                                  node_animations_map_builder);
-      if (!position_offset_node_builder.composed_children().empty()) {
-        content_node_builder->AddChild(
-            new render_tree::CompositionNode(
-                position_offset_node_builder.Pass()),
-            math::TranslateMatrix(position_offset.x(), position_offset.y()));
-      }
-    }
+    child_box->RenderAndAnimate(content_node_builder,
+                                node_animations_map_builder, position_offset);
   }
 }
 
@@ -493,40 +476,28 @@ void ContainerBox::RenderAndAnimateContent(
     render_tree::CompositionNode::Builder* border_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
-  float content_box_left = border_left_width() + padding_left();
-  float content_box_top = border_top_width() + padding_top();
-  render_tree::CompositionNode::Builder offset_content_node_builder;
-  render_tree::CompositionNode::Builder* content_node_builder =
-      content_box_left == 0 && content_box_top == 0
-          ? border_node_builder
-          : &offset_content_node_builder;
-
+  math::Vector2dF content_box_offset(border_left_width() + padding_left(),
+                                     border_top_width() + padding_top());
   // Render all positioned children in our stacking context that have negative
   // z-index values.
   //   https://www.w3.org/TR/CSS21/visuren.html#z-index
-  RenderAndAnimateStackingContextChildren(negative_z_index_child_,
-                                          content_node_builder,
-                                          node_animations_map_builder);
+  RenderAndAnimateStackingContextChildren(
+      negative_z_index_child_, border_node_builder, node_animations_map_builder,
+      content_box_offset);
   // Render laid out child boxes.
   for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     if (!child_box->IsPositioned() && !child_box->IsTransformed()) {
-      child_box->RenderAndAnimate(content_node_builder,
-                                  node_animations_map_builder);
+      child_box->RenderAndAnimate(
+          border_node_builder, node_animations_map_builder, content_box_offset);
     }
   }
   // Render all positioned children with non-negative z-index values.
   //   https://www.w3.org/TR/CSS21/visuren.html#z-index
-  RenderAndAnimateStackingContextChildren(non_negative_z_index_child_,
-                                          content_node_builder,
-                                          node_animations_map_builder);
-  if (!offset_content_node_builder.composed_children().empty()) {
-    scoped_refptr<render_tree::CompositionNode> content_node =
-        new render_tree::CompositionNode(offset_content_node_builder.Pass());
-    border_node_builder->AddChild(
-        content_node, math::TranslateMatrix(content_box_left, content_box_top));
-  }
+  RenderAndAnimateStackingContextChildren(
+      non_negative_z_index_child_, border_node_builder,
+      node_animations_map_builder, content_box_offset);
 }
 
 #ifdef COBALT_BOX_DUMP_ENABLED

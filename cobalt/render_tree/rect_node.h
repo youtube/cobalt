@@ -37,25 +37,25 @@ class RectNode : public Node {
    public:
     DECLARE_AS_MOVABLE(Builder);
 
-    explicit Builder(const math::SizeF& size);
-    Builder(const math::SizeF& size, scoped_ptr<Border> border);
-    Builder(const math::SizeF& size, scoped_ptr<Border> border,
+    explicit Builder(const math::RectF& rect);
+    Builder(const math::RectF& rect, scoped_ptr<Border> border);
+    Builder(const math::RectF& rect, scoped_ptr<Border> border,
             scoped_ptr<RoundedCorners> rounded_corners);
-    Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush);
-    Builder(const math::SizeF& size,
+    Builder(const math::RectF& rect, scoped_ptr<Brush> background_brush);
+    Builder(const math::RectF& rect,
             scoped_ptr<RoundedCorners> rounded_corners);
-    Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush,
+    Builder(const math::RectF& rect, scoped_ptr<Brush> background_brush,
             scoped_ptr<Border> border);
-    Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush,
+    Builder(const math::RectF& rect, scoped_ptr<Brush> background_brush,
             scoped_ptr<RoundedCorners> rounded_corners);
-    Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush,
+    Builder(const math::RectF& rect, scoped_ptr<Brush> background_brush,
             scoped_ptr<Border> border,
             scoped_ptr<RoundedCorners> rounded_corners);
     explicit Builder(const Builder& other);
     explicit Builder(Moved moved);
 
-    // A size of a rectangle (size includes border).
-    math::SizeF size;
+    // The destination rectangle (size includes border).
+    math::RectF rect;
 
     // A solid or gradient brush to fill the rectangle with.
     // This can be null if a background brush is not specified.
@@ -69,33 +69,33 @@ class RectNode : public Node {
     scoped_ptr<RoundedCorners> rounded_corners;
   };
 
-  RectNode(const math::SizeF& size, scoped_ptr<Border> border)
-      : data_(size, border.Pass()) {
+  RectNode(const math::RectF& rect, scoped_ptr<Border> border)
+      : data_(rect, border.Pass()) {
     DCheckData(data_);
   }
-  RectNode(const math::SizeF& size, scoped_ptr<Border> border,
+  RectNode(const math::RectF& rect, scoped_ptr<Border> border,
            scoped_ptr<RoundedCorners> rounded_corners)
-      : data_(size, border.Pass(), rounded_corners.Pass()) {
+      : data_(rect, border.Pass(), rounded_corners.Pass()) {
     DCheckData(data_);
   }
-  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush)
-      : data_(size, background_brush.Pass()) {
+  RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush)
+      : data_(rect, background_brush.Pass()) {
     DCheckData(data_);
   }
-  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush,
+  RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush,
            scoped_ptr<Border> border)
-      : data_(size, background_brush.Pass(), border.Pass()) {
+      : data_(rect, background_brush.Pass(), border.Pass()) {
     DCheckData(data_);
   }
-  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush,
+  RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush,
            scoped_ptr<RoundedCorners> rounded_corners)
-      : data_(size, background_brush.Pass(), rounded_corners.Pass()) {
+      : data_(rect, background_brush.Pass(), rounded_corners.Pass()) {
     DCheckData(data_);
   }
-  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush,
+  RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush,
            scoped_ptr<Border> border,
            scoped_ptr<RoundedCorners> rounded_corners)
-      : data_(size, background_brush.Pass(), border.Pass(),
+      : data_(rect, background_brush.Pass(), border.Pass(),
               rounded_corners.Pass()) {
     DCheckData(data_);
   }

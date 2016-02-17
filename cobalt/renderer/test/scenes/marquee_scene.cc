@@ -24,6 +24,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/glyph_buffer.h"
+#include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
 
@@ -37,6 +38,7 @@ using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Font;
 using cobalt::render_tree::FontStyle;
 using cobalt::render_tree::GlyphBuffer;
+using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::ResourceProvider;
@@ -61,10 +63,9 @@ scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
   return resource_provider->CreateGlyphBuffer(text, font);
 }
 
-void AnimateMarqueeElement(base::TimeDelta start_time, int child_index,
-                           const RectF& text_bounds,
+void AnimateMarqueeElement(base::TimeDelta start_time, const RectF& text_bounds,
                            const SizeF& output_dimensions,
-                           CompositionNode::Builder* composition_node,
+                           MatrixTransformNode::Builder* transform_node,
                            base::TimeDelta time) {
   // Calculate the animated x position of the text.
   const float kTextMarqueePeriod = 10.0f;
@@ -77,9 +78,7 @@ void AnimateMarqueeElement(base::TimeDelta start_time, int child_index,
       (text_end_position - text_start_position) * periodic_position;
 
   // Translate the specified child element by the appropriate amount.
-  CompositionNode::ComposedChild* child =
-      composition_node->GetChild(child_index);
-  child->transform = child->transform * TranslateMatrix(x_position, 0);
+  transform_node->transform = TranslateMatrix(x_position, 0);
 }
 
 }  // namespace
@@ -113,30 +112,23 @@ RenderTreeWithAnimations CreateMarqueeScene(
 
   // Add a background rectangle to the text in order to demonstrate the
   // relationship between the text's origin and its bounding box.
-  marquee_scene_builder.AddChild(
-      make_scoped_refptr(new RectNode(
-          SizeF(text_bounds.width(), text_bounds.height()),
-          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.7f, 0.2f, 1.0f))))),
-      TranslateMatrix(text_bounds.x(), y_position + text_bounds.y()));
-  marquee_animations.animations.push_back(base::Bind(
-      &AnimateMarqueeElement, start_time, 0, text_bounds, output_dimensions));
+  marquee_scene_builder.AddChild(make_scoped_refptr(new RectNode(
+      RectF(text_bounds.x(), y_position + text_bounds.y(), text_bounds.width(),
+            text_bounds.height()),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.7f, 0.2f, 1.0f))))));
 
   // Add the actual text node to our composition.
-  marquee_scene_builder.AddChild(
-      make_scoped_refptr(
-          new TextNode(glyph_buffer, ColorRGBA(0.0f, 0.0f, 0.0f))),
-      TranslateMatrix(0, y_position));
-  marquee_animations.animations.push_back(base::Bind(
-      &AnimateMarqueeElement, start_time, 1, text_bounds, output_dimensions));
+  marquee_scene_builder.AddChild(new TextNode(math::Vector2dF(0, y_position),
+                                              glyph_buffer,
+                                              ColorRGBA(0.0f, 0.0f, 0.0f)));
 
-  scoped_refptr<CompositionNode> marquee_composition(
-      new CompositionNode(marquee_scene_builder.Pass()));
+  scoped_refptr<MatrixTransformNode> marquee_node(new MatrixTransformNode(
+      new CompositionNode(marquee_scene_builder.Pass()), Matrix3F::Identity()));
 
-  animations.Add(marquee_composition,
-                 make_scoped_refptr(new AnimationList<CompositionNode>(
-                     marquee_animations.Pass())));
+  animations.Add(marquee_node, base::Bind(&AnimateMarqueeElement, start_time,
+                                          text_bounds, output_dimensions));
 
-  return RenderTreeWithAnimations(marquee_composition,
+  return RenderTreeWithAnimations(marquee_node,
                                   new NodeAnimationsMap(animations.Pass()));
 }
 

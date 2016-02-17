@@ -30,17 +30,20 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 
 using cobalt::math::Matrix3F;
 using cobalt::math::PointF;
 using cobalt::math::RotateMatrix;
+using cobalt::math::RectF;
 using cobalt::math::ScaleMatrix;
 using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
+using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::animations::Animation;
@@ -65,20 +68,18 @@ float RandRange(float lower, float upper) {
   return base::RandDouble() * (upper - lower) + lower;
 }
 
-void AnimateSprite(base::TimeDelta start_time, int child_index,
-                   const SpriteInfo& sprite_info, const SizeF& child_size,
-                   CompositionNode::Builder* composition_node,
+void AnimateSprite(base::TimeDelta start_time, const SpriteInfo& sprite_info,
+                   const RectF& child_rect,
+                   MatrixTransformNode::Builder* transform_node,
                    base::TimeDelta time) {
-  CompositionNode::ComposedChild* child =
-      composition_node->GetChild(child_index);
-
   // Setup child node's scale and rotation and translation.
   float theta =
       (time - start_time).InSecondsF() * sprite_info.rotation_speed * 2 * M_PI;
-  child->transform = child->transform * RotateMatrix(theta) *
-                     ScaleMatrix(sprite_info.scale) *
-                     TranslateMatrix(  // Set child center as origin.
-                         -0.5 * child_size.width(), -0.5 * child_size.height());
+  transform_node->transform =
+      transform_node->transform * RotateMatrix(theta) *
+      ScaleMatrix(sprite_info.scale) *
+      TranslateMatrix(  // Set child center as origin.
+          -0.5 * child_rect.width(), -0.5 * child_rect.height());
 }
 
 std::vector<SpriteInfo> CreateSpriteInfos() {
@@ -136,24 +137,22 @@ RenderTreeWithAnimations CreateSpinningSpritesScene(
     // Create the child image node that references the image data
     scoped_refptr<ImageNode> image_node(new ImageNode(test_image));
 
-    // Add the child image node to the list of composed nodes.
-    spinning_sprites_scene_builder.AddChild(
+    scoped_refptr<MatrixTransformNode> transformed_node(new MatrixTransformNode(
         image_node,
         TranslateMatrix(  // Place the image within the scene.
             sprite_info.position.x() * output_dimensions.width(),
-            sprite_info.position.y() * output_dimensions.height()));
+            sprite_info.position.y() * output_dimensions.height())));
 
-    sprite_animation_list.animations.push_back(
-        base::Bind(&AnimateSprite, start_time, i, sprite_info,
-                   image_node->data().destination_size));
+    // Add the child image node to the list of composed nodes.
+    spinning_sprites_scene_builder.AddChild(transformed_node);
+
+    animations.Add(transformed_node,
+                   base::Bind(&AnimateSprite, start_time, sprite_info,
+                              image_node->data().destination_rect));
   }
 
   scoped_refptr<CompositionNode> spinning_sprites_composition(
       new CompositionNode(spinning_sprites_scene_builder.Pass()));
-
-  animations.Add(spinning_sprites_composition,
-                 make_scoped_refptr(new AnimationList<CompositionNode>(
-                     sprite_animation_list.Pass())));
 
   return RenderTreeWithAnimations(spinning_sprites_composition,
                                   new NodeAnimationsMap(animations.Pass()));

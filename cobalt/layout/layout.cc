@@ -135,7 +135,7 @@ RenderTreeWithAnimations Layout(
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatRenderAndAnimate);
     (*initial_containing_block)
         ->RenderAndAnimate(&render_tree_root_builder,
-                           &node_animations_map_builder);
+                           &node_animations_map_builder, math::Vector2dF(0, 0));
   }
 
   return RenderTreeWithAnimations(
