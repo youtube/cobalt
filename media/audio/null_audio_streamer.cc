@@ -16,7 +16,9 @@ NullAudioStreamer::NullAudioStreamer()
 }
 
 NullAudioStreamer::~NullAudioStreamer() {
-  advance_streams_timer_.Stop();
+  null_streamer_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&NullAudioStreamer::StopNullStreamer, base::Unretained(this)));
   null_streamer_thread_.Stop();
 }
 
@@ -52,9 +54,15 @@ bool NullAudioStreamer::HasStream(ShellAudioStream* stream) const {
 
 void NullAudioStreamer::StartNullStreamer() {
   last_run_time_ = base::Time::Now();
-  advance_streams_timer_.Start(
+  advance_streams_timer_.emplace();
+  advance_streams_timer_->Start(
       FROM_HERE, base::TimeDelta::FromMilliseconds(10),
       base::Bind(&NullAudioStreamer::AdvanceStreams, base::Unretained(this)));
+}
+
+void NullAudioStreamer::StopNullStreamer() {
+  advance_streams_timer_->Stop();
+  advance_streams_timer_ = base::nullopt;
 }
 
 void NullAudioStreamer::AdvanceStreams() {
