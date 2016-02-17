@@ -204,6 +204,8 @@ class WebModule {
   void OnPartialLayoutConsoleCommandReceived(const std::string& message);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
+  void OnCspPolicyChanged();
+
   std::string name_;
 
   // Thread checker ensures all calls to the WebModule are made from the same

@@ -98,10 +98,10 @@ class FakeSettings : public dom::DOMSettings {
 class MockCspDelegate : public dom::CspDelegate {
  public:
   MockCspDelegate()
-      : dom::CspDelegate(scoped_ptr<dom::CspViolationReporter>(),
-                         GURL("http://www.example.com"),
-                         std::string() /* default policy */,
-                         dom::CspDelegate::kEnforcementEnable) {}
+      : dom::CspDelegate(
+            scoped_ptr<dom::CspViolationReporter>(),
+            GURL("http://www.example.com"), std::string() /* default policy */,
+            dom::CspDelegate::kEnforcementEnable, base::Closure()) {}
   MOCK_CONST_METHOD3(CanLoad,
                      bool(dom::CspDelegate::ResourceType, const GURL&, bool));
 };

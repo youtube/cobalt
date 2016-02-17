@@ -99,7 +99,8 @@ class Document : public Node, public cssom::MutationObserver {
             network_bridge::CookieJar* cookie_jar,
             const network_bridge::PostSender& post_sender,
             const std::string& default_security_policy,
-            CspDelegate::EnforcementType csp_enforcement_mode)
+            CspDelegate::EnforcementType csp_enforcement_mode,
+            const base::Closure& csp_policy_changed_callback)
         : url(url_value),
           navigation_start_clock(navigation_start_clock_value),
           navigation_callback(navigation_callback),
@@ -108,7 +109,8 @@ class Document : public Node, public cssom::MutationObserver {
           cookie_jar(cookie_jar),
           post_sender(post_sender),
           default_security_policy(default_security_policy),
-          csp_enforcement_mode(csp_enforcement_mode) {}
+          csp_enforcement_mode(csp_enforcement_mode),
+          csp_policy_changed_callback(csp_policy_changed_callback) {}
 
     GURL url;
     scoped_refptr<base::Clock> navigation_start_clock;
@@ -119,6 +121,7 @@ class Document : public Node, public cssom::MutationObserver {
     network_bridge::PostSender post_sender;
     std::string default_security_policy;
     CspDelegate::EnforcementType csp_enforcement_mode;
+    base::Closure csp_policy_changed_callback;
   };
 
   Document(HTMLElementContext* html_element_context,
