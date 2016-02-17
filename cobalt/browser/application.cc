@@ -44,15 +44,7 @@ namespace {
 const int kDefaultViewportWidth = 1920;
 const int kDefaultViewportHeight = 1080;
 
-#if defined(COBALT_FORCE_CSP)
-// TODO(***REMOVED***): Force experiment to serve CSP to Cobalt. This is needed
-// because csp mode is "Require". Remove this once this experiment is
-// launched 100%.
-const char kDefaultURL[] =
-    "https://www.youtube.com/tv?forced_experiments=9426306";
-#else
 const char kDefaultURL[] = "https://www.youtube.com/tv";
-#endif
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
 int GetRemoteDebuggingPort() {
