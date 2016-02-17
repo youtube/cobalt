@@ -76,18 +76,6 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
     return new URLRequestErrorJob(request, network_delegate, ERR_ACCESS_DENIED);
   }
 
-#if defined(__LB_SHELL__) || defined(COBALT)
-  // Jail the file path to a specific folder.
-  FilePath jail_path;
-  PathService::Get(base::DIR_EXE, &jail_path);
-  jail_path = jail_path.Append("/local");
-  file_path = jail_path.Append(file_path);
-  // Check for a jail-break attempt.
-  if (file_path.ReferencesParent()) {
-    // The request could lead to a path outside of our jail.
-    return new URLRequestErrorJob(request, network_delegate, ERR_ACCESS_DENIED);
-  }
-#endif
 
   // We need to decide whether to create URLRequestFileJob for file access or
   // URLRequestFileDirJob for directory access. To avoid accessing the
@@ -98,7 +86,8 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
   if (is_file &&
       file_util::EndsWithSeparator(file_path) &&
       file_path.IsAbsolute())
-#if defined(__LB_SHELL__) || defined(COBALT)
+#if defined(COBALT)
+    // We don't support FileDirJob.
     return new URLRequestErrorJob(request, network_delegate, ERR_ACCESS_DENIED);
 #else
     return new URLRequestFileDirJob(request, network_delegate, file_path);

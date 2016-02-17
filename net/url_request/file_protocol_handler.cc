@@ -19,16 +19,14 @@ FileProtocolHandler::FileProtocolHandler() { }
 URLRequestJob* FileProtocolHandler::MaybeCreateJob(
     URLRequest* request, NetworkDelegate* network_delegate) const {
   FilePath file_path;
-#if !defined(__LB_SHELL__)
   const bool is_file = FileURLToFilePath(request->url(), &file_path);
-#endif
 
   // Check file access permissions.
   if (!network_delegate ||
       !network_delegate->CanAccessFile(*request, file_path)) {
     return new URLRequestErrorJob(request, network_delegate, ERR_ACCESS_DENIED);
   }
-#if !defined (__LB_SHELL__) // LB_SHELL doesn't support URLRequestFileDirJob
+#if !defined (COBALT) // Cobalt doesn't support URLRequestFileDirJob
   // We need to decide whether to create URLRequestFileJob for file access or
   // URLRequestFileDirJob for directory access. To avoid accessing the
   // filesystem, we only look at the path string here.
