@@ -114,10 +114,9 @@ class RawVideoDecoderSandbox {
 };
 
 int SandboxMain(int argc, char** argv) {
-  // Provide a default video url in the sandbox for convenience.
-  const char kDefaultURL[] =
-      "file:///cobalt/browser/testdata/media-transition-demo/progressive.mp4";
-  const GURL video_url(argc > 1 ? argv[1] : kDefaultURL);
+  DCHECK_GT(argc, 1) << " Usage: " << argv[0] << " <url>";
+  GURL video_url(argv[1]);
+  DCHECK(video_url.is_valid()) << " \"" << argv[1] << "\" is not a valid URL.";
 
   MediaSandbox media_sandbox(
       argc, argv,
