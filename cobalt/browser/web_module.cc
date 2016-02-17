@@ -105,7 +105,7 @@ WebModule::WebModule(
           script::ExecutionState::CreateExecutionState(global_object_proxy_)),
       script_runner_(
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
-      window_(new dom::Window(
+      ALLOW_THIS_IN_INITIALIZER_LIST(window_(new dom::Window(
           window_dimensions.width(), window_dimensions.height(),
           css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
           resource_provider, image_cache_.get(), remote_font_cache_.get(),
@@ -114,7 +114,8 @@ WebModule::WebModule(
           network_module->GetUserAgent(), network_module->preferred_language(),
           options.navigation_callback, error_callback,
           network_module->cookie_jar(), network_module->GetPostSender(),
-          options.default_security_policy, options.csp_enforcement_mode)),
+          options.default_security_policy, options.csp_enforcement_mode,
+          base::Bind(&WebModule::OnCspPolicyChanged, base::Unretained(this))))),
       window_weak_(base::AsWeakPtr(window_.get())),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), network_module, window_,
@@ -133,13 +134,10 @@ WebModule::WebModule(
 {
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
-#if !defined(COBALT_FORCE_CSP)
-  if (options.csp_enforcement_mode == dom::CspDelegate::kEnforcementDisable) {
-    // If CSP is disabled, enable eval(). Otherwise, it will be enabled by
-    // a CSP directive.
-    global_object_proxy_->SetEvalEnabled(true);
-  }
-#endif
+
+  global_object_proxy_->SetReportEvalCallback(
+      base::Bind(&dom::CspDelegate::ReportEval,
+                 base::Unretained(window_->document()->csp_delegate())));
 
   InjectCustomWindowAttributes(options.injected_window_attributes);
 
@@ -167,7 +165,7 @@ WebModule::WebModule(
 
 WebModule::~WebModule() {
   DCHECK(thread_checker_.CalledOnValidThread());
-
+  global_object_proxy_->SetReportEvalCallback(base::Closure());
   window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
 }
 
@@ -234,6 +232,18 @@ void WebModule::OnPartialLayoutConsoleCommandReceived(
   }
 }
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+void WebModule::OnCspPolicyChanged() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  std::string eval_disabled_message;
+  bool allow_eval =
+      window_->document()->csp_delegate()->AllowEval(&eval_disabled_message);
+  if (allow_eval) {
+    global_object_proxy_->EnableEval();
+  } else {
+    global_object_proxy_->DisableEval(eval_disabled_message);
+  }
+}
 
 #if defined(ENABLE_WEBDRIVER)
 scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
