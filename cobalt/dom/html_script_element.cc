@@ -303,10 +303,11 @@ void HTMLScriptElement::Prepare() {
 
       // The user agent must immediately execute the script block, even if other
       // scripts are already executing.
-      if (bypass_csp ||
+      const std::string& text = text_content().value();
+      if (bypass_csp || text.empty() ||
           csp_delegate->AllowInline(CspDelegate::kScript,
                                     inline_script_location_,
-                                    text_content().value())) {
+                                    text)) {
         ExecuteInternal();
       } else {
         PostToDispatchEvent(FROM_HERE, base::Tokens::error());
