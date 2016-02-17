@@ -45,6 +45,9 @@ class ImageDecoder : public Decoder {
                const ErrorCallback& error_callback);
 
   // From Decoder.
+  LoadResponseType OnResponseStarted(
+      Fetcher* fetcher,
+      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
 
@@ -55,6 +58,7 @@ class ImageDecoder : public Decoder {
  private:
   // True if an error has occurred and we should not continue decoding.
   enum Error {
+    kNoContent,
     kNoError,
     kUnsupportedImageFormat,
   };

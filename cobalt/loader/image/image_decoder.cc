@@ -27,6 +27,7 @@
 #include "cobalt/loader/image/png_image_decoder.h"
 #include "cobalt/loader/image/stub_image_decoder.h"
 #include "cobalt/loader/image/webp_image_decoder.h"
+#include "net/http/http_status_code.h"
 
 namespace cobalt {
 namespace loader {
@@ -48,6 +49,18 @@ ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
   signature_cache_.position = 0;
 
   DCHECK(resource_provider_);
+}
+
+LoadResponseType ImageDecoder::OnResponseStarted(
+    Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
+  UNREFERENCED_PARAMETER(fetcher);
+  if (headers->response_code() == net::HTTP_NO_CONTENT) {
+    // The server successfully processed the request, but is not returning any
+    // content.
+    error_state_ = kNoContent;
+  }
+
+  return kLoadResponseContinue;
 }
 
 void ImageDecoder::DecodeChunk(const char* data, size_t size) {
@@ -134,6 +147,10 @@ void ImageDecoder::Finish() {
       } else {
         error_callback_.Run("No ImageDataDecoder");
       }
+      break;
+    case kNoContent:
+      // Load successful and no image is available if no content.
+      success_callback_.Run(NULL);
       break;
     case kUnsupportedImageFormat:
       error_callback_.Run("Unsupported image format");
