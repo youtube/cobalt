@@ -26,6 +26,7 @@
 #include "base/string_piece.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/node.h"
@@ -43,8 +44,11 @@ namespace render_tree {
 class TextNode : public Node {
  public:
   struct Builder {
-    Builder(const scoped_refptr<GlyphBuffer>& glyph_buffer,
+    Builder(const math::Vector2dF& offset,
+            const scoped_refptr<GlyphBuffer>& glyph_buffer,
             const ColorRGBA& color);
+
+    math::Vector2dF offset;
 
     // All of the glyph data needed to render the text.
     scoped_refptr<GlyphBuffer> glyph_buffer;
@@ -58,9 +62,10 @@ class TextNode : public Node {
   };
 
   explicit TextNode(const Builder& builder) : data_(builder) {}
-  TextNode(const scoped_refptr<GlyphBuffer>& glyph_buffer,
+  TextNode(const math::Vector2dF& offset,
+           const scoped_refptr<GlyphBuffer>& glyph_buffer,
            const ColorRGBA& color)
-      : data_(glyph_buffer, color) {}
+      : data_(offset, glyph_buffer, color) {}
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;

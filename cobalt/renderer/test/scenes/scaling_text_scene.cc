@@ -25,6 +25,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/glyph_buffer.h"
+#include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
 
@@ -38,6 +39,7 @@ using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Font;
 using cobalt::render_tree::FontStyle;
 using cobalt::render_tree::GlyphBuffer;
+using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::TextNode;
 using cobalt::render_tree::animations::Animation;
@@ -51,10 +53,9 @@ namespace scenes {
 
 namespace {
 
-void ScaleText(CompositionNode::Builder* composition_node,
+void ScaleText(MatrixTransformNode::Builder* transform_node,
                base::TimeDelta time) {
-  DCHECK_EQ(1, composition_node->composed_children().size());
-  composition_node->GetChild(0)->transform =
+  transform_node->transform =
       ScaleMatrix(sin((time.InSecondsF() / 5) * 2 * M_PI) + 1.5);
 }
 
@@ -77,29 +78,21 @@ RenderTreeWithAnimations CreateScalingTextScene(
   // Add the actual text node to our composition.
   CompositionNode::Builder text_collection_builder;
   for (int i = 0; i < 60; ++i) {
-    text_collection_builder.AddChild(
-        make_scoped_refptr(
-            new TextNode(glyph_buffer, ColorRGBA(0.0f, 0.0f, 0.0f))),
-        TranslateMatrix(100, 50 + i * (10)) * ScaleMatrix(1 + i * 0.03f));
+    text_collection_builder.AddChild(new MatrixTransformNode(
+        new TextNode(math::Vector2dF(0, 0), glyph_buffer,
+                     ColorRGBA(0.0f, 0.0f, 0.0f)),
+        TranslateMatrix(100, 50 + i * (10)) * ScaleMatrix(1 + i * 0.03f)));
   }
 
-  CompositionNode::Builder scaling_text_scene_builder;
-  scaling_text_scene_builder.AddChild(
-      make_scoped_refptr(new CompositionNode(text_collection_builder.Pass())),
-      Matrix3F::Identity());
-  scoped_refptr<CompositionNode> scaling_text_scene(
-      new CompositionNode(scaling_text_scene_builder.Pass()));
+  scoped_refptr<MatrixTransformNode> scaling_text_node(new MatrixTransformNode(
+      new CompositionNode(text_collection_builder.Pass()),
+      Matrix3F::Identity()));
 
   // Setup the scaling animation on the text
-  AnimationList<CompositionNode>::Builder scale_animation;
-  scale_animation.animations.push_back(base::Bind(&ScaleText));
-
   NodeAnimationsMap::Builder animations;
-  animations.Add(scaling_text_scene,
-                 make_scoped_refptr(new AnimationList<CompositionNode>(
-                     scale_animation.Pass())));
+  animations.Add(scaling_text_node, base::Bind(&ScaleText));
 
-  return RenderTreeWithAnimations(scaling_text_scene,
+  return RenderTreeWithAnimations(scaling_text_node,
                                   new NodeAnimationsMap(animations.Pass()));
 }
 

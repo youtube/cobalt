@@ -32,9 +32,10 @@ class ImageNode : public Node {
  public:
   struct Builder {
     Builder(const scoped_refptr<Image>& source,
-            const math::SizeF& destination_size);
+            const math::RectF& destination_rect);
+    Builder(const scoped_refptr<Image>& source, const math::Vector2dF& offset);
     Builder(const scoped_refptr<Image>& source,
-            const math::SizeF& destination_size,
+            const math::RectF& destination_rect,
             const math::Matrix3F& local_transform);
 
     // A source of pixels. May be smaller or larger than layed out image.
@@ -42,11 +43,11 @@ class ImageNode : public Node {
     // pool.
     scoped_refptr<Image> source;
 
-    // The width and height that the image will be rasterized as.
-    math::SizeF destination_size;
+    // The destination rectangle into which the image will be rasterized.
+    math::RectF destination_rect;
 
     // A matrix expressing how the each point within the image box (defined
-    // by destination_size) should be mapped to image data.  The identity
+    // by destination_rect) should be mapped to image data.  The identity
     // matrix would map the entire source image rectangle into the entire
     // destination rectangle.  As an example, if you were to pass in a scale
     // matrix that scales the image coordinates by 0.5 in all directions, the
@@ -62,12 +63,14 @@ class ImageNode : public Node {
   // The specified image will render with the given width and height, which
   // may result in scaling.
   ImageNode(const scoped_refptr<Image>& image,
-            const math::SizeF& destination_size);
+            const math::RectF& destination_rect);
+
+  ImageNode(const scoped_refptr<Image>& image, const math::Vector2dF& offset);
 
   // Allows users to additionally supply a local matrix to be applied to the
   // normalized image coordinates.
   ImageNode(const scoped_refptr<Image>& image,
-            const math::SizeF& destination_size,
+            const math::RectF& destination_rect,
             const math::Matrix3F& local_transform);
 
   void Accept(NodeVisitor* visitor) OVERRIDE;

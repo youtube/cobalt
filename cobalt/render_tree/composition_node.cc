@@ -16,15 +16,13 @@
 
 #include "cobalt/render_tree/composition_node.h"
 
-#include "cobalt/math/quad_f.h"
 #include "cobalt/render_tree/node_visitor.h"
 
 namespace cobalt {
 namespace render_tree {
 
-void CompositionNode::Builder::AddChild(const scoped_refptr<Node>& node,
-                                        const math::Matrix3F& transform) {
-  composed_children_.push_back(ComposedChild(node, transform));
+void CompositionNode::Builder::AddChild(const scoped_refptr<Node>& node) {
+  children_.push_back(node);
 }
 
 void CompositionNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
@@ -36,14 +34,12 @@ math::RectF CompositionNode::ComputeBounds() const {
 
   // Take the union of the bounding rectangle for all child nodes, and use that
   // as our bounding rectangle.
-  for (ComposedChildren::const_iterator iter =
-           data_.composed_children().begin();
-       iter != data_.composed_children().end(); ++iter) {
-    const ComposedChild& child = *iter;
-    math::QuadF transformed_child_bounds(child.transform,
-                                         child.node->GetBounds());
-    bounds.Union(transformed_child_bounds.BoundingBox());
+  for (Children::const_iterator iter = data_.children().begin();
+       iter != data_.children().end(); ++iter) {
+    bounds.Union((*iter)->GetBounds());
   }
+
+  bounds.Offset(data_.offset());
 
   return bounds;
 }

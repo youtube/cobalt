@@ -159,7 +159,8 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
       const ZIndexSortedList& z_index_child_list,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+          node_animations_map_builder,
+      const math::Vector2dF& offset_from_parent_node) const;
 
   // Introduces a child box into the box hierarchy as a direct child of this
   // container node.  Calling this function will result in other relationships
