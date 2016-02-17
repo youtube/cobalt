@@ -214,9 +214,8 @@ void ContentSecurityPolicy::OnReceiveHeader(const std::string& header,
   AddPolicyFromHeaderValue(header, type, source);
 }
 
-void ContentSecurityPolicy::SetNavigationFallbackPolicy(
-    const std::string& policy) {
-  navigation_fallback_policy_.reset(new DirectiveList(
+void ContentSecurityPolicy::SetNavigationPolicy(const std::string& policy) {
+  navigation_policy_.reset(new DirectiveList(
       this, base::StringPiece(policy), kHeaderTypeEnforce, kHeaderSourceHTTP));
 }
 
@@ -492,32 +491,14 @@ bool ContentSecurityPolicy::AllowNavigateToSource(
   // Note that this is a Cobalt-specific policy to prevent navigation
   // to any unexpected URLs. Navigation is restrictive by default, as
   // opposed to the permissive policy for other directives.
-  // If a location policy has been set, respect it. Otherwise, use the
-  // default location policy, which should have been set by the
-  // Document during initialization.
-  if (!navigation_fallback_policy_) {
+
+  if (!navigation_policy_) {
     DLOG(ERROR) << "SetNavigationFallbackPolicy() was not called.";
     return false;
   }
-
-  bool any_policy_set = false;
-  for (PolicyList::const_iterator it = policies_.begin(); it != policies_.end();
-       ++it) {
-    if ((*it)->has_location_src()) {
-      // Some kind of location policy was received, so we should respect it.
-      any_policy_set = true;
-      break;
-    }
-  }
-  if (any_policy_set) {
-    FOR_ALL_POLICIES_3(AllowNavigateToSource, url, redirect_status,
-                       reporting_status);
-  } else {
-    // No location policy was received from the server. Fall back to our
-    // default.
-    return navigation_fallback_policy_->AllowNavigateToSource(
-        url, redirect_status, reporting_status);
-  }
+  // TODO(***REMOVED***): Re-enable respecting the navigation whitelist. b/27175038
+  return navigation_policy_->AllowNavigateToSource(url, redirect_status,
+                                                   reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowStyleFromSource(
