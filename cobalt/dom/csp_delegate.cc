@@ -25,10 +25,12 @@ namespace dom {
 CspDelegate::CspDelegate(scoped_ptr<CspViolationReporter> violation_reporter,
                          const GURL& url,
                          const std::string& default_security_policy,
-                         EnforcementType mode) {
+                         EnforcementType mode,
+                         const base::Closure& policy_changed_callback) {
   default_security_policy_ = default_security_policy;
   was_header_received_ = false;
   enforcement_mode_ = mode;
+  policy_changed_callback_ = policy_changed_callback;
 
   reporter_ = violation_reporter.Pass();
   csp::ViolationCallback violation_callback;
@@ -136,6 +138,29 @@ bool CspDelegate::AllowInline(ResourceType type,
   return can_load;
 }
 
+bool CspDelegate::AllowEval(std::string* eval_disabled_message) const {
+#if !defined(COBALT_FORCE_CSP)
+  if (enforcement_mode() == kEnforcementDisable) {
+    return true;
+  }
+#endif  // !defined(COBALT_FORCE_CSP)
+  bool allow_eval =
+      csp_->AllowEval(csp::ContentSecurityPolicy::kSuppressReport);
+  if (!allow_eval && eval_disabled_message) {
+    *eval_disabled_message = csp_->disable_eval_error_message();
+  }
+  return allow_eval;
+}
+
+void CspDelegate::ReportEval() const {
+#if !defined(COBALT_FORCE_CSP)
+  if (enforcement_mode() == kEnforcementDisable) {
+    return;
+  }
+#endif  // !defined(COBALT_FORCE_CSP)
+  csp_->AllowEval(csp::ContentSecurityPolicy::kSendReport);
+}
+
 bool CspDelegate::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
   if (enforcement_mode() == kEnforcementRequire &&
       headers.content_security_policy().empty()) {
@@ -149,6 +174,9 @@ bool CspDelegate::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
   }
   csp_->OnReceiveHeaders(headers);
   was_header_received_ = true;
+  if (!policy_changed_callback_.is_null()) {
+    policy_changed_callback_.Run();
+  }
   return true;
 }
 
@@ -163,6 +191,9 @@ void CspDelegate::OnReceiveHeader(const std::string& header,
     }
   } else {
     was_header_received_ = true;
+  }
+  if (!policy_changed_callback_.is_null()) {
+    policy_changed_callback_.Run();
   }
 }
 

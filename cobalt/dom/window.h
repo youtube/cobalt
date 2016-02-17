@@ -97,7 +97,8 @@ class Window : public EventTarget {
          network_bridge::CookieJar* cookie_jar,
          const network_bridge::PostSender& post_sender,
          const std::string& default_security_policy,
-         dom::CspDelegate::EnforcementType csp_enforcement_mode);
+         dom::CspDelegate::EnforcementType csp_enforcement_mode,
+         const base::Closure& csp_policy_changed_callback);
 
   // Web API: Window
   //

@@ -23,6 +23,10 @@ interface WindowTimers {
   void clearTimeout(long handle);
   long setInterval(TimerCallback handler, optional long timeout);
   void clearInterval(long handle);
+
+  // TODO(***REMOVED***): If we ever decide to support setTimeout and setInterval
+  // with a DOMString argument, we must implement the logic described in the CSP
+  // spec regarding "unsafe-eval".
 };
 Window implements WindowTimers;
 
