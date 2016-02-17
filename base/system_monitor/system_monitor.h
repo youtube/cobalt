@@ -118,7 +118,7 @@ class BASE_EXPORT SystemMonitor {
    public:
     // Notification of a change in power status of the computer, such
     // as from switching between battery and A/C power.
-    virtual void OnPowerStateChange(bool on_battery_power) {}
+    virtual void OnPowerStateChange(bool /*on_battery_power*/) {}
 
     // Notification that the system is suspending.
     virtual void OnSuspend() {}
@@ -134,15 +134,15 @@ class BASE_EXPORT SystemMonitor {
    public:
     // Notification that the devices connected to the system have changed.
     // This is only implemented on Windows currently.
-    virtual void OnDevicesChanged(DeviceType device_type) {}
+    virtual void OnDevicesChanged(DeviceType /*device_type*/) {}
 
     // When a removable storage device is attached or detached, one of these
     // two events is triggered.
     virtual void OnRemovableStorageAttached(
-        const std::string& id,
-        const string16& name,
-        const FilePath::StringType& location) {}
-    virtual void OnRemovableStorageDetached(const std::string& id) {}
+        const std::string& /*id*/,
+        const string16& /*name*/,
+        const FilePath::StringType& /*location*/) {}
+    virtual void OnRemovableStorageDetached(const std::string& /*id*/) {}
 
    protected:
     virtual ~DevicesChangedObserver() {}
