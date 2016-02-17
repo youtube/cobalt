@@ -24,7 +24,18 @@ namespace image {
 
 WEBPImageDecoder::WEBPImageDecoder(
     render_tree::ResourceProvider* resource_provider)
-    : ImageDataDecoder(resource_provider), internal_decoder_(NULL) {}
+    : ImageDataDecoder(resource_provider), internal_decoder_(NULL) {
+  // Initialize the configuration as empty.
+  WebPInitDecoderConfig(&config_);
+  // Skip the in-loop filtering.
+  config_.options.bypass_filtering = 1;
+  // Use faster pointwise upsampler.
+  config_.options.no_fancy_upsampling = 1;
+  // Use multi-threaded decoding.
+  config_.options.use_threads = 1;
+  // Discard enhancement layer.
+  config_.options.no_enhancement = 1;
+}
 
 WEBPImageDecoder::~WEBPImageDecoder() { DeleteInternalDecoder(); }
 
@@ -53,9 +64,9 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
         WebPIAppend(internal_decoder_, next_input_byte, bytes_in_buffer);
     if (status == VP8_STATUS_OK) {
       DCHECK(image_data());
-      DCHECK(decoder_buffer_.u.RGBA.rgba);
-      memcpy(image_data()->GetMemory(), decoder_buffer_.u.RGBA.rgba,
-             decoder_buffer_.u.RGBA.size);
+      DCHECK(config_.output.u.RGBA.rgba);
+      memcpy(image_data()->GetMemory(), config_.output.u.RGBA.rgba,
+             config_.output.u.RGBA.size);
       DeleteInternalDecoder();
       set_state(kDone);
     } else if (status != VP8_STATUS_SUSPENDED) {
@@ -70,18 +81,16 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
 
 bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size,
                                   bool* has_alpha) {
-  WebPBitstreamFeatures features;
-
   // Retrieve features from the bitstream. The *features structure is filled
   // with information gathered from the bitstream.
   // Returns VP8_STATUS_OK when the features are successfully retrieved. Returns
   // VP8_STATUS_NOT_ENOUGH_DATA when more data is needed to retrieve the
   // features from headers. Returns error in other cases.
-  VP8StatusCode status = WebPGetFeatures(data, size, &features);
+  VP8StatusCode status = WebPGetFeatures(data, size, &config_.input);
   if (status == VP8_STATUS_OK) {
-    int width = features.width;
-    int height = features.height;
-    *has_alpha = !!features.has_alpha;
+    int width = config_.input.width;
+    int height = config_.input.height;
+    *has_alpha = !!config_.input.has_alpha;
 
     AllocateImageData(math::Size(width, height));
     return true;
@@ -96,20 +105,18 @@ bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size,
 }
 
 bool WEBPImageDecoder::CreateInternalDecoder(bool has_alpha) {
-  // Initializes decode buffer.
-  WebPInitDecBuffer(&decoder_buffer_);
-
-  decoder_buffer_.colorspace = has_alpha ? MODE_rgbA : MODE_RGBA;
-  decoder_buffer_.u.RGBA.stride = image_data()->GetDescriptor().pitch_in_bytes;
-  decoder_buffer_.u.RGBA.size =
-      static_cast<size_t>(decoder_buffer_.u.RGBA.stride *
+  config_.output.colorspace = has_alpha ? MODE_rgbA : MODE_RGBA;
+  config_.output.u.RGBA.stride = image_data()->GetDescriptor().pitch_in_bytes;
+  config_.output.u.RGBA.size =
+      static_cast<size_t>(config_.output.u.RGBA.stride *
                           image_data()->GetDescriptor().size.height());
   // We don't use image buffer as the decoding buffer because libwebp will read
   // from it while we assume that our image buffer is write only.
-  decoder_buffer_.is_external_memory = 0;
+  config_.output.is_external_memory = 0;
 
-  // Creates a new incremental decoder with the supplied buffer parameter.
-  internal_decoder_ = WebPINewDecoder(&decoder_buffer_);
+  // Instantiate a new incremental decoder object with the requested
+  // configuration.
+  internal_decoder_ = WebPIDecode(NULL, NULL, &config_);
 
   if (internal_decoder_ == NULL) {
     DLOG(WARNING) << "Create internal WEBP decoder failed.";
@@ -125,7 +132,7 @@ void WEBPImageDecoder::DeleteInternalDecoder() {
     // called if WebPINewDecoder succeeded.
     WebPIDelete(internal_decoder_);
     internal_decoder_ = NULL;
-    WebPFreeDecBuffer(&decoder_buffer_);
+    WebPFreeDecBuffer(&config_.output);
   }
 }
 
