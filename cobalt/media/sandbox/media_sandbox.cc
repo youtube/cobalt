@@ -17,6 +17,7 @@
 #include "cobalt/media/sandbox/media_sandbox.h"
 
 #include "base/at_exit.h"
+#include "base/command_line.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/synchronization/lock.h"
@@ -42,42 +43,84 @@ namespace sandbox {
 namespace {
 const int kViewportWidth = 1920;
 const int kViewportHeight = 1080;
-
-// This class is introduced to ensure that CobaltInit() is called after AtExit
-// is initialized.
-class CobaltInit {
- public:
-  CobaltInit(int argc, char** argv) { InitCobalt(argc, argv); }
-};
-
 }  // namespace
 
 class MediaSandbox::Impl {
  public:
-  Impl(int argc, char** argv, const FilePath& trace_log_path)
-      : cobalt_init_(argc, argv),
-        trace_to_file_(trace_log_path),
-        fetcher_factory_(&network_module_),
-        system_window_(system_window::CreateSystemWindow(
-            &event_dispatcher_, math::Size(kViewportWidth, kViewportHeight))),
-        renderer_module_(system_window_.get(),
-                         renderer::RendererModule::Options()),
-        media_module_(MediaModule::Create(
-            renderer_module_.pipeline()->GetResourceProvider())) {
-    SetupAndSubmitScene();
-  }
+  Impl(int argc, char** argv, const FilePath& trace_log_path);
 
-  void RegisterFrameCB(const MediaSandbox::FrameCB& frame_cb) {
-    base::AutoLock auto_lock(lock_);
-    frame_cb_ = frame_cb;
-  }
-
+  void RegisterFrameCB(const MediaSandbox::FrameCB& frame_cb);
   MediaModule* GetMediaModule() { return media_module_.get(); }
-
-  loader::FetcherFactory* GetFetcherFactory() { return &fetcher_factory_; }
+  loader::FetcherFactory* GetFetcherFactory() { return fetcher_factory_.get(); }
 
  private:
-  void SetupAndSubmitScene() {
+  void SetupAndSubmitScene();
+  void AnimateCB(render_tree::ImageNode::Builder* image_node,
+                 base::TimeDelta time);
+
+  base::Lock lock_;
+  base::AtExitManager at_exit;
+  MessageLoop message_loop_;
+  MediaSandbox::FrameCB frame_cb_;
+
+  scoped_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
+  scoped_ptr<network::NetworkModule> network_module_;
+  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
+  base::EventDispatcher event_dispatcher_;
+  // System window used as a render target.
+  scoped_ptr<system_window::SystemWindow> system_window_;
+  scoped_ptr<renderer::RendererModule> renderer_module_;
+  scoped_ptr<MediaModule> media_module_;
+};
+
+MediaSandbox::Impl::Impl(int argc, char** argv,
+                         const FilePath& trace_log_path) {
+  InitCobalt(argc, argv);
+
+  trace_to_file_.reset(new trace_event::ScopedTraceToFile(trace_log_path));
+  network::NetworkModule::Options network_options;
+  network_options.require_https = false;
+
+  network_module_.reset(new network::NetworkModule(network_options));
+  fetcher_factory_.reset(new loader::FetcherFactory(network_module_.get()));
+  system_window_ = system_window::CreateSystemWindow(
+      &event_dispatcher_, math::Size(kViewportWidth, kViewportHeight));
+
+  renderer::RendererModule::Options renderer_options;
+  renderer_module_.reset(
+      new renderer::RendererModule(system_window_.get(), renderer_options));
+  MediaModule::Options media_module_options;
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  // Avoid a dependency on browser::switches::kUseNullAudioStreamer
+  if (command_line->HasSwitch("use_null_audio_streamer")) {
+    media_module_options.use_null_audio_streamer = true;
+  }
+#endif  // defined(ENABLE_COMMAND_LINE_SWITCHES)
+
+  media_module_ =
+      MediaModule::Create(renderer_module_->pipeline()->GetResourceProvider(),
+                          media_module_options);
+  SetupAndSubmitScene();
+}
+
+void MediaSandbox::Impl::RegisterFrameCB(
+    const MediaSandbox::FrameCB& frame_cb) {
+  base::AutoLock auto_lock(lock_);
+  frame_cb_ = frame_cb;
+}
+
+void MediaSandbox::Impl::AnimateCB(render_tree::ImageNode::Builder* image_node,
+                                   base::TimeDelta time) {
+  DCHECK(image_node);
+  math::SizeF output_size(
+      renderer_module_->render_target()->GetSurfaceInfo().size);
+  image_node->destination_size = output_size;
+  base::AutoLock auto_lock(lock_);
+  image_node->source = frame_cb_.is_null() ? NULL : frame_cb_.Run(time);
+}
+
+void MediaSandbox::Impl::SetupAndSubmitScene() {
     scoped_refptr<render_tree::ImageNode> image_node =
         new render_tree::ImageNode(NULL);
     render_tree::animations::NodeAnimationsMap::Builder
@@ -86,35 +129,11 @@ class MediaSandbox::Impl {
     node_animations_map_builder.Add(
         image_node, base::Bind(&Impl::AnimateCB, base::Unretained(this)));
 
-    renderer_module_.pipeline()->Submit(renderer::Submission(
+    renderer_module_->pipeline()->Submit(renderer::Submission(
         image_node, new render_tree::animations::NodeAnimationsMap(
                         node_animations_map_builder.Pass()),
         base::TimeDelta()));
-  }
-  void AnimateCB(render_tree::ImageNode::Builder* image_node,
-                 base::TimeDelta time) {
-    DCHECK(image_node);
-    math::SizeF output_size(
-        renderer_module_.render_target()->GetSurfaceInfo().size);
-    image_node->destination_size = output_size;
-    base::AutoLock auto_lock(lock_);
-    image_node->source = frame_cb_.is_null() ? NULL : frame_cb_.Run(time);
-  }
-
-  base::Lock lock_;
-  base::AtExitManager at_exit;
-  CobaltInit cobalt_init_;
-  trace_event::ScopedTraceToFile trace_to_file_;
-  MessageLoop message_loop_;
-  network::NetworkModule network_module_;
-  loader::FetcherFactory fetcher_factory_;
-  base::EventDispatcher event_dispatcher_;
-  // System window used as a render target.
-  scoped_ptr<system_window::SystemWindow> system_window_;
-  renderer::RendererModule renderer_module_;
-  scoped_ptr<MediaModule> media_module_;
-  MediaSandbox::FrameCB frame_cb_;
-};
+}
 
 MediaSandbox::MediaSandbox(int argc, char** argv,
                            const FilePath& trace_log_path) {
