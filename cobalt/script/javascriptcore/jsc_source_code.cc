@@ -21,8 +21,7 @@
 #include "base/string_util.h"
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
 #include "cobalt/script/source_code.h"
-
-#include "config.h"
+#include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/parser/SourceCode.h"
 #include "third_party/WebKit/Source/JavaScriptCore/parser/SourceProvider.h"
 
@@ -56,7 +55,6 @@ class UTF8StringSourceProvider : public JSC::SourceProvider {
 
 JSCSourceCode::JSCSourceCode(const std::string& source_utf8,
                              const base::SourceLocation& source_location) {
-  DCHECK(IsStringUTF8(source_utf8));
   RefPtr<UTF8StringSourceProvider> source_provider =
       UTF8StringSourceProvider::Create(source_utf8, source_location.file_path);
   source_ = JSC::SourceCode(source_provider, source_location.line_number);
