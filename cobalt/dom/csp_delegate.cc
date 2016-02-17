@@ -23,11 +23,10 @@ namespace cobalt {
 namespace dom {
 
 CspDelegate::CspDelegate(scoped_ptr<CspViolationReporter> violation_reporter,
-                         const GURL& url,
-                         const std::string& default_security_policy,
+                         const GURL& url, const std::string& location_policy,
                          EnforcementType mode,
                          const base::Closure& policy_changed_callback) {
-  default_security_policy_ = default_security_policy;
+  location_policy_ = location_policy;
   was_header_received_ = false;
   enforcement_mode_ = mode;
   policy_changed_callback_ = policy_changed_callback;
@@ -39,7 +38,7 @@ CspDelegate::CspDelegate(scoped_ptr<CspViolationReporter> violation_reporter,
                                     base::Unretained(reporter_.get()));
   }
   csp_.reset(new csp::ContentSecurityPolicy(url, violation_callback));
-  SetLocationPolicy(default_security_policy_);
+  SetLocationPolicy(location_policy_);
 }
 
 CspDelegate::~CspDelegate() {}
@@ -207,7 +206,7 @@ void CspDelegate::SetLocationPolicy(const std::string& policy) {
     LOG(FATAL) << csp::ContentSecurityPolicy::kLocationSrc << " not found in "
                << policy;
   }
-  csp_->SetNavigationFallbackPolicy(policy);
+  csp_->SetNavigationPolicy(policy);
 }
 
 }  // namespace dom

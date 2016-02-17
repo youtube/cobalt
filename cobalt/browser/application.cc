@@ -153,11 +153,12 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
-// Restrict navigation to a couple of whitelisted URLs by default. This will
-// be overridden when the server delivers the entire CSP policy.
-const char kNavigationPolicy[] = "h5vcc-location-src 'self' h5vcc:";
-
-std::string GetDefaultSecurityPolicy() { return kNavigationPolicy; }
+// Restrict navigation to a couple of whitelisted URLs by default.
+const char kYouTubeTvLocationPolicy[] =
+    "h5vcc-location-src "
+    "https://www.youtube.com/tv "
+    "https://web-release-qa.youtube.com/tv "
+    "h5vcc:";
 
 #if !defined(COBALT_FORCE_CSP)
 dom::CspDelegate::EnforcementType StringToCspMode(const std::string& mode) {
@@ -206,8 +207,7 @@ Application::Application()
   options.network_module_options.preferred_language = language;
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
-  options.web_module_options.default_security_policy =
-      GetDefaultSecurityPolicy();
+  options.web_module_options.location_policy = kYouTubeTvLocationPolicy;
 
   math::Size viewport_size(kDefaultViewportWidth, kDefaultViewportHeight);
 
@@ -227,6 +227,10 @@ Application::Application()
   if (command_line->HasSwitch(browser::switches::kCspMode)) {
     options.web_module_options.csp_enforcement_mode = StringToCspMode(
         command_line->GetSwitchValueASCII(browser::switches::kCspMode));
+  }
+  if (options.web_module_options.csp_enforcement_mode !=
+      dom::CspDelegate::kEnforcementRequire) {
+    options.web_module_options.location_policy = "h5vcc-location-src *";
   }
 #endif  // !defined(COBALT_FORCE_CSP)
 
