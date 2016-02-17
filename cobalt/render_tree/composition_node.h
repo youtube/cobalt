@@ -77,11 +77,12 @@ class CompositionNode : public Node {
    public:
     DECLARE_AS_MOVABLE(Builder);
 
-    Builder() : composed_children_(new ComposedChildren()) {}
-    explicit Builder(const Builder& other) :
-        composed_children_(new ComposedChildren(*other.composed_children_)) {}
-    explicit Builder(Moved moved)
-        : composed_children_(moved->composed_children_.Pass()) {}
+    Builder() {}
+    explicit Builder(const Builder& other)
+        : composed_children_(other.composed_children_) {}
+    explicit Builder(Moved moved) {
+      composed_children_.swap(moved->composed_children_);
+    }
 
     // Add a child node to the list of children we are building.  When a
     // CompositionNode is constructed from this CompositionNode::Builder, it
@@ -91,23 +92,23 @@ class CompositionNode : public Node {
                   const math::Matrix3F& transform);
 
     // Remove all existing children.
-    void Clear() { composed_children_->clear(); }
+    void Clear() { composed_children_.clear(); }
 
     // Returns the specified child as a pointer so that it can be modified.
     ComposedChild* GetChild(int child_index) {
       DCHECK_GE(child_index, 0);
       DCHECK_LT(static_cast<std::size_t>(child_index),
-                composed_children_->size());
-      return &((*composed_children_)[static_cast<std::size_t>(child_index)]);
+                composed_children_.size());
+      return &(composed_children_[static_cast<std::size_t>(child_index)]);
     }
 
     // A list of render tree nodes in a draw order.
     const ComposedChildren& composed_children() const {
-      return *composed_children_;
+      return composed_children_;
     }
 
    private:
-    scoped_ptr<ComposedChildren> composed_children_;
+    ComposedChildren composed_children_;
   };
 
   explicit CompositionNode(const Builder& builder)
