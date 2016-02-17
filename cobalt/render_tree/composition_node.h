@@ -23,7 +23,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/type_id.h"
-#include "cobalt/math/matrix3_f.h"
+#include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/movable.h"
 #include "cobalt/render_tree/node.h"
 
@@ -32,10 +32,9 @@ namespace render_tree {
 
 // A composition specifies a set of child nodes that are to be rendered in
 // order. It is the primary way to compose multiple child nodes together in a
-// render tree. Each child node has an associated matrix which determines how
-// the node will be transformed relative to the CompositionNode.  The node
-// doesn't have its own shape or size, it is completely determined by its
-// children.
+// render tree. This node doesn't have its own intrinsic shape or size, it is
+// completely determined by its children.  An offset can be specified to be
+// applied to all children of the composition node.
 // You would construct a CompositionNode via a CompositionNode::Builder object,
 // which is essentially a CompositionNode that permits mutations.
 // The CompositionNode::Builder class can be used to build the constructor
@@ -52,63 +51,58 @@ namespace render_tree {
 //     const scoped_refptr<Node>& child1,
 //     const scoped_refptr<Node>& child2) {
 //   CompositionNode::Builder composition_node_builder;
-//   composition_node_builder.AddChild(child1, math::Matrix3F::Identity());
-//   composition_node_builder.AddChild(child2, math::Matrix3F::Identity());
+//   composition_node_builder.AddChild(child1);
+//   composition_node_builder.AddChild(child2);
 //   return make_scoped_refptr(new CompositionNode(
 //       composition_node_builder.Pass()));
 // }
 //
 class CompositionNode : public Node {
  public:
-  // The ChildInfo structure packages together all information relevant to
-  // each child, such as a reference to the actual child node and a matrix
-  // determining how to transform it.
-  struct ComposedChild {
-    ComposedChild(const scoped_refptr<Node>& node,
-                  const math::Matrix3F& transform)
-        : node(node), transform(transform) {}
-
-    scoped_refptr<Node> node;
-    math::Matrix3F transform;
-  };
-  typedef std::vector<ComposedChild> ComposedChildren;
+  typedef std::vector<scoped_refptr<Node> > Children;
 
   class Builder {
    public:
     DECLARE_AS_MOVABLE(Builder);
 
     Builder() {}
+    explicit Builder(const math::Vector2dF& offset) : offset_(offset) {}
+
     explicit Builder(const Builder& other)
-        : composed_children_(other.composed_children_) {}
-    explicit Builder(Moved moved) {
-      composed_children_.swap(moved->composed_children_);
+        : offset_(other.offset_), children_(other.children_) {}
+    explicit Builder(Moved moved) : offset_(moved->offset_) {
+      children_.swap(moved->children_);
     }
 
     // Add a child node to the list of children we are building.  When a
     // CompositionNode is constructed from this CompositionNode::Builder, it
     // will have as children all nodes who were passed into the builder via this
     // method.
-    void AddChild(const scoped_refptr<Node>& node,
-                  const math::Matrix3F& transform);
+    void AddChild(const scoped_refptr<Node>& node);
 
     // Remove all existing children.
-    void Clear() { composed_children_.clear(); }
+    void ClearChildren() { children_.clear(); }
 
     // Returns the specified child as a pointer so that it can be modified.
-    ComposedChild* GetChild(int child_index) {
+    scoped_refptr<Node>* GetChild(int child_index) {
       DCHECK_GE(child_index, 0);
-      DCHECK_LT(static_cast<std::size_t>(child_index),
-                composed_children_.size());
-      return &(composed_children_[static_cast<std::size_t>(child_index)]);
+      DCHECK_LT(static_cast<std::size_t>(child_index), children_.size());
+      return &(children_[static_cast<std::size_t>(child_index)]);
     }
 
     // A list of render tree nodes in a draw order.
-    const ComposedChildren& composed_children() const {
-      return composed_children_;
-    }
+    const Children& children() const { return children_; }
+
+    const math::Vector2dF& offset() const { return offset_; }
+    void set_offset(const math::Vector2dF& offset) { offset_ = offset; }
 
    private:
-    ComposedChildren composed_children_;
+    // A translation offset to be applied to each member of this composition
+    // node.
+    math::Vector2dF offset_;
+
+    // The set of children to be composed together under this CompositionNode.
+    Children children_;
   };
 
   explicit CompositionNode(const Builder& builder)

@@ -116,7 +116,7 @@ BackgroundImageTransformData GetImageTransformationData(
     UsedBackgroundSizeProvider* used_background_size_provider,
     UsedBackgroundPositionProvider* used_background_position_provider,
     UsedBackgroundRepeatProvider* used_background_repeat_provider,
-    const math::SizeF& frame_size, const math::SizeF& single_image_size) {
+    const math::RectF& frame, const math::SizeF& single_image_size) {
   // The initial value of following variables are for no-repeat horizontal and
   // vertical.
   math::SizeF image_node_size = single_image_size;
@@ -132,11 +132,11 @@ BackgroundImageTransformData GetImageTransformationData(
       used_background_position_provider->translate_y();
 
   if (used_background_repeat_provider->repeat_x() ||
-      frame_size.width() < image_node_size.width()) {
+      frame.width() < image_node_size.width()) {
     // When the background repeat horizontally or the width of frame is smaller
     // than the width of image, image node does the transform in horizontal
     // direction.
-    image_node_size.set_width(frame_size.width());
+    image_node_size.set_width(frame.width());
     image_node_translate_matrix_x =
         used_background_position_provider->translate_x_relative_to_frame();
     image_node_scale_matrix_x =
@@ -145,11 +145,11 @@ BackgroundImageTransformData GetImageTransformationData(
   }
 
   if (used_background_repeat_provider->repeat_y() ||
-      frame_size.height() < image_node_size.height()) {
+      frame.height() < image_node_size.height()) {
     // When the background repeat vertically or the width of frame is smaller
     // than the height of image, image node does the transform in vertical
     // direction.
-    image_node_size.set_height(frame_size.height());
+    image_node_size.set_height(frame.height());
     image_node_translate_matrix_y =
         used_background_position_provider->translate_y_relative_to_frame();
     image_node_scale_matrix_y =
@@ -162,8 +162,8 @@ BackgroundImageTransformData GetImageTransformationData(
                                              image_node_translate_matrix_y) *
                            math::ScaleMatrix(image_node_scale_matrix_x,
                                              image_node_scale_matrix_y),
-      math::PointF(composition_node_translate_matrix_x,
-                   composition_node_translate_matrix_y));
+      math::PointF(composition_node_translate_matrix_x + frame.x(),
+                   composition_node_translate_matrix_y + frame.y()));
   return background_image_transform_data;
 }
 
@@ -532,12 +532,12 @@ float GetUsedLengthPercentageOrCalcValue(cssom::PropertyValue* property_value,
 }
 
 UsedBackgroundNodeProvider::UsedBackgroundNodeProvider(
-    const math::SizeF& frame_size,
+    const math::RectF& frame,
     const scoped_refptr<cssom::PropertyValue>& background_size,
     const scoped_refptr<cssom::PropertyValue>& background_position,
     const scoped_refptr<cssom::PropertyValue>& background_repeat,
     UsedStyleProvider* used_style_provider)
-    : frame_size_(frame_size),
+    : frame_(frame),
       background_size_(background_size),
       background_position_(background_position),
       background_repeat_(background_repeat),
@@ -552,14 +552,14 @@ void UsedBackgroundNodeProvider::VisitAbsoluteURL(
 
   if (used_background_image) {
     UsedBackgroundSizeProvider used_background_size_provider(
-        frame_size_, used_background_image->GetSize());
+        frame_.size(), used_background_image->GetSize());
     background_size_->Accept(&used_background_size_provider);
 
     math::SizeF single_image_size =
         math::SizeF(used_background_size_provider.width(),
                     used_background_size_provider.height());
     UsedBackgroundPositionProvider used_background_position_provider(
-        frame_size_, single_image_size);
+        frame_.size(), single_image_size);
     background_position_->Accept(&used_background_position_provider);
 
     UsedBackgroundRepeatProvider used_background_repeat_provider;
@@ -568,24 +568,13 @@ void UsedBackgroundNodeProvider::VisitAbsoluteURL(
     BackgroundImageTransformData image_transform_data =
         GetImageTransformationData(
             &used_background_size_provider, &used_background_position_provider,
-            &used_background_repeat_provider, frame_size_, single_image_size);
+            &used_background_repeat_provider, frame_, single_image_size);
 
-    scoped_refptr<render_tree::ImageNode> image_node(new render_tree::ImageNode(
-        used_background_image, image_transform_data.image_node_size,
-        image_transform_data.image_node_transform_matrix));
-
-    if (!image_transform_data.composition_node_translation.IsOrigin()) {
-      render_tree::CompositionNode::Builder image_composition_node_builder;
-      image_composition_node_builder.AddChild(
-          image_node,
-          math::TranslateMatrix(
-              image_transform_data.composition_node_translation.x(),
-              image_transform_data.composition_node_translation.y()));
-      background_node_ = new render_tree::CompositionNode(
-          image_composition_node_builder.Pass());
-    } else {
-      background_node_ = image_node;
-    }
+    background_node_ = new render_tree::ImageNode(
+        used_background_image,
+        math::RectF(image_transform_data.composition_node_translation,
+                    image_transform_data.image_node_size),
+        image_transform_data.image_node_transform_matrix);
   }
 }
 
@@ -813,10 +802,10 @@ void UsedBackgroundNodeProvider::VisitLinearGradient(
   std::pair<math::PointF, math::PointF> source_and_dest;
   if (linear_gradient_value->side_or_corner()) {
     source_and_dest = LinearGradientPointsFromDirection(
-        *linear_gradient_value->side_or_corner(), frame_size_);
+        *linear_gradient_value->side_or_corner(), frame_.size());
   } else {
     source_and_dest = LinearGradientPointsFromAngle(
-        *linear_gradient_value->angle_in_radians(), frame_size_);
+        *linear_gradient_value->angle_in_radians(), frame_.size());
   }
 
   render_tree::ColorStopList color_stop_list = ConvertToRenderTreeColorStopList(
@@ -827,8 +816,8 @@ void UsedBackgroundNodeProvider::VisitLinearGradient(
       new render_tree::LinearGradientBrush(
           source_and_dest.first, source_and_dest.second, color_stop_list));
 
-  background_node_ = new render_tree::RectNode(
-      frame_size_, brush.PassAs<render_tree::Brush>());
+  background_node_ =
+      new render_tree::RectNode(frame_, brush.PassAs<render_tree::Brush>());
 }
 
 namespace {
@@ -976,17 +965,17 @@ math::PointF RadialGradientCenterFromCSSOM(
 void UsedBackgroundNodeProvider::VisitRadialGradient(
     cssom::RadialGradientValue* radial_gradient_value) {
   math::PointF center = RadialGradientCenterFromCSSOM(
-      radial_gradient_value->position(), frame_size_);
+      radial_gradient_value->position(), frame_.size());
 
   std::pair<float, float> major_and_minor_axes;
   if (radial_gradient_value->size_keyword()) {
     major_and_minor_axes = RadialGradientAxesFromSizeKeyword(
         radial_gradient_value->shape(), *radial_gradient_value->size_keyword(),
-        center, frame_size_);
+        center, frame_.size());
   } else {
     major_and_minor_axes = RadialGradientAxesFromSizeValue(
         radial_gradient_value->shape(), *radial_gradient_value->size_value(),
-        frame_size_);
+        frame_.size());
   }
 
   render_tree::ColorStopList color_stop_list = ConvertToRenderTreeColorStopList(
@@ -997,8 +986,8 @@ void UsedBackgroundNodeProvider::VisitRadialGradient(
                                            major_and_minor_axes.second,
                                            color_stop_list));
 
-  background_node_ = new render_tree::RectNode(
-      frame_size_, brush.PassAs<render_tree::Brush>());
+  background_node_ =
+      new render_tree::RectNode(frame_, brush.PassAs<render_tree::Brush>());
 }
 
 //   https://www.w3.org/TR/css3-background/#the-background-position
@@ -1218,7 +1207,7 @@ void UsedLineHeightProvider::UpdateHalfLeading() {
 // The value for the horizontal and vertical offset represent an offset from the
 // top left corner of the bounding box.
 //  https://www.w3.org/TR/css3-transforms/#transform-origin-property
-math::SizeF GetTransformOriginSize(const math::SizeF& used_size,
+math::Vector2dF GetTransformOrigin(const math::RectF& used_rect,
                                    cssom::PropertyValue* value) {
   const cssom::PropertyListValue* property_list =
       base::polymorphic_downcast<const cssom::PropertyListValue*>(value);
@@ -1227,16 +1216,19 @@ math::SizeF GetTransformOriginSize(const math::SizeF& used_size,
   const cssom::CalcValue* horizontal =
       base::polymorphic_downcast<const cssom::CalcValue*>(
           property_list->value()[0].get());
-  float width = horizontal->percentage_value()->value() * used_size.width() +
-                horizontal->length_value()->value();
+  float x_within_border_box =
+      horizontal->percentage_value()->value() * used_rect.width() +
+      horizontal->length_value()->value();
 
   const cssom::CalcValue* vertical =
       base::polymorphic_downcast<const cssom::CalcValue*>(
           property_list->value()[1].get());
-  float height = vertical->percentage_value()->value() * used_size.height() +
-                 vertical->length_value()->value();
+  float y_within_border_box =
+      vertical->percentage_value()->value() * used_rect.height() +
+      vertical->length_value()->value();
 
-  return math::SizeF(width, height);
+  return math::Vector2dF(used_rect.x() + x_within_border_box,
+                         used_rect.y() + y_within_border_box);
 }
 
 cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value) {

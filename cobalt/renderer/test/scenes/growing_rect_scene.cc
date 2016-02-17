@@ -20,7 +20,7 @@
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/color_rgba.h"
-#include "cobalt/render_tree/composition_node.h"
+#include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/rect_node.h"
 
 using cobalt::math::Matrix3F;
@@ -29,7 +29,7 @@ using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::ColorRGBA;
-using cobalt::render_tree::CompositionNode;
+using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::SolidColorBrush;
@@ -46,7 +46,7 @@ namespace {
 
 void AnimateGrowingRectComposition(base::TimeDelta start_time,
                                    const math::SizeF& output_dimensions,
-                                   CompositionNode::Builder* composition_node,
+                                   MatrixTransformNode::Builder* transform_node,
                                    base::TimeDelta time) {
   const float kGrowingRectPeriod = 5.0f;
   float rect_size_scale =
@@ -54,11 +54,9 @@ void AnimateGrowingRectComposition(base::TimeDelta start_time,
   SizeF rect_size(ScaleSize(output_dimensions, rect_size_scale));
 
   // Scale and translate the matrix based on how much time has passed.
-  CompositionNode::ComposedChild* child = composition_node->GetChild(0);
-  child->transform =
-      TranslateMatrix(
-          (output_dimensions.width() - rect_size.width()) / 2,
-          (output_dimensions.height() - rect_size.height()) / 2) *
+  transform_node->transform =
+      TranslateMatrix((output_dimensions.width() - rect_size.width()) / 2,
+                      (output_dimensions.height() - rect_size.height()) / 2) *
       ScaleMatrix(rect_size_scale);
 }
 
@@ -70,24 +68,21 @@ RenderTreeWithAnimations CreateGrowingRectScene(
   // composition node for this so that the rectangle's position can be set
   // and animated.  We also use the composition node to animate the RectNode's
   // size.
-  CompositionNode::Builder growing_rect_scene_builder;
   NodeAnimationsMap::Builder animations;
 
   scoped_refptr<RectNode> growing_rect_node(new RectNode(
-      output_dimensions,
+      math::RectF(output_dimensions),
       scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.2f, 0.2f, 0.2f)))));
 
-  growing_rect_scene_builder.AddChild(growing_rect_node, Matrix3F::Identity());
+  scoped_refptr<MatrixTransformNode> transformed_growing_rect(
+      new MatrixTransformNode(growing_rect_node, Matrix3F::Identity()));
 
-  scoped_refptr<CompositionNode> growing_rect_composition(
-      new CompositionNode(growing_rect_scene_builder.Pass()));
-
-  animations.Add(growing_rect_composition,
+  animations.Add(transformed_growing_rect,
                  base::Bind(&AnimateGrowingRectComposition, start_time,
                             output_dimensions));
 
-  return RenderTreeWithAnimations(
-      growing_rect_composition, new NodeAnimationsMap(animations.Pass()));
+  return RenderTreeWithAnimations(transformed_growing_rect,
+                                  new NodeAnimationsMap(animations.Pass()));
 }
 
 }  // namespace scenes

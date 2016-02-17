@@ -27,6 +27,7 @@
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/test/png_utils/png_decode.h"
@@ -36,6 +37,7 @@ using cobalt::math::SizeF;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
+using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::animations::Animation;
@@ -90,23 +92,18 @@ scoped_refptr<Image> GetTestImage(ResourceProvider* resource_provider) {
 RenderTreeWithAnimations CreateImageWrapScene(
     ResourceProvider* resource_provider, const math::SizeF& output_dimensions,
     base::TimeDelta start_time) {
-  CompositionNode::Builder image_wrap_scene_builder;
   NodeAnimationsMap::Builder animations;
 
   // Create an image node that will have its local_transform animated to
   // demonstrate what local_transform allows one to do.
   scoped_refptr<ImageNode> image_node(new ImageNode(
-      GetTestImage(resource_provider), output_dimensions));
+      GetTestImage(resource_provider), math::RectF(output_dimensions)));
 
   // Scale our image down to half the screen, and center it.
-  image_wrap_scene_builder.AddChild(
-      image_node,
-      math::ScaleMatrix(0.5f) *
-          math::TranslateMatrix(output_dimensions.width() / 2,
-                                output_dimensions.height() / 2));
-
-  scoped_refptr<CompositionNode> image_wrap_scene(
-      new CompositionNode(image_wrap_scene_builder.Pass()));
+  scoped_refptr<MatrixTransformNode> image_wrap_scene(new MatrixTransformNode(
+      image_node, math::ScaleMatrix(0.5f) *
+                      math::TranslateMatrix(output_dimensions.width() / 2,
+                                            output_dimensions.height() / 2)));
 
   animations.Add(image_node, base::Bind(&AnimateImage, start_time));
 

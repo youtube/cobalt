@@ -44,10 +44,8 @@ void RenderTreeCombiner::SubmitToRenderer() {
   if (render_debug_console_ && debug_console_render_tree_) {
     if (main_render_tree_) {
       render_tree::CompositionNode::Builder builder;
-      builder.AddChild(main_render_tree_->render_tree,
-                       math::Matrix3F::Identity());
-      builder.AddChild(debug_console_render_tree_->render_tree,
-                       math::Matrix3F::Identity());
+      builder.AddChild(main_render_tree_->render_tree);
+      builder.AddChild(debug_console_render_tree_->render_tree);
       scoped_refptr<render_tree::Node> combined_tree =
           new render_tree::CompositionNode(builder);
 
