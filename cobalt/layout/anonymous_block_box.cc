@@ -96,10 +96,8 @@ void AnonymousBlockBox::RenderAndAnimateContent(
 
         // The render tree API considers text coordinates to be a position of
         // a baseline, offset the text node accordingly.
-        border_node_builder->AddChild(
-            new render_tree::TextNode(glyph_buffer, used_color),
-            math::TranslateMatrix(ellipsis_coordinates.x(),
-                                  ellipsis_coordinates.y()));
+        border_node_builder->AddChild(new render_tree::TextNode(
+            ellipsis_coordinates, glyph_buffer, used_color));
       }
     }
   }

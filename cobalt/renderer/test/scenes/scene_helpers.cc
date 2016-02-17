@@ -23,6 +23,7 @@
 #include "cobalt/render_tree/rect_node.h"
 
 using cobalt::math::Matrix3F;
+using cobalt::math::RectF;
 using cobalt::math::SizeF;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::ColorRGBA;
@@ -41,13 +42,10 @@ RenderTreeWithAnimations AddBlankBackgroundToScene(
   // Declare a rectangle that fills the background to effectively clear the
   // screen.
   CompositionNode::Builder with_background_scene_builder;
-  with_background_scene_builder.AddChild(
-      make_scoped_refptr(new RectNode(
-          output_dimensions,
-          scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f))))),
-      Matrix3F::Identity());
-  with_background_scene_builder.AddChild(
-      scene.render_tree, Matrix3F::Identity());
+  with_background_scene_builder.AddChild(make_scoped_refptr(new RectNode(
+      RectF(output_dimensions),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0f, 1.0f, 1.0f))))));
+  with_background_scene_builder.AddChild(scene.render_tree);
 
   return RenderTreeWithAnimations(new CompositionNode(
       with_background_scene_builder.Pass()), scene.animations);

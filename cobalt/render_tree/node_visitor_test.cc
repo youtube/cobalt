@@ -25,6 +25,7 @@
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/text_node.h"
@@ -41,6 +42,7 @@ using cobalt::render_tree::FontMetrics;
 using cobalt::render_tree::GlyphBuffer;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
+using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::NodeVisitor;
 using cobalt::render_tree::OpacityFilter;
 using cobalt::render_tree::RectNode;
@@ -52,6 +54,7 @@ class MockNodeVisitor : public NodeVisitor {
   MOCK_METHOD1(Visit, void(CompositionNode* composition));
   MOCK_METHOD1(Visit, void(FilterNode* image));
   MOCK_METHOD1(Visit, void(ImageNode* image));
+  MOCK_METHOD1(Visit, void(MatrixTransformNode* matrix_transform_node));
   MOCK_METHOD1(Visit, void(RectNode* rect));
   MOCK_METHOD1(Visit, void(RectShadowNode* rect_shadow));
   MOCK_METHOD1(Visit, void(TextNode* text));
@@ -97,9 +100,17 @@ TEST(NodeVisitorTest, VisitsImage) {
   image_node->Accept(&mock_visitor);
 }
 
+TEST(NodeVisitorTest, VisitsMatrixTransform) {
+  scoped_refptr<MatrixTransformNode> matrix_transform_node(
+      new MatrixTransformNode(NULL, cobalt::math::Matrix3F::Identity()));
+  MockNodeVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, Visit(matrix_transform_node.get()));
+  matrix_transform_node->Accept(&mock_visitor);
+}
+
 TEST(NodeVisitorTest, VisitsRect) {
   scoped_refptr<RectNode> rect(
-      new RectNode(cobalt::math::SizeF(), scoped_ptr<Brush>(new DummyBrush())));
+      new RectNode(cobalt::math::RectF(), scoped_ptr<Brush>(new DummyBrush())));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(rect.get()));
   rect->Accept(&mock_visitor);
@@ -107,10 +118,9 @@ TEST(NodeVisitorTest, VisitsRect) {
 
 TEST(NodeVisitorTest, VisitsRectShadow) {
   scoped_refptr<RectShadowNode> rect_shadow(new RectShadowNode(
-      cobalt::math::SizeF(),
-      cobalt::render_tree::Shadow(
-          cobalt::math::Vector2dF(1.0f, 1.0f), 1.0f,
-          ColorRGBA(0, 0, 0, 1.0f))));
+      cobalt::math::RectF(),
+      cobalt::render_tree::Shadow(cobalt::math::Vector2dF(1.0f, 1.0f), 1.0f,
+                                  ColorRGBA(0, 0, 0, 1.0f))));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(rect_shadow.get()));
   rect_shadow->Accept(&mock_visitor);
@@ -160,7 +170,8 @@ class DummyFont : public Font {
 
 TEST(NodeVisitorTest, VisitsText) {
   scoped_refptr<TextNode> text(
-      new TextNode(new GlyphBuffer(cobalt::math::RectF(0, 0, 1, 1)),
+      new TextNode(cobalt::math::Vector2dF(0, 0),
+                   new GlyphBuffer(cobalt::math::RectF(0, 0, 1, 1)),
                    ColorRGBA(0.0f, 0.0f, 0.0f)));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(text.get()));

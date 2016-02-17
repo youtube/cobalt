@@ -71,10 +71,10 @@
       'target_name': 'scaling_text_sandbox_deploy',
       'type': 'none',
       'dependencies': [
-        'renderer_sandbox',
+        'scaling_text_sandbox',
       ],
       'variables': {
-        'executable_name': 'renderer_sandbox',
+        'executable_name': 'scaling_text_sandbox',
       },
       'includes': [ '../../build/deploy.gypi' ],
     },

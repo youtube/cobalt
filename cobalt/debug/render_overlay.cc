@@ -48,8 +48,8 @@ void RenderOverlay::Process() {
 
   if (overlay_) {
     render_tree::CompositionNode::Builder builder;
-    builder.AddChild(input_layout_.render_tree, math::Matrix3F::Identity());
-    builder.AddChild(overlay_, math::Matrix3F::Identity());
+    builder.AddChild(input_layout_.render_tree);
+    builder.AddChild(overlay_);
     scoped_refptr<render_tree::Node> combined_tree =
         new render_tree::CompositionNode(builder);
 

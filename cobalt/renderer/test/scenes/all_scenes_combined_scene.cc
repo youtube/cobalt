@@ -48,27 +48,24 @@ RenderTreeWithAnimations CreateAllScenesCombinedScene(
   // composition node, and merge the animations into one large set.
   RenderTreeWithAnimations growing_rect_scene =
       CreateGrowingRectScene(output_dimensions, start_time);
-  all_scenes_combined_scene_builder.AddChild(growing_rect_scene.render_tree,
-                                        Matrix3F::Identity());
+  all_scenes_combined_scene_builder.AddChild(growing_rect_scene.render_tree);
   animations.Merge(*growing_rect_scene.animations);
 
   RenderTreeWithAnimations spinning_sprites_scene =
       CreateSpinningSpritesScene(
           resource_provider, output_dimensions, start_time);
-  all_scenes_combined_scene_builder.AddChild(spinning_sprites_scene.render_tree,
-                                        Matrix3F::Identity());
+  all_scenes_combined_scene_builder.AddChild(
+      spinning_sprites_scene.render_tree);
   animations.Merge(*spinning_sprites_scene.animations);
 
   RenderTreeWithAnimations image_wrap_scene =
       CreateImageWrapScene(resource_provider, output_dimensions, start_time);
-  all_scenes_combined_scene_builder.AddChild(image_wrap_scene.render_tree,
-                                             Matrix3F::Identity());
+  all_scenes_combined_scene_builder.AddChild(image_wrap_scene.render_tree);
   animations.Merge(*image_wrap_scene.animations);
 
   RenderTreeWithAnimations marquee_scene =
       CreateMarqueeScene(resource_provider, output_dimensions, start_time);
-  all_scenes_combined_scene_builder.AddChild(marquee_scene.render_tree,
-                                        Matrix3F::Identity());
+  all_scenes_combined_scene_builder.AddChild(marquee_scene.render_tree);
   animations.Merge(*marquee_scene.animations);
 
   return RenderTreeWithAnimations(

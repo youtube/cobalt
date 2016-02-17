@@ -314,8 +314,10 @@ void TextBox::RenderAndAnimateContent(
       float baseline_offset_from_top =
           used_font_->GetFontMetrics().baseline_offset_from_top();
 
-      render_tree::TextNode::Builder text_node_builder(glyph_buffer,
-                                                       used_color);
+      render_tree::TextNode::Builder text_node_builder(
+          math::Vector2dF(GetLeadingWhiteSpaceWidth(),
+                          baseline_offset_from_top),
+          glyph_buffer, used_color);
 
       if (text_shadow != cssom::KeywordValue::GetNone()) {
         cssom::PropertyListValue* shadow_list =
@@ -330,9 +332,7 @@ void TextBox::RenderAndAnimateContent(
 
       // The render tree API considers text coordinates to be a position
       // of a baseline, offset the text node accordingly.
-      border_node_builder->AddChild(
-          text_node, math::TranslateMatrix(GetLeadingWhiteSpaceWidth(),
-                                           baseline_offset_from_top));
+      border_node_builder->AddChild(text_node);
       if (is_color_animated) {
         AddAnimations<render_tree::TextNode>(
             base::Bind(&SetupTextNodeFromStyle), *computed_style_state(),

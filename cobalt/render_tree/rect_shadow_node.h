@@ -33,15 +33,15 @@ class RectShadowNode : public Node {
  public:
   class Builder {
    public:
-    Builder(const math::SizeF& size, const Shadow& shadow)
-        : size(size), shadow(shadow), inset(false), spread(0.0f) {}
+    Builder(const math::RectF& rect, const Shadow& shadow)
+        : rect(rect), shadow(shadow), inset(false), spread(0.0f) {}
 
-    Builder(const math::SizeF& size, const Shadow& shadow, bool inset,
+    Builder(const math::RectF& rect, const Shadow& shadow, bool inset,
             float spread)
-        : size(size), shadow(shadow), inset(inset), spread(spread) {}
+        : rect(rect), shadow(shadow), inset(inset), spread(spread) {}
 
-    // A size of a rectangle (size includes border).
-    math::SizeF size;
+    // The destination rectangle.
+    math::RectF rect;
 
     // If specified, the source shadow rectangle shape will have rounded
     // corners.
@@ -51,7 +51,7 @@ class RectShadowNode : public Node {
     // None of the area within the rectangle will be shaded.
     Shadow shadow;
 
-    // If true, a shadow will be rendered within |size| instead of outside of
+    // If true, a shadow will be rendered within |rect| instead of outside of
     // it.  The shadow parameters define an inner rectangle that will NOT
     // be shaded.
     bool inset;
@@ -64,12 +64,12 @@ class RectShadowNode : public Node {
 
   explicit RectShadowNode(const Builder& builder) : data_(builder) {}
 
-  RectShadowNode(const math::SizeF& size, const Shadow& shadow)
-      : data_(size, shadow) {}
+  RectShadowNode(const math::RectF& rect, const Shadow& shadow)
+      : data_(rect, shadow) {}
 
-  RectShadowNode(const math::SizeF& size, const Shadow& shadow, bool inset,
+  RectShadowNode(const math::RectF& rect, const Shadow& shadow, bool inset,
                  float spread)
-      : data_(size, shadow, inset, spread) {}
+      : data_(rect, shadow, inset, spread) {}
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;

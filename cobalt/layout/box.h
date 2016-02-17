@@ -31,6 +31,7 @@
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size_f.h"
+#include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/web_animations/animation_set.h"
@@ -336,7 +337,8 @@ class Box : public base::RefCounted<Box> {
   void RenderAndAnimate(
       render_tree::CompositionNode::Builder* parent_content_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+          node_animations_map_builder,
+      const math::Vector2dF& offset_from_parent_node) const;
 
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
@@ -535,17 +537,17 @@ class Box : public base::RefCounted<Box> {
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       const scoped_refptr<render_tree::Node>& border_node,
       render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+          node_animations_map_builder,
+      const math::Vector2dF& border_node_offset) const;
 
-  // If transform is not "none", wraps a border node into a composition node if
-  // transform is animated or modifies |border_node_transform| otherwise.
+  // If transform is not "none", wraps a border node in a MatrixTransformNode.
   // If transform is "none", returns the original border node and leaves
   // |border_node_transform| intact.
   scoped_refptr<render_tree::Node> RenderAndAnimateTransform(
       const scoped_refptr<render_tree::Node>& border_node,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder,
-      math::Matrix3F* border_node_transform) const;
+      const math::Vector2dF& border_node_offset) const;
 
   // The computed_style_state_ member references the cssom::ComputedStyleState
   // object owned

@@ -22,50 +22,50 @@
 namespace cobalt {
 namespace render_tree {
 
-RectNode::Builder::Builder(const math::SizeF& size) : size(size) {}
+RectNode::Builder::Builder(const math::RectF& rect) : rect(rect) {}
 
-RectNode::Builder::Builder(const math::SizeF& size, scoped_ptr<Border> border)
-    : size(size), border(border.Pass()) {}
+RectNode::Builder::Builder(const math::RectF& rect, scoped_ptr<Border> border)
+    : rect(rect), border(border.Pass()) {}
 
-RectNode::Builder::Builder(const math::SizeF& size, scoped_ptr<Border> border,
+RectNode::Builder::Builder(const math::RectF& rect, scoped_ptr<Border> border,
                            scoped_ptr<RoundedCorners> rounded_corners)
-    : size(size),
+    : rect(rect),
       border(border.Pass()),
       rounded_corners(rounded_corners.Pass()) {}
 
-RectNode::Builder::Builder(const math::SizeF& size,
+RectNode::Builder::Builder(const math::RectF& rect,
                            scoped_ptr<Brush> background_brush)
-    : size(size), background_brush(background_brush.Pass()) {}
+    : rect(rect), background_brush(background_brush.Pass()) {}
 
-RectNode::Builder::Builder(const math::SizeF& size,
+RectNode::Builder::Builder(const math::RectF& rect,
                            scoped_ptr<RoundedCorners> rounded_corners)
-    : size(size), rounded_corners(rounded_corners.Pass()) {}
+    : rect(rect), rounded_corners(rounded_corners.Pass()) {}
 
-RectNode::Builder::Builder(const math::SizeF& size,
+RectNode::Builder::Builder(const math::RectF& rect,
                            scoped_ptr<Brush> background_brush,
                            scoped_ptr<RoundedCorners> rounded_corners)
-    : size(size),
+    : rect(rect),
       background_brush(background_brush.Pass()),
       rounded_corners(rounded_corners.Pass()) {}
 
-RectNode::Builder::Builder(const math::SizeF& size,
+RectNode::Builder::Builder(const math::RectF& rect,
                            scoped_ptr<Brush> background_brush,
                            scoped_ptr<Border> border)
-    : size(size),
+    : rect(rect),
       background_brush(background_brush.Pass()),
       border(border.Pass()) {}
 
-RectNode::Builder::Builder(const math::SizeF& size,
+RectNode::Builder::Builder(const math::RectF& rect,
                            scoped_ptr<Brush> background_brush,
                            scoped_ptr<Border> border,
                            scoped_ptr<RoundedCorners> rounded_corners)
-    : size(size),
+    : rect(rect),
       background_brush(background_brush.Pass()),
       border(border.Pass()),
       rounded_corners(rounded_corners.Pass()) {}
 
 RectNode::Builder::Builder(const Builder& other) {
-  size = other.size;
+  rect = other.rect;
 
   if (other.background_brush) {
     background_brush = CloneBrush(other.background_brush.get());
@@ -81,14 +81,14 @@ RectNode::Builder::Builder(const Builder& other) {
 }
 
 RectNode::Builder::Builder(Moved moved)
-    : size(moved->size),
+    : rect(moved->rect),
       background_brush(moved->background_brush.Pass()),
       border(moved->border.Pass()),
       rounded_corners(moved->rounded_corners.Pass()) {}
 
 void RectNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
-math::RectF RectNode::GetBounds() const { return math::RectF(data_.size); }
+math::RectF RectNode::GetBounds() const { return data_.rect; }
 
 }  // namespace render_tree
 }  // namespace cobalt

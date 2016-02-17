@@ -22,33 +22,43 @@ namespace cobalt {
 namespace render_tree {
 
 ImageNode::Builder::Builder(const scoped_refptr<Image>& source,
-                            const math::SizeF& destination_size) :
-    source(source), destination_size(destination_size),
-    local_transform(math::Matrix3F::Identity()) {}
+                            const math::RectF& destination_rect)
+    : source(source),
+      destination_rect(destination_rect),
+      local_transform(math::Matrix3F::Identity()) {}
 
 ImageNode::Builder::Builder(const scoped_refptr<Image>& source,
-                            const math::SizeF& destination_size,
-                            const math::Matrix3F& local_transform) :
-    source(source), destination_size(destination_size),
-    local_transform(local_transform) {}
+                            const math::Vector2dF& offset)
+    : source(source),
+      destination_rect(PointAtOffsetFromOrigin(offset), source->GetSize()),
+      local_transform(math::Matrix3F::Identity()) {}
+
+ImageNode::Builder::Builder(const scoped_refptr<Image>& source,
+                            const math::RectF& destination_rect,
+                            const math::Matrix3F& local_transform)
+    : source(source),
+      destination_rect(destination_rect),
+      local_transform(local_transform) {}
 
 ImageNode::ImageNode(const scoped_refptr<Image>& source)
-    : data_(source, source ? source->GetSize() : math::Size()) {}
+    : data_(source, source ? math::RectF(source->GetSize()) : math::RectF()) {}
 
 ImageNode::ImageNode(const scoped_refptr<Image>& source,
-                     const math::SizeF& destination_size)
-    : data_(source, destination_size) {}
+                     const math::RectF& destination_rect)
+    : data_(source, destination_rect) {}
 
 ImageNode::ImageNode(const scoped_refptr<Image>& source,
-                     const math::SizeF& destination_size,
+                     const math::Vector2dF& offset)
+    : data_(source, offset) {}
+
+ImageNode::ImageNode(const scoped_refptr<Image>& source,
+                     const math::RectF& destination_rect,
                      const math::Matrix3F& local_transform)
-    : data_(source, destination_size, local_transform) {}
+    : data_(source, destination_rect, local_transform) {}
 
 void ImageNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
-math::RectF ImageNode::GetBounds() const {
-  return math::RectF(data_.destination_size);
-}
+math::RectF ImageNode::GetBounds() const { return data_.destination_rect; }
 
 }  // namespace render_tree
 }  // namespace cobalt

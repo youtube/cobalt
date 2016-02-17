@@ -18,6 +18,7 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/message_loop.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/pipeline.h"
@@ -41,6 +42,8 @@ const int kViewportHeight = 1080;
 int main(int argc, char** argv) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
+
+  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
 
   cobalt::trace_event::ScopedTraceToFile trace_to_file(
       FilePath(FILE_PATH_LITERAL("scaling_text_sandbox_trace.json")));

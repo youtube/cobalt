@@ -36,6 +36,7 @@
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/filter_node.h"
+#include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/rounded_corners.h"
@@ -45,6 +46,7 @@ using cobalt::render_tree::Border;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::FilterNode;
+using cobalt::render_tree::MatrixTransformNode;
 using cobalt::render_tree::OpacityFilter;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::RoundedCorners;
@@ -275,7 +277,8 @@ void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
 
 void Box::RenderAndAnimate(
     CompositionNode::Builder* parent_content_node_builder,
-    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+    NodeAnimationsMap::Builder* node_animations_map_builder,
+    const math::Vector2dF& offset_from_parent_node) const {
   float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
                       computed_style()->opacity().get())
                       ->value();
@@ -295,7 +298,10 @@ void Box::RenderAndAnimate(
     return;
   }
 
-  render_tree::CompositionNode::Builder border_node_builder;
+  math::Vector2dF border_box_offset(left() + margin_left(),
+                                    top() + margin_top());
+  border_box_offset += offset_from_parent_node;
+  render_tree::CompositionNode::Builder border_node_builder(border_box_offset);
 
   UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
   computed_style()->border_radius()->Accept(&border_radius_provider);
@@ -361,33 +367,30 @@ void Box::RenderAndAnimate(
     // Otherwise, deal with content specifically so that we can apply overflow:
     // hidden to the content but not the background.
     RenderAndAnimateContent(&content_node_builder, node_animations_map_builder);
-    if (!content_node_builder.composed_children().empty()) {
-      border_node_builder.AddChild(
-          RenderAndAnimateOverflow(
-              padding_rounded_corners,
-              new CompositionNode(content_node_builder.Pass()),
-              node_animations_map_builder),
-          math::Matrix3F::Identity());
+    if (!content_node_builder.children().empty()) {
+      border_node_builder.AddChild(RenderAndAnimateOverflow(
+          padding_rounded_corners,
+          new CompositionNode(content_node_builder.Pass()),
+          node_animations_map_builder, math::Vector2dF(0, 0)));
     }
     // We've already applied overflow hidden, no need to apply it again later.
     overflow_hidden_needs_to_be_applied = false;
   }
 
-  if (!border_node_builder.composed_children().empty()) {
+  if (!border_node_builder.children().empty()) {
     scoped_refptr<render_tree::Node> border_node =
         new CompositionNode(border_node_builder.Pass());
     if (overflow_hidden_needs_to_be_applied) {
       border_node = RenderAndAnimateOverflow(
-          padding_rounded_corners, border_node, node_animations_map_builder);
+          padding_rounded_corners, border_node, node_animations_map_builder,
+          border_box_offset);
     }
     border_node = RenderAndAnimateOpacity(
         border_node, node_animations_map_builder, opacity, opacity_animated);
-    math::Matrix3F border_node_transform =
-        math::TranslateMatrix(left() + margin_left(), top() + margin_top());
     border_node = RenderAndAnimateTransform(
-        border_node, node_animations_map_builder, &border_node_transform);
+        border_node, node_animations_map_builder, border_box_offset);
 
-    parent_content_node_builder->AddChild(border_node, border_node_transform);
+    parent_content_node_builder->AddChild(border_node);
   }
 }
 
@@ -647,34 +650,32 @@ namespace {
 math::Matrix3F GetCSSTransform(
     cssom::PropertyValue* transform_property_value,
     cssom::PropertyValue* transform_origin_property_value,
-    const math::SizeF& used_size) {
+    const math::RectF& used_rect) {
   if (transform_property_value == cssom::KeywordValue::GetNone()) {
     return math::Matrix3F::Identity();
   }
 
   math::Matrix3F css_transform_matrix =
-      GetTransformMatrix(transform_property_value).ToMatrix3F(used_size);
+      GetTransformMatrix(transform_property_value).ToMatrix3F(used_rect.size());
 
   // Apply the CSS transformations, taking into account the CSS
   // transform-origin property.
-  math::SizeF origin =
-      GetTransformOriginSize(used_size, transform_origin_property_value);
+  math::Vector2dF origin =
+      GetTransformOrigin(used_rect, transform_origin_property_value);
 
-  return math::TranslateMatrix(origin.width(), origin.height()) *
-         css_transform_matrix *
-         math::TranslateMatrix(-origin.width(), -origin.height());
+  return math::TranslateMatrix(origin.x(), origin.y()) * css_transform_matrix *
+         math::TranslateMatrix(-origin.x(), -origin.y());
 }
 
 // Used within the animation callback for CSS transforms.  This will
 // set the transform of a single-child composition node to that specified by
 // the CSS transform of the provided CSS Style Declaration.
 void SetupCompositionNodeFromCSSSStyleTransform(
-    const math::SizeF& used_size,
+    const math::RectF& used_rect,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
-    CompositionNode::Builder* composition_node_builder) {
-  DCHECK_EQ(1, composition_node_builder->composed_children().size());
-  composition_node_builder->GetChild(0)->transform =
-      GetCSSTransform(style->transform(), style->transform_origin(), used_size);
+    MatrixTransformNode::Builder* transform_node_builder) {
+  transform_node_builder->transform =
+      GetCSSTransform(style->transform(), style->transform_origin(), used_rect);
 }
 
 void SetupFilterNodeFromStyle(
@@ -751,21 +752,22 @@ void Box::RenderAndAnimateBoxShadow(
       math::SizeF shadow_rect_size =
           shadow_value->has_inset() ? GetPaddingBoxSize() : GetBorderBoxSize();
 
+      // Inset nodes apply within the border, starting at the padding box.
+      math::PointF rect_offset =
+          shadow_value->has_inset()
+              ? math::PointF(border_left_width(), border_top_width())
+              : math::PointF();
+
       render_tree::RectShadowNode::Builder shadow_builder(
-          shadow_rect_size, shadow, shadow_value->has_inset(), spread_radius);
+          math::RectF(rect_offset, shadow_rect_size), shadow,
+          shadow_value->has_inset(), spread_radius);
       shadow_builder.rounded_corners = rounded_corners;
 
       // Finally, create our shadow node.
       scoped_refptr<render_tree::RectShadowNode> shadow_node(
           new render_tree::RectShadowNode(shadow_builder));
 
-      if (shadow_value->has_inset()) {
-        border_node_builder->AddChild(
-            shadow_node,
-            math::TranslateMatrix(border_left_width(), border_top_width()));
-      } else {
-        border_node_builder->AddChild(shadow_node, math::Matrix3F::Identity());
-      }
+      border_node_builder->AddChild(shadow_node);
     }
   }
 }
@@ -780,12 +782,13 @@ void Box::RenderAndAnimateBorder(
     return;
   }
 
-  RectNode::Builder rect_node_builder(GetBorderBoxSize());
+  math::RectF rect(GetBorderBoxSize());
+  RectNode::Builder rect_node_builder(rect);
   SetupBorderNodeFromStyle(rounded_corners, computed_style(),
                            &rect_node_builder);
 
   scoped_refptr<RectNode> border_node(new RectNode(rect_node_builder.Pass()));
-  border_node_builder->AddChild(border_node, math::Matrix3F::Identity());
+  border_node_builder->AddChild(border_node);
 
   if (HasAnimatedBorder(animations())) {
     AddAnimations<RectNode>(
@@ -807,15 +810,15 @@ void Box::RenderAndAnimateBackgroundColor(
   bool background_color_animated =
       animations()->IsPropertyAnimated(cssom::kBackgroundColorProperty);
   if (!background_color_transparent || background_color_animated) {
-    RectNode::Builder rect_node_builder(GetPaddingBoxSize(),
-                                        scoped_ptr<Brush>());
+    RectNode::Builder rect_node_builder(
+        math::RectF(math::PointF(border_left_width(), border_top_width()),
+                    GetPaddingBoxSize()),
+        scoped_ptr<Brush>());
     SetupBackgroundNodeFromStyle(rounded_corners, computed_style(),
                                  &rect_node_builder);
-    if (rect_node_builder.size.GetArea() != 0) {
+    if (!rect_node_builder.rect.IsEmpty()) {
       scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
-      border_node_builder->AddChild(
-          rect_node,
-          math::TranslateMatrix(border_left_width(), border_top_width()));
+      border_node_builder->AddChild(rect_node);
 
       // TODO(***REMOVED***) Investigate if we could pass computed_style_state_ instead
       // here.
@@ -834,7 +837,8 @@ void Box::RenderAndAnimateBackgroundImage(
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   UNREFERENCED_PARAMETER(node_animations_map_builder);
 
-  math::SizeF image_frame_size(GetPaddingBoxSize());
+  math::RectF image_frame(math::PointF(border_left_width(), border_top_width()),
+                          GetPaddingBoxSize());
 
   cssom::PropertyListValue* property_list =
       base::polymorphic_downcast<cssom::PropertyListValue*>(
@@ -849,7 +853,7 @@ void Box::RenderAndAnimateBackgroundImage(
     }
 
     UsedBackgroundNodeProvider background_node_provider(
-        image_frame_size, computed_style()->background_size(),
+        image_frame, computed_style()->background_size(),
         computed_style()->background_position(),
         computed_style()->background_repeat(), used_style_provider_);
     (*image_iterator)->Accept(&background_node_provider);
@@ -861,13 +865,11 @@ void Box::RenderAndAnimateBackgroundImage(
         // Apply rounded viewport filter to the background image.
         FilterNode::Builder filter_node_builder(background_node);
         filter_node_builder.viewport_filter =
-            ViewportFilter(math::RectF(image_frame_size), *rounded_corners);
+            ViewportFilter(image_frame, *rounded_corners);
         background_node = new FilterNode(filter_node_builder);
       }
 
-      border_node_builder->AddChild(
-          background_node,
-          math::TranslateMatrix(border_left_width(), border_top_width()));
+      border_node_builder->AddChild(background_node);
     }
   }
 }
@@ -902,7 +904,8 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const base::optional<render_tree::RoundedCorners>& rounded_corners,
     const scoped_refptr<render_tree::Node>& content_node,
     render_tree::animations::NodeAnimationsMap::Builder*
-    /* node_animations_map_builder */) const {
+    /* node_animations_map_builder */,
+    const math::Vector2dF& border_node_offset) const {
   bool overflow_hidden =
       computed_style()->overflow().get() == cssom::KeywordValue::GetHidden();
 
@@ -918,7 +921,8 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
   math::SizeF padding_size = GetPaddingBoxSize();
   FilterNode::Builder filter_node_builder(content_node);
   filter_node_builder.viewport_filter =
-      ViewportFilter(math::RectF(border_left_width(), border_top_width(),
+      ViewportFilter(math::RectF(border_node_offset.x() + border_left_width(),
+                                 border_node_offset.y() + border_top_width(),
                                  padding_size.width(), padding_size.height()));
   if (rounded_corners) {
     filter_node_builder.viewport_filter->set_rounded_corners(*rounded_corners);
@@ -931,22 +935,20 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     const scoped_refptr<render_tree::Node>& border_node,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder,
-    math::Matrix3F* border_node_transform) const {
+    const math::Vector2dF& border_node_offset) const {
   if (IsTransformable() &&
       animations()->IsPropertyAnimated(cssom::kTransformProperty)) {
     // If the CSS transform is animated, we cannot flatten it into the layout
     // transform, thus we create a new composition node to separate it and
     // animate that node only.
-    render_tree::CompositionNode::Builder css_transform_node_builder;
-    css_transform_node_builder.AddChild(border_node,
-                                        math::Matrix3F::Identity());
-    scoped_refptr<CompositionNode> css_transform_node =
-        new CompositionNode(css_transform_node_builder.Pass());
+    scoped_refptr<MatrixTransformNode> css_transform_node =
+        new MatrixTransformNode(border_node, math::Matrix3F::Identity());
 
     // Specifically animate only the composition node with the CSS transform.
-    AddAnimations<CompositionNode>(
+    AddAnimations<MatrixTransformNode>(
         base::Bind(&SetupCompositionNodeFromCSSSStyleTransform,
-                   GetBorderBoxSize()),
+                   math::RectF(PointAtOffsetFromOrigin(border_node_offset),
+                               GetBorderBoxSize())),
         *computed_style_state(), css_transform_node,
         node_animations_map_builder);
 
@@ -954,13 +956,18 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
   }
 
   if (IsTransformed()) {
-    // Combine layout transform and CSS transform.
-    *border_node_transform =
-        *border_node_transform *
-        GetCSSTransform(computed_style()->transform(),
-                        computed_style()->transform_origin(),
-                        GetBorderBoxSize());
+    math::Matrix3F matrix = GetCSSTransform(
+        computed_style()->transform(), computed_style()->transform_origin(),
+        math::RectF(PointAtOffsetFromOrigin(border_node_offset),
+                    GetBorderBoxSize()));
+    if (matrix.IsIdentity()) {
+      return border_node;
+    } else {
+      // Combine layout transform and CSS transform.
+      return new MatrixTransformNode(border_node, matrix);
+    }
   }
+
   return border_node;
 }
 
