@@ -125,10 +125,11 @@ class WebModule {
     // memory that is not part of the heap.
     dom::ArrayBuffer::Allocator* array_buffer_allocator;
 
-    // Content Security Policy to be enforced if no CSP is received from the
-    // server. This is intended to implement a navigation jail so that location
+    // Location policy to enforce, formatted as a Content Security Policy
+    // directive, e.g. "h5vcc-location-src 'self'"
+    // This is used to implement a navigation jail, so that location
     // can't be changed from the whitelisted origins.
-    std::string default_security_policy;
+    std::string location_policy;
 
     // Image cache capaticy in bytes.
     uint32 image_cache_capacity;

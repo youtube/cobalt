@@ -88,7 +88,7 @@ Document::Document(HTMLElementContext* html_element_context,
   scoped_ptr<CspViolationReporter> violation_reporter(
       new CspViolationReporter(this, options.post_sender));
   csp_delegate_.reset(new CspDelegate(
-      violation_reporter.Pass(), options.url, options.default_security_policy,
+      violation_reporter.Pass(), options.url, options.location_policy,
       options.csp_enforcement_mode, options.csp_policy_changed_callback));
 
   location_ = new Location(
@@ -310,7 +310,7 @@ scoped_refptr<Node> Document::Duplicate() const {
       Options(location_->url(), navigation_start_clock_,
               location_->navigation_callback(), user_agent_style_sheet_,
               viewport_size_, cookie_jar_, csp_delegate_->post_sender(),
-              csp_delegate_->default_security_policy(),
+              csp_delegate_->location_policy(),
               csp_delegate_->enforcement_mode(),
               csp_delegate_->policy_changed_callback()));
 }

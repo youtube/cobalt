@@ -57,7 +57,7 @@ class CspDelegate {
   };
 
   CspDelegate(scoped_ptr<CspViolationReporter> violation_reporter,
-              const GURL& url, const std::string& default_security_policy,
+              const GURL& url, const std::string& location_policy,
               EnforcementType mode,
               const base::Closure& policy_changed_callback);
   virtual ~CspDelegate();
@@ -92,9 +92,7 @@ class CspDelegate {
   // Inform the policy that the document's origin has changed.
   void NotifyUrlChanged(const GURL& url) { return csp_->NotifyUrlChanged(url); }
 
-  const std::string& default_security_policy() const {
-    return default_security_policy_;
-  }
+  const std::string& location_policy() const { return location_policy_; }
 
   EnforcementType enforcement_mode() const { return enforcement_mode_; }
   CspViolationReporter* reporter() const { return reporter_.get(); }
@@ -111,8 +109,8 @@ class CspDelegate {
 
   scoped_ptr<csp::ContentSecurityPolicy> csp_;
 
-  // Policy to enforce by default in the absence of anything else.
-  std::string default_security_policy_;
+  // Hardcoded policy to restrict navigation.
+  std::string location_policy_;
 
   // Helper class to send violation events to any reporting endpoints.
   scoped_ptr<CspViolationReporter> reporter_;
