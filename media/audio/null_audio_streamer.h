@@ -4,6 +4,7 @@
 #include <map>
 
 #include "base/memory/singleton.h"
+#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 #include "base/time.h"
@@ -40,13 +41,15 @@ class NullAudioStreamer : public ShellAudioStreamer {
   ~NullAudioStreamer() OVERRIDE;
 
   void StartNullStreamer();
+  void StopNullStreamer();
   void AdvanceStreams();
   void PullFrames(ShellAudioStream* stream,
                   base::TimeDelta time_played,
                   NullAudioStream* null_audio_stream);
 
   base::Thread null_streamer_thread_;
-  base::RepeatingTimer<NullAudioStreamer> advance_streams_timer_;
+  typedef base::RepeatingTimer<NullAudioStreamer> RepeatingTimer;
+  base::optional<RepeatingTimer> advance_streams_timer_;
   base::Time last_run_time_;
 
   mutable base::Lock streams_lock_;
