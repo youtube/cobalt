@@ -92,6 +92,9 @@ namespace renderer {
 
 class SubmissionQueue {
  public:
+  typedef base::Callback<void(scoped_ptr<Submission>)>
+      DisposeSubmissionFunction;
+
   // |max_queue_size| indicates the maximum size of the submission queue.  If
   // a new submission is pushed which would increase the queue size to its
   // maximum, we drop the oldest submission and snap to the time of the next
@@ -99,9 +102,13 @@ class SubmissionQueue {
   // so, memory.
   // |time_to_converge| is a time value that indicates how long each transition
   // between time values will take.
-  explicit SubmissionQueue(size_t max_queue_size = 4u,
-                           base::TimeDelta time_to_converge =
-                               base::TimeDelta::FromMilliseconds(500));
+  // |dispose_function| specifies a function that will be called and
+  // passed a Submission that the submission queue is done with.  This may be
+  // used to allow the Submission/render tree to be disposed/destroyed on a
+  // separate thread.
+  SubmissionQueue(size_t max_queue_size, base::TimeDelta time_to_converge,
+                  const DisposeSubmissionFunction& dispose_function =
+                      DisposeSubmissionFunction());
 
   // Pushes a new submission into the submission queue, possibly updating
   // internal timing parameters based on the submission's time offset.
@@ -124,6 +131,9 @@ class SubmissionQueue {
 
   // The maximum size of the queue.  If we go over this, we snap time forward.
   const size_t max_queue_size_;
+
+  // Function to call before releasing a handle on a render tree.
+  DisposeSubmissionFunction dispose_function_;
 
   // An arbitrary time chosen upon construction to fully specify the renderer
   // timeline.

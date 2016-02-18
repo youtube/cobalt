@@ -25,9 +25,11 @@
 namespace cobalt {
 namespace renderer {
 
-SubmissionQueue::SubmissionQueue(size_t max_queue_size,
-                                 base::TimeDelta time_to_converge)
+SubmissionQueue::SubmissionQueue(
+    size_t max_queue_size, base::TimeDelta time_to_converge,
+    const DisposeSubmissionFunction& dispose_function)
     : max_queue_size_(max_queue_size),
+      dispose_function_(dispose_function),
       renderer_time_origin_(base::TimeTicks::HighResNow()),
       to_submission_time_in_ms_(time_to_converge),
       to_submission_time_in_ms_cval_(
@@ -127,7 +129,20 @@ void SubmissionQueue::PurgeStaleSubmissionsFromQueue() {
   // Delete all previous, old render trees.
   while (submission_queue_.begin() != submission) {
     TRACE_EVENT0("cobalt::renderer", "Delete Render Tree Submission");
-    submission_queue_.pop_front();
+    if (!dispose_function_.is_null()) {
+      // Package the submission for sending to the disposal callback function.
+      // We erase it from our queue before calling the callback in order to
+      // ensure that the callback disposes of the Submission object after we
+      // do.
+      scoped_ptr<Submission> submission(
+          new Submission(submission_queue_.front()));
+      submission_queue_.pop_front();
+      dispose_function_.Run(submission.Pass());
+    } else {
+      // If no callback is passed in to dispose of submissions for us, just
+      // delete it immediately.
+      submission_queue_.pop_front();
+    }
   }
 
   // Update our CVal tracking the current (smoothed) to_submission_time value
