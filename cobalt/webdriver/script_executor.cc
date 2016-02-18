@@ -36,11 +36,13 @@ ScriptExecutor::execute_script_harness() {
 }
 
 base::optional<std::string> ScriptExecutor::Execute(
-    const std::string& function_body, const std::string& json_arguments) {
+    const script::OpaqueHandleHolder* function_object,
+    const std::string& json_arguments) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(callback_);
+
   ExecuteFunctionCallback::ReturnValue callback_result =
-      callback_->value().Run(function_body, json_arguments);
+      callback_->value().Run(function_object, json_arguments);
   if (callback_result.exception) {
     return base::nullopt;
   } else {

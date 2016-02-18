@@ -26,6 +26,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_object.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/webdriver/element_mapping.h"
@@ -40,7 +41,8 @@ class ScriptExecutor :
     public script::Wrappable {
  public:
   typedef script::CallbackFunction<std::string(
-      const std::string&, const std::string&)> ExecuteFunctionCallback;
+      const script::OpaqueHandleHolder*, const std::string&)>
+      ExecuteFunctionCallback;
   typedef script::ScriptObject<ExecuteFunctionCallback>
       ExecuteFunctionCallbackHolder;
 
@@ -57,8 +59,9 @@ class ScriptExecutor :
   // Calls the function set to the executeScriptHarness property with the
   // provided |function_body| and |json_arguments|. Returns a JSON
   // serialized result string, of base::nullopt on execution failure.
-  base::optional<std::string> Execute(const std::string& function_body,
-                                      const std::string& json_arguments);
+  base::optional<std::string> Execute(
+      const script::OpaqueHandleHolder* function_object,
+      const std::string& json_arguments);
 
   DEFINE_WRAPPABLE_TYPE(ScriptExecutor);
 
