@@ -182,6 +182,9 @@ SB_EXPORT SbThread SbThreadGetCurrent();
 // Gets the Thread ID of the currently executing thread.
 SB_EXPORT SbThreadId SbThreadGetId();
 
+// Returns whether |thread1| and |thread2| refer to the same thread.
+SB_EXPORT bool SbThreadIsEqual(SbThread thread1, SbThread thread2);
+
 // Gets the debug name of the currently executing thread.
 SB_EXPORT void SbThreadGetName(char* buffer, int buffer_size);
 
