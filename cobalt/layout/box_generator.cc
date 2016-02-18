@@ -69,10 +69,12 @@ BoxGenerator::BoxGenerator(
     const scoped_refptr<cssom::ComputedStyleState>& parent_computed_style_state,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
+    icu::BreakIterator* character_break_iterator,
     scoped_refptr<Paragraph>* paragraph)
     : parent_computed_style_state_(parent_computed_style_state),
       used_style_provider_(used_style_provider),
       line_break_iterator_(line_break_iterator),
+      character_break_iterator_(character_break_iterator),
       paragraph_(paragraph) {}
 
 BoxGenerator::~BoxGenerator() {
@@ -326,10 +328,12 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
       const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       UsedStyleProvider* used_style_provider,
       icu::BreakIterator* line_break_iterator,
+      icu::BreakIterator* character_break_iterator,
       scoped_refptr<Paragraph>* paragraph)
       : computed_style_state_(computed_style_state),
         used_style_provider_(used_style_provider),
         line_break_iterator_(line_break_iterator),
+        character_break_iterator_(character_break_iterator),
         paragraph_(paragraph),
         paragraph_scoped_(false) {}
   ~ContainerBoxGenerator();
@@ -344,6 +348,7 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
   UsedStyleProvider* const used_style_provider_;
   icu::BreakIterator* const line_break_iterator_;
+  icu::BreakIterator* const character_break_iterator_;
 
   scoped_refptr<Paragraph>* paragraph_;
   scoped_refptr<Paragraph> prior_paragraph_;
@@ -360,8 +365,9 @@ ContainerBoxGenerator::~ContainerBoxGenerator() {
     // that has the same direction as the previous one. Otherwise, restore the
     // prior one.
     if (prior_paragraph_->IsClosed()) {
-      *paragraph_ = new Paragraph(line_break_iterator_,
-                                  prior_paragraph_->GetBaseDirection());
+      *paragraph_ =
+          new Paragraph(line_break_iterator_, character_break_iterator_,
+                        prior_paragraph_->GetBaseDirection());
     } else {
       *paragraph_ = prior_paragraph_;
     }
@@ -476,8 +482,8 @@ void ContainerBoxGenerator::CreateScopedParagraph(
 
   // TODO(***REMOVED***): Use the container box's style to determine the correct base
   // direction for the paragraph.
-  *paragraph_ =
-      new Paragraph(line_break_iterator_, Paragraph::kLeftToRightBaseDirection);
+  *paragraph_ = new Paragraph(line_break_iterator_, character_break_iterator_,
+                              Paragraph::kLeftToRightBaseDirection);
 }
 
 }  // namespace
@@ -601,7 +607,7 @@ void BoxGenerator::AppendPseudoElementToLine(
   if (pseudo_element) {
     ContainerBoxGenerator pseudo_element_box_generator(
         pseudo_element->computed_style_state(), used_style_provider_,
-        line_break_iterator_, paragraph_);
+        line_break_iterator_, character_break_iterator_, paragraph_);
     pseudo_element->computed_style()->display()->Accept(
         &pseudo_element_box_generator);
     scoped_refptr<ContainerBox> pseudo_element_box =
@@ -620,9 +626,9 @@ void BoxGenerator::AppendPseudoElementToLine(
         scoped_refptr<dom::Text> child_node(new dom::Text(
             html_element->owner_document(), content_provider.content_string()));
 
-        BoxGenerator child_box_generator(pseudo_element->computed_style_state(),
-                                         used_style_provider_,
-                                         line_break_iterator_, paragraph_);
+        BoxGenerator child_box_generator(
+            pseudo_element->computed_style_state(), used_style_provider_,
+            line_break_iterator_, character_break_iterator_, paragraph_);
         child_node->Accept(&child_box_generator);
         const Boxes& child_boxes = child_box_generator.boxes();
         for (Boxes::const_iterator child_box_iterator = child_boxes.begin();
@@ -642,7 +648,7 @@ void BoxGenerator::AppendPseudoElementToLine(
 void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   ContainerBoxGenerator container_box_generator(
       html_element->computed_style_state(), used_style_provider_,
-      line_break_iterator_, paragraph_);
+      line_break_iterator_, character_break_iterator_, paragraph_);
   html_element->computed_style()->display()->Accept(&container_box_generator);
   scoped_refptr<ContainerBox> container_box_before_split =
       container_box_generator.container_box();
@@ -668,7 +674,7 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
        child_node; child_node = child_node->next_sibling()) {
     BoxGenerator child_box_generator(html_element->computed_style_state(),
                                      used_style_provider_, line_break_iterator_,
-                                     paragraph_);
+                                     character_break_iterator_, paragraph_);
     child_node->Accept(&child_box_generator);
     const Boxes& child_boxes = child_box_generator.boxes();
     for (Boxes::const_iterator child_box_iterator = child_boxes.begin();

@@ -17,6 +17,7 @@
 5-2-ellipsis-should-properly-position-ellipsis-in-spans-with-margins
 5-2-ellipsis-should-retain-background-color-of-ellipsized-span
 5-2-ellipsis-should-use-style-of-containing-block
+5-2-shaped-text-should-accurately-calculate-width-before-ellipsis
 5-2-text-overflow-clip-should-not-display-ellipsis-on-overflow
 5-2-text-overflow-ellipsis-should-display-ellipsis-on-overflow-when-overflow-is-hidden
 5-2-text-overflow-ellipsis-should-not-be-inherited
