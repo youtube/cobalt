@@ -78,7 +78,9 @@ ShellAudioSink::ShellAudioSink(ShellAudioStreamer* audio_streamer)
 }
 
 ShellAudioSink::~ShellAudioSink() {
-  DCHECK(!audio_streamer_->HasStream(this));
+  if (render_callback_) {
+    DCHECK(!audio_streamer_->HasStream(this));
+  }
 }
 
 void ShellAudioSink::Initialize(const AudioParameters& params,
