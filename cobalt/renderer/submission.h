@@ -18,6 +18,7 @@
 #define COBALT_RENDERER_SUBMISSION_H_
 
 #include "base/callback.h"
+#include "base/debug/trace_event.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
@@ -45,6 +46,15 @@ struct Submission {
       : render_tree(render_tree),
         animations(animations),
         time_offset(time_offset) {}
+
+  ~Submission() {
+    TRACE_EVENT0("cobalt::renderer", "~Submission()");
+
+    // Explicitly dereference the render tree and animation under the scope of
+    // the above trace event.
+    render_tree = NULL;
+    animations = NULL;
+  }
 
   // Maintains the current render tree that is to be rendered next frame.
   scoped_refptr<render_tree::Node> render_tree;
