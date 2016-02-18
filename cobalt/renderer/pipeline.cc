@@ -36,6 +36,19 @@ const size_t kMaxSubmissionQueueSize = 4u;
 // usually notice input lag from a slow timeline renderer, but slow enough that
 // quick updates while a quick animation is playing should not jank.
 const double kTimeToConvergeInMS = 500.0;
+
+// The stack size to be used for the renderer thread.  This is must be large
+// enough to support recursing on the render tree.
+const int kRendererThreadStackSize = 128 * 1024;
+
+void DestructSubmissionOnMessageLoop(MessageLoop* message_loop,
+                                     scoped_ptr<Submission> submission) {
+  TRACE_EVENT0("cobalt::renderer", "DestructSubmissionOnMessageLoop()");
+  if (MessageLoop::current() != message_loop) {
+    message_loop->DeleteSoon(FROM_HERE, submission.release());
+  }
+}
+
 }  // namespace
 
 Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
@@ -44,25 +57,20 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
     : rasterizer_created_event_(true, false),
       render_target_(render_target),
       graphics_context_(graphics_context),
-      submission_queue_(
-          kMaxSubmissionQueueSize,
-          base::TimeDelta::FromMillisecondsD(kTimeToConvergeInMS)),
-      rasterizer_thread_(base::in_place, "Rasterizer") {
+      rasterizer_thread_("Rasterizer"),
+      submission_disposal_thread_("Rasterizer Submission Disposal") {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Pipeline()");
   // The actual Pipeline can be constructed from any thread, but we want
   // rasterizer_thread_checker_ to be associated with the rasterizer thread,
   // so we detach it here and let it reattach itself to the rasterizer thread
   // when CalledOnValidThread() is called on rasterizer_thread_checker_ below.
   rasterizer_thread_checker_.DetachFromThread();
-#if defined(__LB_PS3__)
-  // TODO(20953608) Implement a way to set this properly.
-  const int kStackSize = 128 * 1024;
-  rasterizer_thread_->StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_DEFAULT, kStackSize));
-#else
-  rasterizer_thread_->Start();
-#endif
-  rasterizer_thread_->message_loop()->PostTask(
+
+  rasterizer_thread_.StartWithOptions(
+      base::Thread::Options(MessageLoop::TYPE_DEFAULT, kRendererThreadStackSize,
+                            base::kThreadPriority_Highest));
+
+  rasterizer_thread_.message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&Pipeline::InitializeRasterizerThread, base::Unretained(this),
                  create_rasterizer_function));
@@ -70,13 +78,28 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
 
 Pipeline::~Pipeline() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::~Pipeline()");
+
+  // First we shutdown the submission queue.  We do this as a seperate step from
+  // rasterizer shutdown because it may post messages back to the rasterizer
+  // thread as it clears itself out (e.g. it may ask the rasterizer thread to
+  // delete textures).  We wait for this shutdown to complete before proceeding
+  // to shutdown the rasterizer thread.
+  base::WaitableEvent submission_queue_shutdown(true, false);
+  rasterizer_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&Pipeline::ShutdownSubmissionQueue, base::Unretained(this)));
+  rasterizer_thread_.message_loop()->PostTask(
+      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
+                            base::Unretained(&submission_queue_shutdown)));
+  submission_queue_shutdown.Wait();
+
   // Submit a shutdown task to the rasterizer thread so that it can shutdown
   // anything that must be shutdown from that thread.
-  rasterizer_thread_->message_loop()->PostTask(
+  rasterizer_thread_.message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&Pipeline::ShutdownRasterizerThread, base::Unretained(this)));
 
-  rasterizer_thread_ = base::nullopt;
+  rasterizer_thread_.Stop();
 }
 
 render_tree::ResourceProvider* Pipeline::GetResourceProvider() {
@@ -87,7 +110,7 @@ render_tree::ResourceProvider* Pipeline::GetResourceProvider() {
 void Pipeline::Submit(const Submission& render_tree_submission) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
   // Execute the actual set of the new render tree on the rasterizer tree.
-  rasterizer_thread_->message_loop()->PostTask(
+  rasterizer_thread_.message_loop()->PostTask(
       FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
                             render_tree_submission));
 }
@@ -95,7 +118,7 @@ void Pipeline::Submit(const Submission& render_tree_submission) {
 void Pipeline::Clear() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Clear()");
   base::WaitableEvent wait_event(true, false);
-  rasterizer_thread_->message_loop()->PostTask(
+  rasterizer_thread_.message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&Pipeline::ClearCurrentRenderTree, base::Unretained(this),
                  base::Bind(&base::WaitableEvent::Signal,
@@ -108,8 +131,8 @@ void Pipeline::RasterizeToRGBAPixels(
     const RasterizationCompleteCallback& complete) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeToRGBAPixels()");
 
-  if (MessageLoop::current() != rasterizer_thread_->message_loop()) {
-    rasterizer_thread_->message_loop()->PostTask(
+  if (MessageLoop::current() != rasterizer_thread_.message_loop()) {
+    rasterizer_thread_.message_loop()->PostTask(
         FROM_HERE,
         base::Bind(&Pipeline::RasterizeToRGBAPixels, base::Unretained(this),
                    render_tree_submission, complete));
@@ -138,7 +161,7 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
 
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
 
-  submission_queue_.PushSubmission(render_tree_submission);
+  submission_queue_->PushSubmission(render_tree_submission);
 
   // Start the rasterization timer if it is not yet started.
   if (!rasterize_timer_) {
@@ -158,7 +181,7 @@ void Pipeline::ClearCurrentRenderTree(
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ClearCurrentRenderTree()");
 
-  submission_queue_.Reset();
+  submission_queue_->Reset();
   rasterize_timer_ = base::nullopt;
 
   if (!clear_complete_callback.is_null()) {
@@ -171,7 +194,7 @@ void Pipeline::RasterizeCurrentTree() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
   // Rasterize the last submitted render tree.
-  RasterizeSubmissionToRenderTarget(submission_queue_.GetCurrentSubmission(),
+  RasterizeSubmissionToRenderTarget(submission_queue_->GetCurrentSubmission(),
                                     render_target_);
 }
 
@@ -198,19 +221,46 @@ void Pipeline::InitializeRasterizerThread(
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   rasterizer_ = create_rasterizer_function.Run();
   rasterizer_created_event_.Signal();
+
+  // Note that this is setup as high priority, but lower than the rasterizer
+  // thread's priority (kThreadPriority_Highest).  This is to ensure that
+  // we never interrupt the rasterizer in order to dispose render trees, but
+  // at the same time we do want to prioritize cleaning them up to avoid
+  // large queues of pending render tree disposals.
+  submission_disposal_thread_.StartWithOptions(
+      base::Thread::Options(MessageLoop::TYPE_DEFAULT, kRendererThreadStackSize,
+                            base::kThreadPriority_High));
+
+  submission_queue_.emplace(
+      kMaxSubmissionQueueSize,
+      base::TimeDelta::FromMillisecondsD(kTimeToConvergeInMS),
+      base::Bind(&DestructSubmissionOnMessageLoop,
+                 submission_disposal_thread_.message_loop()));
 }
 
-void Pipeline::ShutdownRasterizerThread() {
-  TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownRasterizerThread()");
+void Pipeline::ShutdownSubmissionQueue() {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownSubmissionQueue()");
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
-  // Stop and shutdown the raterizer timer.
+  // Stop and shutdown the raterizer timer.  If we won't have a submission
+  // queue anymore, we won't be able to rasterize anymore.
   rasterize_timer_ = base::nullopt;
 
   // Do not retain any more references to the current render tree (which
   // may refer to rasterizer resources) or animations which may refer to
   // render trees.
-  submission_queue_.Reset();
+  submission_queue_ = base::nullopt;
 
+  // Shut down our submission disposer thread.  This needs to happen now to
+  // ensure that any pending "dispose" messages are processed.  Each disposal
+  // may result in new messages being posted to this rasterizer thread's message
+  // loop, and so we want to make sure these are all queued up before
+  // proceeding.
+  submission_disposal_thread_.Stop();
+}
+
+void Pipeline::ShutdownRasterizerThread() {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownRasterizerThread()");
+  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   // Finally, destroy the rasterizer.
   rasterizer_.reset();
 }
