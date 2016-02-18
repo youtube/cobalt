@@ -16,6 +16,17 @@
 #ifndef _DLMALLOC_CONFIG_H_
 #define _DLMALLOC_CONFIG_H_
 
+#if defined(STARBOARD)
+#include <sys/types.h>  // for ssize_t, maybe should add to starboard/types.h
+#include "starboard/configuration.h"
+#include "starboard/mutex.h"
+// Define STARBOARD_IMPLEMENTATION to allow inclusion of an internal Starboard
+// header. This is "okay" because dlmalloc is essentially an implementation
+// detail of Starboard, and it would be statically linked into the Starboard DSO
+// if Starboard was made into one.
+#define STARBOARD_IMPLEMENTATION
+#include "starboard/shared/dlmalloc/page_internal.h"
+#else
 #include <fcntl.h> // For HeapWalker to open files
 #include <inttypes.h>
 #include <stdint.h>
@@ -23,6 +34,7 @@
 #include "lb_memory_pages.h"
 #include "lb_mutex.h"
 #include "lb_platform.h"
+#endif
 
 // Want this for all our targets so these symbols
 // dont conflict with the normal malloc functions.
@@ -39,7 +51,14 @@
 #define USE_LOCKS 2 // Use our custom lock implementation
 #define USE_SPIN_LOCKS 0
 /* Locks */
-#if defined(__LB_XB360__)
+#if defined(STARBOARD)
+#define MLOCK_T SbMutex
+#define INITIAL_LOCK(lk) (SbMutexCreate(lk) ? 0 : 1)
+#define DESTROY_LOCK(lk) (SbMutexDestroy(lk) ? 0 : 1)
+#define ACQUIRE_LOCK(lk) (SbMutexIsSuccess(SbMutexAcquire(lk)) ? 0 : 1)
+#define RELEASE_LOCK(lk) (SbMutexRelease(lk) ? 0 : 1)
+#define TRY_LOCK(lk)     (SbMutexIsSuccess(SbMutexAcquireTry(lk)) ? 0 : 1)
+#elif defined(__LB_XB360__)
 #define MLOCK_T               CRITICAL_SECTION
 // The ..., 0 in some of these is to provide a "return value" of 0 to mimic
 // pthread-style API.
@@ -61,7 +80,21 @@
 
 #define HAVE_MREMAP 0
 #define USE_BUILTIN_FFS 1
+#if defined(STARBOARD)
+#define malloc_getpagesize SB_MEMORY_PAGE_SIZE
+#else
 #define malloc_getpagesize LB_PAGE_SIZE
+#endif
+
+// Adapt Starboard configuration to old LBShell-style configuration.
+#if defined(STARBOARD)
+#if SB_HAS(MMAP)
+#define LB_HAS_MMAP
+#endif
+#if SB_HAS(VIRTUAL_REGIONS)
+#define LB_HAS_VIRTUAL_REGIONS
+#endif
+#endif  // defined(STARBOARD)
 
 #if defined(LB_HAS_MMAP)
 #define HAVE_MMAP 2  // 2 == use our custom implementation
@@ -76,7 +109,56 @@
 #define HAVE_MORECORE 0
 #endif
 
-#if defined(__LB_ANDROID__)
+#if defined(STARBOARD)
+
+#if SB_HAS(MMAP)
+#define DEFAULT_MMAP_THRESHOLD SB_DEFAULT_MMAP_THRESHOLD
+#endif
+
+#define MALLOC_ALIGNMENT SB_MALLOC_ALIGNMENT
+#define FORCEINLINE SB_C_FORCE_INLINE
+#define NOINLINE SB_C_NOINLINE
+#define LACKS_UNISTD_H 1
+#define LACKS_FCNTL_H 1
+#define LACKS_SYS_PARAM_H 1
+#define LACKS_SYS_MMAN_H 1
+#define LACKS_STRINGS_H 1
+#define LACKS_SYS_TYPES_H 1
+#define LACKS_ERRNO_H 1
+#define LACKS_STDLIB_H 1
+#define LACKS_SCHED_H 1
+#define LACKS_TIME_H 1
+#define MALLOC_FAILURE_ACTION NULL
+#define EINVAL 1
+#define ENOMEM 1
+
+// Compatibility patching back to LBShell names.
+// TODO(iffy): Collapse this out when LBShell is gone.
+#define lb_virtual_mem_t SbPageVirtualMemory
+#define lb_get_total_system_memory SbPageGetTotalPhysicalMemoryBytes
+#define lb_get_mmapped_bytes SbPageGetMappedBytes
+#define lb_get_virtual_region_size SbPageGetVirtualRegionSize
+#define lb_reserve_virtual_region SbPageReserveVirtualRegion
+#define lb_unmap_and_free_physical SbPageUnmapAndFreePhysical
+#define lb_release_virtual_region SbPageReleaseVirtualRegion
+#define lb_allocate_physical_and_map SbPageAllocatePhysicalAndMap
+
+// Other compatibility adjustments, forcing system calls back to Starboard.
+#include "starboard/directory.h"
+#include "starboard/file.h"
+#include "starboard/log.h"
+#define write SbFileWrite
+#define close SbFileClose
+
+void oom_fprintf(int ignored, const char *format, ...) {
+  SB_UNREFERENCED_PARAMETER(ignored);
+  va_list arguments;
+  va_start(arguments, format);
+  SbLogRawFormat(format, arguments);
+  va_end(arguments);
+}
+
+#elif defined(__LB_ANDROID__)
 #define MALLOC_ALIGNMENT ((size_t)16U)
 
 #elif defined(__LB_LINUX__)
