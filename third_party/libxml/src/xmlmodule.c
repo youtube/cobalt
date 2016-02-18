@@ -24,9 +24,9 @@ struct _xmlModule {
     void *handle;
 };
 
-static void *xmlModulePlatformOpen(const char *name);
-static int xmlModulePlatformClose(void *handle);
-static int xmlModulePlatformSymbol(void *handle, const char *name, void **result);
+void *xmlModulePlatformOpen(const char *name);
+int xmlModulePlatformClose(void *handle);
+int xmlModulePlatformSymbol(void *handle, const char *name, void **result);
 
 /************************************************************************
  *									*
@@ -214,7 +214,7 @@ xmlModuleFree(xmlModulePtr module)
  * returns a handle on success, and zero on error.
  */
 
-static void *
+void *
 xmlModulePlatformOpen(const char *name)
 {
     return dlopen(name, RTLD_GLOBAL | RTLD_NOW);
@@ -227,7 +227,7 @@ xmlModulePlatformOpen(const char *name)
  * returns 0 on success, and non-zero on error.
  */
 
-static int
+int
 xmlModulePlatformClose(void *handle)
 {
     return dlclose(handle);
@@ -239,7 +239,7 @@ xmlModulePlatformClose(void *handle)
  * returns 0 on success and the loaded symbol in result, and -1 on error.
  */
 
-static int
+int
 xmlModulePlatformSymbol(void *handle, const char *name, void **symbol)
 {
     *symbol = dlsym(handle, name);

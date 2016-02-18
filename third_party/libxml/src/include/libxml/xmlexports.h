@@ -51,7 +51,8 @@
 /** DOC_DISABLE */
 
 /* Windows platform with MS compiler */
-#if defined(_WIN32) && defined(_MSC_VER)
+#if defined(_WIN32) && defined(_MSC_VER) && !defined(__LB_XB1__) &&     \
+    !defined(__LB_XB360__)
   #undef XMLPUBFUN
   #undef XMLPUBVAR
   #undef XMLCALL
