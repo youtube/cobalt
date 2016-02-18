@@ -43,7 +43,7 @@
 /**
  * XMLCDECL:
  *
- * Macro which declares the calling convention for exported functions that 
+ * Macro which declares the calling convention for exported functions that
  * use '...'.
  */
 #define XMLCDECL
@@ -51,8 +51,7 @@
 /** DOC_DISABLE */
 
 /* Windows platform with MS compiler */
-#if defined(_WIN32) && defined(_MSC_VER) && !defined(__LB_XB1__) &&     \
-    !defined(__LB_XB360__)
+#if defined(_WIN32) && defined(_MSC_VER)
   #undef XMLPUBFUN
   #undef XMLPUBVAR
   #undef XMLCALL
@@ -116,7 +115,7 @@
    */
   #if defined(IN_LIBXML) && !defined(LIBXML_STATIC)
     #define XMLPUBFUN __declspec(dllexport)
-    #define XMLPUBVAR __declspec(dllexport)
+    #define XMLPUBVAR __declspec(dllexport) extern
   #else
     #define XMLPUBFUN
     #if !defined(LIBXML_STATIC)
