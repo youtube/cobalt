@@ -303,7 +303,8 @@ void HTMLScriptElement::Prepare() {
 
       // The user agent must immediately execute the script block, even if other
       // scripts are already executing.
-      const std::string& text = text_content().value();
+      base::optional<std::string> content = text_content();
+      const std::string& text = content.value_or(EmptyString());
       if (bypass_csp || text.empty() ||
           csp_delegate->AllowInline(CspDelegate::kScript,
                                     inline_script_location_,
