@@ -38,7 +38,7 @@ typedef enum SbMutexResult {
 } SbMutexResult;
 
 // Returns whether the given result is a success.
-SB_C_INLINE bool SbMutexIsSuccess(SbMutexResult result) {
+static SB_C_FORCE_INLINE bool SbMutexIsSuccess(SbMutexResult result) {
   return result == kSbMutexAcquired;
 }
 
