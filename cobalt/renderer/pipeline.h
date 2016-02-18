@@ -107,22 +107,22 @@ class Pipeline {
   void InitializeRasterizerThread(
       const CreateRasterizerFunction& create_rasterizer_function);
 
+  // Shuts down the submission queue.  This is done on the rasterizer thread
+  // and is separate from general shutdown because clearing out the submission
+  // queue may result in tasks being posted to the rasterizer thread (e.g.
+  // texture deletions).
+  void ShutdownSubmissionQueue();
+
   // This method is executed on the rasterizer thread to shutdown anything that
   // needs to be shutdown from there.
   void ShutdownRasterizerThread();
 
-  // The rasterizer object that will run on the rasterizer_thread_ and is
-  // effectively the last stage of the pipeline, responsible for rasterizing
-  // the final render tree and submitting it to the render target.
-  scoped_ptr<Rasterizer> rasterizer_;
   base::WaitableEvent rasterizer_created_event_;
 
   // The render_target that all submitted render trees will be rasterized to.
   scoped_refptr<backend::RenderTarget> render_target_;
 
   backend::GraphicsContext* graphics_context_;
-
-  SubmissionQueue submission_queue_;
 
   // A timer that signals to the rasterizer to rasterize the next frame.
   // The timer is setup with a period of 0ms so that it will submit as fast
@@ -135,7 +135,21 @@ class Pipeline {
   base::ThreadChecker rasterizer_thread_checker_;
 
   // The thread that all rasterization will take place within.
-  base::optional<base::Thread> rasterizer_thread_;
+  base::Thread rasterizer_thread_;
+
+  // The rasterizer object that will run on the rasterizer_thread_ and is
+  // effectively the last stage of the pipeline, responsible for rasterizing
+  // the final render tree and submitting it to the render target.
+  scoped_ptr<Rasterizer> rasterizer_;
+
+  // A thread whose only purpose is to destroy submissions/render trees.
+  // This is important because destroying a render tree can take some time,
+  // and we would like to avoid spending this time on the renderer thread.
+  base::Thread submission_disposal_thread_;
+
+  // Manages a queue of render tree submissions that are to be rendered in
+  // the future.
+  base::optional<SubmissionQueue> submission_queue_;
 };
 
 }  // namespace renderer
