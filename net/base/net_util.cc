@@ -89,15 +89,9 @@ namespace net {
 
 namespace {
 
-#if defined(__LB_SHELL__)
-// FileScheme is changed to local for security (url_util.cc:kFileScheme)
-static const FilePath::CharType kFileURLPrefix[] =
-    FILE_PATH_LITERAL("local:///");
-#else
 // what we prepend to get a file URL
 static const FilePath::CharType kFileURLPrefix[] =
     FILE_PATH_LITERAL("file:///");
-#endif
 
 // The general list of blocked ports. Will be blocked unless a specific
 // protocol overrides it. (Ex: ftp can use ports 20 and 21)
