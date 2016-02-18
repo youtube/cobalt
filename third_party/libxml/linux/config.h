@@ -25,11 +25,13 @@
 /* Define to 1 if you have the <dirent.h> header file. */
 #define HAVE_DIRENT_H 1
 
+#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
 /* Have dlopen based dso */
 #define HAVE_DLOPEN /**/
+#endif
 
 /* Define to 1 if you have the <dl.h> header file. */
 /* #undef HAVE_DL_H */
@@ -116,7 +118,9 @@
 #define HAVE_MATH_H 1
 
 /* Define to 1 if you have the <memory.h> header file. */
+#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 #define HAVE_MEMORY_H 1
+#endif
 
 /* Define to 1 if you have the `mmap' function. */
 #define HAVE_MMAP 1
@@ -168,8 +172,10 @@
 /* Define to 1 if you have the `signal' function. */
 #define HAVE_SIGNAL 1
 
+#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 /* Define to 1 if you have the <signal.h> header file. */
 #define HAVE_SIGNAL_H 1
+#endif
 
 /* Define to 1 if you have the `snprintf' function. */
 #define HAVE_SNPRINTF 1
@@ -251,8 +257,10 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
+#if !defined(__LB_XB1__) && !defined(__LB_XB360__)
 /* Whether va_copy() is available */
 #define HAVE_VA_COPY 1
+#endif
 
 /* Define to 1 if you have the `vfprintf' function. */
 #define HAVE_VFPRINTF 1
@@ -264,7 +272,7 @@
 #define HAVE_VSPRINTF 1
 
 /* Define to 1 if you have the <zlib.h> header file. */
-#define HAVE_ZLIB_H 1
+/* #define HAVE_ZLIB_H 1 */
 
 /* Define to 1 if you have the `_stat' function. */
 /* #undef HAVE__STAT */
