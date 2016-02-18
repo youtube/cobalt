@@ -54,6 +54,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
+    icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block);
 
 // Main entry point to the layout engine.
@@ -63,6 +64,7 @@ RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
+    icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block);
 
 }  // namespace layout

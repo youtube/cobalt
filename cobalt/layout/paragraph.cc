@@ -33,12 +33,15 @@ int ConvertBaseDirectionToBidiLevel(Paragraph::BaseDirection base_direction) {
 }  // namespace
 
 Paragraph::Paragraph(icu::BreakIterator* line_break_iterator,
+                     icu::BreakIterator* character_break_iterator,
                      Paragraph::BaseDirection base_direction)
     : line_break_iterator_(line_break_iterator),
+      character_break_iterator_(character_break_iterator),
       base_direction_(base_direction),
       is_closed_(false),
       last_retrieved_run_index_(0) {
   DCHECK(line_break_iterator_);
+  DCHECK(character_break_iterator_);
 
   level_runs_.push_back(
       BidiLevelRun(0, ConvertBaseDirectionToBidiLevel(base_direction)));
@@ -90,6 +93,9 @@ bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
                                   int32* break_position, float* break_width) {
   DCHECK(is_closed_);
 
+  *break_position = start_position;
+  *break_width = 0;
+
   // If overflow isn't allowed and there is no available width, then there is
   // nothing to do. No break position can be found.
   if (!allow_overflow && available_width <= 0) {
@@ -100,37 +106,38 @@ bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
   // a soft wrap break. However, only allow soft wrap overflow if the policy is
   // |kSoftWrap|; otherwise, overflowing via soft wrap would be too greedy in
   // what it included and overflow wrapping will be attempted via word breaking.
-  if (break_policy == kSoftWrap ||
-      break_policy == kSoftWrapWithBreakWordOnOverflow) {
-    bool allow_soft_wrap_overflow = allow_overflow && break_policy == kSoftWrap;
+  bool allow_soft_wrap_overflow = allow_overflow && break_policy == kSoftWrap;
 
-    // Attempt to find a soft wrap break position. If successful, return that
-    // a break position was found.
-    if (FindSoftWrapBreakPosition(used_font, start_position, end_position,
-                                  available_width, allow_soft_wrap_overflow,
-                                  break_position, break_width)) {
-      return true;
-    }
-  }
+  // Find the last available soft wrap break position. |break_position| and
+  // |break_width| will be updated with the position of the last available break
+  // position.
+  FindIteratorBreakPosition(
+      used_font, line_break_iterator_, start_position, end_position,
+      available_width, allow_soft_wrap_overflow, break_position, break_width);
 
-  // If break word is allowed by the break policy, attempt to break soft wrap
-  // unbreakable "words" at an arbitrary point. However, in the case where the
-  // policy is |kSoftWrapWithBreakWordOnOverflow|, this is only permitted when
-  // overflow is allowed, meaning that no otherwise-acceptable break points have
-  // been found in the line (https://www.w3.org/TR/css3-text/#overflow-wrap).
+  // Only continue allowing overflow if the break position has not moved from
+  // start, meaning that no break position has been found yet.
+  allow_overflow = allow_overflow && (*break_position == start_position);
+
+  // If break word is allowed by the break policy, attempt to break unbreakable
+  // "words" at an arbitrary point, while still maintaining grapheme clusters
+  // as indivisible units. The search begins at the location of the last soft
+  // wrap break position that fit within the available width.
+  //
+  // NOTE: In the case where the policy is |kSoftWrapWithBreakWordOnOverflow|,
+  // this is only permitted when overflow is allowed, meaning that no
+  // otherwise-acceptable break points have been found in the line
+  // (https://www.w3.org/TR/css3-text/#overflow-wrap).
   if ((break_policy == kBreakWord) ||
       (break_policy == kSoftWrapWithBreakWordOnOverflow && allow_overflow)) {
-    // Attempt to find a break word break position. If successful, return that
-    // a break position was found.
-    if (FindBreakWordBreakPosition(used_font, start_position, end_position,
-                                   available_width, allow_overflow,
-                                   break_position, break_width)) {
-      return true;
-    }
+    FindIteratorBreakPosition(used_font, character_break_iterator_,
+                              *break_position, end_position, available_width,
+                              allow_overflow, break_position, break_width);
   }
 
-  // No usable break position was found.
-  return false;
+  // No usable break position was found if the break position has not moved
+  // from the start position.
+  return *break_position > start_position;
 }
 
 std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
@@ -203,56 +210,24 @@ void Paragraph::Close() {
 
 bool Paragraph::IsClosed() const { return is_closed_; }
 
-bool Paragraph::FindSoftWrapBreakPosition(
-    const scoped_refptr<dom::FontList>& used_font, int32 start_position,
+void Paragraph::FindIteratorBreakPosition(
+    const scoped_refptr<dom::FontList>& used_font,
+    icu::BreakIterator* const break_iterator, int32 start_position,
     int32 end_position, float available_width, bool allow_overflow,
     int32* break_position, float* break_width) {
-  *break_position = start_position;
-  *break_width = 0;
-
   // Iterate through soft wrap locations, beginning from the passed in start
   // position. Continue until TryIncludeSegmentWithinAvailableWidth() returns
   // false, indicating that no more segments can be included.
-  line_break_iterator_->setText(unicode_text_);
-  for (int32 segment_end = line_break_iterator_->following(start_position);
+  break_iterator->setText(unicode_text_);
+  for (int32 segment_end = break_iterator->following(start_position);
        segment_end != icu::BreakIterator::DONE && segment_end < end_position;
-       segment_end = line_break_iterator_->next()) {
+       segment_end = break_iterator->next()) {
     if (!TryIncludeSegmentWithinAvailableWidth(
             used_font, *break_position, segment_end, available_width,
             &allow_overflow, break_position, break_width)) {
       break;
     }
   }
-
-  return *break_position > start_position;
-}
-
-bool Paragraph::FindBreakWordBreakPosition(
-    const scoped_refptr<dom::FontList>& used_font, int32 start_position,
-    int32 end_position, float available_width, bool allow_overflow,
-    int32* break_position, float* break_width) {
-  *break_position = start_position;
-  *break_width = 0;
-
-  // Iterate through characters, beginning from the passed in start position.
-  // Continue until TryIncludeSegmentWithinAvailableWidth() returns false,
-  // indicating that no more segments can be included.
-  base::i18n::UTF16CharIterator iter(unicode_text_.getBuffer() + start_position,
-                                     size_t(end_position - start_position));
-  int32 segment_start = start_position;
-  while (iter.Advance() && !iter.end()) {
-    int32 segment_end = start_position + iter.array_pos();
-
-    if (!TryIncludeSegmentWithinAvailableWidth(
-            used_font, segment_start, segment_end, available_width,
-            &allow_overflow, break_position, break_width)) {
-      break;
-    }
-
-    segment_start = segment_end;
-  }
-
-  return *break_position > start_position;
 }
 
 bool Paragraph::TryIncludeSegmentWithinAvailableWidth(

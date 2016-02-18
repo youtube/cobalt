@@ -53,6 +53,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
+    icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
   TRACE_EVENT0("cobalt::layout", "UpdateComputedStylesAndLayoutBoxTree()");
   // Layout-related cleanup is performed on the UsedStyleProvider in this
@@ -70,11 +71,13 @@ void UpdateComputedStylesAndLayoutBoxTree(
   // Generate boxes.
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
-    ScopedParagraph scoped_paragraph(new Paragraph(
-        line_break_iterator, Paragraph::kLeftToRightBaseDirection));
+    ScopedParagraph scoped_paragraph(
+        new Paragraph(line_break_iterator, character_break_iterator,
+                      Paragraph::kLeftToRightBaseDirection));
     BoxGenerator root_box_generator(
         (*initial_containing_block)->computed_style_state(),
-        used_style_provider, line_break_iterator, &(scoped_paragraph.get()));
+        used_style_provider, line_break_iterator, character_break_iterator,
+        &(scoped_paragraph.get()));
     document->html()->Accept(&root_box_generator);
     const Boxes& root_boxes = root_box_generator.boxes();
     for (Boxes::const_iterator root_box_iterator = root_boxes.begin();
@@ -117,11 +120,12 @@ RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
+    icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
-  UpdateComputedStylesAndLayoutBoxTree(document, used_style_provider,
-                                       line_break_iterator,
-                                       initial_containing_block);
+  UpdateComputedStylesAndLayoutBoxTree(
+      document, used_style_provider, line_break_iterator,
+      character_break_iterator, initial_containing_block);
 
   // Add to render tree.
   render_tree::animations::NodeAnimationsMap::Builder
