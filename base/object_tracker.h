@@ -17,16 +17,23 @@
 #ifndef BASE_OBJECT_TRACKER_H_
 #define BASE_OBJECT_TRACKER_H_
 
+#include <assert.h>
+
 #include <algorithm>
 #include <string>
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/lazy_instance.h"
 #include "base/stringprintf.h"
-#include "base/synchronization/lock.h"
 #include "lb_memory_debug.h"
 #include "lb_memory_manager.h"
+
+#if defined(__LB_SHELL__)
+#include "lb_mutex.h"
+#else  // defined(__LB_SHELL__)
+#error "Have to include platform header for mutex"
+#endif  // defined(__LB_SHELL__)
 
 namespace base {
 
@@ -41,10 +48,41 @@ namespace base {
 template <typename Object, uint32 BacktraceLevel = 10>
 class ObjectTracker {
  public:
+#if defined(__LB_SHELL__)
+  // We implement our own Lock class to remove the dependency on base::Lock, so
+  // we can track base::Lock.
+  class Lock {
+   public:
+    Lock() {
+      int rv = lb_shell_mutex_init(&mutex_);
+      assert(rv == 0);
+      UNREFERENCED_PARAMETER(rv);
+    }
+    ~Lock() {
+      int rv = lb_shell_mutex_destroy(&mutex_);
+      assert(rv == 0);
+      UNREFERENCED_PARAMETER(rv);
+    }
+    void Acquire() {
+      int rv = lb_shell_mutex_lock(&mutex_);
+      assert(rv == 0);
+      UNREFERENCED_PARAMETER(rv);
+    }
+    void Release() {
+      int rv = lb_shell_mutex_unlock(&mutex_);
+      assert(rv == 0);
+      UNREFERENCED_PARAMETER(rv);
+    }
+
+   private:
+    lb_shell_mutex_t mutex_;
+  };
+#endif  // defined(__LB_SHELL__)
+
   typedef void LogCB(const std::string&);
 
   static void Dump(LogCB log_cb) {
-    AutoLock guard(lock_.Get());
+    lock().Acquire();
     log_cb("============================ start ============================\n");
     // Sort the objects based on their addresses.
     std::vector<ObjectTracker*> trackers;
@@ -75,9 +113,14 @@ class ObjectTracker {
       }
     }
     if (skipped != 0) {
-      log_cb(base::StringPrintf("Skipped %d items\n", skipped));
+      log_cb(base::StringPrintf("Dumped %d items, skipped %d items\n",
+                                static_cast<int>(trackers.size()), skipped));
+    } else {
+      log_cb(base::StringPrintf("Dumped %d items\n",
+                                static_cast<int>(trackers.size())));
     }
     log_cb("============================= end =============================\n");
+    lock().Release();
   }
 
  protected:
@@ -92,16 +135,17 @@ class ObjectTracker {
              (BacktraceLevel - valid_trace_count) * sizeof(back_trace_[0]));
     }
 
-    AutoLock guard(lock_.Get());
+    lock().Acquire();
     next_ = head_;
     if (next_) {
       next_->prev_ = this;
     }
     head_ = this;
+    lock().Release();
   }
 
   ~ObjectTracker() {
-    AutoLock guard(lock_.Get());
+    lock().Acquire();
     if (next_) {
       next_->prev_ = prev_;
     }
@@ -110,6 +154,7 @@ class ObjectTracker {
     } else {
       head_ = next_;
     }
+    lock().Release();
   }
 
   bool ShouldDump() { return true; }
@@ -117,7 +162,16 @@ class ObjectTracker {
 
  private:
   static ObjectTracker* head_;
-  static LazyInstance<Lock> lock_;
+  static Lock& lock() {
+    static Lock* lock;
+    // This isn't thread safe.  But it should be fine as ObjectTracker is
+    // supposed to be used only for debugging and this removed its dependency
+    // on LazyInstance which is in turn depended on AtExitManager.
+    if (lock == NULL) {
+      lock = new Lock;
+    }
+    return *lock;
+  }
 
   ObjectTracker* prev_;
   ObjectTracker* next_;
@@ -128,10 +182,6 @@ class ObjectTracker {
 template <typename Object, uint32 BacktraceLevel>
 ObjectTracker<Object, BacktraceLevel>*
     ObjectTracker<Object, BacktraceLevel>::head_;
-// static
-template <typename Object, uint32 BacktraceLevel>
-LazyInstance<Lock> ObjectTracker<Object, BacktraceLevel>::lock_ =
-    LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace base
 
