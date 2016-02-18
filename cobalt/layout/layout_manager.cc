@@ -68,11 +68,12 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   // DOM mutations will set this flag back to true.
   bool layout_dirty_;
 
-  // Construction of |BreakIterator| requires a disk read, so we cache it
-  // in the layout manager in order to reuse it with all layouts happening
+  // Construction of |BreakIterator| requires a disk read, so we cache them
+  // in the layout manager in order to reuse them with all layouts happening
   // in the context of one |WebModule|.
   //   http://userguide.icu-project.org/boundaryanalysis#TOC-Reuse
   scoped_ptr<icu::BreakIterator> line_break_iterator_;
+  scoped_ptr<icu::BreakIterator> character_break_iterator_;
 
   base::Timer layout_timer_;
 
@@ -106,6 +107,11 @@ LayoutManager::Impl::Impl(
   UErrorCode status = U_ZERO_ERROR;
   line_break_iterator_ = make_scoped_ptr(icu::BreakIterator::createLineInstance(
       icu::Locale::createCanonical(language.c_str()), status));
+  DCHECK(U_SUCCESS(status));
+  status = U_ZERO_ERROR;
+  character_break_iterator_ =
+      make_scoped_ptr(icu::BreakIterator::createCharacterInstance(
+          icu::Locale::createCanonical(language.c_str()), status));
   DCHECK(U_SUCCESS(status));
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -154,7 +160,8 @@ void LayoutManager::Impl::DoSynchronousLayout() {
   TRACE_EVENT0("cobalt::layout", "LayoutManager::Impl::DoSynchronousLayout()");
   layout::UpdateComputedStylesAndLayoutBoxTree(
       window_->document(), used_style_provider_.get(),
-      line_break_iterator_.get(), &initial_containing_block_);
+      line_break_iterator_.get(), character_break_iterator_.get(),
+      &initial_containing_block_);
 }
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -230,9 +237,10 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
     }
 
-    RenderTreeWithAnimations render_tree_with_animations =
-        layout::Layout(window_->document(), used_style_provider_.get(),
-                       line_break_iterator_.get(), &initial_containing_block_);
+    RenderTreeWithAnimations render_tree_with_animations = layout::Layout(
+        window_->document(), used_style_provider_.get(),
+        line_break_iterator_.get(), character_break_iterator_.get(),
+        &initial_containing_block_);
     bool run_on_render_tree_produced_callback = true;
 #if defined(ENABLE_TEST_RUNNER)
     if (layout_trigger_ == kTestRunnerMode &&
