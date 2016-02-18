@@ -19,11 +19,13 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
+#include "base/path_service.h"
 #include "base/time.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 #include "cobalt/render_tree/image.h"
 #include "media/base/video_frame.h"
+#include "net/base/net_util.h"
 
 namespace cobalt {
 namespace media {
@@ -32,6 +34,24 @@ namespace {
 
 using render_tree::Image;
 using ::media::VideoFrame;
+
+GURL ResolveUrl(const char* arg) {
+  GURL video_url(arg);
+  if (!video_url.is_valid()) {
+    // Assume the input is a path.
+    // Try to figure out the path to this file and convert it to a URL.
+    FilePath result(arg);
+    if (!result.IsAbsolute()) {
+      FilePath content_path;
+      PathService::Get(base::DIR_EXE, &content_path);
+      DCHECK(content_path.IsAbsolute());
+      // TODO(***REMOVED***): Get the "real" exe path. b/27257060
+      result = content_path.DirName().DirName().Append(result);
+    }
+    video_url = net::FilePathToFileURL(result);
+  }
+  return video_url;
+}
 
 scoped_refptr<Image> FrameCB(WebMediaPlayerHelper* player_helper,
                              const base::TimeDelta& time) {
@@ -42,12 +62,24 @@ scoped_refptr<Image> FrameCB(WebMediaPlayerHelper* player_helper,
 }
 
 int SandboxMain(int argc, char** argv) {
-  DCHECK_GT(argc, 1) << " Usage: " << argv[0] << " <url>";
-  GURL video_url(argv[1]);
-  DCHECK(video_url.is_valid()) << " \"" << argv[1] << "\" is not a valid URL.";
+  if (argc != 2) {
+    DLOG(ERROR) << "Usage: " << argv[0] << " <url|path>";
+    return 1;
+  }
   MediaSandbox media_sandbox(
       argc, argv,
       FilePath(FILE_PATH_LITERAL("web_media_player_sandbox_trace.json")));
+
+  // Note that we can't access PathService until MediaSandbox is initialized.
+  GURL video_url = ResolveUrl(argv[1]);
+
+  if (!video_url.is_valid()) {
+    DLOG(ERROR) << " Invalid URL: " << video_url;
+    return 1;
+  }
+
+  DLOG(INFO) << "Loading " << video_url;
+
   WebMediaPlayerHelper player_helper(media_sandbox.GetMediaModule(),
                                      media_sandbox.GetFetcherFactory(),
                                      video_url);
