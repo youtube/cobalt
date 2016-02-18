@@ -7,9 +7,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -60,7 +58,7 @@ void xmlMallocBreakpoint(void);
 
 /************************************************************************
  *									*
- * 		Macros, variables and associated types			*
+ *		Macros, variables and associated types			*
  *									*
  ************************************************************************/
 
@@ -173,7 +171,7 @@ xmlMallocLoc(size_t size, const char * file, int line)
 
     TEST_POINT
 
-    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
+    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -207,7 +205,8 @@ xmlMallocLoc(size_t size, const char * file, int line)
 
     if (xmlMemTraceBlockAt == ret) {
 	xmlGenericError(xmlGenericErrorContext,
-			"%p : Malloc(%ld) Ok\n", xmlMemTraceBlockAt, size);
+			"%p : Malloc(%lu) Ok\n", xmlMemTraceBlockAt,
+			(long unsigned)size);
 	xmlMallocBreakpoint();
     }
 
@@ -241,7 +240,7 @@ xmlMallocAtomicLoc(size_t size, const char * file, int line)
 
     TEST_POINT
 
-    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
+    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -275,7 +274,8 @@ xmlMallocAtomicLoc(size_t size, const char * file, int line)
 
     if (xmlMemTraceBlockAt == ret) {
 	xmlGenericError(xmlGenericErrorContext,
-			"%p : Malloc(%ld) Ok\n", xmlMemTraceBlockAt, size);
+			"%p : Malloc(%lu) Ok\n", xmlMemTraceBlockAt,
+			(long unsigned)size);
 	xmlMallocBreakpoint();
     }
 
@@ -313,7 +313,7 @@ xmlMemMalloc(size_t size)
 void *
 xmlReallocLoc(void *ptr,size_t size, const char * file, int line)
 {
-    MEMHDR *p;
+    MEMHDR *p, *tmp;
     unsigned long number;
 #ifdef DEBUG_MEMORY
     size_t oldsize;
@@ -344,14 +344,17 @@ xmlReallocLoc(void *ptr,size_t size, const char * file, int line)
 #endif
     xmlMutexUnlock(xmlMemMutex);
 
-    p = (MEMHDR *) XML_REALLOC(p,RESERVE_SIZE+size);
-    if (!p) {
+    tmp = (MEMHDR *) realloc(p,RESERVE_SIZE+size);
+    if (!tmp) {
+	 free(p);
 	 goto error;
     }
+    p = tmp;
     if (xmlMemTraceBlockAt == ptr) {
 	xmlGenericError(xmlGenericErrorContext,
-			"%p : Realloced(%ld -> %ld) Ok\n",
-			xmlMemTraceBlockAt, p->mh_size, size);
+			"%p : Realloced(%lu -> %lu) Ok\n",
+			xmlMemTraceBlockAt, (long unsigned)p->mh_size,
+			(long unsigned)size);
 	xmlMallocBreakpoint();
     }
     p->mh_tag = MEMTAG;
@@ -437,7 +440,7 @@ xmlMemFree(void *ptr)
     }
     if (xmlMemStopAtBlock == p->mh_number) xmlMallocBreakpoint();
     p->mh_tag = ~MEMTAG;
-    XML_MEMSET(target, -1, p->mh_size);
+    memset(target, -1, p->mh_size);
     xmlMutexLock(xmlMemMutex);
     debugMemSize -= p->mh_size;
     debugMemBlocks--;
@@ -449,7 +452,7 @@ xmlMemFree(void *ptr)
 #endif
     xmlMutexUnlock(xmlMemMutex);
 
-    XML_FREE(p);
+    free(p);
 
     TEST_POINT
 
@@ -482,13 +485,13 @@ char *
 xmlMemStrdupLoc(const char *str, const char *file, int line)
 {
     char *s;
-    size_t size = XML_STRLEN(str) + 1;
+    size_t size = strlen(str) + 1;
     MEMHDR *p;
 
     if (!xmlMemInitialized) xmlInitMemory();
     TEST_POINT
 
-    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
+    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
     if (!p) {
       goto error;
     }
@@ -511,10 +514,7 @@ xmlMemStrdupLoc(const char *str, const char *file, int line)
 
     if (xmlMemStopAtBlock == p->mh_number) xmlMallocBreakpoint();
 
-    if (s != NULL)
-      XML_STRNCPY(s,str,size);
-    else
-      goto error;
+    strcpy(s,str);
 
     TEST_POINT
 
@@ -582,13 +582,15 @@ xmlMemBlocks(void) {
 static void
 xmlMemContentShow(FILE *fp, MEMHDR *p)
 {
-    int i,j,k,len = p->mh_size;
-    const char *buf = (const char *) HDR_2_CLIENT(p);
+    int i,j,k,len;
+    const char *buf;
 
     if (p == NULL) {
 	fprintf(fp, " NULL");
 	return;
     }
+    len = p->mh_size;
+    buf = (const char *) HDR_2_CLIENT(p);
 
     for (i = 0;i < len;i++) {
         if (buf[i] == 0) break;
