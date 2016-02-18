@@ -73,6 +73,9 @@ class XmlReader {
   // returns true and |value| is set to "a".
   bool NodeAttribute(const char* name, std::string* value);
 
+  // Returns true if the node is a closing element (e.g. </foo>).
+  bool IsClosingElement();
+
   // Helper functions not provided by libxml ----------------------------------
 
   // Return the string content within an element.
@@ -131,6 +134,12 @@ class XmlWriter {
   // Ends the current open element. Returns false on error.
   bool EndElement() {
     return xmlTextWriterEndElement(writer_) >= 0;
+  }
+
+  // Appends to the content of the current open element.
+  bool AppendElementContent(const std::string& content) {
+    return xmlTextWriterWriteString(writer_,
+                                    BAD_CAST content.c_str()) >= 0;
   }
 
   // Adds an attribute to the current open element. Returns false on error.

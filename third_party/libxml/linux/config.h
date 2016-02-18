@@ -1,20 +1,8 @@
 /* config.h.  Generated from config.h.in by configure.  */
-/* config.h.in.  Generated from configure.in by autoheader.  */
-#define PACKAGE "libxml2"
-#define VERSION "2.7.7"
-/* #undef HAVE_LIBM */
-#define HAVE_ISINF /**/
-#define HAVE_ISNAN /**/
-/* #undef HAVE_LIBHISTORY */
-/* #undef HAVE_LIBREADLINE */
-#define HAVE_LIBPTHREAD /**/
-#define HAVE_PTHREAD_H /**/
+/* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define if IPV6 support is there */
-#define SUPPORT_IP6 /**/
-
-/* Define if getaddrinfo is there */
-#define HAVE_GETADDRINFO /**/
+/* Type cast for the gethostbyname() argument */
+#define GETHOSTBYNAME_ARG_CAST /**/
 
 /* Define to 1 if you have the <ansidecl.h> header file. */
 /* #undef HAVE_ANSIDECL_H */
@@ -37,13 +25,11 @@
 /* Define to 1 if you have the <dirent.h> header file. */
 #define HAVE_DIRENT_H 1
 
-#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
 /* Have dlopen based dso */
 #define HAVE_DLOPEN /**/
-#endif
 
 /* Define to 1 if you have the <dl.h> header file. */
 /* #undef HAVE_DL_H */
@@ -87,8 +73,8 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
-/* Define to 1 if you have the <inttypes.h.h> header file. */
-/* #undef HAVE_INTTYPES_H_H */
+/* Define to 1 if you have the `isascii' function. */
+#define HAVE_ISASCII 1
 
 /* Define if isinf is there */
 #define HAVE_ISINF /**/
@@ -102,6 +88,9 @@
 /* Define if history library is there (-lhistory) */
 /* #undef HAVE_LIBHISTORY */
 
+/* Have compression library */
+/* #undef HAVE_LIBLZMA */
+
 /* Define if pthread library is there (-lpthread) */
 #define HAVE_LIBPTHREAD /**/
 
@@ -109,14 +98,16 @@
 /* #undef HAVE_LIBREADLINE */
 
 /* Have compression library */
-/* NOTE(iffy): We actually do have this, but do not need the integration. */
-#undef HAVE_LIBZ
+#define HAVE_LIBZ 1
 
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
 /* Define to 1 if you have the `localtime' function. */
 #define HAVE_LOCALTIME 1
+
+/* Define to 1 if you have the <lzma.h> header file. */
+/* #undef HAVE_LZMA_H */
 
 /* Define to 1 if you have the <malloc.h> header file. */
 #define HAVE_MALLOC_H 1
@@ -125,8 +116,17 @@
 #define HAVE_MATH_H 1
 
 /* Define to 1 if you have the <memory.h> header file. */
-#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 #define HAVE_MEMORY_H 1
+
+/* Define to 1 if you have the `mmap' function. */
+#define HAVE_MMAP 1
+
+/* Define to 1 if you have the `munmap' function. */
+#define HAVE_MUNMAP 1
+
+/* mmap() is no good without munmap() */
+#if defined(HAVE_MMAP) && !defined(HAVE_MUNMAP)
+#  undef /**/ HAVE_MMAP
 #endif
 
 /* Define to 1 if you have the <nan.h> header file. */
@@ -150,6 +150,15 @@
 /* Define if <pthread.h> is there */
 #define HAVE_PTHREAD_H /**/
 
+/* Define to 1 if you have the `putenv' function. */
+#define HAVE_PUTENV 1
+
+/* Define to 1 if you have the `rand' function. */
+#define HAVE_RAND 1
+
+/* Define to 1 if you have the `rand_r' function. */
+/* #undef HAVE_RAND_R */
+
 /* Define to 1 if you have the <resolv.h> header file. */
 #define HAVE_RESOLV_H 1
 
@@ -159,16 +168,17 @@
 /* Define to 1 if you have the `signal' function. */
 #define HAVE_SIGNAL 1
 
-#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 /* Define to 1 if you have the <signal.h> header file. */
 #define HAVE_SIGNAL_H 1
-#endif
 
 /* Define to 1 if you have the `snprintf' function. */
 #define HAVE_SNPRINTF 1
 
 /* Define to 1 if you have the `sprintf' function. */
 #define HAVE_SPRINTF 1
+
+/* Define to 1 if you have the `srand' function. */
+#define HAVE_SRAND 1
 
 /* Define to 1 if you have the `sscanf' function. */
 #define HAVE_SSCANF 1
@@ -232,16 +242,17 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
+/* Define to 1 if you have the `time' function. */
+#define HAVE_TIME 1
+
 /* Define to 1 if you have the <time.h> header file. */
 #define HAVE_TIME_H 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
-#if !defined(__LB_XB1__) && !defined(__LB_XB360__)
 /* Whether va_copy() is available */
 #define HAVE_VA_COPY 1
-#endif
 
 /* Define to 1 if you have the `vfprintf' function. */
 #define HAVE_VFPRINTF 1
@@ -253,8 +264,7 @@
 #define HAVE_VSPRINTF 1
 
 /* Define to 1 if you have the <zlib.h> header file. */
-/* NOTE(iffy): We actually do have this, but do not need the integration. */
-#undef HAVE_ZLIB_H
+#define HAVE_ZLIB_H 1
 
 /* Define to 1 if you have the `_stat' function. */
 /* #undef HAVE__STAT */
@@ -290,8 +300,8 @@
 /* Define to the version of this package. */
 #define PACKAGE_VERSION ""
 
-/* Define to 1 if the C compiler supports function prototypes. */
-#define PROTOTYPES 1
+/* Type cast for the send() function 2nd arg */
+#define SEND_ARG2_CAST /**/
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -299,78 +309,26 @@
 /* Support for IPv6 */
 #define SUPPORT_IP6 /**/
 
+/* Define if va_list is an array type */
+#define VA_LIST_IS_ARRAY 1
+
 /* Version number of package */
-#define VERSION "2.7.7"
+#define VERSION "2.9.2"
 
 /* Determine what socket length (socklen_t) data type is */
 #define XML_SOCKLEN_T socklen_t
 
+/* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+/* #undef _UINT32_T */
+
 /* Using the Win32 Socket implementation */
 /* #undef _WINSOCKAPI_ */
-
-/* Define like PROTOTYPES; this can be used by system headers. */
-#define __PROTOTYPES 1
-
-/* Win32 Std C name mangling work-around */
-/* #undef snprintf */
 
 /* ss_family is not defined here, use __ss_family instead */
 /* #undef ss_family */
 
-/* Win32 Std C name mangling work-around */
-/* #undef vsnprintf */
-
-/* Define to 1 if you have the <stdio.h> header file. */
-#define HAVE_STDIO_H 1
-
-/* Define to 1 if you have getenv. If not defined, some features will be
- * disbaled */
-#define HAVE_GETENV 1
-
-/* toupper() wrapping */
-#define XML_TOUPPER toupper
-
-/* floor() wrapping */
-#define XML_FLOOR floor
-
-/* fabs() wrapping */
-#define XML_FABS fabs
-
-/* labs() wrapping */
-#define XML_LABS labs
-
-/* malloc() wrapping */
-#define XML_MALLOC malloc
-
-/* realloc() wrapping */
-#define XML_REALLOC realloc
-
-/* free() wrapping */
-#define XML_FREE free
-
-/* memcpy() wrapping */
-#define XML_MEMCPY memcpy
-
-/* memcpy() wrapping */
-#define XML_MEMSET memset
-
-/* memmove() wrapping */
-#define XML_MEMMOVE memmove
-
-/* strlen() wrapping */
-#define XML_STRLEN strlen
-
-/* strncpy() wrapping */
-#define XML_STRNCPY strncpy
-
-/* strncat() wrapping */
-#define XML_STRNCAT strncat
-
-/* strcmp() wrapping */
-#define XML_STRCMP strcmp
-
-/* strncmp() wrapping */
-#define XML_STRNCMP strncmp
-
-/* strchr() wrapping */
-#define XML_STRCHR strchr
+/* Define to the type of an unsigned integer type of width exactly 32 bits if
+   such a type exists and the standard includes do not define it. */
+/* #undef uint32_t */
