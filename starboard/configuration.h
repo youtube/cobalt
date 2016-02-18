@@ -277,6 +277,10 @@ struct CompileAssert {};
 // --- Derived Configuration -------------------------------------------------
 
 // Whether the current platform is little endian.
-#define SB_IS_LITTLE_ENDIAN (!SB_IS(BIG_ENDIAN))
+#if SB_IS(BIG_ENDIAN)
+#define SB_IS_LITTLE_ENDIAN 0
+#else
+#define SB_IS_LITTLE_ENDIAN 1
+#endif
 
 #endif  // STARBOARD_CONFIGURATION_H_
