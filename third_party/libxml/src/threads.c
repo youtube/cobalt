@@ -10,9 +10,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 #include <libxml/threads.h>
 #include <libxml/globals.h>
@@ -148,6 +146,7 @@ struct _xmlRMutex {
 static pthread_key_t globalkey;
 static pthread_t mainthread;
 static pthread_once_t once_control = PTHREAD_ONCE_INIT;
+static pthread_once_t once_control_init = PTHREAD_ONCE_INIT;
 static pthread_mutex_t global_init_lock = PTHREAD_MUTEX_INITIALIZER;
 #elif defined HAVE_WIN32_THREADS
 #if defined(HAVE_COMPILER_TLS)
@@ -191,7 +190,7 @@ xmlNewMutex(void)
 {
     xmlMutexPtr tok;
 
-    if ((tok = XML_MALLOC(sizeof(xmlMutex))) == NULL)
+    if ((tok = malloc(sizeof(xmlMutex))) == NULL)
         return (NULL);
 #ifdef HAVE_PTHREAD_H
     if (libxml_is_threaded != 0)
@@ -200,7 +199,7 @@ xmlNewMutex(void)
     tok->mutex = CreateMutex(NULL, FALSE, NULL);
 #elif defined HAVE_BEOS_THREADS
     if ((tok->sem = create_sem(1, "xmlMutex")) < B_OK) {
-        XML_FREE(tok);
+        free(tok);
         return NULL;
     }
     tok->tid = -1;
@@ -229,7 +228,7 @@ xmlFreeMutex(xmlMutexPtr tok)
 #elif defined HAVE_BEOS_THREADS
     delete_sem(tok->sem);
 #endif
-    XML_FREE(tok);
+    free(tok);
 }
 
 /**
@@ -253,7 +252,6 @@ xmlMutexLock(xmlMutexPtr tok)
 #ifdef DEBUG_THREADS
         xmlGenericError(xmlGenericErrorContext,
                         "xmlMutexLock():BeOS:Couldn't aquire semaphore\n");
-        exit();
 #endif
     }
     tok->tid = find_thread(NULL);
@@ -300,7 +298,7 @@ xmlNewRMutex(void)
 {
     xmlRMutexPtr tok;
 
-    if ((tok = XML_MALLOC(sizeof(xmlRMutex))) == NULL)
+    if ((tok = malloc(sizeof(xmlRMutex))) == NULL)
         return (NULL);
 #ifdef HAVE_PTHREAD_H
     if (libxml_is_threaded != 0) {
@@ -314,7 +312,7 @@ xmlNewRMutex(void)
     tok->count = 0;
 #elif defined HAVE_BEOS_THREADS
     if ((tok->lock = xmlNewMutex()) == NULL) {
-        XML_FREE(tok);
+        free(tok);
         return NULL;
     }
     tok->count = 0;
@@ -344,7 +342,7 @@ xmlFreeRMutex(xmlRMutexPtr tok ATTRIBUTE_UNUSED)
 #elif defined HAVE_BEOS_THREADS
     xmlFreeMutex(tok->lock);
 #endif
-    XML_FREE(tok);
+    free(tok);
 }
 
 /**
@@ -380,7 +378,7 @@ xmlRMutexLock(xmlRMutexPtr tok)
     pthread_mutex_unlock(&tok->lock);
 #elif defined HAVE_WIN32_THREADS
     EnterCriticalSection(&tok->cs);
-    ++tok->count;
+    tok->count++;
 #elif defined HAVE_BEOS_THREADS
     if (tok->lock->tid == find_thread(NULL)) {
         tok->count++;
@@ -416,8 +414,10 @@ xmlRMutexUnlock(xmlRMutexPtr tok ATTRIBUTE_UNUSED)
     }
     pthread_mutex_unlock(&tok->lock);
 #elif defined HAVE_WIN32_THREADS
-    if (!--tok->count)
+    if (tok->count > 0) {
         LeaveCriticalSection(&tok->cs);
+	tok->count--;
+    }
 #elif defined HAVE_BEOS_THREADS
     if (tok->lock->tid == find_thread(NULL)) {
         tok->count--;
@@ -441,7 +441,8 @@ __xmlGlobalInitMutexLock(void)
     /* Make sure the global init lock is initialized and then lock it. */
 #ifdef HAVE_PTHREAD_H
     /* The mutex is statically initialized, so we just lock it. */
-    pthread_mutex_lock(&global_init_lock);
+    if (pthread_mutex_lock != NULL)
+        pthread_mutex_lock(&global_init_lock);
 #elif defined HAVE_WIN32_THREADS
     LPCRITICAL_SECTION cs;
 
@@ -468,7 +469,7 @@ __xmlGlobalInitMutexLock(void)
          * allocated by this thread. */
         if (global_init_lock != cs) {
             DeleteCriticalSection(cs);
-            XML_FREE(cs);
+            free(cs);
         }
     }
 
@@ -500,7 +501,6 @@ __xmlGlobalInitMutexLock(void)
 #ifdef DEBUG_THREADS
         xmlGenericError(xmlGenericErrorContext,
                         "xmlGlobalInitMutexLock():BeOS:Couldn't acquire semaphore\n");
-        exit();
 #endif
     }
 #endif
@@ -510,7 +510,8 @@ void
 __xmlGlobalInitMutexUnlock(void)
 {
 #ifdef HAVE_PTHREAD_H
-    pthread_mutex_unlock(&global_init_lock);
+    if (pthread_mutex_unlock != NULL)
+        pthread_mutex_unlock(&global_init_lock);
 #elif defined HAVE_WIN32_THREADS
     if (global_init_lock != NULL) {
 	LeaveCriticalSection(global_init_lock);
@@ -533,7 +534,7 @@ __xmlGlobalInitMutexDestroy(void)
 #elif defined HAVE_WIN32_THREADS
     if (global_init_lock != NULL) {
         DeleteCriticalSection(global_init_lock);
-        XML_FREE(global_init_lock);
+        free(global_init_lock);
         global_init_lock = NULL;
     }
 #endif
@@ -564,7 +565,7 @@ xmlFreeGlobalState(void *state)
 
     /* free any memory allocated in the thread's xmlLastError */
     xmlResetError(&(gs->xmlLastError));
-    XML_FREE(state);
+    free(state);
 }
 
 /**
@@ -611,7 +612,7 @@ xmlGlobalStateCleanupHelper(void *p)
     WaitForSingleObject(params->thread, INFINITE);
     CloseHandle(params->thread);
     xmlFreeGlobalState(params->memory);
-    XML_FREE(params);
+    free(params);
     _endthread();
 }
 #else /* LIBXML_STATIC && !LIBXML_STATIC_FOR_DLL */
@@ -863,21 +864,21 @@ xmlInitThreads(void)
 {
 #ifdef HAVE_PTHREAD_H
     if (libxml_is_threaded == -1) {
-        if ((&pthread_once != NULL) &&
-            (&pthread_getspecific != NULL) &&
-            (&pthread_setspecific != NULL) &&
-            (&pthread_key_create != NULL) &&
-            (&pthread_key_delete != NULL) &&
-            (&pthread_mutex_init != NULL) &&
-            (&pthread_mutex_destroy != NULL) &&
-            (&pthread_mutex_lock != NULL) &&
-            (&pthread_mutex_unlock != NULL) &&
-            (&pthread_cond_init != NULL) &&
-            (&pthread_cond_destroy != NULL) &&
-            (&pthread_cond_wait != NULL) &&
-            (&pthread_equal != NULL) &&
-            (&pthread_self != NULL) &&
-            (&pthread_cond_signal != NULL)) {
+        if ((pthread_once != NULL) &&
+            (pthread_getspecific != NULL) &&
+            (pthread_setspecific != NULL) &&
+            (pthread_key_create != NULL) &&
+            (pthread_key_delete != NULL) &&
+            (pthread_mutex_init != NULL) &&
+            (pthread_mutex_destroy != NULL) &&
+            (pthread_mutex_lock != NULL) &&
+            (pthread_mutex_unlock != NULL) &&
+            (pthread_cond_init != NULL) &&
+            (pthread_cond_destroy != NULL) &&
+            (pthread_cond_wait != NULL) &&
+            (pthread_equal != NULL) &&
+            (pthread_self != NULL) &&
+            (pthread_cond_signal != NULL)) {
             libxml_is_threaded = 1;
 
 /* fprintf(stderr, "Running multithreaded\n"); */
@@ -913,8 +914,9 @@ xmlCleanupThreads(void)
     xmlGenericError(xmlGenericErrorContext, "xmlCleanupThreads()\n");
 #endif
 #ifdef HAVE_PTHREAD_H
-    if ((libxml_is_threaded)  && (&pthread_key_delete != NULL))
+    if ((libxml_is_threaded)  && (pthread_key_delete != NULL))
         pthread_key_delete(globalkey);
+    once_control = once_control_init;
 #elif defined(HAVE_WIN32_THREADS) && !defined(HAVE_COMPILER_TLS) && (!defined(LIBXML_STATIC) || defined(LIBXML_STATIC_FOR_DLL))
     if (globalkey != TLS_OUT_OF_INDEXES) {
         xmlGlobalStateCleanupHelperParams *p;
@@ -926,7 +928,7 @@ xmlCleanupThreads(void)
 
             p = p->next;
             xmlFreeGlobalState(temp->memory);
-            XML_FREE(temp);
+            free(temp);
         }
         cleanup_helpers_head = 0;
         LeaveCriticalSection(&cleanup_helpers_cs);
@@ -954,6 +956,7 @@ xmlOnceInit(void)
 #ifdef HAVE_PTHREAD_H
     (void) pthread_key_create(&globalkey, xmlFreeGlobalState);
     mainthread = pthread_self();
+    __xmlInitializeDict();
 #elif defined(HAVE_WIN32_THREADS)
     if (!run_once.done) {
         if (InterlockedIncrement(&run_once.control) == 1) {
@@ -961,6 +964,7 @@ xmlOnceInit(void)
             globalkey = TlsAlloc();
 #endif
             mainthread = GetCurrentThreadId();
+	    __xmlInitializeDict();
             run_once.done = 1;
         } else {
             /* Another thread is working; give up our slice and
@@ -974,6 +978,7 @@ xmlOnceInit(void)
         globalkey = tls_allocate();
         tls_set(globalkey, NULL);
         mainthread = find_thread(NULL);
+	__xmlInitializeDict();
     } else
         atomic_add(&run_once_init, -1);
 #endif
@@ -1022,7 +1027,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
                     if (p->next != NULL)
                         p->next->prev = p->prev;
                     LeaveCriticalSection(&cleanup_helpers_cs);
-                    XML_FREE(p);
+                    free(p);
                 }
             }
             break;
