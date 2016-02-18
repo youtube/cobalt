@@ -79,6 +79,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
   };
 
   Paragraph(icu::BreakIterator* line_break_iterator,
+            icu::BreakIterator* character_break_iterator,
             BaseDirection base_direction);
 
   // Append the string and return the position where the string begins.
@@ -132,31 +133,18 @@ class Paragraph : public base::RefCounted<Paragraph> {
 
   typedef std::vector<BidiLevelRun> BidiLevelRuns;
 
-  // Iterate over soft wrap segments in the text from the starting position,
-  // adding the width of each segment and determining the last one that fits
-  // within the available width. In the case where |allow_overflow| is true and
-  // the first segment overflows the width, that first overflowing segment will
-  // be included. The parameter |break_width| indicates the width of the portion
-  // of the substring coming before |break_position|.
-  //
-  // Returns false if no usable break position was found.
-  bool FindSoftWrapBreakPosition(const scoped_refptr<dom::FontList>& used_font,
+  // Iterate over text segments as determined by the break iterator's strategy
+  // from the starting position, adding the width of each segment and
+  // determining the last one that fits within the available width. In the case
+  // where |allow_overflow| is true and  the first segment overflows the width,
+  // that first overflowing segment will be included. The parameter
+  // |break_width| indicates the width of the portion of the substring coming
+  // before |break_position|.
+  void FindIteratorBreakPosition(const scoped_refptr<dom::FontList>& used_font,
+                                 icu::BreakIterator* const break_iterator,
                                  int32 start_position, int32 end_position,
                                  float available_width, bool allow_overflow,
                                  int32* break_position, float* break_width);
-
-  // Iterate over characters in the text from the starting position, adding up
-  // adding the width of each character and determining the last one that fits
-  // within the available width. In the case where |allow_overflow| is true and
-  // the first segment overflows the width, that first overflowing segment will
-  // be included. The parameter |break_width| indicates the width of the portion
-  // of the substring coming before |break_position|.
-  //
-  // Returns false if no usable break position was found.
-  bool FindBreakWordBreakPosition(const scoped_refptr<dom::FontList>& used_font,
-                                  int32 start_position, int32 end_position,
-                                  float available_width, bool allow_overflow,
-                                  int32* break_position, float* break_width);
 
   // Attempt to include the specified segment within the available width. If
   // either the segment fits within the width or |allow_overflow| is true, then
@@ -186,6 +174,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // The line break iterator to use when splitting the text boxes derived from
   // this text paragraph across multiple lines.
   icu::BreakIterator* const line_break_iterator_;
+  icu::BreakIterator* const character_break_iterator_;
 
   // The base text direction of the paragraph.
   BaseDirection base_direction_;
