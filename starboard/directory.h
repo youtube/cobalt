@@ -39,7 +39,7 @@ typedef struct SbDirectoryEntry {
 } SbDirectoryEntry;
 
 // Well-defined value for an invalid directory stream handle.
-const SbDirectory kSbDirectoryInvalid = (SbDirectory)NULL;
+#define kSbDirectoryInvalid ((SbDirectory)NULL)
 
 // Returns whether the given directory stream handle is valid.
 SB_C_INLINE bool SbDirectoryIsValid(SbDirectory directory) {
