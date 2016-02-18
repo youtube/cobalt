@@ -167,9 +167,9 @@ void HTMLImageElement::PreventGarbageCollectionUntilEventIsDispatched(
 
 void HTMLImageElement::AllowGarbageCollectionAfterEventIsDispatched(
     base::Token event_name) {
-  PostToDispatchEvent(
-      FROM_HERE, event_name,
-      base::Bind(&HTMLImageElement::AllowGarbageCollection, this));
+  PostToDispatchEvent(FROM_HERE, event_name,
+                      base::Bind(&HTMLImageElement::AllowGarbageCollection,
+                                 base::AsWeakPtr<HTMLImageElement>(this)));
 }
 
 void HTMLImageElement::PreventGarbageCollection() {
