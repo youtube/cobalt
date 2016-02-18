@@ -530,7 +530,9 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #define DLMALLOC_EXPORT extern
 #endif
 
-#ifdef __LB_SHELL__
+#if defined(STARBOARD)
+// Just make sure we don't detect as these other platforms.
+#elif defined(__LB_SHELL__)
 #include <time.h>
 
 #if defined(__LB_XB1__) || defined(__LB_XB360__)
@@ -539,7 +541,7 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #include <windows.h>
 #undef WIN32
 #endif // __LB_XB1__ || __LB_XB360__
-#endif // __LB_SHELL__
+#else  // defined(STARBOARD)
 
 #ifndef WIN32
 #if defined(_WIN32) && !defined(__LB_XB1__) && !defined(__LB_XB360__)
@@ -591,8 +593,19 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #ifndef LACKS_SYS_TYPES_H
 #include <sys/types.h>  /* For size_t */
 #endif  /* LACKS_SYS_TYPES_H */
+#endif  // defined(STARBOARD)
 
-#if defined(__LB_SHELL__)
+#if defined(STARBOARD)
+#include "dlmalloc_config.h"
+#include "starboard/string.h"
+#include "starboard/system.h"
+#ifdef MAX
+#undef MAX
+#endif
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define CRASH() SbSystemBreakIntoDebugger()
+#define ABORT  SbSystemBreakIntoDebugger()
+#elif defined(__LB_SHELL__)
 #include "dlmalloc_config.h"
 #include "lb_memory_debug_platform.h"
 #ifdef MAX
@@ -601,7 +614,7 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 #define CRASH() ((void(*)())0)()
-#endif
+#endif  // defined(STARBOARD)
 
 /* The maximum possible size_t value has all bits set */
 #define MAX_SIZE_T           (~(size_t)0)
@@ -1660,7 +1673,12 @@ unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);
 
 #if HAVE_MMAP
 
-#if defined (__LB_SHELL__)
+#if defined(STARBOARD)
+#define MMAP_DEFAULT(s) SbPageMapUntracked(s, "dlmalloc_mmap")
+#define DIRECT_MMAP_DEFAULT(s) MMAP_DEFAULT(s)
+#define MUNMAP_DEFAULT(a, s) SbPageUnmapUntracked((a), (s))
+
+#elif defined (__LB_SHELL__)
 #define MMAP_DEFAULT(s) lb_mmap_untracked(s, "dlmalloc_mmap")
 #define DIRECT_MMAP_DEFAULT(s) MMAP_DEFAULT(s)
 #define MUNMAP_DEFAULT(a, s) lb_munmap_untracked((a), (s))
@@ -3135,7 +3153,7 @@ static void post_fork_parent(void) { RELEASE_LOCK(&(gm)->mutex); }
 static void post_fork_child(void)  { INITIAL_LOCK(&(gm)->mutex); }
 #endif /* LOCK_AT_FORK */
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(STARBOARD)
 static void dl_heap_init();
 #endif
 
@@ -3223,7 +3241,7 @@ static int init_mparams(void) {
       /* Until memory modes commonly available, use volatile-write */
       (*(volatile size_t *)(&(mparams.magic))) = magic;
     }
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(STARBOARD)
     // Call our own initialization functions.
     dl_heap_init();
 #endif
@@ -6036,7 +6054,7 @@ int mspace_mallopt(int param_number, int value) {
 
 #endif /* MSPACES */
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(STARBOARD)
 /*
   Start of lb_shell specific MMAP and MORECORE implementation.
   We manage two virtual address spaces- one for the main heap
@@ -6118,7 +6136,11 @@ typedef struct HeapWalker {
   int total_free_blocks;
   size_t total_free_bytes;
   // File descriptor for writing to dump file.
+#if defined(STARBOARD)
+  SbFile file_descriptor;
+#else
   int file_descriptor;
+#endif
   // Track the current contiguous range.
   uintptr_t cur_range_start;
   size_t cur_range_size;
@@ -6133,8 +6155,15 @@ typedef struct HeapWalker {
 static void heap_walker_init(HeapWalker* hw, const char* file) {
   memset(hw, 0, sizeof(HeapWalker));
   char path[256];
+#if defined(STARBOARD)
+  SbDirectoryCreate(SB_MEMORY_LOG_PATH);
+  SbStringFormatF(path, sizeof(path), "%s/%s", SB_MEMORY_LOG_PATH, file);
+  hw->file_descriptor = SbFileOpen(path, kSbFileCreateAlways | kSbFileWrite,
+                                   NULL, NULL);
+#else
   snprintf(path, sizeof(path), "%s/%s", MEMORY_LOG_PATH, file);
   hw->file_descriptor = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+#endif
   if (hw->file_descriptor >= 0) {
     oom_fprintf(1, "Writing allocations to %s\n", path);
   } else {
@@ -6358,7 +6387,7 @@ static void* lbshell_morecore(ssize_t size) {
 }
 #endif
 
-#endif /* defined(__LB_SHELL__) */
+#endif /* defined(__LB_SHELL__) || defined(STARBOARD) */
 /* -------------------- Alternative MORECORE functions ------------------- */
 
 /*
