@@ -99,6 +99,24 @@ scoped_refptr<ScriptExecutor> CreateScriptExecutor(
   return script_executor;
 }
 
+void CreateFunction(
+    const std::string& function_body,
+    const scoped_refptr<script::GlobalObjectProxy>& global_object_proxy,
+    scoped_refptr<ScriptExecutor> script_executor,
+    base::optional<script::OpaqueHandleHolder::Reference>* out_opaque_handle) {
+  std::string function =
+      StringPrintf("(function() {\n%s\n})", function_body.c_str());
+  scoped_refptr<script::SourceCode> function_source =
+      script::SourceCode::CreateSourceCode(
+          function.c_str(), base::SourceLocation("[webdriver]", 1, 1));
+
+  if (!global_object_proxy->EvaluateScript(
+          function_source, make_scoped_refptr(script_executor.get()),
+          out_opaque_handle)) {
+    DLOG(ERROR) << "Failed to create Function object";
+  }
+}
+
 std::string GetCurrentUrl(dom::Window* window) {
   DCHECK(window);
   DCHECK(window->location());
@@ -322,8 +340,15 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
   DLOG(INFO) << "Executing: " << script.function_body();
   DLOG(INFO) << "Arguments: " << script.argument_array();
 
+  base::optional<script::OpaqueHandleHolder::Reference> function_object;
+  CreateFunction(script.function_body(), global_object_proxy_,
+                 make_scoped_refptr(script_executor_.get()), &function_object);
+  if (!function_object) {
+    return CommandResult(protocol::Response::kJavaScriptError);
+  }
+
   base::optional<std::string> script_result = script_executor_->Execute(
-      script.function_body(), script.argument_array());
+      &(function_object->referenced_object()), script.argument_array());
   if (script_result) {
     return CommandResult(protocol::ScriptResult(script_result.value()));
   } else {

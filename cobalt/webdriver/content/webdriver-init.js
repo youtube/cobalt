@@ -15,10 +15,9 @@
  */
 
 // Set the executeScriptHarness callback function.
-// The function takes a functionBody and a JSON string representing an array
-// of arguments. The arguments are applied to the function created from the
-// functionBody.
-webdriverExecutor.executeScriptHarness = function(functionBody, jsonArgString) {
+// The function takes a functionObject and a JSON string representing an array
+// of arguments. The arguments are applied to the function |functionObject|.
+webdriverExecutor.executeScriptHarness = function(functionObject, jsonArgString) {
 
   // Run the JSON deserialize algorithm on the value.
   // https://www.w3.org/TR/webdriver/#dfn-json-deserialize
@@ -79,8 +78,7 @@ webdriverExecutor.executeScriptHarness = function(functionBody, jsonArgString) {
     return value;
   };
   var parameters = deserialize(JSON.parse(jsonArgString));
-  var f = new Function(functionBody);
-  var result = f.apply(window, parameters);
+  var result = functionObject.apply(window, parameters);
   return JSON.stringify(serialize(result, []));
 
 };
