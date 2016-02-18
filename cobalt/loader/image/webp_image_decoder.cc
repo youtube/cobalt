@@ -31,8 +31,8 @@ WEBPImageDecoder::WEBPImageDecoder(
   config_.options.bypass_filtering = 1;
   // Use faster pointwise upsampler.
   config_.options.no_fancy_upsampling = 1;
-  // Use multi-threaded decoding.
-  config_.options.use_threads = 1;
+  // Don't use multi-threaded decoding.
+  config_.options.use_threads = 0;
   // Discard enhancement layer.
   config_.options.no_enhancement = 1;
 }
