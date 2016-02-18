@@ -199,29 +199,6 @@
             # defines the macro FOO as 1.)
             'LIBXML_STATIC=',
           ],
-          'variables': {
-            'clang_warning_flags': [
-              # libxml passes `const unsigned char*` through `const char*`.
-              '-Wno-pointer-sign',
-              # pattern.c and uri.c both have an intentional
-              # `for (...);` / `while(...);` loop. I submitted a patch to
-              # move the `'` to its own line, but until that's landed
-              # suppress the warning:
-              '-Wno-empty-body',
-              # debugXML.c compares array 'arg' to NULL.
-              '-Wno-tautological-pointer-compare',
-              # See http://crbug.com/138571#c8
-              '-Wno-ignored-attributes',
-              # libxml casts from int to long to void*.
-              '-Wno-int-to-void-pointer-cast',
-              # libxml passes a volatile LPCRITICAL_SECTION* to a function
-              # expecting a void* volatile*.
-              '-Wno-incompatible-pointer-types',
-              # trio_is_special_quantity and trio_is_negative are only
-              # used with certain preprocessor defines set.
-              '-Wno-unused-function',
-            ],
-          },
           'include_dirs': [
             '<(os_include)',
             '<(os_include)/include',
@@ -244,6 +221,11 @@
             ],
           },
           'conditions': [
+            ['OS=="lb_shell"', {
+              'dependencies!': [
+                '../zlib/zlib.gyp:zlib',
+              ],
+            }],
             ['OS=="linux"', {
               'link_settings': {
                 'libraries': [
@@ -268,6 +250,33 @@
             }, {  # else: OS!="win"
               'product_name': 'xml2',
             }],
+            ['actual_target_arch=="win"', {
+              # Disable signed/unsigned comparison warning on Cobalt on Windows.
+              'msvs_disabled_warnings': [ 4018 ],
+            }],
+            ['clang == 1', {
+              'cflags': [
+                # libxml passes `const unsigned char*` through `const char*`.
+                '-Wno-pointer-sign',
+                # pattern.c and uri.c both have an intentional
+                # `for (...);` / `while(...);` loop. I submitted a patch to
+                # move the `'` to its own line, but until that's landed
+                # suppress the warning:
+                '-Wno-empty-body',
+                # debugXML.c compares array 'arg' to NULL.
+                '-Wno-tautological-pointer-compare',
+                # See http://crbug.com/138571#c8
+                '-Wno-ignored-attributes',
+                # libxml casts from int to long to void*.
+                '-Wno-int-to-void-pointer-cast',
+                # libxml passes a volatile LPCRITICAL_SECTION* to a function
+                # expecting a void* volatile*.
+                '-Wno-incompatible-pointer-types',
+                # trio_is_special_quantity and trio_is_negative are only
+                # used with certain preprocessor defines set.
+                '-Wno-unused-function',
+              ],
+            }],
           ],
         }],
         ['OS == "ios"', {
@@ -277,3 +286,4 @@
     },
   ],
 }
+
