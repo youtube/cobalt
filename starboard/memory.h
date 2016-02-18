@@ -24,8 +24,11 @@
 extern "C" {
 #endif
 
+#define SB_MEMORY_MAP_FAILED ((void*)-1)  // NOLINT(readability/casting)
+
 // Checks whether |memory| is aligned to |alignment| bytes.
-SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory, size_t alignment) {
+static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
+                                                size_t alignment) {
   return ((uintptr_t)memory) % alignment == 0;
 }
 
@@ -60,6 +63,27 @@ SB_EXPORT void* SbMemoryAllocateAligned(size_t alignment, size_t size);
 // Frees a previously allocated chunk of aligned memory. If |memory| is NULL,
 // then it does nothing.  Meant to be a drop-in replacement for _aligned_free.
 SB_EXPORT void SbMemoryFreeAligned(void* memory);
+
+#if SB_HAS(MMAP)
+// Allocates |size_bytes| worth of physical memory pages and maps them into an
+// available virtual region. On some platforms, |name| appears in the debugger
+// and can be up to 32 bytes. Returns SB_MEMORY_MAP_FAILED on failure, as NULL
+// is a valid return value.
+SB_EXPORT void* SbMemoryMap(int64_t size_bytes, const char* name);
+
+// Unmap |size_bytes| of physical pages starting from |virtual_address|,
+// returning true on success. After this, [virtual_address, virtual_address +
+// size_bytes) will not be read/writable. SbMemoryUnmap() can unmap multiple
+// contiguous regions that were mapped with separate calls to
+// SbMemoryMap(). E.g. if one call to SbMemoryMap(0x1000) returns (void*)0xA000
+// and another call to SbMemoryMap(0x1000) returns (void*)0xB000,
+// SbMemoryUnmap(0xA000, 0x2000) should free both.
+SB_EXPORT bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes);
+#endif  // SB_HAS(MMAP)
+
+// Gets the stack bounds for the current thread, placing the highest addressable
+// byte + 1 in |out_high|, and the lowest addressable byte in |out_low|.
+SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
 
 // Copies |count| sequential bytes from |source| to |destination|, without
 // support for the |source| and |destination| regions overlapping.  Behavior is

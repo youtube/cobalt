@@ -55,6 +55,21 @@ SB_EXPORT void SbLog(SbLogPriority priority, const char* message);
 // additional formatting.
 SB_EXPORT void SbLogRaw(const char* message);
 
+// A formatted log output method that is async-signal-safe, i.e. safe to call
+// from an asynchronous signal handler (e.g. a SIGSEGV handler).
+SB_EXPORT void SbLogRawFormat(const char* format, va_list args)
+    SB_PRINTF_FORMAT(1, 0);
+
+// Inline wrapper of SbLogFormat to convert from ellipsis to va_args.
+static SB_C_INLINE void SbLogRawFormatF(const char* format, ...)
+    SB_PRINTF_FORMAT(1, 2);
+void SbLogRawFormatF(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  SbLogRawFormat(format, args);
+  va_end(args);
+}
+
 // A log output method, that additionally performs a string format on the way
 // out.
 SB_EXPORT void SbLogFormat(const char* format, va_list args)
