@@ -607,6 +607,10 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
                                     const std::string& key_system) {
   DLOG(INFO) << "HTMLMediaElement::LoadResource(" << initial_url << ", "
              << content_type << ", " << key_system;
+  DCHECK(player_);
+  if (!player_) {
+    return;
+  }
 
   GURL url = initial_url;
 
@@ -722,6 +726,9 @@ void HTMLMediaElement::OnLoadTimer() {
 
 void HTMLMediaElement::OnProgressEventTimer() {
   DCHECK(player_);
+  if (!player_) {
+    return;
+  }
   if (network_state_ != kNetworkLoading) {
     return;
   }
@@ -741,6 +748,9 @@ void HTMLMediaElement::OnProgressEventTimer() {
 
 void HTMLMediaElement::OnPlaybackProgressTimer() {
   DCHECK(player_);
+  if (!player_) {
+    return;
+  }
 
   ScheduleTimeupdateEvent(true);
 }
@@ -1166,18 +1176,31 @@ void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
 }
 
 void HTMLMediaElement::NetworkStateChanged() {
+  DCHECK(player_);
+  if (!player_) {
+    return;
+  }
   BeginProcessingMediaPlayerCallback();
   SetNetworkState(player_->GetNetworkState());
   EndProcessingMediaPlayerCallback();
 }
 
 void HTMLMediaElement::ReadyStateChanged() {
+  DCHECK(player_);
+  if (!player_) {
+    return;
+  }
   BeginProcessingMediaPlayerCallback();
   SetReadyState(player_->GetReadyState());
   EndProcessingMediaPlayerCallback();
 }
 
 void HTMLMediaElement::TimeChanged() {
+  DCHECK(player_);
+  if (!player_) {
+    return;
+  }
+
   BeginProcessingMediaPlayerCallback();
 
   // 4.8.10.9 step 14 & 15.  Needed if no ReadyState change is associated with
