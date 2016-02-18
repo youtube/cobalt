@@ -135,6 +135,14 @@ WebModule::WebModule(
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
 
+#if !defined(COBALT_FORCE_CSP)
+  if (options.csp_enforcement_mode == dom::CspDelegate::kEnforcementDisable) {
+    // If CSP is disabled, enable eval(). Otherwise, it will be enabled by
+    // a CSP directive.
+    global_object_proxy_->EnableEval();
+  }
+#endif
+
   global_object_proxy_->SetReportEvalCallback(
       base::Bind(&dom::CspDelegate::ReportEval,
                  base::Unretained(window_->document()->csp_delegate())));
