@@ -48,6 +48,10 @@ bool XmlReader::NodeAttribute(const char* name, std::string* out) {
   return true;
 }
 
+bool XmlReader::IsClosingElement() {
+  return NodeType() == XML_READER_TYPE_END_ELEMENT;
+}
+
 bool XmlReader::ReadElementContent(std::string* content) {
   const int start_depth = Depth();
 

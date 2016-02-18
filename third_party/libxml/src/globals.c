@@ -17,9 +17,7 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 #include <libxml/globals.h>
 #include <libxml/xmlmemory.h>
@@ -67,9 +65,9 @@ void xmlCleanupGlobals(void)
 }
 
 /************************************************************************
- * 									*
+ *									*
  *	All the user accessible global variables of the library		*
- * 									*
+ *									*
  ************************************************************************/
 
 /*
@@ -88,32 +86,13 @@ xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) xmlMemMalloc;
 xmlReallocFunc xmlRealloc = (xmlReallocFunc) xmlMemRealloc;
 xmlStrdupFunc xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
 #else
-
-#define MAX_LIBXML_MALLOC (1024*1024*512)
-
-static void* size_checked_malloc(size_t size) {
-  if (size > MAX_LIBXML_MALLOC) {
-    *(volatile char*)0 = '\0';
-    return NULL;
-  }
-  return XML_MALLOC(size);
-}
-
-static void* size_checked_realloc(void* ptr, size_t size) {
-  if (size > MAX_LIBXML_MALLOC) {
-    *(volatile char*)0 = '\0';
-    return NULL;
-  }
-  return XML_REALLOC(ptr, size);
-}
-
 /**
  * xmlFree:
  * @mem: an already allocated block of memory
  *
  * The variable holding the libxml free() implementation
  */
-xmlFreeFunc xmlFree = (xmlFreeFunc) XML_FREE;
+xmlFreeFunc xmlFree = (xmlFreeFunc) free;
 /**
  * xmlMalloc:
  * @size:  the size requested in bytes
@@ -122,7 +101,7 @@ xmlFreeFunc xmlFree = (xmlFreeFunc) XML_FREE;
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-xmlMallocFunc xmlMalloc = (xmlMallocFunc) size_checked_malloc;
+xmlMallocFunc xmlMalloc = (xmlMallocFunc) malloc;
 /**
  * xmlMallocAtomic:
  * @size:  the size requested in bytes
@@ -133,7 +112,7 @@ xmlMallocFunc xmlMalloc = (xmlMallocFunc) size_checked_malloc;
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) size_checked_malloc;
+xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) malloc;
 /**
  * xmlRealloc:
  * @mem: an already allocated block of memory
@@ -143,7 +122,7 @@ xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) size_checked_malloc;
  *
  * Returns a pointer to the newly reallocated block or NULL in case of error
  */
-xmlReallocFunc xmlRealloc = (xmlReallocFunc) size_checked_realloc;
+xmlReallocFunc xmlRealloc = (xmlReallocFunc) realloc;
 /**
  * xmlMemStrdup:
  * @str: a zero terminated string
@@ -267,7 +246,7 @@ static int xmlPedanticParserDefaultValueThrDef = 0;
  * xmlLineNumbersDefaultValue:
  *
  * Global setting, indicate that the parser should store the line number
- * in the content field of elements in the DOM tree. 
+ * in the content field of elements in the DOM tree.
  * Disabled by default since this may not be safe for old classes of
  * applicaton.
  */
@@ -530,7 +509,7 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
 #if defined(LIBXML_DOCB_ENABLED) && defined(LIBXML_LEGACY_ENABLED) && defined(LIBXML_SAX1_ENABLED)
     initdocbDefaultSAXHandler(&gs->docbDefaultSAXHandler);
 #endif
-#if defined(LIBXML_HTML_ENABLED) && defined(LIBXML_LEGACY_ENABLED)
+#if defined(LIBXML_HTML_ENABLED) && defined(LIBXML_LEGACY_ENABLED) && defined(LIBXML_SAX1_ENABLED)
     inithtmlDefaultSAXHandler(&gs->htmlDefaultSAXHandler);
 #endif
 
@@ -544,7 +523,7 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
     gs->xmlDefaultSAXLocator.getSystemId = xmlSAX2GetSystemId;
     gs->xmlDefaultSAXLocator.getLineNumber = xmlSAX2GetLineNumber;
     gs->xmlDefaultSAXLocator.getColumnNumber = xmlSAX2GetColumnNumber;
-    gs->xmlDoValidityCheckingDefaultValue = 
+    gs->xmlDoValidityCheckingDefaultValue =
          xmlDoValidityCheckingDefaultValueThrDef;
 #if defined(DEBUG_MEMORY_LOCATION) | defined(DEBUG_MEMORY)
     gs->xmlFree = (xmlFreeFunc) xmlMemFree;
@@ -553,10 +532,10 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
     gs->xmlRealloc = (xmlReallocFunc) xmlMemRealloc;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
 #else
-    gs->xmlFree = (xmlFreeFunc) XML_FREE;
-    gs->xmlMalloc = (xmlMallocFunc) XML_MALLOC;
-    gs->xmlMallocAtomic = (xmlMallocFunc) XML_MALLOC;
-    gs->xmlRealloc = (xmlReallocFunc) XML_REALLOC;
+    gs->xmlFree = (xmlFreeFunc) free;
+    gs->xmlMalloc = (xmlMallocFunc) malloc;
+    gs->xmlMallocAtomic = (xmlMallocFunc) malloc;
+    gs->xmlRealloc = (xmlReallocFunc) realloc;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlStrdup;
 #endif
     gs->xmlGetWarningsDefaultValue = xmlGetWarningsDefaultValueThrDef;
@@ -569,7 +548,7 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
     gs->xmlParserVersion = LIBXML_VERSION_STRING;
     gs->xmlPedanticParserDefaultValue = xmlPedanticParserDefaultValueThrDef;
     gs->xmlSaveNoEmptyTags = xmlSaveNoEmptyTagsThrDef;
-    gs->xmlSubstituteEntitiesDefaultValue = 
+    gs->xmlSubstituteEntitiesDefaultValue =
         xmlSubstituteEntitiesDefaultValueThrDef;
 
     gs->xmlGenericError = xmlGenericErrorThrDef;
@@ -581,7 +560,7 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
 
 	gs->xmlParserInputBufferCreateFilenameValue = xmlParserInputBufferCreateFilenameValueThrDef;
 	gs->xmlOutputBufferCreateFilenameValue = xmlOutputBufferCreateFilenameValueThrDef;
-    XML_MEMSET(&gs->xmlLastError, 0, sizeof(xmlError));
+    memset(&gs->xmlLastError, 0, sizeof(xmlError));
 
     xmlMutexUnlock(xmlThrDefMutex);
 }
@@ -621,7 +600,7 @@ xmlRegisterNodeFunc
 xmlRegisterNodeDefault(xmlRegisterNodeFunc func)
 {
     xmlRegisterNodeFunc old = xmlRegisterNodeDefaultValue;
-    
+
     __xmlRegisterCallbacks = 1;
     xmlRegisterNodeDefaultValue = func;
     return(old);
@@ -631,10 +610,10 @@ xmlRegisterNodeFunc
 xmlThrDefRegisterNodeDefault(xmlRegisterNodeFunc func)
 {
     xmlRegisterNodeFunc old;
-    
+
     xmlMutexLock(xmlThrDefMutex);
     old = xmlRegisterNodeDefaultValueThrDef;
-    
+
     __xmlRegisterCallbacks = 1;
     xmlRegisterNodeDefaultValueThrDef = func;
     xmlMutexUnlock(xmlThrDefMutex);
@@ -654,7 +633,7 @@ xmlDeregisterNodeFunc
 xmlDeregisterNodeDefault(xmlDeregisterNodeFunc func)
 {
     xmlDeregisterNodeFunc old = xmlDeregisterNodeDefaultValue;
-    
+
     __xmlRegisterCallbacks = 1;
     xmlDeregisterNodeDefaultValue = func;
     return(old);
@@ -667,7 +646,7 @@ xmlThrDefDeregisterNodeDefault(xmlDeregisterNodeFunc func)
 
     xmlMutexLock(xmlThrDefMutex);
     old = xmlDeregisterNodeDefaultValueThrDef;
-    
+
     __xmlRegisterCallbacks = 1;
     xmlDeregisterNodeDefaultValueThrDef = func;
     xmlMutexUnlock(xmlThrDefMutex);
@@ -679,7 +658,7 @@ xmlParserInputBufferCreateFilenameFunc
 xmlThrDefParserInputBufferCreateFilenameDefault(xmlParserInputBufferCreateFilenameFunc func)
 {
     xmlParserInputBufferCreateFilenameFunc old;
-    
+
     xmlMutexLock(xmlThrDefMutex);
     old = xmlParserInputBufferCreateFilenameValueThrDef;
     if (old == NULL) {
@@ -696,7 +675,7 @@ xmlOutputBufferCreateFilenameFunc
 xmlThrDefOutputBufferCreateFilenameDefault(xmlOutputBufferCreateFilenameFunc func)
 {
     xmlOutputBufferCreateFilenameFunc old;
-    
+
     xmlMutexLock(xmlThrDefMutex);
     old = xmlOutputBufferCreateFilenameValueThrDef;
 #ifdef LIBXML_OUTPUT_ENABLED
@@ -753,7 +732,7 @@ __xmlMalloc(void){
     if (IS_MAIN_THREAD)
         return (&xmlMalloc);
     else
-    	return (&xmlGetGlobalState()->xmlMalloc);
+	return (&xmlGetGlobalState()->xmlMalloc);
 }
 
 #undef xmlMallocAtomic
