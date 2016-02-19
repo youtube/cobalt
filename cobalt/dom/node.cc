@@ -376,6 +376,14 @@ scoped_refptr<Element> Node::next_element_sibling() {
   return NULL;
 }
 
+scoped_refptr<Node> Node::GetRootNode() {
+  Node* root = this;
+  while (root->parent_node()) {
+    root = root->parent_node();
+  }
+  return make_scoped_refptr(root);
+}
+
 scoped_refptr<CDATASection> Node::AsCDATASection() { return NULL; }
 
 scoped_refptr<Comment> Node::AsComment() { return NULL; }

@@ -43,31 +43,50 @@ class CachedHandleOwner : public JSC::WeakHandleOwner {
     }
 
     if (js_object->isErrorInstance()) {
-      return IsReachableFromOpaqueRoots(JSC::jsCast<ExceptionBase*>(js_object));
+      return IsReachableFromOpaqueRoots(JSC::jsCast<ExceptionBase*>(js_object),
+                                        &visitor);
     } else {
-      return IsReachableFromOpaqueRoots(JSC::jsCast<InterfaceBase*>(js_object));
+      return IsReachableFromOpaqueRoots(JSC::jsCast<InterfaceBase*>(js_object),
+                                        &visitor);
     }
   }
 
  private:
   template <class T>
-  bool IsReachableFromOpaqueRoots(T* wrapper_base) {
+  bool IsReachableFromOpaqueRoots(T* wrapper_base,
+                                  JSC::SlotVisitor* slot_visitor) {
+    scoped_refptr<Wrappable> opaque_root = wrapper_base->GetOpaqueRoot();
+
     // Check if we might want to keep this cached wrapper alive despite it not
     // being referenced anywhere
-    if (!ShouldKeepWrapperAlive(wrapper_base)) return false;
+    if (!ShouldKeepWrapperAlive(wrapper_base, opaque_root)) {
+      return false;
+    }
 
-    // If the implementation has only one reference, that reference must be the
-    // one on the WrapperBase object. Therefore, the wrapper is not reachable
-    // so can be garbage collected (which will in turn destroy the Wrappable).
-    return !wrapper_base->wrappable()->HasOneRef();
+    // If this wrapper has an opaque root, check if that root has been marked.
+    // If the root is not alive, we do not want to keep this wrapper alive.
+    if (opaque_root && slot_visitor->containsOpaqueRoot(opaque_root.get())) {
+      return true;
+    }
+
+    return false;
   }
 
   template <class T>
-  bool ShouldKeepWrapperAlive(T* wrapper_base) {
+  bool ShouldKeepWrapperAlive(T* wrapper_base,
+                              const scoped_refptr<Wrappable>& opaque_root) {
+    if (opaque_root && opaque_root == wrapper_base->wrappable()) {
+      // This is the root, so keep this wrapper alive. This will in turn keep
+      // the entire tree alive.
+      return true;
+    }
+
     // If a custom property has been set on the wrapper object, we should keep
     // it alive so that the property persists next time the object is
     // referenced from JS.
-    if (wrapper_base->hasCustomProperties()) return true;
+    if (wrapper_base->hasCustomProperties()) {
+      return true;
+    }
 
     // Check if the wrapper should be kept alive based on the impl's state.
     return wrapper_base->wrappable()->ShouldKeepWrapperAlive();
