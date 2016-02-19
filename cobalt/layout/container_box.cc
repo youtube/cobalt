@@ -160,10 +160,15 @@ void ContainerBox::MoveContainingBlockChild(Box* child_box) {
   std::vector<Box*>::iterator positioned_child_iterator =
       std::find(source_parent->positioned_child_boxes_.begin(),
                 source_parent->positioned_child_boxes_.end(), child_box);
-  DCHECK(positioned_child_iterator !=
-         source_parent->positioned_child_boxes_.end());
-  source_parent->positioned_child_boxes_.erase(positioned_child_iterator);
-  positioned_child_boxes_.push_back(child_box);
+  // TODO(***REMOVED***): Ensure that positioned or transformed inline boxes have the
+  // correct containing block, b/27261823.
+  if (positioned_child_iterator !=
+      source_parent->positioned_child_boxes_.end()) {
+    source_parent->positioned_child_boxes_.erase(positioned_child_iterator);
+    positioned_child_boxes_.push_back(child_box);
+  } else {
+    NOTREACHED();
+  }
 }
 
 void ContainerBox::MoveStackingContextChild(Box* child_box) {
