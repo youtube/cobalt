@@ -350,8 +350,10 @@ void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
 namespace {
 
 math::Vector2dF GetOffsetFromContainingBlockToStackingContext(Box* child_box) {
-  DCHECK_EQ(child_box->computed_style()->position(),
-            cssom::KeywordValue::GetFixed());
+  DCHECK((child_box->computed_style()->position() ==
+          cssom::KeywordValue::GetFixed()) ||
+         (child_box->computed_style()->position() ==
+          cssom::KeywordValue::GetAbsolute()));
 
   math::Vector2dF relative_position;
   for (Box *containing_block = child_box->containing_block(),
@@ -393,8 +395,12 @@ math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
            *stacking_context = child_box->stacking_context();
        current_box != stacking_context;
        current_box = current_box->containing_block()) {
-    DCHECK(current_box) << "Unable to find stacking context while "
-                           "traversing containing blocks.";
+    if (!current_box) {
+      // Elements with absolute position may have their containing block farther
+      // up the hierarchy than the stacking context, so handle this case here.
+      DCHECK(child_box_position == cssom::KeywordValue::GetAbsolute());
+      return -GetOffsetFromContainingBlockToStackingContext(child_box);
+    }
     // We should not determine a used position through a transform, as
     // rectangles may not remain rectangles past it, and thus obtaining
     // a position may be misleading.
