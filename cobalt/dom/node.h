@@ -172,6 +172,10 @@ class Node : public EventTarget {
   //
   virtual bool HasAttributes() const { return false; }
 
+  // Returns the root Node of the tree this node belongs to. If this node is the
+  // root, it will return this Node.
+  scoped_refptr<Node> GetRootNode();
+
   bool IsCDATASection() const { return node_type() == kCdataSectionNode; }
   bool IsComment() const { return node_type() == kCommentNode; }
   bool IsDocument() const { return node_type() == kDocumentNode; }

@@ -57,11 +57,13 @@ PrimaryGlobal
 # http://heycam.github.io/webidl/#Exposed
 Exposed=TestWindow|Window|Worker
 
-# This interface's object will keep another object alive as long as itself is
-# alive. Value should be the name (with no parentheses) of a function that
-# returns a Wrappable pointer. The object being kept alive is identified by
-# calling the given function with no parameter.
-KeepAlive=*
+# The value of this attribute is a function to be called that will return a
+# scoped_refptr<Wrappable> that represents the opaque root of an object
+# implementing this interface.
+# For the set of all objects {O} that have a given opaque root R, if at least
+# one object is reachable during garbage collection, all objects in {O} will be
+# kept alive as well.
+GetOpaqueRoot=*
 
 # Call the Cobalt function this property is bound to with the corresponding
 # object added to the head of the function's parameters.
