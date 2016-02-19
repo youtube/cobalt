@@ -128,6 +128,7 @@
 9-4-3-relative-positioned-elements-with-inline-display-are-offset-from-normal-flow
 9-7-display-should-resolve-to-block-if-position-is-absolute
 9-9-1-absolute-positioned-elements-should-render-on-top-of-static-elements
+9-9-1-containing-block-may-be-farther-than-stacking-context
 9-9-1-elements-with-transform-should-appear-over-normal-flow-elements
 9-9-1-negative-z-indices
 9-9-1-simple-positive-z-indices
