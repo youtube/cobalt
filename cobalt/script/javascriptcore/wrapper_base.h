@@ -16,6 +16,7 @@
 #ifndef COBALT_SCRIPT_JAVASCRIPTCORE_WRAPPER_BASE_H_
 #define COBALT_SCRIPT_JAVASCRIPTCORE_WRAPPER_BASE_H_
 
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/script_exception.h"
@@ -35,7 +36,14 @@ namespace javascriptcore {
 template <typename JSCBaseClass, typename WrappableBase>
 class WrapperBase : public JSCBaseClass {
  public:
-  scoped_refptr<WrappableBase>& wrappable() { return wrappable_; }
+  const scoped_refptr<WrappableBase>& wrappable() { return wrappable_; }
+
+  scoped_refptr<WrappableBase> GetOpaqueRoot() {
+    if (!get_opaque_root_function_.is_null()) {
+      return get_opaque_root_function_.Run(wrappable_);
+    }
+    return NULL;
+  }
 
   static scoped_refptr<WrappableBase>& GetWrappable(JSC::JSObject* js_object) {
     ASSERT_GC_OBJECT_INHERITS(js_object, &WrapperBase::s_info);
@@ -44,12 +52,21 @@ class WrapperBase : public JSCBaseClass {
   }
 
  protected:
+  typedef base::Callback<scoped_refptr<WrappableBase>(
+      const scoped_refptr<WrappableBase>&)> GetOpaqueRootFunction;
+
   WrapperBase(JSC::JSGlobalData* global_data, JSC::Structure* structure,
               ScriptObjectRegistry* script_object_registry,
               const scoped_refptr<WrappableBase>& impl)
       : JSCBaseClass(*global_data, structure),
         wrappable_(impl),
         script_object_registry_(script_object_registry) {}
+
+  void set_get_opaque_root_function(
+      const GetOpaqueRootFunction& get_opaque_root_function) {
+    DCHECK(get_opaque_root_function_.is_null());
+    get_opaque_root_function_ = get_opaque_root_function;
+  }
 
   // static override. This function will be called during garbage collection
   // to mark any garbage-collected objects that are referencable from this
@@ -81,6 +98,7 @@ class WrapperBase : public JSCBaseClass {
  private:
   scoped_refptr<WrappableBase> wrappable_;
   ScriptObjectRegistry* script_object_registry_;
+  GetOpaqueRootFunction get_opaque_root_function_;
 };
 
 // Base for regular interfaces.
