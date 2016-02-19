@@ -1535,7 +1535,9 @@ extern void*     sbrk(ptrdiff_t);
 #include <sched.h>
 #endif /* solaris or LACKS_SCHED_H */
 #if (defined(USE_RECURSIVE_LOCKS) && USE_RECURSIVE_LOCKS != 0) || !USE_SPIN_LOCKS
+#if !defined(STARBOARD)
 #include <pthread.h>
+#endif  /* !STARBOARD */
 #endif /* USE_RECURSIVE_LOCKS ... */
 #elif defined(_MSC_VER)
 #ifndef _M_AMD64
@@ -1676,7 +1678,7 @@ unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);
 #if defined(STARBOARD)
 #define MMAP_DEFAULT(s) SbPageMapUntracked(s, "dlmalloc_mmap")
 #define DIRECT_MMAP_DEFAULT(s) MMAP_DEFAULT(s)
-#define MUNMAP_DEFAULT(a, s) SbPageUnmapUntracked((a), (s))
+#define MUNMAP_DEFAULT(a, s) (SbPageUnmapUntracked((a), (s)) ? 0 : 1)
 
 #elif defined (__LB_SHELL__)
 #define MMAP_DEFAULT(s) lb_mmap_untracked(s, "dlmalloc_mmap")
