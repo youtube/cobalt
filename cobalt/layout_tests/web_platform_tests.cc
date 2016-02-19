@@ -24,6 +24,7 @@
 #include "base/run_loop.h"
 #include "base/values.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/layout_tests/test_utils.h"
 #include "cobalt/layout_tests/web_platform_test_parser.h"
 #include "cobalt/math/size.h"
@@ -37,6 +38,39 @@ namespace cobalt {
 namespace layout_tests {
 
 namespace {
+
+// A CspDelegate that behaves more like a "standard" one. i.e. it
+// is permissive by default. This is for testing our compliance
+// with the web-platform-test suite.
+class CspDelegatePermissive : public dom::CspDelegateSecure {
+ public:
+  CspDelegatePermissive(
+      scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
+      const std::string& location_policy,
+      const base::Closure& policy_changed_callback)
+      : dom::CspDelegateSecure(violation_reporter.Pass(), url, location_policy,
+                               policy_changed_callback) {
+    // Lies, but some checks in our parent require this.
+    was_header_received_ = true;
+  }
+
+  static CspDelegate* Create(
+      scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
+      const std::string& location_policy,
+      const base::Closure& policy_changed_callback) {
+    return new CspDelegatePermissive(violation_reporter.Pass(), url,
+                                     location_policy, policy_changed_callback);
+  }
+
+  bool OnReceiveHeaders(const csp::ResponseHeaders& headers) OVERRIDE {
+    csp_->OnReceiveHeaders(headers);
+    if (!policy_changed_callback_.is_null()) {
+      policy_changed_callback_.Run();
+    }
+    // |true| to allow the document to continue loading.
+    return true;
+  }
+};
 
 // Match the enums from testharness.js.
 enum TestStatus {
@@ -115,11 +149,12 @@ std::string RunWebPlatformTest(const GURL& url) {
   scoped_ptr<media::MediaModule> stub_media_module(
       new media::MediaModuleStub());
 
+  dom::CspDelegateFactory::GetInstance()->OverrideCreator(
+      dom::kCspEnforcementEnable, CspDelegatePermissive::Create);
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
   browser::WebModule::Options web_module_options;
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
-
   // Prepare a slot for our results to be placed when ready.
   base::optional<browser::WebModule::LayoutResults> results;
   base::RunLoop run_loop;
