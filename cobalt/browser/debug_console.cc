@@ -24,6 +24,7 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/dom/csp_delegate_factory.h"
 
 namespace cobalt {
 namespace browser {
@@ -174,8 +175,8 @@ DebugConsole::DebugConsole(
   web_module_options.name = "DebugConsoleWebModule";
   // Disable CSP for the Debugger's WebModule. This will also allow eval() in
   // javascript.
-  web_module_options.csp_enforcement_mode =
-      dom::CspDelegate::kEnforcementDisable;
+  dom::CspDelegateFactory::ScopedAllowInsecure allow_insecure;
+  web_module_options.csp_enforcement_mode = dom::kCspEnforcementDisable;
 
   // Attach a DebugHub object to the "debugHub" Window attribute for this
   // web module so that JavaScript within this WebModule has access to DebugHub

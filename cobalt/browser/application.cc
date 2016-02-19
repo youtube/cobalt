@@ -161,17 +161,14 @@ const char kYouTubeTvLocationPolicy[] =
     "h5vcc:";
 
 #if !defined(COBALT_FORCE_CSP)
-dom::CspDelegate::EnforcementType StringToCspMode(const std::string& mode) {
+dom::CspEnforcementType StringToCspMode(const std::string& mode) {
   if (mode == "disable") {
-    return dom::CspDelegate::kEnforcementDisable;
+    return dom::kCspEnforcementDisable;
   } else if (mode == "enable") {
-    return dom::CspDelegate::kEnforcementEnable;
-  } else if (mode == "require") {
-    return dom::CspDelegate::kEnforcementRequire;
+    return dom::kCspEnforcementEnable;
   } else {
-    DLOG(INFO) << "Invalid CSP mode: " << mode
-               << ": use [disable|enable|require]";
-    return dom::CspDelegate::kEnforcementEnable;
+    DLOG(INFO) << "Invalid CSP mode: " << mode << ": use [disable|enable]";
+    return dom::kCspEnforcementEnable;
   }
 }
 #endif  // !defined(COBALT_FORCE_CSP)
@@ -211,11 +208,6 @@ Application::Application()
 
   math::Size viewport_size(kDefaultViewportWidth, kDefaultViewportHeight);
 
-#if defined(COBALT_FORCE_CSP)
-  options.web_module_options.csp_enforcement_mode =
-      dom::CspDelegate::kEnforcementRequire;
-#endif  // defined(COBALT_FORCE_CSP)
-
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(browser::switches::kProxy)) {
@@ -229,7 +221,7 @@ Application::Application()
         command_line->GetSwitchValueASCII(browser::switches::kCspMode));
   }
   if (options.web_module_options.csp_enforcement_mode !=
-      dom::CspDelegate::kEnforcementRequire) {
+      dom::kCspEnforcementEnable) {
     options.web_module_options.location_policy = "h5vcc-location-src *";
   }
 #endif  // !defined(COBALT_FORCE_CSP)

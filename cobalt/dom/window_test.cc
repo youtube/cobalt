@@ -51,17 +51,16 @@ class WindowTest : public ::testing::Test {
         local_storage_database_(NULL),
         stub_media_module_(new media::MediaModuleStub()),
         url_("about:blank"),
-        window_(new Window(1920, 1080, css_parser_.get(), dom_parser_.get(),
-                           fetcher_factory_.get(), NULL, NULL, NULL,
-                           &local_storage_database_, stub_media_module_.get(),
-                           NULL, NULL, NULL, url_, "", "en-US",
-                           base::Callback<void(const GURL &)>(),
-                           base::Bind(&MockErrorCallback::Run,
-                                      base::Unretained(&mock_error_callback_)),
-                           NULL, network_bridge::PostSender(),
-                           std::string() /* default security policy */,
-                           CspDelegate::kEnforcementEnable,
-                           base::Closure() /* csp_policy_changed */)) {}
+        window_(new Window(
+            1920, 1080, css_parser_.get(), dom_parser_.get(),
+            fetcher_factory_.get(), NULL, NULL, NULL, &local_storage_database_,
+            stub_media_module_.get(), NULL, NULL, NULL, url_, "", "en-US",
+            base::Callback<void(const GURL &)>(),
+            base::Bind(&MockErrorCallback::Run,
+                       base::Unretained(&mock_error_callback_)),
+            NULL, network_bridge::PostSender(),
+            std::string() /* default security policy */, kCspEnforcementEnable,
+            base::Closure() /* csp_policy_changed */)) {}
 
   ~WindowTest() OVERRIDE {}
 
