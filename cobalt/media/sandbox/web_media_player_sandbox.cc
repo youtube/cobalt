@@ -62,8 +62,9 @@ scoped_refptr<Image> FrameCB(WebMediaPlayerHelper* player_helper,
 }
 
 int SandboxMain(int argc, char** argv) {
-  if (argc != 2) {
-    DLOG(ERROR) << "Usage: " << argv[0] << " <url|path>";
+  if (argc != 2 && argc != 3) {
+    LOG(ERROR) << "Usage: " << argv[0]
+               << " [--use_null_audio_streamer] <url|path>";
     return 1;
   }
   MediaSandbox media_sandbox(
@@ -71,14 +72,14 @@ int SandboxMain(int argc, char** argv) {
       FilePath(FILE_PATH_LITERAL("web_media_player_sandbox_trace.json")));
 
   // Note that we can't access PathService until MediaSandbox is initialized.
-  GURL video_url = ResolveUrl(argv[1]);
+  GURL video_url = ResolveUrl(argv[argc - 1]);
 
   if (!video_url.is_valid()) {
-    DLOG(ERROR) << " Invalid URL: " << video_url;
+    LOG(ERROR) << " Invalid URL: " << video_url;
     return 1;
   }
 
-  DLOG(INFO) << "Loading " << video_url;
+  LOG(INFO) << "Loading " << video_url;
 
   WebMediaPlayerHelper player_helper(media_sandbox.GetMediaModule(),
                                      media_sandbox.GetFetcherFactory(),
@@ -95,6 +96,7 @@ int SandboxMain(int argc, char** argv) {
   }
 
   media_sandbox.RegisterFrameCB(MediaSandbox::FrameCB());
+  LOG(INFO) << "Playback finished.";
 
   return 0;
 }

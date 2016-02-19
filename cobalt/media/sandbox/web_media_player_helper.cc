@@ -67,7 +67,10 @@ scoped_refptr<VideoFrame> WebMediaPlayerHelper::GetCurrentFrame() const {
 }
 
 bool WebMediaPlayerHelper::IsPlaybackFinished() const {
-  return player_->GetCurrentTime() >= player_->GetDuration();
+  // Use a small epsilon to ensure that the video can finish properly even when
+  // the audio and video streams are shorter than the duration specified in the
+  // container.
+  return player_->GetCurrentTime() >= player_->GetDuration() - 0.1f;
 }
 
 }  // namespace sandbox
