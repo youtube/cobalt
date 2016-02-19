@@ -32,7 +32,7 @@
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
-#include "cobalt/dom/csp_delegate.h"
+#include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/document_timeline.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/location.h"
@@ -47,6 +47,7 @@ namespace cobalt {
 namespace dom {
 
 class Attr;
+class CspDelegate;
 class DOMImplementation;
 class Element;
 class FontCache;
@@ -84,13 +85,11 @@ class DocumentObserver {
 class Document : public Node, public cssom::MutationObserver {
  public:
   struct Options {
-    Options()
-        : cookie_jar(NULL),
-          csp_enforcement_mode(CspDelegate::kEnforcementEnable) {}
+    Options() : cookie_jar(NULL), csp_enforcement_mode(kCspEnforcementEnable) {}
     explicit Options(const GURL& url_value)
         : url(url_value),
           cookie_jar(NULL),
-          csp_enforcement_mode(CspDelegate::kEnforcementEnable) {}
+          csp_enforcement_mode(kCspEnforcementEnable) {}
     Options(const GURL& url_value,
             const scoped_refptr<base::Clock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
@@ -99,7 +98,7 @@ class Document : public Node, public cssom::MutationObserver {
             network_bridge::CookieJar* cookie_jar,
             const network_bridge::PostSender& post_sender,
             const std::string& location_policy,
-            CspDelegate::EnforcementType csp_enforcement_mode,
+            CspEnforcementType csp_enforcement_mode,
             const base::Closure& csp_policy_changed_callback)
         : url(url_value),
           navigation_start_clock(navigation_start_clock_value),
@@ -120,7 +119,7 @@ class Document : public Node, public cssom::MutationObserver {
     network_bridge::CookieJar* cookie_jar;
     network_bridge::PostSender post_sender;
     std::string location_policy;
-    CspDelegate::EnforcementType csp_enforcement_mode;
+    CspEnforcementType csp_enforcement_mode;
     base::Closure csp_policy_changed_callback;
   };
 

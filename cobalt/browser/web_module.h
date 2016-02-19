@@ -90,7 +90,7 @@ class WebModule {
           layout_trigger(layout::LayoutManager::kOnDocumentMutation),
           array_buffer_allocator(NULL),
           image_cache_capacity(kImageCacheCapacity),
-          csp_enforcement_mode(dom::CspDelegate::kEnforcementEnable) {}
+          csp_enforcement_mode(dom::kCspEnforcementEnable) {}
 
     // The name of the WebModule.  This is useful for debugging purposes as in
     // the case where multiple WebModule objects exist, it can be used to
@@ -135,7 +135,7 @@ class WebModule {
     uint32 image_cache_capacity;
 
     // Content Security Policy enforcement mode for this web module.
-    dom::CspDelegate::EnforcementType csp_enforcement_mode;
+    dom::CspEnforcementType csp_enforcement_mode;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

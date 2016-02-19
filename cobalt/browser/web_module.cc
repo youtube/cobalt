@@ -136,7 +136,7 @@ WebModule::WebModule(
                                            environment_settings_.get());
 
 #if !defined(COBALT_FORCE_CSP)
-  if (options.csp_enforcement_mode == dom::CspDelegate::kEnforcementDisable) {
+  if (options.csp_enforcement_mode == dom::kCspEnforcementDisable) {
     // If CSP is disabled, enable eval(). Otherwise, it will be enabled by
     // a CSP directive.
     global_object_proxy_->EnableEval();

@@ -27,7 +27,7 @@
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/crypto.h"
-#include "cobalt/dom/csp_delegate.h"
+#include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/media_source.h"
@@ -97,7 +97,7 @@ class Window : public EventTarget {
          network_bridge::CookieJar* cookie_jar,
          const network_bridge::PostSender& post_sender,
          const std::string& default_security_policy,
-         dom::CspDelegate::EnforcementType csp_enforcement_mode,
+         dom::CspEnforcementType csp_enforcement_mode,
          const base::Closure& csp_policy_changed_callback);
 
   // Web API: Window

@@ -33,6 +33,7 @@
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/benchmark_stat_names.h"
 #include "cobalt/dom/csp_delegate.h"
+#include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
@@ -87,9 +88,12 @@ Document::Document(HTMLElementContext* html_element_context,
 
   scoped_ptr<CspViolationReporter> violation_reporter(
       new CspViolationReporter(this, options.post_sender));
-  csp_delegate_.reset(new CspDelegate(
-      violation_reporter.Pass(), options.url, options.location_policy,
-      options.csp_enforcement_mode, options.csp_policy_changed_callback));
+  csp_delegate_ =
+      CspDelegateFactory::GetInstance()
+          ->Create(options.csp_enforcement_mode, violation_reporter.Pass(),
+                   options.url, options.location_policy,
+                   options.csp_policy_changed_callback)
+          .Pass();
 
   location_ = new Location(
       options.url, options.navigation_callback,
@@ -305,14 +309,10 @@ void Document::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 void Document::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Document::Duplicate() const {
-  return new Document(
-      html_element_context_,
-      Options(location_->url(), navigation_start_clock_,
-              location_->navigation_callback(), user_agent_style_sheet_,
-              viewport_size_, cookie_jar_, csp_delegate_->post_sender(),
-              csp_delegate_->location_policy(),
-              csp_delegate_->enforcement_mode(),
-              csp_delegate_->policy_changed_callback()));
+  // Note: Documents should not be duplicated by ***REMOVED***, we just need to
+  // provide an implementation since Document inherits from Node.
+  NOTIMPLEMENTED();
+  return NULL;
 }
 
 scoped_refptr<HTMLHtmlElement> Document::html() const { return html_.get(); }
