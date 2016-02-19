@@ -32,20 +32,6 @@ namespace dom {
 // Note that any thread may call CanLoad().
 class CspDelegate {
  public:
-  enum EnforcementType {
-    // Require CSP policy to be delivered in HTTP headers, otherwise consider
-    // it an error. The main web module should *require* CSP.
-    kEnforcementRequire,
-    // Enable CSP checks, if policy is received. This is the standard browser
-    // policy (except for our custom Location restrictions).
-    kEnforcementEnable,
-#if !defined(COBALT_FORCE_CSP)
-    // Do no CSP checks, regardless of policy from the server. This is
-    // for testing, so CSP can be disabled on the command line.
-    kEnforcementDisable,
-#endif
-  };
-
   enum ResourceType {
     kFont,
     kImage,
@@ -56,55 +42,102 @@ class CspDelegate {
     kXhr,
   };
 
-  CspDelegate(scoped_ptr<CspViolationReporter> violation_reporter,
-              const GURL& url, const std::string& location_policy,
-              EnforcementType mode,
-              const base::Closure& policy_changed_callback);
+  CspDelegate();
   virtual ~CspDelegate();
 
   // Return |true| if the given resource type can be loaded from |url|.
   // Set |did_redirect| if url was the result of a redirect.
   virtual bool CanLoad(ResourceType type, const GURL& url,
-                       bool did_redirect) const;
-  virtual bool IsValidNonce(ResourceType type, const std::string& nonce) const;
+                       bool did_redirect) const = 0;
+  virtual bool IsValidNonce(ResourceType type,
+                            const std::string& nonce) const = 0;
 
   virtual bool AllowInline(ResourceType type,
                            const base::SourceLocation& location,
-                           const std::string& script_content) const;
+                           const std::string& script_content) const = 0;
 
   // Return |true| if 'unsafe-eval' is set. No report will be generated in any
   // case. If eval_disabled_message is non-NULL, it will be set with a message
   // that should be reported when an application attempts to use eval().
-  virtual bool AllowEval(std::string* eval_disabled_message) const;
+  virtual bool AllowEval(std::string* eval_disabled_message) const = 0;
 
   // Report that code was generated from a string, such as through eval() or the
   // Function constructor. If eval() is not allowed, generate a violation
   // report. Otherwise if eval() is allowed this is a no-op.
-  virtual void ReportEval() const;
+  virtual void ReportEval() const = 0;
 
   // Signal to the CSP object that CSP policy directives have been received.
   // Return |true| if success, |false| if failure and load should be aborted.
-  virtual bool OnReceiveHeaders(const csp::ResponseHeaders& headers);
+  virtual bool OnReceiveHeaders(const csp::ResponseHeaders& headers) = 0;
   virtual void OnReceiveHeader(const std::string& header,
                                csp::HeaderType header_type,
-                               csp::HeaderSource header_source);
-
+                               csp::HeaderSource header_source) = 0;
   // Inform the policy that the document's origin has changed.
-  void NotifyUrlChanged(const GURL& url) { return csp_->NotifyUrlChanged(url); }
-
-  const std::string& location_policy() const { return location_policy_; }
-
-  EnforcementType enforcement_mode() const { return enforcement_mode_; }
-  CspViolationReporter* reporter() const { return reporter_.get(); }
-  const network_bridge::PostSender& post_sender() const {
-    return reporter_->post_sender();
-  }
-
-  const base::Closure& policy_changed_callback() const {
-    return policy_changed_callback_;
-  }
+  virtual void NotifyUrlChanged(const GURL& url) const = 0;
 
  private:
+  DISALLOW_COPY_AND_ASSIGN(CspDelegate);
+};
+
+// This class is just a no-op implementation that allows everything.
+class CspDelegateInsecure : public CspDelegate {
+ public:
+  CspDelegateInsecure() {}
+  bool CanLoad(ResourceType, const GURL&, bool) const OVERRIDE { return true; }
+  bool IsValidNonce(ResourceType, const std::string&) const OVERRIDE {
+    return true;
+  }
+  bool AllowInline(ResourceType, const base::SourceLocation&,
+                   const std::string&) const OVERRIDE {
+    return true;
+  }
+  bool AllowEval(std::string*) const OVERRIDE { return true; }
+  void ReportEval() const OVERRIDE {}
+  bool OnReceiveHeaders(const csp::ResponseHeaders&) OVERRIDE { return true; }
+  void OnReceiveHeader(const std::string&, csp::HeaderType,
+                       csp::HeaderSource) OVERRIDE {}
+  void NotifyUrlChanged(const GURL&) const OVERRIDE {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CspDelegateInsecure);
+};
+
+class CspDelegateSecure : public CspDelegate {
+ public:
+  CspDelegateSecure(scoped_ptr<CspViolationReporter> violation_reporter,
+                    const GURL& url, const std::string& location_policy,
+                    const base::Closure& policy_changed_callback);
+  ~CspDelegateSecure();
+
+  // Return |true| if the given resource type can be loaded from |url|.
+  // Set |did_redirect| if url was the result of a redirect.
+  bool CanLoad(ResourceType type, const GURL& url,
+               bool did_redirect) const OVERRIDE;
+  bool IsValidNonce(ResourceType type, const std::string& nonce) const OVERRIDE;
+
+  bool AllowInline(ResourceType type, const base::SourceLocation& location,
+                   const std::string& script_content) const OVERRIDE;
+
+  // Return |true| if 'unsafe-eval' is set. No report will be generated in any
+  // case. If eval_disabled_message is non-NULL, it will be set with a message
+  // that should be reported when an application attempts to use eval().
+  bool AllowEval(std::string* eval_disabled_message) const OVERRIDE;
+
+  // Report that code was generated from a string, such as through eval() or the
+  // Function constructor. If eval() is not allowed, generate a violation
+  // report. Otherwise if eval() is allowed this is a no-op.
+  void ReportEval() const OVERRIDE;
+
+  // Signal to the CSP object that CSP policy directives have been received.
+  // Return |true| if success, |false| if failure and load should be aborted.
+  bool OnReceiveHeaders(const csp::ResponseHeaders& headers) OVERRIDE;
+  void OnReceiveHeader(const std::string& header, csp::HeaderType header_type,
+                       csp::HeaderSource header_source) OVERRIDE;
+  void NotifyUrlChanged(const GURL& url) const OVERRIDE {
+    return csp_->NotifyUrlChanged(url);
+  }
+
+ protected:
   void SetLocationPolicy(const std::string& policy);
 
   scoped_ptr<csp::ContentSecurityPolicy> csp_;
@@ -115,9 +148,8 @@ class CspDelegate {
   // Helper class to send violation events to any reporting endpoints.
   scoped_ptr<CspViolationReporter> reporter_;
 
-  EnforcementType enforcement_mode_;
-  // In "Require" enforcement mode, we disallow all loads if CSP headers
-  // weren't received. This tracks if we did get a valid header.
+  // We disallow all loads if CSP headers weren't received. This tracks if we
+  // did get a valid header.
   bool was_header_received_;
 
   // This should be called any time the CSP policy changes. For example, after
@@ -125,7 +157,8 @@ class CspDelegate {
   // in a <meta> tag.
   base::Closure policy_changed_callback_;
 
-  DISALLOW_COPY_AND_ASSIGN(CspDelegate);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CspDelegateSecure);
 };
 
 }  // namespace dom

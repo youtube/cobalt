@@ -81,7 +81,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                network_bridge::CookieJar* cookie_jar,
                const network_bridge::PostSender& post_sender,
                const std::string& default_security_policy,
-               CspDelegate::EnforcementType csp_enforcement_mode,
+               CspEnforcementType csp_enforcement_mode,
                const base::Closure& csp_policy_changed_callback)
     : width_(width),
       height_(height),

@@ -22,13 +22,15 @@
 namespace cobalt {
 namespace dom {
 
-CspDelegate::CspDelegate(scoped_ptr<CspViolationReporter> violation_reporter,
-                         const GURL& url, const std::string& location_policy,
-                         EnforcementType mode,
-                         const base::Closure& policy_changed_callback) {
+CspDelegate::CspDelegate() {}
+CspDelegate::~CspDelegate() {}
+
+CspDelegateSecure::CspDelegateSecure(
+    scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
+    const std::string& location_policy,
+    const base::Closure& policy_changed_callback) {
   location_policy_ = location_policy;
   was_header_received_ = false;
-  enforcement_mode_ = mode;
   policy_changed_callback_ = policy_changed_callback;
 
   reporter_ = violation_reporter.Pass();
@@ -41,16 +43,10 @@ CspDelegate::CspDelegate(scoped_ptr<CspViolationReporter> violation_reporter,
   SetLocationPolicy(location_policy_);
 }
 
-CspDelegate::~CspDelegate() {}
+CspDelegateSecure::~CspDelegateSecure() {}
 
-bool CspDelegate::CanLoad(ResourceType type, const GURL& url,
-                          bool did_redirect) const {
-#if !defined(COBALT_FORCE_CSP)
-  if (enforcement_mode() == kEnforcementDisable) {
-    return true;
-  }
-#endif  // !defined(COBALT_FORCE_CSP)
-
+bool CspDelegateSecure::CanLoad(ResourceType type, const GURL& url,
+                                bool did_redirect) const {
   const csp::ContentSecurityPolicy::RedirectStatus redirect_status =
       did_redirect ? csp::ContentSecurityPolicy::kDidRedirect
                    : csp::ContentSecurityPolicy::kDidNotRedirect;
@@ -58,7 +54,7 @@ bool CspDelegate::CanLoad(ResourceType type, const GURL& url,
   // Special case for "offline" mode- in the absence of any server policy,
   // we check our default navigation policy, to permit navigation to
   // and from the main site and error pages, and disallow everything else.
-  if (enforcement_mode() == kEnforcementRequire && !was_header_received_) {
+  if (!was_header_received_) {
     if (type == kLocation) {
       return csp_->AllowNavigateToSource(url, redirect_status);
     } else {
@@ -96,14 +92,8 @@ bool CspDelegate::CanLoad(ResourceType type, const GURL& url,
   return can_load;
 }
 
-bool CspDelegate::IsValidNonce(ResourceType type,
-                               const std::string& nonce) const {
-#if !defined(COBALT_FORCE_CSP)
-  if (enforcement_mode() == kEnforcementDisable) {
-    return true;
-  }
-#endif  // !defined(COBALT_FORCE_CSP)
-
+bool CspDelegateSecure::IsValidNonce(ResourceType type,
+                                     const std::string& nonce) const {
   bool is_valid = false;
   if (type == kScript) {
     is_valid = csp_->AllowScriptWithNonce(nonce);
@@ -115,15 +105,9 @@ bool CspDelegate::IsValidNonce(ResourceType type,
   return is_valid;
 }
 
-bool CspDelegate::AllowInline(ResourceType type,
-                              const base::SourceLocation& location,
-                              const std::string& content) const {
-#if !defined(COBALT_FORCE_CSP)
-  if (enforcement_mode() == kEnforcementDisable) {
-    return true;
-  }
-#endif  // !defined(COBALT_FORCE_CSP)
-
+bool CspDelegateSecure::AllowInline(ResourceType type,
+                                    const base::SourceLocation& location,
+                                    const std::string& content) const {
   bool can_load = false;
   if (type == kScript) {
     can_load = csp_->AllowInlineScript(location.file_path, location.line_number,
@@ -137,12 +121,7 @@ bool CspDelegate::AllowInline(ResourceType type,
   return can_load;
 }
 
-bool CspDelegate::AllowEval(std::string* eval_disabled_message) const {
-#if !defined(COBALT_FORCE_CSP)
-  if (enforcement_mode() == kEnforcementDisable) {
-    return true;
-  }
-#endif  // !defined(COBALT_FORCE_CSP)
+bool CspDelegateSecure::AllowEval(std::string* eval_disabled_message) const {
   bool allow_eval =
       csp_->AllowEval(csp::ContentSecurityPolicy::kSuppressReport);
   if (!allow_eval && eval_disabled_message) {
@@ -151,18 +130,12 @@ bool CspDelegate::AllowEval(std::string* eval_disabled_message) const {
   return allow_eval;
 }
 
-void CspDelegate::ReportEval() const {
-#if !defined(COBALT_FORCE_CSP)
-  if (enforcement_mode() == kEnforcementDisable) {
-    return;
-  }
-#endif  // !defined(COBALT_FORCE_CSP)
+void CspDelegateSecure::ReportEval() const {
   csp_->AllowEval(csp::ContentSecurityPolicy::kSendReport);
 }
 
-bool CspDelegate::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
-  if (enforcement_mode() == kEnforcementRequire &&
-      headers.content_security_policy().empty()) {
+bool CspDelegateSecure::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
+  if (headers.content_security_policy().empty()) {
     // Didn't find Content-Security-Policy header.
     if (!headers.content_security_policy_report_only().empty()) {
       DLOG(INFO)
@@ -179,24 +152,21 @@ bool CspDelegate::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
   return true;
 }
 
-void CspDelegate::OnReceiveHeader(const std::string& header,
-                                  csp::HeaderType header_type,
-                                  csp::HeaderSource header_source) {
+void CspDelegateSecure::OnReceiveHeader(const std::string& header,
+                                        csp::HeaderType header_type,
+                                        csp::HeaderSource header_source) {
   csp_->OnReceiveHeader(header, header_type, header_source);
-  // In "require" mode we don't consider a Report-Only header to be sufficient.
-  if (enforcement_mode() == kEnforcementRequire) {
-    if (header_type == csp::kHeaderTypeEnforce) {
-      was_header_received_ = true;
-    }
-  } else {
+  // We don't consider a Report-Only header to be sufficient.
+  if (header_type == csp::kHeaderTypeEnforce) {
     was_header_received_ = true;
   }
+
   if (!policy_changed_callback_.is_null()) {
     policy_changed_callback_.Run();
   }
 }
 
-void CspDelegate::SetLocationPolicy(const std::string& policy) {
+void CspDelegateSecure::SetLocationPolicy(const std::string& policy) {
   if (!policy.length()) {
     return;
   }

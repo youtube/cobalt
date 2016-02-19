@@ -95,13 +95,9 @@ class FakeSettings : public dom::DOMSettings {
   GURL base_url() const OVERRIDE { return GURL("http://example.com"); }
 };
 
-class MockCspDelegate : public dom::CspDelegate {
+class MockCspDelegate : public dom::CspDelegateInsecure {
  public:
-  MockCspDelegate()
-      : dom::CspDelegate(
-            scoped_ptr<dom::CspViolationReporter>(),
-            GURL("http://www.example.com"), std::string() /* default policy */,
-            dom::CspDelegate::kEnforcementEnable, base::Closure()) {}
+  MockCspDelegate() {}
   MOCK_CONST_METHOD3(CanLoad,
                      bool(dom::CspDelegate::ResourceType, const GURL&, bool));
 };

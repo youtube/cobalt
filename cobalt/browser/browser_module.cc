@@ -27,6 +27,7 @@
 #include "cobalt/browser/resource_provider_array_buffer_allocator.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/keycode.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
@@ -324,6 +325,9 @@ void BrowserModule::NavigateWithCallbackInternal(
       base::Bind(&BrowserModule::DestroySplashScreen, base::Unretained(this)));
   options.array_buffer_allocator = array_buffer_allocator_.get();
 
+#if !defined(COBALT_FORCE_CSP)
+  dom::CspDelegateFactory::ScopedAllowInsecure allow_insecure;
+#endif
   web_module_.reset(new WebModule(
       new_url,
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
