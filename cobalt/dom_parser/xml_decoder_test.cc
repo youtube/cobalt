@@ -50,7 +50,7 @@ XMLDecoderTest::XMLDecoderTest()
       source_location_(base::SourceLocation("[object XMLDecoderTest]", 1, 1)) {}
 
 TEST_F(XMLDecoderTest, ShouldNotAddImpliedTags) {
-  const std::string input = "<ENTITY></ENTITY>";
+  const std::string input = "<ELEMENT></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, source_location_, base::Closure(),
       base::Bind(&MockErrorCallback::Run,
@@ -60,21 +60,21 @@ TEST_F(XMLDecoderTest, ShouldNotAddImpliedTags) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("ENTITY", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->tag_name());
   EXPECT_FALSE(element->HasChildNodes());
 }
 
 TEST_F(XMLDecoderTest, CanParseCDATASection) {
   // Libxml requires that a CDATA must be inside an element.
   const std::string input =
-      "<ENTITY>"
+      "<ELEMENT>"
       "<![CDATA["
       "<tag> <!--comment--> <![CDATA[ & &amp; ]]&gt;"
       "]]>"
       "<![CDATA["
       "another CDATA section"
       "]]>"
-      "</ENTITY>";
+      "</ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, source_location_, base::Closure(),
       base::Bind(&MockErrorCallback::Run,
@@ -84,7 +84,7 @@ TEST_F(XMLDecoderTest, CanParseCDATASection) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("ENTITY", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->tag_name());
 
   dom::CDATASection* cdata_section1 = element->first_child()->AsCDATASection();
   ASSERT_TRUE(cdata_section1);
@@ -97,7 +97,7 @@ TEST_F(XMLDecoderTest, CanParseCDATASection) {
 }
 
 TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
-  const std::string input = "<ENTITY a=\"1\" b=\"2\"></ENTITY>";
+  const std::string input = "<ELEMENT a=\"1\" b=\"2\"></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, source_location_, base::Closure(),
       base::Bind(&MockErrorCallback::Run,
@@ -107,7 +107,7 @@ TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("ENTITY", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->tag_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(2, element->attributes()->length());
   EXPECT_EQ("a", element->attributes()->Item(0)->name());
@@ -117,7 +117,7 @@ TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
 }
 
 TEST_F(XMLDecoderTest, TagNamesShouldBeCaseSensitive) {
-  const std::string input = "<ENTITY><entity></entity></ENTITY>";
+  const std::string input = "<ELEMENT><element></element></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, source_location_, base::Closure(),
       base::Bind(&MockErrorCallback::Run,
@@ -127,15 +127,15 @@ TEST_F(XMLDecoderTest, TagNamesShouldBeCaseSensitive) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("ENTITY", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->tag_name());
 
   element = element->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("entity", element->tag_name());
+  EXPECT_EQ("element", element->tag_name());
 }
 
 TEST_F(XMLDecoderTest, AttributesShouldBeCaseSensitive) {
-  const std::string input = "<ENTITY A=\"1\" a=\"2\"></ENTITY>";
+  const std::string input = "<ELEMENT A=\"1\" a=\"2\"></ELEMENT>";
   xml_decoder_.reset(new XMLDecoder(
       document_, document_, NULL, source_location_, base::Closure(),
       base::Bind(&MockErrorCallback::Run,
@@ -145,13 +145,157 @@ TEST_F(XMLDecoderTest, AttributesShouldBeCaseSensitive) {
 
   dom::Element* element = document_->first_element_child();
   ASSERT_TRUE(element);
-  EXPECT_EQ("ENTITY", element->tag_name());
+  EXPECT_EQ("ELEMENT", element->tag_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(2, element->attributes()->length());
   EXPECT_EQ("A", element->attributes()->Item(0)->name());
   EXPECT_EQ("1", element->attributes()->Item(0)->value());
   EXPECT_EQ("a", element->attributes()->Item(1)->name());
   EXPECT_EQ("2", element->attributes()->Item(1)->value());
+}
+
+TEST_F(XMLDecoderTest, CanDealWithFileAttack) {
+  const std::string input =
+      "<!DOCTYPE doc [ <!ENTITY ent SYSTEM \"file:///dev/tty\"> ]>"
+      "<element>&ent;</element>";
+  xml_decoder_.reset(new XMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  xml_decoder_->DecodeChunk(input.c_str(), input.length());
+  xml_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("element", element->tag_name());
+}
+
+TEST_F(XMLDecoderTest, CanDealWithHTMLAttack) {
+  const std::string input =
+      "<!DOCTYPE doc [ <!ENTITY ent SYSTEM \"file:///dev/tty\"> ]>"
+      "<element>&ent;</element>";
+  xml_decoder_.reset(new XMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  xml_decoder_->DecodeChunk(input.c_str(), input.length());
+  xml_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("element", element->tag_name());
+}
+
+TEST_F(XMLDecoderTest, CanDealWithAttack) {
+  const std::string input =
+      "<!DOCTYPE doc [ <!ENTITY % ent SYSTEM \"http://www.google.com/\"> ]>"
+      "<element>&ent;</element>";
+  xml_decoder_.reset(new XMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  xml_decoder_->DecodeChunk(input.c_str(), input.length());
+  xml_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("element", element->tag_name());
+}
+
+TEST_F(XMLDecoderTest, CanDealWithPEAttack) {
+  const std::string input =
+      "<!DOCTYPE doc [ <!ENTITY % ent SYSTEM \"file:///dev/tty\"> ]>"
+      "<element>hey</element>";
+  xml_decoder_.reset(new XMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  xml_decoder_->DecodeChunk(input.c_str(), input.length());
+  xml_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("element", element->tag_name());
+}
+
+TEST_F(XMLDecoderTest, CanDealWithDTDAttack) {
+  const std::string input =
+      "<!DOCTYPE doc SYSTEM \"file:///dev/tty\">"
+      "<element>hey</element>";
+  xml_decoder_.reset(new XMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  xml_decoder_->DecodeChunk(input.c_str(), input.length());
+  xml_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("element", element->tag_name());
+}
+
+TEST_F(XMLDecoderTest, CanDealWithLaughsAttack) {
+  const std::string input =
+      "<!DOCTYPE doc ["
+      "<!ENTITY ha \"Ha !\">"
+      "<!ENTITY ha2 \"&ha; &ha; &ha; &ha; &ha;\">"
+      "<!ENTITY ha3 \"&ha2; &ha2; &ha2; &ha2; &ha2;\">"
+      "<!ENTITY ha4 \"&ha3; &ha3; &ha3; &ha3; &ha3;\">"
+      "<!ENTITY ha5 \"&ha4; &ha4; &ha4; &ha4; &ha4;\">"
+      "<!ENTITY ha6 \"&ha5; &ha5; &ha5; &ha5; &ha5;\">"
+      "<!ENTITY ha7 \"&ha6; &ha6; &ha6; &ha6; &ha6;\">"
+      "<!ENTITY ha8 \"&ha7; &ha7; &ha7; &ha7; &ha7;\">"
+      "<!ENTITY ha9 \"&ha8; &ha8; &ha8; &ha8; &ha8;\">"
+      "<!ENTITY ha10 \"&ha9; &ha9; &ha9; &ha9; &ha9;\">"
+      "<!ENTITY ha11 \"&ha10; &ha10; &ha10; &ha10; &ha10;\">"
+      "<!ENTITY ha12 \"&ha11; &ha11; &ha11; &ha11; &ha11;\">"
+      "<!ENTITY ha13 \"&ha12; &ha12; &ha12; &ha12; &ha12;\">"
+      "<!ENTITY ha14 \"&ha13; &ha13; &ha13; &ha13; &ha13;\">"
+      "<!ENTITY ha15 \"&ha14; &ha14; &ha14; &ha14; &ha14;\">"
+      "]>"
+      "<element>&ha15;</element>";
+  xml_decoder_.reset(new XMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  xml_decoder_->DecodeChunk(input.c_str(), input.length());
+  xml_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("element", element->tag_name());
+}
+
+TEST_F(XMLDecoderTest, CanDealWithXIncludeAttack) {
+  const std::string input =
+      "<?xml version=\"1.0\"?>"
+      "<root xmlns:xi=\"http://www.w3.org/2001/XInclude\">"
+      "<child>"
+      "<name><xi:include href=\"file:///dev/tty\" parse=\"text\"/></name>"
+      "</child>"
+      "</root>";
+  xml_decoder_.reset(new XMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  xml_decoder_->DecodeChunk(input.c_str(), input.length());
+  xml_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("root", element->tag_name());
+
+  element = element->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("child", element->tag_name());
+
+  element = element->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("name", element->tag_name());
+
+  element = element->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("xi:include", element->tag_name());
 }
 
 }  // namespace dom_parser
