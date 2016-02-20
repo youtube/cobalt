@@ -2767,6 +2767,14 @@ TEST_F(ParserTest, ParsesBorderWithWidthColorAndStyle) {
   EXPECT_EQ(cssom::KeywordValue::GetSolid(), style->border_bottom_style());
 }
 
+TEST_F(ParserTest, ParsesBorderWithInvaildValue) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:9: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseStyleDeclarationList("border: foo, bar;", source_location_);
+}
+
 TEST_F(ParserTest, ParsesBorderColorWidth) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseStyleDeclarationList("border: gray 20px;", source_location_);
