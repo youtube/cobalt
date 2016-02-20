@@ -3247,7 +3247,7 @@ border_property_list:
 //   https://www.w3.org/TR/css3-background/#borders
 border_property_value:
     border_property_list
-  | common_values_without_errors {
+  | common_values {
     // Replicate the common value into each of the properties that border is a
     // shorthand for.
     scoped_ptr<BorderShorthand> border(new BorderShorthand());
