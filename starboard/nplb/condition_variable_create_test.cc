@@ -72,9 +72,12 @@ TEST(SbConditionVariableCreateTest, RainyDayNull) {
   EXPECT_TRUE(SbMutexCreate(&mutex));
   EXPECT_FALSE(SbConditionVariableCreate(NULL, &mutex));
   EXPECT_TRUE(SbMutexDestroy(&mutex));
+}
 
+TEST(SbConditionVariableCreateTest, SunnyDayNullMutex) {
   SbConditionVariable condition;
-  EXPECT_FALSE(SbConditionVariableCreate(&condition, NULL));
+  EXPECT_TRUE(SbConditionVariableCreate(&condition, NULL));
+  EXPECT_TRUE(SbConditionVariableDestroy(&condition));
 }
 
 }  // namespace
