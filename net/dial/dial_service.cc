@@ -56,6 +56,11 @@ const std::string& DialService::http_host_address() const {
 
 void DialService::Terminate() {
   DCHECK(thread_checker_.CalledOnValidThread());
+  // Note that we may not have the last ref to http_server_, so we can't control
+  // where it gets destroyed. Ensure we stop it on the right thread.
+  if (http_server_) {
+    http_server_->Stop();
+  }
   http_server_ = NULL;
   udp_server_.reset();
 }
