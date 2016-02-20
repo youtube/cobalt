@@ -50,33 +50,26 @@ const char* kAppsPrefix = "/apps/";
 const int kDialHttpServerPort = 0;  // Random Port.
 
 DialHttpServer::DialHttpServer(DialService* dial_service)
-    : factory_(new TCPListenSocketFactory("0.0.0.0", kDialHttpServerPort)),
+    : factory_("0.0.0.0", kDialHttpServerPort),
       dial_service_(dial_service),
       message_loop_proxy_(base::MessageLoopProxy::current()) {
   DCHECK(dial_service);
   DCHECK(message_loop_proxy_);
-  Start();
-}
 
-DialHttpServer::~DialHttpServer() {
-  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
-  Stop();
-}
-
-void DialHttpServer::Start() {
-  DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
-  DCHECK(!http_server_);
-  DCHECK(server_url_.empty());
-
-  http_server_ = new HttpServer(*factory_, this);
+  http_server_ = new HttpServer(factory_, this);
   ConfigureApplicationUrl();
   DCHECK(!server_url_.empty());
 }
 
+DialHttpServer::~DialHttpServer() {
+  // Stop() must have been called prior to destruction, to ensure the
+  // server was destroyed on the right thread.
+  DCHECK(!http_server_);
+}
+
 void DialHttpServer::Stop() {
   DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
-  DCHECK(http_server_);
-  DCHECK(!server_url_.empty());
+  http_server_ = NULL;
 }
 
 int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
@@ -107,7 +100,6 @@ void DialHttpServer::OnHttpRequest(int conn_id,
                                    const HttpServerRequestInfo& info) {
   TRACE_EVENT0("net::dial", "DialHttpServer::OnHttpRequest");
   DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
-
   if (info.method == "GET" && LowerCaseEqualsASCII(info.path, "/dd.xml")) {
     // If dd.xml request
     SendDeviceDescriptionManifest(conn_id);
@@ -173,7 +165,6 @@ bool DialHttpServer::DispatchToHandler(int conn_id,
   DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
   // See if DialService has a handler for this request.
   TRACE_EVENT0("net::dial", __FUNCTION__);
-
   std::string handler_path;
   scoped_refptr<DialServiceHandler> handler =
       dial_service_->GetHandler(info.path, &handler_path);
