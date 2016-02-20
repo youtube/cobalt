@@ -19,8 +19,8 @@
 #include "starboard/shared/pthread/is_success.h"
 
 bool SbConditionVariableCreate(SbConditionVariable* out_condition,
-                               SbMutex* mutex) {
-  if (!out_condition || !mutex) {
+                               SbMutex* /*opt_mutex*/) {
+  if (!out_condition) {
     return false;
   }
 
