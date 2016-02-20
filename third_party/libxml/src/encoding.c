@@ -23,8 +23,12 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
 
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
@@ -364,7 +368,7 @@ UTF8ToUTF8(unsigned char* out, int *outlen,
     if (len < 0)
 	return(-1);
 
-    memcpy(out, inb, len);
+    XML_MEMCPY(out, inb, len);
 
     *outlen = len;
     *inlenb = len;
@@ -1018,7 +1022,7 @@ xmlGetEncodingAlias(const char *alias) {
 	return(NULL);
 
     for (i = 0;i < 99;i++) {
-        upper[i] = toupper(alias[i]);
+        upper[i] = XML_TOUPPER(alias[i]);
 	if (upper[i] == 0) break;
     }
     upper[i] = 0;
@@ -1027,7 +1031,7 @@ xmlGetEncodingAlias(const char *alias) {
      * Walk down the list looking for a definition of the alias
      */
     for (i = 0;i < xmlCharEncodingAliasesNb;i++) {
-	if (!strcmp(xmlCharEncodingAliases[i].alias, upper)) {
+	if (!XML_STRCMP(xmlCharEncodingAliases[i].alias, upper)) {
 	    return(xmlCharEncodingAliases[i].name);
 	}
     }
@@ -1053,7 +1057,7 @@ xmlAddEncodingAlias(const char *name, const char *alias) {
 	return(-1);
 
     for (i = 0;i < 99;i++) {
-        upper[i] = toupper(alias[i]);
+        upper[i] = XML_TOUPPER(alias[i]);
 	if (upper[i] == 0) break;
     }
     upper[i] = 0;
@@ -1075,7 +1079,7 @@ xmlAddEncodingAlias(const char *name, const char *alias) {
      * Walk down the list looking for a definition of the alias
      */
     for (i = 0;i < xmlCharEncodingAliasesNb;i++) {
-	if (!strcmp(xmlCharEncodingAliases[i].alias, upper)) {
+	if (!XML_STRCMP(xmlCharEncodingAliases[i].alias, upper)) {
 	    /*
 	     * Replace the definition.
 	     */
@@ -1114,11 +1118,11 @@ xmlDelEncodingAlias(const char *alias) {
      * Walk down the list looking for a definition of the alias
      */
     for (i = 0;i < xmlCharEncodingAliasesNb;i++) {
-	if (!strcmp(xmlCharEncodingAliases[i].alias, alias)) {
+	if (!XML_STRCMP(xmlCharEncodingAliases[i].alias, alias)) {
 	    xmlFree((char *) xmlCharEncodingAliases[i].name);
 	    xmlFree((char *) xmlCharEncodingAliases[i].alias);
 	    xmlCharEncodingAliasesNb--;
-	    memmove(&xmlCharEncodingAliases[i], &xmlCharEncodingAliases[i + 1],
+	    XML_MEMMOVE(&xmlCharEncodingAliases[i], &xmlCharEncodingAliases[i + 1],
 		    sizeof(xmlCharEncodingAlias) * (xmlCharEncodingAliasesNb - i));
 	    return(0);
 	}
@@ -1155,54 +1159,54 @@ xmlParseCharEncoding(const char* name)
 	name = alias;
 
     for (i = 0;i < 499;i++) {
-        upper[i] = toupper(name[i]);
+        upper[i] = XML_TOUPPER(name[i]);
 	if (upper[i] == 0) break;
     }
     upper[i] = 0;
 
-    if (!strcmp(upper, "")) return(XML_CHAR_ENCODING_NONE);
-    if (!strcmp(upper, "UTF-8")) return(XML_CHAR_ENCODING_UTF8);
-    if (!strcmp(upper, "UTF8")) return(XML_CHAR_ENCODING_UTF8);
+    if (!XML_STRCMP(upper, "")) return(XML_CHAR_ENCODING_NONE);
+    if (!XML_STRCMP(upper, "UTF-8")) return(XML_CHAR_ENCODING_UTF8);
+    if (!XML_STRCMP(upper, "UTF8")) return(XML_CHAR_ENCODING_UTF8);
 
     /*
      * NOTE: if we were able to parse this, the endianness of UTF16 is
      *       already found and in use
      */
-    if (!strcmp(upper, "UTF-16")) return(XML_CHAR_ENCODING_UTF16LE);
-    if (!strcmp(upper, "UTF16")) return(XML_CHAR_ENCODING_UTF16LE);
+    if (!XML_STRCMP(upper, "UTF-16")) return(XML_CHAR_ENCODING_UTF16LE);
+    if (!XML_STRCMP(upper, "UTF16")) return(XML_CHAR_ENCODING_UTF16LE);
 
-    if (!strcmp(upper, "ISO-10646-UCS-2")) return(XML_CHAR_ENCODING_UCS2);
-    if (!strcmp(upper, "UCS-2")) return(XML_CHAR_ENCODING_UCS2);
-    if (!strcmp(upper, "UCS2")) return(XML_CHAR_ENCODING_UCS2);
+    if (!XML_STRCMP(upper, "ISO-10646-UCS-2")) return(XML_CHAR_ENCODING_UCS2);
+    if (!XML_STRCMP(upper, "UCS-2")) return(XML_CHAR_ENCODING_UCS2);
+    if (!XML_STRCMP(upper, "UCS2")) return(XML_CHAR_ENCODING_UCS2);
 
     /*
      * NOTE: if we were able to parse this, the endianness of UCS4 is
      *       already found and in use
      */
-    if (!strcmp(upper, "ISO-10646-UCS-4")) return(XML_CHAR_ENCODING_UCS4LE);
-    if (!strcmp(upper, "UCS-4")) return(XML_CHAR_ENCODING_UCS4LE);
-    if (!strcmp(upper, "UCS4")) return(XML_CHAR_ENCODING_UCS4LE);
+    if (!XML_STRCMP(upper, "ISO-10646-UCS-4")) return(XML_CHAR_ENCODING_UCS4LE);
+    if (!XML_STRCMP(upper, "UCS-4")) return(XML_CHAR_ENCODING_UCS4LE);
+    if (!XML_STRCMP(upper, "UCS4")) return(XML_CHAR_ENCODING_UCS4LE);
 
 
-    if (!strcmp(upper,  "ISO-8859-1")) return(XML_CHAR_ENCODING_8859_1);
-    if (!strcmp(upper,  "ISO-LATIN-1")) return(XML_CHAR_ENCODING_8859_1);
-    if (!strcmp(upper,  "ISO LATIN 1")) return(XML_CHAR_ENCODING_8859_1);
+    if (!XML_STRCMP(upper,  "ISO-8859-1")) return(XML_CHAR_ENCODING_8859_1);
+    if (!XML_STRCMP(upper,  "ISO-LATIN-1")) return(XML_CHAR_ENCODING_8859_1);
+    if (!XML_STRCMP(upper,  "ISO LATIN 1")) return(XML_CHAR_ENCODING_8859_1);
 
-    if (!strcmp(upper,  "ISO-8859-2")) return(XML_CHAR_ENCODING_8859_2);
-    if (!strcmp(upper,  "ISO-LATIN-2")) return(XML_CHAR_ENCODING_8859_2);
-    if (!strcmp(upper,  "ISO LATIN 2")) return(XML_CHAR_ENCODING_8859_2);
+    if (!XML_STRCMP(upper,  "ISO-8859-2")) return(XML_CHAR_ENCODING_8859_2);
+    if (!XML_STRCMP(upper,  "ISO-LATIN-2")) return(XML_CHAR_ENCODING_8859_2);
+    if (!XML_STRCMP(upper,  "ISO LATIN 2")) return(XML_CHAR_ENCODING_8859_2);
 
-    if (!strcmp(upper,  "ISO-8859-3")) return(XML_CHAR_ENCODING_8859_3);
-    if (!strcmp(upper,  "ISO-8859-4")) return(XML_CHAR_ENCODING_8859_4);
-    if (!strcmp(upper,  "ISO-8859-5")) return(XML_CHAR_ENCODING_8859_5);
-    if (!strcmp(upper,  "ISO-8859-6")) return(XML_CHAR_ENCODING_8859_6);
-    if (!strcmp(upper,  "ISO-8859-7")) return(XML_CHAR_ENCODING_8859_7);
-    if (!strcmp(upper,  "ISO-8859-8")) return(XML_CHAR_ENCODING_8859_8);
-    if (!strcmp(upper,  "ISO-8859-9")) return(XML_CHAR_ENCODING_8859_9);
+    if (!XML_STRCMP(upper,  "ISO-8859-3")) return(XML_CHAR_ENCODING_8859_3);
+    if (!XML_STRCMP(upper,  "ISO-8859-4")) return(XML_CHAR_ENCODING_8859_4);
+    if (!XML_STRCMP(upper,  "ISO-8859-5")) return(XML_CHAR_ENCODING_8859_5);
+    if (!XML_STRCMP(upper,  "ISO-8859-6")) return(XML_CHAR_ENCODING_8859_6);
+    if (!XML_STRCMP(upper,  "ISO-8859-7")) return(XML_CHAR_ENCODING_8859_7);
+    if (!XML_STRCMP(upper,  "ISO-8859-8")) return(XML_CHAR_ENCODING_8859_8);
+    if (!XML_STRCMP(upper,  "ISO-8859-9")) return(XML_CHAR_ENCODING_8859_9);
 
-    if (!strcmp(upper, "ISO-2022-JP")) return(XML_CHAR_ENCODING_2022_JP);
-    if (!strcmp(upper, "SHIFT_JIS")) return(XML_CHAR_ENCODING_SHIFT_JIS);
-    if (!strcmp(upper, "EUC-JP")) return(XML_CHAR_ENCODING_EUC_JP);
+    if (!XML_STRCMP(upper, "ISO-2022-JP")) return(XML_CHAR_ENCODING_2022_JP);
+    if (!XML_STRCMP(upper, "SHIFT_JIS")) return(XML_CHAR_ENCODING_SHIFT_JIS);
+    if (!XML_STRCMP(upper, "EUC-JP")) return(XML_CHAR_ENCODING_EUC_JP);
 
 #ifdef DEBUG_ENCODING
     xmlGenericError(xmlGenericErrorContext, "Unknown encoding %s\n", name);
@@ -1331,7 +1335,7 @@ xmlNewCharEncodingHandler(const char *name,
 	return(NULL);
     }
     for (i = 0;i < 499;i++) {
-        upper[i] = toupper(name[i]);
+        upper[i] = XML_TOUPPER(name[i]);
 	if (upper[i] == 0) break;
     }
     upper[i] = 0;
@@ -1351,7 +1355,7 @@ xmlNewCharEncodingHandler(const char *name,
         xmlEncodingErrMemory("xmlNewCharEncodingHandler : out of memory !\n");
 	return(NULL);
     }
-    memset(handler, 0, sizeof(xmlCharEncodingHandler));
+    XML_MEMSET(handler, 0, sizeof(xmlCharEncodingHandler));
     handler->input = input;
     handler->output = output;
     handler->name = up;
@@ -1660,14 +1664,14 @@ xmlFindCharEncodingHandler(const char *name) {
      * Check first for directly registered encoding names
      */
     for (i = 0;i < 99;i++) {
-        upper[i] = toupper(name[i]);
+        upper[i] = XML_TOUPPER(name[i]);
 	if (upper[i] == 0) break;
     }
     upper[i] = 0;
 
     if (handlers != NULL) {
         for (i = 0;i < nbCharEncodingHandler; i++) {
-            if (!strcmp(upper, handlers[i]->name)) {
+            if (!XML_STRCMP(upper, handlers[i]->name)) {
 #ifdef DEBUG_ENCODING
                 xmlGenericError(xmlGenericErrorContext,
                         "Found registered handler for encoding %s\n", name);
@@ -1695,7 +1699,7 @@ xmlFindCharEncodingHandler(const char *name) {
 	        iconv_close(icv_out);
 		return(NULL);
 	    }
-            memset(enc, 0, sizeof(xmlCharEncodingHandler));
+            XML_MEMSET(enc, 0, sizeof(xmlCharEncodingHandler));
 	    enc->name = xmlMemStrdup(name);
 	    enc->input = NULL;
 	    enc->output = NULL;
@@ -1723,7 +1727,7 @@ xmlFindCharEncodingHandler(const char *name) {
                 closeIcuConverter(ucv_out);
 		return(NULL);
 	    }
-            memset(encu, 0, sizeof(xmlCharEncodingHandler));
+            XML_MEMSET(encu, 0, sizeof(xmlCharEncodingHandler));
 	    encu->name = xmlMemStrdup(name);
 	    encu->input = NULL;
 	    encu->output = NULL;
@@ -1754,7 +1758,7 @@ xmlFindCharEncodingHandler(const char *name) {
     if (alias != XML_CHAR_ENCODING_ERROR) {
         const char* canon;
         canon = xmlGetCharEncodingName(alias);
-        if ((canon != NULL) && (strcmp(name, canon))) {
+        if ((canon != NULL) && (XML_STRCMP(name, canon))) {
 	    return(xmlFindCharEncodingHandler(canon));
         }
     }
@@ -2143,7 +2147,7 @@ xmlCharEncFirstLineInput(xmlParserInputBufferPtr input, int len)
             char buf[50];
             const xmlChar *content = xmlBufContent(in);
 
-	    snprintf(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
+	    XML_SNPRINTF(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
 		     content[0], content[1],
 		     content[2], content[3]);
 	    buf[49] = 0;
@@ -2260,7 +2264,7 @@ xmlCharEncInput(xmlParserInputBufferPtr input, int flush)
             char buf[50];
             const xmlChar *content = xmlBufContent(in);
 
-	    snprintf(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
+	    XML_SNPRINTF(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
 		     content[0], content[1],
 		     content[2], content[3]);
 	    buf[49] = 0;
@@ -2367,7 +2371,7 @@ xmlCharEncInFunc(xmlCharEncodingHandler * handler, xmlBufferPtr out,
         case -2: {
             char buf[50];
 
-	    snprintf(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
+	    XML_SNPRINTF(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
 		     in->content[0], in->content[1],
 		     in->content[2], in->content[3]);
 	    buf[49] = 0;
@@ -2589,7 +2593,7 @@ retry:
 		 * and continue the transcoding phase, hoping the error
 		 * did not mangle the encoder state.
 		 */
-		charref_len = snprintf((char *) &charref[0], sizeof(charref),
+		charref_len = XML_SNPRINTF((char *) &charref[0], sizeof(charref),
 				 "&#%d;", cur);
 		xmlBufShrink(in, len);
 		xmlBufAddHead(in, charref, -1);
@@ -2598,7 +2602,7 @@ retry:
 	    } else {
 		char buf[50];
 
-		snprintf(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
+		XML_SNPRINTF(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
 			 content[0], content[1],
 			 content[2], content[3]);
 		buf[49] = 0;
@@ -2816,7 +2820,7 @@ retry:
 		 * and continue the transcoding phase, hoping the error
 		 * did not mangle the encoder state.
 		 */
-		charref_len = snprintf((char *) &charref[0], sizeof(charref),
+		charref_len = XML_SNPRINTF((char *) &charref[0], sizeof(charref),
 				 "&#%d;", cur);
 		xmlBufferShrink(in, len);
 		xmlBufferAddHead(in, charref, -1);
@@ -2825,7 +2829,7 @@ retry:
 	    } else {
 		char buf[50];
 
-		snprintf(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
+		XML_SNPRINTF(&buf[0], 49, "0x%02X 0x%02X 0x%02X 0x%02X",
 			 in->content[0], in->content[1],
 			 in->content[2], in->content[3]);
 		buf[49] = 0;

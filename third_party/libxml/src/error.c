@@ -9,7 +9,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <stdarg.h>
 #include <libxml/parser.h>
 #include <libxml/xmlerror.h>
@@ -33,7 +35,7 @@ void XMLCDECL xmlGenericErrorDefaultFunc	(void *ctx ATTRIBUTE_UNUSED,
 								\
     while (size < 64000) {					\
 	va_start(ap, msg);					\
-	chars = vsnprintf(str, size, msg, ap);			\
+	chars = XML_VSNPRINTF(str, size, msg, ap);			\
 	va_end(ap);						\
 	if ((chars > -1) && (chars < size)) {			\
 	    if (prev_size == chars) {				\
@@ -71,12 +73,18 @@ void XMLCDECL
 xmlGenericErrorDefaultFunc(void *ctx ATTRIBUTE_UNUSED, const char *msg, ...) {
     va_list args;
 
+#ifndef STARBOARD
     if (xmlGenericErrorContext == NULL)
 	xmlGenericErrorContext = (void *) stderr;
 
     va_start(args, msg);
     vfprintf((FILE *)xmlGenericErrorContext, msg, args);
     va_end(args);
+#else
+    va_start(args, msg);
+    SbLogFormatF(msg, args);
+    va_end(args);
+#endif
 }
 
 /**
@@ -629,9 +637,11 @@ __xmlRaiseError(xmlStructuredErrorFunc schannel,
 	(channel == xmlParserValidityError) ||
 	(channel == xmlParserValidityWarning))
 	xmlReportError(to, ctxt, str, NULL, NULL);
+#ifndef STARBOARD
     else if ((channel == (xmlGenericErrorFunc) fprintf) ||
              (channel == xmlGenericErrorDefaultFunc))
 	xmlReportError(to, ctxt, str, channel, data);
+#endif
     else
 	channel(data, "%s", str);
 }
@@ -884,7 +894,7 @@ xmlResetError(xmlErrorPtr err)
         xmlFree(err->str2);
     if (err->str3 != NULL)
         xmlFree(err->str3);
-    memset(err, 0, sizeof(xmlError));
+    XML_MEMSET(err, 0, sizeof(xmlError));
     err->code = XML_ERR_OK;
 }
 

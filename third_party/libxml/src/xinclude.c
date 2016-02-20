@@ -12,7 +12,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/tree.h>
 #include <libxml/parser.h>
@@ -234,7 +236,7 @@ xmlXIncludeNewRef(xmlXIncludeCtxtPtr ctxt, const xmlChar *URI,
         xmlXIncludeErrMemory(ctxt, ref, "growing XInclude context");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlXIncludeRef));
+    XML_MEMSET(ret, 0, sizeof(xmlXIncludeRef));
     if (URI == NULL)
 	ret->URI = NULL;
     else
@@ -292,7 +294,7 @@ xmlXIncludeNewContext(xmlDocPtr doc) {
 	                     "creating XInclude context");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlXIncludeCtxt));
+    XML_MEMSET(ret, 0, sizeof(xmlXIncludeCtxt));
     ret->doc = doc;
     ret->incNr = 0;
     ret->incBase = 0;

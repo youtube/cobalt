@@ -25,7 +25,9 @@
  *       parent is the endity declaration, not the ref.
  */
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <libxml/xpointer.h>
 #include <libxml/xmlmemory.h>
 #include <libxml/parserInternals.h>
@@ -254,7 +256,7 @@ xmlXPtrNewPoint(xmlNodePtr node, int indx) {
         xmlXPtrErrMemory("allocating point");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_POINT;
     ret->user = (void *) node;
     ret->index = indx;
@@ -349,7 +351,7 @@ xmlXPtrNewRange(xmlNodePtr start, int startindex,
         xmlXPtrErrMemory("allocating range");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_RANGE;
     ret->user = start;
     ret->index = startindex;
@@ -386,7 +388,7 @@ xmlXPtrNewRangePoints(xmlXPathObjectPtr start, xmlXPathObjectPtr end) {
         xmlXPtrErrMemory("allocating range");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_RANGE;
     ret->user = start->user;
     ret->index = start->index;
@@ -421,7 +423,7 @@ xmlXPtrNewRangePointNode(xmlXPathObjectPtr start, xmlNodePtr end) {
         xmlXPtrErrMemory("allocating range");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_RANGE;
     ret->user = start->user;
     ret->index = start->index;
@@ -458,7 +460,7 @@ xmlXPtrNewRangeNodePoint(xmlNodePtr start, xmlXPathObjectPtr end) {
         xmlXPtrErrMemory("allocating range");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_RANGE;
     ret->user = start;
     ret->index = -1;
@@ -491,7 +493,7 @@ xmlXPtrNewRangeNodes(xmlNodePtr start, xmlNodePtr end) {
         xmlXPtrErrMemory("allocating range");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_RANGE;
     ret->user = start;
     ret->index = -1;
@@ -521,7 +523,7 @@ xmlXPtrNewCollapsedRange(xmlNodePtr start) {
         xmlXPtrErrMemory("allocating range");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_RANGE;
     ret->user = start;
     ret->index = -1;
@@ -568,7 +570,7 @@ xmlXPtrNewRangeNodeObject(xmlNodePtr start, xmlXPathObjectPtr end) {
         xmlXPtrErrMemory("allocating range");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_RANGE;
     ret->user = start;
     ret->index = -1;
@@ -613,7 +615,7 @@ xmlXPtrLocationSetCreate(xmlXPathObjectPtr val) {
         xmlXPtrErrMemory("allocating locationset");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlLocationSet));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlLocationSet));
     if (val != NULL) {
         ret->locTab = (xmlXPathObjectPtr *) xmlMalloc(XML_RANGESET_DEFAULT *
 					     sizeof(xmlXPathObjectPtr));
@@ -622,7 +624,7 @@ xmlXPtrLocationSetCreate(xmlXPathObjectPtr val) {
 	    xmlFree(ret);
 	    return(NULL);
 	}
-	memset(ret->locTab, 0 ,
+	XML_MEMSET(ret->locTab, 0 ,
 	       XML_RANGESET_DEFAULT * (size_t) sizeof(xmlXPathObjectPtr));
         ret->locMax = XML_RANGESET_DEFAULT;
 	ret->locTab[ret->locNr++] = val;
@@ -664,7 +666,7 @@ xmlXPtrLocationSetAdd(xmlLocationSetPtr cur, xmlXPathObjectPtr val) {
 	    xmlXPtrErrMemory("adding location to set");
 	    return;
 	}
-	memset(cur->locTab, 0 ,
+	XML_MEMSET(cur->locTab, 0 ,
 	       XML_RANGESET_DEFAULT * (size_t) sizeof(xmlXPathObjectPtr));
         cur->locMax = XML_RANGESET_DEFAULT;
     } else if (cur->locNr == cur->locMax) {
@@ -798,7 +800,7 @@ xmlXPtrNewLocationSetNodes(xmlNodePtr start, xmlNodePtr end) {
         xmlXPtrErrMemory("allocating locationset");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_LOCATIONSET;
     if (end == NULL)
 	ret->user = xmlXPtrLocationSetCreate(xmlXPtrNewCollapsedRange(start));
@@ -825,7 +827,7 @@ xmlXPtrNewLocationSetNodeSet(xmlNodeSetPtr set) {
         xmlXPtrErrMemory("allocating locationset");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_LOCATIONSET;
     if (set != NULL) {
 	int i;
@@ -861,7 +863,7 @@ xmlXPtrWrapLocationSet(xmlLocationSetPtr val) {
         xmlXPtrErrMemory("allocating locationset");
 	return(NULL);
     }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
+    XML_MEMSET(ret, 0 , (size_t) sizeof(xmlXPathObject));
     ret->type = XPATH_LOCATIONSET;
     ret->user = (void *) val;
     return(ret);
