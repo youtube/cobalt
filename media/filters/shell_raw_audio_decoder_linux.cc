@@ -147,7 +147,7 @@ void ShellRawAudioDecoderLinux::Decode(
   }
 
   if (buffer && queued_audio_.empty())
-    RunDecodeLoop(buffer, true);
+    RunDecodeLoop(buffer, false);
 
   if (queued_audio_.empty()) {
     decoder_cb.Run(NEED_MORE_DATA, NULL);
