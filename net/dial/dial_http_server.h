@@ -32,6 +32,7 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
     public base::RefCountedThreadSafe<DialHttpServer> {
  public:
   explicit DialHttpServer(DialService* dial_service);
+  void Stop();
 
   // HttpServer::Delegate implementation
   virtual void OnHttpRequest(int conn_id,
@@ -64,8 +65,6 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
  private:
   friend class base::RefCountedThreadSafe<DialHttpServer>;
   virtual ~DialHttpServer();
-  void Start();
-  void Stop();
 
   void ConfigureApplicationUrl();
 
@@ -85,7 +84,7 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
   void OnReceivedResponse(int conn_id,
                           scoped_ptr<HttpServerResponseInfo> response);
 
-  scoped_ptr<TCPListenSocketFactory> factory_;
+  TCPListenSocketFactory factory_;
   scoped_refptr<HttpServer> http_server_;
   std::string server_url_;
   // DialService owns this object.
