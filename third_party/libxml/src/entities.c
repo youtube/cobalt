@@ -9,7 +9,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -156,7 +158,7 @@ xmlCreateEntity(xmlDictPtr dict, const xmlChar *name, int type,
         xmlEntitiesErrMemory("xmlCreateEntity: malloc failed");
 	return(NULL);
     }
-    memset(ret, 0, sizeof(xmlEntity));
+    XML_MEMSET(ret, 0, sizeof(xmlEntity));
     ret->type = XML_ENTITY_DECL;
     ret->checked = 0;
 
@@ -623,7 +625,7 @@ xmlEncodeEntitiesInternal(xmlDocPtr doc, const xmlChar *input, int attr) {
 	     * http://www.w3.org/TR/html401/appendix/notes.html#h-B.7.1
 	     */
 	    if (html && attr && (cur[1] == '{') &&
-	        (strchr((const char *) cur, '}'))) {
+	        (XML_STRCHR((const char *) cur, '}'))) {
 	        while (*cur != '}') {
 		    *out++ = *cur++;
 		    indx = out - buffer;
@@ -670,7 +672,7 @@ xmlEncodeEntitiesInternal(xmlDocPtr doc, const xmlChar *input, int attr) {
 			    "xmlEncodeEntities: input not UTF-8");
 		    if (doc != NULL)
 			doc->encoding = xmlStrdup(BAD_CAST "ISO-8859-1");
-		    snprintf(buf, sizeof(buf), "&#%d;", *cur);
+		    XML_SNPRINTF(buf, sizeof(buf), "&#%d;", *cur);
 		    buf[sizeof(buf) - 1] = 0;
 		    ptr = buf;
 		    while (*ptr != 0) *out++ = *ptr++;
@@ -703,7 +705,7 @@ xmlEncodeEntitiesInternal(xmlDocPtr doc, const xmlChar *input, int attr) {
 			"xmlEncodeEntities: char out of range\n");
 		    if (doc != NULL)
 			doc->encoding = xmlStrdup(BAD_CAST "ISO-8859-1");
-		    snprintf(buf, sizeof(buf), "&#%d;", *cur);
+		    XML_SNPRINTF(buf, sizeof(buf), "&#%d;", *cur);
 		    buf[sizeof(buf) - 1] = 0;
 		    ptr = buf;
 		    while (*ptr != 0) *out++ = *ptr++;
@@ -713,7 +715,7 @@ xmlEncodeEntitiesInternal(xmlDocPtr doc, const xmlChar *input, int attr) {
 		/*
 		 * We could do multiple things here. Just save as a char ref
 		 */
-		snprintf(buf, sizeof(buf), "&#x%X;", val);
+		XML_SNPRINTF(buf, sizeof(buf), "&#x%X;", val);
 		buf[sizeof(buf) - 1] = 0;
 		ptr = buf;
 		while (*ptr != 0) *out++ = *ptr++;
@@ -723,7 +725,7 @@ xmlEncodeEntitiesInternal(xmlDocPtr doc, const xmlChar *input, int attr) {
 	} else if (IS_BYTE_CHAR(*cur)) {
 	    char buf[11], *ptr;
 
-	    snprintf(buf, sizeof(buf), "&#%d;", *cur);
+	    XML_SNPRINTF(buf, sizeof(buf), "&#%d;", *cur);
 	    buf[sizeof(buf) - 1] = 0;
             ptr = buf;
 	    while (*ptr != 0) *out++ = *ptr++;
@@ -915,7 +917,7 @@ xmlCopyEntity(xmlEntityPtr ent) {
         xmlEntitiesErrMemory("xmlCopyEntity:: malloc failed");
 	return(NULL);
     }
-    memset(cur, 0, sizeof(xmlEntity));
+    XML_MEMSET(cur, 0, sizeof(xmlEntity));
     cur->type = XML_ENTITY_DECL;
 
     cur->etype = ent->etype;

@@ -10,7 +10,9 @@
 
 #ifndef __DEBUG_XML__
 #define __DEBUG_XML__
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
 #include <libxml/xmlversion.h>
 #include <libxml/tree.h>
 

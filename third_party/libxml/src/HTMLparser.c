@@ -10,7 +10,9 @@
 #include "libxml.h"
 #ifdef LIBXML_HTML_ENABLED
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
 #endif
@@ -297,13 +299,13 @@ htmlNodeInfoPop(htmlParserCtxtPtr ctxt)
  *   COPY(to) copy one char to *to, increment CUR_PTR and to accordingly
  */
 
-#define UPPER (toupper(*ctxt->input->cur))
+#define UPPER (XML_TOUPPER(*ctxt->input->cur))
 
 #define SKIP(val) ctxt->nbChars += (val),ctxt->input->cur += (val),ctxt->input->col+=(val)
 
 #define NXT(val) ctxt->input->cur[(val)]
 
-#define UPP(val) (toupper(ctxt->input->cur[(val)]))
+#define UPP(val) (XML_TOUPPER(ctxt->input->cur[(val)]))
 
 #define CUR_PTR ctxt->input->cur
 
@@ -548,11 +550,11 @@ encoding_error:
         char buffer[150];
 
 	if (ctxt->input->end - ctxt->input->cur >= 4) {
-	    snprintf(buffer, 149, "Bytes: 0x%02X 0x%02X 0x%02X 0x%02X\n",
+	    XML_SNPRINTF(buffer, 149, "Bytes: 0x%02X 0x%02X 0x%02X 0x%02X\n",
 			    ctxt->input->cur[0], ctxt->input->cur[1],
 			    ctxt->input->cur[2], ctxt->input->cur[3]);
 	} else {
-	    snprintf(buffer, 149, "Bytes: 0x%02X\n", ctxt->input->cur[0]);
+	    XML_SNPRINTF(buffer, 149, "Bytes: 0x%02X\n", ctxt->input->cur[0]);
 	}
 	htmlParseErr(ctxt, XML_ERR_INVALID_ENCODING,
 		     "Input is not proper UTF-8, indicate encoding !\n",
@@ -2057,16 +2059,16 @@ UTF8ToHtml(unsigned char* out, int *outlen,
 
 	    ent = htmlEntityValueLookup(c);
 	    if (ent == NULL) {
-	      snprintf(nbuf, sizeof(nbuf), "#%u", c);
+	      XML_SNPRINTF(nbuf, sizeof(nbuf), "#%u", c);
 	      cp = nbuf;
 	    }
 	    else
 	      cp = ent->name;
-	    len = strlen(cp);
+	    len = XML_STRLEN(cp);
 	    if (out + 2 + len >= outend)
 		break;
 	    *out++ = '&';
-	    memcpy(out, cp, len);
+	    XML_MEMCPY(out, cp, len);
 	    out += len;
 	    *out++ = ';';
 	}
@@ -2156,16 +2158,16 @@ htmlEncodeEntities(unsigned char* out, int *outlen,
 	     */
 	    ent = htmlEntityValueLookup(c);
 	    if (ent == NULL) {
-		snprintf(nbuf, sizeof(nbuf), "#%u", c);
+		XML_SNPRINTF(nbuf, sizeof(nbuf), "#%u", c);
 		cp = nbuf;
 	    }
 	    else
 		cp = ent->name;
-	    len = strlen(cp);
+	    len = XML_STRLEN(cp);
 	    if (out + 2 + len > outend)
 		break;
 	    *out++ = '&';
-	    memcpy(out, cp, len);
+	    XML_MEMCPY(out, cp, len);
 	    out += len;
 	    *out++ = ';';
 	}
@@ -2198,7 +2200,7 @@ htmlNewInputStream(htmlParserCtxtPtr ctxt) {
         htmlErrMemory(ctxt, "couldn't allocate a new input stream\n");
 	return(NULL);
     }
-    memset(input, 0, sizeof(htmlParserInput));
+    XML_MEMSET(input, 0, sizeof(htmlParserInput));
     input->filename = NULL;
     input->directory = NULL;
     input->base = NULL;
@@ -2324,7 +2326,7 @@ htmlNewDocNoDtD(const xmlChar *URI, const xmlChar *ExternalID) {
 	htmlErrMemory(NULL, "HTML document creation failed\n");
 	return(NULL);
     }
-    memset(cur, 0, sizeof(xmlDoc));
+    XML_MEMSET(cur, 0, sizeof(xmlDoc));
 
     cur->type = XML_HTML_DOCUMENT_NODE;
     cur->version = NULL;
@@ -4788,7 +4790,7 @@ htmlInitParserCtxt(htmlParserCtxtPtr ctxt)
     htmlSAXHandler *sax;
 
     if (ctxt == NULL) return(-1);
-    memset(ctxt, 0, sizeof(htmlParserCtxt));
+    XML_MEMSET(ctxt, 0, sizeof(htmlParserCtxt));
 
     ctxt->dict = xmlDictCreate();
     if (ctxt->dict == NULL) {
@@ -4801,7 +4803,7 @@ htmlInitParserCtxt(htmlParserCtxtPtr ctxt)
 	return(-1);
     }
     else
-        memset(sax, 0, sizeof(htmlSAXHandler));
+        XML_MEMSET(sax, 0, sizeof(htmlSAXHandler));
 
     /* Allocate the Input stack */
     ctxt->inputTab = (htmlParserInputPtr *)
@@ -4863,7 +4865,7 @@ htmlInitParserCtxt(htmlParserCtxtPtr ctxt)
     if (sax == NULL) ctxt->sax = (xmlSAXHandlerPtr) &htmlDefaultSAXHandler;
     else {
         ctxt->sax = sax;
-	memcpy(sax, &htmlDefaultSAXHandler, sizeof(xmlSAXHandlerV1));
+	XML_MEMCPY(sax, &htmlDefaultSAXHandler, sizeof(xmlSAXHandlerV1));
     }
     ctxt->userData = ctxt;
     ctxt->myDoc = NULL;
@@ -4916,7 +4918,7 @@ htmlNewParserCtxt(void)
         htmlErrMemory(NULL, "NewParserCtxt: out of memory\n");
 	return(NULL);
     }
-    memset(ctxt, 0, sizeof(xmlParserCtxt));
+    XML_MEMSET(ctxt, 0, sizeof(xmlParserCtxt));
     if (htmlInitParserCtxt(ctxt) < 0) {
         htmlFreeParserCtxt(ctxt);
 	return(NULL);
@@ -6141,7 +6143,7 @@ htmlCreatePushParserCtxt(htmlSAXHandlerPtr sax, void *user_data,
 	    xmlFree(ctxt);
 	    return(NULL);
 	}
-	memcpy(ctxt->sax, sax, sizeof(htmlSAXHandler));
+	XML_MEMCPY(ctxt->sax, sax, sizeof(htmlSAXHandler));
 	if (user_data != NULL)
 	    ctxt->userData = user_data;
     }
@@ -6295,13 +6297,14 @@ htmlCreateFileParserCtxt(const char *filename, const char *encoding)
 
     /* set encoding */
     if (encoding) {
-        size_t l = strlen(encoding);
+        size_t l = XML_STRLEN(encoding);
 
 	if (l < 1000) {
-	    content = xmlMallocAtomic (xmlStrlen(content_line) + l + 1);
+        size_t length = xmlStrlen(content_line) + XML_STRLEN(encoding) + 1;
+	    content = xmlMallocAtomic (length);
 	    if (content) {
-		strcpy ((char *)content, (char *)content_line);
-		strcat ((char *)content, (char *)encoding);
+		XML_STRNCPY ((char *)content, (char *)content_line, length);
+		XML_STRNCAT ((char *)content, (char *)encoding, length);
 		htmlCheckEncoding (ctxt, content);
 		xmlFree (content);
 	    }
@@ -6809,7 +6812,7 @@ htmlReadMemory(const char *buffer, int size, const char *URL, const char *encodi
         return (NULL);
     htmlDefaultSAXHandlerInit();
     if (ctxt->sax != NULL)
-        memcpy(ctxt->sax, &htmlDefaultSAXHandler, sizeof(xmlSAXHandlerV1));
+        XML_MEMCPY(ctxt->sax, &htmlDefaultSAXHandler, sizeof(xmlSAXHandlerV1));
     return (htmlDoRead(ctxt, URL, encoding, options, 0));
 }
 

@@ -174,92 +174,92 @@ xmlGetFeature(xmlParserCtxtPtr ctxt, const char *name, void *result)
     if ((ctxt == NULL) || (name == NULL) || (result == NULL))
         return (-1);
 
-    if (!strcmp(name, "validate")) {
+    if (!XML_STRCMP(name, "validate")) {
         *((int *) result) = ctxt->validate;
-    } else if (!strcmp(name, "keep blanks")) {
+    } else if (!XML_STRCMP(name, "keep blanks")) {
         *((int *) result) = ctxt->keepBlanks;
-    } else if (!strcmp(name, "disable SAX")) {
+    } else if (!XML_STRCMP(name, "disable SAX")) {
         *((int *) result) = ctxt->disableSAX;
-    } else if (!strcmp(name, "fetch external entities")) {
+    } else if (!XML_STRCMP(name, "fetch external entities")) {
         *((int *) result) = ctxt->loadsubset;
-    } else if (!strcmp(name, "substitute entities")) {
+    } else if (!XML_STRCMP(name, "substitute entities")) {
         *((int *) result) = ctxt->replaceEntities;
-    } else if (!strcmp(name, "gather line info")) {
+    } else if (!XML_STRCMP(name, "gather line info")) {
         *((int *) result) = ctxt->record_info;
-    } else if (!strcmp(name, "user data")) {
+    } else if (!XML_STRCMP(name, "user data")) {
         *((void **) result) = ctxt->userData;
-    } else if (!strcmp(name, "is html")) {
+    } else if (!XML_STRCMP(name, "is html")) {
         *((int *) result) = ctxt->html;
-    } else if (!strcmp(name, "is standalone")) {
+    } else if (!XML_STRCMP(name, "is standalone")) {
         *((int *) result) = ctxt->standalone;
-    } else if (!strcmp(name, "document")) {
+    } else if (!XML_STRCMP(name, "document")) {
         *((xmlDocPtr *) result) = ctxt->myDoc;
-    } else if (!strcmp(name, "is well formed")) {
+    } else if (!XML_STRCMP(name, "is well formed")) {
         *((int *) result) = ctxt->wellFormed;
-    } else if (!strcmp(name, "is valid")) {
+    } else if (!XML_STRCMP(name, "is valid")) {
         *((int *) result) = ctxt->valid;
-    } else if (!strcmp(name, "SAX block")) {
+    } else if (!XML_STRCMP(name, "SAX block")) {
         *((xmlSAXHandlerPtr *) result) = ctxt->sax;
-    } else if (!strcmp(name, "SAX function internalSubset")) {
+    } else if (!XML_STRCMP(name, "SAX function internalSubset")) {
         *((internalSubsetSAXFunc *) result) = ctxt->sax->internalSubset;
-    } else if (!strcmp(name, "SAX function isStandalone")) {
+    } else if (!XML_STRCMP(name, "SAX function isStandalone")) {
         *((isStandaloneSAXFunc *) result) = ctxt->sax->isStandalone;
-    } else if (!strcmp(name, "SAX function hasInternalSubset")) {
+    } else if (!XML_STRCMP(name, "SAX function hasInternalSubset")) {
         *((hasInternalSubsetSAXFunc *) result) =
             ctxt->sax->hasInternalSubset;
-    } else if (!strcmp(name, "SAX function hasExternalSubset")) {
+    } else if (!XML_STRCMP(name, "SAX function hasExternalSubset")) {
         *((hasExternalSubsetSAXFunc *) result) =
             ctxt->sax->hasExternalSubset;
-    } else if (!strcmp(name, "SAX function resolveEntity")) {
+    } else if (!XML_STRCMP(name, "SAX function resolveEntity")) {
         *((resolveEntitySAXFunc *) result) = ctxt->sax->resolveEntity;
-    } else if (!strcmp(name, "SAX function getEntity")) {
+    } else if (!XML_STRCMP(name, "SAX function getEntity")) {
         *((getEntitySAXFunc *) result) = ctxt->sax->getEntity;
-    } else if (!strcmp(name, "SAX function entityDecl")) {
+    } else if (!XML_STRCMP(name, "SAX function entityDecl")) {
         *((entityDeclSAXFunc *) result) = ctxt->sax->entityDecl;
-    } else if (!strcmp(name, "SAX function notationDecl")) {
+    } else if (!XML_STRCMP(name, "SAX function notationDecl")) {
         *((notationDeclSAXFunc *) result) = ctxt->sax->notationDecl;
-    } else if (!strcmp(name, "SAX function attributeDecl")) {
+    } else if (!XML_STRCMP(name, "SAX function attributeDecl")) {
         *((attributeDeclSAXFunc *) result) = ctxt->sax->attributeDecl;
-    } else if (!strcmp(name, "SAX function elementDecl")) {
+    } else if (!XML_STRCMP(name, "SAX function elementDecl")) {
         *((elementDeclSAXFunc *) result) = ctxt->sax->elementDecl;
-    } else if (!strcmp(name, "SAX function unparsedEntityDecl")) {
+    } else if (!XML_STRCMP(name, "SAX function unparsedEntityDecl")) {
         *((unparsedEntityDeclSAXFunc *) result) =
             ctxt->sax->unparsedEntityDecl;
-    } else if (!strcmp(name, "SAX function setDocumentLocator")) {
+    } else if (!XML_STRCMP(name, "SAX function setDocumentLocator")) {
         *((setDocumentLocatorSAXFunc *) result) =
             ctxt->sax->setDocumentLocator;
-    } else if (!strcmp(name, "SAX function startDocument")) {
+    } else if (!XML_STRCMP(name, "SAX function startDocument")) {
         *((startDocumentSAXFunc *) result) = ctxt->sax->startDocument;
-    } else if (!strcmp(name, "SAX function endDocument")) {
+    } else if (!XML_STRCMP(name, "SAX function endDocument")) {
         *((endDocumentSAXFunc *) result) = ctxt->sax->endDocument;
-    } else if (!strcmp(name, "SAX function startElement")) {
+    } else if (!XML_STRCMP(name, "SAX function startElement")) {
         *((startElementSAXFunc *) result) = ctxt->sax->startElement;
-    } else if (!strcmp(name, "SAX function endElement")) {
+    } else if (!XML_STRCMP(name, "SAX function endElement")) {
         *((endElementSAXFunc *) result) = ctxt->sax->endElement;
-    } else if (!strcmp(name, "SAX function reference")) {
+    } else if (!XML_STRCMP(name, "SAX function reference")) {
         *((referenceSAXFunc *) result) = ctxt->sax->reference;
-    } else if (!strcmp(name, "SAX function characters")) {
+    } else if (!XML_STRCMP(name, "SAX function characters")) {
         *((charactersSAXFunc *) result) = ctxt->sax->characters;
-    } else if (!strcmp(name, "SAX function ignorableWhitespace")) {
+    } else if (!XML_STRCMP(name, "SAX function ignorableWhitespace")) {
         *((ignorableWhitespaceSAXFunc *) result) =
             ctxt->sax->ignorableWhitespace;
-    } else if (!strcmp(name, "SAX function processingInstruction")) {
+    } else if (!XML_STRCMP(name, "SAX function processingInstruction")) {
         *((processingInstructionSAXFunc *) result) =
             ctxt->sax->processingInstruction;
-    } else if (!strcmp(name, "SAX function comment")) {
+    } else if (!XML_STRCMP(name, "SAX function comment")) {
         *((commentSAXFunc *) result) = ctxt->sax->comment;
-    } else if (!strcmp(name, "SAX function warning")) {
+    } else if (!XML_STRCMP(name, "SAX function warning")) {
         *((warningSAXFunc *) result) = ctxt->sax->warning;
-    } else if (!strcmp(name, "SAX function error")) {
+    } else if (!XML_STRCMP(name, "SAX function error")) {
         *((errorSAXFunc *) result) = ctxt->sax->error;
-    } else if (!strcmp(name, "SAX function fatalError")) {
+    } else if (!XML_STRCMP(name, "SAX function fatalError")) {
         *((fatalErrorSAXFunc *) result) = ctxt->sax->fatalError;
-    } else if (!strcmp(name, "SAX function getParameterEntity")) {
+    } else if (!XML_STRCMP(name, "SAX function getParameterEntity")) {
         *((getParameterEntitySAXFunc *) result) =
             ctxt->sax->getParameterEntity;
-    } else if (!strcmp(name, "SAX function cdataBlock")) {
+    } else if (!XML_STRCMP(name, "SAX function cdataBlock")) {
         *((cdataBlockSAXFunc *) result) = ctxt->sax->cdataBlock;
-    } else if (!strcmp(name, "SAX function externalSubset")) {
+    } else if (!XML_STRCMP(name, "SAX function externalSubset")) {
         *((externalSubsetSAXFunc *) result) = ctxt->sax->externalSubset;
     } else {
         return (-1);
@@ -283,7 +283,7 @@ xmlSetFeature(xmlParserCtxtPtr ctxt, const char *name, void *value)
     if ((ctxt == NULL) || (name == NULL) || (value == NULL))
         return (-1);
 
-    if (!strcmp(name, "validate")) {
+    if (!XML_STRCMP(name, "validate")) {
         int newvalidate = *((int *) value);
 
         if ((!ctxt->validate) && (newvalidate != 0)) {
@@ -294,90 +294,90 @@ xmlSetFeature(xmlParserCtxtPtr ctxt, const char *name, void *value)
             ctxt->vctxt.nodeMax = 0;
         }
         ctxt->validate = newvalidate;
-    } else if (!strcmp(name, "keep blanks")) {
+    } else if (!XML_STRCMP(name, "keep blanks")) {
         ctxt->keepBlanks = *((int *) value);
-    } else if (!strcmp(name, "disable SAX")) {
+    } else if (!XML_STRCMP(name, "disable SAX")) {
         ctxt->disableSAX = *((int *) value);
-    } else if (!strcmp(name, "fetch external entities")) {
+    } else if (!XML_STRCMP(name, "fetch external entities")) {
         ctxt->loadsubset = *((int *) value);
-    } else if (!strcmp(name, "substitute entities")) {
+    } else if (!XML_STRCMP(name, "substitute entities")) {
         ctxt->replaceEntities = *((int *) value);
-    } else if (!strcmp(name, "gather line info")) {
+    } else if (!XML_STRCMP(name, "gather line info")) {
         ctxt->record_info = *((int *) value);
-    } else if (!strcmp(name, "user data")) {
+    } else if (!XML_STRCMP(name, "user data")) {
         ctxt->userData = *((void **) value);
-    } else if (!strcmp(name, "is html")) {
+    } else if (!XML_STRCMP(name, "is html")) {
         ctxt->html = *((int *) value);
-    } else if (!strcmp(name, "is standalone")) {
+    } else if (!XML_STRCMP(name, "is standalone")) {
         ctxt->standalone = *((int *) value);
-    } else if (!strcmp(name, "document")) {
+    } else if (!XML_STRCMP(name, "document")) {
         ctxt->myDoc = *((xmlDocPtr *) value);
-    } else if (!strcmp(name, "is well formed")) {
+    } else if (!XML_STRCMP(name, "is well formed")) {
         ctxt->wellFormed = *((int *) value);
-    } else if (!strcmp(name, "is valid")) {
+    } else if (!XML_STRCMP(name, "is valid")) {
         ctxt->valid = *((int *) value);
-    } else if (!strcmp(name, "SAX block")) {
+    } else if (!XML_STRCMP(name, "SAX block")) {
         ctxt->sax = *((xmlSAXHandlerPtr *) value);
-    } else if (!strcmp(name, "SAX function internalSubset")) {
+    } else if (!XML_STRCMP(name, "SAX function internalSubset")) {
         ctxt->sax->internalSubset = *((internalSubsetSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function isStandalone")) {
+    } else if (!XML_STRCMP(name, "SAX function isStandalone")) {
         ctxt->sax->isStandalone = *((isStandaloneSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function hasInternalSubset")) {
+    } else if (!XML_STRCMP(name, "SAX function hasInternalSubset")) {
         ctxt->sax->hasInternalSubset =
             *((hasInternalSubsetSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function hasExternalSubset")) {
+    } else if (!XML_STRCMP(name, "SAX function hasExternalSubset")) {
         ctxt->sax->hasExternalSubset =
             *((hasExternalSubsetSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function resolveEntity")) {
+    } else if (!XML_STRCMP(name, "SAX function resolveEntity")) {
         ctxt->sax->resolveEntity = *((resolveEntitySAXFunc *) value);
-    } else if (!strcmp(name, "SAX function getEntity")) {
+    } else if (!XML_STRCMP(name, "SAX function getEntity")) {
         ctxt->sax->getEntity = *((getEntitySAXFunc *) value);
-    } else if (!strcmp(name, "SAX function entityDecl")) {
+    } else if (!XML_STRCMP(name, "SAX function entityDecl")) {
         ctxt->sax->entityDecl = *((entityDeclSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function notationDecl")) {
+    } else if (!XML_STRCMP(name, "SAX function notationDecl")) {
         ctxt->sax->notationDecl = *((notationDeclSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function attributeDecl")) {
+    } else if (!XML_STRCMP(name, "SAX function attributeDecl")) {
         ctxt->sax->attributeDecl = *((attributeDeclSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function elementDecl")) {
+    } else if (!XML_STRCMP(name, "SAX function elementDecl")) {
         ctxt->sax->elementDecl = *((elementDeclSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function unparsedEntityDecl")) {
+    } else if (!XML_STRCMP(name, "SAX function unparsedEntityDecl")) {
         ctxt->sax->unparsedEntityDecl =
             *((unparsedEntityDeclSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function setDocumentLocator")) {
+    } else if (!XML_STRCMP(name, "SAX function setDocumentLocator")) {
         ctxt->sax->setDocumentLocator =
             *((setDocumentLocatorSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function startDocument")) {
+    } else if (!XML_STRCMP(name, "SAX function startDocument")) {
         ctxt->sax->startDocument = *((startDocumentSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function endDocument")) {
+    } else if (!XML_STRCMP(name, "SAX function endDocument")) {
         ctxt->sax->endDocument = *((endDocumentSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function startElement")) {
+    } else if (!XML_STRCMP(name, "SAX function startElement")) {
         ctxt->sax->startElement = *((startElementSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function endElement")) {
+    } else if (!XML_STRCMP(name, "SAX function endElement")) {
         ctxt->sax->endElement = *((endElementSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function reference")) {
+    } else if (!XML_STRCMP(name, "SAX function reference")) {
         ctxt->sax->reference = *((referenceSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function characters")) {
+    } else if (!XML_STRCMP(name, "SAX function characters")) {
         ctxt->sax->characters = *((charactersSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function ignorableWhitespace")) {
+    } else if (!XML_STRCMP(name, "SAX function ignorableWhitespace")) {
         ctxt->sax->ignorableWhitespace =
             *((ignorableWhitespaceSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function processingInstruction")) {
+    } else if (!XML_STRCMP(name, "SAX function processingInstruction")) {
         ctxt->sax->processingInstruction =
             *((processingInstructionSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function comment")) {
+    } else if (!XML_STRCMP(name, "SAX function comment")) {
         ctxt->sax->comment = *((commentSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function warning")) {
+    } else if (!XML_STRCMP(name, "SAX function warning")) {
         ctxt->sax->warning = *((warningSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function error")) {
+    } else if (!XML_STRCMP(name, "SAX function error")) {
         ctxt->sax->error = *((errorSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function fatalError")) {
+    } else if (!XML_STRCMP(name, "SAX function fatalError")) {
         ctxt->sax->fatalError = *((fatalErrorSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function getParameterEntity")) {
+    } else if (!XML_STRCMP(name, "SAX function getParameterEntity")) {
         ctxt->sax->getParameterEntity =
             *((getParameterEntitySAXFunc *) value);
-    } else if (!strcmp(name, "SAX function cdataBlock")) {
+    } else if (!XML_STRCMP(name, "SAX function cdataBlock")) {
         ctxt->sax->cdataBlock = *((cdataBlockSAXFunc *) value);
-    } else if (!strcmp(name, "SAX function externalSubset")) {
+    } else if (!XML_STRCMP(name, "SAX function externalSubset")) {
         ctxt->sax->externalSubset = *((externalSubsetSAXFunc *) value);
     } else {
         return (-1);

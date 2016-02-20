@@ -46,7 +46,9 @@ int vfprintf(FILE *, const char *, va_list);
 #endif
 
 #ifndef WITH_TRIO
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
 #else
 /**
  * TRIO_REPLACE_STDIO:
