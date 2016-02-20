@@ -251,8 +251,10 @@
               'product_name': 'xml2',
             }],
             ['actual_target_arch=="win"', {
-              # Disable signed/unsigned comparison warning on Cobalt on Windows.
-              'msvs_disabled_warnings': [ 4018 ],
+              # For Cobalt on Windows
+              # 4018 - signed/unsigned comparison.
+              # 4700 - uninitialized local variable used.
+              'msvs_disabled_warnings': [ 4018, 4700 ],
             }],
             ['clang == 1', {
               'cflags': [
