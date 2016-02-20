@@ -39,9 +39,15 @@
 #define XML_DIR_SEP '/'
 #endif
 
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <stdarg.h>
 #include <libxml/xmlmemory.h>
 #include <libxml/threads.h>
@@ -530,9 +536,9 @@ xmlFatalErr(xmlParserCtxtPtr ctxt, xmlParserErrors error, const char *info)
             errmsg = "Unregistered error message";
     }
     if (info == NULL)
-        snprintf(errstr, 128, "%s\n", errmsg);
+        XML_SNPRINTF(errstr, 128, "%s\n", errmsg);
     else
-        snprintf(errstr, 128, "%s: %%s\n", errmsg);
+        XML_SNPRINTF(errstr, 128, "%s: %%s\n", errmsg);
     if (ctxt != NULL)
 	ctxt->errNo = error;
     __xmlRaiseError(NULL, NULL, NULL, ctxt, NULL, XML_FROM_PARSER, error,
@@ -1169,11 +1175,11 @@ xmlAttrNormalizeSpace2(xmlParserCtxtPtr ctxt, xmlChar *src, int *len)
 	    return(NULL);
 	}
 	xmlAttrNormalizeSpace(ret, ret);
-	*len = (int) strlen((const char *)ret);
+	*len = (int) XML_STRLEN((const char *)ret);
         return(ret);
     } else if (remove_head) {
         *len -= remove_head;
-        memmove(src, src + remove_head, 1 + *len);
+        XML_MEMMOVE(src, src + remove_head, 1 + *len);
 	return(src);
     }
     return(NULL);
@@ -2466,7 +2472,7 @@ xmlNewBlanksWrapperInputStream(xmlParserCtxtPtr ctxt, xmlEntityPtr entity) {
     buffer [length-3] = ';';
     buffer [length-2] = ' ';
     buffer [length-1] = 0;
-    memcpy(buffer + 2, entity->name, length - 5);
+    XML_MEMCPY(buffer + 2, entity->name, length - 5);
     input->free = deallocblankswrapper;
     input->base = buffer;
     input->cur = buffer;
@@ -3056,7 +3062,7 @@ xmlSplitQName(xmlParserCtxtPtr ctxt, const xmlChar *name, xmlChar **prefix) {
 	    xmlErrMemory(ctxt, NULL);
 	    return(NULL);
 	}
-	memcpy(buffer, buf, len);
+	XML_MEMCPY(buffer, buf, len);
 	while ((c != 0) && (c != ':')) { /* tested bigname.xml */
 	    if (len + 10 > max) {
 	        xmlChar *tmp;
@@ -3135,7 +3141,7 @@ xmlSplitQName(xmlParserCtxtPtr ctxt, const xmlChar *name, xmlChar **prefix) {
 	        xmlErrMemory(ctxt, NULL);
 		return(NULL);
 	    }
-	    memcpy(buffer, buf, len);
+	    XML_MEMCPY(buffer, buf, len);
 	    while (c != 0) { /* tested bigname2.xml */
 		if (len + 10 > max) {
 		    xmlChar *tmp;
@@ -3660,7 +3666,7 @@ xmlParseStringName(xmlParserCtxtPtr ctxt, const xmlChar** str) {
 	        xmlErrMemory(ctxt, NULL);
 		return(NULL);
 	    }
-	    memcpy(buffer, buf, len);
+	    XML_MEMCPY(buffer, buf, len);
 	    while (xmlIsNameChar(ctxt, c)) {
 		if (len + 10 > max) {
 		    xmlChar *tmp;
@@ -3756,7 +3762,7 @@ xmlParseNmtoken(xmlParserCtxtPtr ctxt) {
 	        xmlErrMemory(ctxt, NULL);
 		return(NULL);
 	    }
-	    memcpy(buffer, buf, len);
+	    XML_MEMCPY(buffer, buf, len);
 	    while (xmlIsNameChar(ctxt, c)) {
 		if (count++ > XML_PARSER_CHUNK_SIZE) {
 		    count = 0;
@@ -5012,7 +5018,7 @@ get_more:
 		    }
 		    buf = new_buf;
 		}
-		memcpy(&buf[len], ctxt->input->cur, nbchar);
+		XML_MEMCPY(&buf[len], ctxt->input->cur, nbchar);
 		len += nbchar;
 		buf[len] = 0;
 	    }
@@ -7182,9 +7188,9 @@ xmlParseReference(xmlParserCtxtPtr ctxt) {
 		    ctxt->sax->characters(ctxt->userData, out, 1);
 	    } else {
 		if ((hex == 'x') || (hex == 'X'))
-		    snprintf((char *)out, sizeof(out), "#x%X", value);
+		    XML_SNPRINTF((char *)out, sizeof(out), "#x%X", value);
 		else
-		    snprintf((char *)out, sizeof(out), "#%d", value);
+		    XML_SNPRINTF((char *)out, sizeof(out), "#%d", value);
 		if ((ctxt->sax != NULL) && (ctxt->sax->reference != NULL) &&
 		    (!ctxt->disableSAX))
 		    ctxt->sax->reference(ctxt->userData, out);
@@ -11738,7 +11744,7 @@ xmlParseTryOrFinish(xmlParserCtxtPtr ctxt, int terminate) {
 			 * sections
 			 */
 			 if ((ctxt->input->cur - ctxt->input->base >= 9) &&
-			     (!strncmp((const char *)&ctxt->input->cur[-9],
+			     (!XML_STRNCMP((const char *)&ctxt->input->cur[-9],
 			               "<![CDATA[", 9)))
 			     ctxt->sax->cdataBlock(ctxt->userData,
 			                           BAD_CAST "", 0);
@@ -12197,7 +12203,7 @@ encoding_error:
     {
         char buffer[150];
 
-	snprintf(buffer, 149, "Bytes: 0x%02X 0x%02X 0x%02X 0x%02X\n",
+	XML_SNPRINTF(buffer, 149, "Bytes: 0x%02X 0x%02X 0x%02X 0x%02X\n",
 			ctxt->input->cur[0], ctxt->input->cur[1],
 			ctxt->input->cur[2], ctxt->input->cur[3]);
 	__xmlErrEncoding(ctxt, XML_ERR_INVALID_CHAR,
@@ -12223,33 +12229,33 @@ xmlParseCheckTransition(xmlParserCtxtPtr ctxt, const char *chunk, int size) {
     if ((ctxt == NULL) || (chunk == NULL) || (size < 0))
         return(-1);
     if (ctxt->instate == XML_PARSER_START_TAG) {
-        if (memchr(chunk, '>', size) != NULL)
+        if (XML_MEMCHR(chunk, '>', size) != NULL)
             return(1);
         return(0);
     }
     if (ctxt->progressive == XML_PARSER_COMMENT) {
-        if (memchr(chunk, '>', size) != NULL)
+        if (XML_MEMCHR(chunk, '>', size) != NULL)
             return(1);
         return(0);
     }
     if (ctxt->instate == XML_PARSER_CDATA_SECTION) {
-        if (memchr(chunk, '>', size) != NULL)
+        if (XML_MEMCHR(chunk, '>', size) != NULL)
             return(1);
         return(0);
     }
     if (ctxt->progressive == XML_PARSER_PI) {
-        if (memchr(chunk, '>', size) != NULL)
+        if (XML_MEMCHR(chunk, '>', size) != NULL)
             return(1);
         return(0);
     }
     if (ctxt->instate == XML_PARSER_END_TAG) {
-        if (memchr(chunk, '>', size) != NULL)
+        if (XML_MEMCHR(chunk, '>', size) != NULL)
             return(1);
         return(0);
     }
     if ((ctxt->progressive == XML_PARSER_DTD) ||
         (ctxt->instate == XML_PARSER_DTD)) {
-        if (memchr(chunk, '>', size) != NULL)
+        if (XML_MEMCHR(chunk, '>', size) != NULL)
             return(1);
         return(0);
     }
@@ -12514,11 +12520,11 @@ xmlCreatePushParserCtxt(xmlSAXHandlerPtr sax, void *user_data,
 	    xmlFreeParserCtxt(ctxt);
 	    return(NULL);
 	}
-	memset(ctxt->sax, 0, sizeof(xmlSAXHandler));
+	XML_MEMSET(ctxt->sax, 0, sizeof(xmlSAXHandler));
 	if (sax->initialized == XML_SAX2_MAGIC)
-	    memcpy(ctxt->sax, sax, sizeof(xmlSAXHandler));
+	    XML_MEMCPY(ctxt->sax, sax, sizeof(xmlSAXHandler));
 	else
-	    memcpy(ctxt->sax, sax, sizeof(xmlSAXHandlerV1));
+	    XML_MEMCPY(ctxt->sax, sax, sizeof(xmlSAXHandlerV1));
 	if (user_data != NULL)
 	    ctxt->userData = user_data;
     }
@@ -12643,11 +12649,11 @@ xmlCreateIOParserCtxt(xmlSAXHandlerPtr sax, void *user_data,
 	    xmlFreeParserCtxt(ctxt);
 	    return(NULL);
 	}
-	memset(ctxt->sax, 0, sizeof(xmlSAXHandler));
+	XML_MEMSET(ctxt->sax, 0, sizeof(xmlSAXHandler));
 	if (sax->initialized == XML_SAX2_MAGIC)
-	    memcpy(ctxt->sax, sax, sizeof(xmlSAXHandler));
+	    XML_MEMCPY(ctxt->sax, sax, sizeof(xmlSAXHandler));
 	else
-	    memcpy(ctxt->sax, sax, sizeof(xmlSAXHandlerV1));
+	    XML_MEMCPY(ctxt->sax, sax, sizeof(xmlSAXHandlerV1));
 	if (user_data != NULL)
 	    ctxt->userData = user_data;
     }

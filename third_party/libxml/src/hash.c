@@ -20,7 +20,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -184,7 +186,7 @@ xmlHashCreate(int size) {
 	table->nbElems = 0;
         table->table = xmlMalloc(size * sizeof(xmlHashEntry));
         if (table->table) {
-	    memset(table->table, 0, size * sizeof(xmlHashEntry));
+	    XML_MEMSET(table->table, 0, size * sizeof(xmlHashEntry));
 #ifdef HASH_RANDOMIZATION
             table->random_seed = __xmlRandom();
 #endif
@@ -252,7 +254,7 @@ xmlHashGrow(xmlHashTablePtr table, int size) {
 	table->table = oldtable;
 	return(-1);
     }
-    memset(table->table, 0, size * sizeof(xmlHashEntry));
+    XML_MEMSET(table->table, 0, size * sizeof(xmlHashEntry));
     table->size = size;
 
     /*	If the two loops are merged, there would be situations where
@@ -266,7 +268,7 @@ xmlHashGrow(xmlHashTablePtr table, int size) {
 	    continue;
 	key = xmlHashComputeKey(table, oldtable[i].name, oldtable[i].name2,
 				oldtable[i].name3);
-	memcpy(&(table->table[key]), &(oldtable[i]), sizeof(xmlHashEntry));
+	XML_MEMCPY(&(table->table[key]), &(oldtable[i]), sizeof(xmlHashEntry));
 	table->table[key].next = NULL;
     }
 
@@ -282,7 +284,7 @@ xmlHashGrow(xmlHashTablePtr table, int size) {
 	    key = xmlHashComputeKey(table, iter->name, iter->name2,
 		                    iter->name3);
 	    if (table->table[key].valid == 0) {
-		memcpy(&(table->table[key]), iter, sizeof(xmlHashEntry));
+		XML_MEMCPY(&(table->table[key]), iter, sizeof(xmlHashEntry));
 		table->table[key].next = NULL;
 		xmlFree(iter);
 	    } else {
@@ -1107,7 +1109,7 @@ xmlHashRemoveEntry3(xmlHashTablePtr table, const xmlChar *name,
 			entry->valid = 0;
 		    } else {
 			entry = entry->next;
-			memcpy(&(table->table[key]), entry, sizeof(xmlHashEntry));
+			XML_MEMCPY(&(table->table[key]), entry, sizeof(xmlHashEntry));
 			xmlFree(entry);
 		    }
 		}

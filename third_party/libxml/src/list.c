@@ -18,8 +18,12 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/list.h>
 #include <libxml/globals.h>
@@ -194,7 +198,7 @@ xmlListCreate(xmlListDeallocator deallocator, xmlListDataCompare compare)
         return (NULL);
     }
     /* Initialize the list to NULL */
-    memset(l, 0, sizeof(xmlList));
+    XML_MEMSET(l, 0, sizeof(xmlList));
 
     /* Add the sentinel */
     if (NULL ==(l->sentinel = (xmlLinkPtr )xmlMalloc(sizeof(xmlLink)))) {

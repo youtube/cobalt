@@ -29,21 +29,21 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * the version string like "1.2.3"
  */
-#define LIBXML_DOTTED_VERSION "2.9.2"
+#define LIBXML_DOTTED_VERSION "2.7.7"
 
 /**
  * LIBXML_VERSION:
  *
  * the version number: 1.2.3 value is 10203
  */
-#define LIBXML_VERSION 20902
+#define LIBXML_VERSION 20707
 
 /**
  * LIBXML_VERSION_STRING:
  *
  * the version number string, 1.2.3 value is "10203"
  */
-#define LIBXML_VERSION_STRING "20902"
+#define LIBXML_VERSION_STRING "20707"
 
 /**
  * LIBXML_VERSION_EXTRA:
@@ -58,7 +58,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  * Macro to check that the libxml version in use is compatible with
  * the version the software has been compiled against
  */
-#define LIBXML_TEST_VERSION xmlCheckVersion(20902);
+#define LIBXML_TEST_VERSION xmlCheckVersion(20707);
 
 #ifndef VMS
 #if 0
@@ -90,21 +90,12 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether the thread support is configured in
  */
-#if 1
+#if 0
 #if defined(_REENTRANT) || defined(__MT__) || \
     (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE - 0 >= 199506L)) || \
     defined(__LB_SHELL__)
 #define LIBXML_THREAD_ENABLED
 #endif
-#endif
-
-/**
- * LIBXML_THREAD_ALLOC_ENABLED:
- *
- * Whether the allocation hooks are per-thread
- */
-#if 0
-#define LIBXML_THREAD_ALLOC_ENABLED
 #endif
 
 /**
@@ -121,10 +112,8 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether the serialization/saving support is configured in
  */
-#if 1
-#ifndef COBALT
+#if 0
 #define LIBXML_OUTPUT_ENABLED
-#endif
 #endif
 
 /**
@@ -141,10 +130,8 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether the xmlReader parsing interface is configured in
  */
-#if 1
-#ifndef COBALT
+#if 0
 #define LIBXML_READER_ENABLED
-#endif
 #endif
 
 /**
@@ -161,10 +148,8 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether the xmlWriter saving interface is configured in
  */
-#if 1
-#ifndef COBALT
+#if 0
 #define LIBXML_WRITER_ENABLED
-#endif
 #endif
 
 /**
@@ -235,7 +220,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether the Catalog support is configured in
  */
-#if 1
+#if 0
 #define LIBXML_CATALOG_ENABLED
 #endif
 
@@ -244,7 +229,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether the SGML Docbook support is configured in
  */
-#if 1
+#if 0
 #define LIBXML_DOCB_ENABLED
 #endif
 
@@ -307,10 +292,8 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether Debugging module is configured in
  */
-#if 1
-#ifndef COBALT
+#if 0
 #define LIBXML_DEBUG_ENABLED
-#endif
 #endif
 
 /**
@@ -390,7 +373,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  *
  * Whether the module interfaces are compiled in
  */
-#if 1
+#if 0
 #define LIBXML_MODULES_ENABLED
 /**
  * LIBXML_MODULE_EXTENSION:
@@ -409,15 +392,6 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
 #define LIBXML_ZLIB_ENABLED
 #endif
 
-/**
- * LIBXML_LZMA_ENABLED:
- *
- * Whether the Lzma support is compiled in
- */
-#if 0
-#define LIBXML_LZMA_ENABLED
-#endif
-
 #ifdef __GNUC__
 #ifdef HAVE_ANSIDECL_H
 #include <ansidecl.h>
@@ -430,11 +404,7 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
  */
 
 #ifndef ATTRIBUTE_UNUSED
-# if ((__GNUC__ > 2) || ((__GNUC__ == 2) && (__GNUC_MINOR__ >= 7)))
-#  define ATTRIBUTE_UNUSED __attribute__((unused))
-# else
-#  define ATTRIBUTE_UNUSED
-# endif
+#define ATTRIBUTE_UNUSED __attribute__((unused))
 #endif
 
 /**
@@ -494,5 +464,3 @@ XMLPUBFUN void XMLCALL xmlCheckVersion(int version);
 }
 #endif /* __cplusplus */
 #endif
-
-
