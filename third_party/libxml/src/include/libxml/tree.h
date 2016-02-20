@@ -12,8 +12,12 @@
 #ifndef __XML_TREE_H__
 #define __XML_TREE_H__
 
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
 #include <libxml/xmlversion.h>
 #include <libxml/xmlstring.h>
 
@@ -709,9 +713,11 @@ XMLPUBFUN int XMLCALL
 					 unsigned int size);
 XMLPUBFUN void XMLCALL
 		xmlBufferFree		(xmlBufferPtr buf);
+#ifndef COBALT
 XMLPUBFUN int XMLCALL
 		xmlBufferDump		(FILE *file,
 					 xmlBufferPtr buf);
+#endif
 XMLPUBFUN int XMLCALL
 		xmlBufferAdd		(xmlBufferPtr buf,
 					 const xmlChar *str,
@@ -1170,6 +1176,7 @@ XMLPUBFUN void XMLCALL
 					 int * doc_txt_len,
 					 const char *txt_encoding,
 					 int format);
+#ifndef COBALT
 XMLPUBFUN int XMLCALL
 		xmlDocFormatDump	(FILE *f,
 					 xmlDocPtr cur,
@@ -1181,6 +1188,7 @@ XMLPUBFUN void XMLCALL
 		xmlElemDump		(FILE *f,
 					 xmlDocPtr doc,
 					 xmlNodePtr cur);
+#endif
 XMLPUBFUN int XMLCALL
 		xmlSaveFile		(const char *filename,
 					 xmlDocPtr cur);
