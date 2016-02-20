@@ -12,6 +12,7 @@
       }],
       ['OS=="mac"', {'os_include': 'mac'}],
       ['OS=="win"', {'os_include': 'win32'}],
+      ['OS=="starboard"', {'os_include': 'starboard'}],
     ],
     'use_system_libxml%': 0,
   },
@@ -24,8 +25,8 @@
             ['os_posix == 1 and OS != "mac" and OS != "ios"', {
               'type': 'static_library',
               'sources': [
-                'chromium/libxml_utils.h',
-                'chromium/libxml_utils.cc',
+                # 'chromium/libxml_utils.h',
+                # 'chromium/libxml_utils.cc',
               ],
               'cflags': [
                 '<!@(pkg-config --cflags libxml-2.0)',
@@ -79,8 +80,8 @@
         }, {  # else: !use_system_libxml
           'type': 'static_library',
           'sources': [
-            'chromium/libxml_utils.h',
-            'chromium/libxml_utils.cc',
+            # 'chromium/libxml_utils.h',
+            # 'chromium/libxml_utils.cc',
             'linux/config.h',
             'linux/include/libxml/xmlversion.h',
             'mac/config.h',
@@ -138,7 +139,7 @@
             'src/chvalid.c',
             'src/debugXML.c',
             'src/dict.c',
-            'src/DOCBparser.c',
+            # 'src/DOCBparser.c',
             'src/elfgcchack.h',
             'src/enc.h',
             'src/encoding.c',
@@ -177,14 +178,14 @@
             'src/xmlIO.c',
             'src/xmlmemory.c',
             'src/xmlmodule.c',
-            'src/xmlreader.c',
+            # 'src/xmlreader.c',
             'src/xmlregexp.c',
             'src/xmlsave.c',
             'src/xmlschemas.c',
             'src/xmlschemastypes.c',
             'src/xmlstring.c',
             'src/xmlunicode.c',
-            'src/xmlwriter.c',
+            # 'src/xmlwriter.c',
             'src/xpath.c',
             'src/xpointer.c',
             #'src/xzlib.c',
@@ -221,7 +222,7 @@
             ],
           },
           'conditions': [
-            ['OS=="lb_shell"', {
+            ['OS=="starboard" or OS=="lb_shell"', {
               'dependencies!': [
                 '../zlib/zlib.gyp:zlib',
               ],

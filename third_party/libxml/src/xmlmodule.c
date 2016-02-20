@@ -11,7 +11,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <libxml/xmlmemory.h>
 #include <libxml/xmlerror.h>
 #include <libxml/xmlmodule.h>
@@ -80,7 +82,7 @@ xmlModuleOpen(const char *name, int options ATTRIBUTE_UNUSED)
         return (NULL);
     }
 
-    memset(module, 0, sizeof(xmlModule));
+    XML_MEMSET(module, 0, sizeof(xmlModule));
 
     module->handle = xmlModulePlatformOpen(name);
 

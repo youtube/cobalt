@@ -11,7 +11,9 @@
 #define IN_LIBXML
 #include "libxml.h"
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -826,11 +828,15 @@ xmlNop(void) {
  */
 static int
 xmlFdRead (void * context, char * buffer, int len) {
+#if !defined(COBALT)
     int ret;
 
     ret = read((int) (long) context, &buffer[0], len);
     if (ret < 0) xmlIOErr(0, "read()");
     return(ret);
+#else
+    return -1;
+#endif
 }
 
 #ifdef LIBXML_OUTPUT_ENABLED
@@ -846,6 +852,7 @@ xmlFdRead (void * context, char * buffer, int len) {
  */
 static int
 xmlFdWrite (void * context, const char * buffer, int len) {
+#if !defined(COBALT)
     int ret = 0;
 
     if (len > 0) {
@@ -853,6 +860,9 @@ xmlFdWrite (void * context, const char * buffer, int len) {
 	if (ret < 0) xmlIOErr(0, "write()");
     }
     return(ret);
+#else
+    return -1;
+#endif
 }
 #endif /* LIBXML_OUTPUT_ENABLED */
 
@@ -866,10 +876,14 @@ xmlFdWrite (void * context, const char * buffer, int len) {
  */
 static int
 xmlFdClose (void * context) {
+#if !defined(COBALT)
     int ret;
     ret = close((int) (long) context);
     if (ret < 0) xmlIOErr(0, "close()");
     return(ret);
+#else
+    return -1;
+#endif
 }
 
 /**
@@ -896,13 +910,14 @@ xmlFileMatch (const char *filename ATTRIBUTE_UNUSED) {
  */
 static void *
 xmlFileOpen_real (const char *filename) {
+#ifndef STARBOARD
     const char *path = filename;
     FILE *fd;
 
     if (filename == NULL)
         return(NULL);
 
-    if (!strcmp(filename, "-")) {
+    if (!XML_STRCMP(filename, "-")) {
 	fd = stdin;
 	return((void *) fd);
     }
@@ -938,6 +953,9 @@ xmlFileOpen_real (const char *filename) {
 #endif /* WIN32 */
     if (fd == NULL) xmlIOErr(0, path);
     return((void *) fd);
+#else
+    return NULL;
+#endif
 }
 
 /**
@@ -981,7 +999,7 @@ xmlFileOpenW (const char *filename) {
     const char *path = NULL;
     FILE *fd;
 
-    if (!strcmp(filename, "-")) {
+    if (!XML_STRCMP(filename, "-")) {
 	fd = stdout;
 	return((void *) fd);
     }
@@ -1027,12 +1045,16 @@ xmlFileOpenW (const char *filename) {
  */
 int
 xmlFileRead (void * context, char * buffer, int len) {
+#ifndef STARBOARD
     int ret;
     if ((context == NULL) || (buffer == NULL))
         return(-1);
     ret = fread(&buffer[0], 1,  len, (FILE *) context);
     if (ret < 0) xmlIOErr(0, "fread()");
     return(ret);
+#else
+    return -1;
+#endif
 }
 
 #ifdef LIBXML_OUTPUT_ENABLED
@@ -1071,6 +1093,7 @@ xmlFileWrite (void * context, const char * buffer, int len) {
  */
 int
 xmlFileClose (void * context) {
+#ifndef STARBOARD
     FILE *fil;
     int ret;
 
@@ -1089,6 +1112,9 @@ xmlFileClose (void * context) {
     if (ret < 0)
         xmlIOErr(0, "fclose()");
     return(ret);
+#else
+    return -1;
+#endif
 }
 
 /**
@@ -1099,6 +1125,7 @@ xmlFileClose (void * context) {
  */
 static int
 xmlFileFlush (void * context) {
+#ifndef STARBOARD
     int ret;
 
     if (context == NULL)
@@ -1107,6 +1134,9 @@ xmlFileFlush (void * context) {
     if (ret < 0)
         xmlIOErr(0, "fflush()");
     return(ret);
+#else
+    return -1;
+#endif
 }
 
 #ifdef LIBXML_OUTPUT_ENABLED
@@ -1164,7 +1194,7 @@ xmlGzfileOpen_real (const char *filename) {
     const char *path = NULL;
     gzFile fd;
 
-    if (!strcmp(filename, "-")) {
+    if (!XML_STRCMP(filename, "-")) {
         int duped_fd = dup(fileno(stdin));
         fd = gzdopen(duped_fd, "rb");
         if (fd == Z_NULL && duped_fd >= 0) {
@@ -1242,8 +1272,8 @@ xmlGzfileOpenW (const char *filename, int compression) {
     char mode[15];
     gzFile fd;
 
-    snprintf(mode, sizeof(mode), "wb%d", compression);
-    if (!strcmp(filename, "-")) {
+    XML_SNPRINTF(mode, sizeof(mode), "wb%d", compression);
+    if (!XML_STRCMP(filename, "-")) {
         int duped_fd = dup(fileno(stdout));
         fd = gzdopen(duped_fd, "rb");
         if (fd == Z_NULL && duped_fd >= 0) {
@@ -1370,7 +1400,7 @@ xmlXzfileOpen_real (const char *filename) {
     const char *path = NULL;
     xzFile fd;
 
-    if (!strcmp(filename, "-")) {
+    if (!XML_STRCMP(filename, "-")) {
         fd = __libxml2_xzdopen(dup(fileno(stdin)), "rb");
 	return((void *) fd);
     }
@@ -1590,7 +1620,7 @@ xmlCreateZMemBuff( int compression ) {
 	return ( NULL );
     }
 
-    (void)memset( buff, 0, sizeof( xmlZMemBuff ) );
+    (void)XML_MEMSET( buff, 0, sizeof( xmlZMemBuff ) );
     buff->size = INIT_HTTP_BUFF_SIZE;
     buff->zbuff = xmlMalloc( buff->size );
     if ( buff->zbuff == NULL ) {
@@ -1615,7 +1645,7 @@ xmlCreateZMemBuff( int compression ) {
 
     /*  Set the header data.  The CRC will be needed for the trailer  */
     buff->crc = crc32( 0L, NULL, 0 );
-    hdr_lgth = snprintf( (char *)buff->zbuff, buff->size,
+    hdr_lgth = XML_SNPRINTF( (char *)buff->zbuff, buff->size,
 			"%c%c%c%c%c%c%c%c%c%c",
 			GZ_MAGIC1, GZ_MAGIC2, Z_DEFLATED,
 			0, 0, 0, 0, 0, 0, LXML_ZLIB_OS_CODE );
@@ -1892,7 +1922,7 @@ xmlIOHTTPOpenW(const char *post_uri, int compression)
         return (NULL);
     }
 
-    (void) memset(ctxt, 0, sizeof(xmlIOHTTPWriteCtxt));
+    (void) XML_MEMSET(ctxt, 0, sizeof(xmlIOHTTPWriteCtxt));
 
     ctxt->uri = (char *) xmlStrdup((const xmlChar *)post_uri);
     if (ctxt->uri == NULL) {
@@ -2104,7 +2134,7 @@ xmlIOHTTPCloseWrite( void * context, const char * http_mthd ) {
 
 	    dump_name = tempnam( NULL, "lxml" );
 	    if ( dump_name != NULL ) {
-		(void)snprintf( buffer, sizeof(buffer), "%s.content", dump_name );
+		(void)XML_SNPRINTF( buffer, sizeof(buffer), "%s.content", dump_name );
 
 		tst_file = fopen( buffer, "wb" );
 		if ( tst_file != NULL ) {
@@ -2116,7 +2146,7 @@ xmlIOHTTPCloseWrite( void * context, const char * http_mthd ) {
 		    fclose( tst_file );
 		}
 
-		(void)snprintf( buffer, sizeof(buffer), "%s.reply", dump_name );
+		(void)XML_SNPRINTF( buffer, sizeof(buffer), "%s.reply", dump_name );
 		tst_file = fopen( buffer, "wb" );
 		if ( tst_file != NULL ) {
 		    xmlGenericError( xmlGenericErrorContext,
@@ -2132,7 +2162,7 @@ xmlIOHTTPCloseWrite( void * context, const char * http_mthd ) {
 		    fclose( tst_file );
 		}
 
-		free( dump_name );
+		XML_FREE( dump_name );
 	    }
 #endif  /*  DEBUG_HTTP  */
 
@@ -2430,7 +2460,7 @@ xmlAllocParserInputBuffer(xmlCharEncoding enc) {
 	xmlIOErrMemory("creating input buffer");
 	return(NULL);
     }
-    memset(ret, 0, (size_t) sizeof(xmlParserInputBuffer));
+    XML_MEMSET(ret, 0, (size_t) sizeof(xmlParserInputBuffer));
     ret->buffer = xmlBufCreateSize(2 * xmlDefaultBufferSize);
     if (ret->buffer == NULL) {
         xmlFree(ret);
@@ -2469,14 +2499,14 @@ xmlAllocOutputBuffer(xmlCharEncodingHandlerPtr encoder) {
 	xmlIOErrMemory("creating output buffer");
 	return(NULL);
     }
-    memset(ret, 0, (size_t) sizeof(xmlOutputBuffer));
+    XML_MEMSET(ret, 0, (size_t) sizeof(xmlOutputBuffer));
     ret->buffer = xmlBufCreate();
     if (ret->buffer == NULL) {
         xmlFree(ret);
 	return(NULL);
     }
 
-    /* try to avoid a performance problem with Windows realloc() */
+    /* try to avoid a performance problem with Windows XML_REALLOC() */
     if (xmlBufGetAllocationScheme(ret->buffer) == XML_BUFFER_ALLOC_EXACT)
         xmlBufSetAllocationScheme(ret->buffer, XML_BUFFER_ALLOC_DOUBLEIT);
 
@@ -2519,7 +2549,7 @@ xmlAllocOutputBufferInternal(xmlCharEncodingHandlerPtr encoder) {
 	xmlIOErrMemory("creating output buffer");
 	return(NULL);
     }
-    memset(ret, 0, (size_t) sizeof(xmlOutputBuffer));
+    XML_MEMSET(ret, 0, (size_t) sizeof(xmlOutputBuffer));
     ret->buffer = xmlBufCreate();
     if (ret->buffer == NULL) {
         xmlFree(ret);
@@ -2667,7 +2697,7 @@ __xmlParserInputBufferCreateFilename(const char *URI, xmlCharEncoding enc) {
 	ret->closecallback = xmlInputCallbackTable[i].closecallback;
 #ifdef HAVE_ZLIB_H
 	if ((xmlInputCallbackTable[i].opencallback == xmlGzfileOpen) &&
-		(strcmp(URI, "-") != 0)) {
+		(XML_STRCMP(URI, "-") != 0)) {
 #if defined(ZLIB_VERNUM) && ZLIB_VERNUM >= 0x1230
             ret->compressed = !gzdirect(context);
 #else
@@ -2675,7 +2705,7 @@ __xmlParserInputBufferCreateFilename(const char *URI, xmlCharEncoding enc) {
 	        char *cptr, buff4[4];
 		cptr = (char *) ((z_stream *)context)->next_in;
 		if (gzread(context, buff4, 4) == 4) {
-		    if (strncmp(buff4, cptr, 4) == 0)
+		    if (XML_STRNCMP(buff4, cptr, 4) == 0)
 		        ret->compressed = 0;
 		    else
 		        ret->compressed = 1;
@@ -2687,7 +2717,7 @@ __xmlParserInputBufferCreateFilename(const char *URI, xmlCharEncoding enc) {
 #endif
 #ifdef HAVE_LZMA_H
 	if ((xmlInputCallbackTable[i].opencallback == xmlXzfileOpen) &&
-		(strcmp(URI, "-") != 0)) {
+		(XML_STRCMP(URI, "-") != 0)) {
             ret->compressed = __libxml2_xzcompressed(context);
 	}
 #endif
@@ -2869,6 +2899,7 @@ xmlOutputBufferCreateFilename(const char *URI,
 }
 #endif /* LIBXML_OUTPUT_ENABLED */
 
+#ifndef STARBOARD
 /**
  * xmlParserInputBufferCreateFile:
  * @file:  a FILE*
@@ -2897,6 +2928,7 @@ xmlParserInputBufferCreateFile(FILE *file, xmlCharEncoding enc) {
 
     return(ret);
 }
+#endif
 
 #ifdef LIBXML_OUTPUT_ENABLED
 /**
@@ -3073,7 +3105,7 @@ xmlParserInputBufferCreateStatic(const char *mem, int size,
 	xmlIOErrMemory("creating input buffer");
 	return(NULL);
     }
-    memset(ret, 0, (size_t) sizeof(xmlParserInputBuffer));
+    XML_MEMSET(ret, 0, (size_t) sizeof(xmlParserInputBuffer));
     ret->buffer = xmlBufCreateStatic((void *)mem, (size_t) size);
     if (ret->buffer == NULL) {
         xmlFree(ret);
@@ -3611,7 +3643,7 @@ xmlOutputBufferWriteEscape(xmlOutputBufferPtr out, const xmlChar *str,
         (out->buffer == NULL) ||
 	(xmlBufGetAllocationScheme(out->buffer) == XML_BUFFER_ALLOC_IMMUTABLE))
         return(-1);
-    len = strlen((const char *)str);
+    len = XML_STRLEN((const char *)str);
     if (len < 0) return(0);
     if (out->error) return(-1);
     if (escaping == NULL) escaping = xmlEscapeContent;
@@ -3733,7 +3765,7 @@ xmlOutputBufferWriteString(xmlOutputBufferPtr out, const char *str) {
     if ((out == NULL) || (out->error)) return(-1);
     if (str == NULL)
         return(-1);
-    len = strlen(str);
+    len = XML_STRLEN(str);
 
     if (len > 0)
 	return(xmlOutputBufferWrite(out, len, str));
@@ -3831,9 +3863,9 @@ xmlParserGetDirectory(const char *filename) {
 #   define IS_XMLPGD_SEP(ch) (ch=='/')
 #endif
 
-    strncpy(dir, filename, 1023);
+    XML_STRNCPY(dir, filename, 1023);
     dir[1023] = 0;
-    cur = &dir[strlen(dir)];
+    cur = &dir[XML_STRLEN(dir)];
     while (cur > dir) {
          if (IS_XMLPGD_SEP(*cur)) break;
 	 cur --;
@@ -3843,10 +3875,12 @@ xmlParserGetDirectory(const char *filename) {
 	else *cur = 0;
 	ret = xmlMemStrdup(dir);
     } else {
+#if !defined(STARBOARD)
         if (getcwd(dir, 1024) != NULL) {
 	    dir[1023] = 0;
 	    ret = xmlMemStrdup(dir);
 	}
+#endif
     }
     return(ret);
 #undef IS_XMLPGD_SEP

@@ -11,7 +11,9 @@
 #include "libxml.h"
 #ifdef LIBXML_DEBUG_ENABLED
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -2324,7 +2326,7 @@ xmlShellSetContent(xmlShellCtxtPtr ctxt ATTRIBUTE_UNUSED,
 	return (0);
     }
 
-    ret = xmlParseInNodeContext(node, value, strlen(value), 0, &results);
+    ret = xmlParseInNodeContext(node, value, XML_STRLEN(value), 0, &results);
     if (ret == XML_ERR_OK) {
 	if (node->children != NULL) {
 	    xmlFreeNodeList(node->children);
@@ -2785,7 +2787,7 @@ xmlShellPwd(xmlShellCtxtPtr ctxt ATTRIBUTE_UNUSED, char *buffer,
      * Documentation should mention that the second argument must
      * be at least 500 chars long, and could be stripped if too long.
      */
-    snprintf(buffer, 499, "%s", path);
+    XML_SNPRINTF(buffer, 499, "%s", path);
     buffer[499] = '0';
     xmlFree(path);
 
@@ -2842,15 +2844,15 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
 #endif /* LIBXML_XPATH_ENABLED */
     while (1) {
         if (ctxt->node == (xmlNodePtr) ctxt->doc)
-            snprintf(prompt, sizeof(prompt), "%s > ", "/");
+            XML_SNPRINTF(prompt, sizeof(prompt), "%s > ", "/");
         else if ((ctxt->node != NULL) && (ctxt->node->name) &&
                  (ctxt->node->ns) && (ctxt->node->ns->prefix))
-            snprintf(prompt, sizeof(prompt), "%s:%s > ",
+            XML_SNPRINTF(prompt, sizeof(prompt), "%s:%s > ",
                      (ctxt->node->ns->prefix), ctxt->node->name);
         else if ((ctxt->node != NULL) && (ctxt->node->name))
-            snprintf(prompt, sizeof(prompt), "%s > ", ctxt->node->name);
+            XML_SNPRINTF(prompt, sizeof(prompt), "%s > ", ctxt->node->name);
         else
-            snprintf(prompt, sizeof(prompt), "? > ");
+            XML_SNPRINTF(prompt, sizeof(prompt), "? > ");
         prompt[sizeof(prompt) - 1] = 0;
 
         /*
@@ -2893,13 +2895,13 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
         /*
          * start interpreting the command
          */
-        if (!strcmp(command, "exit"))
+        if (!XML_STRCMP(command, "exit"))
             break;
-        if (!strcmp(command, "quit"))
+        if (!XML_STRCMP(command, "quit"))
             break;
-        if (!strcmp(command, "bye"))
+        if (!XML_STRCMP(command, "bye"))
             break;
-		if (!strcmp(command, "help")) {
+		if (!XML_STRCMP(command, "help")) {
 		  fprintf(ctxt->output, "\tbase         display XML base of the node\n");
 		  fprintf(ctxt->output, "\tsetbase URI  change the XML base of the node\n");
 		  fprintf(ctxt->output, "\tbye          leave shell\n");
@@ -2935,42 +2937,42 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
 #endif
 		  fprintf(ctxt->output, "\tgrep string  search for a string in the subtree\n");
 #ifdef LIBXML_VALID_ENABLED
-        } else if (!strcmp(command, "validate")) {
+        } else if (!XML_STRCMP(command, "validate")) {
             xmlShellValidate(ctxt, arg, NULL, NULL);
 #endif /* LIBXML_VALID_ENABLED */
-        } else if (!strcmp(command, "load")) {
+        } else if (!XML_STRCMP(command, "load")) {
             xmlShellLoad(ctxt, arg, NULL, NULL);
 #ifdef LIBXML_SCHEMAS_ENABLED
-        } else if (!strcmp(command, "relaxng")) {
+        } else if (!XML_STRCMP(command, "relaxng")) {
             xmlShellRNGValidate(ctxt, arg, NULL, NULL);
 #endif
 #ifdef LIBXML_OUTPUT_ENABLED
-        } else if (!strcmp(command, "save")) {
+        } else if (!XML_STRCMP(command, "save")) {
             xmlShellSave(ctxt, arg, NULL, NULL);
-        } else if (!strcmp(command, "write")) {
+        } else if (!XML_STRCMP(command, "write")) {
 	    if (arg[0] == 0)
 		xmlGenericError(xmlGenericErrorContext,
                         "Write command requires a filename argument\n");
 	    else
 		xmlShellWrite(ctxt, arg, ctxt->node, NULL);
 #endif /* LIBXML_OUTPUT_ENABLED */
-        } else if (!strcmp(command, "grep")) {
+        } else if (!XML_STRCMP(command, "grep")) {
             xmlShellGrep(ctxt, arg, ctxt->node, NULL);
-        } else if (!strcmp(command, "free")) {
+        } else if (!XML_STRCMP(command, "free")) {
             if (arg[0] == 0) {
                 xmlMemShow(ctxt->output, 0);
             } else {
                 int len = 0;
 
-                sscanf(arg, "%d", &len);
+                XML_SSCANF(arg, "%d", &len);
                 xmlMemShow(ctxt->output, len);
             }
-        } else if (!strcmp(command, "pwd")) {
+        } else if (!XML_STRCMP(command, "pwd")) {
             char dir[500];
 
             if (!xmlShellPwd(ctxt, dir, ctxt->node, NULL))
                 fprintf(ctxt->output, "%s\n", dir);
-        } else if (!strcmp(command, "du")) {
+        } else if (!XML_STRCMP(command, "du")) {
             if (arg[0] == 0) {
                 xmlShellDu(ctxt, NULL, ctxt->node, NULL);
             } else {
@@ -3044,24 +3046,24 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
                 }
                 ctxt->pctxt->node = NULL;
             }
-        } else if (!strcmp(command, "base")) {
+        } else if (!XML_STRCMP(command, "base")) {
             xmlShellBase(ctxt, NULL, ctxt->node, NULL);
-        } else if (!strcmp(command, "set")) {
+        } else if (!XML_STRCMP(command, "set")) {
 	    xmlShellSetContent(ctxt, arg, ctxt->node, NULL);
 #ifdef LIBXML_XPATH_ENABLED
-        } else if (!strcmp(command, "setns")) {
+        } else if (!XML_STRCMP(command, "setns")) {
             if (arg[0] == 0) {
 		xmlGenericError(xmlGenericErrorContext,
 				"setns: prefix=[nsuri] required\n");
             } else {
                 xmlShellRegisterNamespace(ctxt, arg, NULL, NULL);
             }
-        } else if (!strcmp(command, "setrootns")) {
+        } else if (!XML_STRCMP(command, "setrootns")) {
 	    xmlNodePtr root;
 
 	    root = xmlDocGetRootElement(ctxt->doc);
 	    xmlShellRegisterRootNamespaces(ctxt, NULL, root, NULL);
-        } else if (!strcmp(command, "xpath")) {
+        } else if (!XML_STRCMP(command, "xpath")) {
             if (arg[0] == 0) {
 		xmlGenericError(xmlGenericErrorContext,
 				"xpath: expression required\n");
@@ -3073,11 +3075,11 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
 	    }
 #endif /* LIBXML_XPATH_ENABLED */
 #ifdef LIBXML_TREE_ENABLED
-        } else if (!strcmp(command, "setbase")) {
+        } else if (!XML_STRCMP(command, "setbase")) {
             xmlShellSetBase(ctxt, arg, ctxt->node, NULL);
 #endif
-        } else if ((!strcmp(command, "ls")) || (!strcmp(command, "dir"))) {
-            int dir = (!strcmp(command, "dir"));
+        } else if ((!XML_STRCMP(command, "ls")) || (!XML_STRCMP(command, "dir"))) {
+            int dir = (!XML_STRCMP(command, "dir"));
 
             if (arg[0] == 0) {
                 if (dir)
@@ -3161,7 +3163,7 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
                 }
                 ctxt->pctxt->node = NULL;
             }
-        } else if (!strcmp(command, "whereis")) {
+        } else if (!XML_STRCMP(command, "whereis")) {
             char dir[500];
 
             if (arg[0] == 0) {
@@ -3238,7 +3240,7 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
                 }
                 ctxt->pctxt->node = NULL;
             }
-        } else if (!strcmp(command, "cd")) {
+        } else if (!XML_STRCMP(command, "cd")) {
             if (arg[0] == 0) {
                 ctxt->node = (xmlNodePtr) ctxt->doc;
             } else {
@@ -3246,7 +3248,7 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
                 int l;
 
                 ctxt->pctxt->node = ctxt->node;
-		l = strlen(arg);
+		l = XML_STRLEN(arg);
 		if ((l >= 2) && (arg[l - 1] == '/'))
 		    arg[l - 1] = 0;
                 list = xmlXPathEval((xmlChar *) arg, ctxt->pctxt);
@@ -3324,7 +3326,7 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
                 ctxt->pctxt->node = NULL;
             }
 #ifdef LIBXML_OUTPUT_ENABLED
-        } else if (!strcmp(command, "cat")) {
+        } else if (!XML_STRCMP(command, "cat")) {
             if (arg[0] == 0) {
                 xmlShellCat(ctxt, NULL, ctxt->node, NULL);
             } else {
@@ -3406,7 +3408,7 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
             xmlGenericError(xmlGenericErrorContext,
                             "Unknown command %s\n", command);
         }
-        free(cmdline);          /* not xmlFree here ! */
+        XML_FREE(cmdline);          /* not xmlFree here ! */
 	cmdline = NULL;
     }
 #ifdef LIBXML_XPATH_ENABLED
@@ -3419,7 +3421,7 @@ xmlShell(xmlDocPtr doc, char *filename, xmlShellReadlineFunc input,
         xmlFree(ctxt->filename);
     xmlFree(ctxt);
     if (cmdline != NULL)
-        free(cmdline);          /* not xmlFree here ! */
+        XML_FREE(cmdline);          /* not xmlFree here ! */
 }
 
 #endif /* LIBXML_XPATH_ENABLED */
