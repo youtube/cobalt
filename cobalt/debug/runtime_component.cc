@@ -17,8 +17,6 @@
 #include "cobalt/debug/runtime_component.h"
 
 #include "base/bind.h"
-#include "cobalt/base/source_location.h"
-#include "cobalt/script/source_code.h"
 
 namespace cobalt {
 namespace debug {
@@ -28,9 +26,12 @@ namespace {
 // https://developer.chrome.com/devtools/docs/protocol/1.1/runtime
 
 // Command "methods" (names):
+const char kCallFunctionOn[] = "Runtime.callFunctionOn";
 const char kDisable[] = "Runtime.disable";
 const char kEnable[] = "Runtime.enable";
 const char kEvaluate[] = "Runtime.evaluate";
+const char kGetProperties[] = "Runtime.getProperties";
+const char kReleaseObject[] = "Runtime.releaseObject";
 const char kReleaseObjectGroup[] = "Runtime.releaseObjectGroup";
 
 // Event "methods" (names):
@@ -40,11 +41,8 @@ const char kExecutionContextCreated[] = "Runtime.executionContextCreated";
 const char kContextFrameId[] = "context.frameId";
 const char kContextId[] = "context.id";
 const char kContextName[] = "context.name";
-const char kExpression[] = "expression";
-const char kGeneratePreview[] = "generatePreview";
-const char kResultType[] = "result.result.type";
-const char kResultValue[] = "result.result.value";
-const char kWasThrown[] = "result.wasThrown";
+const char kErrorMessage[] = "error.message";
+const char kResult[] = "result";
 
 // Constant parameter values:
 const char kContextFrameIdValue[] = "Cobalt";
@@ -56,16 +54,26 @@ RuntimeComponent::RuntimeComponent(
     const base::WeakPtr<DebugServer>& server,
     script::GlobalObjectProxy* global_object_proxy)
     : DebugServer::Component(server),
-      global_object_proxy_(global_object_proxy) {
+      runtime_inspector_(new RuntimeInspector(global_object_proxy)) {
+  AddCommand(kCallFunctionOn, base::Bind(&RuntimeComponent::CallFunctionOn,
+                                         base::Unretained(this)));
   AddCommand(kDisable,
              base::Bind(&RuntimeComponent::Disable, base::Unretained(this)));
   AddCommand(kEnable,
              base::Bind(&RuntimeComponent::Enable, base::Unretained(this)));
   AddCommand(kEvaluate,
              base::Bind(&RuntimeComponent::Evaluate, base::Unretained(this)));
+  AddCommand(kGetProperties, base::Bind(&RuntimeComponent::GetProperties,
+                                        base::Unretained(this)));
+  AddCommand(kReleaseObject, base::Bind(&RuntimeComponent::ReleaseObject,
+                                        base::Unretained(this)));
   AddCommand(kReleaseObjectGroup,
              base::Bind(&RuntimeComponent::ReleaseObjectGroup,
                         base::Unretained(this)));
+}
+
+JSONObject RuntimeComponent::CallFunctionOn(const JSONObject& params) {
+  return RunCommand("callFunctionOn", params);
 }
 
 JSONObject RuntimeComponent::Disable(const JSONObject& params) {
@@ -80,36 +88,19 @@ JSONObject RuntimeComponent::Enable(const JSONObject& params) {
 }
 
 JSONObject RuntimeComponent::Evaluate(const JSONObject& params) {
-  std::string expression;
-  bool got_param = params->GetString(kExpression, &expression);
-  DCHECK(got_param);
-  bool generate_preview = false;
-  got_param = params->GetBoolean(kGeneratePreview, &generate_preview);
-  DCHECK(got_param);
+  return RunCommand("evaluate", params);
+}
 
-  // TODO(***REMOVED***): Come up with something better for the source location.
-  base::SourceLocation source_location("[object Devtools]", 1, 1);
-  scoped_refptr<script::SourceCode> source_code =
-      script::SourceCode::CreateSourceCode(expression, source_location);
-  std::string eval_result;
-  bool eval_succeeded =
-      global_object_proxy_->EvaluateScript(source_code, &eval_result);
-
-  // TODO(***REMOVED***): Currently, |EvalulateScript| always returns a string.
-  // This should be extended to return arbitrary data: objects, lists, etc.
-
-  JSONObject result(new base::DictionaryValue());
-  result->SetString(kResultValue, eval_result);
-  result->SetString(kResultType, "string");
-  result->SetBoolean(kWasThrown, !eval_succeeded);
-  return result.Pass();
+JSONObject RuntimeComponent::GetProperties(const JSONObject& params) {
+  return RunCommand("getProperties", params);
 }
 
 JSONObject RuntimeComponent::ReleaseObjectGroup(const JSONObject& params) {
-  // Currently does nothing except reduce some logging noise, as this method
-  // is called a lot.
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
+  return RunCommand("releaseObjectGroup", params);
+}
+
+JSONObject RuntimeComponent::ReleaseObject(const JSONObject& params) {
+  return RunCommand("releaseObject", params);
 }
 
 void RuntimeComponent::OnExecutionContextCreated() {
@@ -118,6 +109,25 @@ void RuntimeComponent::OnExecutionContextCreated() {
   notification->SetInteger(kContextId, kContextIdValue);
   notification->SetString(kContextName, kContextNameValue);
   SendNotification(kExecutionContextCreated, notification);
+}
+
+JSONObject RuntimeComponent::RunCommand(const std::string& command,
+                                        const JSONObject& params) {
+  std::string json_params = JSONStringify(params);
+  std::string json_result;
+  bool success =
+      runtime_inspector_->RunCommand(command, json_params, &json_result);
+
+  JSONObject response(new base::DictionaryValue());
+  if (success) {
+    JSONObject result = JSONParse(json_result);
+    if (result) {
+      response->Set(kResult, result.release());
+    }
+  } else {
+    response->SetString(kErrorMessage, json_result);
+  }
+  return response.Pass();
 }
 
 }  // namespace debug
