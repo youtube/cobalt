@@ -19,9 +19,11 @@
 
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/json_object.h"
+#include "cobalt/debug/runtime_inspector.h"
 #include "cobalt/script/global_object_proxy.h"
 
 namespace cobalt {
@@ -33,9 +35,13 @@ class RuntimeComponent : public DebugServer::Component {
                    script::GlobalObjectProxy* global_object_proxy);
 
  private:
+  // Command handlers.
+  JSONObject CallFunctionOn(const JSONObject& params);
   JSONObject Disable(const JSONObject& params);
   JSONObject Enable(const JSONObject& params);
   JSONObject Evaluate(const JSONObject& params);
+  JSONObject GetProperties(const JSONObject& params);
+  JSONObject ReleaseObject(const JSONObject& params);
   JSONObject ReleaseObjectGroup(const JSONObject& params);
 
   // Sends a notification to the client that an execution context has been
@@ -43,8 +49,11 @@ class RuntimeComponent : public DebugServer::Component {
   // is enabled, passing default values.
   void OnExecutionContextCreated();
 
-  // No ownership.
-  script::GlobalObjectProxy* global_object_proxy_;
+  // Calls |command| in |runtime_inspector_| and creates a response object from
+  // the result.
+  JSONObject RunCommand(const std::string& command, const JSONObject& params);
+
+  scoped_ptr<RuntimeInspector> runtime_inspector_;
 };
 
 }  // namespace debug

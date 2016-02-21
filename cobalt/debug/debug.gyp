@@ -47,6 +47,8 @@
         'render_overlay.h',
         'runtime_component.cc',
         'runtime_component.h',
+        'runtime_inspector.cc',
+        'runtime_inspector.h',
         'system_stats_tracker.cc',
         'system_stats_tracker.h',
       ],
