@@ -231,14 +231,6 @@ void BrowserModule::Navigate(const GURL& url) {
 
 void BrowserModule::NavigateWithCallback(const GURL& url,
                                          const base::Closure& loaded_callback) {
-  // Always post this as a task in case this is being called from the WebModule.
-  self_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&BrowserModule::NavigateWithCallbackInternal,
-                            base::Unretained(this), url, loaded_callback));
-}
-
-void BrowserModule::NavigateWithCallbackInternal(
-    const GURL& url, const base::Closure& loaded_callback) {
   GURL new_url;
 
   if (url.is_empty()) {
@@ -249,7 +241,7 @@ void BrowserModule::NavigateWithCallbackInternal(
     new_url = url;
     if (web_module_) {
       GURL old_url = web_module_->url();
-      DLOG(INFO) << "Navigating to " << new_url << " from " << old_url;
+      DLOG(INFO) << "Navigating to " << new_url;
       // 7. Fragment identifiers: Apply the URL parser algorithm to the absolute
       // URL of the new resource and the address of the active document of the
       // browsing context being navigated. If all the components of the
@@ -291,6 +283,14 @@ void BrowserModule::NavigateWithCallbackInternal(
     }
   }
 
+  // Always post this as a task in case this is being called from the WebModule.
+  self_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&BrowserModule::NavigateWithCallbackInternal,
+                            base::Unretained(this), new_url, loaded_callback));
+}
+
+void BrowserModule::NavigateWithCallbackInternal(
+    const GURL& new_url, const base::Closure& loaded_callback) {
   // First try the registered handlers (e.g. for h5vcc://). If one of these
   // handles the URL, we don't use the web module.
   if (TryURLHandlers(new_url)) {
