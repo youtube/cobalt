@@ -102,7 +102,10 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
                                           const scoped_refptr<Box>& child_box);
 
   // Moves a range of children from a range within a source container node, to
-  // this destination container node at the specified position.
+  // this destination container node at the specified position. This function
+  // may not result in correct cross references for the moved child boxes if
+  // the source and destination container do not have the same fixed containing
+  // block, absolute containing block, or stacking context.
   void MoveChildrenFrom(Boxes::const_iterator position_in_destination,
                         ContainerBox* source_box,
                         Boxes::const_iterator source_start,

@@ -60,6 +60,11 @@ Boxes::const_iterator ContainerBox::InsertDirectChild(
 void ContainerBox::MoveChildrenFrom(
     Boxes::const_iterator position_in_destination, ContainerBox* source_box,
     Boxes::const_iterator source_start, Boxes::const_iterator source_end) {
+  // TODO(***REMOVED***): This may result in incorrect containing blocks and/or stacking
+  // contexts in children and descendants if the old parent and the new parent
+  // are not siblings with the same containing blocks and stacking context.
+  // Improving that behavior is tracked in b/27310946.
+
   // Add the children to our list of child boxes.
   Boxes::iterator source_start_non_const =
       RemoveConst(&source_box->child_boxes_, source_start);
@@ -78,10 +83,19 @@ void ContainerBox::MoveChildrenFrom(
         (child_box->IsPositioned() || child_box->IsTransformed())) {
       MoveContainingBlockChild(child_box);
       MoveStackingContextChild(child_box);
+      // For positioned boxes, the parent box is not always also the containing
+      // block. Instead of calling OnChildAdded(), only update the containing
+      // block if that is the case.
+      if (child_box->containing_block_ == child_box->parent_) {
+        child_box->containing_block_ = this;
+      }
+      child_box->parent_ = this;
+      update_size_results_valid_ = false;
+    } else {
+      child_box->parent_ = NULL;
+      child_box->containing_block_ = NULL;
+      OnChildAdded(child_box);
     }
-    child_box->parent_ = NULL;
-    child_box->containing_block_ = NULL;
-    OnChildAdded(child_box);
   }
 
   // Erase the children from their previous container's list of children.
@@ -360,8 +374,11 @@ math::Vector2dF GetOffsetFromContainingBlockToStackingContext(Box* child_box) {
            *current_box = child_box->stacking_context();
        current_box != containing_block;
        current_box = current_box->containing_block()) {
-    DCHECK(current_box) << "Unable to find stacking context while "
-                           "traversing containing blocks.";
+    if (!current_box) {
+      NOTREACHED() << "Unable to find stacking context while "
+                      "traversing containing blocks.";
+      break;
+    }
     // We should not determine a used position through a transform, as
     // rectangles may not remain rectangles past it, and thus obtaining
     // a position may be misleading.
