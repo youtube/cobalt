@@ -186,11 +186,13 @@ class ResourceProviderStub : public ResourceProvider {
 
   float GetTextWidth(const char16* text_buffer, size_t text_length,
                      const std::string& language, bool is_rtl,
-                     render_tree::FontFallbackList* font_list) OVERRIDE {
+                     FontFallbackList* font_list,
+                     FontVector* maybe_used_fonts) OVERRIDE {
     UNREFERENCED_PARAMETER(text_buffer);
     UNREFERENCED_PARAMETER(language);
     UNREFERENCED_PARAMETER(is_rtl);
     UNREFERENCED_PARAMETER(font_list);
+    UNREFERENCED_PARAMETER(maybe_used_fonts);
     return static_cast<float>(text_length);
   }
 
@@ -199,7 +201,7 @@ class ResourceProviderStub : public ResourceProvider {
   scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
       const char16* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
-      render_tree::FontFallbackList* font_list) OVERRIDE {
+      FontFallbackList* font_list) OVERRIDE {
     UNREFERENCED_PARAMETER(text_buffer);
     UNREFERENCED_PARAMETER(language);
     UNREFERENCED_PARAMETER(is_rtl);

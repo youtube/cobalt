@@ -185,7 +185,8 @@ class FontCache {
   // Given a string of text, return its width. This is faster than
   // CreateGlyphBuffer().
   float GetTextWidth(const char16* text_buffer, int32 text_length, bool is_rtl,
-                     FontList* font_list);
+                     FontList* font_list,
+                     render_tree::FontVector* maybe_used_fonts);
 
  private:
   // Returns the font if it is in the remote font cache and available;

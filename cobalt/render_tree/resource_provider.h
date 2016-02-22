@@ -147,12 +147,15 @@ class ResourceProvider {
   //   for any requested character. The available fonts and the strategy used in
   //   determining the best font-glyph combination are encapsulated within the
   //   FontFallbackList object.
+  // - |maybe_used_fonts| is an optional parameter used to collect all fonts
+  //   that were used in generating the width for the text.
   // NOTE: While shaping is done on the text in order to produce an accurate
   // width, a glyph buffer is never generated, so this method should be
   // faster than CreateGlyphBuffer().
   virtual float GetTextWidth(const char16* text_buffer, size_t text_length,
                              const std::string& language, bool is_rtl,
-                             render_tree::FontFallbackList* font_list) = 0;
+                             render_tree::FontFallbackList* font_list,
+                             render_tree::FontVector* maybe_used_fonts) = 0;
 };
 
 }  // namespace render_tree
