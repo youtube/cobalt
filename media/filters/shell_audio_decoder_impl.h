@@ -56,11 +56,6 @@ class ShellRawAudioDecoder {
   virtual bool Flush() = 0;
   virtual bool UpdateConfig(const AudioDecoderConfig& config) = 0;
 
-  // TODO(***REMOVED***, b/16796265): Move factory method into ShellMediaPlatform
-  // and inject into ShellAudioDecoderImpl.
-  static scoped_ptr<ShellRawAudioDecoder> Create(
-      const AudioDecoderConfig& config);
-
  protected:
   ShellRawAudioDecoder() {}
 

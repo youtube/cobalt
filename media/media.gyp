@@ -345,6 +345,10 @@
         'filters/shell_mp4_parser.h',
         'filters/shell_parser.cc',
         'filters/shell_parser.h',
+        'filters/shell_raw_audio_decoder_stub.cc',
+        'filters/shell_raw_audio_decoder_stub.h',
+        'filters/shell_raw_video_decoder_stub.cc',
+        'filters/shell_raw_video_decoder_stub.h',
         'filters/shell_rbsp_stream.cc',
         'filters/shell_rbsp_stream.h',
         'filters/shell_video_decoder_impl.cc',
@@ -557,6 +561,7 @@
                 'filters/shell_raw_audio_decoder_linux.cc',
                 'filters/shell_raw_audio_decoder_linux.h',
                 'filters/shell_raw_video_decoder_linux.cc',
+                'filters/shell_raw_video_decoder_linux.h',
               ],
             }],
             ['target_arch=="ps3"', {
