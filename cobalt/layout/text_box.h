@@ -162,6 +162,7 @@ class TextBox : public Box {
   bool update_size_results_valid_;
   float line_height_;
   float inline_top_margin_;
+  float ascent_;
 };
 
 }  // namespace layout

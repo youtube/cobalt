@@ -159,9 +159,15 @@ class FontList : public render_tree::FontFallbackList,
 
   // Given a string of text, return its width. This is faster than
   // CreateGlyphBuffer().
-  float GetTextWidth(const char16* text_buffer, int32 text_length, bool is_rtl);
+  float GetTextWidth(const char16* text_buffer, int32 text_length, bool is_rtl,
+                     render_tree::FontVector* maybe_used_fonts);
 
   const render_tree::FontMetrics& GetFontMetrics();
+
+  // Given a vector of fonts, provides the combined font metrics of all of the
+  // fonts (including the primary font, regardless of whether it is present
+  // in the vector).
+  render_tree::FontMetrics GetFontMetrics(const render_tree::FontVector& fonts);
 
   // Returns the text run that signifies an ellipsis code point.
   char16 GetEllipsisValue() const;

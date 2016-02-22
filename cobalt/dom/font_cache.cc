@@ -213,10 +213,11 @@ scoped_refptr<render_tree::GlyphBuffer> FontCache::CreateGlyphBuffer(
 }
 
 float FontCache::GetTextWidth(const char16* text_buffer, int32 text_length,
-                              bool is_rtl, FontList* font_list) {
-  return resource_provider_->GetTextWidth(text_buffer,
-                                          static_cast<size_t>(text_length),
-                                          language_, is_rtl, font_list);
+                              bool is_rtl, FontList* font_list,
+                              render_tree::FontVector* maybe_used_fonts) {
+  return resource_provider_->GetTextWidth(
+      text_buffer, static_cast<size_t>(text_length), language_, is_rtl,
+      font_list, maybe_used_fonts);
 }
 
 scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
