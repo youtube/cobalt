@@ -278,9 +278,17 @@ Application::Application()
       }
     }
   }
-  if (command_line->HasSwitch(switches::kUseNullAudioStreamer)) {
+  if (command_line->HasSwitch(switches::kAudioDecoderStub)) {
+    DLOG(INFO) << "Use ShellRawAudioDecoderStub";
+    options.media_module_options.use_audio_decoder_stub = true;
+  }
+  if (command_line->HasSwitch(switches::kNullAudioStreamer)) {
     DLOG(INFO) << "Use null audio";
     options.media_module_options.use_null_audio_streamer = true;
+  }
+  if (command_line->HasSwitch(switches::kVideoDecoderStub)) {
+    DLOG(INFO) << "Use ShellRawVideoDecoderStub";
+    options.media_module_options.use_video_decoder_stub = true;
   }
 #endif  // ENABLE_COMMAND_LINE_SWITCHES
 
