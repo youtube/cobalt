@@ -37,8 +37,13 @@ class MediaModule : public WebMediaPlayerFactory,
                     public ::media::WebMediaPlayerDelegate {
  public:
   struct Options {
-    Options() : use_null_audio_streamer(false) {}
+    Options()
+        : use_audio_decoder_stub(false),
+          use_null_audio_streamer(false),
+          use_video_decoder_stub(false) {}
+    bool use_audio_decoder_stub;
     bool use_null_audio_streamer;
+    bool use_video_decoder_stub;
   };
 
   typedef ::media::WebMediaPlayer WebMediaPlayer;
