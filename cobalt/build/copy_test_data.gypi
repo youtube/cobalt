@@ -27,7 +27,7 @@
 #           'path/to/datafile.txt',     # The file will be copied.
 #           'path/to/data/directory',   # The directory and its content will be copied.
 #           'path/to/data/directory/',  # The directory's content will be copied.
-#         ]
+#         ],
 #         'output_dir' : 'path/to/output/directory',
 #       },
 #       'includes': [ 'path/to/this/gypi/file' ],
