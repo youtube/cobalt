@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
+#include "media/filters/shell_raw_video_decoder_linux.h"
+
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_video_data_allocator.h"
 #include "media/base/video_util.h"
 #include "media/filters/shell_ffmpeg.h"
-#include "media/filters/shell_video_decoder_impl.h"
 
 namespace media {
 
@@ -377,7 +378,7 @@ void ShellRawVideoDecoderLinux::ReleaseVideoBuffer(AVCodecContext*,
 
 }  // namespace
 
-ShellRawVideoDecoder* ShellRawVideoDecoder::Create(
+scoped_ptr<ShellRawVideoDecoder> CreateShellRawVideoDecoderLinux(
     const VideoDecoderConfig& config,
     Decryptor* decryptor,
     bool was_encrypted) {
@@ -385,8 +386,8 @@ ShellRawVideoDecoder* ShellRawVideoDecoder::Create(
                                         << " is not supported.";
   scoped_ptr<ShellRawVideoDecoder> decoder(new ShellRawVideoDecoderLinux);
   if (decoder->UpdateConfig(config))
-    return decoder.release();
-  return NULL;
+    return decoder.Pass();
+  return scoped_ptr<ShellRawVideoDecoder>();
 }
 
 }  // namespace media

@@ -36,9 +36,11 @@ namespace media {
 //
 
 ShellVideoDecoderImpl::ShellVideoDecoderImpl(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop)
+    const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    const ShellRawVideoDecoder::Creator& raw_video_decoder_creator)
     : state_(kUninitialized),
       media_pipeline_message_loop_(message_loop),
+      raw_video_decoder_creator_(raw_video_decoder_creator),
       decoder_thread_("Video Decoder") {}
 
 ShellVideoDecoderImpl::~ShellVideoDecoderImpl() {
@@ -66,9 +68,9 @@ void ShellVideoDecoderImpl::Initialize(
   DLOG(INFO) << "Configuration at Start: "
              << decoder_config.AsHumanReadableString();
 
-  raw_decoder_.reset(ShellRawVideoDecoder::Create(
+  raw_decoder_ = raw_video_decoder_creator_.Run(
       decoder_config, demuxer_stream_->GetDecryptor(),
-      demuxer_stream_->StreamWasEncrypted()));
+      demuxer_stream_->StreamWasEncrypted());
 
   if (!raw_decoder_) {
     status_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
