@@ -1833,7 +1833,11 @@ typedef struct stat StatStruct;
 #define fileno _fileno
 #endif
 inline int FileNo(FILE* file) { return fileno(file); }
+#if defined(__LB_LINUX__)
+inline int IsATTY(int fd) { return isatty(fd); }
+#else
 inline int IsATTY(int /*fd*/) { return 0; }
+#endif
 inline int Stat(const char* path, StatStruct* buf) { return stat(path, buf); }
 inline int StrCaseCmp(const char* s1, const char* s2) {
   return strcasecmp(s1, s2);
@@ -1902,9 +1906,15 @@ inline int Close(int fd) { return close(fd); }
 inline const char* StrError(int errnum) { return strerror(errnum); }
 #endif
 #if defined(__LB_SHELL__)
+#if defined(__LB_LINUX__)
+inline const char* GetEnv(const char* name) {
+  return getenv(name);
+}
+#else
 inline const char* GetEnv(const char* /*name*/) {
   return NULL;
 }
+#endif
 #else
 inline const char* GetEnv(const char* name) {
 #if GTEST_OS_WINDOWS_MOBILE
