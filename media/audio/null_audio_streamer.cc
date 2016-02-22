@@ -84,8 +84,9 @@ void NullAudioStreamer::PullFrames(ShellAudioStream* stream,
   int sample_rate = stream->GetAudioParameters().sample_rate();
   uint32 frames_played = sample_rate * time_played.InSecondsF();
   frames_played = std::min(frames_played, null_stream->total_available_frames);
-  stream->ConsumeFrames(frames_played);
-
+  if (!stream->PauseRequested()) {
+    stream->ConsumeFrames(frames_played);
+  }
   // Pull more frames.
   stream->PullFrames(NULL, &null_stream->total_available_frames);
 }
