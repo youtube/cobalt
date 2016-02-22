@@ -26,6 +26,13 @@
 #include "cobalt/render_tree/image.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/video_frame.h"
+#if defined(__LB_LINUX__)
+#include "media/filters/shell_raw_video_decoder_linux.h"
+#elif defined(__LB_PS3__)
+#include "media/filters/shell_raw_video_decoder_ps3.h"
+#else
+#include "media/filters/shell_raw_video_decoder_stub.h"
+#endif
 #include "media/filters/shell_video_decoder_impl.h"
 
 using base::Bind;
@@ -54,7 +61,19 @@ class VideoDecoderSandbox {
     DCHECK(stream);
 
     demuxer_ = demuxer;
-    decoder_ = new ShellVideoDecoderImpl(base::MessageLoopProxy::current());
+#if defined(__LB_LINUX__)
+    decoder_ = new ShellVideoDecoderImpl(
+        base::MessageLoopProxy::current(),
+        base::Bind(::media::CreateShellRawVideoDecoderLinux));
+#elif defined(__LB_PS3__)
+    decoder_ = new ShellVideoDecoderImpl(
+        base::MessageLoopProxy::current(),
+        base::Bind(::media::CreateShellRawVideoDecoderPS3));
+#else
+    decoder_ = new ShellVideoDecoderImpl(
+        base::MessageLoopProxy::current(),
+        base::Bind(::media::CreateShellRawVideoDecoderStub));
+#endif
     decoder_->Initialize(
         stream,
         Bind(&VideoDecoderSandbox::VideoDecoderReadyCB, Unretained(this)),

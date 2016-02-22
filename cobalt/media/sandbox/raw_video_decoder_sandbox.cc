@@ -26,7 +26,13 @@
 #include "cobalt/render_tree/image.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/video_frame.h"
-#include "media/filters/shell_video_decoder_impl.h"
+#if defined(__LB_LINUX__)
+#include "media/filters/shell_raw_video_decoder_linux.h"
+#elif defined(__LB_PS3__)
+#include "media/filters/shell_raw_video_decoder_ps3.h"
+#else
+#include "media/filters/shell_raw_video_decoder_stub.h"
+#endif
 
 using base::Bind;
 using base::Unretained;
@@ -55,8 +61,16 @@ class RawVideoDecoderSandbox {
     DCHECK(stream);
 
     demuxer_ = demuxer;
-    decoder_.reset(ShellRawVideoDecoder::Create(stream->video_decoder_config(),
-                                                NULL, false));
+#if defined(__LB_LINUX__)
+    decoder_ = ::media::CreateShellRawVideoDecoderLinux(
+        stream->video_decoder_config(), NULL, false);
+#elif defined(__LB_PS3__)
+    decoder_ = ::media::CreateShellRawVideoDecoderPS3(
+        stream->video_decoder_config(), NULL, false);
+#else
+    decoder_ = ::media::CreateShellRawVideoDecoderStub(
+        stream->video_decoder_config(), NULL, false);
+#endif
     stream->Read(Bind(&RawVideoDecoderSandbox::ReadCB, Unretained(this)));
   }
 
