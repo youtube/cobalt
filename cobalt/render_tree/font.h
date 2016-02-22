@@ -138,6 +138,8 @@ class Font : public base::RefCounted<Font> {
   friend class base::RefCounted<Font>;
 };
 
+typedef std::vector<scoped_refptr<Font> > FontVector;
+
 }  // namespace render_tree
 }  // namespace cobalt
 
