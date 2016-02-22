@@ -240,7 +240,7 @@ bool Paragraph::TryIncludeSegmentWithinAvailableWidth(
   // been found, then the first overflowing segment is accepted.
   float segment_width = used_font->GetTextWidth(
       unicode_text_.getBuffer() + segment_start, segment_end - segment_start,
-      IsRTL(segment_start));
+      IsRTL(segment_start), NULL);
 
   if (!*allow_overflow && *break_width + segment_width > available_width) {
     return false;

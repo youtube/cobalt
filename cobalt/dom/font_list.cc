@@ -121,8 +121,10 @@ scoped_refptr<render_tree::GlyphBuffer> FontList::CreateGlyphBuffer(
 }
 
 float FontList::GetTextWidth(const char16* text_buffer, int32 text_length,
-                             bool is_rtl) {
-  return font_cache_->GetTextWidth(text_buffer, text_length, is_rtl, this);
+                             bool is_rtl,
+                             render_tree::FontVector* maybe_used_fonts) {
+  return font_cache_->GetTextWidth(text_buffer, text_length, is_rtl, this,
+                                   maybe_used_fonts);
 }
 
 const render_tree::FontMetrics& FontList::GetFontMetrics() {
@@ -134,6 +136,46 @@ const render_tree::FontMetrics& FontList::GetFontMetrics() {
   }
 
   return font_metrics_;
+}
+
+render_tree::FontMetrics FontList::GetFontMetrics(
+    const render_tree::FontVector& fonts) {
+  // Call GetFontMetrics to ensure that the primary metrics have been
+  // generated.
+  const render_tree::FontMetrics& primary_metrics = GetFontMetrics();
+
+  // Initially set the font metrics values to the primary font metrics. It is
+  // included regardless of the the contents of the vector.
+  float max_ascent = primary_metrics.ascent();
+  float max_descent = primary_metrics.descent();
+  float max_leading = primary_metrics.leading();
+  float max_x_height = primary_metrics.x_height();
+
+  // Calculate the max metrics values from all of the fonts.
+  for (size_t i = 0; i < fonts.size(); ++i) {
+    // If this is the primary font, simply skip it. It has already been
+    // included.
+    if (fonts[i]->GetTypefaceId() == GetPrimaryFont()->GetTypefaceId()) {
+      continue;
+    }
+
+    render_tree::FontMetrics current_metrics = fonts[i]->GetFontMetrics();
+    if (current_metrics.ascent() > max_ascent) {
+      max_ascent = current_metrics.ascent();
+    }
+    if (current_metrics.descent() > max_descent) {
+      max_descent = current_metrics.descent();
+    }
+    if (current_metrics.leading() > max_leading) {
+      max_leading = current_metrics.leading();
+    }
+    if (current_metrics.x_height() > max_x_height) {
+      max_x_height = current_metrics.x_height();
+    }
+  }
+
+  return render_tree::FontMetrics(max_ascent, max_descent, max_leading,
+                                  max_x_height);
 }
 
 char16 FontList::GetEllipsisValue() const { return kHorizontalEllipsisValue; }
