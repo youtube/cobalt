@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "media/filters/shell_raw_audio_decoder_linux.h"
+
 #include <memory.h>
 
 #include <list>
@@ -23,7 +25,6 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/decoder_buffer_pool.h"
-#include "media/filters/shell_audio_decoder_impl.h"
 #include "media/filters/shell_ffmpeg.h"
 #include "media/mp4/aac.h"
 
@@ -345,7 +346,7 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
 
 }  // namespace
 
-scoped_ptr<ShellRawAudioDecoder> ShellRawAudioDecoder::Create(
+scoped_ptr<ShellRawAudioDecoder> CreateShellRawAudioDecoderLinux(
     const AudioDecoderConfig& config) {
   scoped_ptr<ShellRawAudioDecoder> decoder(new ShellRawAudioDecoderLinux);
   if (!decoder->UpdateConfig(config)) {
