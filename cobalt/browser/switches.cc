@@ -24,14 +24,17 @@ namespace switches {
 // Allow insecure HTTP network connections.
 const char kAllowHttp[] = "allow_http";
 
-// Switches different debug console modes: on | hud | off
-const char kDebugConsoleMode[] = "debug_console";
+// Decode audio data using ShellRawAudioDecoderStub.
+const char kAudioDecoderStub[] = "audio_decoder_stub";
 
 // Set the content security policy enforcement mode: disable | enable
 // disable: Allow all resource loads. Ignore CSP totally.
 // enable: default mode. Enforce CSP strictly.  Require CSP headers or fail
 // the initial document load.
 const char kCspMode[] = "csp_mode";
+
+// Switches different debug console modes: on | hud | off
+const char kDebugConsoleMode[] = "debug_console";
 
 // Create WebDriver server.
 const char kEnableWebDriver[] = "enable_webdriver";
@@ -49,6 +52,10 @@ const char kInitialURL[] = "url";
 // If this flag is set, input will be continuously generated randomly instead of
 // taken from an external input device (like a controller).
 const char kInputFuzzer[] = "input_fuzzer";
+
+// Use the NullAudioStreamer. Audio will be decoded but will not play back. No
+// audio output library will be initialized or used.
+const char kNullAudioStreamer[] = "null_audio_streamer";
 
 // Specifies a proxy to use for network connections.
 const char kProxy[] = "proxy";
@@ -73,12 +80,11 @@ const char kStubImageDecoder[] = "stub_image_decoder";
 // "timed_trace.json" in the log output directory.
 const char kTimedTrace[] = "timed_trace";
 
-// Use the NullAudioStreamer. Audio will be decoded but will not play back. No
-// audio output library will be initialized or used.
-const char kUseNullAudioStreamer[] = "use_null_audio_streamer";
-
 // Specifies the viewport size: width ['x' height]
 const char kViewport[] = "viewport";
+
+// Decode video data using ShellRawVideoDecoderStub.
+extern const char kVideoDecoderStub[] = "video_decoder_stub";
 
 // Port that the WebDriver server should be listening on.
 const char kWebDriverPort[] = "webdriver_port";

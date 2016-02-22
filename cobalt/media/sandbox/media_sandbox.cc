@@ -92,9 +92,15 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
   MediaModule::Options media_module_options;
 #if defined(ENABLE_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
-  // Avoid a dependency on browser::switches::kUseNullAudioStreamer
-  if (command_line->HasSwitch("use_null_audio_streamer")) {
+  // Use string literals directly to avoid dependency on browser::switches.
+  if (command_line->HasSwitch("audio_decoder_stub")) {
+    media_module_options.use_audio_decoder_stub = true;
+  }
+  if (command_line->HasSwitch("null_audio_streamer")) {
     media_module_options.use_null_audio_streamer = true;
+  }
+  if (command_line->HasSwitch("video_decoder_stub")) {
+    media_module_options.use_video_decoder_stub = true;
   }
 #endif  // defined(ENABLE_COMMAND_LINE_SWITCHES)
 
