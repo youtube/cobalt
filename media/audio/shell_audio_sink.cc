@@ -139,6 +139,7 @@ void ShellAudioSink::Initialize(const AudioParameters& params,
 
 void ShellAudioSink::Start() {
   TRACE_EVENT0("media_stack", "ShellAudioSink::Start()");
+  DCHECK(render_callback_);
 
   if (!audio_streamer_->HasStream(this)) {
     pause_requested_ = true;
@@ -151,8 +152,10 @@ void ShellAudioSink::Start() {
 
 void ShellAudioSink::Stop() {
   TRACE_EVENT0("media_stack", "ShellAudioSink::Stop()");
-
-  if (audio_streamer_->HasStream(this)) {
+  // It is possible that Stop() is called before Initialize() is called. In
+  // this case the audio_streamer_ will not be able to check if it has the
+  // stream as audio_parameters_ hasn't been initialized.
+  if (render_callback_ && audio_streamer_->HasStream(this)) {
     audio_streamer_->RemoveStream(this);
     pause_requested_ = true;
     rebuffering_ = true;
