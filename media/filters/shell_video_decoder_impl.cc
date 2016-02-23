@@ -43,9 +43,7 @@ ShellVideoDecoderImpl::ShellVideoDecoderImpl(
       raw_video_decoder_creator_(raw_video_decoder_creator),
       decoder_thread_("Video Decoder") {}
 
-ShellVideoDecoderImpl::~ShellVideoDecoderImpl() {
-  DCHECK(!decoder_thread_.IsRunning());  // It should be stopped in Stop().
-}
+ShellVideoDecoderImpl::~ShellVideoDecoderImpl() {}
 
 void ShellVideoDecoderImpl::Initialize(
     const scoped_refptr<DemuxerStream>& stream,
