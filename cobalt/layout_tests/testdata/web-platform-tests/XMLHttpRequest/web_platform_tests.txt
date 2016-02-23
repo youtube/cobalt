@@ -20,7 +20,7 @@ abort-upload-event-abort.htm,PASS
 abort-upload-event-loadend.htm,PASS
 anonymous-mode-unsupported.htm,PASS
 # Unsupported by XHR currently. b/25800310
-data-uri.htm,DISABLE
+data-uri.htm,FAIL
 event-abort.htm,PASS
 event-error.html,PASS
 event-loadend.htm,PASS

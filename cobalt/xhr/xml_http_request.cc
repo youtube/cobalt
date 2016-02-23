@@ -540,8 +540,11 @@ void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   }
 
   http_status_ = source->GetResponseCode();
-  // TODO(***REMOVED***): Handle the NULL response headers case.
-  DCHECK(source->GetResponseHeaders());
+  // Don't handle a response without headers.
+  if (!source->GetResponseHeaders()) {
+    HandleRequestError(kNetworkError);
+    return;
+  }
   // Copy the response headers from the fetcher. It's not safe for us to
   // modify the existing ones as they may be in use on the network thread.
   http_response_headers_ =
