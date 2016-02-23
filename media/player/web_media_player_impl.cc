@@ -211,6 +211,9 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   audio_focus_bridge_.AbandonAudioFocus();
 #endif  // defined(__LB_ANDROID__)
 
+  // Reset DecryptorReadyCB so the decryptor_ will call the existing one with
+  // NULL to indicate a failure.
+  decryptor_->SetDecryptorReadyCB(DecryptorReadyCB());
   Destroy();
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_DESTROYED));
