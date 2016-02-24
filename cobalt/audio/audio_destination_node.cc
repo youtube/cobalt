@@ -44,6 +44,10 @@ AudioDestinationNode::AudioDestinationNode(AudioContext* context)
 }
 
 AudioDestinationNode::~AudioDestinationNode() {
+  // Clear the audio device before lock to avoid race condition of destroying
+  // AudioDestinationNode and calling FillAudioBus() from the Audio thread.
+  audio_device_.reset();
+
   AudioLock::AutoLock lock(audio_lock());
 
   DCHECK_EQ(number_of_outputs(), 0u);
