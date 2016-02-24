@@ -35,8 +35,12 @@ class FakeCSSGroupingRule : public CSSGroupingRule {
  public:
   // From CSSRule.
   Type type() const OVERRIDE { return kMediaRule; }
-  std::string css_text() const OVERRIDE { return ""; }
-  void set_css_text(const std::string& /* css_text */) OVERRIDE {}
+  std::string css_text(
+      script::ExceptionState* /*exception_state*/) const OVERRIDE {
+    return "";
+  }
+  void set_css_text(const std::string& /* css_text */,
+                    script::ExceptionState* /*exception_state*/) OVERRIDE {}
   void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE {
     set_parent_style_sheet(style_sheet);
     css_rules()->AttachToCSSStyleSheet(style_sheet);

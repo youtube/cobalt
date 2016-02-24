@@ -35,7 +35,8 @@ namespace layout {
 // at soft wrap opportunities.
 class TextBox : public Box {
  public:
-  TextBox(const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+  TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+              css_computed_style_declaration,
           const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
           int32 text_end_position, bool triggers_line_break,
           UsedStyleProvider* used_style_provider);

@@ -38,9 +38,9 @@ namespace layout {
 //   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
 class InlineContainerBox : public ContainerBox {
  public:
-  InlineContainerBox(
-      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-      UsedStyleProvider* used_style_provider);
+  InlineContainerBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+                         css_computed_style_declaration,
+                     UsedStyleProvider* used_style_provider);
   ~InlineContainerBox() OVERRIDE;
 
   // From |Box|.

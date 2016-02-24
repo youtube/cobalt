@@ -104,7 +104,7 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
 
 TEST_F(IsDisplayedTest, BodyIsDisplayed) {
   EXPECT_TRUE(algorithms::IsDisplayed(document_->body().get()));
-  document_->body()->style()->set_display("none");
+  document_->body()->style()->set_display("none", NULL);
   EXPECT_TRUE(algorithms::IsDisplayed(document_->body().get()));
 }
 

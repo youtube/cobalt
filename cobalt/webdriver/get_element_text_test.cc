@@ -68,7 +68,7 @@ class GetElementTextTest : public ::testing::Test {
   void AppendParagraphWithDisplayStyle(const char* display_style) {
     scoped_refptr<dom::HTMLParagraphElement> p(
         new dom::HTMLParagraphElement(document_.get()));
-    p->style()->set_display(display_style);
+    p->style()->set_display(display_style, NULL);
     div_->AppendChild(p);
   }
 
@@ -90,13 +90,13 @@ TEST_F(GetElementTextTest, NewLinesAreConvertedToSpaces) {
 }
 
 TEST_F(GetElementTextTest, NoWrapStyle) {
-  div_->style()->set_white_space("nowrap");
+  div_->style()->set_white_space("nowrap", NULL);
   AppendText("a\n\nb\nc\td\u2028e\u2029f\xa0g");
   EXPECT_STREQ("a b c d e f g", algorithms::GetElementText(div_.get()).c_str());
 }
 
 TEST_F(GetElementTextTest, Uppercase) {
-  div_->style()->set_text_transform("uppercase");
+  div_->style()->set_text_transform("uppercase", NULL);
   AppendText("AbCdE fGhIj kl-mn-Op");
   EXPECT_STREQ("ABCDE FGHIJ KL-MN-OP",
                algorithms::GetElementText(div_.get()).c_str());

@@ -170,7 +170,7 @@ TEST_F(CSSFontFaceRuleTest, CSSTextSetter) {
   EXPECT_CALL(css_parser_, ParseFontFaceDeclarationList(css_text, _))
       .WillOnce(Return(scoped_refptr<CSSFontFaceDeclarationData>()));
 
-  font_face->set_css_text(css_text);
+  font_face->set_css_text(css_text, NULL);
 }
 
 TEST_F(CSSFontFaceRuleTest, CssTextGetter) {
@@ -207,7 +207,7 @@ TEST_F(CSSFontFaceRuleTest, CssTextGetter) {
   scoped_refptr<CSSFontFaceRule> font_face =
       new CSSFontFaceRule(font_face_data);
 
-  EXPECT_EQ(font_face->css_text(),
+  EXPECT_EQ(font_face->css_text(NULL),
             "font-family: 'youtube-icons'; "
             "src: local('Roboto'), "
             "url('../assets/icons.ttf') format('truetype'); "

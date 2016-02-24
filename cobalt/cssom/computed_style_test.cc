@@ -21,7 +21,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/calc_value.h"
-#include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
