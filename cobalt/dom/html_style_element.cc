@@ -19,6 +19,7 @@
 #include <string>
 
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 
@@ -55,12 +56,26 @@ scoped_refptr<HTMLStyleElement> HTMLStyleElement::AsHTMLStyleElement() {
 
 void HTMLStyleElement::Process() {
   Document* document = node_document();
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      document->html_element_context()->css_parser()->ParseStyleSheet(
-          text_content().value(), inline_style_location_);
-  style_sheet->SetLocationUrl(GURL(inline_style_location_.file_path));
-  document->style_sheets()->Append(style_sheet);
-  style_sheet_ = style_sheet;
+  CspDelegate* csp_delegate = document->csp_delegate();
+  // If the style element has a valid nonce, we always permit it.
+  const bool bypass_csp =
+      csp_delegate->IsValidNonce(CspDelegate::kStyle, nonce());
+
+  base::optional<std::string> content = text_content();
+  const std::string& text = content.value_or(EmptyString());
+  if (bypass_csp || text.empty() ||
+      csp_delegate->AllowInline(CspDelegate::kStyle, inline_style_location_,
+                                text)) {
+    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+        document->html_element_context()->css_parser()->ParseStyleSheet(
+            text, inline_style_location_);
+    style_sheet->SetLocationUrl(GURL(inline_style_location_.file_path));
+    document->style_sheets()->Append(style_sheet);
+    style_sheet_ = style_sheet;
+  } else {
+    // Report a violation.
+    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+  }
 }
 
 }  // namespace dom

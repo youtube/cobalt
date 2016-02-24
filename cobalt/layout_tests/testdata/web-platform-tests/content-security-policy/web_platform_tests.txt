@@ -49,7 +49,7 @@ blink-contrib-2/securitypolicyviolation-block-image.sub.html,PASS
 # FIXME: Hash enforcement
 blink-contrib-2/stylehash-allowed.sub.html,FAIL
 blink-contrib-2/stylehash-basic-blocked.sub.html,FAIL
-blink-contrib-2/stylehash-default-src.sub.html,PASS
+blink-contrib-2/stylehash-default-src.sub.html,FAIL
 
 # FIXME: window.getComputedStyle() is not a function
 blink-contrib-2/stylenonce-allowed.sub.html,FAIL
@@ -133,9 +133,9 @@ blink-contrib/injected-inline-style-blocked.sub.html,DISABLE
 blink-contrib/inline-style-allowed.sub.html,PASS
 blink-contrib/inline-style-allowed-while-cloning-objects.sub.html,FAIL
 blink-contrib/inline-style-attribute-allowed.sub.html,PASS
-blink-contrib/inline-style-attribute-blocked.sub.html,FAIL
+blink-contrib/inline-style-attribute-blocked.sub.html,PASS
 blink-contrib/inline-style-attribute-on-html.sub.html,PASS
-blink-contrib/inline-style-blocked.sub.html,FAIL
+blink-contrib/inline-style-blocked.sub.html,PASS
 
 # manifest-src not supported in CSP2.
 blink-contrib/manifest-src-allowed.sub.html,DISABLE
