@@ -5566,6 +5566,7 @@ xmlParseEntityDecl(xmlParserCtxtPtr ctxt) {
 		 */
 		if ((ctxt->myDoc == NULL) ||
 		    (xmlStrEqual(ctxt->myDoc->version, SAX_COMPAT_MODE))) {
+#if !defined(COBALT)
 		    if (ctxt->myDoc == NULL) {
 			ctxt->myDoc = xmlNewDoc(SAX_COMPAT_MODE);
 			if (ctxt->myDoc == NULL) {
@@ -5580,6 +5581,7 @@ xmlParseEntityDecl(xmlParserCtxtPtr ctxt) {
 
 		    xmlSAX2EntityDecl(ctxt, name, XML_INTERNAL_GENERAL_ENTITY,
 			              NULL, NULL, value);
+#endif  // !defined(COBALT)
 		}
 	    } else {
 	        URI = xmlParseExternalID(ctxt, &literal, 1);
