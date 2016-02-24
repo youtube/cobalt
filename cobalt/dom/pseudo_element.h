@@ -20,7 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/cssom/animation_set.h"
-#include "cobalt/cssom/computed_style_state.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/dom/css_animations_adapter.h"
@@ -50,16 +50,17 @@ class PseudoElement {
   // Used by layout engine to cache the computed values.
   // See https://www.w3.org/TR/css-cascade-3/#computed for the definition of
   // computed value.
-  scoped_refptr<cssom::ComputedStyleState>& computed_style_state() {
-    return computed_style_state_;
+  scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+  css_computed_style_declaration() {
+    return css_computed_style_declaration_;
   }
 
   scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() const {
-    return computed_style_state_->style();
+    return css_computed_style_declaration_->data();
   }
   void set_computed_style(
       scoped_refptr<cssom::CSSStyleDeclarationData> computed_style) {
-    computed_style_state_->set_style(computed_style);
+    css_computed_style_declaration_->set_data(computed_style);
   }
 
   cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
@@ -72,14 +73,14 @@ class PseudoElement {
   }
 
   HTMLElement* parent_element() { return parent_element_; }
-
   void ClearMatchingRules() { matching_rules_.clear(); }
 
  private:
   HTMLElement* parent_element_;
 
   scoped_refptr<web_animations::AnimationSet> animations_;
-  scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
+  scoped_refptr<cssom::CSSComputedStyleDeclaration>
+      css_computed_style_declaration_;
 
   base::optional<CSSTransitionsAdapter> transitions_adapter_;
   base::optional<cssom::TransitionSet> css_transitions_;

@@ -27,7 +27,8 @@
 #include "base/string_piece.h"
 #include "cobalt/base/token.h"
 #include "cobalt/cssom/animation_set.h"
-#include "cobalt/cssom/computed_style_state.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
+#include "cobalt/cssom/css_declared_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_transition_set.h"
@@ -97,7 +98,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Web API: ElementCSSInlineStyle (implements)
   //   https://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
-  const scoped_refptr<cssom::CSSStyleDeclaration>& style() { return style_; }
+  const scoped_refptr<cssom::CSSDeclaredStyleDeclaration>& style() {
+    return style_;
+  }
 
   // Web API: CSSOM View Module: Extensions to the Element Interface (partial
   // interface)
@@ -167,15 +170,16 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Used by layout engine to cache the computed values.
   // See https://www.w3.org/TR/css-cascade-3/#computed for the definition of
   // computed value.
-  scoped_refptr<cssom::ComputedStyleState>& computed_style_state() {
-    return computed_style_state_;
+  scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+  css_computed_style_declaration() {
+    return css_computed_style_declaration_;
   }
   scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() const {
-    return computed_style_state_->style();
+    return css_computed_style_declaration_->data();
   }
   void set_computed_style(
       scoped_refptr<cssom::CSSStyleDeclarationData> computed_style) {
-    computed_style_state_->set_style(computed_style);
+    css_computed_style_declaration_->set_data(computed_style);
   }
   // Updates the cached computed style of this element and its descendants.
   void UpdateComputedStyleRecursively(
@@ -247,13 +251,14 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // The inline style specified via attribute's in the element's HTML tag, or
   // through JavaScript (accessed via style() defined above).
-  scoped_refptr<cssom::CSSStyleDeclaration> style_;
+  scoped_refptr<cssom::CSSDeclaredStyleDeclaration> style_;
 
   // Keeps track of whether the HTML element's current computed style is out
   // of date or not.
   bool computed_style_valid_;
 
-  scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
+  scoped_refptr<cssom::CSSComputedStyleDeclaration>
+      css_computed_style_declaration_;
 
   dom::CSSTransitionsAdapter transitions_adapter_;
   cssom::TransitionSet css_transitions_;

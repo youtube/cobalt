@@ -45,14 +45,15 @@ const float kFallbackWidth = 300.0f;
 }  // namespace
 
 ReplacedBox::ReplacedBox(
-    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+        css_computed_style_declaration,
     const ReplaceImageCB& replace_image_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
     const base::optional<float>& maybe_intrinsic_width,
     const base::optional<float>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider)
-    : Box(computed_style_state, used_style_provider),
+    : Box(css_computed_style_declaration, used_style_provider),
       maybe_intrinsic_width_(maybe_intrinsic_width),
       maybe_intrinsic_height_(maybe_intrinsic_height),
       // Like Chromium, we assume that an element must always have an intrinsic

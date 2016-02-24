@@ -664,7 +664,7 @@ TEST_F(HTMLElementTest,
       .WillOnce(InvokeCallback0(base::Bind(
           &cssom::CSSStyleDeclarationData::set_display,
           base::Unretained(style.get()), cssom::KeywordValue::GetInline())));
-  html_element->style()->SetPropertyValue("display", "inline");
+  html_element->style()->SetPropertyValue("display", "inline", NULL);
 
   EXPECT_NE(kFooBarDeclarationString,
             html_element->GetAttribute("style").value());
@@ -686,7 +686,7 @@ TEST_F(HTMLElementTest,
       .WillOnce(InvokeCallback0(base::Bind(
           &cssom::CSSStyleDeclarationData::set_display,
           base::Unretained(style.get()), cssom::KeywordValue::GetInline())));
-  html_element->style()->SetPropertyValue("display", "inline");
+  html_element->style()->SetPropertyValue("display", "inline", NULL);
 
   EXPECT_EQ(kDisplayInlineDeclarationString,
             html_element->GetAttribute("style").value());

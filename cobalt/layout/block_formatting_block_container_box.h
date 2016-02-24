@@ -28,7 +28,8 @@ namespace layout {
 class BlockFormattingBlockContainerBox : public BlockContainerBox {
  public:
   BlockFormattingBlockContainerBox(
-      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+      const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+          css_computed_style_declaration,
       UsedStyleProvider* used_style_provider);
 
   // From |ContainerBox|.
@@ -65,7 +66,8 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
 class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
  public:
   BlockLevelBlockContainerBox(
-      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+      const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+          css_computed_style_declaration,
       UsedStyleProvider* used_style_provider);
   ~BlockLevelBlockContainerBox() OVERRIDE;
 
@@ -93,7 +95,8 @@ class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
  public:
   InlineLevelBlockContainerBox(
-      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+      const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+          css_computed_style_declaration,
       const scoped_refptr<Paragraph>& paragraph, int32 text_position,
       UsedStyleProvider* used_style_provider);
   ~InlineLevelBlockContainerBox() OVERRIDE;

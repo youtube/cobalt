@@ -168,9 +168,9 @@ void RGBAColorValue::Accept(PropertyValueVisitor* visitor) {
 
 std::string RGBAColorValue::ToString() const {
   if (a() >= 255.0) {
-    return base::StringPrintf("rgb(%u,%u,%u)", r(), g(), b());
+    return base::StringPrintf("rgb(%u, %u, %u)", r(), g(), b());
   } else {
-    return base::StringPrintf("rgba(%u,%u,%u,%.7g)", r(), g(), b(),
+    return base::StringPrintf("rgba(%u, %u, %u, %.7g)", r(), g(), b(),
                               a() / 255.0);
   }
 }

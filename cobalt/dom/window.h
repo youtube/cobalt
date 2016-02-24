@@ -25,9 +25,11 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/crypto.h"
 #include "cobalt/dom/csp_delegate_type.h"
+#include "cobalt/dom/element.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/media_source.h"
@@ -66,7 +68,7 @@ class Screen;
 class Storage;
 class WindowTimers;
 
-// The window object represents a window containing a DOM document.
+// Thii  e window object represents a window containing a DOM document.
 //   https://www.w3.org/TR/html5/browsers.html#the-window-object
 //
 // TODO(***REMOVED***): Properly handle viewport resolution change event.
@@ -106,6 +108,13 @@ class Window : public EventTarget {
   const scoped_refptr<History>& history() const;
   scoped_refptr<Location> location() const;
   const scoped_refptr<Navigator>& navigator() const;
+
+  // Returns the computed style of the given element, as described in
+  // https://www.w3.org/TR/2013/WD-cssom-20131205/#dom-window-getcomputedstyle.
+  scoped_refptr<cssom::CSSStyleDeclaration> GetComputedStyle(
+      const scoped_refptr<Element>& elt);
+  scoped_refptr<cssom::CSSStyleDeclaration> GetComputedStyle(
+      const scoped_refptr<Element>& elt, const std::string& pseudoElt);
 
   // TODO(b/20952738): Should be WindowProxy
   scoped_refptr<Window> opener() { return this; }

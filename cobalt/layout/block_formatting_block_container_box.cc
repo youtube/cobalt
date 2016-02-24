@@ -28,9 +28,10 @@ namespace cobalt {
 namespace layout {
 
 BlockFormattingBlockContainerBox::BlockFormattingBlockContainerBox(
-    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+        css_computed_style_declaration,
     UsedStyleProvider* used_style_provider)
-    : BlockContainerBox(computed_style_state, used_style_provider) {}
+    : BlockContainerBox(css_computed_style_declaration, used_style_provider) {}
 
 bool BlockFormattingBlockContainerBox::TryAddChild(
     const scoped_refptr<Box>& child_box) {
@@ -91,13 +92,16 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
       anonymous_block_box->HasTrailingLineBreak()) {
     // TODO(***REMOVED***): Determine which animations to propagate to the
     //               anonymous block box, instead of none at all.
-    scoped_refptr<cssom::ComputedStyleState> computed_style_state =
-        new cssom::ComputedStyleState();
-    computed_style_state->set_style(
+    scoped_refptr<cssom::CSSComputedStyleDeclaration>
+        css_computed_style_declaration =
+            new cssom::CSSComputedStyleDeclaration();
+    css_computed_style_declaration->set_data(
         GetComputedStyleOfAnonymousBox(computed_style()));
-    computed_style_state->set_animations(new web_animations::AnimationSet());
+    css_computed_style_declaration->set_animations(
+        new web_animations::AnimationSet());
     scoped_refptr<AnonymousBlockBox> new_anonymous_block_box(
-        new AnonymousBlockBox(computed_style_state, used_style_provider()));
+        new AnonymousBlockBox(css_computed_style_declaration,
+                              used_style_provider()));
     anonymous_block_box = new_anonymous_block_box.get();
     PushBackDirectChild(new_anonymous_block_box);
   }
@@ -105,9 +109,10 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
 }
 
 BlockLevelBlockContainerBox::BlockLevelBlockContainerBox(
-    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+        css_computed_style_declaration,
     UsedStyleProvider* used_style_provider)
-    : BlockFormattingBlockContainerBox(computed_style_state,
+    : BlockFormattingBlockContainerBox(css_computed_style_declaration,
                                        used_style_provider) {}
 
 BlockLevelBlockContainerBox::~BlockLevelBlockContainerBox() {}
@@ -123,10 +128,11 @@ void BlockLevelBlockContainerBox::DumpClassName(std::ostream* stream) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
-    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+        css_computed_style_declaration,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
     UsedStyleProvider* used_style_provider)
-    : BlockFormattingBlockContainerBox(computed_style_state,
+    : BlockFormattingBlockContainerBox(css_computed_style_declaration,
                                        used_style_provider),
       paragraph_(paragraph),
       text_position_(text_position),

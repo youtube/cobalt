@@ -50,16 +50,16 @@ blink-contrib-2/stylehash-allowed.sub.html,FAIL
 blink-contrib-2/stylehash-basic-blocked.sub.html,FAIL
 blink-contrib-2/stylehash-default-src.sub.html,FAIL
 
-# FIXME: window.getComputedStyle() is not a function
-blink-contrib-2/stylenonce-allowed.sub.html,FAIL
+blink-contrib-2/stylenonce-allowed.sub.html,PASS
+
+# FIXME: <link> not loaded or processed or incorrect priority.
 blink-contrib-2/stylenonce-blocked.sub.html,FAIL
 
 # FIXME: Report is not sent?
 blink-contrib/blob-urls-do-not-match-self.sub.html,FAIL
 blink-contrib/blob-urls-match-blob.sub.html,FAIL
 
-# FIXME: window.getComputedStyle() is not a function
-blink-contrib/combine-header-and-meta-policies.sub.html,FAIL
+blink-contrib/combine-header-and-meta-policies.sub.html,PASS
 
 # Beacons and event sources are not supported.
 blink-contrib/connect-src-beacon-allowed.sub.html,DISABLE
@@ -256,8 +256,9 @@ script-src/script-src-1_4_2.html,PASS
 # eval() should not run without 'unsafe-eval' script-src directive
 script-src/script-src-1_4.html,PASS
 
-# FIXME: Can't find variable getComputedStyle
-style-src/style-src-3_1.html,FAIL
-style-src/style-src-3_2.html,FAIL
-style-src/style-src-3_3.html,FAIL
-style-src/style-src-3_4.html,FAIL
+style-src/style-src-3_1.html,PASS
+style-src/style-src-3_2.html,PASS
+style-src/style-src-3_3.html,PASS
+
+# @import rules are not supported
+style-src/style-src-3_4.html,DISABLE

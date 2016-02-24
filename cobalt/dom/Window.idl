@@ -23,6 +23,8 @@
   [PutForwards=href, Unforgeable] readonly attribute Location location;
   readonly attribute Navigator navigator;
 
+  [NewObject] CSSStyleDeclaration getComputedStyle(Element elt, optional DOMString pseudoElt);
+
   // TODO(b/20952738): Should be WindowProxy
   readonly attribute Window opener;
   readonly attribute Window parent;

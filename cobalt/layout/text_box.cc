@@ -32,21 +32,22 @@
 namespace cobalt {
 namespace layout {
 
-TextBox::TextBox(
-    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-    const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
-    int32 text_end_position, bool has_trailing_line_break,
-    UsedStyleProvider* used_style_provider)
-    : Box(computed_style_state, used_style_provider),
+TextBox::TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+                     css_computed_style_declaration,
+                 const scoped_refptr<Paragraph>& paragraph,
+                 int32 text_start_position, int32 text_end_position,
+                 bool has_trailing_line_break,
+                 UsedStyleProvider* used_style_provider)
+    : Box(css_computed_style_declaration, used_style_provider),
       paragraph_(paragraph),
       text_start_position_(text_start_position),
       text_end_position_(text_end_position),
       truncated_text_end_position_(text_end_position),
       used_font_(used_style_provider->GetUsedFontList(
-          computed_style_state->style()->font_family(),
-          computed_style_state->style()->font_size(),
-          computed_style_state->style()->font_style(),
-          computed_style_state->style()->font_weight())),
+          css_computed_style_declaration->data()->font_family(),
+          css_computed_style_declaration->data()->font_size(),
+          css_computed_style_declaration->data()->font_style(),
+          css_computed_style_declaration->data()->font_weight())),
       text_has_leading_white_space_(false),
       text_has_trailing_white_space_(false),
       should_collapse_leading_white_space_(false),
@@ -357,8 +358,9 @@ void TextBox::RenderAndAnimateContent(
       border_node_builder->AddChild(text_node);
       if (is_color_animated) {
         AddAnimations<render_tree::TextNode>(
-            base::Bind(&SetupTextNodeFromStyle), *computed_style_state(),
-            text_node, node_animations_map_builder);
+            base::Bind(&SetupTextNodeFromStyle),
+            *css_computed_style_declaration(), text_node,
+            node_animations_map_builder);
       }
     }
   }
@@ -482,7 +484,7 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   update_size_results_valid_ = false;
 
   scoped_refptr<Box> box_after_split(new TextBox(
-      computed_style_state(), paragraph_, split_start_position,
+      css_computed_style_declaration(), paragraph_, split_start_position,
       split_end_position, has_trailing_line_break_, used_style_provider()));
 
   // TODO(***REMOVED***): Set the text width of the box after split to
