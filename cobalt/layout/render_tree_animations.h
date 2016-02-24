@@ -21,7 +21,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "cobalt/cssom/computed_style_state.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/web_animations/animation_set.h"
 #include "cobalt/web_animations/baked_animation_set.h"
@@ -68,21 +68,22 @@ void AnimateNode(
 // the animations to the passed in NodeAnimationsMap.  The animation will
 // target the passed in render tree node.
 template <typename T>
-void AddAnimations(const typename ApplyStyleToRenderTreeNode<T>::Function&
-                       apply_style_function,
-                   const cssom::ComputedStyleState& computed_style_state,
-                   const scoped_refptr<T>& target_node,
-                   render_tree::animations::NodeAnimationsMap::Builder*
-                       node_animation_map_builder) {
-  DCHECK(!computed_style_state.animations()->IsEmpty());
+void AddAnimations(
+    const typename ApplyStyleToRenderTreeNode<T>::Function&
+        apply_style_function,
+    const cssom::CSSComputedStyleDeclaration& css_computed_style_declaration,
+    const scoped_refptr<T>& target_node,
+    render_tree::animations::NodeAnimationsMap::Builder*
+        node_animation_map_builder) {
+  DCHECK(!css_computed_style_declaration.animations()->IsEmpty());
   scoped_refptr<cssom::CSSStyleDeclarationData> base_style_copy =
       new cssom::CSSStyleDeclarationData();
-  base_style_copy->AssignFrom(*computed_style_state.style());
+  base_style_copy->AssignFrom(*css_computed_style_declaration.data());
 
   node_animation_map_builder->Add(
       target_node, base::Bind(&AnimateNode<T>, apply_style_function,
                               web_animations::BakedAnimationSet(
-                                  *computed_style_state.animations()),
+                                  *css_computed_style_declaration.animations()),
                               base_style_copy));
 }
 

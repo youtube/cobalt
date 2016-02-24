@@ -39,14 +39,14 @@ class ReplacedBox : public Box {
  public:
   typedef base::Callback<scoped_refptr<render_tree::Image>()> ReplaceImageCB;
 
-  ReplacedBox(
-      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-      const ReplaceImageCB& replace_image_cb,
-      const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-      const base::optional<float>& maybe_intrinsic_width,
-      const base::optional<float>& maybe_intrinsic_height,
-      const base::optional<float>& maybe_intrinsic_ratio,
-      UsedStyleProvider* used_style_provider);
+  ReplacedBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+                  css_computed_style_declaration,
+              const ReplaceImageCB& replace_image_cb,
+              const scoped_refptr<Paragraph>& paragraph, int32 text_position,
+              const base::optional<float>& maybe_intrinsic_width,
+              const base::optional<float>& maybe_intrinsic_height,
+              const base::optional<float>& maybe_intrinsic_ratio,
+              UsedStyleProvider* used_style_provider);
 
   // From |Box|.
   scoped_refptr<Box> TrySplitAt(float available_width,

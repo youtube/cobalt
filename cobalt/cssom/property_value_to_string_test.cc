@@ -180,8 +180,8 @@ TEST(PropertyValueToStringTest, RadialGradientValueSizeKeyword) {
       position_property, color_stop_list.Pass()));
 
   EXPECT_EQ(property->ToString(),
-            "ellipse closest-corner at 50% 128px, rgb(100,0,50) 212px, "
-            "rgb(55,66,77) 42px");
+            "ellipse closest-corner at 50% 128px, rgb(100, 0, 50) 212px, "
+            "rgb(55, 66, 77) 42px");
 }
 
 TEST(PropertyValueToStringTest, RadialGradientValueSizeValue) {
@@ -214,9 +214,9 @@ TEST(PropertyValueToStringTest, RadialGradientValueSizeValue) {
       new RadialGradientValue(RadialGradientValue::kCircle, size_property,
                               position_property, color_stop_list.Pass()));
 
-  EXPECT_EQ(
-      property->ToString(),
-      "circle 0.5em at center top, rgb(100,0,50) 212px, rgb(55,66,77) 42px");
+  EXPECT_EQ(property->ToString(),
+            "circle 0.5em at center top, rgb(100, 0, 50) 212px, rgb(55, 66, "
+            "77) 42px");
 }
 
 TEST(PropertyValueToStringTest, RatioValue) {
@@ -232,13 +232,13 @@ TEST(PropertyValueToStringTest, ResolutionValue) {
 
 TEST(PropertyValueToStringTest, RGBColorValue) {
   scoped_refptr<RGBAColorValue> property(new RGBAColorValue(123, 99, 255, 255));
-  EXPECT_EQ(property->ToString(), "rgb(123,99,255)");
+  EXPECT_EQ(property->ToString(), "rgb(123, 99, 255)");
 }
 
 TEST(PropertyValueToStringTest, RGBAColorValue) {
   scoped_refptr<RGBAColorValue> property(new RGBAColorValue(53, 35, 192, 64));
   // Note: The alpha value of 64 specifies an alpha of 64/255 = 0.2509804.
-  EXPECT_EQ(property->ToString(), "rgba(53,35,192,0.2509804)");
+  EXPECT_EQ(property->ToString(), "rgba(53, 35, 192, 0.2509804)");
 }
 
 TEST(PropertyValueToStringTest, LinearGradientValueAngle) {
@@ -258,7 +258,7 @@ TEST(PropertyValueToStringTest, LinearGradientValueAngle) {
       new LinearGradientValue(123.0f, color_stop_list.Pass()));
 
   EXPECT_EQ(property->ToString(),
-            "123rad, rgb(100,0,50) 212px, rgb(55,66,77) 42px");
+            "123rad, rgb(100, 0, 50) 212px, rgb(55, 66, 77) 42px");
 }
 
 TEST(PropertyValueToStringTest, LinearGradientValueSideOrCorner) {
@@ -278,7 +278,7 @@ TEST(PropertyValueToStringTest, LinearGradientValueSideOrCorner) {
       LinearGradientValue::kBottom, color_stop_list.Pass()));
 
   EXPECT_EQ(property->ToString(),
-            "to bottom, rgb(100,0,50) 212px, rgb(55,66,77) 42px");
+            "to bottom, rgb(100, 0, 50) 212px, rgb(55, 66, 77) 42px");
 }
 
 TEST(PropertyValueToStringTest, StringValue) {

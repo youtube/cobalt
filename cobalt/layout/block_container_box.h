@@ -39,9 +39,9 @@ class FormattingContext;
 //   https://www.w3.org/TR/CSS21/visuren.html#inline-boxes
 class BlockContainerBox : public ContainerBox {
  public:
-  BlockContainerBox(
-      const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
-      UsedStyleProvider* used_style_provider);
+  BlockContainerBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+                        css_computed_style_declaration,
+                    UsedStyleProvider* used_style_provider);
   ~BlockContainerBox() OVERRIDE;
 
   // From |Box|.

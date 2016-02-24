@@ -18,7 +18,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/cssom/computed_style.h"
-#include "cobalt/cssom/computed_style_state.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -99,9 +99,9 @@ scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
   PropagateBackgroundStyleToInitialStyle(
       document, initial_containing_block_style);
 
-  scoped_refptr<cssom::ComputedStyleState> initial_style_state =
-      new cssom::ComputedStyleState();
-  initial_style_state->set_style(initial_containing_block_style);
+  scoped_refptr<cssom::CSSComputedStyleDeclaration> initial_style_state =
+      new cssom::CSSComputedStyleDeclaration();
+  initial_style_state->set_data(initial_containing_block_style);
   initial_style_state->set_animations(new web_animations::AnimationSet());
   return make_scoped_refptr(new BlockLevelBlockContainerBox(
       initial_style_state, used_style_provider));

@@ -16,8 +16,8 @@
 
 #include "cobalt/cssom/css_style_rule.h"
 
+#include "cobalt/cssom/css_rule_style_declaration.h"
 #include "cobalt/cssom/css_rule_visitor.h"
-#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
@@ -26,7 +26,7 @@ namespace cssom {
 CSSStyleRule::CSSStyleRule() : added_to_selector_tree_(false) {}
 
 CSSStyleRule::CSSStyleRule(Selectors selectors,
-                           const scoped_refptr<CSSStyleDeclaration>& style)
+                           const scoped_refptr<CSSRuleStyleDeclaration>& style)
     : selectors_(selectors.Pass()),
       style_(style),
       added_to_selector_tree_(false) {
@@ -35,20 +35,22 @@ CSSStyleRule::CSSStyleRule(Selectors selectors,
   }
 }
 
-const scoped_refptr<CSSStyleDeclaration>& CSSStyleRule::style() const {
+const scoped_refptr<CSSStyleDeclaration> CSSStyleRule::style() const {
   return style_;
 }
 
-std::string CSSStyleRule::css_text() const {
-  return style_ ? style_->css_text() : "";
+std::string CSSStyleRule::css_text(
+    script::ExceptionState* exception_state) const {
+  return style_ ? style_->css_text(exception_state) : "";
 }
 
-void CSSStyleRule::set_css_text(const std::string& css_text) {
+void CSSStyleRule::set_css_text(const std::string& css_text,
+                                script::ExceptionState* exception_state) {
   if (!style_) {
     DCHECK(parent_style_sheet());
-    style_ = new CSSStyleDeclaration(parent_style_sheet()->css_parser());
+    style_ = new CSSRuleStyleDeclaration(parent_style_sheet()->css_parser());
   }
-  style_->set_css_text(css_text);
+  style_->set_css_text(css_text, exception_state);
   style_->set_parent_rule(this);
 }
 

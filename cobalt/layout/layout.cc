@@ -75,7 +75,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
         new Paragraph(line_break_iterator, character_break_iterator,
                       Paragraph::kLeftToRightBaseDirection));
     BoxGenerator root_box_generator(
-        (*initial_containing_block)->computed_style_state(),
+        (*initial_containing_block)->css_computed_style_declaration(),
         used_style_provider, line_break_iterator, character_break_iterator,
         &(scoped_paragraph.get()));
     document->html()->Accept(&root_box_generator);

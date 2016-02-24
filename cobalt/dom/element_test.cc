@@ -539,10 +539,10 @@ TEST_F(ElementTest, OuterHTML) {
       "  <element_b1 just_key></element_b1>\n"
       "  <element_b2>Text</element_b2>\n"
       "</element_a></root>";
-  EXPECT_EQ(kExpectedHTML, root->outer_html());
+  EXPECT_EQ(kExpectedHTML, root->outer_html(NULL));
 
   // Setting outer HTML should remove the node from its parent.
-  element_a->set_outer_html("");
+  element_a->set_outer_html("", NULL);
   EXPECT_FALSE(root->HasChildNodes());
 
   // After setting valid HTML, check whether the children are set up correctly.
@@ -571,7 +571,7 @@ TEST_F(ElementTest, OuterHTML) {
       "  This is the second div under root.\n"
       "  <!--Comment-->\n"
       "</div>";
-  root->first_element_child()->set_outer_html(kAnotherHTML);
+  root->first_element_child()->set_outer_html(kAnotherHTML, NULL);
   EXPECT_EQ(2, root->child_element_count());
   EXPECT_EQ(3, root->child_nodes()->length());
   ASSERT_TRUE(root->first_child());

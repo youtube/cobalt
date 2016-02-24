@@ -23,7 +23,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "cobalt/cssom/computed_style_state.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/layout/math.h"
@@ -105,7 +105,8 @@ class Box : public base::RefCounted<Box> {
     kInlineLevel,
   };
 
-  Box(const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+  Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+          css_computed_style_declaration,
       UsedStyleProvider* used_style_provider);
   virtual ~Box();
 
@@ -115,20 +116,21 @@ class Box : public base::RefCounted<Box> {
   // or hard-to-parallelize operations, such as resolving network requests or
   // retrieving values other than from the element and its parent.
   //   https://www.w3.org/TR/css-cascade-3/#computed
-  const scoped_refptr<cssom::ComputedStyleState>& computed_style_state() const {
-    return computed_style_state_;
+  const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+  css_computed_style_declaration() const {
+    return css_computed_style_declaration_;
   }
 
-  const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style()
+  const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style()
       const {
-    return computed_style_state_->style();
+    return css_computed_style_declaration_->data();
   }
 
   // The animation set specifies all currently active animations appyling
   // to this box's computed_style() CSS Style Declaration.
   //   https://w3c.github.io/web-animations
   const web_animations::AnimationSet* animations() const {
-    return computed_style_state_->animations();
+    return css_computed_style_declaration_->animations();
   }
 
   // Specifies the formatting context in which the box should participate.
@@ -549,10 +551,12 @@ class Box : public base::RefCounted<Box> {
           node_animations_map_builder,
       const math::Vector2dF& border_node_offset) const;
 
-  // The computed_style_state_ member references the cssom::ComputedStyleState
+  // The css_computed_style_declaration_ member references the
+  // cssom::CSSComputedStyleDeclaration
   // object owned
   // by the HTML Element from which this box is derived.
-  const scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
+  const scoped_refptr<cssom::CSSComputedStyleDeclaration>
+      css_computed_style_declaration_;
   UsedStyleProvider* const used_style_provider_;
 
 #ifdef COBALT_BOX_DUMP_ENABLED

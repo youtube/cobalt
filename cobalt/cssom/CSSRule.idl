@@ -32,7 +32,7 @@ interface CSSRule {
   const unsigned short MARGIN_RULE = 9;
   const unsigned short NAMESPACE_RULE = 10;
   readonly attribute unsigned short type;
-  [TreatNullAs=EmptyString] attribute DOMString cssText;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString cssText;
   readonly attribute CSSRule? parentRule;
   readonly attribute CSSStyleSheet? parentStyleSheet;
 };

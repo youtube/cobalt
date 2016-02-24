@@ -22,6 +22,7 @@
 #include "base/bind_helpers.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/user_agent_style_sheet.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
@@ -29,6 +30,7 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/history.h"
+#include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
@@ -133,6 +135,58 @@ scoped_refptr<Location> Window::location() const {
 }
 
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
+
+scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
+    const scoped_refptr<Element>& elt) {
+  scoped_refptr<HTMLElement> html_element = elt->AsHTMLElement();
+  if (html_element) {
+    document_->UpdateComputedStyles();
+    return html_element->css_computed_style_declaration();
+  }
+  return NULL;
+}
+
+scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
+    const scoped_refptr<Element>& elt, const std::string& pseudoElt) {
+  // The getComputedStyle(elt, pseudoElt) method must run these steps:
+  // https://www.w3.org/TR/2013/WD-cssom-20131205/#dom-window-getcomputedstyle
+
+  // 1. Let doc be the Document associated with the Window object on which the
+  // method was invoked.
+  DCHECK_EQ(document_, elt->owner_document())
+      << "getComputedStyle not supported for elements outside of the document";
+
+  scoped_refptr<HTMLElement> html_element = elt->AsHTMLElement();
+  scoped_refptr<cssom::CSSComputedStyleDeclaration> obj;
+  if (html_element) {
+    document_->UpdateComputedStyles();
+
+    // 2. Let obj be elt.
+    obj = html_element->css_computed_style_declaration();
+
+    // 3. If pseudoElt is as an ASCII case-insensitive match for either
+    // ':before' or '::before' let obj be the ::before pseudo-element of elt.
+    if (LowerCaseEqualsASCII(pseudoElt, ":before") ||
+        LowerCaseEqualsASCII(pseudoElt, "::before")) {
+      PseudoElement* pseudo_element =
+          html_element->pseudo_element(kBeforePseudoElementType);
+      obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
+                           : NULL;
+    }
+
+    // 4. If pseudoElt is as an ASCII case-insensitive match for either ':after'
+    // or '::after' let obj be the ::after pseudo-element of elt.
+    if (LowerCaseEqualsASCII(pseudoElt, ":after") ||
+        LowerCaseEqualsASCII(pseudoElt, "::after")) {
+      PseudoElement* pseudo_element =
+          html_element->pseudo_element(kAfterPseudoElementType);
+      obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
+                           : NULL;
+    }
+  }
+  // 5. Return a live CSS declaration block.
+  return obj;
+}
 
 int32 Window::RequestAnimationFrame(
     const AnimationFrameRequestCallbackList::FrameRequestCallbackArg&

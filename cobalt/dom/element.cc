@@ -23,6 +23,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/dom_token_list.h"
@@ -412,7 +413,8 @@ void Element::set_inner_html(const std::string& inner_html) {
 
 // Algorithm for outer_html:
 //   https://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
-std::string Element::outer_html() const {
+std::string Element::outer_html(
+    script::ExceptionState* /*exception_state*/) const {
   std::ostringstream oss;
   Serializer serializer(&oss);
   serializer.Serialize(this);
@@ -421,7 +423,8 @@ std::string Element::outer_html() const {
 
 // Algorithm for set_outer_html:
 //   https://www.w3.org/TR/DOM-Parsing/#widl-Element-outerHTML
-void Element::set_outer_html(const std::string& outer_html) {
+void Element::set_outer_html(const std::string& outer_html,
+                             script::ExceptionState* exception_state) {
   // 1. Let parent be the context object's parent.
   scoped_refptr<Node> parent = parent_node();
 
@@ -435,7 +438,7 @@ void Element::set_outer_html(const std::string& outer_html) {
   // 3. If parent is a Document, throw a DOMException with name
   // "NoModificationAllowedError" exception.
   if (parent->IsDocument()) {
-    // TODO(***REMOVED***): Throw JS NoModificationAllowedError.
+    DOMException::Raise(dom::DOMException::kInvalidAccessErr, exception_state);
     return;
   }
 
