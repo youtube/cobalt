@@ -379,8 +379,18 @@ base::optional<std::string> HTMLElement::GetStyleAttribute() const {
 }
 
 void HTMLElement::SetStyleAttribute(const std::string& value) {
-  style_->set_css_text(value);
-  Element::SetStyleAttribute(value);
+  Document* document = node_document();
+  CspDelegate* csp_delegate = document->csp_delegate();
+  if (value.empty() ||
+      csp_delegate->AllowInline(
+          CspDelegate::kStyle,
+          base::SourceLocation(GetSourceLocationName(), 1, 1), value)) {
+    style_->set_css_text(value);
+    Element::SetStyleAttribute(value);
+  } else {
+    // Report a violation.
+    PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+  }
 }
 
 void HTMLElement::RemoveStyleAttribute() {
