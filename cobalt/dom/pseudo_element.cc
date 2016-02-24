@@ -24,9 +24,10 @@ namespace dom {
 PseudoElement::PseudoElement(HTMLElement* parent_element)
     : parent_element_(parent_element),
       animations_(new web_animations::AnimationSet()),
-      computed_style_state_(new cssom::ComputedStyleState()) {
+      css_computed_style_declaration_(
+          new cssom::CSSComputedStyleDeclaration()) {
   DCHECK(parent_element_);
-  computed_style_state_->set_animations(animations_);
+  css_computed_style_declaration_->set_animations(animations_);
 
   transitions_adapter_.emplace(new DOMAnimatable(this));
   css_transitions_.emplace(&transitions_adapter_.value());

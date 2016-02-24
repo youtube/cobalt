@@ -140,7 +140,7 @@ std::string GetSource(dom::Window* window) {
   DCHECK(window);
   DCHECK(window->document());
   DCHECK(window->document()->document_element());
-  return window->document()->document_element()->outer_html();
+  return window->document()->document_element()->outer_html(NULL);
 }
 
 }  // namespace

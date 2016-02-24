@@ -18,7 +18,7 @@
 
 #include "cobalt/cssom/css_font_face_rule.h"
 #include "cobalt/cssom/css_media_rule.h"
-#include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_rule_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,7 +31,7 @@ TEST(CSSRuleListTest, ItemAccess) {
   ASSERT_FALSE(rule_list->Item(0));
 
   scoped_refptr<CSSStyleRule> rule =
-      new CSSStyleRule(Selectors(), new CSSStyleDeclaration(NULL));
+      new CSSStyleRule(Selectors(), new CSSRuleStyleDeclaration(NULL));
   rule_list->AppendCSSRule(rule);
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));

@@ -45,8 +45,9 @@ class CSSKeyframesRule : public CSSRule {
 
   // Web API: CSSRule
   Type type() const OVERRIDE { return kKeyframesRule; }
-  std::string css_text() const OVERRIDE;
-  void set_css_text(const std::string& css_text) OVERRIDE;
+  std::string css_text(script::ExceptionState* exception_state) const OVERRIDE;
+  void set_css_text(const std::string& css_text,
+                    script::ExceptionState* exception_state) OVERRIDE;
 
   // Web API: CSSKeyframesRule
   //

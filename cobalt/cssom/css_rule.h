@@ -23,6 +23,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -57,8 +58,10 @@ class CSSRule : public script::Wrappable,
   };
   virtual Type type() const = 0;
 
-  virtual std::string css_text() const = 0;
-  virtual void set_css_text(const std::string &css_text) = 0;
+  virtual std::string css_text(
+      script::ExceptionState *exception_state) const = 0;
+  virtual void set_css_text(const std::string &css_text,
+                            script::ExceptionState *exception_state) = 0;
 
   scoped_refptr<CSSRule> parent_rule() const;
 

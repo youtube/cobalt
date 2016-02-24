@@ -27,6 +27,8 @@ const char* GetErrorName(DOMException::ExceptionCode code) {
       return "";
     case DOMException::kIndexSizeErr:
       return "IndexSizeError";
+    case DOMException::kNoModificationAllowedError:
+      return "NoModificationAllowedError";
     case DOMException::kNotFoundErr:
       return "NotFoundError";
     case DOMException::kNotSupportedErr:
@@ -43,6 +45,8 @@ const char* GetErrorName(DOMException::ExceptionCode code) {
       return "SecurityError";
     case DOMException::kQuotaExceededErr:
       return "QuotaExceededError";
+    case DOMException::kReadOnlyErr:
+      return "ReadOnlyError";
   }
   NOTREACHED();
   return "";

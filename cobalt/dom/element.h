@@ -27,6 +27,7 @@
 #include "cobalt/base/token.h"
 #include "cobalt/dom/event_listener.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/web_animations/animation_set.h"
 
 namespace cobalt {
@@ -113,8 +114,9 @@ class Element : public Node {
   //
   std::string inner_html() const;
   void set_inner_html(const std::string& inner_html);
-  std::string outer_html() const;
-  void set_outer_html(const std::string& outer_html);
+  std::string outer_html(script::ExceptionState* exception_state) const;
+  void set_outer_html(const std::string& outer_html,
+                      script::ExceptionState* exception_state);
 
   // Web API: Selectors API (partial interface)
   //   https://www.w3.org/TR/selectors-api2/#interface-definitions

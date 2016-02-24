@@ -18,8 +18,8 @@
 
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_rule_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/length_value.h"
@@ -80,7 +80,7 @@ TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
   ASSERT_FALSE(rule_list->Item(0).get());
 
   scoped_refptr<CSSStyleRule> rule =
-      new CSSStyleRule(Selectors(), new CSSStyleDeclaration(NULL));
+      new CSSStyleRule(Selectors(), new CSSRuleStyleDeclaration(NULL));
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
   rule_list->AppendCSSRule(rule);
