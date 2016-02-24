@@ -17,7 +17,8 @@
 // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/
 [
     Constructor,
-    ConstructorCallWith=EnvironmentSettings
+    ConstructorCallWith=EnvironmentSettings,
+    AddOpaqueRoots=("upload_or_null","response_array_buffer_or_null"),
 ] interface XMLHttpRequest : XMLHttpRequestEventTarget {
 
     // values for readyState.

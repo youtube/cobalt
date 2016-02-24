@@ -157,6 +157,12 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   void OnURLFetchUploadProgress(const net::URLFetcher* source, int64 current,
                                 int64 total) OVERRIDE;
 
+  // Called from bindings layer to tie objects' lifetimes to this XHR instance.
+  XMLHttpRequestUpload* upload_or_null() { return upload_.get(); }
+  dom::ArrayBuffer* response_array_buffer_or_null() {
+    return response_array_buffer_.get();
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const XMLHttpRequest& xhr);
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequest);
 
