@@ -29,7 +29,8 @@ typedef InterfaceBindingsTest<GetOpaqueRootInterface>
 }  // namespace
 
 TEST_F(GetOpaqueRootInterfaceTest, CallsFunction) {
-  EXPECT_CALL(test_mock(), get_opaque_root_function_name());
+  EXPECT_CALL(test_mock(), add_opaque_root_function_name())
+      .Times(::testing::AtLeast(1));
   CollectGarbage();
 }
 
