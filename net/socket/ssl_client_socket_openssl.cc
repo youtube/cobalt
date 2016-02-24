@@ -41,7 +41,11 @@ namespace {
 
 const size_t kMaxRecvBufferSize = 4096;
 const int kSessionCacheTimeoutSeconds = 60 * 60;
+#if defined(COBALT)
+const size_t kSessionCacheMaxEntires = 128;
+#else
 const size_t kSessionCacheMaxEntires = 1024;
+#endif  // if defined(COBALT)
 
 // If a client doesn't have a list of protocols that it supports, but
 // the server supports NPN, choosing "http/1.1" is the best answer.
