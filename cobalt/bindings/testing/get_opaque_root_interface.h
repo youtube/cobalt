@@ -27,6 +27,7 @@ namespace testing {
 class GetOpaqueRootInterface : public script::Wrappable {
  public:
   MOCK_METHOD0(get_opaque_root_function_name, script::Wrappable*());
+  MOCK_METHOD0(add_opaque_root_function_name, script::Wrappable*());
 
   DEFINE_WRAPPABLE_TYPE(GetOpaqueRootInterface);
 };

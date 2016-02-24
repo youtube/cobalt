@@ -57,12 +57,18 @@ PrimaryGlobal
 # http://heycam.github.io/webidl/#Exposed
 Exposed=TestWindow|Window|Worker
 
+# The value of this attribute is a list of functions to be called that will
+# return a scoped_refptr<Wrappable>.
+# The raw pointer will be added as an opaque root when an instance of this
+# interface is visited during garbage collection.
+AddOpaqueRoots=|*
+
 # The value of this attribute is a function to be called that will return a
-# scoped_refptr<Wrappable> that represents the opaque root of an object
+# scoped_refptr<Wrappable> that represents an opaque root of an object
 # implementing this interface.
-# For the set of all objects {O} that have a given opaque root R, if at least
-# one object is reachable during garbage collection, all objects in {O} will be
-# kept alive as well.
+# If opaque root of an object is in the set of opaque roots that have been
+# collected during garbage collection, the object's wrapper will be kept alive
+# as well.
 GetOpaqueRoot=*
 
 # Call the Cobalt function this property is bound to with the corresponding
