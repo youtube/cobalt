@@ -69,6 +69,12 @@ class CachedHandleOwner : public JSC::WeakHandleOwner {
       return true;
     }
 
+    // If this wrapper's wrappable has been marked as an opaque root, keep it
+    // alive.
+    if (slot_visitor->containsOpaqueRoot(wrapper_base->wrappable().get())) {
+      return true;
+    }
+
     return false;
   }
 
