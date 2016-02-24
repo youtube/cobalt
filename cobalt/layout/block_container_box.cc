@@ -23,9 +23,10 @@ namespace cobalt {
 namespace layout {
 
 BlockContainerBox::BlockContainerBox(
-    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+        css_computed_style_declaration,
     UsedStyleProvider* used_style_provider)
-    : ContainerBox(computed_style_state, used_style_provider) {}
+    : ContainerBox(css_computed_style_declaration, used_style_provider) {}
 
 BlockContainerBox::~BlockContainerBox() {}
 

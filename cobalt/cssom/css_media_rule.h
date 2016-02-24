@@ -45,8 +45,9 @@ class CSSMediaRule : public CSSConditionRule {
 
   // Web API: CSSRule
   Type type() const OVERRIDE { return kMediaRule; }
-  std::string css_text() const OVERRIDE;
-  void set_css_text(const std::string& css_text) OVERRIDE;
+  std::string css_text(script::ExceptionState* exception_state) const OVERRIDE;
+  void set_css_text(const std::string& css_text,
+                    script::ExceptionState* exception_state) OVERRIDE;
 
   // Web API: CSSConditionRule
   std::string condition_text() OVERRIDE;

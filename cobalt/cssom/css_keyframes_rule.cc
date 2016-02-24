@@ -33,12 +33,15 @@ CSSKeyframesRule::CSSKeyframesRule(const std::string& name,
   UpdateSortedKeyframes();
 }
 
-std::string CSSKeyframesRule::css_text() const {
+std::string CSSKeyframesRule::css_text(
+    script::ExceptionState* /*exception_state*/) const {
   NOTIMPLEMENTED();
   return "";
 }
 
-void CSSKeyframesRule::set_css_text(const std::string& /*css_text*/) {
+void CSSKeyframesRule::set_css_text(
+    const std::string& /*css_text*/,
+    script::ExceptionState* /*exception_state*/) {
   NOTIMPLEMENTED();
 }
 

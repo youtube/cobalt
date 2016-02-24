@@ -34,14 +34,16 @@ const scoped_refptr<MediaList>& CSSMediaRule::media() const {
   return media_list_;
 }
 
-std::string CSSMediaRule::css_text() const {
+std::string CSSMediaRule::css_text(
+    script::ExceptionState* /*exception_state*/) const {
   // TODO(***REMOVED***): Serialize the media rule to implement css_text.
   //   https://www.w3.org/TR/cssom/#dom-cssrule-csstext
   NOTIMPLEMENTED() << "CSSMediaRule serialization not implemented yet.";
   return "";
 }
 
-void CSSMediaRule::set_css_text(const std::string& /* css_text */) {
+void CSSMediaRule::set_css_text(const std::string& /* css_text */,
+                                script::ExceptionState* /*exception_state*/) {
   // TODO(***REMOVED***): Parse the given text into a new CSSMediaRule.
   if (parent_style_sheet()) {
     parent_style_sheet()->OnMediaRuleMutation();

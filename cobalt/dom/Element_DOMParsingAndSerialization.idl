@@ -19,5 +19,5 @@
 
 partial interface Element {
   [TreatNullAs=EmptyString] attribute DOMString innerHTML;
-  [TreatNullAs=EmptyString] attribute DOMString outerHTML;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString outerHTML;
 };

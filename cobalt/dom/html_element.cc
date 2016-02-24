@@ -376,7 +376,7 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
 
 base::optional<std::string> HTMLElement::GetStyleAttribute() const {
   base::optional<std::string> value = Element::GetStyleAttribute();
-  return value.value_or(style_->css_text());
+  return value.value_or(style_->css_text(NULL));
 }
 
 void HTMLElement::SetStyleAttribute(const std::string& value) {
@@ -386,7 +386,7 @@ void HTMLElement::SetStyleAttribute(const std::string& value) {
       csp_delegate->AllowInline(
           CspDelegate::kStyle,
           base::SourceLocation(GetSourceLocationName(), 1, 1), value)) {
-    style_->set_css_text(value);
+    style_->set_css_text(value, NULL);
     Element::SetStyleAttribute(value);
   } else {
     // Report a violation.
@@ -395,7 +395,7 @@ void HTMLElement::SetStyleAttribute(const std::string& value) {
 }
 
 void HTMLElement::RemoveStyleAttribute() {
-  style_->set_css_text("");
+  style_->set_css_text("", NULL);
   Element::RemoveStyleAttribute();
 }
 
@@ -541,10 +541,10 @@ void HTMLElement::InvalidateLayoutBoxesFromNodeAndDescendants() {
 
 HTMLElement::HTMLElement(Document* document, base::Token tag_name)
     : Element(document, tag_name),
-      style_(new cssom::CSSStyleDeclaration(
+      style_(new cssom::CSSDeclaredStyleDeclaration(
           document->html_element_context()->css_parser())),
       computed_style_valid_(false),
-      computed_style_state_(new cssom::ComputedStyleState()),
+      css_computed_style_declaration_(new cssom::CSSComputedStyleDeclaration()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           transitions_adapter_(new DOMAnimatable(this))),
       css_transitions_(&transitions_adapter_),
@@ -552,7 +552,7 @@ HTMLElement::HTMLElement(Document* document, base::Token tag_name)
           animations_adapter_(new DOMAnimatable(this))),
       css_animations_(&animations_adapter_),
       matching_rules_valid_(false) {
-  computed_style_state_->set_animations(animations());
+  css_computed_style_declaration_->set_animations(animations());
   style_->set_mutation_observer(this);
 }
 
@@ -640,7 +640,8 @@ bool NewComputedStyleInvalidatesLayoutBoxes(
   // box generation is modified. We currently have to also invalidate when any
   // inheritable property is modified, because AnonymousBlockBox and TextBox use
   // GetComputedStyleOfAnonymousBox() to store a copy of them that won't
-  // automatically get updated when the style() in a ComputedStyleState gets
+  // automatically get updated when the style() in a CSSComputedStyleDeclaration
+  // gets
   // updated.
   return !old_computed_style->display()->Equals(
              *new_computed_style->display()) ||

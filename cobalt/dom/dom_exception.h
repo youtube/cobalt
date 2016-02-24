@@ -34,6 +34,7 @@ class DOMException : public script::ScriptException {
     // If the error name does not have a corresponding code, set the code to 0.
     kNone = 0,
     kIndexSizeErr = 1,
+    kNoModificationAllowedError = 7,
     kNotFoundErr = 8,
     kNotSupportedErr = 9,
     kInvalidStateErr = 11,
@@ -44,6 +45,7 @@ class DOMException : public script::ScriptException {
     kTypeMismatchErr = 17,
     kSecurityErr = 18,
     kQuotaExceededErr = 22,
+    kReadOnlyErr
   };
 
   explicit DOMException(ExceptionCode code);

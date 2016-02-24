@@ -34,6 +34,7 @@ namespace cssom {
 
 class CSSRuleVisitor;
 class CSSStyleDeclaration;
+class CSSRuleStyleDeclaration;
 class CSSStyleSheet;
 
 // The CSSStyleRule interface represents a style rule.
@@ -42,16 +43,17 @@ class CSSStyleRule : public CSSRule {
  public:
   CSSStyleRule();
   CSSStyleRule(Selectors selectors,
-               const scoped_refptr<CSSStyleDeclaration>& style);
+               const scoped_refptr<CSSRuleStyleDeclaration>& style);
 
   // Web API: CSSStyleRule
-  const scoped_refptr<CSSStyleDeclaration>& style() const;
+  const scoped_refptr<CSSStyleDeclaration> style() const;
 
   // Web API: CSSRule
   //
   Type type() const OVERRIDE { return kStyleRule; }
-  std::string css_text() const OVERRIDE;
-  void set_css_text(const std::string& css_text) OVERRIDE;
+  std::string css_text(script::ExceptionState* exception_state) const OVERRIDE;
+  void set_css_text(const std::string& css_text,
+                    script::ExceptionState* exception_state) OVERRIDE;
 
   // Custom, not in any spec.
   //
@@ -73,7 +75,7 @@ class CSSStyleRule : public CSSRule {
   ~CSSStyleRule() OVERRIDE;
 
   Selectors selectors_;
-  scoped_refptr<CSSStyleDeclaration> style_;
+  scoped_refptr<CSSRuleStyleDeclaration> style_;
   bool added_to_selector_tree_;
 
   DISALLOW_COPY_AND_ASSIGN(CSSStyleRule);

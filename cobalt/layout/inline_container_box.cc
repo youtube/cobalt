@@ -26,9 +26,10 @@ namespace cobalt {
 namespace layout {
 
 InlineContainerBox::InlineContainerBox(
-    const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+        css_computed_style_declaration,
     UsedStyleProvider* used_style_provider)
-    : ContainerBox(computed_style_state, used_style_provider),
+    : ContainerBox(css_computed_style_declaration, used_style_provider),
       should_collapse_leading_white_space_(false),
       should_collapse_trailing_white_space_(false),
       has_leading_white_space_(false),
@@ -39,10 +40,10 @@ InlineContainerBox::InlineContainerBox(
       line_height_(0),
       inline_top_margin_(0),
       used_font_(used_style_provider->GetUsedFontList(
-          computed_style_state->style()->font_family(),
-          computed_style_state->style()->font_size(),
-          computed_style_state->style()->font_style(),
-          computed_style_state->style()->font_weight())) {}
+          css_computed_style_declaration->data()->font_family(),
+          css_computed_style_declaration->data()->font_size(),
+          css_computed_style_declaration->data()->font_style(),
+          css_computed_style_declaration->data()->font_weight())) {}
 
 InlineContainerBox::~InlineContainerBox() {}
 
@@ -75,8 +76,8 @@ bool InlineContainerBox::TryAddChild(const scoped_refptr<Box>& child_box) {
 }
 
 scoped_refptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
-  scoped_refptr<ContainerBox> box_after_split(
-      new InlineContainerBox(computed_style_state(), used_style_provider()));
+  scoped_refptr<ContainerBox> box_after_split(new InlineContainerBox(
+      css_computed_style_declaration(), used_style_provider()));
 
   box_after_split->UpdateCrossReferencesFrom(this);
   // When an inline box is split, margins, borders, and padding have no visual
@@ -459,8 +460,8 @@ scoped_refptr<Box> InlineContainerBox::SplitAtIterator(
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
 
   // Move the children after the split into a new box.
-  scoped_refptr<InlineContainerBox> box_after_split(
-      new InlineContainerBox(computed_style_state(), used_style_provider()));
+  scoped_refptr<InlineContainerBox> box_after_split(new InlineContainerBox(
+      css_computed_style_declaration(), used_style_provider()));
 
   box_after_split->UpdateCrossReferencesFrom(this);
   box_after_split->MoveChildrenFrom(box_after_split->child_boxes().end(), this,

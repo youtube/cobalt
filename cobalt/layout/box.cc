@@ -57,9 +57,10 @@ using cobalt::render_tree::animations::NodeAnimationsMap;
 namespace cobalt {
 namespace layout {
 
-Box::Box(const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
+Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+             css_computed_style_declaration,
          UsedStyleProvider* used_style_provider)
-    : computed_style_state_(computed_style_state),
+    : css_computed_style_declaration_(css_computed_style_declaration),
       used_style_provider_(used_style_provider),
       parent_(NULL),
       containing_block_(NULL),
@@ -793,7 +794,8 @@ void Box::RenderAndAnimateBorder(
   if (HasAnimatedBorder(animations())) {
     AddAnimations<RectNode>(
         base::Bind(&SetupBorderNodeFromStyle, rounded_corners),
-        *computed_style_state(), border_node, node_animations_map_builder);
+        *css_computed_style_declaration(), border_node,
+        node_animations_map_builder);
   }
 }
 
@@ -820,12 +822,14 @@ void Box::RenderAndAnimateBackgroundColor(
       scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
       border_node_builder->AddChild(rect_node);
 
-      // TODO(***REMOVED***) Investigate if we could pass computed_style_state_ instead
+      // TODO(***REMOVED***) Investigate if we could pass
+      // css_computed_style_declaration_ instead
       // here.
       if (background_color_animated) {
         AddAnimations<RectNode>(
             base::Bind(&SetupBackgroundNodeFromStyle, rounded_corners),
-            *computed_style_state(), rect_node, node_animations_map_builder);
+            *css_computed_style_declaration(), rect_node,
+            node_animations_map_builder);
       }
     }
   }
@@ -891,7 +895,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     if (opacity_animated) {
       // Possibly setup an animation for opacity.
       AddAnimations<FilterNode>(base::Bind(&SetupFilterNodeFromStyle),
-                                *computed_style_state(), filter_node,
+                                *css_computed_style_declaration(), filter_node,
                                 node_animations_map_builder);
     }
     return filter_node;
@@ -949,7 +953,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
         base::Bind(&SetupCompositionNodeFromCSSSStyleTransform,
                    math::RectF(PointAtOffsetFromOrigin(border_node_offset),
                                GetBorderBoxSize())),
-        *computed_style_state(), css_transform_node,
+        *css_computed_style_declaration(), css_transform_node,
         node_animations_map_builder);
 
     return css_transform_node;

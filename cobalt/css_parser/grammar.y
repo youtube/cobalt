@@ -483,7 +483,8 @@
 // or RGBA color resolution) that technically belongs to computed value
 // resolution and as such should be done by layout engine. This is harmless
 // as long as web app does not rely on literal preservation of property values
-// exposed by cssom::CSSStyleDeclaration (semantics is always preserved).
+// exposed by cssom::CSSRuleStyleDeclaration (semantics is
+// always preserved).
 %union { cssom::PropertyValue* property_value; }
 %type <property_value> animation_delay_property_value
                        animation_direction_list_element
@@ -655,7 +656,7 @@
 %type <style_declaration_data> style_declaration_list
 %destructor { SafeRelease($$); } <style_declaration_data>
 
-%union { cssom::CSSStyleDeclaration* style_declaration; }
+%union { cssom::CSSRuleStyleDeclaration* style_declaration; }
 %type <style_declaration> style_declaration_block
 %destructor { SafeRelease($$); } <style_declaration>
 
@@ -1152,7 +1153,7 @@ keyframe_rule:
     keyframe_selector style_declaration_block {
     scoped_ptr<std::vector<float> > offsets($1);
 
-    scoped_refptr<cssom::CSSStyleDeclaration> style(
+    scoped_refptr<cssom::CSSRuleStyleDeclaration> style(
         MakeScopedRefPtrAndRelease($2));
     cssom::CSSStyleDeclarationData::PropertyValueConstIterator
         property_iterator = style->data()->BeginPropertyValueConstIterator();
@@ -6035,7 +6036,7 @@ font_face_declaration_list:
 
 style_declaration_block:
     '{' maybe_whitespace style_declaration_list '}' maybe_whitespace {
-    $$ = AddRef(new cssom::CSSStyleDeclaration(
+    $$ = AddRef(new cssom::CSSRuleStyleDeclaration(
              MakeScopedRefPtrAndRelease($3), parser_impl->css_parser()));
   }
   ;
@@ -6059,7 +6060,7 @@ rule_list_block:
 style_rule:
     selector_list style_declaration_block {
     scoped_ptr<cssom::Selectors> selectors($1);
-    scoped_refptr<cssom::CSSStyleDeclaration> style =
+    scoped_refptr<cssom::CSSRuleStyleDeclaration> style =
         MakeScopedRefPtrAndRelease($2);
 
     if (selectors) {
@@ -6076,7 +6077,7 @@ style_rule:
 qualified_rule:
     style_rule
   | error style_declaration_block {
-    scoped_refptr<cssom::CSSStyleDeclaration> unused_style =
+    scoped_refptr<cssom::CSSRuleStyleDeclaration> unused_style =
         MakeScopedRefPtrAndRelease($2);
     parser_impl->LogWarning(@1, "invalid qualified rule");
     $$ = NULL;

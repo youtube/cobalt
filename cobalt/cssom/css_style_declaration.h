@@ -17,19 +17,22 @@
 #ifndef COBALT_CSSOM_CSS_STYLE_DECLARATION_H_
 #define COBALT_CSSOM_CSS_STYLE_DECLARATION_H_
 
+#include <algorithm>
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/property_definitions.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
-class CSSParser;
 class CSSRule;
+class CSSStyleDeclarationData;
 class MutationObserver;
 
 // The CSSStyleDeclaration interface represents a CSS declaration block,
@@ -38,311 +41,398 @@ class MutationObserver;
 //   https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstyledeclaration-interface
 class CSSStyleDeclaration : public script::Wrappable {
  public:
-  explicit CSSStyleDeclaration(CSSParser* css_parser);
-  CSSStyleDeclaration(const scoped_refptr<CSSStyleDeclarationData>& style,
-                      CSSParser* css_parser);
-
   // Web API: CSSStyleDeclaration
   //
-  std::string animation() const;
-  void set_animation(const std::string& animation);
+  std::string animation(script::ExceptionState* exception_state) const;
+  void set_animation(const std::string& animation,
+                     script::ExceptionState* exception_state);
 
-  std::string animation_delay() const;
-  void set_animation_delay(const std::string& animation_delay);
+  std::string animation_delay(script::ExceptionState* exception_state) const;
+  void set_animation_delay(const std::string& animation_delay,
+                           script::ExceptionState* exception_state);
 
-  std::string animation_direction() const;
-  void set_animation_direction(const std::string& animation_direction);
+  std::string animation_direction(
+      script::ExceptionState* exception_state) const;
+  void set_animation_direction(const std::string& animation_direction,
+                               script::ExceptionState* exception_state);
 
-  std::string animation_duration() const;
-  void set_animation_duration(const std::string& animation_duration);
+  std::string animation_duration(script::ExceptionState* exception_state) const;
+  void set_animation_duration(const std::string& animation_duration,
+                              script::ExceptionState* exception_state);
 
-  std::string animation_fill_mode() const;
-  void set_animation_fill_mode(const std::string& animation_fill_mode);
+  std::string animation_fill_mode(
+      script::ExceptionState* exception_state) const;
+  void set_animation_fill_mode(const std::string& animation_fill_mode,
+                               script::ExceptionState* exception_state);
 
-  std::string animation_iteration_count() const;
+  std::string animation_iteration_count(
+      script::ExceptionState* exception_state) const;
   void set_animation_iteration_count(
-      const std::string& animation_iteration_count);
+      const std::string& animation_iteration_count,
+      script::ExceptionState* exception_state);
 
-  std::string animation_name() const;
-  void set_animation_name(const std::string& animation_name);
+  std::string animation_name(script::ExceptionState* exception_state) const;
+  void set_animation_name(const std::string& animation_name,
+                          script::ExceptionState* exception_state);
 
-  std::string animation_timing_function() const;
+  std::string animation_timing_function(
+      script::ExceptionState* exception_state) const;
   void set_animation_timing_function(
-      const std::string& animation_timing_function);
+      const std::string& animation_timing_function,
+      script::ExceptionState* exception_state);
+
+  std::string background(script::ExceptionState* exception_state) const;
+  void set_background(const std::string& background,
+                      script::ExceptionState* exception_state);
+
+  std::string background_color(script::ExceptionState* exception_state) const;
+  void set_background_color(const std::string& background_color,
+                            script::ExceptionState* exception_state);
+
+  std::string background_image(script::ExceptionState* exception_state) const;
+  void set_background_image(const std::string& background_image,
+                            script::ExceptionState* exception_state);
+
+  std::string background_position(
+      script::ExceptionState* exception_state) const;
+  void set_background_position(const std::string& background_position,
+                               script::ExceptionState* exception_state);
+
+  std::string background_repeat(script::ExceptionState* exception_state) const;
+  void set_background_repeat(const std::string& background_repeat,
+                             script::ExceptionState* exception_state);
+
+  std::string background_size(script::ExceptionState* exception_state) const;
+  void set_background_size(const std::string& background_size,
+                           script::ExceptionState* exception_state);
+
+  std::string border(script::ExceptionState* exception_state) const;
+  void set_border(const std::string& border,
+                  script::ExceptionState* exception_state);
+
+  std::string border_bottom(script::ExceptionState* exception_state) const;
+  void set_border_bottom(const std::string& border_bottom,
+                         script::ExceptionState* exception_state);
+
+  std::string border_bottom_color(
+      script::ExceptionState* exception_state) const;
+  void set_border_bottom_color(const std::string& border_bottom_color,
+                               script::ExceptionState* exception_state);
+
+  std::string border_bottom_style(
+      script::ExceptionState* exception_state) const;
+  void set_border_bottom_style(const std::string& border_bottom_style,
+                               script::ExceptionState* exception_state);
+
+  std::string border_bottom_width(
+      script::ExceptionState* exception_state) const;
+  void set_border_bottom_width(const std::string& border_bottom_width,
+                               script::ExceptionState* exception_state);
+
+  std::string border_color(script::ExceptionState* exception_state) const;
+  void set_border_color(const std::string& border_color,
+                        script::ExceptionState* exception_state);
+
+  std::string border_left(script::ExceptionState* exception_state) const;
+  void set_border_left(const std::string& border_left,
+                       script::ExceptionState* exception_state);
+
+  std::string border_left_color(script::ExceptionState* exception_state) const;
+  void set_border_left_color(const std::string& border_left_color,
+                             script::ExceptionState* exception_state);
+
+  std::string border_left_style(script::ExceptionState* exception_state) const;
+  void set_border_left_style(const std::string& border_left_style,
+                             script::ExceptionState* exception_state);
+
+  std::string border_left_width(script::ExceptionState* exception_state) const;
+  void set_border_left_width(const std::string& border_left_width,
+                             script::ExceptionState* exception_state);
+
+  std::string border_radius(script::ExceptionState* exception_state) const;
+  void set_border_radius(const std::string& border_radius,
+                         script::ExceptionState* exception_state);
+
+  std::string border_right(script::ExceptionState* exception_state) const;
+  void set_border_right(const std::string& border_right,
+                        script::ExceptionState* exception_state);
+
+  std::string border_right_color(script::ExceptionState* exception_state) const;
+  void set_border_right_color(const std::string& border_right_color,
+                              script::ExceptionState* exception_state);
+
+  std::string border_right_style(script::ExceptionState* exception_state) const;
+  void set_border_right_style(const std::string& border_right_style,
+                              script::ExceptionState* exception_state);
+
+  std::string border_right_width(script::ExceptionState* exception_state) const;
+  void set_border_right_width(const std::string& border_right_width,
+                              script::ExceptionState* exception_state);
+
+  std::string border_top(script::ExceptionState* exception_state) const;
+  void set_border_top(const std::string& border_top,
+                      script::ExceptionState* exception_state);
+
+  std::string border_top_color(script::ExceptionState* exception_state) const;
+  void set_border_top_color(const std::string& border_top_color,
+                            script::ExceptionState* exception_state);
+
+  std::string border_top_style(script::ExceptionState* exception_state) const;
+  void set_border_top_style(const std::string& border_top_style,
+                            script::ExceptionState* exception_state);
+
+  std::string border_top_width(script::ExceptionState* exception_state) const;
+  void set_border_top_width(const std::string& border_top_width,
+                            script::ExceptionState* exception_state);
+
+  std::string border_style(script::ExceptionState* exception_state) const;
+  void set_border_style(const std::string& border_style,
+                        script::ExceptionState* exception_state);
+
+  std::string border_width(script::ExceptionState* exception_state) const;
+  void set_border_width(const std::string& border_width,
+                        script::ExceptionState* exception_state);
+
+  std::string bottom(script::ExceptionState* exception_state) const;
+  void set_bottom(const std::string& bottom,
+                  script::ExceptionState* exception_state);
+
+  std::string box_shadow(script::ExceptionState* exception_state) const;
+  void set_box_shadow(const std::string& box_shadow,
+                      script::ExceptionState* exception_state);
+
+  std::string color(script::ExceptionState* exception_state) const;
+  void set_color(const std::string& color,
+                 script::ExceptionState* exception_state);
+
+  std::string content(script::ExceptionState* exception_state) const;
+  void set_content(const std::string& content,
+                   script::ExceptionState* exception_state);
+
+  std::string display(script::ExceptionState* exception_state) const;
+  void set_display(const std::string& display,
+                   script::ExceptionState* exception_state);
+
+  std::string font(script::ExceptionState* exception_state) const;
+  void set_font(const std::string& font,
+                script::ExceptionState* exception_state);
+
+  std::string font_family(script::ExceptionState* exception_state) const;
+  void set_font_family(const std::string& font_family,
+                       script::ExceptionState* exception_state);
+
+  std::string font_size(script::ExceptionState* exception_state) const;
+  void set_font_size(const std::string& font_size,
+                     script::ExceptionState* exception_state);
+
+  std::string font_style(script::ExceptionState* exception_state) const;
+  void set_font_style(const std::string& font_style,
+                      script::ExceptionState* exception_state);
+
+  std::string font_weight(script::ExceptionState* exception_state) const;
+  void set_font_weight(const std::string& font_weight,
+                       script::ExceptionState* exception_state);
+
+  std::string height(script::ExceptionState* exception_state) const;
+  void set_height(const std::string& height,
+                  script::ExceptionState* exception_state);
+
+  std::string left(script::ExceptionState* exception_state) const;
+  void set_left(const std::string& left,
+                script::ExceptionState* exception_state);
+
+  std::string line_height(script::ExceptionState* exception_state) const;
+  void set_line_height(const std::string& line_height,
+                       script::ExceptionState* exception_state);
 
-  std::string background() const;
-  void set_background(const std::string& background);
+  std::string margin(script::ExceptionState* exception_state) const;
+  void set_margin(const std::string& margin,
+                  script::ExceptionState* exception_state);
 
-  std::string background_color() const;
-  void set_background_color(const std::string& background_color);
+  std::string margin_bottom(script::ExceptionState* exception_state) const;
+  void set_margin_bottom(const std::string& margin_bottom,
+                         script::ExceptionState* exception_state);
 
-  std::string background_image() const;
-  void set_background_image(const std::string& background_image);
+  std::string margin_left(script::ExceptionState* exception_state) const;
+  void set_margin_left(const std::string& margin_left,
+                       script::ExceptionState* exception_state);
 
-  std::string background_position() const;
-  void set_background_position(const std::string& background_position);
+  std::string margin_right(script::ExceptionState* exception_state) const;
+  void set_margin_right(const std::string& margin_right,
+                        script::ExceptionState* exception_state);
 
-  std::string background_repeat() const;
-  void set_background_repeat(const std::string& background_repeat);
-
-  std::string background_size() const;
-  void set_background_size(const std::string& background_size);
-
-  std::string border() const;
-  void set_border(const std::string& border);
-
-  std::string border_bottom() const;
-  void set_border_bottom(const std::string& border_bottom);
-
-  std::string border_bottom_color() const;
-  void set_border_bottom_color(const std::string& border_bottom_color);
-
-  std::string border_bottom_style() const;
-  void set_border_bottom_style(const std::string& border_bottom_style);
-
-  std::string border_bottom_width() const;
-  void set_border_bottom_width(const std::string& border_bottom_width);
-
-  std::string border_color() const;
-  void set_border_color(const std::string& border_color);
-
-  std::string border_left() const;
-  void set_border_left(const std::string& border_left);
-
-  std::string border_left_color() const;
-  void set_border_left_color(const std::string& border_left_color);
-
-  std::string border_left_style() const;
-  void set_border_left_style(const std::string& border_left_style);
-
-  std::string border_left_width() const;
-  void set_border_left_width(const std::string& border_left_width);
-
-  std::string border_radius() const;
-  void set_border_radius(const std::string& border_radius);
-
-  std::string border_right() const;
-  void set_border_right(const std::string& border_right);
-
-  std::string border_right_color() const;
-  void set_border_right_color(const std::string& border_right_color);
-
-  std::string border_right_style() const;
-  void set_border_right_style(const std::string& border_right_style);
-
-  std::string border_right_width() const;
-  void set_border_right_width(const std::string& border_right_width);
-
-  std::string border_top() const;
-  void set_border_top(const std::string& border_top);
-
-  std::string border_top_color() const;
-  void set_border_top_color(const std::string& border_top_color);
-
-  std::string border_top_style() const;
-  void set_border_top_style(const std::string& border_top_style);
-
-  std::string border_top_width() const;
-  void set_border_top_width(const std::string& border_top_width);
-
-  std::string border_style() const;
-  void set_border_style(const std::string& border_style);
-
-  std::string border_width() const;
-  void set_border_width(const std::string& border_width);
-
-  std::string bottom() const;
-  void set_bottom(const std::string& bottom);
-
-  std::string box_shadow() const;
-  void set_box_shadow(const std::string& box_shadow);
-
-  std::string color() const;
-  void set_color(const std::string& color);
-
-  std::string content() const;
-  void set_content(const std::string& content);
-
-  std::string display() const;
-  void set_display(const std::string& display);
-
-  std::string font() const;
-  void set_font(const std::string& font);
-
-  std::string font_family() const;
-  void set_font_family(const std::string& font_family);
-
-  std::string font_size() const;
-  void set_font_size(const std::string& font_size);
-
-  std::string font_style() const;
-  void set_font_style(const std::string& font_style);
-
-  std::string font_weight() const;
-  void set_font_weight(const std::string& font_weight);
-
-  std::string height() const;
-  void set_height(const std::string& height);
-
-  std::string left() const;
-  void set_left(const std::string& left);
-
-  std::string line_height() const;
-  void set_line_height(const std::string& line_height);
-
-  std::string margin() const;
-  void set_margin(const std::string& margin);
-
-  std::string margin_bottom() const;
-  void set_margin_bottom(const std::string& margin_bottom);
-
-  std::string margin_left() const;
-  void set_margin_left(const std::string& margin_left);
-
-  std::string margin_right() const;
-  void set_margin_right(const std::string& margin_right);
-
-  std::string margin_top() const;
-  void set_margin_top(const std::string& margin_top);
-
-  std::string max_height() const;
-  void set_max_height(const std::string& max_height);
-
-  std::string max_width() const;
-  void set_max_width(const std::string& max_width);
-
-  std::string min_height() const;
-  void set_min_height(const std::string& min_height);
-
-  std::string min_width() const;
-  void set_min_width(const std::string& min_width);
-
-  std::string opacity() const;
-  void set_opacity(const std::string& opacity);
-
-  std::string overflow() const;
-  void set_overflow(const std::string& overflow);
-
-  std::string overflow_wrap() const;
-  void set_overflow_wrap(const std::string& overflow_wrap);
-
-  std::string padding() const;
-  void set_padding(const std::string& padding);
-
-  std::string padding_bottom() const;
-  void set_padding_bottom(const std::string& padding_bottom);
-
-  std::string padding_left() const;
-  void set_padding_left(const std::string& padding_left);
-
-  std::string padding_right() const;
-  void set_padding_right(const std::string& padding_right);
-
-  std::string padding_top() const;
-  void set_padding_top(const std::string& padding_top);
-
-  std::string position() const;
-  void set_position(const std::string& position);
-
-  std::string right() const;
-  void set_right(const std::string& right);
-
-  std::string text_align() const;
-  void set_text_align(const std::string& text_align);
-
-  std::string text_indent() const;
-  void set_text_indent(const std::string& text_indent);
-
-  std::string text_overflow() const;
-  void set_text_overflow(const std::string& text_overflow);
-
-  std::string text_shadow() const;
-  void set_text_shadow(const std::string& text_shadow);
-
-  std::string text_transform() const;
-  void set_text_transform(const std::string& text_transform);
-
-  std::string top() const;
-  void set_top(const std::string& top);
-
-  std::string transform() const;
-  void set_transform(const std::string& transform);
-
-  std::string transform_origin() const;
-  void set_transform_origin(const std::string& transform_origin);
-
-  std::string transition() const;
-  void set_transition(const std::string& transition);
-
-  std::string transition_delay() const;
-  void set_transition_delay(const std::string& transition_delay);
-
-  std::string transition_duration() const;
-  void set_transition_duration(const std::string& transition_duration);
-
-  std::string transition_property() const;
-  void set_transition_property(const std::string& transition_property);
-
-  std::string transition_timing_function() const;
+  std::string margin_top(script::ExceptionState* exception_state) const;
+  void set_margin_top(const std::string& margin_top,
+                      script::ExceptionState* exception_state);
+
+  std::string max_height(script::ExceptionState* exception_state) const;
+  void set_max_height(const std::string& max_height,
+                      script::ExceptionState* exception_state);
+
+  std::string max_width(script::ExceptionState* exception_state) const;
+  void set_max_width(const std::string& max_width,
+                     script::ExceptionState* exception_state);
+
+  std::string min_height(script::ExceptionState* exception_state) const;
+  void set_min_height(const std::string& min_height,
+                      script::ExceptionState* exception_state);
+
+  std::string min_width(script::ExceptionState* exception_state) const;
+  void set_min_width(const std::string& min_width,
+                     script::ExceptionState* exception_state);
+
+  std::string opacity(script::ExceptionState* exception_state) const;
+  void set_opacity(const std::string& opacity,
+                   script::ExceptionState* exception_state);
+
+  std::string overflow(script::ExceptionState* exception_state) const;
+  void set_overflow(const std::string& overflow,
+                    script::ExceptionState* exception_state);
+
+  std::string overflow_wrap(script::ExceptionState* exception_state) const;
+  void set_overflow_wrap(const std::string& overflow_wrap,
+                         script::ExceptionState* exception_state);
+
+  std::string padding(script::ExceptionState* exception_state) const;
+  void set_padding(const std::string& padding,
+                   script::ExceptionState* exception_state);
+
+  std::string padding_bottom(script::ExceptionState* exception_state) const;
+  void set_padding_bottom(const std::string& padding_bottom,
+                          script::ExceptionState* exception_state);
+
+  std::string padding_left(script::ExceptionState* exception_state) const;
+  void set_padding_left(const std::string& padding_left,
+                        script::ExceptionState* exception_state);
+
+  std::string padding_right(script::ExceptionState* exception_state) const;
+  void set_padding_right(const std::string& padding_right,
+                         script::ExceptionState* exception_state);
+
+  std::string padding_top(script::ExceptionState* exception_state) const;
+  void set_padding_top(const std::string& padding_top,
+                       script::ExceptionState* exception_state);
+
+  std::string position(script::ExceptionState* exception_state) const;
+  void set_position(const std::string& position,
+                    script::ExceptionState* exception_state);
+
+  std::string right(script::ExceptionState* exception_state) const;
+  void set_right(const std::string& right,
+                 script::ExceptionState* exception_state);
+
+  std::string text_align(script::ExceptionState* exception_state) const;
+  void set_text_align(const std::string& text_align,
+                      script::ExceptionState* exception_state);
+
+  std::string text_indent(script::ExceptionState* exception_state) const;
+  void set_text_indent(const std::string& text_indent,
+                       script::ExceptionState* exception_state);
+
+  std::string text_overflow(script::ExceptionState* exception_state) const;
+  void set_text_overflow(const std::string& text_overflow,
+                         script::ExceptionState* exception_state);
+
+  std::string text_shadow(script::ExceptionState* exception_state) const;
+  void set_text_shadow(const std::string& text_shadow,
+                       script::ExceptionState* exception_state);
+
+  std::string text_transform(script::ExceptionState* exception_state) const;
+  void set_text_transform(const std::string& text_transform,
+                          script::ExceptionState* exception_state);
+
+  std::string top(script::ExceptionState* exception_state) const;
+  void set_top(const std::string& top, script::ExceptionState* exception_state);
+
+  std::string transform(script::ExceptionState* exception_state) const;
+  void set_transform(const std::string& transform,
+                     script::ExceptionState* exception_state);
+
+  std::string transform_origin(script::ExceptionState* exception_state) const;
+  void set_transform_origin(const std::string& transform_origin,
+                            script::ExceptionState* exception_state);
+
+  std::string transition(script::ExceptionState* exception_state) const;
+  void set_transition(const std::string& transition,
+                      script::ExceptionState* exception_state);
+
+  std::string transition_delay(script::ExceptionState* exception_state) const;
+  void set_transition_delay(const std::string& transition_delay,
+                            script::ExceptionState* exception_state);
+
+  std::string transition_duration(
+      script::ExceptionState* exception_state) const;
+  void set_transition_duration(const std::string& transition_duration,
+                               script::ExceptionState* exception_state);
+
+  std::string transition_property(
+      script::ExceptionState* exception_state) const;
+  void set_transition_property(const std::string& transition_property,
+                               script::ExceptionState* exception_state);
+
+  std::string transition_timing_function(
+      script::ExceptionState* exception_state) const;
   void set_transition_timing_function(
-      const std::string& transition_timing_function);
+      const std::string& transition_timing_function,
+      script::ExceptionState* exception_state);
 
-  std::string vertical_align() const;
-  void set_vertical_align(const std::string& vertical_align);
+  std::string vertical_align(script::ExceptionState* exception_state) const;
+  void set_vertical_align(const std::string& vertical_align,
+                          script::ExceptionState* exception_state);
 
-  std::string visibility() const;
-  void set_visibility(const std::string& visibility);
+  std::string visibility(script::ExceptionState* exception_state) const;
+  void set_visibility(const std::string& visibility,
+                      script::ExceptionState* exception_state);
 
-  std::string white_space() const;
-  void set_white_space(const std::string& width);
+  std::string white_space(script::ExceptionState* exception_state) const;
+  void set_white_space(const std::string& width,
+                       script::ExceptionState* exception_state);
 
-  std::string width() const;
-  void set_width(const std::string& width);
+  std::string width(script::ExceptionState* exception_state) const;
+  void set_width(const std::string& width,
+                 script::ExceptionState* exception_state);
 
-  std::string word_wrap() const;
-  void set_word_wrap(const std::string& word_wrap);
+  std::string word_wrap(script::ExceptionState* exception_state) const;
+  void set_word_wrap(const std::string& word_wrap,
+                     script::ExceptionState* exception_state);
 
-  std::string z_index() const;
-  void set_z_index(const std::string& z_index);
+  std::string z_index(script::ExceptionState* exception_state) const;
+  void set_z_index(const std::string& z_index,
+                   script::ExceptionState* exception_state);
 
-  std::string css_text() const;
-  void set_css_text(const std::string& css_text);
+  virtual std::string css_text(
+      script::ExceptionState* exception_state) const = 0;
+  virtual void set_css_text(const std::string& css_text,
+                            script::ExceptionState* exception_state) = 0;
 
-  unsigned int length() const;
+  virtual unsigned int length() const = 0;
 
-  base::optional<std::string> Item(unsigned int index) const;
+  virtual base::optional<std::string> Item(unsigned int index) const = 0;
 
   std::string GetPropertyValue(const std::string& property_name);
-  void SetPropertyValue(const std::string& property_name,
-                        const std::string& property_value);
+  virtual void SetPropertyValue(const std::string& property_name,
+                                const std::string& property_value,
+                                script::ExceptionState* exception_state) = 0;
 
-  scoped_refptr<CSSRule> parent_rule() const;
+  virtual scoped_refptr<const CSSStyleDeclarationData> data() const = 0;
 
-  // Custom, not in any spec.
-  //
-  void set_parent_rule(CSSRule* parent_rule);
-
-  scoped_refptr<const CSSStyleDeclarationData> data() { return data_; }
-
-  void set_mutation_observer(MutationObserver* observer) {
-    mutation_observer_ = observer;
-  }
+  // The parent rule is the CSS rule that the CSS declaration block is
+  // associated with, if any, or null otherwise.
+  //   https://www.w3.org/TR/2013/WD-cssom-20131205/#css-declaration-block
+  virtual scoped_refptr<CSSRule> parent_rule() const;
 
   DEFINE_WRAPPABLE_TYPE(CSSStyleDeclaration);
 
+ protected:
+  CSSStyleDeclaration() {}
+  virtual ~CSSStyleDeclaration() {}
+
  private:
-  ~CSSStyleDeclaration();
-
-  void RecordMutation();
-
+  virtual std::string GetDeclaredPropertyValueStringByKey(
+      const PropertyKey key) const = 0;
   void SetPropertyValueStringByKey(PropertyKey key,
-                                   const std::string& property_value);
-
-  scoped_refptr<CSSStyleDeclarationData> data_;
-
-  base::WeakPtr<CSSRule> parent_rule_;
-  CSSParser* const css_parser_;
-  MutationObserver* mutation_observer_;
+                                   const std::string& property_value,
+                                   script::ExceptionState* exception_state);
 
   DISALLOW_COPY_AND_ASSIGN(CSSStyleDeclaration);
 };

@@ -18,7 +18,7 @@
 #define COBALT_LAYOUT_BOX_GENERATOR_H_
 
 #include "base/memory/scoped_vector.h"
-#include "cobalt/cssom/computed_style_state.h"
+#include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/node.h"
@@ -48,8 +48,8 @@ class UsedStyleProvider;
 // As a side-effect, computed styles of visited HTML elements are updated.
 class BoxGenerator : public dom::NodeVisitor {
  public:
-  BoxGenerator(const scoped_refptr<cssom::ComputedStyleState>&
-                   parent_computed_style_state,
+  BoxGenerator(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+                   parent_css_computed_style_declaration,
                UsedStyleProvider* used_style_provider,
                icu::BreakIterator* line_break_iterator,
                icu::BreakIterator* character_break_iterator,
@@ -74,7 +74,8 @@ class BoxGenerator : public dom::NodeVisitor {
   void AppendPseudoElementToLine(dom::HTMLElement* html_element,
                                  dom::PseudoElementType pseudo_element_type);
 
-  const scoped_refptr<cssom::ComputedStyleState> parent_computed_style_state_;
+  const scoped_refptr<cssom::CSSComputedStyleDeclaration>
+      parent_css_computed_style_declaration_;
   UsedStyleProvider* const used_style_provider_;
   icu::BreakIterator* const line_break_iterator_;
   icu::BreakIterator* const character_break_iterator_;
