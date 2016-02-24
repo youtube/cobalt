@@ -170,9 +170,10 @@ class Target:
     # that compose a .lib (rather than the .lib itself). That list is stored
     # here.
     self.component_objs = None
-    # Windows only. The import .lib is the output of a build step, but
+    # Windows/PS3 only. The import .lib is the output of a build step, but
     # because dependents only link against the lib (not both the lib and the
     # dll) we keep track of the import library here.
+    # For PS3, this is the "stub" library.
     self.import_lib = None
 
   def Linkable(self):
@@ -185,7 +186,7 @@ class Target:
     # For bundles, the .TOC should be produced for the binary, not for
     # FinalOutput(). But the naive approach would put the TOC file into the
     # bundle, so don't do this for bundles for now.
-    if flavor in ['win', 'xb1', 'xb360'] or self.bundle:
+    if flavor in ['win', 'xb1', 'xb360', 'ps3'] or self.bundle:
       return False
     return self.type in ('shared_library', 'loadable_module')
 
@@ -972,7 +973,8 @@ class NinjaWriter:
           if (self.flavor in ['win', 'xb1', 'xb360'] and target.component_objs and
               self.msvs_settings.IsUseLibraryDependencyInputs(config_name)):
             extra_link_deps.extend(target.component_objs)
-          elif self.flavor in ['win', 'xb1', 'xb360'] and target.import_lib:
+          elif (self.flavor in ['win', 'xb1', 'xb360', 'ps3'] and
+                target.import_lib):
             extra_link_deps.append(target.import_lib)
           elif target.UsesToc(self.flavor):
             solibs.add(target.binary)
@@ -1058,6 +1060,19 @@ class NinjaWriter:
           extra_bindings.append(('implibflag',
                                  '/IMPLIB:%s' % self.target.import_lib))
           output = [output, self.target.import_lib]
+      elif self.flavor == 'ps3':
+        # Tell Ninja we'll be generating a .sprx and a stub library.
+        # Bind the variable '$prx' to our output binary so we can
+        # refer to it in the linker rules.
+        extra_bindings.append(('prx', output))
+        # TODO(***REMOVED***): Figure out how to suppress the "removal" warning
+        # generated from the prx generator when we remove a function.
+        # For now, we'll just delete the 'verlog.txt' file before linking.
+        # Bind it here so we can refer to it as $verlog in the PS3 solink rule.
+        verlog = output.replace('.sprx', '_verlog.txt')
+        extra_bindings.append(('verlog', verlog))
+        self.target.import_lib = output.replace('.sprx', '_stub.a')
+        output = [output, self.target.import_lib]
       else:
         output = [output, output + '.TOC']
 
@@ -1299,7 +1314,7 @@ class NinjaWriter:
     type_in_output_root = ['executable', 'loadable_module']
     if self.flavor == 'mac' and self.toolset == 'target':
       type_in_output_root += ['shared_library', 'static_library']
-    elif self.flavor == 'win' and self.toolset == 'target':
+    elif self.flavor in ['win', 'ps3'] and self.toolset == 'target':
       type_in_output_root += ['shared_library']
 
     if type in type_in_output_root or self.is_standalone_static_library:
@@ -1438,11 +1453,23 @@ def CalculateVariables(default_variables, params):
       default_variables['MSVS_OS_BITS'] = 64
     else:
       default_variables['MSVS_OS_BITS'] = 32
-  elif (is_windows and flavor in ['ps3', 'wiiu', 'ps4']):
-    # We're building on Cygwin
+  elif flavor == 'ps3':
+    if is_windows:
+      # This is required for BuildCygwinBashCommandLine() to work.
+      import gyp.generator.msvs as msvs_generator
+      generator_additional_non_configuration_keys = getattr(msvs_generator,
+          'generator_additional_non_configuration_keys', [])
+      generator_additional_path_sections = getattr(msvs_generator,
+          'generator_additional_path_sections', [])
+
+    default_variables['SHARED_LIB_PREFIX'] = ''
+    default_variables['SHARED_LIB_SUFFIX'] = '.sprx'
+    generator_flags = params.get('generator_flags', {})
+
+  elif (is_windows and flavor in ['wiiu', 'ps4']):
+    # TODO(***REMOVED***): Can we remove this?
     default_variables.setdefault('OS', 'win')
     default_variables['EXECUTABLE_SUFFIX'] = '.exe'
-    default_variables['SHARED_LIB_SUFFIX'] = '.so'
     generator_flags = params.get('generator_flags', {})
 
     # Copy additional generator configuration data from VS, which is shared
@@ -1833,37 +1860,58 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       rspfile='$out.rsp',
       rspfile_content='$in_newline')
 
-    # This allows targets that only need to depend on $lib's API to declare an
-    # order-only dependency on $lib.TOC and avoid relinking such downstream
-    # dependencies when $lib changes only in non-public ways.
-    # The resulting string leaves an uninterpolated %{suffix} which
-    # is used in the final substitution below.
-    mtime_preserving_solink_base = (
-        'if [ ! -e $lib -o ! -e ${lib}.TOC ]; then '
-        '%(solink)s && %(extract_toc)s > ${lib}.TOC; else '
-        '%(solink)s && %(extract_toc)s > ${lib}.tmp && '
-        'if ! cmp -s ${lib}.tmp ${lib}.TOC; then mv ${lib}.tmp ${lib}.TOC ; '
-        'fi; fi'
-        % { 'solink':
-              (ld_cmd +
-               ' -shared $ldflags -o $lib -Wl,-soname=$soname %(suffix)s'),
-            'extract_toc':
-              ('{ readelf -d ${lib} | grep SONAME ; '
-               'nm -gD -f p ${lib} | cut -f1-2 -d\' \'; }')})
+    if flavor == 'linux':
+      # This allows targets that only need to depend on $lib's API to declare an
+      # order-only dependency on $lib.TOC and avoid relinking such downstream
+      # dependencies when $lib changes only in non-public ways.
+      # The resulting string leaves an uninterpolated %{suffix} which
+      # is used in the final substitution below.
+      mtime_preserving_solink_base = (
+          'if [ ! -e $lib -o ! -e ${lib}.TOC ]; then '
+          '%(solink)s && %(extract_toc)s > ${lib}.TOC; else '
+          '%(solink)s && %(extract_toc)s > ${lib}.tmp && '
+          'if ! cmp -s ${lib}.tmp ${lib}.TOC; then mv ${lib}.tmp ${lib}.TOC ; '
+          'fi; fi'
+          % { 'solink':
+                (ld_cmd +
+                 ' -shared $ldflags -o $lib -Wl,-soname=$soname %(suffix)s'),
+              'extract_toc':
+                ('{ readelf -d ${lib} | grep SONAME ; '
+                 'nm -gD -f p ${lib} | cut -f1-2 -d\' \'; }')})
 
-    master_ninja.rule(
-      'solink',
-      description='SOLINK $lib',
-      restat=True,
-      command=(mtime_preserving_solink_base % {
-          'suffix': '-Wl,--whole-archive $in $solibs -Wl,--no-whole-archive '
-          '$libs'}))
-    master_ninja.rule(
-      'solink_module',
-      description='SOLINK(module) $lib',
-      restat=True,
-      command=(mtime_preserving_solink_base % {
-          'suffix': '-Wl,--start-group $in $solibs -Wl,--end-group $libs'}))
+      master_ninja.rule(
+        'solink',
+        description='SOLINK $lib',
+        restat=True,
+        command=(mtime_preserving_solink_base % {
+            'suffix': '-Wl,--whole-archive $in $solibs -Wl,--no-whole-archive '
+            '$libs'}))
+      master_ninja.rule(
+        'solink_module',
+        description='SOLINK(module) $lib',
+        restat=True,
+        command=(mtime_preserving_solink_base % {
+            'suffix': '-Wl,--start-group $in $solibs -Wl,--end-group $libs'}))
+    elif flavor == 'ps3':
+      # TODO(***REMOVED***): Can we suppress the warnings from verlog.txt rather than
+      # rm'ing it?
+      ld_cmd = 'rm -f $verlog && ' + ld_cmd
+      if is_windows:
+        ld_cmd = 'cmd.exe /c ' + ld_cmd
+
+      prx_flags = '--oformat=fsprx --prx-with-runtime --zgenprx -zgenstub'
+      master_ninja.rule(
+        'solink',
+        description='LINK(PRX) $lib',
+        restat=True,
+        command=ld_cmd + ' @$prx.rsp',
+        rspfile='$prx.rsp',
+        rspfile_content=('$ldflags %s -o $prx $in $libs' % prx_flags),
+        pool='link_pool'
+      )
+    elif flavor == 'ps4':
+      # TODO(***REMOVED***): PS4 SOLINK rule.
+      pass
 
     if flavor in ['ps3', 'ps4']:
       # PS3 and PS4 linkers don't know about rpath.
