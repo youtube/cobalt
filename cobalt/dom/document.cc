@@ -364,6 +364,16 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent() {
     MessageLoop::current()->PostTask(
         FROM_HERE, base::Bind(&Document::DispatchOnLoadEvent,
                               base::AsWeakPtr<Document>(this)));
+    if (body_) {
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
+          base::Bind(base::IgnoreResult(
+                         static_cast<bool
+                             (HTMLBodyElement::*)(const scoped_refptr<Event>&)>(
+                             &HTMLBodyElement::DispatchEvent)),
+                     body_,
+                     make_scoped_refptr(new Event(base::Tokens::load()))));
+    }
   }
 }
 
