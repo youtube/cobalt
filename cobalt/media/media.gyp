@@ -25,8 +25,6 @@
         '<(lbshell_root)/src/platform/<(target_arch)',
       ],
       'sources': [
-        '<(lbshell_root)/src/lb_memory_pool.cc',
-        '<(lbshell_root)/src/lb_memory_pool.h',
         'fetcher_buffered_data_source.cc',
         'fetcher_buffered_data_source.h',
         'media_module.h',
