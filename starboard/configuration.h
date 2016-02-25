@@ -156,6 +156,10 @@ struct CompileAssert {};
 #define SB_UINT64_C(x) x##ULL
 #endif  // defined(_MSC_VER)
 
+// Standard CPP trick to stringify an evaluated macro definition.
+#define SB_STRINGIFY(x) SB_STRINGIFY2(x)
+#define SB_STRINGIFY2(x) #x
+
 // --- Platform Configuration ------------------------------------------------
 
 // Include the platform-specific configuration. This macro is set by GYP in
@@ -272,6 +276,40 @@ struct CompileAssert {};
 
 #if !defined(SB_MAX_THREADS)
 #error "Your platform must define SB_MAX_THREADS."
+#endif
+
+#if !SB_HAS(DECODER) && !SB_HAS(PLAYER)
+#error "Your platform must have either a decoder or a player (or both)."
+#endif
+
+#if SB_HAS(PLAYER)
+#if !SB_IS(PLAYER_COMPOSITED) && !SB_IS(PLAYER_PUNCHED_OUT) && \
+    !SB_IS(PLAYER_PRODUCING_TEXTURE)
+#error "Your player must choose a composition method."
+#endif
+#if SB_IS(PLAYER_COMPOSITED) && SB_IS(PLAYER_PUNCHED_OUT)
+#error "Your player can't be both composited and punched-out."
+#elif SB_IS(PLAYER_COMPOSITED) && SB_IS(PLAYER_PRODUCING_TEXTURE)
+#error "Your player can't be both composited and producing a texture."
+#elif SB_IS(PLAYER_PUNCHED_OUT) && SB_IS(PLAYER_PRODUCING_TEXTURE)
+#error "Your player can't be both punched-out and producing a texture."
+#endif
+#else  // SB_HAS(PLAYER)
+#if SB_IS(PLAYER_COMPOSITED) || SB_IS(PLAYER_PUNCHED_OUT) || \
+    SB_IS(PLAYER_PRODUCING_TEXTURE)
+#error "Your player can't have a composition method if it doesn't exist."
+#endif
+
+#if !SB_HAS(DECODER)
+#error "Your platform must have either a decoder or a player."
+#endif
+#endif  // SB_HAS(PLAYER)
+
+#if (SB_HAS(MANY_CORES) &&                                       \
+     (SB_HAS(2_CORES) || SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
+    (SB_HAS(2_CORES) && (SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
+    (SB_HAS(4_CORES) && SB_HAS(6_CORES))
+#error "Only one of SB_HAS_{MANY, 2, 4, 6}_CORES can be defined per platform."
 #endif
 
 // --- Derived Configuration -------------------------------------------------
