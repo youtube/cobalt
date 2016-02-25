@@ -31,7 +31,6 @@ namespace cobalt {
 namespace loader {
 namespace {
 
-const char kEmbeddedScheme[] = "h5vcc-embedded";
 #if defined(ENABLE_ABOUT_SCHEME)
 const char kAboutScheme[] = "about";
 #endif
@@ -44,16 +43,6 @@ bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
   *file_path = FilePath(path);
   return !file_path->empty();
 }
-
-bool EmbeddedURLToKey(const GURL& url, std::string* key) {
-  DCHECK(url.is_valid() && url.SchemeIs(kEmbeddedScheme));
-  *key = url.path();
-  DCHECK_EQ('/', (*key)[0]);
-  DCHECK_EQ('/', (*key)[1]);
-  (*key).erase(0, 2);
-  return !key->empty();
-}
-
 }  // namespace
 
 FetcherFactory::FetcherFactory(network::NetworkModule* network_module)
@@ -84,11 +73,9 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
 
   scoped_ptr<Fetcher> fetcher;
   if (url.SchemeIs(kEmbeddedScheme)) {
-    std::string key;
-    if (EmbeddedURLToKey(url, &key)) {
-      EmbeddedFetcher::Options options;
-      fetcher.reset(new EmbeddedFetcher(key, handler, options));
-    }
+    EmbeddedFetcher::Options options;
+    fetcher.reset(
+        new EmbeddedFetcher(url, url_security_callback, handler, options));
   } else if (url.SchemeIsFile()) {
     FilePath file_path;
     if (FileURLToFilePath(url, &file_path)) {

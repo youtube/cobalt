@@ -20,10 +20,13 @@
 #include <limits>
 #include <string>
 
+#include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
 
 namespace cobalt {
 namespace loader {
+
+const char kEmbeddedScheme[] = "h5vcc-embedded";
 
 // EmbeddedFetcher is for fetching data embedded in the binary, probably
 // generated using generate_data_header.py. Data will be in the form of a
@@ -40,15 +43,20 @@ class EmbeddedFetcher : public Fetcher {
     int64 bytes_to_read;
   };
 
-  EmbeddedFetcher(const std::string& key, Handler* handler,
-                  const Options& options);
+  EmbeddedFetcher(const GURL& url,
+                  const csp::SecurityCallback& security_callback,
+                  Handler* handler, const Options& options);
 
   ~EmbeddedFetcher() OVERRIDE;
 
  private:
-  void GetEmbeddedData(int64 start_offset, int64 bytes_to_read);
+  void Fetch(const Options& options);
+  void GetEmbeddedData(const std::string& key, int64 start_offset,
+                       int64 bytes_to_read);
+  bool IsAllowedByCsp();
 
-  std::string key_;
+  GURL url_;
+  csp::SecurityCallback security_callback_;
 };
 
 }  // namespace loader

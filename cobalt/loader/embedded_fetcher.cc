@@ -21,33 +21,68 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/message_loop.h"
+#include "base/stringprintf.h"
 #include "cobalt/loader/embedded_resources.h"  // Generated.
 
 namespace cobalt {
 namespace loader {
 
-EmbeddedFetcher::EmbeddedFetcher(const std::string& key, Handler* handler,
-                                 const Options& options)
-    : Fetcher(handler), key_(key) {
+namespace {
+bool EmbeddedURLToKey(const GURL& url, std::string* key) {
+  DCHECK(url.is_valid() && url.SchemeIs(kEmbeddedScheme));
+  *key = url.path();
+  DCHECK_EQ('/', (*key)[0]);
+  DCHECK_EQ('/', (*key)[1]);
+  (*key).erase(0, 2);
+  return !key->empty();
+}
+}  // namespace
+
+EmbeddedFetcher::EmbeddedFetcher(const GURL& url,
+                                 const csp::SecurityCallback& security_callback,
+                                 Handler* handler, const Options& options)
+    : Fetcher(handler), url_(url), security_callback_(security_callback) {
   // Post the data access as a separate task so that whatever is going to
   // handle the data gets a chance to get ready for it.
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      base::Bind(&EmbeddedFetcher::GetEmbeddedData, base::Unretained(this),
-                 options.start_offset, options.bytes_to_read));
+      base::Bind(&EmbeddedFetcher::Fetch, base::Unretained(this), options));
 }
 
-void EmbeddedFetcher::GetEmbeddedData(int64 start_offset, int64 bytes_to_read) {
+EmbeddedFetcher::~EmbeddedFetcher() {}
+
+void EmbeddedFetcher::Fetch(const Options& options) {
+  if (!IsAllowedByCsp()) {
+    std::string msg(base::StringPrintf("URL %s rejected by security policy.",
+                                       url_.spec().c_str()));
+    handler()->OnError(this, msg);
+    return;
+  }
+
+  std::string key;
+  if (!EmbeddedURLToKey(url_, &key)) {
+    std::string msg(
+        base::StringPrintf("Invalid embedded URL: %s.", url_.spec().c_str()));
+    handler()->OnError(this, msg);
+    return;
+  }
+
+  GetEmbeddedData(key, options.start_offset, options.bytes_to_read);
+}
+
+void EmbeddedFetcher::GetEmbeddedData(const std::string& key,
+                                      int64 start_offset, int64 bytes_to_read) {
   const char kDataNotFoundError[] = "Embedded data not found.";
 
   GeneratedResourceMap resource_map;
   LoaderEmbeddedResources::GenerateMap(resource_map);
 
-  if (resource_map.find(key_) == resource_map.end()) {
+  if (resource_map.find(key) == resource_map.end()) {
     handler()->OnError(this, kDataNotFoundError);
+    return;
   }
 
-  FileContents file_contents = resource_map[key_];
+  FileContents file_contents = resource_map[key];
   const char* data = reinterpret_cast<const char*>(file_contents.data);
   size_t size = static_cast<size_t>(file_contents.size);
   data += start_offset;
@@ -57,7 +92,15 @@ void EmbeddedFetcher::GetEmbeddedData(int64 start_offset, int64 bytes_to_read) {
   handler()->OnDone(this);
 }
 
-EmbeddedFetcher::~EmbeddedFetcher() {}
+bool EmbeddedFetcher::IsAllowedByCsp() {
+  bool did_redirect = false;
+  if (security_callback_.is_null() ||
+      security_callback_.Run(url_, did_redirect)) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
 }  // namespace loader
 }  // namespace cobalt
