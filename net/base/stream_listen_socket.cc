@@ -169,8 +169,8 @@ void StreamListenSocket::SendInternal(const char* bytes, int len) {
         LOG(ERROR) << "SbSocketSendTo failed: error = "
                    << SbSocketGetLastError(socket_);
 #elif defined(__LB_SHELL__)
-      if (!LB::Platform::NetWouldBlock()) {
-        LOG(ERROR) << "send failed: errno==" << LB::Platform::net_errno();
+      if (!lb_net_would_block()) {
+        LOG(ERROR) << "send failed: errno==" << lb_net_errno();
 #elif defined(OS_POSIX)
       if (errno != EWOULDBLOCK && errno != EAGAIN) {
         LOG(ERROR) << "send failed: errno==" << errno;
@@ -252,7 +252,7 @@ void StreamListenSocket::Read() {
       if (len < 0) {
         // PS3 returns a negative error code for length instead of a simple -1.
         // Thus, we must check it in the len < 0 case.
-        if (!LB::Platform::NetWouldBlock()) {
+        if (!lb_net_would_block()) {
           Close();
         }
         break;
@@ -286,7 +286,7 @@ void StreamListenSocket::CloseSocket(SocketDescriptor s) {
 #elif defined(OS_STARBOARD)
     SbSocketDestroy(s);
 #elif defined(__LB_SHELL__)
-    LB::Platform::close_socket(s);
+    lb_close_socket(s);
 #elif defined(OS_POSIX)
     close(s);
 #endif

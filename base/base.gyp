@@ -246,6 +246,12 @@
                   ],
                 },
               ],
+              'dependencies': [
+                # On PS3, we use both posix emulation and starboard for
+                # threading.  We depend on starboard for its TLS implementation.
+                # Eventually this will replace the posix_emulation below.
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+              ],
             }],
             # toolset can be host or target.
             # (host in the case of e.g. protobuf compiler.)
