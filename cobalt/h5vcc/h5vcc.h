@@ -19,6 +19,7 @@
 
 #include "cobalt/h5vcc/h5vcc_account_info.h"
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
+#include "cobalt/h5vcc/h5vcc_settings.h"
 #include "cobalt/h5vcc/h5vcc_storage.h"
 #include "cobalt/h5vcc/h5vcc_system.h"
 #include "cobalt/script/wrappable.h"
@@ -29,7 +30,9 @@ namespace h5vcc {
 class H5vcc : public script::Wrappable {
  public:
   struct Settings {
-    Settings() : network_module(NULL), account_manager(NULL) {}
+    Settings()
+        : media_module(NULL), network_module(NULL), account_manager(NULL) {}
+    media::MediaModule* media_module;
     network::NetworkModule* network_module;
     account::AccountManager* account_manager;
   };
@@ -41,6 +44,7 @@ class H5vcc : public script::Wrappable {
   const scoped_refptr<H5vccAudioConfigArray>& audio_config() {
     return audio_config_array_;
   }
+  const scoped_refptr<H5vccSettings>& settings() const { return settings_; }
   const scoped_refptr<H5vccStorage>& storage() const { return storage_; }
   const scoped_refptr<H5vccSystem>& system() const { return system_; }
 
@@ -49,6 +53,7 @@ class H5vcc : public script::Wrappable {
  private:
   scoped_refptr<H5vccAccountInfo> account_info_;
   scoped_refptr<H5vccAudioConfigArray> audio_config_array_;
+  scoped_refptr<H5vccSettings> settings_;
   scoped_refptr<H5vccStorage> storage_;
   scoped_refptr<H5vccSystem> system_;
 
