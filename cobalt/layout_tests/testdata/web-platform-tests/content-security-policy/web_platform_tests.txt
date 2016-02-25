@@ -96,10 +96,12 @@ blink-contrib/eval-blocked-and-sends-report.sub.html,PASS
 blink-contrib/eval-blocked-in-about-blank-iframe.sub.html,DISABLE
 
 blink-contrib/eval-blocked.sub.html,PASS
-blink-contrib/eval-scripts-setInterval-allowed.sub.html,FAIL
-blink-contrib/eval-scripts-setInterval-blocked.sub.html,FAIL
-blink-contrib/eval-scripts-setTimeout-allowed.sub.html,FAIL
-blink-contrib/eval-scripts-setTimeout-blocked.sub.html,FAIL
+# setTimeout() and setInterval() overloads that take DOMString argument are not
+# supported
+blink-contrib/eval-scripts-setInterval-allowed.sub.html,DISABLE
+blink-contrib/eval-scripts-setInterval-blocked.sub.html,PASS
+blink-contrib/eval-scripts-setTimeout-allowed.sub.html,DISABLE
+blink-contrib/eval-scripts-setTimeout-blocked.sub.html,PASS
 
 # No filesystem:// support
 blink-contrib/filesystem-urls-do-not-match-self.sub.html,DISABLE
@@ -246,8 +248,9 @@ script-src/script-src-1_3.html,PASS
 # setTimeout() and setInterval() should not run without 'unsafe-eval'
 # script-src directive.
 # setTimeout() and setInterval() overloads that take DOMString argument are not
-# supported
-script-src/script-src-1_4_1.html,FAIL
+# supported, as a result the function calls are treated as a syntax error, and
+# the CSP violation report will not be sent.
+script-src/script-src-1_4_1.html,DISABLE
 
 # Function() called as a constructor
 script-src/script-src-1_4_2.html,PASS
