@@ -155,14 +155,18 @@ bool CspDelegateSecure::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
 void CspDelegateSecure::OnReceiveHeader(const std::string& header,
                                         csp::HeaderType header_type,
                                         csp::HeaderSource header_source) {
-  csp_->OnReceiveHeader(header, header_type, header_source);
-  // We don't consider a Report-Only header to be sufficient.
-  if (header_type == csp::kHeaderTypeEnforce) {
-    was_header_received_ = true;
-  }
+  if (header_source == csp::kHeaderSourceMetaOutsideHead) {
+    csp_->ReportMetaOutsideHead(header);
+  } else {
+    csp_->OnReceiveHeader(header, header_type, header_source);
+    // We don't consider a Report-Only header to be sufficient.
+    if (header_type == csp::kHeaderTypeEnforce) {
+      was_header_received_ = true;
+    }
 
-  if (!policy_changed_callback_.is_null()) {
-    policy_changed_callback_.Run();
+    if (!policy_changed_callback_.is_null()) {
+      policy_changed_callback_.Run();
+    }
   }
 }
 
