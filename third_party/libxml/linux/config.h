@@ -359,6 +359,36 @@
 /* labs() wrapping */
 #define XML_LABS labs
 
+
+#if defined(__LB_PS3__)
+
+// The value of XML_MALLOC is read during global initialization, but that
+// function is not loaded until posix_emulation is loaded.
+// Use these wrappers instead.
+void* malloc(size_t);
+void* realloc(void*, size_t);
+void free(void*);
+
+static inline void* malloc_wrapper(size_t size) {
+  return malloc(size);
+}
+
+static inline void* realloc_wrapper(void* ptr, size_t size) {
+  return realloc(ptr, size);
+}
+static inline void free_wrapper(void* ptr) {
+  free(ptr);
+}
+
+#define XML_MALLOC malloc_wrapper
+
+/* realloc() wrapping */
+#define XML_REALLOC realloc_wrapper
+
+/* free() wrapping */
+#define XML_FREE free_wrapper
+#else
+
 /* malloc() wrapping */
 #define XML_MALLOC malloc
 
@@ -367,6 +397,8 @@
 
 /* free() wrapping */
 #define XML_FREE free
+
+#endif
 
 /* memcpy() wrapping */
 #define XML_MEMCPY memcpy

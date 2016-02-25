@@ -81,7 +81,7 @@ void UDPListenSocket::CloseSocket(SocketDescriptor s) {
 #if defined(OS_STARBOARD)
     SbSocketDestroy(s);
 #else
-    LB::Platform::close_socket(s);
+    lb_close_socket(s);
 #endif
   }
 }
@@ -169,7 +169,7 @@ void UDPListenSocket::Read() {
                  src_addr.addr, &src_addr.addr_len));
 
     if (len <= 0) {
-      if (!LB::Platform::NetWouldBlock()) {
+      if (!lb_net_would_block()) {
         PLOG(WARNING) << "recvfrom() failed: " << std::hex << len;
       }
       return;

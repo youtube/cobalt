@@ -123,7 +123,7 @@ SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
 #if defined(OS_WIN)
       closesocket(s);
 #elif defined(__LB_SHELL__)
-      LB::Platform::close_socket(s);
+      lb_close_socket(s);
 #elif defined(OS_POSIX)
       close(s);
 #endif
@@ -161,7 +161,7 @@ SocketDescriptor TCPListenSocket::CreateAndBindAnyPort(const string& ip,
 #if defined(OS_WIN)
     closesocket(s);
 #elif defined(__LB_SHELL__)
-    LB::Platform::close_socket(s);
+    lb_close_socket(s);
 #elif defined(OS_POSIX)
     close(s);
 #endif
