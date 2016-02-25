@@ -14,8 +14,7 @@ blink-contrib-2/form-action-src-get-blocked.sub.html,DISABLE
 blink-contrib-2/form-action-src-javascript-blocked.sub.html,DISABLE
 blink-contrib-2/form-action-src-redirect-blocked.sub.html,DISABLE
 
-# FIXME <meta> outside <head> should not be enforced. b/27231371
-blink-contrib-2/meta-outside-head.sub.html,FAIL
+blink-contrib-2/meta-outside-head.sub.html,PASS
 
 # <object> not supported
 blink-contrib-2/plugintypes-mismatched-data.sub.html,DISABLE
