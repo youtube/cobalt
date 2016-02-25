@@ -16,10 +16,12 @@
 
 #include "cobalt/dom/html_meta_element.h"
 
+#include "base/memory/ref_counted.h"
 #include "base/string_util.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/node.h"
 
 namespace cobalt {
 namespace dom {
@@ -36,10 +38,21 @@ void HTMLMetaElement::OnInsertedIntoDocument() {
   std::string http_equiv_attribute = GetAttribute("http-equiv").value_or("");
   if (LowerCaseEqualsASCII(http_equiv_attribute, kContentSecurityPolicy)) {
     std::string csp_text = GetAttribute("content").value_or("");
+    csp::HeaderSource header_source = IsDescendantOfHeadElement()
+                                          ? csp::kHeaderSourceMeta
+                                          : csp::kHeaderSourceMetaOutsideHead;
 
     owner_document()->csp_delegate()->OnReceiveHeader(
-        csp_text, csp::kHeaderTypeEnforce, csp::kHeaderSourceMeta);
+        csp_text, csp::kHeaderTypeEnforce, header_source);
   }
+}
+
+bool HTMLMetaElement::IsDescendantOfHeadElement() const {
+  for (scoped_refptr<Node> node = parent_node(); node;
+       node = node->parent_node()) {
+    if (node->node_name() == "head") return true;
+  }
+  return false;
 }
 
 }  // namespace dom
