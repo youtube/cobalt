@@ -119,11 +119,15 @@ void SubmissionQueue::PurgeStaleSubmissionsFromQueue() {
   SubmissionQueueInternal::iterator submission = submission_queue_.end();
   --submission;
 
-  // Skip past the submissions that are in the future.  This means we start
-  // from the back because the queue is sorted in ascending order of time.
-  while (current_to_submission_time + render_time() < submission->time_offset) {
-    DCHECK(submission != submission_queue_.begin());
-    --submission;
+  // If there is more than one element in the queue...
+  if (submission != submission_queue_.begin()) {
+    // Skip past the submissions that are in the future.  This means we start
+    // from the back because the queue is sorted in ascending order of time.
+    while (current_to_submission_time + render_time() <
+           submission->time_offset) {
+      DCHECK(submission != submission_queue_.begin());
+      --submission;
+    }
   }
 
   // Delete all previous, old render trees.
