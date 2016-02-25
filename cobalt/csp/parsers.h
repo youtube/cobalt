@@ -56,7 +56,11 @@ enum ReflectedXSSDisposition {
 
 enum HeaderType { kHeaderTypeReport, kHeaderTypeEnforce };
 
-enum HeaderSource { kHeaderSourceHTTP, kHeaderSourceMeta };
+enum HeaderSource {
+  kHeaderSourceHTTP,
+  kHeaderSourceMeta,
+  kHeaderSourceMetaOutsideHead
+};
 
 inline bool SkipExactly(const char** position_ptr, const char* end,
                         char delimiter) {

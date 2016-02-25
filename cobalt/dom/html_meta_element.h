@@ -61,6 +61,8 @@ class HTMLMetaElement : public HTMLElement {
 
  private:
   ~HTMLMetaElement() OVERRIDE {}
+
+  bool IsDescendantOfHeadElement() const;
 };
 
 }  // namespace dom
