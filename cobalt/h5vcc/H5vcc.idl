@@ -30,6 +30,7 @@
 interface H5vcc {
   readonly attribute H5vccAccountInfo accountInfo;
   readonly attribute H5vccAudioConfigArray audioConfig;
+  readonly attribute H5vccSettings settings;
   readonly attribute H5vccStorage storage;
   readonly attribute H5vccSystem system;
 };

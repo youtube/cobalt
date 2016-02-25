@@ -178,6 +178,7 @@ BrowserModule::BrowserModule(const GURL& url,
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
+  h5vcc_settings.media_module = media_module_.get();
   h5vcc_settings.network_module = &network_module_;
   h5vcc_settings.account_manager = account_manager;
   web_module_options_.injected_window_attributes["h5vcc"] =
