@@ -196,6 +196,11 @@ FontList::GetFontCharacterGlyphMap(
   return font_cache_->GetFontCharacterGlyphMap(font);
 }
 
+render_tree::GlyphIndex FontList::GetFontCharacterGlyph(
+    const scoped_refptr<render_tree::Font>& font, int32 utf32_character) {
+  return GetGlyph(font, utf32_character, GetFontCharacterGlyphMap(font));
+}
+
 const scoped_refptr<render_tree::Font>& FontList::GetCharacterFont(
     int32 utf32_character, render_tree::GlyphIndex* glyph_index) {
   // Walk the list of fonts, requesting any encountered that are in an

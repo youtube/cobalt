@@ -184,6 +184,10 @@ class FontList : public render_tree::FontFallbackList,
   const scoped_refptr<render_tree::CharacterGlyphMap>& GetFontCharacterGlyphMap(
       const scoped_refptr<render_tree::Font>& font) OVERRIDE;
 
+  render_tree::GlyphIndex GetFontCharacterGlyph(
+      const scoped_refptr<render_tree::Font>& font,
+      int32 utf32_character) OVERRIDE;
+
   // Returns the first font in the font list that supports the specified
   // UTF-32 character or a fallback font provided by the font cache if none of
   // them do.
