@@ -87,7 +87,7 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
   // Now get the IPAddress of the network card.
   SockaddrStorage sock_addr;
   struct sockaddr_in *in = (struct sockaddr_in *)sock_addr.addr;
-  ret |= LB::Platform::GetLocalIpAddress(&in->sin_addr);
+  ret |= lb_get_local_ip_address(&in->sin_addr);
   in->sin_family = AF_INET;
   in->sin_port = htons(addr->port());
 
