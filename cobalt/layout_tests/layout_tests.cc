@@ -144,6 +144,10 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     BidiLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("bidi")));
+// Custom text shaping test cases.
+INSTANTIATE_TEST_CASE_P(
+    TextShapingLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("text-shaping")));
 // Custom CSS Conditional (https://www.w3.org/TR/css3-conditional/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSConditional3LayoutTests, LayoutTest,
