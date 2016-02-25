@@ -11,8 +11,13 @@
   document.getElementById('emptyScript').innerHTML = 'dmTest.step(function() {assert_unreached("Unsafe inline script ran - innerHTML.")});';
   document.getElementById('emptyDiv').outerHTML = '<script id=outerHTMLScript>dmTest.step(function() {assert_unreached("Unsafe inline script ran - outerHTML.")});</script>';
 
-  document.write('<script>dmTest.step(function() {assert_unreached("Unsafe inline script ran - document.write")});</script>');
-  document.writeln('<script>dmTest.step(function() {assert_unreached("Unsafe inline script ran - document.writeln")});</script>');
+  // Cobalt: document.write() and document.writeln() not supported
+  if (document.write) {
+    document.write('<script>dmTest.step(function() {assert_unreached("Unsafe inline script ran - document.write")});</script>');
+  }
+  if (document.writeln) {
+    document.writeln('<script>dmTest.step(function() {assert_unreached("Unsafe inline script ran - document.writeln")});</script>');
+  }
 
   dmTest.done();
 })();
