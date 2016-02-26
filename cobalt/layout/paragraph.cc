@@ -32,12 +32,14 @@ int ConvertBaseDirectionToBidiLevel(Paragraph::BaseDirection base_direction) {
 
 }  // namespace
 
-Paragraph::Paragraph(icu::BreakIterator* line_break_iterator,
-                     icu::BreakIterator* character_break_iterator,
-                     Paragraph::BaseDirection base_direction)
-    : line_break_iterator_(line_break_iterator),
-      character_break_iterator_(character_break_iterator),
+Paragraph::Paragraph(const icu::Locale& locale,
+                     Paragraph::BaseDirection base_direction,
+                     icu::BreakIterator* line_break_iterator,
+                     icu::BreakIterator* character_break_iterator)
+    : locale_(locale),
       base_direction_(base_direction),
+      line_break_iterator_(line_break_iterator),
+      character_break_iterator_(character_break_iterator),
       is_closed_(false),
       last_retrieved_run_index_(0) {
   DCHECK(line_break_iterator_);
@@ -59,9 +61,7 @@ int32 Paragraph::AppendUtf8String(const std::string& utf8_string,
     icu::UnicodeString unicode_string =
         icu::UnicodeString::fromUTF8(utf8_string);
     if (transform == kUppercaseTextTransform) {
-      UErrorCode error_code;
-      unicode_string.toUpper(
-          line_break_iterator_->getLocaleID(ULOC_VALID_LOCALE, error_code));
+      unicode_string.toUpper(locale_);
     }
 
     unicode_text_ += unicode_string;
@@ -170,6 +170,8 @@ std::string Paragraph::RetrieveUtf8SubString(int32 start_position,
 const char16* Paragraph::GetTextBuffer() const {
   return unicode_text_.getBuffer();
 }
+
+const icu::Locale& Paragraph::GetLocale() const { return locale_; }
 
 Paragraph::BaseDirection Paragraph::GetBaseDirection() const {
   return base_direction_;

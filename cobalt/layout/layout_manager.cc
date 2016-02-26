@@ -30,6 +30,7 @@
 #include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
+#include "third_party/icu/public/common/unicode/locid.h"
 
 namespace cobalt {
 namespace layout {
@@ -58,6 +59,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 #endif  // ENABLE_TEST_RUNNER
 
   const scoped_refptr<dom::Window> window_;
+  const icu::Locale locale_;
   const scoped_ptr<UsedStyleProvider> used_style_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
   const LayoutTrigger layout_trigger_;
@@ -92,6 +94,7 @@ LayoutManager::Impl::Impl(
     LayoutTrigger layout_trigger, float layout_refresh_rate,
     const std::string& language)
     : window_(window),
+      locale_(icu::Locale::createCanonical(language.c_str())),
       used_style_provider_(
           new UsedStyleProvider(window->html_element_context()->image_cache(),
                                 window->document()->font_cache())),
@@ -105,13 +108,12 @@ LayoutManager::Impl::Impl(
       base::Bind(&Impl::DoSynchronousLayout, base::Unretained(this)));
 
   UErrorCode status = U_ZERO_ERROR;
-  line_break_iterator_ = make_scoped_ptr(icu::BreakIterator::createLineInstance(
-      icu::Locale::createCanonical(language.c_str()), status));
+  line_break_iterator_ =
+      make_scoped_ptr(icu::BreakIterator::createLineInstance(locale_, status));
   DCHECK(U_SUCCESS(status));
   status = U_ZERO_ERROR;
-  character_break_iterator_ =
-      make_scoped_ptr(icu::BreakIterator::createCharacterInstance(
-          icu::Locale::createCanonical(language.c_str()), status));
+  character_break_iterator_ = make_scoped_ptr(
+      icu::BreakIterator::createCharacterInstance(locale_, status));
   DCHECK(U_SUCCESS(status));
 
 #if defined(ENABLE_TEST_RUNNER)
@@ -159,7 +161,7 @@ void LayoutManager::Impl::OnMutation() {
 void LayoutManager::Impl::DoSynchronousLayout() {
   TRACE_EVENT0("cobalt::layout", "LayoutManager::Impl::DoSynchronousLayout()");
   layout::UpdateComputedStylesAndLayoutBoxTree(
-      window_->document(), used_style_provider_.get(),
+      locale_, window_->document(), used_style_provider_.get(),
       line_break_iterator_.get(), character_break_iterator_.get(),
       &initial_containing_block_);
 }
@@ -238,7 +240,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     }
 
     RenderTreeWithAnimations render_tree_with_animations = layout::Layout(
-        window_->document(), used_style_provider_.get(),
+        locale_, window_->document(), used_style_provider_.get(),
         line_break_iterator_.get(), character_break_iterator_.get(),
         &initial_containing_block_);
     bool run_on_render_tree_produced_callback = true;
