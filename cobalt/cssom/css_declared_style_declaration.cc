@@ -125,5 +125,10 @@ void CSSDeclaredStyleDeclaration::RecordMutation() {
   }
 }
 
+void CSSDeclaredStyleDeclaration::AssignFrom(
+    const CSSDeclaredStyleDeclaration& rhs) {
+  data_->AssignFrom(*rhs.data_);
+}
+
 }  // namespace cssom
 }  // namespace cobalt
