@@ -23,12 +23,7 @@ namespace h5vcc {
 
 using ::media::ShellAudioStreamer;
 
-H5vccAudioConfigArray::H5vccAudioConfigArray() : audio_config_updated_(false) {}
-
-void H5vccAudioConfigArray::MaybeRefreshAudioConfigs() {
-  if (audio_config_updated_) {
-    return;
-  }
+H5vccAudioConfigArray::H5vccAudioConfigArray() {
   // Some platforms may not use the filter based media stack and don't have a
   // ShellAudioStreamer implementation.
   if (!ShellAudioStreamer::Instance()) {
@@ -43,7 +38,6 @@ void H5vccAudioConfigArray::MaybeRefreshAudioConfigs() {
         output_devices[i].coding_type, output_devices[i].number_of_channels,
         output_devices[i].sampling_frequency));
   }
-  audio_config_updated_ = true;
 }
 
 }  // namespace h5vcc
