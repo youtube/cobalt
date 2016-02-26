@@ -145,9 +145,12 @@ blink-contrib/inline-style-blocked.sub.html,PASS
 blink-contrib/manifest-src-allowed.sub.html,DISABLE
 blink-contrib/manifest-src-blocked.sub.html,DISABLE
 
-# FIXME: maybe? Might not be supported.
-blink-contrib/media-src-allowed.sub.html,FAIL
-blink-contrib/media-src-blocked.sub.html,FAIL
+# These are broken tests, they refer to nonexistent
+# media-resources/video-test.js and media-resources/media-file.js and call
+# an undefined waitForEvent, also using Chrome on upstream at
+# http://w3c-test.org/.
+blink-contrib/media-src-allowed.sub.html,DISABLE
+blink-contrib/media-src-blocked.sub.html,DISABLE
 
 # <track> not supported
 blink-contrib/media-src-track-block.sub.html,DISABLE
@@ -223,6 +226,50 @@ blink-contrib/worker-importscripts-blocked.sub.html,DISABLE
 blink-contrib/worker-script-src.sub.html,DISABLE
 blink-contrib/worker-set-timeout-blocked.sub.html,DISABLE
 
+# <iframe> not supported
+child-src/child-src-about-blank-allowed-by-default.sub,DISABLE
+child-src/child-src-about-blank-allowed-by-scheme.sub,DISABLE
+child-src/child-src-allowed.sub,DISABLE
+child-src/child-src-blocked.sub,DISABLE
+child-src/child-src-conflicting-frame-src.sub,DISABLE
+child-src/child-src-cross-origin-load.sub,DISABLE
+
+# Workers are not supported
+child-src/child-src-worker-allowed.sub,DISABLE
+child-src/child-src-worker-blocked.sub,DISABLE
+
+# frame-ancestors, Cross-document messaging, <iframe> not supported
+frame-ancestors/deep-allows-none.sub,DISABLE
+frame-ancestors/intermediate-reporting-frame-allows-self.sub,DISABLE
+frame-ancestors/intermediate-reporting-frame-allows-star.sub,DISABLE
+frame-ancestors/multiple-frames-meta-ignored.sub,DISABLE
+frame-ancestors/multiple-frames-one-blocked.sub,DISABLE
+frame-ancestors/multiple-frames-self-allowed.sub,DISABLE
+frame-ancestors/nested-traversing-allowed.sub,DISABLE
+frame-ancestors/nested-traversing-banned.sub,DISABLE
+frame-ancestors/nested-traversing-banned-top-is-self.sub,DISABLE
+
+# frame-ancestors, Cross-document messaging not supported
+frame-ancestors/reporting-frame-allows-none,DISABLE
+frame-ancestors/reporting-frame-allows-none-meta,DISABLE
+frame-ancestors/reporting-frame-allows-self,DISABLE
+frame-ancestors/single-frame-self-allowed.sub,DISABLE
+
+generic/generic-0_10_1.sub.html,PASS
+generic/generic-0_10.html,PASS
+
+# FIXME b/27383493
+generic/generic-0_1-img-src.html,FAIL
+generic/generic-0_1-script-src.html,PASS
+generic/generic-0_2_2.sub.html,PASS
+generic/generic-0_2_3.html,PASS
+generic/generic-0_2.html,PASS
+generic/generic-0_8_1.sub.html,PASS
+
+# FIXME b/27383493
+generic/generic-0_8.html,FAIL
+generic/generic-0_9.sub.html,PASS
+
 # FIXME: some tests not run- maybe not supported
 img-src/img-src-4_1.html,FAIL
 media-src/media-src-7_1_2.html,FAIL
@@ -231,6 +278,10 @@ media-src/media-src-7_2_2.html,FAIL
 media-src/media-src-7_2.html,FAIL
 media-src/media-src-7_3_2.html,FAIL
 media-src/media-src-7_3.html,FAIL
+
+# FIXME: Core dump b/27384319
+meta/meta-img-src,DISABLE
+meta/meta-modified,DISABLE
 
 # object-src not supported by Cobalt.
 object-src/object-src-2_1.html,DISABLE
@@ -257,6 +308,12 @@ script-src/script-src-1_4_2.html,PASS
 
 # eval() should not run without 'unsafe-eval' script-src directive
 script-src/script-src-1_4.html,PASS
+
+# svg not supported
+svg/svg-from-guid,DISABLE
+svg/svg-inline.sub,DISABLE
+svg/svg-policy-resource-doc-includes,DISABLE
+svg/svg-policy-with-resource,DISABLE
 
 style-src/style-src-3_1.html,PASS
 style-src/style-src-3_2.html,PASS
