@@ -20,9 +20,9 @@
 #include <limits>
 
 #include "base/stringprintf.h"
+#include "media/base/endian_util.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/mp4/es_descriptor.h"
-#include "lb_platform.h"
 
 #if SHELL_MP4_PARSER_DUMP_ATOMS
 #include <string>
@@ -77,7 +77,7 @@ scoped_refptr<ShellParser> ShellMP4Parser::Construct(
     const uint8* construction_header,
     const PipelineStatusCB& status_cb) {
   // detect mp4 stream by looking for ftyp atom at top of file
-  uint32 ftyp = LB::Platform::load_uint32_big_endian(construction_header + 4);
+  uint32 ftyp = endian_util::load_uint32_big_endian(construction_header + 4);
   if (ftyp != kAtomType_ftyp) {
     // not an mp4
     return NULL;
@@ -85,7 +85,7 @@ scoped_refptr<ShellParser> ShellMP4Parser::Construct(
 
   // first 4 bytes will be the size of the ftyp atom
   uint32 ftyp_atom_size =
-      LB::Platform::load_uint32_big_endian(construction_header);
+      endian_util::load_uint32_big_endian(construction_header);
   if (ftyp_atom_size < kAtomMinSize) {
     status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
     return NULL;
@@ -268,13 +268,13 @@ bool ShellMP4Parser::ParseNextAtom() {
     return false;
   }
   // first 4 bytes are size of atom uint32
-  uint64 atom_size = (uint64)LB::Platform::load_uint32_big_endian(atom);
+  uint64 atom_size = (uint64)endian_util::load_uint32_big_endian(atom);
   // normally atom body starts just past fourCC code
   uint32 atom_body = kAtomMinSize;
   // if 1 we need to load the extended size which will be appended just past
   // the fourCC code
   if (atom_size == 1) {
-    atom_size = LB::Platform::load_uint64_big_endian(atom + 8);
+    atom_size = endian_util::load_uint64_big_endian(atom + 8);
     // advance atom_body past the 8 bytes of size we just parsed
     atom_body += 8;
   } else if (atom_size == 0) {
@@ -295,7 +295,7 @@ bool ShellMP4Parser::ParseNextAtom() {
   }
 
   // extract fourCC code as big-endian uint32
-  uint32 four_cc = LB::Platform::load_uint32_big_endian(atom + 4);
+  uint32 four_cc = endian_util::load_uint32_big_endian(atom + 4);
   DLOG(INFO) << base::StringPrintf("four_cc: %c%c%c%c", atom[4], atom[5],
                                    atom[6], atom[7]);
 
@@ -566,7 +566,7 @@ bool ShellMP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
   }
   // last 4 bytes of the 12 we need are an ascii code for the trak type, we
   // want 'vide' for video or 'soun' for audio. ignore the rest.
-  uint32 hdlr_subtype = LB::Platform::load_uint32_big_endian(hdlr + 8);
+  uint32 hdlr_subtype = endian_util::load_uint32_big_endian(hdlr + 8);
   // update state flags
   current_trak_is_video_ = (hdlr_subtype == kVideoSubtype_hdlr_vide);
   current_trak_is_audio_ = (hdlr_subtype == kAudioSubtype_hdlr_soun);
@@ -595,13 +595,13 @@ bool ShellMP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
                                         atom_data_size);
     return false;
   }
-  uint32 time_scale = LB::Platform::load_uint32_big_endian(mdhd + 12);
+  uint32 time_scale = endian_util::load_uint32_big_endian(mdhd + 12);
   if(time_scale == 0) {
     DLOG(WARNING) << "got 0 time scale for mvhd";
     return false;
   }
   // double-check track duration, it may be different from the movie duration
-  uint32 track_duration_ticks = LB::Platform::load_uint32_big_endian(mdhd + 16);
+  uint32 track_duration_ticks = endian_util::load_uint32_big_endian(mdhd + 16);
   base::TimeDelta track_duration =
       TicksToTime(track_duration_ticks, time_scale);
   if (track_duration > duration_) {
@@ -641,7 +641,7 @@ bool ShellMP4Parser::ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a) {
                                         atom_data_size);
     return false;
   }
-  uint16 mp4a_version = LB::Platform::load_uint16_big_endian(mp4a);
+  uint16 mp4a_version = endian_util::load_uint16_big_endian(mp4a);
   switch (mp4a_version) {
     case 0:
       atom_offset_ += kTotalSize_mp4a_v0;
@@ -681,13 +681,13 @@ bool ShellMP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
                                         atom_data_size);
     return false;
   }
-  uint32 time_scale_hz = LB::Platform::load_uint32_big_endian(mvhd + 12);
+  uint32 time_scale_hz = endian_util::load_uint32_big_endian(mvhd + 12);
   if (!time_scale_hz) {
     DLOG(WARNING) << "got 0 time scale for mvhd";
     return false;
   }
   // duration is in units of the time scale we just extracted
-  uint64 duration_ticks = LB::Platform::load_uint32_big_endian(mvhd + 16);
+  uint64 duration_ticks = endian_util::load_uint32_big_endian(mvhd + 16);
   // calculate actual duration from that and the time scale
   duration_ = TicksToTime(duration_ticks, time_scale_hz);
   // advance read position

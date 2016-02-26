@@ -32,7 +32,7 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   void SetConfigId(int config_id);
 
  private:
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   StreamParserBuffer(uint8* data, int data_size, bool is_keyframe);
 #else
   StreamParserBuffer(const uint8* data, int data_size, bool is_keyframe);

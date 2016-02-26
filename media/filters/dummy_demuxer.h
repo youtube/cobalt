@@ -29,7 +29,7 @@ class DummyDemuxerStream : public DemuxerStream {
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   bool StreamWasEncrypted() const OVERRIDE {
     return video_config_.is_encrypted();
   }

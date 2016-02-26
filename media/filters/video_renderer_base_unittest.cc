@@ -50,7 +50,7 @@ class VideoRendererBaseTest : public ::testing::Test {
         base::Bind(&VideoRendererBaseTest::OnPaint, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::OnSetOpaque, base::Unretained(this)),
         true);
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     EXPECT_CALL(*demuxer_stream_, StreamWasEncrypted())
         .WillRepeatedly(Return(false));
 #endif

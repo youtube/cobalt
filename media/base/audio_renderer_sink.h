@@ -12,6 +12,17 @@
 #include "media/base/audio_bus.h"
 #include "media/base/media_export.h"
 
+#undef MEDIA_AUDIO_USE_SINK_UNDERFLOW
+#if defined(OS_STARBOARD)
+#if SB_HAS(DECODER) && !SB_HAS(PLAYER)
+#define MEDIA_AUDIO_USE_SINK_UNDERFLOW
+#endif
+#else  // defined(OS_STARBOARD)
+#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || defined(__LB_PS4__)
+#define MEDIA_AUDIO_USE_SINK_UNDERFLOW
+#endif
+#endif  // defined(OS_STARBOARD)
+
 namespace media {
 
 // AudioRendererSink is an interface representing the end-point for
@@ -35,12 +46,12 @@ class MEDIA_EXPORT AudioRendererSink
     // Signals an error has occurred.
     virtual void OnRenderError() = 0;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     // Callback from the sink to the renderer to indicate that it is currently
     // full and will not be requesting additional data until some is consumed.
     virtual void SinkFull() = 0;
 
-#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || defined(__LB_PS4__)
+#if defined(MEDIA_AUDIO_USE_SINK_UNDERFLOW)
     // Callback from the sink to the renderer to indicate that it has not
     // enough data to continue playback without playing past the end of
     // buffered data.
@@ -84,7 +95,7 @@ class MEDIA_EXPORT AudioRendererSink
   // Returns |true| on success.
   virtual bool SetVolume(double volume) = 0;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   // To avoid duplication of audio data and additional copies our Sink
   // implementation is responsible for buffering rendered audio. As a
   // result the renderer relays the message to buffer more audio back

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "lb_platform.h"
+#include "media/base/endian_util.h"
 #include "media/filters/shell_au.h"
 #include "media/filters/shell_parser.h"
 
@@ -217,7 +217,7 @@ bool ShellVideoAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
     uint32 nal_size;
 
     // Store [start code]
-    LB::Platform::store_uint32_big_endian(kAnnexBStartCode, buf);
+    endian_util::store_uint32_big_endian(kAnnexBStartCode, buf);
     buf += kAnnexBStartCodeSize;
     buf_left -= kAnnexBStartCodeSize;
 
@@ -231,10 +231,10 @@ bool ShellVideoAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
     if (length_of_nalu_size_ == 1) {
       nal_size = size_buf[0];
     } else if (length_of_nalu_size_ == 2) {
-      nal_size = LB::Platform::load_uint16_big_endian(size_buf);
+      nal_size = endian_util::load_uint16_big_endian(size_buf);
     } else {
       DCHECK_EQ(length_of_nalu_size_, 4);
-      nal_size = LB::Platform::load_uint32_big_endian(size_buf);
+      nal_size = endian_util::load_uint32_big_endian(size_buf);
     }
 
     if (au_left < nal_size || buf_left < nal_size)

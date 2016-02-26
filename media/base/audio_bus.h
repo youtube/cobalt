@@ -40,10 +40,10 @@ class MEDIA_EXPORT AudioBus {
   static scoped_ptr<AudioBus> Create(int channels, int frames);
   static scoped_ptr<AudioBus> Create(const AudioParameters& params);
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   static scoped_ptr<AudioBus> Create(int channels, int frames_per_channel,
                                      int bytes_per_frame, bool interleaved);
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   // Creates a new AudioBus with the given number of channels, but zero length.
   // It's expected to be used with SetChannelData() and set_frames() to
@@ -80,7 +80,7 @@ class MEDIA_EXPORT AudioBus {
   void ToInterleavedPartial(int start_frame, int frames, int bytes_per_sample,
                             void* dest) const;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   // The following two functions work on float samples instead of integer
   // samples.
   // FromInterleavedFloat fills the audio bus with interleaved samples. It is
@@ -99,7 +99,7 @@ class MEDIA_EXPORT AudioBus {
   // and they will be filled with 0.
   void ToInterleavedFloat(int frames, int audio_bus_offset, int extra_channels,
                           float* dest) const;
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   // Similar to FromInterleaved() above, but meant for streaming sources.  Does
   // not zero out remaining frames, the caller is responsible for doing so using

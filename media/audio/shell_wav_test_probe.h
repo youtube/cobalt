@@ -17,7 +17,7 @@
 #ifndef MEDIA_AUDIO_SHELL_WAV_TEST_PROBE_H_
 #define MEDIA_AUDIO_SHELL_WAV_TEST_PROBE_H_
 
-#include <stdio.h>
+#include "base/platform_file.h"
 #include "media/base/buffers.h"
 
 // don't include me in release builds please
@@ -57,7 +57,7 @@ class MEDIA_EXPORT ShellWavTestProbe {
   // WAV header at the top of the file. Moves the file pointer.
   void WriteHeader();
 
-  FILE* wav_file_;
+  base::PlatformFile wav_file_;
   // wav header state variables
   uint32 form_wav_length_bytes_;
   uint16 format_code_;

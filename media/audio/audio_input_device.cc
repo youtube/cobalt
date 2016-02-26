@@ -109,7 +109,7 @@ void AudioInputDevice::OnStreamCreated(
 #if defined(OS_WIN)
   DCHECK(handle);
   DCHECK(socket_handle);
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) || defined(COBALT)
   DCHECK(handle.get());
 #else
   DCHECK_GE(handle.fd, 0);

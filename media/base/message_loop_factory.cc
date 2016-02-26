@@ -5,8 +5,10 @@
 #include "media/base/message_loop_factory.h"
 
 #include "base/threading/thread.h"
+#if !defined(OS_STARBOARD)
 #include "lb_platform.h"
 #include "lb_shell/lb_shell_constants.h"
+#endif
 
 namespace media {
 
@@ -43,6 +45,9 @@ base::Thread* MessageLoopFactory::GetThread(Type type) {
 
   base::Thread* thread = new base::Thread(name);
   base::Thread::Options options;
+// TODO(***REMOVED***): Determine where to define thread constants in a Starboard
+// world.
+#if !defined(OS_STARBOARD)
   if (type == kPipeline) {
 #if defined(__LB_WIIU__)
     options.affinity = LB::Platform::kMediaPipelineThreadAffinity;
@@ -50,6 +55,7 @@ base::Thread* MessageLoopFactory::GetThread(Type type) {
     options.stack_size = kMediaStackThreadStackSize;
 #endif
   }
+#endif
   CHECK(thread->StartWithOptions(options))
       << "Failed to start thread: " << name;
   threads_.push_back(std::make_pair(type, thread));

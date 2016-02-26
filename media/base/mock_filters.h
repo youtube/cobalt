@@ -83,7 +83,7 @@ class MockDemuxerStream : public DemuxerStream {
   MOCK_METHOD0(audio_decoder_config, const AudioDecoderConfig&());
   MOCK_METHOD0(video_decoder_config, const VideoDecoderConfig&());
   MOCK_METHOD0(EnableBitstreamConverter, void());
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   MOCK_CONST_METHOD0(StreamWasEncrypted, bool());
 #endif
 

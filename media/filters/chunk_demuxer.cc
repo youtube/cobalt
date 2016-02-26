@@ -19,12 +19,13 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
-#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || defined(__LB_SHELL__)
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || \
+    defined(__LB_SHELL__) || defined(COBALT)
 #include "media/mp4/mp4_stream_parser.h"
 #endif
 #include "media/webm/webm_stream_parser.h"
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_media_platform.h"
 #endif
@@ -94,7 +95,8 @@ static StreamParser* BuildWebMParser(const std::vector<std::string>& codecs) {
   return new WebMStreamParser();
 }
 
-#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || defined(__LB_SHELL__)
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || \
+    defined(__LB_SHELL__) || defined(COBALT)
 static const CodecInfo kH264CodecInfo = { "avc1.*", DemuxerStream::VIDEO };
 static const CodecInfo kAACCodecInfo = { "mp4a.40.*", DemuxerStream::AUDIO };
 
@@ -129,10 +131,11 @@ static const SupportedTypeInfo kSupportedTypeInfo[] = {
 #if defined(__LB_PS4__)
   { "video/webm", &BuildWebMParser, kVideoWebMCodecs },
 #endif
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
   { "audio/webm", &BuildWebMParser, kAudioWebMCodecs },
 #endif
-#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || defined(__LB_SHELL__)
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || \
+    defined(__LB_SHELL__) || defined(COBALT)
   { "video/mp4", &BuildMP4Parser, kVideoMP4Codecs },
   { "audio/mp4", &BuildMP4Parser, kAudioMP4Codecs },
 #endif
@@ -256,7 +259,7 @@ class ChunkDemuxerStream : public DemuxerStream {
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   bool StreamWasEncrypted() const OVERRIDE;
 #endif
 
@@ -302,26 +305,6 @@ class ChunkDemuxerStream : public DemuxerStream {
 };
 
 
-#if defined(__LB_SHELL__)
-ChunkDemuxerStream::ChunkDemuxerStream(
-    const AudioDecoderConfig& audio_config,
-    const LogCB& log_cb)
-    : type_(AUDIO),
-      state_(RETURNING_DATA_FOR_READS),
-      end_of_stream_(false) {
-  stream_.reset(new SourceBufferStream(audio_config,
-                                       log_cb));
-}
-
-ChunkDemuxerStream::ChunkDemuxerStream(
-    const VideoDecoderConfig& video_config,
-    const LogCB& log_cb)
-    : type_(VIDEO),
-      state_(RETURNING_DATA_FOR_READS),
-      end_of_stream_(false) {
-  stream_.reset(new SourceBufferStream(video_config, log_cb));
-}
-#else
 ChunkDemuxerStream::ChunkDemuxerStream(const AudioDecoderConfig& audio_config,
                                        const LogCB& log_cb)
     : type_(AUDIO),
@@ -337,7 +320,6 @@ ChunkDemuxerStream::ChunkDemuxerStream(const VideoDecoderConfig& video_config,
       end_of_stream_(false) {
   stream_.reset(new SourceBufferStream(video_config, log_cb));
 }
-#endif
 
 void ChunkDemuxerStream::StartWaitingForSeek() {
   DVLOG(1) << "ChunkDemuxerStream::StartWaitingForSeek()";
@@ -526,13 +508,13 @@ void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
     }
   }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   read_cb.Run(
       status,
       ShellMediaPlatform::Instance()->ProcessBeforeLeavingDemuxer(buffer));
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
   read_cb.Run(status, buffer);
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 }
 
 DemuxerStream::Type ChunkDemuxerStream::type() { return type_; }
@@ -581,14 +563,14 @@ void ChunkDemuxerStream::CreateReadDoneClosures_Locked(ClosureQueue* closures) {
   while (!read_cbs_.empty() && status != kConfigChanged) {
     if (!GetNextBuffer_Locked(&status, &buffer))
       return;
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     closures->push_back(base::Bind(
         read_cbs_.front(), status,
         ShellMediaPlatform::Instance()->ProcessBeforeLeavingDemuxer(buffer)));
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
     closures->push_back(base::Bind(read_cbs_.front(),
                                    status, buffer));
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
     read_cbs_.pop_front();
   }
 }
@@ -637,7 +619,7 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
   return false;
 }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 bool ChunkDemuxerStream::StreamWasEncrypted() const {
   base::AutoLock auto_lock(lock_);
   if (type_ == VIDEO)
@@ -668,7 +650,7 @@ ChunkDemuxer::ChunkDemuxer(const base::Closure& open_cb,
 void ChunkDemuxer::Initialize(DemuxerHost* host, const PipelineStatusCB& cb) {
   DVLOG(1) << "Init()";
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   DLOG(INFO) << "this is a MEDIA SOURCE playback.";
 #endif
 

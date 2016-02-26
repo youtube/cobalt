@@ -13,7 +13,7 @@
 namespace media {
 
 class AudioDecoderConfig;
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 class Decryptor;
 #endif
 class DecoderBuffer;
@@ -72,7 +72,7 @@ class MEDIA_EXPORT DemuxerStream
 
   virtual void EnableBitstreamConverter() = 0;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   // Returns true if the content was encrypted at some point
   virtual bool StreamWasEncrypted() const = 0;
 

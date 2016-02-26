@@ -9,8 +9,7 @@
 
 namespace media {
 
-
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
   return make_scoped_refptr(new StreamParserBuffer(NULL, 0, false));
 }
@@ -54,7 +53,7 @@ void StreamParserBuffer::SetDecodeTimestamp(const base::TimeDelta& timestamp) {
   decode_timestamp_ = timestamp;
 }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 StreamParserBuffer::StreamParserBuffer(
     uint8* data,
     int data_size,

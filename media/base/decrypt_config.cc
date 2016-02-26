@@ -8,7 +8,7 @@
 
 namespace media {
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 
 DecryptConfig::DecryptConfig(const std::string& key_id,
                              const std::string& iv,
@@ -21,7 +21,7 @@ DecryptConfig::DecryptConfig(const std::string& key_id,
         iv.empty());
 }
 
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
 
 DecryptConfig::DecryptConfig(const std::string& key_id,
                              const std::string& iv,
@@ -37,7 +37,7 @@ DecryptConfig::DecryptConfig(const std::string& key_id,
   CHECK_GE(data_offset, 0);
 }
 
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
 DecryptConfig::~DecryptConfig() {}
 

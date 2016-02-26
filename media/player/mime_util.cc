@@ -221,7 +221,7 @@ bool MimeUtil::GetMimeTypeFromExtensionHelper(const FilePath::StringType& ext,
 
 #if defined(OS_WIN)
   string ext_narrow_str = WideToUTF8(ext);
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   const string& ext_narrow_str = ext;
 #endif
   const char* mime_type;
@@ -261,7 +261,7 @@ static const char* const supported_image_types[] = {
 // A comprehensive mime type list: http://plugindoc.mozdev.org/winmime.php
 // This set of codecs is supported by all variations of Chromium.
 static const char* const common_media_types[] = {
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
   // Ogg.
   "audio/ogg",
   "application/ogg",
@@ -276,7 +276,7 @@ static const char* const common_media_types[] = {
   // Wav.
   "audio/wav",
   "audio/x-wav",
-#else  // !defined(__LB_SHELL__)
+#else  // !defined(__LB_SHELL__) && !defined(COBALT)
 
 #if defined(__LB_ANDROID__) || defined(__LB_PS4__)
   // WebM.
@@ -287,7 +287,7 @@ static const char* const common_media_types[] = {
   "video/mp4",
   "audio/mp4",
   "video/x-flv",
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
 };
 
 // List of proprietary types only supported by Google Chrome.
@@ -313,14 +313,14 @@ static const char* const proprietary_media_types[] = {
 // The codecs for WAV are integers as defined in Appendix A of RFC2361:
 // http://tools.ietf.org/html/rfc2361
 static const char* const common_media_codecs[] = {
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
 #if defined(ENABLE_MEDIA_CODEC_THEORA)
   "theora",
 #endif
   "vorbis",
   "vp8",
   "1"  // WAVE_FORMAT_PCM.
-#else  // !defined(__LB_SHELL__)
+#else  // !defined(__LB_SHELL__) && !defined(COBALT)
 
 #if defined(__LB_ANDROID__) || defined(__LB_PS4__)
   "vp9",
@@ -333,7 +333,7 @@ static const char* const common_media_codecs[] = {
   "aac51",
 #endif  // defined(__LB_PS3__) || defined(__LB_PS4__) || defined(__LB_WIIU__)
 
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
 };
 
 // List of proprietary codecs only supported by Google Chrome.
@@ -451,7 +451,8 @@ static const MediaFormatStrict format_codec_mappings[] = {
 #elif defined(__LB_PS4__)  // PS4 only supports vp9.
   { "video/webm", "vp9" },
   { "audio/webm", "" },
-#elif defined(__LB_SHELL__) // All other Steel platforms doesn't support webm.
+#elif defined(__LB_SHELL__) || defined(COBALT)
+  // No other platforms support webm.
   { "video/webm", "" },
   { "audio/webm", "" },
 #else  // Default Chrome codec mappings.
