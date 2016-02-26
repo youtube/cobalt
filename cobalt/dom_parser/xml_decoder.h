@@ -24,8 +24,8 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/source_location.h"
-#include "cobalt/dom/xml_document.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/dom/xml_document.h"
 #include "cobalt/loader/decoder.h"
 
 namespace cobalt {

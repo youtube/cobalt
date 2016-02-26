@@ -139,7 +139,7 @@ void LibxmlParserWrapper::OnStartDocument() { node_stack_.push(parent_node_); }
 
 void LibxmlParserWrapper::OnEndDocument() {
   node_stack_.pop();
-  if (!node_stack_.empty()) {
+  if (!node_stack_.empty() && !error_callback_.is_null()) {
     error_callback_.Run("Node stack not empty at end of document.");
   }
 }
@@ -165,7 +165,7 @@ void LibxmlParserWrapper::OnEndElement(const std::string& name) {
       return;
     }
   }
-  if (node_stack_.empty()) {
+  if (node_stack_.empty() && !error_callback_.is_null()) {
     error_callback_.Run("Node stack empty when encountering end tag.");
   }
 }
@@ -196,7 +196,7 @@ void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
   if (severity > issue_level_) {
     issue_level_ = severity;
   }
-  if (severity == LibxmlParserWrapper::kFatal) {
+  if (severity == LibxmlParserWrapper::kFatal && !error_callback_.is_null()) {
     error_callback_.Run(message);
   }
 }

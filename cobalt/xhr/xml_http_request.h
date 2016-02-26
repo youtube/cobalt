@@ -27,6 +27,7 @@
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/dom/csp_delegate.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/script/union_type.h"
@@ -125,7 +126,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   std::string GetAllResponseHeaders();
 
   const std::string& response_text(script::ExceptionState* exception_state);
-  base::optional<std::string> response_xml(
+  scoped_refptr<dom::Document> response_xml(
       script::ExceptionState* exception_state);
   std::string status_text();
   base::optional<ResponseType> response(
@@ -215,6 +216,9 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
     http_response_headers_ = response_headers;
   }
 
+  scoped_refptr<dom::Document> GetDocumentResponseEntityBody();
+  void XMLDecoderErrorCallback(const std::string& error);
+
   base::ThreadChecker thread_checker_;
 
   scoped_ptr<net::URLFetcher> url_fetcher_;
@@ -255,6 +259,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   static bool verbose_;
   // Unique ID for debugging.
   int xhr_id_;
+
+  bool has_xml_decoder_error_;
 
   DISALLOW_COPY_AND_ASSIGN(XMLHttpRequest);
 };
