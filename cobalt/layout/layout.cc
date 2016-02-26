@@ -50,7 +50,7 @@ class ScopedParagraph {
 }  // namespace
 
 void UpdateComputedStylesAndLayoutBoxTree(
-    const scoped_refptr<dom::Document>& document,
+    const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
@@ -72,8 +72,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
     ScopedParagraph scoped_paragraph(
-        new Paragraph(line_break_iterator, character_break_iterator,
-                      Paragraph::kLeftToRightBaseDirection));
+        new Paragraph(locale, Paragraph::kLeftToRightBaseDirection,
+                      line_break_iterator, character_break_iterator));
     BoxGenerator root_box_generator(
         (*initial_containing_block)->css_computed_style_declaration(),
         used_style_provider, line_break_iterator, character_break_iterator,
@@ -117,14 +117,14 @@ void UpdateComputedStylesAndLayoutBoxTree(
 }
 
 RenderTreeWithAnimations Layout(
-    const scoped_refptr<dom::Document>& document,
+    const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
   UpdateComputedStylesAndLayoutBoxTree(
-      document, used_style_provider, line_break_iterator,
+      locale, document, used_style_provider, line_break_iterator,
       character_break_iterator, initial_containing_block);
 
   // Add to render tree.

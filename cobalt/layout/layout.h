@@ -25,6 +25,7 @@
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
+#include "third_party/icu/public/common/unicode/locid.h"
 
 namespace cobalt {
 namespace layout {
@@ -51,7 +52,7 @@ struct RenderTreeWithAnimations {
 
 // Update the computed styles, then generate and layout the box tree.
 void UpdateComputedStylesAndLayoutBoxTree(
-    const scoped_refptr<dom::Document>& document,
+    const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
@@ -61,7 +62,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
 // Produces the render tree (along with corresponding animations) which is a
 // result of recursive layout of the given HTML element.
 RenderTreeWithAnimations Layout(
-    const scoped_refptr<dom::Document>& document,
+    const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,

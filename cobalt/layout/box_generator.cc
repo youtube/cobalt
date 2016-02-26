@@ -370,9 +370,9 @@ ContainerBoxGenerator::~ContainerBoxGenerator() {
     // that has the same direction as the previous one. Otherwise, restore the
     // prior one.
     if (prior_paragraph_->IsClosed()) {
-      *paragraph_ =
-          new Paragraph(line_break_iterator_, character_break_iterator_,
-                        prior_paragraph_->GetBaseDirection());
+      *paragraph_ = new Paragraph(
+          prior_paragraph_->GetLocale(), prior_paragraph_->GetBaseDirection(),
+          line_break_iterator_, character_break_iterator_);
     } else {
       *paragraph_ = prior_paragraph_;
     }
@@ -487,8 +487,9 @@ void ContainerBoxGenerator::CreateScopedParagraph(
 
   // TODO(***REMOVED***): Use the container box's style to determine the correct base
   // direction for the paragraph.
-  *paragraph_ = new Paragraph(line_break_iterator_, character_break_iterator_,
-                              Paragraph::kLeftToRightBaseDirection);
+  *paragraph_ = new Paragraph(prior_paragraph_->GetLocale(),
+                              prior_paragraph_->GetBaseDirection(),
+                              line_break_iterator_, character_break_iterator_);
 }
 
 }  // namespace
