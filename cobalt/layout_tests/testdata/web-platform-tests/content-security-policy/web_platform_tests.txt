@@ -60,7 +60,7 @@ blink-contrib-2/stylenonce-allowed.sub.html,PASS
 # FIXME: <link> not loaded or processed or incorrect priority.
 blink-contrib-2/stylenonce-blocked.sub.html,FAIL
 
-# FIXME: Report is not sent?
+# FIXME: Enforce CSP for "blob:" scheme b/27276164
 blink-contrib/blob-urls-do-not-match-self.sub.html,FAIL
 blink-contrib/blob-urls-match-blob.sub.html,FAIL
 
@@ -80,9 +80,7 @@ blink-contrib/connect-src-websocket-blocked.sub.html,DISABLE
 
 blink-contrib/connect-src-xmlhttprequest-allowed.sub.html,PASS
 blink-contrib/connect-src-xmlhttprequest-blocked.sub.html,PASS
-
-# FIXME: Report not sent
-blink-contrib/connect-src-xmlhttprequest-redirect-to-blocked.sub.html,FAIL
+blink-contrib/connect-src-xmlhttprequest-redirect-to-blocked.sub.html,PASS
 
 # FIXME: Timeout
 blink-contrib/default-src-inline-allowed.sub.html,FAIL
@@ -169,9 +167,7 @@ blink-contrib/object-src-url-blocked.sub.html,DISABLE
 blink-contrib/policy-does-not-affect-child.sub.html,DISABLE
 
 blink-contrib/report-blocked-data-uri.sub.html,PASS
-
-# FIXME: Report not sent
-blink-contrib/report-cross-origin-no-cookies.sub.html,FAIL
+blink-contrib/report-cross-origin-no-cookies.sub.html,PASS
 
 # FIXME: NOTRUN
 blink-contrib/report-disallowed-from-meta.sub.html,FAIL
@@ -193,7 +189,7 @@ blink-contrib/sandbox-empty.sub.html,DISABLE
 
 blink-contrib/script-src-overrides-default-src.sub.html,PASS
 
-# FIXME: report not sent
+# FIXME: Enforce CSP for "blob:" scheme b/27276164
 blink-contrib/self-doesnt-match-blob.sub.html,FAIL
 
 # Workers are not supported
@@ -205,7 +201,7 @@ blink-contrib/source-list-parsing-paths-03.sub.html,PASS
 # <iframe> not supported
 blink-contrib/srcdoc-doesnt-bypass-script-src.sub.html,DISABLE
 
-# FIXME: report not sent
+# FIXME: Enforce CSP for "blob:" scheme b/27276164
 blink-contrib/star-doesnt-match-blob.sub.html,FAIL
 
 # FIXME: reached unreachable code
