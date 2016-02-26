@@ -16,7 +16,7 @@
 #include "media/base/decryptor.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/pipeline.h"
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #include "media/base/shell_media_statistics.h"
 #endif
 
@@ -233,9 +233,9 @@ void DecryptingDemuxerStream::DoDecryptBuffer(
 void DecryptingDemuxerStream::DecryptPendingBuffer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDecrypt) << state_;
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   decrypting_start_ = base::Time::Now();
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
   decryptor_->Decrypt(
       GetDecryptorStreamType(),
       pending_buffer_to_decrypt_,
@@ -245,10 +245,10 @@ void DecryptingDemuxerStream::DecryptPendingBuffer() {
 void DecryptingDemuxerStream::DeliverBuffer(
     Decryptor::Status status,
     const scoped_refptr<DecoderBuffer>& decrypted_buffer) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_DECRYPT,
       (base::Time::Now() - decrypting_start_).ToInternalValue());
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
   // We need to force task post here because the DecryptCB can be executed
   // synchronously in Reset(). Instead of using more complicated logic in
   // those function to fix it, why not force task post here to make everything
@@ -377,7 +377,7 @@ void DecryptingDemuxerStream::SetDecoderConfig(
   }
 }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 bool DecryptingDemuxerStream::StreamWasEncrypted() const {
   DCHECK(demuxer_stream_->StreamWasEncrypted());
   return true;

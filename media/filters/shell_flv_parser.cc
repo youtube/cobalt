@@ -20,7 +20,7 @@
 #include <limits>
 
 #include "base/stringprintf.h"
-#include "lb_platform.h"
+#include "media/base/endian_util.h"
 
 namespace media {
 
@@ -75,7 +75,7 @@ scoped_refptr<ShellParser> ShellFLVParser::Construct(
     const uint8* construction_header,
     const PipelineStatusCB& status_cb) {
   // look for "FLV" string at top of file, mask off LSB
-  uint32 FLV = LB::Platform::load_uint32_big_endian(construction_header) >> 8;
+  uint32 FLV = endian_util::load_uint32_big_endian(construction_header) >> 8;
   if (FLV != kFLV) {
     return NULL;
   }
@@ -87,7 +87,7 @@ scoped_refptr<ShellParser> ShellFLVParser::Construct(
   }
   // offset of first data tag in stream is next 4 bytes
   uint32 data_offset =
-      LB::Platform::load_uint32_big_endian(construction_header + 5);
+      endian_util::load_uint32_big_endian(construction_header + 5);
   // add four bytes to skip over PreviousTagSize0
   data_offset += 4;
   // construct and return an FLV parser
@@ -273,7 +273,7 @@ bool ShellFLVParser::ParseNextTag() {
   // this is size of attached data field only not including this header
   // but including the audio and video sub-headers
   uint32 tag_data_size =
-      LB::Platform::load_uint32_big_endian(tag_buffer + 1) >> 8;
+      endian_util::load_uint32_big_endian(tag_buffer + 1) >> 8;
 
   // extract timestamp, wonky byte order comes from the standard
   int32 timestamp = tag_buffer[4] << 16 | tag_buffer[5] << 8 | tag_buffer[6] |
@@ -396,7 +396,7 @@ bool ShellFLVParser::ParseVideoDataTag(uint8* tag,
     }
     // extract 24-bit composition time offset for this frame
     int32 composition_time_offset =
-        LB::Platform::load_int32_big_endian(tag + 2) >> 8;
+        endian_util::load_int32_big_endian(tag + 2) >> 8;
     // calculate pts from flv timestamp and cts
     uint32 pts = timestamp + composition_time_offset;
     // FLV standard says that there can be multiple AVC NALUs packed here, so
@@ -498,7 +498,7 @@ bool ShellFLVParser::ExtractAMF0Number(scoped_refptr<ShellScopedArray> amf0,
     match_offset++;
     // load big-endian double as uint, then cast to correct type
     uint64 num_as_uint =
-        LB::Platform::load_uint64_big_endian(search_buffer + match_offset);
+        endian_util::load_uint64_big_endian(search_buffer + match_offset);
     *number_out = *((double*)(&num_as_uint));
     return true;
   }

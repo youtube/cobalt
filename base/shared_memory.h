@@ -289,7 +289,7 @@ class BASE_EXPORT SharedMemory {
   void*              memory_;
   bool               read_only_;
   size_t             created_size_;
-#if !defined(OS_POSIX)
+#if !defined(OS_POSIX) && !defined(OS_STARBOARD)
   SharedMemoryLock   lock_;
 #endif
 

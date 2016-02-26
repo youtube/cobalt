@@ -19,9 +19,11 @@
 #include <string>
 
 #include "base/file_path.h"
+#include "base/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "lb_platform.h"
+#include "base/platform_file.h"
+#include "media/base/endian_util.h"
 #include "media/filters/shell_demuxer.h"
 
 // don't include me in release builds please
@@ -61,8 +63,10 @@ void ShellWavTestProbe::Initialize(const char* file_name,
   bool path_ok = PathService::Get(base::DIR_EXE, &base_path);
   DCHECK(path_ok);
   base_path = base_path.Append(file_name);
-  wav_file_ = fopen(base_path.value().c_str(), "wb");
-  DCHECK(wav_file_);
+  wav_file_ = base::CreatePlatformFile(
+      base_path, base::PLATFORM_FILE_CREATE_ALWAYS | base::PLATFORM_FILE_WRITE,
+      NULL, NULL);
+  DCHECK_NE(wav_file_, base::kInvalidPlatformFileValue);
   closed_ = false;
 
   if (use_floats)
@@ -86,62 +90,64 @@ void ShellWavTestProbe::Initialize(const char* file_name,
 // see: http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
 void ShellWavTestProbe::WriteHeader() {
   // first four bytes are FORM RIFF header
-  LB::Platform::store_uint32_big_endian(kWav_RIFF, wav_header_buffer_);
+  endian_util::store_uint32_big_endian(kWav_RIFF, wav_header_buffer_);
   // next for are length of file - FORM header, uint32 little-endian
-  LB::Platform::store_uint32_little_endian(form_wav_length_bytes_,
-                                           wav_header_buffer_ + 4);
+  endian_util::store_uint32_little_endian(form_wav_length_bytes_,
+                                          wav_header_buffer_ + 4);
   // then WAVE header
-  LB::Platform::store_uint32_big_endian(kWav_WAVE, wav_header_buffer_ + 8);
+  endian_util::store_uint32_big_endian(kWav_WAVE, wav_header_buffer_ + 8);
   // start common chunk with format "fmt " header
-  LB::Platform::store_uint32_big_endian(kWav_fmt, wav_header_buffer_ + 12);
+  endian_util::store_uint32_big_endian(kWav_fmt, wav_header_buffer_ + 12);
   // length of format chunk, uint32 little-endian
-  LB::Platform::store_uint32_little_endian(kWavFormatChunkLength - 8,
-                                           wav_header_buffer_ + 16);
+  endian_util::store_uint32_little_endian(kWavFormatChunkLength - 8,
+                                          wav_header_buffer_ + 16);
   // format code, uint16 little-endian
-  LB::Platform::store_uint16_little_endian(format_code_,
-                                           wav_header_buffer_ + 20);
+  endian_util::store_uint16_little_endian(format_code_,
+                                          wav_header_buffer_ + 20);
   // number of channels, uint16 little-endian
-  LB::Platform::store_uint16_little_endian(channels_, wav_header_buffer_ + 22);
+  endian_util::store_uint16_little_endian(channels_, wav_header_buffer_ + 22);
   // sample rate, uint32 little-endian
-  LB::Platform::store_uint32_little_endian(samples_per_second_,
-                                           wav_header_buffer_ + 24);
+  endian_util::store_uint32_little_endian(samples_per_second_,
+                                          wav_header_buffer_ + 24);
   // average bytes per second, uint32 little-endian, derived
   uint32 bytes_per_second = samples_per_second_ * bytes_per_frame_;
-  LB::Platform::store_uint32_little_endian(bytes_per_second,
-                                           wav_header_buffer_ + 28);
+  endian_util::store_uint32_little_endian(bytes_per_second,
+                                          wav_header_buffer_ + 28);
   // "block align", reading as bytes per frame, uint16 little-endian
-  LB::Platform::store_uint16_little_endian(bytes_per_frame_,
-                                           wav_header_buffer_ + 32);
+  endian_util::store_uint16_little_endian(bytes_per_frame_,
+                                          wav_header_buffer_ + 32);
   // bits per sample, uint16 little-endian
-  LB::Platform::store_uint16_little_endian(bits_per_sample_,
-                                           wav_header_buffer_ + 34);
+  endian_util::store_uint16_little_endian(bits_per_sample_,
+                                          wav_header_buffer_ + 34);
   // size of extension format chunk header, uint16 little-endian
   // always 22 bytes for us so we can do > 2 channels audio
-  LB::Platform::store_uint16_little_endian(22, wav_header_buffer_ + 36);
+  endian_util::store_uint16_little_endian(22, wav_header_buffer_ + 36);
   // valid bits per sample, always same as bits per sample
-  LB::Platform::store_uint16_little_endian(bits_per_sample_,
-                                           wav_header_buffer_ + 38);
+  endian_util::store_uint16_little_endian(bits_per_sample_,
+                                          wav_header_buffer_ + 38);
   // channel mask, 4 bytes, set to all zeroes to keep default channel layout
-  LB::Platform::store_uint32_little_endian(0, wav_header_buffer_ + 40);
+  endian_util::store_uint32_little_endian(0, wav_header_buffer_ + 40);
   // subformat guid, 16 bytes, first two bytes are format code again, rest
   // are a magic number 00 00 00 00 10 00   80 00 00 aa 00 38 9b 71
   uint64 magic_msd = ((uint64)format_code_ << 48) | 0x0000000000001000;
-  LB::Platform::store_uint64_big_endian(magic_msd, wav_header_buffer_ + 44);
-  LB::Platform::store_uint64_big_endian(0x800000aa00389b71,
-                                        wav_header_buffer_ + 52);
+  endian_util::store_uint64_big_endian(magic_msd, wav_header_buffer_ + 44);
+  endian_util::store_uint64_big_endian(0x800000aa00389b71,
+                                       wav_header_buffer_ + 52);
   // start the data chunk with "data" header
-  LB::Platform::store_uint32_big_endian(kWav_data, wav_header_buffer_ + 60);
+  endian_util::store_uint32_big_endian(kWav_data, wav_header_buffer_ + 60);
   // data chunk size is form wav length minus the rest of the header bytes
   // uint32 little-endian
   uint32 data_chunk_size = form_wav_length_bytes_ - (kWavTotalHeaderLength - 8);
-  LB::Platform::store_uint32_little_endian(data_chunk_size,
-                                           wav_header_buffer_ + 64);
+  endian_util::store_uint32_little_endian(data_chunk_size,
+                                          wav_header_buffer_ + 64);
   // alright, aiff header buffer is current, now we can write it into the file
   // jump to start of file
-  int result = fseek(wav_file_, 0, SEEK_SET);
-  DCHECK_EQ(result, 0);
+  int result =
+      base::SeekPlatformFile(wav_file_, base::PLATFORM_FILE_FROM_BEGIN, 0);
   // write buffer
-  result = fwrite(wav_header_buffer_, 1, kWavTotalHeaderLength, wav_file_);
+  result = base::WritePlatformFileAtCurrentPos(
+      wav_file_, reinterpret_cast<const char*>(wav_header_buffer_),
+      kWavTotalHeaderLength);
   DCHECK_EQ(result, kWavTotalHeaderLength);
 }
 
@@ -152,16 +158,17 @@ void ShellWavTestProbe::CloseAfter(uint64 milliseconds) {
 void ShellWavTestProbe::AddData(const uint8* data,
                                 uint32 length,
                                 uint64 timestamp) {
-#if defined(__LB_SHELL__BIG_ENDIAN__)
+#if defined(__LB_SHELL__BIG_ENDIAN__) || \
+    (defined(OS_STARBOARD) && defined(SB_IS_BIG_ENDIAN) && SB_IS_BIG_ENDIAN)
   uint8* reverse_buffer = (uint8*)malloc(length);
   uint16 bytes_per_sample = bits_per_sample_ / 8;
   int num_words = length / bytes_per_sample;
   for (int i = 0; i < num_words; i++) {
     uint8* out = reverse_buffer + (i * bytes_per_sample);
     if (bytes_per_sample == 2) {
-      LB::Platform::store_uint16_little_endian(((uint16*)data)[i], out);
+      endian_util::store_uint16_little_endian(((uint16*)data)[i], out);
     } else if (bytes_per_sample == 4) {
-      LB::Platform::store_uint32_little_endian(((uint32*)data)[i], out);
+      endian_util::store_uint32_little_endian(((uint32*)data)[i], out);
     } else {
       DLOG(ERROR) << "Failed to add data";
     }
@@ -181,8 +188,10 @@ void ShellWavTestProbe::AddDataLittleEndian(const uint8* data,
   if (!length)
     return;
 
-  fwrite(data, 1, length, wav_file_);
-  fflush(wav_file_);
+  int result = base::WritePlatformFileAtCurrentPos(
+      wav_file_, reinterpret_cast<const char*>(data), length);
+  DCHECK_EQ(result, length);
+  base::FlushPlatformFile(wav_file_);
 
   // update our counters
   form_wav_length_bytes_ += length;
@@ -217,7 +226,7 @@ void ShellWavTestProbe::Close() {
   // write the header again now that we know the lengths
   WriteHeader();
   // close the file
-  fclose(wav_file_);
+  base::ClosePlatformFile(wav_file_);
   wav_file_ = NULL;
 }
 

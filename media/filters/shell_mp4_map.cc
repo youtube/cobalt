@@ -17,7 +17,7 @@
 #include "media/filters/shell_mp4_map.h"
 
 #include "base/stringprintf.h"
-#include "lb_platform.h"
+#include "media/base/endian_util.h"
 #include "media/filters/shell_mp4_parser.h"
 
 namespace media {
@@ -83,7 +83,7 @@ uint8* ShellMP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
 
 bool ShellMP4Map::TableCache::ReadU32Entry(uint32 entry_number, uint32* entry) {
   if (uint8* data = GetBytesAtEntry(entry_number)) {
-    *entry = LB::Platform::load_uint32_big_endian(data);
+    *entry = endian_util::load_uint32_big_endian(data);
     return true;
   }
 
@@ -95,9 +95,9 @@ bool ShellMP4Map::TableCache::ReadU32PairEntry(uint32 entry_number,
                                                uint32* second) {
   if (uint8* data = GetBytesAtEntry(entry_number)) {
     if (first)
-      *first = LB::Platform::load_uint32_big_endian(data);
+      *first = endian_util::load_uint32_big_endian(data);
     if (second)
-      *second = LB::Platform::load_uint32_big_endian(data + 4);
+      *second = endian_util::load_uint32_big_endian(data + 4);
     return true;
   }
 
@@ -107,7 +107,7 @@ bool ShellMP4Map::TableCache::ReadU32PairEntry(uint32 entry_number,
 bool ShellMP4Map::TableCache::ReadU32EntryIntoU64(uint32 entry_number,
                                                   uint64* entry) {
   if (uint8* data = GetBytesAtEntry(entry_number)) {
-    *entry = LB::Platform::load_uint32_big_endian(data);
+    *entry = endian_util::load_uint32_big_endian(data);
     return true;
   }
 
@@ -116,7 +116,7 @@ bool ShellMP4Map::TableCache::ReadU32EntryIntoU64(uint32 entry_number,
 
 bool ShellMP4Map::TableCache::ReadU64Entry(uint32 entry_number, uint64* entry) {
   if (uint8* data = GetBytesAtEntry(entry_number)) {
-    *entry = LB::Platform::load_uint64_big_endian(data);
+    *entry = endian_util::load_uint64_big_endian(data);
     return true;
   }
 
@@ -391,8 +391,8 @@ bool ShellMP4Map::SetAtom(uint32 four_cc,
     if (size < 12) {
       return false;
     }
-    stsz_default_size_ = LB::Platform::load_uint32_big_endian(atom + 4);
-    count = LB::Platform::load_uint32_big_endian(atom + 8);
+    stsz_default_size_ = endian_util::load_uint32_big_endian(atom + 4);
+    count = endian_util::load_uint32_big_endian(atom + 8);
     highest_valid_sample_number_ =
         std::min(count - 1, highest_valid_sample_number_);
     // if a non-zero default size is provided don't bother loading the table
@@ -406,7 +406,7 @@ bool ShellMP4Map::SetAtom(uint32 four_cc,
     if (size < 8) {
       return false;
     }
-    count = LB::Platform::load_uint32_big_endian(atom + 4);
+    count = endian_util::load_uint32_big_endian(atom + 4);
   }
 
   // if cache_size_entries is 0 we are to cache the entire table

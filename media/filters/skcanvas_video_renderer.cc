@@ -6,7 +6,7 @@
 
 #include "base/logging.h"
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 
 namespace media {
 
@@ -17,7 +17,7 @@ void SkCanvasVideoRenderer::Paint(VideoFrame* video_frame, SkCanvas* canvas,
 
 }  // namespace media
 
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
 
 #include "media/base/video_frame.h"
 #include "media/base/yuv_convert.h"
@@ -159,7 +159,7 @@ static void FastPaint(
       video_frame->data(media::VideoFrame::kVPlane) + uv_offset;
 
 // TODO: this class needs to die in a fire.
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
   // TODO(hclam): do rotation and mirroring here.
   // TODO(fbarchard): switch filtering based on performance.
   bitmap.lockPixels();
@@ -205,7 +205,7 @@ static void ConvertVideoFrameToBitmap(
     bitmap->setIsVolatile(true);
   }
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
   bitmap->lockPixels();
   if (IsEitherYV12OrYV16(video_frame->format())) {
     media::YUVType yuv_type = media::YV16;
@@ -299,4 +299,4 @@ void SkCanvasVideoRenderer::Paint(media::VideoFrame* video_frame,
 
 }  // namespace media
 
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)

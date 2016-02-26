@@ -17,9 +17,9 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/ranges.h"
 #include "media/base/serial_runner.h"
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #include "media/base/shell_video_frame_provider.h"
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 #include "ui/gfx/size.h"
 
 class MessageLoop;
@@ -473,9 +473,9 @@ class MEDIA_EXPORT Pipeline
 
   scoped_ptr<SerialRunner> pending_callbacks_;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   ShellVideoFrameProvider::MediaTimeCB media_time_cb_;
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   base::ThreadChecker thread_checker_;
 

@@ -12,7 +12,7 @@
 #include "base/logging.h"
 #include "base/stl_util.h"
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #include "media/base/shell_media_platform.h"
 #endif
 
@@ -292,14 +292,14 @@ static base::TimeDelta kSeekToStartFudgeRoom() {
 // The maximum amount of data in bytes the stream will keep in memory.
 // 12MB: approximately 5 minutes of 320Kbps content.
 // 150MB: approximately 5 minutes of 4Mbps content.
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) || defined(COBALT)
 static const int kDefaultAudioMemoryLimit = 12 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 150 * 1024 * 1024;
 #endif
 
 namespace media {
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 SourceBufferStream::SourceBufferStream(
     const AudioDecoderConfig& audio_config,
     const LogCB& log_cb)
@@ -314,12 +314,12 @@ SourceBufferStream::SourceBufferStream(
       new_media_segment_(false),
       last_buffer_timestamp_(kNoTimestamp()),
       max_interbuffer_distance_(kNoTimestamp()),
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
       memory_limit_(ShellMediaPlatform::Instance()->
                         GetSourceBufferStreamAudioMemoryLimit()),
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
       memory_limit_(kDefaultAudioMemoryLimit),
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
       config_change_pending_(false) {
   DCHECK(audio_config.IsValidConfig());
   audio_configs_.push_back(new AudioDecoderConfig());
@@ -340,12 +340,12 @@ SourceBufferStream::SourceBufferStream(
       new_media_segment_(false),
       last_buffer_timestamp_(kNoTimestamp()),
       max_interbuffer_distance_(kNoTimestamp()),
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
       memory_limit_(ShellMediaPlatform::Instance()->
                         GetSourceBufferStreamVideoMemoryLimit()),
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
       memory_limit_(kDefaultVideoMemoryLimit),
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
       config_change_pending_(false) {
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(new VideoDecoderConfig());
@@ -464,7 +464,7 @@ bool SourceBufferStream::Append(
                             &deleted_next_buffer, &deleted_buffers);
   } else {
     DCHECK(new_media_segment_);
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     range_for_new_buffers =
         AddToRanges(new SourceBufferRange(
             buffers, media_segment_start_time_,
@@ -674,7 +674,7 @@ int SourceBufferStream::FreeBuffers(int total_bytes_to_free,
       DCHECK(last_buffer_timestamp_ != kNoTimestamp());
       DCHECK(!new_range_for_append);
       // Create a new range containing these buffers.
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
       new_range_for_append = new SourceBufferRange(
             buffers, kNoTimestamp(),
             base::Bind(&SourceBufferStream::GetMaxInterbufferDistance,
@@ -1227,7 +1227,7 @@ void SourceBufferStream::CompleteConfigChange() {
     current_config_index_ = selected_range_->GetNextConfigId();
 }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 SourceBufferRange::SourceBufferRange(
     const BufferQueue& new_buffers, base::TimeDelta media_segment_start_time,
     const InterbufferDistanceCB& interbuffer_distance_cb)
@@ -1350,7 +1350,7 @@ SourceBufferRange* SourceBufferRange::SplitRange(
   FreeBufferRange(starting_point, buffers_.end());
 
   // Create a new range with |removed_buffers|.
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   SourceBufferRange* split_range =
       new SourceBufferRange(
           removed_buffers, kNoTimestamp(), interbuffer_distance_cb_);

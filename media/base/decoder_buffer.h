@@ -20,7 +20,7 @@
 
 namespace media {
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 
 class DecryptConfig;
 class ShellBufferFactory;
@@ -72,7 +72,7 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
   DISALLOW_IMPLICIT_CONSTRUCTORS(DecoderBuffer);
 };
 
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
 
 class MEDIA_EXPORT DecoderBuffer : public Buffer {
  public:
@@ -125,7 +125,7 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
   DISALLOW_COPY_AND_ASSIGN(DecoderBuffer);
 };
 
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
 }  // namespace media
 

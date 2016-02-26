@@ -43,7 +43,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
     EMPTY = 9,  // An empty frame.
     I420 = 11,  // 12bpp YVU planar 1x1 Y, 2x2 UV samples.
     NATIVE_TEXTURE = 12,  // Native texture.  Pixel-format agnostic.
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     PUNCH_OUT= 13, // Punch out frame
 #endif
   };
@@ -128,7 +128,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // equivalent of RGB(0,0,0).
   static scoped_refptr<VideoFrame> CreateBlackFrame(const gfx::Size& size);
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   // Allocates a punch out frame with all stats set to 0.
   // When rendered, the frame will cause a hole to be punched out discarding
   // everything that was rendered underneath it

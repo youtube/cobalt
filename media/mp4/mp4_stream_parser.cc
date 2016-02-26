@@ -242,7 +242,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
                                               entry.pixel_aspect.v_spacing);
       is_video_track_encrypted_ = entry.sinf.info.track_encryption.is_encrypted;
       DVLOG(1) << "is_video_track_encrypted_: " << is_video_track_encrypted_;
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
       // VideoDecoderConfig::Matches() only compares things like profile and
       // resolution. So it cannot catch the difference for subtle changes on
       // things like interface mode. Now we send full sps/pps information as
@@ -471,9 +471,9 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
     decrypt_config.reset(new DecryptConfig(
         decrypt_config->key_id(),
         decrypt_config->iv(),
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
         decrypt_config->data_offset(),
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
         subsamples));
     }
     // else, use the existing config.
@@ -481,16 +481,16 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
              (video && is_video_track_encrypted_)) {
     // The media pipeline requires a DecryptConfig with an empty |iv|.
     // TODO(ddorwin): Refactor so we do not need a fake key ID ("1");
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     decrypt_config.reset(
         new DecryptConfig("1", "", std::vector<SubsampleEntry>()));
-#else  // !defined(__LB_SHELL__)
+#else  // !defined(__LB_SHELL__) || defined(COBALT)
     decrypt_config.reset(
         new DecryptConfig("1", "", 0, std::vector<SubsampleEntry>()));
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) || defined(COBALT)
   }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   scoped_refptr<StreamParserBuffer> stream_buf =
     StreamParserBuffer::CopyFrom(&frame_buf[0],
                                  frame_buf.size(),
