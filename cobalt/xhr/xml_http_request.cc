@@ -22,13 +22,15 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/csp_delegate.h"
-#include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/progress_event.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/dom/xml_document.h"
+#include "cobalt/dom_parser/xml_decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
@@ -293,7 +295,7 @@ void XMLHttpRequest::OverrideMimeType(const std::string& override_mime,
     DOMException::Raise(DOMException::kSyntaxErr, exception_state);
     return;
   }
-  mime_type_override_ = override_mime;
+  mime_type_override_ = mime_type;
 }
 
 void XMLHttpRequest::Send(script::ExceptionState* exception_state) {
@@ -430,11 +432,29 @@ const std::string& XMLHttpRequest::response_text(
   return response_body_.string();
 }
 
-base::optional<std::string> XMLHttpRequest::response_xml(
-    script::ExceptionState*) {
-  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsexml-attribute
-  NOTIMPLEMENTED();
-  return base::nullopt;
+// https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsexml-attribute
+scoped_refptr<dom::Document> XMLHttpRequest::response_xml(
+    script::ExceptionState* exception_state) {
+  // 1. If responseType is not the empty string or "document", throw an
+  // "InvalidStateError" exception.
+  if (response_type_ != kDefault && response_type_ != kDocument) {
+    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+                             exception_state);
+    return NULL;
+  }
+
+  // 2. If the state is not DONE, return null.
+  if (state_ != kDone) {
+    return NULL;
+  }
+
+  // 3. If the error flag is set, return null.
+  if (error_) {
+    return NULL;
+  }
+
+  // 4. Return the document response entity body.
+  return GetDocumentResponseEntityBody();
 }
 
 base::optional<XMLHttpRequest::ResponseType> XMLHttpRequest::response(
@@ -854,6 +874,42 @@ std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
   UNREFERENCED_PARAMETER(xhr);
 #endif
   return out;
+}
+
+// https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#document-response-entity-body
+scoped_refptr<dom::Document> XMLHttpRequest::GetDocumentResponseEntityBody() {
+  // Step 1..5
+  if (mime_type_override_ != "text/xml" &&
+      mime_type_override_ != "application/xml") {
+    return NULL;
+  }
+
+  // 6. Otherwise, let document be a document that represents the result of
+  // parsing the response entity body following the rules set forth in the XML
+  // specifications. If that fails (unsupported character encoding, namespace
+  // well-formedness error, etc.), return null.
+  scoped_refptr<dom::XMLDocument> xml_document = new dom::XMLDocument();
+  dom_parser::XMLDecoder xml_decoder(
+      xml_document, xml_document, NULL,
+      base::SourceLocation("[object XMLHttpRequest]", 1, 1), base::Closure(),
+      base::Bind(&XMLHttpRequest::XMLDecoderErrorCallback,
+                 base::Unretained(this)));
+  has_xml_decoder_error_ = false;
+  xml_decoder.DecodeChunk(response_body_.string().c_str(),
+                          response_body_.string().size());
+  xml_decoder.Finish();
+  if (has_xml_decoder_error_) {
+    return NULL;
+  }
+
+  // Step 7..11 Not needed by Cobalt.
+
+  // 12. Return document.
+  return xml_document;
+}
+
+void XMLHttpRequest::XMLDecoderErrorCallback(const std::string&) {
+  has_xml_decoder_error_ = true;
 }
 
 }  // namespace xhr
