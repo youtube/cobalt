@@ -25,6 +25,7 @@
 #include "cobalt/render_tree/font.h"
 
 #include "third_party/icu/public/common/unicode/brkiter.h"
+#include "third_party/icu/public/common/unicode/locid.h"
 #include "third_party/icu/public/common/unicode/unistr.h"
 
 namespace cobalt {
@@ -78,9 +79,9 @@ class Paragraph : public base::RefCounted<Paragraph> {
     kUppercaseTextTransform,
   };
 
-  Paragraph(icu::BreakIterator* line_break_iterator,
-            icu::BreakIterator* character_break_iterator,
-            BaseDirection base_direction);
+  Paragraph(const icu::Locale& locale, BaseDirection base_direction,
+            icu::BreakIterator* line_break_iterator,
+            icu::BreakIterator* character_break_iterator);
 
   // Append the string and return the position where the string begins.
   int32 AppendUtf8String(const std::string& utf8_string);
@@ -109,7 +110,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
                                     TextOrder text_order) const;
   const char16* GetTextBuffer() const;
 
-
+  const icu::Locale& GetLocale() const;
   BaseDirection GetBaseDirection() const;
   int GetBidiLevel(int32 position) const;
   bool IsRTL(int32 position) const;
@@ -171,13 +172,16 @@ class Paragraph : public base::RefCounted<Paragraph> {
   //   - letter case has been transformed.
   icu::UnicodeString unicode_text_;
 
+  // The locale of the paragraph.
+  const icu::Locale& locale_;
+
+  // The base text direction of the paragraph.
+  const BaseDirection base_direction_;
+
   // The line break iterator to use when splitting the text boxes derived from
   // this text paragraph across multiple lines.
   icu::BreakIterator* const line_break_iterator_;
   icu::BreakIterator* const character_break_iterator_;
-
-  // The base text direction of the paragraph.
-  BaseDirection base_direction_;
 
   // Whether or not the paragraph is open and modifiable or closed and
   // immutable.
