@@ -128,9 +128,8 @@ blink-contrib/injected-inline-script-blocked.sub.html,DISABLE
 blink-contrib/injected-inline-style-allowed.sub.html,DISABLE
 blink-contrib/injected-inline-style-blocked.sub.html,DISABLE
 
-# FIXME: Inline style enforcement b/27234710
 blink-contrib/inline-style-allowed.sub.html,PASS
-blink-contrib/inline-style-allowed-while-cloning-objects.sub.html,FAIL
+blink-contrib/inline-style-allowed-while-cloning-objects.sub.html,PASS
 blink-contrib/inline-style-attribute-allowed.sub.html,PASS
 blink-contrib/inline-style-attribute-blocked.sub.html,PASS
 blink-contrib/inline-style-attribute-on-html.sub.html,PASS
