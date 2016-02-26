@@ -88,7 +88,8 @@ overridemimetype-headers-received-state-force-shiftjis.htm,DISABLE
 overridemimetype-invalid-mime-type.htm,FAIL
 overridemimetype-loading-state.htm,PASS
 overridemimetype-open-state-force-utf-8.htm,PASS
-overridemimetype-open-state-force-xml.htm,FAIL
+# Cobalt doesn't support charset=Shift-JIS
+overridemimetype-open-state-force-xml.htm,DISABLE
 # Check failed: IsStringUTF8()
 overridemimetype-unsent-state-force-shiftjis.htm,DISABLE
 preserve-ua-header-on-redirect.htm,FAIL
@@ -112,7 +113,7 @@ responsetype.html,FAIL
 responsexml-basic.htm,FAIL
 responsexml-document-properties.htm,FAIL
 responsexml-media-type.htm,FAIL
-responsexml-non-document-types.htm,FAIL
+responsexml-non-document-types.htm,PASS
 # Synchronous
 responsexml-non-well-formed.htm,FAIL
 security-consideration.sub.html,FAIL

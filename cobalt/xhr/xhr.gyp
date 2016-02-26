@@ -30,6 +30,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
       ],
     },
     {
