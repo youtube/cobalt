@@ -104,5 +104,39 @@
       },
       'includes': [ '../build/deploy.gypi' ],
     },
+
+    {
+      'target_name': 'reuse_allocator_benchmark',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'reuse_allocator_benchmark.cc',
+      ],
+      'dependencies': [
+        'base',
+      ],
+      'actions': [
+        {
+          'action_name': 'reuse_allocator_benchmark_copy_test_data',
+          'variables': {
+            'input_files': [
+              '<(DEPTH)/cobalt/base/testdata/',
+            ],
+            'output_dir': 'cobalt/base/testdata',
+          },
+          'includes': ['../build/copy_test_data.gypi'],
+        }
+      ],
+    },
+    {
+      'target_name': 'reuse_allocator_benchmark_deploy',
+      'type': 'none',
+      'dependencies': [
+        'reuse_allocator_benchmark',
+      ],
+      'variables': {
+        'executable_name': 'reuse_allocator_benchmark',
+      },
+      'includes': [ '../build/deploy.gypi' ],
+    },
   ],
 }
