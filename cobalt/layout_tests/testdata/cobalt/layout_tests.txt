@@ -7,6 +7,7 @@ divs-with-background-color-and-text
 fixed-width-divs-with-background-color
 font-weight
 inline-box-with-overflow-words
+inline-style-allowed-while-cloning-objects
 onload_event_fired_even_though_link_file_does_not_exist
 relative-font-size
 simple-transform-text

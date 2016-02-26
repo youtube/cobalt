@@ -69,6 +69,8 @@ class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
     mutation_observer_ = observer;
   }
 
+  void AssignFrom(const CSSDeclaredStyleDeclaration& rhs);
+
  private:
   // From CSSStyleDeclaration.
   std::string GetDeclaredPropertyValueStringByKey(
