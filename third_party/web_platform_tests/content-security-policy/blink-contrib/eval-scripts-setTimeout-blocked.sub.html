@@ -19,6 +19,8 @@ script-src 'self' 'unsafe-inline' 'unsafe-inline'; connect-src 'self';
 var id = setTimeout("alert_assert('FAIL')", 0);
 if (id != 0)
     log('FAIL: Return value for string (should be 0): ' + id);
+</script>
+<script>
 var id = setTimeout(function() {
   alert_assert('PASS');
 }, 0);
