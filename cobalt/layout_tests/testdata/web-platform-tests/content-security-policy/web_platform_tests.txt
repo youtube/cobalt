@@ -80,7 +80,9 @@ blink-contrib/connect-src-websocket-blocked.sub.html,DISABLE
 
 blink-contrib/connect-src-xmlhttprequest-allowed.sub.html,PASS
 blink-contrib/connect-src-xmlhttprequest-blocked.sub.html,PASS
-blink-contrib/connect-src-xmlhttprequest-redirect-to-blocked.sub.html,PASS
+
+# Fails because www1.cobalt-build.***REMOVED*** does not resolve b/27380184
+blink-contrib/connect-src-xmlhttprequest-redirect-to-blocked.sub.html,DISABLE
 
 # FIXME: Timeout
 blink-contrib/default-src-inline-allowed.sub.html,FAIL
@@ -167,7 +169,9 @@ blink-contrib/object-src-url-blocked.sub.html,DISABLE
 blink-contrib/policy-does-not-affect-child.sub.html,DISABLE
 
 blink-contrib/report-blocked-data-uri.sub.html,PASS
-blink-contrib/report-cross-origin-no-cookies.sub.html,PASS
+
+# Fails because www1.cobalt-build.***REMOVED*** does not resolve b/27380184
+blink-contrib/report-cross-origin-no-cookies.sub.html,DISABLE
 
 # FIXME: NOTRUN
 blink-contrib/report-disallowed-from-meta.sub.html,FAIL
