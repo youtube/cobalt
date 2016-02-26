@@ -9,7 +9,7 @@
 #include "media/base/media_export.h"
 #include "ui/gfx/rect.h"
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 
 class SkCanvas;
 
@@ -25,7 +25,7 @@ class MEDIA_EXPORT SkCanvasVideoRenderer {
 
 }  // namespace media
 
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
 
 #include "third_party/skia/include/core/SkBitmap.h"
 
@@ -62,6 +62,6 @@ class MEDIA_EXPORT SkCanvasVideoRenderer {
 
 }  // namespace media
 
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
 #endif  // MEDIA_FILTERS_SKCANVAS_VIDEO_RENDERER_H_

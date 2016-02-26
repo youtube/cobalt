@@ -18,7 +18,7 @@
 #include "media/filters/decrypting_demuxer_stream.h"
 #include "media/filters/video_decoder_selector.h"
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #include "base/debug/trace_event.h"
 #include "base/stringprintf.h"
 #include "media/base/shell_media_platform.h"
@@ -55,18 +55,18 @@ VideoRendererBase::VideoRendererBase(
       set_opaque_cb_(set_opaque_cb),
       maximum_frames_cached_(0) {
   DCHECK(!paint_cb_.is_null());
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   frame_provider_ = ShellMediaPlatform::Instance()->GetVideoFrameProvider();
 
 #if !defined(__LB_SHELL__FOR_RELEASE__)
   late_frames_ = 0;
   DLOG(INFO) << "Start playing back video " << videos_played_;
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 }
 
 void VideoRendererBase::Play(const base::Closure& callback) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT0("media_stack", "VideoRendererBase::Play()");
 #endif
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -77,7 +77,7 @@ void VideoRendererBase::Play(const base::Closure& callback) {
 }
 
 void VideoRendererBase::Pause(const base::Closure& callback) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT0("media_stack", "VideoRendererBase::Pause()");
 #endif
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -88,7 +88,7 @@ void VideoRendererBase::Pause(const base::Closure& callback) {
 }
 
 void VideoRendererBase::Flush(const base::Closure& callback) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT0("media_stack", "VideoRendererBase::Flush()");
 #endif
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -113,7 +113,7 @@ void VideoRendererBase::ResetDecoder() {
 }
 
 void VideoRendererBase::Stop(const base::Closure& callback) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT0("media_stack", "VideoRendererBase::Stop()");
 #endif
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -144,9 +144,9 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
   if (thread_to_join != base::kNullThreadHandle)
     base::PlatformThread::Join(thread_to_join);
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   if (frame_provider_) { frame_provider_->Stop(); }
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   if (decrypting_demuxer_stream_) {
     decrypting_demuxer_stream_->Reset(base::Bind(
@@ -171,7 +171,7 @@ void VideoRendererBase::SetPlaybackRate(float playback_rate) {
 
 void VideoRendererBase::Preroll(base::TimeDelta time,
                                 const PipelineStatusCB& cb) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT1("media_stack", "VideoRendererBase::Preroll()",
                "timestamp", time.InMicroseconds());
 #endif
@@ -198,7 +198,7 @@ void VideoRendererBase::Initialize(const scoped_refptr<DemuxerStream>& stream,
                                    const PipelineStatusCB& error_cb,
                                    const TimeDeltaCB& get_time_cb,
                                    const TimeDeltaCB& get_duration_cb) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT0("media_stack", "VideoRendererBase::Initialize()");
 #endif
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -301,9 +301,9 @@ void VideoRendererBase::ThreadMain() {
 
   for (;;) {
     if (frames_dropped > 0) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
       SCOPED_MEDIA_STATISTICS(STAT_TYPE_VIDEO_FRAME_DROP);
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
       PipelineStatistics statistics;
       statistics.video_frames_dropped = frames_dropped;
       statistics_cb_.Run(statistics);
@@ -323,7 +323,7 @@ void VideoRendererBase::ThreadMain() {
       continue;
     }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     if (frame_provider_ && frame_provider_->QueryAndResetHasConsumedFrames()) {
       // The consumer of the frame_provider_ has consumed frames. Post another
       // AttemptRead task to ensure that new frames are being read in to keep
@@ -411,17 +411,17 @@ void VideoRendererBase::ThreadMain() {
           break;
 
         // Frame dropped: read again.
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
         TRACE_EVENT1("media_stack", "VideoRendererBase drop frame",
                      "timestamp",
                      ready_frames_.front()->GetTimestamp().InMicroseconds());
 #endif
         ++frames_dropped;
         ready_frames_.pop_front();
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
         UPDATE_MEDIA_STATISTICS(STAT_TYPE_VIDEO_RENDERER_BACKLOG,
                                 ready_frames_.size());
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
         message_loop_->PostTask(FROM_HERE, base::Bind(
             &VideoRendererBase::AttemptRead, this));
       }
@@ -435,7 +435,7 @@ void VideoRendererBase::ThreadMain() {
     //
     // We can now safely update the current frame, request another frame, and
     // signal to the client that a new frame is available.
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     TRACE_EVENT0("media_stack", "VideoRendererBase proceed to next frame");
 #endif
     DCHECK(!pending_paint_);
@@ -444,7 +444,7 @@ void VideoRendererBase::ThreadMain() {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &VideoRendererBase::AttemptRead, this));
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     TRACE_EVENT0("media_stack", "VideoRendererBase paint_cb_");
 #endif
     base::AutoUnlock auto_unlock(lock_);
@@ -453,7 +453,7 @@ void VideoRendererBase::ThreadMain() {
 }
 
 void VideoRendererBase::SetCurrentFrameToNextReadyFrame() {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT1("media_stack",
                "VideoRendererBase::SetCurrentFrameToNextReadyFrame()",
                "timestamp",
@@ -461,10 +461,10 @@ void VideoRendererBase::SetCurrentFrameToNextReadyFrame() {
 #endif
   current_frame_ = ready_frames_.front();
   ready_frames_.pop_front();
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_VIDEO_RENDERER_BACKLOG,
                           ready_frames_.size());
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   // Notify the pipeline of natural_size() changes.
   const gfx::Size& natural_size = current_frame_->natural_size();
@@ -484,7 +484,7 @@ void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
     return;
   }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT0("media_stack", "VideoRendererBase::GetCurrentFrame()");
 #endif
 
@@ -505,7 +505,7 @@ void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
 }
 
 void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT0("media_stack", "VideoRendererBase::PutCurrentFrame()");
 #endif
 
@@ -605,7 +605,7 @@ void VideoRendererBase::FrameReady(
     return;
   }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   scoped_refptr<VideoFrame> original_frame;
   if (frame_provider_ && !frame->IsEndOfStream()) {
     // Save the frame to original_frame so it can be added into frame_provider
@@ -615,7 +615,7 @@ void VideoRendererBase::FrameReady(
         original_frame->visible_rect().size());
     frame->SetTimestamp(original_frame->GetTimestamp());
   }
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   // Discard frames until we reach our desired preroll timestamp.
   if (state_ == kPrerolling && !frame->IsEndOfStream() &&
@@ -625,11 +625,11 @@ void VideoRendererBase::FrameReady(
     return;
   }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   if (frame_provider_ && original_frame) {
     frame_provider_->AddFrame(original_frame);
   }
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   if (prerolling_delayed_frame_) {
     DCHECK_EQ(state_, kPrerolling);
@@ -646,15 +646,15 @@ void VideoRendererBase::FrameReady(
   // purposes:
   //   1) Prerolling while paused
   //   2) Keeps decoding going if video rendering thread starts falling behind
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   bool is_prerolling = state_ == kPrerolling;
   int max_video_frames =
       is_prerolling ? ShellMediaPlatform::Instance()->GetMaxVideoPrerollFrames()
                     : ShellMediaPlatform::Instance()->GetMaxVideoFrames();
   if (NumFrames_Locked() < max_video_frames && !frame->IsEndOfStream()) {
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
   if (NumFrames_Locked() < limits::kMaxVideoFrames && !frame->IsEndOfStream()) {
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
     AttemptRead_Locked();
     return;
   }
@@ -675,7 +675,7 @@ void VideoRendererBase::FrameReady(
     DCHECK(!preroll_cb_.is_null());
     base::ResetAndReturn(&preroll_cb_).Run(PIPELINE_OK);
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
     TRACE_EVENT0("media_stack", "VideoRendererBase paint_cb_");
 #endif
     base::AutoUnlock ul(lock_);
@@ -684,7 +684,7 @@ void VideoRendererBase::FrameReady(
 }
 
 void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT1("media_stack", "VideoRendererBase::AddReadyFrame()",
                "timestamp", frame->GetTimestamp().InMicroseconds());
 #endif
@@ -718,12 +718,12 @@ void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
   ready_frames_.push_back(frame);
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   DCHECK_LE(NumFrames_Locked(),
             ShellMediaPlatform::Instance()->GetMaxVideoFrames());
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
   DCHECK_LE(NumFrames_Locked(), limits::kMaxVideoFrames);
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   base::TimeDelta max_clock_time =
       frame->IsEndOfStream() ? duration : frame->GetTimestamp();
@@ -739,19 +739,19 @@ void VideoRendererBase::AttemptRead() {
 }
 
 void VideoRendererBase::AttemptRead_Locked() {
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   TRACE_EVENT0("media_stack", "VideoRendererBase::AttemptRead_Locked()");
 #endif
   DCHECK(message_loop_->BelongsToCurrentThread());
   lock_.AssertAcquired();
 
   if (pending_read_ ||
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
       NumFrames_Locked() ==
           ShellMediaPlatform::Instance()->GetMaxVideoFrames() ||
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
       NumFrames_Locked() == limits::kMaxVideoFrames ||
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
       (!ready_frames_.empty() && ready_frames_.back()->IsEndOfStream())) {
     return;
   }
@@ -839,9 +839,9 @@ void VideoRendererBase::AttemptFlush_Locked() {
   ready_frames_.clear();
   maximum_frames_cached_ = 0;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   if (frame_provider_) { frame_provider_->Flush(); }
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   if (!pending_paint_ && !pending_read_) {
     state_ = kFlushed;

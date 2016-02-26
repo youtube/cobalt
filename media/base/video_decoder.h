@@ -69,7 +69,7 @@ class MEDIA_EXPORT VideoDecoder
   // that return formats with an alpha channel.
   virtual bool HasAlpha() const;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   // Notify the decoder that we are going to overflow if the decoder keeps
   // working at the current speed.  The decoder should try to decode faster or
   // even drop frames if possible.
@@ -79,7 +79,7 @@ class MEDIA_EXPORT VideoDecoder
   // longer needs to decode more frames.  The decoding of frames is controlled
   // by Read() and the decoder should keep decoding when there is pending read.
   virtual void HaveEnoughFrames() {}
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
  protected:
   friend class base::RefCountedThreadSafe<VideoDecoder>;

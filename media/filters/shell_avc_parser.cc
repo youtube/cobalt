@@ -19,7 +19,7 @@
 #include <limits>
 
 #include "base/stringprintf.h"
-#include "lb_platform.h"
+#include "media/base/endian_util.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/filters/shell_au.h"
 #include "media/filters/shell_rbsp_stream.h"
@@ -325,7 +325,7 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
     }
     // extract 2-byte size of this SPS
     size_t sps_size =
-        LB::Platform::load_uint16_big_endian(buffer + record_offset);
+        endian_util::load_uint16_big_endian(buffer + record_offset);
     // advance past the 2-byte size record
     record_offset += 2;
     // see if we jumped over record size
@@ -369,7 +369,7 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
       }
       // extract 2-byte size of this PPS
       size_t pps_size =
-          LB::Platform::load_uint16_big_endian(buffer + record_offset);
+          endian_util::load_uint16_big_endian(buffer + record_offset);
       record_offset += 2;
       // see if there's actually room for this record in the buffer
       if (record_offset + pps_size > size) {
@@ -427,14 +427,14 @@ bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps,
     return false;
   }
   // start code for sps comes first
-  LB::Platform::store_uint32_big_endian(kAnnexBStartCode, video_prepend_);
+  endian_util::store_uint32_big_endian(kAnnexBStartCode, video_prepend_);
   // followed by sps body
   memcpy(video_prepend_ + kAnnexBStartCodeSize, sps, sps_size);
   int prepend_offset = kAnnexBStartCodeSize + sps_size;
   if (pps_size > 0) {
     // pps start code comes next
-    LB::Platform::store_uint32_big_endian(kAnnexBStartCode,
-                                          video_prepend_ + prepend_offset);
+    endian_util::store_uint32_big_endian(kAnnexBStartCode,
+                                         video_prepend_ + prepend_offset);
     prepend_offset += kAnnexBStartCodeSize;
     // followed by pps
     memcpy(video_prepend_ + prepend_offset, pps, pps_size);

@@ -16,7 +16,6 @@
 #include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
 #include "base/synchronization/waitable_event.h"
-#include "lb_platform.h"
 #include "media/audio/shell_audio_sink.h"
 #include "media/filters/shell_audio_renderer.h"
 #include "media/base/bind_to_loop.h"
@@ -1026,9 +1025,9 @@ void WebMediaPlayerImpl::OnNeedKey(const std::string& key_system,
 
   UMA_HISTOGRAM_COUNTS(kMediaEme + std::string("NeedKey"), 1);
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
   DCHECK(init_data_type_.empty() || type.empty() || type == init_data_type_);
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
 
   if (init_data_type_.empty())
     init_data_type_ = type;

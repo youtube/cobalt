@@ -135,7 +135,7 @@ scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(const gfx::Size& size) {
   return CreateColorFrame(size, kBlackY, kBlackUV, kBlackUV, kZero);
 }
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 // static
 scoped_refptr<VideoFrame> VideoFrame::CreatePunchOutFrame(
     const gfx::Size& size) {

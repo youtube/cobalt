@@ -7,9 +7,9 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #include "base/time.h"
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 #include "media/base/decryptor.h"
 #include "media/base/demuxer_stream.h"
 
@@ -41,7 +41,7 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
   virtual Type type() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   virtual bool StreamWasEncrypted() const OVERRIDE;
   virtual Decryptor* GetDecryptor() const OVERRIDE { return decryptor_; }
 #endif
@@ -130,7 +130,7 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   // decrypting again in case the newly added key is the correct decryption key.
   bool key_added_while_decrypt_pending_;
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   base::Time decrypting_start_;
 #endif  // defined(__LB_SHELL__)
 

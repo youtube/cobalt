@@ -21,7 +21,10 @@
 #include "base/callback_helpers.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "build/build_config.h"  // Must come before OS_STARBOARD.
+#if !defined(OS_STARBOARD)
 #include "lb_shell/lb_shell_constants.h"
+#endif
 #include "media/base/bind_to_loop.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/shell_buffer_factory.h"
@@ -83,9 +86,13 @@ void ShellVideoDecoderImpl::Initialize(
 
   base::Thread::Options options;
 
+#if !defined(OS_STARBOARD)
+// TODO(***REMOVED***): Determine where to define thread constants in a Starboard
+// world.
 #if defined(__LB_PS4__)
   options.stack_size = kMediaStackThreadStackSize;
 #endif  // defined(__LB_PS4__)
+#endif
 
   if (decoder_thread_.StartWithOptions(options)) {
     state_ = kNormal;

@@ -7,10 +7,10 @@
 #include "base/logging.h"
 #include "media/base/decrypt_config.h"
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #include "base/debug/trace_event.h"
 #include "media/base/shell_buffer_factory.h"
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
 #if !defined(OS_ANDROID)
 #include "base/memory/aligned_memory.h"
@@ -18,7 +18,7 @@
 
 namespace media {
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer(
@@ -76,7 +76,7 @@ void DecoderBuffer::SetBuffer(uint8* reusable_buffer) {
   }
 }
 
-#else  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__) || defined(COBALT)
 
 DecoderBuffer::DecoderBuffer(int buffer_size)
     : Buffer(base::TimeDelta(), base::TimeDelta()),
@@ -147,6 +147,6 @@ void DecoderBuffer::SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config) {
   decrypt_config_ = decrypt_config.Pass();
 }
 
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
 }  // namespace media

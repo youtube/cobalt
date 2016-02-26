@@ -14,9 +14,9 @@
 #include "media/base/decryptor.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/pipeline_status.h"
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
 #include "media/base/shell_video_frame_provider.h"
-#endif  // defined(__LB_SHELL__)
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 #include "media/base/video_decoder.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_renderer.h"
@@ -287,15 +287,14 @@ class MEDIA_EXPORT VideoRendererBase
   // TODO(***REMOVED***): Investigate if we could move underflow logic into
   // ShellVideoFrameProvider.
   int maximum_frames_cached_;
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) || defined(COBALT)
   ShellVideoFrameProvider* frame_provider_;
 
 #if !defined(__LB_SHELL__FOR_RELEASE__)
   static int videos_played_;
   int late_frames_;
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
-#endif  // defined(__LB_SHELL__)
-
+#endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBase);
 };

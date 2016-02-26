@@ -48,17 +48,17 @@ class MEDIA_EXPORT DecryptConfig {
   // |data_offset| is applied before |subsamples|.
   DecryptConfig(const std::string& key_id,
                 const std::string& iv,
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
                 const int data_offset,
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
                 const std::vector<SubsampleEntry>& subsamples);
   ~DecryptConfig();
 
   const std::string& key_id() const { return key_id_; }
   const std::string& iv() const { return iv_; }
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
   int data_offset() const { return data_offset_; }
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
   const std::vector<SubsampleEntry>& subsamples() const { return subsamples_; }
 
  private:
@@ -67,12 +67,12 @@ class MEDIA_EXPORT DecryptConfig {
   // Initialization vector.
   const std::string iv_;
 
-#if !defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__) && !defined(COBALT)
   // TODO(fgalligan): Remove |data_offset_| if there is no plan to use it in
   // the future.
   // Amount of data to be discarded before applying subsample information.
   const int data_offset_;
-#endif  // !defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__) && !defined(COBALT)
 
   // Subsample information. May be empty for some formats, meaning entire frame
   // (less data ignored by data_offset_) is encrypted.
