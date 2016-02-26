@@ -369,7 +369,6 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
           ->html_element_factory()
           ->CreateHTMLElement(document, tag_name());
   new_html_element->CopyAttributes(*this);
-  new_html_element->style_ = this->style_;
 
   return new_html_element;
 }
