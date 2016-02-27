@@ -1,4 +1,7 @@
 <!DOCTYPE HTML>
+<!--
+ | This test was modified to not use the HTML4 intrinsic event 'img onload='.
+ -->
 <html>
 <head>
     <title>img element src attribute must match src list.</title>
@@ -16,17 +19,25 @@
       var t3 = async_test("img-src from approved domains should load");
     </script>
 
-    <img src='/content-security-policy/support/pass.png'
-    onerror='t1.step(function() { assert_unreached("The img should have loaded."); t1.done() });'
-    onload='t1.done();'>
-
-    <img src='http://www1.web-platform.test/content-security-policy/support/fail.png'
-    onerror='t2.done();'
-    onload='t2.step(function() { assert_unreached("Image from unapproved domain was loaded."); t2.done()} );'>
-
+    <div id='t1'></div>
+    <div id='t2'></div>
     <div id='t3'></div>
 
     <script>
+      var t1img = document.createElement('img');
+      t1img.onerror = function() {t1.step(function() { assert_unreached("The img should have loaded."); t1.done(); })}
+      t1img.onload = function() {t1.done();}
+      t1img.src = '/content-security-policy/support/pass.png';
+      var t1div = document.getElementById('t1');
+      t1div.appendChild(t1img);
+
+      var t2img = document.createElement('img');
+      t2img.onerror = function() {t2.done();}
+      t2img.onload = function() {t2.step(function() { assert_unreached("Image from unapproved domain was loaded."); t2.done(); })}
+      t2img.src = 'http://www1.web-platform.test/content-security-policy/support/fail.png';
+      var t2div = document.getElementById('t1');
+      t2div.appendChild(t2img);
+
       var t3img = document.createElement('img');
       t3img.onerror = function() {t3.step(function() { assert_unreached(); t3.done();})}
       t3img.onload = function() {t3.done();}
