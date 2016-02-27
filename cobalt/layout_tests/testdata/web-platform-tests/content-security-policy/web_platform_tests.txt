@@ -270,8 +270,7 @@ generic/generic-0_8_1.sub.html,PASS
 generic/generic-0_8.html,FAIL
 generic/generic-0_9.sub.html,PASS
 
-# FIXME: some tests not run- maybe not supported
-img-src/img-src-4_1.html,FAIL
+img-src/img-src-4_1.html,PASS
 media-src/media-src-7_1_2.html,FAIL
 media-src/media-src-7_1.html,FAIL
 media-src/media-src-7_2_2.html,FAIL
