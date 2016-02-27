@@ -136,17 +136,16 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
   EventListenerInfos event_listener_infos;
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    event_listener_infos.push_back(new EventListenerInfo(
-        (*iter)->type, this, (*iter)->listener.referenced_object(),
-        (*iter)->use_capture));
+    if ((*iter)->type == event->type()) {
+      event_listener_infos.push_back(new EventListenerInfo(
+          (*iter)->type, this, (*iter)->listener.referenced_object(),
+          (*iter)->use_capture));
+    }
   }
 
   for (EventListenerInfos::iterator iter = event_listener_infos.begin();
        iter != event_listener_infos.end(); ++iter) {
     if (event->immediate_propagation_stopped()) {
-      continue;
-    }
-    if ((*iter)->type != event->type()) {
       continue;
     }
     // Only call listeners marked as capture during capturing phase.
