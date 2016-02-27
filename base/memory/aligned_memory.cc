@@ -17,7 +17,9 @@ void* AlignedAlloc(size_t size, size_t alignment) {
   DCHECK_EQ(alignment & (alignment - 1), 0U);
   DCHECK_EQ(alignment % sizeof(void*), 0U);
   void* ptr = NULL;
-#if defined(COMPILER_MSVC)
+#if defined(OS_STARBOARD)
+  ptr = SbMemoryAllocateAligned(alignment, size);
+#elif defined(COMPILER_MSVC)
   ptr = _aligned_malloc(size, alignment);
 // Both Android and NaCl technically support posix_memalign(), but do not expose
 // it in the current version of the library headers used by Chrome.  Luckily,
