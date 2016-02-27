@@ -43,13 +43,27 @@
         '<(DEPTH)/media/media.gyp:media',
       ],
       'conditions': [
-        ['target_arch == "linux"', {
+        ['OS=="starboard"', {
+          'sources!': [
+            'media_module_<(actual_target_arch).cc',
+          ],
+          'sources': [
+            'media_module_starboard.cc',
+            'shell_media_platform_starboard.cc',
+            'shell_media_platform_starboard.h',
+          ],
+          'include_dirs!': [
+            '<(lbshell_root)/src',
+            '<(lbshell_root)/src/platform/<(target_arch)',
+          ],
+        }],
+        ['OS=="lb_shell" and target_arch == "linux"', {
           'sources': [
             'shell_media_platform_linux.cc',
             'shell_media_platform_linux.h',
           ],
         }],
-        ['target_arch == "ps3"', {
+        ['OS=="lb_shell" and target_arch == "ps3"', {
           'sources': [
             'shell_media_platform_ps3.cc',
             'shell_media_platform_ps3.h',

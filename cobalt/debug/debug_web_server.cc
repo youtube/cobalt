@@ -24,6 +24,7 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/string_util.h"
+#include "build/build_config.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/debug/json_object.h"
 #include "net/base/ip_endpoint.h"
@@ -33,6 +34,8 @@
 
 #if defined(__LB_SHELL__)
 #include "lb_network_helpers.h"  // NOLINT[build/include]
+#elif defined(OS_STARBOARD)
+#include "starboard/socket.h"
 #endif
 
 namespace cobalt {
@@ -81,13 +84,23 @@ FilePath AppendIndexFile(const FilePath& directory) {
 }
 
 std::string GetLocalIpAddress() {
+  net::IPEndPoint ip_addr;
+#if defined(__LB_SHELL__)
   struct sockaddr_in addr = {0};
   addr.sin_family = AF_INET;
   lb_get_local_ip_address(&addr.sin_addr);
-  net::IPEndPoint ip_addr;
   bool result =
       ip_addr.FromSockAddr(reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
   DCHECK(result);
+#elif defined(OS_STARBOARD)
+  SbSocketAddress sb_address;
+  bool result = SbSocketGetLocalInterfaceAddress(&sb_address);
+  DCHECK(result);
+  result = ip_addr.FromSbSocketAddress(&sb_address);
+  DCHECK(result);
+#else
+#error "Not Implemented."
+#endif
   return ip_addr.ToStringWithoutPort();
 }
 
