@@ -94,6 +94,7 @@
           'type': 'none',
           'dependencies': [
             '<(DEPTH)/base/base.gyp:base',
+            '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/skia.gyp:skia',
             '<(DEPTH)/crypto/crypto.gyp:crypto',
             '<(DEPTH)/net/net.gyp:net',
             '<(DEPTH)/sql/sql.gyp:sql',
@@ -102,6 +103,7 @@
             '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
             '<(DEPTH)/third_party/openssl/openssl.gyp:openssl',
             '<(DEPTH)/third_party/sqlite/sqlite.gyp:sqlite',
+            '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
             '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
           ],
         },
