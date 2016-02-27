@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "base/file_util.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 
 namespace cobalt {
