@@ -693,6 +693,9 @@
           'dependencies': [
             '<(DEPTH)/starboard/starboard.gyp:starboard',
           ],
+          'sources': [
+            'audio/shell_audio_streamer_starboard.cc',
+          ],
         }],  # OS == "starboard"
         ['OS == "ios"', {
           'includes': [

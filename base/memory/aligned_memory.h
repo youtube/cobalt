@@ -40,6 +40,8 @@
 
 #if defined(COMPILER_MSVC)
 #include <malloc.h>
+#elif defined(OS_STARBOARD)
+#include "starboard/memory.h"
 #else
 #include <stdlib.h>
 #endif
@@ -96,6 +98,8 @@ BASE_EXPORT void* AlignedAlloc(size_t size, size_t alignment);
 inline void AlignedFree(void* ptr) {
 #if defined(COMPILER_MSVC)
   _aligned_free(ptr);
+#elif defined(OS_STARBOARD)
+  SbMemoryFreeAligned(ptr);
 #else
   free(ptr);
 #endif
