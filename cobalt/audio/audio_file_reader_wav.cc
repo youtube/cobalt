@@ -18,17 +18,14 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-// TODO(***REMOVED***): Include path prefix for lb_platform.h. The path prefix of
-// lb_platform.h has platform specific information, so it cannot be resolved
-// directly.
-#include "lb_platform.h"  // NOLINT[build/include]
+#include "media/base/endian_util.h"
 
 namespace cobalt {
 namespace audio {
 
-using LB::Platform::load_uint16_little_endian;
-using LB::Platform::load_uint32_big_endian;
-using LB::Platform::load_uint32_little_endian;
+using media::endian_util::load_uint16_little_endian;
+using media::endian_util::load_uint32_big_endian;
+using media::endian_util::load_uint32_little_endian;
 
 namespace {
 
