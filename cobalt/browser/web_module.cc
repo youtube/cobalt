@@ -24,7 +24,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/debug/create_debug_server.h"
+#include "cobalt/debug/debug_server_builder.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/storage/storage_manager.h"
@@ -264,14 +264,19 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 #endif
 
 #if defined(ENABLE_DEBUG_CONSOLE)
+// May be called from a thread other than |self_message_loop_|.
 scoped_ptr<debug::DebugServer> WebModule::CreateDebugServer(
     const debug::DebugServer::OnEventCallback& on_event_callback,
     const debug::DebugServer::OnDetachCallback& on_detach_callback) {
-  // This may be called from a thread other than self_message_loop_.
-  return debug::CreateDebugServerWithComponents(
-      self_message_loop_->message_loop_proxy(), on_event_callback,
-      on_detach_callback, &debug_overlay_, global_object_proxy_,
-      window_->document(), window_->console());
+  debug::DebugServerBuilder debug_server_builder;
+  debug_server_builder.SetConsole(window_->console())
+      .SetDocument(window_->document())
+      .SetGlobalObjectProxy(global_object_proxy_)
+      .SetMessageLoopProxy(self_message_loop_->message_loop_proxy())
+      .SetOnDetachCallback(on_detach_callback)
+      .SetOnEventCallback(on_event_callback)
+      .SetRenderOverlay(&debug_overlay_);
+  return debug_server_builder.Build();
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 
