@@ -183,8 +183,8 @@ blink-contrib/report-same-origin-with-cookies.sub.html,PASS
 blink-contrib/report-uri-from-inline-javascript.sub.html,PASS
 blink-contrib/report-uri-from-javascript.sub.html,PASS
 
-# FIXME: ?
-blink-contrib/report-uri.sub.html,FAIL
+# File missing in original test suite
+blink-contrib/report-uri.sub.html,DISABLE
 
 # <iframe> not supported
 blink-contrib/sandbox-allow-scripts-subframe.sub.html,DISABLE
