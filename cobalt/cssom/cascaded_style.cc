@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "base/optional.h"
-#include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_rule_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
@@ -49,7 +49,7 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
            matching_rules->begin();
        rule_iterator != matching_rules->end(); ++rule_iterator) {
     scoped_refptr<const CSSStyleDeclarationData> declared_style =
-        rule_iterator->first->style()->data();
+        rule_iterator->first->declared_style()->data();
 
     CascadePriority precedence_normal = rule_iterator->second;
     CascadePriority precedence_important = rule_iterator->second;
