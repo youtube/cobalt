@@ -63,13 +63,11 @@ ConsoleComponent::ConsoleComponent(const base::WeakPtr<DebugServer>& server,
 
 JSONObject ConsoleComponent::Disable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  DCHECK(CalledOnValidThread());
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject ConsoleComponent::Enable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  DCHECK(CalledOnValidThread());
   return JSONObject(new base::DictionaryValue());
 }
 

@@ -110,9 +110,9 @@ scoped_ptr<base::DictionaryValue> JSCDebugger::GetScriptSource(
 
 void JSCDebugger::GathererFunctor::operator()(JSC::JSCell* cell) {
   JSC::JSFunction* function = JSC::jsDynamicCast<JSC::JSFunction*>(cell);
-  if (function && function->scope()->globalObject() == global_object_ &&
-      function->executable()->isFunctionExecutable() &&
-      !function->isHostFunction()) {
+  if (function && !function->isHostFunction() &&
+      function->scope()->globalObject() == global_object_ &&
+      function->executable()->isFunctionExecutable()) {
     source_providers_->add(
         JSC::jsCast<JSC::FunctionExecutable*>(function->executable())
             ->source()

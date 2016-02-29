@@ -241,6 +241,15 @@ void DebugWebServer::OnDebuggerResponse(
 void DebugWebServer::OnDebuggerEvent(
     const std::string& method,
     const base::optional<std::string>& json_params) const {
+  // Debugger events occur on the thread of the web module the debugger is
+  // attached to, so we must post to the server thread here.
+  if (MessageLoop::current() != http_server_thread_.message_loop()) {
+    http_server_thread_.message_loop()->PostTask(
+        FROM_HERE, base::Bind(&DebugWebServer::OnDebuggerEvent,
+                              base::Unretained(this), method, json_params));
+    return;
+  }
+
   JSONObject notification(new base::DictionaryValue());
   notification->SetString(kMethodField, method);
   JSONObject params = JSONParse(json_params.value());
