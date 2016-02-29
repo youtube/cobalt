@@ -4766,6 +4766,10 @@ animation_property_value:
     comma_separated_animation_list {
     scoped_ptr<AnimationShorthandBuilder> animation_builder($1);
 
+    if (animation_builder->empty()) {
+      YYERROR;
+    }
+
     scoped_ptr<AnimationShorthand> animation(new AnimationShorthand());
 
     animation->delay_list = new cssom::TimeListValue(
