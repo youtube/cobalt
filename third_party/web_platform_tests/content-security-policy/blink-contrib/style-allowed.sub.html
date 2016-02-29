@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html>
-
+<!--
+  | The loading of style sheet doesn't block the executing of scripts in Cobalt.
+  | Add load event listener to test the style sheet value after the style sheet
+  | is loaded and processed.
+ -->
 <head>
     <!-- Programmatically converted from a WebKit Reftest, please forgive resulting idiosyncracies.-->
     <title>style-allowed</title>
@@ -16,8 +20,9 @@ style-src *; script-src 'self' 'unsafe-inline' 'unsafe-inline'; connect-src 'sel
 
 <body>
     <script>
+      document.addEventListener("load", function() {
         log(document.styleSheets.length > 0 ? 'PASS' : 'FAIL');
-
+      });
     </script>
     <div id="log"></div>
     <script async defer src="../support/checkReport.sub.js?reportExists=false"></script>
