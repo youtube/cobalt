@@ -1,3 +1,7 @@
+<!--
+    This file is modified for Cobalt. The event handlers are set in script
+    instead of in tag attribute.
+-->
 <!DOCTYPE html>
 <html>
 
@@ -12,9 +16,11 @@
 default-src 'self' about: 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self';
 -->
 </head>
-
-<body onload="alert_assert(&apos;PASS 2 of 2&apos;)">
+<body>
     <script>
+        document.body.onload = function() {
+            alert_assert('PASS 2 of 2');
+        }
         alert_assert('PASS 1 of 2');
 
     </script>
