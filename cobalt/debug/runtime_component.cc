@@ -70,20 +70,16 @@ RuntimeComponent::RuntimeComponent(
 
 JSONObject RuntimeComponent::Disable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  DCHECK(CalledOnValidThread());
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject RuntimeComponent::Enable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  DCHECK(CalledOnValidThread());
   OnExecutionContextCreated();
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject RuntimeComponent::Evaluate(const JSONObject& params) {
-  DCHECK(CalledOnValidThread());
-
   std::string expression;
   bool got_param = params->GetString(kExpression, &expression);
   DCHECK(got_param);
@@ -113,7 +109,6 @@ JSONObject RuntimeComponent::ReleaseObjectGroup(const JSONObject& params) {
   // Currently does nothing except reduce some logging noise, as this method
   // is called a lot.
   UNREFERENCED_PARAMETER(params);
-  DCHECK(CalledOnValidThread());
   return JSONObject(new base::DictionaryValue());
 }
 

@@ -115,17 +115,6 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
     std::vector<std::string> command_methods_;
   };
 
-  // Constructor may be called from any thread, but all internal operations
-  // will run on the message loop specified here, which must be the message
-  // loop of the WebModule this debug server is attached to, so that
-  // operations are executed synchronously with the other methods of that
-  // WebModule.
-  DebugServer(const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
-              const OnEventCallback& on_event_callback,
-              const OnDetachCallback& on_detach_callback);
-
-  ~DebugServer();
-
   // Adds a debug component to this object. This object takes ownership.
   void AddComponent(scoped_ptr<Component> component);
 
@@ -153,6 +142,17 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
     scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
   };
 
+  // Constructor should only be called by |DebugServerBuilder|, which will
+  // ensure it is created on the specified thread, which must be the message
+  // loop of the WebModule this debug server is attached to, so that
+  // operations are executed synchronously with the other methods of that
+  // WebModule.
+  DebugServer(const OnEventCallback& on_event_callback,
+              const OnDetachCallback& on_detach_callback);
+
+  // Destructor should only be called by |scoped_ptr<DebugServer>|.
+  ~DebugServer();
+
   // Callback to receive notifications from the debug components.
   // Serializes the method and params object to a JSON string and passes to the
   // external |on_event_callback_| specified in the constructor.
@@ -173,9 +173,6 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // objects referenced by |components_|.
   void RemoveCommand(const std::string& method);
 
-  // The message loop to use for all communication with debug targets.
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
-
   // Notification callbacks to send messages to the client.
   OnEventCallback on_event_callback_;
   OnDetachCallback on_detach_callback_;
@@ -183,13 +180,17 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // Map of commands, indexed by method name.
   CommandRegistry command_registry_;
 
+  // Message loop of the web module this debug server is attached to, and
+  // thread checker to check access.
+  base::MessageLoopProxy* message_loop_proxy_;
   base::ThreadChecker thread_checker_;
 
   // Debug components owned by this object.
   std::vector<Component*> components_;
   STLElementDeleter<std::vector<Component*> > components_deleter_;
 
-  friend class DebugCommandHandler;
+  friend class DebugServerBuilder;
+  friend class scoped_ptr<DebugServer>;
 };
 
 }  // namespace debug
