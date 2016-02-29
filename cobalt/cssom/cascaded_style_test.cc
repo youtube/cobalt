@@ -18,7 +18,7 @@
 
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/cascade_priority.h"
-#include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_rule_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -77,10 +77,13 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
   PromoteToCascadedStyle(style, &rules_with_cascade_priority,
                          &property_key_to_base_url_map);
 
-  EXPECT_EQ(style->left(), css_style_rule_1->style()->data()->left());
-  EXPECT_EQ(style->right(), css_style_rule_2->style()->data()->right());
-  EXPECT_EQ(style->width(), css_style_rule_3->style()->data()->width());
-  EXPECT_EQ(style->height(), css_style_rule_2->style()->data()->height());
+  EXPECT_EQ(style->left(), css_style_rule_1->declared_style()->data()->left());
+  EXPECT_EQ(style->right(),
+            css_style_rule_2->declared_style()->data()->right());
+  EXPECT_EQ(style->width(),
+            css_style_rule_3->declared_style()->data()->width());
+  EXPECT_EQ(style->height(),
+            css_style_rule_2->declared_style()->data()->height());
 }
 
 }  // namespace cssom

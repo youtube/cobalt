@@ -69,6 +69,12 @@ class CSSStyleRule : public CSSRule {
     added_to_selector_tree_ = added_to_selector_tree;
   }
 
+  // Custom.
+
+  const scoped_refptr<CSSRuleStyleDeclaration>& declared_style() const {
+    return style_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(CSSStyleRule);
 
  private:
