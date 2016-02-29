@@ -56,7 +56,6 @@ DOMComponent::DOMComponent(const base::WeakPtr<DebugServer>& server,
 
 JSONObject DOMComponent::Enable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  DCHECK(CalledOnValidThread());
   dom_inspector_.reset(new DOMInspector(
       document_,
       base::Bind(&DOMComponent::OnNotification, base::Unretained(this)),
@@ -72,13 +71,11 @@ JSONObject DOMComponent::Enable(const JSONObject& params) {
 
 JSONObject DOMComponent::Disable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  DCHECK(CalledOnValidThread());
   dom_inspector_.reset(NULL);
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject DOMComponent::GetDocument(const JSONObject& params) {
-  DCHECK(CalledOnValidThread());
   if (dom_inspector_) {
     return dom_inspector_->GetDocument(params);
   } else {
@@ -87,7 +84,6 @@ JSONObject DOMComponent::GetDocument(const JSONObject& params) {
 }
 
 JSONObject DOMComponent::RequestChildNodes(const JSONObject& params) {
-  DCHECK(CalledOnValidThread());
   if (dom_inspector_) {
     return dom_inspector_->RequestChildNodes(params);
   } else {
@@ -96,7 +92,6 @@ JSONObject DOMComponent::RequestChildNodes(const JSONObject& params) {
 }
 
 JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
-  DCHECK(CalledOnValidThread());
   if (dom_inspector_) {
     return dom_inspector_->HighlightNode(params);
   } else {
@@ -105,7 +100,6 @@ JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
 }
 
 JSONObject DOMComponent::HideHighlight(const JSONObject& params) {
-  DCHECK(CalledOnValidThread());
   if (dom_inspector_) {
     return dom_inspector_->HideHighlight(params);
   } else {

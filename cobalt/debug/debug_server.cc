@@ -74,13 +74,11 @@ JSONObject DebugServer::Component::ErrorResponse(
   return error_response.Pass();
 }
 
-DebugServer::DebugServer(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
-    const OnEventCallback& on_event_callback,
-    const OnDetachCallback& on_detach_callback)
-    : message_loop_proxy_(message_loop_proxy),
-      on_event_callback_(on_event_callback),
+DebugServer::DebugServer(const OnEventCallback& on_event_callback,
+                         const OnDetachCallback& on_detach_callback)
+    : on_event_callback_(on_event_callback),
       on_detach_callback_(on_detach_callback),
+      message_loop_proxy_(base::MessageLoopProxy::current()),
       components_deleter_(&components_) {}
 
 DebugServer::~DebugServer() {
