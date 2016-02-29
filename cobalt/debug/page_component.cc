@@ -58,13 +58,11 @@ PageComponent::PageComponent(const base::WeakPtr<DebugServer>& server,
 
 JSONObject PageComponent::Disable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  DCHECK(CalledOnValidThread());
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject PageComponent::Enable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  DCHECK(CalledOnValidThread());
   return JSONObject(new base::DictionaryValue());
 }
 
