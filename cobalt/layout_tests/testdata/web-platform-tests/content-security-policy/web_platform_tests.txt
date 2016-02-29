@@ -227,33 +227,33 @@ blink-contrib/worker-script-src.sub.html,DISABLE
 blink-contrib/worker-set-timeout-blocked.sub.html,DISABLE
 
 # <iframe> not supported
-child-src/child-src-about-blank-allowed-by-default.sub,DISABLE
-child-src/child-src-about-blank-allowed-by-scheme.sub,DISABLE
-child-src/child-src-allowed.sub,DISABLE
-child-src/child-src-blocked.sub,DISABLE
-child-src/child-src-conflicting-frame-src.sub,DISABLE
-child-src/child-src-cross-origin-load.sub,DISABLE
+child-src/child-src-about-blank-allowed-by-default.sub.html,DISABLE
+child-src/child-src-about-blank-allowed-by-scheme.sub.html,DISABLE
+child-src/child-src-allowed.sub.html,DISABLE
+child-src/child-src-blocked.sub.html,DISABLE
+child-src/child-src-conflicting-frame-src.sub.html,DISABLE
+child-src/child-src-cross-origin-load.sub.html,DISABLE
 
 # Workers are not supported
-child-src/child-src-worker-allowed.sub,DISABLE
-child-src/child-src-worker-blocked.sub,DISABLE
+child-src/child-src-worker-allowed.sub.html,DISABLE
+child-src/child-src-worker-blocked.sub.html,DISABLE
 
 # frame-ancestors, Cross-document messaging, <iframe> not supported
-frame-ancestors/deep-allows-none.sub,DISABLE
-frame-ancestors/intermediate-reporting-frame-allows-self.sub,DISABLE
-frame-ancestors/intermediate-reporting-frame-allows-star.sub,DISABLE
-frame-ancestors/multiple-frames-meta-ignored.sub,DISABLE
-frame-ancestors/multiple-frames-one-blocked.sub,DISABLE
-frame-ancestors/multiple-frames-self-allowed.sub,DISABLE
-frame-ancestors/nested-traversing-allowed.sub,DISABLE
-frame-ancestors/nested-traversing-banned.sub,DISABLE
-frame-ancestors/nested-traversing-banned-top-is-self.sub,DISABLE
+frame-ancestors/deep-allows-none.sub.html,DISABLE
+frame-ancestors/intermediate-reporting-frame-allows-self.sub.html,DISABLE
+frame-ancestors/intermediate-reporting-frame-allows-star.sub.html,DISABLE
+frame-ancestors/multiple-frames-meta-ignored.sub.html,DISABLE
+frame-ancestors/multiple-frames-one-blocked.sub.html,DISABLE
+frame-ancestors/multiple-frames-self-allowed.sub.html,DISABLE
+frame-ancestors/nested-traversing-allowed.sub.html,DISABLE
+frame-ancestors/nested-traversing-banned.sub.html,DISABLE
+frame-ancestors/nested-traversing-banned-top-is-self.sub.html,DISABLE
 
 # frame-ancestors, Cross-document messaging not supported
-frame-ancestors/reporting-frame-allows-none,DISABLE
-frame-ancestors/reporting-frame-allows-none-meta,DISABLE
-frame-ancestors/reporting-frame-allows-self,DISABLE
-frame-ancestors/single-frame-self-allowed.sub,DISABLE
+frame-ancestors/reporting-frame-allows-none.html,DISABLE
+frame-ancestors/reporting-frame-allows-none-meta.html,DISABLE
+frame-ancestors/reporting-frame-allows-self.html,DISABLE
+frame-ancestors/single-frame-self-allowed.sub.html,DISABLE
 
 generic/generic-0_10_1.sub.html,PASS
 generic/generic-0_10.html,PASS
@@ -277,10 +277,8 @@ media-src/media-src-7_2_2.html,FAIL
 media-src/media-src-7_2.html,FAIL
 media-src/media-src-7_3_2.html,FAIL
 media-src/media-src-7_3.html,FAIL
-
-# FIXME: Core dump b/27384319
-meta/meta-img-src,DISABLE
-meta/meta-modified,DISABLE
+meta/meta-img-src.html,PASS
+meta/meta-modified.html,PASS
 
 # object-src not supported by Cobalt.
 object-src/object-src-2_1.html,DISABLE
@@ -309,10 +307,10 @@ script-src/script-src-1_4_2.html,PASS
 script-src/script-src-1_4.html,PASS
 
 # svg not supported
-svg/svg-from-guid,DISABLE
-svg/svg-inline.sub,DISABLE
-svg/svg-policy-resource-doc-includes,DISABLE
-svg/svg-policy-with-resource,DISABLE
+svg/svg-from-guid.html,DISABLE
+svg/svg-inline.sub.html,DISABLE
+svg/svg-policy-resource-doc-includes.html,DISABLE
+svg/svg-policy-with-resource.html,DISABLE
 
 style-src/style-src-3_1.html,PASS
 style-src/style-src-3_2.html,PASS
