@@ -23,7 +23,7 @@ namespace cssom {
 
 CSSKeyframeRule::CSSKeyframeRule(
     const std::vector<float>& offsets,
-    const scoped_refptr<CSSStyleDeclaration>& style)
+    const scoped_refptr<CSSRuleStyleDeclaration>& style)
     : offsets_(offsets), style_(style) {}
 
 std::string CSSKeyframeRule::css_text(
