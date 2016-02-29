@@ -29,7 +29,7 @@ std::string CSSComputedStyleDeclaration::css_text(
   // TODO(***REMOVED***): This should enumerate all supported properties, not just
   // the declared ones.
   NOTIMPLEMENTED();
-  return data() ? data()->SerializeCSSDeclarationBlock() : std::string();
+  return data_ ? data_->SerializeCSSDeclarationBlock() : std::string();
 }
 
 void CSSComputedStyleDeclaration::set_css_text(
@@ -42,7 +42,7 @@ void CSSComputedStyleDeclaration::set_css_text(
 // declarations.
 //   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-length
 unsigned int CSSComputedStyleDeclaration::length() const {
-  return data() ? data()->length() : 0;
+  return data_ ? data_->length() : 0;
 }
 
 // The item(index) method must return the property name of the CSS declaration
@@ -50,17 +50,17 @@ unsigned int CSSComputedStyleDeclaration::length() const {
 //   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-item
 base::optional<std::string> CSSComputedStyleDeclaration::Item(
     unsigned int index) const {
-  const char* item = data() ? data()->Item(index) : NULL;
+  const char* item = data_ ? data_->Item(index) : NULL;
   return item ? base::optional<std::string>(item) : base::nullopt;
 }
 
 std::string CSSComputedStyleDeclaration::GetDeclaredPropertyValueStringByKey(
     const PropertyKey key) const {
-  if (!data()) {
+  if (!data_) {
     return std::string();
   }
   const scoped_refptr<PropertyValue>& property_value =
-      data()->GetPropertyValueReference(key);
+      data_->GetPropertyValueReference(key);
   DCHECK(property_value);
   return property_value->ToString();
 }

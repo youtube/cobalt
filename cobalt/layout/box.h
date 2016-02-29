@@ -121,7 +121,7 @@ class Box : public base::RefCounted<Box> {
     return css_computed_style_declaration_;
   }
 
-  const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style()
+  const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style()
       const {
     return css_computed_style_declaration_->data();
   }

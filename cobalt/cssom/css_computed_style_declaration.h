@@ -53,12 +53,11 @@ class CSSComputedStyleDeclaration : public CSSStyleDeclaration {
                         const std::string& property_value,
                         script::ExceptionState* exception_state) OVERRIDE;
 
-  scoped_refptr<const CSSStyleDeclarationData> data() const OVERRIDE {
-    return data_;
-  }
-
   // Custom.
 
+  const scoped_refptr<const CSSStyleDeclarationData>& data() const {
+    return data_;
+  }
   void set_data(const scoped_refptr<const CSSStyleDeclarationData>& data) {
     data_ = data;
   }

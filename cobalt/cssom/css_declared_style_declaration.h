@@ -59,12 +59,9 @@ class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
                         const std::string& property_value,
                         script::ExceptionState* exception_state) OVERRIDE;
 
-  scoped_refptr<const CSSStyleDeclarationData> data() const OVERRIDE {
-    return data_;
-  }
-
   // Custom.
 
+  const scoped_refptr<CSSStyleDeclarationData>& data() const { return data_; }
   void set_mutation_observer(MutationObserver* observer) {
     mutation_observer_ = observer;
   }

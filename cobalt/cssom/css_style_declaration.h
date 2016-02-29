@@ -414,8 +414,6 @@ class CSSStyleDeclaration : public script::Wrappable {
                                 const std::string& property_value,
                                 script::ExceptionState* exception_state) = 0;
 
-  virtual scoped_refptr<const CSSStyleDeclarationData> data() const = 0;
-
   // The parent rule is the CSS rule that the CSS declaration block is
   // associated with, if any, or null otherwise.
   //   https://www.w3.org/TR/2013/WD-cssom-20131205/#css-declaration-block
