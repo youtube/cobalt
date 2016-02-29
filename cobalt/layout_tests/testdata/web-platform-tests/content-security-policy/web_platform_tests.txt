@@ -266,8 +266,9 @@ generic/generic-0_2_3.html,PASS
 generic/generic-0_2.html,PASS
 generic/generic-0_8_1.sub.html,PASS
 
-# FIXME b/27383493
-generic/generic-0_8.html,FAIL
+# Fails because www.cobalt-build.***REMOVED*** does not resolve b/27380184
+generic/generic-0_8.html,DISABLE
+
 generic/generic-0_9.sub.html,PASS
 
 # Fails because www.cobalt-build.***REMOVED*** does not resolve b/27380184
