@@ -59,6 +59,10 @@ struct AnimationShorthandBuilder {
         timing_function_list_builder(
             new cssom::TimingFunctionListValue::Builder()) {}
 
+  // The AnimationShorthandBuilder is a struct-of-arrays, so the animation
+  // builder is empty if any of its sub-builder arrays are empty.
+  bool empty() const { return delay_list_builder->empty(); }
+
   scoped_ptr<cssom::TimeListValue::Builder> delay_list_builder;
   scoped_ptr<cssom::PropertyListValue::Builder> direction_list_builder;
   scoped_ptr<cssom::TimeListValue::Builder> duration_list_builder;
