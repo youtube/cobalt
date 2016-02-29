@@ -22,7 +22,7 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/css_rule.h"
-#include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_rule_style_declaration.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -36,7 +36,7 @@ class CSSStyleSheet;
 class CSSKeyframeRule : public CSSRule {
  public:
   CSSKeyframeRule(const std::vector<float>& offsets,
-                  const scoped_refptr<CSSStyleDeclaration>& style);
+                  const scoped_refptr<CSSRuleStyleDeclaration>& style);
 
   // Web API: CSSRule
   Type type() const OVERRIDE { return kKeyframeRule; }
@@ -48,7 +48,7 @@ class CSSKeyframeRule : public CSSRule {
   //
   std::string key_text() const;
 
-  const scoped_refptr<CSSStyleDeclaration>& style() const { return style_; }
+  const scoped_refptr<CSSRuleStyleDeclaration>& style() const { return style_; }
 
   // Custom, not in any spec.
   //
@@ -68,7 +68,7 @@ class CSSKeyframeRule : public CSSRule {
   std::vector<float> offsets_;
 
   // The style that is represented by this keyframe rule.
-  scoped_refptr<CSSStyleDeclaration> style_;
+  scoped_refptr<CSSRuleStyleDeclaration> style_;
 };
 
 }  // namespace cssom
