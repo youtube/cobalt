@@ -30,8 +30,13 @@ class H5vccAudioConfigArray : public script::Wrappable {
  public:
   H5vccAudioConfigArray();
 
-  uint32 length() const { return static_cast<uint32>(audio_configs_.size()); }
+  uint32 length() {
+    MaybeRefreshAudioConfigs();
+    return static_cast<uint32>(audio_configs_.size());
+  }
+
   scoped_refptr<H5vccAudioConfig> Item(uint32 index) {
+    MaybeRefreshAudioConfigs();
     if (index < length()) {
       return audio_configs_[index];
     }
@@ -41,6 +46,9 @@ class H5vccAudioConfigArray : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vccAudioConfigArray);
 
  private:
+  void MaybeRefreshAudioConfigs();
+
+  bool audio_config_updated_;
   std::vector<scoped_refptr<H5vccAudioConfig> > audio_configs_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccAudioConfigArray);
