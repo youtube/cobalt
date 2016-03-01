@@ -28,6 +28,9 @@
     'angle_api': 'win32',
     'enable_remote_debugging': 0,
 
+    # Compile with "PREfast" on by default.
+    'static_analysis%': 'true',
+
     'compiler_flags_host': [
     ],
     'linker_flags_host': [
@@ -104,8 +107,6 @@
         ],
         # Check for 64-bit portability issues.
         'Detect64BitPortabilityProblems': 'true',
-        # Enables Native Code Analysis - a static code analysis by Microsoft.
-        'EnablePREfast': 'true',
         # Disable Microsoft-specific header dependency tracking.
         # Incremental linker does not support the Windows metadata included
         # in .obj files compiled with C++/CX support (/ZW).
@@ -232,6 +233,8 @@
       ['cobalt_code==1', {
         'msvs_settings': {
           'VCCLCompilerTool': {
+            # Enables Native Code Analysis - a static code analysis by Microsoft.
+            'EnablePREfast': '<(static_analysis)',
             'AdditionalOptions': [
               # TODO(***REMOVED***): Enable SDL everywhere once C4996 warning is fixed.
               '/sdl', # Security Development Lifecycle checks.
