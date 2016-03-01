@@ -616,6 +616,14 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 
   DCHECK(!media_source_);
   if (url.SchemeIs(kMediaSourceUrlProtocol)) {
+    // Check whether url is allowed by security policy.
+    if (!owner_document()->csp_delegate()->CanLoad(CspDelegate::kMedia, url,
+                                                   false)) {
+      DLOG(INFO) << "URL " << url << " is rejected by security policy.";
+      NoneSupported();
+      return;
+    }
+
     media_source_ =
         html_element_context()->media_source_registry()->Retrieve(url.spec());
     // If media_source_ is NULL, the player will try to load it as a normal
