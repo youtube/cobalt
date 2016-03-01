@@ -58,9 +58,9 @@ blink-contrib-2/stylehash-default-src.sub.html,DISABLE
 blink-contrib-2/stylenonce-allowed.sub.html,PASS
 blink-contrib-2/stylenonce-blocked.sub.html,PASS
 
-# FIXME: Enforce CSP for "blob:" scheme b/27276164
-blink-contrib/blob-urls-do-not-match-self.sub.html,FAIL
-blink-contrib/blob-urls-match-blob.sub.html,FAIL
+# Blob not supported
+blink-contrib/blob-urls-do-not-match-self.sub.html,DISABLE
+blink-contrib/blob-urls-match-blob.sub.html,DISABLE
 
 blink-contrib/combine-header-and-meta-policies.sub.html,PASS
 
@@ -185,8 +185,8 @@ blink-contrib/sandbox-empty.sub.html,DISABLE
 
 blink-contrib/script-src-overrides-default-src.sub.html,PASS
 
-# FIXME: Enforce CSP for "blob:" scheme b/27276164
-blink-contrib/self-doesnt-match-blob.sub.html,FAIL
+# Blob not supported
+blink-contrib/self-doesnt-match-blob.sub.html,DISABLE
 
 # Workers are not supported
 blink-contrib/shared-worker-connect-src-allowed.sub.html,DISABLE
@@ -197,8 +197,8 @@ blink-contrib/source-list-parsing-paths-03.sub.html,PASS
 # <iframe> not supported
 blink-contrib/srcdoc-doesnt-bypass-script-src.sub.html,DISABLE
 
-# FIXME: Enforce CSP for "blob:" scheme b/27276164
-blink-contrib/star-doesnt-match-blob.sub.html,FAIL
+# Blob not supported
+blink-contrib/star-doesnt-match-blob.sub.html,DISABLE
 
 blink-contrib/style-allowed.sub.html,PASS
 blink-contrib/style-blocked.sub.html,PASS
