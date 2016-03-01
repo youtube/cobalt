@@ -173,9 +173,7 @@ blink-contrib/report-blocked-data-uri.sub.html,PASS
 # Fails because www1.cobalt-build.***REMOVED*** does not resolve b/27380184
 blink-contrib/report-cross-origin-no-cookies.sub.html,DISABLE
 
-# FIXME: NOTRUN
-blink-contrib/report-disallowed-from-meta.sub.html,FAIL
-
+blink-contrib/report-disallowed-from-meta.sub.html,PASS
 blink-contrib/report-same-origin-with-cookies.sub.html,PASS
 blink-contrib/report-uri-from-inline-javascript.sub.html,PASS
 blink-contrib/report-uri-from-javascript.sub.html,PASS

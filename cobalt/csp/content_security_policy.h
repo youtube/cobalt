@@ -169,6 +169,7 @@ class ContentSecurityPolicy {
   void ReportInvalidSuboriginFlags(const std::string& invalid_flags);
   void ReportUnsupportedDirective(const std::string& name);
   void ReportInvalidInReportOnly(const std::string& name);
+  void ReportDirectiveNotSupportedInsideMeta(const std::string& name);
 
   // https://www.w3.org/TR/2015/CR-CSP2-20150721/#directives
   bool AllowJavaScriptURLs(const std::string& context_url, int context_line,
