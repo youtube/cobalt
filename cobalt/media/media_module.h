@@ -18,8 +18,10 @@
 #define COBALT_MEDIA_MEDIA_MODULE_H_
 
 #include <map>
+#include <string>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/web_media_player_factory.h"
@@ -50,6 +52,15 @@ class MediaModule : public WebMediaPlayerFactory,
   typedef render_tree::Image Image;
 
   virtual ~MediaModule() {}
+
+  // Returns true when the setting is set successfully or if the setting has
+  // already been set to the expected value.  Returns false when the setting is
+  // invalid or not set to the expected value.
+  virtual bool SetConfiguration(const std::string& name, int32 value) {
+    UNREFERENCED_PARAMETER(name);
+    UNREFERENCED_PARAMETER(value);
+    return false;
+  }
 
   // TODO(***REMOVED***): Move the following methods into class like MediaModuleBase
   // to ensure that MediaModule is an interface.
