@@ -84,9 +84,7 @@ blink-contrib/connect-src-xmlhttprequest-blocked.sub.html,PASS
 # Fails because www1.cobalt-build.***REMOVED*** does not resolve b/27380184
 blink-contrib/connect-src-xmlhttprequest-redirect-to-blocked.sub.html,DISABLE
 
-# FIXME: Timeout
-blink-contrib/default-src-inline-allowed.sub.html,FAIL
-
+blink-contrib/default-src-inline-allowed.sub.html,PASS
 blink-contrib/default-src-inline-blocked.sub.html,PASS
 blink-contrib/duplicate-directive.sub.html,PASS
 blink-contrib/eval-allowed.sub.html,PASS
@@ -257,9 +255,7 @@ frame-ancestors/single-frame-self-allowed.sub.html,DISABLE
 
 generic/generic-0_10_1.sub.html,PASS
 generic/generic-0_10.html,PASS
-
-# FIXME b/27383493
-generic/generic-0_1-img-src.html,FAIL
+generic/generic-0_1-img-src.html,PASS
 generic/generic-0_1-script-src.html,PASS
 generic/generic-0_2_2.sub.html,PASS
 generic/generic-0_2_3.html,PASS
