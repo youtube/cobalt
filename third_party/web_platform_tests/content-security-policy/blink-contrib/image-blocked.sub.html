@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<!--
+This test was modified to not use the HTML4 intrinsic events 'img onload=' or
+'img=onerror'.
+ -->
 <html>
 
 <head>
@@ -15,7 +19,15 @@ img-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-inline'; connect-src '
 
 <body>
     This test passes if it doesn&apos;t alert FAIL and does alert PASS.
-    <img src="../support/pass.png" onload='alert_assert("FAIL")' onerror='alert_assert("PASS")'>
+    <div id='t1'></div>
+    <script>
+      var t1img = document.createElement('img');
+      t1img.onload = function() { alert_assert("FAIL"); }
+      t1img.onerror = function() { alert_assert("PASS"); }
+      t1img.src = '../support/pass.png';
+      var t1div = document.getElementById('t1');
+      t1div.appendChild(t1img);
+    </script>
     <div id="log"></div>
     <script async defer src="../support/checkReport.sub.js?reportExists=true&amp;reportField=violated-directive&amp;reportValue=img-src%20&apos;none&apos;"></script>
 </body>
