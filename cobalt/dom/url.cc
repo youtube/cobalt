@@ -39,8 +39,6 @@ std::string URL::CreateObjectURL(
       base::polymorphic_downcast<DOMSettings*>(environment_settings);
   DCHECK(dom_settings);
   DCHECK(dom_settings->media_source_registry());
-  DCHECK(media_source);
-
   if (!media_source) {
     return "";
   }
@@ -58,7 +56,19 @@ void URL::RevokeObjectURL(script::EnvironmentSettings* environment_settings,
       base::polymorphic_downcast<DOMSettings*>(environment_settings);
   DCHECK(dom_settings);
   DCHECK(dom_settings->media_source_registry());
-  DCHECK(GURL(url).SchemeIs(kBlobUrlProtocol)) << url << " is not a blob url";
+
+  // 1. If the url refers to a Blob that has a readability state of CLOSED OR if
+  // the value provided for the url argument is not a Blob URL, OR if the value
+  // provided for the url argument does not have an entry in the Blob URL Store,
+  // this method call does nothing. User agents may display a message on the
+  // error console.
+  if (!GURL(url).SchemeIs(kBlobUrlProtocol)) {
+    LOG(WARNING) << "URL is not a Blob URL.";
+    return;
+  }
+
+  // 2. Otherwise, user agents must remove the entry from the Blob URL Store for
+  // url.
   dom_settings->media_source_registry()->Unregister(url);
 }
 
