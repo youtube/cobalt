@@ -33,6 +33,10 @@ class ProxyDecryptor : public Decryptor {
   // If |decryptor_ready_cb| is null, the existing callback will be fired with
   // NULL immediately and reset.
   void SetDecryptorReadyCB(const DecryptorReadyCB& decryptor_ready_cb);
+  // Notify that the decryptor is going to be destroyed soon.  So any pending or
+  // future DecryptorReadyCB will be called with NULL and the pipeline can be
+  // torn down.
+  void DestroySoon();
 
   // Decryptor implementation.
   virtual bool GenerateKeyRequest(const std::string& key_system,
@@ -77,6 +81,7 @@ class ProxyDecryptor : public Decryptor {
   // safe as per the Decryptor interface.
   base::Lock lock_;
 
+  bool destroy_soon_;
   DecryptorReadyCB decryptor_ready_cb_;
 
   // The real decryptor that does decryption for the ProxyDecryptor.
