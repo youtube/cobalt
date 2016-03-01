@@ -14,6 +14,7 @@
 """Windows platform configuration for gyp_cobalt."""
 
 import logging
+import os
 
 import base
 
@@ -58,6 +59,9 @@ class _PlatformConfig(base.PlatformConfigBase):
         'use_widevine': 0,
         'use_openssl': 1,
     }
+    static_analysis = os.environ.get('USE_STATIC_ANALYSIS')
+    if static_analysis:
+      variables['static_analysis'] = 'true' if int(static_analysis) else ''
     return variables
 
   def GetGeneratorVariables(self, config):
