@@ -623,6 +623,9 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     if (media_source_) {
       media_source_->SetPlayer(player_.get());
       media_source_url_ = url;
+    } else {
+      NoneSupported();
+      return;
     }
   }
 
