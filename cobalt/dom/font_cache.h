@@ -227,7 +227,7 @@ class FontCache {
   // This maps unique font property combinations that are currently in use
   // within the document to the font lists that provides the functionality
   // associated with those font property combinations.
-  FontListMap font_list_map;
+  FontListMap font_list_map_;
 
   // Font-face related
   // The cache contains a map of font faces and handles requesting fonts by url
