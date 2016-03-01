@@ -44,27 +44,35 @@ FontCache::FontCache(render_tree::ResourceProvider* resource_provider,
 
 scoped_refptr<dom::FontList> FontCache::GetFontList(
     const FontListKey& font_list_key) {
-  FontListMap::iterator list_iterator = font_list_map.find(font_list_key);
-  if (list_iterator != font_list_map.end()) {
+  FontListMap::iterator list_iterator = font_list_map_.find(font_list_key);
+  if (list_iterator != font_list_map_.end()) {
     return list_iterator->second;
   } else {
     // If the font list isn't already in the map, both set the new font list
     // mapping and return the newly created font list.
-    return font_list_map[font_list_key] = new FontList(this, font_list_key);
+    return font_list_map_[font_list_key] = new FontList(this, font_list_key);
   }
 }
 
 void FontCache::RemoveUnusedFontLists() {
-  for (FontListMap::iterator font_list_iterator = font_list_map.begin();
-       font_list_iterator != font_list_map.end();) {
+  // TODO(***REMOVED***): Add in logic removing font lists once some requirement has
+  // been met, perhaps 15 minutes of inactivity and over 50 total font lists.
+  // Immediately removing them results in too much thrashing of font lists,
+  // which causes undesirable frequent purges of glyph bounds caches. Testing
+  // has shown that retaining them does not cause memory or performance issues,
+  // so we are currently commenting out the code releasing them. Implementing
+  // the full fix is tracked as b/27377767.
+  /*for (FontListMap::iterator font_list_iterator = font_list_map_.begin();
+       font_list_iterator != font_list_map_.end();) {
     // Any font list that has a single ref is unreferenced outside of the font
-    // cache and is no longer used. Remove it.
+    // cache and is no longer uses. Remove it.
     if (font_list_iterator->second->HasOneRef()) {
-      font_list_map.erase(font_list_iterator++);
+
+      font_list_map_.erase(font_list_iterator++);
     } else {
       ++font_list_iterator;
     }
-  }
+  }*/
 }
 
 void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
@@ -75,7 +83,7 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
 
   // Clear out the cached font lists. It may no longer contain valid font
   // mappings as a result of the font face map changing.
-  font_list_map.clear();
+  font_list_map_.clear();
 
   font_face_map_ = font_face_map.Pass();
 
@@ -297,8 +305,8 @@ void FontCache::OnRemoteFontLoadEvent(const GURL& url) {
     // a font, the small number of fonts involved, and the fact that this is an
     // infrequent event, adding this additional layer of tracking complexity
     // doesn't appear to offer any meaningful benefits.
-    for (FontListMap::iterator font_list_iterator = font_list_map.begin();
-         font_list_iterator != font_list_map.end(); ++font_list_iterator) {
+    for (FontListMap::iterator font_list_iterator = font_list_map_.begin();
+         font_list_iterator != font_list_map_.end(); ++font_list_iterator) {
       font_list_iterator->second->ResetLoadingFonts();
     }
 
