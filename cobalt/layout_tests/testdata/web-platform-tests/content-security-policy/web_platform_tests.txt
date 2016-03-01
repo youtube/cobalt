@@ -113,9 +113,9 @@ blink-contrib/frame-src-cross-origin-load.sub.html,DISABLE
 blink-contrib/function-constructor-allowed.sub.html,PASS
 blink-contrib/function-constructor-blocked.sub.html,PASS
 
-# FIXME: ?
-blink-contrib/icon-allowed.sub.html,FAIL
-blink-contrib/icon-blocked.sub.html,FAIL
+# <link rel='icon'> is not supported, and test is missing test harness.
+blink-contrib/icon-allowed.sub.html,DISABLE
+blink-contrib/icon-blocked.sub.html,DISABLE
 
 # <iframe> not supported
 blink-contrib/iframe-inside-csp.sub.html,DISABLE
