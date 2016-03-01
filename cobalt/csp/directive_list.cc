@@ -597,6 +597,13 @@ bool DirectiveList::ParseDirective(const char* begin, const char* end,
 
 void DirectiveList::ParseReportURI(const std::string& name,
                                    const std::string& value) {
+  if (header_source_ == kHeaderSourceMeta) {
+    // The report-uri, frame-ancestors, and sandbox directives are not supported
+    // inside a meta element.
+    // https://w3c.github.io/webappsec-csp/#meta-element
+    policy_->ReportDirectiveNotSupportedInsideMeta(name);
+    return;
+  }
   if (!report_endpoints_.empty()) {
     policy_->ReportDuplicateDirective(name);
     return;

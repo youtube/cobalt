@@ -433,6 +433,12 @@ void ContentSecurityPolicy::ReportInvalidInReportOnly(const std::string& name) {
   DLOG(WARNING) << message;
 }
 
+void ContentSecurityPolicy::ReportDirectiveNotSupportedInsideMeta(
+    const std::string& name) {
+  DLOG(WARNING) << "The " << name
+                << " directive is not supported inside a <meta> element.";
+}
+
 bool ContentSecurityPolicy::AllowJavaScriptURLs(const std::string& context_url,
                                                 int context_line,
                                                 ReportingStatus status) const {
