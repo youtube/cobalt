@@ -27,7 +27,7 @@
 namespace media {
 
 ProxyDecryptor::ProxyDecryptor(DecryptorClient* decryptor_client)
-    : client_(decryptor_client) {}
+    : client_(decryptor_client), destroy_soon_(false) {}
 
 ProxyDecryptor::~ProxyDecryptor() {}
 
@@ -39,6 +39,11 @@ ProxyDecryptor::~ProxyDecryptor() {}
 void ProxyDecryptor::SetDecryptorReadyCB(
     const DecryptorReadyCB& decryptor_ready_cb) {
   base::AutoLock auto_lock(lock_);
+
+  if (destroy_soon_) {
+    decryptor_ready_cb.Run(NULL);
+    return;
+  }
 
   // Cancels the previous decryptor request.
   if (decryptor_ready_cb.is_null()) {
@@ -54,6 +59,15 @@ void ProxyDecryptor::SetDecryptorReadyCB(
     return;
   }
   decryptor_ready_cb_ = decryptor_ready_cb;
+}
+
+void ProxyDecryptor::DestroySoon() {
+  base::AutoLock auto_lock(lock_);
+
+  destroy_soon_ = true;
+  if (!decryptor_ready_cb_.is_null()) {
+    base::ResetAndReturn(&decryptor_ready_cb_).Run(NULL);
+  }
 }
 
 bool ProxyDecryptor::GenerateKeyRequest(const std::string& key_system,
