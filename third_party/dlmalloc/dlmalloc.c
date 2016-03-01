@@ -597,14 +597,19 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 
 #if defined(STARBOARD)
 #include "dlmalloc_config.h"
+#include "starboard/log.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
 #ifdef MAX
 #undef MAX
 #endif
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#define CRASH() SbSystemBreakIntoDebugger()
-#define ABORT  SbSystemBreakIntoDebugger()
+#define ABORT \
+    do { \
+      SbLogFormatF("%s:%s:%d - ABORT\n", __FUNCTION__, __FILE__, __LINE__); \
+      SbSystemBreakIntoDebugger(); \
+    } while(false)
+#define CRASH() ABORT
 #elif defined(__LB_SHELL__)
 #include "dlmalloc_config.h"
 #include "lb_memory_debug_platform.h"
