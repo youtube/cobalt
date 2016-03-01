@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<!--
+ | This test was modified to not use the HTML4 intrinsic events 'img onload=' or
+ | 'img=onerror'.
+ -->
 <html>
 
 <head>
@@ -16,7 +20,15 @@ img-src 'none'; script-src 'self' 'unsafe-inline'; connect-src 'self';
 
 <body>
     This image should be blocked, but should not show up in the violation report because meta policies MUST ignore report-uri.
-    <img src="../resources/abe.png" onerror="alert_assert('PASS')" onload="alert_assert('FAIL')">
+    <div id='t1'></div>
+    <script>
+      var t1img = document.createElement('img');
+      t1img.onerror = function() { alert_assert('PASS'); }
+      t1img.onload = function() { alert_assert('FAIL'); }
+      t1img.src = '../resources/abe.png';
+      var t1div = document.getElementById('t1');
+      t1div.appendChild(t1img);
+    </script>
     <div id="log"></div>
     <script async defer src="../support/checkReport.sub.js?reportExists=false"></script>
 </body>
