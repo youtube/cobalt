@@ -122,10 +122,11 @@ blink-contrib/icon-blocked.sub.html,FAIL
 # <iframe> not supported
 blink-contrib/iframe-inside-csp.sub.html,DISABLE
 
-# FIXME: NOTRUN
-blink-contrib/image-allowed.sub.html,FAIL
-blink-contrib/image-blocked.sub.html,FAIL
-blink-contrib/image-full-host-wildcard-allowed.sub.html,FAIL
+blink-contrib/image-allowed.sub.html,PASS
+blink-contrib/image-blocked.sub.html,PASS
+
+# Fails because www.cobalt-build.***REMOVED*** does not resolve b/27380184
+blink-contrib/image-full-host-wildcard-allowed.sub.html,DISABLE
 
 blink-contrib/injected-inline-script-allowed.sub.html,PASS
 blink-contrib/injected-inline-script-blocked.sub.html,PASS
