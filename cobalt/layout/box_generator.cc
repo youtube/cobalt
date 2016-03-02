@@ -68,12 +68,14 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
 BoxGenerator::BoxGenerator(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_css_computed_style_declaration,
+    const scoped_refptr<const web_animations::AnimationSet>& parent_animations,
     UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
     scoped_refptr<Paragraph>* paragraph)
     : parent_css_computed_style_declaration_(
           parent_css_computed_style_declaration),
+      parent_animations_(parent_animations),
       used_style_provider_(used_style_provider),
       line_break_iterator_(line_break_iterator),
       character_break_iterator_(character_break_iterator),
@@ -600,6 +602,31 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
   bool is_element_generated_;
 };
 
+bool HasOnlyColorPropertyAnimations(
+    const scoped_refptr<const web_animations::AnimationSet>& animations) {
+  const web_animations::AnimationSet::InternalSet& animation_set =
+      animations->animations();
+
+  if (animation_set.empty()) {
+    return false;
+  }
+
+  for (web_animations::AnimationSet::InternalSet::const_iterator iter =
+           animation_set.begin();
+       iter != animation_set.end(); ++iter) {
+    const web_animations::KeyframeEffectReadOnly* keyframe_effect =
+        base::polymorphic_downcast<
+            const web_animations::KeyframeEffectReadOnly*>(
+            (*iter)->effect().get());
+    if (!keyframe_effect->data().IsOnlyPropertyAnimated(
+            cssom::kColorProperty)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 }  // namespace
 
 void BoxGenerator::AppendPseudoElementToLine(
@@ -632,8 +659,30 @@ void BoxGenerator::AppendPseudoElementToLine(
         scoped_refptr<dom::Text> child_node(new dom::Text(
             html_element->owner_document(), content_provider.content_string()));
 
+        // In the case where the pseudo element has no color property of its
+        // own, but is directly inheriting a color property from its parent html
+        // element, we use the parent's animations if the pseudo element has
+        // none and the parent has only color property animations. This allows
+        // the child text boxes to animate properly and fixes b/27413633, while
+        // keeping the impact of the fix as small as possible to minimize the
+        // risk of introducing new bugs.
+        // TODO(***REMOVED***): Remove this logic when support for inheriting
+        // animations on inherited properties is added. This is currently
+        // tracked as b/27440572.
+        bool use_html_element_animations =
+            !pseudo_element->computed_style()->IsDeclared(
+                cssom::kColorProperty) &&
+            html_element->computed_style()->IsDeclared(cssom::kColorProperty) &&
+            pseudo_element->css_computed_style_declaration()
+                ->animations()
+                ->IsEmpty() &&
+            HasOnlyColorPropertyAnimations(
+                html_element->css_computed_style_declaration()->animations());
+
         BoxGenerator child_box_generator(
             pseudo_element->css_computed_style_declaration(),
+            use_html_element_animations ? html_element->animations()
+                                        : pseudo_element->animations(),
             used_style_provider_, line_break_iterator_,
             character_break_iterator_, paragraph_);
         child_node->Accept(&child_box_generator);
@@ -680,8 +729,10 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
        child_node; child_node = child_node->next_sibling()) {
     BoxGenerator child_box_generator(
-        html_element->css_computed_style_declaration(), used_style_provider_,
-        line_break_iterator_, character_break_iterator_, paragraph_);
+        html_element->css_computed_style_declaration(),
+        html_element->css_computed_style_declaration()->animations(),
+        used_style_provider_, line_break_iterator_, character_break_iterator_,
+        paragraph_);
     child_node->Accept(&child_box_generator);
     const Boxes& child_boxes = child_box_generator.boxes();
     for (Boxes::const_iterator child_box_iterator = child_boxes.begin();
@@ -721,8 +772,7 @@ void BoxGenerator::Visit(dom::Text* text) {
       parent_css_computed_style_declaration_->data()));
 
   // Copy the animations from the parent.
-  css_computed_style_declaration->set_animations(
-      parent_css_computed_style_declaration_->animations());
+  css_computed_style_declaration->set_animations(parent_animations_);
 
   DCHECK(text);
   DCHECK(css_computed_style_declaration->data());
