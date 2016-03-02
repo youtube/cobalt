@@ -54,6 +54,13 @@ class SourceBufferList : public EventTarget {
   bool Remove(const scoped_refptr<SourceBuffer>& source_buffer);
   void Clear();
 
+  SourceBuffer* audio_source_buffer() {
+    return source_buffers_.size() > 0 ? source_buffers_[0] : NULL;
+  }
+  SourceBuffer* video_source_buffer() {
+    return source_buffers_.size() > 1 ? source_buffers_[1] : NULL;
+  }
+
   DEFINE_WRAPPABLE_TYPE(SourceBufferList);
 
  private:

@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-[Constructor] interface MediaSource : EventTarget {
+[
+  Constructor,
+  AddOpaqueRoots=("source_buffers"),
+]
+interface MediaSource : EventTarget {
   readonly attribute SourceBufferList sourceBuffers;
   readonly attribute SourceBufferList activeSourceBuffers;
 
