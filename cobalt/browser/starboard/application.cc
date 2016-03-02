@@ -16,22 +16,20 @@
 
 #include "cobalt/browser/application.h"
 
+#include "starboard/system.h"
+
 namespace cobalt {
 namespace browser {
 
 class ApplicationStarboard : public Application {
  public:
-  ApplicationStarboard();
-  ~ApplicationStarboard() OVERRIDE;
+  ApplicationStarboard() {}
+  ~ApplicationStarboard() OVERRIDE {}
 };
 
 scoped_ptr<Application> CreateApplication() {
   return scoped_ptr<Application>(new ApplicationStarboard());
 }
-
-ApplicationStarboard::ApplicationStarboard() {}
-
-ApplicationStarboard::~ApplicationStarboard() {}
 
 }  // namespace browser
 }  // namespace cobalt

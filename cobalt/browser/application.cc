@@ -22,9 +22,9 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "base/run_loop.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
+#include "build/build_config.h"
 #include "cobalt/account/account_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/localized_strings.h"
@@ -181,10 +181,10 @@ dom::CspEnforcementType StringToCspMode(const std::string& mode) {
 
 }  // namespace
 
-Application::Application()
-    : message_loop_(MessageLoop::TYPE_UI) {
-  base::PlatformThread::SetName("Main");
-  message_loop_.set_thread_name("Main");
+Application::Application() {
+  DCHECK(MessageLoop::current());
+  DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
+  message_loop_ = MessageLoop::current();
 
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
@@ -355,11 +355,24 @@ Application::Application()
       base::Bind(&BrowserModule::CreateDebugServer,
                  base::Unretained(browser_module_.get()))));
 #endif  // ENABLE_REMOTE_DEBUGGING
+
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+  int duration_in_seconds = 0;
+  if (command_line->HasSwitch(switches::kShutdownAfter) &&
+      base::StringToInt(
+          command_line->GetSwitchValueASCII(switches::kShutdownAfter),
+          &duration_in_seconds)) {
+    // If the "shutdown_after" command line option is specified, setup a delayed
+    // message to quit the application after the specified number of seconds
+    // have passed.
+    message_loop_->PostDelayedTask(
+        FROM_HERE, quit_closure_,
+        base::TimeDelta::FromSeconds(duration_in_seconds));
+  }
+#endif  // ENABLE_COMMAND_LINE_SWITCHES
 }
 
 Application::~Application() {
-  DCHECK(!message_loop_.is_running());
-
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(account::AccountEvent::TypeId(),
                                         account_event_callback_);
@@ -370,36 +383,16 @@ Application::~Application() {
 }
 
 void Application::Quit() {
-  if (MessageLoop::current() == &message_loop_) {
-    if (!quit_closure_.is_null()) {
-      quit_closure_.Run();
-    }
-  } else {
-    message_loop_.PostTask(FROM_HERE, quit_closure_);
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&Application::Quit, base::Unretained(this)));
+    return;
   }
-}
 
-void Application::Run() {
-  base::RunLoop run_loop;
-  quit_closure_ = run_loop.QuitClosure();
-
-#if defined(ENABLE_COMMAND_LINE_SWITCHES)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  int duration_in_seconds = 0;
-  if (command_line->HasSwitch(switches::kShutdownAfter) &&
-      base::StringToInt(
-          command_line->GetSwitchValueASCII(switches::kShutdownAfter),
-          &duration_in_seconds)) {
-    // If the "shutdown_after" command line option is specified, setup a delayed
-    // message to quit the application after the specified number of seconds
-    // have passed.
-    message_loop_.PostDelayedTask(
-        FROM_HERE, quit_closure_,
-        base::TimeDelta::FromSeconds(duration_in_seconds));
+  DCHECK(!quit_closure_.is_null());
+  if (!quit_closure_.is_null()) {
+    quit_closure_.Run();
   }
-#endif  // ENABLE_COMMAND_LINE_SWITCHES
-
-  run_loop.Run();
 }
 
 void Application::OnAccountEvent(const base::Event* event) {
