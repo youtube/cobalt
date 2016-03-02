@@ -78,9 +78,7 @@ blink-contrib/connect-src-websocket-blocked.sub.html,DISABLE
 
 blink-contrib/connect-src-xmlhttprequest-allowed.sub.html,PASS
 blink-contrib/connect-src-xmlhttprequest-blocked.sub.html,PASS
-
-# Fails because www1.cobalt-build.***REMOVED*** does not resolve b/27380184
-blink-contrib/connect-src-xmlhttprequest-redirect-to-blocked.sub.html,DISABLE
+blink-contrib/connect-src-xmlhttprequest-redirect-to-blocked.sub.html,PASS
 
 blink-contrib/default-src-inline-allowed.sub.html,PASS
 blink-contrib/default-src-inline-blocked.sub.html,PASS
@@ -122,9 +120,7 @@ blink-contrib/iframe-inside-csp.sub.html,DISABLE
 
 blink-contrib/image-allowed.sub.html,PASS
 blink-contrib/image-blocked.sub.html,PASS
-
-# Fails because www.cobalt-build.***REMOVED*** does not resolve b/27380184
-blink-contrib/image-full-host-wildcard-allowed.sub.html,DISABLE
+blink-contrib/image-full-host-wildcard-allowed.sub.html,PASS
 
 blink-contrib/injected-inline-script-allowed.sub.html,PASS
 blink-contrib/injected-inline-script-blocked.sub.html,PASS
@@ -169,9 +165,7 @@ blink-contrib/object-src-url-blocked.sub.html,DISABLE
 blink-contrib/policy-does-not-affect-child.sub.html,DISABLE
 
 blink-contrib/report-blocked-data-uri.sub.html,PASS
-
-# Fails because www1.cobalt-build.***REMOVED*** does not resolve b/27380184
-blink-contrib/report-cross-origin-no-cookies.sub.html,DISABLE
+blink-contrib/report-cross-origin-no-cookies.sub.html,PASS
 
 blink-contrib/report-disallowed-from-meta.sub.html,PASS
 blink-contrib/report-same-origin-with-cookies.sub.html,PASS
@@ -256,14 +250,10 @@ generic/generic-0_2_2.sub.html,PASS
 generic/generic-0_2_3.html,PASS
 generic/generic-0_2.html,PASS
 generic/generic-0_8_1.sub.html,PASS
-
-# Fails because www.cobalt-build.***REMOVED*** does not resolve b/27380184
-generic/generic-0_8.html,DISABLE
+generic/generic-0_8.html,PASS
 
 generic/generic-0_9.sub.html,PASS
-
-# Fails because www.cobalt-build.***REMOVED*** does not resolve b/27380184
-img-src/img-src-4_1.html,DISABLE
+img-src/img-src-4_1.html,PASS
 
 media-src/media-src-7_1_2.html,FAIL
 media-src/media-src-7_1.html,FAIL
