@@ -255,12 +255,20 @@ generic/generic-0_8.html,PASS
 generic/generic-0_9.sub.html,PASS
 img-src/img-src-4_1.html,PASS
 
-media-src/media-src-7_1_2.html,FAIL
-media-src/media-src-7_1.html,FAIL
-media-src/media-src-7_2_2.html,FAIL
-media-src/media-src-7_2.html,FAIL
-media-src/media-src-7_3_2.html,FAIL
-media-src/media-src-7_3.html,FAIL
+# Event attribute not supported, <source> is not supported, the used mp4 file is
+# not compatible.
+media-src/media-src-7_1_2.html,DISABLE
+media-src/media-src-7_1.html,DISABLE
+media-src/media-src-7_2_2.html,DISABLE
+media-src/media-src-7_2.html,DISABLE
+media-src/media-src-7_3_2.html,DISABLE
+media-src/media-src-7_3.html,DISABLE
+
+# Custom tests that verifies media-src
+media-src/media-src-allowed.html,PASS
+media-src/media-src-disallowed-blob.html,PASS
+media-src/media-src-disallowed.html,PASS
+
 meta/meta-img-src.html,PASS
 meta/meta-modified.html,PASS
 
