@@ -111,7 +111,7 @@ inline T* JSObjectToWrappable(JSC::ExecState* exec_state,
     // This is the global object, so get the pointer to the global interface
     // from the JSCGlobalObject.
     wrappable = global_object->global_interface().get();
-    class_info = &JSCGlobalObject::s_info;
+    class_info = JSCGlobalObject::s_classinfo();
   } else if (global_object->wrapper_factory()->IsWrapper(js_object)) {
     // This is a wrapper object, so get the Wrappable from the appropriate
     // base class.

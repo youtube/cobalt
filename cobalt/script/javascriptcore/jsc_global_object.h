@@ -18,8 +18,6 @@
 
 #include <vector>
 
-#include "config.h"
-
 #include "base/bind.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
@@ -29,6 +27,7 @@
 #include "cobalt/script/javascriptcore/script_object_registry.h"
 #include "cobalt/script/javascriptcore/wrapper_factory.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalObject.h"
 
@@ -62,7 +61,7 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   }
 
   // JavaScriptCore stuff
-  static const JSC::ClassInfo s_info;
+  DECLARE_CLASSINFO();
 
   // Classes that inherit from JSC::GlobalObject set this flag, and set a
   // finalizer method on creation.
@@ -95,7 +94,6 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
                   const scoped_refptr<Wrappable>& global_interface,
                   scoped_ptr<WrapperFactory> wrapper_factory,
                   EnvironmentSettings* environment_settings);
-
 
  private:
   scoped_refptr<Wrappable> global_interface_;
