@@ -45,7 +45,8 @@ class ImageDataDecoder {
   }
 
   void DecodeChunk(const uint8* data, size_t size);
-  void Finish();
+  // Return true if decoding succeeded.
+  bool FinishWithSuccess();
 
  protected:
   enum State {
