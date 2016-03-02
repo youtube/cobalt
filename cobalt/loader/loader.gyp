@@ -33,6 +33,8 @@
         'font/font_decoder.cc',
         'font/font_decoder.h',
         'font/remote_font_cache.h',
+        'image/dummy_gif_image_decoder.cc',
+        'image/dummy_gif_image_decoder.h',
         'image/image_cache.h',
         'image/image_data_decoder.cc',
         'image/image_data_decoder.h',
