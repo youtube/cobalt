@@ -50,6 +50,14 @@ class BoxGenerator : public dom::NodeVisitor {
  public:
   BoxGenerator(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                    parent_css_computed_style_declaration,
+               // Parent animations are passed separately in order to enable
+               // grandparent inheritance of color property animations when the
+               // parent is a pseudo element. This logic fixes b/27413633.
+               // TODO(***REMOVED***): Remove this parameter when full support for
+               // animation inheritance is implemented. This is tracked as
+               // b/27440572.
+               const scoped_refptr<const web_animations::AnimationSet>&
+                   parent_animations,
                UsedStyleProvider* used_style_provider,
                icu::BreakIterator* line_break_iterator,
                icu::BreakIterator* character_break_iterator,
@@ -76,6 +84,7 @@ class BoxGenerator : public dom::NodeVisitor {
 
   const scoped_refptr<cssom::CSSComputedStyleDeclaration>
       parent_css_computed_style_declaration_;
+  const scoped_refptr<const web_animations::AnimationSet>& parent_animations_;
   UsedStyleProvider* const used_style_provider_;
   icu::BreakIterator* const line_break_iterator_;
   icu::BreakIterator* const character_break_iterator_;
