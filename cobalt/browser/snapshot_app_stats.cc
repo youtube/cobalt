@@ -19,6 +19,7 @@
 
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/run_loop.h"
 #include "base/threading/thread.h"
 #include "base/time.h"
 #include "cobalt/base/console_values.h"
@@ -139,6 +140,13 @@ int main(int argc, char** argv) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
 
+  MessageLoopForUI message_loop;
+  base::PlatformThread::SetName("Main");
+  message_loop.set_thread_name("Main");
+
+  DCHECK(!message_loop.is_running());
+  base::RunLoop run_loop;
+
   logging::SetMinLogLevel(100);
 
   // Use null storage for our savegame so that we don't persist state from
@@ -152,6 +160,7 @@ int main(int argc, char** argv) {
   // Create the application object just like is done in the Cobalt main app.
   scoped_ptr<cobalt::browser::Application> application =
       cobalt::browser::CreateApplication();
+  application->set_quit_closure(run_loop.QuitClosure());
 
   // Create a thread to start a timer for kSecondsToWait seconds after which
   // we will take a snapshot of the CVals at that time and then quit the
@@ -162,7 +171,7 @@ int main(int argc, char** argv) {
       FROM_HERE, base::Bind(&DoStatsSnapshot, application.get()),
       base::TimeDelta::FromSeconds(kSecondsToWait));
 
-  application->Run();
+  run_loop.Run();
 
   snapshot_thread.Stop();
 

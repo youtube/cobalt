@@ -43,17 +43,22 @@ class Application {
  public:
   virtual ~Application();
 
-  void Run();
   void Quit();
+
+  // Sets the quit closure, which will be run to induce the main thread RunLoop
+  // to quit.  Must be set before Quit() is called.
+  void set_quit_closure(const base::Closure& quit_closure) {
+    quit_closure_ = quit_closure;
+  }
 
  protected:
   Application();
 
-  MessageLoop* message_loop() { return &message_loop_; }
+  MessageLoop* message_loop() { return message_loop_; }
 
  private:
   // The message loop that will handle UI events.
-  MessageLoop message_loop_;
+  MessageLoop* message_loop_;
 
   base::Closure quit_closure_;
 
