@@ -46,7 +46,7 @@ class WrapperBase : public JSCBaseClass {
   }
 
   static scoped_refptr<WrappableBase>& GetWrappable(JSC::JSObject* js_object) {
-    ASSERT_GC_OBJECT_INHERITS(js_object, &WrapperBase::s_info);
+    ASSERT_GC_OBJECT_INHERITS(js_object, WrapperBase::s_classinfo());
     WrapperBase* wrapper_base = JSC::jsCast<WrapperBase*>(js_object);
     return wrapper_base->wrappable_;
   }
@@ -75,7 +75,7 @@ class WrapperBase : public JSCBaseClass {
       JSC::SlotVisitor& visitor) {  // NOLINT(runtime/references)
     JSCBaseClass::visitChildren(cell, visitor);
     WrapperBase* this_object = JSC::jsCast<WrapperBase*>(cell);
-    ASSERT_GC_OBJECT_INHERITS(this_object, &WrapperBase::s_info);
+    ASSERT_GC_OBJECT_INHERITS(this_object, WrapperBase::s_classinfo());
     // In general most wrappers won't have any such owned objects, but
     // this shouldn't be too expensive.
     this_object->script_object_registry_->VisitOwnedObjects(
