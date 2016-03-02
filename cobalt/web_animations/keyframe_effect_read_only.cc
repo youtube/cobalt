@@ -91,6 +91,15 @@ bool KeyframeEffectReadOnly::Data::IsPropertyAnimated(
   return properties_affected_.find(property) != properties_affected_.end();
 }
 
+bool KeyframeEffectReadOnly::Data::IsOnlyPropertyAnimated(
+    cssom::PropertyKey property) const {
+  if (properties_affected_.size() != 1) {
+    return false;
+  }
+
+  return *properties_affected_.begin() == property;
+}
+
 void KeyframeEffectReadOnly::Data::ApplyAnimation(
     const scoped_refptr<cssom::CSSStyleDeclarationData>& in_out_style,
     double iteration_progress, double current_iteration) const {

@@ -76,6 +76,9 @@ void UpdateComputedStylesAndLayoutBoxTree(
                       line_break_iterator, character_break_iterator));
     BoxGenerator root_box_generator(
         (*initial_containing_block)->css_computed_style_declaration(),
+        (*initial_containing_block)
+            ->css_computed_style_declaration()
+            ->animations(),
         used_style_provider, line_break_iterator, character_break_iterator,
         &(scoped_paragraph.get()));
     document->html()->Accept(&root_box_generator);
