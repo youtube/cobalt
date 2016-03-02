@@ -55,6 +55,10 @@ class KeyframeEffectReadOnly : public AnimationEffectReadOnly {
     // keyframes.
     bool IsPropertyAnimated(cssom::PropertyKey property_name) const;
 
+    // Returns true if the given property is the only property referenced by any
+    // of this effect's keyframes.
+    bool IsOnlyPropertyAnimated(cssom::PropertyKey property_name) const;
+
     // Applies the underlying effect to the given input CSS style, animating
     // all properties of the style that are referenced by this effect, and
     // updating the provided CSS style to reflect the output animated style,
