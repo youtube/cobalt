@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "base/debug/trace_event.h"
+#include "cobalt/loader/image/dummy_gif_image_decoder.h"
 #if defined(__LB_PS3__)
 #include "cobalt/loader/image/jpeg_image_decoder_ps3.h"
 #else  // defined(__LB_PS3__)
@@ -114,6 +115,9 @@ void ImageDecoder::DecodeChunk(const char* data, size_t size) {
   } else if (WEBPImageDecoder::IsValidSignature(signature_cache_.data)) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new WEBPImageDecoder(resource_provider_));
+  } else if (DummyGIFImageDecoder::IsValidSignature(signature_cache_.data)) {
+    decoder_ = make_scoped_ptr<ImageDataDecoder>(
+        new DummyGIFImageDecoder(resource_provider_));
   } else {
     error_state_ = kUnsupportedImageFormat;
     return;
@@ -133,19 +137,14 @@ void ImageDecoder::Finish() {
   TRACE_EVENT0("cobalt::loader::image_decoder", "ImageDecoder::Finish");
   switch (error_state_) {
     case kNoError:
-      if (decoder_) {
-        decoder_->Finish();
+      if (decoder_ && decoder_->FinishWithSuccess()) {
         scoped_ptr<render_tree::ImageData> image_data =
             decoder_->RetrieveImageData();
-        if (image_data) {
-          success_callback_.Run(
-              resource_provider_->CreateImage(image_data.Pass()));
-        } else {
-          error_callback_.Run(decoder_->GetTypeString() +
-                              " failed to decode image");
-        }
+        success_callback_.Run(
+            image_data ? resource_provider_->CreateImage(image_data.Pass())
+                       : NULL);
       } else {
-        error_callback_.Run("No ImageDataDecoder");
+        error_callback_.Run("Decode image failed.");
       }
       break;
     case kNoContent:

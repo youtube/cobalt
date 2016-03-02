@@ -87,14 +87,17 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
   }
 }
 
-void ImageDataDecoder::Finish() {
-  TRACE_EVENT0("cobalt::loader::image_decoder", "ImageDataDecoder::Finish");
+bool ImageDataDecoder::FinishWithSuccess() {
+  TRACE_EVENT0("cobalt::loader::image_decoder",
+               "ImageDataDecoder::FinishWithSuccess");
 
   FinishInternal();
 
   if (state_ != kDone) {
     image_data_.reset();
   }
+
+  return state_ == kDone;
 }
 
 void ImageDataDecoder::AllocateImageData(const math::Size& size) {
