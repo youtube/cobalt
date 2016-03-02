@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+[
+  AddOpaqueRoots=("audio_source_buffer", "video_source_buffer"),
+]
 interface SourceBufferList : EventTarget {
   readonly attribute unsigned long length;
   getter SourceBuffer? item(unsigned long index);
