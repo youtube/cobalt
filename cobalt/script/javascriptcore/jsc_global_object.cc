@@ -23,7 +23,7 @@ namespace script {
 namespace javascriptcore {
 
 const JSC::ClassInfo JSCGlobalObject::s_info = {
-    "JSCGlobalObject", &JSC::JSGlobalObject::s_info, 0, 0,
+    "JSCGlobalObject", JSC::JSGlobalObject::s_classinfo(), 0, 0,
     CREATE_METHOD_TABLE(JSCGlobalObject)};
 
 JSCGlobalObject* JSCGlobalObject::Create(
