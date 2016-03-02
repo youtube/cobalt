@@ -15,6 +15,8 @@
  */
 
 #include "base/at_exit.h"
+#include "base/message_loop.h"
+#include "base/run_loop.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/browser/application.h"
 
@@ -22,10 +24,18 @@ int main(int argc, char** argv) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
 
+  MessageLoopForUI message_loop;
+  base::PlatformThread::SetName("Main");
+  message_loop.set_thread_name("Main");
+
+  DCHECK(!message_loop.is_running());
+  base::RunLoop run_loop;
+
   scoped_ptr<cobalt::browser::Application> application =
       cobalt::browser::CreateApplication();
+  application->set_quit_closure(run_loop.QuitClosure());
 
-  application->Run();
+  run_loop.Run();
 
   return 0;
 }
