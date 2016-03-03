@@ -14,6 +14,7 @@
 #include <openssl/x509v3.h>
 
 #include "base/memory/singleton.h"
+#include "base/path_service.h"
 #include "base/pickle.h"
 #include "base/sha1.h"
 #include "base/string_number_conversions.h"
@@ -168,7 +169,17 @@ class X509InitSingleton {
   void ResetCertStore() {
     store_.reset(X509_STORE_new());
     DCHECK(store_.get());
+#if defined(COBALT)
+    // Configure the SSL certs dir. We don't implement getenv() or hardcode
+    // the SSL_CERTS_DIR, which are the default methods OpenSSL uses to find
+    // the certs path.
+    FilePath cert_path;
+    PathService::Get(base::DIR_EXE, &cert_path);
+    cert_path = cert_path.Append("ssl").Append("certs");
+    X509_STORE_load_locations(store_.get(), NULL, cert_path.value().c_str());
+#else
     X509_STORE_set_default_paths(store_.get());
+#endif
     // TODO(joth): Enable CRL (see X509_STORE_set_flags(X509_V_FLAG_CRL_CHECK)).
   }
 
