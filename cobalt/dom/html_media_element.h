@@ -128,7 +128,6 @@ class HTMLMediaElement : public HTMLElement,
   //
   // From Node
   void OnInsertedIntoDocument() OVERRIDE;
-  MediaSource* media_source_or_null() { return media_source_; }
 
   DEFINE_WRAPPABLE_TYPE(HTMLMediaElement);
 
