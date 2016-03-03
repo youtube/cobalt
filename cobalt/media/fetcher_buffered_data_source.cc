@@ -132,6 +132,9 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
     if (!security_callback_.is_null() &&
         !security_callback_.Run(source->GetURL(), true /*did redirect*/)) {
       error_occured_ = true;
+      if (!pending_read_cb_.is_null()) {
+        base::ResetAndReturn(&pending_read_cb_).Run(-1);
+      }
       return;
     }
   }
@@ -273,8 +276,10 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
 
   if (!security_callback_.is_null() && !security_callback_.Run(url_, false)) {
     // Blocked.
-    // TODO(***REMOVED***): Do we need to signal an error in any way?
     error_occured_ = true;
+    if (!pending_read_cb_.is_null()) {
+      base::ResetAndReturn(&pending_read_cb_).Run(-1);
+    }
     return;
   }
 
