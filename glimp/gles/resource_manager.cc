@@ -23,6 +23,26 @@ ResourceManager::~ResourceManager() {
   if (!programs_.empty()) {
     SB_DLOG(WARNING) << "Un-deleted gl programs exist upon shutdown.";
   }
+
+  if (!shaders_.empty()) {
+    SB_DLOG(WARNING) << "Un-deleted gl shaders exist upon shutdown.";
+  }
+
+  if (!buffers_.empty()) {
+    SB_DLOG(WARNING) << "Un-deleted gl buffers exist upon shutdown.";
+  }
+
+  if (!textures_.empty()) {
+    SB_DLOG(WARNING) << "Un-deleted gl textures exist upon shutdown.";
+  }
+
+  if (!framebuffers_.empty()) {
+    SB_DLOG(WARNING) << "Un-deleted gl framebuffers exist upon shutdown.";
+  }
+
+  if (!renderbuffers_.empty()) {
+    SB_DLOG(WARNING) << "Un-deleted gl renderbuffers exist upon shutdown.";
+  }
 }
 
 uint32_t ResourceManager::RegisterProgram(
