@@ -91,57 +91,64 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
   DCHECK_EQ(0.0f, GetUsedMarginBottomIfNotAuto(
                       computed_style(), layout_params.containing_block_size));
 
-  const scoped_refptr<cssom::PropertyValue>& line_height =
-      computed_style()->line_height();
+  // The non-collapsible content size only needs to be calculated if
+  // |non_collapsible_text_width_| is unset. This indicates that either the
+  // width has not previously been calculated for this box, or that the width
+  // was invalidated as the result of a split.
+  if (!non_collapsible_text_width_) {
+    const scoped_refptr<cssom::PropertyValue>& line_height =
+        computed_style()->line_height();
 
-  // Factor in all of the fonts needed by the text when generating font metrics
-  // if the line height is set to normal:
-  // "When an element contains text that is rendered in more than one font, user
-  // agents may determine the 'normal' 'line-height' value according to the
-  // largest font size."
-  //   https://www.w3.org/TR/CSS21/visudet.html#line-height
-  bool use_text_fonts_to_generate_font_metrics =
-      (line_height == cssom::KeywordValue::GetNormal());
+    // Factor in all of the fonts needed by the text when generating font
+    // metrics if the line height is set to normal:
+    // "When an element contains text that is rendered in more than one font,
+    // user agents may determine the 'normal' 'line-height' value according to
+    // the largest font size."
+    //   https://www.w3.org/TR/CSS21/visudet.html#line-height
+    bool use_text_fonts_to_generate_font_metrics =
+        (line_height == cssom::KeywordValue::GetNormal());
 
-  render_tree::FontVector text_fonts;
-  int32 text_start_position = GetNonCollapsibleTextStartPosition();
-  float non_collapsible_text_width =
-      HasNonCollapsibleText()
-          ? RoundToFixedPointPrecision(used_font_->GetTextWidth(
-                paragraph_->GetTextBuffer() + text_start_position,
-                GetNonCollapsibleTextLength(),
-                paragraph_->IsRTL(text_start_position),
-                use_text_fonts_to_generate_font_metrics ? &text_fonts : NULL))
-          : 0;
-  set_width(GetLeadingWhiteSpaceWidth() + non_collapsible_text_width +
-            GetTrailingWhiteSpaceWidth());
+    render_tree::FontVector text_fonts;
+    int32 text_start_position = GetNonCollapsibleTextStartPosition();
+    non_collapsible_text_width_ =
+        HasNonCollapsibleText()
+            ? RoundToFixedPointPrecision(used_font_->GetTextWidth(
+                  paragraph_->GetTextBuffer() + text_start_position,
+                  GetNonCollapsibleTextLength(),
+                  paragraph_->IsRTL(text_start_position),
+                  use_text_fonts_to_generate_font_metrics ? &text_fonts : NULL))
+            : 0;
 
-  // The line height values are only calculated when one of two conditions are
-  // met:
-  //  1. |baseline_offset_from_top_| has not previously been set, meaning that
-  //     the line height has never been calculated for this box.
-  //  2. |use_text_fonts_to_generate_font_metrics| is true, meaning that the
-  //     line height values depend on the content of the text itself. When this
-  //     is the case, the line height value is not constant and a split in the
-  //     text box can result in the line height values changing.
-  if (!baseline_offset_from_top_ || use_text_fonts_to_generate_font_metrics) {
-    set_margin_left(0);
-    set_margin_top(0);
-    set_margin_right(0);
-    set_margin_bottom(0);
+    // The line height values are only calculated when one of two conditions are
+    // met:
+    //  1. |baseline_offset_from_top_| has not previously been set, meaning that
+    //     the line height has never been calculated for this box.
+    //  2. |use_text_fonts_to_generate_font_metrics| is true, meaning that the
+    //     line height values depend on the content of the text itself. When
+    //     this is the case, the line height value is not constant and a split
+    //     in the text box can result in the line height values changing.
+    if (!baseline_offset_from_top_ || use_text_fonts_to_generate_font_metrics) {
+      set_margin_left(0);
+      set_margin_top(0);
+      set_margin_right(0);
+      set_margin_bottom(0);
 
-    render_tree::FontMetrics font_metrics =
-        used_font_->GetFontMetrics(text_fonts);
+      render_tree::FontMetrics font_metrics =
+          used_font_->GetFontMetrics(text_fonts);
 
-    UsedLineHeightProvider used_line_height_provider(font_metrics);
-    line_height->Accept(&used_line_height_provider);
-    set_height(font_metrics.em_box_height());
-    baseline_offset_from_top_ =
-        used_line_height_provider.baseline_offset_from_top();
-    line_height_ = used_line_height_provider.used_line_height();
-    inline_top_margin_ = used_line_height_provider.half_leading();
-    ascent_ = font_metrics.ascent();
+      UsedLineHeightProvider used_line_height_provider(font_metrics);
+      line_height->Accept(&used_line_height_provider);
+      set_height(font_metrics.em_box_height());
+      baseline_offset_from_top_ =
+          used_line_height_provider.baseline_offset_from_top();
+      line_height_ = used_line_height_provider.used_line_height();
+      inline_top_margin_ = used_line_height_provider.half_leading();
+      ascent_ = font_metrics.ascent();
+    }
   }
+
+  set_width(GetLeadingWhiteSpaceWidth() + *non_collapsible_text_width_ +
+            GetTrailingWhiteSpaceWidth());
 }
 
 scoped_refptr<Box> TextBox::TrySplitAt(float available_width,
@@ -479,8 +486,9 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
 
   text_end_position_ = split_start_position;
 
-  // The size results are no longer valid for this box now that it has been
-  // split in two.
+  // The width is no longer valid for this box now that it has been split in
+  // two.
+  non_collapsible_text_width_ = base::nullopt;
   update_size_results_valid_ = false;
 
   scoped_refptr<Box> box_after_split(new TextBox(
