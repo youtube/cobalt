@@ -1064,15 +1064,38 @@ class NinjaWriter:
         # Tell Ninja we'll be generating a .sprx and a stub library.
         # Bind the variable '$prx' to our output binary so we can
         # refer to it in the linker rules.
+        prx_output = output
+        prx_output_base, prx_output_ext = os.path.splitext(prx_output)
+        assert prx_output_ext == '.sprx'
+
         extra_bindings.append(('prx', output))
         # TODO(***REMOVED***): Figure out how to suppress the "removal" warning
         # generated from the prx generator when we remove a function.
         # For now, we'll just delete the 'verlog.txt' file before linking.
         # Bind it here so we can refer to it as $verlog in the PS3 solink rule.
-        verlog = output.replace('.sprx', '_verlog.txt')
+        verlog = output.replace(prx_output_ext, '_verlog.txt')
         extra_bindings.append(('verlog', verlog))
-        self.target.import_lib = output.replace('.sprx', '_stub.a')
-        output = [output, self.target.import_lib]
+        self.target.import_lib = output.replace(prx_output_ext, '_stub.a')
+        output = [prx_output, self.target.import_lib]
+
+        # For PRXs, we need to convert any c++ exports into C. This is done
+        # with an "export pickup" step that runs over the object files
+        # and produces a new .c file. That .c file should be compiled and linked
+        # into the PRX.
+        gen_files_dir = os.path.join(self.ExpandSpecial(
+            generator_default_variables['SHARED_INTERMEDIATE_DIR']), 'prx')
+
+        export_pickup_output = os.path.join(
+            gen_files_dir, os.path.basename(prx_output_base) + '.prx_export.c')
+        prx_export_obj_file = export_pickup_output[:-2] + '.o'
+        self.ninja.build(export_pickup_output,
+                         'prx_export_pickup',
+                         link_deps,
+                         implicit=list(implicit_deps))
+
+        self.ninja.build(prx_export_obj_file, 'cc', export_pickup_output)
+        link_deps.append(prx_export_obj_file)
+
       else:
         output = [output, output + '.TOC']
 
@@ -1681,6 +1704,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     # Require LD to be set.
     master_ninja.variable('ld', os.environ.get('LD'))
     master_ninja.variable('ar', os.environ.get('AR', 'ar'))
+    master_ninja.variable('prx_export_pickup', os.environ['PRX_EXPORT_PICKUP'])
     ar_flags = os.environ.get('ARFLAGS', 'rcs')
     master_ninja.variable('arFlags', ar_flags)
     # On the PS3, when we use ps3snarl.exe with a response file, we cannot
@@ -1906,9 +1930,14 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
         restat=True,
         command=ld_cmd + ' @$prx.rsp',
         rspfile='$prx.rsp',
-        rspfile_content=('$ldflags %s -o $prx $in $libs' % prx_flags),
+        rspfile_content='$ldflags %s -o $prx $in $libs' % prx_flags,
         pool='link_pool'
       )
+      master_ninja.rule(
+        'prx_export_pickup',
+        description='PRX-EXPORT-PICKUP $out',
+        command='$prx_export_pickup --output-src=$out $in')
+
     elif flavor == 'ps4':
       # TODO(***REMOVED***): PS4 SOLINK rule.
       pass
