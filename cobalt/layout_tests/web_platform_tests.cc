@@ -252,7 +252,11 @@ TEST_P(WebPlatformTest, Run) {
       CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           "web-platform-test-server");
   if (test_server.empty()) {
+#if defined(__LB_PS3__)
+    test_server = "http://freedom.sbo.***REMOVED***:8000";
+#else
     test_server = "http://cobalt-build.***REMOVED***:8000";
+#endif
   }
   GURL test_url = GURL(test_server).Resolve(GetParam().url);
 
