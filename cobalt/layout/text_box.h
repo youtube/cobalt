@@ -157,6 +157,10 @@ class TextBox : public Box {
   // additional sibling boxes to be added to a new line.
   bool has_trailing_line_break_;
 
+  // The width of the portion of the text that is unaffected by whitespace
+  // collapsing.
+  base::optional<float> non_collapsible_text_width_;
+
   // A vertical offset of the baseline relatively to the origin of the text box.
   base::optional<float> baseline_offset_from_top_;
 
