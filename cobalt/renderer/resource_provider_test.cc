@@ -39,16 +39,17 @@ namespace {
 class CreateImagesThread : public base::SimpleThread {
  public:
   CreateImagesThread(ResourceProvider* resource_provider,
-                     int num_images_to_create)
+                     int num_images_to_create, const math::Size& image_size)
       : base::SimpleThread("CreateImages"),
         resource_provider_(resource_provider),
-        num_images_to_create_(num_images_to_create) {}
+        num_images_to_create_(num_images_to_create),
+        image_size_(image_size) {}
 
   void Run() OVERRIDE {
     for (int i = 0; i < num_images_to_create_; ++i) {
       scoped_ptr<render_tree::ImageData> image_data =
           resource_provider_->AllocateImageData(
-              math::Size(1, 1), render_tree::kPixelFormatRGBA8,
+              image_size_, render_tree::kPixelFormatRGBA8,
               render_tree::kAlphaFormatPremultiplied);
 
       resource_provider_->CreateImage(image_data.Pass());
@@ -58,6 +59,7 @@ class CreateImagesThread : public base::SimpleThread {
  private:
   ResourceProvider* resource_provider_;
   int num_images_to_create_;
+  const math::Size image_size_;
 };
 
 // This functor/thread will spawn the given number of CreateImagesThreads,
@@ -68,11 +70,13 @@ class CreateImagesSpawnerThread : public base::SimpleThread {
   CreateImagesSpawnerThread(ResourceProvider* resource_provider,
                             int threads_to_create,
                             int images_to_create_per_thread,
+                            const math::Size& image_size,
                             base::Closure finished_callback)
       : base::SimpleThread("CreateImagesSpawner"),
         resource_provider_(resource_provider),
         threads_to_create_(threads_to_create),
         images_to_create_per_thread_(images_to_create_per_thread),
+        image_size_(image_size),
         finished_callback_(finished_callback) {}
 
   void Run() OVERRIDE {
@@ -81,7 +85,7 @@ class CreateImagesSpawnerThread : public base::SimpleThread {
     ThreadVector image_creating_threads;
     for (int i = 0; i < threads_to_create_; ++i) {
       image_creating_threads.push_back(new CreateImagesThread(
-          resource_provider_, images_to_create_per_thread_));
+          resource_provider_, images_to_create_per_thread_, image_size_));
     }
 
     // Second, tell them all to begin executing at the same time.
@@ -104,6 +108,7 @@ class CreateImagesSpawnerThread : public base::SimpleThread {
   ResourceProvider* resource_provider_;
   int threads_to_create_;
   int images_to_create_per_thread_;
+  const math::Size image_size_;
   base::Closure finished_callback_;
 };
 }  // namespace
@@ -151,7 +156,63 @@ TEST(ResourceProviderTest, TexturesCanBeCreatedFromSecondaryThread) {
   // Create a thread to create other threads that will create images.
   CreateImagesSpawnerThread spawner_thread(
       rasterizer->GetResourceProvider(), kNumThreads,
-      kNumImagesCreatedPerThread,
+      kNumImagesCreatedPerThread, math::Size(1, 1),
+      base::Bind(&MessageLoop::PostTask, base::Unretained(&message_loop),
+                 FROM_HERE, run_loop.QuitClosure()));
+  spawner_thread.Start();
+
+  // Run our message loop to process backend image creation/destruction
+  // requests.
+  run_loop.Run();
+
+  spawner_thread.Join();
+}
+
+// If textures never get passed to the renderer, then both allocating and
+// releasing them should happen instantly.  In other words, this test ensures
+// that we don't have a problem where texture allocations are instantaneous
+// but texture deallocations are delayed.  This might be a problem if the
+// video decoder is tracking its video frame texture memory usage to maintain
+// up to N textures in memory at a time.  If it skips some frames, it might
+// release them and then expect that it can allocate N more, but if those
+// released frames have a delay on their release, we may have many more than
+// N textures allocated at a time.
+TEST(ResourceProviderTest, ManyTexturesCanBeCreatedAndDestroyedQuickly) {
+  scoped_ptr<backend::GraphicsSystem> graphics_system =
+      backend::CreateDefaultGraphicsSystem();
+  scoped_ptr<backend::GraphicsContext> graphics_context =
+      graphics_system->CreateGraphicsContext();
+
+  // When creating images from another thread, the rasterizer must be
+  // constructed from a thread with a message loop.  This message loop will
+  // be where all functions that access backend graphics resources are run.
+  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::RunLoop run_loop;
+
+  // Create the rasterizer using the platform default RenderModule options.
+  RendererModule::Options render_module_options;
+  scoped_ptr<Rasterizer> rasterizer =
+      render_module_options.create_rasterizer_function.Run(
+          graphics_context.get());
+
+  // Create a dummy offscreen surface so that we can have a target when we start
+  // a frame with the graphics context.
+  const math::Size kDummySurfaceDimensions(1, 1);
+  scoped_refptr<backend::RenderTarget> dummy_output_surface =
+      graphics_context->CreateOffscreenRenderTarget(kDummySurfaceDimensions);
+
+  scoped_ptr<backend::GraphicsContext::Frame> frame =
+      graphics_context->StartFrame(dummy_output_surface);
+
+  // Now that we're inside of a new frame, create images from a separate
+  // thread.  This should be perfectly legal and cause no problems.
+  const int kNumThreads = 2;
+  const int kNumImagesCreatedPerThread = 500;
+
+  // Create a thread to create other threads that will create images.
+  CreateImagesSpawnerThread spawner_thread(
+      rasterizer->GetResourceProvider(), kNumThreads,
+      kNumImagesCreatedPerThread, math::Size(2048, 2048),
       base::Bind(&MessageLoop::PostTask, base::Unretained(&message_loop),
                  FROM_HERE, run_loop.QuitClosure()));
   spawner_thread.Start();
