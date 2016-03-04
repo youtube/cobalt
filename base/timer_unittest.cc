@@ -13,10 +13,10 @@ namespace {
 
 // The message loops on which each timer should be tested.
 const MessageLoop::Type testing_message_loops[] = {
-  MessageLoop::TYPE_DEFAULT,
-  MessageLoop::TYPE_IO,
-#if !defined(OS_IOS)  // iOS does not allow direct running of the UI loop.
-  MessageLoop::TYPE_UI,
+    MessageLoop::TYPE_DEFAULT, MessageLoop::TYPE_IO,
+#if !defined(OS_IOS) && !defined(OS_STARBOARD)
+    // iOS and Starboard do not allow direct running of the UI loop.
+    MessageLoop::TYPE_UI,
 #endif
 };
 

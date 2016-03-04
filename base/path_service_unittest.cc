@@ -104,8 +104,8 @@ TEST_F(PathServiceTest, Get) {
       continue;  // lb_shell doesn't implement FILE_MODULE, FILE_EXE and
                  // DIR_USER_DESKTOP;
 #elif defined(OS_STARBOARD)
-    if (key == base::FILE_MODULE || key == base::FILE_EXE ||
-        key == base::DIR_USER_DESKTOP || key == base::DIR_CURRENT)
+    if (key == base::FILE_MODULE || key == base::DIR_USER_DESKTOP ||
+        key == base::DIR_CURRENT)
       continue;
 #endif
     EXPECT_PRED1(ReturnsValidPath, key);

@@ -26,11 +26,13 @@ using net::internal::ClientSocketPoolBaseHelper;
 using net::SpdySession;
 #endif
 
-int main(int argc, char** argv) {
-  MainHook hook(main, argc, argv);
+int test_main(int argc, char** argv) {
+  MainHook hook(test_main, argc, argv);
 
+#if !defined(OS_STARBOARD)
   scoped_ptr<base::ObjectWatchMultiplexer> watcher(
       new base::ObjectWatchMultiplexer());
+#endif
 
   // Record histograms, so we can get histograms data in tests.
   base::StatisticsRecorder::Initialize();
@@ -58,3 +60,18 @@ int main(int argc, char** argv) {
 
   return test_suite.Run();
 }
+
+#if !defined(OS_STARBOARD)
+int main(int argc, char** argv) {
+  return test_main(argc, argv);
+}
+#else
+#include "starboard/event.h"
+#include "starboard/system.h"
+void SbEventHandle(const SbEvent* event) {
+  if (event->type == kSbEventTypeStart) {
+    SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
+    SbSystemRequestStop(test_main(data->argument_count, data->argument_values));
+  }
+}
+#endif

@@ -27,9 +27,7 @@
 // really just eliminate.
 #include "base/message_pump_win.h"
 #elif defined(OS_STARBOARD)
-// TODO(iffy): Make a Starboard-based MessagePumpForUI.
 #include "base/message_pump_io_starboard.h"
-#include "base/message_pump_shell.h"
 #elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #include "base/message_pump_shell.h"
 #elif defined(OS_IOS)
@@ -53,6 +51,9 @@ class RunLoop;
 class ThreadTaskRunnerHandle;
 #if defined(OS_ANDROID)
 class MessagePumpForUI;
+#endif
+#if defined(OS_STARBOARD)
+class MessagePumpUIStarboard;
 #endif
 }  // namespace base
 
@@ -89,10 +90,11 @@ class MessagePumpForUI;
 //
 class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
  public:
-#if (defined(__LB_SHELL__) && !defined(__LB_ANDROID__)) || defined(OS_STARBOARD)
+#if (defined(__LB_SHELL__) && !defined(__LB_ANDROID__))
   typedef base::MessagePumpShell::Dispatcher Dispatcher;
   typedef base::MessagePumpShell::Observer Observer;
-#elif !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
+#elif !defined(OS_MACOSX) && !defined(OS_ANDROID) && \
+    !defined(__LB_ANDROID__) && !defined(OS_STARBOARD)
   typedef base::MessagePumpDispatcher Dispatcher;
   typedef base::MessagePumpObserver Observer;
 #endif
@@ -590,10 +592,11 @@ class BASE_EXPORT MessageLoopForUI : public MessageLoop {
   void Attach();
 #endif
 
-#if defined(OS_ANDROID) || defined (__LB_ANDROID__)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__) || defined(OS_STARBOARD)
   // On Android, the UI message loop is handled by Java side. So Run() should
   // never be called. Instead use Start(), which will forward all the native UI
   // events to the Java message loop.
+  // Also Starboard.
   void Start();
 #elif !defined(OS_MACOSX)
   // Please see message_pump_win/message_pump_glib for definitions of these
