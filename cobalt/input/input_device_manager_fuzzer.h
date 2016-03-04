@@ -19,7 +19,8 @@
 
 #include <vector>
 
-#include "base/timer.h"
+#include "base/memory/weak_ptr.h"
+#include "base/time.h"
 #include "cobalt/input/input_device_manager.h"
 
 namespace cobalt {
@@ -36,10 +37,32 @@ class InputDeviceManagerFuzzer : public InputDeviceManager {
   ~InputDeviceManagerFuzzer() OVERRIDE {}
 
  private:
+  class KeyInfo {
+   public:
+    KeyInfo(const int* key_codes, size_t num_of_key_codes,
+            base::TimeDelta delay);
+    KeyInfo(const int* key_codes, size_t num_of_key_codes,
+            base::TimeDelta minimum_delay, base::TimeDelta maximum_delay);
+    KeyInfo(int key_code, base::TimeDelta delay);
+    KeyInfo(int key_code, base::TimeDelta minimum_delay,
+            base::TimeDelta maximum_delay);
+
+    int GetRandomKeyCode() const;
+    base::TimeDelta GetRandomDelay() const;
+
+   private:
+    std::vector<int> key_codes_;
+    base::TimeDelta minimum_delay_;
+    base::TimeDelta maximum_delay_;
+  };
+
   void OnNextEvent();
 
   KeyboardEventCallback keyboard_event_callback_;
-  base::Timer next_event_timer_;
+  size_t next_key_index_;
+  std::vector<KeyInfo> key_infos_;
+
+  base::WeakPtrFactory<InputDeviceManagerFuzzer> weak_ptr_factory_;
 };
 
 }  // namespace input
