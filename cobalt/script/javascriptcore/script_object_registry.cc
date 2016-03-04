@@ -16,6 +16,10 @@
 
 #include "cobalt/script/javascriptcore/script_object_registry.h"
 
+#include <utility>
+
+#include "base/stl_util.h"
+
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
@@ -25,7 +29,8 @@ void ScriptObjectRegistry::RegisterObjectOwner(const Wrappable* owner,
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(owner);
   DCHECK(js_object);
-  owned_object_multimap_.insert(std::make_pair(owner, js_object));
+  owned_object_multimap_.insert(
+      std::make_pair(owner, new JSC::Weak<JSC::JSObject>(js_object)));
 }
 
 void ScriptObjectRegistry::DeregisterObjectOwner(const Wrappable* owner,
@@ -36,9 +41,10 @@ void ScriptObjectRegistry::DeregisterObjectOwner(const Wrappable* owner,
   pair_range = owned_object_multimap_.equal_range(owner);
   for (OwnedObjectMultiMap::iterator it = pair_range.first;
        it != pair_range.second; ++it) {
-    if (it->second == js_object) {
+    if (it->second->get() == js_object) {
       // There may be multiple mappings between a specific owner and
       // js_object. Only remove the first mapping.
+      delete it->second;
       owned_object_multimap_.erase(it);
       return;
     }
@@ -53,8 +59,19 @@ void ScriptObjectRegistry::VisitOwnedObjects(Wrappable* owner,
   pair_range = owned_object_multimap_.equal_range(owner);
   for (OwnedObjectMultiMap::iterator it = pair_range.first;
        it != pair_range.second; ++it) {
-    visitor->appendUnbarrieredPointer(&it->second);
+    visitor->appendUnbarrieredWeak(it->second);
   }
+}
+
+void ScriptObjectRegistry::ClearEntries() {
+  STLDeleteValues(&owned_object_multimap_);
+}
+
+ScriptObjectRegistry::~ScriptObjectRegistry() {
+  // Since the ScriptObjectRegistry is destroyed after JSGlobalData, we can't
+  // free any remaining JSC::Weak objects in here since they will try to access
+  // structures that have already been destroyed.
+  DCHECK_EQ(owned_object_multimap_.size(), 0);
 }
 
 }  // namespace javascriptcore
