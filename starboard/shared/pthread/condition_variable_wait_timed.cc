@@ -34,8 +34,17 @@ SbConditionVariableResult SbConditionVariableWaitTimed(
     timeout = 0;
   }
 
+  // Detect overflow if timeout is near kSbTimeMax. Since timeout can't be
+  // negative at this point, if it goes negative after adding now, we know we've
+  // gone over. Especially posix now, which has a 400 year advantage over
+  // Chromium (Windows) now.
+  int64_t posix_time = SbTimeToPosix(SbTimeGetNow()) + timeout;
+  if (posix_time < 0) {
+    posix_time = kSbInt64Max;
+  }
+
   struct timespec timeout_ts;
-  ToTimespec(&timeout_ts, SbTimeToPosix(SbTimeGetNow() + timeout));
+  ToTimespec(&timeout_ts, posix_time);
 
   int result = pthread_cond_timedwait(condition, mutex, &timeout_ts);
   if (IsSuccess(result)) {

@@ -23,6 +23,7 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/time.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -54,10 +55,40 @@ class Application {
   // possible. May be called from any thread.
   void Stop(int error_level);
 
-  // Injects a kSbEventTypeApplication event into the event queue.
-  void InjectApplicationEvent(void* data, SbEventDataDestructor destructor);
+  // Schedules an event into the event queue.
+  SbEventId Schedule(SbEventCallback callback,
+                     void* context,
+                     SbTimeMonotonic delay);
+
+  // Cancels an event that was previously scheduled.
+  void Cancel(SbEventId id);
 
  protected:
+  // Structure to keep track of scheduled events, also used as the data argument
+  // for kSbEventTypeScheduled Events.
+  struct TimedEvent {
+    TimedEvent(SbEventId eid,
+               SbEventCallback func,
+               void* data,
+               SbTimeMonotonic delay)
+        : id(eid),
+          callback(func),
+          context(data),
+          target_time(delay + SbTimeGetMonotonicNow()),
+          canceled(false) {}
+
+    SbEventId id;
+    SbEventCallback callback;
+    void* context;
+    SbTimeMonotonic target_time;
+    bool canceled;
+  };
+
+  // Destructor func for TimedEvents.
+  static void TimedEventDestructor(void* timed_event) {
+    delete reinterpret_cast<TimedEvent*>(timed_event);
+  }
+
   // A Starboard event and its destructor. Takes ownership of the event, thus
   // deleting the event and calling the destructor on its data when it is
   // deleted.
@@ -69,7 +100,13 @@ class Application {
       event->type = type;
       event->data = data;
     }
-
+    explicit Event(TimedEvent* data)
+        : event(new SbEvent()),
+          destructor(&TimedEventDestructor),
+          error_level(0) {
+      event->type = kSbEventTypeScheduled;
+      event->data = data;
+    }
     ~Event() {
       if (destructor && event->data) {
         destructor(event->data);
@@ -103,6 +140,23 @@ class Application {
   // wake up the main loop. Subclasses must implement this method.
   virtual void Inject(Event* event) = 0;
 
+  // Injects a new TimedEvent into the scheduled event queue, passing
+  // ownership. May be called from an external thread.
+  virtual void InjectTimedEvent(TimedEvent* timed_event) = 0;
+
+  // Cancels the timed event associated with the given SbEventId, if it hasn't
+  // already fired. May be called from an external thread.
+  virtual void CancelTimedEvent(SbEventId event_id) = 0;
+
+  // Gets the next timed event that has met or passed its target time. Returns
+  // NULL if there are no due TimedEvents queued. Passes ownership to caller.
+  virtual TimedEvent* GetNextDueTimedEvent() = 0;
+
+  // Gets the next time that a TimedEvent is due. Returns
+  // SbTimeGetMonotonicNow() if the next TimedEvent is past due. Returns
+  // kSbTimeMax if there are no queued TimedEvents.
+  virtual SbTimeMonotonic GetNextTimedEventTargetTime() = 0;
+
  private:
   // Dispatches |event| to the system event handler, taking ownership of the
   // event. Returns whether to keep servicing the event queue, i.e. false means
@@ -114,12 +168,6 @@ class Application {
 
   // The error_level set by the last call to Stop().
   int error_level_;
-
-  // A flag that can be set to cause the application to shut down.
-  bool should_stop_;
-
-  // The queue of events that have not yet been dispatched.
-  Queue<Event*> event_queue_;
 };
 
 }  // namespace starboard
