@@ -24,6 +24,12 @@ namespace base {
 bool PathProviderStarboard(int key, FilePath *result) {
   char path[SB_FILE_MAX_PATH];
   switch (key) {
+    case base::FILE_EXE:
+      SbSystemGetPath(kSbSystemPathExecutableFile, path,
+                      SB_ARRAY_SIZE_INT(path));
+      *result = FilePath(path);
+      return true;
+
     case base::DIR_EXE:
     case base::DIR_MODULE:
       SbSystemGetPath(kSbSystemPathContentDirectory, path,
@@ -47,13 +53,19 @@ bool PathProviderStarboard(int key, FilePath *result) {
       *result = FilePath(path);
       return true;
 
+    case base::DIR_TEMP:
+      SbSystemGetPath(kSbSystemPathTempDirectory, path,
+                      SB_ARRAY_SIZE_INT(path));
+      *result = FilePath(path);
+      return true;
+
     case base::DIR_HOME:
       // TODO(iffy): Add a home directory to SbSystemPathId and get it from
       // there.
       return PathProviderStarboard(base::DIR_CACHE, result);
   }
 
-  NOTIMPLEMENTED() << "key = " << key;
+  NOTREACHED() << "key = " << key;
   return false;
 }
 
