@@ -48,11 +48,14 @@ void DispatchStart(int argc, char** argv) {
   Dispatch(kSbEventTypeStart, &start_data, NULL);
 }
 
+// The next event ID to use for Schedule().
+volatile SbAtomic32 g_next_event_id = 0;
+
 }  // namespace
 
 Application* Application::g_instance = NULL;
 
-Application::Application() : error_level_(0), should_stop_(true) {
+Application::Application() : error_level_(0) {
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
@@ -91,9 +94,16 @@ void Application::Stop(int error_level) {
   Inject(event);
 }
 
-void Application::InjectApplicationEvent(void* data,
-                                         SbEventDataDestructor destructor) {
-  Inject(new Event(kSbEventTypeApplication, data, destructor));
+SbEventId Application::Schedule(SbEventCallback callback,
+                                void* context,
+                                SbTimeMonotonic delay) {
+  SbEventId id = SbAtomicNoBarrier_Increment(&g_next_event_id, 1);
+  InjectTimedEvent(new TimedEvent(id, callback, context, delay));
+  return id;
+}
+
+void Application::Cancel(SbEventId id) {
+  CancelTimedEvent(id);
 }
 
 bool Application::DispatchAndDelete(Application::Event* event) {
@@ -107,7 +117,12 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     error_level_ = event->error_level;
   }
 
-  SbEventHandle(event->event);
+  if (event->event->type == kSbEventTypeScheduled) {
+    TimedEvent* timed_event = reinterpret_cast<TimedEvent*>(event->event->data);
+    timed_event->callback(timed_event->context);
+  } else {
+    SbEventHandle(event->event);
+  }
   delete event;
   return should_continue;
 }

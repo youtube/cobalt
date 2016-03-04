@@ -119,53 +119,6 @@ class ConditionVariable {
   mutable SbConditionVariable condition_;
 };
 
-// Inline, thread-safe, blocking queue, based on starboard::ConditionVariable.
-template <typename T>
-class Queue {
- public:
-  Queue() : condition_(mutex_) {}
-  ~Queue() {}
-
-  // Polls for an item, returning the default value of T if nothing is present.
-  T Poll() {
-    ScopedLock lock(mutex_);
-    if (!queue_.empty()) {
-      T entry = queue_.front();
-      queue_.pop_front();
-      return entry;
-    }
-
-    return T();
-  }
-
-  // Gets the item at the front of the queue, blocking until there is such an
-  // item. If there are multiple waiters, this Queue guarantees that only one
-  // waiter will receive any given queue item.
-  T Get() {
-    ScopedLock lock(mutex_);
-    while (queue_.empty()) {
-      condition_.Wait();
-    }
-
-    T entry = queue_.front();
-    queue_.pop_front();
-    return entry;
-  }
-
-  // Pushes |value| onto the back of the queue, waking up a single waiter, if
-  // any exist.
-  void Put(T value) {
-    ScopedLock lock(mutex_);
-    queue_.push_back(value);
-    condition_.Signal();
-  }
-
- private:
-  Mutex mutex_;
-  ConditionVariable condition_;
-  std::deque<T> queue_;
-};
-
 }  // namespace starboard
 #endif
 

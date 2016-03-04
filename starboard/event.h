@@ -19,6 +19,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
+#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -73,10 +74,10 @@ typedef enum SbEventType {
   // No data argument.
   kSbEventTypeVerticalSync,
 
-  // An event type reserved for the application. It will only be sent in
-  // response to an application call to SbEventInjectApplication(). The data
-  // type is up to the application.
-  kSbEventTypeApplication,
+  // An event type reserved for scheduled callbacks. It will only be sent in
+  // response to an application call to SbEventSchedule(). The data type is an
+  // internally-defined structure.
+  kSbEventTypeScheduled,
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
@@ -85,9 +86,15 @@ typedef struct SbEvent {
   void* data;
 } SbEvent;
 
+// A function that can be called back from the main Starboard event pump.
+typedef void (*SbEventCallback)(void* context);
+
 // A function that will cleanly destroy an event data instance of a specific
 // type.
 typedef void (*SbEventDataDestructor)(void* data);
+
+// An ID that can be used to refer to a scheduled event.
+typedef uint32_t SbEventId;
 
 // Event data for kSbEventTypeLink and kSbEventTypeStart events.
 typedef struct SbEventLinkData {
@@ -111,6 +118,13 @@ typedef struct SbEventStartData {
   SbEventLinkData link_data;
 } SbEventStartData;
 
+#define kSbEventIdInvalid (SbEventId)0
+
+// Returns whether the given event handle is valid.
+static SB_C_FORCE_INLINE bool SbEventIsIdValid(SbEventId handle) {
+  return handle != kSbEventIdInvalid;
+}
+
 // Declaration of the entry point that Starboard applications MUST implement.
 // Any memory pointed at by |event| or the |data| field inside |event| is owned
 // by the system, and will be reclaimed after this function returns, so the
@@ -122,13 +136,21 @@ typedef struct SbEventStartData {
 // thread, and just dispatch it over to another thread.
 SB_IMPORT void SbEventHandle(const SbEvent* event);
 
-// Injects a kSbEventTypeApplication event into the event loop, with
-// accompanying |data|. May be called from any thread. SbEventHandler will
-// eventually receive this event, but it may be queued with other pending
-// events. The |destructor|, if provided, will be called on |data| (from the
-// main event thread) after the event has been handled.
-SB_EXPORT void SbEventInjectApplication(void* data,
-                                        SbEventDataDestructor destructor);
+// Schedules an event |callback| into the main Starboard event loop, with
+// accompanying |context|. This function may be called from any thread, but
+// |callback| will always be called from the main Starboard thread, queued with
+// other pending events. |callback| will not be called any earlier than |delay|
+// microseconds from the time SbEventInject is called. Set |delay| to 0 to call
+// the event as soon as possible.
+SB_EXPORT SbEventId SbEventSchedule(SbEventCallback callback,
+                                    void* context,
+                                    SbTime delay);
+
+// Cancels the injected |event_id|. Does nothing if the event already fired. Can
+// be safely called from any thread, but there is no guarantee that the event
+// will not run anyway unless it is called from the main Starboard event loop
+// thread.
+SB_EXPORT void SbEventCancel(SbEventId event_id);
 
 #ifdef __cplusplus
 }  // extern "C"

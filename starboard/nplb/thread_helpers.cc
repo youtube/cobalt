@@ -16,6 +16,7 @@
 
 #include "starboard/condition_variable.h"
 #include "starboard/mutex.h"
+#include "starboard/thread.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -43,6 +44,10 @@ void* TakeThenSignalEntryPoint(void* context) {
 
   // Don't signal the condition variable until we are asked.
   test_context->do_signal.Take();
+
+  if (test_context->delay_after_signal > 0) {
+    SbThreadSleep(test_context->delay_after_signal);
+  }
 
   // Signal the condition variable.
   EXPECT_TRUE(SbMutexIsSuccess(SbMutexAcquire(&test_context->mutex)));
