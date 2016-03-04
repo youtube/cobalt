@@ -38,7 +38,7 @@ size_t DummyGIFImageDecoder::DecodeChunkInternal(const uint8* data,
   }
 
   if (state() != kWaitingForHeader ||
-      memcmp(data, kDummyAdsGif, input_byte) != 0) {
+      memcmp(data, kDummyAdsGif, sizeof(kDummyAdsGif)) != 0) {
     set_state(kError);
     return input_byte;
   }
