@@ -72,6 +72,7 @@ void DoSunnyDay(TakeThenSignalContext* context, bool check_timeout) {
 
 TEST(SbConditionVariableWaitTimedTest, SunnyDay) {
   TakeThenSignalContext context;
+  context.delay_after_signal = 0;
   EXPECT_TRUE(SbMutexCreate(&context.mutex));
   EXPECT_TRUE(SbConditionVariableCreate(&context.condition, &context.mutex));
   DoSunnyDay(&context, true);
@@ -80,7 +81,7 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDay) {
 TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
   {
     TakeThenSignalContext context = {Semaphore(0), SB_MUTEX_INITIALIZER,
-                                     SB_CONDITION_VARIABLE_INITIALIZER};
+                                     SB_CONDITION_VARIABLE_INITIALIZER, 0};
     DoSunnyDay(&context, true);
   }
 
@@ -90,9 +91,50 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDayAutoInit) {
   const int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
     TakeThenSignalContext context = {Semaphore(0), SB_MUTEX_INITIALIZER,
-                                     SB_CONDITION_VARIABLE_INITIALIZER};
+                                     SB_CONDITION_VARIABLE_INITIALIZER, 0};
     DoSunnyDay(&context, false);
   }
+}
+
+TEST(SbConditionVariableWaitTimedTest, SunnyDayNearMaxTime) {
+  const SbTime kOtherDelay = kSbTimeMillisecond * 10;
+  TakeThenSignalContext context = {Semaphore(0), SB_MUTEX_INITIALIZER,
+                                   SB_CONDITION_VARIABLE_INITIALIZER,
+                                   kOtherDelay};
+  EXPECT_TRUE(SbMutexCreate(&context.mutex));
+  EXPECT_TRUE(SbConditionVariableCreate(&context.condition, &context.mutex));
+  SbThread thread =
+      SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
+                     TakeThenSignalEntryPoint, &context);
+
+  // Try to wait until the end of time.
+  const SbTime kDelay = kSbTimeMax;
+
+  EXPECT_TRUE(SbMutexIsSuccess(SbMutexAcquire(&context.mutex)));
+
+  // Tell the thread to signal the condvar, which will cause it to attempt to
+  // acquire the mutex we are holding, after it waits for delay_after_signal.
+  context.do_signal.Put();
+
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+
+  // We release the mutex when we wait, allowing the thread to actually do the
+  // signaling, and ensuring we are waiting before it signals.
+  SbConditionVariableResult result =
+      SbConditionVariableWaitTimed(&context.condition, &context.mutex, kDelay);
+  EXPECT_EQ(kSbConditionVariableSignaled, result);
+
+  // We should have waited at least the delay_after_signal amount, but not the
+  // full delay.
+  EXPECT_LT(context.delay_after_signal, SbTimeGetMonotonicNow() - start);
+  EXPECT_GT(kDelay, SbTimeGetMonotonicNow() - start);
+
+  EXPECT_TRUE(SbMutexRelease(&context.mutex));
+
+  // Now we wait for the thread to exit.
+  EXPECT_TRUE(SbThreadJoin(thread, NULL));
+  EXPECT_TRUE(SbConditionVariableDestroy(&context.condition));
+  EXPECT_TRUE(SbMutexDestroy(&context.mutex));
 }
 
 TEST(SbConditionVariableWaitTimedTest, RainyDayNull) {
