@@ -17,12 +17,14 @@ RunLoop::RunLoop()
       quit_called_(false),
       running_(false),
       quit_when_idle_received_(false) {
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__) && \
+    !defined(OS_STARBOARD)
    dispatcher_ = NULL;
 #endif
 }
 
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__) && \
+    !defined(OS_STARBOARD)
 RunLoop::RunLoop(MessageLoop::Dispatcher* dispatcher)
     : loop_(MessageLoop::current()),
       weak_factory_(this),

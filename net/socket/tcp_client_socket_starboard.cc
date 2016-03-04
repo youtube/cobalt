@@ -308,6 +308,11 @@ void TCPClientSocketStarboard::DoDisconnect() {
   if (!SbSocketIsValid(socket_))
     return;
 
+  // Make sure to clean up our watch accounting before we destroy the socket, or
+  // else we would later try to stop watching a deleted socket.
+  read_watcher_->StopWatchingSocket();
+  write_watcher_->StopWatchingSocket();
+
   SbSocketDestroy(socket_);
   socket_ = kSbSocketInvalid;
 

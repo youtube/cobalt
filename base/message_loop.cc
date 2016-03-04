@@ -37,6 +37,7 @@
 #endif
 #if defined(OS_STARBOARD)
 #include "base/message_pump_io_starboard.h"
+#include "base/message_pump_ui_starboard.h"
 #endif
 #if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #include "base/message_pump_shell.h"
@@ -186,7 +187,7 @@ MessageLoop::MessageLoop(Type type)
 // doesn't require extra support for watching file descriptors.
 #define MESSAGE_PUMP_IO new base::MessagePumpDefault();
 #elif defined(OS_STARBOARD)
-#define MESSAGE_PUMP_UI new base::MessagePumpShell()
+#define MESSAGE_PUMP_UI new base::MessagePumpUIStarboard()
 #define MESSAGE_PUMP_IO new base::MessagePumpIOStarboard()
 #elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #define MESSAGE_PUMP_UI new base::MessagePumpShell()
@@ -447,7 +448,8 @@ void MessageLoop::RunInternal() {
 
   StartHistogrammer();
 
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__) && \
+    !defined(OS_STARBOARD)
   if (run_loop_->dispatcher_ && type() == TYPE_UI) {
     static_cast<base::MessagePumpForUI*>(pump_.get())->
         RunWithDispatcher(this, run_loop_->dispatcher_);
@@ -773,13 +775,21 @@ void MessageLoopForUI::Start() {
 }
 #endif
 
+#if defined(OS_STARBOARD)
+void MessageLoopForUI::Start() {
+  // No Histogram support for UI message loop as it is managed by Starboard.
+  static_cast<base::MessagePumpUIStarboard*>(pump_.get())->Start(this);
+}
+#endif
+
 #if defined(OS_IOS)
 void MessageLoopForUI::Attach() {
   static_cast<base::MessagePumpUIApplication*>(pump_.get())->Attach(this);
 }
 #endif
 
-#if !defined(OS_MACOSX) && !defined(OS_NACL) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
+#if !defined(OS_MACOSX) && !defined(OS_NACL) && !defined(OS_ANDROID) && \
+    !defined(__LB_ANDROID__) && !defined(OS_STARBOARD)
 void MessageLoopForUI::AddObserver(Observer* observer) {
   pump_ui()->AddObserver(observer);
 }
@@ -787,7 +797,6 @@ void MessageLoopForUI::AddObserver(Observer* observer) {
 void MessageLoopForUI::RemoveObserver(Observer* observer) {
   pump_ui()->RemoveObserver(observer);
 }
-
 #endif  //  !defined(OS_MACOSX) && !defined(OS_NACL) && !defined(OS_ANDROID)
 
 //------------------------------------------------------------------------------
