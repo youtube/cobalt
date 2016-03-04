@@ -45,6 +45,10 @@ class ShellRawVideoDecoderStub : public ShellRawVideoDecoder {
 void ShellRawVideoDecoderStub::Decode(
     const scoped_refptr<DecoderBuffer>& buffer,
     const DecodeCB& decode_cb) {
+  if (buffer->IsEndOfStream()) {
+    decode_cb.Run(FRAME_DECODED, VideoFrame::CreateEmptyFrame());
+    return;
+  }
   ShellVideoDataAllocator* allocator =
       ShellMediaPlatform::Instance()->GetVideoDataAllocator();
   DCHECK(allocator);
