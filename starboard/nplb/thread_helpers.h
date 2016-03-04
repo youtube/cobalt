@@ -84,12 +84,13 @@ struct Semaphore {
   int count;
 };
 
-// An aggregate type (which can be initialized with an initializer list) to be
-// used with the TakeThenSignalEntryPoint.
+// An aggregate type (which can be initialized with aggregate initialization) to
+// be used with the TakeThenSignalEntryPoint.
 struct TakeThenSignalContext {
   Semaphore do_signal;
   SbMutex mutex;
   SbConditionVariable condition;
+  SbTime delay_after_signal;
 };
 
 }  // namespace nplb

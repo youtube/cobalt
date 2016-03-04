@@ -55,6 +55,9 @@ typedef enum SbSystemPathId {
   // Path to a directory where test results can be written.
   // TODO(***REMOVED***): Remove from release builds?
   kSbSystemPathTestOutputDirectory,
+
+  // Full path to the executable file.
+  kSbSystemPathExecutableFile,
 } SbSystemPathId;
 
 // System properties that can be queried for.

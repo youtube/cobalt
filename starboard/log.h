@@ -191,7 +191,7 @@ class LogMessageVoidify {
 #define SB_LOG(severity) SB_LOG_IF(severity, true)
 #define SB_EAT_STREAM_PARAMETERS SB_LOG_IF(INFO, false)
 #define SB_STACK_IF(severity, condition) \
-  SB_LOG_IF(severity, condition) << "\n" << starboard::logging::Stack(0)
+  SB_LOG_IF(severity, condition) << "\n" << ::starboard::logging::Stack(0)
 #define SB_STACK(severity) SB_STACK_IF(severity, true)
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD
