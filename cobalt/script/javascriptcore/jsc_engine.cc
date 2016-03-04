@@ -94,12 +94,15 @@ JSCEngine::JSCEngine() {
 }
 
 JSCEngine::~JSCEngine() {
+  DCHECK(thread_checker_.CalledOnValidThread());
 #if !defined(__LB_SHELL__FOR_RELEASE__)
   JSCEngineStats::GetInstance()->JSCEngineDestroyed();
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+  script_object_registry_.ClearEntries();
 }
 
 scoped_refptr<GlobalObjectProxy> JSCEngine::CreateGlobalObjectProxy() {
+  DCHECK(thread_checker_.CalledOnValidThread());
   return new JSCGlobalObjectProxy(this);
 }
 
@@ -111,6 +114,7 @@ void JSCEngine::CollectGarbage() {
 }
 
 void JSCEngine::ReportExtraMemoryCost(size_t bytes) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   JSC::JSLockHolder lock(global_data_.get());
   global_data_->heap.reportExtraMemoryCost(bytes);
 }

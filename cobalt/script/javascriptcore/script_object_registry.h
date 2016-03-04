@@ -43,8 +43,14 @@ class ScriptObjectRegistry {
   // Visit objects that are owned by the specified JSObject.
   void VisitOwnedObjects(Wrappable* owner, JSC::SlotVisitor* visitor);
 
+  // Clear all entries and free allocated memory. This should be called before
+  // the JSGlobalData is destroyed.
+  void ClearEntries();
+
+  ~ScriptObjectRegistry();
+
  private:
-  typedef base::hash_multimap<const Wrappable*, JSC::JSObject*>
+  typedef base::hash_multimap<const Wrappable*, JSC::Weak<JSC::JSObject>*>
       OwnedObjectMultiMap;
   base::ThreadChecker thread_checker_;
   OwnedObjectMultiMap owned_object_multimap_;
