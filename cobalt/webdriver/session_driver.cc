@@ -43,17 +43,21 @@ protocol::LogEntry::LogLevel SeverityToLogLevel(int severity) {
 
 SessionDriver::SessionDriver(
     const protocol::SessionId& session_id,
-    const NavigateCallback& navigate_callback,
     const CreateWindowDriverCallback& create_window_driver_callback)
     : session_id_(session_id),
       capabilities_(protocol::Capabilities::CreateActualCapabilities()),
-      navigate_callback_(navigate_callback),
       create_window_driver_callback_(create_window_driver_callback),
       next_window_id_(0),
       logging_callback_id_(0) {
   logging_callback_id_ = base::LogMessageHandler::GetInstance()->AddCallback(
       base::Bind(&SessionDriver::LogMessageHandler, base::Unretained(this)));
   window_driver_ = create_window_driver_callback_.Run(GetUniqueWindowId());
+}
+
+void SessionDriver::RefreshWindowDriver() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  window_driver_ =
+      create_window_driver_callback_.Run(window_driver_->window_id());
 }
 
 SessionDriver::~SessionDriver() {
@@ -88,26 +92,6 @@ SessionDriver::GetWindowHandles() {
   std::vector<protocol::WindowId> window_handles;
   window_handles.push_back(window_driver_->window_id());
   return CommandResult(window_handles);
-}
-
-util::CommandResult<void> SessionDriver::Navigate(const GURL& url) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-
-  protocol::WindowId current_id = window_driver_->window_id();
-  // Destroy the window_driver here to ensure there are no handles to anything
-  // that will be destroyed when navigating.
-  window_driver_.reset();
-  base::WaitableEvent finished_event(true, false);
-  navigate_callback_.Run(url, base::Bind(&base::WaitableEvent::Signal,
-                                         base::Unretained(&finished_event)));
-  // TODO(***REMOVED***): Implement timeout logic.
-  finished_event.Wait();
-  // Create a new WindowDriver using the same ID. Even though we've created a
-  // new Window and WindowDriver, it should appear as though the navigation
-  // happened within the same window.
-  window_driver_ = create_window_driver_callback_.Run(current_id);
-
-  return util::CommandResult<void>(protocol::Response::kSuccess);
 }
 
 util::CommandResult<std::vector<std::string> > SessionDriver::GetLogTypes() {
