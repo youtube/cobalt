@@ -37,6 +37,21 @@ bool GrAtlasGlyphCache::initAtlas(GrMaskFormat format) {
 
 GrAtlasGlyphCache::GrAtlasGlyphCache(GrContext* context, float maxTextureBytes)
         : fContext(context), fPreserveStrike(nullptr) {
+#if defined(COBALT)
+    // On Cobalt we would like to avoid re-rasterizing glyphs as much as
+    // possible, so increase the default atlas size.
+    int log2MaxDim = 11;
+    int log2MinDim = 11;
+    int maxDim = 1 << log2MaxDim;
+    int minDim = 1 << log2MinDim;
+
+    // On Cobalt, not being able to fit glyphs into the atlas is a big penalty,
+    // since its software rendering is not optimized.  Increase the plot size
+    // to allow it to accommodate larger glyphs and avoid this situation as
+    // much as possible.
+    int maxPlot = 512;
+    int minPlot = 512;
+#else
     // Calculate RGBA size. Must be between 1024 x 512 and MaxTextureSize x MaxTextureSize / 2
     int log2MaxTextureSize = log2(context->caps()->maxTextureSize());
     int log2MaxDim = 10;
@@ -53,6 +68,7 @@ GrAtlasGlyphCache::GrAtlasGlyphCache(GrContext* context, float maxTextureBytes)
     // Plots are either 256 or 512.
     int maxPlot = SkTMin(512, SkTMax(256, 1 << (log2MaxDim - 2)));
     int minPlot = SkTMin(512, SkTMax(256, 1 << (log2MaxDim - 3)));
+#endif
 
     // Setup default atlas configs. The A8 atlas uses maxDim for both width and height, as the A8
     // format is already very compact.
