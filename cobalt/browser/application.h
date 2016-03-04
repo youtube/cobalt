@@ -67,6 +67,9 @@ class Application {
   // Called to handle an application event.
   void OnApplicationEvent(const base::Event* event);
 
+  // Called when a navigation occurs in the BrowserModule.
+  void WebModuleRecreated();
+
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
 

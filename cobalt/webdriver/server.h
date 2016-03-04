@@ -80,7 +80,6 @@ class WebDriverServer : private net::HttpServer::Delegate {
       scoped_ptr<ResponseHandler>)> HandleRequestCallback;
 
   WebDriverServer(int port, const HandleRequestCallback& callback);
-  ~WebDriverServer();
 
  protected:
   // net::HttpServer::Delegate implementation.
@@ -94,10 +93,7 @@ class WebDriverServer : private net::HttpServer::Delegate {
   void OnClose(int) OVERRIDE {}  // NOLINT(readability/casting)
 
  private:
-  void StartServer(int port);
-
   base::ThreadChecker thread_checker_;
-  base::Thread http_server_thread_;
   HandleRequestCallback handle_request_callback_;
   scoped_ptr<net::StreamListenSocketFactory> factory_;
   scoped_refptr<net::HttpServer> server_;

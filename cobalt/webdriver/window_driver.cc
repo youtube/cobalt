@@ -148,11 +148,11 @@ std::string GetSource(dom::Window* window) {
 WindowDriver::WindowDriver(
     const protocol::WindowId& window_id,
     const base::WeakPtr<dom::Window>& window,
-    const scoped_refptr<script::GlobalObjectProxy>& global_object,
+    const GetGlobalObjectProxyFunction& get_global_object_proxy_function,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : window_id_(window_id),
       window_(window),
-      global_object_proxy_(global_object),
+      get_global_object_proxy_(get_global_object_proxy_function),
       window_message_loop_(message_loop),
       element_driver_map_deleter_(&element_drivers_),
       next_element_id_(0) {}
@@ -186,6 +186,13 @@ util::CommandResult<protocol::Size> WindowDriver::GetWindowSize() {
       base::Bind(&WindowDriver::GetWeak, base::Unretained(this)),
       base::Bind(&::cobalt::webdriver::GetWindowSize),
       protocol::Response::kNoSuchWindow);
+}
+
+util::CommandResult<void> WindowDriver::Navigate(const GURL& url) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::CallOnMessageLoop(
+      window_message_loop_,
+      base::Bind(&WindowDriver::NavigateInternal, base::Unretained(this), url));
 }
 
 util::CommandResult<std::string> WindowDriver::GetCurrentUrl() {
@@ -323,13 +330,17 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
 
+  scoped_refptr<script::GlobalObjectProxy> global_object_proxy =
+      get_global_object_proxy_.Run();
+  DCHECK(global_object_proxy);
+
   // Lazily initialize this the first time we need to run a script. It must be
   // initialized on window_message_loop_. It can persist across multiple calls
   // to execute script, but must be destroyed along with the associated
   // global object, thus with the WindowDriver.
   if (!script_executor_) {
     scoped_refptr<ScriptExecutor> script_executor =
-        CreateScriptExecutor(this, global_object_proxy_);
+        CreateScriptExecutor(this, global_object_proxy);
     if (!script_executor) {
       DLOG(INFO) << "Failed to create ScriptExecutor.";
       return CommandResult(protocol::Response::kUnknownError);
@@ -341,7 +352,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
   DLOG(INFO) << "Arguments: " << script.argument_array();
 
   base::optional<script::OpaqueHandleHolder::Reference> function_object;
-  CreateFunction(script.function_body(), global_object_proxy_,
+  CreateFunction(script.function_body(), global_object_proxy,
                  make_scoped_refptr(script_executor_.get()), &function_object);
   if (!function_object) {
     return CommandResult(protocol::Response::kJavaScriptError);
@@ -368,6 +379,16 @@ util::CommandResult<void> WindowDriver::SendKeysInternal(
     // InjectEvent will send to the focused element.
     window_->InjectEvent((*events)[i]);
   }
+  return CommandResult(protocol::Response::kSuccess);
+}
+
+util::CommandResult<void> WindowDriver::NavigateInternal(const GURL& url) {
+  typedef util::CommandResult<void> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  if (!window_) {
+    return CommandResult(protocol::Response::kNoSuchWindow);
+  }
+  window_->location()->Replace(url.spec());
   return CommandResult(protocol::Response::kSuccess);
 }
 

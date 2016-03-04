@@ -158,6 +158,9 @@ const char kYouTubeTvLocationPolicy[] =
     "h5vcc-location-src "
     "https://www.youtube.com/tv "
     "https://web-release-qa.youtube.com/tv "
+#if defined(ENABLE_ABOUT_SCHEME)
+    "about: "
+#endif
     "h5vcc:";
 
 #if !defined(COBALT_FORCE_CSP)
@@ -205,6 +208,10 @@ Application::Application()
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
   options.web_module_options.location_policy = kYouTubeTvLocationPolicy;
+  // Set callback to be notified when a navigation occurs that destroys the
+  // underlying WebModule.
+  options.web_module_recreated_callback =
+      base::Bind(&Application::WebModuleRecreated, base::Unretained(this));
 
   math::Size viewport_size(kDefaultViewportWidth, kDefaultViewportHeight);
 
@@ -422,5 +429,12 @@ void Application::OnApplicationEvent(const base::Event* event) {
   }
 }
 
+void Application::WebModuleRecreated() {
+#if defined(ENABLE_WEBDRIVER)
+  if (web_driver_module_) {
+    web_driver_module_->OnWindowRecreated();
+  }
+#endif
+}
 }  // namespace browser
 }  // namespace cobalt
