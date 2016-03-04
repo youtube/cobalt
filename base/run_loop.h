@@ -15,6 +15,10 @@ namespace base {
 class MessagePumpForUI;
 #endif
 
+#if defined(OS_STARBOARD)
+class MessagePumpUIStarboard;
+#endif
+
 #if defined(OS_IOS)
 class MessagePumpUIApplication;
 #endif
@@ -27,12 +31,14 @@ class MessagePumpUIApplication;
 class BASE_EXPORT RunLoop {
  public:
   RunLoop();
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__) && \
+    !defined(OS_STARBOARD)
   explicit RunLoop(MessageLoop::Dispatcher* dispatcher);
 #endif
   ~RunLoop();
 
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__) && \
+    !defined(OS_STARBOARD)
   void set_dispatcher(MessageLoop::Dispatcher* dispatcher) {
     dispatcher_ = dispatcher;
   }
@@ -80,6 +86,13 @@ class BASE_EXPORT RunLoop {
   friend class base::MessagePumpForUI;
 #endif
 
+#if defined(OS_STARBOARD)
+  // Similar to Android (because it may be Android), Starboard also doesn't
+  // support the blocking MessageLoop::Run, so it calls BeforeRun and AfterRun
+  // directly.
+  friend class base::MessagePumpUIStarboard;
+#endif
+
 #if defined(OS_IOS)
   // iOS doesn't support the blocking MessageLoop::Run, so it calls
   // BeforeRun directly.
@@ -98,7 +111,8 @@ class BASE_EXPORT RunLoop {
   // Parent RunLoop or NULL if this is the top-most RunLoop.
   RunLoop* previous_run_loop_;
 
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__) && \
+    !defined(OS_STARBOARD)
   MessageLoop::Dispatcher* dispatcher_;
 #endif
 

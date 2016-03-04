@@ -1620,49 +1620,65 @@ void RunTest_WaitForIO() {
 
 TEST(MessageLoopTest, PostTask) {
   RunTest_PostTask(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_PostTask(MessageLoop::TYPE_UI);
+#endif
   RunTest_PostTask(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, PostTask_SEH) {
   RunTest_PostTask_SEH(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_PostTask_SEH(MessageLoop::TYPE_UI);
+#endif
   RunTest_PostTask_SEH(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, PostDelayedTask_Basic) {
   RunTest_PostDelayedTask_Basic(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_PostDelayedTask_Basic(MessageLoop::TYPE_UI);
+#endif
   RunTest_PostDelayedTask_Basic(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, PostDelayedTask_InDelayOrder) {
   RunTest_PostDelayedTask_InDelayOrder(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_PostDelayedTask_InDelayOrder(MessageLoop::TYPE_UI);
+#endif
   RunTest_PostDelayedTask_InDelayOrder(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, PostDelayedTask_InPostOrder) {
   RunTest_PostDelayedTask_InPostOrder(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_PostDelayedTask_InPostOrder(MessageLoop::TYPE_UI);
+#endif
   RunTest_PostDelayedTask_InPostOrder(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, PostDelayedTask_InPostOrder_2) {
   RunTest_PostDelayedTask_InPostOrder_2(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_PostDelayedTask_InPostOrder_2(MessageLoop::TYPE_UI);
+#endif
   RunTest_PostDelayedTask_InPostOrder_2(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, PostDelayedTask_InPostOrder_3) {
   RunTest_PostDelayedTask_InPostOrder_3(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_PostDelayedTask_InPostOrder_3(MessageLoop::TYPE_UI);
+#endif
   RunTest_PostDelayedTask_InPostOrder_3(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, PostDelayedTask_SharedTimer) {
   RunTest_PostDelayedTask_SharedTimer(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_PostDelayedTask_SharedTimer(MessageLoop::TYPE_UI);
+#endif
   RunTest_PostDelayedTask_SharedTimer(MessageLoop::TYPE_IO);
 }
 
@@ -1706,25 +1722,33 @@ TEST(MessageLoopTest, CrasherNasty) {
 
 TEST(MessageLoopTest, Nesting) {
   RunTest_Nesting(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_Nesting(MessageLoop::TYPE_UI);
+#endif
   RunTest_Nesting(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RecursiveDenial1) {
   RunTest_RecursiveDenial1(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_RecursiveDenial1(MessageLoop::TYPE_UI);
+#endif
   RunTest_RecursiveDenial1(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RecursiveDenial3) {
   RunTest_RecursiveDenial3(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_RecursiveDenial3(MessageLoop::TYPE_UI);
+#endif
   RunTest_RecursiveDenial3(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RecursiveSupport1) {
   RunTest_RecursiveSupport1(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_RecursiveSupport1(MessageLoop::TYPE_UI);
+#endif
   RunTest_RecursiveSupport1(MessageLoop::TYPE_IO);
 }
 
@@ -1744,67 +1768,89 @@ TEST(MessageLoopTest, RecursiveSupport2) {
 
 TEST(MessageLoopTest, NonNestableWithNoNesting) {
   RunTest_NonNestableWithNoNesting(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_NonNestableWithNoNesting(MessageLoop::TYPE_UI);
+#endif
   RunTest_NonNestableWithNoNesting(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, NonNestableInNestedLoop) {
   RunTest_NonNestableInNestedLoop(MessageLoop::TYPE_DEFAULT, false);
+#if !defined(OS_STARBOARD)
   RunTest_NonNestableInNestedLoop(MessageLoop::TYPE_UI, false);
+#endif
   RunTest_NonNestableInNestedLoop(MessageLoop::TYPE_IO, false);
 }
 
 TEST(MessageLoopTest, NonNestableDelayedInNestedLoop) {
   RunTest_NonNestableInNestedLoop(MessageLoop::TYPE_DEFAULT, true);
+#if !defined(OS_STARBOARD)
   RunTest_NonNestableInNestedLoop(MessageLoop::TYPE_UI, true);
+#endif
   RunTest_NonNestableInNestedLoop(MessageLoop::TYPE_IO, true);
 }
 
 TEST(MessageLoopTest, QuitNow) {
   RunTest_QuitNow(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_QuitNow(MessageLoop::TYPE_UI);
+#endif
   RunTest_QuitNow(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RunLoopQuitTop) {
   RunTest_RunLoopQuitTop(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_RunLoopQuitTop(MessageLoop::TYPE_UI);
+#endif
   RunTest_RunLoopQuitTop(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RunLoopQuitNested) {
   RunTest_RunLoopQuitNested(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_RunLoopQuitNested(MessageLoop::TYPE_UI);
+#endif
   RunTest_RunLoopQuitNested(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RunLoopQuitBogus) {
   RunTest_RunLoopQuitBogus(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_RunLoopQuitBogus(MessageLoop::TYPE_UI);
+#endif
   RunTest_RunLoopQuitBogus(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RunLoopQuitDeep) {
   RunTest_RunLoopQuitDeep(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_RunLoopQuitDeep(MessageLoop::TYPE_UI);
+#endif
   RunTest_RunLoopQuitDeep(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RunLoopQuitOrderBefore) {
   RunTest_RunLoopQuitOrderBefore(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_RunLoopQuitOrderBefore(MessageLoop::TYPE_UI);
+#endif
   RunTest_RunLoopQuitOrderBefore(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RunLoopQuitOrderDuring) {
   RunTest_RunLoopQuitOrderDuring(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_RunLoopQuitOrderDuring(MessageLoop::TYPE_UI);
+#endif
   RunTest_RunLoopQuitOrderDuring(MessageLoop::TYPE_IO);
 }
 
 TEST(MessageLoopTest, RunLoopQuitOrderAfter) {
   RunTest_RunLoopQuitOrderAfter(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
   RunTest_RunLoopQuitOrderAfter(MessageLoop::TYPE_UI);
+#endif
   RunTest_RunLoopQuitOrderAfter(MessageLoop::TYPE_IO);
 }
 
@@ -2099,6 +2145,8 @@ TEST(MessageLoopTest, RecursivePosts) {
   // times to reproduce the bug.
   const int kNumTimes = 1 << 17;
   RunTest_RecursivePosts(MessageLoop::TYPE_DEFAULT, kNumTimes);
+#if !defined(OS_STARBOARD)
   RunTest_RecursivePosts(MessageLoop::TYPE_UI, kNumTimes);
+#endif
   RunTest_RecursivePosts(MessageLoop::TYPE_IO, kNumTimes);
 }
