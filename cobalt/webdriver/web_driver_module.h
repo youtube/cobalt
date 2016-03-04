@@ -55,7 +55,17 @@ class WebDriverModule {
                   const base::Closure& shutdown_cb);
   ~WebDriverModule();
 
+  // This will be called when the WebModule, which owns the Window object in the
+  // WindowDriver, is destroyed and recreated in response to navigation. This
+  // unfortunately does leave a window where a WebDriver command may be run
+  // before RefreshWindowDriver has been called. In this case, the weak Window
+  // reference will be invalidated and the WebDriver command will fail. This is
+  // a side-effect of Cobalt destroying and re-creating a Window on navigation,
+  // rather than the navigation occurring in place.
+  void OnWindowRecreated();
+
  private:
+  void StartServer(int server_port);
   void GetServerStatus(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
@@ -107,6 +117,9 @@ class WebDriverModule {
   util::CommandResult<std::string> RequestScreenshotInternal();
 
   base::ThreadChecker thread_checker_;
+
+  // All WebDriver operations including HTTP server will occur on this thread.
+  base::Thread webdriver_thread_;
 
   // Create a new WebDriver session through this callback.
   CreateSessionDriverCB create_session_driver_cb_;

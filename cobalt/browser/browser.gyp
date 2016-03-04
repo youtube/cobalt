@@ -68,6 +68,11 @@
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         'screen_shot_writer',
       ],
+      'conditions': [
+        ['enable_about_scheme == 1', {
+          'defines': [ 'ENABLE_ABOUT_SCHEME' ],
+        }],
+      ],
     },
 
     {

@@ -163,7 +163,8 @@ WebDriverModule::WebDriverModule(
     const GetScreenshotFunction& get_screenshot_function,
     const SetProxyFunction& set_proxy_function,
     const base::Closure& shutdown_cb)
-    : create_session_driver_cb_(create_session_driver_cb),
+    : webdriver_thread_("WebDriver thread"),
+      create_session_driver_cb_(create_session_driver_cb),
       get_screenshot_function_(get_screenshot_function),
       set_proxy_function_(set_proxy_function),
       shutdown_cb_(shutdown_cb),
@@ -236,11 +237,6 @@ WebDriverModule::WebDriverModule(
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::GetWindowHandles)));
   webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kPost,
-      StringPrintf("/session/%s/url", kSessionIdVariable),
-      session_command_factory->GetCommandHandler(
-          base::Bind(&SessionDriver::Navigate)));
-  webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
       StringPrintf("/session/%s/alert_text", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
@@ -270,6 +266,11 @@ WebDriverModule::WebDriverModule(
           base::Bind(&WindowDriver::GetWindowSize)));
 
   // Current window commands.
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/url", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::Navigate)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
       StringPrintf("/session/%s/url", kSessionIdVariable),
@@ -379,14 +380,37 @@ WebDriverModule::WebDriverModule(
   // The WebDriver API implementation will be called on the HTTP server thread.
   thread_checker_.DetachFromThread();
 
+  // Start the thread and create the HTTP server on that thread.
+  webdriver_thread_.StartWithOptions(
+      base::Thread::Options(MessageLoop::TYPE_IO, 0));
+  webdriver_thread_.message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebDriverModule::StartServer,
+                            base::Unretained(this), server_port));
+}
+
+WebDriverModule::~WebDriverModule() { webdriver_thread_.Stop(); }
+
+void WebDriverModule::OnWindowRecreated() {
+  if (MessageLoop::current() != webdriver_thread_.message_loop()) {
+    webdriver_thread_.message_loop()->PostTask(
+        FROM_HERE, base::Bind(&WebDriverModule::OnWindowRecreated,
+                              base::Unretained(this)));
+    return;
+  }
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (session_) {
+    session_->RefreshWindowDriver();
+  }
+}
+
+void WebDriverModule::StartServer(int server_port) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   // Create a new WebDriverServer and pass in the Dispatcher.
   webdriver_server_.reset(new WebDriverServer(
       server_port,
       base::Bind(&WebDriverDispatcher::HandleWebDriverServerRequest,
                  base::Unretained(webdriver_dispatcher_.get()))));
 }
-
-WebDriverModule::~WebDriverModule() {}
 
 SessionDriver* WebDriverModule::GetSessionDriver(
     const protocol::SessionId& session_id) {

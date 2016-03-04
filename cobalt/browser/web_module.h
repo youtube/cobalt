@@ -207,6 +207,11 @@ class WebModule {
 
   void OnCspPolicyChanged();
 
+  scoped_refptr<script::GlobalObjectProxy> global_object_proxy() {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    return global_object_proxy_;
+  }
+
   std::string name_;
 
   // Thread checker ensures all calls to the WebModule are made from the same

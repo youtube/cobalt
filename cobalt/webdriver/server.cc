@@ -178,21 +178,12 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 
 WebDriverServer::WebDriverServer(int port,
                                  const HandleRequestCallback& callback)
-    : http_server_thread_("WebDriver server"),
-      handle_request_callback_(callback) {
-  // This will be attached to the http server thread in the StartServer
-  // function.
-  thread_checker_.DetachFromThread();
-
-  // Start the Http server thread and create the server on that thread.
-  http_server_thread_.StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_IO, 0));
-  http_server_thread_.message_loop()->PostTask(
-      FROM_HERE,
-      base::Bind(&WebDriverServer::StartServer, base::Unretained(this), port));
+    : handle_request_callback_(callback) {
+  DLOG(INFO) << "Starting WebDriver server on port " << port;
+  // Create http server
+  factory_.reset(new net::TCPListenSocketFactory("0.0.0.0", port));
+  server_ = new net::HttpServer(*factory_, this);
 }
-
-WebDriverServer::~WebDriverServer() { http_server_thread_.Stop(); }
 
 void WebDriverServer::OnHttpRequest(int connection_id,
                                     const net::HttpServerRequestInfo& info) {
@@ -225,15 +216,6 @@ void WebDriverServer::OnHttpRequest(int connection_id,
   // Call the HandleRequestCallback.
   handle_request_callback_.Run(StringToHttpMethod(info.method), path,
                                parameters.Pass(), response_handler.Pass());
-}
-
-void WebDriverServer::StartServer(int port) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-
-  DLOG(INFO) << "Starting WebDriver server on port " << port;
-  // Create http server
-  factory_.reset(new net::TCPListenSocketFactory("0.0.0.0", port));
-  server_ = new net::HttpServer(*factory_, this);
 }
 
 }  // namespace webdriver

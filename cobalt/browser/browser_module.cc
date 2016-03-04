@@ -149,6 +149,7 @@ BrowserModule::BrowserModule(const GURL& url,
                       options.network_module_options),
       render_tree_combiner_(renderer_module_.pipeline()),
       self_message_loop_(MessageLoop::current()),
+      web_module_recreated_callback_(options.web_module_recreated_callback),
 #if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(navigate_command_handler_(
           kNavigateCommand,
@@ -336,6 +337,9 @@ void BrowserModule::NavigateWithCallbackInternal(
       media_module_.get(), &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz, options));
+  if (!web_module_recreated_callback_.is_null()) {
+    web_module_recreated_callback_.Run();
+  }
 }
 
 void BrowserModule::SetPaused(bool paused) {
@@ -555,7 +559,6 @@ scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
     const webdriver::protocol::SessionId& session_id) {
   return make_scoped_ptr(new webdriver::SessionDriver(
       session_id,
-      base::Bind(&BrowserModule::NavigateWithCallback, base::Unretained(this)),
       base::Bind(&BrowserModule::CreateWindowDriver, base::Unretained(this))));
 }
 #endif
