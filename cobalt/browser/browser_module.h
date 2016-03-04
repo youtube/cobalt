@@ -63,6 +63,7 @@ class BrowserModule {
     WebModule::Options web_module_options;
     media::MediaModule::Options media_module_options;
     std::string language;
+    base::Closure web_module_recreated_callback;
   };
 
   // Type for a collection of URL handler callbacks that can potentially handle
@@ -232,6 +233,10 @@ class BrowserModule {
   // Wraps input device and produces input events that can be passed into
   // the web module.
   scoped_ptr<input::InputDeviceManager> input_device_manager_;
+
+  // This will be called after the WebModule has been destroyed and recreated,
+  // which could occur on navigation.
+  base::Closure web_module_recreated_callback_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Possibly null, but if not, will contain a reference to an instance of

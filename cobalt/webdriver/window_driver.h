@@ -53,15 +53,18 @@ namespace webdriver {
 // will map to a method on this class.
 class WindowDriver : private ElementMapping {
  public:
+  typedef base::Callback<scoped_refptr<script::GlobalObjectProxy>()>
+      GetGlobalObjectProxyFunction;
   WindowDriver(const protocol::WindowId& window_id,
                const base::WeakPtr<dom::Window>& window,
-               const scoped_refptr<script::GlobalObjectProxy>& global_object,
+               const GetGlobalObjectProxyFunction& get_global_object_proxy,
                const scoped_refptr<base::MessageLoopProxy>& message_loop);
   ~WindowDriver();
   const protocol::WindowId& window_id() { return window_id_; }
   ElementDriver* GetElementDriver(const protocol::ElementId& element_id);
 
   util::CommandResult<protocol::Size> GetWindowSize();
+  util::CommandResult<void> Navigate(const GURL& url);
   util::CommandResult<std::string> GetCurrentUrl();
   util::CommandResult<std::string> GetTitle();
   util::CommandResult<protocol::ElementId> FindElement(
@@ -110,6 +113,8 @@ class WindowDriver : private ElementMapping {
   util::CommandResult<void> SendKeysInternal(
       scoped_ptr<KeyboardEventVector> keyboard_events);
 
+  util::CommandResult<void> NavigateInternal(const GURL& url);
+
   util::CommandResult<protocol::ElementId> GetActiveElementInternal();
 
   const protocol::WindowId window_id_;
@@ -125,7 +130,7 @@ class WindowDriver : private ElementMapping {
   base::WeakPtr<dom::Window> window_;
 
   // This must only be accessed from |window_message_loop_|.
-  scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
+  GetGlobalObjectProxyFunction get_global_object_proxy_;
 
   // Helper object for commands that execute script. This must only be accessed
   // from the |window_message_loop_|.

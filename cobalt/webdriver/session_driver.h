@@ -41,12 +41,6 @@ namespace webdriver {
 
 class SessionDriver {
  public:
-  // SessionDriver calls this to navigate to the specified URL. The provided
-  // Closure will be called when navigation is complete, as defined by the
-  // OnLoad event.
-  typedef base::Callback<void(const GURL&, const base::Closure&)>
-      NavigateCallback;
-
   // Factory callback to create a WindowDriver for the currently displayed
   // Window.
   typedef base::Callback<scoped_ptr<webdriver::WindowDriver>(
@@ -54,8 +48,10 @@ class SessionDriver {
       CreateWindowDriverCallback;
 
   SessionDriver(const protocol::SessionId& session_id,
-                const NavigateCallback& navigate_callback,
                 const CreateWindowDriverCallback& create_window_driver_cb);
+
+  void RefreshWindowDriver();
+
   const protocol::SessionId& session_id() const { return session_id_; }
   WindowDriver* GetWindow(const protocol::WindowId& window_id);
   WindowDriver* GetCurrentWindow() { return window_driver_.get(); }
@@ -64,7 +60,6 @@ class SessionDriver {
   util::CommandResult<protocol::WindowId> GetCurrentWindowHandle();
   util::CommandResult<std::vector<protocol::WindowId> > GetWindowHandles();
 
-  util::CommandResult<void> Navigate(const GURL& url);
   util::CommandResult<std::vector<std::string> > GetLogTypes();
   util::CommandResult<std::vector<protocol::LogEntry> > GetLog(
       const protocol::LogType& type);
@@ -82,7 +77,6 @@ class SessionDriver {
   base::ThreadChecker thread_checker_;
   const protocol::SessionId session_id_;
   protocol::Capabilities capabilities_;
-  NavigateCallback navigate_callback_;
   CreateWindowDriverCallback create_window_driver_callback_;
   int32 next_window_id_;
   scoped_ptr<WindowDriver> window_driver_;
