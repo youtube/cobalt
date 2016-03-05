@@ -16,8 +16,37 @@
 
 #include "cobalt/css_parser/background_shorthand_property_parse_structures.h"
 
+#include "cobalt/cssom/keyword_value.h"
+
 namespace cobalt {
 namespace css_parser {
+
+void BackgroundShorthandLayer::ReplaceNullWithInitialValues() {
+  if (!background_color) {
+    background_color =
+        cssom::GetPropertyInitialValue(cssom::kBackgroundColorProperty);
+  }
+
+  if (!background_image) {
+    background_image =
+        cssom::GetPropertyInitialValue(cssom::kBackgroundImageProperty);
+  }
+
+  if (!background_position) {
+    // TODO(***REMOVED***): Investigate why this can not use GetPropertyInitialValue().
+    background_position = cssom::KeywordValue::GetInitial();
+  }
+
+  if (!background_repeat) {
+    background_repeat =
+        cssom::GetPropertyInitialValue(cssom::kBackgroundRepeatProperty);
+  }
+
+  if (!background_size) {
+    background_size =
+        cssom::GetPropertyInitialValue(cssom::kBackgroundSizeProperty);
+  }
+}
 
 bool BackgroundShorthandLayer::IsBackgroundPropertyOverlapped(
     const BackgroundShorthandLayer& that) const {
