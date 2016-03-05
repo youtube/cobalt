@@ -58,6 +58,7 @@
 14-2-1-background-with-repeat-position-image
 14-2-1-background-with-repeat-position-image-color
 14-2-1-multiple-layers-background-image
+3-10-background-none-declares-initial-value-for-background-color
 3-11-2-propagate-computed-value-of-background-from-body-to-root
 3-11-2-propagate-computed-value-of-background-from-html-to-root
 4-0-border-color-with-solid-border-style
