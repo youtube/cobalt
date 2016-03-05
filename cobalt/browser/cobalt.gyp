@@ -18,21 +18,13 @@
   },
   'targets': [
     {
-      'target_name': 'cobalt_executable',
+      'target_name': 'cobalt',
       'type': '<(final_executable_type)',
       'sources': [
         'main.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
-      ],
-    },
-
-    {
-      'target_name': 'cobalt',
-      'type': 'none',
-      'dependencies': [
-        'cobalt_executable',
       ],
       'conditions': [
         ['cobalt_copy_test_data == 1', {
