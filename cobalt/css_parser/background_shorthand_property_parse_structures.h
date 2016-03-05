@@ -18,6 +18,7 @@
 #define COBALT_CSS_PARSER_BACKGROUND_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -29,6 +30,8 @@ struct BackgroundShorthandLayer {
   bool IsBackgroundPropertyOverlapped(
       const BackgroundShorthandLayer& that) const;
   void IntegrateNonOverlapped(const BackgroundShorthandLayer& that);
+
+  void ReplaceNullWithInitialValues();
 
   scoped_refptr<cssom::PropertyValue> background_color;
   scoped_refptr<cssom::PropertyValue> background_image;
