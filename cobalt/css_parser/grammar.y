@@ -5207,6 +5207,7 @@ maybe_declaration:
       maybe_important {
     scoped_ptr<BackgroundShorthandLayer> background($4);
     DCHECK(background);
+    background->ReplaceNullWithInitialValues();
     scoped_ptr<PropertyDeclaration> property_declaration(
         new PropertyDeclaration($5));
 
