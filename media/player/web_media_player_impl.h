@@ -350,6 +350,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   AudioFocusBridge audio_focus_bridge_;
 #endif  // defined(__LB_ANDROID__)
 
+  // Suppresses calls to OnPipelineError() after destruction / shutdown has been
+  // started; prevents us from spuriously logging errors that are transient or
+  // unimportant.
+  bool suppress_destruction_errors_;
+
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };
 

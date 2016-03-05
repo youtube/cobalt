@@ -151,7 +151,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       audio_renderer_sink_(audio_renderer_sink),
       is_local_source_(false),
       supports_save_(true),
-      starting_(false) {
+      starting_(false),
+      suppress_destruction_errors_(false) {
   DCHECK_EQ(filter_collection_->GetAudioDecoders()->size(), 1);
   DCHECK_EQ(filter_collection_->GetVideoDecoders()->size(), 1);
 
@@ -910,6 +911,11 @@ void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
 void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
+  if (suppress_destruction_errors_)
+    return;
+
+  media_log_->AddEvent(media_log_->CreatePipelineErrorEvent(error));
+
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) {
     // Any error that occurs before reaching ReadyStateHaveMetadata should
     // be considered a format error.
@@ -1146,6 +1152,7 @@ void WebMediaPlayerImpl::Destroy() {
 
   // Tell the data source to abort any pending reads so that the pipeline is
   // not blocked when issuing stop commands to the other filters.
+  suppress_destruction_errors_ = true;
   if (proxy_) {
     proxy_->AbortDataSource();
     if (chunk_demuxer_) {
