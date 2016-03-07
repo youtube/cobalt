@@ -102,11 +102,12 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
   // is destroyed, all Requests should be deleted (which should remove them from
   // |request_map_|. The Requests will delete the corresponding job.
   std::map<const Job*, Request*> request_map_;
-
+#if !defined(COBALT_DISABLE_SPDY)
   SpdySessionRequestMap spdy_session_request_map_;
   HttpPipeliningRequestMap http_pipelining_request_map_;
 
   HttpPipelinedHostPool http_pipelined_host_pool_;
+#endif  // !defined(COBALT_DISABLE_SPDY)
 
   // These jobs correspond to jobs orphaned by Requests and now owned by
   // HttpStreamFactoryImpl. Since they are no longer tied to Requests, they will
