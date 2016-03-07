@@ -22,10 +22,10 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_declaration_data.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_rule.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
@@ -44,7 +44,7 @@ class MockCSSParser : public CSSParser {
   MOCK_METHOD2(ParseRule, scoped_refptr<CSSRule>(const std::string&,
                                                  const base::SourceLocation&));
   MOCK_METHOD2(ParseStyleDeclarationList,
-               scoped_refptr<CSSStyleDeclarationData>(
+               scoped_refptr<CSSDeclaredStyleData>(
                    const std::string&, const base::SourceLocation&));
   MOCK_METHOD2(ParseFontFaceDeclarationList,
                scoped_refptr<CSSFontFaceDeclarationData>(

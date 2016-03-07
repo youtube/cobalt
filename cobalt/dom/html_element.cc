@@ -501,7 +501,7 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
 }
 
 void HTMLElement::UpdateComputedStyleRecursively(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+    const scoped_refptr<const cssom::CSSComputedStyleData>&
         parent_computed_style,
     const base::TimeDelta& style_change_event_time, bool ancestors_were_valid) {
   // Update computed style for this element.
@@ -583,31 +583,25 @@ void HTMLElement::OnRemoveAttribute(const std::string& name) {
 
 namespace {
 
-scoped_refptr<cssom::CSSStyleDeclarationData>
-PromoteMatchingRulesToComputedStyle(
+scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
     cssom::RulesWithCascadePriority* matching_rules,
     cssom::GURLMap* property_key_to_base_url_map,
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& inline_style,
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+    const scoped_refptr<const cssom::CSSDeclaredStyleData>& inline_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>&
         parent_computed_style,
     const base::TimeDelta& style_change_event_time,
     cssom::TransitionSet* css_transitions,
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+    const scoped_refptr<const cssom::CSSComputedStyleData>&
         previous_computed_style,
     cssom::AnimationSet* css_animations,
     const cssom::CSSKeyframesRule::NameMap& keyframes_map) {
-  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style =
-      new cssom::CSSStyleDeclarationData();
-
-  // Get the element's inline styles.
-  computed_style->AssignFrom(*inline_style);
-
   // Select the winning value for each property by performing the cascade,
   // that is, apply values from matching rules on top of inline style, taking
   // into account rule specificity and location in the source file, as well as
   // property declaration importance.
-  cssom::PromoteToCascadedStyle(computed_style, matching_rules,
-                                property_key_to_base_url_map);
+  scoped_refptr<cssom::CSSComputedStyleData> computed_style =
+      PromoteToCascadedStyle(inline_style, matching_rules,
+                             property_key_to_base_url_map);
 
   // Lastly, absolutize the values, if possible. Start by resolving "initial"
   // and "inherit" keywords (which gives us what the specification refers to
@@ -633,9 +627,8 @@ PromoteMatchingRulesToComputedStyle(
 }
 
 bool NewComputedStyleInvalidatesLayoutBoxes(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-        old_computed_style,
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& new_computed_style) {
+    const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style) {
   // FIXE(***REMOVED***): Only invalidate layout boxes when a property that is used for
   // box generation is modified. We currently have to also invalidate when any
   // inheritable property is modified, because AnonymousBlockBox and TextBox use
@@ -679,7 +672,7 @@ bool NewComputedStyleInvalidatesLayoutBoxes(
 }  // namespace
 
 void HTMLElement::UpdateComputedStyle(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+    const scoped_refptr<const cssom::CSSComputedStyleData>&
         parent_computed_style,
     const base::TimeDelta& style_change_event_time) {
   Document* document = node_document();
@@ -699,7 +692,7 @@ void HTMLElement::UpdateComputedStyle(
   property_key_to_base_url_map[cssom::kBackgroundImageProperty] =
       document->url_as_gurl();
 
-  scoped_refptr<cssom::CSSStyleDeclarationData> new_computed_style =
+  scoped_refptr<cssom::CSSComputedStyleData> new_computed_style =
       PromoteMatchingRulesToComputedStyle(
           matching_rules(), &property_key_to_base_url_map, style_->data(),
           parent_computed_style, style_change_event_time, &css_transitions_,
@@ -724,8 +717,8 @@ void HTMLElement::UpdateComputedStyle(
   for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
        ++pseudo_element_type) {
     if (pseudo_elements_[pseudo_element_type]) {
-      scoped_refptr<cssom::CSSStyleDeclarationData>
-          pseudo_element_computed_style = PromoteMatchingRulesToComputedStyle(
+      scoped_refptr<cssom::CSSComputedStyleData> pseudo_element_computed_style =
+          PromoteMatchingRulesToComputedStyle(
               pseudo_elements_[pseudo_element_type]->matching_rules(),
               &property_key_to_base_url_map, style_->data(), computed_style(),
               style_change_event_time,

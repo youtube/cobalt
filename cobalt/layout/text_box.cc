@@ -265,7 +265,7 @@ float TextBox::GetBaselineOffsetFromTopMarginEdge() const {
 
 namespace {
 void SetupTextNodeFromStyle(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     render_tree::TextNode::Builder* text_node_builder) {
   text_node_builder->color = GetUsedColor(style->color());
 }

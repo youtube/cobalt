@@ -22,8 +22,8 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_declared_style_declaration.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/script/exception_state.h"
 
 namespace cobalt {
@@ -42,7 +42,7 @@ class CSSRuleStyleDeclaration : public CSSDeclaredStyleDeclaration {
  public:
   explicit CSSRuleStyleDeclaration(CSSParser* css_parser);
 
-  CSSRuleStyleDeclaration(const scoped_refptr<CSSStyleDeclarationData>& style,
+  CSSRuleStyleDeclaration(const scoped_refptr<CSSDeclaredStyleData>& style,
                           CSSParser* css_parser);
 
   scoped_refptr<CSSRule> parent_rule() const OVERRIDE;

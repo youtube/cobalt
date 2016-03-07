@@ -18,7 +18,7 @@
 #define COBALT_LAYOUT_INITIAL_CONTAINING_BLOCK_H_
 
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/used_style.h"
@@ -31,15 +31,15 @@ namespace layout {
 // of the viewport and is anchored at the canvas origin. This calculates the
 // style for the initial containing block.
 //   https://www.w3.org/TR/CSS2/visudet.html#containing-block-details
-scoped_refptr<cssom::CSSStyleDeclarationData>
-    CreateInitialContainingBlockComputedStyle(
-        const scoped_refptr<dom::Window>& window);
+scoped_refptr<cssom::CSSComputedStyleData>
+CreateInitialContainingBlockComputedStyle(
+    const scoped_refptr<dom::Window>& window);
 
 // This creates the initial containing block after adding background color
 // and image to the initial style, when needed.
 //   https://www.w3.org/TR/CSS2/visudet.html#containing-block-details
 scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>&
+    const scoped_refptr<cssom::CSSComputedStyleData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider);
