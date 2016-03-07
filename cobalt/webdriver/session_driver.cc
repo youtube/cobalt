@@ -25,6 +25,9 @@ namespace {
 
 const char kBrowserLog[] = "browser";
 
+// Default page-load timeout.
+const int kPageLoadTimeoutInSeconds = 30;
+
 protocol::LogEntry::LogLevel SeverityToLogLevel(int severity) {
   switch (severity) {
     case logging::LOG_INFO:
@@ -43,10 +46,12 @@ protocol::LogEntry::LogLevel SeverityToLogLevel(int severity) {
 
 SessionDriver::SessionDriver(
     const protocol::SessionId& session_id,
-    const CreateWindowDriverCallback& create_window_driver_callback)
+    const CreateWindowDriverCallback& create_window_driver_callback,
+    const WaitForNavigationFunction& wait_for_navigation)
     : session_id_(session_id),
       capabilities_(protocol::Capabilities::CreateActualCapabilities()),
       create_window_driver_callback_(create_window_driver_callback),
+      wait_for_navigation_(wait_for_navigation),
       next_window_id_(0),
       logging_callback_id_(0) {
   logging_callback_id_ = base::LogMessageHandler::GetInstance()->AddCallback(
@@ -74,6 +79,16 @@ WindowDriver* SessionDriver::GetWindow(const protocol::WindowId& window_id) {
   } else {
     return NULL;
   }
+}
+
+util::CommandResult<void> SessionDriver::Navigate(const GURL& url) {
+  util::CommandResult<void> result = window_driver_->Navigate(url);
+  if (result.is_success()) {
+    // TODO(***REMOVED***): Use timeout as specified by the webdriver client.
+    wait_for_navigation_.Run(
+        base::TimeDelta::FromSeconds(kPageLoadTimeoutInSeconds));
+  }
+  return result;
 }
 
 util::CommandResult<protocol::Capabilities> SessionDriver::GetCapabilities() {
