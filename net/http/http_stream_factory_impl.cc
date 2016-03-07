@@ -36,15 +36,23 @@ GURL UpgradeUrlToHttps(const GURL& original_url, int port) {
 }  // namespace
 
 HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
-    : session_(session),
-      http_pipelined_host_pool_(this, NULL,
+    : session_(session)
+#if !defined(COBALT_DISABLE_SPDY)
+      ,
+      http_pipelined_host_pool_(this,
+                                NULL,
                                 session_->http_server_properties(),
-                                session_->force_http_pipelining()) {}
+                                session_->force_http_pipelining())
+#endif  // !defined(COBALT_DISABLE_SPDY)
+{
+}
 
 HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(request_map_.empty());
+#if !defined(COBALT_DISABLE_SPDY)
   DCHECK(spdy_session_request_map_.empty());
   DCHECK(http_pipelining_request_map_.empty());
+#endif  // !defined(COBALT_DISABLE_SPDY)
 
   std::set<const Job*> tmp_job_set;
   tmp_job_set.swap(orphaned_job_set_);
@@ -120,7 +128,11 @@ void HttpStreamFactoryImpl::PreconnectStreams(
 }
 
 base::Value* HttpStreamFactoryImpl::PipelineInfoToValue() const {
+#if defined(COBALT_DISABLE_SPDY)
+  return NULL;
+#else
   return http_pipelined_host_pool_.PipelineInfoToValue();
+#endif  // defined(COBALT_DISABLE_SPDY)
 }
 
 const HostMappingRules* HttpStreamFactoryImpl::GetHostMappingRules() const {
@@ -193,6 +205,7 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
     NextProto protocol_negotiated,
     bool using_spdy,
     const BoundNetLog& net_log) {
+#if !defined(COBALT_DISABLE_SPDY)
   const HostPortProxyPair& spdy_session_key =
       spdy_session->host_port_proxy_pair();
   while (!spdy_session->IsClosed()) {
@@ -215,6 +228,7 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
                            new SpdyHttpStream(spdy_session, use_relative_url));
   }
   // TODO(mbelshe): Alert other valid requests.
+#endif  // !defined(COBALT_DISABLE_SPDY)
 }
 
 void HttpStreamFactoryImpl::OnOrphanedJobComplete(const Job* job) {
@@ -230,6 +244,9 @@ void HttpStreamFactoryImpl::OnPreconnectsComplete(const Job* job) {
 
 void HttpStreamFactoryImpl::OnHttpPipelinedHostHasAdditionalCapacity(
     HttpPipelinedHost* host) {
+#if defined(COBALT_DISABLE_SPDY)
+  NOTREACHED();
+#else
   while (ContainsKey(http_pipelining_request_map_, host->GetKey())) {
     HttpPipelinedStream* stream =
         http_pipelined_host_pool_.CreateStreamOnExistingPipeline(
@@ -248,11 +265,13 @@ void HttpStreamFactoryImpl::OnHttpPipelinedHostHasAdditionalCapacity(
                            stream->used_proxy_info(),
                            stream);
   }
+#endif  // !defined(COBALT_DISABLE_SPDY)
 }
 
 void HttpStreamFactoryImpl::AbortPipelinedRequestsWithKey(
     const Job* job, const HttpPipelinedHost::Key& key, int status,
     const SSLConfig& used_ssl_config) {
+#if !defined(COBALT_DISABLE_SPDY)
   RequestVector requests_to_fail = http_pipelining_request_map_[key];
   for (RequestVector::const_iterator it = requests_to_fail.begin();
        it != requests_to_fail.end(); ++it) {
@@ -262,6 +281,7 @@ void HttpStreamFactoryImpl::AbortPipelinedRequestsWithKey(
     }
     request->OnStreamFailed(NULL, status, used_ssl_config);
   }
+#endif  // !defined(COBALT_DISABLE_SPDY)
 }
 
 }  // namespace net

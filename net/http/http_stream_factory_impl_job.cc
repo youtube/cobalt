@@ -371,12 +371,16 @@ int HttpStreamFactoryImpl::Job::OnHostResolution(
     const HostPortProxyPair& spdy_session_key,
     const AddressList& addresses,
     const BoundNetLog& net_log) {
+#if defined(COBALT_DISABLE_SPDY)
+  return OK;
+#else
   // It is OK to dereference spdy_session_pool, because the
   // ClientSocketPoolManager will be destroyed in the same callback that
   // destroys the SpdySessionPool.
   bool has_session =
       spdy_session_pool->GetIfExists(spdy_session_key, net_log) != NULL;
   return has_session ? ERR_SPDY_SESSION_ALREADY_EXISTS  : OK;
+#endif  // defined(COBALT_DISABLE_SPDY)
 }
 
 void HttpStreamFactoryImpl::Job::OnIOComplete(int result) {
@@ -679,6 +683,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
     return OK;
   }
 
+#if !defined(COBALT_DISABLE_SPDY)
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
   HostPortProxyPair spdy_session_key = GetSpdySessionKey();
@@ -718,6 +723,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
       }
     }
   }
+#endif  // !defined(COBALT_DISABLE_SPDY)
 
   // OK, there's no available SPDY session. Let |waiting_job_| resume if it's
   // paused.
@@ -779,6 +785,10 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
   }
 
   if (result == ERR_SPDY_SESSION_ALREADY_EXISTS) {
+#if defined(COBALT_DISABLE_SPDY)
+    NOTREACHED();
+    return ERR_FAILED;
+#else
     // We found a SPDY connection after resolving the host.  This is
     // probably an IP pooled connection.
     HostPortProxyPair spdy_session_key = GetSpdySessionKey();
@@ -792,6 +802,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       ReturnToStateInitConnection(true /* close connection */);
     }
     return OK;
+#endif  // !defined(COBALT_DISABLE_SPDY)
   }
 
   // TODO(willchan): Make this a bit more exact. Maybe there are recoverable
@@ -944,6 +955,12 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
                                  net_log_, io_callback_);
   }
 
+#if defined(COBALT_DISABLE_SPDY)
+  bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https()) &&
+                     request_info_.url.SchemeIs("http");
+  stream_.reset(new HttpBasicStream(connection_.release(), NULL, using_proxy));
+  return OK;
+#else
   if (!using_spdy_) {
     bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https()) &&
         request_info_.url.SchemeIs("http");
@@ -1020,6 +1037,7 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
   bool use_relative_url = direct || request_info_.url.SchemeIs("https");
   stream_.reset(new SpdyHttpStream(spdy_session, use_relative_url));
   return OK;
+#endif  // defined(COBALT_DISABLE_SPDY)
 }
 
 int HttpStreamFactoryImpl::Job::DoCreateStreamComplete(int result) {
@@ -1299,6 +1317,9 @@ bool HttpStreamFactoryImpl::Job::IsOrphaned() const {
 }
 
 bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() {
+#if defined(COBALT_DISABLE_SPDY)
+  return false;
+#else
   if (IsPreconnecting() || !request_) {
     return false;
   }
@@ -1322,6 +1343,7 @@ bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() {
   }
   return stream_factory_->http_pipelined_host_pool_.IsKeyEligibleForPipelining(
       *http_pipelining_key_.get());
+#endif  // defined(COBALT_DISABLE_SPDY)
 }
 
 }  // namespace net

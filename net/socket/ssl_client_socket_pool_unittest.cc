@@ -721,7 +721,7 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
             kProtoSPDY2);
-
+#if !defined(COBALT_DISABLE_SPDY)
   // TODO(rtenneti): MockClientSocket::GetPeerAddress returns 0 as the port
   // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
   SpdySessionPoolPeer pool_peer(session_->spdy_session_pool());
@@ -738,6 +738,7 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   EXPECT_TRUE(session_->spdy_session_pool()->HasSession(test_hosts[2].pair));
 
   session_->spdy_session_pool()->CloseAllSessions();
+#endif  // !defined(COBALT_DISABLE_SPDY)
 }
 
 void SSLClientSocketPoolTest::TestIPPoolingDisabled(
@@ -801,6 +802,7 @@ void SSLClientSocketPoolTest::TestIPPoolingDisabled(
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
             kProtoSPDY2);
 
+#if !defined(COBALT_DISABLE_SPDY)
   // TODO(rtenneti): MockClientSocket::GetPeerAddress returns 0 as the port
   // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
   SpdySessionPoolPeer pool_peer(session_->spdy_session_pool());
@@ -816,6 +818,7 @@ void SSLClientSocketPoolTest::TestIPPoolingDisabled(
   EXPECT_FALSE(session_->spdy_session_pool()->HasSession(test_hosts[1].pair));
 
   session_->spdy_session_pool()->CloseAllSessions();
+#endif  // !defined(COBALT_DISABLE_SPDY)
 }
 
 // Verifies that an SSL connection with client authentication disables SPDY IP
