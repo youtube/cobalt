@@ -115,7 +115,15 @@ class NET_EXPORT HttpNetworkSession
   CertVerifier* cert_verifier() { return cert_verifier_; }
   ProxyService* proxy_service() { return proxy_service_; }
   SSLConfigService* ssl_config_service() { return ssl_config_service_; }
-  SpdySessionPool* spdy_session_pool() { return &spdy_session_pool_; }
+
+  SpdySessionPool* spdy_session_pool() {
+#if defined(COBALT_DISABLE_SPDY)
+    return NULL;
+#else
+    return &spdy_session_pool_;
+#endif  // defined(COBALT_DISABLE_SPDY)
+  }
+
   QuicStreamFactory* quic_stream_factory() { return &quic_stream_factory_; }
   HttpAuthHandlerFactory* http_auth_handler_factory() {
     return http_auth_handler_factory_;
@@ -177,7 +185,9 @@ class NET_EXPORT HttpNetworkSession
   scoped_ptr<ClientSocketPoolManager> normal_socket_pool_manager_;
   scoped_ptr<ClientSocketPoolManager> websocket_socket_pool_manager_;
   QuicStreamFactory quic_stream_factory_;
+#if !defined(COBALT_DISABLE_SPDY)
   SpdySessionPool spdy_session_pool_;
+#endif  // !defined(COBALT_DISABLE_SPDY)
   scoped_ptr<HttpStreamFactory> http_stream_factory_;
   std::set<HttpResponseBodyDrainer*> response_drainers_;
 

@@ -1043,6 +1043,11 @@
                 'udp/udp_socket_starboard.cc',
               ],
             }],
+            ['enable_spdy == 0', {
+              'sources/': [
+                ['exclude', 'spdy/'],
+              ],
+            }],
             ['target_arch=="android"', {
               'sources!': [
                 '<(lbshell_root)/src/tcp_client_socket_shell.cc',
@@ -1813,6 +1818,12 @@
               },
               'includes': [ '../cobalt/build/copy_test_data.gypi' ],
             },
+          ],
+        }],
+        ['enable_spdy == 0', {
+          'sources/': [
+            ['exclude', '.*spdy.*'],
+            ['exclude', 'http_pipelined_.*'],
           ],
         }],
         ['chromeos==1', {

@@ -359,6 +359,7 @@ TEST(HttpStreamFactoryTest, PreconnectSocksProxy) {
   }
 }
 
+#if !defined(COBALT_DISABLE_SPDY)
 TEST(HttpStreamFactoryTest, PreconnectDirectWithExistingSpdySession) {
   for (size_t i = 0; i < arraysize(kTests); ++i) {
     SessionDependencies session_deps(ProxyService::CreateDirect());
@@ -393,6 +394,7 @@ TEST(HttpStreamFactoryTest, PreconnectDirectWithExistingSpdySession) {
       EXPECT_EQ(kTests[i].num_streams, transport_conn_pool->last_num_streams());
   }
 }
+#endif  // !defined(COBALT_DISABLE_SPDY)
 
 // Verify that preconnects to unsafe ports are cancelled before they reach
 // the SocketPool.
