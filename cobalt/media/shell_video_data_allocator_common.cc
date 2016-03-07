@@ -27,15 +27,8 @@
 namespace media {
 
 namespace {
-
-const int kMaxVideoWidth = 1920;
-// Extra 8 pixels to align to 16.
-const int kMaxVideoHeight = 1088;
-const size_t kMaxYUVFrameSizeInBytes = kMaxVideoWidth * kMaxVideoHeight * 3 / 2;
-const int kVideoFrameAlignment = 256;
-
 void ReleaseImage(scoped_refptr<cobalt::render_tree::Image> /* image */) {}
-}
+}  // namespace
 
 using cobalt::render_tree::ImageDataDescriptor;
 using cobalt::render_tree::MultiPlaneImageDataDescriptor;
@@ -46,19 +39,28 @@ using cobalt::render_tree::kPixelFormatV8;
 using cobalt::render_tree::kPixelFormatY8;
 
 ShellVideoDataAllocatorCommon::ShellVideoDataAllocatorCommon(
-    cobalt::render_tree::ResourceProvider* resource_provider)
-    : resource_provider_(resource_provider) {}
+    cobalt::render_tree::ResourceProvider* resource_provider,
+    size_t minimum_allocation_size, size_t maximum_allocation_size,
+    size_t minimum_alignment)
+    : resource_provider_(resource_provider),
+      minimum_allocation_size_(minimum_allocation_size),
+      maximum_allocation_size_(maximum_allocation_size),
+      minimum_alignment_(minimum_alignment) {}
 
 scoped_refptr<ShellVideoDataAllocator::FrameBuffer>
 ShellVideoDataAllocatorCommon::AllocateFrameBuffer(size_t size,
                                                    size_t alignment) {
   UNREFERENCED_PARAMETER(size);
   UNREFERENCED_PARAMETER(alignment);
-  DCHECK_LE(size, kMaxYUVFrameSizeInBytes);
-  DCHECK_EQ(kVideoFrameAlignment % alignment, 0);
+  DCHECK_LE(size, maximum_allocation_size_);
+  if (size > maximum_allocation_size_) {
+    NOTREACHED();
+    return NULL;
+  }
+  size = std::max(size, minimum_allocation_size_);
+  alignment = std::max(alignment, minimum_alignment_);
   scoped_ptr<RawImageMemory> raw_image_memory =
-      resource_provider_->AllocateRawImageMemory(kMaxYUVFrameSizeInBytes,
-                                                 kVideoFrameAlignment);
+      resource_provider_->AllocateRawImageMemory(size, alignment);
 
   return raw_image_memory ? new FrameBufferCommon(raw_image_memory.Pass())
                           : NULL;

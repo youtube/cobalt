@@ -27,8 +27,14 @@ namespace media {
 
 class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
  public:
-  explicit ShellVideoDataAllocatorCommon(
-      cobalt::render_tree::ResourceProvider* resource_provider);
+  // When the requested frame size is less than |minimum_allocation_size|, the
+  // class will still allocate |minimum_allocation_size|.  The same applies to
+  // |minimum_alignment|.  When the requested size is larger than
+  // |maximum_allocation_size|, the allocation will fail and return NULL.
+  ShellVideoDataAllocatorCommon(
+      cobalt::render_tree::ResourceProvider* resource_provider,
+      size_t minimum_allocation_size, size_t maximum_allocation_size,
+      size_t minimum_alignment);
 
   scoped_refptr<FrameBuffer> AllocateFrameBuffer(size_t size,
                                                  size_t alignment) OVERRIDE;
@@ -55,6 +61,9 @@ class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
   };
 
   cobalt::render_tree::ResourceProvider* resource_provider_;
+  size_t minimum_allocation_size_;
+  size_t maximum_allocation_size_;
+  size_t minimum_alignment_;
 };
 
 }  // namespace media
