@@ -148,6 +148,8 @@ BrowserModule::BrowserModule(const GURL& url,
       network_module_(&storage_manager_, system_window->event_dispatcher(),
                       options.network_module_options),
       render_tree_combiner_(renderer_module_.pipeline()),
+      web_module_loaded_(true /* manually_reset */,
+                         false /* initially_signalled */),
       self_message_loop_(MessageLoop::current()),
       web_module_recreated_callback_(options.web_module_recreated_callback),
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -233,6 +235,8 @@ void BrowserModule::Navigate(const GURL& url) {
 
 void BrowserModule::NavigateWithCallback(const GURL& url,
                                          const base::Closure& loaded_callback) {
+  web_module_loaded_.Reset();
+
   GURL new_url;
 
   if (url.is_empty()) {
@@ -324,7 +328,7 @@ void BrowserModule::NavigateWithCallbackInternal(
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz));
   options.loaded_callbacks.push_back(
-      base::Bind(&BrowserModule::DestroySplashScreen, base::Unretained(this)));
+      base::Bind(&BrowserModule::OnLoad, base::Unretained(this)));
   options.array_buffer_allocator = array_buffer_allocator_.get();
 
 #if !defined(COBALT_FORCE_CSP)
@@ -340,6 +344,15 @@ void BrowserModule::NavigateWithCallbackInternal(
   if (!web_module_recreated_callback_.is_null()) {
     web_module_recreated_callback_.Run();
   }
+}
+
+void BrowserModule::OnLoad() {
+  DestroySplashScreen();
+  web_module_loaded_.Signal();
+}
+
+bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
+  return web_module_loaded_.TimedWait(timeout);
 }
 
 void BrowserModule::SetPaused(bool paused) {
@@ -559,7 +572,8 @@ scoped_ptr<webdriver::SessionDriver> BrowserModule::CreateSessionDriver(
     const webdriver::protocol::SessionId& session_id) {
   return make_scoped_ptr(new webdriver::SessionDriver(
       session_id,
-      base::Bind(&BrowserModule::CreateWindowDriver, base::Unretained(this))));
+      base::Bind(&BrowserModule::CreateWindowDriver, base::Unretained(this)),
+      base::Bind(&BrowserModule::WaitForLoad, base::Unretained(this))));
 }
 #endif
 

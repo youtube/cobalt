@@ -47,8 +47,12 @@ class SessionDriver {
       const webdriver::protocol::WindowId& window_id)>
       CreateWindowDriverCallback;
 
+  typedef base::Callback<bool(const base::TimeDelta&)>
+      WaitForNavigationFunction;
+
   SessionDriver(const protocol::SessionId& session_id,
-                const CreateWindowDriverCallback& create_window_driver_cb);
+                const CreateWindowDriverCallback& create_window_driver_cb,
+                const WaitForNavigationFunction& wait_for_navigation);
 
   void RefreshWindowDriver();
 
@@ -56,6 +60,7 @@ class SessionDriver {
   WindowDriver* GetWindow(const protocol::WindowId& window_id);
   WindowDriver* GetCurrentWindow() { return window_driver_.get(); }
 
+  util::CommandResult<void> Navigate(const GURL& url);
   util::CommandResult<protocol::Capabilities> GetCapabilities();
   util::CommandResult<protocol::WindowId> GetCurrentWindowHandle();
   util::CommandResult<std::vector<protocol::WindowId> > GetWindowHandles();
@@ -78,6 +83,7 @@ class SessionDriver {
   const protocol::SessionId session_id_;
   protocol::Capabilities capabilities_;
   CreateWindowDriverCallback create_window_driver_callback_;
+  WaitForNavigationFunction wait_for_navigation_;
   int32 next_window_id_;
   scoped_ptr<WindowDriver> window_driver_;
 
