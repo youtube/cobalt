@@ -22,9 +22,9 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_rule_list.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -63,7 +63,7 @@ class CSSKeyframesRule : public CSSRule {
   // is simplified and there is only one entry per offset.
   struct KeyframeInfo {
     float offset;
-    scoped_refptr<const CSSStyleDeclarationData> style;
+    scoped_refptr<const CSSDeclaredStyleData> style;
   };
   // A list of keyframes sorted by offset.
   const std::vector<KeyframeInfo>& sorted_keyframes() const {

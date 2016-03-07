@@ -20,7 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
 #include "base/time.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/web_animations/animation.h"
 #include "cobalt/web_animations/animation_effect_timing_read_only.h"
 #include "cobalt/web_animations/animation_set.h"
@@ -47,7 +47,7 @@ class BakedAnimation {
   // style as the underlying input data, and updating it to the animated
   // output data.
   void Apply(const base::TimeDelta& timeline_time,
-             cssom::CSSStyleDeclarationData* in_out_style) const;
+             cssom::CSSComputedStyleData* in_out_style) const;
 
  private:
   const Animation::Data animation_data_;
@@ -65,7 +65,7 @@ class BakedAnimationSet {
   // Apply all animations in the set to the specified input style, updating
   // it to the output animated style.
   void Apply(const base::TimeDelta& timeline_time,
-             cssom::CSSStyleDeclarationData* in_out_style) const;
+             cssom::CSSComputedStyleData* in_out_style) const;
 
  private:
   typedef ScopedVector<BakedAnimation> AnimationList;

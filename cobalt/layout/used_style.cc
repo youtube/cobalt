@@ -1377,7 +1377,7 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
 }  // namespace
 
 base::optional<float> GetUsedLeftIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#position-props
@@ -1387,7 +1387,7 @@ base::optional<float> GetUsedLeftIfNotAuto(
 }
 
 base::optional<float> GetUsedTopIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to height of containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#position-props
@@ -1397,7 +1397,7 @@ base::optional<float> GetUsedTopIfNotAuto(
 }
 
 base::optional<float> GetUsedRightIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#position-props
@@ -1407,7 +1407,7 @@ base::optional<float> GetUsedRightIfNotAuto(
 }
 
 base::optional<float> GetUsedBottomIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to height of containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#position-props
@@ -1417,7 +1417,7 @@ base::optional<float> GetUsedBottomIfNotAuto(
 }
 
 base::optional<float> GetUsedWidthIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* width_depends_on_containing_block) {
   // Percentages: refer to width of containing block.
@@ -1432,7 +1432,7 @@ base::optional<float> GetUsedWidthIfNotAuto(
 }
 
 base::optional<float> GetUsedMaxHeightIfNotNone(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* height_depends_on_containing_block) {
   // Percentages: refer to height of containing block.
@@ -1447,7 +1447,7 @@ base::optional<float> GetUsedMaxHeightIfNotNone(
 }
 
 base::optional<float> GetUsedMaxWidthIfNotNone(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* width_depends_on_containing_block) {
   // Percentages: refer to width of containing block.
@@ -1462,7 +1462,7 @@ base::optional<float> GetUsedMaxWidthIfNotNone(
 }
 
 float GetUsedMinHeight(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* height_depends_on_containing_block) {
   // Percentages: refer to height of containing block.
@@ -1477,7 +1477,7 @@ float GetUsedMinHeight(
 }
 
 float GetUsedMinWidth(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* width_depends_on_containing_block) {
   // Percentages: refer to width of containing block.
@@ -1492,7 +1492,7 @@ float GetUsedMinWidth(
 }
 
 base::optional<float> GetUsedHeightIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // The percentage is calculated with respect to the height of the generated
   // box's containing block.
@@ -1503,7 +1503,7 @@ base::optional<float> GetUsedHeightIfNotAuto(
 }
 
 base::optional<float> GetUsedMarginLeftIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#margin-properties
@@ -1513,7 +1513,7 @@ base::optional<float> GetUsedMarginLeftIfNotAuto(
 }
 
 base::optional<float> GetUsedMarginTopIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#margin-properties
@@ -1523,7 +1523,7 @@ base::optional<float> GetUsedMarginTopIfNotAuto(
 }
 
 base::optional<float> GetUsedMarginRightIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#margin-properties
@@ -1533,7 +1533,7 @@ base::optional<float> GetUsedMarginRightIfNotAuto(
 }
 
 base::optional<float> GetUsedMarginBottomIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#margin-properties
@@ -1543,35 +1543,35 @@ base::optional<float> GetUsedMarginBottomIfNotAuto(
 }
 
 float GetUsedBorderLeft(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style) {
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
   return base::polymorphic_downcast<const cssom::LengthValue*>(
              computed_style->border_left_width().get())
       ->value();
 }
 
 float GetUsedBorderTop(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style) {
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
   return base::polymorphic_downcast<const cssom::LengthValue*>(
              computed_style->border_top_width().get())
       ->value();
 }
 
 float GetUsedBorderRight(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style) {
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
   return base::polymorphic_downcast<const cssom::LengthValue*>(
              computed_style->border_right_width().get())
       ->value();
 }
 
 float GetUsedBorderBottom(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style) {
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
   return base::polymorphic_downcast<const cssom::LengthValue*>(
              computed_style->border_bottom_width().get())
       ->value();
 }
 
 float GetUsedPaddingLeft(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#padding-properties
@@ -1581,7 +1581,7 @@ float GetUsedPaddingLeft(
 }
 
 float GetUsedPaddingTop(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#padding-properties
@@ -1591,7 +1591,7 @@ float GetUsedPaddingTop(
 }
 
 float GetUsedPaddingRight(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#padding-properties
@@ -1601,7 +1601,7 @@ float GetUsedPaddingRight(
 }
 
 float GetUsedPaddingBottom(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size) {
   // Percentages: refer to width of containing block.
   //   https://www.w3.org/TR/CSS21/box.html#padding-properties

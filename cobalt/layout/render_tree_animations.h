@@ -21,8 +21,8 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
+#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/web_animations/animation_set.h"
 #include "cobalt/web_animations/baked_animation_set.h"
 
@@ -43,7 +43,7 @@ template <typename T>
 class ApplyStyleToRenderTreeNode {
  public:
   typedef base::Callback<void(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>&,
+      const scoped_refptr<const cssom::CSSComputedStyleData>&,
       typename T::Builder*)> Function;
 };
 
@@ -51,14 +51,14 @@ class ApplyStyleToRenderTreeNode {
 // an animated style that is then passed into the provided
 // ApplyStyleToRenderTreeNode<T>::Function callback function.
 template <typename T>
-void AnimateNode(
-    const typename ApplyStyleToRenderTreeNode<T>::Function&
-        apply_style_function,
-    const web_animations::BakedAnimationSet& animations,
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& base_style,
-    typename T::Builder* node_builder, base::TimeDelta time_elapsed) {
-  scoped_refptr<cssom::CSSStyleDeclarationData> animated_style =
-      new cssom::CSSStyleDeclarationData();
+void AnimateNode(const typename ApplyStyleToRenderTreeNode<T>::Function&
+                     apply_style_function,
+                 const web_animations::BakedAnimationSet& animations,
+                 const scoped_refptr<cssom::CSSComputedStyleData>& base_style,
+                 typename T::Builder* node_builder,
+                 base::TimeDelta time_elapsed) {
+  scoped_refptr<cssom::CSSComputedStyleData> animated_style =
+      new cssom::CSSComputedStyleData();
   animated_style->AssignFrom(*base_style);
   animations.Apply(time_elapsed, animated_style);
   apply_style_function.Run(animated_style, node_builder);
@@ -76,8 +76,8 @@ void AddAnimations(
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animation_map_builder) {
   DCHECK(!css_computed_style_declaration.animations()->IsEmpty());
-  scoped_refptr<cssom::CSSStyleDeclarationData> base_style_copy =
-      new cssom::CSSStyleDeclarationData();
+  scoped_refptr<cssom::CSSComputedStyleData> base_style_copy =
+      new cssom::CSSComputedStyleData();
   base_style_copy->AssignFrom(*css_computed_style_declaration.data());
 
   node_animation_map_builder->Add(

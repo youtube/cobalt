@@ -19,8 +19,8 @@
 #include <vector>
 
 #include "cobalt/base/tokens.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_keyframes_rule.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/dom/animation_event.h"
@@ -116,19 +116,19 @@ ConvertCSSKeyframesToWebAnimationsKeyframes(
     web_animations::Keyframe::Data new_keyframe(keyframe.offset);
     bool easing_was_set = false;
     // 2.4. For each property defined in keyframe:
-    for (cssom::CSSStyleDeclarationData::PropertyValueConstIterator iter =
-             keyframe.style->BeginPropertyValueConstIterator();
-         !iter.Done(); iter.Next()) {
+    for (cssom::CSSDeclaredStyleData::PropertyValues::const_iterator iter =
+             keyframe.style->declared_property_values().begin();
+         iter != keyframe.style->declared_property_values().end(); ++iter) {
       // 2.3. If keyframe defines an animation-timing-function, set
       //      newKeyframe's easing to the defined animation-timing-function.
-      if (iter.Key() == cssom::kAnimationTimingFunctionProperty) {
+      if (iter->first == cssom::kAnimationTimingFunctionProperty) {
         new_keyframe.set_easing(
-            GetTimingFunctionFromKeyframePropertyValue(iter.ConstValue()));
+            GetTimingFunctionFromKeyframePropertyValue(iter->second));
         easing_was_set = true;
       } else {
         // 2.4.1. Set newKeyframe[property] to the value associated with that
         //        property in keyframe
-        new_keyframe.AddPropertyValue(iter.Key(), iter.ConstValue());
+        new_keyframe.AddPropertyValue(iter->first, iter->second);
       }
     }
 

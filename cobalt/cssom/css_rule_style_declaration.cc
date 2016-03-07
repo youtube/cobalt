@@ -25,7 +25,7 @@ CSSRuleStyleDeclaration::CSSRuleStyleDeclaration(CSSParser* css_parser)
     : CSSDeclaredStyleDeclaration(css_parser) {}
 
 CSSRuleStyleDeclaration::CSSRuleStyleDeclaration(
-    const scoped_refptr<CSSStyleDeclarationData>& style, CSSParser* css_parser)
+    const scoped_refptr<CSSDeclaredStyleData>& style, CSSParser* css_parser)
     : CSSDeclaredStyleDeclaration(style, css_parser) {}
 
 scoped_refptr<CSSRule> CSSRuleStyleDeclaration::parent_rule() const {

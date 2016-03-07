@@ -28,7 +28,7 @@ namespace cssom {
 class CSSDeclarationData;
 class CSSFontFaceDeclarationData;
 class CSSRule;
-class CSSStyleDeclarationData;
+class CSSDeclaredStyleData;
 class CSSStyleSheet;
 class MediaList;
 class MediaQuery;
@@ -67,7 +67,7 @@ class CSSParser {
 
   // Parses the contents of a HTMLElement.style attribute.
   // Always returns non-NULL declaration, even if an error occurred.
-  virtual scoped_refptr<CSSStyleDeclarationData> ParseStyleDeclarationList(
+  virtual scoped_refptr<CSSDeclaredStyleData> ParseStyleDeclarationList(
       const std::string& input, const base::SourceLocation& input_location) = 0;
 
   // Parses the contents of an @font-face rule.

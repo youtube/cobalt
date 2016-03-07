@@ -18,8 +18,10 @@
 
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/cascade_priority.h"
+#include "cobalt/cssom/css_computed_style_data.h"
+#include "cobalt/cssom/css_declaration_data.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_rule_style_declaration.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -28,7 +30,7 @@ namespace cssom {
 
 TEST(CascadedStyleTest, PromoteToCascadedStyle) {
   scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
-  scoped_refptr<CSSStyleDeclarationData> style = new CSSStyleDeclarationData();
+  scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
   RulesWithCascadePriority rules_with_cascade_priority;
   cssom::GURLMap property_key_to_base_url_map;
 
@@ -74,16 +76,22 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
   rules_with_cascade_priority.push_back(
       std::make_pair(css_style_rule_3, cascade_priority_3));
 
-  PromoteToCascadedStyle(style, &rules_with_cascade_priority,
-                         &property_key_to_base_url_map);
+  scoped_refptr<cssom::CSSComputedStyleData> computed_style =
+      PromoteToCascadedStyle(style, &rules_with_cascade_priority,
+                             &property_key_to_base_url_map);
 
-  EXPECT_EQ(style->left(), css_style_rule_1->declared_style()->data()->left());
-  EXPECT_EQ(style->right(),
-            css_style_rule_2->declared_style()->data()->right());
-  EXPECT_EQ(style->width(),
-            css_style_rule_3->declared_style()->data()->width());
-  EXPECT_EQ(style->height(),
-            css_style_rule_2->declared_style()->data()->height());
+  EXPECT_EQ(computed_style->left(),
+            css_style_rule_1->declared_style_data()->GetPropertyValue(
+                cssom::kLeftProperty));
+  EXPECT_EQ(computed_style->right(),
+            css_style_rule_2->declared_style_data()->GetPropertyValue(
+                cssom::kRightProperty));
+  EXPECT_EQ(computed_style->width(),
+            css_style_rule_3->declared_style_data()->GetPropertyValue(
+                cssom::kWidthProperty));
+  EXPECT_EQ(computed_style->height(),
+            css_style_rule_2->declared_style_data()->GetPropertyValue(
+                cssom::kHeightProperty));
 }
 
 }  // namespace cssom
