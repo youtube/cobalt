@@ -51,15 +51,23 @@ HttpStreamFactoryImpl::Request::~Request() {
 void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
     const HostPortProxyPair& spdy_session_key) {
   CHECK(!spdy_session_key_.get());
+#if defined(COBALT_DISABLE_SPDY)
+  NOTREACHED();
+#else
   spdy_session_key_.reset(new HostPortProxyPair(spdy_session_key));
   RequestSet& request_set =
       factory_->spdy_session_request_map_[spdy_session_key];
   DCHECK(!ContainsKey(request_set, this));
   request_set.insert(this);
+#endif  // defined(COBALT_DISABLE_SPDY)
 }
 
 bool HttpStreamFactoryImpl::Request::SetHttpPipeliningKey(
     const HttpPipelinedHost::Key& http_pipelining_key) {
+#if defined(COBALT_DISABLE_SPDY)
+  NOTREACHED();
+  return false;
+#else
   CHECK(!http_pipelining_key_.get());
   http_pipelining_key_.reset(new HttpPipelinedHost::Key(http_pipelining_key));
   bool was_new_key = !ContainsKey(factory_->http_pipelining_request_map_,
@@ -68,6 +76,7 @@ bool HttpStreamFactoryImpl::Request::SetHttpPipeliningKey(
       factory_->http_pipelining_request_map_[http_pipelining_key];
   request_vector.push_back(this);
   return was_new_key;
+#endif  // defined(COBALT_DISABLE_SPDY)
 }
 
 void HttpStreamFactoryImpl::Request::AttachJob(Job* job) {
@@ -245,6 +254,7 @@ bool HttpStreamFactoryImpl::Request::using_spdy() const {
 
 void
 HttpStreamFactoryImpl::Request::RemoveRequestFromSpdySessionRequestMap() {
+#if !defined(COBALT_DISABLE_SPDY)
   if (spdy_session_key_.get()) {
     SpdySessionRequestMap& spdy_session_request_map =
         factory_->spdy_session_request_map_;
@@ -257,10 +267,12 @@ HttpStreamFactoryImpl::Request::RemoveRequestFromSpdySessionRequestMap() {
       spdy_session_request_map.erase(*spdy_session_key_);
     spdy_session_key_.reset();
   }
+#endif
 }
 
 void
 HttpStreamFactoryImpl::Request::RemoveRequestFromHttpPipeliningRequestMap() {
+#if !defined(COBALT_DISABLE_SPDY)
   if (http_pipelining_key_.get()) {
     HttpPipeliningRequestMap& http_pipelining_request_map =
         factory_->http_pipelining_request_map_;
@@ -278,6 +290,7 @@ HttpStreamFactoryImpl::Request::RemoveRequestFromHttpPipeliningRequestMap() {
       http_pipelining_request_map.erase(*http_pipelining_key_);
     http_pipelining_key_.reset();
   }
+#endif
 }
 
 bool HttpStreamFactoryImpl::Request::HasSpdySessionKey() const {
@@ -288,6 +301,9 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
     Job* job,
     scoped_refptr<SpdySession> spdy_session,
     bool direct) {
+#if defined(COBALT_DISABLE_SPDY)
+  NOTREACHED();
+#else
   DCHECK(job);
   DCHECK(job->using_spdy());
 
@@ -322,6 +338,7 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
   factory->OnSpdySessionReady(
       spdy_session, direct, used_ssl_config, used_proxy_info,
       was_npn_negotiated, protocol_negotiated, using_spdy, net_log);
+#endif  // defined(COBALT_DISABLE_SPDY)
 }
 
 void HttpStreamFactoryImpl::Request::OrphanJobsExcept(Job* job) {

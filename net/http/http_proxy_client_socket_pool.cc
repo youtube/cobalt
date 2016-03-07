@@ -197,11 +197,13 @@ int HttpProxyConnectJob::DoSSLConnect() {
   if (params_->tunnel()) {
     HostPortProxyPair pair(params_->destination().host_port_pair(),
                            ProxyServer::Direct());
+#if !defined(COBALT_DISABLE_SPDY)
     if (params_->spdy_session_pool()->HasSession(pair)) {
       using_spdy_ = true;
       next_state_ = STATE_SPDY_PROXY_CREATE_STREAM;
       return OK;
     }
+#endif  // !defined(COBALT_DISABLE_SPDY)
   }
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
@@ -289,6 +291,9 @@ int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
 }
 
 int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
+#if defined(COBALT_DISABLE_SPDY)
+  return ERR_FAILED;
+#else
   DCHECK(using_spdy_);
   DCHECK(params_->tunnel());
 
@@ -317,9 +322,13 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
   return spdy_session->CreateStream(
       params_->request_url(), params_->destination().priority(),
       &spdy_stream_, spdy_session->net_log(), callback_);
+#endif  // defined(COBALT_DISABLE_SPDY)
 }
 
 int HttpProxyConnectJob::DoSpdyProxyCreateStreamComplete(int result) {
+#if defined(COBALT_DISABLE_SPDY)
+  return ERR_FAILED;
+#else
   if (result < 0)
     return result;
 
@@ -333,6 +342,7 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStreamComplete(int result) {
                                 params_->http_auth_cache(),
                                 params_->http_auth_handler_factory()));
   return transport_socket_->Connect(callback_);
+#endif  // defined(COBALT_DISABLE_SPDY)
 }
 
 int HttpProxyConnectJob::ConnectInternal() {

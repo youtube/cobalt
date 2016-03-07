@@ -106,6 +106,7 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
                            net::ClientSocketFactory::GetDefaultFactory(),
                            base::Bind(&base::RandUint64),
                            new QuicClock()),
+#if !defined(COBALT_DISABLE_SPDY)
       spdy_session_pool_(params.host_resolver,
                          params.ssl_config_service,
                          params.http_server_properties,
@@ -121,8 +122,9 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
                          params.spdy_max_concurrent_streams_limit,
                          params.time_func,
                          params.trusted_spdy_proxy),
-      ALLOW_THIS_IN_INITIALIZER_LIST(http_stream_factory_(
-          new HttpStreamFactoryImpl(this))),
+#endif  // !defined(COBALT_DISABLE_SPDY)
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          http_stream_factory_(new HttpStreamFactoryImpl(this))),
       params_(params) {
   DCHECK(proxy_service_);
   DCHECK(ssl_config_service_);
@@ -131,7 +133,9 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
 
 HttpNetworkSession::~HttpNetworkSession() {
   STLDeleteElements(&response_drainers_);
+#if !defined(COBALT_DISABLE_SPDY)
   spdy_session_pool_.CloseAllSessions();
+#endif  // !defined(COBALT_DISABLE_SPDY)
 }
 
 void HttpNetworkSession::AddResponseDrainer(HttpResponseBodyDrainer* drainer) {
@@ -181,19 +185,27 @@ Value* HttpNetworkSession::SocketPoolInfoToValue() const {
 }
 
 Value* HttpNetworkSession::SpdySessionPoolInfoToValue() const {
+#if defined(COBALT_DISABLE_SPDY)
+  return NULL;
+#else
   return spdy_session_pool_.SpdySessionPoolInfoToValue();
+#endif  // defined(COBALT_DISABLE_SPDY)
 }
 
 void HttpNetworkSession::CloseAllConnections() {
   normal_socket_pool_manager_->FlushSocketPoolsWithError(ERR_ABORTED);
   websocket_socket_pool_manager_->FlushSocketPoolsWithError(ERR_ABORTED);
+#if !defined(COBALT_DISABLE_SPDY)
   spdy_session_pool_.CloseCurrentSessions(ERR_ABORTED);
+#endif  // !defined(COBALT_DISABLE_SPDY)
 }
 
 void HttpNetworkSession::CloseIdleConnections() {
   normal_socket_pool_manager_->CloseIdleSockets();
   websocket_socket_pool_manager_->CloseIdleSockets();
+#if !defined(COBALT_DISABLE_SPDY)
   spdy_session_pool_.CloseIdleSessions();
+#endif  // !defined(COBALT_DISABLE_SPDY)
 }
 
 ClientSocketPoolManager* HttpNetworkSession::GetSocketPoolManager(
