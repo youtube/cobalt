@@ -38,7 +38,7 @@ class Parser : public cssom::CSSParser {
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE;
 
-  scoped_refptr<cssom::CSSStyleDeclarationData> ParseStyleDeclarationList(
+  scoped_refptr<cssom::CSSDeclaredStyleData> ParseStyleDeclarationList(
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE;
 

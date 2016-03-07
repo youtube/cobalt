@@ -23,10 +23,10 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_declaration_data.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_rule.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
@@ -45,7 +45,7 @@ class StubCSSParser : public cssom::CSSParser {
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE;
 
-  scoped_refptr<cssom::CSSStyleDeclarationData> ParseStyleDeclarationList(
+  scoped_refptr<cssom::CSSDeclaredStyleData> ParseStyleDeclarationList(
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE;
 

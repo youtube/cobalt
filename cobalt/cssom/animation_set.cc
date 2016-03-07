@@ -100,7 +100,7 @@ scoped_refptr<TimingFunction> GetTimingFunction(size_t index,
 }  // namespace
 
 void AnimationSet::Update(
-    const base::TimeDelta& current_time, const CSSStyleDeclarationData& style,
+    const base::TimeDelta& current_time, const CSSComputedStyleData& style,
     const cssom::CSSKeyframesRule::NameMap& keyframes_map) {
   const std::vector<scoped_refptr<PropertyValue> >& names =
       base::polymorphic_downcast<PropertyListValue*>(

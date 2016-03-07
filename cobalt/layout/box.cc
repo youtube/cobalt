@@ -426,7 +426,7 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
 namespace {
 void SetupBackgroundNodeFromStyle(
     const base::optional<RoundedCorners>& rounded_corners,
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     RectNode::Builder* rect_node_builder) {
   rect_node_builder->background_brush =
       scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
@@ -460,7 +460,7 @@ render_tree::BorderStyle GetRenderTreeBorderStyle(
 }
 
 Border CreateBorderFromStyle(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style) {
+    const scoped_refptr<const cssom::CSSComputedStyleData>& style) {
   render_tree::BorderSide left(
       GetUsedLength(style->border_left_width()),
       GetRenderTreeBorderStyle(style->border_left_style()),
@@ -486,7 +486,7 @@ Border CreateBorderFromStyle(
 
 void SetupBorderNodeFromStyle(
     const base::optional<RoundedCorners>& rounded_corners,
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     RectNode::Builder* rect_node_builder) {
   rect_node_builder->border =
       scoped_ptr<Border>(new Border(CreateBorderFromStyle(style)));
@@ -673,14 +673,14 @@ math::Matrix3F GetCSSTransform(
 // the CSS transform of the provided CSS Style Declaration.
 void SetupCompositionNodeFromCSSSStyleTransform(
     const math::RectF& used_rect,
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     MatrixTransformNode::Builder* transform_node_builder) {
   transform_node_builder->transform =
       GetCSSTransform(style->transform(), style->transform_origin(), used_rect);
 }
 
 void SetupFilterNodeFromStyle(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     FilterNode::Builder* filter_node_builder) {
   float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
                       style->opacity().get())->value();
@@ -695,7 +695,7 @@ void SetupFilterNodeFromStyle(
 }
 
 bool AreAllBordersTransparent(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style) {
+    const scoped_refptr<const cssom::CSSComputedStyleData>& style) {
   return (GetUsedColor(style->border_left_color()).a() == 0.0f) &&
          (GetUsedColor(style->border_right_color()).a() == 0.0f) &&
          (GetUsedColor(style->border_top_color()).a() == 0.0f) &&

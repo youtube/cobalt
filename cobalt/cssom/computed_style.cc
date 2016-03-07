@@ -22,7 +22,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/calc_value.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -2197,19 +2197,18 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
 class CalculateComputedStyleContext {
  public:
   CalculateComputedStyleContext(
-      CSSStyleDeclarationData* cascaded_style,
-      const scoped_refptr<const CSSStyleDeclarationData>& parent_computed_style,
+      CSSComputedStyleData* cascaded_style,
+      const scoped_refptr<const CSSComputedStyleData>& parent_computed_style,
       GURLMap* const property_key_to_base_url_map)
       : cascaded_style_(cascaded_style),
         parent_computed_style_(*parent_computed_style),
         property_key_to_base_url_map_(property_key_to_base_url_map) {
-    cascaded_style_->SetAncestorComputedStyleFromParent(parent_computed_style);
+    cascaded_style_->SetParentComputedStyle(parent_computed_style);
   }
 
   // Updates the property specified by the iterator to its computed value.
-  void SetComputedStyleForProperty(
-      const CSSStyleDeclarationData::PropertyValueIterator&
-          property_value_iterator);
+  void SetComputedStyleForProperty(PropertyKey key,
+                                   scoped_refptr<PropertyValue>* value);
 
  private:
   // Immediately promote the specified property key to computed value (if
@@ -2218,21 +2217,19 @@ class CalculateComputedStyleContext {
 
   // Check if the property value is set to inherit or initial, and assign it
   // an appropriate computed value in this case.
-  bool HandleInheritOrInitial(
-      const CSSStyleDeclarationData::PropertyValueIterator&
-          property_value_iterator);
+  bool HandleInheritOrInitial(PropertyKey key,
+                              scoped_refptr<PropertyValue>* value);
 
   // Check what property property we are dealing with, and promote it to
   // a computed value accordingly (e.g. by invoking one of the many different
   // computed style computations defined above.)
-  void HandleSpecifiedValue(
-      const CSSStyleDeclarationData::PropertyValueIterator&
-          property_value_iterator);
+  void HandleSpecifiedValue(PropertyKey key,
+                            scoped_refptr<PropertyValue>* value);
 
   // If the modified value was a (potentially) dependent property value, cache
   // its computed value so that we know it has been computed.
-  void OnComputedStyleCalculated(const scoped_refptr<PropertyValue>& value,
-                                 PropertyKey key);
+  void OnComputedStyleCalculated(PropertyKey key,
+                                 const scoped_refptr<PropertyValue>& value);
 
   // Helper function to determine if the computed style implies absolute
   // positioning.
@@ -2254,10 +2251,10 @@ class CalculateComputedStyleContext {
 
   // The style that, during the scope of CalculateComputedStyleContext, is
   // promoted from being a cascaded style to a computed style.
-  CSSStyleDeclarationData* cascaded_style_;
+  CSSComputedStyleData* cascaded_style_;
 
   // The parent computed style.
-  const CSSStyleDeclarationData& parent_computed_style_;
+  const CSSComputedStyleData& parent_computed_style_;
 
   // Provides a base URL for each property key.  This is used by properties
   // that deal with URLs, such as background-image, to resolve relative URLs
@@ -2277,19 +2274,15 @@ class CalculateComputedStyleContext {
 };
 
 void CalculateComputedStyleContext::SetComputedStyleForProperty(
-    const CSSStyleDeclarationData::PropertyValueIterator&
-        property_value_iterator) {
-  DCHECK(!property_value_iterator.Done());
-
+    PropertyKey key, scoped_refptr<PropertyValue>* value) {
   // If a property has keyword value 'inherit' or 'initial', it must be
   // set to the corresponding inherited or initial value.  In this case,
   // the parent's value is already computed so we can skip the computation
   // step.
-  if (!HandleInheritOrInitial(property_value_iterator)) {
-    HandleSpecifiedValue(property_value_iterator);
+  if (!HandleInheritOrInitial(key, value)) {
+    HandleSpecifiedValue(key, value);
   }
-  OnComputedStyleCalculated(property_value_iterator.ConstValue(),
-                            property_value_iterator.Key());
+  OnComputedStyleCalculated(key, *value);
 }
 
 bool CalculateComputedStyleContext::IsAbsolutelyPositioned() {
@@ -2374,28 +2367,24 @@ RGBAColorValue* CalculateComputedStyleContext::GetColor() {
 }
 
 void CalculateComputedStyleContext::ComputeValue(PropertyKey key) {
-  CSSStyleDeclarationData::PropertyValueIterator iterator =
-      cascaded_style_->GetPropertyValueIterator(key);
-  if (!iterator.Done()) {
-    SetComputedStyleForProperty(iterator);
+  if (cascaded_style_->IsDeclared(key)) {
+    scoped_refptr<PropertyValue>& cascaded_value =
+        cascaded_style_->GetDeclaredPropertyValueReference(key);
+    SetComputedStyleForProperty(key, &cascaded_value);
   } else {
     const scoped_refptr<PropertyValue>& computed_value =
         cascaded_style_->GetPropertyValueReference(key);
-    OnComputedStyleCalculated(computed_value, key);
+    OnComputedStyleCalculated(key, computed_value);
   }
 }
 
 bool CalculateComputedStyleContext::HandleInheritOrInitial(
-    const CSSStyleDeclarationData::PropertyValueIterator&
-        property_value_iterator) {
-  if (property_value_iterator.ConstValue() == KeywordValue::GetInherit()) {
-    property_value_iterator.SetValue(
-        parent_computed_style_.GetPropertyValue(property_value_iterator.Key()));
+    PropertyKey key, scoped_refptr<PropertyValue>* value) {
+  if (*value == KeywordValue::GetInherit()) {
+    *value = parent_computed_style_.GetPropertyValue(key);
     return true;
-  } else if (property_value_iterator.ConstValue() ==
-             KeywordValue::GetInitial()) {
-    property_value_iterator.SetValue(
-        GetPropertyInitialValue(property_value_iterator.Key()));
+  } else if (*value == KeywordValue::GetInitial()) {
+    *value = GetPropertyInitialValue(key);
     return true;
   } else {
     return false;
@@ -2403,27 +2392,26 @@ bool CalculateComputedStyleContext::HandleInheritOrInitial(
 }
 
 void CalculateComputedStyleContext::HandleSpecifiedValue(
-    const CSSStyleDeclarationData::PropertyValueIterator&
-        property_value_iterator) {
-  switch (property_value_iterator.Key()) {
+    PropertyKey key, scoped_refptr<PropertyValue>* value) {
+  switch (key) {
     case kBackgroundPositionProperty: {
       ComputedBackgroundPositionProvider background_position_provider(
           GetFontSize());
-      property_value_iterator.Value()->Accept(&background_position_provider);
+      (*value)->Accept(&background_position_provider);
       const scoped_refptr<PropertyValue>& computed_background_position =
           background_position_provider.computed_background_position();
       if (computed_background_position) {
-        property_value_iterator.SetValue(computed_background_position);
+        *value = computed_background_position;
       }
     } break;
     case kBorderBottomColorProperty:
     case kBorderLeftColorProperty:
     case kBorderRightColorProperty:
     case kBorderTopColorProperty: {
-      if (property_value_iterator.Value() == KeywordValue::GetCurrentColor()) {
+      if (*value == KeywordValue::GetCurrentColor()) {
         // The computed value of the 'currentColor' keyword is the computed
         // value of the 'color' property.
-        property_value_iterator.SetValue(GetColor());
+        *value = GetColor();
       }
     } break;
     case kBorderBottomWidthProperty:
@@ -2431,26 +2419,24 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderRightWidthProperty:
     case kBorderTopWidthProperty: {
       ComputedBorderWidthProvider border_width_provider(
-          GetFontSize(),
-          GetBorderStyleBasedOnWidth(property_value_iterator.Key()));
-      property_value_iterator.Value()->Accept(&border_width_provider);
-      property_value_iterator.SetValue(
-          border_width_provider.computed_border_width());
+          GetFontSize(), GetBorderStyleBasedOnWidth(key));
+      (*value)->Accept(&border_width_provider);
+      *value = border_width_provider.computed_border_width();
     } break;
     case kBoxShadowProperty:
     case kTextShadowProperty: {
       ComputedShadowProvider shadow_provider(GetFontSize(), GetColor());
-      property_value_iterator.Value()->Accept(&shadow_provider);
-      property_value_iterator.SetValue(shadow_provider.computed_shadow());
+      (*value)->Accept(&shadow_provider);
+      *value = shadow_provider.computed_shadow();
     } break;
     case kDisplayProperty: {
       // According to https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
       // "inline" and "inline-block" values of "display" become "block" if
       // "position" is "absolute" or "fixed".
-      if ((property_value_iterator.Value() == KeywordValue::GetInline() ||
-           property_value_iterator.Value() == KeywordValue::GetInlineBlock()) &&
+      if ((*value == KeywordValue::GetInline() ||
+           *value == KeywordValue::GetInlineBlock()) &&
           IsAbsolutelyPositioned()) {
-        property_value_iterator.SetValue(KeywordValue::GetBlock());
+        *value = KeywordValue::GetBlock();
       }
     } break;
     case kFontSizeProperty: {
@@ -2461,131 +2447,112 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
         ComputedFontSizeProvider font_size_provider(
             base::polymorphic_downcast<LengthValue*>(
                 parent_computed_style_.font_size().get()));
-        property_value_iterator.Value()->Accept(&font_size_provider);
+        (*value)->Accept(&font_size_provider);
         if (font_size_provider.computed_font_size()) {
-          property_value_iterator.SetValue(
-              font_size_provider.computed_font_size());
+          *value = font_size_provider.computed_font_size();
         }
       }
     } break;
     case kFontWeightProperty: {
       ComputedFontWeightProvider font_weight_provider;
-      property_value_iterator.Value()->Accept(&font_weight_provider);
-      property_value_iterator.SetValue(
-          font_weight_provider.computed_font_weight());
+      (*value)->Accept(&font_weight_provider);
+      *value = font_weight_provider.computed_font_weight();
     } break;
     case kHeightProperty: {
       ComputedHeightProvider height_provider(
           parent_computed_style_.height().get(), GetFontSize(),
           IsAbsolutelyPositioned());
-      property_value_iterator.Value()->Accept(&height_provider);
-      property_value_iterator.SetValue(height_provider.computed_height());
+      (*value)->Accept(&height_provider);
+      *value = height_provider.computed_height();
     } break;
     case kLineHeightProperty: {
       ComputedLineHeightProvider line_height_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&line_height_provider);
-      property_value_iterator.SetValue(
-          line_height_provider.computed_line_height());
+      (*value)->Accept(&line_height_provider);
+      *value = line_height_provider.computed_line_height();
     } break;
     case kMarginBottomProperty:
     case kMarginLeftProperty:
     case kMarginRightProperty:
     case kMarginTopProperty: {
       ComputedMarginOrPaddingEdgeProvider margin_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&margin_provider);
-      property_value_iterator.SetValue(
-          margin_provider.computed_margin_or_padding_edge());
+      (*value)->Accept(&margin_provider);
+      *value = margin_provider.computed_margin_or_padding_edge();
     } break;
     case kPaddingBottomProperty:
     case kPaddingLeftProperty:
     case kPaddingRightProperty:
     case kPaddingTopProperty: {
       ComputedMarginOrPaddingEdgeProvider padding_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&padding_provider);
-      property_value_iterator.SetValue(
-          padding_provider.computed_margin_or_padding_edge());
+      (*value)->Accept(&padding_provider);
+      *value = padding_provider.computed_margin_or_padding_edge();
     } break;
     case kMaxHeightProperty: {
-      scoped_refptr<PropertyValue> property_value =
-          property_value_iterator.Value();
       ComputedMaxHeightProvider max_height_provider(
           parent_computed_style_.height().get(), GetFontSize(),
           IsAbsolutelyPositioned());
-      property_value->Accept(&max_height_provider);
-      property_value_iterator.SetValue(
-          max_height_provider.computed_max_height());
+      (*value)->Accept(&max_height_provider);
+      *value = max_height_provider.computed_max_height();
     } break;
     case kMaxWidthProperty:
     case kMinWidthProperty: {
       ComputedMinMaxWidthProvider min_max_width_provider(
           parent_computed_style_.width().get(), GetFontSize());
-      property_value_iterator.Value()->Accept(&min_max_width_provider);
-      property_value_iterator.SetValue(
-          min_max_width_provider.computed_min_max_width());
+      (*value)->Accept(&min_max_width_provider);
+      *value = min_max_width_provider.computed_min_max_width();
     } break;
     case kMinHeightProperty: {
-      scoped_refptr<PropertyValue> property_value =
-          property_value_iterator.Value();
       ComputedMinHeightProvider min_height_provider(
           parent_computed_style_.height().get(), GetFontSize(),
           IsAbsolutelyPositioned());
-      property_value->Accept(&min_height_provider);
-      property_value_iterator.SetValue(
-          min_height_provider.computed_min_height());
+      (*value)->Accept(&min_height_provider);
+      *value = min_height_provider.computed_min_height();
     } break;
     case kWidthProperty: {
       ComputedWidthProvider width_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&width_provider);
-      property_value_iterator.SetValue(width_provider.computed_width());
+      (*value)->Accept(&width_provider);
+      *value = width_provider.computed_width();
     } break;
     case kBackgroundImageProperty: {
       if (property_key_to_base_url_map_) {
         ComputedBackgroundImageProvider background_image_provider(
             (*property_key_to_base_url_map_)[kBackgroundImageProperty],
             GetFontSize());
-        property_value_iterator.Value()->Accept(&background_image_provider);
-        property_value_iterator.SetValue(
-            background_image_provider.computed_background_image());
+        (*value)->Accept(&background_image_provider);
+        *value = background_image_provider.computed_background_image();
       }
     } break;
     case kBackgroundSizeProperty: {
       ComputedBackgroundSizeProvider background_size_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&background_size_provider);
-      property_value_iterator.SetValue(
-          background_size_provider.computed_background_size());
+      (*value)->Accept(&background_size_provider);
+      *value = background_size_provider.computed_background_size();
     } break;
     case kBorderRadiusProperty: {
       ComputedBorderRadiusProvider border_radius_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&border_radius_provider);
-      property_value_iterator.SetValue(
-          border_radius_provider.computed_border_radius());
+      (*value)->Accept(&border_radius_provider);
+      *value = border_radius_provider.computed_border_radius();
     } break;
     case kTextIndentProperty: {
       ComputedTextIndentProvider text_indent_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&text_indent_provider);
-      property_value_iterator.SetValue(
-          text_indent_provider.computed_text_indent());
+      (*value)->Accept(&text_indent_provider);
+      *value = text_indent_provider.computed_text_indent();
     } break;
     case kTransformOriginProperty: {
       ComputedTransformOriginProvider transform_origin_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&transform_origin_provider);
-      property_value_iterator.SetValue(
-          transform_origin_provider.computed_transform_origin());
+      (*value)->Accept(&transform_origin_provider);
+      *value = transform_origin_provider.computed_transform_origin();
     } break;
     case kTransformProperty: {
       ComputedTransformProvider transform_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&transform_provider);
-      property_value_iterator.SetValue(
-          transform_provider.computed_transform_list());
+      (*value)->Accept(&transform_provider);
+      *value = transform_provider.computed_transform_list();
     } break;
     case kBottomProperty:
     case kLeftProperty:
     case kRightProperty:
     case kTopProperty: {
       ComputedPositionOffsetProvider position_offset_provider(GetFontSize());
-      property_value_iterator.Value()->Accept(&position_offset_provider);
-      property_value_iterator.SetValue(
-          position_offset_provider.computed_position_offset());
+      (*value)->Accept(&position_offset_provider);
+      *value = position_offset_provider.computed_position_offset();
     } break;
     case kAnimationDelayProperty:
     case kAnimationDirectionProperty:
@@ -2647,7 +2614,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
 }
 
 void CalculateComputedStyleContext::OnComputedStyleCalculated(
-    const scoped_refptr<PropertyValue>& value, PropertyKey key) {
+    PropertyKey key, const scoped_refptr<PropertyValue>& value) {
   switch (key) {
     case kFontSizeProperty:
       computed_font_size_ = value;
@@ -2761,8 +2728,8 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
 }  // namespace
 
 void PromoteToComputedStyle(
-    const scoped_refptr<CSSStyleDeclarationData>& cascaded_style,
-    const scoped_refptr<const CSSStyleDeclarationData>& parent_computed_style,
+    const scoped_refptr<CSSComputedStyleData>& cascaded_style,
+    const scoped_refptr<const CSSComputedStyleData>& parent_computed_style,
     GURLMap* const property_key_to_base_url_map) {
   DCHECK(cascaded_style);
   DCHECK(parent_computed_style);
@@ -2775,18 +2742,21 @@ void PromoteToComputedStyle(
       property_key_to_base_url_map);
 
   // Go through all values declared values and calculate their computed values.
-  for (CSSStyleDeclarationData::PropertyValueIterator property_value_iterator =
-           cascaded_style->BeginPropertyValueIterator();
-       !property_value_iterator.Done(); property_value_iterator.Next()) {
+  CSSComputedStyleData::PropertyValues* declared_property_values =
+      cascaded_style->declared_property_values();
+  for (CSSComputedStyleData::PropertyValues::iterator property_value_iterator =
+           declared_property_values->begin();
+       property_value_iterator != declared_property_values->end();
+       ++property_value_iterator) {
     calculate_computed_style_context.SetComputedStyleForProperty(
-        property_value_iterator);
+        property_value_iterator->first, &property_value_iterator->second);
   }
 }
 
-scoped_refptr<CSSStyleDeclarationData> GetComputedStyleOfAnonymousBox(
-    const scoped_refptr<const CSSStyleDeclarationData>& parent_computed_style) {
-  scoped_refptr<CSSStyleDeclarationData> computed_style =
-      new CSSStyleDeclarationData();
+scoped_refptr<CSSComputedStyleData> GetComputedStyleOfAnonymousBox(
+    const scoped_refptr<const CSSComputedStyleData>& parent_computed_style) {
+  scoped_refptr<CSSComputedStyleData> computed_style =
+      new CSSComputedStyleData();
   PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
   return computed_style;
 }

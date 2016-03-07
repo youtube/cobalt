@@ -26,15 +26,16 @@
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/cascade_priority.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_rule.h"
+#include "cobalt/cssom/css_rule_style_declaration.h"
+#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/selector.h"
 
 namespace cobalt {
 namespace cssom {
 
 class CSSRuleVisitor;
-class CSSStyleDeclaration;
-class CSSRuleStyleDeclaration;
 class CSSStyleSheet;
 
 // The CSSStyleRule interface represents a style rule.
@@ -71,8 +72,9 @@ class CSSStyleRule : public CSSRule {
 
   // Custom.
 
-  const scoped_refptr<CSSRuleStyleDeclaration>& declared_style() const {
-    return style_;
+  const scoped_refptr<CSSDeclaredStyleData>& declared_style_data() const {
+    DCHECK(style_);
+    return style_->data();
   }
 
   DEFINE_WRAPPABLE_TYPE(CSSStyleRule);

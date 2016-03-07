@@ -30,7 +30,7 @@ BakedAnimation::BakedAnimation(const Animation& animation)
                          ->data()) {}
 
 void BakedAnimation::Apply(const base::TimeDelta& timeline_time,
-                           cssom::CSSStyleDeclarationData* in_out_style) const {
+                           cssom::CSSComputedStyleData* in_out_style) const {
   // Get the animation's local time from the Animation::Data object.
   base::optional<base::TimeDelta> local_time =
       animation_data_.ComputeLocalTimeFromTimelineTime(
@@ -67,9 +67,8 @@ BakedAnimationSet::BakedAnimationSet(const BakedAnimationSet& rhs) {
   }
 }
 
-void BakedAnimationSet::Apply(
-    const base::TimeDelta& timeline_time,
-    cssom::CSSStyleDeclarationData* in_out_style) const {
+void BakedAnimationSet::Apply(const base::TimeDelta& timeline_time,
+                              cssom::CSSComputedStyleData* in_out_style) const {
   // TODO(***REMOVED***): Follow the proceedure for combining effects.
   //   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#combining-effects
   for (AnimationList::const_iterator iter = animations_.begin();
