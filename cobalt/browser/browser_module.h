@@ -132,6 +132,14 @@ class BrowserModule {
   void NavigateWithCallbackInternal(const GURL& url,
                                     const base::Closure& loaded_callback);
 
+  // Called when the WebModule's Window.onload event is fired.
+  void OnLoad();
+
+  // Wait for the onload event to be fired with the specified timeout. If the
+  // webmodule is not currently loading the document, this will return
+  // immediately.
+  bool WaitForLoad(const base::TimeDelta& timeout);
+
   // Glue function to deal with the production of the main render tree,
   // and will manage handing it off to the renderer.
   void OnRenderTreeProduced(
@@ -226,6 +234,9 @@ class BrowserModule {
   // web module will ultimately produce a render tree that can be passed
   // into the renderer module.
   scoped_ptr<WebModule> web_module_;
+
+  // Will be signalled when the WebModule's Window.onload event is fired.
+  base::WaitableEvent web_module_loaded_;
 
   // The browser module runs on this message loop.
   MessageLoop* const self_message_loop_;

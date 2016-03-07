@@ -256,6 +256,11 @@ WebDriverModule::WebDriverModule(
       StringPrintf("/session/%s/log", kSessionIdVariable),
       session_command_factory->GetCommandHandler(
           base::Bind(&SessionDriver::GetLog)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/url", kSessionIdVariable),
+      session_command_factory->GetCommandHandler(
+          base::Bind(&SessionDriver::Navigate)));
 
   // Specified window commands.
   webdriver_dispatcher_->RegisterCommand(
@@ -266,11 +271,6 @@ WebDriverModule::WebDriverModule(
           base::Bind(&WindowDriver::GetWindowSize)));
 
   // Current window commands.
-  webdriver_dispatcher_->RegisterCommand(
-      WebDriverServer::kPost,
-      StringPrintf("/session/%s/url", kSessionIdVariable),
-      current_window_command_factory->GetCommandHandler(
-          base::Bind(&WindowDriver::Navigate)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
       StringPrintf("/session/%s/url", kSessionIdVariable),
