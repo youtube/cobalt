@@ -21,7 +21,7 @@
 #include <string>
 
 #include "cobalt/cssom/animation.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_computed_style_data.h"
 
 namespace cobalt {
 namespace cssom {
@@ -49,7 +49,7 @@ class AnimationSet {
   // passed in computed style.  Animations may be started or ended when this
   // method is called.
   void Update(const base::TimeDelta& current_time,
-              const CSSStyleDeclarationData& style,
+              const CSSComputedStyleData& style,
               const cssom::CSSKeyframesRule::NameMap& keyframes_map);
 
  private:

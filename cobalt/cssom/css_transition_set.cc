@@ -21,7 +21,7 @@
 
 #include "base/lazy_instance.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_value.h"
@@ -68,8 +68,8 @@ TransitionSet::TransitionSet(EventHandler* event_handler)
 
 void TransitionSet::UpdateTransitions(
     const base::TimeDelta& current_time,
-    const CSSStyleDeclarationData& source_computed_style,
-    const CSSStyleDeclarationData& destination_computed_style) {
+    const CSSComputedStyleData& source_computed_style,
+    const CSSComputedStyleData& destination_computed_style) {
   const TimeListValue* transition_duration =
       base::polymorphic_downcast<const TimeListValue*>(
           destination_computed_style.transition_duration().get());
@@ -170,7 +170,7 @@ void TransitionSet::UpdateTransitionForProperty(
     PropertyKey property, const base::TimeDelta& current_time,
     const scoped_refptr<PropertyValue>& start_value,
     const scoped_refptr<PropertyValue>& end_value,
-    const CSSStyleDeclarationData& transition_style) {
+    const CSSComputedStyleData& transition_style) {
   // This method essentially implements the logic defined at
   //   https://www.w3.org/TR/css3-transitions/#starting
 

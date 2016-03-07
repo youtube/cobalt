@@ -34,12 +34,12 @@ scoped_refptr<cssom::CSSRule> StubCSSParser::ParseRule(
   return NULL;
 }
 
-scoped_refptr<cssom::CSSStyleDeclarationData>
+scoped_refptr<cssom::CSSDeclaredStyleData>
 StubCSSParser::ParseStyleDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
   UNREFERENCED_PARAMETER(input);
   UNREFERENCED_PARAMETER(input_location);
-  return new cssom::CSSStyleDeclarationData();
+  return new cssom::CSSDeclaredStyleData();
 }
 
 scoped_refptr<cssom::CSSFontFaceDeclarationData>

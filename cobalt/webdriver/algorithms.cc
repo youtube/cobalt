@@ -25,6 +25,7 @@
 #include "base/string16.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
@@ -170,7 +171,7 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
 }
 
 // Helper template function to get the computed style from a
-// cssom::CSSStyleDeclarationData member function getter.
+// cssom::CSSComputedStyleData member function getter.
 template <typename style_getter_function>
 base::optional<std::string> GetComputedStyle(dom::Element* element,
                                              style_getter_function getter) {
@@ -189,7 +190,7 @@ base::optional<std::string> GetComputedStyle(dom::Element* element,
 // https://www.w3.org/TR/webdriver/#text.blocklevel
 bool IsBlockLevelElement(dom::Element* element) {
   base::optional<std::string> display_style =
-      GetComputedStyle(element, &cssom::CSSStyleDeclarationData::display);
+      GetComputedStyle(element, &cssom::CSSComputedStyleData::display);
   if (display_style) {
     if (*display_style == cssom::kInlineKeywordName ||
         *display_style == cssom::kInlineBlockKeywordName ||
@@ -231,9 +232,9 @@ void GetElementTextInternal(dom::Element* element,
 
   // These styles are needed for the text nodes.
   base::optional<std::string> whitespace_style =
-      GetComputedStyle(element, &cssom::CSSStyleDeclarationData::white_space);
-  base::optional<std::string> text_transform_style = GetComputedStyle(
-      element, &cssom::CSSStyleDeclarationData::text_transform);
+      GetComputedStyle(element, &cssom::CSSComputedStyleData::white_space);
+  base::optional<std::string> text_transform_style =
+      GetComputedStyle(element, &cssom::CSSComputedStyleData::text_transform);
 
   bool is_displayed = IsDisplayed(element);
 
@@ -273,14 +274,14 @@ void GetElementTextInternal(dom::Element* element,
 
 bool DisplayStyleIsNone(dom::Element* element) {
   base::optional<std::string> display_style =
-      GetComputedStyle(element, &cssom::CSSStyleDeclarationData::display);
+      GetComputedStyle(element, &cssom::CSSComputedStyleData::display);
   return display_style && *display_style == cssom::kNoneKeywordName;
 }
 
 // Return true if opacity is set to zero.
 bool IsTransparent(dom::Element* element) {
   base::optional<std::string> opacity_style =
-      GetComputedStyle(element, &cssom::CSSStyleDeclarationData::opacity);
+      GetComputedStyle(element, &cssom::CSSComputedStyleData::opacity);
   return opacity_style && *opacity_style == "0";
 }
 
@@ -309,7 +310,7 @@ bool HasPositiveSizeDimensions(dom::Element* element) {
   // if they have a child element or text node with positive size, unless
   // the element has an 'overflow' style of 'hidden'.
   base::optional<std::string> overflow_style =
-      GetComputedStyle(element, &cssom::CSSStyleDeclarationData::overflow);
+      GetComputedStyle(element, &cssom::CSSComputedStyleData::overflow);
   if (overflow_style && *overflow_style == cssom::kHiddenKeywordName) {
     return false;
   }
@@ -346,7 +347,7 @@ bool IsHiddenByOverflow(dom::Element* element) {
       // Cobalt doesn't support overflow-x or overflow-y, so just check for
       // overflow.
       base::optional<std::string> overflow_style =
-          GetComputedStyle(parent, &cssom::CSSStyleDeclarationData::overflow);
+          GetComputedStyle(parent, &cssom::CSSComputedStyleData::overflow);
       if (overflow_style && *overflow_style == cssom::kHiddenKeywordName) {
         // Get the parent's rect. If the element's rect does not intersect the
         // parent's rect, then it is hidden by overflow.
@@ -444,7 +445,7 @@ bool IsDisplayed(dom::Element* element) {
 
   // Any element with hidden/collapsed visibility is not shown.
   base::optional<std::string> visiblity_style =
-      GetComputedStyle(element, &cssom::CSSStyleDeclarationData::visibility);
+      GetComputedStyle(element, &cssom::CSSComputedStyleData::visibility);
   if (visiblity_style && *visiblity_style == cssom::kHiddenKeywordName) {
     return false;
   }

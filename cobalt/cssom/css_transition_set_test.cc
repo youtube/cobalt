@@ -15,7 +15,7 @@
  */
 
 #include "base/time.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -69,9 +69,8 @@ scoped_refptr<TimingFunctionListValue> MakeTimingFunctionWithSingleProperty(
       new TimingFunctionListValue(timing_function_list.Pass()));
 }
 
-scoped_refptr<CSSStyleDeclarationData> CreateTestComputedData() {
-  scoped_refptr<CSSStyleDeclarationData> initial_data =
-      new CSSStyleDeclarationData();
+scoped_refptr<CSSComputedStyleData> CreateTestComputedData() {
+  scoped_refptr<CSSComputedStyleData> initial_data = new CSSComputedStyleData();
 
   initial_data->set_background_color(new RGBAColorValue(0xffffffff));
   initial_data->set_color(new RGBAColorValue(0x00000000));
@@ -103,8 +102,8 @@ class TransitionSetTest : public testing::Test {
   }
 
  protected:
-  scoped_refptr<CSSStyleDeclarationData> start_;
-  scoped_refptr<CSSStyleDeclarationData> end_;
+  scoped_refptr<CSSComputedStyleData> start_;
+  scoped_refptr<CSSComputedStyleData> end_;
 };
 
 TEST_F(TransitionSetTest, TransitionSetStartsEmpty) {
@@ -277,7 +276,7 @@ TEST_F(TransitionSetTest, TransitionsFromTransitionsWork) {
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end_->set_transition_property(
       MakePropertyNameListWithSingleProperty(kAllProperty));
-  scoped_refptr<CSSStyleDeclarationData> end2 = CreateTestComputedData();
+  scoped_refptr<CSSComputedStyleData> end2 = CreateTestComputedData();
   end2->set_background_color(new RGBAColorValue(0x000000ff));
   end2->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end2->set_transition_property(

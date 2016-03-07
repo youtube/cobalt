@@ -17,7 +17,7 @@
 #ifndef COBALT_LAYOUT_USED_STYLE_H_
 #define COBALT_LAYOUT_USED_STYLE_H_
 
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value.h"
@@ -282,71 +282,71 @@ cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value);
 
 // Functions to calculate used values of box model properties.
 base::optional<float> GetUsedLeftIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 base::optional<float> GetUsedTopIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 base::optional<float> GetUsedRightIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 base::optional<float> GetUsedBottomIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 base::optional<float> GetUsedWidthIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* width_depends_on_containing_block);
 base::optional<float> GetUsedMaxHeightIfNotNone(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* height_depends_on_containing_block);
 base::optional<float> GetUsedMaxWidthIfNotNone(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* width_depends_on_containing_block);
 float GetUsedMinHeight(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* height_depends_on_containing_block);
 float GetUsedMinWidth(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size,
     bool* width_depends_on_containing_block);
 base::optional<float> GetUsedHeightIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 base::optional<float> GetUsedMarginLeftIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 base::optional<float> GetUsedMarginTopIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 base::optional<float> GetUsedMarginRightIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 base::optional<float> GetUsedMarginBottomIfNotAuto(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 float GetUsedBorderLeft(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style);
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style);
 float GetUsedBorderTop(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style);
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style);
 float GetUsedBorderRight(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style);
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style);
 float GetUsedBorderBottom(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style);
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style);
 float GetUsedPaddingLeft(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 float GetUsedPaddingTop(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 float GetUsedPaddingRight(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 float GetUsedPaddingBottom(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
     const math::SizeF& containing_block_size);
 
 }  // namespace layout

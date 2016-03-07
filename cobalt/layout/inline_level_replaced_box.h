@@ -20,7 +20,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"

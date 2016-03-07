@@ -17,8 +17,8 @@
 #include "cobalt/cssom/css_declared_style_declaration.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/mutation_observer.h"
 
 namespace cobalt {
@@ -45,13 +45,11 @@ base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
 }  // namespace
 
 CSSDeclaredStyleDeclaration::CSSDeclaredStyleDeclaration(CSSParser* css_parser)
-    : data_(new CSSStyleDeclarationData),
-      css_parser_(css_parser),
-      mutation_observer_(NULL) {}
+    : css_parser_(css_parser), mutation_observer_(NULL) {}
 
 CSSDeclaredStyleDeclaration::CSSDeclaredStyleDeclaration(
-    const scoped_refptr<CSSStyleDeclarationData>& style, CSSParser* css_parser)
-    : data_(style), css_parser_(css_parser), mutation_observer_(NULL) {
+    const scoped_refptr<CSSDeclaredStyleData>& data, CSSParser* css_parser)
+    : data_(data), css_parser_(css_parser), mutation_observer_(NULL) {
   DCHECK(data_.get());
 }
 
@@ -60,25 +58,28 @@ CSSDeclaredStyleDeclaration::CSSDeclaredStyleDeclaration(
 //   https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
 std::string CSSDeclaredStyleDeclaration::css_text(
     script::ExceptionState* /*exception_state*/) const {
-  return data_->SerializeCSSDeclarationBlock();
+  return data_ ? data_->SerializeCSSDeclarationBlock() : std::string();
 }
 
 void CSSDeclaredStyleDeclaration::set_css_text(
     const std::string& css_text, script::ExceptionState* /*exception_state*/) {
   DCHECK(css_parser_);
-  scoped_refptr<CSSStyleDeclarationData> declaration =
+  scoped_refptr<CSSDeclaredStyleData> declaration =
       css_parser_->ParseStyleDeclarationList(
           css_text, non_trivial_static_fields.Get().location);
 
   bool changed = true;
 
   if (declaration) {
-    if (*data_ == *declaration) {
+    if (data_ && *data_ == *declaration) {
       changed = false;
     }
     data_ = declaration;
   } else {
-    data_ = new CSSStyleDeclarationData();
+    if (!data_) {
+      changed = false;
+    }
+    data_ = NULL;
   }
 
   if (changed) {
@@ -90,7 +91,7 @@ void CSSDeclaredStyleDeclaration::set_css_text(
 // declarations.
 //   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-length
 unsigned int CSSDeclaredStyleDeclaration::length() const {
-  return data_->length();
+  return data_ ? data_->length() : 0;
 }
 
 // The item(index) method must return the property name of the CSS declaration
@@ -98,19 +99,22 @@ unsigned int CSSDeclaredStyleDeclaration::length() const {
 //   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-item
 base::optional<std::string> CSSDeclaredStyleDeclaration::Item(
     unsigned int index) const {
-  const char* item = data_->Item(index);
+  const char* item = data_ ? data_->Item(index) : NULL;
   return item ? base::optional<std::string>(item) : base::nullopt;
 }
 
 std::string CSSDeclaredStyleDeclaration::GetDeclaredPropertyValueStringByKey(
     const PropertyKey key) const {
-  return data_->GetDeclaredPropertyValueString(key);
+  return data_ ? data_->GetPropertyValueString(key) : std::string();
 }
 
 void CSSDeclaredStyleDeclaration::SetPropertyValue(
     const std::string& property_name, const std::string& property_value,
     script::ExceptionState* /*exception_state*/) {
   DCHECK(css_parser_);
+  if (!data_) {
+    data_ = new CSSDeclaredStyleData();
+  }
   css_parser_->ParsePropertyIntoDeclarationData(
       property_name, property_value, non_trivial_static_fields.Get().location,
       data_.get());
@@ -127,6 +131,13 @@ void CSSDeclaredStyleDeclaration::RecordMutation() {
 
 void CSSDeclaredStyleDeclaration::AssignFrom(
     const CSSDeclaredStyleDeclaration& rhs) {
+  if (!rhs.data_) {
+    data_ = NULL;
+    return;
+  }
+  if (!data_) {
+    data_ = new CSSDeclaredStyleData();
+  }
   data_->AssignFrom(*rhs.data_);
 }
 

@@ -32,7 +32,6 @@ namespace cobalt {
 namespace cssom {
 
 class CSSRule;
-class CSSStyleDeclarationData;
 class MutationObserver;
 
 // The CSSStyleDeclaration interface represents a CSS declaration block,

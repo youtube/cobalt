@@ -174,16 +174,17 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   css_computed_style_declaration() {
     return css_computed_style_declaration_;
   }
-  scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() const {
+  const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style()
+      const {
     return css_computed_style_declaration_->data();
   }
   void set_computed_style(
-      scoped_refptr<cssom::CSSStyleDeclarationData> computed_style) {
+      const scoped_refptr<cssom::CSSComputedStyleData>& computed_style) {
     css_computed_style_declaration_->set_data(computed_style);
   }
   // Updates the cached computed style of this element and its descendants.
   void UpdateComputedStyleRecursively(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+      const scoped_refptr<const cssom::CSSComputedStyleData>&
           parent_computed_style,
       const base::TimeDelta& style_change_event_time,
       bool ancestors_were_valid);
@@ -235,7 +236,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Updates the cached computed style of this element.
   void UpdateComputedStyle(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+      const scoped_refptr<const cssom::CSSComputedStyleData>&
           parent_computed_style,
       const base::TimeDelta& style_change_event_time);
 

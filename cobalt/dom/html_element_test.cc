@@ -20,7 +20,8 @@
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/cssom/css_declaration_data.h"
+#include "cobalt/cssom/css_computed_style_data.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"
 #include "cobalt/dom/document.h"
@@ -130,7 +131,7 @@ HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
             ->AsHTMLElement());
     DCHECK(child_html_element);
     child_html_element->set_computed_style(
-        make_scoped_refptr(new cssom::CSSStyleDeclarationData()));
+        make_scoped_refptr(new cssom::CSSComputedStyleData()));
 
     if (parent_html_element) {
       // Set layout boxes for all elements that have a child.
@@ -412,8 +413,8 @@ TEST_F(HTMLElementTest, OffsetParent) {
   DCHECK(GetFirstChildAtDepth(root_html_element, 1)->AsHTMLBodyElement());
   EXPECT_FALSE(GetFirstChildAtDepth(root_html_element, 1)->offset_parent());
 
-  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_relative =
-      make_scoped_refptr(new cssom::CSSStyleDeclarationData());
+  scoped_refptr<cssom::CSSComputedStyleData> computed_style_relative =
+      make_scoped_refptr(new cssom::CSSComputedStyleData());
   computed_style_relative->set_position(cssom::KeywordValue::GetRelative());
   GetFirstChildAtDepth(root_html_element, 2)
       ->set_computed_style(computed_style_relative);
@@ -424,8 +425,8 @@ TEST_F(HTMLElementTest, OffsetParent) {
 
   // Return null if the element's computed value of the 'position' property is
   // 'fixed'.
-  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_fixed =
-      make_scoped_refptr(new cssom::CSSStyleDeclarationData());
+  scoped_refptr<cssom::CSSComputedStyleData> computed_style_fixed =
+      make_scoped_refptr(new cssom::CSSComputedStyleData());
   computed_style_fixed->set_position(cssom::KeywordValue::GetFixed());
   GetFirstChildAtDepth(root_html_element, 3)
       ->set_computed_style(computed_style_fixed);
@@ -600,8 +601,8 @@ TEST_F(HTMLElementTest, SetAttributeMatchesGetAttribute) {
 TEST_F(HTMLElementTest, SetAttributeStyleSetsElementStyle) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
-  scoped_refptr<cssom::CSSStyleDeclarationData> style(
-      new cssom::CSSStyleDeclarationData());
+  scoped_refptr<cssom::CSSDeclaredStyleData> style(
+      new cssom::CSSDeclaredStyleData());
   EXPECT_CALL(css_parser_, ParseStyleDeclarationList("", _))
       .WillOnce(Return(style));
   html_element->SetAttribute("style", "");
@@ -611,19 +612,20 @@ TEST_F(HTMLElementTest, SetAttributeStyleSetsElementStyle) {
 TEST_F(HTMLElementTest, SetAttributeStyleReplacesExistingElementStyle) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
-  scoped_refptr<cssom::CSSStyleDeclarationData> style(
-      new cssom::CSSStyleDeclarationData());
+  scoped_refptr<cssom::CSSDeclaredStyleData> style(
+      new cssom::CSSDeclaredStyleData());
   EXPECT_CALL(css_parser_,
               ParseStyleDeclarationList(kDisplayInlineDeclarationString, _))
       .WillOnce(Return(style));
   html_element->SetAttribute("style", kDisplayInlineDeclarationString);
-  style->set_display(cssom::KeywordValue::GetInline());
+  style->SetPropertyValueAndImportance(cssom::kDisplayProperty,
+                                       cssom::KeywordValue::GetInline(), false);
   EXPECT_EQ(style, html_element->style()->data());
   EXPECT_EQ(kDisplayInlineDeclarationString,
             html_element->GetAttribute("style").value());
 
-  scoped_refptr<cssom::CSSStyleDeclarationData> new_style(
-      new cssom::CSSStyleDeclarationData());
+  scoped_refptr<cssom::CSSDeclaredStyleData> new_style(
+      new cssom::CSSDeclaredStyleData());
   EXPECT_CALL(css_parser_,
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(new_style));
@@ -637,8 +639,8 @@ TEST_F(HTMLElementTest, SetAttributeStyleReplacesExistingElementStyle) {
 TEST_F(HTMLElementTest, GetAttributeStyleMatchesSetAttributeStyle) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
-  scoped_refptr<cssom::CSSStyleDeclarationData> style(
-      new cssom::CSSStyleDeclarationData());
+  scoped_refptr<cssom::CSSDeclaredStyleData> style(
+      new cssom::CSSDeclaredStyleData());
   EXPECT_CALL(css_parser_,
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(style));
@@ -652,8 +654,8 @@ TEST_F(HTMLElementTest,
        GetAttributeStyleDoesNotMatchSetAttributeStyleAfterStyleMutation) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
-  scoped_refptr<cssom::CSSStyleDeclarationData> style(
-      new cssom::CSSStyleDeclarationData());
+  scoped_refptr<cssom::CSSDeclaredStyleData> style(
+      new cssom::CSSDeclaredStyleData());
   EXPECT_CALL(css_parser_,
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(style));
@@ -662,8 +664,9 @@ TEST_F(HTMLElementTest,
   EXPECT_CALL(css_parser_, ParsePropertyIntoDeclarationData("display", "inline",
                                                             _, style.get()))
       .WillOnce(InvokeCallback0(base::Bind(
-          &cssom::CSSStyleDeclarationData::set_display,
-          base::Unretained(style.get()), cssom::KeywordValue::GetInline())));
+          &cssom::CSSDeclaredStyleData::SetPropertyValueAndImportance,
+          base::Unretained(style.get()), cssom::kDisplayProperty,
+          cssom::KeywordValue::GetInline(), false)));
   html_element->style()->SetPropertyValue("display", "inline", NULL);
 
   EXPECT_NE(kFooBarDeclarationString,
@@ -674,8 +677,8 @@ TEST_F(HTMLElementTest,
        GetAttributeStyleMatchesSerializedStyleAfterStyleMutation) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
-  scoped_refptr<cssom::CSSStyleDeclarationData> style(
-      new cssom::CSSStyleDeclarationData());
+  scoped_refptr<cssom::CSSDeclaredStyleData> style(
+      new cssom::CSSDeclaredStyleData());
   EXPECT_CALL(css_parser_,
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(style));
@@ -684,8 +687,9 @@ TEST_F(HTMLElementTest,
   EXPECT_CALL(css_parser_, ParsePropertyIntoDeclarationData("display", "inline",
                                                             _, style.get()))
       .WillOnce(InvokeCallback0(base::Bind(
-          &cssom::CSSStyleDeclarationData::set_display,
-          base::Unretained(style.get()), cssom::KeywordValue::GetInline())));
+          &cssom::CSSDeclaredStyleData::SetPropertyValueAndImportance,
+          base::Unretained(style.get()), cssom::kDisplayProperty,
+          cssom::KeywordValue::GetInline(), false)));
   html_element->style()->SetPropertyValue("display", "inline", NULL);
 
   EXPECT_EQ(kDisplayInlineDeclarationString,
