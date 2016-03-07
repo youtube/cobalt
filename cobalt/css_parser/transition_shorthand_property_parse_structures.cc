@@ -16,7 +16,7 @@
 
 #include "cobalt/css_parser/transition_shorthand_property_parse_structures.h"
 
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 
 namespace cobalt {
 namespace css_parser {

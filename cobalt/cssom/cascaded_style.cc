@@ -19,67 +19,77 @@
 #include <vector>
 
 #include "base/optional.h"
+#include "cobalt/cssom/css_computed_style_data.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_rule_style_declaration.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
 namespace cssom {
 
-void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
-                            RulesWithCascadePriority* matching_rules,
-                            GURLMap* property_key_to_base_url_map) {
+scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
+    const scoped_refptr<const CSSDeclaredStyleData>& inline_style,
+    RulesWithCascadePriority* matching_rules,
+    GURLMap* property_key_to_base_url_map) {
+  scoped_refptr<CSSComputedStyleData> cascaded_style(
+      new CSSComputedStyleData());
+
   // A sparce vector of CascadePriority values for all possible property values.
   base::optional<CascadePriority>
       cascade_precedences[static_cast<size_t>(kNumLonghandProperties)];
 
-  for (CSSStyleDeclarationData::PropertyValueConstIterator
-           inline_property_value_iterator =
-               style->BeginPropertyValueConstIterator();
-       !inline_property_value_iterator.Done();
-       inline_property_value_iterator.Next()) {
-    PropertyKey key = inline_property_value_iterator.Key();
-    DCHECK_GT(key, kNoneProperty);
-    DCHECK_LE(key, kMaxLonghandPropertyKey);
-    // TODO(***REMOVED***): Verify if we correcly handle '!important' inline styles.
-    cascade_precedences[key] = CascadePriority(kImportantMin);
+  if (inline_style) {
+    for (CSSDeclaredStyleData::PropertyValues::const_iterator
+             property_value_iterator =
+                 inline_style->declared_property_values().begin();
+         property_value_iterator !=
+         inline_style->declared_property_values().end();
+         ++property_value_iterator) {
+      const PropertyKey& key = property_value_iterator->first;
+      // TODO(***REMOVED***): Verify if we correcly handle '!important' inline styles.
+      cascaded_style->SetPropertyValue(key, property_value_iterator->second);
+      cascade_precedences[key] = CascadePriority(kImportantMin);
+    }
   }
 
   for (RulesWithCascadePriority::const_iterator rule_iterator =
            matching_rules->begin();
        rule_iterator != matching_rules->end(); ++rule_iterator) {
-    scoped_refptr<const CSSStyleDeclarationData> declared_style =
-        rule_iterator->first->declared_style()->data();
+    const scoped_refptr<const CSSDeclaredStyleData>& declared_style =
+        rule_iterator->first->declared_style_data();
 
-    CascadePriority precedence_normal = rule_iterator->second;
-    CascadePriority precedence_important = rule_iterator->second;
-    precedence_important.SetImportant();
+    if (declared_style) {
+      CascadePriority precedence_normal = rule_iterator->second;
+      CascadePriority precedence_important = rule_iterator->second;
+      precedence_important.SetImportant();
 
-    for (CSSStyleDeclarationData::PropertyValueConstIterator
-             property_value_iterator =
-                 declared_style->BeginPropertyValueConstIterator();
-         !property_value_iterator.Done(); property_value_iterator.Next()) {
-      PropertyKey key = property_value_iterator.Key();
-      DCHECK_GT(key, kNoneProperty);
-      DCHECK_LE(key, kMaxLonghandPropertyKey);
+      for (CSSDeclaredStyleData::PropertyValues::const_iterator
+               property_value_iterator =
+                   declared_style->declared_property_values().begin();
+           property_value_iterator !=
+           declared_style->declared_property_values().end();
+           ++property_value_iterator) {
+        const PropertyKey& key = property_value_iterator->first;
+        CascadePriority* precedence =
+            declared_style->IsDeclaredPropertyImportant(key)
+                ? &precedence_important
+                : &precedence_normal;
+        if (!(cascade_precedences[key]) ||
+            *(cascade_precedences[key]) < *precedence) {
+          cascade_precedences[key] = *precedence;
+          cascaded_style->SetPropertyValue(key,
+                                           property_value_iterator->second);
 
-      CascadePriority* precedence =
-          declared_style->IsDeclaredPropertyImportant(key)
-              ? &precedence_important
-              : &precedence_normal;
-      if (!(cascade_precedences[key]) ||
-          *(cascade_precedences[key]) < *precedence) {
-        cascade_precedences[key] = *precedence;
-        style->SetPropertyValue(key, property_value_iterator.ConstValue());
-
-        if (kBackgroundImageProperty == key) {
-          DCHECK(property_key_to_base_url_map);
-          (*property_key_to_base_url_map)[kBackgroundImageProperty] =
-              rule_iterator->first->parent_style_sheet()->LocationUrl();
+          if (kBackgroundImageProperty == key) {
+            DCHECK(property_key_to_base_url_map);
+            (*property_key_to_base_url_map)[kBackgroundImageProperty] =
+                rule_iterator->first->parent_style_sheet()->LocationUrl();
+          }
         }
       }
     }
   }
+  return cascaded_style;
 }
 
 }  // namespace cssom

@@ -22,8 +22,8 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/script/exception_state.h"
 
 namespace cobalt {
@@ -41,9 +41,8 @@ class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
  public:
   explicit CSSDeclaredStyleDeclaration(CSSParser* css_parser);
 
-  CSSDeclaredStyleDeclaration(
-      const scoped_refptr<CSSStyleDeclarationData>& style,
-      CSSParser* css_parser);
+  CSSDeclaredStyleDeclaration(const scoped_refptr<CSSDeclaredStyleData>& data,
+                              CSSParser* css_parser);
 
   // From CSSStyleDeclaration.
 
@@ -61,7 +60,7 @@ class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
 
   // Custom.
 
-  const scoped_refptr<CSSStyleDeclarationData>& data() const { return data_; }
+  const scoped_refptr<CSSDeclaredStyleData>& data() const { return data_; }
   void set_mutation_observer(MutationObserver* observer) {
     mutation_observer_ = observer;
   }
@@ -76,8 +75,7 @@ class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
   // Custom.
   void RecordMutation();
 
-  // Declared Style.
-  scoped_refptr<CSSStyleDeclarationData> data_;
+  scoped_refptr<CSSDeclaredStyleData> data_;
 
   CSSParser* const css_parser_;
   MutationObserver* mutation_observer_;

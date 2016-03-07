@@ -24,7 +24,8 @@
 namespace cobalt {
 namespace cssom {
 
-class CSSStyleDeclarationData;
+class CSSComputedStyleData;
+class CSSDeclaredStyleData;
 
 // The cascaded value represents the result of the cascade: it is the declared
 // value that wins the cascade (is sorted first in the output of the cascade).
@@ -35,9 +36,10 @@ class CSSStyleDeclarationData;
 // applies the declared values contained in the rules on top of the inline style
 // according to the cascading algorithm.
 //   https://www.w3.org/TR/css-cascade-3/#cascading
-void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
-                            RulesWithCascadePriority* matching_rules,
-                            GURLMap* property_key_to_base_url_map);
+scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
+    const scoped_refptr<const CSSDeclaredStyleData>& inline_style,
+    RulesWithCascadePriority* matching_rules,
+    GURLMap* property_key_to_base_url_map);
 
 }  // namespace cssom
 }  // namespace cobalt

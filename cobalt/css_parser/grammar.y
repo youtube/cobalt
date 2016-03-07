@@ -652,7 +652,7 @@
 %union { cssom::PropertyKey property_key; }
 %type <property_key> animatable_property_token
 
-%union { cssom::CSSStyleDeclarationData* style_declaration_data; }
+%union { cssom::CSSDeclaredStyleData* style_declaration_data; }
 %type <style_declaration_data> style_declaration_list
 %destructor { SafeRelease($$); } <style_declaration_data>
 
@@ -1155,13 +1155,13 @@ keyframe_rule:
 
     scoped_refptr<cssom::CSSRuleStyleDeclaration> style(
         MakeScopedRefPtrAndRelease($2));
-    cssom::CSSStyleDeclarationData::PropertyValueConstIterator
-        property_iterator = style->data()->BeginPropertyValueConstIterator();
-    for (; !property_iterator.Done(); property_iterator.Next()) {
-      if (property_iterator.ConstValue() ==
-          cssom::KeywordValue::GetInherit() ||
-          property_iterator.ConstValue() ==
-          cssom::KeywordValue::GetInitial()) {
+    const cssom::CSSDeclaredStyleData::PropertyValues& property_values = style->data()->declared_property_values();
+    for (cssom::CSSDeclaredStyleData::PropertyValues::const_iterator
+             property_iterator = property_values.begin();
+             property_iterator != property_values.end();
+             ++property_iterator) {
+      if (property_iterator->second == cssom::KeywordValue::GetInherit() ||
+          property_iterator->second == cssom::KeywordValue::GetInitial()) {
         parser_impl->LogError(
             @2, "keyframe properties with initial or inherit are not supported");
         YYERROR;
@@ -6003,7 +6003,7 @@ semicolon: ';' maybe_whitespace ;
 //   https://www.w3.org/TR/css3-syntax/#consume-a-list-of-declarations0
 style_declaration_list:
     maybe_declaration {
-    $$ = AddRef(new cssom::CSSStyleDeclarationData());
+    $$ = AddRef(new cssom::CSSDeclaredStyleData());
 
     scoped_ptr<PropertyDeclaration> property_declaration($1);
     if (property_declaration) {
@@ -6166,7 +6166,7 @@ entry_point:
   // Parses the contents of a HTMLElement.style attribute.
   | kStyleDeclarationListEntryPointToken maybe_whitespace
         style_declaration_list {
-    scoped_refptr<cssom::CSSStyleDeclarationData> declaration_data =
+    scoped_refptr<cssom::CSSDeclaredStyleData> declaration_data =
         MakeScopedRefPtrAndRelease($3);
     parser_impl->set_style_declaration_data(declaration_data);
   }

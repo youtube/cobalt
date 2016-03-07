@@ -28,7 +28,7 @@
 namespace cobalt {
 namespace cssom {
 
-class CSSStyleDeclarationData;
+class CSSComputedStyleData;
 class PropertyValue;
 
 // Maintains a mapping from the set of all unique CSS style properties to
@@ -68,8 +68,8 @@ class TransitionSet {
   // transitions.  The implementation of this method is defined here:
   //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#starting
   void UpdateTransitions(const base::TimeDelta& current_time,
-                         const CSSStyleDeclarationData& source,
-                         const CSSStyleDeclarationData& destination);
+                         const CSSComputedStyleData& source,
+                         const CSSComputedStyleData& destination);
 
   // Given the name of a property, returns the active transition corresponding
   // to it.  If no transition currently exists for this property, this method
@@ -84,7 +84,7 @@ class TransitionSet {
       PropertyKey property, const base::TimeDelta& current_time,
       const scoped_refptr<PropertyValue>& source_value,
       const scoped_refptr<PropertyValue>& destination_value,
-      const CSSStyleDeclarationData& transition_style);
+      const CSSComputedStyleData& transition_style);
 
   // We define a TransitionMap (from CSS property to Transition object) here to
   // host our set of active transitions, and additionally manage the firing

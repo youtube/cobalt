@@ -23,7 +23,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web_animations/animatable.h"
@@ -64,7 +64,7 @@ class KeyframeEffectReadOnly : public AnimationEffectReadOnly {
     // updating the provided CSS style to reflect the output animated style,
     // given the current iteration progress and current_iteration.
     void ApplyAnimation(
-        const scoped_refptr<cssom::CSSStyleDeclarationData>& in_out_style,
+        const scoped_refptr<cssom::CSSComputedStyleData>& in_out_style,
         double iteration_progress, double current_iteration) const;
 
     // Applies this effect to a single property value, accepting the underlying

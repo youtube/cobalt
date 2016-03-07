@@ -55,11 +55,11 @@ class PseudoElement {
     return css_computed_style_declaration_;
   }
 
-  scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() const {
+  scoped_refptr<const cssom::CSSComputedStyleData> computed_style() const {
     return css_computed_style_declaration_->data();
   }
   void set_computed_style(
-      scoped_refptr<cssom::CSSStyleDeclarationData> computed_style) {
+      const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
     css_computed_style_declaration_->set_data(computed_style);
   }
 

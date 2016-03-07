@@ -22,8 +22,8 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web_animations/animation_set.h"
 
@@ -55,10 +55,10 @@ class CSSComputedStyleDeclaration : public CSSStyleDeclaration {
 
   // Custom.
 
-  const scoped_refptr<const CSSStyleDeclarationData>& data() const {
+  const scoped_refptr<const CSSComputedStyleData>& data() const {
     return data_;
   }
-  void set_data(const scoped_refptr<const CSSStyleDeclarationData>& data) {
+  void set_data(const scoped_refptr<const CSSComputedStyleData>& data) {
     data_ = data;
   }
 
@@ -74,9 +74,7 @@ class CSSComputedStyleDeclaration : public CSSStyleDeclaration {
   // From CSSStyleDeclaration.
   std::string GetDeclaredPropertyValueStringByKey(
       const PropertyKey key) const OVERRIDE;
-
-  // Computed Style.
-  scoped_refptr<const CSSStyleDeclarationData> data_;
+  scoped_refptr<const CSSComputedStyleData> data_;
 
   // All animation that applies to  the above computed style.
   scoped_refptr<const web_animations::AnimationSet> animations_;

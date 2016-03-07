@@ -16,7 +16,7 @@
 
 #include "cobalt/cssom/css_computed_style_declaration.h"
 
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/dom/dom_exception.h"
 
 namespace cobalt {

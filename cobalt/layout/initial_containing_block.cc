@@ -34,13 +34,13 @@ namespace layout {
 // copied.
 bool PropagateBackgroundStyleAndTestIfChanged(
     const scoped_refptr<dom::HTMLElement>& element,
-    scoped_refptr<cssom::CSSStyleDeclarationData> destination_style) {
+    scoped_refptr<cssom::CSSComputedStyleData> destination_style) {
   if (!element || !element->computed_style() ||
       element->computed_style()->display() == cssom::KeywordValue::GetNone()) {
     return false;
   }
 
-  const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style =
+  const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style =
       element->computed_style();
 
   bool background_color_is_transparent =
@@ -72,7 +72,7 @@ bool PropagateBackgroundStyleAndTestIfChanged(
 }
 
 scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>&
+    const scoped_refptr<cssom::CSSComputedStyleData>&
         initial_containing_block_style,
     const scoped_refptr<dom::Document>& document,
     UsedStyleProvider* used_style_provider) {

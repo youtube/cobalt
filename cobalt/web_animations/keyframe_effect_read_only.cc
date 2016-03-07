@@ -101,7 +101,7 @@ bool KeyframeEffectReadOnly::Data::IsOnlyPropertyAnimated(
 }
 
 void KeyframeEffectReadOnly::Data::ApplyAnimation(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& in_out_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& in_out_style,
     double iteration_progress, double current_iteration) const {
   for (std::set<cssom::PropertyKey>::const_iterator iter =
            properties_affected_.begin();
