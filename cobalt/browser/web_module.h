@@ -107,7 +107,7 @@ class WebModule {
     FilePath extra_web_file_dir;
 
     // The navigation_callback functor will be called when JavaScript internal
-    // to the WebModule reqeusts a page navigation, e.g. by modifying
+    // to the WebModule requests a page navigation, e.g. by modifying
     // 'window.location.href'.
     base::Callback<void(const GURL&)> navigation_callback;
 
