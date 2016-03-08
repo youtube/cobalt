@@ -61,9 +61,12 @@ void XhrResponseData::Reserve(size_t new_capacity_bytes) {
 }
 
 void XhrResponseData::Append(const uint8* source_data, size_t size_bytes) {
+  if (size_bytes == 0) {
+    return;
+  }
   dom::Stats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
-  data_.insert(data_.end(), reinterpret_cast<const char*>(source_data),
-               reinterpret_cast<const char*>(source_data) + size_bytes);
+  data_.resize(data_.size() + size_bytes);
+  memcpy(&data_[data_.size() - size_bytes], source_data, size_bytes);
   dom::Stats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
 }
 
