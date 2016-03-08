@@ -32,6 +32,8 @@
             'keyboard.h',
             'protocol/capabilities.cc',
             'protocol/capabilities.h',
+            'protocol/cookie.h',
+            'protocol/cookie.cc',
             'protocol/element_id.cc',
             'protocol/element_id.h',
             'protocol/frame_id.cc',
