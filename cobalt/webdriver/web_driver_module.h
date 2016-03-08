@@ -103,6 +103,10 @@ class WebDriverModule {
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
       scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  void GetCookieByName(
+      const base::Value* parameters,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
 
   void IgnoreCommand(
       const base::Value* parameters,

@@ -34,6 +34,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/element_driver.h"
 #include "cobalt/webdriver/element_mapping.h"
+#include "cobalt/webdriver/protocol/cookie.h"
 #include "cobalt/webdriver/protocol/frame_id.h"
 #include "cobalt/webdriver/protocol/keys.h"
 #include "cobalt/webdriver/protocol/script.h"
@@ -79,6 +80,9 @@ class WindowDriver : private ElementMapping {
   util::CommandResult<void> SendKeys(const protocol::Keys& keys);
   util::CommandResult<protocol::ElementId> GetActiveElement();
   util::CommandResult<void> SwitchFrame(const protocol::FrameId& frame_id);
+  util::CommandResult<std::vector<protocol::Cookie> > GetAllCookies();
+  util::CommandResult<std::vector<protocol::Cookie> > GetCookie(
+      const std::string& name);
 
  private:
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
