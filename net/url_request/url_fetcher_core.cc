@@ -25,7 +25,7 @@
 
 namespace {
 
-const int kBufferSize = 4096;
+const int kBufferSize = 16384;
 const int kDownloadCacheSize = 65536;
 const int kUploadProgressTimerInterval = 100;
 bool g_interception_enabled = false;
@@ -1083,13 +1083,14 @@ void URLFetcherCore::InformDelegateUploadProgressInDelegateThread(
 
 void URLFetcherCore::InformDelegateDownloadDataIfNecessary(int bytes_read) {
   DCHECK(network_task_runner_->BelongsToCurrentThread());
-  if (delegate_ && delegate_->ShouldSendDownloadData()) {
+  if (delegate_ && delegate_->ShouldSendDownloadData() && bytes_read != 0) {
     if (!download_data_cache_) {
       download_data_cache_.reset(new std::string);
       download_data_cache_->reserve(kDownloadCacheSize);
     }
-    download_data_cache_->insert(download_data_cache_->end(), buffer_->data(),
-                                 buffer_->data() + bytes_read);
+    download_data_cache_->resize(download_data_cache_->size() + bytes_read);
+    memcpy(&(*download_data_cache_)[download_data_cache_->size() - bytes_read],
+           buffer_->data(), bytes_read);
     if (download_data_cache_->size() >= kDownloadCacheSize) {
       delegate_task_runner_->PostTask(
           FROM_HERE,
