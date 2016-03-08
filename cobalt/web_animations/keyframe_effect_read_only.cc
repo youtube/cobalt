@@ -106,10 +106,14 @@ void KeyframeEffectReadOnly::Data::ApplyAnimation(
   for (std::set<cssom::PropertyKey>::const_iterator iter =
            properties_affected_.begin();
        iter != properties_affected_.end(); ++iter) {
-    in_out_style->SetPropertyValue(
-        *iter, ComputeAnimatedPropertyValue(
-                   *iter, in_out_style->GetPropertyValue(*iter),
-                   iteration_progress, current_iteration));
+    if (GetPropertyAnimatable(*iter)) {
+      in_out_style->SetPropertyValue(
+          *iter, ComputeAnimatedPropertyValue(
+                     *iter, in_out_style->GetPropertyValue(*iter),
+                     iteration_progress, current_iteration));
+    } else {
+      NOTIMPLEMENTED() << GetPropertyName(*iter) << " is not animatable.";
+    }
   }
 }
 
