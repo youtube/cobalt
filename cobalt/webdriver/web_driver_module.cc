@@ -46,6 +46,7 @@ const char kElementId[] = ":id";
 const char kOtherElementId[] = ":other";
 const char kAttributeName[] = ":name";
 const char kCssPropertyName[] = ":propertyName";
+const char kCookieName[] = ":name";
 
 // Error messages related to session creation.
 const char kMaxSessionsCreatedMessage[] =
@@ -316,6 +317,15 @@ WebDriverModule::WebDriverModule(
       StringPrintf("/session/%s/frame", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::SwitchFrame)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/cookie", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::GetAllCookies)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/cookie/%s", kSessionIdVariable, kCookieName),
+      base::Bind(&WebDriverModule::GetCookieByName, base::Unretained(this)));
 
   // Element commands.
   webdriver_dispatcher_->RegisterCommand(
@@ -594,6 +604,29 @@ void WebDriverModule::GetCssProperty(
 
       typedef util::CommandResult<std::string> CommandResult;
       CommandResult result = element_driver->GetCssProperty(property_name);
+      util::internal::ReturnResponse(session_driver->session_id(), result,
+                                     result_handler.get());
+    }
+  }
+}
+
+void WebDriverModule::GetCookieByName(
+    const base::Value* parameters,
+    const WebDriverDispatcher::PathVariableMap* path_variables,
+    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
+      base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
+      path_variables, result_handler.get());
+  if (session_driver) {
+    WindowDriver* window_driver = session_driver->GetCurrentWindow();
+    DCHECK(window_driver);
+    if (window_driver) {
+      std::string cookie_name = path_variables->GetVariable(kCookieName);
+
+      typedef util::CommandResult<std::vector<protocol::Cookie> > CommandResult;
+      CommandResult result = window_driver->GetCookie(cookie_name);
       util::internal::ReturnResponse(session_driver->session_id(), result,
                                      result_handler.get());
     }
