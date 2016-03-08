@@ -956,13 +956,14 @@ class NinjaWriter:
     }[spec['type']]
 
     implicit_deps = set()
+    order_only_deps = set()
     solibs = set()
 
     if 'dependencies' in spec:
       # Two kinds of dependencies:
       # - Linkable dependencies (like a .a or a .so): add them to the link line.
       # - Non-linkable dependencies (like a rule that generates a file
-      #   and writes a stamp file): add them to implicit_deps
+      #   and writes a stamp file): add them to implicit_deps or order_only_deps
       extra_link_deps = []
       for dep in spec['dependencies']:
         target = self.target_outputs.get(dep)
@@ -984,7 +985,7 @@ class NinjaWriter:
 
         final_output = target.FinalOutput()
         if not linkable or final_output != target.binary:
-          implicit_deps.add(final_output)
+          order_only_deps.add(final_output)
 
       # dedup the extra link deps while preserving order
       seen = set()
@@ -1091,7 +1092,8 @@ class NinjaWriter:
         self.ninja.build(export_pickup_output,
                          'prx_export_pickup',
                          link_deps,
-                         implicit=list(implicit_deps))
+                         implicit=list(implicit_deps),
+                         order_only=list(order_only_deps))
 
         self.ninja.build(prx_export_obj_file, 'cc', export_pickup_output)
         link_deps.append(prx_export_obj_file)
@@ -1121,12 +1123,14 @@ class NinjaWriter:
         preprpl_command = 'preprpl'
         self.ninja.build(preprpl_output, preprpl_command, link_deps,
                          implicit=list(implicit_deps),
+                         order_only=list(order_only_deps),
                          variables=extra_bindings)
         # Add the output from preprpl to link_deps list
         link_deps.append(preprpl_output)
 
     self.ninja.build(output, command, link_deps,
                      implicit=list(implicit_deps),
+                     order_only=list(order_only_deps),
                      variables=extra_bindings)
 
   def WriteTarget(self, spec, config_name, config, link_deps, compile_deps):
