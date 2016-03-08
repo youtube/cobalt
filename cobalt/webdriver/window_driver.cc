@@ -143,6 +143,15 @@ std::string GetSource(dom::Window* window) {
   return window->document()->document_element()->outer_html(NULL);
 }
 
+std::vector<protocol::Cookie> GetAllCookies(dom::Window* window) {
+  DCHECK(window);
+  DCHECK(window->document());
+  std::string cookies_string = window->document()->cookie();
+  std::vector<protocol::Cookie> cookies;
+  protocol::Cookie::ToCookieVector(cookies_string, &cookies);
+  return cookies;
+}
+
 }  // namespace
 
 WindowDriver::WindowDriver(
@@ -278,6 +287,33 @@ util::CommandResult<void> WindowDriver::SwitchFrame(
   } else {
     return util::CommandResult<void>(protocol::Response::kNoSuchFrame);
   }
+}
+
+util::CommandResult<std::vector<protocol::Cookie> >
+WindowDriver::GetAllCookies() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::CallWeakOnMessageLoopAndReturnResult(
+      window_message_loop_,
+      base::Bind(&WindowDriver::GetWeak, base::Unretained(this)),
+      base::Bind(&::cobalt::webdriver::GetAllCookies),
+      protocol::Response::kNoSuchWindow);
+}
+
+util::CommandResult<std::vector<protocol::Cookie> > WindowDriver::GetCookie(
+    const std::string& name) {
+  typedef util::CommandResult<std::vector<protocol::Cookie> > CommandResult;
+  CommandResult command_result = GetAllCookies();
+  if (command_result.is_success()) {
+    std::vector<protocol::Cookie> filtered_cookies;
+    for (size_t i = 0; i < command_result.result().size(); ++i) {
+      if (command_result.result()[i].name() == name) {
+        filtered_cookies.push_back(command_result.result()[i]);
+        break;
+      }
+    }
+    command_result = CommandResult(filtered_cookies);
+  }
+  return command_result;
 }
 
 protocol::ElementId WindowDriver::ElementToId(
