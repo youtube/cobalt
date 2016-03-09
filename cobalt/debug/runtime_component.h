@@ -21,18 +21,16 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/debug/debug_script_runner.h"
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/json_object.h"
-#include "cobalt/debug/runtime_inspector.h"
-#include "cobalt/script/global_object_proxy.h"
 
 namespace cobalt {
 namespace debug {
 
 class RuntimeComponent : public DebugServer::Component {
  public:
-  RuntimeComponent(const base::WeakPtr<DebugServer>& server,
-                   script::GlobalObjectProxy* global_object_proxy);
+  explicit RuntimeComponent(const base::WeakPtr<DebugServer>& server);
 
  private:
   // Command handlers.
@@ -44,16 +42,10 @@ class RuntimeComponent : public DebugServer::Component {
   JSONObject ReleaseObject(const JSONObject& params);
   JSONObject ReleaseObjectGroup(const JSONObject& params);
 
-  // Sends a notification to the client that an execution context has been
-  // created. Currently we just send this notification once when the component
+  // Sends an event to the client to notify an execution context has been
+  // created. Currently we just send this event once when the component
   // is enabled, passing default values.
   void OnExecutionContextCreated();
-
-  // Calls |command| in |runtime_inspector_| and creates a response object from
-  // the result.
-  JSONObject RunCommand(const std::string& command, const JSONObject& params);
-
-  scoped_ptr<RuntimeInspector> runtime_inspector_;
 };
 
 }  // namespace debug

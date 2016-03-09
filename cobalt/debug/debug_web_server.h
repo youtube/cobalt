@@ -62,8 +62,7 @@ class DebugWebServer : private net::HttpServer::Delegate {
   // Debugger command response handler.
   void OnDebuggerResponse(int id, const base::optional<std::string>& response);
 
-  // Handlers for debugger notifications. These may be called on an arbitrary
-  // thread.
+  // Handlers for debugger events. These may be called on an arbitrary thread.
   void OnDebuggerEvent(const std::string& method,
                        const base::optional<std::string>& json_params) const;
 

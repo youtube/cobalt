@@ -190,10 +190,12 @@ void DebugWebServer::OnWebSocketRequest(
   DLOG(INFO) << "Got web socket request [" << connection_id << "]: " << path;
 
   // Ignore the path and bind any web socket request to the debugger.
-  // Multiple requests will just reset the single connection.
-
   websocket_id_ = connection_id;
   server_->AcceptWebSocket(connection_id, info);
+
+  if (debugger_) {
+    return;
+  }
 
   debugger_ = create_debugger_callback_.Run(
       base::Bind(&DebugWebServer::OnDebuggerEvent, base::Unretained(this)),
@@ -263,16 +265,18 @@ void DebugWebServer::OnDebuggerEvent(
     return;
   }
 
-  JSONObject notification(new base::DictionaryValue());
-  notification->SetString(kMethodField, method);
+  JSONObject event(new base::DictionaryValue());
+  event->SetString(kMethodField, method);
   JSONObject params = JSONParse(json_params.value());
-  DCHECK(params);
-  notification->Set(kParamsField, params.release());
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(notification));
+  // |params| may be NULL if event does not use them.
+  if (params) {
+    event->Set(kParamsField, params.release());
+  }
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(event));
 }
 
 void DebugWebServer::OnDebuggerDetach(const std::string& reason) const {
-  DLOG(INFO) << "Got detach notification: " << reason;
+  DLOG(INFO) << "Got detach event: " << reason;
 }
 
 int DebugWebServer::GetLocalAddress(std::string* out) const {
