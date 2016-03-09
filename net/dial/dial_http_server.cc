@@ -58,7 +58,6 @@ DialHttpServer::DialHttpServer(DialService* dial_service)
 
   http_server_ = new HttpServer(factory_, this);
   ConfigureApplicationUrl();
-  DCHECK(!server_url_.empty());
 }
 
 DialHttpServer::~DialHttpServer() {
