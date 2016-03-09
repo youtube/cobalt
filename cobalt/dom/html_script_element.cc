@@ -363,6 +363,12 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
         HTMLScriptElement* script = scripts_to_be_executed->front();
         script->ExecuteExternal();
 
+        // Fetching an external script must delay the load event of the
+        //  element's document until the task that is queued by the networking
+        // task source once the resource has been fetched (defined above)
+        // has been run.
+        document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
+
         // 3. Remove the first element from this list of scripts that will
         // execute in order as soon as possible.
         scripts_to_be_executed->pop_front();
@@ -376,11 +382,6 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
           break;
         }
       }
-
-      // Fetching an external script must delay the load event of the element's
-      // document until the task that is queued by the networking task source
-      // once the resource has been fetched (defined above) has been run.
-      document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
     } break;
     case 5: {
       // If the element has a src attribute.
