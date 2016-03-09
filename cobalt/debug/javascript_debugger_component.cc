@@ -47,9 +47,11 @@ JavaScriptDebuggerComponent::JavaScriptDebuggerComponent(
 JSONObject JavaScriptDebuggerComponent::Enable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
 
+  // Reset the debugger first, to detach the current connection, if any.
+  javascript_debugger_.reset(NULL);
+
   script::JavaScriptDebuggerInterface::OnEventCallback on_event_callback =
-      base::Bind(&JavaScriptDebuggerComponent::OnNotification,
-                 base::Unretained(this));
+      base::Bind(&JavaScriptDebuggerComponent::OnEvent, base::Unretained(this));
   script::JavaScriptDebuggerInterface::OnDetachCallback on_detach_callback;
   javascript_debugger_ = script::JavaScriptDebuggerInterface::CreateDebugger(
       global_object_proxy_, on_event_callback, on_detach_callback);
@@ -77,9 +79,9 @@ JSONObject JavaScriptDebuggerComponent::GetScriptSource(
   }
 }
 
-void JavaScriptDebuggerComponent::OnNotification(const std::string& method,
-                                                 const JSONObject& params) {
-  SendNotification(method, params);
+void JavaScriptDebuggerComponent::OnEvent(const std::string& method,
+                                          const JSONObject& params) {
+  SendEvent(method, params);
 }
 }  // namespace debug
 }  // namespace cobalt

@@ -28,7 +28,9 @@
 #include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/debug/debug_script_runner.h"
 #include "cobalt/debug/json_object.h"
+#include "cobalt/script/global_object_proxy.h"
 
 namespace cobalt {
 namespace debug {
@@ -40,12 +42,12 @@ namespace debug {
 // When a client (either local or remote) wants to connect to the debugger, it
 // should create an instance of this class.
 //
-// All client debugging commands and event notifications are routed through an
-// object of this class. The protocol is defined here:
+// All client debugging commands and events are routed through an object of
+// this class. The protocol is defined here:
 // https://developer.chrome.com/devtools/docs/protocol/1.1/index
 // Debugging commands are sent via the |SendCommand| method, which runs
 // a command asynchronously and returns its result via a callback.
-// DebugServer will also send notifications when debugging events occur, using
+// DebugServer will also send events separately from command results, using
 // the callbacks specified in the constructor.
 //
 // This class knows nothing about the external modules it may be connecting to.
@@ -61,7 +63,7 @@ namespace debug {
 // JSON strings that are parsed to base::DictionaryValue objects before
 // passing to the debug targets. Event parameters are received from the debug
 // targets as base::DictionaryValue objects and serialized to JSON strings
-// that are passed to the appropriate event handlers. The event notification
+// that are passed to the appropriate event handlers. The event
 // callbacks (onEvent/onDetach) will be run synchronously on the message loop
 // of the debug target that sent them - it is the responsibility of the client
 // to re-post to its own message loop if necessary.
@@ -83,7 +85,7 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // A command execution function stored in the command registry.
   typedef base::Callback<JSONObject(const JSONObject& params)> Command;
 
-  // Objects of this class are used to provide notifications and commands.
+  // Objects of this class are used to provide events and commands.
   class Component {
    public:
     explicit Component(const base::WeakPtr<DebugServer>& server);
@@ -99,8 +101,16 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
     // referenced by this object.
     void RemoveCommand(const std::string& method);
 
-    // Sends a notification to the |DebugServer| referenced by this object.
-    void SendNotification(const std::string& method, const JSONObject& params);
+    // Runs a JavaScript command with JSON parameters and returns a JSON result.
+    JSONObject RunScriptCommand(const std::string& command,
+                                const JSONObject& params);
+
+    // Loads JavaScript from file and runs the contents. Used to populate the
+    // JavaScript object created by |script_runner_| with commands.
+    bool RunScriptFile(const std::string& filename);
+
+    // Sends an event to the |DebugServer| referenced by this object.
+    void SendEvent(const std::string& method, const JSONObject& params);
 
     bool CalledOnValidThread() const {
       return thread_checker_.CalledOnValidThread();
@@ -147,16 +157,17 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // loop of the WebModule this debug server is attached to, so that
   // operations are executed synchronously with the other methods of that
   // WebModule.
-  DebugServer(const OnEventCallback& on_event_callback,
+  DebugServer(script::GlobalObjectProxy* global_object_proxy,
+              const OnEventCallback& on_event_callback,
               const OnDetachCallback& on_detach_callback);
 
   // Destructor should only be called by |scoped_ptr<DebugServer>|.
   ~DebugServer();
 
-  // Callback to receive notifications from the debug components.
+  // Callback to receive events from the debug components.
   // Serializes the method and params object to a JSON string and passes to the
   // external |on_event_callback_| specified in the constructor.
-  void OnNotification(const std::string& method, const JSONObject& params);
+  void OnEvent(const std::string& method, const JSONObject& params);
 
   // Dispatches a command received via |SendCommand| by looking up the method
   // name in the command registry and running the corresponding function.
@@ -173,7 +184,19 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // objects referenced by |components_|.
   void RemoveCommand(const std::string& method);
 
-  // Notification callbacks to send messages to the client.
+  // Calls |command| in |script_runner_| and creates a response object from
+  // the result.
+  JSONObject RunScriptCommand(const std::string& command,
+                              const JSONObject& params);
+
+  // Loads JavaScript from file and executes the contents.
+  bool RunScriptFile(const std::string& filename);
+
+  // Used to run JavaScript commands with persistent state and receive events
+  // from JS.
+  scoped_refptr<DebugScriptRunner> script_runner_;
+
+  // Event callbacks to send messages to the client.
   OnEventCallback on_event_callback_;
   OnDetachCallback on_detach_callback_;
 

@@ -20,10 +20,8 @@
 
 #include "base/memory/weak_ptr.h"
 #include "cobalt/debug/debug_server.h"
-#include "cobalt/debug/dom_inspector.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/debug/render_overlay.h"
-#include "cobalt/dom/document.h"
 
 namespace cobalt {
 namespace debug {
@@ -31,20 +29,28 @@ namespace debug {
 class DOMComponent : public DebugServer::Component {
  public:
   DOMComponent(const base::WeakPtr<DebugServer>& server,
-               dom::Document* document, RenderOverlay* debug_overlay);
+               RenderOverlay* debug_overlay);
 
  private:
   JSONObject Enable(const JSONObject& params);
   JSONObject Disable(const JSONObject& params);
 
   // Gets a JSON representation of the document object, including its children
-  // to a few levels deep (subsequent levels will be returned via notification
+  // to a few levels deep (subsequent levels will be returned via an event
   // when the client calls |RequestChildNodes|).
   JSONObject GetDocument(const JSONObject& params);
 
   // Requests that the children of a specified node should be returned via
-  // notification.
+  // an event.
   JSONObject RequestChildNodes(const JSONObject& params);
+
+  // Gets the nodeId corresponding to a remote objectId. Also sends all nodes
+  // on the path between the requested node object and the root (document) as
+  // a series of DOM.setChildNodes events.
+  JSONObject RequestNode(const JSONObject& params);
+
+  // Creates a Runtime.RemoteObject corresponding to a node.
+  JSONObject ResolveNode(const JSONObject& params);
 
   // Highlights a specified node according to highlight parameters.
   JSONObject HighlightNode(const JSONObject& params);
@@ -52,15 +58,12 @@ class DOMComponent : public DebugServer::Component {
   // Hides the node highlighting.
   JSONObject HideHighlight(const JSONObject& params);
 
-  // Called by |dom_inspector_| to provide notifications to this component.
-  void OnNotification(const std::string& method, const JSONObject& params);
+  // Renders a highlight to the overlay.
+  void RenderHighlight(const scoped_refptr<dom::DOMRect>& bounding_rect,
+                       const base::DictionaryValue* highlight_config_value);
 
   // No ownership.
-  dom::Document* document_;
   RenderOverlay* debug_overlay_;
-
-  // Handles debugging interaction with the DOM.
-  scoped_ptr<DOMInspector> dom_inspector_;
 };
 
 }  // namespace debug
