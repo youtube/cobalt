@@ -33,9 +33,8 @@ class JavaScriptDebuggerComponent : public DebugServer::Component {
                               script::GlobalObjectProxy* global_object_proxy);
 
  private:
-  // Called by |javascript_debugger_| to provide notifications to this
-  // component.
-  void OnNotification(const std::string& method, const JSONObject& params);
+  // Called by |javascript_debugger_| to send events to this component.
+  void OnEvent(const std::string& method, const JSONObject& params);
 
   JSONObject Enable(const JSONObject& params);
   JSONObject Disable(const JSONObject& params);

@@ -22,6 +22,9 @@ namespace cobalt {
 namespace debug {
 
 namespace {
+// File to load JavaScript runtime implementation from.
+const char kScriptFile[] = "runtime.js";
+
 // Definitions from the set specified here:
 // https://developer.chrome.com/devtools/docs/protocol/1.1/runtime
 
@@ -41,8 +44,6 @@ const char kExecutionContextCreated[] = "Runtime.executionContextCreated";
 const char kContextFrameId[] = "context.frameId";
 const char kContextId[] = "context.id";
 const char kContextName[] = "context.name";
-const char kErrorMessage[] = "error.message";
-const char kResult[] = "result";
 
 // Constant parameter values:
 const char kContextFrameIdValue[] = "Cobalt";
@@ -50,11 +51,12 @@ const int kContextIdValue = 1;
 const char kContextNameValue[] = "Cobalt";
 }  // namespace
 
-RuntimeComponent::RuntimeComponent(
-    const base::WeakPtr<DebugServer>& server,
-    script::GlobalObjectProxy* global_object_proxy)
-    : DebugServer::Component(server),
-      runtime_inspector_(new RuntimeInspector(global_object_proxy)) {
+RuntimeComponent::RuntimeComponent(const base::WeakPtr<DebugServer>& server)
+    : DebugServer::Component(server) {
+  if (!RunScriptFile(kScriptFile)) {
+    DLOG(WARNING) << "Cannot execute Runtime initialization script.";
+  }
+
   AddCommand(kCallFunctionOn, base::Bind(&RuntimeComponent::CallFunctionOn,
                                          base::Unretained(this)));
   AddCommand(kDisable,
@@ -73,7 +75,7 @@ RuntimeComponent::RuntimeComponent(
 }
 
 JSONObject RuntimeComponent::CallFunctionOn(const JSONObject& params) {
-  return RunCommand("callFunctionOn", params);
+  return RunScriptCommand("runtime.callFunctionOn", params);
 }
 
 JSONObject RuntimeComponent::Disable(const JSONObject& params) {
@@ -88,46 +90,27 @@ JSONObject RuntimeComponent::Enable(const JSONObject& params) {
 }
 
 JSONObject RuntimeComponent::Evaluate(const JSONObject& params) {
-  return RunCommand("evaluate", params);
+  return RunScriptCommand("runtime.evaluate", params);
 }
 
 JSONObject RuntimeComponent::GetProperties(const JSONObject& params) {
-  return RunCommand("getProperties", params);
+  return RunScriptCommand("runtime.getProperties", params);
 }
 
 JSONObject RuntimeComponent::ReleaseObjectGroup(const JSONObject& params) {
-  return RunCommand("releaseObjectGroup", params);
+  return RunScriptCommand("runtime.releaseObjectGroup", params);
 }
 
 JSONObject RuntimeComponent::ReleaseObject(const JSONObject& params) {
-  return RunCommand("releaseObject", params);
+  return RunScriptCommand("runtime.releaseObject", params);
 }
 
 void RuntimeComponent::OnExecutionContextCreated() {
-  JSONObject notification(new base::DictionaryValue());
-  notification->SetString(kContextFrameId, kContextFrameIdValue);
-  notification->SetInteger(kContextId, kContextIdValue);
-  notification->SetString(kContextName, kContextNameValue);
-  SendNotification(kExecutionContextCreated, notification);
-}
-
-JSONObject RuntimeComponent::RunCommand(const std::string& command,
-                                        const JSONObject& params) {
-  std::string json_params = JSONStringify(params);
-  std::string json_result;
-  bool success =
-      runtime_inspector_->RunCommand(command, json_params, &json_result);
-
-  JSONObject response(new base::DictionaryValue());
-  if (success) {
-    JSONObject result = JSONParse(json_result);
-    if (result) {
-      response->Set(kResult, result.release());
-    }
-  } else {
-    response->SetString(kErrorMessage, json_result);
-  }
-  return response.Pass();
+  JSONObject event(new base::DictionaryValue());
+  event->SetString(kContextFrameId, kContextFrameIdValue);
+  event->SetInteger(kContextId, kContextIdValue);
+  event->SetString(kContextName, kContextNameValue);
+  SendEvent(kExecutionContextCreated, event);
 }
 
 }  // namespace debug

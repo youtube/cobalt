@@ -93,8 +93,8 @@ class Debugger : public script::Wrappable {
       const scoped_refptr<CommandCallbackInfo>& callback_info,
       const base::optional<std::string>& response) const;
 
-  // Notification handlers called by the debug server from any thread.
-  // Pass the notifications on to the JavaScript event targets.
+  // Event handlers called by the debug server from any thread.
+  // Pass the events on to the JavaScript event targets.
   void OnEvent(const std::string& method,
                const base::optional<std::string>& json_params) const;
   void OnDetach(const std::string& reason) const;
@@ -113,7 +113,7 @@ class Debugger : public script::Wrappable {
   // The debug server that implements the functionality.
   scoped_ptr<debug::DebugServer> debug_server_;
 
-  // Handler for debugger event notifications.
+  // Handler for debugger events.
   scoped_refptr<DebuggerEventTarget> on_event_;
 };
 

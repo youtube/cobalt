@@ -38,7 +38,7 @@ const char kMessageSource[] = "message.source";
 // Constant parameter values:
 const char kMessageSourceValue[] = "console-api";
 
-// Notifications:
+// Events:
 const char kMessageAdded[] = "Console.messageAdded";
 }  // namespace
 
@@ -77,7 +77,7 @@ void ConsoleComponent::OnMessageAdded(const std::string& text,
   params->SetString(kMessageText, text);
   params->SetString(kMessageLevel, dom::Console::GetLevelAsString(level));
   params->SetString(kMessageSource, kMessageSourceValue);
-  SendNotification(kMessageAdded, params);
+  SendEvent(kMessageAdded, params);
 }
 
 }  // namespace debug
