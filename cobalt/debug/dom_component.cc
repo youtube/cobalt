@@ -19,26 +19,44 @@
 #include <string>
 
 #include "base/bind.h"
+#include "cobalt/dom/dom_rect.h"
+#include "cobalt/math/matrix3_f.h"
+#include "cobalt/math/transform_2d.h"
+#include "cobalt/render_tree/brush.h"
+#include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/composition_node.h"
+#include "cobalt/render_tree/rect_node.h"
 
 namespace cobalt {
 namespace debug {
 
 namespace {
+// File to load JavaScript DOM debugging domain implementation from.
+const char kScriptFile[] = "dom.js";
+
 // Command "methods" (names) from the set specified here:
 // https://developer.chrome.com/devtools/docs/protocol/1.1/dom
 const char kDisable[] = "DOM.disable";
 const char kEnable[] = "DOM.enable";
 const char kGetDocument[] = "DOM.getDocument";
 const char kRequestChildNodes[] = "DOM.requestChildNodes";
+const char kRequestNode[] = "DOM.requestNode";
+const char kResolveNode[] = "DOM.resolveNode";
 const char kHideHighlight[] = "DOM.hideHighlight";
 const char kHighlightNode[] = "DOM.highlightNode";
+
+// Parameter names:
+const char kA[] = "a";
+const char kB[] = "b";
+const char kContentColor[] = "contentColor";
+const char kG[] = "g";
+const char kHighlightConfig[] = "highlightConfig";
+const char kR[] = "r";
 }  // namespace
 
 DOMComponent::DOMComponent(const base::WeakPtr<DebugServer>& server,
-                           dom::Document* document,
                            RenderOverlay* debug_overlay)
     : DebugServer::Component(server),
-      document_(document),
       debug_overlay_(debug_overlay) {
   AddCommand(kDisable,
              base::Bind(&DOMComponent::Disable, base::Unretained(this)));
@@ -48,6 +66,10 @@ DOMComponent::DOMComponent(const base::WeakPtr<DebugServer>& server,
              base::Bind(&DOMComponent::GetDocument, base::Unretained(this)));
   AddCommand(kRequestChildNodes, base::Bind(&DOMComponent::RequestChildNodes,
                                             base::Unretained(this)));
+  AddCommand(kRequestNode,
+             base::Bind(&DOMComponent::RequestNode, base::Unretained(this)));
+  AddCommand(kResolveNode,
+             base::Bind(&DOMComponent::ResolveNode, base::Unretained(this)));
   AddCommand(kHighlightNode,
              base::Bind(&DOMComponent::HighlightNode, base::Unretained(this)));
   AddCommand(kHideHighlight,
@@ -56,13 +78,8 @@ DOMComponent::DOMComponent(const base::WeakPtr<DebugServer>& server,
 
 JSONObject DOMComponent::Enable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  dom_inspector_.reset(new DOMInspector(
-      document_,
-      base::Bind(&DOMComponent::OnNotification, base::Unretained(this)),
-      debug_overlay_));
-  DCHECK(dom_inspector_);
-
-  if (dom_inspector_) {
+  bool initialized = RunScriptFile(kScriptFile);
+  if (initialized) {
     return JSONObject(new base::DictionaryValue());
   } else {
     return ErrorResponse("Cannot create DOM inspector.");
@@ -71,45 +88,97 @@ JSONObject DOMComponent::Enable(const JSONObject& params) {
 
 JSONObject DOMComponent::Disable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  dom_inspector_.reset(NULL);
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject DOMComponent::GetDocument(const JSONObject& params) {
-  if (dom_inspector_) {
-    return dom_inspector_->GetDocument(params);
-  } else {
-    return ErrorResponse("DOM inspector not enabled.");
-  }
+  return RunScriptCommand("dom.getDocument", params);
 }
 
 JSONObject DOMComponent::RequestChildNodes(const JSONObject& params) {
-  if (dom_inspector_) {
-    return dom_inspector_->RequestChildNodes(params);
-  } else {
-    return ErrorResponse("DOM inspector not enabled.");
-  }
+  return RunScriptCommand("dom.requestChildNodes", params);
 }
 
+JSONObject DOMComponent::RequestNode(const JSONObject& params) {
+  return RunScriptCommand("dom.requestNode", params);
+}
+
+JSONObject DOMComponent::ResolveNode(const JSONObject& params) {
+  return RunScriptCommand("dom.resolveNode", params);
+}
+
+// Unlike most other DOM command handlers, this one is not fully implemented
+// in JavaScript. Instead, the JS object is used to look up the node from the
+// parameters and return its bounding client rect, then the highlight itself
+// is rendered by calling the C++ function |RenderHighlight| to set the render
+// overlay.
 JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
-  if (dom_inspector_) {
-    return dom_inspector_->HighlightNode(params);
-  } else {
-    return ErrorResponse("DOM inspector not enabled.");
-  }
+  // Get the bounding rectangle of the specified node.
+  JSONObject json_dom_rect =
+      RunScriptCommand("dom.getBoundingClientRect", params);
+  double x = 0.0;
+  double y = 0.0;
+  double width = 0.0;
+  double height = 0.0;
+  json_dom_rect->GetDouble("result.x", &x);
+  json_dom_rect->GetDouble("result.y", &y);
+  json_dom_rect->GetDouble("result.width", &width);
+  json_dom_rect->GetDouble("result.height", &height);
+
+  scoped_refptr<dom::DOMRect> dom_rect(
+      new dom::DOMRect(static_cast<float>(x), static_cast<float>(y),
+                       static_cast<float>(width), static_cast<float>(height)));
+
+  // |highlight_config_value| still owned by |params|.
+  base::DictionaryValue* highlight_config_value = NULL;
+  bool got_highlight_config =
+      params->GetDictionary(kHighlightConfig, &highlight_config_value);
+  DCHECK(got_highlight_config);
+  DCHECK(highlight_config_value);
+
+  RenderHighlight(dom_rect, highlight_config_value);
+
+  // Empty response.
+  return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject DOMComponent::HideHighlight(const JSONObject& params) {
-  if (dom_inspector_) {
-    return dom_inspector_->HideHighlight(params);
-  } else {
-    return ErrorResponse("DOM inspector not enabled.");
-  }
+  UNREFERENCED_PARAMETER(params);
+  debug_overlay_->SetOverlay(scoped_refptr<render_tree::Node>());
+
+  // Empty response.
+  return JSONObject(new base::DictionaryValue());
 }
 
-void DOMComponent::OnNotification(const std::string& method,
-                                  const JSONObject& params) {
-  SendNotification(method, params);
+void DOMComponent::RenderHighlight(
+    const scoped_refptr<dom::DOMRect>& bounding_rect,
+    const base::DictionaryValue* highlight_config_value) {
+  // TODO(***REMOVED***): Should also render borders, etc.
+
+  // Content color is optional in the parameters, so use a fallback.
+  int r = 112;
+  int g = 168;
+  int b = 219;
+  double a = 0.66;
+  const base::DictionaryValue* content_color = NULL;
+  bool got_content_color =
+      highlight_config_value->GetDictionary(kContentColor, &content_color);
+  if (got_content_color && content_color) {
+    content_color->GetInteger(kR, &r);
+    content_color->GetInteger(kG, &g);
+    content_color->GetInteger(kB, &b);
+    content_color->GetDouble(kA, &a);
+  }
+  render_tree::ColorRGBA color(r / 255.0f, g / 255.0f, b / 255.0f,
+                               static_cast<float>(a));
+
+  scoped_ptr<render_tree::Brush> background_brush(
+      new render_tree::SolidColorBrush(color));
+  scoped_refptr<render_tree::Node> rect = new render_tree::RectNode(
+      math::RectF(bounding_rect->x(), bounding_rect->y(),
+                  bounding_rect->width(), bounding_rect->height()),
+      background_brush.Pass());
+  debug_overlay_->SetOverlay(rect);
 }
 
 }  // namespace debug

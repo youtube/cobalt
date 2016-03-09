@@ -28,7 +28,8 @@ namespace debug {
 
 namespace {
 // Error response message field.
-const char kError[] = "error.message";
+const char kErrorMessage[] = "error.message";
+const char kResult[] = "result";
 }  // namespace
 
 DebugServer::Component::Component(const base::WeakPtr<DebugServer>& server)
@@ -59,10 +60,27 @@ void DebugServer::Component::RemoveCommand(const std::string& method) {
   }
 }
 
-void DebugServer::Component::SendNotification(const std::string& method,
-                                              const JSONObject& params) {
+JSONObject DebugServer::Component::RunScriptCommand(const std::string& command,
+                                                    const JSONObject& params) {
   if (server_) {
-    server_->OnNotification(method, params);
+    return server_->RunScriptCommand(command, params);
+  } else {
+    return ErrorResponse("Not attached to debug server");
+  }
+}
+
+bool DebugServer::Component::RunScriptFile(const std::string& filename) {
+  if (server_) {
+    return server_->RunScriptFile(filename);
+  } else {
+    return ErrorResponse("Not attached to debug server");
+  }
+}
+
+void DebugServer::Component::SendEvent(const std::string& method,
+                                       const JSONObject& params) {
+  if (server_) {
+    server_->OnEvent(method, params);
   }
 }
 
@@ -70,13 +88,16 @@ void DebugServer::Component::SendNotification(const std::string& method,
 JSONObject DebugServer::Component::ErrorResponse(
     const std::string& error_message) {
   JSONObject error_response(new base::DictionaryValue());
-  error_response->SetString(kError, error_message);
+  error_response->SetString(kErrorMessage, error_message);
   return error_response.Pass();
 }
 
-DebugServer::DebugServer(const OnEventCallback& on_event_callback,
+DebugServer::DebugServer(script::GlobalObjectProxy* global_object_proxy,
+                         const OnEventCallback& on_event_callback,
                          const OnDetachCallback& on_detach_callback)
-    : on_event_callback_(on_event_callback),
+    : script_runner_(
+          new DebugScriptRunner(global_object_proxy, on_event_callback)),
+      on_event_callback_(on_event_callback),
       on_detach_callback_(on_detach_callback),
       message_loop_proxy_(base::MessageLoopProxy::current()),
       components_deleter_(&components_) {}
@@ -134,8 +155,7 @@ void DebugServer::DispatchCommand(std::string method, std::string json_params,
       FROM_HERE, base::Bind(callback_info.callback, json_response));
 }
 
-void DebugServer::OnNotification(const std::string& method,
-                                 const JSONObject& params) {
+void DebugServer::OnEvent(const std::string& method, const JSONObject& params) {
   // Serialize the event parameters and pass to the external callback.
   const std::string json_params = JSONStringify(params);
   on_event_callback_.Run(method, json_params);
@@ -150,6 +170,28 @@ void DebugServer::AddCommand(const std::string& method,
 void DebugServer::RemoveCommand(const std::string& method) {
   DCHECK_EQ(command_registry_.count(method), 1);
   command_registry_.erase(method);
+}
+
+JSONObject DebugServer::RunScriptCommand(const std::string& command,
+                                         const JSONObject& params) {
+  std::string json_params = params ? JSONStringify(params) : "";
+  std::string json_result;
+  bool success = script_runner_->RunCommand(command, json_params, &json_result);
+
+  JSONObject response(new base::DictionaryValue());
+  if (success) {
+    JSONObject result = JSONParse(json_result);
+    if (result) {
+      response->Set(kResult, result.release());
+    }
+  } else {
+    response->SetString(kErrorMessage, json_result);
+  }
+  return response.Pass();
+}
+
+bool DebugServer::RunScriptFile(const std::string& filename) {
+  return script_runner_->RunScriptFile(filename);
 }
 
 }  // namespace debug
