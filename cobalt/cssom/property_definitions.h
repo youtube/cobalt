@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "base/containers/small_map.h"
+#include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_value.h"
 #include "googleurl/src/gurl.h"
@@ -168,6 +169,8 @@ Animatable GetPropertyAnimatable(PropertyKey key);
 typedef std::vector<PropertyKey> AnimatablePropertyList;
 const AnimatablePropertyList& GetAnimatableProperties();
 
+PropertyKey GetLexicographicalLonghandPropertyKey(const size_t index);
+
 PropertyKey GetPropertyKey(const std::string& property_name);
 
 bool IsShorthandProperty(PropertyKey key);
@@ -180,5 +183,66 @@ const LonghandPropertySet& ExpandShorthandProperty(PropertyKey key);
 
 }  // namespace cssom
 }  // namespace cobalt
+
+// Make PropertyKey usable as key in base::hash_map.
+
+namespace BASE_HASH_NAMESPACE {
+
+//
+// GCC-flavored hash functor.
+//
+#if defined(BASE_HASH_USE_HASH_STRUCT)
+
+// Forward declaration in case <hash_fun.h> is not #include'd.
+template <typename Key>
+struct hash;
+
+template <>
+struct hash<cobalt::cssom::PropertyKey> {
+  size_t operator()(const cobalt::cssom::PropertyKey& key) const {
+    return base_hash(key);
+  }
+
+  hash<intptr_t> base_hash;
+};
+
+//
+// Dinkumware-flavored hash functor.
+//
+#else
+
+// Forward declaration in case <xhash> is not #include'd.
+template <typename Key, typename Predicate>
+class hash_compare;
+
+template <typename Predicate>
+class hash_compare<cobalt::cssom::PropertyKey, Predicate> {
+ public:
+  typedef hash_compare<intptr_t> BaseHashCompare;
+
+  enum {
+    bucket_size = BaseHashCompare::bucket_size,
+#if !defined(COMPILER_MSVC)
+    min_buckets = BaseHashCompare::min_buckets,
+#endif
+  };
+
+  hash_compare() {}
+
+  size_t operator()(const cobalt::cssom::PropertyKey& key) const {
+    return base_hash_compare_(key);
+  }
+
+  bool operator()(const cobalt::cssom::PropertyKey& lhs,
+                  const cobalt::cssom::PropertyKey& rhs) const {
+    return base_hash_compare_(lhs, rhs);
+  }
+
+ private:
+  BaseHashCompare base_hash_compare_;
+};
+
+#endif
+}  // namespace BASE_HASH_NAMESPACE
 
 #endif  // COBALT_CSSOM_PROPERTY_DEFINITIONS_H_

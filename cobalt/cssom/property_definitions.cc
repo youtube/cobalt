@@ -16,6 +16,10 @@
 
 #include "cobalt/cssom/property_definitions.h"
 
+#include <algorithm>
+#include <vector>
+
+#include "base/bind.h"
 #include "base/lazy_instance.h"
 #include "base/string_util.h"
 #include "cobalt/cssom/calc_value.h"
@@ -54,6 +58,7 @@ struct PropertyDefinition {
 struct NonTrivialGlobalVariables {
   NonTrivialGlobalVariables();
 
+  std::vector<PropertyKey> lexicographical_longhand_keys;
   PropertyDefinition properties[kMaxEveryPropertyKey + 1];
   AnimatablePropertyList animatable_properties;
 
@@ -84,6 +89,22 @@ struct NonTrivialGlobalVariables {
   // Computes a set of animatable property to allow fast iteration through
   // only animatable properties.
   void CompileSetOfAnimatableProperties();
+
+  // Computes a lexicographically sorted list of longhand properties for
+  // serialization of computed styles.
+  void CompileSortedLonghandProperties();
+
+  // Helper functor for sorting property definitions by name.
+  struct NameLess {
+    explicit NameLess(const NonTrivialGlobalVariables& variables)
+        : non_trivial_global_variables(variables) {}
+    bool operator()(const PropertyKey& a, const PropertyKey& b) {
+      return strcmp(non_trivial_global_variables.properties[a].name,
+                    non_trivial_global_variables.properties[b].name) < 0;
+    }
+
+    const NonTrivialGlobalVariables& non_trivial_global_variables;
+  };
 };
 
 scoped_refptr<TimeListValue> CreateTimeListWithZeroSeconds() {
@@ -611,6 +632,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                                  transition_longhand_properties);
 
   CompileSetOfAnimatableProperties();
+  CompileSortedLonghandProperties();
 }  // NOLINT(readability/fn_size)
 
 void NonTrivialGlobalVariables::CompileSetOfAnimatableProperties() {
@@ -619,6 +641,20 @@ void NonTrivialGlobalVariables::CompileSetOfAnimatableProperties() {
       animatable_properties.push_back(static_cast<PropertyKey>(i));
     }
   }
+}
+
+void NonTrivialGlobalVariables::CompileSortedLonghandProperties() {
+  // When serializing the CSS Declaration block returned by getComputedStyle,
+  // all supported longhand CSS Properties must be listed in lexicographical
+  // order. This prepares the lexicographical_longhand_keys array to contain
+  // PropertyKeys in lexicographical order. See
+  // https://www.w3.org/TR/2013/WD-cssom-20131205/#dom-window-getcomputedstyle.
+  lexicographical_longhand_keys.resize(kMaxLonghandPropertyKey + 1);
+  for (size_t i = 0; i < lexicographical_longhand_keys.size(); ++i) {
+    lexicographical_longhand_keys[i] = static_cast<PropertyKey>(i);
+  }
+  std::sort(lexicographical_longhand_keys.begin(),
+            lexicographical_longhand_keys.end(), NameLess(*this));
 }
 
 base::LazyInstance<NonTrivialGlobalVariables> non_trivial_global_variables =
@@ -666,6 +702,14 @@ const LonghandPropertySet& ExpandShorthandProperty(PropertyKey key) {
 
 const AnimatablePropertyList& GetAnimatableProperties() {
   return non_trivial_global_variables.Get().animatable_properties;
+}
+
+PropertyKey GetLexicographicalLonghandPropertyKey(const size_t index) {
+  DCHECK_LE(
+      index,
+      non_trivial_global_variables.Get().lexicographical_longhand_keys.size());
+  return non_trivial_global_variables.Get()
+      .lexicographical_longhand_keys[index];
 }
 
 PropertyKey GetPropertyKey(const std::string& property_name) {
