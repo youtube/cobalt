@@ -41,8 +41,8 @@ class StyleSheet : public script::Wrappable,
 
   virtual void AttachToStyleSheetList(StyleSheetList* style_sheet_list) = 0;
   virtual void SetLocationUrl(const GURL& url) = 0;
-  virtual GURL& LocationUrl() = 0;
-  virtual StyleSheetList* ParentStyleSheetList() = 0;
+  virtual const GURL& LocationUrl() const = 0;
+  virtual StyleSheetList* ParentStyleSheetList() const = 0;
   virtual scoped_refptr<CSSStyleSheet> AsCSSStyleSheet() = 0;
 
   DEFINE_WRAPPABLE_TYPE(StyleSheet);
