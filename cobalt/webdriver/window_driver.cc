@@ -316,6 +316,14 @@ util::CommandResult<std::vector<protocol::Cookie> > WindowDriver::GetCookie(
   return command_result;
 }
 
+util::CommandResult<void> WindowDriver::AddCookie(
+    const protocol::Cookie& cookie) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::CallOnMessageLoop(window_message_loop_,
+                                 base::Bind(&WindowDriver::AddCookieInternal,
+                                            base::Unretained(this), cookie));
+}
+
 protocol::ElementId WindowDriver::ElementToId(
     const scoped_refptr<dom::Element>& element) {
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
@@ -425,6 +433,29 @@ util::CommandResult<void> WindowDriver::NavigateInternal(const GURL& url) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
   window_->location()->Replace(url.spec());
+  return CommandResult(protocol::Response::kSuccess);
+}
+
+util::CommandResult<void> WindowDriver::AddCookieInternal(
+    const protocol::Cookie& cookie) {
+  typedef util::CommandResult<void> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  if (!window_) {
+    return CommandResult(protocol::Response::kNoSuchWindow);
+  }
+  // If the domain was set, ensure that it is valid with respect to the
+  // the document's domain.
+  std::string document_domain = window_->document()->location()->host();
+
+  if (cookie.domain()) {
+    // This is the same way the domain is checked in FirefoxDriver.
+    if (document_domain.find(cookie.domain().value()) == std::string::npos) {
+      return CommandResult(protocol::Response::kInvalidCookieDomain);
+    }
+  }
+
+  std::string cookie_string = cookie.ToCookieString(document_domain);
+  window_->document()->set_cookie(cookie_string);
   return CommandResult(protocol::Response::kSuccess);
 }
 
