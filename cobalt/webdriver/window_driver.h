@@ -83,6 +83,7 @@ class WindowDriver : private ElementMapping {
   util::CommandResult<std::vector<protocol::Cookie> > GetAllCookies();
   util::CommandResult<std::vector<protocol::Cookie> > GetCookie(
       const std::string& name);
+  util::CommandResult<void> AddCookie(const protocol::Cookie& cookie);
 
  private:
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
@@ -118,6 +119,8 @@ class WindowDriver : private ElementMapping {
       scoped_ptr<KeyboardEventVector> keyboard_events);
 
   util::CommandResult<void> NavigateInternal(const GURL& url);
+
+  util::CommandResult<void> AddCookieInternal(const protocol::Cookie& cookie);
 
   util::CommandResult<protocol::ElementId> GetActiveElementInternal();
 

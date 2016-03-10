@@ -326,6 +326,11 @@ WebDriverModule::WebDriverModule(
       WebDriverServer::kGet,
       StringPrintf("/session/%s/cookie/%s", kSessionIdVariable, kCookieName),
       base::Bind(&WebDriverModule::GetCookieByName, base::Unretained(this)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/cookie", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::AddCookie)));
 
   // Element commands.
   webdriver_dispatcher_->RegisterCommand(
