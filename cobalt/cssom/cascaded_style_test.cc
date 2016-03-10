@@ -23,6 +23,7 @@
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_rule_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -33,6 +34,11 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
   RulesWithCascadePriority rules_with_cascade_priority;
   cssom::GURLMap property_key_to_base_url_map;
+
+  style->SetPropertyValueAndImportance(kVerticalAlignProperty,
+                                       KeywordValue::GetBottom(), true);
+  style->SetPropertyValueAndImportance(kTextAlignProperty,
+                                       KeywordValue::GetLeft(), false);
 
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser->ParseRule(
@@ -55,6 +61,8 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
                     "  right: 200px !important;"
                     "  width: 200px;"
                     "  height: 200px;"
+                    "  vertical-align: top !important;"
+                    "  text-align: center !important;"
                     "}",
                     base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
@@ -92,6 +100,11 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
   EXPECT_EQ(computed_style->height(),
             css_style_rule_2->declared_style_data()->GetPropertyValue(
                 cssom::kHeightProperty));
+  EXPECT_EQ(computed_style->vertical_align(),
+            style->GetPropertyValue(cssom::kVerticalAlignProperty));
+  EXPECT_EQ(computed_style->text_align(),
+            css_style_rule_2->declared_style_data()->GetPropertyValue(
+                cssom::kTextAlignProperty));
 }
 
 }  // namespace cssom
