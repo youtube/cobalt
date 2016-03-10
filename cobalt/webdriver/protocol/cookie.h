@@ -22,6 +22,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
+#include "base/time.h"
 #include "base/values.h"
 
 namespace cobalt {
@@ -32,6 +33,7 @@ namespace protocol {
 class Cookie {
  public:
   static scoped_ptr<base::Value> ToValue(const Cookie& cookie);
+  static base::optional<Cookie> FromValue(const base::Value* value);
 
   // Populates a vector of Cookie objects given a semi-colon separated string
   // of cookies such as returned by Document.cookie.
@@ -40,6 +42,15 @@ class Cookie {
 
   const std::string& name() const { return name_; }
   const std::string& value() const { return value_; }
+  const base::optional<std::string>& domain() const { return domain_; }
+  const base::optional<std::string>& path() const { return path_; }
+  const base::optional<bool>& secure() const { return secure_; }
+  const base::optional<bool>& http_only() const { return http_only_; }
+  const base::optional<base::Time>& expiry_time() const { return expiry_time_; }
+
+  // Constructs and returns a cookie string that could be passed to
+  // Document.cookie, e.g. "foo=var; Path=/; Secure"
+  std::string ToCookieString(const std::string& current_domain) const;
 
  private:
   static base::optional<Cookie> FromString(const std::string& cookie_as_string);
@@ -47,6 +58,11 @@ class Cookie {
       : name_(name), value_(value) {}
   std::string name_;
   std::string value_;
+  base::optional<std::string> path_;
+  base::optional<std::string> domain_;
+  base::optional<bool> secure_;
+  base::optional<bool> http_only_;
+  base::optional<base::Time> expiry_time_;
 };
 
 }  // namespace protocol
