@@ -65,6 +65,10 @@ class Response {
     // The specified window has been closed, or otherwise couldn't be found.
     kNoSuchWindow = 23,
 
+    // An illegal attempt was made to set a cookie under a different domain than
+    // the current page.
+    kInvalidCookieDomain = 24,
+
     // An attempt was made to operate on a modal dialog when one was not open.
     kNoAlertOpenError = 27,
 
