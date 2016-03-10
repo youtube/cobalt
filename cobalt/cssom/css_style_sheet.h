@@ -61,8 +61,8 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   // From StyleSheet.
   void AttachToStyleSheetList(StyleSheetList* style_sheet_list) OVERRIDE;
   void SetLocationUrl(const GURL& url) OVERRIDE { location_url_ = url; }
-  GURL& LocationUrl() OVERRIDE { return location_url_; }
-  StyleSheetList* ParentStyleSheetList() OVERRIDE {
+  const GURL& LocationUrl() const OVERRIDE { return location_url_; }
+  StyleSheetList* ParentStyleSheetList() const OVERRIDE {
     return parent_style_sheet_list_;
   }
   scoped_refptr<CSSStyleSheet> AsCSSStyleSheet() OVERRIDE { return this; }

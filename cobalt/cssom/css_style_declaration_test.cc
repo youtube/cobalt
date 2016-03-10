@@ -1312,11 +1312,12 @@ TEST(CSSStyleDeclarationTest, CSSTextGetter) {
   scoped_refptr<CSSDeclaredStyleData> style_data = new CSSDeclaredStyleData();
   style_data->SetPropertyValueAndImportance(kBackgroundSizeProperty,
                                             background_size, false);
-  style_data->SetPropertyValueAndImportance(kBottomProperty, bottom, false);
+  style_data->SetPropertyValueAndImportance(kBottomProperty, bottom, true);
 
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(style_data, &css_parser);
-  EXPECT_EQ(style->css_text(NULL), "background-size: 50%; bottom: 16px;");
+  EXPECT_EQ(style->css_text(NULL),
+            "background-size: 50%; bottom: 16px !important;");
 }
 
 // TODO(***REMOVED***): Add GetPropertyValue tests, property getter tests and tests

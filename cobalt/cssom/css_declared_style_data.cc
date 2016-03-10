@@ -116,6 +116,9 @@ std::string CSSDeclaredStyleData::SerializeCSSDeclarationBlock() const {
     serialized_text.append(GetPropertyName(property_value_iterator->first));
     serialized_text.append(": ");
     serialized_text.append(property_value_iterator->second->ToString());
+    if (important_properties_[property_value_iterator->first]) {
+      serialized_text.append(" !important");
+    }
     serialized_text.push_back(';');
   }
   return serialized_text;
@@ -127,19 +130,23 @@ bool CSSDeclaredStyleData::operator==(const CSSDeclaredStyleData& that) const {
   DCHECK_EQ(that.declared_properties_.size(),
             that.important_properties_.size());
 
-  for (size_t i = 0; i < declared_properties_.size(); ++i) {
-    if (declared_properties_[i] != that.declared_properties_[i]) {
+  for (PropertyValues::const_iterator property_value_iterator =
+           declared_property_values_.begin();
+       property_value_iterator != declared_property_values_.end();
+       ++property_value_iterator) {
+    const PropertyKey& key = property_value_iterator->first;
+    if (declared_properties_[key] != that.declared_properties_[key]) {
       return false;
     }
-    if (!declared_properties_[i]) {
+    if (!declared_properties_[key]) {
       continue;
     }
-    if (important_properties_[i] != that.important_properties_[i]) {
+    if (important_properties_[key] != that.important_properties_[key]) {
       return false;
     }
-    PropertyKey key = static_cast<PropertyKey>(i);
-    if (!declared_property_values_.find(key)->second->Equals(
-            *that.declared_property_values_.find(key)->second)) {
+    const scoped_refptr<PropertyValue>& that_property =
+        that.GetPropertyValue(key);
+    if (!property_value_iterator->second->Equals(*that_property)) {
       return false;
     }
   }

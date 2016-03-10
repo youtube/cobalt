@@ -19,11 +19,10 @@
 
 #include <bitset>
 #include <functional>
-#include <map>
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/containers/small_map.h"
+#include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/unused.h"
 #include "cobalt/cssom/css_declaration_data.h"
@@ -39,10 +38,8 @@ class CSSDeclaredStyleData : public CSSDeclarationData {
  public:
   CSSDeclaredStyleData();
 
-  // Time spent during initial layout and incremental layout is the shortest
-  // with an array size of 16.
-  typedef base::SmallMap<std::map<PropertyKey, scoped_refptr<PropertyValue> >,
-                         16, std::equal_to<PropertyKey> > PropertyValues;
+  typedef base::hash_map<PropertyKey, scoped_refptr<PropertyValue> >
+      PropertyValues;
 
   // The length attribute must return the number of CSS declarations in the
   // declarations.
@@ -81,6 +78,10 @@ class CSSDeclaredStyleData : public CSSDeclarationData {
 
   void AssignFrom(const CSSDeclaredStyleData& rhs);
 
+  bool IsAnyDeclaredPropertyImportant() const {
+    return important_properties_.any();
+  }
+
   bool IsDeclaredPropertyImportant(PropertyKey key) const {
     return important_properties_[key];
   }
@@ -99,6 +100,9 @@ class CSSDeclaredStyleData : public CSSDeclarationData {
  private:
   // Helper function that can be called by ClearPropertyValueAndImportance().
   void ClearPropertyValueAndImportanceForLonghandProperty(PropertyKey key);
+
+  PropertyValues::const_iterator Find(PropertyKey key) const;
+  PropertyValues::iterator Find(PropertyKey key);
 
   typedef std::bitset<kNumLonghandProperties> LonghandPropertiesBitset;
   LonghandPropertiesBitset declared_properties_;
