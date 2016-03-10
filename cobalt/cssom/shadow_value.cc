@@ -30,15 +30,18 @@ std::string ShadowValue::ToString() const {
   std::string result;
   for (size_t i = 0; i < kMaxLengths; ++i) {
     if (lengths_[i]) {
+      if (!result.empty()) result.push_back(' ');
       result.append(lengths_[i]->ToString());
     }
   }
 
   if (color_) {
+    if (!result.empty()) result.push_back(' ');
     result.append(color_->ToString());
   }
 
   if (has_inset_) {
+    if (!result.empty()) result.push_back(' ');
     result.append(kInsetKeywordName);
   }
 

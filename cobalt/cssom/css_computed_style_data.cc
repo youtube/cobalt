@@ -30,28 +30,13 @@ CSSComputedStyleData::CSSComputedStyleData()
     : has_inherited_properties_(false) {}
 
 unsigned int CSSComputedStyleData::length() const {
-  // If the style has an ancestor set, we'll have to take inherited property
-  // values from ancestors into account.
-  DCHECK(!ancestor_computed_style_)
-      << "length() Not implemented for non-inline styles";
-  size_t declared_property_values_size = declared_property_values_.size();
-  DCHECK_LE(declared_property_values_size,
-            std::numeric_limits<unsigned int>::max());
-  return static_cast<unsigned int>(declared_property_values_size);
+  // Computed style declarations have all known longhand properties.
+  return kMaxLonghandPropertyKey + 1;
 }
 
 const char* CSSComputedStyleData::Item(unsigned int index) const {
-  // If the style has an ancestor set, we'll have to take inherited property
-  // values from ancestors into account.
-  DCHECK(!ancestor_computed_style_)
-      << "Item() Not implemented for non-inline styles";
-  if (index >= declared_property_values_.size()) return NULL;
-  PropertyValues::const_iterator property_value_iterator =
-      declared_property_values_.begin();
-  while (index--) {
-    ++property_value_iterator;
-  }
-  return GetPropertyName(property_value_iterator->first);
+  if (index >= length()) return NULL;
+  return GetPropertyName(GetLexicographicalLonghandPropertyKey(index));
 }
 
 const scoped_refptr<PropertyValue>&
@@ -256,17 +241,21 @@ void CSSComputedStyleData::AssignFrom(const CSSComputedStyleData& rhs) {
 }
 
 std::string CSSComputedStyleData::SerializeCSSDeclarationBlock() const {
+  // All longhand properties that are supported CSS properties, in
+  // lexicographical order, with the value being the resolved value.
+  //   https://www.w3.org/TR/2013/WD-cssom-20131205/#dom-window-getcomputedstyle
+
+  // TODO(***REMOVED***): Return the resolved value instead of the computed value. See
+  // https://www.w3.org/TR/2013/WD-cssom-20131205/#resolved-value.
   std::string serialized_text;
-  for (PropertyValues::const_iterator property_value_iterator =
-           declared_property_values_.begin();
-       property_value_iterator != declared_property_values_.end();
-       ++property_value_iterator) {
+  for (size_t index = 0; index <= kMaxLonghandPropertyKey; ++index) {
+    PropertyKey key = GetLexicographicalLonghandPropertyKey(index);
     if (!serialized_text.empty()) {
       serialized_text.push_back(' ');
     }
-    serialized_text.append(GetPropertyName(property_value_iterator->first));
+    serialized_text.append(GetPropertyName(key));
     serialized_text.append(": ");
-    serialized_text.append(property_value_iterator->second->ToString());
+    serialized_text.append(GetPropertyValue(key)->ToString());
     serialized_text.push_back(';');
   }
   return serialized_text;
