@@ -219,8 +219,8 @@ scoped_refptr<Element> HTMLElement::offset_parent() {
   //    . The element is the root element.
   //    . The element is the HTML body element.
   //    . The element's computed value of the 'position' property is 'fixed'.
-  DCHECK(computed_style());
   if (!layout_boxes_ || IsRootElement() || AsHTMLBodyElement() ||
+      !computed_style() ||
       computed_style()->position() == cssom::KeywordValue::GetFixed()) {
     return scoped_refptr<Element>();
   }
