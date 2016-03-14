@@ -62,8 +62,18 @@ devtoolsBackend.runtime.evaluate = function(params) {
     result.wasThrown = true;
   }
 
+  // Create the RemoteObject corresponding to the result.
   result.result =
       new this.RemoteObject(value, params.objectGroup, params.returnByValue);
+
+  // Add the preview, if requested.
+  if (params.generatePreview) {
+    var preview = this.generatePreview(value);
+    if (preview) {
+      result.result.preview = preview;
+    }
+  }
+
   return JSON.stringify(result);
 }
 
@@ -189,6 +199,50 @@ devtoolsBackend.runtime.addObject = function(object, objectGroup) {
   return objectId;
 }
 
+// Generates an object preview, which may be requested for the evaluate
+// command.
+devtoolsBackend.runtime.generatePreview = function(object) {
+  if (!object || (typeof object != 'object')) {
+    return null;
+  } else {
+    return new this.ObjectPreview(object);
+  }
+}
+
+// Returns the subtype of an object, or null if the specified value is not an
+// object.
+devtoolsBackend.runtime.getSubtype = function(object) {
+  if (typeof object == 'object') {
+    if (object instanceof Array) {
+      return 'array';
+    } else if (object instanceof Date) {
+      return 'date';
+    } else if (object instanceof Error) {
+      return 'error';
+    } else if (object instanceof Node) {
+      return 'node';
+    } else if (object instanceof RegExp) {
+      return 'regexp';
+    }
+  }
+  return null;
+}
+
+// Tries to get the classname of an object by following the prototype chain
+// and looking for a constructor.
+devtoolsBackend.runtime.getClassName = function(object) {
+  try {
+    for (var obj = object; obj && !this.className;
+         obj = Object.getPrototypeOf(obj)) {
+      if (obj.constructor) {
+        return obj.constructor.name;
+      }
+    }
+  } catch(e) {}
+
+  return null;
+}
+
 // Creates a RemoteObject, which is the type used to return many values to
 // devtools. If |value| is an object, then is it inserted into
 // |devtoolsBackend.runtime.objectStore| and the |objectId| key used to
@@ -205,28 +259,23 @@ devtoolsBackend.runtime.RemoteObject = function(value, objectGroup,
     return;
   }
 
-  try {
-    this.description = value.toString();
-  } catch(e) {
-    this.description = JSON.stringify(value);
-  }
-
-  if (value.contructor) {
-    this.className = value.constructor.name;
-  }
-
   if (this.type == 'object') {
     this.objectId = devtoolsBackend.runtime.addObject(value, objectGroup);
-    if (value instanceof Array) {
-      this.subtype = 'array';
-    } else if (value instanceof Date) {
-      this.subtype = 'date';
-    } else if (value instanceof Error) {
-      this.subtype = 'error';
-    } else if (value instanceof Node) {
-      this.subtype = 'node';
-    } else if (value instanceof RegExp) {
-      this.subtype = 'regexp';
+    this.subtype = devtoolsBackend.runtime.getSubtype(value);
+    this.className = devtoolsBackend.runtime.getClassName(value);
+  }
+
+  // Fill in the description field. Devtools will only display arrays
+  // correctly if their description follows a particular format. For other
+  // values, try to use the generic string conversion, and fall back to JSON
+  // serialization if that fails.
+  if (this.subtype == 'array') {
+    this.description = 'Array[' + value.length + ']';
+  } else {
+    try {
+      this.description = value.toString();
+    } catch(e) {
+      this.description = JSON.stringify(value);
     }
   }
 
@@ -276,6 +325,53 @@ devtoolsBackend.runtime.PropertyDescriptor = function(object, objectGroup,
     }
     this.value = new devtoolsBackend.runtime.RemoteObject(object[property],
                                                           objectGroup, false);
+  }
+}
+
+// Creates an ObjectPreview, the type to represent a preview of an object,
+// which may be requested by devtools in the evaluate command.
+devtoolsBackend.runtime.ObjectPreview = function(value) {
+  this.type = typeof value;
+  this.subtype = devtoolsBackend.runtime.getSubtype(value);
+  this.lossless = true;
+  this.overflow = false;
+  this.properties = [];
+
+  // Use the className as the preview description. This matches Chrome.
+  this.description = devtoolsBackend.runtime.getClassName(value);
+
+  // Add array items.
+  for (var i = 0; i < value.length; i++) {
+    var property = new devtoolsBackend.runtime.PropertyPreview(i, value[i]);
+    this.properties.push(property);
+  }
+
+  // Add object properties, up to a maximum.
+  var MAX_PROPERTIES = 5;
+  for (name in value) {
+    if (value[name] != null) {
+      var property = new devtoolsBackend.runtime.PropertyPreview(name,
+                                                                 value[name]);
+      this.properties.push(property);
+      if (this.properties.length > MAX_PROPERTIES) {
+        this.properties.pop();
+        this.lossless = false;
+        this.overflow = true;
+        break;
+      }
+    }
+  }
+}
+
+// Creates a PropertyPreview, the type to represent a preview of a single
+// object property.
+devtoolsBackend.runtime.PropertyPreview = function(name, value) {
+  this.name = name.toString();
+  this.type = typeof value;
+  this.value = value.toString();
+
+  if (this.type == 'object') {
+    this.subtype = devtoolsBackend.runtime.getSubtype(value);
   }
 }
 
