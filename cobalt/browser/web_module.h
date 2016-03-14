@@ -88,7 +88,6 @@ class WebModule {
     Options()
         : name("WebModule"),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation),
-          array_buffer_allocator(NULL),
           image_cache_capacity(kImageCacheCapacity),
           csp_enforcement_mode(dom::kCspEnforcementEnable) {}
 
@@ -119,11 +118,8 @@ class WebModule {
     // a mechanism to inject custom APIs into the WebModule object.
     InjectedWindowAttributes injected_window_attributes;
 
-    // ArrayBuffer allocates its memory on the heap by default and ArrayBuffers
-    // may occupy a lot of memory.  It is possible to provide an allocator via
-    // the following member on some platforms so ArrayBuffer can possibly use
-    // memory that is not part of the heap.
-    dom::ArrayBuffer::Allocator* array_buffer_allocator;
+    // Options to customize DOMSettings.
+    dom::DOMSettings::Options dom_settings_options;
 
     // Location policy to enforce, formatted as a Content Security Policy
     // directive, e.g. "h5vcc-location-src 'self'"
