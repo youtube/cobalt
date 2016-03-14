@@ -17,6 +17,8 @@
 #ifndef COBALT_DOM_DOM_SETTINGS_H_
 #define COBALT_DOM_DOM_SETTINGS_H_
 
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/window.h"
@@ -40,13 +42,30 @@ namespace dom {
 // that ask for it in their IDL custom attributes.
 class DOMSettings : public script::EnvironmentSettings {
  public:
+  // Hold optional settings for DOMSettings.
+  struct Options {
+    Options() : array_buffer_allocator(NULL), array_buffer_cache_size(0) {}
+
+    // ArrayBuffer allocates its memory on the heap by default and ArrayBuffers
+    // may occupy a lot of memory.  It is possible to provide an allocator via
+    // the following member on some platforms so ArrayBuffer can possibly use
+    // memory that is not part of the heap.
+    ArrayBuffer::Allocator* array_buffer_allocator;
+    // When array_buffer_allocator is provided, we still need to hold certain
+    // amount of ArrayBuffer inside main memory.  The following size limited the
+    // amount of main memory that ArrayBuffer can use.
+    // Note: If |array_buffer_allocator| is NULL, |array_buffer_cache_size| has
+    // to be 0.  Otherwise it has to be non-zero.
+    size_t array_buffer_cache_size;
+  };
+
   DOMSettings(loader::FetcherFactory* fetcher_factory,
               network::NetworkModule* network_module,
               const scoped_refptr<Window>& window,
-              ArrayBuffer::Allocator* array_buffer_allocator,
               MediaSource::Registry* media_source_registry,
               script::JavaScriptEngine* engine,
-              script::GlobalObjectProxy* global_object_proxy);
+              script::GlobalObjectProxy* global_object_proxy,
+              const Options& options = Options());
   ~DOMSettings() OVERRIDE;
 
   void set_window(const scoped_refptr<Window>& window) { window_ = window; }
@@ -54,6 +73,10 @@ class DOMSettings : public script::EnvironmentSettings {
 
   ArrayBuffer::Allocator* array_buffer_allocator() const {
     return array_buffer_allocator_;
+  }
+
+  ArrayBuffer::Cache* array_buffer_cache() const {
+    return array_buffer_cache_.get();
   }
 
   void set_fetcher_factory(loader::FetcherFactory* fetcher_factory) {
@@ -82,6 +105,7 @@ class DOMSettings : public script::EnvironmentSettings {
   network::NetworkModule* network_module_;
   scoped_refptr<Window> window_;
   ArrayBuffer::Allocator* array_buffer_allocator_;
+  scoped_ptr<ArrayBuffer::Cache> array_buffer_cache_;
   MediaSource::Registry* media_source_registry_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalObjectProxy* global_object_proxy_;
