@@ -119,8 +119,8 @@ WebModule::WebModule(
       window_weak_(base::AsWeakPtr(window_.get())),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), network_module, window_,
-          options.array_buffer_allocator, &media_source_registry_,
-          javascript_engine_.get(), global_object_proxy_.get())),
+          &media_source_registry_, javascript_engine_.get(),
+          global_object_proxy_.get(), options.dom_settings_options)),
       render_tree_produced_callback_(render_tree_produced_callback),
       ALLOW_THIS_IN_INITIALIZER_LIST(layout_manager_(
           window_.get(),
