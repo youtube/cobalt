@@ -32,8 +32,14 @@ class ArrayBuffer : public script::Wrappable {
   // the heap.
   enum AllocationType { kFromHeap };
 
+  class Cache;
+
   // Optional Allocator to be used to allocate/free memory for ArrayBuffer.
   // ArrayBuffer will allocate from the heap if an Allocator is not provided.
+  // This is because ArrayBuffer allocates its memory on the heap by default and
+  // ArrayBuffers may occupy a lot of memory.  It is possible to provide an
+  // allocator on some platforms so ArrayBuffer can possibly use memory that is
+  // not part of the heap.
   class Allocator {
    public:
     virtual ~Allocator() {}
@@ -51,17 +57,41 @@ class ArrayBuffer : public script::Wrappable {
 
     ~Data();
 
-    uint8* data() const { return data_; }
+    uint8* data() const;
     size_t size() const { return size_; }
+    // Move the ArrayBuffer allocated on the heap to memory allocated using the
+    // provided allocator.  It returns true if such move is successful or if the
+    // ArrayBuffer has already been offloaded.
+    bool Offload();
+    bool offloaded() const { return offloaded_; }
 
    private:
     void Initialize(script::EnvironmentSettings* settings, size_t size);
 
     Allocator* allocator_;
+    Cache* cache_;
+    // True only if |data_| is allocated by |allocator_|.
+    bool offloaded_;
     uint8* data_;
     size_t size_;
 
     DISALLOW_COPY_AND_ASSIGN(Data);
+  };
+
+  class Cache {
+   public:
+    explicit Cache(size_t maximum_size_in_main_memory);
+
+    void Register(Data* data);
+    void Unregister(Data* data);
+    void ReportUsage(const Data* data);
+
+   private:
+    void TryToOffload();
+
+    size_t total_size_in_main_memory_;
+    size_t maximum_size_in_main_memory_;
+    std::vector<Data*> datas_;
   };
 
   ArrayBuffer(script::EnvironmentSettings* settings, uint32 length);

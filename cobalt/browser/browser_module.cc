@@ -329,7 +329,11 @@ void BrowserModule::NavigateWithCallbackInternal(
       kLayoutMaxRefreshFrequencyInHz));
   options.loaded_callbacks.push_back(
       base::Bind(&BrowserModule::OnLoad, base::Unretained(this)));
-  options.array_buffer_allocator = array_buffer_allocator_.get();
+#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+  options.dom_settings_options.array_buffer_allocator =
+      array_buffer_allocator_.get();
+  options.dom_settings_options.array_buffer_cache_size = 3 * 1024 * 1024;
+#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
 
 #if !defined(COBALT_FORCE_CSP)
   dom::CspDelegateFactory::ScopedAllowInsecure allow_insecure;
