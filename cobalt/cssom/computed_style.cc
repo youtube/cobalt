@@ -28,6 +28,7 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/matrix_function.h"
+#include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
@@ -229,6 +230,7 @@ class ComputedLineHeightProvider : public NotReachedPropertyValueVisitor {
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLength(LengthValue* length) OVERRIDE;
+  void VisitNumber(NumberValue* number) OVERRIDE;
   void VisitPercentage(PercentageValue* percentage) OVERRIDE;
 
   const scoped_refptr<PropertyValue>& computed_line_height() const {
@@ -250,6 +252,12 @@ ComputedLineHeightProvider::ComputedLineHeightProvider(
 void ComputedLineHeightProvider::VisitLength(LengthValue* specified_length) {
   computed_line_height_ =
       ProvideAbsoluteLength(specified_length, computed_font_size_);
+}
+
+void ComputedLineHeightProvider::VisitNumber(NumberValue* specified_number) {
+  // The computed value is the same as the specified value.
+  //   https://www.w3.org/TR/CSS2/visudet.html#line-height
+  computed_line_height_ = specified_number;
 }
 
 void ComputedLineHeightProvider::VisitPercentage(PercentageValue* percentage) {

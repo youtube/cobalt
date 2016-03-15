@@ -37,6 +37,7 @@ LineBox::LineBox(float top, bool position_children_relative_to_baseline,
                  const LayoutParams& layout_params,
                  const scoped_refptr<cssom::PropertyValue>& text_align,
                  const scoped_refptr<cssom::PropertyValue>& white_space,
+                 const scoped_refptr<cssom::PropertyValue>& font_size,
                  float indent_offset, float ellipsis_width)
     : top_(top),
       position_children_relative_to_baseline_(
@@ -48,6 +49,7 @@ LineBox::LineBox(float top, bool position_children_relative_to_baseline,
           should_collapse_trailing_white_space),
       layout_params_(layout_params),
       text_align_(text_align),
+      font_size_(font_size),
       is_text_wrapping_disabled_(white_space ==
                                      cssom::KeywordValue::GetNoWrap() ||
                                  white_space == cssom::KeywordValue::GetPre()),
@@ -429,7 +431,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
   // a zero-width inline box with the element's font and line height properties.
   // We call that imaginary box a "strut."
   //   https://www.w3.org/TR/CSS21/visudet.html#strut
-  UsedLineHeightProvider used_line_height_provider(font_metrics_);
+  UsedLineHeightProvider used_line_height_provider(font_metrics_, font_size_);
   line_height_->Accept(&used_line_height_provider);
 
   baseline_offset_from_top_ =

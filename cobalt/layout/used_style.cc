@@ -30,6 +30,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/matrix_function.h"
+#include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -380,6 +381,13 @@ void UsedFontFamilyProvider::VisitString(cssom::StringValue* string) {
   family_names_->push_back(string->value());
 }
 
+float GetFontSize(const scoped_refptr<cssom::PropertyValue>& font_size_refptr) {
+  cssom::LengthValue* font_size_length =
+      base::polymorphic_downcast<cssom::LengthValue*>(font_size_refptr.get());
+  DCHECK_EQ(cssom::kPixelsUnit, font_size_length->unit());
+  return font_size_length->value();
+}
+
 }  // namespace
 
 UsedStyleProvider::UsedStyleProvider(loader::image::ImageCache* image_cache,
@@ -398,10 +406,7 @@ scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
   // underlying size. Comparing the font size property pointer results in many
   // font lists with identical values incorrectly being treated as different.
   // This issue does not occur with the other font properties.
-  cssom::LengthValue* font_size_length =
-      base::polymorphic_downcast<cssom::LengthValue*>(font_size_refptr.get());
-  DCHECK_EQ(cssom::kPixelsUnit, font_size_length->unit());
-  float font_size = font_size_length->value();
+  float font_size = GetFontSize(font_size_refptr);
 
   // Check if the last font list matches the current font list. If it does, then
   // it can simply be returned.
@@ -1177,8 +1182,9 @@ void UsedBorderRadiusProvider::VisitPercentage(
 }
 
 UsedLineHeightProvider::UsedLineHeightProvider(
-    const render_tree::FontMetrics& font_metrics)
-    : font_metrics_(font_metrics) {}
+    const render_tree::FontMetrics& font_metrics,
+    const scoped_refptr<cssom::PropertyValue>& font_size)
+    : font_metrics_(font_metrics), font_size_(font_size) {}
 
 void UsedLineHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   DCHECK_EQ(cssom::KeywordValue::kNormal, keyword->value());
@@ -1189,6 +1195,15 @@ void UsedLineHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 void UsedLineHeightProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit());
   used_line_height_ = length->value();
+  UpdateHalfLeading();
+}
+
+void UsedLineHeightProvider::VisitNumber(cssom::NumberValue* length) {
+  float font_size = GetFontSize(font_size_);
+  // The used value of the property is this number multiplied by the element's
+  // font size.
+  //   https://www.w3.org/TR/CSS21/visudet.html#line-height
+  used_line_height_ = length->value() * font_size;
   UpdateHalfLeading();
 }
 

@@ -449,7 +449,7 @@
 %destructor { SafeRelease($$); } <percentage>
 
 %union { cssom::LengthValue* length; }
-%type <length> length positive_length
+%type <length> length positive_length absolute_or_relative_length
 %destructor { SafeRelease($$); } <length>
 
 %union { cssom::RatioValue* ratio; }
@@ -2190,9 +2190,13 @@ length:
     }
     $$ = AddRef(new cssom::LengthValue(0, cssom::kPixelsUnit));
   }
+  | absolute_or_relative_length { $$ = $1; }
+  ;
+
+absolute_or_relative_length:
   // Relative lengths.
   //   https://www.w3.org/TR/css3-values/#relative-lengths
-  | maybe_sign_token kFontSizesAkaEmToken maybe_whitespace {
+    maybe_sign_token kFontSizesAkaEmToken maybe_whitespace {
     $$ = AddRef(new cssom::LengthValue($1 * $2, cssom::kFontSizesAkaEmUnit));
   }
   // Absolute lengths.
@@ -3798,7 +3802,15 @@ line_height_property_value:
     kNormalToken maybe_whitespace  {
     $$ = AddRef(cssom::KeywordValue::GetNormal().get());
   }
-  | positive_length_percent_property_value {  $$ = $1; }
+  | non_negative_number {
+    $$ = AddRef(new cssom::NumberValue($1));
+  }
+  | absolute_or_relative_length {
+    $$ = $1;
+  }
+  | positive_percentage {
+    $$ = $1;
+  }
   | common_values
   ;
 
