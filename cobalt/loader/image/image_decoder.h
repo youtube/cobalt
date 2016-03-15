@@ -45,9 +45,6 @@ class ImageDecoder : public Decoder {
                const ErrorCallback& error_callback);
 
   // From Decoder.
-  LoadResponseType OnResponseStarted(
-      Fetcher* fetcher,
-      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
 
@@ -56,10 +53,9 @@ class ImageDecoder : public Decoder {
   static void UseStubImageDecoder();
 
  private:
-  // True if an error has occurred and we should not continue decoding.
-  enum Error {
-    kNoContent,
-    kNoError,
+  enum State {
+    kWaitingForHeader,
+    kDecoding,
     kUnsupportedImageFormat,
   };
 
@@ -71,12 +67,16 @@ class ImageDecoder : public Decoder {
     size_t position;
   };
 
+  void DecodeChunkInternal(const uint8* input_bytes, size_t size);
+  bool InitializeInternalDecoder(const uint8* input_bytes, size_t size,
+                                 size_t* consumed_size);
+
   render_tree::ResourceProvider* const resource_provider_;
   const SuccessCallback success_callback_;
   const ErrorCallback error_callback_;
   scoped_ptr<ImageDataDecoder> decoder_;
   SignatureCache signature_cache_;
-  Error error_state_;
+  State state_;
 };
 
 }  // namespace image
