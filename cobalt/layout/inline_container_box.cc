@@ -106,7 +106,8 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
                    font_metrics, should_collapse_leading_white_space_,
                    should_collapse_trailing_white_space_, layout_params,
                    cssom::KeywordValue::GetLeft(),
-                   cssom::KeywordValue::GetNormal(), 0, 0);
+                   cssom::KeywordValue::GetNormal(),
+                   computed_style()->font_size(), 0, 0);
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {

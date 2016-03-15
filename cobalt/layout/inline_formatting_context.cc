@@ -32,12 +32,14 @@ InlineFormattingContext::InlineFormattingContext(
     const LayoutParams& layout_params,
     const scoped_refptr<cssom::PropertyValue>& text_align,
     const scoped_refptr<cssom::PropertyValue>& white_space,
+    const scoped_refptr<cssom::PropertyValue>& font_size,
     float text_indent_offset, float ellipsis_width)
     : line_height_(line_height),
       font_metrics_(font_metrics),
       layout_params_(layout_params),
       text_align_(text_align),
       white_space_(white_space),
+      font_size_(font_size),
       text_indent_offset_(text_indent_offset),
       ellipsis_width_(ellipsis_width),
       line_count_(0),
@@ -131,8 +133,8 @@ void InlineFormattingContext::CreateLineBox() {
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   line_box_ = make_scoped_ptr(
       new LineBox(auto_height(), false, line_height_, font_metrics_, true, true,
-                  layout_params_, text_align_, white_space_, line_indent_offset,
-                  ellipsis_width_));
+                  layout_params_, text_align_, white_space_, font_size_,
+                  line_indent_offset, ellipsis_width_));
 }
 
 void InlineFormattingContext::DestroyLineBox() {
