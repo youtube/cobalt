@@ -81,11 +81,12 @@ void CSSDeclaredStyleData::SetPropertyValueAndImportance(
   if (property_value) {
     declared_properties_.set(key, true);
     declared_property_values_[key] = property_value;
+    important_properties_.set(key, important);
   } else if (declared_properties_[key]) {
     declared_properties_.set(key, false);
     declared_property_values_.erase(key);
+    important_properties_.set(key, false);
   }
-  important_properties_.set(key, important);
 }
 
 void CSSDeclaredStyleData::AssignFrom(const CSSDeclaredStyleData& rhs) {
@@ -130,26 +131,24 @@ bool CSSDeclaredStyleData::operator==(const CSSDeclaredStyleData& that) const {
   DCHECK_EQ(that.declared_properties_.size(),
             that.important_properties_.size());
 
+  if (declared_properties_ != that.declared_properties_) {
+    return false;
+  }
+  if (important_properties_ != that.important_properties_) {
+    return false;
+  }
+
   for (PropertyValues::const_iterator property_value_iterator =
            declared_property_values_.begin();
        property_value_iterator != declared_property_values_.end();
        ++property_value_iterator) {
-    const PropertyKey& key = property_value_iterator->first;
-    if (declared_properties_[key] != that.declared_properties_[key]) {
-      return false;
-    }
-    if (!declared_properties_[key]) {
-      continue;
-    }
-    if (important_properties_[key] != that.important_properties_[key]) {
-      return false;
-    }
-    const scoped_refptr<PropertyValue>& that_property =
-        that.GetPropertyValue(key);
-    if (!property_value_iterator->second->Equals(*that_property)) {
+    if (!property_value_iterator->second->Equals(
+            *that.declared_property_values_.find(property_value_iterator->first)
+                 ->second)) {
       return false;
     }
   }
+
   return true;
 }
 
