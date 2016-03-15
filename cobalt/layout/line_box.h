@@ -57,6 +57,7 @@ class LineBox {
           const LayoutParams& layout_params,
           const scoped_refptr<cssom::PropertyValue>& text_align,
           const scoped_refptr<cssom::PropertyValue>& white_space,
+          const scoped_refptr<cssom::PropertyValue>& font_size,
           float indent_offset, float ellipsis_width);
 
   float top() const { return top_; }
@@ -144,6 +145,7 @@ class LineBox {
   const bool should_collapse_trailing_white_space_;
   const LayoutParams layout_params_;
   const scoped_refptr<cssom::PropertyValue> text_align_;
+  const scoped_refptr<cssom::PropertyValue> font_size_;
   const bool is_text_wrapping_disabled_;
   const float indent_offset_;
   const float ellipsis_width_;

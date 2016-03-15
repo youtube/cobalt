@@ -43,6 +43,7 @@
 10-6-2-replaced-box-height
 10-8-1-inline-box-with-non-normal-line-height-should-use-first-available-font-for-font-metrics
 10-8-1-inline-box-with-normal-line-height-should-combine-all-used-fonts-in-font-metrics
+10-8-1-unitless-line-height
 10-8-1-vertical-align
 10-8-1-vertical-align-baseline-after-middle
 10-8-1-vertical-align-baseline-after-middle-text
