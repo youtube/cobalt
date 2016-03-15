@@ -57,6 +57,11 @@ const char kInputFuzzer[] = "input_fuzzer";
 // audio output library will be initialized or used.
 const char kNullAudioStreamer[] = "null_audio_streamer";
 
+// Setting NullSavegame will result in no data being read from previous sessions
+// and no data being persisted to future sessions.  It effectively makes the
+// app run as if it has no local storage.
+const char kNullSavegame[] = "null_savegame";
+
 // Specifies a proxy to use for network connections.
 const char kProxy[] = "proxy";
 

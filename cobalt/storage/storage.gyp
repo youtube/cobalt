@@ -29,6 +29,7 @@
         'savegame_thread.h',
         'sql_vfs.cc',
         'sql_vfs.h',
+        'savegame_fake.cc',
         'storage_manager.cc',
         'storage_manager.h',
         'virtual_file.cc',
@@ -59,16 +60,6 @@
       ],
     },
     {
-      'target_name': 'storage_test_utils',
-      'type': 'static_library',
-      'sources': [
-          'savegame_fake.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-      ],
-    },
-    {
       'target_name': 'storage_test',
       'type': '<(gtest_target_type)',
       'sources': [
@@ -82,7 +73,6 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'storage',
-        'storage_test_utils',
       ],
     },
     {

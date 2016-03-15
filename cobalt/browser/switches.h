@@ -32,6 +32,7 @@ extern const char kIgnoreCertificateErrors[];
 extern const char kInitialURL[];
 extern const char kInputFuzzer[];
 extern const char kNullAudioStreamer[];
+extern const char kNullSavegame[];
 extern const char kPartialLayout[];
 extern const char kProxy[];
 extern const char kRemoteDebuggingPort[];
