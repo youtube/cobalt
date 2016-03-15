@@ -57,6 +57,7 @@ class InlineFormattingContext : public FormattingContext {
       const LayoutParams& layout_params,
       const scoped_refptr<cssom::PropertyValue>& text_align,
       const scoped_refptr<cssom::PropertyValue>& white_space,
+      const scoped_refptr<cssom::PropertyValue>& font_size,
       float text_indent_offset, float ellipsis_width);
   ~InlineFormattingContext() OVERRIDE;
 
@@ -95,6 +96,7 @@ class InlineFormattingContext : public FormattingContext {
   const LayoutParams layout_params_;
   const scoped_refptr<cssom::PropertyValue> text_align_;
   const scoped_refptr<cssom::PropertyValue> white_space_;
+  const scoped_refptr<cssom::PropertyValue> font_size_;
   float text_indent_offset_;
   float ellipsis_width_;
 

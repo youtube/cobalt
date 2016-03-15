@@ -136,7 +136,8 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
       render_tree::FontMetrics font_metrics =
           used_font_->GetFontMetrics(text_fonts);
 
-      UsedLineHeightProvider used_line_height_provider(font_metrics);
+      UsedLineHeightProvider used_line_height_provider(
+          font_metrics, computed_style()->font_size());
       line_height->Accept(&used_line_height_provider);
       set_height(font_metrics.em_box_height());
       baseline_offset_from_top_ =
