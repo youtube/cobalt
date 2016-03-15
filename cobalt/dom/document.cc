@@ -512,8 +512,11 @@ void Document::UpdateComputedStyles() {
     base::TimeDelta style_change_event_time =
         base::TimeDelta::FromMillisecondsD(*default_timeline_->current_time());
 
-    html()->UpdateComputedStyleRecursively(root_computed_style_,
-                                           style_change_event_time, true);
+    scoped_refptr<HTMLHtmlElement> current_html = html();
+    if (current_html) {
+      current_html->UpdateComputedStyleRecursively(
+          root_computed_style_, style_change_event_time, true);
+    }
 
     is_computed_style_dirty_ = false;
   }
@@ -581,8 +584,10 @@ void Document::UpdateSelectorTree() {
 
       UpdateSelectorTreeFromCSSStyleSheet(&selector_tree_, css_style_sheet);
     }
-
-    html()->InvalidateMatchingRulesRecursively();
+    scoped_refptr<HTMLHtmlElement> current_html = html();
+    if (current_html) {
+      current_html->InvalidateMatchingRulesRecursively();
+    }
 
     is_selector_tree_dirty_ = false;
   }
