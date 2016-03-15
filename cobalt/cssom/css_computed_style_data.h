@@ -644,8 +644,6 @@ class CSSComputedStyleData
   void SetParentComputedStyle(
       const scoped_refptr<const CSSComputedStyleData>& parent_computed_style);
 
-  bool operator==(const CSSComputedStyleData& that) const;
-
   PropertyValues* declared_property_values() {
     return &declared_property_values_;
   }

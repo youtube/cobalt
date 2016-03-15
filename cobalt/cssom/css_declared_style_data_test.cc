@@ -633,5 +633,68 @@ TEST(CSSDeclaredStyleDataTest, BorderLeftWidthSettersAndGettersAreConsistent) {
             style->GetPropertyValue(kBorderLeftWidthProperty));
 }
 
+TEST(CSSDeclaredStyleDataTest, TwoDeclaredStyleDataWithSamePropertiesAreEqual) {
+  scoped_refptr<CSSDeclaredStyleData> style1 = new CSSDeclaredStyleData();
+  style1->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                        KeywordValue::GetInherit(), false);
+  scoped_refptr<CSSDeclaredStyleData> style2 = new CSSDeclaredStyleData();
+  style2->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                        KeywordValue::GetInherit(), false);
+
+  EXPECT_EQ(*style1, *style2);
+}
+
+TEST(CSSDeclaredStyleDataTest,
+     TwoDeclaredStyleDataWithDifferentImportanceAreUnequal) {
+  scoped_refptr<CSSDeclaredStyleData> style1 = new CSSDeclaredStyleData();
+  style1->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                        KeywordValue::GetInherit(), false);
+  scoped_refptr<CSSDeclaredStyleData> style2 = new CSSDeclaredStyleData();
+  style2->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                        KeywordValue::GetInherit(), true);
+
+  EXPECT_EQ(*style1 == *style2, false);
+}
+
+TEST(CSSDeclaredStyleDataTest,
+     TwoDeclaredStyleDataWithDifferentPropertiesAreUnequal) {
+  scoped_refptr<CSSDeclaredStyleData> style1 = new CSSDeclaredStyleData();
+  style1->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                        KeywordValue::GetInherit(), true);
+  scoped_refptr<CSSDeclaredStyleData> style2 = new CSSDeclaredStyleData();
+  style2->SetPropertyValueAndImportance(kBorderRightWidthProperty,
+                                        KeywordValue::GetInherit(), true);
+
+  EXPECT_EQ(*style1 == *style2, false);
+}
+
+TEST(CSSDeclaredStyleDataTest,
+     DeclaredStyleDataIsUnequalToDeclaredStyleDataWithPropertySuperset) {
+  scoped_refptr<CSSDeclaredStyleData> style1 = new CSSDeclaredStyleData();
+  style1->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                        KeywordValue::GetInherit(), true);
+  scoped_refptr<CSSDeclaredStyleData> style2 = new CSSDeclaredStyleData();
+  style2->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                        KeywordValue::GetInherit(), true);
+  style2->SetPropertyValueAndImportance(kBorderRightWidthProperty,
+                                        KeywordValue::GetInherit(), true);
+
+  EXPECT_EQ(*style1 == *style2, false);
+}
+
+TEST(CSSDeclaredStyleDataTest,
+     DeclaredStyleDataIsUnequalToDeclaredStyleDataWithPropertySubset) {
+  scoped_refptr<CSSDeclaredStyleData> style1 = new CSSDeclaredStyleData();
+  style1->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                        KeywordValue::GetInherit(), true);
+  style1->SetPropertyValueAndImportance(kBorderRightWidthProperty,
+                                        KeywordValue::GetInherit(), true);
+  scoped_refptr<CSSDeclaredStyleData> style2 = new CSSDeclaredStyleData();
+  style2->SetPropertyValueAndImportance(kBorderLeftWidthProperty,
+                                        KeywordValue::GetInherit(), true);
+
+  EXPECT_EQ(*style1 == *style2, false);
+}
+
 }  // namespace cssom
 }  // namespace cobalt

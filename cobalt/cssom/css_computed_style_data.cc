@@ -275,34 +275,5 @@ void CSSComputedStyleData::SetParentComputedStyle(
   }
 }
 
-bool CSSComputedStyleData::operator==(const CSSComputedStyleData& that) const {
-  DCHECK_EQ(declared_properties_.size(), that.declared_properties_.size());
-
-  for (size_t i = 0; i < declared_properties_.size(); ++i) {
-    if (declared_properties_[i] != that.declared_properties_[i]) {
-      return false;
-    }
-    if (!declared_properties_[i]) {
-      continue;
-    }
-    PropertyKey key = static_cast<PropertyKey>(i);
-    if (!declared_property_values_.find(key)->second->Equals(
-            *that.declared_property_values_.find(key)->second)) {
-      return false;
-    }
-  }
-
-  if (ancestor_computed_style_ == that.ancestor_computed_style_) {
-    return true;
-  }
-
-  if (ancestor_computed_style_ == NULL ||
-      that.ancestor_computed_style_ == NULL) {
-    return false;
-  }
-
-  return *ancestor_computed_style_ == *that.ancestor_computed_style_;
-}
-
 }  // namespace cssom
 }  // namespace cobalt
