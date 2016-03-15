@@ -69,7 +69,6 @@
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom_testing',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
-        '<(DEPTH)/cobalt/storage/storage.gyp:storage_test_utils',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
