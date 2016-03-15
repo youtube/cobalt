@@ -18,11 +18,13 @@
 #include <map>
 
 #include "base/at_exit.h"
+#include "base/command_line.h"
 #include "base/threading/thread.h"
 #include "base/time.h"
 #include "cobalt/base/console_values.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/browser/application.h"
+#include "cobalt/browser/switches.h"
 
 namespace {
 
@@ -138,6 +140,14 @@ int main(int argc, char** argv) {
   cobalt::InitCobalt(argc, argv);
 
   logging::SetMinLogLevel(100);
+
+  // Use null storage for our savegame so that we don't persist state from
+  // one run to another, which makes the measurements more deterministic (e.g.
+  // we will not consistently register for experiments via cookies).
+  CommandLine::ForCurrentProcess()->AppendSwitch(
+      cobalt::browser::switches::kNullSavegame);
+  CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+      cobalt::browser::switches::kDebugConsoleMode, "off");
 
   // Create the application object just like is done in the Cobalt main app.
   scoped_ptr<cobalt::browser::Application> application =

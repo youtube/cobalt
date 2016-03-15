@@ -17,8 +17,8 @@
 #ifndef COBALT_STORAGE_SAVEGAME_FAKE_H_
 #define COBALT_STORAGE_SAVEGAME_FAKE_H_
 
-#if !defined(UNIT_TEST)
-#error Only for use in unit tests
+#if defined(COBALT_BUILD_TYPE_GOLD)
+#error Only for use in non production builds
 #endif
 
 #include "cobalt/storage/savegame.h"
