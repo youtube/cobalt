@@ -5,11 +5,10 @@
 #ifndef BASE_MEMORY_REF_COUNTED_H_
 #define BASE_MEMORY_REF_COUNTED_H_
 
-#include <cassert>
-
 #include "base/atomic_ref_count.h"
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/threading/thread_collision_warner.h"
 
 namespace base {
@@ -253,13 +252,13 @@ class scoped_refptr {
   T* get() const { return ptr_; }
   operator T*() const { return ptr_; }
   T* operator->() const {
-    assert(ptr_ != NULL);
+    DCHECK(ptr_);
     return ptr_;
   }
   // The compiler requires an explicit * operator here.
 #if defined(__LB_PS3__) || defined(__LB_WIIU__)
   T& operator*() const {
-    assert(ptr_ != NULL);
+    DCHECK(ptr_);
     return *ptr_;
   }
 #endif
