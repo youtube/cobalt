@@ -245,10 +245,13 @@ class UsedBorderRadiusProvider : public cssom::NotReachedPropertyValueVisitor {
 
 class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
-  explicit UsedLineHeightProvider(const render_tree::FontMetrics& font_metrics);
+  explicit UsedLineHeightProvider(
+      const render_tree::FontMetrics& font_metrics,
+      const scoped_refptr<cssom::PropertyValue>& font_size);
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
+  void VisitNumber(cssom::NumberValue* length) OVERRIDE;
 
   float used_line_height() const { return used_line_height_; }
   float half_leading() const { return half_leading_; }
@@ -268,6 +271,7 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   void UpdateHalfLeading();
 
   const render_tree::FontMetrics font_metrics_;
+  const scoped_refptr<cssom::PropertyValue> font_size_;
 
   float used_line_height_;
   float half_leading_;
