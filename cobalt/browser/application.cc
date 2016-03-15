@@ -33,6 +33,9 @@
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network/network_event.h"
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+#include "cobalt/storage/savegame_fake.h"
+#endif
 #include "cobalt/system_window/application_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
@@ -205,6 +208,15 @@ Application::Application()
   options.web_module_options.name = "MainWebModule";
   options.language = language;
   options.network_module_options.preferred_language = language;
+
+#if defined(ENABLE_COMMAND_LINE_SWITCHES)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(
+          browser::switches::kNullSavegame)) {
+    options.storage_manager_options.savegame_options.factory =
+        &storage::SavegameFake::Create;
+  }
+#endif
+
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
   options.web_module_options.location_policy = kYouTubeTvLocationPolicy;

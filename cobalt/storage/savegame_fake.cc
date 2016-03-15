@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+
 #include "cobalt/storage/savegame_fake.h"
 
 namespace cobalt {
@@ -56,3 +58,5 @@ scoped_ptr<Savegame> SavegameFake::Create(const Options& options) {
 
 }  // namespace storage
 }  // namespace cobalt
+
+#endif  // #if !defined(COBALT_BUILD_TYPE_GOLD)
