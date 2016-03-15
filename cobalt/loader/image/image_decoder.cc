@@ -46,57 +46,98 @@ ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
       error_callback_(error_callback),
-      error_state_(kNoError) {
+      state_(kWaitingForHeader) {
   signature_cache_.position = 0;
 
   DCHECK(resource_provider_);
 }
 
-LoadResponseType ImageDecoder::OnResponseStarted(
-    Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
-  UNREFERENCED_PARAMETER(fetcher);
-  if (headers->response_code() == net::HTTP_NO_CONTENT) {
-    // The server successfully processed the request, but is not returning any
-    // content.
-    error_state_ = kNoContent;
-  }
-
-  return kLoadResponseContinue;
-}
-
 void ImageDecoder::DecodeChunk(const char* data, size_t size) {
   TRACE_EVENT1("cobalt::loader::image_decoder", "ImageDecoder::DecodeChunk",
                "size", size);
-  if (error_state_ != kNoError) {
-    // Do not attempt to continue processing data if we are in an error state.
-    DCHECK(!decoder_);
-    return;
-  }
-
   if (size == 0) {
     DLOG(WARNING) << "Decoder received 0 bytes.";
     return;
   }
 
-  const uint8* input_bytes = reinterpret_cast<const uint8*>(data);
-  // Call different types of decoders by matching the image signature. If it is
-  // the first time decoding a chunk, create an internal specific image decoder,
-  // otherwise just call DecodeChunk.
-  if (decoder_) {
-    decoder_->DecodeChunk(input_bytes, size);
-    return;
-  }
+  DecodeChunkInternal(reinterpret_cast<const uint8*>(data), size);
+}
 
+void ImageDecoder::Finish() {
+  TRACE_EVENT0("cobalt::loader::image_decoder", "ImageDecoder::Finish");
+  switch (state_) {
+    case kDecoding:
+      DCHECK(decoder_);
+      if (decoder_->FinishWithSuccess()) {
+        scoped_ptr<render_tree::ImageData> image_data =
+            decoder_->RetrieveImageData();
+        success_callback_.Run(
+            image_data ? resource_provider_->CreateImage(image_data.Pass())
+                       : NULL);
+      } else {
+        error_callback_.Run(decoder_->GetTypeString() +
+                            " failed to decode image");
+      }
+      break;
+    case kWaitingForHeader:
+      if (signature_cache_.position == 0) {
+        // no image is available.
+        success_callback_.Run(NULL);
+      } else {
+        error_callback_.Run("No enough image data for header.");
+      }
+      break;
+    case kUnsupportedImageFormat:
+      error_callback_.Run("Unsupported image format");
+      break;
+  }
+}
+
+void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
+  switch (state_) {
+    case kWaitingForHeader: {
+      size_t consumed_size = 0;
+      if (InitializeInternalDecoder(input_bytes, size, &consumed_size)) {
+        state_ = kDecoding;
+        DCHECK(decoder_);
+        if (consumed_size == kLengthOfLongestSignature) {
+          // This case means the first chunk is large enough for matching
+          // signature.
+          decoder_->DecodeChunk(input_bytes, size);
+        } else {
+          decoder_->DecodeChunk(signature_cache_.data,
+                                kLengthOfLongestSignature);
+          input_bytes += consumed_size;
+          decoder_->DecodeChunk(input_bytes, size - consumed_size);
+        }
+      }
+    } break;
+    case kDecoding: {
+      DCHECK(decoder_);
+      decoder_->DecodeChunk(input_bytes, size);
+    } break;
+    case kUnsupportedImageFormat:
+    default: {
+      // Do not attempt to continue processing data.
+      DCHECK(!decoder_);
+    } break;
+  }
+}
+
+bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
+                                             size_t size,
+                                             size_t* consumed_size) {
   const size_t index = signature_cache_.position;
-  size_t data_offset = kLengthOfLongestSignature - index;
-  size_t fill_size = std::min(data_offset, size);
+  size_t fill_size = std::min(kLengthOfLongestSignature - index, size);
   memcpy(signature_cache_.data + index, input_bytes, fill_size);
   signature_cache_.position += fill_size;
-  if (size < data_offset) {
+  *consumed_size = fill_size;
+  if (signature_cache_.position < kLengthOfLongestSignature) {
     // Data is not enough for matching signature.
-    return;
+    return false;
   }
 
+  // Call different types of decoders by matching the image signature.
   if (s_use_stub_image_decoder) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new StubImageDecoder(resource_provider_));
@@ -119,42 +160,11 @@ void ImageDecoder::DecodeChunk(const char* data, size_t size) {
     decoder_ = make_scoped_ptr<ImageDataDecoder>(
         new DummyGIFImageDecoder(resource_provider_));
   } else {
-    error_state_ = kUnsupportedImageFormat;
-    return;
+    state_ = kUnsupportedImageFormat;
+    return false;
   }
 
-  if (index == 0) {
-    // This case means the first chunk is large enough for matching signature.
-    decoder_->DecodeChunk(input_bytes, size);
-  } else {
-    decoder_->DecodeChunk(signature_cache_.data, kLengthOfLongestSignature);
-    input_bytes += data_offset;
-    decoder_->DecodeChunk(input_bytes, size - data_offset);
-  }
-}
-
-void ImageDecoder::Finish() {
-  TRACE_EVENT0("cobalt::loader::image_decoder", "ImageDecoder::Finish");
-  switch (error_state_) {
-    case kNoError:
-      if (decoder_ && decoder_->FinishWithSuccess()) {
-        scoped_ptr<render_tree::ImageData> image_data =
-            decoder_->RetrieveImageData();
-        success_callback_.Run(
-            image_data ? resource_provider_->CreateImage(image_data.Pass())
-                       : NULL);
-      } else {
-        error_callback_.Run("Decode image failed.");
-      }
-      break;
-    case kNoContent:
-      // Load successful and no image is available if no content.
-      success_callback_.Run(NULL);
-      break;
-    case kUnsupportedImageFormat:
-      error_callback_.Run("Unsupported image format");
-      break;
-  }
+  return true;
 }
 
 // static
