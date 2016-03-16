@@ -36,11 +36,11 @@ DOMSettings::DOMSettings(loader::FetcherFactory* fetcher_factory,
       javascript_engine_(engine),
       global_object_proxy_(global_object_proxy) {
   if (array_buffer_allocator_) {
-    DCHECK_GT(options.array_buffer_cache_size, 0);
+    DCHECK_GT(options.array_buffer_cache_size, 0UL);
     array_buffer_cache_.reset(
         new ArrayBuffer::Cache(options.array_buffer_cache_size));
   } else {
-    DCHECK_EQ(options.array_buffer_cache_size, 0);
+    DCHECK_EQ(options.array_buffer_cache_size, 0UL);
   }
 }
 
