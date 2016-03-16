@@ -156,7 +156,6 @@ class ShellAudioStreamer {
   // informational purpose and is currently only used to create
   // h5vcc::AudioConfig.
   virtual std::vector<OutputDevice> GetOutputDevices() {
-    NOTIMPLEMENTED();
     return std::vector<OutputDevice>();
   }
 
