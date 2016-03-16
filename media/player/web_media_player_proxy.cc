@@ -25,24 +25,13 @@ WebMediaPlayerProxy::WebMediaPlayerProxy(
     const scoped_refptr<base::MessageLoopProxy>& render_loop,
     WebMediaPlayerImpl* webmediaplayer)
     : render_loop_(render_loop),
-      webmediaplayer_(webmediaplayer),
-      outstanding_repaints_(0) {
+      webmediaplayer_(webmediaplayer) {
   DCHECK(render_loop_);
   DCHECK(webmediaplayer_);
 }
 
 WebMediaPlayerProxy::~WebMediaPlayerProxy() {
   Detach();
-}
-
-void WebMediaPlayerProxy::Repaint() {
-  base::AutoLock auto_lock(lock_);
-  if (outstanding_repaints_ < kMaxOutstandingRepaints) {
-    ++outstanding_repaints_;
-
-    render_loop_->PostTask(FROM_HERE,
-                           base::Bind(&WebMediaPlayerProxy::RepaintTask, this));
-  }
 }
 
 void WebMediaPlayerProxy::Paint(SkCanvas* canvas,
@@ -82,18 +71,6 @@ void WebMediaPlayerProxy::Detach() {
   webmediaplayer_ = NULL;
   data_source_ = NULL;
   frame_provider_ = NULL;
-}
-
-void WebMediaPlayerProxy::RepaintTask() {
-  DCHECK(render_loop_->BelongsToCurrentThread());
-  {
-    base::AutoLock auto_lock(lock_);
-    --outstanding_repaints_;
-    DCHECK_GE(outstanding_repaints_, 0);
-  }
-  if (webmediaplayer_) {
-    webmediaplayer_->Repaint();
-  }
 }
 
 void WebMediaPlayerProxy::GetCurrentFrame(

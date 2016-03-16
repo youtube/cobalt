@@ -213,7 +213,6 @@ class WebMediaPlayerClient {
   virtual void TimeChanged() = 0;
   virtual void DurationChanged() = 0;
   virtual void PlaybackStateChanged() = 0;
-  virtual void Repaint() = 0;
   // TODO(***REMOVED***) : Revisit the necessity of the following function.
   virtual void SetOpaque(bool /* opaque */) {}
   virtual void SawUnsupportedTracks() = 0;

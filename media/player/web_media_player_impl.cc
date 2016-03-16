@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/callback.h"
 #include "base/message_loop_proxy.h"
 #include "base/metrics/histogram.h"
@@ -178,7 +179,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   // Create default video renderer.
   scoped_refptr<VideoRendererBase> video_renderer = new VideoRendererBase(
       pipeline_message_loop, set_decryptor_ready_cb,
-      base::Bind(&WebMediaPlayerProxy::Repaint, proxy_),
+      base::Bind(base::DoNothing),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetOpaque), true);
   filter_collection_->AddVideoRenderer(video_renderer);
   proxy_->set_frame_provider(video_renderer);
@@ -871,11 +872,6 @@ void WebMediaPlayerImpl::WillDestroyCurrentMessageLoop() {
   main_loop_ = NULL;
 }
 
-void WebMediaPlayerImpl::Repaint() {
-  DCHECK_EQ(main_loop_, MessageLoop::current());
-  GetClient()->Repaint();
-}
-
 void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   starting_ = false;
@@ -919,7 +915,6 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error) {
     // Any error that occurs before reaching ReadyStateHaveMetadata should
     // be considered a format error.
     SetNetworkState(WebMediaPlayer::kNetworkStateFormatError);
-    Repaint();
     return;
   }
 
@@ -969,9 +964,6 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error) {
       NOTREACHED() << "PIPELINE_STATUS_MAX isn't a real error!";
       break;
   }
-
-  // Repaint to trigger UI update.
-  Repaint();
 }
 
 void WebMediaPlayerImpl::OnPipelineBufferingState(
@@ -990,9 +982,6 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
       SetReadyState(WebMediaPlayer::kReadyStateHaveEnoughData);
       break;
   }
-
-  // Repaint to trigger UI update.
-  Repaint();
 }
 
 void WebMediaPlayerImpl::OnDemuxerOpened() {
