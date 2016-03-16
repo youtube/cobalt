@@ -55,6 +55,12 @@ SB_EXPORT void SbLog(SbLogPriority priority, const char* message);
 // additional formatting.
 SB_EXPORT void SbLogRaw(const char* message);
 
+// Dumps the stack of the current thread to the log in an async-signal-safe
+// manner, i.e. safe to call from an asynchronous signal handler (e.g. a SIGSEGV
+// handler). Does not include SbLogRawDumpStack itself, and will additionally
+// skip |frames_to_skip| frames from the top of the stack.
+SB_EXPORT void SbLogRawDumpStack(int frames_to_skip);
+
 // A formatted log output method that is async-signal-safe, i.e. safe to call
 // from an asynchronous signal handler (e.g. a SIGSEGV handler).
 SB_EXPORT void SbLogRawFormat(const char* format, va_list args)
