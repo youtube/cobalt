@@ -32,8 +32,7 @@ namespace {
 void SetPropertyValuesOfHigherPrecedence(
     const scoped_refptr<const CSSDeclaredStyleData>& style,
     const CascadePriority& precedence_normal,
-    const CascadePriority& precedence_important, const GURL& location_url,
-    GURLMap* property_key_to_base_url_map,
+    const CascadePriority& precedence_important,
     base::optional<CascadePriority>* cascade_precedences,
     scoped_refptr<CSSComputedStyleData>* cascaded_style) {
   const CSSDeclaredStyleData::PropertyValues& property_values =
@@ -53,12 +52,6 @@ void SetPropertyValuesOfHigherPrecedence(
         *(cascade_precedences[key]) < precedence) {
       cascade_precedences[key] = precedence;
       (*cascaded_style)->SetPropertyValue(key, property_value_iterator->second);
-
-      if (kBackgroundImageProperty == key && !location_url.is_empty()) {
-        DCHECK(property_key_to_base_url_map);
-        (*property_key_to_base_url_map)[kBackgroundImageProperty] =
-            location_url;
-      }
     }
   }
 }
@@ -79,31 +72,34 @@ scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
   if (inline_style) {
     const CascadePriority precedence_normal = CascadePriority(kImportantMin);
     const CascadePriority precedence_important = CascadePriority(kImportantMax);
-    GURL location_url;
-    SetPropertyValuesOfHigherPrecedence(
-        inline_style, precedence_normal, precedence_important, location_url,
-        property_key_to_base_url_map, cascade_precedences, &cascaded_style);
+    SetPropertyValuesOfHigherPrecedence(inline_style, precedence_normal,
+                                        precedence_important,
+                                        cascade_precedences, &cascaded_style);
   }
 
   if (!matching_rules->empty()) {
-    const scoped_refptr<CSSStyleSheet>& parent_style_sheet =
-        matching_rules->begin()->first->parent_style_sheet();
-    const GURL& location_url =
-        parent_style_sheet ? parent_style_sheet->LocationUrl() : GURL();
     for (RulesWithCascadePriority::const_iterator rule_iterator =
              matching_rules->begin();
          rule_iterator != matching_rules->end(); ++rule_iterator) {
       const scoped_refptr<const CSSDeclaredStyleData>& declared_style =
           rule_iterator->first->declared_style_data();
-
       if (declared_style) {
         const CascadePriority& precedence_normal = rule_iterator->second;
         CascadePriority precedence_important = rule_iterator->second;
         precedence_important.SetImportant();
         SetPropertyValuesOfHigherPrecedence(
             declared_style, precedence_normal, precedence_important,
-            location_url, property_key_to_base_url_map, cascade_precedences,
-            &cascaded_style);
+            cascade_precedences, &cascaded_style);
+
+        if (cascaded_style->IsDeclared(kBackgroundImageProperty)) {
+          const scoped_refptr<CSSStyleSheet>& parent_style_sheet =
+              rule_iterator->first->parent_style_sheet();
+          if (parent_style_sheet) {
+            DCHECK(property_key_to_base_url_map);
+            (*property_key_to_base_url_map)[kBackgroundImageProperty] =
+                parent_style_sheet->LocationUrl();
+          }
+        }
       }
     }
   }
