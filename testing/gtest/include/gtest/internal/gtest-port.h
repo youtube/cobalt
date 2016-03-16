@@ -1719,8 +1719,8 @@ namespace posix {
 typedef SbFileInfo StatStruct;
 typedef int FILE;
 
-inline int FileNo(FILE* file) { return 0; }
-inline int IsATTY(FILE* file) { return SbLogIsTty() ? 1 : 0; }
+inline int FileNo(FILE* /*file*/) { return 0; }
+inline int IsATTY(FILE* /*file*/) { return SbLogIsTty() ? 1 : 0; }
 inline int Stat(const char* path, StatStruct* buf) {
   return SbFileGetPathInfo(path, buf) ? 0 : -1;
 }
@@ -1736,9 +1736,9 @@ inline const char* StrNCpy(char* dest, const char* src, size_t n) {
   return dest;
 }
 
-inline FILE* FOpen(const char* path, const char* mode) { return NULL; }
-inline int FClose(FILE* fp) { return -1; }
-inline const char* StrError(int errnum) { return "N/A"; }
+inline FILE* FOpen(const char* /*path*/, const char* /*mode*/) { return NULL; }
+inline int FClose(FILE* /*fp*/) { return -1; }
+inline const char* StrError(int /*errnum*/) { return "N/A"; }
 
 inline const char* GetEnv(const char* /*name*/) { return NULL; }
 inline void Abort() { SbSystemBreakIntoDebugger(); }
