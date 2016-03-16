@@ -55,10 +55,6 @@ const scoped_refptr<EventTarget>& Event::current_target() const {
 }
 
 void Event::InitEvent(const std::string& type, bool bubbles, bool cancelable) {
-  static bool first_time = true;
-  DLOG_IF(WARNING, first_time) << "Event.initEvent() is deprecated.";
-  first_time = false;
-
   InitEventInternal(base::Token(type), bubbles, cancelable);
 }
 
