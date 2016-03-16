@@ -1162,7 +1162,9 @@ bool HTMLMediaElement::CouldPlayIfEnoughData() const {
   return !paused() && !EndedPlayback() && !StoppedDueToErrors();
 }
 
-void HTMLMediaElement::ConfigureMediaControls() { NOTIMPLEMENTED(); }
+void HTMLMediaElement::ConfigureMediaControls() {
+  DCHECK(!controls_) << "media control is not supported";
+}
 
 void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
   DLOG(WARNING) << "HTMLMediaElement::MediaEngineError " << error->code();
@@ -1291,8 +1293,6 @@ void HTMLMediaElement::PlaybackStateChanged() {
   }
   EndProcessingMediaPlayerCallback();
 }
-
-void HTMLMediaElement::Repaint() { NOTIMPLEMENTED(); }
 
 void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
 
