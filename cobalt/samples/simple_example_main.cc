@@ -16,10 +16,9 @@
 
 #include "cobalt/samples/simple_example.h"
 
-#include "base/at_exit.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
-#include "cobalt/base/init_cobalt.h"
+#include "cobalt/base/wrap_main.h"
 
 namespace {
 
@@ -37,14 +36,13 @@ void RunCode() {
   MultiplyAdd(1, 2, 10);
 }
 
-}  // namespace
-
 // Argument list should be passed as char**, not char*[] in order to compile
 // on Windows. See main_wrapper_win.cc for details.
-int main(int argc, char** argv) {
-  base::AtExitManager at_exit;
-  cobalt::InitCobalt(argc, argv);
-
+int SandboxMain(int argc, char** argv) {
   RunCode();
   return 0;
 }
+
+}  // namespace
+
+COBALT_WRAP_SIMPLE_MAIN(SandboxMain);
