@@ -62,6 +62,7 @@
         'log_format_test.cc',
         'log_is_tty_test.cc',
         'log_raw_test.cc',
+        'log_raw_dump_stack_test.cc',
         'log_test.cc',
         'main.cc',
         'memory_allocate_aligned_test.cc',
