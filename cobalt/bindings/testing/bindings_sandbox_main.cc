@@ -17,8 +17,7 @@
 #include <iostream>
 #include <string>
 
-#include "base/at_exit.h"
-#include "cobalt/base/init_cobalt.h"
+#include "cobalt/base/wrap_main.h"
 #include "cobalt/bindings/testing/window.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_object_proxy.h"
@@ -31,10 +30,9 @@ using cobalt::script::GlobalObjectProxy;
 using cobalt::script::JavaScriptEngine;
 using cobalt::script::SourceCode;
 
-int main(int argc, char** argv) {
-  base::AtExitManager at_exit;
-  cobalt::InitCobalt(argc, argv);
+namespace {
 
+int SandboxMain(int argc, char** argv) {
   // Environment Settings object
   scoped_ptr<EnvironmentSettings> environment_settings =
       make_scoped_ptr(new EnvironmentSettings());
@@ -76,3 +74,7 @@ int main(int argc, char** argv) {
     std::cout << result << std::endl;
   }
 }
+
+}  // namespace
+
+COBALT_WRAP_SIMPLE_MAIN(SandboxMain);

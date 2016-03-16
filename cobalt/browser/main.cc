@@ -14,28 +14,29 @@
  * limitations under the License.
  */
 
-#include "base/at_exit.h"
-#include "base/message_loop.h"
-#include "base/run_loop.h"
-#include "cobalt/base/init_cobalt.h"
+#include "base/callback.h"
+#include "base/logging.h"
+#include "cobalt/base/wrap_main.h"
 #include "cobalt/browser/application.h"
 
-int main(int argc, char** argv) {
-  base::AtExitManager at_exit;
-  cobalt::InitCobalt(argc, argv);
+namespace {
 
-  MessageLoopForUI message_loop;
-  base::PlatformThread::SetName("Main");
-  message_loop.set_thread_name("Main");
+cobalt::browser::Application* g_application = NULL;
 
-  DCHECK(!message_loop.is_running());
-  base::RunLoop run_loop;
-
-  scoped_ptr<cobalt::browser::Application> application =
-      cobalt::browser::CreateApplication();
-  application->set_quit_closure(run_loop.QuitClosure());
-
-  run_loop.Run();
-
-  return 0;
+void StartApplication(int /*argc*/, char** /*argv*/,
+                      const base::Closure& quit_closure) {
+  DCHECK(!g_application);
+  g_application = cobalt::browser::CreateApplication().release();
+  DCHECK(g_application);
+  g_application->set_quit_closure(quit_closure);
 }
+
+void StopApplication() {
+  DCHECK(g_application);
+  delete g_application;
+  g_application = NULL;
+}
+
+}  // namespace
+
+COBALT_WRAP_BASE_MAIN(StartApplication, StopApplication);

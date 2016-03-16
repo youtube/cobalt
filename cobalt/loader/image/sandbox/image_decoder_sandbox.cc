@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-#include "base/at_exit.h"
 #include "base/debug/trace_event.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/time.h"
-#include "cobalt/base/init_cobalt.h"
+#include "cobalt/base/wrap_main.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/renderer_module.h"
@@ -127,10 +126,6 @@ void DecodeImages(ResourceProvider* resource_provider, const char* extension) {
 }
 
 int SandboxMain(int argc, char** argv) {
-  // Setup the stage
-  base::AtExitManager at_exit;
-  cobalt::InitCobalt(argc, argv);
-
   cobalt::trace_event::ScopedTraceToFile trace_to_file(
       FilePath(FILE_PATH_LITERAL("image_decoder_sandbox_trace.json")));
 
@@ -161,6 +156,4 @@ int SandboxMain(int argc, char** argv) {
 }  // namespace loader
 }  // namespace cobalt
 
-int main(int argc, char** argv) {
-  return cobalt::loader::image::sandbox::SandboxMain(argc, argv);
-}
+COBALT_WRAP_SIMPLE_MAIN(cobalt::loader::image::sandbox::SandboxMain);
