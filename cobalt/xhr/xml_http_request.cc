@@ -535,10 +535,19 @@ void XMLHttpRequest::set_timeout(uint32 timeout) {
   }
 }
 
-void XMLHttpRequest::set_with_credentials(bool with_credentials) {
+bool XMLHttpRequest::with_credentials(
+    script::ExceptionState* /*unused*/) const {
+  return with_credentials_;
+}
+
+void XMLHttpRequest::set_with_credentials(
+    bool with_credentials, script::ExceptionState* exception_state) {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-withcredentials-attribute
-  UNREFERENCED_PARAMETER(with_credentials);
-  NOTIMPLEMENTED();
+  if ((state_ != kUnsent && state_ != kOpened) || sent_) {
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    return;
+  }
+  with_credentials_ = with_credentials;
 }
 
 scoped_refptr<XMLHttpRequestUpload> XMLHttpRequest::upload() {
@@ -831,6 +840,18 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
     // If applicable, the request body Content-Type is already set in
     // request_headers.
     url_fetcher_->SetUploadData("", request_body);
+  }
+
+  bool is_cross_origin = request_url_.GetOrigin() != base_url_.GetOrigin();
+  if (is_cross_origin) {
+    // For cross-origin requests, don't send or save auth data / cookies unless
+    // withCredentials was set.
+    if (!with_credentials_) {
+      const uint32 kDisableCookiesLoadFlags =
+          net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
+          net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
+      url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
+    }
   }
 
   DLOG_IF(INFO, verbose()) << __FUNCTION__ << *this;
