@@ -17,13 +17,11 @@
 #include <cstdio>
 #include <map>
 
-#include "base/at_exit.h"
 #include "base/command_line.h"
-#include "base/run_loop.h"
 #include "base/threading/thread.h"
 #include "base/time.h"
 #include "cobalt/base/console_values.h"
-#include "cobalt/base/init_cobalt.h"
+#include "cobalt/base/wrap_main.h"
 #include "cobalt/browser/application.h"
 #include "cobalt/browser/switches.h"
 
@@ -136,17 +134,13 @@ void DoStatsSnapshot(cobalt::browser::Application* application) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-  base::AtExitManager at_exit;
-  cobalt::InitCobalt(argc, argv);
+namespace {
 
-  MessageLoopForUI message_loop;
-  base::PlatformThread::SetName("Main");
-  message_loop.set_thread_name("Main");
+cobalt::browser::Application* g_application = NULL;
+base::Thread* g_snapshot_thread = NULL;
 
-  DCHECK(!message_loop.is_running());
-  base::RunLoop run_loop;
-
+void StartApplication(int /*argc*/, char* /*argv*/ [],
+                      const base::Closure& quit_closure) {
   logging::SetMinLogLevel(100);
 
   // Use null storage for our savegame so that we don't persist state from
@@ -158,22 +152,25 @@ int main(int argc, char** argv) {
       cobalt::browser::switches::kDebugConsoleMode, "off");
 
   // Create the application object just like is done in the Cobalt main app.
-  scoped_ptr<cobalt::browser::Application> application =
-      cobalt::browser::CreateApplication();
-  application->set_quit_closure(run_loop.QuitClosure());
+  g_application = cobalt::browser::CreateApplication().release();
+  g_application->set_quit_closure(quit_closure);
 
   // Create a thread to start a timer for kSecondsToWait seconds after which
   // we will take a snapshot of the CVals at that time and then quit the
   // application.
-  base::Thread snapshot_thread("StatsSnapshot");
-  snapshot_thread.Start();
-  snapshot_thread.message_loop()->PostDelayedTask(
-      FROM_HERE, base::Bind(&DoStatsSnapshot, application.get()),
+  g_snapshot_thread = new base::Thread("StatsSnapshot");
+  g_snapshot_thread->Start();
+  g_snapshot_thread->message_loop()->PostDelayedTask(
+      FROM_HERE, base::Bind(&DoStatsSnapshot, g_application),
       base::TimeDelta::FromSeconds(kSecondsToWait));
-
-  run_loop.Run();
-
-  snapshot_thread.Stop();
-
-  return 0;
 }
+
+void StopApplication() {
+  g_snapshot_thread->Stop();
+  delete g_application;
+  g_application = NULL;
+}
+
+}  // namespace
+
+COBALT_WRAP_BASE_MAIN(StartApplication, StopApplication);

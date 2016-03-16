@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-#include "base/at_exit.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
-#include "cobalt/base/init_cobalt.h"
+#include "cobalt/base/wrap_main.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/renderer_module.h"
@@ -35,14 +34,11 @@ using cobalt::renderer::test::scenes::RenderTreeWithAnimations;
 using cobalt::system_window::SystemWindow;
 
 namespace {
+
 const int kViewportWidth = 1920;
 const int kViewportHeight = 1080;
-}  // namespace
 
-int main(int argc, char** argv) {
-  base::AtExitManager at_exit;
-  cobalt::InitCobalt(argc, argv);
-
+int SandboxMain(int argc, char** argv) {
   MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
 
   cobalt::trace_event::ScopedTraceToFile trace_to_file(
@@ -80,3 +76,7 @@ int main(int argc, char** argv) {
 
   return 0;
 }
+
+}  // namespace
+
+COBALT_WRAP_SIMPLE_MAIN(SandboxMain);
