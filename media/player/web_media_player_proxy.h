@@ -12,7 +12,6 @@
 #include "base/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
-#include "base/synchronization/lock.h"
 #include "media/base/decryptor_client.h"
 #include "media/base/pipeline.h"
 #include "media/filters/chunk_demuxer.h"
@@ -53,9 +52,6 @@ class WebMediaPlayerProxy
     frame_provider_ = frame_provider;
   }
 
-  // Methods for Filter -> WebMediaPlayerImpl communication.
-  void Repaint();
-
   // Methods for WebMediaPlayerImpl -> Filter communication.
   void Paint(SkCanvas* canvas, const gfx::Rect& dest_rect, uint8_t alpha);
   void Detach();
@@ -87,9 +83,6 @@ class WebMediaPlayerProxy
   friend class base::RefCountedThreadSafe<WebMediaPlayerProxy>;
   virtual ~WebMediaPlayerProxy();
 
-  // Invoke |webmediaplayer_| to perform a repaint.
-  void RepaintTask();
-
   // Notify |webmediaplayer_| that a key has been added.
   void KeyAddedTask(const std::string& key_system,
                     const std::string& session_id);
@@ -120,9 +113,6 @@ class WebMediaPlayerProxy
   scoped_refptr<BufferedDataSource> data_source_;
   scoped_refptr<VideoRendererBase> frame_provider_;
   SkCanvasVideoRenderer video_renderer_;
-
-  base::Lock lock_;
-  int outstanding_repaints_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WebMediaPlayerProxy);
 };

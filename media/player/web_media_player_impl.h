@@ -212,8 +212,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // to it.
   void WillDestroyCurrentMessageLoop() OVERRIDE;
 
-  void Repaint();
-
   void OnPipelineSeek(PipelineStatus status);
   void OnPipelineEnded(PipelineStatus status);
   void OnPipelineError(PipelineStatus error);
