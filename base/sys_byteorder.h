@@ -21,7 +21,9 @@
 #endif
 
 // Include headers to provide byteswap for all platforms.
-#if defined(COMPILER_MSVC)
+#if defined(OS_STARBOARD)
+#include "starboard/byte_swap.h"
+#elif defined(COMPILER_MSVC)
 #include <stdlib.h>
 #elif defined(OS_MACOSX)
 #include <libkern/OSByteOrder.h>
@@ -36,7 +38,9 @@ namespace base {
 
 // Returns a value with all bytes in |x| swapped, i.e. reverses the endianness.
 inline uint16 ByteSwap(uint16 x) {
-#if defined(COMPILER_MSVC)
+#if defined(OS_STARBOARD)
+  return SbByteSwapU16(x);
+#elif defined(COMPILER_MSVC)
   return _byteswap_ushort(x);
 #elif defined(OS_MACOSX)
   return OSSwapInt16(x);
@@ -47,7 +51,9 @@ inline uint16 ByteSwap(uint16 x) {
 #endif
 }
 inline uint32 ByteSwap(uint32 x) {
-#if defined(COMPILER_MSVC)
+#if defined(OS_STARBOARD)
+  return SbByteSwapU32(x);
+#elif defined(COMPILER_MSVC)
   return _byteswap_ulong(x);
 #elif defined(OS_MACOSX)
   return OSSwapInt32(x);
@@ -58,7 +64,9 @@ inline uint32 ByteSwap(uint32 x) {
 #endif
 }
 inline uint64 ByteSwap(uint64 x) {
-#if defined(COMPILER_MSVC)
+#if defined(OS_STARBOARD)
+  return SbByteSwapU64(x);
+#elif defined(COMPILER_MSVC)
   return _byteswap_uint64(x);
 #elif defined(OS_MACOSX)
   return OSSwapInt64(x);
