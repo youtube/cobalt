@@ -20,21 +20,18 @@
     {
       'target_name': 'cobalt',
       'type': '<(final_executable_type)',
+      'sources': [
+        'main.cc',
+      ],
       'conditions': [
         ['OS=="lb_shell"', {
           'dependencies': [
             '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
           ],
-          'sources': [
-            'main.cc',
-          ],
         }],
         ['OS=="starboard"', {
           'dependencies': [
             '<(DEPTH)/cobalt/browser/starboard/platform_browser.gyp:platform_browser',
-          ],
-          'sources': [
-            'main_starboard.cc',
           ],
         }],
         ['cobalt_copy_test_data == 1', {

@@ -21,6 +21,7 @@
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/time.h"
+#include "cobalt/base/wrap_main.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 #include "cobalt/render_tree/image.h"
@@ -106,6 +107,4 @@ int SandboxMain(int argc, char** argv) {
 }  // namespace media
 }  // namespace cobalt
 
-int main(int argc, char** argv) {
-  return cobalt::media::sandbox::SandboxMain(argc, argv);
-}
+COBALT_WRAP_SIMPLE_MAIN(cobalt::media::sandbox::SandboxMain);

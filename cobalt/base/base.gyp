@@ -27,6 +27,8 @@
         'console_commands.h',
         'console_values.cc',
         'console_values.h',
+        'do_main.h',
+        'do_main_starboard.h',
         'event.h',
         'event_dispatcher.cc',
         'event_dispatcher.h',

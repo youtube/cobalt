@@ -16,11 +16,10 @@
 #include <cstdio>
 #include <map>
 
-#include "base/at_exit.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/values.h"
-#include "cobalt/base/init_cobalt.h"
+#include "cobalt/base/wrap_main.h"
 #include "cobalt/trace_event/benchmark.h"
 
 namespace {
@@ -82,11 +81,8 @@ void JsonPrint(const BenchmarkResultsMap& benchmarks) {
 
   Output("---Benchmark Results End---\n");
 }
-}  // namespace
 
-int main(int argc, char** argv) {
-  base::AtExitManager at_exit;
-  cobalt::InitCobalt(argc, argv);
+int RunnerMain(int argc, char** argv) {
 #if defined(NDEBUG)
   // Get rid of all log output so we only see benchmark results.
   logging::SetMinLogLevel(logging::LOG_FATAL);
@@ -97,3 +93,7 @@ int main(int argc, char** argv) {
   JsonPrint(benchmarks);
   return 0;
 }
+
+}  // namespace
+
+COBALT_WRAP_SIMPLE_MAIN(RunnerMain);
