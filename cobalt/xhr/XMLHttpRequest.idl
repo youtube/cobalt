@@ -47,7 +47,7 @@
 
     attribute unsigned long timeout;
 
-    attribute boolean withCredentials;
+    [RaisesException=Setter] attribute boolean withCredentials;
 
     readonly attribute XMLHttpRequestUpload upload;
 

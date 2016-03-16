@@ -141,8 +141,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   uint32 timeout() const { return timeout_ms_; }
   void set_timeout(uint32 timeout);
-  bool with_credentials() const { return with_credentials_; }
-  void set_with_credentials(bool b);
+  bool with_credentials(script::ExceptionState* exception_state) const;
+  void set_with_credentials(bool b, script::ExceptionState* exception_state);
 
   scoped_refptr<XMLHttpRequestUpload> upload();
 
