@@ -148,12 +148,8 @@ int GetInitialMode() {
 // A function to create a DebugHub object, to be injected into WebModule.
 scoped_refptr<script::Wrappable> CreateDebugHub(
     const debug::DebugHub::GetHudModeCallback& get_hud_mode_function,
-    const debug::DebugHub::ExecuteJavascriptCallback&
-        execute_javascript_callback,
-    const debug::Debugger::CreateDebugServerCallback&
-        create_debug_server_callback) {
-  return new debug::DebugHub(get_hud_mode_function, execute_javascript_callback,
-                             create_debug_server_callback);
+    const debug::Debugger::GetDebugServerCallback& get_debug_server_callback) {
+  return new debug::DebugHub(get_hud_mode_function, get_debug_server_callback);
 }
 
 }  // namespace
@@ -165,10 +161,7 @@ DebugConsole::DebugConsole(
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const debug::DebugHub::ExecuteJavascriptCallback&
-        execute_javascript_callback,
-    const debug::Debugger::CreateDebugServerCallback&
-        create_debug_server_callback) {
+    const debug::Debugger::GetDebugServerCallback& get_debug_server_callback) {
   mode_ = GetInitialMode();
 
   WebModule::Options web_module_options;
@@ -184,7 +177,7 @@ DebugConsole::DebugConsole(
   web_module_options.injected_window_attributes["debugHub"] =
       base::Bind(&CreateDebugHub,
                  base::Bind(&DebugConsole::GetMode, base::Unretained(this)),
-                 execute_javascript_callback, create_debug_server_callback);
+                 get_debug_server_callback);
   web_module_.reset(new WebModule(
       GURL(kInitialDebugConsoleUrl), render_tree_produced_callback,
       error_callback, media_module, network_module, window_dimensions,
