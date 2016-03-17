@@ -49,7 +49,8 @@ void SimpleEventHandler(const SbEvent* event) {
 }
 
 // Starboard implementation of the "Base Main" use case.
-template <StartFunction start_function, StopFunction stop_function>
+template <StartFunction start_function, EventFunction event_function,
+          StopFunction stop_function>
 void BaseEventHandler(const SbEvent* event) {
   static base::AtExitManager* g_at_exit = NULL;
   static MessageLoopForUI* g_loop = NULL;
@@ -87,6 +88,7 @@ void BaseEventHandler(const SbEvent* event) {
       break;
     }
     default:
+      event_function(event);
       break;
   }
 }
@@ -101,13 +103,18 @@ void BaseEventHandler(const SbEvent* event) {
     ::cobalt::wrap_main::SimpleEventHandler<main_function>(event); \
   }
 
+// Like COBALT_WRAP_BASE_MAIN, but supports an event_function to forward
+// non-application events to.
+#define COBALT_WRAP_EVENT_MAIN(start_function, event_function, stop_function) \
+  void SbEventHandle(const SbEvent* event) {                                  \
+    return ::cobalt::wrap_main::BaseEventHandler<                             \
+        start_function, event_function, stop_function>(event);                \
+  }
+
 // Creates a MessageLoop and an AtExitManager, calls |start_function|, and
 // terminates once the MessageLoop terminates, calling |stop_function| on the
 // way out.
-#define COBALT_WRAP_BASE_MAIN(start_function, stop_function)              \
-  void SbEventHandle(const SbEvent* event) {                              \
-    ::cobalt::wrap_main::BaseEventHandler<start_function, stop_function>( \
-        event);                                                           \
-  }
+#define COBALT_WRAP_BASE_MAIN(start_function, stop_function) \
+  COBALT_WRAP_EVENT_MAIN(start_function, NoopEventFunction, stop_function)
 
 #endif  // COBALT_BASE_WRAP_MAIN_STARBOARD_H_

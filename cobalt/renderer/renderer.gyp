@@ -29,7 +29,6 @@
         'render_tree_backend_conversions.h',
         'renderer_module.cc',
         'renderer_module.h',
-        'renderer_module_default_options_<(actual_target_arch).cc',
         'smoothed_value.cc',
         'smoothed_value.h',
         'submission.h',
@@ -50,6 +49,17 @@
         '<(DEPTH)/cobalt/renderer/backend/backend.gyp:renderer_backend',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/third_party/ots/ots.gyp:ots',
+      ],
+      'conditions': [
+        ['OS=="starboard"', {
+          'sources': [
+            'renderer_module_default_options_starboard.cc',
+          ],
+        }, {
+          'sources': [
+            'renderer_module_default_options_<(actual_target_arch).cc',
+          ],
+        }],
       ],
     },
 
