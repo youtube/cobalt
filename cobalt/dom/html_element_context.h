@@ -25,7 +25,7 @@
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/loader/font/remote_font_cache.h"
+#include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_runner.h"
@@ -47,7 +47,7 @@ class HTMLElementContext {
                      MediaSource::Registry* media_source_registry,
                      render_tree::ResourceProvider* resource_provider,
                      loader::image::ImageCache* image_cache,
-                     loader::font::RemoteFontCache* remote_font_cache,
+                     loader::font::RemoteTypefaceCache* remote_typeface_cache,
                      const std::string& language);
   ~HTMLElementContext();
 
@@ -72,8 +72,8 @@ class HTMLElementContext {
 
   loader::image::ImageCache* image_cache() const { return image_cache_; }
 
-  loader::font::RemoteFontCache* remote_font_cache() const {
-    return remote_font_cache_;
+  loader::font::RemoteTypefaceCache* remote_typeface_cache() const {
+    return remote_typeface_cache_;
   }
 
   const std::string& language() const { return language_; }
@@ -93,7 +93,7 @@ class HTMLElementContext {
   MediaSource::Registry* const media_source_registry_;
   render_tree::ResourceProvider* resource_provider_;
   loader::image::ImageCache* const image_cache_;
-  loader::font::RemoteFontCache* const remote_font_cache_;
+  loader::font::RemoteTypefaceCache* const remote_typeface_cache_;
   const std::string language_;
 
   base::Thread sync_load_thread_;

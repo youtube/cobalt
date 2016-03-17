@@ -254,8 +254,8 @@ class Document : public Node, public cssom::MutationObserver {
   // Called when the DOM is mutated in some way.
   void OnDOMMutation();
 
-  // Called when a new font has been loaded.
-  void OnFontLoadEvent();
+  // Called when a new typeface has been loaded.
+  void OnTypefaceLoadEvent();
 
   // Called when the inline style of an element is modified.
   void OnElementInlineStyleMutation();

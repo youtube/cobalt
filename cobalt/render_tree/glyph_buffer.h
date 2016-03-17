@@ -24,7 +24,10 @@ namespace cobalt {
 namespace render_tree {
 
 // The GlyphBuffer class is a base class, which contains the data needed to
-// render shaped text.
+// render shaped text. It is intended to be immutable and thread-safe. Since
+// GlyphBuffer objects may be created in the front-end, but must be accessed
+// by the rasterizer, it is expected that they will be downcast again to a
+// rasterizer-specific type through base::polymorphic_downcast().
 class GlyphBuffer : public base::RefCountedThreadSafe<GlyphBuffer> {
  public:
   explicit GlyphBuffer(const math::RectF& bounds) : bounds_(bounds) {}
@@ -33,7 +36,7 @@ class GlyphBuffer : public base::RefCountedThreadSafe<GlyphBuffer> {
   const math::RectF& GetBounds() const { return bounds_; }
 
  private:
-  math::RectF bounds_;
+  const math::RectF bounds_;
 
   // Allow the reference counting system access to our destructor.
   friend class base::RefCountedThreadSafe<GlyphBuffer>;
