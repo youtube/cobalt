@@ -33,18 +33,15 @@ namespace browser {
 // debug console.
 class DebugConsole {
  public:
-  DebugConsole(const WebModule::OnRenderTreeProducedCallback&
-                   render_tree_produced_callback,
-               const base::Callback<void(const std::string&)>& error_callback,
-               media::MediaModule* media_module,
-               network::NetworkModule* network_module,
-               const math::Size& window_dimensions,
-               render_tree::ResourceProvider* resource_provider,
-               float layout_refresh_rate,
-               const debug::DebugHub::ExecuteJavascriptCallback&
-                   execute_javascript_callback,
-               const debug::Debugger::CreateDebugServerCallback&
-                   create_debug_server_callback);
+  DebugConsole(
+      const WebModule::OnRenderTreeProducedCallback&
+          render_tree_produced_callback,
+      const base::Callback<void(const std::string&)>& error_callback,
+      media::MediaModule* media_module, network::NetworkModule* network_module,
+      const math::Size& window_dimensions,
+      render_tree::ResourceProvider* resource_provider,
+      float layout_refresh_rate,
+      const debug::Debugger::GetDebugServerCallback& get_debug_server_callback);
   ~DebugConsole();
 
   // Filters a key event.

@@ -366,7 +366,6 @@ devtoolsBackend.runtime.ObjectPreview = function(value) {
         this.properties.push(property);
         if (typeof value[i] == 'object') {
           this.lossless = false;
-          this.overflow = true;
         }
       }
     } else {
@@ -389,7 +388,6 @@ devtoolsBackend.runtime.ObjectPreview = function(value) {
       }
       if (typeof property == 'object') {
         this.lossless = false;
-        this.overflow = true;
       }
       var property = new devtoolsBackend.runtime.PropertyPreview(name,
                                                                  value[name]);

@@ -89,6 +89,8 @@ function animate(time) {
   updateHud(time);
   if (isConsoleVisible()) {
     commandInput.animateBlink();
+    // This will do nothing if debugger is already attached.
+    debuggerClient.attach();
   }
   window.requestAnimationFrame(animate);
 }
@@ -134,12 +136,10 @@ function executeDebug(command) {
 }
 
 // Execute a command as JavaScript in the main web module.
+// Use the debugger evaluate command, which gives us Command Line API access
+// and rich results with object preview.
 function executeMain(command) {
-  var result = window.debugHub.executeJavascript(command);
-  if (command.indexOf('console') == -1) {
-    // Echo the output for non-console commands.
-    printToMessageLog(messageLog.INFO, result);
-  }
+  debuggerClient.evaluate(command);
 }
 
 // Executes a command entered by the user.
@@ -151,10 +151,12 @@ function executeMain(command) {
 //    or pass to the main web module to be executed as JavaScript.
 function executeCommand(command) {
   if (executeImmediate(command)) {
+    printToMessageLog(messageLog.INTERACTIVE, '');
     return;
   }
   commandInput.storeAndClearCurrentCommand();
   if (executeDebug(command)) {
+    printToMessageLog(messageLog.INTERACTIVE, '');
     return;
   }
   executeMain(command);
@@ -166,7 +168,6 @@ function executeCurrentCommand() {
   var command = commandInput.getCurrentCommand();
   printToMessageLog(messageLog.INTERACTIVE, '> ' + command);
   executeCommand(command);
-  printToMessageLog(messageLog.INTERACTIVE, '');
 }
 
 function onKeydown(event) {

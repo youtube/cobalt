@@ -112,12 +112,7 @@ class BrowserModule {
 #endif
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  scoped_ptr<debug::DebugServer> CreateDebugServer(
-      const debug::DebugServer::OnEventCallback& on_event_callback,
-      const debug::DebugServer::OnDetachCallback& on_detach_callback) {
-    return web_module_->CreateDebugServer(on_event_callback,
-                                          on_detach_callback);
-  }
+  debug::DebugServer* GetDebugServer() { return web_module_->GetDebugServer(); }
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Change the network proxy settings while the application is running.
@@ -144,12 +139,6 @@ class BrowserModule {
   // and will manage handing it off to the renderer.
   void OnRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
-
-  // Calls the ExecuteJavascript for the current WebModule.
-  std::string ExecuteJavascript(const std::string& script_utf8,
-                                const base::SourceLocation& script_location) {
-    return web_module_->ExecuteJavascript(script_utf8, script_location);
-  }
 
   // Saves/loads the debug console mode to/from local storage so we can
   // persist the user's preference.

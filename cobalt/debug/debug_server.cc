@@ -22,6 +22,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/values.h"
+#include "cobalt/debug/debug_client.h"
 
 namespace cobalt {
 namespace debug {
@@ -54,6 +55,10 @@ void DebugServer::Component::AddCommand(const std::string& method,
   }
 }
 
+void DebugServer::AddClient(DebugClient* client) { clients_.insert(client); }
+
+void DebugServer::RemoveClient(DebugClient* client) { clients_.erase(client); }
+
 void DebugServer::Component::RemoveCommand(const std::string& method) {
   if (server_) {
     server_->RemoveCommand(method);
@@ -80,7 +85,7 @@ bool DebugServer::Component::RunScriptFile(const std::string& filename) {
 void DebugServer::Component::SendEvent(const std::string& method,
                                        const JSONObject& params) {
   if (server_) {
-    server_->OnEvent(method, params);
+    server_->OnEventInternal(method, params);
   }
 }
 
@@ -92,20 +97,26 @@ JSONObject DebugServer::Component::ErrorResponse(
   return error_response.Pass();
 }
 
-DebugServer::DebugServer(script::GlobalObjectProxy* global_object_proxy,
-                         const OnEventCallback& on_event_callback,
-                         const OnDetachCallback& on_detach_callback)
-    : script_runner_(
-          new DebugScriptRunner(global_object_proxy, on_event_callback)),
-      on_event_callback_(on_event_callback),
-      on_detach_callback_(on_detach_callback),
-      message_loop_proxy_(base::MessageLoopProxy::current()),
+DebugServer::DebugServer(script::GlobalObjectProxy* global_object_proxy)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(script_runner_(new DebugScriptRunner(
+          global_object_proxy,
+          base::Bind(&DebugServer::OnEvent, base::Unretained(this))))),
+      message_loop_(MessageLoop::current()),
       components_deleter_(&components_) {}
 
 DebugServer::~DebugServer() {
   // Invalidate weak pointers explicitly, as the weak pointer factory won't be
   // destroyed until after the debug components that reference this object.
   InvalidateWeakPtrs();
+
+  // Notify all clients.
+  // |detach_reason| argument from set here:
+  // https://developer.chrome.com/extensions/debugger#type-DetachReason
+  const std::string detach_reason = "target_closed";
+  for (std::set<DebugClient*>::iterator it = clients_.begin();
+       it != clients_.end(); ++it) {
+    (*it)->OnDetach(detach_reason);
+  }
 }
 
 void DebugServer::AddComponent(scoped_ptr<DebugServer::Component> component) {
@@ -118,10 +129,9 @@ void DebugServer::SendCommand(const std::string& method,
                               const std::string& json_params,
                               CommandCallback callback) {
   CommandCallbackInfo callback_info(callback);
-  message_loop_proxy_->PostTask(
-      FROM_HERE,
-      base::Bind(&DebugServer::DispatchCommand, base::Unretained(this), method,
-                 json_params, callback_info));
+  message_loop_->PostTask(FROM_HERE, base::Bind(&DebugServer::DispatchCommand,
+                                                base::Unretained(this), method,
+                                                json_params, callback_info));
 }
 
 void DebugServer::DispatchCommand(std::string method, std::string json_params,
@@ -151,14 +161,21 @@ void DebugServer::DispatchCommand(std::string method, std::string json_params,
   // Serialize the response object and run the callback.
   DCHECK(response);
   std::string json_response = JSONStringify(response);
-  callback_info.message_loop_proxy->PostTask(
+  callback_info.message_loop->PostTask(
       FROM_HERE, base::Bind(callback_info.callback, json_response));
 }
 
-void DebugServer::OnEvent(const std::string& method, const JSONObject& params) {
-  // Serialize the event parameters and pass to the external callback.
-  const std::string json_params = JSONStringify(params);
-  on_event_callback_.Run(method, json_params);
+void DebugServer::OnEvent(const std::string& method,
+                          const base::optional<std::string>& json_params) {
+  for (std::set<DebugClient*>::iterator it = clients_.begin();
+       it != clients_.end(); ++it) {
+    (*it)->OnEvent(method, json_params);
+  }
+}
+
+void DebugServer::OnEventInternal(const std::string& method,
+                                  const JSONObject& params) {
+  OnEvent(method, JSONStringify(params));
 }
 
 void DebugServer::AddCommand(const std::string& method,
