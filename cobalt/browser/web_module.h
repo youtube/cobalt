@@ -170,10 +170,10 @@ class WebModule {
 #endif
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  // Create a new debug server that interacts with this web module.
-  scoped_ptr<debug::DebugServer> CreateDebugServer(
-      const debug::DebugServer::OnEventCallback& on_event_callback,
-      const debug::DebugServer::OnDetachCallback& on_detach_callback);
+  // Gets a reference to the debug server that interacts with this web module.
+  // The debug server is owned by this web module, and is lazily created by this
+  // function if necessary.
+  debug::DebugServer* GetDebugServer();
 #endif  // ENABLE_DEBUG_CONSOLE
 
  private:
@@ -215,8 +215,7 @@ class WebModule {
   base::ThreadChecker thread_checker_;
 
   // The message loop that this WebModule is running on. If a class method
-  // (e.g. ExecuteJavascript) is called from a different message loop, repost
-  // it to this one.
+  // is called from a different message loop, repost it to this one.
   MessageLoop* const self_message_loop_;
 
   // CSS parser.
@@ -272,7 +271,14 @@ class WebModule {
   layout::LayoutManager layout_manager_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
+  // Allows the debugger to add render components to the web module.
+  // Used for DOM node highlighting.
   debug::RenderOverlay debug_overlay_;
+
+  // The core of the debugging system, described here:
+  // https://docs.google.com/document/d/1lZhrBTusQZJsacpt21J3kPgnkj7pyQObhFqYktvm40Y
+  // Created lazily when accessed via |GetDebugServer|.
+  scoped_ptr<debug::DebugServer> debug_server_;
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // DocumentObserver that observes the loading document.

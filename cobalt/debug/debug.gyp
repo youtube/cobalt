@@ -23,6 +23,8 @@
       'sources': [
         'console_component.cc',
         'console_component.h',
+        'debug_client.cc',
+        'debug_client.h',
         'debug_hub.cc',
         'debug_hub.h',
         'debug_script_runner.cc',
@@ -66,6 +68,8 @@
           'all_dependent_settings': {
             'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
           },
+        }],
+        ['cobalt_copy_debug_console==1', {
           'dependencies': [
             'debug_copy_web_files',
           ],

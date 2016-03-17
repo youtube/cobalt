@@ -40,8 +40,6 @@
 
   long getDebugConsoleMode();
 
-  DOMString executeJavascript(DOMString javascript);
-
   DOMString getCommandChannels();
   DOMString getCommandChannelShortHelp(DOMString command);
   DOMString getCommandChannelLongHelp(DOMString command);
