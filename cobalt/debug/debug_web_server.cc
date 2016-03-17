@@ -105,6 +105,8 @@ std::string GetLocalIpAddress() {
 }
 
 const char kContentDir[] = "cobalt/debug";
+const char kDetached[] = "Inspector.detached";
+const char kDetachReasonField[] = "params.reason";
 const char kErrorField[] = "error.message";
 const char kIdField[] = "id";
 const char kMethodField[] = "method";
@@ -112,9 +114,9 @@ const char kParamsField[] = "params";
 }  // namespace
 
 DebugWebServer::DebugWebServer(
-    int port, const CreateDebugServerCallback& create_debugger_callback)
+    int port, const GetDebugServerCallback& get_debug_server_callback)
     : http_server_thread_("DebugWebServer"),
-      create_debugger_callback_(create_debugger_callback),
+      get_debug_server_callback_(get_debug_server_callback),
       websocket_id_(-1),
       // Local address will be set when the web server is successfully started.
       local_address_("DevTools.Server", "<NOT RUNNING>",
@@ -193,13 +195,8 @@ void DebugWebServer::OnWebSocketRequest(
   websocket_id_ = connection_id;
   server_->AcceptWebSocket(connection_id, info);
 
-  if (debugger_) {
-    return;
-  }
-
-  debugger_ = create_debugger_callback_.Run(
-      base::Bind(&DebugWebServer::OnDebuggerEvent, base::Unretained(this)),
-      base::Bind(&DebugWebServer::OnDebuggerDetach, base::Unretained(this)));
+  DebugServer* debug_server = get_debug_server_callback_.Run();
+  debug_client_.reset(new DebugClient(debug_server, this));
 }
 
 void DebugWebServer::OnWebSocketMessage(int connection_id,
@@ -212,7 +209,7 @@ void DebugWebServer::OnWebSocketMessage(int connection_id,
   if (!json_object) {
     return SendErrorResponseOverWebSocket(websocket_id_, "Error parsing JSON");
   }
-  int id;
+  int id = 0;
   if (!json_object->GetInteger(kIdField, &id)) {
     return SendErrorResponseOverWebSocket(id, "Missing request id");
   }
@@ -231,9 +228,14 @@ void DebugWebServer::OnWebSocketMessage(int connection_id,
     json_params = JSONStringify(params);
   }
 
-  debugger_->SendCommand(method, json_params,
-                         base::Bind(&DebugWebServer::OnDebuggerResponse,
-                                    base::Unretained(this), id));
+  if (!debug_client_ || !debug_client_->IsAttached()) {
+    return SendErrorResponseOverWebSocket(
+        id, "Debugger is not connected - call attach first.");
+  }
+
+  debug_client_->SendCommand(method, json_params,
+                             base::Bind(&DebugWebServer::OnDebuggerResponse,
+                                        base::Unretained(this), id));
 }
 
 void DebugWebServer::SendErrorResponseOverWebSocket(
@@ -253,14 +255,13 @@ void DebugWebServer::OnDebuggerResponse(
   server_->SendOverWebSocket(websocket_id_, JSONStringify(response_object));
 }
 
-void DebugWebServer::OnDebuggerEvent(
-    const std::string& method,
-    const base::optional<std::string>& json_params) const {
+void DebugWebServer::OnDebugClientEvent(
+    const std::string& method, const base::optional<std::string>& json_params) {
   // Debugger events occur on the thread of the web module the debugger is
   // attached to, so we must post to the server thread here.
   if (MessageLoop::current() != http_server_thread_.message_loop()) {
     http_server_thread_.message_loop()->PostTask(
-        FROM_HERE, base::Bind(&DebugWebServer::OnDebuggerEvent,
+        FROM_HERE, base::Bind(&DebugWebServer::OnDebugClientEvent,
                               base::Unretained(this), method, json_params));
     return;
   }
@@ -275,8 +276,21 @@ void DebugWebServer::OnDebuggerEvent(
   server_->SendOverWebSocket(websocket_id_, JSONStringify(event));
 }
 
-void DebugWebServer::OnDebuggerDetach(const std::string& reason) const {
+void DebugWebServer::OnDebugClientDetach(const std::string& reason) {
+  // Debugger events occur on the thread of the web module the debugger is
+  // attached to, so we must post to the server thread here.
+  if (MessageLoop::current() != http_server_thread_.message_loop()) {
+    http_server_thread_.message_loop()->PostTask(
+        FROM_HERE, base::Bind(&DebugWebServer::OnDebugClientDetach,
+                              base::Unretained(this), reason));
+    return;
+  }
+
   DLOG(INFO) << "Got detach event: " << reason;
+  JSONObject event(new base::DictionaryValue());
+  event->SetString(kMethodField, kDetached);
+  event->SetString(kDetachReasonField, reason);
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(event));
 }
 
 int DebugWebServer::GetLocalAddress(std::string* out) const {

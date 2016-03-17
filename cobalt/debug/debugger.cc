@@ -24,24 +24,21 @@
 namespace cobalt {
 namespace debug {
 
-Debugger::Debugger(
-    const CreateDebugServerCallback& create_debug_server_callback)
-    : create_debug_server_callback_(create_debug_server_callback),
+Debugger::Debugger(const GetDebugServerCallback& get_debug_server_callback)
+    : get_debug_server_callback_(get_debug_server_callback),
       on_event_(new DebuggerEventTarget()) {}
 
 Debugger::~Debugger() {}
 
 void Debugger::Attach(const AttachCallbackArg& callback) {
-  debug_server_.reset();
-  debug_server_ = create_debug_server_callback_.Run(
-      base::Bind(&Debugger::OnEvent, base::Unretained(this)),
-      base::Bind(&Debugger::OnDetach, base::Unretained(this)));
+  DebugServer* debug_server = get_debug_server_callback_.Run();
+  debug_client_.reset(new DebugClient(debug_server, this));
   AttachCallbackArg::Reference callback_reference(this, callback);
   callback_reference.value().Run();
 }
 
 void Debugger::Detach(const AttachCallbackArg& callback) {
-  debug_server_.reset();
+  debug_client_.reset(NULL);
   AttachCallbackArg::Reference callback_reference(this, callback);
   callback_reference.value().Run();
 }
@@ -49,7 +46,7 @@ void Debugger::Detach(const AttachCallbackArg& callback) {
 void Debugger::SendCommand(const std::string& method,
                            const std::string& json_params,
                            const CommandCallbackArg& callback) const {
-  if (!debug_server_) {
+  if (!debug_client_ || !debug_client_->IsAttached()) {
     scoped_ptr<base::DictionaryValue> response(new base::DictionaryValue);
     response->SetString("error.message",
                         "Debugger is not connected - call attach first.");
@@ -62,7 +59,7 @@ void Debugger::SendCommand(const std::string& method,
 
   scoped_refptr<CommandCallbackInfo> callback_info(
       new CommandCallbackInfo(this, callback));
-  debug_server_->SendCommand(
+  debug_client_->SendCommand(
       method, json_params,
       base::Bind(&Debugger::OnCommandResponse, this, callback_info));
 }
@@ -76,15 +73,19 @@ void Debugger::OnCommandResponse(
       base::Bind(&Debugger::RunCommandCallback, this, callback_info, response));
 }
 
-void Debugger::OnEvent(const std::string& method,
-                       const base::optional<std::string>& response) const {
+void Debugger::OnDebugClientEvent(const std::string& method,
+                                  const base::optional<std::string>& params) {
   // Pass to the onEvent handler. The handler will notify the JavaScript
   // listener on the message loop the listener was registered on.
-  on_event_->DispatchEvent(method, response);
+  on_event_->DispatchEvent(method, params);
 }
 
-void Debugger::OnDetach(const std::string& reason) const {
-  NOTIMPLEMENTED() << "Debugger detached: " + reason;
+void Debugger::OnDebugClientDetach(const std::string& reason) {
+  DLOG(INFO) << "Debugger detached: " + reason;
+  const std::string method = "Inspector.detached";
+  JSONObject params(new base::DictionaryValue());
+  params->SetString("reason", reason);
+  on_event_->DispatchEvent(method, JSONStringify(params));
 }
 
 void Debugger::RunCommandCallback(

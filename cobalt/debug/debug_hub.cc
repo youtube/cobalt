@@ -30,13 +30,11 @@ namespace debug {
 
 DebugHub::DebugHub(
     const GetHudModeCallback& get_hud_mode_callback,
-    const ExecuteJavascriptCallback& execute_javascript_callback,
-    const Debugger::CreateDebugServerCallback& create_debug_server_callback)
+    const Debugger::GetDebugServerCallback& get_debug_server_callback)
     : get_hud_mode_callback_(get_hud_mode_callback),
-      execute_javascript_callback_(execute_javascript_callback),
       next_log_message_callback_id_(0),
       log_message_callbacks_deleter_(&log_message_callbacks_),
-      debugger_(new Debugger(create_debug_server_callback)),
+      debugger_(new Debugger(get_debug_server_callback)),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
   // Get log output while still making it available elsewhere.
   const base::LogMessageHandler::OnLogMessageCallback on_log_message_callback =
@@ -142,13 +140,6 @@ std::string DebugHub::GetConsoleValue(const std::string& name) const {
 
 int DebugHub::GetDebugConsoleMode() const {
   return get_hud_mode_callback_.Run();
-}
-
-std::string DebugHub::ExecuteJavascript(const std::string& javascript) {
-  // Assume the command is JavaScript to be exected in the main web module
-  // using the callback provided at construction.
-  return execute_javascript_callback_.Run(javascript,
-                                          GetInlineSourceLocation());
 }
 
 // TODO(***REMOVED***) - This function should be modified to return an array of

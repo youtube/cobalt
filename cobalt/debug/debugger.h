@@ -26,6 +26,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
+#include "cobalt/debug/debug_client.h"
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/debugger_event_target.h"
 #include "cobalt/script/callback_function.h"
@@ -40,7 +41,7 @@ namespace debug {
 // chrome.debugger extension API.
 // https://developer.chrome.com/extensions/debugger
 
-class Debugger : public script::Wrappable {
+class Debugger : public script::Wrappable, public DebugClient::Delegate {
  public:
   // JavaScript callback to be run when debugger at/detaches.
   typedef script::CallbackFunction<void()> AttachCallback;
@@ -51,10 +52,10 @@ class Debugger : public script::Wrappable {
       CommandCallback;
   typedef script::ScriptObject<CommandCallback> CommandCallbackArg;
 
-  // Callback to be run to create a debug server.
-  typedef base::Callback<scoped_ptr<debug::DebugServer>(
-      const debug::DebugServer::OnEventCallback&,
-      const debug::DebugServer::OnDetachCallback&)> CreateDebugServerCallback;
+  // Callback to be run to get the debug server. The debug server is owned by
+  // the web module to which it connects, and this callback allows this object
+  // to get a reference to it.
+  typedef base::Callback<DebugServer*()> GetDebugServerCallback;
 
   // Thread-safe ref-counted struct used to pass asynchronously executed
   // command callbacks around. Stores the message loop the callback must be
@@ -70,8 +71,7 @@ class Debugger : public script::Wrappable {
     friend class base::RefCountedThreadSafe<CommandCallbackInfo>;
   };
 
-  explicit Debugger(
-      const CreateDebugServerCallback& create_debug_server_callback);
+  explicit Debugger(const GetDebugServerCallback& get_debug_server_callback);
   ~Debugger();
 
   // Non-standard JavaScript extension API.
@@ -93,11 +93,11 @@ class Debugger : public script::Wrappable {
       const scoped_refptr<CommandCallbackInfo>& callback_info,
       const base::optional<std::string>& response) const;
 
-  // Event handlers called by the debug server from any thread.
-  // Pass the events on to the JavaScript event targets.
-  void OnEvent(const std::string& method,
-               const base::optional<std::string>& json_params) const;
-  void OnDetach(const std::string& reason) const;
+  // DebugClient::Delegate implementation.
+  void OnDebugClientEvent(
+      const std::string& method,
+      const base::optional<std::string>& json_params) OVERRIDE;
+  void OnDebugClientDetach(const std::string& reason) OVERRIDE;
 
  private:
   // Runs a script command callback with the specified response.
@@ -107,11 +107,11 @@ class Debugger : public script::Wrappable {
       const scoped_refptr<CommandCallbackInfo>& callback_info,
       base::optional<std::string> response) const;
 
-  // Callback to be run to create a debug server.
-  CreateDebugServerCallback create_debug_server_callback_;
+  // Callback to be run to get a reference to the debug server.
+  GetDebugServerCallback get_debug_server_callback_;
 
-  // The debug server that implements the functionality.
-  scoped_ptr<debug::DebugServer> debug_server_;
+  // Debug client that connects to the server.
+  scoped_ptr<DebugClient> debug_client_;
 
   // Handler for debugger events.
   scoped_refptr<DebuggerEventTarget> on_event_;

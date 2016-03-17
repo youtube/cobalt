@@ -266,18 +266,20 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 // May be called from a thread other than |self_message_loop_|.
-scoped_ptr<debug::DebugServer> WebModule::CreateDebugServer(
-    const debug::DebugServer::OnEventCallback& on_event_callback,
-    const debug::DebugServer::OnDetachCallback& on_detach_callback) {
-  debug::DebugServerBuilder debug_server_builder;
-  debug_server_builder.SetConsole(window_->console())
-      .SetDocument(window_->document())
-      .SetGlobalObjectProxy(global_object_proxy_)
-      .SetMessageLoopProxy(self_message_loop_->message_loop_proxy())
-      .SetOnDetachCallback(on_detach_callback)
-      .SetOnEventCallback(on_event_callback)
-      .SetRenderOverlay(&debug_overlay_);
-  return debug_server_builder.Build();
+debug::DebugServer* WebModule::GetDebugServer() {
+  // Create the debug server if necessary
+  if (!debug_server_) {
+    debug::DebugServerBuilder debug_server_builder;
+    debug_server_builder.SetConsole(window_->console())
+        .SetDocument(window_->document())
+        .SetGlobalObjectProxy(global_object_proxy_)
+        .SetMessageLoop(self_message_loop_)
+        .SetRenderOverlay(&debug_overlay_);
+    debug_server_ = debug_server_builder.Build();
+  }
+
+  DCHECK(debug_server_);
+  return debug_server_.get();
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 
