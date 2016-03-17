@@ -352,7 +352,7 @@ Application::Application() {
   int remote_debugging_port = GetRemoteDebuggingPort();
   debug_web_server_.reset(new debug::DebugWebServer(
       remote_debugging_port,
-      base::Bind(&BrowserModule::CreateDebugServer,
+      base::Bind(&BrowserModule::GetDebugServer,
                  base::Unretained(browser_module_.get()))));
 #endif  // ENABLE_REMOTE_DEBUGGING
 

@@ -25,6 +25,7 @@
 #include "base/threading/thread.h"
 #include "base/values.h"
 #include "cobalt/base/console_values.h"
+#include "cobalt/debug/debug_client.h"
 #include "cobalt/debug/debug_server.h"
 #include "net/base/stream_listen_socket.h"
 #include "net/server/http_server.h"
@@ -34,15 +35,19 @@ namespace debug {
 
 // This class implements the net::HttpServer::Delegate interface, and
 // is registered with a net::HttpServer instance that this class owns.
-class DebugWebServer : private net::HttpServer::Delegate {
+//
+// Also implements the DebugClient::Delegate interface, to receive events
+// from the DebugClient instance, |debug_client_|, owned by this class.
+class DebugWebServer : public net::HttpServer::Delegate,
+                       public DebugClient::Delegate {
  public:
-  // Callback to create the debug server.
-  typedef base::Callback<scoped_ptr<debug::DebugServer>(
-      const debug::DebugServer::OnEventCallback&,
-      const debug::DebugServer::OnDetachCallback&)> CreateDebugServerCallback;
+  // Callback to get the debug server. The debug server is owned by the
+  // WebModule it connects to, and this class can get a reference to is using
+  // a callback specified in the constructor.
+  typedef base::Callback<DebugServer*()> GetDebugServerCallback;
 
   DebugWebServer(int port,
-                 const CreateDebugServerCallback& create_debugger_callback);
+                 const GetDebugServerCallback& get_debug_server_callback);
   ~DebugWebServer();
 
  protected:
@@ -62,11 +67,12 @@ class DebugWebServer : private net::HttpServer::Delegate {
   // Debugger command response handler.
   void OnDebuggerResponse(int id, const base::optional<std::string>& response);
 
-  // Handlers for debugger events. These may be called on an arbitrary thread.
-  void OnDebuggerEvent(const std::string& method,
-                       const base::optional<std::string>& json_params) const;
+  // DebugClient::Delegate implementation.
+  void OnDebugClientEvent(
+      const std::string& method,
+      const base::optional<std::string>& json_params) OVERRIDE;
 
-  void OnDebuggerDetach(const std::string& reason) const;
+  void OnDebugClientDetach(const std::string& reason) OVERRIDE;
 
  private:
   int GetLocalAddress(std::string* out) const;
@@ -79,8 +85,11 @@ class DebugWebServer : private net::HttpServer::Delegate {
   base::Thread http_server_thread_;
   scoped_ptr<net::StreamListenSocketFactory> factory_;
   scoped_refptr<net::HttpServer> server_;
-  CreateDebugServerCallback create_debugger_callback_;
-  scoped_ptr<DebugServer> debugger_;
+  GetDebugServerCallback get_debug_server_callback_;
+
+  // The debug client that connects to the server.
+  scoped_ptr<DebugClient> debug_client_;
+
   int websocket_id_;
   base::CVal<std::string> local_address_;
   FilePath content_root_dir_;

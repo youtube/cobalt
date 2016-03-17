@@ -51,8 +51,11 @@ namespace debug {
 // The JavaScript client can examine the available list of registered console
 // values.
 //
-// The JavaScript client can execute JavaScript commands in the main web module
-// by calling the ExecuteCommand method.
+// There is a debugger client available via the |debugger_| member that can
+// connect to the debug server attached to the main web module. The debug
+// console uses this to send debugging commands and receive debugging events.
+// The debug server is accessed using the |get_debug_server_callback|
+// parameter specified in the constructor.
 //
 // The JavaScript client can send arbitrary messages to an object of this class
 // on a specific named channel using the SendCommand method. These messages are
@@ -67,11 +70,6 @@ class DebugHub : public script::Wrappable {
            size_t message_start, const std::string& msg)> LogMessageCallback;
   typedef script::ScriptObject<LogMessageCallback> LogMessageCallbackArg;
 
-  // Javascript command execution callback type.
-  typedef base::Callback<std::string(
-      const std::string& script_utf8,
-      const base::SourceLocation& script_location)> ExecuteJavascriptCallback;
-
   // Function signature to call when we need to query for the Hud visibility
   // mode.
   typedef base::Callback<int()> GetHudModeCallback;
@@ -80,7 +78,6 @@ class DebugHub : public script::Wrappable {
   // We store the message loop from which the callback was registered,
   // so we can run the callback on the same loop.
   struct LogMessageCallbackInfo {
-    // LogMessageCallbackInfo(const DebugHub* const debug_hub,
     LogMessageCallbackInfo(const base::WeakPtr<DebugHub> debug_hub,
                            const LogMessageCallbackArg& cb,
                            const scoped_refptr<base::MessageLoopProxy>& proxy)
@@ -105,10 +102,8 @@ class DebugHub : public script::Wrappable {
   static const int kLogErrorReport = logging::LOG_ERROR_REPORT;
   static const int kLogFatal = logging::LOG_FATAL;
 
-  DebugHub(
-      const GetHudModeCallback& get_hud_mode_callback,
-      const ExecuteJavascriptCallback& execute_javascript_callback,
-      const Debugger::CreateDebugServerCallback& create_debug_server_callback);
+  DebugHub(const GetHudModeCallback& get_hud_mode_callback,
+           const Debugger::GetDebugServerCallback& get_debug_server_callback);
   ~DebugHub();
 
   // Gets the JavaScript debugger client interface.
@@ -130,9 +125,6 @@ class DebugHub : public script::Wrappable {
   std::string GetConsoleValue(const std::string& name) const;
 
   int GetDebugConsoleMode() const;
-
-  // Executes JavaScript in the main web module.
-  std::string ExecuteJavascript(const std::string& javascript);
 
   // Gets the collection of registered command channels as an alphabetically
   // ordered, space-separated list.
@@ -161,9 +153,6 @@ class DebugHub : public script::Wrappable {
 
   // A function that we can call to query the Hud visibility mode.
   const GetHudModeCallback get_hud_mode_callback_;
-
-  // The callback to run to execute some JS.
-  const ExecuteJavascriptCallback execute_javascript_callback_;
 
   int next_log_message_callback_id_;
   LogMessageCallbacks log_message_callbacks_;

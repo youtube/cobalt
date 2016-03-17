@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #define COBALT_DEBUG_DEBUG_SERVER_H_
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -24,7 +25,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop_proxy.h"
+#include "base/message_loop.h"
 #include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/threading/thread_checker.h"
@@ -35,12 +36,16 @@
 namespace cobalt {
 namespace debug {
 
+// Forward declaration of the client class that can connect to a DebugServer.
+class DebugClient;
+
 // The core of the debugging system. The overall architecture of the debugging
 // system is documented here:
 // https://docs.google.com/document/d/1lZhrBTusQZJsacpt21J3kPgnkj7pyQObhFqYktvm40Y/
 //
-// When a client (either local or remote) wants to connect to the debugger, it
-// should create an instance of this class.
+// A single lazily created instance of this class is owned by the main
+// WebModule. Clients that want to connect to the debug server should construct
+// an instance of a DebugClient, passing in a pointer to the DebugServer.
 //
 // All client debugging commands and events are routed through an object of
 // this class. The protocol is defined here:
@@ -73,14 +78,6 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // Callback to pass a command response to the client.
   typedef base::Callback<void(const base::optional<std::string>& response)>
       CommandCallback;
-
-  // Callback to notify the client when an event occurs.
-  typedef base::Callback<void(const std::string& method,
-                              const base::optional<std::string>& params)>
-      OnEventCallback;
-
-  // Callback to notify the client when the debugger detaches.
-  typedef base::Callback<void(const std::string& reason)> OnDetachCallback;
 
   // A command execution function stored in the command registry.
   typedef base::Callback<JSONObject(const JSONObject& params)> Command;
@@ -128,6 +125,13 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // Adds a debug component to this object. This object takes ownership.
   void AddComponent(scoped_ptr<Component> component);
 
+  // Adds a client to this object. This object does not own the client, but
+  // notify it when debugging events occur, or when this object is destroyed.
+  void AddClient(DebugClient* client);
+
+  // Removes a client from this object.
+  void RemoveClient(DebugClient* client);
+
   // Called to send a command to this debug server, with a callback for the
   // response. The command is one from the Chrome Remote Debugging Protocol:
   // https://developer.chrome.com/devtools/docs/protocol/1.1/index
@@ -145,11 +149,10 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // Type to store a command callback and the current message loop.
   struct CommandCallbackInfo {
     explicit CommandCallbackInfo(const CommandCallback& command_callback)
-        : callback(command_callback),
-          message_loop_proxy(base::MessageLoopProxy::current()) {}
+        : callback(command_callback), message_loop(MessageLoop::current()) {}
 
     CommandCallback callback;
-    scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
+    MessageLoop* message_loop;
   };
 
   // Constructor should only be called by |DebugServerBuilder|, which will
@@ -157,17 +160,19 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // loop of the WebModule this debug server is attached to, so that
   // operations are executed synchronously with the other methods of that
   // WebModule.
-  DebugServer(script::GlobalObjectProxy* global_object_proxy,
-              const OnEventCallback& on_event_callback,
-              const OnDetachCallback& on_detach_callback);
+  explicit DebugServer(script::GlobalObjectProxy* global_object_proxy);
 
   // Destructor should only be called by |scoped_ptr<DebugServer>|.
   ~DebugServer();
 
+  // Called by |script_runner_| and |OnEventInternal|. Notifies the clients.
+  void OnEvent(const std::string& method,
+               const base::optional<std::string>& params);
+
   // Callback to receive events from the debug components.
-  // Serializes the method and params object to a JSON string and passes to the
-  // external |on_event_callback_| specified in the constructor.
-  void OnEvent(const std::string& method, const JSONObject& params);
+  // Serializes the method and params object to a JSON string and
+  // calls |OnEvent|.
+  void OnEventInternal(const std::string& method, const JSONObject& params);
 
   // Dispatches a command received via |SendCommand| by looking up the method
   // name in the command registry and running the corresponding function.
@@ -196,16 +201,15 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // from JS.
   scoped_refptr<DebugScriptRunner> script_runner_;
 
-  // Event callbacks to send messages to the client.
-  OnEventCallback on_event_callback_;
-  OnDetachCallback on_detach_callback_;
+  // Clients connected to this server.
+  std::set<DebugClient*> clients_;
 
   // Map of commands, indexed by method name.
   CommandRegistry command_registry_;
 
   // Message loop of the web module this debug server is attached to, and
   // thread checker to check access.
-  base::MessageLoopProxy* message_loop_proxy_;
+  MessageLoop* message_loop_;
   base::ThreadChecker thread_checker_;
 
   // Debug components owned by this object.
