@@ -42,7 +42,7 @@
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/loader/font/remote_font_cache.h"
+#include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/media/web_media_player_factory.h"
@@ -87,7 +87,7 @@ class Window : public EventTarget {
          Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
          render_tree::ResourceProvider* resource_provider,
          loader::image::ImageCache* image_cache,
-         loader::font::RemoteFontCache* remote_font_cache,
+         loader::font::RemoteTypefaceCache* remote_typeface_cache,
          LocalStorageDatabase* local_storage_database,
          media::WebMediaPlayerFactory* web_media_player_factory,
          script::ExecutionState* execution_state,

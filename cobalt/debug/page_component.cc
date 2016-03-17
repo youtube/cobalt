@@ -111,8 +111,10 @@ JSONObject PageComponent::SetOverlayMessage(const JSONObject& params) {
     render_tree::ColorRGBA bg_color(1.0f, 1.0f, 0.75f, 1.0f);
     render_tree::ColorRGBA text_color(0.0f, 0.0f, 0.0f, 1.0f);
 
-    scoped_refptr<render_tree::Font> font = resource_provider_->GetLocalFont(
-        "monospace", render_tree::FontStyle(), font_size);
+    scoped_refptr<render_tree::Font> font =
+        resource_provider_->GetLocalTypeface("monospace",
+                                             render_tree::FontStyle())
+            ->CreateFontWithSize(font_size);
     scoped_refptr<render_tree::GlyphBuffer> glyph_buffer(
         resource_provider_->CreateGlyphBuffer(message, font));
     const math::RectF bounds(glyph_buffer->GetBounds());

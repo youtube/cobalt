@@ -28,6 +28,7 @@
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
+#include "cobalt/render_tree/typeface.h"
 
 using cobalt::math::Matrix3F;
 using cobalt::math::RectF;
@@ -70,7 +71,8 @@ RenderTreeWithAnimations CreateScalingTextScene(
   // Load a font for use with text rendering.
   const float kBaseFontSize = 20.0f;
   scoped_refptr<Font> font =
-      resource_provider->GetLocalFont("Roboto", FontStyle(), kBaseFontSize);
+      resource_provider->GetLocalTypeface("Roboto", FontStyle())
+          ->CreateFontWithSize(kBaseFontSize);
   scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
       resource_provider->CreateGlyphBuffer(kText, font);
   RectF bounds(glyph_buffer->GetBounds());

@@ -75,7 +75,7 @@ class WebModule {
   // TODO(***REMOVED***): These numbers should be adjusted according to the size of
   // client memory.
   static const uint32 kImageCacheCapacity = 64U * 1024 * 1024;
-  static const uint32 kRemoteFontCacheCapacity = 5U * 1024 * 1024;
+  static const uint32 kRemoteTypefaceCacheCapacity = 5U * 1024 * 1024;
 
   struct Options {
     typedef base::Callback<scoped_refptr<script::Wrappable>()>
@@ -234,8 +234,9 @@ class WebModule {
   // ImageCache that is used to manage image cache logic.
   scoped_ptr<loader::image::ImageCache> image_cache_;
 
-  // RemoteFontCache that is used to manage loading and caching fonts from URLs.
-  scoped_ptr<loader::font::RemoteFontCache> remote_font_cache_;
+  // RemoteTypefaceCache that is used to manage loading and caching typefaces
+  // from URLs.
+  scoped_ptr<loader::font::RemoteTypefaceCache> remote_typeface_cache_;
 
   // Interface between LocalStorage and the Storage Manager.
   dom::LocalStorageDatabase local_storage_database_;

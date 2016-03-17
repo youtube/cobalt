@@ -461,16 +461,16 @@ scoped_refptr<render_tree::Image> UsedStyleProvider::ResolveURLToImage(
 
 void UsedStyleProvider::CleanupAfterLayout() {
   // Clear out the last font properties prior to requesting that the font cache
-  // remove unused font lists. The reason for this is that the font cache will
-  // remove any font lists where it holds the exclusive reference, and the
-  // |last_font_list_| could potentially hold a second reference, thereby
-  // interfering with the removal.
+  // process inactive font lists. The reason for this is that the font cache
+  // will look for any font lists where it holds the exclusive reference, and
+  // the |last_font_list_| could potentially hold a second reference, thereby
+  // interfering with the processing.
   last_font_family_refptr_ = NULL;
   last_font_style_refptr_ = NULL;
   last_font_weight_refptr_ = NULL;
   last_font_list_ = NULL;
 
-  font_cache_->RemoveUnusedFontLists();
+  font_cache_->ProcesInactiveFontListsAndFonts();
 }
 
 UsedStyleProviderLayoutScope::UsedStyleProviderLayoutScope(
