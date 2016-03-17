@@ -50,7 +50,8 @@ class FontListFont {
     kDuplicateState,
   };
 
-  explicit FontListFont(const std::string& family_name);
+  explicit FontListFont(const std::string& family_name)
+      : family_name_(family_name), state_(kUnrequestedState) {}
 
   const std::string& family_name() const { return family_name_; }
 
@@ -59,18 +60,6 @@ class FontListFont {
 
   const scoped_refptr<render_tree::Font>& font() const { return font_; }
   void set_font(const scoped_refptr<render_tree::Font> font) { font_ = font; }
-
-  void set_character_glyph_map(
-      render_tree::CharacterGlyphMap* character_glyph_map) {
-    character_glyph_map_ = character_glyph_map;
-  }
-
-  // The glyph that the font provides for the specified UTF-32 character. If the
-  // map does not already contain a glyph for the character, the underlying font
-  // is checked for having the character and the map is updated with the return
-  // value, ensuring that the underlying font will only ever need to be queried
-  // once for a character.
-  render_tree::GlyphIndex GetGlyphForCharacter(int32 utf32_character);
 
  private:
   std::string family_name_;
@@ -81,16 +70,6 @@ class FontListFont {
   // list. It is only non-NULL in the case where |state_| is set to
   // |kLoadedState|.
   scoped_refptr<render_tree::Font> font_;
-
-  // A mapping of all characters for this font that have previously been
-  // queried to whether or not the font supports the character. A single
-  // character map is used to represent a typeface, and all fonts containing
-  // the same underlying typeface will share the same character map, which
-  // is owned by the font cache. A character not appearing in the map merely
-  // means that it has not been queried yet, and not that the character is not
-  // supported. It is only non-NULL in the case where |state_| is set to
-  // |kLoadedState|.
-  render_tree::CharacterGlyphMap* character_glyph_map_;
 };
 
 // The key used for maps with a |FontList| value. It is also used for
@@ -130,13 +109,11 @@ struct FontListKey {
 class FontList : public render_tree::FontFallbackList,
                  public base::RefCounted<FontList> {
  public:
-  struct FallbackFontInfo {
-    scoped_refptr<render_tree::Font> font;
-    render_tree::CharacterGlyphMap* character_glyph_map;
-  };
-
-  typedef base::SmallMap<std::map<render_tree::TypefaceId, FallbackFontInfo>, 4>
-      FallbackTypefaceToFontInfo;
+  typedef base::SmallMap<
+      std::map<render_tree::TypefaceId, scoped_refptr<render_tree::Font> >, 7>
+      FallbackTypefaceToFontMap;
+  typedef base::hash_map<int32, scoped_refptr<render_tree::Typeface> >
+      CharacterFallbackTypefaceMap;
   typedef std::vector<FontListFont> FontListFonts;
 
   FontList(FontCache* font_cache, const FontListKey& font_list_key);
@@ -180,13 +157,6 @@ class FontList : public render_tree::FontFallbackList,
   float GetEllipsisWidth();
 
   // From render_tree::FontFallbackList
-
-  const scoped_refptr<render_tree::CharacterGlyphMap>& GetFontCharacterGlyphMap(
-      const scoped_refptr<render_tree::Font>& font) OVERRIDE;
-
-  render_tree::GlyphIndex GetFontCharacterGlyph(
-      const scoped_refptr<render_tree::Font>& font,
-      int32 utf32_character) OVERRIDE;
 
   // Returns the first font in the font list that supports the specified
   // UTF-32 character or a fallback font provided by the font cache if none of
@@ -254,11 +224,18 @@ class FontList : public render_tree::FontFallbackList,
   scoped_refptr<render_tree::Font> ellipsis_font_;
   float ellipsis_width_;
 
-  // This is a mapping of a unique typeface id to a specific font for use with
-  // character fallback. This allows the font list to request the typeface id
-  // that supports a character from the font cache, rather than the font itself,
-  // allowing the font cache to avoid creating a font on each request.
-  FallbackTypefaceToFontInfo fallback_typeface_to_font_info_;
+  // A mapping of the typeface to use with each fallback character. The font
+  // list holds a reference to the map, which is owned by the font cache, and
+  // shared between all font lists with a matching font style. If the font list
+  // encounters a character that is not in the map, it populates the map with
+  // the character itself, rather than relying on the cache to populate it.
+  CharacterFallbackTypefaceMap& character_fallback_typeface_map_;
+
+  // This is a mapping of a unique fallback typeface id to a specific fallback
+  // font. By keeping this separate from the character fallback map, font lists
+  // with different sizes but the same style can share the same character
+  // fallback map.
+  FallbackTypefaceToFontMap fallback_typeface_to_font_map_;
 
   // Allow the reference counting system access to our destructor.
   friend class base::RefCounted<FontFallbackList>;

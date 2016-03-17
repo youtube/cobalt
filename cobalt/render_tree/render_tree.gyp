@@ -37,7 +37,6 @@
         'filter_node.h',
         'font.h',
         'font_fallback_list.h',
-        'glyph.cc',
         'glyph.h',
         'glyph_buffer.h',
         'image_node.cc',
@@ -58,6 +57,7 @@
         'shadow.h',
         'text_node.cc',
         'text_node.h',
+        'typeface.h',
         'viewport_filter.h',
       ],
       'dependencies': [

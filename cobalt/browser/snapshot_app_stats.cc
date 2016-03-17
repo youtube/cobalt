@@ -59,7 +59,7 @@ const char* g_cvals_to_snapshot[] = {
     "DOM.TokenLists",
     "DOM.XHR",
     "MainWebModule.ImageCache.Used",
-    "MainWebModule.RemoteFontCache.Used",
+    "MainWebModule.RemoteTypefaceCache.Used",
     "Memory.ArrayBuffer",
     "Memory.CPU.Exe",
     "Memory.CPU.Used",
