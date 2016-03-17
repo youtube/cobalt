@@ -46,6 +46,14 @@ class GraphicsContextStub : public GraphicsContext {
         texture_data_stub->pixel_data()));
   }
 
+  scoped_ptr<Texture> CreateTextureFromRawMemory(
+      const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
+      intptr_t offset, const SurfaceInfo& surface_info,
+      int pitch_in_bytes) OVERRIDE {
+    return scoped_ptr<Texture>(new TextureStub(raw_texture_memory, offset,
+                                               surface_info, pitch_in_bytes));
+  }
+
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) OVERRIDE {
     return scoped_refptr<RenderTarget>(new RenderTargetStub(

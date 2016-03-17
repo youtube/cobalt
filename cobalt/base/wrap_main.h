@@ -29,24 +29,36 @@
 #include "base/run_loop.h"
 #include "build/build_config.h"
 #include "cobalt/base/init_cobalt.h"
+#if defined(OS_STARBOARD)
+#include "starboard/event.h"
+#else
+typedef void SbEvent;
+#endif
 
 namespace cobalt {
 namespace wrap_main {
 
 // A main-style function.
-typedef int (*MainFunction)(int argc, char **argv);
+typedef int (*MainFunction)(int argc, char** argv);
 
 // A start-style function.
-typedef void (*StartFunction)(int argc, char **argv,
-                              const base::Closure &quit_closure);
+typedef void (*StartFunction)(int argc, char** argv,
+                              const base::Closure& quit_closure);
 
 // A function type that can be called at shutdown.
 typedef void (*StopFunction)();
 
+// A function type that can be called to handle other SbEvents.
+typedef void (*EventFunction)(const SbEvent* event);
+
 // No-operation function that can be passed into start_function if no start work
 // is needed.
-void NoopStartFunction(int /*argc*/, char ** /*argv*/,
-                       const base::Closure & /*quit_closure*/) {}
+void NoopStartFunction(int /*argc*/, char** /*argv*/,
+                       const base::Closure& /*quit_closure*/) {}
+
+// No-operation function that can be passed into event_function if no other
+// event handling work is needed.
+void NoopEventFunction(const SbEvent* /*event*/) {}
 
 // No-operation function that can be passed into stop_function if no stop work
 // is needed.
@@ -103,6 +115,11 @@ int BaseMain(int argc, char **argv) {
     return ::cobalt::wrap_main::BaseMain<start_function, stop_function>(argc,  \
                                                                         argv); \
   }
+
+// Like COBALT_WRAP_BASE_MAIN, but supports an event_function to forward
+// non-application events to.
+#define COBALT_WRAP_EVENT_MAIN(start_function, event_function, stop_function) \
+  COBALT_WRAP_BASE_MAIN(start_function, stop_function)
 
 }  // namespace wrap_main
 }  // namespace cobalt

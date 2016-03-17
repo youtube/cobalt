@@ -18,6 +18,9 @@
 #include "base/logging.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/browser/application.h"
+#if defined(OS_STARBOARD)
+#include "cobalt/system_window/starboard/system_window.h"
+#endif
 
 namespace {
 
@@ -39,4 +42,10 @@ void StopApplication() {
 
 }  // namespace
 
+#if defined(OS_STARBOARD)
+COBALT_WRAP_EVENT_MAIN(StartApplication,
+                       cobalt::system_window::HandleInputEvent,
+                       StopApplication);
+#else
 COBALT_WRAP_BASE_MAIN(StartApplication, StopApplication);
+#endif

@@ -28,7 +28,17 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/system_window/<(actual_target_arch)/platform_system_window.gyp:platform_system_window',
+      ],
+      'conditions': [
+        ['OS=="starboard"', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/system_window/starboard/platform_system_window.gyp:platform_system_window',
+          ],
+        }, {
+          'dependencies': [
+            '<(DEPTH)/cobalt/system_window/<(actual_target_arch)/platform_system_window.gyp:platform_system_window',
+          ],
+        }],
       ],
     },
   ],
