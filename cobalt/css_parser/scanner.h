@@ -172,8 +172,6 @@ class Scanner {
   bool TryScanNthChild(TrivialStringPiece* nth);
   bool TryScanNthChildExtra(TrivialStringPiece* nth);
   bool DetectUnitToken(const TrivialStringPiece& unit, Token* token) const;
-  bool DetectKnownDashFunctionToken(const TrivialStringPiece& name,
-                                    Token* known_function_token) const;
   bool DetectAtTokenAndMaybeChangeParsingMode(const TrivialStringPiece& name,
                                               bool has_escape, Token* at_token);
 

@@ -1272,46 +1272,6 @@ TEST_F(ScannerTest, ScanskViewportLargerSizePercentsAkaVmax) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansWebkitAny) {
-  Scanner scanner("-webkit-any()", &string_pool_);
-
-  ASSERT_EQ(kAnyFunctionToken,
-            yylex(&token_value_, &token_location_, &scanner));
-
-  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
-}
-
-TEST_F(ScannerTest, ScansWebkitMin) {
-  Scanner scanner("-webkit-min()", &string_pool_);
-
-  ASSERT_EQ(kMinFunctionToken,
-            yylex(&token_value_, &token_location_, &scanner));
-
-  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
-}
-
-TEST_F(ScannerTest, ScansWebkitMax) {
-  Scanner scanner("-webkit-max()", &string_pool_);
-
-  ASSERT_EQ(kMaxFunctionToken,
-            yylex(&token_value_, &token_location_, &scanner));
-
-  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
-}
-
-TEST_F(ScannerTest, ScansWebkitCalc) {
-  Scanner scanner("-webkit-calc()", &string_pool_);
-
-  ASSERT_EQ(kCalcFunctionToken,
-            yylex(&token_value_, &token_location_, &scanner));
-
-  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
-}
-
 TEST_F(ScannerTest, DISABLED_ScansBottomLeft) {
   Scanner scanner("@bottom-left", &string_pool_);
 

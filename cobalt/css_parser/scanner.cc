@@ -769,13 +769,6 @@ Token Scanner::ScanFromDash(TokenValue* token_value) {
       open_braces_.push('(');
 
       ++input_iterator_;
-
-      Token known_function_token;
-      if (!has_escape &&
-          DetectKnownDashFunctionToken(name, &known_function_token)) {
-        return known_function_token;
-      }
-
       token_value->string = name;
       return kInvalidFunctionToken;
     }
@@ -1696,10 +1689,6 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kBorderLeftWidthToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, "-webkit-transform")) {
-        *property_name_token = kTransformToken;
-        return true;
-      }
       if (IsEqualToCssIdentifier(
               name.begin,
               cssom::GetPropertyName(cssom::kBackgroundRepeatProperty))) {
@@ -1710,10 +1699,6 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 18:
-      if (IsEqualToCssIdentifier(name.begin, "-webkit-transition")) {
-        *property_name_token = kTransitionToken;
-        return true;
-      }
       if (IsEqualToCssIdentifier(
               name.begin,
               cssom::GetPropertyName(cssom::kAnimationDurationProperty))) {
@@ -3014,36 +2999,6 @@ bool Scanner::DetectUnitToken(const TrivialStringPiece& unit,
     default:
       return false;
   }
-}
-
-bool Scanner::DetectKnownDashFunctionToken(const TrivialStringPiece& name,
-                                           Token* known_function_token) const {
-  if (name.size() == 11) {
-    if (IsAsciiAlphaCaselessEqual(name.begin[10], 'y') &&
-        IsEqualToCssIdentifier(name.begin + 1, "webkit-an")) {
-      *known_function_token = kAnyFunctionToken;
-      return true;
-    }
-    if (IsAsciiAlphaCaselessEqual(name.begin[10], 'n') &&
-        IsEqualToCssIdentifier(name.begin + 1, "webkit-mi")) {
-      *known_function_token = kMinFunctionToken;
-      return true;
-    }
-    if (IsAsciiAlphaCaselessEqual(name.begin[10], 'x') &&
-        IsEqualToCssIdentifier(name.begin + 1, "webkit-ma")) {
-      *known_function_token = kMaxFunctionToken;
-      return true;
-    }
-    return false;
-  }
-
-  if (name.size() == 12 &&
-      IsEqualToCssIdentifier(name.begin + 1, "webkit-calc")) {
-    *known_function_token = kCalcFunctionToken;
-    return true;
-  }
-
-  return false;
 }
 
 inline bool Scanner::DetectAtTokenAndMaybeChangeParsingMode(
