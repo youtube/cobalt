@@ -19,63 +19,41 @@
 namespace cobalt {
 namespace dom {
 
-FontCache::RequestedRemoteFontInfo::RequestedRemoteFontInfo(
-    const scoped_refptr<loader::font::CachedRemoteFont>& cached_remote_font,
-    const base::Closure& font_load_event_callback)
-    : cached_remote_font_reference_(
-          new loader::font::CachedRemoteFontReferenceWithCallbacks(
-              cached_remote_font, font_load_event_callback,
-              font_load_event_callback)),
+namespace {
+
+const int32_t kInactiveFontListPurgeDelayMs = 300000;
+const int32_t kInactiveFontPurgeDelayMs = 900000;
+const int32_t kTotalFontCountPurgeThreshold = 64;
+
+}  // namespace
+
+FontCache::RequestedRemoteTypefaceInfo::RequestedRemoteTypefaceInfo(
+    const scoped_refptr<loader::font::CachedRemoteTypeface>&
+        cached_remote_typeface,
+    const base::Closure& typeface_load_event_callback)
+    : cached_remote_typeface_reference_(
+          new loader::font::CachedRemoteTypefaceReferenceWithCallbacks(
+              cached_remote_typeface, typeface_load_event_callback,
+              typeface_load_event_callback)),
       request_timer_(new base::Timer(false, false)) {
   request_timer_->Start(FROM_HERE,
                         base::TimeDelta::FromMilliseconds(kRequestTimerDelay),
-                        font_load_event_callback);
+                        typeface_load_event_callback);
 }
 
 FontCache::FontCache(render_tree::ResourceProvider* resource_provider,
-                     loader::font::RemoteFontCache* remote_font_cache,
-                     const base::Closure& external_font_load_event_callback,
+                     loader::font::RemoteTypefaceCache* remote_typeface_cache,
+                     const base::Closure& external_typeface_load_event_callback,
                      const std::string& language)
     : resource_provider_(resource_provider),
-      remote_font_cache_(remote_font_cache),
-      external_font_load_event_callback_(external_font_load_event_callback),
+      remote_typeface_cache_(remote_typeface_cache),
+      external_typeface_load_event_callback_(
+          external_typeface_load_event_callback),
       language_(language),
       font_face_map_(new FontFaceMap()) {}
 
-scoped_refptr<dom::FontList> FontCache::GetFontList(
-    const FontListKey& font_list_key) {
-  FontListMap::iterator list_iterator = font_list_map_.find(font_list_key);
-  if (list_iterator != font_list_map_.end()) {
-    return list_iterator->second;
-  } else {
-    // If the font list isn't already in the map, both set the new font list
-    // mapping and return the newly created font list.
-    return font_list_map_[font_list_key] = new FontList(this, font_list_key);
-  }
-}
-
-void FontCache::RemoveUnusedFontLists() {
-  // TODO(***REMOVED***): Add in logic removing font lists once some requirement has
-  // been met, perhaps 15 minutes of inactivity and over 50 total font lists.
-  // Immediately removing them results in too much thrashing of font lists,
-  // which causes undesirable frequent purges of glyph bounds caches. Testing
-  // has shown that retaining them does not cause memory or performance issues,
-  // so we are currently commenting out the code releasing them. Implementing
-  // the full fix is tracked as b/27377767.
-  /*for (FontListMap::iterator font_list_iterator = font_list_map_.begin();
-       font_list_iterator != font_list_map_.end();) {
-    // Any font list that has a single ref is unreferenced outside of the font
-    // cache and is no longer uses. Remove it.
-    if (font_list_iterator->second->HasOneRef()) {
-
-      font_list_map_.erase(font_list_iterator++);
-    } else {
-      ++font_list_iterator;
-    }
-  }*/
-}
-
 void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   // If nothing has changed, then there's nothing to update. Just return.
   if (*font_face_map == *font_face_map_) {
     return;
@@ -94,85 +72,58 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
     map_iterator->second.CollectUrlSources(&new_url_set);
   }
 
-  // Iterate through active remote font references, verifying that the font face
-  // map still contains each remote font's url. Any remote fonts with a url that
-  // is no longer contained within |font_face_map_| is purged to allow the
-  // remote cache to release the memory.
-  RequestedRemoteFontMap::iterator requested_remote_font_iterator =
-      requested_remote_font_cache_.begin();
-  while (requested_remote_font_iterator != requested_remote_font_cache_.end()) {
-    RequestedRemoteFontMap::iterator current_iterator =
-        requested_remote_font_iterator++;
+  // Iterate through active remote typeface references, verifying that the font
+  // face map still contains each remote typeface's url. Any remote typeface
+  // with a url that is no longer contained within |font_face_map_| is purged to
+  // allow the remote cache to release the memory.
+  RequestedRemoteTypefaceMap::iterator requested_remote_typeface_iterator =
+      requested_remote_typeface_cache_.begin();
+  while (requested_remote_typeface_iterator !=
+         requested_remote_typeface_cache_.end()) {
+    RequestedRemoteTypefaceMap::iterator current_iterator =
+        requested_remote_typeface_iterator++;
 
     // If the referenced url is not in the new url set, then purge it.
     if (new_url_set.find(current_iterator->first) == new_url_set.end()) {
-      requested_remote_font_cache_.erase(current_iterator);
+      requested_remote_typeface_cache_.erase(current_iterator);
     }
   }
 }
 
-const scoped_refptr<render_tree::CharacterGlyphMap>&
-FontCache::GetFontCharacterGlyphMap(
-    const scoped_refptr<render_tree::Font>& font) {
-  scoped_refptr<render_tree::CharacterGlyphMap>& glyph_map =
-      typeface_id_to_character_glyph_map_[font->GetTypefaceId()];
-
-  if (!glyph_map) {
-    glyph_map = make_scoped_refptr(new render_tree::CharacterGlyphMap);
-  }
-
-  return glyph_map;
+void FontCache::ProcesInactiveFontListsAndFonts() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  base::Time current_time = base::Time::Now();
+  ProcessInactiveFontLists(current_time);
+  ProcessInactiveFonts(current_time);
 }
 
-render_tree::TypefaceId FontCache::GetCharacterFallbackTypefaceId(
-    int32 utf32_character, render_tree::FontStyle style, float size) {
-  CharacterFallbackTypefaceKey fallback_key(utf32_character, style);
-
-  // Grab the fallback character map for the specified style and attempt to
-  // lookup the character. If it's already in the map, just return the
-  // associated typeface id.
-  CharacterFallbackTypefaceMap::iterator fallback_iterator =
-      character_fallback_typeface_map_.find(fallback_key);
-  if (fallback_iterator != character_fallback_typeface_map_.end()) {
-    return fallback_iterator->second;
+const scoped_refptr<dom::FontList>& FontCache::GetFontList(
+    const FontListKey& font_list_key) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  FontListInfo& font_list_info = font_list_map_[font_list_key];
+  if (font_list_info.font_list == NULL) {
+    font_list_info.font_list = new FontList(this, font_list_key);
   }
-
-  // Otherwise, the character didn't already exist in the map. Grab the fallback
-  // font for the character and style from the resource provider.
-  scoped_refptr<render_tree::Font> fallback_font =
-      resource_provider_->GetCharacterFallbackFont(utf32_character, style, size,
-                                                   language_);
-
-  // Map the character to the typeface id of the returned font.
-  render_tree::TypefaceId typeface_id = fallback_font->GetTypefaceId();
-  character_fallback_typeface_map_[fallback_key] = typeface_id;
-
-  // Check to see if the typeface id already maps to a font. If it doesn't, then
-  // add the mapping. After this function is called, the typeface to font
-  // mapping is guaranteed to exist.
-  FallbackTypefaceToFontMap::iterator fallback_font_iterator =
-      fallback_typeface_to_font_map_.find(typeface_id);
-  if (fallback_font_iterator == fallback_typeface_to_font_map_.end()) {
-    fallback_typeface_to_font_map_[typeface_id] = fallback_font;
-  }
-
-  return typeface_id;
+  return font_list_info.font_list;
 }
 
-scoped_refptr<render_tree::Font> FontCache::GetFallbackFont(
-    render_tree::TypefaceId typeface_id, float size) {
-  FallbackTypefaceToFontMap::iterator fallback_font_iterator =
-      fallback_typeface_to_font_map_.find(typeface_id);
-  if (fallback_font_iterator != fallback_typeface_to_font_map_.end()) {
-    return fallback_font_iterator->second->CloneWithSize(size);
-  } else {
-    return NULL;
+const scoped_refptr<render_tree::Font>& FontCache::GetFontFromTypefaceAndSize(
+    const scoped_refptr<render_tree::Typeface>& typeface, float size) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  FontKey font_key(typeface->GetId(), size);
+  // Check to see if the font is already in the cache. If it is not, then
+  // create it from the typeface and size and add it to the cache.
+  FontInfo& cached_font_info = font_map_[font_key];
+  if (cached_font_info.font == NULL) {
+    cached_font_info.font = typeface->CreateFontWithSize(size);
   }
+  return cached_font_info.font;
 }
 
 scoped_refptr<render_tree::Font> FontCache::TryGetFont(
     const std::string& family, render_tree::FontStyle style, float size,
     FontListFont::State* state) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   FontFaceMap::iterator font_face_map_iterator = font_face_map_->find(family);
   if (font_face_map_iterator != font_face_map_->end()) {
     // Retrieve the font face style set entry that most closely matches the
@@ -212,6 +163,22 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
   }
 }
 
+FontCache::CharacterFallbackTypefaceMap&
+FontCache::GetCharacterFallbackTypefaceMap(
+    const render_tree::FontStyle& style) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return character_fallback_typeface_maps_[CharacterFallbackKey(style)];
+}
+
+const scoped_refptr<render_tree::Typeface>&
+FontCache::GetCharacterFallbackTypeface(int32 utf32_character,
+                                        const render_tree::FontStyle& style) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return GetCachedLocalTypeface(
+      resource_provider_->GetCharacterFallbackTypeface(utf32_character, style,
+                                                       language_));
+}
+
 scoped_refptr<render_tree::GlyphBuffer> FontCache::CreateGlyphBuffer(
     const char16* text_buffer, int32 text_length, bool is_rtl,
     FontList* font_list) {
@@ -228,43 +195,133 @@ float FontCache::GetTextWidth(const char16* text_buffer, int32 text_length,
       font_list, maybe_used_fonts);
 }
 
+void FontCache::ProcessInactiveFontLists(const base::Time& current_time) {
+  for (FontListMap::iterator font_list_iterator = font_list_map_.begin();
+       font_list_iterator != font_list_map_.end();) {
+    FontListInfo& font_list_info = font_list_iterator->second;
+
+    // Any font list that has a single ref is unreferenced outside of the font
+    // cache and is no longer active.
+    if (font_list_info.font_list->HasOneRef()) {
+      // If there is no inactive time set, then the font list has just become
+      // inactive, so set the time now.
+      if (font_list_info.inactive_time.is_null()) {
+        font_list_info.inactive_time = base::Time::Now();
+        // Otherwise, check to see if the purge delay has been reached.
+      } else if ((current_time - font_list_info.inactive_time)
+                     .InMilliseconds() >= kInactiveFontListPurgeDelayMs) {
+        font_list_map_.erase(font_list_iterator++);
+        continue;
+      }
+      // Otherwise, if there's an inactive time set on this font list, clear it.
+    } else if (!font_list_info.inactive_time.is_null()) {
+      font_list_info.inactive_time = base::Time();
+    }
+
+    ++font_list_iterator;
+  }
+}
+
+void FontCache::ProcessInactiveFonts(const base::Time& current_time) {
+  for (FontMap::iterator font_iterator = font_map_.begin();
+       font_iterator != font_map_.end();) {
+    FontInfo& font_info = font_iterator->second;
+
+    // Any font that has a single ref is unreferenced outside of the font cache
+    // and is no longer active.
+    if (font_info.font->HasOneRef()) {
+      // If there is no inactive time set, then the font has just become
+      // inactive, so set the time now and insert it into the inactive font set.
+      if (font_info.inactive_time.is_null()) {
+        font_info.inactive_time = base::Time::Now();
+        inactive_font_set_.insert(
+            InactiveFontKey(font_info.inactive_time, font_iterator->first));
+      }
+      // Otherwise, if there's an inactive time set on this font, clear it and
+      // remove the font from the inactive font set.
+    } else if (!font_info.inactive_time.is_null()) {
+      inactive_font_set_.erase(
+          InactiveFontKey(font_info.inactive_time, font_iterator->first));
+      font_info.inactive_time = base::Time();
+    }
+
+    ++font_iterator;
+  }
+
+  // Continue looping until the total font count drops to the purge threshold or
+  // there are no more inactive fonts to purge.
+  while (font_map_.size() > kTotalFontCountPurgeThreshold &&
+         inactive_font_set_.size() > 0) {
+    // Grab the first inactive font in the set. They are ordered by the time
+    // they became inactive, so the first inactive font in the set is the
+    // oldest.
+    InactiveFontSet::iterator inactive_font_iterator =
+        inactive_font_set_.begin();
+    // Check to see if the oldest inactive font is old enough to be purged. If
+    // it is not, simply break out. None of the other inactive fonts will be
+    // purgeable either.
+    if ((current_time - inactive_font_iterator->inactive_time)
+            .InMilliseconds() < kInactiveFontPurgeDelayMs) {
+      break;
+    }
+
+    // The inactive font is old enough to be purged. Remove it from both the
+    // font map and the inactive font set.
+    font_map_.erase(inactive_font_iterator->font_key);
+    inactive_font_set_.erase(inactive_font_iterator);
+  }
+}
+
+const scoped_refptr<render_tree::Typeface>& FontCache::GetCachedLocalTypeface(
+    const scoped_refptr<render_tree::Typeface>& typeface) {
+  // Check to see if a typeface with a matching id is already in the cache. If
+  // it is not, then add the passed in typeface to the cache.
+  scoped_refptr<render_tree::Typeface>& cached_typeface =
+      local_typeface_map_[typeface->GetId()];
+  if (cached_typeface == NULL) {
+    cached_typeface = typeface;
+  }
+  return cached_typeface;
+}
+
 scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
     const GURL& url, float size, FontListFont::State* state) {
-  // Retrieve the font from the remote font cache, potentially triggering a
+  // Retrieve the font from the remote typeface cache, potentially triggering a
   // load.
-  scoped_refptr<loader::font::CachedRemoteFont> cached_remote_font =
-      remote_font_cache_->CreateCachedResource(url);
+  scoped_refptr<loader::font::CachedRemoteTypeface> cached_remote_typeface =
+      remote_typeface_cache_->CreateCachedResource(url);
 
-  RequestedRemoteFontMap::iterator requested_remote_font_iterator =
-      requested_remote_font_cache_.find(url);
+  RequestedRemoteTypefaceMap::iterator requested_remote_typeface_iterator =
+      requested_remote_typeface_cache_.find(url);
 
   // If the requested url is not currently cached, then create a cached
   // reference and request timer, providing callbacks for when the load is
   // completed or the timer expires.
-  if (requested_remote_font_iterator == requested_remote_font_cache_.end()) {
-    // Create the remote font load event's callback. This callback occurs on
+  if (requested_remote_typeface_iterator ==
+      requested_remote_typeface_cache_.end()) {
+    // Create the remote typeface load event's callback. This callback occurs on
     // successful loads, failed loads, and when the request's timer expires.
-    base::Closure font_load_event_callback = base::Bind(
-        &FontCache::OnRemoteFontLoadEvent, base::Unretained(this), url);
+    base::Closure typeface_load_event_callback = base::Bind(
+        &FontCache::OnRemoteTypefaceLoadEvent, base::Unretained(this), url);
 
-    // Insert the newly requested remote font's info into the cache, and set the
-    // iterator from the return value of the map insertion.
-    requested_remote_font_iterator =
-        requested_remote_font_cache_.insert(
-                                        std::make_pair(
-                                            url, new RequestedRemoteFontInfo(
-                                                     cached_remote_font,
-                                                     font_load_event_callback)))
+    // Insert the newly requested remote typeface's info into the cache, and set
+    // the iterator from the return value of the map insertion.
+    requested_remote_typeface_iterator =
+        requested_remote_typeface_cache_
+            .insert(std::make_pair(
+                url, new RequestedRemoteTypefaceInfo(
+                         cached_remote_typeface, typeface_load_event_callback)))
             .first;
   }
 
-  scoped_refptr<render_tree::Font> font = cached_remote_font->TryGetResource();
-  if (font != NULL) {
+  scoped_refptr<render_tree::Typeface> typeface =
+      cached_remote_typeface->TryGetResource();
+  if (typeface != NULL) {
     *state = FontListFont::kLoadedState;
-    return font->CloneWithSize(size);
+    return GetFontFromTypefaceAndSize(typeface, size);
   } else {
-    if (cached_remote_font->IsLoading()) {
-      if (requested_remote_font_iterator->second->HasActiveRequestTimer()) {
+    if (cached_remote_typeface->IsLoading()) {
+      if (requested_remote_typeface_iterator->second->HasActiveRequestTimer()) {
         *state = FontListFont::kLoadingWithTimerActiveState;
       } else {
         *state = FontListFont::kLoadingWithTimerExpiredState;
@@ -281,9 +338,9 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
     FontListFont::State* state) {
   // Only request the local font from the resource provider if the family is
   // empty or the resource provider actually has the family. The reason for this
-  // is that the resource provider's |GetLocalFont()| is guaranteed to return a
-  // non-NULL value, and in the case where a family is not supported, the
-  // subsequent fonts in the font list need to be attempted. An empty family
+  // is that the resource provider's |GetLocalTypeface()| is guaranteed to
+  // return a non-NULL value, and in the case where a family is not supported,
+  // the subsequent fonts in the font list need to be attempted. An empty family
   // signifies using the default font.
   if (!family.empty() &&
       !resource_provider_->HasLocalFontFamily(family.c_str())) {
@@ -291,14 +348,19 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
     return NULL;
   } else {
     *state = FontListFont::kLoadedState;
-    return resource_provider_->GetLocalFont(family.c_str(), style, size);
+    return GetFontFromTypefaceAndSize(
+        GetCachedLocalTypeface(
+            resource_provider_->GetLocalTypeface(family.c_str(), style)),
+        size);
   }
 }
 
-void FontCache::OnRemoteFontLoadEvent(const GURL& url) {
-  RequestedRemoteFontMap::iterator requested_remote_font_iterator =
-      requested_remote_font_cache_.find(url);
-  if (requested_remote_font_iterator != requested_remote_font_cache_.end()) {
+void FontCache::OnRemoteTypefaceLoadEvent(const GURL& url) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  RequestedRemoteTypefaceMap::iterator requested_remote_typeface_iterator =
+      requested_remote_typeface_cache_.find(url);
+  if (requested_remote_typeface_iterator !=
+      requested_remote_typeface_cache_.end()) {
     // NOTE(***REMOVED***): We can potentially track the exact font list fonts that are
     // impacted by each load event and only reset them. However, as a result of
     // the minimal amount of processing required to update the loading status of
@@ -307,13 +369,14 @@ void FontCache::OnRemoteFontLoadEvent(const GURL& url) {
     // doesn't appear to offer any meaningful benefits.
     for (FontListMap::iterator font_list_iterator = font_list_map_.begin();
          font_list_iterator != font_list_map_.end(); ++font_list_iterator) {
-      font_list_iterator->second->ResetLoadingFonts();
+      FontListInfo& font_list_info = font_list_iterator->second;
+      font_list_info.font_list->ResetLoadingFonts();
     }
 
     // Clear the request timer. It only runs until the first load event occurs.
-    requested_remote_font_iterator->second->ClearRequestTimer();
+    requested_remote_typeface_iterator->second->ClearRequestTimer();
 
-    external_font_load_event_callback_.Run();
+    external_typeface_load_event_callback_.Run();
   }
 }
 

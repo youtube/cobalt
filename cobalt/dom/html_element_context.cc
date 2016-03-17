@@ -28,7 +28,7 @@ HTMLElementContext::HTMLElementContext(
     MediaSource::Registry* media_source_registry,
     render_tree::ResourceProvider* resource_provider,
     loader::image::ImageCache* image_cache,
-    loader::font::RemoteFontCache* remote_font_cache,
+    loader::font::RemoteTypefaceCache* remote_typeface_cache,
     const std::string& language)
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
@@ -38,7 +38,7 @@ HTMLElementContext::HTMLElementContext(
       media_source_registry_(media_source_registry),
       resource_provider_(resource_provider),
       image_cache_(image_cache),
-      remote_font_cache_(remote_font_cache),
+      remote_typeface_cache_(remote_typeface_cache),
       language_(language),
       sync_load_thread_("Synchronous Load"),
       html_element_factory_(new HTMLElementFactory()) {

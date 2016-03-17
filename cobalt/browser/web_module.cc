@@ -97,9 +97,10 @@ WebModule::WebModule(
           base::StringPrintf("%s.ImageCache", name_.c_str()),
           options.image_cache_capacity, resource_provider,
           fetcher_factory_.get())),
-      remote_font_cache_(loader::font::CreateRemoteFontCache(
-          base::StringPrintf("%s.RemoteFontCache", name_.c_str()),
-          kRemoteFontCacheCapacity, resource_provider, fetcher_factory_.get())),
+      remote_typeface_cache_(loader::font::CreateRemoteTypefaceCache(
+          base::StringPrintf("%s.RemoteTypefaceCache", name_.c_str()),
+          kRemoteTypefaceCacheCapacity, resource_provider,
+          fetcher_factory_.get())),
       local_storage_database_(network_module->storage_manager()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
       global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
@@ -110,7 +111,7 @@ WebModule::WebModule(
       ALLOW_THIS_IN_INITIALIZER_LIST(window_(new dom::Window(
           window_dimensions.width(), window_dimensions.height(),
           css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-          resource_provider, image_cache_.get(), remote_font_cache_.get(),
+          resource_provider, image_cache_.get(), remote_typeface_cache_.get(),
           &local_storage_database_, media_module, execution_state_.get(),
           script_runner_.get(), &media_source_registry_, initial_url,
           network_module->GetUserAgent(), network_module->preferred_language(),

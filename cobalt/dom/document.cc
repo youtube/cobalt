@@ -68,9 +68,9 @@ Document::Document(HTMLElementContext* html_element_context,
       ALLOW_THIS_IN_INITIALIZER_LIST(font_cache_(new FontCache(
           html_element_context_ ? html_element_context_->resource_provider()
                                 : NULL,
-          html_element_context_ ? html_element_context_->remote_font_cache()
+          html_element_context_ ? html_element_context_->remote_typeface_cache()
                                 : NULL,
-          base::Bind(&Document::OnFontLoadEvent, base::Unretained(this)),
+          base::Bind(&Document::OnTypefaceLoadEvent, base::Unretained(this)),
           html_element_context_ ? html_element_context_->language()
                                 : "en-US"))),
       loading_counter_(0),
@@ -99,8 +99,8 @@ Document::Document(HTMLElementContext* html_element_context,
       base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
                  CspDelegate::kLocation));
 
-  if (html_element_context_ && html_element_context_->remote_font_cache()) {
-    html_element_context_->remote_font_cache()->set_security_callback(
+  if (html_element_context_ && html_element_context_->remote_typeface_cache()) {
+    html_element_context_->remote_typeface_cache()->set_security_callback(
         base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
                    CspDelegate::kFont));
   }
@@ -451,7 +451,7 @@ void Document::OnDOMMutation() {
   RecordMutation();
 }
 
-void Document::OnFontLoadEvent() {
+void Document::OnTypefaceLoadEvent() {
   InvalidateLayoutBoxesFromNodeAndDescendants();
   RecordMutation();
 }

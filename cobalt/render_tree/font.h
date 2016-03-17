@@ -17,18 +17,17 @@
 #ifndef COBALT_RENDER_TREE_FONT_H_
 #define COBALT_RENDER_TREE_FONT_H_
 
-#include <string>
 #include <vector>
 
-#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/glyph.h"
+#include "cobalt/render_tree/typeface.h"
 
 namespace cobalt {
 namespace render_tree {
 
-// Contains metrics common for all glyphs in the font.
+// Contains metrics common to all glyphs in the font.
 class FontMetrics {
  public:
   FontMetrics(float ascent, float descent, float leading, float x_height)
@@ -55,8 +54,8 @@ class FontMetrics {
   float x_height_;
 };
 
-// Used as a parameter to GetLocalFont() and GetCharacterFallbackFont() to
-// describe the font style the caller is seeking.
+// Used as a parameter to GetLocalTypeface() and GetCharacterFallbackTypeface()
+// to describe the font style the caller is seeking.
 struct FontStyle {
   enum Weight {
     kThinWeight = 100,
@@ -83,53 +82,43 @@ struct FontStyle {
   Slant slant;
 };
 
-typedef uint32_t TypefaceId;
-
-// The Font class is an abstract base class representing all information
-// required by the rasterizer to determine the font metrics for a given
-// glyph.  Typically this implies that a font typeface, size, and style must at
-// least be described when instantiating a concrete Font derived class.  Since
-// Font objects may be created in the frontend, but must be accessed by the
-// rasterizer, it is expected that they will be downcast again to a
-// rasterizer-specific type through base::Downcast().
+// The Font class is an abstract base class representing a typeface with a
+// specific size. It provides the font metrics common to all glyphs in the
+// font, and supports retrieval of both the glyph that it uses for each UTF-32
+// character and the bounds and width information for any of its contained
+// glyphs. Since Font objects may be created in the front-end, but must be
+// accessed by the rasterizer during GlyphBuffer creation, it is expected that
+// they will be downcast again to a rasterizer-specific type through
+// base::polymorphic_downcast().
+// NOTE: Font objects are not immutable and offer no thread safety guarantees.
+// While Font is intended to assist in the creation of GlyphBuffer objects, only
+// GlyphBuffer objects, which are immutable and thread-safe, should be accessed
+// on multiple threads.
 class Font : public base::RefCounted<Font> {
  public:
-  // Returns the font typeface's id, which is guaranteed to be unique among the
+  // Returns the font's typeface id, which is guaranteed to be unique among the
   // typefaces registered with the font's resource provider.
   virtual TypefaceId GetTypefaceId() const = 0;
 
-  // Returns the metrics common for all glyphs in the font. Used to calculate
+  // Returns the metrics common to all glyphs in the font. Used to calculate
   // the recommended line height and spacing between the lines.
   virtual FontMetrics GetFontMetrics() const = 0;
-
-  // Returns a size estimate for this font. While the derived class can
-  // potentially return an exact value, there is no guarantee that this will be
-  // the case.
-  virtual uint32 GetEstimatedSizeInBytes() const = 0;
-
-  // Returns a clone of the font, with the font size of the clone set to the
-  // passed in value.
-  virtual scoped_refptr<Font> CloneWithSize(float font_size) const = 0;
 
   // Returns an index to the glyph that the font provides for a given UTF-32
   // unicode character. If the character is unsupported, then it returns
   // kInvalidGlyphIndex.
-  virtual GlyphIndex GetGlyphForCharacter(int32 utf32_character) const = 0;
+  virtual GlyphIndex GetGlyphForCharacter(int32 utf32_character) = 0;
 
   // Returns the bounding box for a given glyph. While left is always zero,
   // note that since the glyph is output with the origin vertically on the
   // baseline, the top of the bounding box will likely be non-zero and is used
   // to indicate the offset of the glyph bounding box from the origin.  The
   // return value is given in units of pixels.
-  // NOTE: GetGlyphBounds is not guaranteed to be thread-safe and should only
-  // be called from a single thread.
-  virtual const math::RectF& GetGlyphBounds(GlyphIndex glyph) const = 0;
+  virtual const math::RectF& GetGlyphBounds(GlyphIndex glyph) = 0;
 
   // Returns the width of a given glyph. The return value is given in units of
   // pixels.
-  // NOTE: GetGlyphWidth is not guaranteed to be thread-safe and should only
-  // be called from a single thread.
-  virtual float GetGlyphWidth(GlyphIndex glyph) const = 0;
+  virtual float GetGlyphWidth(GlyphIndex glyph) = 0;
 
  protected:
   virtual ~Font() {}

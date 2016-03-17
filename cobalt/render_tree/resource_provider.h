@@ -26,6 +26,7 @@
 #include "cobalt/render_tree/font_fallback_list.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/typeface.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -41,10 +42,10 @@ namespace render_tree {
 // thread, but consumed on another.
 class ResourceProvider {
  public:
-  typedef std::vector<uint8_t> RawFontDataVector;
+  typedef std::vector<uint8_t> RawTypefaceDataVector;
 
   // This matches the max size in WebKit
-  static const size_t kMaxFontDataSize = 30 * 1024 * 1024;  // 30 MB
+  static const size_t kMaxTypefaceDataSize = 30 * 1024 * 1024;  // 30 MB
 
   virtual ~ResourceProvider() {}
 
@@ -87,30 +88,32 @@ class ResourceProvider {
   // matching the name exists.
   virtual bool HasLocalFontFamily(const char* font_family_name) const = 0;
 
-  // Given a set of font information, this method returns the locally available
-  // font that best fits the specified font parameters. In the case where no
-  // font is found that matches the font family name, the default font is
-  // returned.
-  virtual scoped_refptr<Font> GetLocalFont(const char* font_family_name,
-                                           FontStyle font_style,
-                                           float font_size) = 0;
+  // Given a set of typeface information, this method returns the locally
+  // available typeface that best fits the specified parameters. In the case
+  // where no typeface is found that matches the font family name, the default
+  // typeface is returned.
+  virtual scoped_refptr<Typeface> GetLocalTypeface(const char* font_family_name,
+                                                   FontStyle font_style) = 0;
 
-  // Given a UTF-32 character, a set of font information, and a language, this
-  // method returns the best-fit locally available fallback font that provides a
-  // glyph for the specified character. In the case where no fallback font is
-  // found that supports the character, the default font is returned.
-  virtual scoped_refptr<Font> GetCharacterFallbackFont(
-      int32 utf32_character, FontStyle font_style, float font_size,
+  // Given a UTF-32 character, a set of typeface information, and a language,
+  // this method returns the best-fit locally available fallback typeface that
+  // provides a glyph for the specified character. In the case where no fallback
+  // typeface is found that supports the character, the default typeface is
+  // returned.
+  virtual scoped_refptr<Typeface> GetCharacterFallbackTypeface(
+      int32 utf32_character, FontStyle font_style,
       const std::string& language) = 0;
 
-  // Given raw font data in either TrueType, OpenType or WOFF data formats, this
-  // method creates and returns a new font. The font is not cached by the
-  // resource provider. If the creation fails, the error is written out to the
-  // error string.
+  // Given raw typeface data in either TrueType, OpenType or WOFF data formats,
+  // this method creates and returns a new typeface. The typeface is not cached
+  // by the resource provider. If the creation fails, the error is written out
+  // to the error string.
   // Note that kMaxFontDataSize represents a hard cap on the raw data size.
-  // Anything larger than that is guaranteed to result in font creation failure.
-  virtual scoped_refptr<render_tree::Font> CreateFontFromRawData(
-      scoped_ptr<RawFontDataVector> raw_data, std::string* error_string) = 0;
+  // Anything larger than that is guaranteed to result in typeface creation
+  // failure.
+  virtual scoped_refptr<Typeface> CreateTypefaceFromRawData(
+      scoped_ptr<RawTypefaceDataVector> raw_data,
+      std::string* error_string) = 0;
 
   // Given a UTF-16 text buffer, a font fallback list, and other shaping
   // parameters, this method shapes the text using fonts from the list and

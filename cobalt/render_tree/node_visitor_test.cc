@@ -126,48 +126,6 @@ TEST(NodeVisitorTest, VisitsRectShadow) {
   rect_shadow->Accept(&mock_visitor);
 }
 
-namespace {
-
-class DummyFont : public Font {
- public:
-  DummyFont() : bounds_(cobalt::math::RectF(0, 0, 1, 1)) {}
-
-  cobalt::render_tree::TypefaceId GetTypefaceId() const OVERRIDE { return 0; }
-
-  FontMetrics GetFontMetrics() const OVERRIDE {
-    return FontMetrics(0, 0, 0, 0);
-  }
-
-  uint32 GetEstimatedSizeInBytes() const OVERRIDE { return 0; }
-
-  scoped_refptr<Font> CloneWithSize(float font_size) const OVERRIDE {
-    UNREFERENCED_PARAMETER(font_size);
-    return NULL;
-  }
-
-  cobalt::render_tree::GlyphIndex GetGlyphForCharacter(
-      int32 utf32_character) const OVERRIDE {
-    UNREFERENCED_PARAMETER(utf32_character);
-    return cobalt::render_tree::GlyphIndex(1);
-  }
-
-  const cobalt::math::RectF& GetGlyphBounds(
-      cobalt::render_tree::GlyphIndex glyph) const OVERRIDE {
-    UNREFERENCED_PARAMETER(glyph);
-    return bounds_;
-  }
-
-  float GetGlyphWidth(cobalt::render_tree::GlyphIndex glyph) const OVERRIDE {
-    UNREFERENCED_PARAMETER(glyph);
-    return bounds_.width();
-  }
-
- private:
-  cobalt::math::RectF bounds_;
-};
-
-}  // namespace
-
 TEST(NodeVisitorTest, VisitsText) {
   scoped_refptr<TextNode> text(
       new TextNode(cobalt::math::Vector2dF(0, 0),
