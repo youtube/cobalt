@@ -44,7 +44,7 @@ class GraphicsSystemStub : public GraphicsSystem {
   }
 
   scoped_ptr<GraphicsContext> CreateGraphicsContext() OVERRIDE {
-    return scoped_ptr<GraphicsContext>(new GraphicsContextStub());
+    return scoped_ptr<GraphicsContext>(new GraphicsContextStub(this));
   }
 
   scoped_ptr<TextureData> AllocateTextureData(const SurfaceInfo& surface_info) {

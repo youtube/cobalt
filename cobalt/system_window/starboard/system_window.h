@@ -19,6 +19,10 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/system_window/system_window.h"
+#include "starboard/event.h"
+#include "starboard/input.h"
+#include "starboard/key.h"
+#include "starboard/window.h"
 
 namespace cobalt {
 namespace system_window {
@@ -28,7 +32,21 @@ class SystemWindowStarboard : public SystemWindow {
   explicit SystemWindowStarboard(base::EventDispatcher* event_dispatcher,
                                  const math::Size& window_size);
   ~SystemWindowStarboard() OVERRIDE;
+
+  // Gets the platform-specific window handle as a void*.
+  void* GetWindowHandle();
+
+  // Handles a single Starboard input event, dispatching any appropriate events.
+  void HandleInputEvent(const SbInputData& data);
+
+ private:
+  SbWindow window_;
 };
+
+// The Starboard Event handler SbHandleEvent should call this function on
+// unrecognized events. It will extract Input events and dispatch them to the
+// appropriate SystemWindow for further routing.
+void HandleInputEvent(const SbEvent* event);
 
 }  // namespace system_window
 }  // namespace cobalt

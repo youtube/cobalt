@@ -17,8 +17,7 @@
 #ifndef COBALT_RENDERER_BACKEND_TEXTURE_STUB_H_
 #define COBALT_RENDERER_BACKEND_TEXTURE_STUB_H_
 
-#include <malloc.h>
-
+#include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/backend/pixel_data_stub.h"
 #include "cobalt/renderer/backend/surface_info.h"
 #include "cobalt/renderer/backend/texture.h"
@@ -52,24 +51,27 @@ class RawTextureMemoryStub : public RawTextureMemory {
  public:
   RawTextureMemoryStub(size_t size_in_bytes, size_t alignment)
       : size_in_bytes_(size_in_bytes) {
-    memory_ = scoped_ptr_malloc<uint8_t>(
-        static_cast<uint8_t*>(memalign(alignment, size_in_bytes)));
+    memory_.reset(
+        static_cast<uint8_t*>(base::AlignedAlloc(size_in_bytes, alignment)));
   }
 
   // Returns the allocated size of the texture memory.
-  virtual size_t GetSizeInBytes() const { return size_in_bytes_; }
+  size_t GetSizeInBytes() const OVERRIDE { return size_in_bytes_; }
 
   // Returns a CPU-accessible pointer to the allocated memory.
-  virtual uint8_t* GetMemory() { return memory_.get(); }
+  uint8_t* GetMemory() OVERRIDE { return memory_.get(); }
 
   const uint8_t* GetMemory() const { return memory_.get(); }
+
+ protected:
+  void MakeConst() OVERRIDE {}
 
  private:
   size_t size_in_bytes_;
 
   // TODO(***REMOVED***): Store memory using a EGL PBuffer object which provides the
   //               implementation control over the memory.
-  scoped_ptr_malloc<uint8_t> memory_;
+  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> memory_;
 };
 
 // Acts as a texture in the stub graphics system.  It does not store any pixel
@@ -79,6 +81,15 @@ class TextureStub : public Texture {
  public:
   explicit TextureStub(scoped_refptr<PixelDataStub> pixel_data)
       : pixel_data_(pixel_data) {}
+
+  TextureStub(const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
+              intptr_t /*offset*/, const SurfaceInfo& surface_info,
+              int /*pitch_in_bytes*/)
+      : pixel_data_(new PixelDataStub(surface_info)) {
+    const RawTextureMemoryStub* raw_texture_memory_stub =
+        base::polymorphic_downcast<const RawTextureMemoryStub*>(
+            &(raw_texture_memory->raw_texture_memory()));
+  }
 
   const SurfaceInfo& GetSurfaceInfo() const OVERRIDE {
     return pixel_data_->surface_info();
