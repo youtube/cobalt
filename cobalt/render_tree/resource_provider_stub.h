@@ -79,38 +79,29 @@ class ImageStub : public Image {
 // Simple class that returns dummy data for metric information.
 class FontStub : public Font {
  public:
-  FontStub(const void* data, size_t size)
-      : font_data_size_(static_cast<uint32>(size)) {
-    UNREFERENCED_PARAMETER(data);
+  explicit FontStub(const scoped_refptr<Typeface>& typeface)
+      : typeface_(typeface) {
     FontMetrics font_metrics = GetFontMetrics();
     glyph_bounds_ =
         math::RectF(0, 0, 1, font_metrics.ascent() + font_metrics.descent());
   }
 
-  TypefaceId GetTypefaceId() const OVERRIDE { return 0; }
+  TypefaceId GetTypefaceId() const OVERRIDE { return typeface_->GetId(); }
 
   FontMetrics GetFontMetrics() const OVERRIDE {
     return FontMetrics(10, 5, 3, 6);
   }
 
-  uint32 GetEstimatedSizeInBytes() const OVERRIDE { return font_data_size_; }
-
-  scoped_refptr<Font> CloneWithSize(float font_size) const OVERRIDE {
-    UNREFERENCED_PARAMETER(font_size);
-    return make_scoped_refptr(new FontStub(NULL, 0));
+  GlyphIndex GetGlyphForCharacter(int32 utf32_character) OVERRIDE {
+    return typeface_->GetGlyphForCharacter(utf32_character);
   }
 
-  GlyphIndex GetGlyphForCharacter(int32 utf32_character) const OVERRIDE {
-    UNREFERENCED_PARAMETER(utf32_character);
-    return GlyphIndex(1);
-  }
-
-  const math::RectF& GetGlyphBounds(GlyphIndex glyph) const OVERRIDE {
+  const math::RectF& GetGlyphBounds(GlyphIndex glyph) OVERRIDE {
     UNREFERENCED_PARAMETER(glyph);
     return glyph_bounds_;
   }
 
-  float GetGlyphWidth(GlyphIndex glyph) const OVERRIDE {
+  float GetGlyphWidth(GlyphIndex glyph) OVERRIDE {
     UNREFERENCED_PARAMETER(glyph);
     return 1;
   }
@@ -118,8 +109,31 @@ class FontStub : public Font {
  private:
   ~FontStub() OVERRIDE {}
 
-  uint32 font_data_size_;
+  const scoped_refptr<Typeface> typeface_;
   math::RectF glyph_bounds_;
+};
+
+// Simple class that returns dummy data for metric information.
+class TypefaceStub : public Typeface {
+ public:
+  explicit TypefaceStub(const void* data) { UNREFERENCED_PARAMETER(data); }
+
+  TypefaceId GetId() const OVERRIDE { return 0; }
+
+  uint32 GetEstimatedSizeInBytes() const OVERRIDE { return 256; }
+
+  scoped_refptr<Font> CreateFontWithSize(float font_size) OVERRIDE {
+    UNREFERENCED_PARAMETER(font_size);
+    return make_scoped_refptr(new FontStub(this));
+  }
+
+  GlyphIndex GetGlyphForCharacter(int32 utf32_character) OVERRIDE {
+    UNREFERENCED_PARAMETER(utf32_character);
+    return GlyphIndex(1);
+  }
+
+ private:
+  ~TypefaceStub() OVERRIDE {}
 };
 
 class RawImageMemoryStub : public RawImageMemory {
@@ -180,31 +194,28 @@ class ResourceProviderStub : public ResourceProvider {
     return true;
   }
 
-  scoped_refptr<Font> GetLocalFont(const char* font_family_name,
-                                   FontStyle font_style,
-                                   float font_size) OVERRIDE {
+  scoped_refptr<Typeface> GetLocalTypeface(const char* font_family_name,
+                                           FontStyle font_style) OVERRIDE {
     UNREFERENCED_PARAMETER(font_family_name);
     UNREFERENCED_PARAMETER(font_style);
-    UNREFERENCED_PARAMETER(font_size);
-    return make_scoped_refptr(new FontStub(NULL, 0));
+    return make_scoped_refptr(new TypefaceStub(NULL));
   }
 
-  scoped_refptr<Font> GetCharacterFallbackFont(
-      int32 utf32_character, FontStyle font_style, float font_size,
+  scoped_refptr<Typeface> GetCharacterFallbackTypeface(
+      int32 utf32_character, FontStyle font_style,
       const std::string& language) OVERRIDE {
     UNREFERENCED_PARAMETER(utf32_character);
     UNREFERENCED_PARAMETER(font_style);
-    UNREFERENCED_PARAMETER(font_size);
     UNREFERENCED_PARAMETER(language);
-    return make_scoped_refptr(new FontStub(NULL, 0));
+    return make_scoped_refptr(new TypefaceStub(NULL));
   }
 
-  scoped_refptr<Font> CreateFontFromRawData(
-      scoped_ptr<RawFontDataVector> raw_data,
+  scoped_refptr<Typeface> CreateTypefaceFromRawData(
+      scoped_ptr<RawTypefaceDataVector> raw_data,
       std::string* error_string) OVERRIDE {
     UNREFERENCED_PARAMETER(raw_data);
     UNREFERENCED_PARAMETER(error_string);
-    return make_scoped_refptr(new FontStub(NULL, 0));
+    return make_scoped_refptr(new TypefaceStub(NULL));
   }
 
   float GetTextWidth(const char16* text_buffer, size_t text_length,

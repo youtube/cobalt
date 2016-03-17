@@ -27,6 +27,7 @@
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
+#include "cobalt/render_tree/typeface.h"
 
 using cobalt::math::Matrix3F;
 using cobalt::math::RectF;
@@ -59,7 +60,8 @@ scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
     ResourceProvider* resource_provider, FontStyle font_style, int font_size,
     const std::string& text) {
   scoped_refptr<Font> font =
-      resource_provider->GetLocalFont("Roboto", font_style, font_size);
+      resource_provider->GetLocalTypeface("Roboto", font_style)
+          ->CreateFontWithSize(font_size);
   return resource_provider->CreateGlyphBuffer(text, font);
 }
 
