@@ -340,7 +340,6 @@
 %token kRightBottomToken                // @right-bottom
 
 // Function tokens.
-%token kAnyFunctionToken                // -webkit-any(
 %token kCalcFunctionToken               // calc(
 %token kCubicBezierFunctionToken        // cubic-bezier(
 %token kCueFunctionToken                // cue(
@@ -348,8 +347,6 @@
 %token kLinearGradientFunctionToken     // linear-gradient(
 %token kLocalFunctionToken              // local(
 %token kMatrixFunctionToken             // matrix(
-%token kMaxFunctionToken                // -webkit-max(
-%token kMinFunctionToken                // -webkit-min(
 %token kNotFunctionToken                // not(
 %token kNthChildFunctionToken           // nth-child(
 %token kNthLastChildFunctionToken       // nth-last-child(
