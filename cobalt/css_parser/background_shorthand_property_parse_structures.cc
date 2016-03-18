@@ -33,8 +33,8 @@ void BackgroundShorthandLayer::ReplaceNullWithInitialValues() {
   }
 
   if (!background_position) {
-    // TODO(***REMOVED***): Investigate why this can not use GetPropertyInitialValue().
-    background_position = cssom::KeywordValue::GetInitial();
+    background_position =
+        cssom::GetPropertyInitialValue(cssom::kBackgroundPositionProperty);
   }
 
   if (!background_repeat) {

@@ -1163,7 +1163,10 @@ void ComputedPositionHelper::ComputeTwoValuesPosition(
   for (size_t i = 0; i < 2; ++i) {
     scoped_refptr<PropertyValue> current_value = input_position_builder[i];
 
-    if (current_value->GetTypeId() == base::GetTypeId<KeywordValue>()) {
+    if (current_value->GetTypeId() == base::GetTypeId<CalcValue>()) {
+      // If it is already a CalcValue, nothing needs to be done.
+      (*output_position_builder)[i] = current_value;
+    } else if (current_value->GetTypeId() == base::GetTypeId<KeywordValue>()) {
       FillPositionBuilderFromOriginAndOffset(current_value, NULL,
                                              output_position_builder);
     } else {
