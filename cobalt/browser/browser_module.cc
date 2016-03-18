@@ -141,6 +141,7 @@ BrowserModule::BrowserModule(const GURL& url,
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       array_buffer_allocator_(new ResourceProviderArrayBufferAllocator(
           renderer_module_.pipeline()->GetResourceProvider())),
+      array_buffer_cache_(new dom::ArrayBuffer::Cache(3 * 1024 * 1024)),
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       media_module_(media::MediaModule::Create(
           renderer_module_.pipeline()->GetResourceProvider(),
@@ -332,7 +333,7 @@ void BrowserModule::NavigateWithCallbackInternal(
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
   options.dom_settings_options.array_buffer_allocator =
       array_buffer_allocator_.get();
-  options.dom_settings_options.array_buffer_cache_size = 3 * 1024 * 1024;
+  options.dom_settings_options.array_buffer_cache = array_buffer_cache_.get();
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
 
 #if !defined(COBALT_FORCE_CSP)
