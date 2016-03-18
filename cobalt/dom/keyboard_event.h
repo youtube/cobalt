@@ -48,6 +48,14 @@ class KeyboardEvent : public UIEventWithKeyState {
   };
 
   struct Data {
+    Data()
+        : type(kTypeKeyDown),
+          key_location(kDomKeyLocationStandard),
+          modifiers(0),
+          key_code(0),
+          char_code(0),
+          repeat(false) {}
+
     Data(Type type, KeyLocationCode key_location, uint32_t modifiers,
          int32_t key_code, int32_t char_code, bool repeat)
         : type(type),
@@ -65,6 +73,7 @@ class KeyboardEvent : public UIEventWithKeyState {
     bool repeat;
   };
 
+  explicit KeyboardEvent(const std::string& type);
   explicit KeyboardEvent(const Data& data);
   KeyboardEvent(Type type, KeyLocationCode location, unsigned int modifiers,
                 int key_code, int char_code, bool is_repeat);

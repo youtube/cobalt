@@ -30,6 +30,7 @@ class Storage;
 class StorageEvent : public Event {
  public:
   StorageEvent();
+  explicit StorageEvent(const std::string& type);
   StorageEvent(const base::optional<std::string>& key,
                const base::optional<std::string>& old_value,
                const base::optional<std::string>& new_value,
