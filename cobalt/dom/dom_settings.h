@@ -44,7 +44,7 @@ class DOMSettings : public script::EnvironmentSettings {
  public:
   // Hold optional settings for DOMSettings.
   struct Options {
-    Options() : array_buffer_allocator(NULL), array_buffer_cache_size(0) {}
+    Options() : array_buffer_allocator(NULL), array_buffer_cache(NULL) {}
 
     // ArrayBuffer allocates its memory on the heap by default and ArrayBuffers
     // may occupy a lot of memory.  It is possible to provide an allocator via
@@ -52,11 +52,9 @@ class DOMSettings : public script::EnvironmentSettings {
     // memory that is not part of the heap.
     ArrayBuffer::Allocator* array_buffer_allocator;
     // When array_buffer_allocator is provided, we still need to hold certain
-    // amount of ArrayBuffer inside main memory.  The following size limited the
-    // amount of main memory that ArrayBuffer can use.
-    // Note: If |array_buffer_allocator| is NULL, |array_buffer_cache_size| has
-    // to be 0.  Otherwise it has to be non-zero.
-    size_t array_buffer_cache_size;
+    // amount of ArrayBuffer inside main memory.  So we have provide the
+    // following cache to manage ArrayBuffer in main memory.
+    ArrayBuffer::Cache* array_buffer_cache;
   };
 
   DOMSettings(loader::FetcherFactory* fetcher_factory,
@@ -75,9 +73,7 @@ class DOMSettings : public script::EnvironmentSettings {
     return array_buffer_allocator_;
   }
 
-  ArrayBuffer::Cache* array_buffer_cache() const {
-    return array_buffer_cache_.get();
-  }
+  ArrayBuffer::Cache* array_buffer_cache() const { return array_buffer_cache_; }
 
   void set_fetcher_factory(loader::FetcherFactory* fetcher_factory) {
     fetcher_factory_ = fetcher_factory;
@@ -105,7 +101,7 @@ class DOMSettings : public script::EnvironmentSettings {
   network::NetworkModule* network_module_;
   scoped_refptr<Window> window_;
   ArrayBuffer::Allocator* array_buffer_allocator_;
-  scoped_ptr<ArrayBuffer::Cache> array_buffer_cache_;
+  ArrayBuffer::Cache* array_buffer_cache_;
   MediaSource::Registry* media_source_registry_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalObjectProxy* global_object_proxy_;
