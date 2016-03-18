@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/logging.h"
+#include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/keycode.h"
 
@@ -40,6 +41,9 @@ base::Token TypeEnumToToken(KeyboardEvent::Type type) {
   }
 }
 }  // namespace
+
+KeyboardEvent::KeyboardEvent(const std::string& type)
+    : UIEventWithKeyState(base::Token(type), kBubbles, kCancelable, 0) {}
 
 KeyboardEvent::KeyboardEvent(const Data& data)
     : UIEventWithKeyState(TypeEnumToToken(data.type), kBubbles, kCancelable,

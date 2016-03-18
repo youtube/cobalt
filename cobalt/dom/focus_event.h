@@ -17,6 +17,9 @@
 #ifndef COBALT_DOM_FOCUS_EVENT_H_
 #define COBALT_DOM_FOCUS_EVENT_H_
 
+#include <string>
+
+#include "cobalt/base/token.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/ui_event.h"
 
@@ -28,6 +31,8 @@ namespace dom {
 //   https://www.w3.org/TR/uievents/#interface-FocusEvent
 class FocusEvent : public UIEvent {
  public:
+  explicit FocusEvent(const std::string& type);
+
   FocusEvent(base::Token type,
              const scoped_refptr<EventTarget>& related_target);
 

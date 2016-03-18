@@ -16,6 +16,7 @@
 
 // https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-events
 
+[Constructor(DOMString type)]
 interface TransitionEvent : Event {
   readonly attribute DOMString propertyName;
   readonly attribute float elapsedTime;

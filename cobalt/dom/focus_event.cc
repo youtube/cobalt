@@ -19,6 +19,9 @@
 namespace cobalt {
 namespace dom {
 
+FocusEvent::FocusEvent(const std::string& type)
+    : UIEvent(type), related_target_(NULL) {}
+
 FocusEvent::FocusEvent(base::Token type,
                        const scoped_refptr<EventTarget>& related_target)
     : UIEvent(type), related_target_(related_target) {}

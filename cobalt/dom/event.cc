@@ -36,6 +36,12 @@ Event::Event(base::Token type)
   InitEventInternal(type, false, false);
 }
 
+Event::Event(const std::string& type)
+    : event_phase_(kNone),
+      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
+  InitEventInternal(base::Token(type), false, false);
+}
+
 Event::Event(base::Token type, Bubbles bubbles, Cancelable cancelable)
     : event_phase_(kNone),
       time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {

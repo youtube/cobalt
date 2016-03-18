@@ -16,10 +16,15 @@
 
 #include "cobalt/dom/security_policy_violation_event.h"
 
+#include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 
 namespace cobalt {
 namespace dom {
+
+SecurityPolicyViolationEvent::SecurityPolicyViolationEvent(
+    const std::string& type)
+    : Event(type), status_code_(0), line_number_(0), column_number_(0) {}
 
 SecurityPolicyViolationEvent::SecurityPolicyViolationEvent(
     const std::string& document_uri, const std::string& referrer,
