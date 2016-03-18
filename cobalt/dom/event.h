@@ -56,6 +56,7 @@ class Event : public script::Wrappable {
 
   // Creates an event that cannot be bubbled and cancelled.
   explicit Event(base::Token type);
+  explicit Event(const std::string& type);
   Event(base::Token type, Bubbles bubbles, Cancelable cancelable);
   ~Event() OVERRIDE;
 

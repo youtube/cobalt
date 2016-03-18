@@ -16,6 +16,7 @@
 
 // https://www.w3.org/TR/progress-events/#interface-progressevent
 
+[Constructor(DOMString type)]
 interface ProgressEvent : Event {
   readonly attribute boolean lengthComputable;
   readonly attribute unsigned long long loaded;

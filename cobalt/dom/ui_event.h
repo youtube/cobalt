@@ -33,6 +33,8 @@ namespace dom {
 //   https://www.w3.org/TR/DOM-Level-3-Events/#events-uievents
 class UIEvent : public Event {
  public:
+  explicit UIEvent(const std::string& type);
+
   // Creates an event with its "initialized flag" unset.
   explicit UIEvent(UninitializedFlag uninitialized_flag);
 

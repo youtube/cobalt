@@ -27,6 +27,8 @@ namespace dom {
 // https://www.w3.org/TR/CSP/#securitypolicyviolationevent-interface
 class SecurityPolicyViolationEvent : public Event {
  public:
+  explicit SecurityPolicyViolationEvent(const std::string& type);
+
   SecurityPolicyViolationEvent(const std::string& document_uri,
                                const std::string& referrer,
                                const std::string& blocked_uri,

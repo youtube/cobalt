@@ -17,9 +17,12 @@
 #include "cobalt/dom/ui_event.h"
 
 #include "base/compiler_specific.h"
+#include "cobalt/base/token.h"
 
 namespace cobalt {
 namespace dom {
+
+UIEvent::UIEvent(const std::string& type) : Event(type) {}
 
 UIEvent::UIEvent(UninitializedFlag uninitialized_flag)
     : Event(uninitialized_flag) {}

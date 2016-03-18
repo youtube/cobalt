@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "cobalt/base/token.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/dom/event.h"
 
@@ -29,6 +30,11 @@ namespace dom {
 //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-events
 class TransitionEvent : public Event {
  public:
+  explicit TransitionEvent(const std::string& type)
+      : Event(base::Token(type), kBubbles, kCancelable),
+        property_(cssom::kNoneProperty),
+        elapsed_time_(0) {}
+
   TransitionEvent(base::Token type, cssom::PropertyKey property,
                   float elapsed_time)
       : Event(type, kBubbles, kCancelable),

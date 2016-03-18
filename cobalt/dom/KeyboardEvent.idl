@@ -16,6 +16,7 @@
 
 // https://www.w3.org/TR/2015/WD-uievents-20151215/#interface-KeyboardEvent
 
+[Constructor(DOMString type)]
 interface KeyboardEvent : UIEvent {
   // enum KeyLocationCode
   const unsigned long DOM_KEY_LOCATION_STANDARD = 0x00;
