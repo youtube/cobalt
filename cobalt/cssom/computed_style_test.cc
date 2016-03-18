@@ -208,6 +208,39 @@ TEST(PromoteToComputedStyle, BackgroundImageNone) {
   EXPECT_EQ(cssom::KeywordValue::GetNone(), background_image_list->value()[0]);
 }
 
+TEST(PromoteToComputedStyle, BackgroundPositionWithInitialValue) {
+  scoped_refptr<cssom::CSSComputedStyleData> computed_style(
+      new cssom::CSSComputedStyleData());
+
+  scoped_refptr<cssom::PropertyValue> background_position(
+      cssom::GetPropertyInitialValue(cssom::kBackgroundPositionProperty));
+  computed_style->set_background_position(background_position);
+
+  scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
+      new cssom::CSSComputedStyleData());
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          computed_style->background_position().get());
+  ASSERT_TRUE(background_position_list);
+  ASSERT_EQ(2, background_position_list->value().size());
+
+  cssom::CalcValue* left_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      background_position_list->value()[0].get());
+  const cssom::LengthValue* left_length_value = left_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, left_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, left_length_value->unit());
+  EXPECT_FLOAT_EQ(0.0f, left_value->percentage_value()->value());
+
+  cssom::CalcValue* right_value = base::polymorphic_downcast<cssom::CalcValue*>(
+      background_position_list->value()[1].get());
+  const cssom::LengthValue* right_length_value = right_value->length_value();
+  EXPECT_FLOAT_EQ(0.0f, right_length_value->value());
+  EXPECT_EQ(cssom::kPixelsUnit, right_length_value->unit());
+  EXPECT_FLOAT_EQ(0.0f, right_value->percentage_value()->value());
+}
+
 TEST(PromoteToComputedStyle, BackgroundPositionOneValueWithoutKeywordValue) {
   scoped_refptr<cssom::CSSComputedStyleData> computed_style(
       new cssom::CSSComputedStyleData());
