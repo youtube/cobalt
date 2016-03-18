@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/storage_event.h"
 
+#include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/storage.h"
 
@@ -23,6 +24,8 @@ namespace cobalt {
 namespace dom {
 
 StorageEvent::StorageEvent() : Event(base::Tokens::storage()) {}
+
+StorageEvent::StorageEvent(const std::string& type) : Event(type) {}
 
 StorageEvent::StorageEvent(const base::optional<std::string>& key,
                            const base::optional<std::string>& old_value,

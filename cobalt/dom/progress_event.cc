@@ -19,6 +19,9 @@
 namespace cobalt {
 namespace dom {
 
+ProgressEvent::ProgressEvent(const std::string& type)
+    : Event(type), loaded_(0), total_(0), length_computable_(false) {}
+
 ProgressEvent::ProgressEvent(base::Token type)
     : Event(type), loaded_(0), total_(0), length_computable_(false) {}
 

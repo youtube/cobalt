@@ -16,6 +16,7 @@
 
 // https://www.w3.org/TR/2015/WD-uievents-20151215/#interface-FocusEvent
 
+[Constructor(DOMString type)]
 interface FocusEvent : UIEvent {
   readonly attribute EventTarget? relatedTarget;
 };

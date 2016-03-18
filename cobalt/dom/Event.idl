@@ -16,6 +16,7 @@
 
 // https://www.w3.org/TR/dom/#event
 
+[Constructor(DOMString type)]
 interface Event {
   readonly attribute DOMString type;
   readonly attribute EventTarget? target;

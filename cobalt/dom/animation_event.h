@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "cobalt/base/token.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/dom/event.h"
 
@@ -29,6 +30,11 @@ namespace dom {
 //   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-events
 class AnimationEvent : public Event {
  public:
+  explicit AnimationEvent(const std::string& type)
+      : Event(base::Token(type), kBubbles, kNotCancelable),
+        animation_name_(""),
+        elapsed_time_(0) {}
+
   AnimationEvent(base::Token type, const std::string& animation_name,
                  float elapsed_time)
       : Event(type, kBubbles, kNotCancelable),
