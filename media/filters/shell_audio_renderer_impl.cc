@@ -405,7 +405,7 @@ void ShellAudioRendererImpl::DecodedAudioReady(
            status == AudioDecoder::kDecodeError);
     DLOG_IF(WARNING, status == AudioDecoder::kDecodeError)
         << "audio decoder returned decode error";
-    DLOG_IF(WARNING, status == AudioDecoder::kAborted)
+    DLOG_IF(INFO, status == AudioDecoder::kAborted)
         << "audio decoder returned abort";
     // We need to call the preroll callback to unwedge the pipeline on failure
     if (state_ == kPrerolling) {
