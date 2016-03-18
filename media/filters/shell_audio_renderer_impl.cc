@@ -295,7 +295,7 @@ void ShellAudioRendererImpl::DoUnderflow() {
   if (state_ == kUnderflow || end_of_stream_state_ >= kReceivedEOS) {
     return;
   }
-  DLOG(WARNING) << "audio renderer registered underflow";
+  DLOG(INFO) << "audio renderer registered underflow";
   // now set the state flag
   state_ = kUnderflow;
   // pause the sink, which won't stop requests but will stop consumption
