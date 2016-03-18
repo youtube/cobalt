@@ -16,6 +16,7 @@
 
 // https://www.w3.org/TR/2015/WD-uievents-20151215/#interface-UIEvent
 
+[Constructor(DOMString type)]
 interface UIEvent : Event {
   void initUIEvent(DOMString type, boolean bubbles, boolean cancelable,
                    Window? view, long detail);
