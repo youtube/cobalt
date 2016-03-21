@@ -116,6 +116,13 @@ void PostMultiplyMatrixVisitor::VisitScale(
 
 void PostMultiplyMatrixVisitor::VisitTranslate(
     const TranslateFunction* translate_function) {
+  if (translate_function->length_component_in_pixels() == 0.0f &&
+      translate_function->percentage_component() == 0.0f) {
+    // If we are translating by 0, there is nothing to be done here, this
+    // is the identity matrix.
+    return;
+  }
+
   if (translate_function->axis() == TranslateFunction::kZAxis) {
     NOTIMPLEMENTED() << "translateZ is currently a noop in Cobalt.";
     return;
