@@ -16,6 +16,7 @@
 
 #include "cobalt/renderer/renderer_module.h"
 
+#include "cobalt/renderer/rasterizer_skia/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
 
 namespace cobalt {
@@ -24,8 +25,15 @@ namespace renderer {
 namespace {
 scoped_ptr<Rasterizer> CreateRasterizer(
     backend::GraphicsContext* graphics_context) {
+#if SB_HAS(GLES2)
+  return scoped_ptr<Rasterizer>(
+      new rasterizer_skia::SkiaHardwareRasterizer(graphics_context));
+#elif SB_HAS(BLITTER)
+// TODO(***REMOVED***): Use software rasterizer with hardware blitter.
+#else
   return scoped_ptr<Rasterizer>(
       new rasterizer_skia::SkiaSoftwareRasterizer(graphics_context));
+#endif
 }
 }  // namespace
 
