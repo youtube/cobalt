@@ -547,7 +547,7 @@ VideoRendererBase::~VideoRendererBase() {
   DCHECK(state_ == kUninitialized || state_ == kStopped) << state_;
 #if !defined(__LB_SHELL__FOR_RELEASE__)
   ++videos_played_;
-  DLOG_IF(WARNING, late_frames_ != 0)
+  DLOG_IF(INFO, late_frames_ != 0)
       << "Finished playing back with " << late_frames_ << " late frames.";
   DLOG_IF(INFO, late_frames_ == 0)
       << "Finished playing back with no late frame.";
