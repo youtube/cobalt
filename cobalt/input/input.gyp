@@ -34,7 +34,14 @@
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
       ],
       'conditions': [
-        ['actual_target_arch=="ps3"', {
+        ['OS=="starboard"', {
+          'sources': [
+            'input_device_manager_desktop.cc',
+            'input_device_manager_desktop.h',
+            'input_device_manager_starboard.cc',
+          ],
+        }],
+        ['OS!="starboard" and actual_target_arch=="ps3"', {
           'sources': [
             'input_device_manager_ps3.cc',
             'input_device_manager_ps3.h',
@@ -42,7 +49,7 @@
             'keycode_conversion_ps3.h',
           ],
         }],
-        ['actual_target_arch in ["linux", "win"]', {
+        ['OS!="starboard" and actual_target_arch in ["linux", "win"]', {
           'sources': [
             'input_device_manager_<(actual_target_arch).cc',
             'input_device_manager_desktop.cc',
