@@ -23,9 +23,6 @@
       'target_name': 'network',
       'type': 'static_library',
       'sources': [
-        '<(actual_target_arch)/network_system.cc',
-        '<(actual_target_arch)/proxy_config_service.cc',
-        '<(actual_target_arch)/user_agent_string_factory_<(actual_target_arch).cc',
         'cookie_jar_impl.cc',
         'cookie_jar_impl.h',
         'net_poster.cc',
@@ -58,6 +55,19 @@
           'dependencies': [
             # DialService depends on http server.
             '<(DEPTH)/net/net.gyp:http_server',
+          ],
+        }],
+        ['OS=="starboard"', {
+          'sources': [
+            'starboard/network_system.cc',
+            'starboard/proxy_config_service.cc',
+            'starboard/user_agent_string_factory_starboard.cc',
+          ],
+        }, {
+          'sources': [
+            '<(actual_target_arch)/network_system.cc',
+            '<(actual_target_arch)/proxy_config_service.cc',
+            '<(actual_target_arch)/user_agent_string_factory_<(actual_target_arch).cc',
           ],
         }],
       ],
