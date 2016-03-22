@@ -51,6 +51,7 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
   BasicTest(kSbSystemPropertyFriendlyName, true, true, __LINE__);
   BasicTest(kSbSystemPropertyManufacturerName, true, true, __LINE__);
   BasicTest(kSbSystemPropertyModelName, true, true, __LINE__);
+  BasicTest(kSbSystemPropertyPlatformName, true, true, __LINE__);
   BasicTest(kSbSystemPropertyPlatformUuid, true, true, __LINE__);
 }
 
@@ -69,7 +70,7 @@ TEST(SbSystemGetPropertyTest, FailsGracefullyNullBufferAndZeroLength) {
 }
 
 TEST(SbSystemGetPropertyTest, FailsGracefullyBogusId) {
-  BasicTest(static_cast<SbSystemPropertyId>(999), true, false, __LINE__);
+  BasicTest(static_cast<SbSystemPropertyId>(99999), true, false, __LINE__);
 }
 
 }  // namespace
