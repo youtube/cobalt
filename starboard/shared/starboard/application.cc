@@ -55,7 +55,7 @@ volatile SbAtomic32 g_next_event_id = 0;
 
 Application* Application::g_instance = NULL;
 
-Application::Application() : error_level_(0) {
+Application::Application() : error_level_(0), thread_(SbThreadGetCurrent()) {
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
