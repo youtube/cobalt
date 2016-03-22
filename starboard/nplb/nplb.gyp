@@ -138,6 +138,7 @@
         'system_get_random_uint64_test.cc',
         'system_get_stack_test.cc',
         'system_get_total_memory_test.cc',
+        'system_has_capability_test.cc',
         'system_is_debugger_attached_test.cc',
         'system_sort_test.cc',
         'system_symbolize_test.cc',

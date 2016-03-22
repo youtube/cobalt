@@ -62,7 +62,9 @@ typedef enum SbSystemPathId {
 
 // System properties that can be queried for.
 typedef enum SbSystemPropertyId {
-  // The name of this system, friendly enough to display to a user.
+  // A friendly name for this actual device. It may include user-personalization
+  // like "Upstairs Bedroom." It may be displayed to users as part of some kind
+  // of device selection.
   kSbSystemPropertyFriendlyName,
 
   // The name of the device manufacturer.
@@ -71,9 +73,21 @@ typedef enum SbSystemPropertyId {
   // The name of the device model.
   kSbSystemPropertyModelName,
 
+  // The name of this platform, suitable for inclusion in a User-Agent, say.
+  kSbSystemPropertyPlatformName,
+
   // A universally-unique ID for the current user.
   kSbSystemPropertyPlatformUuid,
 } SbSystemPropertyId;
+
+// Runtime capabilities are boolean properties of a platform that can't be
+// determined at compile-time, and may vary from device to device, but will not
+// change over the course of a single execution. They often specify particular
+// behavior of other APIs within the bounds of their operating range.
+typedef enum SbSystemCapabilityId {
+  // Whether this system has reversed Enter and Back keys.
+  kSbSystemCapabilityReversedEnterAndBack,
+} SbSystemCapabilityId;
 
 // Pointer to a function to compare two items, returning less than zero, zero,
 // or greater than zero depending on whether |a| is less than |b|, equal to |b|,
@@ -117,6 +131,11 @@ SB_EXPORT bool SbSystemGetPath(SbSystemPathId path_id,
 SB_EXPORT bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                    char* out_value,
                                    int value_length);
+
+// Returns whether the platform has the runtime capability specified by
+// |capability_id|. Returns false for any unknown capabilities. Implementation
+// must be thread-safe.
+SB_EXPORT bool SbSystemHasCapability(SbSystemCapabilityId capability_id);
 
 // Gets the system's current POSIX-style Locale ID. The locale represents the
 // location, language, and cultural conventions that the system wants to use,
