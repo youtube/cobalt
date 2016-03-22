@@ -21,19 +21,27 @@
       'target_name': 'account',
       'type': 'static_library',
       'sources': [
-        '<(actual_target_arch)/account_manager.cc',
         'account_event.h',
         'account_manager.h',
       ],
       'conditions': [
-        ['target_arch=="ps3"', {
+        ['OS=="starboard"', {
+          'sources': [
+            'starboard/account_manager.cc',
+          ],
+        }, {
+          'sources': [
+            '<(actual_target_arch)/account_manager.cc',
+          ],
+        }],
+        ['OS!="starboard" and target_arch=="ps3"', {
           'sources': [
             'ps3/account_manager.h',
             'ps3/psn_state_machine.cc',
             'ps3/psn_state_machine.h',
           ],
         }],
-        ['actual_target_arch in ["linux", "win"]', {
+        ['OS!="starboard" and actual_target_arch in ["linux", "win"]', {
           'sources': [
             'account_manager_stub.cc',
             'account_manager_stub.h',
