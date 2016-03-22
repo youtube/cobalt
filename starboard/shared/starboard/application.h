@@ -23,6 +23,7 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 
@@ -157,6 +158,10 @@ class Application {
   // kSbTimeMax if there are no queued TimedEvents.
   virtual SbTimeMonotonic GetNextTimedEventTargetTime() = 0;
 
+  bool IsCurrentThread() {
+    return SbThreadIsEqual(thread_, SbThreadGetCurrent());
+  }
+
  private:
   // Dispatches |event| to the system event handler, taking ownership of the
   // event. Returns whether to keep servicing the event queue, i.e. false means
@@ -168,6 +173,10 @@ class Application {
 
   // The error_level set by the last call to Stop().
   int error_level_;
+
+  // The thread that this application was created on, which is assumed to be the
+  // main thread.
+  SbThread thread_;
 };
 
 }  // namespace starboard
