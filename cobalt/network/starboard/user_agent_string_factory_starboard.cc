@@ -16,6 +16,8 @@
 
 #include "cobalt/network/user_agent_string_factory.h"
 
+#include "base/stringprintf.h"
+
 namespace cobalt {
 namespace network {
 

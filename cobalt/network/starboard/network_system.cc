@@ -20,10 +20,12 @@ namespace cobalt {
 namespace network {
 
 namespace {
+
 class NetworkSystemStarboard : public NetworkSystem {
  public:
   NetworkSystemStarboard();
 };
+
 NetworkSystemStarboard::NetworkSystemStarboard() {}
 
 }  // namespace
