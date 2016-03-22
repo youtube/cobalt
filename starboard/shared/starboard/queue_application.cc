@@ -39,6 +39,10 @@ Application::Event* QueueApplication::PollNextEvent() {
 }
 
 void QueueApplication::Wake() {
+  if (IsCurrentThread()) {
+    return;
+  }
+
   event_queue_.Wake();
 }
 
