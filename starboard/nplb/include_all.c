@@ -34,6 +34,7 @@
 #include "starboard/player.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
+#include "starboard/storage.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
@@ -41,6 +42,7 @@
 #include "starboard/time.h"
 #include "starboard/time_zone.h"
 #include "starboard/types.h"
+#include "starboard/user.h"
 #include "starboard/window.h"
 
 // This doesn't really belong here, but ensures that SB_COMPILE_ASSERT works in
