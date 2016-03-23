@@ -16,6 +16,7 @@
 #ifndef COBALT_DEBUG_DEBUG_SERVER_H_
 #define COBALT_DEBUG_DEBUG_SERVER_H_
 
+#include <deque>
 #include <map>
 #include <set>
 #include <string>
@@ -28,6 +29,8 @@
 #include "base/message_loop.h"
 #include "base/optional.h"
 #include "base/stl_util.h"
+#include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/debug/debug_script_runner.h"
 #include "cobalt/debug/json_object.h"
@@ -60,8 +63,8 @@ class DebugClient;
 // the |Component| class.
 //
 // DebugServer handles synchronization and (de-)serialization of JSON
-// parameters. Commands can be executed from any thread: the command itself
-// will be posted to the message loop specified in the constructor, which must
+// parameters. |SendCommand| may be called from any thread: the command itself
+// will be executed on the message loop specified in the constructor, which must
 // be the message loop of the WebModule containing the debug targets this
 // instance will attach to; the command callback will be posted to the message
 // loop the command was executed from. Command parameters are specified as
@@ -72,6 +75,11 @@ class DebugClient;
 // callbacks (onEvent/onDetach) will be run synchronously on the message loop
 // of the debug target that sent them - it is the responsibility of the client
 // to re-post to its own message loop if necessary.
+//
+// The class also supports pausing of execution by blocking the WebModule
+// thread. While paused, |SendCommand| can still be called from another thread
+// (e.g. a web server) and will continue to execute commands on the WebModule
+// thread. This functionality is used by calling the |SetPaused| function.
 
 class DebugServer : public base::SupportsWeakPtr<DebugServer> {
  public:
@@ -116,6 +124,9 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
     // Generates an error response that can be returned by any command handler.
     static JSONObject ErrorResponse(const std::string& error_message);
 
+   protected:
+    base::WeakPtr<DebugServer> server() { return server_; }
+
    private:
     base::WeakPtr<DebugServer> server_;
     base::ThreadChecker thread_checker_;
@@ -141,6 +152,10 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   void SendCommand(const std::string& method, const std::string& json_params,
                    CommandCallback callback);
 
+  // Sets or unsets the paused state and calls |HandlePause| ifset.
+  // Must be called on the debug target (WebModule) thread.
+  void SetPaused(bool is_paused);
+
  private:
   // A registry of commands, mapping method names from the protocol
   // to command callbacks implemented by the debug components.
@@ -154,6 +169,10 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
     CommandCallback callback;
     MessageLoop* message_loop;
   };
+
+  // Queue of command/response closures. Used to process debugger commands
+  // received while script execution is paused.
+  typedef std::deque<base::Closure> PausedTaskQueue;
 
   // Constructor should only be called by |DebugServerBuilder|, which will
   // ensure it is created on the specified thread, which must be the message
@@ -181,9 +200,18 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   void DispatchCommand(std::string method, std::string json_params,
                        CommandCallbackInfo callback_info);
 
+  // Called by |SendCommand| if a debugger command is received while script
+  // execution is paused.
+  void DispatchCommandWhilePaused(const base::Closure& command_and_response);
+
   // Adds a command to the command registry. This will be called by the
   // objects referenced by |components_|.
   void AddCommand(const std::string& method, const Command& callback);
+
+  // Called by |SetPaused| to pause script execution in the debug target
+  // (WebModule) by blocking its thread while continuing to process debugger
+  // commands from other threads. Must be called on the WebModule thread.
+  void HandlePause();
 
   // Removes a command from the command registry. This will be called by the
   // objects referenced by |components_|.
@@ -215,6 +243,20 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // Debug components owned by this object.
   std::vector<Component*> components_;
   STLElementDeleter<std::vector<Component*> > components_deleter_;
+
+  // Whether the debug target (WebModule) is currently paused.
+  // See description of |SetPaused| and |HandlePause| above.
+  bool is_paused_;
+
+  // Used to signal the debug target (WebModule) thread that there are
+  // debugger commands to process while paused.
+  base::WaitableEvent command_added_while_paused_;
+
+  // Queue of pending debugger commands received while paused.
+  PausedTaskQueue commands_pending_while_paused_;
+
+  // Lock to synchronize access to |commands_pending_while_paused|.
+  base::Lock command_while_paused_lock_;
 
   friend class DebugServerBuilder;
   friend class scoped_ptr<DebugServer>;

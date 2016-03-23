@@ -102,7 +102,10 @@ DebugServer::DebugServer(script::GlobalObjectProxy* global_object_proxy)
           global_object_proxy,
           base::Bind(&DebugServer::OnEvent, base::Unretained(this))))),
       message_loop_(MessageLoop::current()),
-      components_deleter_(&components_) {}
+      components_deleter_(&components_),
+      is_paused_(false),
+      // No manual reset, not initially signaled.
+      command_added_while_paused_(false, false) {}
 
 DebugServer::~DebugServer() {
   // Invalidate weak pointers explicitly, as the weak pointer factory won't be
@@ -128,10 +131,20 @@ void DebugServer::AddComponent(scoped_ptr<DebugServer::Component> component) {
 void DebugServer::SendCommand(const std::string& method,
                               const std::string& json_params,
                               CommandCallback callback) {
+  // Create a closure that will run the command and the response callback.
+  // The task is either posted to the debug target (WebModule) thread if
+  // that thread is running normally, or added to a queue of debugger tasks
+  // being processed while paused.
   CommandCallbackInfo callback_info(callback);
-  message_loop_->PostTask(FROM_HERE, base::Bind(&DebugServer::DispatchCommand,
-                                                base::Unretained(this), method,
-                                                json_params, callback_info));
+  base::Closure command_and_callback_closure =
+      base::Bind(&DebugServer::DispatchCommand, base::Unretained(this), method,
+                 json_params, callback_info);
+
+  if (is_paused_) {
+    DispatchCommandWhilePaused(command_and_callback_closure);
+  } else {
+    message_loop_->PostTask(FROM_HERE, command_and_callback_closure);
+  }
 }
 
 void DebugServer::DispatchCommand(std::string method, std::string json_params,
@@ -163,6 +176,44 @@ void DebugServer::DispatchCommand(std::string method, std::string json_params,
   std::string json_response = JSONStringify(response);
   callback_info.message_loop->PostTask(
       FROM_HERE, base::Bind(callback_info.callback, json_response));
+}
+
+void DebugServer::DispatchCommandWhilePaused(
+    const base::Closure& command_and_callback_closure) {
+  // We are currently paused, so the debug target (WebModule) thread is
+  // blocked and processing debugger commands locally. Add the command closure
+  // to the queue of commands pending while paused and signal the blocked
+  // thread to let it know there's something to do.
+  base::AutoLock auto_lock(command_while_paused_lock_);
+  DCHECK(is_paused_);
+  commands_pending_while_paused_.push_back(command_and_callback_closure);
+  command_added_while_paused_.Signal();
+}
+
+void DebugServer::HandlePause() {
+  // Pauses JavaScript execution by blocking the debug target (WebModule)
+  // thread while processing debugger commands that come in on other threads
+  // (e.g. from DebugWebServer).
+
+  // Must be called on the thread of the debug target (WebModule).
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  while (is_paused_) {
+    command_added_while_paused_.Wait();
+
+    while (true) {
+      base::Closure task;
+      {
+        base::AutoLock auto_lock(command_while_paused_lock_);
+        if (commands_pending_while_paused_.empty()) {
+          break;
+        }
+        task = commands_pending_while_paused_.front();
+        commands_pending_while_paused_.pop_front();
+      }
+      task.Run();
+    }
+  }
 }
 
 void DebugServer::OnEvent(const std::string& method,
@@ -209,6 +260,16 @@ JSONObject DebugServer::RunScriptCommand(const std::string& command,
 
 bool DebugServer::RunScriptFile(const std::string& filename) {
   return script_runner_->RunScriptFile(filename);
+}
+
+void DebugServer::SetPaused(bool is_paused) {
+  // Must be called on the thread of the debug target (WebModule).
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  is_paused_ = is_paused;
+  if (is_paused) {
+    HandlePause();
+  }
 }
 
 }  // namespace debug

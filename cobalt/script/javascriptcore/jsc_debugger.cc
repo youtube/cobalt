@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
@@ -44,17 +45,77 @@ namespace script {
 // Static factory method declared in public interface.
 scoped_ptr<JavaScriptDebuggerInterface>
 JavaScriptDebuggerInterface::CreateDebugger(
-    GlobalObjectProxy* global_object_proxy,
-    const OnEventCallback& on_event_callback,
-    const OnDetachCallback& on_detach_callback) {
+    GlobalObjectProxy* global_object_proxy, Delegate* delegate) {
   return scoped_ptr<JavaScriptDebuggerInterface>(
-      new javascriptcore::JSCDebugger(global_object_proxy, on_event_callback,
-                                      on_detach_callback));
+      new javascriptcore::JSCDebugger(global_object_proxy, delegate));
 }
 
 namespace javascriptcore {
 
 namespace {
+// Conversions between intptr_t and std::string.
+// Used to interchange sourceIds, callFrameIds, etc. with devtools.
+// Assume we can store an intptr_t as an int64, as string_number_conversions
+// does not directly support intptr_t.
+std::string IntptrToString(intptr_t input) {
+  COMPILE_ASSERT(sizeof(int64) >= sizeof(intptr_t),
+                 int64_not_big_enough_to_store_intptr_t);
+  int64 input_as_int64 = static_cast<int64>(input);
+  return base::Int64ToString(input_as_int64);
+}
+
+intptr_t StringToIntptr(const std::string& input) {
+  COMPILE_ASSERT(sizeof(int64) >= sizeof(intptr_t),
+                 int64_not_big_enough_to_store_intptr_t);
+  int64 input_as_int64 = 0;
+  base::StringToInt64(input, &input_as_int64);
+  return static_cast<intptr_t>(input_as_int64);
+}
+
+scoped_ptr<base::DictionaryValue> CreateCallFrameInfo(
+    const JSC::DebuggerCallFrame& call_frame,
+    scoped_ptr<base::DictionaryValue> location,
+    scoped_ptr<base::ListValue> scope_chain) {
+  scoped_ptr<base::DictionaryValue> call_frame_info(
+      new base::DictionaryValue());
+  call_frame_info->SetString(
+      "callFrameId",
+      IntptrToString(reinterpret_cast<intptr_t>(call_frame.callFrame())));
+  call_frame_info->SetString("functionName",
+                             call_frame.functionName().latin1().data());
+  call_frame_info->Set("location", location.release());
+  call_frame_info->Set("scopeChain", scope_chain.release());
+
+  return call_frame_info.Pass();
+}
+
+scoped_ptr<base::DictionaryValue> CreateCallFrameInfo(
+    JSC::CallFrame* call_frame, scoped_ptr<base::DictionaryValue> location,
+    scoped_ptr<base::ListValue> scope_chain) {
+  return CreateCallFrameInfo(JSC::DebuggerCallFrame(call_frame),
+                             location.Pass(), scope_chain.Pass());
+}
+
+scoped_ptr<base::DictionaryValue> CreateLocationInfo(intptr_t source_id,
+                                                     int line_number,
+                                                     int column_number) {
+  scoped_ptr<base::DictionaryValue> location_info(new base::DictionaryValue());
+  location_info->SetString("scriptId", IntptrToString(source_id));
+  location_info->SetInteger("columnNumber", column_number);
+  location_info->SetInteger("lineNumber", line_number);
+  return location_info.Pass();
+}
+
+// Functions to create data objects for reporting to devtools.
+scoped_ptr<base::ListValue> CreateScopeChainInfo(
+    const JSC::CallFrame* call_frame) {
+  // TODO(***REMOVED***): The scope chain should be populated with values.
+  // This requires support for generating Runtime.RemoteObject objects
+  // from JSObjects.
+  scoped_ptr<base::ListValue> scope_chain_info(new base::ListValue());
+  return scope_chain_info.Pass();
+}
+
 // Event "methods" (names) from the set here:
 // https://developer.chrome.com/devtools/docs/protocol/1.1/debugger
 const char kScriptFailedToParse[] = "Debugger.scriptFailedToParse";
@@ -62,11 +123,15 @@ const char kScriptParsed[] = "Debugger.scriptParsed";
 }  // namespace
 
 JSCDebugger::JSCDebugger(GlobalObjectProxy* global_object_proxy,
-                         const OnEventCallback& on_event_callback,
-                         const OnDetachCallback& on_detach_callback)
+                         Delegate* delegate)
     : global_object_proxy_(global_object_proxy),
-      on_event_callback_(on_event_callback),
-      on_detach_callback_(on_detach_callback) {
+      delegate_(delegate),
+      pause_on_next_statement_(false),
+      pause_on_call_frame_(NULL),
+      current_call_frame_(NULL),
+      current_source_id_(0),
+      current_line_number_(0),
+      current_column_number_(0) {
   attach(GetGlobalObject());
 }
 
@@ -78,15 +143,9 @@ scoped_ptr<base::DictionaryValue> JSCDebugger::GetScriptSource(
   scoped_ptr<base::DictionaryValue> response(new base::DictionaryValue);
 
   // Get the scriptId from the parameters object.
-  // scriptId is a long number (intptr_t) stored in the JSON params as a
-  // string. Assume we can hold it in an int64, as string_number_conversions
-  // does not directly support intptr_t.
-  DCHECK(sizeof(int64) >= sizeof(intptr_t));
   std::string script_id_string = "0";
   params->GetString("scriptId", &script_id_string);
-  int64 script_id_as_int64 = 0;
-  base::StringToInt64(script_id_string, &script_id_as_int64);
-  intptr_t script_id = static_cast<intptr_t>(script_id_as_int64);
+  intptr_t script_id = StringToIntptr(script_id_string);
 
   // Search the set of source providers for a matching scriptId.
   JSC::SourceProvider* source_provider = NULL;
@@ -106,6 +165,37 @@ scoped_ptr<base::DictionaryValue> JSCDebugger::GetScriptSource(
   }
 
   return response.Pass();
+}
+
+void JSCDebugger::Pause() {
+  pause_on_next_statement_ = true;
+  pause_on_call_frame_ = NULL;
+}
+
+void JSCDebugger::Resume() {
+  pause_on_next_statement_ = false;
+  pause_on_call_frame_ = NULL;
+}
+
+void JSCDebugger::StepInto() {
+  pause_on_next_statement_ = true;
+  pause_on_call_frame_ = NULL;
+}
+
+void JSCDebugger::StepOut() {
+  pause_on_next_statement_ = false;
+  const JSC::CallFrame* call_frame = current_call_frame_.callFrame();
+  pause_on_call_frame_ = call_frame ? call_frame->callerFrame() : NULL;
+
+  // If we are already at the top of the call stack, resume normal script
+  // execution.
+  delegate_->OnScriptDebuggerResume();
+}
+
+void JSCDebugger::StepOver() {
+  pause_on_next_statement_ = false;
+  pause_on_call_frame_ = current_call_frame_.callFrame();
+  DCHECK(pause_on_call_frame_);
 }
 
 void JSCDebugger::GathererFunctor::operator()(JSC::JSCell* cell) {
@@ -140,10 +230,7 @@ void JSCDebugger::attach(JSC::JSGlobalObject* global_object) {
 void JSCDebugger::detach(JSC::JSGlobalObject* global_object) {
   DCHECK(global_object);
   JSC::Debugger::detach(global_object);
-  if (!on_detach_callback_.is_null()) {
-    const std::string reason = "canceled_by_user";
-    on_detach_callback_.Run(reason);
-  }
+  delegate_->OnScriptDebuggerDetach("canceled_by_user");
 }
 
 void JSCDebugger::sourceParsed(JSC::ExecState* exec_state,
@@ -151,15 +238,11 @@ void JSCDebugger::sourceParsed(JSC::ExecState* exec_state,
                                int error_line,
                                const WTF::String& error_message) {
   UNREFERENCED_PARAMETER(exec_state);
+  DCHECK(source_provider);
 
-  // Build the notification parameters.
+  // Build the event parameters.
   scoped_ptr<base::DictionaryValue> params(new base::DictionaryValue());
-
-  // Assume we can fit the scriptId in an int64. SourceProvider stores it as an
-  // intptr_t, but string_number_conversions doesn't directly support that.
-  DCHECK(sizeof(int64) >= sizeof(intptr_t));
-  int64 script_id = static_cast<int64>(source_provider->asID());
-  params->SetString("scriptId", base::Int64ToString(script_id));
+  params->SetString("scriptId", IntptrToString(source_provider->asID()));
   params->SetString("url", source_provider->url().latin1().data());
 
   // TODO(***REMOVED***) There are a bunch of other parameters I don't know how
@@ -174,52 +257,52 @@ void JSCDebugger::sourceParsed(JSC::ExecState* exec_state,
   }
 
   if (error_line < 0) {
-    on_event_callback_.Run(kScriptParsed, params);
+    delegate_->OnScriptDebuggerEvent(kScriptParsed, params);
   } else {
-    on_event_callback_.Run(kScriptFailedToParse, params);
+    delegate_->OnScriptDebuggerEvent(kScriptFailedToParse, params);
   }
 }
 
 void JSCDebugger::exception(const JSC::DebuggerCallFrame& call_frame,
                             intptr_t source_id, int line_number,
                             int column_number, bool has_handler) {
-  UNREFERENCED_PARAMETER(call_frame);
+  UpdateAndPauseIfNeeded(call_frame, source_id, line_number, column_number);
 }
 
 void JSCDebugger::atStatement(const JSC::DebuggerCallFrame& call_frame,
                               intptr_t source_id, int line_number,
                               int column_number) {
-  UNREFERENCED_PARAMETER(call_frame);
+  UpdateAndPauseIfNeeded(call_frame, source_id, line_number, column_number);
 }
 
 void JSCDebugger::callEvent(const JSC::DebuggerCallFrame& call_frame,
                             intptr_t source_id, int line_number,
                             int column_number) {
-  UNREFERENCED_PARAMETER(call_frame);
+  UpdateAndPauseIfNeeded(call_frame, source_id, line_number, column_number);
 }
 
 void JSCDebugger::returnEvent(const JSC::DebuggerCallFrame& call_frame,
                               intptr_t source_id, int line_number,
                               int column_number) {
-  UNREFERENCED_PARAMETER(call_frame);
+  UpdateAndPauseIfNeeded(call_frame, source_id, line_number, column_number);
 }
 
 void JSCDebugger::willExecuteProgram(const JSC::DebuggerCallFrame& call_frame,
                                      intptr_t source_id, int line_number,
                                      int column_number) {
-  UNREFERENCED_PARAMETER(call_frame);
+  UpdateAndPauseIfNeeded(call_frame, source_id, line_number, column_number);
 }
 
 void JSCDebugger::didExecuteProgram(const JSC::DebuggerCallFrame& call_frame,
                                     intptr_t source_id, int line_number,
                                     int column_number) {
-  UNREFERENCED_PARAMETER(call_frame);
+  UpdateAndPauseIfNeeded(call_frame, source_id, line_number, column_number);
 }
 
 void JSCDebugger::didReachBreakpoint(const JSC::DebuggerCallFrame& call_frame,
                                      intptr_t source_id, int line_number,
                                      int column_number) {
-  UNREFERENCED_PARAMETER(call_frame);
+  UpdateAndPauseIfNeeded(call_frame, source_id, line_number, column_number);
 }
 
 void JSCDebugger::GatherSourceProviders(JSC::JSGlobalObject* global_object) {
@@ -228,6 +311,81 @@ void JSCDebugger::GatherSourceProviders(JSC::JSGlobalObject* global_object) {
   GathererFunctor gatherer_functor(global_object, &source_providers_);
   JSC::JSGlobalData& global_data = global_object->globalData();
   global_data.heap.objectSpace().forEachLiveCell(gatherer_functor);
+}
+
+void JSCDebugger::UpdateAndPauseIfNeeded(
+    const JSC::DebuggerCallFrame& call_frame, intptr_t source_id,
+    int line_number, int column_number) {
+  UpdateSourceLocation(source_id, line_number, column_number);
+  UpdateCallFrame(call_frame);
+  PauseIfNeeded(call_frame);
+}
+
+void JSCDebugger::UpdateSourceLocation(intptr_t source_id, int line_number,
+                                       int column_number) {
+  current_source_id_ = source_id;
+  current_line_number_ = line_number;
+  current_column_number_ = column_number;
+}
+
+void JSCDebugger::UpdateCallFrame(const JSC::DebuggerCallFrame& call_frame) {
+  current_call_frame_ = call_frame;
+}
+
+void JSCDebugger::PauseIfNeeded(const JSC::DebuggerCallFrame& call_frame) {
+  // Determine whether we should pause.
+  // TODO(***REMOVED***): More to handle here: exceptions, breakpoints, etc.
+  bool will_pause = pause_on_next_statement_;
+  will_pause |=
+      pause_on_call_frame_ && pause_on_call_frame_ == call_frame.callFrame();
+  if (!will_pause) {
+    return;
+  }
+
+  // Notify the clients we're about to pause.
+  SendPausedEvent(call_frame);
+
+  // Delegate handles the actual blocking of the thread to implement Pause.
+  delegate_->OnScriptDebuggerPause();
+}
+
+void JSCDebugger::SendPausedEvent(const JSC::DebuggerCallFrame& call_frame) {
+  DCHECK(call_frame.callFrame());
+
+  // Create a representation of the call stack as an array of Debugger.CallFrame
+  // JSON objects.
+  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
+  scoped_ptr<base::ListValue> call_frame_list(new base::ListValue());
+  JSC::CallFrame* curr_call_frame = call_frame.callFrame();
+  intptr_t source_id = current_source_id_;
+  int line_number = current_line_number_;
+  int column_number = current_column_number_;
+  String url;
+  JSC::JSValue function;
+
+  while (curr_call_frame && !curr_call_frame->hasHostCallFrameFlag()) {
+    // Create info for the next call frame on the stack.
+    scoped_ptr<base::DictionaryValue> location_info(
+        CreateLocationInfo(source_id, line_number, column_number));
+    scoped_ptr<base::ListValue> scope_chain_info(
+        CreateScopeChainInfo(curr_call_frame));
+    scoped_ptr<base::DictionaryValue> call_frame_info(CreateCallFrameInfo(
+        curr_call_frame, location_info.Pass(), scope_chain_info.Pass()));
+
+    // Add the call frame info to the list.
+    call_frame_list->Append(call_frame_info.release());
+
+    // Move on to the next call frame.
+    curr_call_frame->interpreter()->retrieveLastCaller(
+        curr_call_frame, line_number, source_id, url, function);
+    curr_call_frame = curr_call_frame->callerFrame();
+  }
+
+  // Send the event to the clients.
+  std::string event_method = "Debugger.paused";
+  event_params->Set("callFrames", call_frame_list.release());
+  event_params->SetString("reason", "debugCommand");
+  delegate_->OnScriptDebuggerEvent(event_method, event_params);
 }
 
 }  // namespace javascriptcore
