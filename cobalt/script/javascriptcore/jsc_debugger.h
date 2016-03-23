@@ -26,11 +26,11 @@
 
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/debugger/Debugger.h"
+#include "third_party/WebKit/Source/JavaScriptCore/debugger/DebuggerCallFrame.h"
 #include "third_party/WebKit/Source/WTF/wtf/HashSet.h"
 #include "third_party/WebKit/Source/WTF/wtf/text/WTFString.h"
 
 namespace JSC {
-class DebuggerCallFrame;
 class ExecState;
 class JSGlobalData;
 class JSGlobalObject;
@@ -53,15 +53,19 @@ namespace javascriptcore {
 class JSCDebugger : protected JSC::Debugger,
                     public JavaScriptDebuggerInterface {
  public:
-  JSCDebugger(GlobalObjectProxy* global_object_proxy,
-              const OnEventCallback& on_event_callback,
-              const OnDetachCallback& on_detach_callback);
+  JSCDebugger(GlobalObjectProxy* global_object_proxy, Delegate* delegate);
 
   ~JSCDebugger() OVERRIDE;
 
   // Implementation of JavaScriptDebuggerInterface.
   scoped_ptr<base::DictionaryValue> GetScriptSource(
       const scoped_ptr<base::DictionaryValue>& params) OVERRIDE;
+
+  void Pause() OVERRIDE;
+  void Resume() OVERRIDE;
+  void StepInto() OVERRIDE;
+  void StepOut() OVERRIDE;
+  void StepOver() OVERRIDE;
 
  protected:
   // Hides a non-virtual JSC::Debugger method with the same name.
@@ -121,12 +125,37 @@ class JSCDebugger : protected JSC::Debugger,
   // Populates the set of source providers.
   void GatherSourceProviders(JSC::JSGlobalObject* global_object);
 
+  // Update functions called by the overridden methods from JSC:Debugger above
+  // (e.g. |atStatement|) as script is executed.
+  void UpdateAndPauseIfNeeded(const JSC::DebuggerCallFrame& call_frame,
+                              intptr_t source_id, int line_number,
+                              int column_number);
+  void UpdateSourceLocation(intptr_t source_id, int line_number,
+                            int column_number);
+  void UpdateCallFrame(const JSC::DebuggerCallFrame& call_frame);
+  void PauseIfNeeded(const JSC::DebuggerCallFrame& call_frame);
+
+  // Sends a Debugger.Paused event via |delegate_|.
+  void SendPausedEvent(const JSC::DebuggerCallFrame& call_frame);
+
   base::ThreadChecker thread_checker_;
   GlobalObjectProxy* global_object_proxy_;
 
-  // Notification callbacks.
-  OnEventCallback on_event_callback_;
-  OnDetachCallback on_detach_callback_;
+  // Lifetime managed by the caller of this object's constructor.
+  Delegate* delegate_;
+
+  // Code execution control flags. Script execution can pause on the next
+  // statement, or on a specific call frame.
+  bool pause_on_next_statement_;
+  JSC::CallFrame* pause_on_call_frame_;
+
+  // Current call frame.
+  JSC::DebuggerCallFrame current_call_frame_;
+
+  // Current source location.
+  intptr_t current_source_id_;
+  int current_line_number_;
+  int current_column_number_;
 
   // Set of source providers (scripts).
   SourceProviderSet source_providers_;
