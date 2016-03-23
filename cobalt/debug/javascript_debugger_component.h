@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/json_object.h"
@@ -27,20 +28,33 @@
 namespace cobalt {
 namespace debug {
 
-class JavaScriptDebuggerComponent : public DebugServer::Component {
+class JavaScriptDebuggerComponent
+    : public DebugServer::Component,
+      public script::JavaScriptDebuggerInterface::Delegate {
  public:
   JavaScriptDebuggerComponent(const base::WeakPtr<DebugServer>& server,
                               script::GlobalObjectProxy* global_object_proxy);
 
  private:
-  // Called by |javascript_debugger_| to send events to this component.
-  void OnEvent(const std::string& method, const JSONObject& params);
-
   JSONObject Enable(const JSONObject& params);
   JSONObject Disable(const JSONObject& params);
 
   // Gets the source of a specified script.
   JSONObject GetScriptSource(const JSONObject& params);
+
+  // Code execution control commands.
+  JSONObject Pause(const JSONObject& params);
+  JSONObject Resume(const JSONObject& params);
+  JSONObject StepInto(const JSONObject& params);
+  JSONObject StepOut(const JSONObject& params);
+  JSONObject StepOver(const JSONObject& params);
+
+  // JavaScriptDebuggerInterface::Delegate implementation.
+  void OnScriptDebuggerEvent(const std::string& method,
+                             const JSONObject& params) OVERRIDE;
+  void OnScriptDebuggerDetach(const std::string& reason) OVERRIDE;
+  void OnScriptDebuggerPause() OVERRIDE;
+  void OnScriptDebuggerResume() OVERRIDE;
 
   // No ownership.
   script::GlobalObjectProxy* global_object_proxy_;
