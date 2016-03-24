@@ -84,7 +84,8 @@ std::string StripUrlForUseInReport(const GURL& origin_url, const GURL& url) {
 void GatherSecurityPolicyViolationEventData(
     const Document* document, const csp::ViolationInfo& violation_info,
     ViolationEvent* event_data) {
-  event_data->document_uri = document->url();
+  event_data->document_uri =
+      StripUrlForUseInReport(document->url_as_gurl(), document->url_as_gurl());
   event_data->blocked_uri = StripUrlForUseInReport(document->url_as_gurl(),
                                                    violation_info.blocked_url);
   // TODO(***REMOVED***): Implement Document referrer, if needed.
