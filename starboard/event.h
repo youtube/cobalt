@@ -59,8 +59,12 @@ typedef enum SbEventType {
 
   // A user input event, including keyboard, mouse, gesture, or something else.
   // SbInputData (from input.h) is passed as the data argument.
-  // TODO(***REMOVED***): Create input.h.
   kSbEventTypeInput,
+
+  // A user change event, which means a new user signed-in or signed-out, or the
+  // current user changed. No data argument, call SbUserGetSignedIn() and
+  // SbUserGetCurrent() to get the latest changes.
+  kSbEventTypeUser,
 
   // A navigational link has come from the system, and the application should
   // consider handling it by navigating to the corresponding application
@@ -75,8 +79,9 @@ typedef enum SbEventType {
   kSbEventTypeVerticalSync,
 
   // An event type reserved for scheduled callbacks. It will only be sent in
-  // response to an application call to SbEventSchedule(). The data type is an
-  // internally-defined structure.
+  // response to an application call to SbEventSchedule(), and it will call the
+  // callback directly, so SbEventHandle should never receive this event
+  // directly. The data type is an internally-defined structure.
   kSbEventTypeScheduled,
 } SbEventType;
 
