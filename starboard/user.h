@@ -71,9 +71,9 @@ SB_EXPORT SbUser SbUserGetCurrent();
 // policies.
 SB_EXPORT bool SbUserIsAgeRestricted(SbUser user);
 
-// Gets the size of the value of |property_id| for |user|. Returns 0 if if
-// |user| is invalid, |property_id| isn't recognized, supported, or set for
-// |user|.
+// Gets the size of the value of |property_id| for |user|, INCLUDING the
+// terminating null character. Returns 0 if if |user| is invalid, |property_id|
+// isn't recognized, supported, or set for |user|.
 SB_EXPORT int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id);
 
 // Gets the value of |property_id| for |user|, and places it in |out_value|,
