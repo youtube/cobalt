@@ -42,7 +42,12 @@
         '<(DEPTH)/sql/sql.gyp:sql',
       ],
       'conditions': [
-        ['target_arch=="ps3"', {
+        ['OS=="starboard"', {
+          'sources': [
+            'savegame_starboard.cc',
+          ],
+        }],
+        ['OS!="starboard" and target_arch=="ps3"', {
           'sources': [
             'savegame_ps3.cc',
           ],
@@ -52,7 +57,7 @@
             'files': ['<(static_contents_source_dir)/platform/ps3/USRDIR/SAVE_ICON.PNG'],
           }],
         }],
-        ['actual_target_arch in ["linux", "win"]', {
+        ['OS!="starboard" and actual_target_arch in ["linux", "win"]', {
           'sources': [
             'savegame_file.cc',
           ],
