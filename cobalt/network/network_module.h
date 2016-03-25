@@ -23,6 +23,7 @@
 #include "base/object_watcher_shell.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/event_dispatcher.h"
+#include "cobalt/network/cobalt_net_log.h"
 #include "cobalt/network/cookie_jar_impl.h"
 #include "cobalt/network/net_poster.h"
 #include "cobalt/network/network_delegate.h"
@@ -122,6 +123,7 @@ class NetworkModule {
   scoped_refptr<net::DialServiceProxy> dial_service_proxy_;
 #endif
   scoped_ptr<network_bridge::NetPoster> net_poster_;
+  scoped_ptr<CobaltNetLog> net_log_;
   Options options_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);

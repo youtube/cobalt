@@ -50,6 +50,7 @@ net::ProxyConfig CreateCustomProxyConfig(const std::string& proxy_rules) {
 
 URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager,
                                      const std::string& custom_proxy,
+                                     net::NetLog* net_log,
                                      bool ignore_certificate_errors)
     : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this)) {
   if (storage_manager) {
@@ -98,7 +99,12 @@ URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager,
   params.http_auth_handler_factory = http_auth_handler_factory();
   params.network_delegate = NULL;
   params.http_server_properties = http_server_properties();
-  params.net_log = NULL;
+#if defined(ENABLE_NETWORK_LOGGING)
+  params.net_log = net_log;
+  set_net_log(net_log);
+#else
+  UNREFERENCED_PARAMETER(net_log);
+#endif
   params.trusted_spdy_proxy = "";
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   params.ignore_certificate_errors = ignore_certificate_errors;

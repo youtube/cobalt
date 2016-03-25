@@ -19,10 +19,12 @@
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/network/network_system.h"
+#include "cobalt/network/switches.h"
 #include "cobalt/network/user_agent_string_factory.h"
 #include "net/url_request/static_http_user_agent_settings.h"
 
@@ -92,6 +94,28 @@ void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
       options_.preferred_language, "utf-8",
       UserAgentStringFactory::ForCurrentPlatform()->CreateUserAgentString()));
 
+#if defined(ENABLE_NETWORK_LOGGING)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kNetLog)) {
+    // If this is not a valid path, net logs will be sent to VLOG(1).
+    FilePath net_log_path = command_line->GetSwitchValuePath(switches::kNetLog);
+    net::NetLog::LogLevel net_log_level = net::NetLog::LOG_BASIC;
+    if (command_line->HasSwitch(switches::kNetLogLevel)) {
+      std::string level_string =
+          command_line->GetSwitchValueASCII(switches::kNetLogLevel);
+      int level_int = 0;
+      if (base::StringToInt(level_string, &level_int) &&
+          level_int >= net::NetLog::LOG_ALL &&
+          level_int <= net::NetLog::LOG_BASIC) {
+        net_log_level = static_cast<net::NetLog::LogLevel>(level_int);
+      }
+    }
+    DLOG(INFO) << net_log_level;
+    net_log_.reset(new CobaltNetLog(net_log_path, net_log_level));
+  }
+
+#endif
+
   // Launch the IO thread.
   base::Thread::Options thread_options;
   thread_options.message_loop_type = MessageLoop::TYPE_IO;
@@ -116,8 +140,12 @@ void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   DCHECK(message_loop_proxy()->BelongsToCurrentThread());
 
+  net::NetLog* net_log = NULL;
+#if defined(ENABLE_NETWORK_LOGGING)
+  net_log = net_log_.get();
+#endif
   url_request_context_.reset(
-      new URLRequestContext(storage_manager_, options_.custom_proxy,
+      new URLRequestContext(storage_manager_, options_.custom_proxy, net_log,
                             options_.ignore_certificate_errors));
   network_delegate_.reset(
       new NetworkDelegate(options_.cookie_policy, options_.require_https));
