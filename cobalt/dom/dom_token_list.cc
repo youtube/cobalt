@@ -18,19 +18,17 @@
 
 #include <algorithm>
 
-#include "base/lazy_instance.h"
 #include "base/string_split.h"
-#include "base/string_util.h"
-#include "cobalt/dom/element.h"
 #include "cobalt/dom/stats.h"
 
 namespace cobalt {
 namespace dom {
 
 DOMTokenList::DOMTokenList(Element* element, const std::string& attr_name)
-    : element_(base::AsWeakPtr(element)),
+    : element_(element),
       attr_name_(attr_name),
       element_node_generation_(Node::kInvalidNodeGeneration) {
+  DCHECK(element);
   // The current implementation relies on nodes calling UpdateNodeGeneration()
   // each time the class is changed. This results in DOMTokenList only working
   // for class attribute. DOMTokenList is only used by Element::class_list(),
@@ -41,7 +39,7 @@ DOMTokenList::DOMTokenList(Element* element, const std::string& attr_name)
 }
 
 // Algorithm for length:
-//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-length
+//   https://www.w3.org/TR/dom/#dom-domtokenlist-length
 unsigned int DOMTokenList::length() const {
   // Custom, not in any spec.
   MaybeRefresh();
@@ -50,21 +48,23 @@ unsigned int DOMTokenList::length() const {
 }
 
 // Algorithm for Item:
-//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-item
+//   https://www.w3.org/TR/dom/#dom-domtokenlist-item
 base::optional<std::string> DOMTokenList::Item(unsigned int index) const {
   // Custom, not in any spec.
   MaybeRefresh();
 
   // 1. If index is equal to or greater than the number of tokens in tokens,
   //    return null.
-  if (index >= tokens_.size()) return base::nullopt;
+  if (index >= tokens_.size()) {
+    return base::nullopt;
+  }
 
   // 2. Return the indexth token in tokens.
   return std::string(tokens_[index].c_str());
 }
 
 // Algorithm for Contains:
-//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-contains
+//   https://www.w3.org/TR/dom/#dom-domtokenlist-contains
 bool DOMTokenList::Contains(const std::string& token) const {
   // Custom, not in any spec.
   MaybeRefresh();
@@ -91,7 +91,7 @@ bool DOMTokenList::Contains(const std::string& token) const {
 }
 
 // Algorithm for Add:
-//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-add
+//   https://www.w3.org/TR/dom/#dom-domtokenlist-add
 void DOMTokenList::Add(const std::vector<std::string>& tokens) {
   // Custom, not in any spec.
   MaybeRefresh();
@@ -119,12 +119,12 @@ void DOMTokenList::Add(const std::vector<std::string>& tokens) {
 
   // 4. Run the update steps.
   if (tokens_.size() != old_size) {
-    UpdateSteps();
+    RunUpdateSteps();
   }
 }
 
 // Algorithm for Remove:
-//   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-remove
+//   https://www.w3.org/TR/dom/#dom-domtokenlist-remove
 void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
   // Custom, not in any spec.
   MaybeRefresh();
@@ -149,17 +149,24 @@ void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
 
   // 4. Run the update steps.
   if (tokens_.size() != old_size) {
-    UpdateSteps();
+    RunUpdateSteps();
   }
 }
 
+// Algorithm for AnonymousStringifier:
+//   https://www.w3.org/TR/dom/#dom-domtokenlist-stringifier
 std::string DOMTokenList::AnonymousStringifier() const {
+  // Custom, not in any spec.
+  MaybeRefresh();
+
   std::string result;
   for (size_t i = 0; i < tokens_.size(); ++i) {
     result += tokens_[i].c_str();
     result += ' ';
   }
-  if (!result.empty()) result.resize(result.size() - 1);
+  if (!result.empty()) {
+    result.resize(result.size() - 1);
+  }
   return result;
 }
 
@@ -196,15 +203,11 @@ bool DOMTokenList::ContainsValid(base::Token valid_token) const {
 
 DOMTokenList::~DOMTokenList() { Stats::GetInstance()->Remove(this); }
 
-// Algorithm for UpdateSteps:
+// Algorithm for RunUpdateSteps:
 //   https://www.w3.org/TR/dom/#concept-dtl-update
-void DOMTokenList::UpdateSteps() const {
+void DOMTokenList::RunUpdateSteps() const {
   // 1. If there is no associated attribute (when the object is a
   // DOMSettableTokenList), terminate these steps.
-  if (!element_) {
-    return;
-  }
-
   // 2. Set an attribute for the associated element using associated attribute's
   // local name and the result of running the ordered set serializer for tokens.
   element_->SetAttribute(attr_name_, AnonymousStringifier());
@@ -223,7 +226,7 @@ bool DOMTokenList::IsTokenValid(const std::string& token) const {
 }
 
 void DOMTokenList::MaybeRefresh() const {
-  if (element_ && element_node_generation_ != element_->node_generation()) {
+  if (element_node_generation_ != element_->node_generation()) {
     element_node_generation_ = element_->node_generation();
     std::string attribute = element_->GetAttribute(attr_name_).value_or("");
     std::vector<std::string> tokens;
