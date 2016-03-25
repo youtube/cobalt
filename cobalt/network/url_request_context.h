@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "net/base/net_log.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
@@ -34,7 +35,7 @@ namespace network {
 class URLRequestContext : public net::URLRequestContext {
  public:
   URLRequestContext(storage::StorageManager* storage_manager,
-                    const std::string& custom_proxy,
+                    const std::string& custom_proxy, net::NetLog* net_log,
                     bool ignore_certificate_errors);
   ~URLRequestContext() OVERRIDE;
 

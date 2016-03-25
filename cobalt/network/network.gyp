@@ -36,6 +36,8 @@
         'persistent_cookie_store.cc',
         'persistent_cookie_store.h',
         'proxy_config_service.h',
+        'switches.cc',
+        'switches.h',
         'url_request_context.cc',
         'url_request_context.h',
         'url_request_context_getter.cc',
@@ -55,6 +57,19 @@
           'dependencies': [
             # DialService depends on http server.
             '<(DEPTH)/net/net.gyp:http_server',
+          ],
+        }],
+        ['enable_network_logging == 1', {
+          'sources': [
+            'cobalt_net_log.cc',
+            'cobalt_net_log.h',
+            'net_log_constants.cc',
+            'net_log_constants.h',
+            'net_log_logger.cc',
+            'net_log_logger.h',
+          ],
+          'defines': [
+            'ENABLE_NETWORK_LOGGING',
           ],
         }],
         ['OS=="starboard"', {
