@@ -21,18 +21,16 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "cobalt/base/token.h"
+#include "cobalt/dom/element.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
 
-class Element;
-
 // The DOMTokenList interface represents a set of space-separated tokens.
-//   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-domtokenlist
+//   https://www.w3.org/TR/dom/#domtokenlist
 class DOMTokenList : public script::Wrappable {
  public:
   DOMTokenList(Element* element, const std::string& attr_name);
@@ -57,6 +55,9 @@ class DOMTokenList : public script::Wrappable {
   // the token has already been validated.
   bool ContainsValid(base::Token valid_token) const;
 
+  // The associated element.
+  Element* element() { return element_; }
+
   DEFINE_WRAPPABLE_TYPE(DOMTokenList);
 
  private:
@@ -64,15 +65,15 @@ class DOMTokenList : public script::Wrappable {
 
   // From the spec: DOMTokenList.
   //   https://www.w3.org/TR/dom/#concept-dtl-update
-  void UpdateSteps() const;
+  void RunUpdateSteps() const;
 
   // Returns if a token is valid.
   bool IsTokenValid(const std::string& token) const;
   // Refreshes the cache if it is not up to date.
   void MaybeRefresh() const;
 
-  // The associated element.
-  base::WeakPtr<Element> element_;
+  // The associated element, it is guaranteed to outlive the dom token list.
+  Element* element_;
   // Name of the associated attribute.
   std::string attr_name_;
   // Node generation of the element when tokens is updated.
