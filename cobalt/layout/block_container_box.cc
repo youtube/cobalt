@@ -238,8 +238,9 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   }
 }
 
-scoped_refptr<Box> BlockContainerBox::TrySplitAt(float /*available_width*/,
-                                                 bool /*allow_overflow*/) {
+scoped_refptr<Box> BlockContainerBox::TrySplitAt(
+    float /*available_width*/, bool /*should_collapse_trailing_white_space*/,
+    bool /*allow_overflow*/) {
   return scoped_refptr<Box>();
 }
 

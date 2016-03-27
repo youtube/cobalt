@@ -46,6 +46,7 @@ class TextBox : public Box {
 
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
   scoped_refptr<Box> TrySplitAt(float available_width,
+                                bool should_collapse_trailing_white_space,
                                 bool allow_overflow) OVERRIDE;
   Box* GetSplitSibling() const OVERRIDE;
 

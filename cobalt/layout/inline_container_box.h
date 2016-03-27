@@ -47,8 +47,9 @@ class InlineContainerBox : public ContainerBox {
   Level GetLevel() const OVERRIDE;
 
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-  scoped_refptr<Box> TrySplitAt(float available_width,
-                                bool allow_overflow) OVERRIDE;
+  scoped_refptr<Box> TrySplitAt(
+      float available_width, bool allow_overflow,
+      bool should_collapse_trailing_white_space) OVERRIDE;
   Box* GetSplitSibling() const OVERRIDE;
 
   bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;

@@ -231,15 +231,19 @@ class Box : public base::RefCounted<Box> {
   virtual float GetInlineLevelTopMargin() const;
 
   // Attempts to split the box, so that the part before the split would fit
-  // the available width. However, if |allow_overflow| is true, then the split
-  // is permitted to overflow the available width if no smaller split is
-  // available.
+  // the available width.
+  // If |should_collapse_trailing_white_space| is true, then the trailing white
+  // space within the part before the split is not included when determining if
+  // it will fit within the available width.
+  // If |allow_overflow| is true, then the split is permitted to overflow the
+  // available width if no smaller split is available.
   //
   // Returns the part after the split if the split succeeded.
   //
   // Note that only inline boxes are splittable.
-  virtual scoped_refptr<Box> TrySplitAt(float available_width,
-                                        bool allow_overflow) = 0;
+  virtual scoped_refptr<Box> TrySplitAt(
+      float available_width, bool should_collapse_trailing_white_space,
+      bool allow_overflow) = 0;
 
   // Returns the next box in a linked list of sibling boxes produced from
   // splits of the original box. This enables HTMLElement to retain access to
