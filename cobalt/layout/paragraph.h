@@ -100,9 +100,10 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // Returns false if no usable break position was found.
   bool FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
                          int32 start_position, int32 end_position,
-                         float available_width, bool allow_overflow,
-                         BreakPolicy break_policy, int32* break_position,
-                         float* break_width);
+                         float available_width,
+                         bool should_collapse_trailing_white_space,
+                         bool allow_overflow, BreakPolicy break_policy,
+                         int32* break_position, float* break_width);
 
   std::string RetrieveUtf8SubString(int32 start_position,
                                     int32 end_position) const;
@@ -114,7 +115,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
   BaseDirection GetBaseDirection() const;
   int GetBidiLevel(int32 position) const;
   bool IsRTL(int32 position) const;
-  bool IsSpace(int32 position) const;
+  bool IsCollapsibleWhiteSpace(int32 position) const;
   bool GetNextRunPosition(int32 position, int32* next_run_position) const;
   int32 GetTextEndPosition() const;
 
@@ -137,19 +138,24 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // Iterate over text segments as determined by the break iterator's strategy
   // from the starting position, adding the width of each segment and
   // determining the last one that fits within the available width. In the case
-  // where |allow_overflow| is true and  the first segment overflows the width,
+  // where |allow_overflow| is true and the first segment overflows the width,
   // that first overflowing segment will be included. The parameter
   // |break_width| indicates the width of the portion of the substring coming
   // before |break_position|.
   void FindIteratorBreakPosition(const scoped_refptr<dom::FontList>& used_font,
                                  icu::BreakIterator* const break_iterator,
                                  int32 start_position, int32 end_position,
-                                 float available_width, bool allow_overflow,
-                                 int32* break_position, float* break_width);
+                                 float available_width,
+                                 bool should_collapse_trailing_white_space,
+                                 bool allow_overflow, int32* break_position,
+                                 float* break_width);
 
   // Attempt to include the specified segment within the available width. If
   // either the segment fits within the width or |allow_overflow| is true, then
   // |break_position| and |break_width| are updated to include the segment.
+  // NOTE: When |should_collapse_trailing_white_space| is true, then trailing
+  // white space in the segment is not included when determining if the segment
+  // can fit within the available width.
   //
   // |allow_overflow| is always set to false after the first segment is added,
   // ensuring that only the first segment can overflow the available width.
@@ -160,7 +166,8 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // that no additional segments can be included.
   bool TryIncludeSegmentWithinAvailableWidth(
       const scoped_refptr<dom::FontList>& used_font, int32 start_position,
-      int32 end_position, float available_width, bool* allow_overflow,
+      int32 end_position, float available_width,
+      bool should_collapse_trailing_white_space, bool* allow_overflow,
       int32* break_position, float* break_width);
 
   void GenerateBidiLevelRuns();

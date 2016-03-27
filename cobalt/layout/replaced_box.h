@@ -50,6 +50,7 @@ class ReplacedBox : public Box {
 
   // From |Box|.
   scoped_refptr<Box> TrySplitAt(float available_width,
+                                bool should_collapse_trailing_white_space,
                                 bool allow_overflow) OVERRIDE;
 
   void SplitBidiLevelRuns() OVERRIDE;

@@ -66,8 +66,9 @@ ReplacedBox::ReplacedBox(
   DCHECK(!replace_image_cb_.is_null());
 }
 
-scoped_refptr<Box> ReplacedBox::TrySplitAt(float /*available_width*/,
-                                           bool /*allow_overflow*/) {
+scoped_refptr<Box> ReplacedBox::TrySplitAt(
+    float /*available_width*/, bool /*should_collapse_trailing_white_space*/,
+    bool /*allow_overflow*/) {
   return scoped_refptr<Box>();
 }
 
