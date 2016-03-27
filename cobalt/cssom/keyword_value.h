@@ -221,6 +221,20 @@ class KeywordValue : public PropertyValue {
     //   https://www.w3.org/TR/css3-text/#white-space-property
     kPre,
 
+    // "pre-line" is a value of "white-space" property which tells user agents
+    // that white space inside the element should be collapsed and lines should
+    // be broken at preserved newline characters and as necessary to fill line
+    // boxes, meaning that wrapping is allowed.
+    //   https://www.w3.org/TR/css3-text/#white-space-property
+    kPreLine,
+
+    // "pre-wrap" is a value of "white-space" property which tells user agents
+    // that white space inside the element should not be collapsed and lines
+    // should be broken at preserved newline characters and as necessary to fill
+    // line boxes, meaning that wrapping is allowed.
+    //   https://www.w3.org/TR/css3-text/#white-space-property
+    kPreWrap,
+
     // "relative" is a value of "position" property which indicates that values
     // of "top", "right", "bottom", and "left" properties specify offsets
     // with respect to the box's in-flow position.
@@ -320,6 +334,8 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetNormal();
   static const scoped_refptr<KeywordValue>& GetNoWrap();
   static const scoped_refptr<KeywordValue>& GetPre();
+  static const scoped_refptr<KeywordValue>& GetPreLine();
+  static const scoped_refptr<KeywordValue>& GetPreWrap();
   static const scoped_refptr<KeywordValue>& GetRelative();
   static const scoped_refptr<KeywordValue>& GetRepeat();
   static const scoped_refptr<KeywordValue>& GetReverse();

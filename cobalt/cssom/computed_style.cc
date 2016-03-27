@@ -307,6 +307,8 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -391,6 +393,8 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -484,6 +488,8 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -586,6 +592,8 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -691,6 +699,8 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -797,6 +807,8 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -897,6 +909,8 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -992,6 +1006,8 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -1384,6 +1400,8 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -1622,6 +1640,8 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -1834,6 +1854,8 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:
@@ -2180,6 +2202,8 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
     case KeywordValue::kPre:
+    case KeywordValue::kPreLine:
+    case KeywordValue::kPreWrap:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kReverse:

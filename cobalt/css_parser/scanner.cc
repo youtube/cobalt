@@ -2089,8 +2089,12 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kInfiniteToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kStepEndKeywordName)) {
-        *property_value_token = kStepEndToken;
+      if (IsEqualToCssIdentifier(name.begin, cssom::kPreLineKeywordName)) {
+        *property_value_token = kPreLineToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kPreWrapKeywordName)) {
+        *property_value_token = kPreWrapToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kRelativeKeywordName)) {
@@ -2103,6 +2107,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kRepeatYKeywordName)) {
         *property_value_token = kRepeatYToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kStepEndKeywordName)) {
+        *property_value_token = kStepEndToken;
         return true;
       }
       return false;

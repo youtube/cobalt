@@ -83,6 +83,8 @@ extern const char kNoWrapKeywordName[];
 extern const char kObliqueKeywordName[];
 extern const char kOliveKeywordName[];
 extern const char kPreKeywordName[];
+extern const char kPreLineKeywordName[];
+extern const char kPreWrapKeywordName[];
 extern const char kPurpleKeywordName[];
 extern const char kRedKeywordName[];
 extern const char kRelativeKeywordName[];
