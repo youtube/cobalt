@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <!--
- | The value "pre" of property "white-space" does not allow wrapping.
- | Content that does not fit the block container overflows it. However,
- | line breaks should still occur at <br> elements.
+ | The value "pre-wrap" of property "white-space" allows wrapping, and
+ | line breaks should also occur at <br> elements.
  |   https://www.w3.org/TR/css3-text/#white-space-property
  -->
 <html>
@@ -10,9 +9,9 @@
   <style>
     div {
       background-color: #03a9f4;
-      width: 200px;
+      width: 350px;
       font-size: 20px;
-      white-space: pre;
+      white-space: pre-wrap;
     }
   </style>
 </head>
