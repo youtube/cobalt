@@ -47,6 +47,7 @@ class BlockContainerBox : public ContainerBox {
   // From |Box|.
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
   scoped_refptr<Box> TrySplitAt(float available_width,
+                                bool should_collapse_trailing_white_space,
                                 bool allow_overflow) OVERRIDE;
 
   scoped_refptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;

@@ -177,8 +177,9 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   baseline_offset_from_margin_box_top_ = line_box.baseline_offset_from_top();
 }
 
-scoped_refptr<Box> InlineContainerBox::TrySplitAt(float available_width,
-                                                  bool allow_overflow) {
+scoped_refptr<Box> InlineContainerBox::TrySplitAt(
+    float available_width, bool should_collapse_trailing_white_space,
+    bool allow_overflow) {
   DCHECK_GT(GetMarginBoxWidth(), available_width);
 
   available_width -= GetContentBoxLeftEdgeOffsetFromMarginBox();
@@ -201,8 +202,9 @@ scoped_refptr<Box> InlineContainerBox::TrySplitAt(float available_width,
     // Split the first child that overflows the available width.
     // Leave its part before the split in this box.
     if (available_width < margin_box_width_of_child_box) {
-      scoped_refptr<Box> child_box_after_split =
-          child_box->TrySplitAt(available_width, allow_overflow);
+      scoped_refptr<Box> child_box_after_split = child_box->TrySplitAt(
+          available_width, should_collapse_trailing_white_space,
+          allow_overflow);
       if (child_box_after_split) {
         ++child_box_iterator;
         child_box_iterator =

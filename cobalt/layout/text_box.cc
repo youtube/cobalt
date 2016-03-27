@@ -152,8 +152,9 @@ void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
             GetTrailingWhiteSpaceWidth());
 }
 
-scoped_refptr<Box> TextBox::TrySplitAt(float available_width,
-                                       bool allow_overflow) {
+scoped_refptr<Box> TextBox::TrySplitAt(
+    float available_width, bool should_collapse_trailing_white_space,
+    bool allow_overflow) {
   if (!WhiteSpaceStyleAllowsWrapping()) {
     return scoped_refptr<Box>();
   }
@@ -177,7 +178,8 @@ scoped_refptr<Box> TextBox::TrySplitAt(float available_width,
 
   if (paragraph_->FindBreakPosition(
           used_font_, start_position, text_end_position_, available_width,
-          allow_overflow, break_policy, &split_position, &split_width)) {
+          should_collapse_trailing_white_space, allow_overflow, break_policy,
+          &split_position, &split_width)) {
     return SplitAtPosition(split_position);
   }
 
@@ -441,7 +443,7 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // text box. Otherwise, it can only appear after the first character
   // (https://www.w3.org/TR/css3-ui/#propdef-text-overflow).
   if (paragraph_->FindBreakPosition(
-          used_font_, start_position, end_position, desired_offset,
+          used_font_, start_position, end_position, desired_offset, false,
           !(*is_placement_requirement_met), Paragraph::kBreakWord,
           &found_position, &found_offset)) {
     *placed_offset = found_offset + content_box_offset;
@@ -484,15 +486,16 @@ bool TextBox::WhiteSpaceStyleAllowsWrapping() {
 }
 
 void TextBox::UpdateTextHasLeadingWhiteSpace() {
-  text_has_leading_white_space_ = text_start_position_ != text_end_position_ &&
-                                  paragraph_->IsSpace(text_start_position_) &&
-                                  WhiteSpaceStyleAllowsCollapsing();
+  text_has_leading_white_space_ =
+      text_start_position_ != text_end_position_ &&
+      paragraph_->IsCollapsibleWhiteSpace(text_start_position_) &&
+      WhiteSpaceStyleAllowsCollapsing();
 }
 
 void TextBox::UpdateTextHasTrailingWhiteSpace() {
   text_has_trailing_white_space_ =
       !has_trailing_line_break_ && text_start_position_ != text_end_position_ &&
-      paragraph_->IsSpace(text_end_position_ - 1) &&
+      paragraph_->IsCollapsibleWhiteSpace(text_end_position_ - 1) &&
       WhiteSpaceStyleAllowsCollapsing();
 }
 

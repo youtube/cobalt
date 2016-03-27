@@ -130,12 +130,19 @@ bool LineBox::TryBeginUpdateRectAndMaybeSplit(
 
   // When an inline box exceeds the width of a line box, it is split.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  *child_box_after_split =
-      child_box->TrySplitAt(available_width, allow_overflow);
+  *child_box_after_split = child_box->TrySplitAt(
+      available_width, should_collapse_trailing_white_space_, allow_overflow);
 
   // A split occurred, need to re-measure the child box.
   if (*child_box_after_split != NULL) {
     BeginUpdateRectAndMaybeOverflow(child_box);
+
+    // If trailing white space is being collapsed, then the child box can exceed
+    // the available width prior to white space being collapsed. So the DCHECK
+    // is only valid if the box's whitespace is collapsed prior to it.
+    // if (should_collapse_trailing_white_space_) {
+    //  CollapseTrailingWhiteSpace();
+    //}
     // TODO(***REMOVED***): Re-enable the DCHECK() below after implementing b/27134223.
     // DCHECK(child_box->GetMarginBoxWidth() <= available_width ||
     //        allow_overflow);
