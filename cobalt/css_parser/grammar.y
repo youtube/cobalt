@@ -225,6 +225,8 @@
 %token kObliqueToken                    // oblique
 %token kOliveToken                      // olive
 %token kPreToken                        // pre
+%token kPreLineToken                    // pre-line
+%token kPreWrapToken                    // pre-wrap
 %token kPurpleToken                     // purple
 %token kRedToken                        // red
 %token kRepeatToken                     // repeat
@@ -1723,6 +1725,12 @@ identifier_token:
   }
   | kPreToken {
     $$ = TrivialStringPiece::FromCString(cssom::kPreKeywordName);
+  }
+  | kPreLineToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kPreLineKeywordName);
+  }
+  | kPreWrapToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kPreWrapKeywordName);
   }
   | kPurpleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kPurpleKeywordName);
@@ -5048,6 +5056,12 @@ white_space_property_value:
   }
   | kPreToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetPre().get());
+  }
+  | kPreLineToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetPreLine().get());
+  }
+  | kPreWrapToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetPreWrap().get());
   }
   | common_values
   ;
