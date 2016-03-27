@@ -5605,6 +5605,24 @@ TEST_F(ParserTest, ParsesPreWhiteSpace) {
             style->GetPropertyValue(cssom::kWhiteSpaceProperty));
 }
 
+TEST_F(ParserTest, ParsesPreLineWhiteSpace) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("white-space: pre-line;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetPreLine(),
+            style->GetPropertyValue(cssom::kWhiteSpaceProperty));
+}
+
+TEST_F(ParserTest, ParsesPreWrapWhiteSpace) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("white-space: pre-wrap;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetPreWrap(),
+            style->GetPropertyValue(cssom::kWhiteSpaceProperty));
+}
+
 TEST_F(ParserTest, ParsesInheritWhiteSpace) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("white-space: inherit;",

@@ -460,12 +460,25 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
 }
 
 bool TextBox::WhiteSpaceStyleAllowsCollapsing() {
-  return computed_style()->white_space() != cssom::KeywordValue::GetPre();
+  // "white-space" property values "normal", "nowrap", and "pre-line" allow
+  // collapsing of whitespace.
+  // https://www.w3.org/TR/css-text-3/#white-space
+  const scoped_refptr<cssom::PropertyValue>& white_space_property =
+      computed_style()->white_space();
+  return white_space_property == cssom::KeywordValue::GetNormal() ||
+         white_space_property == cssom::KeywordValue::GetNoWrap() ||
+         white_space_property == cssom::KeywordValue::GetPreLine();
 }
 
 bool TextBox::WhiteSpaceStyleAllowsWrapping() {
-  return computed_style()->white_space() != cssom::KeywordValue::GetPre() &&
-         computed_style()->white_space() != cssom::KeywordValue::GetNoWrap();
+  // "white-space" property values "normal", "pre-line", and "pre-wrap" allow
+  // text wrapping.
+  // https://www.w3.org/TR/css-text-3/#white-space
+  const scoped_refptr<cssom::PropertyValue>& white_space_property =
+      computed_style()->white_space();
+  return white_space_property == cssom::KeywordValue::GetNormal() ||
+         white_space_property == cssom::KeywordValue::GetPreLine() ||
+         white_space_property == cssom::KeywordValue::GetPreWrap();
 }
 
 void TextBox::UpdateTextHasLeadingWhiteSpace() {

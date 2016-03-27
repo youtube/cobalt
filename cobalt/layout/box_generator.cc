@@ -236,6 +236,8 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kNoWrap:
     case cssom::KeywordValue::kPre:
+    case cssom::KeywordValue::kPreLine:
+    case cssom::KeywordValue::kPreWrap:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
@@ -459,6 +461,8 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kNoWrap:
     case cssom::KeywordValue::kPre:
+    case cssom::KeywordValue::kPreLine:
+    case cssom::KeywordValue::kPreWrap:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kReverse:
@@ -581,6 +585,8 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kNoRepeat:
       case cssom::KeywordValue::kNoWrap:
       case cssom::KeywordValue::kPre:
+      case cssom::KeywordValue::kPreLine:
+      case cssom::KeywordValue::kPreWrap:
       case cssom::KeywordValue::kRelative:
       case cssom::KeywordValue::kRepeat:
       case cssom::KeywordValue::kReverse:
@@ -779,10 +785,27 @@ void BoxGenerator::Visit(dom::Text* text) {
 
   const std::string& original_text = text->text();
 
+  const scoped_refptr<cssom::PropertyValue>& white_space_property =
+      css_computed_style_declaration->data()->white_space();
+  // "white-space" property values "pre", "pre-line", and "pre-wrap" preserve
+  // segment breaks
+  // https://www.w3.org/TR/css-text-3/#white-space
+  bool should_preserve_segment_breaks =
+      white_space_property == cssom::KeywordValue::GetPre() ||
+      white_space_property == cssom::KeywordValue::GetPreLine() ||
+      white_space_property == cssom::KeywordValue::GetPreWrap();
+  // "white-space" property values "normal", "nowrap", and "pre-line" collapse
+  // whitespace.
+  // https://www.w3.org/TR/css-text-3/#white-space
+  bool should_collapse_white_space =
+      white_space_property == cssom::KeywordValue::GetNormal() ||
+      white_space_property == cssom::KeywordValue::GetNoWrap() ||
+      white_space_property == cssom::KeywordValue::GetPreLine();
+
   // Loop until the entire text is consumed. If the white-space property does
-  // not have a value of "pre" then the entire text will be processed the first
-  // time through the loop; otherwise, the text will be split at newline
-  // sequences.
+  // not have a value of "pre" or "pre-wrap" then the entire text will be
+  // processed the first time through the loop; otherwise, the text will be
+  // split at newline sequences.
   size_t start_index = 0;
   while (start_index < original_text.size()) {
     size_t end_index;
@@ -791,8 +814,7 @@ void BoxGenerator::Visit(dom::Text* text) {
     // Phase I: Segment Break Transformation Rules
     // https://www.w3.org/TR/css3-text/#line-break-transform
     bool generates_newline = false;
-    if (css_computed_style_declaration->data()->white_space() ==
-        cssom::KeywordValue::GetPre()) {
+    if (should_preserve_segment_breaks) {
       generates_newline = FindNextNewlineSequence(
           original_text, start_index, &end_index, &newline_sequence_length);
     } else {
@@ -805,8 +827,7 @@ void BoxGenerator::Visit(dom::Text* text) {
 
     // Phase I: Collapsing and Transformation
     //   https://www.w3.org/TR/css3-text/#white-space-phase-1
-    if (css_computed_style_declaration->data()->white_space() !=
-        cssom::KeywordValue::GetPre()) {
+    if (should_collapse_white_space) {
       CollapseWhiteSpace(&modifiable_text);
 
       // If the paragraph hasn't been started yet and the text only consists of

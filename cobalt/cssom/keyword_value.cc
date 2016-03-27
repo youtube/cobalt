@@ -60,6 +60,8 @@ struct KeywordValue::NonTrivialStaticFields {
         normal_value(new KeywordValue(KeywordValue::kNormal)),
         nowrap_value(new KeywordValue(KeywordValue::kNoWrap)),
         pre_value(new KeywordValue(KeywordValue::kPre)),
+        pre_line_value(new KeywordValue(KeywordValue::kPreLine)),
+        pre_wrap_value(new KeywordValue(KeywordValue::kPreWrap)),
         relative_value(new KeywordValue(KeywordValue::kRelative)),
         repeat_value(new KeywordValue(KeywordValue::kRepeat)),
         reverse_value(new KeywordValue(KeywordValue::kReverse)),
@@ -106,6 +108,8 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> normal_value;
   const scoped_refptr<KeywordValue> nowrap_value;
   const scoped_refptr<KeywordValue> pre_value;
+  const scoped_refptr<KeywordValue> pre_line_value;
+  const scoped_refptr<KeywordValue> pre_wrap_value;
   const scoped_refptr<KeywordValue> relative_value;
   const scoped_refptr<KeywordValue> repeat_value;
   const scoped_refptr<KeywordValue> reverse_value;
@@ -265,6 +269,14 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetPre() {
   return non_trivial_static_fields.Get().pre_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetPreLine() {
+  return non_trivial_static_fields.Get().pre_line_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetPreWrap() {
+  return non_trivial_static_fields.Get().pre_wrap_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetRelative() {
   return non_trivial_static_fields.Get().relative_value;
 }
@@ -383,6 +395,10 @@ std::string KeywordValue::ToString() const {
       return kNoWrapKeywordName;
     case kPre:
       return kPreKeywordName;
+    case kPreLine:
+      return kPreLineKeywordName;
+    case kPreWrap:
+      return kPreWrapKeywordName;
     case kRelative:
       return kRelativeKeywordName;
     case kRepeat:
