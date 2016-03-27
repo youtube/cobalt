@@ -17,9 +17,9 @@
 #include "cobalt/layout/paragraph.h"
 
 #include "base/i18n/char_iterator.h"
+#include "cobalt/base/unicode/character.h"
 
 #include "third_party/icu/public/common/unicode/ubidi.h"
-
 
 namespace cobalt {
 namespace layout {
@@ -76,10 +76,10 @@ int32 Paragraph::AppendCodePoint(CodePoint code_point) {
   if (!is_closed_) {
     switch (code_point) {
       case kLineFeedCodePoint:
-        unicode_text_ += UChar(0x0a);
+        unicode_text_ += base::unicode::kNewlineCharacter;
         break;
       case kObjectReplacementCharacterCodePoint:
-        unicode_text_ += UChar(0xfffc);
+        unicode_text_ += base::unicode::kObjectReplacementCharacter;
         break;
     }
   }
@@ -88,8 +88,9 @@ int32 Paragraph::AppendCodePoint(CodePoint code_point) {
 
 bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
                                   int32 start_position, int32 end_position,
-                                  float available_width, bool allow_overflow,
-                                  BreakPolicy break_policy,
+                                  float available_width,
+                                  bool should_collapse_trailing_white_space,
+                                  bool allow_overflow, BreakPolicy break_policy,
                                   int32* break_position, float* break_width) {
   DCHECK(is_closed_);
 
@@ -113,7 +114,8 @@ bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
   // position.
   FindIteratorBreakPosition(
       used_font, line_break_iterator_, start_position, end_position,
-      available_width, allow_soft_wrap_overflow, break_position, break_width);
+      available_width, should_collapse_trailing_white_space,
+      allow_soft_wrap_overflow, break_position, break_width);
 
   // Only continue allowing overflow if the break position has not moved from
   // start, meaning that no break position has been found yet.
@@ -130,9 +132,9 @@ bool Paragraph::FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
   // (https://www.w3.org/TR/css3-text/#overflow-wrap).
   if ((break_policy == kBreakWord) ||
       (break_policy == kSoftWrapWithBreakWordOnOverflow && allow_overflow)) {
-    FindIteratorBreakPosition(used_font, character_break_iterator_,
-                              *break_position, end_position, available_width,
-                              allow_overflow, break_position, break_width);
+    FindIteratorBreakPosition(
+        used_font, character_break_iterator_, *break_position, end_position,
+        available_width, false, allow_overflow, break_position, break_width);
   }
 
   // No usable break position was found if the break position has not moved
@@ -185,8 +187,11 @@ bool Paragraph::IsRTL(int32 position) const {
   return (GetBidiLevel(position) % 2) == 1;
 }
 
-bool Paragraph::IsSpace(int32 position) const {
-  return unicode_text_[position] == ' ';
+bool Paragraph::IsCollapsibleWhiteSpace(int32 position) const {
+  // Only check for the space character. Other collapsible white space
+  // characters will have already been converted into the space characters and
+  // do not need to be checked against.
+  return unicode_text_[position] == base::unicode::kSpaceCharacter;
 }
 
 bool Paragraph::GetNextRunPosition(int32 position,
@@ -215,7 +220,8 @@ bool Paragraph::IsClosed() const { return is_closed_; }
 void Paragraph::FindIteratorBreakPosition(
     const scoped_refptr<dom::FontList>& used_font,
     icu::BreakIterator* const break_iterator, int32 start_position,
-    int32 end_position, float available_width, bool allow_overflow,
+    int32 end_position, float available_width,
+    bool should_collapse_trailing_white_space, bool allow_overflow,
     int32* break_position, float* break_width) {
   // Iterate through soft wrap locations, beginning from the passed in start
   // position. Continue until TryIncludeSegmentWithinAvailableWidth() returns
@@ -226,7 +232,8 @@ void Paragraph::FindIteratorBreakPosition(
        segment_end = break_iterator->next()) {
     if (!TryIncludeSegmentWithinAvailableWidth(
             used_font, *break_position, segment_end, available_width,
-            &allow_overflow, break_position, break_width)) {
+            should_collapse_trailing_white_space, &allow_overflow,
+            break_position, break_width)) {
       break;
     }
   }
@@ -234,7 +241,8 @@ void Paragraph::FindIteratorBreakPosition(
 
 bool Paragraph::TryIncludeSegmentWithinAvailableWidth(
     const scoped_refptr<dom::FontList>& used_font, int32 segment_start,
-    int32 segment_end, float available_width, bool* allow_overflow,
+    int32 segment_end, float available_width,
+    bool should_collapse_trailing_white_space, bool* allow_overflow,
     int32* break_position, float* break_width) {
   // Add the width of the segment encountered to the total, until reaching one
   // that causes the available width to be exceeded. The previous break position
@@ -244,7 +252,19 @@ bool Paragraph::TryIncludeSegmentWithinAvailableWidth(
       unicode_text_.getBuffer() + segment_start, segment_end - segment_start,
       IsRTL(segment_start), NULL);
 
-  if (!*allow_overflow && *break_width + segment_width > available_width) {
+  // If trailing white space is being collapsed, then it will not be included
+  // when determining if the segment can fit within the available width.
+  // However, it is still added to |break_width|, as it will impact the
+  // width available to additional segments.
+  float collapsible_trailing_white_space_width =
+      should_collapse_trailing_white_space &&
+              IsCollapsibleWhiteSpace(segment_end - 1)
+          ? used_font->GetSpaceWidth()
+          : 0;
+
+  if (!*allow_overflow &&
+      *break_width + segment_width - collapsible_trailing_white_space_width >
+          available_width) {
     return false;
   }
 
