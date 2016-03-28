@@ -88,7 +88,7 @@ TEST_F(RuleMatchingTest, UniversalSelectorMatch) {
   root_->set_inner_html("<div/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -101,7 +101,7 @@ TEST_F(RuleMatchingTest, TypeSelectorMatch) {
   root_->set_inner_html("<div/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -114,7 +114,7 @@ TEST_F(RuleMatchingTest, ClassSelectorMatch) {
   root_->set_inner_html("<div class=\"my-class\"/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -127,7 +127,7 @@ TEST_F(RuleMatchingTest, IdSelectorMatch) {
   root_->set_inner_html("<div id=\"div1\"/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -140,7 +140,7 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassMatch) {
   root_->set_inner_html("<div></div>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -153,7 +153,7 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassShouldMatchCommentOnly) {
   root_->set_inner_html("<div><!--comment--></div>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -166,7 +166,7 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassShouldMatchTextOnly) {
   root_->set_inner_html("<div> </div>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
 }
@@ -179,7 +179,7 @@ TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
   root_->first_element_child()->AsHTMLElement()->Focus();
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -192,7 +192,7 @@ TEST_F(RuleMatchingTest, FocusPseudoClassNoMatch) {
   root_->set_inner_html("<div tabIndex=-1/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
 }
@@ -205,7 +205,7 @@ TEST_F(RuleMatchingTest, NotPseudoClassMatch) {
   root_->set_inner_html("<div/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -219,7 +219,7 @@ TEST_F(RuleMatchingTest, NotPseudoClassNoMatch) {
   root_->set_inner_html("<div class=\"my-class\"/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
 }
@@ -232,7 +232,7 @@ TEST_F(RuleMatchingTest, AfterPseudoElementMatchGlobal) {
   UpdateAllMatchingRules();
 
   HTMLElement* html_element = root_->first_element_child()->AsHTMLElement();
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
@@ -259,7 +259,7 @@ TEST_F(RuleMatchingTest, AfterPseudoElementSelectorMatch) {
   UpdateAllMatchingRules();
 
   HTMLElement* html_element = root_->first_element_child()->AsHTMLElement();
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
@@ -277,7 +277,7 @@ TEST_F(RuleMatchingTest, AfterPseudoElementSelectorNoMatch) {
   UpdateAllMatchingRules();
 
   HTMLElement* html_element = root_->first_element_child()->AsHTMLElement();
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
   EXPECT_FALSE(html_element->pseudo_element(kAfterPseudoElementType));
@@ -291,7 +291,7 @@ TEST_F(RuleMatchingTest, BeforePseudoElementMatchGlobal) {
   UpdateAllMatchingRules();
 
   HTMLElement* html_element = root_->first_element_child()->AsHTMLElement();
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kBeforePseudoElementType));
@@ -318,7 +318,7 @@ TEST_F(RuleMatchingTest, BeforePseudoElementSelectorMatch) {
   UpdateAllMatchingRules();
 
   HTMLElement* html_element = root_->first_element_child()->AsHTMLElement();
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kBeforePseudoElementType));
@@ -336,7 +336,7 @@ TEST_F(RuleMatchingTest, BeforePseudoElementSelectorNoMatch) {
   UpdateAllMatchingRules();
 
   HTMLElement* html_element = root_->first_element_child()->AsHTMLElement();
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
   EXPECT_FALSE(html_element->pseudo_element(kBeforePseudoElementType));
@@ -349,7 +349,7 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassNotMatchElement) {
   root_->set_inner_html("<div><div></div></div>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
 }
@@ -362,7 +362,7 @@ TEST_F(RuleMatchingTest, CompoundSelectorMatch) {
   root_->set_inner_html("<div class=\"my-class\"/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -376,7 +376,7 @@ TEST_F(RuleMatchingTest, CompoundSelectorNoMatch) {
   root_->set_inner_html("<div/><span class=\"my-class\"/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
   matching_rules =
@@ -391,11 +391,12 @@ TEST_F(RuleMatchingTest, ComplexSelectorDescendantCombinatorMatch) {
   root_->set_inner_html("<div><span><span></span></span></div>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules = root_->first_element_child()
-                                                        ->first_element_child()
-                                                        ->first_element_child()
-                                                        ->AsHTMLElement()
-                                                        ->matching_rules();
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      root_->first_element_child()
+          ->first_element_child()
+          ->first_element_child()
+          ->AsHTMLElement()
+          ->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
 }
@@ -407,10 +408,11 @@ TEST_F(RuleMatchingTest, ComplexSelectorDescendantCombinatorNoMatch) {
   root_->set_inner_html("<div><span></span></div>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules = root_->first_element_child()
-                                                        ->first_element_child()
-                                                        ->AsHTMLElement()
-                                                        ->matching_rules();
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      root_->first_element_child()
+          ->first_element_child()
+          ->AsHTMLElement()
+          ->matching_rules();
   ASSERT_EQ(0, matching_rules->size());
 }
 
@@ -421,10 +423,11 @@ TEST_F(RuleMatchingTest, ComplexSelectorChildCombinatorMatch) {
   root_->set_inner_html("<div><span></span></div>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules = root_->first_element_child()
-                                                        ->first_element_child()
-                                                        ->AsHTMLElement()
-                                                        ->matching_rules();
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      root_->first_element_child()
+          ->first_element_child()
+          ->AsHTMLElement()
+          ->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
 }
@@ -436,11 +439,12 @@ TEST_F(RuleMatchingTest, ComplexSelectorChildCombinatorNoMatch) {
       "div > span {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
   root_->set_inner_html("<div><span><span></span></span></div>");
 
-  cssom::RulesWithCascadePriority* matching_rules = root_->first_element_child()
-                                                        ->first_element_child()
-                                                        ->first_element_child()
-                                                        ->AsHTMLElement()
-                                                        ->matching_rules();
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      root_->first_element_child()
+          ->first_element_child()
+          ->first_element_child()
+          ->AsHTMLElement()
+          ->matching_rules();
   ASSERT_EQ(0, matching_rules->size());
 }
 
@@ -452,7 +456,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorMatch) {
   root_->set_inner_html("<span/><span/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->last_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -466,7 +470,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorNoMatch) {
   root_->set_inner_html("<span/><span/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(0, matching_rules->size());
 }
@@ -478,7 +482,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorFollowingSiblingCombinatorMatch) {
   root_->set_inner_html("<div/><span/><span/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->last_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -492,7 +496,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorFollowingSiblingCombinatorNoMatch) {
   root_->set_inner_html("<div/><span/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->last_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(0, matching_rules->size());
 }
@@ -505,7 +509,7 @@ TEST_F(RuleMatchingTest, SelectorListMatchShouldContainAllMatches) {
       "<div class=\"first-class second-class\" id=\"my-id\"/>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules =
+  cssom::RulesWithCascadePrecedence* matching_rules =
       root_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(3, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
@@ -532,10 +536,11 @@ TEST_F(RuleMatchingTest, ComplexSelectorCombinedMatch) {
       "<div><div/><div/></div>");
   UpdateAllMatchingRules();
 
-  cssom::RulesWithCascadePriority* matching_rules = root_->last_element_child()
-                                                        ->last_element_child()
-                                                        ->AsHTMLElement()
-                                                        ->matching_rules();
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      root_->last_element_child()
+          ->last_element_child()
+          ->AsHTMLElement()
+          ->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(css_style_sheet_->css_rules()->Item(0), (*matching_rules)[0].first);
 }

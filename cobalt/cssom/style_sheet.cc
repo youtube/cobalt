@@ -16,7 +16,7 @@
 
 #include "cobalt/cssom/style_sheet.h"
 
-#include "cobalt/cssom/cascade_priority.h"
+#include "cobalt/cssom/cascade_precedence.h"
 
 namespace cobalt {
 namespace cssom {

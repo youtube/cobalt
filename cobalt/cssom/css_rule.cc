@@ -16,7 +16,7 @@
 
 #include "cobalt/cssom/css_rule.h"
 
-#include "cobalt/cssom/cascade_priority.h"
+#include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
