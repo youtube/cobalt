@@ -54,6 +54,9 @@ Boxes::const_iterator ContainerBox::InsertDirectChild(
   Boxes::const_iterator inserted =
       child_boxes_.insert(RemoveConst(&child_boxes_, position), child_box);
   OnChildAdded(child_box);
+  if (child_box->IsPositioned() || child_box->IsTransformed()) {
+    child_box->SetupAsPositionedChild();
+  }
 
   return inserted;
 }
@@ -61,11 +64,6 @@ Boxes::const_iterator ContainerBox::InsertDirectChild(
 void ContainerBox::MoveChildrenFrom(
     Boxes::const_iterator position_in_destination, ContainerBox* source_box,
     Boxes::const_iterator source_start, Boxes::const_iterator source_end) {
-  // TODO(***REMOVED***): This may result in incorrect containing blocks and/or stacking
-  // contexts in children and descendants if the old parent and the new parent
-  // are not siblings with the same containing blocks and stacking context.
-  // Improving that behavior is tracked in b/27310946.
-
   // Add the children to our list of child boxes.
   Boxes::iterator source_start_non_const =
       RemoveConst(&source_box->child_boxes_, source_start);
@@ -80,23 +78,19 @@ void ContainerBox::MoveChildrenFrom(
     DCHECK_NE(this, child_box->parent())
         << "Move children within the same container node is not supported by "
            "this method.";
-    if (child_box->stacking_context() &&
-        (child_box->IsPositioned() || child_box->IsTransformed())) {
-      MoveContainingBlockChild(child_box);
-      MoveStackingContextChild(child_box);
+    if (child_box->IsPositioned() || child_box->IsTransformed()) {
+      child_box->RemoveAsPositionedChild();
       // For positioned boxes, the parent box is not always also the containing
       // block. Instead of calling OnChildAdded(), only update the containing
       // block if that is the case.
-      if (child_box->containing_block_ == child_box->parent_) {
-        child_box->containing_block_ = this;
-      }
+
       child_box->parent_ = this;
       update_size_results_valid_ = false;
     } else {
       child_box->parent_ = NULL;
-      child_box->containing_block_ = NULL;
       OnChildAdded(child_box);
     }
+    child_box->UpdateCrossReferences();
   }
 
   // Erase the children from their previous container's list of children.
@@ -108,10 +102,8 @@ void ContainerBox::MoveChildrenFrom(
 
 void ContainerBox::OnChildAdded(Box* child_box) {
   DCHECK(!child_box->parent());
-  DCHECK(!child_box->containing_block());
 
   child_box->parent_ = this;
-  child_box->containing_block_ = this;
 
   // Invalidate our size calculations as a result of having our set of
   // children modified.
@@ -150,12 +142,14 @@ bool ContainerBox::IsStackingContext() const {
 }
 
 void ContainerBox::AddContainingBlockChild(Box* child_box) {
-  DCHECK_EQ(this, child_box->containing_block());
+  DCHECK_NE(this, child_box);
+  DCHECK_EQ(this, child_box->GetContainingBlock());
   positioned_child_boxes_.push_back(child_box);
 }
 
 void ContainerBox::AddStackingContextChild(Box* child_box) {
-  DCHECK_EQ(this, child_box->stacking_context());
+  DCHECK_NE(this, child_box);
+  DCHECK_EQ(this, child_box->GetStackingContext());
   int child_z_index = child_box->GetZIndex();
   DCHECK(child_z_index == 0 || IsStackingContext())
       << "Children with non-zero z-indices can only be added to container "
@@ -168,48 +162,36 @@ void ContainerBox::AddStackingContextChild(Box* child_box) {
   }
 }
 
-void ContainerBox::MoveContainingBlockChild(Box* child_box) {
+void ContainerBox::RemoveContainingBlockChild(Box* child_box) {
   DCHECK(child_box->IsPositioned() || child_box->IsTransformed());
 
-  ContainerBox* source_parent = child_box->parent_;
   std::vector<Box*>::iterator positioned_child_iterator =
-      std::find(source_parent->positioned_child_boxes_.begin(),
-                source_parent->positioned_child_boxes_.end(), child_box);
-  // TODO(***REMOVED***): Ensure that positioned or transformed inline boxes have the
-  // correct containing block, b/27261823.
-  if (positioned_child_iterator !=
-      source_parent->positioned_child_boxes_.end()) {
-    source_parent->positioned_child_boxes_.erase(positioned_child_iterator);
+      std::find(positioned_child_boxes_.begin(), positioned_child_boxes_.end(),
+                child_box);
+  if (positioned_child_iterator != positioned_child_boxes_.end()) {
+    positioned_child_boxes_.erase(positioned_child_iterator);
+  } else {
+    NOTREACHED();
   }
-  positioned_child_boxes_.push_back(child_box);
 }
 
-void ContainerBox::MoveStackingContextChild(Box* child_box) {
+void ContainerBox::RemoveStackingContextChild(Box* child_box) {
   DCHECK(child_box->IsPositioned() || child_box->IsTransformed());
 
-  ContainerBox* source_parent = child_box->parent_;
-  if (child_box->stacking_context_ == source_parent) {
-    int child_z_index = child_box->GetZIndex();
-    if (child_z_index < 0) {
-      ZIndexSortedList::iterator source_child_iterator =
-          std::find(source_parent->negative_z_index_child_.begin(),
-                    source_parent->negative_z_index_child_.end(), child_box);
-      if (source_child_iterator !=
-          source_parent->negative_z_index_child_.end()) {
-        source_parent->negative_z_index_child_.erase(source_child_iterator);
-      }
-      negative_z_index_child_.insert(child_box);
-    } else {
-      ZIndexSortedList::iterator source_child_iterator = std::find(
-          source_parent->non_negative_z_index_child_.begin(),
-          source_parent->non_negative_z_index_child_.end(), child_box);
-      if (source_child_iterator !=
-          source_parent->non_negative_z_index_child_.end()) {
-        source_parent->non_negative_z_index_child_.erase(source_child_iterator);
-      }
-      non_negative_z_index_child_.insert(child_box);
+  if (child_box->GetZIndex() < 0) {
+    ZIndexSortedList::iterator source_child_iterator =
+        std::find(negative_z_index_child_.begin(),
+                  negative_z_index_child_.end(), child_box);
+    if (source_child_iterator != negative_z_index_child_.end()) {
+      negative_z_index_child_.erase(source_child_iterator);
     }
-    child_box->stacking_context_ = this;
+  } else {
+    ZIndexSortedList::iterator source_child_iterator =
+        std::find(non_negative_z_index_child_.begin(),
+                  non_negative_z_index_child_.end(), child_box);
+    if (source_child_iterator != non_negative_z_index_child_.end()) {
+      non_negative_z_index_child_.erase(source_child_iterator);
+    }
   }
 }
 
@@ -217,8 +199,8 @@ namespace {
 
 math::Vector2dF GetOffsetFromContainingBlockToParent(Box* child_box) {
   math::Vector2dF relative_position;
-  for (Box* ancestor_box = child_box->parent(),
-            *containing_block = child_box->containing_block();
+  for (Box *ancestor_box = child_box->parent(),
+           *containing_block = child_box->GetContainingBlock();
        ancestor_box != containing_block;
        ancestor_box = ancestor_box->parent()) {
     DCHECK(ancestor_box)
@@ -257,6 +239,9 @@ void ContainerBox::InvalidateUpdateSizeInputsOfBoxAndDescendants() {
   }
 }
 
+ContainerBox* ContainerBox::AsContainerBox() { return this; }
+const ContainerBox* ContainerBox::AsContainerBox() const { return this; }
+
 void ContainerBox::UpdateRectOfPositionedChildBoxes(
     const LayoutParams& relative_child_layout_params,
     const LayoutParams& absolute_child_layout_params) {
@@ -265,7 +250,7 @@ void ContainerBox::UpdateRectOfPositionedChildBoxes(
        child_box_iterator != positioned_child_boxes_.end();
        ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    DCHECK_EQ(this, child_box->containing_block());
+    DCHECK_EQ(this, child_box->GetContainingBlock());
 
     const scoped_refptr<cssom::PropertyValue>& child_box_position =
         child_box->computed_style()->position();
@@ -365,7 +350,7 @@ void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
   // box, as described in
   // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
   static_position_offset +=
-      child_box->containing_block()->GetContentBoxOffsetFromPaddingBox();
+      child_box->GetContainingBlock()->GetContentBoxOffsetFromPaddingBox();
   child_box->set_left(child_box->left() + static_position_offset.x());
   child_box->set_top(child_box->top() + static_position_offset.y());
 
@@ -381,10 +366,10 @@ math::Vector2dF GetOffsetFromContainingBlockToStackingContext(Box* child_box) {
           cssom::KeywordValue::GetAbsolute()));
 
   math::Vector2dF relative_position;
-  for (Box *containing_block = child_box->containing_block(),
-           *current_box = child_box->stacking_context();
+  for (Box *containing_block = child_box->GetContainingBlock(),
+           *current_box = child_box->GetStackingContext();
        current_box != containing_block;
-       current_box = current_box->containing_block()) {
+       current_box = current_box->GetContainingBlock()) {
     if (!current_box) {
       NOTREACHED() << "Unable to find stacking context while "
                       "traversing containing blocks.";
@@ -417,12 +402,12 @@ math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
     // box, as described in
     // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
     relative_position -=
-        child_box->containing_block()->GetContentBoxOffsetFromPaddingBox();
+        child_box->GetContainingBlock()->GetContentBoxOffsetFromPaddingBox();
   }
-  for (Box *current_box = child_box->containing_block(),
-           *stacking_context = child_box->stacking_context();
+  for (Box *current_box = child_box->GetContainingBlock(),
+           *stacking_context = child_box->GetStackingContext();
        current_box != stacking_context;
-       current_box = current_box->containing_block()) {
+       current_box = current_box->GetContainingBlock()) {
     if (!current_box) {
       // Elements with absolute position may have their containing block farther
       // up the hierarchy than the stacking context, so handle this case here.
@@ -439,8 +424,8 @@ math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
 
     if (current_box->computed_style()->position() ==
         cssom::KeywordValue::GetAbsolute()) {
-      relative_position -=
-          current_box->containing_block()->GetContentBoxOffsetFromPaddingBox();
+      relative_position -= current_box->GetContainingBlock()
+                               ->GetContentBoxOffsetFromPaddingBox();
     }
   }
   return relative_position;
@@ -459,7 +444,7 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
        iter != z_index_child_list.end(); ++iter) {
     Box* child_box = *iter;
 
-    DCHECK_EQ(this, child_box->stacking_context());
+    DCHECK_EQ(this, child_box->GetStackingContext());
     math::Vector2dF position_offset =
         GetOffsetFromStackingContextToContainingBlock(child_box) +
         offset_from_parent_node;

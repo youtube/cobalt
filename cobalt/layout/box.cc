@@ -62,9 +62,7 @@ Box::Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
          UsedStyleProvider* used_style_provider)
     : css_computed_style_declaration_(css_computed_style_declaration),
       used_style_provider_(used_style_provider),
-      parent_(NULL),
-      containing_block_(NULL),
-      stacking_context_(NULL) {
+      parent_(NULL) {
   DCHECK(animations());
   DCHECK(used_style_provider_);
 
@@ -137,13 +135,13 @@ float Box::GetMarginBoxHeight() const {
 
 float Box::GetMarginBoxLeftEdge() const {
   float left_from_containing_block =
-      containing_block_ ? containing_block_->GetContentBoxLeftEdge() : 0.0f;
+      parent_ ? GetContainingBlock()->GetContentBoxLeftEdge() : 0.0f;
   return left() + left_from_containing_block;
 }
 
 float Box::GetMarginBoxTopEdge() const {
   float top_from_containing_block =
-      containing_block_ ? containing_block_->GetContentBoxTopEdge() : 0.0f;
+      parent_ ? GetContainingBlock()->GetContentBoxTopEdge() : 0.0f;
   return top() + top_from_containing_block;
 }
 
@@ -396,6 +394,8 @@ void Box::RenderAndAnimate(
 }
 
 AnonymousBlockBox* Box::AsAnonymousBlockBox() { return NULL; }
+ContainerBox* Box::AsContainerBox() { return NULL; }
+const ContainerBox* Box::AsContainerBox() const { return NULL; }
 
 #ifdef COBALT_BOX_DUMP_ENABLED
 
@@ -528,6 +528,59 @@ void Box::DumpChildrenWithIndent(std::ostream* /*stream*/,
 
 #endif  // COBALT_BOX_DUMP_ENABLED
 
+const ContainerBox* Box::GetAbsoluteContainingBlock() const {
+  // If the element has 'position: absolute', the containing block is
+  // established by the nearest ancestor with a 'position' of 'absolute',
+  // 'relative' or 'fixed'.
+  if (!parent_) return AsContainerBox();
+  ContainerBox* containing_block = parent_;
+  while (!containing_block->IsContainingBlockForPositionAbsoluteElements()) {
+    containing_block = containing_block->parent_;
+  }
+  return containing_block;
+}
+
+const ContainerBox* Box::GetFixedContainingBlock() const {
+  // If the element has 'position: fixed', the containing block is established
+  // by the viewport in the case of continuous media or the page area in the
+  // case of paged media.
+  // Transformed elements also act as a containing block for fixed positioned
+  // descendants, as described at the bottom of this section:
+  // https://www.w3.org/TR/css-transforms-1/#transform-rendering.
+  if (!parent_) return AsContainerBox();
+  ContainerBox* containing_block = parent_;
+  while (!containing_block->IsContainingBlockForPositionFixedElements()) {
+    containing_block = containing_block->parent_;
+  }
+  return containing_block;
+}
+
+const ContainerBox* Box::GetContainingBlock() const {
+  // Establish the containing block, as described in
+  // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
+  if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
+    return GetAbsoluteContainingBlock();
+  } else if (computed_style()->position() == cssom::KeywordValue::GetFixed()) {
+    return GetFixedContainingBlock();
+  }
+  // If the element's position is "relative" or "static", the containing
+  // block is formed by the content edge of the nearest block container
+  // ancestor box.
+  return parent_;
+}
+
+const ContainerBox* Box::GetStackingContext() const {
+  if (!parent_) return AsContainerBox();
+  if (GetZIndex() == 0) {
+    return GetContainingBlock();
+  }
+  ContainerBox* containing_block = parent_;
+  while (!containing_block->IsStackingContext()) {
+    containing_block = containing_block->parent_;
+  }
+  return containing_block;
+}
+
 int Box::GetZIndex() const {
   if (computed_style()->z_index() == cssom::KeywordValue::GetAuto()) {
     return 0;
@@ -537,25 +590,10 @@ int Box::GetZIndex() const {
   }
 }
 
-void Box::UpdateCrossReferences(ContainerBox* fixed_containing_block) {
-  // TODO(***REMOVED***): While passing NULL into the following parameters works fine
-  //               for the initial containing block, if we wish to support
-  //               partial layouts, we will need to search up our ancestor
-  //               chain for the correct values to pass in here as context.
-  UpdateCrossReferencesWithContext(fixed_containing_block, NULL, NULL);
-}
-
-void Box::UpdateCrossReferencesFrom(Box* reference) {
-  if (reference->stacking_context_) {
-    stacking_context_ = reference->stacking_context_;
-    stacking_context_->AddStackingContextChild(this);
-  }
-}
-
-void Box::InvalidateBoxAncestryReferences() {
-  parent_ = NULL;
-  containing_block_ = NULL;
-  stacking_context_ = NULL;
+void Box::UpdateCrossReferences() {
+  UpdateCrossReferencesWithContext(GetFixedContainingBlock(),
+                                   GetAbsoluteContainingBlock(),
+                                   GetStackingContext());
 }
 
 void Box::UpdateCrossReferencesWithContext(
@@ -586,9 +624,8 @@ void Box::UpdateCrossReferencesWithContext(
     }
 
     // Notify our containing block that we are a positioned child of theirs.
-    if (containing_block && stacking_context) {
-      SetupAsPositionedChild(containing_block, stacking_context);
-    }
+    DCHECK(containing_block && stacking_context);
+    SetupAsPositionedChild(containing_block, stacking_context);
   }
 }
 
@@ -620,23 +657,27 @@ void Box::UpdatePaddings(const LayoutParams& layout_params) {
           computed_style(), layout_params.containing_block_size)));
 }
 
+void Box::SetupAsPositionedChild() {
+  SetupAsPositionedChild(GetContainingBlock(), GetStackingContext());
+}
+
 void Box::SetupAsPositionedChild(ContainerBox* containing_block,
                                  ContainerBox* stacking_context) {
   DCHECK(IsPositioned() || IsTransformed());
 
-  // Setup the link between this child box and its containing block.
-  containing_block_ = containing_block;
-
-  // Now setup this child box within its containing block/stacking context's
-  // list of children.
+  // Setup this child box within its containing block/stacking context's list
+  // of children.
   containing_block->AddContainingBlockChild(this);
 
-  if (GetZIndex() != 0) {
-    stacking_context_ = stacking_context;
-  } else {
-    stacking_context_ = containing_block;
+  if (GetZIndex() == 0) {
+    stacking_context = containing_block;
   }
-  stacking_context_->AddStackingContextChild(this);
+  stacking_context->AddStackingContextChild(this);
+}
+
+void Box::RemoveAsPositionedChild() {
+  GetContainingBlock()->RemoveContainingBlockChild(this);
+  GetStackingContext()->RemoveStackingContextChild(this);
 }
 
 namespace {
