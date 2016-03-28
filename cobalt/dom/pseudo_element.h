@@ -63,7 +63,9 @@ class PseudoElement {
     css_computed_style_declaration_->set_data(computed_style);
   }
 
-  cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
+  cssom::RulesWithCascadePrecedence* matching_rules() {
+    return &matching_rules_;
+  }
 
   cssom::TransitionSet* css_transitions() { return &css_transitions_.value(); }
   cssom::AnimationSet* css_animations() { return &css_animations_.value(); }
@@ -88,7 +90,7 @@ class PseudoElement {
   base::optional<CSSAnimationsAdapter> animations_adapter_;
   base::optional<cssom::AnimationSet> css_animations_;
 
-  cssom::RulesWithCascadePriority matching_rules_;
+  cssom::RulesWithCascadePrecedence matching_rules_;
 
   // PseudoElement is a friend of Animatable so that animatable can insert and
   // remove animations into PseudoElement's set of animations.

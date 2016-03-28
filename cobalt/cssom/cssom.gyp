@@ -34,7 +34,7 @@
         'before_pseudo_element.h',
         'calc_value.cc',
         'calc_value.h',
-        'cascade_priority.h',
+        'cascade_precedence.h',
         'cascaded_style.cc',
         'cascaded_style.h',
         'character_classification.h',

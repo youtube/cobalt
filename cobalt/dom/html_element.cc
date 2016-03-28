@@ -584,7 +584,7 @@ void HTMLElement::OnRemoveAttribute(const std::string& name) {
 namespace {
 
 scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
-    cssom::RulesWithCascadePriority* matching_rules,
+    cssom::RulesWithCascadePrecedence* matching_rules,
     cssom::GURLMap* property_key_to_base_url_map,
     const scoped_refptr<const cssom::CSSDeclaredStyleData>& inline_style,
     const scoped_refptr<const cssom::CSSComputedStyleData>&
