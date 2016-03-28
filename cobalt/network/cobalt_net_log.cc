@@ -48,7 +48,9 @@ void CobaltNetLog::OnAddEntry(const net::NetLog::Entry& entry) {
   FOR_EACH_OBSERVER(ThreadSafeObserver, observers_, OnAddEntry(entry));
 }
 
-uint32 CobaltNetLog::NextID() { return source_id_.GetNext(); }
+uint32 CobaltNetLog::NextID() {
+  return static_cast<uint32>(source_id_.GetNext());
+}
 
 net::NetLog::LogLevel CobaltNetLog::GetLogLevel() const {
   base::subtle::Atomic32 log_level =
