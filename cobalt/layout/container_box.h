@@ -56,6 +56,9 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
 
   void InvalidateUpdateSizeInputsOfBoxAndDescendants() OVERRIDE;
 
+  ContainerBox* AsContainerBox() OVERRIDE;
+  const ContainerBox* AsContainerBox() const OVERRIDE;
+
   void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
@@ -132,9 +135,9 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   void AddContainingBlockChild(Box* child_box);
   void AddStackingContextChild(Box* child_box);
 
-  // These helper functions are called from MoveChildrenFrom().
-  void MoveContainingBlockChild(Box* child_box);
-  void MoveStackingContextChild(Box* child_box);
+  // These helper functions are called from RemoveAsPositionedChild().
+  void RemoveContainingBlockChild(Box* child_box);
+  void RemoveStackingContextChild(Box* child_box);
 
   // Updates used values of left/top/right/bottom given the child_box's
   // 'position' property is set to 'relative'.
