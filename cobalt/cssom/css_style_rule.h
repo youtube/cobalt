@@ -25,7 +25,7 @@
 #include "base/compiler_specific.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/cssom/cascade_priority.h"
+#include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_rule_style_declaration.h"
@@ -89,9 +89,9 @@ class CSSStyleRule : public CSSRule {
   DISALLOW_COPY_AND_ASSIGN(CSSStyleRule);
 };
 
-typedef std::pair<scoped_refptr<CSSStyleRule>, CascadePriority>
-    RuleWithCascadePriority;
-typedef std::vector<RuleWithCascadePriority> RulesWithCascadePriority;
+typedef std::pair<scoped_refptr<CSSStyleRule>, CascadePrecedence>
+    RuleWithCascadePrecedence;
+typedef std::vector<RuleWithCascadePrecedence> RulesWithCascadePrecedence;
 
 }  // namespace cssom
 }  // namespace cobalt
