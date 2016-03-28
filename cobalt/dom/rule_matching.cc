@@ -25,7 +25,7 @@
 #include "cobalt/base/unused.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/before_pseudo_element.h"
-#include "cobalt/cssom/cascade_priority.h"
+#include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/combinator.h"
@@ -316,7 +316,7 @@ void AddRulesOnNodeToElement(HTMLElement* element,
       node->compound_selector()->pseudo_element();
 
   // Where to add matching rules.
-  cssom::RulesWithCascadePriority* target_matching_rules;
+  cssom::RulesWithCascadePrecedence* target_matching_rules;
 
   if (!pseudo_element) {
     target_matching_rules = element->matching_rules();
@@ -352,7 +352,7 @@ void AddRulesOnNodeToElement(HTMLElement* element,
       continue;
     }
     DCHECK(rule->parent_style_sheet());
-    cssom::CascadePriority precedence(
+    cssom::CascadePrecedence precedence(
         pseudo_element ? cssom::kNormalOverride
                        : rule->parent_style_sheet()->origin(),
         node->cumulative_specificity(),

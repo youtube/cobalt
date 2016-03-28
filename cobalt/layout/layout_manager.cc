@@ -22,7 +22,7 @@
 #include "base/debug/trace_event.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
-#include "cobalt/cssom/cascade_priority.h"
+#include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/benchmark_stat_names.h"

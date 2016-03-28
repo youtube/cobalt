@@ -38,7 +38,7 @@ class CSSDeclaredStyleData;
 //   https://www.w3.org/TR/css-cascade-3/#cascading
 scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
     const scoped_refptr<const CSSDeclaredStyleData>& inline_style,
-    RulesWithCascadePriority* matching_rules,
+    RulesWithCascadePrecedence* matching_rules,
     GURLMap* property_key_to_base_url_map);
 
 }  // namespace cssom

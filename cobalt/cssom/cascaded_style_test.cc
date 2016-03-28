@@ -17,7 +17,7 @@
 #include "cobalt/cssom/cascaded_style.h"
 
 #include "cobalt/css_parser/parser.h"
-#include "cobalt/cssom/cascade_priority.h"
+#include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_declaration_data.h"
 #include "cobalt/cssom/css_declared_style_data.h"
@@ -33,13 +33,16 @@ namespace cssom {
 TEST(CascadedStyleTest, PromoteToCascadedStyle) {
   scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
-  RulesWithCascadePriority rules_with_cascade_priority;
+  RulesWithCascadePrecedence rules_with_cascade_precedence;
   cssom::GURLMap property_key_to_base_url_map;
 
   style->SetPropertyValueAndImportance(kVerticalAlignProperty,
                                        KeywordValue::GetBottom(), true);
   style->SetPropertyValueAndImportance(kTextAlignProperty,
                                        KeywordValue::GetLeft(), false);
+
+  // The order of cascade precedence of the following rules:
+  // rule 2 > rule 3 > rule 1.
 
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser->ParseRule(
@@ -51,9 +54,9 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
                     "}",
                     base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
-  CascadePriority cascade_priority_1(kNormalUserAgent);  // Lowest priority.
-  rules_with_cascade_priority.push_back(
-      std::make_pair(css_style_rule_1, cascade_priority_1));
+  CascadePrecedence cascade_precedence_1(kNormalUserAgent);
+  rules_with_cascade_precedence.push_back(
+      std::make_pair(css_style_rule_1, cascade_precedence_1));
 
   scoped_refptr<CSSStyleRule> css_style_rule_2 =
       css_parser->ParseRule(
@@ -67,9 +70,9 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
                     "}",
                     base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
-  CascadePriority cascade_priority_2(kNormalOverride);  // Highest priority.
-  rules_with_cascade_priority.push_back(
-      std::make_pair(css_style_rule_2, cascade_priority_2));
+  CascadePrecedence cascade_precedence_2(kNormalOverride);
+  rules_with_cascade_precedence.push_back(
+      std::make_pair(css_style_rule_2, cascade_precedence_2));
 
   scoped_refptr<CSSStyleRule> css_style_rule_3 =
       css_parser->ParseRule(
@@ -81,12 +84,12 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
                     "}",
                     base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
-  CascadePriority cascade_priority_3(kNormalAuthor);  // Middle priority.
-  rules_with_cascade_priority.push_back(
-      std::make_pair(css_style_rule_3, cascade_priority_3));
+  CascadePrecedence cascade_precedence_3(kNormalAuthor);
+  rules_with_cascade_precedence.push_back(
+      std::make_pair(css_style_rule_3, cascade_precedence_3));
 
   scoped_refptr<cssom::CSSComputedStyleData> computed_style =
-      PromoteToCascadedStyle(style, &rules_with_cascade_priority,
+      PromoteToCascadedStyle(style, &rules_with_cascade_precedence,
                              &property_key_to_base_url_map);
 
   EXPECT_EQ(computed_style->left(),
@@ -111,8 +114,11 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
 TEST(CascadedStyleTest, PromoteToCascadedStyleWithBackgroundImage) {
   scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
-  RulesWithCascadePriority rules_with_cascade_priority;
+  RulesWithCascadePrecedence rules_with_cascade_precedence;
   cssom::GURLMap property_key_to_base_url_map;
+
+  // The order of cascade precedence of the following rules:
+  // rule 2 > rule 1.
 
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser->ParseRule(
@@ -122,9 +128,9 @@ TEST(CascadedStyleTest, PromoteToCascadedStyleWithBackgroundImage) {
                     "}",
                     base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
-  CascadePriority cascade_priority_1(kNormalUserAgent);  // Lowest priority.
-  rules_with_cascade_priority.push_back(
-      std::make_pair(css_style_rule_1, cascade_priority_1));
+  CascadePrecedence cascade_precedence_1(kNormalUserAgent);
+  rules_with_cascade_precedence.push_back(
+      std::make_pair(css_style_rule_1, cascade_precedence_1));
 
   scoped_refptr<CSSStyleRule> css_style_rule_2 =
       css_parser->ParseRule(
@@ -135,16 +141,16 @@ TEST(CascadedStyleTest, PromoteToCascadedStyleWithBackgroundImage) {
                     "}",
                     base::SourceLocation("[object CascadedStyleTest]", 1, 1))
           ->AsCSSStyleRule();
-  CascadePriority cascade_priority_2(kNormalOverride);  // Highest priority.
-  rules_with_cascade_priority.push_back(
-      std::make_pair(css_style_rule_2, cascade_priority_2));
+  CascadePrecedence cascade_precedence_2(kNormalOverride);
+  rules_with_cascade_precedence.push_back(
+      std::make_pair(css_style_rule_2, cascade_precedence_2));
 
   scoped_refptr<CSSStyleSheet> parent_style_sheet(new CSSStyleSheet());
   parent_style_sheet->SetLocationUrl(GURL("https:///www.youtube.com/tv/img"));
   css_style_rule_2->set_parent_style_sheet(parent_style_sheet.get());
 
   scoped_refptr<cssom::CSSComputedStyleData> computed_style =
-      PromoteToCascadedStyle(style, &rules_with_cascade_priority,
+      PromoteToCascadedStyle(style, &rules_with_cascade_precedence,
                              &property_key_to_base_url_map);
 
   EXPECT_EQ(computed_style->left(),

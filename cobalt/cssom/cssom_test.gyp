@@ -21,7 +21,7 @@
       'target_name': 'cssom_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        'cascade_priority_test.cc',
+        'cascade_precedence_test.cc',
         'cascaded_style_test.cc',
         'computed_style_test.cc',
         'css_computed_style_data_test.cc',

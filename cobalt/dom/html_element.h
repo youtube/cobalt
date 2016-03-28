@@ -158,7 +158,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Rule matching related methods.
   //
   // Returns the cached matching rules of this element.
-  cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
+  cssom::RulesWithCascadePrecedence* matching_rules() {
+    return &matching_rules_;
+  }
   // Returns the rule matching state of this element.
   RuleMatchingState* rule_matching_state() { return &rule_matching_state_; }
   // Invalidates the matching rules and rule matching state in this element and
@@ -268,7 +270,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   cssom::AnimationSet css_animations_;
 
   // The following fields are used in rule matching.
-  cssom::RulesWithCascadePriority matching_rules_;
+  cssom::RulesWithCascadePrecedence matching_rules_;
   RuleMatchingState rule_matching_state_;
 
   // This contains information about the boxes generated from the element.
