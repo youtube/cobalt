@@ -356,6 +356,8 @@ class Box : public base::RefCounted<Box> {
 
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
+  virtual ContainerBox* AsContainerBox();
+  virtual const ContainerBox* AsContainerBox() const;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
   // Used by box generator to set a DOM node that produced this box.
@@ -367,11 +369,32 @@ class Box : public base::RefCounted<Box> {
   ContainerBox* parent() { return parent_; }
   const ContainerBox* parent() const { return parent_; }
 
-  ContainerBox* containing_block() { return containing_block_; }
-  const ContainerBox* containing_block() const { return containing_block_; }
+  const ContainerBox* GetAbsoluteContainingBlock() const;
+  ContainerBox* GetAbsoluteContainingBlock() {
+    // Return a mutable ContainerBox.
+    return const_cast<ContainerBox*>(
+        static_cast<const Box*>(this)->GetAbsoluteContainingBlock());
+  }
+  const ContainerBox* GetFixedContainingBlock() const;
+  ContainerBox* GetFixedContainingBlock() {
+    // Return a mutable ContainerBox.
+    return const_cast<ContainerBox*>(
+        static_cast<const Box*>(this)->GetFixedContainingBlock());
+  }
 
-  ContainerBox* stacking_context() { return stacking_context_; }
-  const ContainerBox* stacking_context() const { return stacking_context_; }
+  const ContainerBox* GetContainingBlock() const;
+  ContainerBox* GetContainingBlock() {
+    // Return a mutable ContainerBox.
+    return const_cast<ContainerBox*>(
+        static_cast<const Box*>(this)->GetContainingBlock());
+  }
+
+  const ContainerBox* GetStackingContext() const;
+  ContainerBox* GetStackingContext() {
+    // Return a mutable ContainerBox.
+    return const_cast<ContainerBox*>(
+        static_cast<const Box*>(this)->GetStackingContext());
+  }
 
   // TODO(***REMOVED***): This only depends on the computed style, maybe this function
   //               should move into a newly created CSSComputedStyleDeclaration
@@ -383,15 +406,17 @@ class Box : public base::RefCounted<Box> {
   // Updates all cross-references to other boxes in the box tree (e.g. stacking
   // contexts and containing blocks).  Calling this function will recursively
   // resolve these links for all elements in the box tree.
-  void UpdateCrossReferences(ContainerBox* fixed_containing_block);
+  void UpdateCrossReferences();
 
-  // This copies the cross-references from the passed box into the current box.
-  // This is used for newly generated boxes that are created when boxes are
-  // split after layout has performed the UpdateCrossReferences() pass.
-  void UpdateCrossReferencesFrom(Box* reference);
+  // Invalidates the parent of the box, used in box generation for partial
+  // layout.
+  void InvalidateParent() { parent_ = NULL; }
 
-  // Invalidates the ancestor references of the box.
-  void InvalidateBoxAncestryReferences();
+  // Sets up this box as a positioned box (thus, Box::IsPositioned() must return
+  // true) with the associated containing block and stacking context.
+  // Note that the box's parent node remains unchanged throughout this, and will
+  // always be the same as if the box was not positioned.
+  void SetupAsPositionedChild();
 
  protected:
   UsedStyleProvider* used_style_provider() const {
@@ -507,6 +532,7 @@ class Box : public base::RefCounted<Box> {
   // always be the same as if the box was not positioned.
   void SetupAsPositionedChild(ContainerBox* containing_block,
                               ContainerBox* stacking_context);
+  void RemoveAsPositionedChild();
 
   // Called after TryPlaceEllipsisOrProcessPlacedEllipsis() determines that the
   // box is impacted by the ellipsis. This handles both determining the location
@@ -580,14 +606,6 @@ class Box : public base::RefCounted<Box> {
   // derived from DOM element A and box B is derived from DOM element B, then
   // box A will be the parent of box B.
   ContainerBox* parent_;
-
-  // A pointer to this box's containing block.  The containing block is always
-  // an ancestor of this element, though not necessarily the direct parent.
-  ContainerBox* containing_block_;
-
-  // A pointer to this box's stacking context.  The containing block is always
-  // an ancestor of this element, though not necessarily the direct parent.
-  ContainerBox* stacking_context_;
 
   // Used values of "left" and "top" properties.
   math::Vector2dF margin_box_offset_from_containing_block_;
