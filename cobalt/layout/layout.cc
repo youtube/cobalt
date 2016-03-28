@@ -106,8 +106,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatUpdateCrossReferences);
     // Since scrolling is not supported in Cobalt, setting the fixed containing
     // block to be equal to the initial containing block will work perfectly.
-    (*initial_containing_block)
-        ->UpdateCrossReferences(initial_containing_block->get());
+    (*initial_containing_block)->UpdateCrossReferences();
   }
 
   // Layout.
