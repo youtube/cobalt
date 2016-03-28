@@ -25,7 +25,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
-#include "cobalt/cssom/cascade_priority.h"
+#include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/style_sheet.h"
 #include "cobalt/math/size.h"

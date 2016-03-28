@@ -31,9 +31,9 @@ namespace {
 
 void SetPropertyValuesOfHigherPrecedence(
     const scoped_refptr<const CSSDeclaredStyleData>& style,
-    const CascadePriority& precedence_normal,
-    const CascadePriority& precedence_important,
-    base::optional<CascadePriority>* cascade_precedences,
+    const CascadePrecedence& precedence_normal,
+    const CascadePrecedence& precedence_important,
+    base::optional<CascadePrecedence>* cascade_precedences,
     scoped_refptr<CSSComputedStyleData>* cascaded_style) {
   const CSSDeclaredStyleData::PropertyValues& property_values =
       style->declared_property_values();
@@ -45,9 +45,9 @@ void SetPropertyValuesOfHigherPrecedence(
     DCHECK_GT(key, kNoneProperty);
     DCHECK_LE(key, kMaxLonghandPropertyKey);
 
-    const CascadePriority& precedence = style->IsDeclaredPropertyImportant(key)
-                                            ? precedence_important
-                                            : precedence_normal;
+    const CascadePrecedence& precedence =
+        style->IsDeclaredPropertyImportant(key) ? precedence_important
+                                                : precedence_normal;
     if (!(cascade_precedences[key]) ||
         *(cascade_precedences[key]) < precedence) {
       cascade_precedences[key] = precedence;
@@ -60,32 +60,35 @@ void SetPropertyValuesOfHigherPrecedence(
 
 scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
     const scoped_refptr<const CSSDeclaredStyleData>& inline_style,
-    RulesWithCascadePriority* matching_rules,
+    RulesWithCascadePrecedence* matching_rules,
     GURLMap* property_key_to_base_url_map) {
   scoped_refptr<CSSComputedStyleData> cascaded_style(
       new CSSComputedStyleData());
 
-  // A sparce vector of CascadePriority values for all possible property values.
-  base::optional<CascadePriority>
+  // A sparce vector of CascadePrecedence values for all possible property
+  // values.
+  base::optional<CascadePrecedence>
       cascade_precedences[static_cast<size_t>(kNumLonghandProperties)];
 
   if (inline_style) {
-    const CascadePriority precedence_normal = CascadePriority(kImportantMin);
-    const CascadePriority precedence_important = CascadePriority(kImportantMax);
+    const CascadePrecedence precedence_normal =
+        CascadePrecedence(kImportantMin);
+    const CascadePrecedence precedence_important =
+        CascadePrecedence(kImportantMax);
     SetPropertyValuesOfHigherPrecedence(inline_style, precedence_normal,
                                         precedence_important,
                                         cascade_precedences, &cascaded_style);
   }
 
   if (!matching_rules->empty()) {
-    for (RulesWithCascadePriority::const_iterator rule_iterator =
+    for (RulesWithCascadePrecedence::const_iterator rule_iterator =
              matching_rules->begin();
          rule_iterator != matching_rules->end(); ++rule_iterator) {
       const scoped_refptr<const CSSDeclaredStyleData>& declared_style =
           rule_iterator->first->declared_style_data();
       if (declared_style) {
-        const CascadePriority& precedence_normal = rule_iterator->second;
-        CascadePriority precedence_important = rule_iterator->second;
+        const CascadePrecedence& precedence_normal = rule_iterator->second;
+        CascadePrecedence precedence_important = rule_iterator->second;
         precedence_important.SetImportant();
         SetPropertyValuesOfHigherPrecedence(
             declared_style, precedence_normal, precedence_important,
