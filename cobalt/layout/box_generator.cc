@@ -118,7 +118,7 @@ void BoxGenerator::Visit(dom::Element* element) {
            box_iterator != boxes_.end(); ++box_iterator) {
         Box* box = *box_iterator;
         do {
-          box->InvalidateBoxAncestryReferences();
+          box->InvalidateParent();
           box->InvalidateUpdateSizeInputsOfBoxAndDescendants();
           box = box->GetSplitSibling();
         } while (box != NULL);
