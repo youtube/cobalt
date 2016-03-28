@@ -17,6 +17,6 @@
 #define COBALT_VERSION_H_
 
 // Cobalt release number, see ***REMOVED***cobalt-versioning#heading=h.ax6kwqmkf911.
-#define COBALT_VERSION "1"
+#define COBALT_VERSION "2"
 
 #endif  // COBALT_VERSION_H_
