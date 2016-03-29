@@ -12,29 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_NOUSER_USER_INTERNAL_H_
-#define STARBOARD_SHARED_NOUSER_USER_INTERNAL_H_
+// Sunny Day cases tested in the read/write tests.
 
-#include "starboard/shared/internal_only.h"
-#include "starboard/user.h"
-
-struct SbUserPrivate {
-  static const int kMaxUserName = 256;
-
-  const char name[kMaxUserName];
-  const char id[kMaxUserName];
-};
+#include "starboard/storage.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace shared {
-namespace nouser {
-// The one instance of the signed-in user.
-extern SbUserPrivate g_user;
+namespace nplb {
+namespace {
 
-// A platform implementation of getting the home directory for a user.
-bool GetHomeDirectory(SbUser user, char* out_path, int path_size);
-}  // namespace nouser
-}  // namespace shared
+TEST(SbStorageCloseRecordTest, RainyDayInvalidRecord) {
+  EXPECT_FALSE(SbStorageCloseRecord(kSbStorageInvalidRecord));
+}
+
+}  // namespace
+}  // namespace nplb
 }  // namespace starboard
-
-#endif  // STARBOARD_SHARED_NOUSER_USER_INTERNAL_H_
