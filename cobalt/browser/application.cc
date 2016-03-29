@@ -414,6 +414,9 @@ void Application::OnNetworkEvent(const base::Event* event) {
       base::polymorphic_downcast<const network::NetworkEvent*>(event);
   if (network_event->type() == network::NetworkEvent::kDisconnection) {
     browser_module_->Navigate(GURL("h5vcc://network-failure"));
+  } else if (network_event->type() == network::NetworkEvent::kConnection) {
+    DLOG(INFO) << "Got network connection event, reloading browser.";
+    browser_module_->Navigate(GURL());
   }
 }
 
