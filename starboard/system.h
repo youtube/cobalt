@@ -41,19 +41,15 @@ typedef enum SbSystemPathId {
 
   // Path to the directory where debug output (e.g. logs, trace output,
   // screenshots) can be written into.
-  // TODO(***REMOVED***): Remove from release builds?
   kSbSystemPathDebugOutputDirectory,
 
   // Path to the directory containing the root of the source tree.
-  // TODO(***REMOVED***): Remove from release builds.
   kSbSystemPathSourceDirectory,
 
   // Path to a directory where temporary files can be written.
-  // TODO(***REMOVED***): Remove from release builds?
   kSbSystemPathTempDirectory,
 
   // Path to a directory where test results can be written.
-  // TODO(***REMOVED***): Remove from release builds?
   kSbSystemPathTestOutputDirectory,
 
   // Full path to the executable file.
