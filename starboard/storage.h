@@ -38,15 +38,15 @@ typedef struct SbStorageRecordPrivate SbStorageRecordPrivate;
 typedef SbStorageRecordPrivate* SbStorageRecord;
 
 // Well-defined value for an invalid storage record handle.
-#define kSbStorageRecordInvalid (SbStorageRecord) NULL
+#define kSbStorageInvalidRecord (SbStorageRecord) NULL
 
 // Returns whether the given storage record handle is valid.
 SB_C_INLINE bool SbStorageIsValidRecord(SbStorageRecord record) {
-  return record != kSbStorageRecordInvalid;
+  return record != kSbStorageInvalidRecord;
 }
 
 // Opens the storage record for |user|, providing a handle to the opened
-// record. |user| must be a valid SbUser, or kSbStorageRecordInvalid will be
+// record. |user| must be a valid SbUser, or kSbStorageInvalidRecord will be
 // returned. Performs blocking I/O on the calling thread.
 SB_EXPORT SbStorageRecord SbStorageOpenRecord(SbUser user);
 
@@ -60,15 +60,15 @@ SB_EXPORT bool SbStorageCloseRecord(SbStorageRecord record);
 
 // Returns the size of |record|, or -1 on error. Performs blocking I/O on the
 // calling thread.
-SB_EXPORT int SbStorageGetRecordSize(SbStorageRecord record);
+SB_EXPORT int64_t SbStorageGetRecordSize(SbStorageRecord record);
 
 // Reads up to |data_size| bytes from |record| into |out_data|, starting at the
 // beginning of the record. Returns the number of actual bytes read, which must
 // be <= |size|, or -1 on error. This function makes a best-effort and performs
 // blocking I/O on the calling thread.
-SB_EXPORT int SbStorageReadRecord(SbStorageRecord record,
-                                  char* out_data,
-                                  int data_size);
+SB_EXPORT int64_t SbStorageReadRecord(SbStorageRecord record,
+                                      char* out_data,
+                                      int64_t data_size);
 
 // Replaces the data in |record| with |size| bytes from |data|. This always
 // deletes any previous data in that record. Returns whether the write
@@ -76,7 +76,7 @@ SB_EXPORT int SbStorageReadRecord(SbStorageRecord record,
 // calling thread.
 SB_EXPORT bool SbStorageWriteRecord(SbStorageRecord record,
                                     const char* data,
-                                    int data_size);
+                                    int64_t data_size);
 
 // Deletes |user|'s storage record, returning whether the record both existed
 // and was successfully deleted. This must not be called while |user|'s storage
@@ -85,6 +85,59 @@ SB_EXPORT bool SbStorageDeleteRecord(SbUser user);
 
 #ifdef __cplusplus
 }  // extern "C"
+#endif
+
+#ifdef __cplusplus
+namespace starboard {
+
+// Inline scoped wrapper for SbStorageRecord.
+class StorageRecord {
+ public:
+  StorageRecord()
+      : user_(SbUserGetCurrent()), record_(kSbStorageInvalidRecord) {
+    if (SbUserIsValid(user_)) {
+      record_ = SbStorageOpenRecord(user_);
+    }
+  }
+
+  explicit StorageRecord(SbUser user)
+      : user_(user), record_(kSbStorageInvalidRecord) {
+    if (SbUserIsValid(user_)) {
+      record_ = SbStorageOpenRecord(user_);
+    }
+  }
+
+  ~StorageRecord() { Close(); }
+  bool IsValid() { return SbStorageIsValidRecord(record_); }
+  int64_t GetSize() { return SbStorageGetRecordSize(record_); }
+  int64_t Read(char* out_data, int64_t data_size) {
+    return SbStorageReadRecord(record_, out_data, data_size);
+  }
+
+  bool Write(const char* data, int64_t data_size) {
+    return SbStorageWriteRecord(record_, data, data_size);
+  }
+
+  bool Close() {
+    if (SbStorageIsValidRecord(record_)) {
+      SbStorageRecord record = record_;
+      record_ = kSbStorageInvalidRecord;
+      return SbStorageCloseRecord(record);
+    }
+    return false;
+  }
+
+  bool Delete() {
+    Close();
+    return SbStorageDeleteRecord(user_);
+  }
+
+ private:
+  SbUser user_;
+  SbStorageRecord record_;
+};
+
+}  // namespace starboard
 #endif
 
 #endif  // STARBOARD_STORAGE_H_
