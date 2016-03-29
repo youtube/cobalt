@@ -40,6 +40,9 @@ typedef enum SbUserPropertyId {
   // platforms.
   kSbUserPropertyAvatarUrl,
 
+  // The path to a user's home directory, if supported on this platform.
+  kSbUserPropertyHomeDirectory,
+
   // The username of a user, which may be the same as the User ID, or it may be
   // friendlier.
   kSbUserPropertyUserName,

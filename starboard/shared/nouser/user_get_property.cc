@@ -25,8 +25,19 @@ int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id) {
   switch (property_id) {
     case kSbUserPropertyUserName:
       return SbStringGetLength(user->name) + 1;
+
     case kSbUserPropertyUserId:
       return SbStringGetLength(user->id) + 1;
+
+    case kSbUserPropertyHomeDirectory: {
+      char path[SB_FILE_MAX_PATH];
+      if (!starboard::shared::nouser::GetHomeDirectory(
+              user, path, SB_ARRAY_SIZE_INT(path))) {
+        return 0;
+      }
+      return SbStringGetLength(path);
+    }
+
     case kSbUserPropertyAvatarUrl:
     default:
       return 0;
@@ -43,6 +54,10 @@ bool SbUserGetProperty(SbUser user,
   }
 
   switch (property_id) {
+    case kSbUserPropertyHomeDirectory:
+      return starboard::shared::nouser::GetHomeDirectory(user, out_value,
+                                                         value_size);
+
     case kSbUserPropertyUserName:
       SbStringCopy(out_value, user->name, value_size);
       return true;
