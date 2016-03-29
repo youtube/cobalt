@@ -229,6 +229,14 @@ BrowserModule::~BrowserModule() {}
 // Algorithm for Navigate:
 //   https://www.w3.org/TR/html5/browsers.html#navigate
 void BrowserModule::Navigate(const GURL& url) {
+  // Repost to the correct message loop if necessary.
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&BrowserModule::Navigate, base::Unretained(this), url));
+    return;
+  }
+
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   NavigateWithCallback(url, base::Closure());
 }
