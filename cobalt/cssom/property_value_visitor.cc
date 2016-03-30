@@ -176,7 +176,8 @@ void DefaultingPropertyValueVisitor::VisitUrlSrc(UrlSrcValue* url_src_value) {
 
 void NotReachedPropertyValueVisitor::VisitDefault(
     PropertyValue* property_value) {
-  NOTREACHED() << "Unsupported property value: " << property_value->ToString();
+  DLOG(ERROR) << "Unsupported property value: " << property_value->ToString();
+  NOTREACHED();
 }
 
 }  // namespace cssom
