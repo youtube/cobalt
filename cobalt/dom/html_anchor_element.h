@@ -19,7 +19,10 @@
 
 #include <string>
 
+#include "base/bind.h"
+#include "base/compiler_specific.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/url_utils.h"
 
 namespace cobalt {
 namespace dom {
@@ -34,7 +37,41 @@ class HTMLAnchorElement : public HTMLElement {
   static const char kTagName[];
 
   explicit HTMLAnchorElement(Document* document)
-      : HTMLElement(document, base::Token(kTagName)) {}
+      : HTMLElement(document, base::Token(kTagName)),
+        ALLOW_THIS_IN_INITIALIZER_LIST(url_utils_(base::Bind(
+            &HTMLAnchorElement::UpdateSteps, base::Unretained(this)))) {}
+
+  // Web API: URLUtils (implements)
+  //
+  std::string href() const { return url_utils_.href(); }
+  void set_href(const std::string& href) { url_utils_.set_href(href); }
+
+  std::string protocol() const { return url_utils_.protocol(); }
+  void set_protocol(const std::string& protocol) {
+    url_utils_.set_protocol(protocol);
+  }
+
+  std::string host() const { return url_utils_.host(); }
+  void set_host(const std::string& host) { url_utils_.set_host(host); }
+
+  std::string hostname() const { return url_utils_.hostname(); }
+  void set_hostname(const std::string& hostname) {
+    url_utils_.set_hostname(hostname);
+  }
+
+  std::string port() const { return url_utils_.port(); }
+  void set_port(const std::string& port) { url_utils_.set_port(port); }
+
+  std::string pathname() const { return url_utils_.pathname(); }
+  void set_pathname(const std::string& pathname) {
+    url_utils_.set_pathname(pathname);
+  }
+
+  std::string hash() const { return url_utils_.hash(); }
+  void set_hash(const std::string& hash) { url_utils_.set_hash(hash); }
+
+  std::string search() const { return url_utils_.search(); }
+  void set_search(const std::string& search) { url_utils_.set_search(search); }
 
   // Custom, not in any spec.
   scoped_refptr<HTMLAnchorElement> AsHTMLAnchorElement() OVERRIDE {
@@ -45,6 +82,14 @@ class HTMLAnchorElement : public HTMLElement {
 
  private:
   ~HTMLAnchorElement() OVERRIDE {}
+
+  void OnSetAttribute(const std::string& name,
+                      const std::string& value) OVERRIDE;
+  void OnRemoveAttribute(const std::string& name) OVERRIDE;
+
+  void UpdateSteps(const std::string& value);
+
+  URLUtils url_utils_;
 };
 
 }  // namespace dom

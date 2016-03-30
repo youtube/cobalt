@@ -59,6 +59,7 @@
         'text_test.cc',
         'time_ranges_test.cc',
         'typed_array_test.cc',
+        'url_utils_test.cc',
         'window_test.cc',
         'xml_document_test.cc',
       ],
