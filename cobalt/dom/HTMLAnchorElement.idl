@@ -14,4 +14,7 @@
  * limitations under the License.
  */
 
+// https://www.w3.org/TR/html5/text-level-semantics.html#the-a-element
+
 interface HTMLAnchorElement : HTMLElement {};
+HTMLAnchorElement implements URLUtils;
