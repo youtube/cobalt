@@ -48,10 +48,10 @@ class SmoothedValue {
   // Returns the value of t to be used in cubic bezier equations.
   double t() const;
 
-  double P0() const { return *previous_target_; }
+  double P0() const { return *previous_value_; }
 
   // Returns the value of P1 to be used in cubic bezier equations.
-  // Here, we calculate it from |previous_derivative_| and |previous_target_|
+  // Here, we calculate it from |previous_derivative_| and |previous_value_|
   // in such a way that it results in a curve that at t = 0 has a derivative
   // equal to |previous_deriviative_|.
   double P1() const;
@@ -73,8 +73,9 @@ class SmoothedValue {
   // Tracks when |target_| was last set.
   base::TimeTicks target_set_time_;
 
-  // The previous value of |target_|.
-  base::optional<double> previous_target_;
+  // The value returned by GetCurrentValue() at the time that the target was
+  // last set.
+  base::optional<double> previous_value_;
 
   // The derivative of GetCurrentValue() when target was last set.
   double previous_derivative_;
