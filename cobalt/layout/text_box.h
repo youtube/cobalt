@@ -47,6 +47,7 @@ class TextBox : public Box {
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
   scoped_refptr<Box> TrySplitAt(float available_width,
                                 bool allow_overflow) OVERRIDE;
+  Box* GetSplitSibling() const OVERRIDE;
 
   bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
   void ResetEllipses() OVERRIDE;
@@ -163,6 +164,11 @@ class TextBox : public Box {
 
   // A vertical offset of the baseline relatively to the origin of the text box.
   base::optional<float> baseline_offset_from_top_;
+
+  // A reference to the next text box in a linked list of text boxes produced
+  // from splits of the initial text box. This enables HTMLElement to retain
+  // access to all of its layout boxes after they are split.
+  scoped_refptr<TextBox> split_sibling_;
 
   bool update_size_results_valid_;
   float line_height_;
