@@ -53,18 +53,22 @@ scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
   for (Boxes::const_iterator box_iterator = boxes_.begin();
        box_iterator != boxes_.end(); ++box_iterator) {
     Box* box = *box_iterator;
-    scoped_refptr<dom::DOMRect> dom_rect(new dom::DOMRect());
+    do {
+      scoped_refptr<dom::DOMRect> dom_rect(new dom::DOMRect());
 
-    // TODO(***REMOVED***): Take transforms into account and recurse into anonymous
-    // block boxes. ***REMOVED*** currently doesn't rely on GetClientRects() to do
-    // that. Tracked in b/25983085.
+      // TODO(***REMOVED***): Take transforms into account and recurse into anonymous
+      // block boxes. ***REMOVED*** currently doesn't rely on GetClientRects() to do
+      // that. Tracked in b/25983085.
 
-    dom_rect->set_x(box->GetBorderBoxLeftEdge());
-    dom_rect->set_y(box->GetBorderBoxTopEdge());
-    math::SizeF box_size = box->GetBorderBoxSize();
-    dom_rect->set_width(box_size.width());
-    dom_rect->set_height(box_size.height());
-    dom_rect_list->AppendDOMRect(dom_rect);
+      dom_rect->set_x(box->GetBorderBoxLeftEdge());
+      dom_rect->set_y(box->GetBorderBoxTopEdge());
+      math::SizeF box_size = box->GetBorderBoxSize();
+      dom_rect->set_width(box_size.width());
+      dom_rect->set_height(box_size.height());
+      dom_rect_list->AppendDOMRect(dom_rect);
+
+      box = box->GetSplitSibling();
+    } while (box != NULL);
   }
 
   return dom_rect_list;
@@ -142,15 +146,17 @@ math::RectF LayoutBoxes::GetBoundingBorderRectangle() const {
   // This function calculates the bounding box of the border boxes of the layout
   // boxes, mirroring behavior of most other browsers for the 'first CSS layout
   // box associated with the element'.
-  if (boxes_.empty()) return math::RectF();
-  Boxes::const_iterator box_iterator = boxes_.begin();
-  const Box* box = *box_iterator;
-  math::RectF bounding_rectangle(box->GetBorderBox());
-  ++box_iterator;
-  for (; box_iterator != boxes_.end(); ++box_iterator) {
-    box = *box_iterator;
-    bounding_rectangle.Union(box->GetBorderBox());
+  math::RectF bounding_rectangle;
+
+  for (Boxes::const_iterator box_iterator = boxes_.begin();
+       box_iterator != boxes_.end(); ++box_iterator) {
+    Box* box = *box_iterator;
+    do {
+      bounding_rectangle.Union(box->GetBorderBox());
+      box = box->GetSplitSibling();
+    } while (box != NULL);
   }
+
   return bounding_rectangle;
 }
 

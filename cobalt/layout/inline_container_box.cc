@@ -248,6 +248,8 @@ scoped_refptr<Box> InlineContainerBox::TrySplitAt(float available_width,
   return SplitAtIterator(child_box_iterator);
 }
 
+Box* InlineContainerBox::GetSplitSibling() const { return split_sibling_; }
+
 bool InlineContainerBox::DoesFulfillEllipsisPlacementRequirement() const {
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
@@ -463,6 +465,10 @@ scoped_refptr<Box> InlineContainerBox::SplitAtIterator(
   // Move the children after the split into a new box.
   scoped_refptr<InlineContainerBox> box_after_split(new InlineContainerBox(
       css_computed_style_declaration(), used_style_provider()));
+
+  // Update the split sibling links.
+  box_after_split->split_sibling_ = split_sibling_;
+  split_sibling_ = box_after_split;
 
   box_after_split->UpdateCrossReferencesFrom(this);
   box_after_split->MoveChildrenFrom(box_after_split->child_boxes().end(), this,
