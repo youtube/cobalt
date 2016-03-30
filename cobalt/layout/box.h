@@ -241,6 +241,14 @@ class Box : public base::RefCounted<Box> {
   virtual scoped_refptr<Box> TrySplitAt(float available_width,
                                         bool allow_overflow) = 0;
 
+  // Returns the next box in a linked list of sibling boxes produced from
+  // splits of the original box. This enables HTMLElement to retain access to
+  // all of its layout boxes after they are split.
+  //
+  // Note that only inline boxes are splittable. All other box types will return
+  // NULL.
+  virtual Box* GetSplitSibling() const { return NULL; }
+
   // Verifies that either an ellipsis can be placed within the box, or that an
   // ellipsis has already been placed in a previous box in the line, and calls
   // DoPlaceEllipsisOrProcessPlacedEllipsis() to handle ellipsis placement and

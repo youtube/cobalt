@@ -49,6 +49,7 @@ class InlineContainerBox : public ContainerBox {
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
   scoped_refptr<Box> TrySplitAt(float available_width,
                                 bool allow_overflow) OVERRIDE;
+  Box* GetSplitSibling() const OVERRIDE;
 
   bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
   void ResetEllipses() OVERRIDE;
@@ -103,8 +104,15 @@ class InlineContainerBox : public ContainerBox {
   float baseline_offset_from_margin_box_top_;
   float line_height_;
   float inline_top_margin_;
+
   // A font used for text width and line height calculations.
   const scoped_refptr<dom::FontList> used_font_;
+
+  // A reference to the next inline container box in a linked list of inline
+  // container boxes produced from splits of the initial text box. This enables
+  // HTMLElement to retain access to all of its layout boxes after they are
+  // split.
+  scoped_refptr<InlineContainerBox> split_sibling_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineContainerBox);
 };

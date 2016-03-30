@@ -116,9 +116,12 @@ void BoxGenerator::Visit(dom::Element* element) {
       boxes_ = layout_boxes->boxes();
       for (Boxes::const_iterator box_iterator = boxes_.begin();
            box_iterator != boxes_.end(); ++box_iterator) {
-        const scoped_refptr<Box>& box = *box_iterator;
-        box->InvalidateBoxAncestryReferences();
-        box->InvalidateUpdateSizeInputsOfBoxAndDescendants();
+        Box* box = *box_iterator;
+        do {
+          box->InvalidateBoxAncestryReferences();
+          box->InvalidateUpdateSizeInputsOfBoxAndDescendants();
+          box = box->GetSplitSibling();
+        } while (box != NULL);
       }
       return;
     }
