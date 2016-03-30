@@ -22,5 +22,23 @@ namespace dom {
 // static
 const char HTMLAnchorElement::kTagName[] = "a";
 
+void HTMLAnchorElement::OnSetAttribute(const std::string& name,
+                                       const std::string& value) {
+  if (name == "href") {
+    url_utils_.set_url(GURL(value));
+  }
+}
+
+void HTMLAnchorElement::OnRemoveAttribute(const std::string& name) {
+  if (name == "href") {
+    url_utils_.set_url(GURL());
+  }
+}
+
+void HTMLAnchorElement::UpdateSteps(const std::string& value) {
+  url_utils_.set_url(GURL(value));
+  SetAttribute("href", value);
+}
+
 }  // namespace dom
 }  // namespace cobalt

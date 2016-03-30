@@ -63,41 +63,6 @@ class LocationTest : public ::testing::Test {
   scoped_refptr<Location> location_;
 };
 
-TEST_F(LocationTest, Href) {
-  Init(GURL("https://www.youtube.com/tv/foo;bar?q=a#ref"));
-  EXPECT_EQ("https://www.youtube.com/tv/foo;bar?q=a#ref", location_->href());
-}
-
-TEST_F(LocationTest, Protocol) {
-  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("https:", location_->protocol());
-}
-
-TEST_F(LocationTest, Host) {
-  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("google.com:99", location_->host());
-}
-
-TEST_F(LocationTest, Hostname) {
-  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("google.com", location_->hostname());
-}
-
-TEST_F(LocationTest, Port) {
-  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("99", location_->port());
-}
-
-TEST_F(LocationTest, Hash) {
-  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("#ref", location_->hash());
-}
-
-TEST_F(LocationTest, Search) {
-  Init(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref"));
-  EXPECT_EQ("?q=a", location_->search());
-}
-
 // Tests modifying the location with both a "strict" and a "permissive" policy.
 // If param is false, we return false from the security callback, and the
 // navigate callback should *not* be called.
