@@ -21,16 +21,19 @@
 
 #include "base/callback.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/dom/url_utils.h"
 #include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace dom {
 
-// Each Document object in a browsing context's session history is associated
-// with a unique instance of a Location object.
+// Location objects provide a representation of the address of the active
+// document of their Document's browsing context, and allow the current entry of
+// the browsing context's session history to be changed, by adding or replacing
+// entries in the history object.
 //   https://www.w3.org/TR/html5/browsers.html#the-location-interface
-// Note(***REMOVED***): The Location object itself will not change its URL. The
+// NOTE(***REMOVED***): The Location object itself will not change its URL. The
 // navigation callback should call set_url() or create new Location object.
 class Location : public script::Wrappable {
  public:
@@ -46,52 +49,52 @@ class Location : public script::Wrappable {
 
   void Replace(const std::string& url);
 
-  void Reload();
+  void Reload() { Replace(url().spec()); }
 
   // Web API: URLUtils (implements)
   //
-  std::string href() const;
-  void set_href(const std::string& href);
+  std::string href() const { return url_utils_.href(); }
+  void set_href(const std::string& href) { url_utils_.set_href(href); }
 
-  std::string protocol() const;
-  void set_protocol(const std::string& protocol);
+  std::string protocol() const { return url_utils_.protocol(); }
+  void set_protocol(const std::string& protocol) {
+    url_utils_.set_protocol(protocol);
+  }
 
-  std::string host() const;
-  void set_host(const std::string& host);
+  std::string host() const { return url_utils_.host(); }
+  void set_host(const std::string& host) { url_utils_.set_host(host); }
 
-  std::string hostname() const;
-  void set_hostname(const std::string& hostname);
+  std::string hostname() const { return url_utils_.hostname(); }
+  void set_hostname(const std::string& hostname) {
+    url_utils_.set_hostname(hostname);
+  }
 
-  std::string port() const;
-  void set_port(const std::string& port);
+  std::string port() const { return url_utils_.port(); }
+  void set_port(const std::string& port) { url_utils_.set_port(port); }
 
-  std::string pathname() const;
-  void set_pathname(const std::string& pathname);
+  std::string pathname() const { return url_utils_.pathname(); }
+  void set_pathname(const std::string& pathname) {
+    url_utils_.set_pathname(pathname);
+  }
 
-  std::string hash() const;
-  void set_hash(const std::string& hash);
+  std::string hash() const { return url_utils_.hash(); }
+  void set_hash(const std::string& hash) { url_utils_.set_hash(hash); }
 
-  std::string search() const;
-  void set_search(const std::string& search);
+  std::string search() const { return url_utils_.search(); }
+  void set_search(const std::string& search) { url_utils_.set_search(search); }
 
   // Custom, not in any spec.
   //
-  const base::Callback<void(const GURL&)>& navigation_callback() const {
-    return navigation_callback_;
-  }
-
   // Gets and sets the URL without doing any navigation.
-  const GURL& url() const { return url_; }
-  void set_url(const GURL& url) { url_ = url; }
+  const GURL& url() const { return url_utils_.url(); }
+  void set_url(const GURL& url) { url_utils_.set_url(url); }
 
   DEFINE_WRAPPABLE_TYPE(Location);
 
  private:
   ~Location() OVERRIDE {}
 
-  void Navigate(const GURL& url);
-
-  GURL url_;
+  URLUtils url_utils_;
   base::Callback<void(const GURL&)> navigation_callback_;
   csp::SecurityCallback security_callback_;
 

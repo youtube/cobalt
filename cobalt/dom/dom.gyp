@@ -233,6 +233,8 @@
         'uint8_array.h',
         'url.cc',
         'url.h',
+        'url_utils.cc',
+        'url_utils.h',
         'window.cc',
         'window.h',
         'window_timers.cc',
