@@ -394,9 +394,8 @@ bool ShellFLVParser::ParseVideoDataTag(uint8* tag,
     if (is_keyframe) {
       time_to_byte_map_[timestamp] = tag_offset_;
     }
-    // extract 24-bit composition time offset for this frame
-    int32 composition_time_offset =
-        endian_util::load_int32_big_endian(tag + 2) >> 8;
+    // extract 24-bit composition time offset in big-endian for this frame
+    int32 composition_time_offset = tag[2] * 65536 + tag[3] * 256 + tag[4];
     // calculate pts from flv timestamp and cts
     uint32 pts = timestamp + composition_time_offset;
     // FLV standard says that there can be multiple AVC NALUs packed here, so
