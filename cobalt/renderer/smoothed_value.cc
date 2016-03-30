@@ -16,6 +16,8 @@
 
 #include "cobalt/renderer/smoothed_value.h"
 
+#include <algorithm>
+
 namespace cobalt {
 namespace renderer {
 
@@ -26,19 +28,23 @@ SmoothedValue::SmoothedValue(base::TimeDelta time_to_converge)
 
 void SmoothedValue::SetTarget(double target) {
   previous_derivative_ = GetCurrentDerivative();
-  previous_target_ = target_;
+  if (target_) {
+    previous_value_ = GetCurrentValue();
+  } else {
+    previous_value_ = base::nullopt;
+  }
 
   target_ = target;
   target_set_time_ = base::TimeTicks::HighResNow();
 }
 
 void SmoothedValue::SnapToTarget() {
-  previous_target_ = base::nullopt;
+  previous_value_ = base::nullopt;
   previous_derivative_ = 0;
 }
 
 double SmoothedValue::GetCurrentValue() const {
-  if (!previous_target_) {
+  if (!previous_value_) {
     // If only one target has ever been set, simply return it.
     return *target_;
   }
@@ -65,12 +71,12 @@ double SmoothedValue::t() const {
 
   DCHECK_LE(0, t);
 
-  return t > 1.0f ? 1.0f : t;
+  return std::max(std::min(t, 1.0), 0.0);
 }
 
 double SmoothedValue::P1() const {
   // See comments in header for why P1() is calculated this way.
-  return *previous_target_ + previous_derivative_ / 3.0f;
+  return *previous_value_ + previous_derivative_ / 3.0f;
 }
 
 double SmoothedValue::P2() const {
@@ -79,7 +85,7 @@ double SmoothedValue::P2() const {
 }
 
 double SmoothedValue::GetCurrentDerivative() const {
-  if (!previous_target_) {
+  if (!previous_value_) {
     // If only one target has ever been set, return 0 as our derivative.
     return 0;
   }
