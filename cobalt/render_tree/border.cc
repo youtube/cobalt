@@ -35,5 +35,17 @@ Border::Border(const BorderSide& left, const BorderSide& right,
                const BorderSide& top, const BorderSide& bottom)
     : left(left), right(right), top(top), bottom(bottom) {}
 
+std::ostream& operator<<(std::ostream& out, const BorderSide& side) {
+  out << "width: " << side.width << ", color: " << side.color
+      << ", style: " << side.style;
+  return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const Border& border) {
+  out << "Top [" << border.top << "] Left [" << border.left << "] Right ["
+      << border.right << "] Bottom [" << border.bottom << "]";
+  return out;
+}
+
 }  // namespace render_tree
 }  // namespace cobalt

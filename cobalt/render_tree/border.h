@@ -37,6 +37,13 @@ struct BorderSide {
   explicit BorderSide(const BorderSide& that);
   BorderSide(float width, BorderStyle style, const ColorRGBA& color);
 
+  bool operator==(const BorderSide& rhs) const {
+    return style == rhs.style && color == rhs.color && width == rhs.width;
+  }
+  bool operator!=(const BorderSide& rhs) const {
+    return !(*this == rhs);
+  }
+
   float width;
   BorderStyle style;
   ColorRGBA color;
@@ -53,6 +60,9 @@ struct Border {
   BorderSide top;
   BorderSide bottom;
 };
+
+std::ostream& operator<<(std::ostream& out, const BorderSide& border_side);
+std::ostream& operator<<(std::ostream& out, const Border& border);
 
 }  // namespace render_tree
 }  // namespace cobalt
