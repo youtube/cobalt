@@ -46,6 +46,23 @@ SubmissionQueue::SubmissionQueue(
 void SubmissionQueue::PushSubmission(const Submission& submission) {
   TRACE_EVENT0("cobalt::renderer", "SubmissionQueue::PushSubmission()");
 
+  if (submission_queue_.size() >= max_queue_size_) {
+    // If we are at capacity, then make room for the new submission by erasing
+    // our first element.
+    submission_queue_.pop_front();
+
+    // Ensure that the next oldest item in the queue is older than the current
+    // time.  If this is not the case, snap time forward so that it is.
+    double to_front_submission_time_in_ms =
+        (submission_queue_.front().time_offset - render_time())
+            .InMillisecondsF();
+    if (to_submission_time_in_ms_.GetCurrentValue() <
+        to_front_submission_time_in_ms) {
+      to_submission_time_in_ms_.SetTarget(to_front_submission_time_in_ms);
+      to_submission_time_in_ms_.SnapToTarget();
+    }
+  }
+
   base::TimeDelta latest_to_submission_time =
       submission.time_offset - render_time();
 
@@ -67,15 +84,6 @@ void SubmissionQueue::PushSubmission(const Submission& submission) {
   if (latest_to_submission_time_in_ms <
       to_submission_time_in_ms_.GetCurrentValue()) {
     to_submission_time_in_ms_.SnapToTarget();
-  }
-
-  if (submission_queue_.size() >= max_queue_size_) {
-    // If we are at capacity, then make room for the new submission by erasing
-    // our first element.  This will have the unfortunate effect of time
-    // snapping forward to the next oldest submission.  The time snapping
-    // logic is handled within
-    // MoveRenderTimeOffsetTowardsTargetAndPurgeStaleSubmissions().
-    submission_queue_.pop_front();
   }
 
   // Save the new submission.
@@ -125,7 +133,13 @@ void SubmissionQueue::PurgeStaleSubmissionsFromQueue() {
     // from the back because the queue is sorted in ascending order of time.
     while (current_to_submission_time + render_time() <
            submission->time_offset) {
-      DCHECK(submission != submission_queue_.begin());
+      if (submission == submission_queue_.begin()) {
+        // It is an invariant of this class that the oldest submission in the
+        // queue is older than the current render time.  This should be
+        // managed within PushSubmission().
+        NOTREACHED();
+        break;
+      }
       --submission;
     }
   }
