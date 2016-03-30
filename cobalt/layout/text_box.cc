@@ -184,6 +184,8 @@ scoped_refptr<Box> TextBox::TrySplitAt(float available_width,
   return scoped_refptr<Box>();
 }
 
+Box* TextBox::GetSplitSibling() const { return split_sibling_; }
+
 bool TextBox::DoesFulfillEllipsisPlacementRequirement() const {
   // This box has non-collapsed text and fulfills the requirement that the first
   // character or inline-level element must appear on the line before ellipsing
@@ -505,9 +507,13 @@ scoped_refptr<Box> TextBox::SplitAtPosition(int32 split_start_position) {
   non_collapsible_text_width_ = base::nullopt;
   update_size_results_valid_ = false;
 
-  scoped_refptr<Box> box_after_split(new TextBox(
+  scoped_refptr<TextBox> box_after_split(new TextBox(
       css_computed_style_declaration(), paragraph_, split_start_position,
       split_end_position, has_trailing_line_break_, used_style_provider()));
+
+  // Update the split sibling links.
+  box_after_split->split_sibling_ = split_sibling_;
+  split_sibling_ = box_after_split;
 
   // TODO(***REMOVED***): Set the text width of the box after split to
   //               |text_width_ - pre_split_width| to save a call
