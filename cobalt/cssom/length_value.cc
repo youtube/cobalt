@@ -27,9 +27,10 @@ void LengthValue::Accept(PropertyValueVisitor* visitor) {
 }
 
 std::string LengthValue::ToString() const {
-  return base::StringPrintf(
-      "%.7g%s", value_,
-      unit_ == kFontSizesAkaEmUnit ? "em" : unit_ == kPixelsUnit ? "px" : "");
+  const char* kUnitNames[] = {
+      "em", "px", "rem",
+  };
+  return base::StringPrintf("%.7g%s", value_, kUnitNames[unit_]);
 }
 
 }  // namespace cssom
