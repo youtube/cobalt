@@ -18,6 +18,7 @@
 #define COBALT_AUDIO_AUDIO_CONTEXT_H_
 
 #include "base/callback.h"
+#include "base/hash_tables.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/audio/async_audio_decoder.h"
@@ -128,8 +129,7 @@ class AudioContext : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(AudioContext);
 
  private:
-  struct DecodeCallbackInfo
-      : public base::RefCountedThreadSafe<DecodeCallbackInfo> {
+  struct DecodeCallbackInfo {
     DecodeCallbackInfo(script::EnvironmentSettings* settings,
                        const AudioContext* const audio_context,
                        const DecodeSuccessCallbackArg& success_handler)
@@ -150,8 +150,12 @@ class AudioContext : public dom::EventTarget {
     base::optional<DecodeErrorCallbackReference> error_callback;
   };
 
-  void DecodeFinish(const scoped_refptr<DecodeCallbackInfo>& info,
-                    float sample_rate, int32 number_of_frames,
+  typedef base::hash_map<int, DecodeCallbackInfo*> DecodeCallbacks;
+
+  void DecodeAudioDataInternal(
+      scoped_ptr<DecodeCallbackInfo> info,
+      const scoped_refptr<dom::ArrayBuffer>& audio_data);
+  void DecodeFinish(int callback_id, float sample_rate, int32 number_of_frames,
                     int32 number_of_channels,
                     scoped_array<uint8> channels_data);
 
@@ -162,6 +166,9 @@ class AudioContext : public dom::EventTarget {
 
   AsyncAudioDecoder audio_decoder_;
   scoped_refptr<AudioDestinationNode> destination_;
+
+  int next_callback_id_;
+  DecodeCallbacks pending_decode_callbacks_;
 
   // The main message loop.
   scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
