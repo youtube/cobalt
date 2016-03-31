@@ -47,7 +47,7 @@ class DebugConsole {
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEvent(const scoped_refptr<dom::KeyboardEvent>& event);
+  bool FilterKeyEvent(const dom::KeyboardEvent::Data& event);
 
   const WebModule& web_module() const { return *web_module_; }
   WebModule& web_module() { return *web_module_; }
