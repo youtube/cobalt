@@ -28,7 +28,9 @@
 
 #include "hb-private.hh"
 
+#if !defined(STARBOARD)
 #include <string.h>
+#endif
 
 
 
@@ -927,5 +929,3 @@ hb_ot_tag_to_language (hb_tag_t tag)
     return hb_language_from_string ((char *) buf, -1);
   }
 }
-
-

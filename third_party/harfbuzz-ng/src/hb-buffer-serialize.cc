@@ -320,9 +320,9 @@ parse_uint (const char *pp, const char *end, uint32_t *pv)
   char *pend = p;
   uint32_t v;
 
-  errno = 0;
+  _hb_clear_errno();
   v = strtol (p, &pend, 10);
-  if (errno || p == pend || pend - p != end - pp)
+  if (_hb_get_errno() || p == pend || pend - p != end - pp)
     return false;
 
   *pv = v;
@@ -341,9 +341,9 @@ parse_int (const char *pp, const char *end, int32_t *pv)
   char *pend = p;
   int32_t v;
 
-  errno = 0;
+  _hb_clear_errno();
   v = strtol (p, &pend, 10);
-  if (errno || p == pend || pend - p != end - pp)
+  if (_hb_get_errno() || p == pend || pend - p != end - pp)
     return false;
 
   *pv = v;
