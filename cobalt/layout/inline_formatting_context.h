@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/formatting_context.h"
+#include "cobalt/layout/paragraph.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/font.h"
@@ -54,7 +55,7 @@ class InlineFormattingContext : public FormattingContext {
   InlineFormattingContext(
       const scoped_refptr<cssom::PropertyValue>& line_height,
       const render_tree::FontMetrics& font_metrics,
-      const LayoutParams& layout_params,
+      const LayoutParams& layout_params, BaseDirection base_direction,
       const scoped_refptr<cssom::PropertyValue>& text_align,
       const scoped_refptr<cssom::PropertyValue>& white_space,
       const scoped_refptr<cssom::PropertyValue>& font_size,
@@ -94,11 +95,12 @@ class InlineFormattingContext : public FormattingContext {
   const scoped_refptr<cssom::PropertyValue> line_height_;
   const render_tree::FontMetrics font_metrics_;
   const LayoutParams layout_params_;
+  const BaseDirection base_direction_;
   const scoped_refptr<cssom::PropertyValue> text_align_;
   const scoped_refptr<cssom::PropertyValue> white_space_;
   const scoped_refptr<cssom::PropertyValue> font_size_;
-  float text_indent_offset_;
-  float ellipsis_width_;
+  const float text_indent_offset_;
+  const float ellipsis_width_;
 
   // The inline formatting context only keeps the last line box, which may be
   // NULL if no child boxes were seen.

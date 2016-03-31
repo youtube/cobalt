@@ -66,6 +66,16 @@ class HTMLTitleElement;
 class HTMLUnknownElement;
 class HTMLVideoElement;
 
+// The enum Directionality is used to track the explicit direction of the html
+// element:
+// https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
+// NOTE: Value "auto" is not supported.
+enum Directionality {
+  kNoExplicitDirectionality,
+  kLeftToRightDirectionality,
+  kRightToLeftDirectionality,
+};
+
 // The enum PseudoElementType is used to track the type of pseudo element
 enum PseudoElementType {
   kAfterPseudoElementType,
@@ -88,6 +98,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Web API: HTMLElement
   //
+  std::string dir() const;
+  void set_dir(const std::string& value);
+
   scoped_refptr<DOMStringMap> dataset();
 
   int32 tab_index() const;
@@ -154,6 +167,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   virtual scoped_refptr<HTMLTitleElement> AsHTMLTitleElement();
   virtual scoped_refptr<HTMLUnknownElement> AsHTMLUnknownElement();
   virtual scoped_refptr<HTMLVideoElement> AsHTMLVideoElement();
+
+  // Returns the directionality of the element, which is based upon the
+  // underlying "dir" attribute, and is updated when the attribute changes.
+  // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionalityy.
+  Directionality directionality() const { return directionality_; }
 
   // Rule matching related methods.
   //
@@ -234,6 +252,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   HTMLElement(Document* document, base::Token tag_name);
   ~HTMLElement() OVERRIDE;
 
+  void CopyDirectionality(const HTMLElement& other);
+
  private:
   // From Node.
   void OnInsertBefore(const scoped_refptr<Node>& new_child,
@@ -245,6 +265,15 @@ class HTMLElement : public Element, public cssom::MutationObserver {
                       const std::string& value) OVERRIDE;
   void OnRemoveAttribute(const std::string& name) OVERRIDE;
 
+  // This both updates the directionality based upon the string value and
+  // invalidates layout box caching if the value has changed.
+  // NOTE1: Value "auto" is not supported.
+  // NOTE2: Cobalt does not support either the CSS 'direction" or "unicode-bidi'
+  // properties, and instead relies entirely upon the 'dir' attribute for
+  // determining directionality of elements. As a result of this, setting the
+  // directionality does not invalidate the computed style.
+  void SetDirectionality(const std::string& value);
+
   void UpdateCachedBackgroundImagesFromComputedStyle();
 
   // This will be called when the image data associated with this element's
@@ -254,6 +283,16 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Returns true if the element is the root element as defined in
   // https://www.w3.org/TR/html5/semantics.html#the-root-element.
   bool IsRootElement();
+
+  // The directionality of the html element is determined by the 'dir'
+  // attribute.
+  // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
+  // NOTE1: Value "auto" is not supported.
+  // NOTE2: Cobalt does not support either the CSS 'direction" or "unicode-bidi'
+  // properties, and instead relies entirely upon the 'dir' attribute for
+  // determining directionality. Inheritance of directionality occurs via the
+  // base direction of the parent element's paragraph.
+  Directionality directionality_;
 
   // The inline style specified via attribute's in the element's HTML tag, or
   // through JavaScript (accessed via style() defined above).

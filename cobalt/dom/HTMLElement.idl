@@ -17,6 +17,7 @@
 // https://www.w3.org/TR/html5/dom.html#htmlelement
 
 interface HTMLElement : Element {
+  attribute DOMString dir;
   readonly attribute DOMStringMap dataset;
   attribute long tabIndex;
   void focus();

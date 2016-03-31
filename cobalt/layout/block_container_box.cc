@@ -25,8 +25,9 @@ namespace layout {
 BlockContainerBox::BlockContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    UsedStyleProvider* used_style_provider)
-    : ContainerBox(css_computed_style_declaration, used_style_provider) {}
+    BaseDirection base_direction, UsedStyleProvider* used_style_provider)
+    : ContainerBox(css_computed_style_declaration, used_style_provider),
+      base_direction_(base_direction) {}
 
 BlockContainerBox::~BlockContainerBox() {}
 
@@ -295,6 +296,10 @@ float BlockContainerBox::GetBaselineOffsetFromTopMarginEdge() const {
 
 scoped_refptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
   return scoped_refptr<ContainerBox>();
+}
+
+BaseDirection BlockContainerBox::GetBaseDirection() const {
+  return base_direction_;
 }
 
 bool BlockContainerBox::IsTransformable() const { return true; }
