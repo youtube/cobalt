@@ -25,25 +25,44 @@ namespace base {
 
 namespace {
 
-void CallMessagePump(void* context) {
+void CallMessagePumpImmediate(void* context) {
   DCHECK(context);
   MessagePumpUIStarboard* pump =
       reinterpret_cast<MessagePumpUIStarboard*>(context);
-  pump->RunOneAndReschedule();
+  pump->RunOneAndReschedule(false /*delayed*/);
+}
+
+void CallMessagePumpDelayed(void* context) {
+  DCHECK(context);
+  MessagePumpUIStarboard* pump =
+      reinterpret_cast<MessagePumpUIStarboard*>(context);
+  pump->RunOneAndReschedule(true /*delayed*/);
 }
 
 }  // namespace
 
 MessagePumpUIStarboard::MessagePumpUIStarboard() : delegate_(NULL) {}
 
-void MessagePumpUIStarboard::RunOneAndReschedule() {
+void MessagePumpUIStarboard::RunOneAndReschedule(bool delayed) {
   DCHECK(delegate_);
-  base::TimeTicks delayed_work_time;
-  if (!RunOne(&delayed_work_time)) {
-    return;
+  if (delayed) {
+    CancelDelayed();
+  } else {
+    CancelImmediate();
   }
 
-  ScheduleDelayedWork(delayed_work_time);
+  TimeTicks delayed_work_time;
+  for (;;) {
+    TimeTicks next_time;
+    if (!RunOne(&next_time)) {
+      delayed_work_time = next_time;
+      break;
+    }
+  }
+
+  if (!delayed_work_time.is_null()) {
+    ScheduleDelayedWork(delayed_work_time);
+  }
 }
 
 void MessagePumpUIStarboard::Run(Delegate* delegate) {
@@ -66,7 +85,7 @@ void MessagePumpUIStarboard::Start(Delegate* delegate) {
 
 void MessagePumpUIStarboard::Quit() {
   delegate_ = NULL;
-  Cancel();
+  CancelAll();
   if (run_loop_) {
     run_loop_->AfterRun();
     run_loop_.reset();
@@ -74,7 +93,14 @@ void MessagePumpUIStarboard::Quit() {
 }
 
 void MessagePumpUIStarboard::ScheduleWork() {
-  ScheduleIn(base::TimeDelta());
+  base::AutoLock auto_lock(outstanding_events_lock_);
+  if (!outstanding_events_.empty()) {
+    // No need, already an outstanding event.
+    return;
+  }
+
+  outstanding_events_.insert(
+      SbEventSchedule(&CallMessagePumpImmediate, this, 0));
 }
 
 void MessagePumpUIStarboard::ScheduleDelayedWork(
@@ -82,32 +108,38 @@ void MessagePumpUIStarboard::ScheduleDelayedWork(
   base::TimeDelta delay;
   if (!delayed_work_time.is_null()) {
     delay = delayed_work_time - base::TimeTicks::Now();
+
+    if (delay <= base::TimeDelta()) {
+      delay = base::TimeDelta();
+    }
   }
 
-  ScheduleIn(delay);
-}
-
-void MessagePumpUIStarboard::ScheduleIn(const base::TimeDelta& delay) {
-  base::AutoLock auto_lock(outstanding_events_lock_);
-  // Make sure any outstanding scheduled event is canceled.
-  CancelLocked();
-
-  // See if this is a degenerate immediate case.
-  if (delay <= base::TimeDelta()) {
-    outstanding_events_.insert(SbEventSchedule(&CallMessagePump, this, 0));
-    return;
+  {
+    base::AutoLock auto_lock(outstanding_events_lock_);
+    // Make sure any outstanding delayed event is canceled.
+    CancelDelayedLocked();
+    outstanding_delayed_events_.insert(
+        SbEventSchedule(&CallMessagePumpDelayed, this, delay.ToSbTime()));
   }
-
-  outstanding_events_.insert(
-      SbEventSchedule(&CallMessagePump, this, delay.ToSbTime()));
 }
 
-void MessagePumpUIStarboard::Cancel() {
+void MessagePumpUIStarboard::CancelAll() {
   base::AutoLock auto_lock(outstanding_events_lock_);
-  CancelLocked();
+  CancelImmediateLocked();
+  CancelDelayedLocked();
 }
 
-void MessagePumpUIStarboard::CancelLocked() {
+void MessagePumpUIStarboard::CancelImmediate() {
+  base::AutoLock auto_lock(outstanding_events_lock_);
+  CancelImmediateLocked();
+}
+
+void MessagePumpUIStarboard::CancelDelayed() {
+  base::AutoLock auto_lock(outstanding_events_lock_);
+  CancelDelayedLocked();
+}
+
+void MessagePumpUIStarboard::CancelImmediateLocked() {
   outstanding_events_lock_.AssertAcquired();
   for (SbEventIdSet::iterator it = outstanding_events_.begin();
        it != outstanding_events_.end(); ++it) {
@@ -117,34 +149,42 @@ void MessagePumpUIStarboard::CancelLocked() {
                             outstanding_events_.end());
 }
 
+void MessagePumpUIStarboard::CancelDelayedLocked() {
+  outstanding_events_lock_.AssertAcquired();
+  for (SbEventIdSet::iterator it = outstanding_delayed_events_.begin();
+       it != outstanding_delayed_events_.end(); ++it) {
+    SbEventCancel(*it);
+  }
+  outstanding_delayed_events_.erase(outstanding_delayed_events_.begin(),
+                                    outstanding_delayed_events_.end());
+}
+
 bool MessagePumpUIStarboard::RunOne(TimeTicks* out_delayed_work_time) {
   DCHECK(out_delayed_work_time);
+
+  // We expect to start with a delegate, so we can DCHECK it, but any task we
+  // run could call Quit and remove it.
   DCHECK(delegate_);
 
-  // Do any immediate work.
-  bool did_immediate_work = delegate_->DoWork();
+  // Do immediate work.
+  bool did_work = delegate_->DoWork();
 
-  // Do delayed work.
-  base::TimeTicks delayed_work_time;
-  bool did_delayed_work = false;
-  // Unlike Chromium, we drain all due delayed work before going back to the
-  // loop. See message_pump_io_starboard.cc for more information.
-  while (delegate_->DoDelayedWork(&delayed_work_time)) {
-    did_delayed_work = true;
+  // Do all delayed work. Unlike Chromium, we drain all due delayed work before
+  // going back to the loop. See message_pump_io_starboard.cc for more
+  // information.
+  while (delegate_ && delegate_->DoDelayedWork(out_delayed_work_time)) {
+    did_work = true;
   }
 
-  // If we did immediate work, reschedule an immediate callback event.
-  if (did_immediate_work) {
-    // We don't set out_delayed_work_time here, because we want to be called
-    // back immediately.
-    return true;
+  // If we did work, and we still have a delegate, return true, so we will be
+  // called again.
+  if (did_work) {
+    return !!delegate_;
   }
 
-  // If we did any delayed work, schedule a callback event for when the next
-  // delayed work item becomes due.
-  if (did_delayed_work) {
-    *out_delayed_work_time = delayed_work_time;
-    return true;
+  // If the delegate has been removed, Quit() has been called, so no more work.
+  if (!delegate_) {
+    return false;
   }
 
   // No work was done, so only call back if there was idle work done, otherwise
