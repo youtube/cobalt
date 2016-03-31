@@ -19,7 +19,7 @@
 
 #include <vector>
 
-#include "base/memory/weak_ptr.h"
+#include "base/threading/thread.h"
 #include "base/time.h"
 #include "cobalt/input/input_device_manager.h"
 
@@ -62,7 +62,7 @@ class InputDeviceManagerFuzzer : public InputDeviceManager {
   size_t next_key_index_;
   std::vector<KeyInfo> key_infos_;
 
-  base::WeakPtrFactory<InputDeviceManagerFuzzer> weak_ptr_factory_;
+  base::Thread thread_;
 };
 
 }  // namespace input
