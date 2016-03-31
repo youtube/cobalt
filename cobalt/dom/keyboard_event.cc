@@ -25,34 +25,53 @@
 namespace cobalt {
 namespace dom {
 
-KeyboardEvent::KeyboardEvent(base::Token type, KeyLocationCode location,
+namespace {
+base::Token TypeEnumToToken(KeyboardEvent::Type type) {
+  switch (type) {
+    case KeyboardEvent::kTypeKeyDown:
+      return base::Tokens::keydown();
+    case KeyboardEvent::kTypeKeyUp:
+      return base::Tokens::keyup();
+    case KeyboardEvent::kTypeKeyPress:
+      return base::Tokens::keypress();
+    default:
+      NOTREACHED() << "Invalid KeyboardEvent::Type";
+      return base::Tokens::keydown();
+  }
+}
+}  // namespace
+
+KeyboardEvent::KeyboardEvent(const Data& data)
+    : UIEventWithKeyState(TypeEnumToToken(data.type), kBubbles, kCancelable,
+                          data.modifiers),
+      data_(data) {}
+
+KeyboardEvent::KeyboardEvent(Type type, KeyLocationCode location,
                              unsigned int modifiers, int key_code,
                              int char_code, bool is_repeat)
-    : UIEventWithKeyState(type, kBubbles, kCancelable, modifiers),
-      location_(location),
-      key_code_(key_code),
-      char_code_(char_code),
-      repeat_(is_repeat) {}
+    : UIEventWithKeyState(TypeEnumToToken(type), kBubbles, kCancelable,
+                          modifiers),
+      data_(type, location, modifiers, key_code, char_code, is_repeat) {}
 
 // How to determine keycode:
 //   https://www.w3.org/TR/DOM-Level-3-Events/#determine-keydown-keyup-keyCode
 // Virtual key code for keyup/keydown, 0 for keypress (split model)
 int KeyboardEvent::key_code() const {
   if (type() == base::Tokens::keydown() || type() == base::Tokens::keyup()) {
-    return key_code_;
+    return data_.key_code;
   }
 
   return 0;
 }
 
 int KeyboardEvent::char_code() const {
-  return type() == base::Tokens::keypress() ? char_code_ : 0;
+  return type() == base::Tokens::keypress() ? data_.char_code : 0;
 }
 
 std::string KeyboardEvent::key() const {
   // First check if the event corresponds to a printable character.
   // If so, just return a string containing that single character.
-  int char_code = ComputeCharCode();
+  int char_code = ComputeCharCode(data_.key_code, modifiers());
   if (char_code > 0 && char_code <= 127) {
     return std::string(1, static_cast<char>(char_code));
   }
@@ -61,7 +80,7 @@ std::string KeyboardEvent::key() const {
   // Definitions taken from:
   //   https://www.w3.org/TR/DOM-Level-3-Events-key/
   //   https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key.
-  switch (key_code_) {
+  switch (data_.key_code) {
     case keycode::kBack:
       return "Backspace";
     case keycode::kTab:
@@ -284,11 +303,12 @@ std::string KeyboardEvent::key() const {
   }
 }
 
-int KeyboardEvent::ComputeCharCode() const {
-  if (shift_key()) {
-    return KeyCodeToCharCodeWithShift(key_code_);
+// Static.
+int32 KeyboardEvent::ComputeCharCode(int32 key_code, uint32 modifiers) {
+  if (modifiers & UIEventWithKeyState::kShiftKey) {
+    return KeyCodeToCharCodeWithShift(key_code);
   } else {
-    return KeyCodeToCharCodeNoShift(key_code_);
+    return KeyCodeToCharCodeNoShift(key_code);
   }
 }
 

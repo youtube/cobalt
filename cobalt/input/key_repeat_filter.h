@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/optional.h"
 #include "base/timer.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/input/key_event_handler.h"
@@ -33,21 +34,16 @@ class KeyRepeatFilter : public KeyEventHandler {
   explicit KeyRepeatFilter(KeyEventHandler* filter);
 
   void HandleKeyboardEvent(
-      const scoped_refptr<dom::KeyboardEvent>& keyboard_event) OVERRIDE;
+      const dom::KeyboardEvent::Data& keyboard_event) OVERRIDE;
 
  private:
-  void HandleKeyDown(const scoped_refptr<dom::KeyboardEvent>& keyboard_event);
-  void HandleKeyUp(const scoped_refptr<dom::KeyboardEvent>& keyboard_event);
+  void HandleKeyDown(const dom::KeyboardEvent::Data& keyboard_event);
+  void HandleKeyUp(const dom::KeyboardEvent::Data& keyboard_event);
   void FireKeyRepeatEvent();
 
-  base::RepeatingTimer<KeyRepeatFilter> key_repeat_timer_;
+  base::optional<dom::KeyboardEvent::Data> last_event_data_;
 
-  // Information needed to reconstruct the keyboard event.
-  base::Token keyboard_event_type_;
-  dom::KeyboardEvent::KeyLocationCode keyboard_event_location_;
-  unsigned int keyboard_event_modifiers_;
-  int keyboard_event_key_code_;
-  int keyboard_event_char_code_;
+  base::RepeatingTimer<KeyRepeatFilter> key_repeat_timer_;
 };
 
 }  // namespace input
