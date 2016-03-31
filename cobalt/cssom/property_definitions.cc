@@ -406,11 +406,9 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kRightProperty, "right", kInheritedNo, kAnimatableNo,
                         KeywordValue::GetAuto());
 
-  // TODO(***REMOVED***): Currently this initial value is fixed to be 'left'. Properly
-  // set this according to direction.
-  //   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
+  //   https://www.w3.org/TR/css-text-3/#text-align
   SetPropertyDefinition(kTextAlignProperty, "text-align", kInheritedYes,
-                        kAnimatableNo, KeywordValue::GetLeft());
+                        kAnimatableNo, KeywordValue::GetStart());
 
   //   https://www.w3.org/TR/css-text-decor-3/#text-decoration-line
   SetPropertyDefinition(kTextDecorationLineProperty, "text-decoration-line",

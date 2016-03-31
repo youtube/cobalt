@@ -17,6 +17,7 @@
 #ifndef COBALT_LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_
 #define COBALT_LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_
 
+#include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/block_container_box.h"
 #include "cobalt/layout/paragraph.h"
 
@@ -30,7 +31,7 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
   BlockFormattingBlockContainerBox(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
-      UsedStyleProvider* used_style_provider);
+      BaseDirection base_direction, UsedStyleProvider* used_style_provider);
 
   // From |ContainerBox|.
   bool TryAddChild(const scoped_refptr<Box>& child_box) OVERRIDE;
@@ -68,7 +69,7 @@ class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
   BlockLevelBlockContainerBox(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
-      UsedStyleProvider* used_style_provider);
+      BaseDirection base_direction, UsedStyleProvider* used_style_provider);
   ~BlockLevelBlockContainerBox() OVERRIDE;
 
   // From |Box|.
@@ -97,8 +98,8 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
   InlineLevelBlockContainerBox(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
-      const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-      UsedStyleProvider* used_style_provider);
+      BaseDirection base_direction, const scoped_refptr<Paragraph>& paragraph,
+      int32 text_position, UsedStyleProvider* used_style_provider);
   ~InlineLevelBlockContainerBox() OVERRIDE;
 
   // From |Box|.

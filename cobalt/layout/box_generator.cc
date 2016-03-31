@@ -30,6 +30,7 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/block_level_replaced_box.h"
 #include "cobalt/layout/inline_container_box.h"
@@ -225,6 +226,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kEllipsis:
+    case cssom::KeywordValue::kEnd:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kFixed:
@@ -249,6 +251,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kSansSerif:
     case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kSolid:
+    case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
@@ -336,16 +339,19 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
     kCloseParagraph,
   };
 
-  ContainerBoxGenerator(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+  ContainerBoxGenerator(dom::Directionality directionality,
+                        const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                             css_computed_style_declaration,
                         UsedStyleProvider* used_style_provider,
                         icu::BreakIterator* line_break_iterator,
                         icu::BreakIterator* character_break_iterator,
                         scoped_refptr<Paragraph>* paragraph)
-      : css_computed_style_declaration_(css_computed_style_declaration),
+      : directionality_(directionality),
+        css_computed_style_declaration_(css_computed_style_declaration),
         used_style_provider_(used_style_provider),
         line_break_iterator_(line_break_iterator),
         character_break_iterator_(character_break_iterator),
+        has_scoped_directional_embedding_(false),
         paragraph_(paragraph),
         paragraph_scoped_(false) {}
   ~ContainerBoxGenerator();
@@ -357,11 +363,17 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
  private:
   void CreateScopedParagraph(CloseParagraph close_prior_paragraph);
 
+  const dom::Directionality directionality_;
   const scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration_;
   UsedStyleProvider* const used_style_provider_;
   icu::BreakIterator* const line_break_iterator_;
   icu::BreakIterator* const character_break_iterator_;
+
+  // If a directional embedding was added to the paragraph by this container box
+  // and needs to be popped in the destructor:
+  // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
+  bool has_scoped_directional_embedding_;
 
   scoped_refptr<Paragraph>* paragraph_;
   scoped_refptr<Paragraph> prior_paragraph_;
@@ -371,6 +383,16 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
 };
 
 ContainerBoxGenerator::~ContainerBoxGenerator() {
+  // If there's a scoped directional embedding, then it needs to popped from
+  // the paragraph so that this box does not impact the directionality of later
+  // boxes in the paragraph.
+  // http://unicode.org/reports/tr9/#Terminating_Explicit_Directional_Embeddings_and_Overrides
+  if (has_scoped_directional_embedding_) {
+    (*paragraph_)
+        ->AppendCodePoint(
+            Paragraph::kPopDirectionalFormattingCharacterCodePoint);
+  }
+
   if (paragraph_scoped_) {
     (*paragraph_)->Close();
 
@@ -380,6 +402,7 @@ ContainerBoxGenerator::~ContainerBoxGenerator() {
     if (prior_paragraph_->IsClosed()) {
       *paragraph_ = new Paragraph(
           prior_paragraph_->GetLocale(), prior_paragraph_->GetBaseDirection(),
+          prior_paragraph_->GetDirectionalEmbeddingStack(),
           line_break_iterator_, character_break_iterator_);
     } else {
       *paragraph_ = prior_paragraph_;
@@ -392,18 +415,33 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     // Generate a block-level block container box.
     case cssom::KeywordValue::kBlock:
-      container_box_ = make_scoped_refptr(new BlockLevelBlockContainerBox(
-          css_computed_style_declaration_, used_style_provider_));
       // The block ends the current paragraph and begins a new one that ends
       // with the block, so close the current paragraph, and create a new
       // paragraph that will close when the container box generator is
       // destroyed.
       CreateScopedParagraph(kCloseParagraph);
+
+      container_box_ = make_scoped_refptr(new BlockLevelBlockContainerBox(
+          css_computed_style_declaration_, (*paragraph_)->GetBaseDirection(),
+          used_style_provider_));
       break;
     // Generate one or more inline boxes. Note that more inline boxes may be
     // generated when the original inline box is split due to participation
     // in the formatting context.
     case cssom::KeywordValue::kInline:
+      // If the creating HTMLElement had an explicit directionality, then append
+      // a directional embedding to the paragraph. This will be popped from the
+      // paragraph, when the ContainerBoxGenerator goes out of scope.
+      // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
+      // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
+      if (directionality_ == dom::kLeftToRightDirectionality) {
+        has_scoped_directional_embedding_ = true;
+        (*paragraph_)->AppendCodePoint(Paragraph::kLeftToRightEmbedCodePoint);
+      } else if (directionality_ == dom::kRightToLeftDirectionality) {
+        has_scoped_directional_embedding_ = true;
+        (*paragraph_)->AppendCodePoint(Paragraph::kRightToLeftEmbedCodePoint);
+      }
+
       container_box_ = make_scoped_refptr(new InlineContainerBox(
           css_computed_style_declaration_, used_style_provider_));
       break;
@@ -420,16 +458,17 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       int32 text_position =
           (*paragraph_)->AppendCodePoint(
               Paragraph::kObjectReplacementCharacterCodePoint);
-
-      container_box_ = make_scoped_refptr(new InlineLevelBlockContainerBox(
-          css_computed_style_declaration_, *paragraph_, text_position,
-          used_style_provider_));
+      scoped_refptr<Paragraph> prior_paragraph = *paragraph_;
 
       // The inline block creates a new paragraph, which the old paragraph
       // flows around. Create a new paragraph, which will close with the end
       // of the inline block. However, do not close the old paragraph, because
       // it will continue once the scope of the inline block ends.
       CreateScopedParagraph(kDoNotCloseParagraph);
+
+      container_box_ = make_scoped_refptr(new InlineLevelBlockContainerBox(
+          css_computed_style_declaration_, (*paragraph_)->GetBaseDirection(),
+          prior_paragraph, text_position, used_style_provider_));
     } break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -451,6 +490,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kEllipsis:
+    case cssom::KeywordValue::kEnd:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kFixed:
     case cssom::KeywordValue::kForwards:
@@ -475,6 +515,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kSansSerif:
     case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kSolid:
+    case cssom::KeywordValue::kStart:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
@@ -492,14 +533,26 @@ void ContainerBoxGenerator::CreateScopedParagraph(
   paragraph_scoped_ = true;
   prior_paragraph_ = *paragraph_;
 
+  // Determine the base direction of the new paragraph based upon the
+  // directionality of the creating HTMLElement. If there was no explicit
+  // directionality, then it is based upon the prior paragraph, meaning that
+  // it is inherited from the parent element.
+  // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
+  BaseDirection base_direction;
+  if (directionality_ == dom::kLeftToRightDirectionality) {
+    base_direction = kLeftToRightBaseDirection;
+  } else if (directionality_ == dom::kRightToLeftDirectionality) {
+    base_direction = kRightToLeftBaseDirection;
+  } else {
+    base_direction = prior_paragraph_->GetDirectionalEmbeddingStackDirection();
+  }
+
   if (close_prior_paragraph == kCloseParagraph) {
     prior_paragraph_->Close();
   }
 
-  // TODO(***REMOVED***): Use the container box's style to determine the correct base
-  // direction for the paragraph.
-  *paragraph_ = new Paragraph(prior_paragraph_->GetLocale(),
-                              prior_paragraph_->GetBaseDirection(),
+  *paragraph_ = new Paragraph(prior_paragraph_->GetLocale(), base_direction,
+                              Paragraph::DirectionalEmbeddingStack(),
                               line_break_iterator_, character_break_iterator_);
 }
 
@@ -575,6 +628,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kCurrentColor:
       case cssom::KeywordValue::kCursive:
       case cssom::KeywordValue::kEllipsis:
+      case cssom::KeywordValue::kEnd:
       case cssom::KeywordValue::kFantasy:
       case cssom::KeywordValue::kFixed:
       case cssom::KeywordValue::kForwards:
@@ -600,6 +654,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kSansSerif:
       case cssom::KeywordValue::kSerif:
       case cssom::KeywordValue::kSolid:
+      case cssom::KeywordValue::kStart:
       case cssom::KeywordValue::kStatic:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
@@ -651,6 +706,7 @@ void BoxGenerator::AppendPseudoElementToLine(
       html_element->pseudo_element(pseudo_element_type);
   if (pseudo_element) {
     ContainerBoxGenerator pseudo_element_box_generator(
+        dom::kNoExplicitDirectionality,
         pseudo_element->css_computed_style_declaration(), used_style_provider_,
         line_break_iterator_, character_break_iterator_, paragraph_);
     pseudo_element->computed_style()->display()->Accept(
@@ -715,6 +771,7 @@ void BoxGenerator::AppendPseudoElementToLine(
 
 void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   ContainerBoxGenerator container_box_generator(
+      html_element->directionality(),
       html_element->css_computed_style_declaration(), used_style_provider_,
       line_break_iterator_, character_break_iterator_, paragraph_);
   html_element->computed_style()->display()->Accept(&container_box_generator);
@@ -844,8 +901,6 @@ void BoxGenerator::Visit(dom::Text* text) {
         return;
       }
     }
-
-    // TODO(***REMOVED***):  Include bidi markup in appended text.
 
     Paragraph::TextTransform transform;
     if (css_computed_style_declaration->data()->text_transform() ==

@@ -43,6 +43,7 @@ struct KeywordValue::NonTrivialStaticFields {
         current_color_value(new KeywordValue(KeywordValue::kCurrentColor)),
         cursive_value(new KeywordValue(KeywordValue::kCursive)),
         ellipsis_value(new KeywordValue(KeywordValue::kEllipsis)),
+        end_value(new KeywordValue(KeywordValue::kEnd)),
         fantasy_value(new KeywordValue(KeywordValue::kFantasy)),
         forwards_value(new KeywordValue(KeywordValue::kForwards)),
         fixed_value(new KeywordValue(KeywordValue::kFixed)),
@@ -70,6 +71,7 @@ struct KeywordValue::NonTrivialStaticFields {
         sans_serif_value(new KeywordValue(KeywordValue::kSansSerif)),
         serif_value(new KeywordValue(KeywordValue::kSerif)),
         solid_value(new KeywordValue(KeywordValue::kSolid)),
+        start_value(new KeywordValue(KeywordValue::kStart)),
         static_value(new KeywordValue(KeywordValue::kStatic)),
         top_value(new KeywordValue(KeywordValue::kTop)),
         uppercase_value(new KeywordValue(KeywordValue::kUppercase)),
@@ -92,6 +94,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> current_color_value;
   const scoped_refptr<KeywordValue> cursive_value;
   const scoped_refptr<KeywordValue> ellipsis_value;
+  const scoped_refptr<KeywordValue> end_value;
   const scoped_refptr<KeywordValue> fantasy_value;
   const scoped_refptr<KeywordValue> forwards_value;
   const scoped_refptr<KeywordValue> fixed_value;
@@ -119,6 +122,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> sans_serif_value;
   const scoped_refptr<KeywordValue> serif_value;
   const scoped_refptr<KeywordValue> solid_value;
+  const scoped_refptr<KeywordValue> start_value;
   const scoped_refptr<KeywordValue> static_value;
   const scoped_refptr<KeywordValue> top_value;
   const scoped_refptr<KeywordValue> uppercase_value;
@@ -201,6 +205,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetCursive() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetEllipsis() {
   return non_trivial_static_fields.Get().ellipsis_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetEnd() {
+  return non_trivial_static_fields.Get().end_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetFantasy() {
@@ -311,6 +319,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetSolid() {
   return non_trivial_static_fields.Get().solid_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetStart() {
+  return non_trivial_static_fields.Get().start_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetStatic() {
   return non_trivial_static_fields.Get().static_value;
 }
@@ -367,6 +379,8 @@ std::string KeywordValue::ToString() const {
       return kCursiveKeywordName;
     case kEllipsis:
       return kEllipsisKeywordName;
+    case kEnd:
+      return kEndKeywordName;
     case kFantasy:
       return kFantasyKeywordName;
     case kForwards:
@@ -421,6 +435,8 @@ std::string KeywordValue::ToString() const {
       return kSerifKeywordName;
     case kSolid:
       return kSolidKeywordName;
+    case kStart:
+      return kStartKeywordName;
     case kStatic:
       return kStaticKeywordName;
     case kTop:

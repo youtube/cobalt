@@ -23,6 +23,7 @@
       'sources': [
         'anonymous_block_box.cc',
         'anonymous_block_box.h',
+        'base_direction.h',
         'benchmark_stat_names.cc',
         'benchmark_stat_names.h',
         'block_container_box.cc',

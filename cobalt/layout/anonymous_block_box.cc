@@ -29,8 +29,9 @@ namespace layout {
 AnonymousBlockBox::AnonymousBlockBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    UsedStyleProvider* used_style_provider)
-    : BlockContainerBox(css_computed_style_declaration, used_style_provider),
+    BaseDirection base_direction, UsedStyleProvider* used_style_provider)
+    : BlockContainerBox(css_computed_style_declaration, base_direction,
+                        used_style_provider),
       used_font_(used_style_provider->GetUsedFontList(
           css_computed_style_declaration->data()->font_family(),
           css_computed_style_declaration->data()->font_size(),
@@ -149,8 +150,9 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
   scoped_ptr<InlineFormattingContext> inline_formatting_context(
       new InlineFormattingContext(
           computed_style()->line_height(), used_font_->GetFontMetrics(),
-          child_layout_params, computed_style()->text_align(),
-          computed_style()->white_space(), computed_style()->font_size(),
+          child_layout_params, GetBaseDirection(),
+          computed_style()->text_align(), computed_style()->white_space(),
+          computed_style()->font_size(),
           GetUsedLength(computed_style()->text_indent()), ellipsis_width));
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();

@@ -26,6 +26,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/layout/base_direction.h"
 
 namespace cobalt {
 namespace layout {
@@ -92,7 +93,7 @@ scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
   initial_style_state->set_data(initial_containing_block_style);
   initial_style_state->set_animations(new web_animations::AnimationSet());
   return make_scoped_refptr(new BlockLevelBlockContainerBox(
-      initial_style_state, used_style_provider));
+      initial_style_state, kLeftToRightBaseDirection, used_style_provider));
 }
 
 }  // namespace layout
