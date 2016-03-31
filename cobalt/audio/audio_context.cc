@@ -45,8 +45,8 @@ void AudioContext::DecodeAudioData(
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
   scoped_ptr<DecodeCallbackInfo> info(
-      new DecodeCallbackInfo(settings, this, success_handler));
-  DecodeAudioDataInternal(info.Pass(), audio_data);
+      new DecodeCallbackInfo(settings, audio_data, this, success_handler));
+  DecodeAudioDataInternal(info.Pass());
 }
 
 void AudioContext::DecodeAudioData(
@@ -56,19 +56,19 @@ void AudioContext::DecodeAudioData(
     const DecodeErrorCallbackArg& error_handler) {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
-  scoped_ptr<DecodeCallbackInfo> info(
-      new DecodeCallbackInfo(settings, this, success_handler, error_handler));
-  DecodeAudioDataInternal(info.Pass(), audio_data);
+  scoped_ptr<DecodeCallbackInfo> info(new DecodeCallbackInfo(
+      settings, audio_data, this, success_handler, error_handler));
+  DecodeAudioDataInternal(info.Pass());
 }
 
 void AudioContext::DecodeAudioDataInternal(
-    scoped_ptr<DecodeCallbackInfo> info,
-    const scoped_refptr<dom::ArrayBuffer>& audio_data) {
+    scoped_ptr<DecodeCallbackInfo> info) {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
   const int callback_id = next_callback_id_++;
   CHECK(pending_decode_callbacks_.find(callback_id) ==
         pending_decode_callbacks_.end());
+  const scoped_refptr<dom::ArrayBuffer>& audio_data = info->audio_data;
   pending_decode_callbacks_[callback_id] = info.release();
 
   AsyncAudioDecoder::DecodeFinishCallback decode_callback = base::Bind(
