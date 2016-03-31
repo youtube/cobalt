@@ -208,6 +208,15 @@ SB_EXPORT bool SbSystemSymbolize(const void* address,
 // the current platform.
 SB_EXPORT void SbSystemRequestStop(int error_level);
 
+// Binary searches a sorted table |base| of |element_count| objects, each
+// element |element_width| bytes in size for an element that |comparator|
+// compares equal to |key|. Meant to be a drop-in replacement for bsearch.
+SB_EXPORT void* SbSystemBinarySearch(const void* key,
+                                     const void* base,
+                                     size_t element_count,
+                                     size_t element_width,
+                                     SbSystemComparator comparator);
+
 // Sorts an array of elements |base|, with |element_count| elements of
 // |element_width| bytes each, using |comparator| as the comparison function.
 // Meant to be a drop-in replacement for qsort.
