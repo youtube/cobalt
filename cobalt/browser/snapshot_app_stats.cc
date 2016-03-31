@@ -152,8 +152,7 @@ void StartApplication(int /*argc*/, char* /*argv*/ [],
       cobalt::browser::switches::kDebugConsoleMode, "off");
 
   // Create the application object just like is done in the Cobalt main app.
-  g_application = cobalt::browser::CreateApplication().release();
-  g_application->set_quit_closure(quit_closure);
+  g_application = cobalt::browser::CreateApplication(quit_closure).release();
 
   // Create a thread to start a timer for kSecondsToWait seconds after which
   // we will take a snapshot of the CVals at that time and then quit the

@@ -181,10 +181,11 @@ dom::CspEnforcementType StringToCspMode(const std::string& mode) {
 
 }  // namespace
 
-Application::Application() {
+Application::Application(const base::Closure& quit_closure)
+    : message_loop_(MessageLoop::current())
+    , quit_closure_(quit_closure) {
   DCHECK(MessageLoop::current());
   DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
-  message_loop_ = MessageLoop::current();
 
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.

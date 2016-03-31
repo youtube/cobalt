@@ -94,7 +94,7 @@ InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
     KeyboardEventCallback keyboard_event_callback)
     : keyboard_event_callback_(keyboard_event_callback),
       next_key_index_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
+      thread_("InputDeviceManagerFuzzer") {
   key_infos_.push_back(KeyInfo(kKeyCodes, arraysize(kKeyCodes),
                                TimeDelta::FromMilliseconds(400)));
   // Modify the key_infos_ to use different input patterns.  For example, the
@@ -106,9 +106,10 @@ InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
 
   // Schedule task to send the first key event.  Add an explicit delay to avoid
   // possible conflicts with debug console.
-  MessageLoop::current()->PostDelayedTask(
+  thread_.Start();
+  thread_.message_loop()->PostDelayedTask(
       FROM_HERE, base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,
-                            weak_ptr_factory_.GetWeakPtr()),
+                            base::Unretained(this)),
       base::TimeDelta::FromSeconds(5));
 }
 
@@ -130,7 +131,7 @@ void InputDeviceManagerFuzzer::OnNextEvent() {
 
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE, base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,
-                            weak_ptr_factory_.GetWeakPtr()),
+                            base::Unretained(this)),
       key_infos_[next_key_index_].GetRandomDelay());
   next_key_index_ = (next_key_index_ + 1) % key_infos_.size();
 }
