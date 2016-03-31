@@ -512,10 +512,13 @@ void Document::UpdateComputedStyles() {
     base::TimeDelta style_change_event_time =
         base::TimeDelta::FromMillisecondsD(*default_timeline_->current_time());
 
-    scoped_refptr<HTMLHtmlElement> current_html = html();
-    if (current_html) {
-      current_html->UpdateComputedStyleRecursively(
-          root_computed_style_, style_change_event_time, true);
+    scoped_refptr<HTMLElement> root = html();
+    if (root) {
+      root->UpdateComputedStyle(root_computed_style_, root_computed_style_,
+                                style_change_event_time);
+      root->UpdateComputedStyleRecursively(root_computed_style_,
+                                           root->computed_style(),
+                                           style_change_event_time, true);
     }
 
     is_computed_style_dirty_ = false;

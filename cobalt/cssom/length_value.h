@@ -28,9 +28,11 @@ namespace cobalt {
 namespace cssom {
 
 // TODO(***REMOVED***): Add more units.
+// When adding a unit, please add the name in kUnitNames im length_value.cc.
 enum LengthUnit {
   kFontSizesAkaEmUnit,
   kPixelsUnit,
+  kRootElementFontSizesAkaRemUnit,
 };
 
 // Represents distance or size.

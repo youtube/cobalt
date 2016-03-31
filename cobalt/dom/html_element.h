@@ -188,8 +188,17 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void UpdateComputedStyleRecursively(
       const scoped_refptr<const cssom::CSSComputedStyleData>&
           parent_computed_style,
+      const scoped_refptr<const cssom::CSSComputedStyleData>&
+          root_computed_style,
       const base::TimeDelta& style_change_event_time,
       bool ancestors_were_valid);
+  // Updates the cached computed style of this element.
+  void UpdateComputedStyle(
+      const scoped_refptr<const cssom::CSSComputedStyleData>&
+          parent_computed_style,
+      const scoped_refptr<const cssom::CSSComputedStyleData>&
+          root_computed_style,
+      const base::TimeDelta& style_change_event_time);
 
   // Layout box related methods.
   //
@@ -235,12 +244,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void OnSetAttribute(const std::string& name,
                       const std::string& value) OVERRIDE;
   void OnRemoveAttribute(const std::string& name) OVERRIDE;
-
-  // Updates the cached computed style of this element.
-  void UpdateComputedStyle(
-      const scoped_refptr<const cssom::CSSComputedStyleData>&
-          parent_computed_style,
-      const base::TimeDelta& style_change_event_time);
 
   void UpdateCachedBackgroundImagesFromComputedStyle();
 

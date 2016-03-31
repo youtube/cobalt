@@ -163,6 +163,10 @@ INSTANTIATE_TEST_CASE_P(
 // Custom CSS UI (https://www.w3.org/TR/css3-ui/) test cases.
 INSTANTIATE_TEST_CASE_P(CSS3UILayoutTests, LayoutTest,
                         ::testing::ValuesIn(EnumerateLayoutTests("css3-ui")));
+// Custom CSS Value (https://www.w3.org/TR/css3-values/) test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSS3ValuesLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-values")));
 // Custom incremental layout test cases.
 INSTANTIATE_TEST_CASE_P(
     IncrementalLayoutLayoutTests, LayoutTest,
