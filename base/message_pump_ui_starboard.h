@@ -44,9 +44,9 @@ class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
  public:
   MessagePumpUIStarboard();
 
-  // Runs one iteration of the run loop, and reshedules another call, if
+  // Runs one iteration of the run loop, and reschedules another call, if
   // necessary.
-  void RunOneAndReschedule();
+  void RunOneAndReschedule(bool delayed);
 
   // --- MessagePump Implementation ---
 
@@ -60,14 +60,20 @@ class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
   virtual ~MessagePumpUIStarboard() {}
 
  private:
-  // Schedules a single timed callback event to occur within the given delay.
-  void ScheduleIn(const base::TimeDelta& delay);
-
   // Cancels all outstanding scheduled callback events, if any.
-  void Cancel();
+  void CancelAll();
+
+  // Cancels immediate schedule callback events.
+  void CancelImmediate();
+
+  // Cancels delayed schedule callback events.
+  void CancelDelayed();
 
   // Cancel workhorse that assumes |outstanding_events_lock_| is locked.
-  void CancelLocked();
+  void CancelImmediateLocked();
+
+  // Cancel delayed workhorse that assumes |outstanding_events_lock_| is locked.
+  void CancelDelayedLocked();
 
   // Runs one iteration of the run loop, returning whether to schedule another
   // iteration or not. Places the delay, if any, in |out_delayed_work_time|.
@@ -83,9 +89,14 @@ class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
   // Lock protecting outstanding scheduled callback events.
   base::Lock outstanding_events_lock_;
 
-  // The set of outstanding scheduled callback events.
+  // A set of scheduled callback event IDs.
   typedef std::set<SbEventId> SbEventIdSet;
+
+  // The set of outstanding scheduled callback events for immediate work.
   SbEventIdSet outstanding_events_;
+
+  // The set of outstanding scheduled callback events for delayed work.
+  SbEventIdSet outstanding_delayed_events_;
 
   DISALLOW_COPY_AND_ASSIGN(MessagePumpUIStarboard);
 };
