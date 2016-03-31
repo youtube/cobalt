@@ -35,6 +35,7 @@
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/window.h"
@@ -148,9 +149,8 @@ class WebModule {
             float layout_refresh_rate, const Options& options = Options());
   ~WebModule();
 
-  // Call this to inject an event into the web module which will ultimately make
-  // its way to the appropriate object in DOM.
-  void InjectEvent(const scoped_refptr<dom::Event>& event);
+  // Call this to inject a keyboard event into the web module.
+  void InjectKeyboardEvent(const dom::KeyboardEvent::Data& event);
 
   // Call this to execute Javascript code in this web module.  The calling
   // thread will block until the JavaScript has executed and the output results
@@ -158,9 +158,12 @@ class WebModule {
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location);
 
-  // Returns and sets the URL of the current Document.
-  const GURL& url() const { return window_->location()->url(); }
-  void set_url(const GURL& url) { window_->location()->set_url(url); }
+  // Returns the URL of the current Document.
+  const GURL& GetUrl() const;
+
+  // Sets the URL of the current Document, but only if the only difference is
+  // the URL's fragment identifier (the stuff after the '#').
+  void SetUrlWithNewFragment(const GURL& url);
 
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that

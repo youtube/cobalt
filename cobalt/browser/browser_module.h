@@ -147,13 +147,12 @@ class BrowserModule {
   // Glue function to deal with the production of an input event from the
   // input device, and manage handing it off to the web module for
   // interpretation.
-  void OnKeyEventProduced(const scoped_refptr<dom::KeyboardEvent>& event);
+  void OnKeyEventProduced(const dom::KeyboardEvent::Data& event);
 
   // Injects a key event directly into the main web module, useful for setting
   // up an input fuzzer whose input should be sent directly to the main
   // web module and not filtered into the debug console.
-  void InjectKeyEventToMainWebModule(
-      const scoped_refptr<dom::KeyboardEvent>& event);
+  void InjectKeyEventToMainWebModule(const dom::KeyboardEvent::Data& event);
 
   // Error callback for any error that stops the program.
   void OnError(const std::string& error);
@@ -161,12 +160,12 @@ class BrowserModule {
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEvent(const scoped_refptr<dom::KeyboardEvent>& event);
+  bool FilterKeyEvent(const dom::KeyboardEvent::Data& event);
 
   // Filters a key event for hotkeys.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEventForHotkeys(const scoped_refptr<dom::KeyboardEvent>& event);
+  bool FilterKeyEventForHotkeys(const dom::KeyboardEvent::Data& event);
 
   // Tries all registered URL handlers for a URL. Returns true if one of the
   // handlers handled the URL, false if otherwise.

@@ -117,15 +117,15 @@ void InputDeviceManagerFuzzer::OnNextEvent() {
   DCHECK_LT(next_key_index_, key_infos_.size());
   int key_code = key_infos_[next_key_index_].GetRandomKeyCode();
 
-  scoped_refptr<KeyboardEvent> key_down_event(new KeyboardEvent(
-      base::Tokens::keydown(), KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, key_code, 0, false));
+  KeyboardEvent::Data key_down_event(
+      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
+      KeyboardEvent::kNoModifier, key_code, 0, false);
 
   keyboard_event_callback_.Run(key_down_event);
 
-  scoped_refptr<KeyboardEvent> key_up_event(new KeyboardEvent(
-      base::Tokens::keyup(), KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, key_code, 0, false));
+  KeyboardEvent::Data key_up_event(
+      KeyboardEvent::kTypeKeyUp, KeyboardEvent::kDomKeyLocationStandard,
+      KeyboardEvent::kNoModifier, key_code, 0, false);
 
   keyboard_event_callback_.Run(key_up_event);
 
