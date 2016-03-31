@@ -180,10 +180,8 @@ void ContainerBox::MoveContainingBlockChild(Box* child_box) {
   if (positioned_child_iterator !=
       source_parent->positioned_child_boxes_.end()) {
     source_parent->positioned_child_boxes_.erase(positioned_child_iterator);
-    positioned_child_boxes_.push_back(child_box);
-  } else {
-    NOTREACHED();
   }
+  positioned_child_boxes_.push_back(child_box);
 }
 
 void ContainerBox::MoveStackingContextChild(Box* child_box) {
@@ -193,10 +191,22 @@ void ContainerBox::MoveStackingContextChild(Box* child_box) {
   if (child_box->stacking_context_ == source_parent) {
     int child_z_index = child_box->GetZIndex();
     if (child_z_index < 0) {
-      source_parent->negative_z_index_child_.erase(child_box);
+      ZIndexSortedList::iterator source_child_iterator =
+          std::find(source_parent->negative_z_index_child_.begin(),
+                    source_parent->negative_z_index_child_.end(), child_box);
+      if (source_child_iterator !=
+          source_parent->negative_z_index_child_.end()) {
+        source_parent->negative_z_index_child_.erase(source_child_iterator);
+      }
       negative_z_index_child_.insert(child_box);
     } else {
-      source_parent->non_negative_z_index_child_.erase(child_box);
+      ZIndexSortedList::iterator source_child_iterator = std::find(
+          source_parent->non_negative_z_index_child_.begin(),
+          source_parent->non_negative_z_index_child_.end(), child_box);
+      if (source_child_iterator !=
+          source_parent->non_negative_z_index_child_.end()) {
+        source_parent->non_negative_z_index_child_.erase(source_child_iterator);
+      }
       non_negative_z_index_child_.insert(child_box);
     }
     child_box->stacking_context_ = this;

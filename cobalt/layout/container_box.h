@@ -87,6 +87,8 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
       return lhs->GetZIndex() < rhs->GetZIndex();
     }
   };
+  // Note: find(Box*) and erase(Box*) on ZIndexSortedList may not work as
+  // expected due to the use of reflexive comparison for equality.
   typedef std::multiset<Box*, ZIndexComparator> ZIndexSortedList;
 
   void UpdateRectOfPositionedChildBoxes(
