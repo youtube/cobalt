@@ -131,30 +131,33 @@ class AudioContext : public dom::EventTarget {
  private:
   struct DecodeCallbackInfo {
     DecodeCallbackInfo(script::EnvironmentSettings* settings,
+                       const scoped_refptr<dom::ArrayBuffer>& data,
                        const AudioContext* const audio_context,
                        const DecodeSuccessCallbackArg& success_handler)
         : env_settings(settings),
+          audio_data(data),
           success_callback(audio_context, success_handler) {}
 
     DecodeCallbackInfo(script::EnvironmentSettings* settings,
+                       const scoped_refptr<dom::ArrayBuffer>& data,
                        const AudioContext* const audio_context,
                        const DecodeSuccessCallbackArg& success_handler,
                        const DecodeErrorCallbackArg& error_handler)
         : env_settings(settings),
+          audio_data(data),
           success_callback(audio_context, success_handler) {
       error_callback.emplace(audio_context, error_handler);
     }
 
     script::EnvironmentSettings* env_settings;
+    const scoped_refptr<dom::ArrayBuffer>& audio_data;
     DecodeSuccessCallbackReference success_callback;
     base::optional<DecodeErrorCallbackReference> error_callback;
   };
 
   typedef base::hash_map<int, DecodeCallbackInfo*> DecodeCallbacks;
 
-  void DecodeAudioDataInternal(
-      scoped_ptr<DecodeCallbackInfo> info,
-      const scoped_refptr<dom::ArrayBuffer>& audio_data);
+  void DecodeAudioDataInternal(scoped_ptr<DecodeCallbackInfo> info);
   void DecodeFinish(int callback_id, float sample_rate, int32 number_of_frames,
                     int32 number_of_channels,
                     scoped_array<uint8> channels_data);
