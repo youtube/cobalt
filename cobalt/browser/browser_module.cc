@@ -249,12 +249,12 @@ void BrowserModule::NavigateWithCallback(const GURL& url,
 
   if (url.is_empty()) {
     DCHECK(web_module_);
-    new_url = web_module_->url();
+    new_url = web_module_->GetUrl();
     DLOG(INFO) << "Reloading " << new_url;
   } else {
     new_url = url;
     if (web_module_) {
-      GURL old_url = web_module_->url();
+      GURL old_url = web_module_->GetUrl();
       DLOG(INFO) << "Navigating to " << new_url;
       // 7. Fragment identifiers: Apply the URL parser algorithm to the absolute
       // URL of the new resource and the address of the active document of the
@@ -288,10 +288,7 @@ void BrowserModule::NavigateWithCallback(const GURL& url,
         //   HashChangeEvent interface, with the oldURL attribute initialized to
         //   old URL and the newURL attribute initialized to new URL. This event
         //   must bubble but not be cancelable and has no default action.
-        if (new_url != old_url) {
-          web_module_->set_url(new_url);
-          web_module_->InjectEvent(new dom::Event(base::Tokens::hashchange()));
-        }
+        web_module_->SetUrlWithNewFragment(new_url);
         return;
       }
     }
@@ -468,8 +465,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-void BrowserModule::OnKeyEventProduced(
-    const scoped_refptr<dom::KeyboardEvent>& event) {
+void BrowserModule::OnKeyEventProduced(const dom::KeyboardEvent::Data& event) {
   if (MessageLoop::current() != self_message_loop_) {
     self_message_loop_->PostTask(FROM_HERE,
                                  base::Bind(&BrowserModule::OnKeyEventProduced,
@@ -492,8 +488,8 @@ void BrowserModule::OnKeyEventProduced(
 }
 
 void BrowserModule::InjectKeyEventToMainWebModule(
-    const scoped_refptr<dom::KeyboardEvent>& event) {
-  web_module_->InjectEvent(event);
+    const dom::KeyboardEvent::Data& event) {
+  web_module_->InjectKeyboardEvent(event);
 }
 
 void BrowserModule::OnError(const std::string& error) {
@@ -503,7 +499,7 @@ void BrowserModule::OnError(const std::string& error) {
   // Retry the current URL. If there is no web module (this can happen in
   // certain cases), use the default URL.
   if (web_module_) {
-    url_string += "?retry-url=" + web_module_->url().spec();
+    url_string += "?retry-url=" + web_module_->GetUrl().spec();
   } else {
     url_string += "?retry-url=" + initial_url_.spec();
   }
@@ -511,8 +507,7 @@ void BrowserModule::OnError(const std::string& error) {
   NavigateWithCallbackInternal(GURL(url_string), base::Closure());
 }
 
-bool BrowserModule::FilterKeyEvent(
-    const scoped_refptr<dom::KeyboardEvent>& event) {
+bool BrowserModule::FilterKeyEvent(const dom::KeyboardEvent::Data& event) {
   // Check for hotkeys first. If it is a hotkey, no more processing is needed.
   if (!FilterKeyEventForHotkeys(event)) {
     return false;
@@ -532,13 +527,14 @@ bool BrowserModule::FilterKeyEvent(
 }
 
 bool BrowserModule::FilterKeyEventForHotkeys(
-    const scoped_refptr<dom::KeyboardEvent>& event) {
+    const dom::KeyboardEvent::Data& event) {
 #if !defined(ENABLE_DEBUG_CONSOLE)
   UNREFERENCED_PARAMETER(event);
 #else
-  if (event->key_code() == dom::keycode::kF1 ||
-      (event->ctrl_key() && event->key_code() == dom::keycode::kO)) {
-    if (event->type() == base::Tokens::keydown()) {
+  if (event.key_code == dom::keycode::kF1 ||
+      (event.modifiers & dom::UIEventWithKeyState::kCtrlKey &&
+       event.key_code == dom::keycode::kO)) {
+    if (event.type == dom::KeyboardEvent::kTypeKeyDown) {
       // Ctrl+O toggles the debug console display.
       debug_console_->CycleMode();
     }

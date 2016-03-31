@@ -30,7 +30,7 @@ KeypressGeneratorFilter::KeypressGeneratorFilter(KeyEventHandler* filter)
     : KeyEventHandler(filter) {}
 
 void KeypressGeneratorFilter::HandleKeyboardEvent(
-    const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
+    const dom::KeyboardEvent::Data& keyboard_event) {
   // Handle the original event
   DispatchKeyboardEvent(keyboard_event);
 
@@ -39,28 +39,31 @@ void KeypressGeneratorFilter::HandleKeyboardEvent(
 }
 
 bool KeypressGeneratorFilter::ConditionallyGenerateKeypressEvent(
-    const scoped_refptr<dom::KeyboardEvent>& orig_event) {
+    const dom::KeyboardEvent::Data& orig_event) {
   // Ignore everything but keydown events.
-  if (orig_event->type() != base::Tokens::keydown()) {
+  if (orig_event.type != dom::KeyboardEvent::kTypeKeyDown) {
     return false;
   }
 
   // Don't generate a keypress event if one of the modifier keys other than
   // Shift is held down.
-  if (orig_event->alt_key() || orig_event->ctrl_key() ||
-      orig_event->meta_key()) {
+  if (orig_event.modifiers & dom::UIEventWithKeyState::kAltKey ||
+      orig_event.modifiers & dom::UIEventWithKeyState::kCtrlKey ||
+      orig_event.modifiers & dom::UIEventWithKeyState::kMetaKey) {
     return false;
   }
 
   // Get the char_code corresponding to the key_code of the event.
   // Only generate the keypress event if there is a valid char_code.
-  int key_code = orig_event->key_code();
-  int char_code = orig_event->ComputeCharCode();
+  int key_code = orig_event.key_code;
+  int char_code =
+      dom::KeyboardEvent::ComputeCharCode(key_code, orig_event.modifiers);
 
   if (char_code > 0) {
-    scoped_refptr<dom::KeyboardEvent> keypress_event(new dom::KeyboardEvent(
-        base::Tokens::keypress(), dom::KeyboardEvent::kDomKeyLocationStandard,
-        orig_event->modifiers(), key_code, char_code, orig_event->repeat()));
+    dom::KeyboardEvent::Data keypress_event(
+        dom::KeyboardEvent::kTypeKeyPress,
+        dom::KeyboardEvent::kDomKeyLocationStandard, orig_event.modifiers,
+        key_code, char_code, orig_event.repeat);
     DispatchKeyboardEvent(keypress_event);
     return true;
   }

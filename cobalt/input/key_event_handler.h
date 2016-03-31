@@ -23,7 +23,7 @@
 namespace cobalt {
 namespace input {
 
-typedef base::Callback<void(const scoped_refptr<dom::KeyboardEvent>&)>
+typedef base::Callback<void(const dom::KeyboardEvent::Data&)>
     KeyboardEventCallback;
 
 // Base class for objects that can process keyboard events.
@@ -38,8 +38,7 @@ class KeyEventHandler {
   // DispatchKeyboardEvent. Overridden versions of this function may modify the
   // incoming event and/or generate new events. Overriden versions should call
   // DispatchKeyboardEvent for each event filtered/produced.
-  virtual void HandleKeyboardEvent(
-      const scoped_refptr<dom::KeyboardEvent>& event);
+  virtual void HandleKeyboardEvent(const dom::KeyboardEvent::Data& event);
 
  protected:
   explicit KeyEventHandler(const KeyboardEventCallback& callback);
@@ -51,8 +50,7 @@ class KeyEventHandler {
   // Called to dispatch a key event. The event will either be sent to the key
   // event filter attached to this object or passed directly to the stored
   // callback function if there is no attached filter.
-  void DispatchKeyboardEvent(
-      const scoped_refptr<dom::KeyboardEvent>& event) const;
+  void DispatchKeyboardEvent(const dom::KeyboardEvent::Data& event) const;
 
  private:
   // The event callback should not be called directly by subclasses.

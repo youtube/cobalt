@@ -177,23 +177,31 @@ WebModule::~WebModule() {
   window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
 }
 
-void WebModule::InjectEvent(const scoped_refptr<dom::Event>& event) {
+void WebModule::InjectKeyboardEvent(const dom::KeyboardEvent::Data& event) {
+  TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
+               event.type);
+
   // Repost to this web module's message loop if it was called on another.
   if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&WebModule::InjectEvent, base::Unretained(this), event));
+    self_message_loop_->PostTask(FROM_HERE,
+                                 base::Bind(&WebModule::InjectKeyboardEvent,
+                                            base::Unretained(this), event));
     return;
   }
 
-  TRACE_EVENT1("cobalt::browser", "WebModule::InjectEvent()", "type",
-               event->type().c_str());
-  window_->InjectEvent(event);
+  // Construct the DOM object from the keyboard event builder and inject it
+  // into the window.
+  scoped_refptr<dom::KeyboardEvent> keyboard_event(
+      new dom::KeyboardEvent(event));
+
+  window_->InjectEvent(keyboard_event);
 }
 
 std::string WebModule::ExecuteJavascript(
     const std::string& script_utf8,
     const base::SourceLocation& script_location) {
+  TRACE_EVENT0("cobalt::browser", "WebModule::ExecuteJavascript()");
+
   // If this method was called on a message loop different to this WebModule's,
   // post the task to this WebModule's message loop and wait for the result.
   if (MessageLoop::current() != self_message_loop_) {
@@ -216,6 +224,31 @@ void WebModule::ExecuteJavascriptInternal(
   DCHECK(thread_checker_.CalledOnValidThread());
   *result = script_runner_->Execute(script_utf8, script_location);
   got_result->Signal();
+}
+
+const GURL& WebModule::GetUrl() const {
+  DCHECK_EQ(self_message_loop_, MessageLoop::current());
+  return window_->location()->url();
+}
+
+void WebModule::SetUrlWithNewFragment(const GURL& url) {
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(FROM_HERE,
+                                 base::Bind(&WebModule::SetUrlWithNewFragment,
+                                            base::Unretained(this), url));
+    return;
+  }
+
+  // Setting the URL only supports fragment identifier changes.
+  GURL::Replacements replacements;
+  replacements.ClearRef();
+  DCHECK(url.ReplaceComponents(replacements) ==
+         window_->location()->url().ReplaceComponents(replacements));
+
+  if (url != window_->location()->url()) {
+    window_->location()->set_url(url);
+    window_->InjectEvent(new dom::Event(base::Tokens::hashchange()));
+  }
 }
 
 void WebModule::OnRenderTreeProduced(const LayoutResults& layout_results) {
