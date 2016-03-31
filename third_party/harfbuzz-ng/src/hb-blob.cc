@@ -33,6 +33,7 @@
 
 #include "hb-object-private.hh"
 
+#if !defined(STARBOARD)
 #ifdef HAVE_SYS_MMAN_H
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -42,6 +43,7 @@
 
 #include <stdio.h>
 #include <errno.h>
+#endif
 
 
 

@@ -38,8 +38,10 @@
 
 #include "hb-ot-map-private.hh"
 
+#if !defined(STARBOARD)
 #include <stdlib.h>
 #include <string.h>
+#endif
 
 
 HB_SHAPER_DATA_ENSURE_DECLARE(ot, face)

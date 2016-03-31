@@ -37,7 +37,9 @@
 
 #include "hb-cache-private.hh"
 
+#if !defined(STARBOARD)
 #include <string.h>
+#endif
 
 
 /*
@@ -477,5 +479,3 @@ hb_face_t::load_num_glyphs (void) const
   num_glyphs = maxp_table->get_num_glyphs ();
   hb_blob_destroy (maxp_blob);
 }
-
-
