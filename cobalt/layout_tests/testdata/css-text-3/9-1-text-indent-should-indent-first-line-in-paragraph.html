@@ -7,19 +7,30 @@
 <html>
 <head>
   <style>
-    p {
+    div {
       width: 320px;
       font-family: Roboto;
       font-weight: normal;
       font-size: 20px;
     }
-    .indent {
+    .indent-1 {
       text-indent: 3em;
+      text-align: left;
+    }
+    .indent-2 {
+      text-indent: 3em;
+      text-align: center;
+    }
+    .indent-3 {
+      text-indent: 3em;
+      text-align: right;
     }
   </style>
 </head>
 <body>
-  <p class="indent">In my younger and more vulnerable years</p>
-  <p>In my younger and more vulnerable years</p>
+  <div class="indent-1">In my younger and more vulnerable years</div>
+  <div class="indent-2">In my younger and more vulnerable years</div>
+  <div class="indent-3">In my younger and more vulnerable years</div>
+  <div>In my younger and more vulnerable years</div>
 </body>
 </html>

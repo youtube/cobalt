@@ -21,6 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/render_tree/font.h"
 
@@ -54,7 +55,7 @@ class LineBox {
           const render_tree::FontMetrics& font_metrics,
           bool should_collapse_leading_white_space,
           bool should_collapse_trailing_white_space,
-          const LayoutParams& layout_params,
+          const LayoutParams& layout_params, BaseDirection base_direction,
           const scoped_refptr<cssom::PropertyValue>& text_align,
           const scoped_refptr<cssom::PropertyValue>& white_space,
           const scoped_refptr<cssom::PropertyValue>& font_size,
@@ -144,6 +145,7 @@ class LineBox {
   const bool should_collapse_leading_white_space_;
   const bool should_collapse_trailing_white_space_;
   const LayoutParams layout_params_;
+  const BaseDirection base_direction_;
   const scoped_refptr<cssom::PropertyValue> text_align_;
   const scoped_refptr<cssom::PropertyValue> font_size_;
   const bool is_text_wrapping_disabled_;

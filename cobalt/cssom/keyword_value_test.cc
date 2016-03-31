@@ -33,6 +33,7 @@ TEST(KeywordValueTest, InstancesAndValuesAreConsistent) {
   EXPECT_EQ(KeywordValue::kCover, KeywordValue::GetCover()->value());
   EXPECT_EQ(KeywordValue::kCursive, KeywordValue::GetCursive()->value());
   EXPECT_EQ(KeywordValue::kEllipsis, KeywordValue::GetEllipsis()->value());
+  EXPECT_EQ(KeywordValue::kEnd, KeywordValue::GetEnd()->value());
   EXPECT_EQ(KeywordValue::kFantasy, KeywordValue::GetFantasy()->value());
   EXPECT_EQ(KeywordValue::kHidden, KeywordValue::GetHidden()->value());
   EXPECT_EQ(KeywordValue::kInherit, KeywordValue::GetInherit()->value());
@@ -52,6 +53,7 @@ TEST(KeywordValueTest, InstancesAndValuesAreConsistent) {
   EXPECT_EQ(KeywordValue::kRight, KeywordValue::GetRight()->value());
   EXPECT_EQ(KeywordValue::kSansSerif, KeywordValue::GetSansSerif()->value());
   EXPECT_EQ(KeywordValue::kSerif, KeywordValue::GetSerif()->value());
+  EXPECT_EQ(KeywordValue::kStart, KeywordValue::GetStart()->value());
   EXPECT_EQ(KeywordValue::kStatic, KeywordValue::GetStatic()->value());
   EXPECT_EQ(KeywordValue::kTop, KeywordValue::GetTop()->value());
   EXPECT_EQ(KeywordValue::kUppercase, KeywordValue::GetUppercase()->value());
