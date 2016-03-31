@@ -18,6 +18,7 @@
 #define COBALT_SYSTEM_WINDOW_STARBOARD_SYSTEM_WINDOW_H_
 
 #include "base/compiler_specific.h"
+#include "cobalt/system_window/keyboard_event.h"
 #include "cobalt/system_window/system_window.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
@@ -40,7 +41,15 @@ class SystemWindowStarboard : public SystemWindow {
   void HandleInputEvent(const SbInputData& data);
 
  private:
+  void UpdateModifiers(SbKey key, bool pressed);
+  KeyboardEvent::Modifiers GetModifiers();
+
   SbWindow window_;
+
+  int alt_count_;
+  int control_count_;
+  int meta_count_;
+  int shift_count_;
 };
 
 // The Starboard Event handler SbHandleEvent should call this function on
