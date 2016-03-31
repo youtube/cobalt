@@ -31,10 +31,12 @@ class CSSComputedStyleData;
 //   https://www.w3.org/TR/css-cascade-3/#computed
 
 // Converts specified values into computed values in place.
-// If the element has no parent, |parent_computed_style| can be NULL
+// parent_computed_style and root_computed_style cannot be NULL.
+// property_key_to_base_url_map can be NULL.
 void PromoteToComputedStyle(
     const scoped_refptr<CSSComputedStyleData>& specified_style,
     const scoped_refptr<const CSSComputedStyleData>& parent_computed_style,
+    const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
     GURLMap* const property_key_to_base_url_map);
 
 // Creates the computed style of an anonymous box from the given parent style.

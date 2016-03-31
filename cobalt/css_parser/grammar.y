@@ -2204,6 +2204,10 @@ absolute_or_relative_length:
     maybe_sign_token kFontSizesAkaEmToken maybe_whitespace {
     $$ = AddRef(new cssom::LengthValue($1 * $2, cssom::kFontSizesAkaEmUnit));
   }
+  | maybe_sign_token kRootElementFontSizesAkaRemToken maybe_whitespace {
+    $$ = AddRef(new cssom::LengthValue($1 * $2,
+        cssom::kRootElementFontSizesAkaRemUnit));
+  }
   // Absolute lengths.
   //   https://www.w3.org/TR/css3-values/#absolute-lengths
   | maybe_sign_token kPixelsToken maybe_whitespace {

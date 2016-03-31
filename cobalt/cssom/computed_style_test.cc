@@ -44,7 +44,8 @@ TEST(PromoteToComputedStyle, FontWeightShouldBeBoldAsSpecified) {
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
 
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(),
             computed_style->font_weight().get());
@@ -61,12 +62,39 @@ TEST(PromoteToComputedStyle, FontSizeInEmShouldBeRelativeToInheritedValue) {
   parent_computed_style->set_font_size(
       new cssom::LengthValue(100, cssom::kPixelsUnit));
 
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   cssom::LengthValue* computed_font_size =
       base::polymorphic_downcast<cssom::LengthValue*>(
           computed_style->font_size().get());
   EXPECT_EQ(150, computed_font_size->value());
+  EXPECT_EQ(cssom::kPixelsUnit, computed_font_size->unit());
+}
+
+TEST(PromoteToComputedStyle, FontSizeInRemShouldBeRelativeToRootValue) {
+  scoped_refptr<cssom::CSSComputedStyleData> computed_style(
+      new cssom::CSSComputedStyleData());
+  computed_style->set_font_size(
+      new cssom::LengthValue(1.5f, cssom::kRootElementFontSizesAkaRemUnit));
+
+  scoped_refptr<cssom::CSSComputedStyleData> parent_computed_style(
+      new cssom::CSSComputedStyleData());
+  parent_computed_style->set_font_size(
+      new cssom::LengthValue(100, cssom::kPixelsUnit));
+
+  scoped_refptr<cssom::CSSComputedStyleData> root_computed_style(
+      new cssom::CSSComputedStyleData());
+  root_computed_style->set_font_size(
+      new cssom::LengthValue(200, cssom::kPixelsUnit));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         root_computed_style, NULL);
+
+  cssom::LengthValue* computed_font_size =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          computed_style->font_size().get());
+  EXPECT_EQ(300, computed_font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, computed_font_size->unit());
 }
 
@@ -78,7 +106,8 @@ TEST(PromoteToComputedStyle, FontSizeInPixelsShouldBeLeftAsSpecified) {
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
 
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   cssom::LengthValue* computed_font_size =
       base::polymorphic_downcast<cssom::LengthValue*>(
@@ -95,7 +124,8 @@ TEST(PromoteToComputedStyle, NormalLineHeightShouldBeLeftAsSpecified) {
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
 
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   EXPECT_EQ(cssom::KeywordValue::GetNormal(), computed_style->line_height());
 }
@@ -113,7 +143,8 @@ TEST(PromoteToComputedStyle, LineHeightInEmShouldBeComputedAfterFontSize) {
   parent_computed_style->set_font_size(
       new cssom::LengthValue(100, cssom::kPixelsUnit));
 
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   cssom::LengthValue* computed_line_height =
       base::polymorphic_downcast<cssom::LengthValue*>(
@@ -135,7 +166,8 @@ TEST(PromoteToComputedStyle, TextIndentInEmShouldBeComputedAfterFontSize) {
   parent_computed_style->set_font_size(
       new cssom::LengthValue(100, cssom::kPixelsUnit));
 
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   cssom::LengthValue* computed_text_indent =
       base::polymorphic_downcast<cssom::LengthValue*>(
@@ -164,7 +196,7 @@ TEST(PromoteToComputedStyle, BackgroundImageRelativeURL) {
       GURL("file:///computed_style_test/style_sheet.css");
 
   PromoteToComputedStyle(computed_style, parent_computed_style,
-                         &property_key_to_base_url_map);
+                         parent_computed_style, &property_key_to_base_url_map);
 
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -197,7 +229,7 @@ TEST(PromoteToComputedStyle, BackgroundImageNone) {
       GURL("file:///computed_style_test/document.html");
 
   PromoteToComputedStyle(computed_style, parent_computed_style,
-                         &property_key_to_base_url_map);
+                         parent_computed_style, &property_key_to_base_url_map);
 
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -218,7 +250,8 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithInitialValue) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -256,7 +289,8 @@ TEST(PromoteToComputedStyle, BackgroundPositionOneValueWithoutKeywordValue) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -293,7 +327,8 @@ TEST(PromoteToComputedStyle, BackgroundPositionOneKeywordValue) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -333,7 +368,8 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithoutKeywordValue) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -371,7 +407,8 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithOneKeyword) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -409,7 +446,8 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoKeywords) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -447,7 +485,8 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoCenterKeywords) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -486,7 +525,8 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValues) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -525,7 +565,8 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValuesHaveCenter) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -566,7 +607,8 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithFourValues) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -605,7 +647,8 @@ TEST(PromoteToComputedStyle, BackgroundSizeEmToPixel) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -633,7 +676,8 @@ TEST(PromoteToComputedStyle, BackgroundSizeKeywordNotChanged) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   EXPECT_EQ(cssom::KeywordValue::GetContain(),
             computed_style->background_size());
@@ -647,7 +691,8 @@ TEST(PromoteToComputedStyle, BorderRadiusEmToPixel) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   cssom::LengthValue* border_radius =
       base::polymorphic_downcast<cssom::LengthValue*>(
@@ -664,7 +709,8 @@ TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::RGBAColorValue> border_color =
       dynamic_cast<cssom::RGBAColorValue*>(
@@ -682,7 +728,8 @@ TEST(PromoteToComputedStyle, BorderWidthWithBorderStyleNone) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::LengthValue> border_top_width =
       dynamic_cast<cssom::LengthValue*>(
@@ -705,7 +752,8 @@ TEST(PromoteToComputedStyle, BorderWidthInEmShouldBeComputedAfterFontSize) {
       new cssom::CSSComputedStyleData());
   parent_computed_style->set_font_size(
       new cssom::LengthValue(100, cssom::kPixelsUnit));
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::LengthValue> border_left_width =
       dynamic_cast<cssom::LengthValue*>(
@@ -735,7 +783,8 @@ TEST(PromoteToComputedStyle, BoxShadowWithEmLengthAndColor) {
       new cssom::CSSComputedStyleData());
   parent_computed_style->set_font_size(
       new cssom::LengthValue(50, cssom::kPixelsUnit));
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> box_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -778,7 +827,8 @@ TEST(PromoteToComputedStyle, BoxShadowWithInset) {
 
   scoped_refptr<cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> box_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -822,7 +872,8 @@ TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
   scoped_refptr<cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
   parent_computed_style->set_color(new cssom::RGBAColorValue(0x0047abff));
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> box_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -874,7 +925,8 @@ TEST(PromoteToComputedStyle, BoxShadowWithShadowList) {
   parent_computed_style->set_font_size(
       new cssom::LengthValue(50, cssom::kPixelsUnit));
   parent_computed_style->set_color(new cssom::RGBAColorValue(0x0047ABFF));
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> box_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -926,7 +978,8 @@ TEST(PromoteToComputedStyle, BoxShadowWithNone) {
 
   scoped_refptr<cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   EXPECT_EQ(cssom::KeywordValue::GetNone(), computed_style->box_shadow());
 }
@@ -952,7 +1005,8 @@ TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
       new cssom::CSSComputedStyleData());
   parent_computed_style->set_font_size(
       new cssom::LengthValue(50, cssom::kPixelsUnit));
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> text_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -994,7 +1048,8 @@ TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
   scoped_refptr<cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
   parent_computed_style->set_color(new cssom::RGBAColorValue(0x0047abff));
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> text_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -1046,7 +1101,8 @@ TEST(PromoteToComputedStyle, TextShadowWithShadowList) {
   parent_computed_style->set_font_size(
       new cssom::LengthValue(50, cssom::kPixelsUnit));
   parent_computed_style->set_color(new cssom::RGBAColorValue(0x0047ABFF));
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> text_shadow_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -1097,7 +1153,8 @@ TEST(PromoteToComputedStyle, TextShadowWithNone) {
 
   scoped_refptr<cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   EXPECT_EQ(cssom::KeywordValue::GetNone(), computed_style->text_shadow());
 }
@@ -1114,7 +1171,8 @@ TEST(PromoteToComputedStyle, HeightPercentageInUnspecifiedHeightBlockIsAuto) {
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), parent_computed_style->height());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), computed_style->height());
 }
@@ -1132,7 +1190,8 @@ TEST(PromoteToComputedStyle,
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), parent_computed_style->height());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   EXPECT_EQ(cssom::KeywordValue::GetNone(), computed_style->max_height());
 }
@@ -1150,7 +1209,8 @@ TEST(PromoteToComputedStyle,
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), parent_computed_style->height());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   cssom::LengthValue* computed_min_height =
       base::polymorphic_downcast<cssom::LengthValue*>(
@@ -1174,8 +1234,9 @@ TEST(PromoteToComputedStyle, MaxWidthPercentageInNegativeWidthBlockIsZero) {
       new cssom::CSSComputedStyleData());
   parent_computed_style->set_width(new LengthValue(-16, kPixelsUnit));
   PromoteToComputedStyle(parent_computed_style, grandparent_computed_style,
-                         NULL);
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+                         grandparent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         grandparent_computed_style, NULL);
 
   cssom::LengthValue* computed_max_width =
       base::polymorphic_downcast<cssom::LengthValue*>(
@@ -1199,8 +1260,9 @@ TEST(PromoteToComputedStyle, MinWidthPercentageInNegativeWidthBlockIsZero) {
       new cssom::CSSComputedStyleData());
   parent_computed_style->set_width(new LengthValue(-16, kPixelsUnit));
   PromoteToComputedStyle(parent_computed_style, grandparent_computed_style,
-                         NULL);
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+                         grandparent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         grandparent_computed_style, NULL);
 
   cssom::LengthValue* computed_min_width =
       base::polymorphic_downcast<cssom::LengthValue*>(
@@ -1222,7 +1284,8 @@ TEST(PromoteToComputedStyle, LineHeightPercentageIsRelativeToFontSize) {
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
 
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   cssom::LengthValue* computed_line_height =
       base::polymorphic_downcast<cssom::LengthValue*>(
@@ -1245,7 +1308,8 @@ TEST(PromoteToComputedStyle, TransformOriginOneValueWithKeyword) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> transform_origin_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -1290,7 +1354,8 @@ TEST(PromoteToComputedStyle, TransformOriginOneValueWithoutKeyword) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> transform_origin_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -1337,7 +1402,8 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeywordValue) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> transform_origin_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -1382,7 +1448,8 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithOneKeyword) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> transform_origin_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -1427,7 +1494,8 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeyword) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> transform_origin_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -1472,7 +1540,8 @@ TEST(PromoteToComputedStyle, TransformOriginTwoKeywordValues) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> transform_origin_list =
       dynamic_cast<cssom::PropertyListValue*>(
@@ -1520,7 +1589,8 @@ TEST(PromoteToComputedStyle, TransformOriginThreeValues) {
 
   scoped_refptr<const cssom::CSSComputedStyleData> parent_computed_style(
       new cssom::CSSComputedStyleData());
-  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
 
   scoped_refptr<cssom::PropertyListValue> transform_origin_list =
       dynamic_cast<cssom::PropertyListValue*>(
