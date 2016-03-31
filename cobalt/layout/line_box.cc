@@ -35,6 +35,7 @@ LineBox::LineBox(float top, bool position_children_relative_to_baseline,
                  bool should_collapse_leading_white_space,
                  bool should_collapse_trailing_white_space,
                  const LayoutParams& layout_params,
+                 BaseDirection base_direction,
                  const scoped_refptr<cssom::PropertyValue>& text_align,
                  const scoped_refptr<cssom::PropertyValue>& white_space,
                  const scoped_refptr<cssom::PropertyValue>& font_size,
@@ -48,6 +49,7 @@ LineBox::LineBox(float top, bool position_children_relative_to_baseline,
       should_collapse_trailing_white_space_(
           should_collapse_trailing_white_space),
       layout_params_(layout_params),
+      base_direction_(base_direction),
       text_align_(text_align),
       font_size_(font_size),
       is_text_wrapping_disabled_(white_space ==
@@ -396,8 +398,15 @@ void LineBox::ReverseChildBoxesMeetingBidiLevelThreshold(int level) {
 }
 
 void LineBox::UpdateChildBoxLeftPositions() {
-  float horizontal_offset_due_alignment = 0;
+  // Determine the horizontal offset to apply to the child boxes from the value
+  // calculated from "text-align", which is vaguely specified by
+  // https://www.w3.org/TR/css-text-3/#text-align
+  float horizontal_offset = 0;
   if (text_align_ == cssom::KeywordValue::GetLeft() ||
+      (text_align_ == cssom::KeywordValue::GetStart() &&
+       base_direction_ != kRightToLeftBaseDirection) ||
+      (text_align_ == cssom::KeywordValue::GetEnd() &&
+       base_direction_ == kRightToLeftBaseDirection) ||
       layout_params_.containing_block_size.width() < shrink_to_fit_width_) {
     // When the total width of the inline-level boxes on a line is less than
     // the width of the line box containing them, their horizontal distribution
@@ -405,22 +414,55 @@ void LineBox::UpdateChildBoxLeftPositions() {
     //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
     //
     // So do not shift child boxes when the inline-level boxes already overflow,
-    // also do not shift if text-align is "left".
+    // also do not shift if text-alignment is to the left.
+    // TODO(***REMOVED***): Change the logic to left-aligning on overflow if the
+    // direction is LTR and to right-aligning on overflow if the direction is
+    // RTL. Holding off on doing this for now, because RTL ellipsis support
+    // should be added at the same time or the effect will be odd.
   } else if (text_align_ == cssom::KeywordValue::GetCenter()) {
-    horizontal_offset_due_alignment = GetAvailableWidth() / 2;
-  } else if (text_align_ == cssom::KeywordValue::GetRight()) {
-    horizontal_offset_due_alignment = GetAvailableWidth();
+    // The text-alignment is to the center, so offset by half of the available
+    // width. This places half of the available width on each side of the boxes.
+    horizontal_offset = GetAvailableWidth() / 2;
+  } else if (text_align_ == cssom::KeywordValue::GetRight() ||
+             (text_align_ == cssom::KeywordValue::GetStart() &&
+              base_direction_ == kRightToLeftBaseDirection) ||
+             (text_align_ == cssom::KeywordValue::GetEnd() &&
+              base_direction_ != kRightToLeftBaseDirection)) {
+    // The text-alignment is to the right, so offset by the full available
+    // width. This places all of the available space to the left of the boxes.
+    horizontal_offset = GetAvailableWidth();
   } else {
     NOTREACHED() << "Unknown value of \"text-align\".";
   }
 
-  // Set the first child box position to the indent offset, which is treated as
-  // a margin applied to the start edge of the line box, specified by
-  // https://www.w3.org/TR/CSS21/text.html#propdef-text-indent,
-  // and offset this position by the the value calculated from "text-align",
-  // which is vaguely specified by
-  // https://www.w3.org/TR/CSS21/text.html#propdef-text-align.
-  float child_box_left = indent_offset_ + horizontal_offset_due_alignment;
+  // Determine the horizontal offset to add to the child boxes from the indent
+  // offset (https://www.w3.org/TR/CSS21/text.html#propdef-text-indent), which
+  // is treated as a margin applied to the start edge of the line box. In the
+  // case where the start edge is on the right, there is no offset to add, as
+  // it was already included from the GetAvailableWidth() logic above.
+  //
+  // To add to this, the indent offset was added to |shrink_to_fit_width_| when
+  // the line box was created. The above logic serves to subtract half of the
+  // indent offset when the alignment is centered, and the full indent offset
+  // when the alignment is to the right. Re-adding the indent offset in the case
+  // where the base direction is LTR causes the indent to shift the boxes to the
+  // right. Not adding it in the case where the base direction is RTL causes the
+  // indent to shift the boxes to the left.
+  //
+  // Here are the 6 cases and the final indent offset they produce:
+  // Left Align   + LTR => indent_offset
+  // Center Align + LTR => indent_offset / 2
+  // Right Align  + LTR => 0
+  // Left Align   + RTL => 0
+  // Center Align + RTL => -indent_offset / 2
+  // Right Align  + RTL => -indent_offset
+  if (base_direction_ != kRightToLeftBaseDirection) {
+    horizontal_offset += indent_offset_;
+  }
+
+  // Set the first child box left position to the horizontal offset. This
+  // results in all boxes being shifted by that offset.
+  float child_box_left = horizontal_offset;
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
@@ -598,6 +640,8 @@ void LineBox::UpdateChildBoxTopPositions() {
 }
 
 void LineBox::MaybePlaceEllipsis() {
+  // TODO(***REMOVED***): Add RTL ellipses support
+
   // Check to see if an ellipsis should be placed, which is only the case when a
   // non-zero width ellipsis is available and the line box has overflowed the
   // containing block.

@@ -18,6 +18,7 @@
 #define COBALT_LAYOUT_BLOCK_CONTAINER_BOX_H_
 
 #include "base/optional.h"
+#include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/container_box.h"
 
 namespace cobalt {
@@ -41,6 +42,7 @@ class BlockContainerBox : public ContainerBox {
  public:
   BlockContainerBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                         css_computed_style_declaration,
+                    BaseDirection base_direction,
                     UsedStyleProvider* used_style_provider);
   ~BlockContainerBox() OVERRIDE;
 
@@ -67,6 +69,8 @@ class BlockContainerBox : public ContainerBox {
 
   // From |ContainerBox|.
   scoped_refptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
+
+  BaseDirection GetBaseDirection() const;
 
  protected:
   // From |Box|.
@@ -138,6 +142,11 @@ class BlockContainerBox : public ContainerBox {
   // relatively to the origin of the block container box. Disengaged, if none
   // of the child boxes have a baseline.
   base::optional<float> maybe_baseline_offset_from_top_margin_edge_;
+
+  // The primary direction in which inline content is ordered on a line and the
+  // sides on which the "start" and "end" of a line are.
+  // https://www.w3.org/TR/css-writing-modes-3/#inline-base-direction
+  BaseDirection base_direction_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockContainerBox);
 };

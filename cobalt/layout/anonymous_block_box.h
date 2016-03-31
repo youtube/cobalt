@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "cobalt/dom/font_list.h"
+#include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/block_container_box.h"
 #include "cobalt/layout/box.h"
 
@@ -34,6 +35,7 @@ class AnonymousBlockBox : public BlockContainerBox {
  public:
   AnonymousBlockBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                         css_computed_style_declaration,
+                    BaseDirection base_direction,
                     UsedStyleProvider* used_style_provider);
 
   // From |Box|.

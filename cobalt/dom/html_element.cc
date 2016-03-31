@@ -57,6 +57,31 @@
 namespace cobalt {
 namespace dom {
 
+std::string HTMLElement::dir() const {
+  // The dir attribute is limited to only known values. On getting, dir must
+  // return the conforming value associated with the state the attribute is in,
+  // or the empty string if the attribute is in a state with no associated
+  // keyword value.
+  // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
+  // https://dev.w3.org/html5/spec-preview/common-dom-interfaces.html#limited-to-only-known-values
+  // NOTE: Value "auto" is not supported.
+  if (directionality_ == kLeftToRightDirectionality) {
+    return "ltr";
+  } else if (directionality_ == kRightToLeftDirectionality) {
+    return "rtl";
+  } else {
+    return "";
+  }
+}
+
+void HTMLElement::set_dir(const std::string& value) {
+  // The dir attribute is limited to only known values. On setting, the dir
+  // attribute must be set to the specified new value.
+  // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
+  // https://dev.w3.org/html5/spec-preview/common-dom-interfaces.html#limited-to-only-known-values
+  SetAttribute("dir", value);
+}
+
 scoped_refptr<DOMStringMap> HTMLElement::dataset() {
   scoped_refptr<DOMStringMap> dataset(dataset_);
   if (!dataset) {
@@ -369,6 +394,7 @@ scoped_refptr<Node> HTMLElement::Duplicate() const {
           ->html_element_factory()
           ->CreateHTMLElement(document, tag_name());
   new_html_element->CopyAttributes(*this);
+  new_html_element->CopyDirectionality(*this);
   new_html_element->style_->AssignFrom(*this->style_);
 
   return new_html_element;
@@ -544,6 +570,7 @@ void HTMLElement::InvalidateLayoutBoxesFromNodeAndDescendants() {
 
 HTMLElement::HTMLElement(Document* document, base::Token tag_name)
     : Element(document, tag_name),
+      directionality_(kNoExplicitDirectionality),
       style_(new cssom::CSSDeclaredStyleDeclaration(
           document->html_element_context()->css_parser())),
       computed_style_valid_(false),
@@ -561,6 +588,10 @@ HTMLElement::HTMLElement(Document* document, base::Token tag_name)
 
 HTMLElement::~HTMLElement() {}
 
+void HTMLElement::CopyDirectionality(const HTMLElement& other) {
+  directionality_ = other.directionality_;
+}
+
 void HTMLElement::OnInsertBefore(
     const scoped_refptr<Node>& /* new_child */,
     const scoped_refptr<Node>& /* reference_child */) {
@@ -572,15 +603,36 @@ void HTMLElement::OnRemoveChild(const scoped_refptr<Node>& /* node */) {
 }
 
 void HTMLElement::OnSetAttribute(const std::string& name,
-                                 const std::string& /* value */) {
+                                 const std::string& value) {
   if (name == "class" || name == "id") {
     InvalidateMatchingRulesRecursively();
+  } else if (name == "dir") {
+    SetDirectionality(value);
   }
 }
 
 void HTMLElement::OnRemoveAttribute(const std::string& name) {
   if (name == "class" || name == "id") {
     InvalidateMatchingRulesRecursively();
+  } else if (name == "dir") {
+    SetDirectionality("");
+  }
+}
+
+void HTMLElement::SetDirectionality(const std::string& value) {
+  // NOTE: Value "auto" is not supported.
+  Directionality previous_directionality = directionality_;
+  if (value == "ltr") {
+    directionality_ = kLeftToRightDirectionality;
+  } else if (value == "rtl") {
+    directionality_ = kRightToLeftDirectionality;
+  } else {
+    directionality_ = kNoExplicitDirectionality;
+  }
+
+  if (directionality_ != previous_directionality) {
+    InvalidateLayoutBoxesFromNodeAndAncestors();
+    InvalidateLayoutBoxesFromNodeAndDescendants();
   }
 }
 
@@ -639,8 +691,7 @@ bool NewComputedStyleInvalidatesLayoutBoxes(
   // inheritable property is modified, because AnonymousBlockBox and TextBox use
   // GetComputedStyleOfAnonymousBox() to store a copy of them that won't
   // automatically get updated when the style() in a CSSComputedStyleDeclaration
-  // gets
-  // updated.
+  // gets updated.
   return !old_computed_style->display()->Equals(
              *new_computed_style->display()) ||
          !old_computed_style->content()->Equals(

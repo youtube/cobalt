@@ -4054,9 +4054,12 @@ scale_function_parameters:
 
 // This property describes how inline-level content of a block container is
 // aligned.
-//   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
+//   https://www.w3.org/TR/css-text-3/#text-align
 text_align_property_value:
-    kLeftToken maybe_whitespace {
+    kEndToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetEnd().get());
+  }
+  | kLeftToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetLeft().get());
   }
   | kCenterToken maybe_whitespace {
@@ -4064,6 +4067,9 @@ text_align_property_value:
   }
   | kRightToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetRight().get());
+  }
+  | kStartToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetStart().get());
   }
   | common_values
   ;
