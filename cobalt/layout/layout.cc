@@ -72,7 +72,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatBoxGeneration);
     ScopedParagraph scoped_paragraph(
-        new Paragraph(locale, Paragraph::kLeftToRightBaseDirection,
+        new Paragraph(locale, (*initial_containing_block)->GetBaseDirection(),
+                      Paragraph::DirectionalEmbeddingStack(),
                       line_break_iterator, character_break_iterator));
     BoxGenerator root_box_generator(
         (*initial_containing_block)->css_computed_style_declaration(),

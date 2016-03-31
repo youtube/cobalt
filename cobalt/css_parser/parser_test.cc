@@ -5349,6 +5349,14 @@ TEST_F(ParserTest, ParsesCenterTextAlign) {
             style->GetPropertyValue(cssom::kTextAlignProperty));
 }
 
+TEST_F(ParserTest, ParsesEndTextAlign) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("text-align: end;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetEnd(),
+            style->GetPropertyValue(cssom::kTextAlignProperty));
+}
+
 TEST_F(ParserTest, ParsesRightTextAlign) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("text-align: right;", source_location_);
@@ -5409,6 +5417,14 @@ TEST_F(ParserTest, ParsesTextDecorationShorthandPropertyInitial) {
 
   EXPECT_EQ(cssom::KeywordValue::GetInitial(),
             style->GetPropertyValue(cssom::kTextDecorationLineProperty));
+}
+
+TEST_F(ParserTest, ParsesStartTextAlign) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("text-align: start;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetStart(),
+            style->GetPropertyValue(cssom::kTextAlignProperty));
 }
 
 TEST_F(ParserTest, ParseZeroLengthTextIndent) {

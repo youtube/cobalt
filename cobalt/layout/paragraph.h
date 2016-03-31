@@ -22,6 +22,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/font_list.h"
+#include "cobalt/layout/base_direction.h"
 #include "cobalt/render_tree/font.h"
 
 #include "third_party/icu/public/common/unicode/brkiter.h"
@@ -52,21 +53,24 @@ namespace layout {
 // which can result in text boxes being split.
 class Paragraph : public base::RefCounted<Paragraph> {
  public:
-  enum BaseDirection {
-    kUnknownBaseDirection,
-    kRightToLeftBaseDirection,
-    kLeftToRightBaseDirection,
-  };
-
-  enum CodePoint {
-    kLineFeedCodePoint,
-    kObjectReplacementCharacterCodePoint,
-  };
-
   enum BreakPolicy {
     kSoftWrap,
     kBreakWord,
     kSoftWrapWithBreakWordOnOverflow,
+  };
+
+  enum CodePoint {
+    kLeftToRightEmbedCodePoint,
+    kLineFeedCodePoint,
+    kObjectReplacementCharacterCodePoint,
+    kPopDirectionalFormattingCharacterCodePoint,
+    kRightToLeftEmbedCodePoint,
+  };
+
+  // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
+  enum DirectionalEmbedding {
+    kLeftToRightDirectionalEmbedding,
+    kRightToLeftDirectionalEmbedding,
   };
 
   enum TextOrder {
@@ -79,7 +83,10 @@ class Paragraph : public base::RefCounted<Paragraph> {
     kUppercaseTextTransform,
   };
 
+  typedef std::vector<DirectionalEmbedding> DirectionalEmbeddingStack;
+
   Paragraph(const icu::Locale& locale, BaseDirection base_direction,
+            const DirectionalEmbeddingStack& directional_embedding_stack,
             icu::BreakIterator* line_break_iterator,
             icu::BreakIterator* character_break_iterator);
 
@@ -113,11 +120,21 @@ class Paragraph : public base::RefCounted<Paragraph> {
 
   const icu::Locale& GetLocale() const;
   BaseDirection GetBaseDirection() const;
+
+  // Return the direction of the top directional embedding in the paragraph's
+  // stack or the base direction if the stack is empty.
+  BaseDirection GetDirectionalEmbeddingStackDirection() const;
+
   int GetBidiLevel(int32 position) const;
   bool IsRTL(int32 position) const;
   bool IsCollapsibleWhiteSpace(int32 position) const;
   bool GetNextRunPosition(int32 position, int32* next_run_position) const;
   int32 GetTextEndPosition() const;
+
+  // Return the full directional embedding stack for the paragraph. This allows
+  // newly created paragraphs to copy the directional state of a preceding
+  // paragraph.
+  const DirectionalEmbeddingStack& GetDirectionalEmbeddingStack() const;
 
   // Close the paragraph so that it becomes immutable and generates the text
   // runs.
@@ -182,8 +199,12 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // The locale of the paragraph.
   const icu::Locale& locale_;
 
-  // The base text direction of the paragraph.
+  // The base direction of the paragraph.
   const BaseDirection base_direction_;
+
+  // The stack tracking all active directional embeddings in the paragraph.
+  // http://unicode.org/reports/tr9/#Explicit_Directional_Embeddings
+  DirectionalEmbeddingStack directional_embedding_stack_;
 
   // The line break iterator to use when splitting the text boxes derived from
   // this text paragraph across multiple lines.
@@ -195,8 +216,6 @@ class Paragraph : public base::RefCounted<Paragraph> {
   bool is_closed_;
 
   // All of the bidi level runs contained within the paragraph.
-  // TODO(***REMOVED***): Add in splitting of runs around scripts using the chromium
-  // logic found in RenderTextHarfBuzz::ItemizeTextToRuns
   BidiLevelRuns level_runs_;
 
   // |last_retrieved_run_index_| is tracked so that the next retrieval search

@@ -89,7 +89,7 @@ class KeywordValue : public PropertyValue {
 
     // "center" is a value of "text-align" property that indicates that the
     // content should be aligned horizontally centered.
-    //   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
+    //   https://www.w3.org/TR/css-text-3/#text-align
     kCenter,
 
     // "clip" is a value of "text-overflow" property which specifies clipping
@@ -125,6 +125,11 @@ class KeywordValue : public PropertyValue {
     // rendering an ellipsis to represent clipped inline content.
     //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
     kEllipsis,
+
+    // "end" is a value of "text-align" property that indicates that content
+    // is aligned at the end edge of the line box.
+    //   https://www.w3.org/TR/css-text-3/#text-align
+    kEnd,
 
     // "fantasy" is a value of "font_family" property which indicates a generic
     // font family using decorative or expressive representations of characters.
@@ -179,7 +184,7 @@ class KeywordValue : public PropertyValue {
 
     // "left" is a value of "text-align" property that indicates that the
     // content should be aligned horizontally to the left.
-    //   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
+    //   https://www.w3.org/TR/css-text-3/#text-align
     kLeft,
 
     // "line-through" is a value of "text-decoration-line" property that
@@ -256,7 +261,7 @@ class KeywordValue : public PropertyValue {
 
     // "right" is a value of "text-align" property that indicates that the
     // content should be aligned horizontally to the right.
-    //   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
+    //   https://www.w3.org/TR/css-text-3/#text-align
     kRight,
 
     // "sans-serif" is a value of "font_family" property which indicates a
@@ -274,6 +279,12 @@ class KeywordValue : public PropertyValue {
     // line segment.
     //   https://www.w3.org/TR/css3-background/#border-style
     kSolid,
+
+    // "start" is a value of "text-align" property that indicates that content
+    // is aligned at the start edge of the line box. This is the initial
+    // value for "text-align"
+    //   https://www.w3.org/TR/css-text-3/#text-align
+    kStart,
 
     // "static" is a value of "position" property which indicates that a box
     // is laid out according to the normal flow.
@@ -321,6 +332,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetCurrentColor();
   static const scoped_refptr<KeywordValue>& GetCursive();
   static const scoped_refptr<KeywordValue>& GetEllipsis();
+  static const scoped_refptr<KeywordValue>& GetEnd();
   static const scoped_refptr<KeywordValue>& GetFantasy();
   static const scoped_refptr<KeywordValue>& GetForwards();
   static const scoped_refptr<KeywordValue>& GetFixed();
@@ -348,6 +360,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetSansSerif();
   static const scoped_refptr<KeywordValue>& GetSerif();
   static const scoped_refptr<KeywordValue>& GetSolid();
+  static const scoped_refptr<KeywordValue>& GetStart();
   static const scoped_refptr<KeywordValue>& GetStatic();
   static const scoped_refptr<KeywordValue>& GetTop();
   static const scoped_refptr<KeywordValue>& GetUppercase();

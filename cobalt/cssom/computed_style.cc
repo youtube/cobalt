@@ -318,6 +318,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kForwards:
     case KeywordValue::kFixed:
@@ -344,6 +345,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -408,6 +410,7 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -435,6 +438,7 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -505,6 +509,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -532,6 +537,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -616,6 +622,7 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -643,6 +650,7 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -729,6 +737,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCursive:
     case KeywordValue::kCurrentColor:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -755,6 +764,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -841,6 +851,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -868,6 +879,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -948,6 +960,7 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -975,6 +988,7 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -1050,6 +1064,7 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -1076,6 +1091,7 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -1454,6 +1470,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -1480,6 +1497,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -1709,6 +1727,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -1736,6 +1755,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -1942,6 +1962,7 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kForwards:
     case KeywordValue::kFixed:
@@ -1968,6 +1989,7 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -2307,6 +2329,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kCurrentColor:
     case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kEnd:
     case KeywordValue::kFantasy:
     case KeywordValue::kFixed:
     case KeywordValue::kForwards:
@@ -2333,6 +2356,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kSansSerif:
     case KeywordValue::kSerif:
     case KeywordValue::kSolid:
+    case KeywordValue::kStart:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:

@@ -103,7 +103,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   LineBox line_box(box_top_height, true, computed_style()->line_height(),
                    font_metrics, should_collapse_leading_white_space_,
                    should_collapse_trailing_white_space_, layout_params,
-                   cssom::KeywordValue::GetLeft(),
+                   kLeftToRightBaseDirection, cssom::KeywordValue::GetLeft(),
                    cssom::KeywordValue::GetNormal(),
                    computed_style()->font_size(), 0, 0);
 

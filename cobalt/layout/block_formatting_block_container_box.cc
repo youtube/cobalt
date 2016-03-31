@@ -30,8 +30,9 @@ namespace layout {
 BlockFormattingBlockContainerBox::BlockFormattingBlockContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    UsedStyleProvider* used_style_provider)
-    : BlockContainerBox(css_computed_style_declaration, used_style_provider) {}
+    BaseDirection base_direction, UsedStyleProvider* used_style_provider)
+    : BlockContainerBox(css_computed_style_declaration, base_direction,
+                        used_style_provider) {}
 
 bool BlockFormattingBlockContainerBox::TryAddChild(
     const scoped_refptr<Box>& child_box) {
@@ -101,7 +102,7 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
         new web_animations::AnimationSet());
     scoped_refptr<AnonymousBlockBox> new_anonymous_block_box(
         new AnonymousBlockBox(css_computed_style_declaration,
-                              used_style_provider()));
+                              GetBaseDirection(), used_style_provider()));
     anonymous_block_box = new_anonymous_block_box.get();
     PushBackDirectChild(new_anonymous_block_box);
   }
@@ -111,9 +112,9 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
 BlockLevelBlockContainerBox::BlockLevelBlockContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    UsedStyleProvider* used_style_provider)
+    BaseDirection base_direction, UsedStyleProvider* used_style_provider)
     : BlockFormattingBlockContainerBox(css_computed_style_declaration,
-                                       used_style_provider) {}
+                                       base_direction, used_style_provider) {}
 
 BlockLevelBlockContainerBox::~BlockLevelBlockContainerBox() {}
 
@@ -130,10 +131,10 @@ void BlockLevelBlockContainerBox::DumpClassName(std::ostream* stream) const {
 InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
-    const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-    UsedStyleProvider* used_style_provider)
+    BaseDirection base_direction, const scoped_refptr<Paragraph>& paragraph,
+    int32 text_position, UsedStyleProvider* used_style_provider)
     : BlockFormattingBlockContainerBox(css_computed_style_declaration,
-                                       used_style_provider),
+                                       base_direction, used_style_provider),
       paragraph_(paragraph),
       text_position_(text_position),
       is_hidden_by_ellipsis_(false) {}

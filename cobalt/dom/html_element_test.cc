@@ -165,6 +165,25 @@ HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
   return root_html_element;
 }
 
+TEST_F(HTMLElementTest, Dir) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  EXPECT_EQ("", html_element->dir());
+
+  html_element->set_dir("invalid");
+  EXPECT_EQ("", html_element->dir());
+
+  html_element->set_dir("ltr");
+  EXPECT_EQ("ltr", html_element->dir());
+
+  html_element->set_dir("rtl");
+  EXPECT_EQ("rtl", html_element->dir());
+
+  // Value "auto" is not supported.
+  html_element->set_dir("auto");
+  EXPECT_EQ("", html_element->dir());
+}
+
 TEST_F(HTMLElementTest, TabIndex) {
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
