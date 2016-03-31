@@ -23,12 +23,13 @@ namespace browser {
 
 class ApplicationStarboard : public Application {
  public:
-  ApplicationStarboard() {}
+  explicit ApplicationStarboard(const base::Closure& quit_closure)
+      : Application(quit_closure) {}
   ~ApplicationStarboard() OVERRIDE {}
 };
 
-scoped_ptr<Application> CreateApplication() {
-  return scoped_ptr<Application>(new ApplicationStarboard());
+scoped_ptr<Application> CreateApplication(const base::Closure& quit_closure) {
+  return scoped_ptr<Application>(new ApplicationStarboard(quit_closure));
 }
 
 }  // namespace browser

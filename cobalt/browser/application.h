@@ -45,14 +45,8 @@ class Application {
 
   void Quit();
 
-  // Sets the quit closure, which will be run to induce the main thread RunLoop
-  // to quit.  Must be set before Quit() is called.
-  void set_quit_closure(const base::Closure& quit_closure) {
-    quit_closure_ = quit_closure;
-  }
-
  protected:
-  Application();
+  explicit Application(const base::Closure& quit_closure);
 
   MessageLoop* message_loop() { return message_loop_; }
 
@@ -107,8 +101,10 @@ class Application {
 };
 
 // Factory method for creating an application.  It should be implemented
-// per-platform to allow for platform-specific customization.
-scoped_ptr<Application> CreateApplication();
+// per-platform to allow for platform-specific customization.  The passed
+// in |quit_closure| can be called internally by the application to signal that
+// it would like to quit.
+scoped_ptr<Application> CreateApplication(const base::Closure& quit_closure);
 
 }  // namespace browser
 }  // namespace cobalt

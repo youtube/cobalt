@@ -21,12 +21,13 @@ namespace browser {
 
 class ApplicationWin : public Application {
  public:
-  ApplicationWin() {}
+  explicit ApplicationWin(const base::Closure& quit_closure)
+      : Application(quit_closure) {}
   ~ApplicationWin() OVERRIDE {}
 };
 
-scoped_ptr<Application> CreateApplication() {
-  return scoped_ptr<Application>(new ApplicationWin());
+scoped_ptr<Application> CreateApplication(const base::Closure& quit_closure) {
+  return scoped_ptr<Application>(new ApplicationWin(quit_closure));
 }
 
 }  // namespace browser

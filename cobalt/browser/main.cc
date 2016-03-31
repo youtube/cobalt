@@ -29,9 +29,8 @@ cobalt::browser::Application* g_application = NULL;
 void StartApplication(int /*argc*/, char** /*argv*/,
                       const base::Closure& quit_closure) {
   DCHECK(!g_application);
-  g_application = cobalt::browser::CreateApplication().release();
+  g_application = cobalt::browser::CreateApplication(quit_closure).release();
   DCHECK(g_application);
-  g_application->set_quit_closure(quit_closure);
 }
 
 void StopApplication() {
