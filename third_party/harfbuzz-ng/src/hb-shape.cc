@@ -79,9 +79,9 @@ parse_uint (const char **pp, const char *end, unsigned int *pv)
 
   /* Intentionally use strtol instead of strtoul, such that
    * -1 turns into "big number"... */
-  errno = 0;
+  _hb_clear_errno();
   v = strtol (p, &pend, 0);
-  if (errno || p == pend)
+  if (_hb_get_errno() || p == pend)
     return false;
 
   *pv = v;

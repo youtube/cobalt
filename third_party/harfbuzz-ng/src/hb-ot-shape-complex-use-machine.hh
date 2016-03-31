@@ -369,7 +369,7 @@ static const int use_syllable_machine_en_main = 3;
 
 #define found_syllable(syllable_type) \
   HB_STMT_START { \
-    if (0) fprintf (stderr, "syllable %d..%d %s\n", last, p+1, #syllable_type); \
+    if (0) _hb_log ("syllable %d..%d %s\n", last, p+1, #syllable_type); \
     for (unsigned int i = last; i < p+1; i++) \
       info[i].syllable() = (syllable_serial << 4) | syllable_type; \
     last = p+1; \

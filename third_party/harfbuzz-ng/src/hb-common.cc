@@ -31,7 +31,9 @@
 #include "hb-mutex-private.hh"
 #include "hb-object-private.hh"
 
+#if !defined(STARBOARD)  // Still compiles without this include.
 #include <locale.h>
+#endif
 
 
 /* hb_options_t */

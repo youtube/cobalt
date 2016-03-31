@@ -37,7 +37,9 @@
 
 #include "hb-cache-private.hh"
 
+#if !defined(STARBOARD)
 #include <string.h>
+#endif
 
 
 /*
