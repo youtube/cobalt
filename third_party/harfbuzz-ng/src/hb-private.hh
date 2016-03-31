@@ -40,6 +40,9 @@
 #define HB_OT_H_IN
 #endif
 
+#if defined(STARBOARD)
+#include "hb-starboard.hh"
+#else  // defined(STARBOARD)
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
@@ -51,6 +54,7 @@
  * someway around that. */
 #include <stdio.h>
 #include <errno.h>
+#endif
 #include <stdarg.h>
 
 
@@ -297,6 +301,42 @@ ASSERT_STATIC (sizeof (hb_var_int_t) == 4);
 struct _hb_void_t {};
 typedef const _hb_void_t *hb_void_t;
 #define HB_VOID ((const _hb_void_t *) NULL)
+
+/* STARBOARD: fprintf nonsense */
+static inline void _hb_vlog(const char* format, va_list args) {
+#if defined(STARBOARD)
+  if (SB_LOG_IS_ON(INFO)) {
+    SbLogFormat(format, args);
+  }
+#else
+  vfprintf(stderr, format, args);
+#endif
+}
+
+static inline void _hb_log(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  _hb_vlog(format, args);
+  va_end(args);
+}
+
+/* STARBOARD: errno nonsense */
+static inline int _hb_get_errno() {
+#if defined(STARBOARD)
+  return SbSystemGetLastError();
+#else
+  return errno;
+#endif
+}
+
+static inline void _hb_clear_errno() {
+#if defined(STARBOARD)
+  SbSystemClearLastError();
+#else
+  errno = 0;
+#endif
+}
+
 
 /* Return the number of 1 bits in mask. */
 static inline HB_CONST_FUNC unsigned int
@@ -642,7 +682,7 @@ _hb_print_func (const char *func)
     const char *paren = strchr (func, '(');
     if (paren)
       func_len = paren - func;
-    fprintf (stderr, "%.*s", func_len, func);
+    _hb_log ("%.*s", func_len, func);
   }
 }
 
@@ -668,12 +708,12 @@ _hb_debug_msg_va (const char *what,
   if (!_hb_debug (level, max_level))
     return;
 
-  fprintf (stderr, "%-10s", what ? what : "");
+  _hb_log ("%-10s", what ? what : "");
 
   if (obj)
-    fprintf (stderr, "(%0*lx) ", (unsigned int) (2 * sizeof (void *)), (unsigned long) obj);
+    _hb_log ("(%0*lx) ", (unsigned int) (2 * sizeof (void *)), (unsigned long) obj);
   else
-    fprintf (stderr, " %*s  ", (unsigned int) (2 * sizeof (void *)), "");
+    _hb_log (" %*s  ", (unsigned int) (2 * sizeof (void *)), "");
 
   if (indented) {
 /* One may want to add ASCII version of these.  See:
@@ -684,22 +724,22 @@ _hb_debug_msg_va (const char *what,
 #define ULBAR	"\342\225\257"	/* U+256F BOX DRAWINGS LIGHT ARC UP AND LEFT */
 #define LBAR	"\342\225\264"	/* U+2574 BOX DRAWINGS LIGHT LEFT */
     static const char bars[] = VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR;
-    fprintf (stderr, "%2u %s" VRBAR "%s",
+    _hb_log ("%2u %s" VRBAR "%s",
 	     level,
 	     bars + sizeof (bars) - 1 - MIN ((unsigned int) sizeof (bars), (unsigned int) (sizeof (VBAR) - 1) * level),
 	     level_dir ? (level_dir > 0 ? DLBAR : ULBAR) : LBAR);
   } else
-    fprintf (stderr, "   " VRBAR LBAR);
+    _hb_log ("   " VRBAR LBAR);
 
   _hb_print_func (func);
 
   if (message)
   {
-    fprintf (stderr, ": ");
-    vfprintf (stderr, message, ap);
+    _hb_log (": ");
+    _hb_vlog (message, ap);
   }
 
-  fprintf (stderr, "\n");
+  _hb_log ("\n");
 }
 template <> inline void
 _hb_debug_msg_va<0> (const char *what HB_UNUSED,
@@ -787,7 +827,7 @@ template <typename T>
 static inline void _hb_warn_no_return (bool returned)
 {
   if (unlikely (!returned)) {
-    fprintf (stderr, "OUCH, returned with no call to return_trace().  This is a bug, please report.\n");
+    _hb_log ("OUCH, returned with no call to return_trace().  This is a bug, please report.\n");
   }
 }
 template <>
@@ -822,7 +862,7 @@ struct hb_auto_trace_t {
   inline ret_t ret (ret_t v, unsigned int line = 0)
   {
     if (unlikely (returned)) {
-      fprintf (stderr, "OUCH, double calls to return_trace().  This is a bug, please report.\n");
+      _hb_log ("OUCH, double calls to return_trace().  This is a bug, please report.\n");
       return v;
     }
 
@@ -965,9 +1005,9 @@ hb_codepoint_parse (const char *s, unsigned int len, int base, hb_codepoint_t *o
   buf[len] = '\0';
 
   char *end;
-  errno = 0;
+  _hb_clear_errno();
   unsigned long v = strtoul (buf, &end, base);
-  if (errno) return false;
+  if (_hb_get_errno()) return false;
   if (*end) return false;
   *out = v;
   return true;
