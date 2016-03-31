@@ -824,7 +824,22 @@ void VideoRendererBase::UpdateUnderflowStatusToDecoder_Locked() {
 
 void VideoRendererBase::OnDecoderResetDone() {
   base::AutoLock auto_lock(lock_);
-  DCHECK_EQ(kFlushingDecoder, state_);
+  // The state_ can be kStopped if video playback is stopped when a seek is in
+  // progress.  The easist way to reproduce this is to repost to
+  // OnDecoderResetDone() here until state_ is kStopped and manually quit
+  // playing a video when the first seek is in progress.
+  // To keep running the function when state_ is kStopped is safe, because the
+  // flush_cb_ will be handled by SerialRunner::RunNextInSeries() which is
+  // posted on a weak pointer.  The SerialRunner should already be destroyed in
+  // Pipeline::DoStop() when pending_callbacks_ is overwritten.
+  // Note that this part has been properly handled in the upstream as the video
+  // renderer is owned by Pipeline and all related tasks are posted with a weak
+  // pointer of the video renderer.  When the Pipeline is stopped, it will
+  // destroy the video renderer and this callback will not be called.  So don't
+  // apply this change during rebase.
+  if (state_ != kStopped) {
+    DCHECK_EQ(kFlushingDecoder, state_);
+  }
   DCHECK(!pending_read_);
 
   state_ = kFlushing;
