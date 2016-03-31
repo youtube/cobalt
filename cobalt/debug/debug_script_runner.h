@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/wrappable.h"
 
@@ -43,6 +44,7 @@ class DebugScriptRunner : public script::Wrappable {
       OnEventCallback;
 
   DebugScriptRunner(script::GlobalObjectProxy* global_object_proxy,
+                    const dom::CspDelegate* csp_delegate,
                     const OnEventCallback& on_event_callback);
 
   // Runs |command| on the JavaScript |runtimeInspector| object, passing in
@@ -66,8 +68,16 @@ class DebugScriptRunner : public script::Wrappable {
   bool EvaluateScript(const std::string& js_code, std::string* result);
   bool EvaluateScriptFile(const std::string& filename, std::string* result);
 
+  // Ensures the JS eval command is enabled, overriding CSP if necessary.
+  void ForceEnableEval();
+  // Enables/disables eval according to CSP.
+  void SetEvalAllowedFromCsp();
+
   // No ownership.
   script::GlobalObjectProxy* global_object_proxy_;
+
+  // Non-owned reference to let this object query whether CSP allows eval.
+  const dom::CspDelegate* csp_delegate_;
 
   // Callback to send events.
   OnEventCallback on_event_callback_;
