@@ -133,6 +133,7 @@
         'string_parse_uint64_test.cc',
         'string_parse_unsigned_integer_test.cc',
         'string_scan_test.cc',
+        'system_binary_search_test.cc',
         'system_clear_last_error_test.cc',
         'system_get_error_string_test.cc',
         'system_get_last_error_test.cc',

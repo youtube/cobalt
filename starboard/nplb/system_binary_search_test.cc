@@ -23,10 +23,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const char kScrambled[] = "qremabhitnklopuyzcjsdvwxfg";
 const char kSorted[] = "abcdefghijklmnopqrstuvwxyz";
-SB_COMPILE_ASSERT(SB_ARRAY_SIZE(kScrambled) == SB_ARRAY_SIZE(kSorted),
-                  input_and_output_same_length);
 
 int CharComparator(const void* a, const void* b) {
   const char* ac = reinterpret_cast<const char*>(a);
@@ -34,11 +31,12 @@ int CharComparator(const void* a, const void* b) {
   return *ac - *bc;
 }
 
-TEST(SbSystemSortTest, SunnyDayLetters) {
+TEST(SbSystemBinarySearchTest, SunnyDayLetters) {
   char buf[SB_ARRAY_SIZE(kSorted)] = {0};
-  SbStringCopy(buf, kScrambled, SB_ARRAY_SIZE(buf));
-  SbSystemSort(buf, SB_ARRAY_SIZE(buf) - 1, 1, &CharComparator);
-  EXPECT_TRUE(SbStringCompareAll(kSorted, kScrambled));
+  SbStringCopy(buf, kSorted, SB_ARRAY_SIZE(buf));
+  void* result = SbSystemBinarySearch("k", kSorted, SB_ARRAY_SIZE(kSorted) - 1,
+                                      1, CharComparator);
+  EXPECT_EQ(result, kSorted + ('k' - 'a'));
 }
 
 }  // namespace

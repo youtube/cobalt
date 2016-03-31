@@ -124,6 +124,17 @@ SB_EXPORT const void* SbMemoryFindByte(const void* buffer,
                                        int value,
                                        size_t count);
 
+// A wrapper that implements a drop-in replacement for calloc, since some
+// packages actually seem to use it.
+SB_EXPORT SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
+  size_t total = count * size;
+  void* result = SbMemoryAllocate(total);
+  if (result) {
+    SbMemorySet(result, 0, total);
+  }
+  return result;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
