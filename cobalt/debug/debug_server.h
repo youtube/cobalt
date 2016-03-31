@@ -34,6 +34,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/debug/debug_script_runner.h"
 #include "cobalt/debug/json_object.h"
+#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/global_object_proxy.h"
 
 namespace cobalt {
@@ -179,7 +180,8 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // loop of the WebModule this debug server is attached to, so that
   // operations are executed synchronously with the other methods of that
   // WebModule.
-  explicit DebugServer(script::GlobalObjectProxy* global_object_proxy);
+  DebugServer(script::GlobalObjectProxy* global_object_proxy,
+              const dom::CspDelegate* csp_delegate);
 
   // Destructor should only be called by |scoped_ptr<DebugServer>|.
   ~DebugServer();
