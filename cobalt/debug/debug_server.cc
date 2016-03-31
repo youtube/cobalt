@@ -97,9 +97,10 @@ JSONObject DebugServer::Component::ErrorResponse(
   return error_response.Pass();
 }
 
-DebugServer::DebugServer(script::GlobalObjectProxy* global_object_proxy)
+DebugServer::DebugServer(script::GlobalObjectProxy* global_object_proxy,
+                         const dom::CspDelegate* csp_delegate)
     : ALLOW_THIS_IN_INITIALIZER_LIST(script_runner_(new DebugScriptRunner(
-          global_object_proxy,
+          global_object_proxy, csp_delegate,
           base::Bind(&DebugServer::OnEvent, base::Unretained(this))))),
       message_loop_(MessageLoop::current()),
       components_deleter_(&components_),

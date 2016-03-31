@@ -34,8 +34,10 @@ const char kObjectIdentifier[] = "devtoolsBackend";
 
 DebugScriptRunner::DebugScriptRunner(
     script::GlobalObjectProxy* global_object_proxy,
+    const dom::CspDelegate* csp_delegate,
     const OnEventCallback& on_event_callback)
     : global_object_proxy_(global_object_proxy),
+      csp_delegate_(csp_delegate),
       on_event_callback_(on_event_callback) {
   // Bind this object to the global object so it can persist state and be
   // accessed from any of the debug components.
@@ -66,7 +68,9 @@ bool DebugScriptRunner::EvaluateScript(const std::string& js_code,
   scoped_refptr<script::SourceCode> source_code =
       script::SourceCode::CreateSourceCode(js_code, GetInlineSourceLocation());
 
+  ForceEnableEval();
   bool succeeded = global_object_proxy_->EvaluateScript(source_code, result);
+  SetEvalAllowedFromCsp();
   return succeeded;
 }
 
@@ -91,6 +95,24 @@ bool DebugScriptRunner::EvaluateScriptFile(const std::string& filename,
 void DebugScriptRunner::SendEvent(const std::string& method,
                                   const base::optional<std::string>& params) {
   on_event_callback_.Run(method, params);
+}
+
+void DebugScriptRunner::ForceEnableEval() {
+  global_object_proxy_->EnableEval();
+  global_object_proxy_->SetReportEvalCallback(base::Closure());
+}
+
+void DebugScriptRunner::SetEvalAllowedFromCsp() {
+  std::string eval_disabled_message;
+  bool allow_eval = csp_delegate_->AllowEval(&eval_disabled_message);
+  if (allow_eval) {
+    global_object_proxy_->EnableEval();
+  } else {
+    global_object_proxy_->DisableEval(eval_disabled_message);
+  }
+
+  global_object_proxy_->SetReportEvalCallback(base::Bind(
+      &dom::CspDelegate::ReportEval, base::Unretained(csp_delegate_)));
 }
 
 }  // namespace debug
