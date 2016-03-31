@@ -186,11 +186,10 @@ DebugConsole::DebugConsole(
 
 DebugConsole::~DebugConsole() {}
 
-bool DebugConsole::FilterKeyEvent(
-    const scoped_refptr<dom::KeyboardEvent>& event) {
+bool DebugConsole::FilterKeyEvent(const dom::KeyboardEvent::Data& event) {
   // Assume here the full debug console is visible - pass all events to its
   // web module, and return false to indicate the event has been consumed.
-  web_module_->InjectEvent(event);
+  web_module_->InjectKeyboardEvent(event);
   return false;
 }
 

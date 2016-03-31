@@ -38,24 +38,20 @@ KeyRepeatFilter::KeyRepeatFilter(KeyEventHandler* filter)
     : KeyEventHandler(filter) {}
 
 void KeyRepeatFilter::HandleKeyboardEvent(
-    const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
-  if (keyboard_event->type() == base::Tokens::keydown()) {
+    const dom::KeyboardEvent::Data& keyboard_event) {
+  if (keyboard_event.type == dom::KeyboardEvent::kTypeKeyDown) {
     HandleKeyDown(keyboard_event);
   }
 
-  if (keyboard_event->type() == base::Tokens::keyup()) {
+  if (keyboard_event.type == dom::KeyboardEvent::kTypeKeyUp) {
     HandleKeyUp(keyboard_event);
   }
 }
 
 void KeyRepeatFilter::HandleKeyDown(
-    const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
+    const dom::KeyboardEvent::Data& keyboard_event) {
   // Record the information of the KeyboardEvent for firing repeat events.
-  keyboard_event_type_ = keyboard_event->type();
-  keyboard_event_location_ = keyboard_event->location();
-  keyboard_event_modifiers_ = keyboard_event->modifiers();
-  keyboard_event_key_code_ = keyboard_event->key_code();
-  keyboard_event_char_code_ = keyboard_event->char_code();
+  last_event_data_ = keyboard_event;
 
   DispatchKeyboardEvent(keyboard_event);
 
@@ -66,20 +62,21 @@ void KeyRepeatFilter::HandleKeyDown(
 }
 
 void KeyRepeatFilter::HandleKeyUp(
-    const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
+    const dom::KeyboardEvent::Data& keyboard_event) {
   DispatchKeyboardEvent(keyboard_event);
 
   // If it is a key up event and it matches the previous one, stop the key
   // repeat timer.
-  if (keyboard_event_key_code_ == keyboard_event->key_code()) {
+  if (last_event_data_->key_code == keyboard_event.key_code) {
     key_repeat_timer_.Stop();
   }
 }
 
 void KeyRepeatFilter::FireKeyRepeatEvent() {
-  DispatchKeyboardEvent(new dom::KeyboardEvent(
-      keyboard_event_type_, keyboard_event_location_, keyboard_event_modifiers_,
-      keyboard_event_key_code_, keyboard_event_char_code_, true));
+  dom::KeyboardEvent::Data repeat_event(*last_event_data_);
+  repeat_event.repeat = true;
+
+  DispatchKeyboardEvent(repeat_event);
 
   // If |FireKeyRepeatEvent| is triggered for the first time then reset the
   // timer to the repeat rate instead of the initial delay.
