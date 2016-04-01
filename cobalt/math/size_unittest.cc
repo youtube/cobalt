@@ -30,6 +30,13 @@ TEST(SizeTest, ToSizeF) {
   EXPECT_EQ(b, a);
 }
 
+TEST(SizeTest, NegativeSize) {
+  // Check that implicit conversion from integer to float compiles.
+  Size a(-10, -20);
+  EXPECT_EQ(-10, a.width());
+  EXPECT_EQ(-20, a.height());
+}
+
 TEST(SizeTest, ToFlooredSize) {
   EXPECT_EQ(Size(0, 0), ToFlooredSize(SizeF(0, 0)));
   EXPECT_EQ(Size(0, 0), ToFlooredSize(SizeF(0.0001f, 0.0001f)));
