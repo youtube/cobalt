@@ -97,7 +97,8 @@ scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
         if (cascaded_style->IsDeclared(kBackgroundImageProperty)) {
           const scoped_refptr<CSSStyleSheet>& parent_style_sheet =
               rule_iterator->first->parent_style_sheet();
-          if (parent_style_sheet) {
+          if (parent_style_sheet &&
+              parent_style_sheet->LocationUrl().is_valid()) {
             DCHECK(property_key_to_base_url_map);
             (*property_key_to_base_url_map)[kBackgroundImageProperty] =
                 parent_style_sheet->LocationUrl();
