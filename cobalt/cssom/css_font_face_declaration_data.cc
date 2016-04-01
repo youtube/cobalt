@@ -40,6 +40,12 @@ void CSSFontFaceDeclarationData::AssignFrom(
   set_unicode_range(rhs.unicode_range());
 }
 
+bool CSSFontFaceDeclarationData::IsSupportedPropertyKey(PropertyKey key) const {
+  return key == kSrcProperty || key == kFontFamilyProperty ||
+         key == kFontStyleProperty || key == kFontWeightProperty ||
+         key == kUnicodeRangeProperty;
+}
+
 scoped_refptr<PropertyValue> CSSFontFaceDeclarationData::GetPropertyValue(
     PropertyKey key) const {
   scoped_refptr<PropertyValue>* property_value_reference =
@@ -67,10 +73,10 @@ CSSFontFaceDeclarationData::GetPropertyValueReference(PropertyKey key) {
   // we can avoid a warning for not explicitly enumerating every property value.
   if (key == kSrcProperty) {
     return &src_;
-  } else if (key == kFontStyleProperty) {
-    return &style_;
   } else if (key == kFontFamilyProperty) {
     return &family_;
+  } else if (key == kFontStyleProperty) {
+    return &style_;
   } else if (key == kFontWeightProperty) {
     return &weight_;
   } else if (key == kUnicodeRangeProperty) {

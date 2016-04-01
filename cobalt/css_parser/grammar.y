@@ -6031,6 +6031,14 @@ style_declaration_list:
     scoped_ptr<PropertyDeclaration> property_declaration($1);
     if (property_declaration) {
       property_declaration->Apply($$);
+      for (size_t i = 0;
+           i < property_declaration->unsupported_property_keys.size(); ++i) {
+        std::string unsupported_property_name =
+            cssom::GetPropertyName(
+                property_declaration->unsupported_property_keys[i]);
+        parser_impl->LogWarning(
+            @1, "unsupported style property: "  + unsupported_property_name);
+      }
     }
   }
   | style_declaration_list semicolon maybe_declaration {
@@ -6039,6 +6047,14 @@ style_declaration_list:
     scoped_ptr<PropertyDeclaration> property_declaration($3);
     if (property_declaration) {
       property_declaration->Apply($$);
+      for (size_t i = 0;
+           i < property_declaration->unsupported_property_keys.size(); ++i) {
+        std::string unsupported_property_name =
+            cssom::GetPropertyName(
+                property_declaration->unsupported_property_keys[i]);
+        parser_impl->LogWarning(
+            @1, "unsupported style property: "  + unsupported_property_name);
+      }
     }
   }
   ;
