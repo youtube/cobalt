@@ -754,6 +754,37 @@ TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
   EXPECT_TRUE(style->GetPropertyValue(cssom::kFontSizeProperty));
 }
 
+TEST_F(ParserTest, HandlesUnsupportedPropertyInStyleDeclarationList) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning(
+          "[object ParserTest]:1:1: warning: unsupported style property: src"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("src: initial;", source_location_);
+
+  EXPECT_EQ(style->length(), 0);
+}
+
+TEST_F(ParserTest,
+       HandlesUnsupportedPropertyInStyleDeclarationListWithSupportedProperty) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: unsupported style "
+                        "property: unicode-range"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("width: 100px; unicode-range: U+100;",
+                                        source_location_);
+
+  EXPECT_EQ(style->length(), 1);
+
+  scoped_refptr<cssom::LengthValue> width = dynamic_cast<cssom::LengthValue*>(
+      style->GetPropertyValue(cssom::kWidthProperty).get());
+  ASSERT_TRUE(width);
+  EXPECT_EQ(100, width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, width->unit());
+}
+
 TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(

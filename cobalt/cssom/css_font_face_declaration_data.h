@@ -32,6 +32,7 @@ class CSSFontFaceDeclarationData : public CSSDeclarationData {
   CSSFontFaceDeclarationData();
 
   // From CSSDeclarationData
+  bool IsSupportedPropertyKey(PropertyKey key) const OVERRIDE;
   scoped_refptr<PropertyValue> GetPropertyValue(PropertyKey key) const OVERRIDE;
   void SetPropertyValueAndImportance(
       PropertyKey key, const scoped_refptr<PropertyValue>& property_value,
