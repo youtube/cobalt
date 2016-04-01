@@ -864,7 +864,7 @@ Token Scanner::ScanFromWhitespace() {
     }
     ++input_iterator_;
   } while (
-      *input_iterator_ <= ' ' &&
+      *input_iterator_ >= 0 &&
       (kTypesOfAsciiCharacters[static_cast<unsigned char>(*input_iterator_)] ==
        kWhitespaceCharacter));
   return kWhitespaceToken;
