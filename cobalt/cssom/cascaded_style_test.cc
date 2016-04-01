@@ -25,6 +25,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -161,6 +162,49 @@ TEST(CascadedStyleTest, PromoteToCascadedStyleWithBackgroundImage) {
                 cssom::kRightProperty));
   EXPECT_EQ(computed_style->background_image(),
             css_style_rule_2->declared_style_data()->GetPropertyValue(
+                cssom::kBackgroundImageProperty));
+  ASSERT_FALSE(property_key_to_base_url_map.empty());
+  EXPECT_EQ(property_key_to_base_url_map[kBackgroundImageProperty].spec(),
+            "https://www.youtube.com/tv/img");
+}
+
+TEST(CascadedStyleTest,
+     PromoteToCascadedStyleWithParentStyleSheetLocationUnset) {
+  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
+  RulesWithCascadePrecedence rules_with_cascade_precedence;
+  cssom::GURLMap property_key_to_base_url_map;
+  property_key_to_base_url_map[kBackgroundImageProperty] =
+      GURL("https://www.youtube.com/tv/img");
+
+  scoped_refptr<CSSStyleRule> css_style_rule =
+      css_parser->ParseRule(
+                    "div {"
+                    "  left: 200px;"
+                    "  right: 200px !important;"
+                    "  background-image: url(foo.png);"
+                    "}",
+                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+          ->AsCSSStyleRule();
+  CascadePrecedence cascade_precedence(kNormalOverride);
+  rules_with_cascade_precedence.push_back(
+      std::make_pair(css_style_rule, cascade_precedence));
+
+  scoped_refptr<CSSStyleSheet> parent_style_sheet(new CSSStyleSheet());
+  css_style_rule->set_parent_style_sheet(parent_style_sheet.get());
+
+  scoped_refptr<cssom::CSSComputedStyleData> computed_style =
+      PromoteToCascadedStyle(style, &rules_with_cascade_precedence,
+                             &property_key_to_base_url_map);
+
+  EXPECT_EQ(computed_style->left(),
+            css_style_rule->declared_style_data()->GetPropertyValue(
+                cssom::kLeftProperty));
+  EXPECT_EQ(computed_style->right(),
+            css_style_rule->declared_style_data()->GetPropertyValue(
+                cssom::kRightProperty));
+  EXPECT_EQ(computed_style->background_image(),
+            css_style_rule->declared_style_data()->GetPropertyValue(
                 cssom::kBackgroundImageProperty));
   ASSERT_FALSE(property_key_to_base_url_map.empty());
   EXPECT_EQ(property_key_to_base_url_map[kBackgroundImageProperty].spec(),
