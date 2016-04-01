@@ -67,8 +67,9 @@ class QueueApplication : public Application {
 
    private:
     SbTimeMonotonic GetTimeLocked();
-    typedef bool (*TimedEventComparator)(TimedEvent* lhs, TimedEvent* rhs);
-    static bool Compare(TimedEvent* lhs, TimedEvent* rhs);
+    typedef bool (*TimedEventComparator)(const TimedEvent* lhs,
+                                         const TimedEvent* rhs);
+    static bool IsLess(const TimedEvent* lhs, const TimedEvent* rhs);
 
     Mutex mutex_;
     typedef std::map<SbEventId, TimedEvent*> TimedEventMap;
