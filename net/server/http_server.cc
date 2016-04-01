@@ -154,8 +154,12 @@ void HttpServer::DidRead(StreamListenSocket* socket,
 
     HttpServerRequestInfo request;
     size_t pos = 0;
-    if (!ParseHeaders(connection, &request, &pos))
+    if (!ParseHeaders(connection, &request, &pos)) {
+#if defined(COBALT)
+      Send500(connection->id(), "Error parsing HTTP headers.");
+#endif
       break;
+    }
 
     std::string connection_header = request.GetHeaderValue("Connection");
     if (connection_header == "Upgrade") {
@@ -296,7 +300,15 @@ bool ParseHeadersInternal(const std::string& received_data,
         }
         case ST_PROTO: {
           // TODO(mbelshe): Deal better with parsing protocol.
-          DCHECK(buffer == "HTTP/1.0" || buffer == "HTTP/1.1");
+          bool is_protocol_supported =
+              buffer == "HTTP/1.0" || buffer == "HTTP/1.1";
+#if defined(COBALT)
+          if (!is_protocol_supported) {
+            next_state = ST_ERR;
+          }
+#else
+          DCHECK(is_protocol_supported);
+#endif
           buffer.clear();
           break;
         }
