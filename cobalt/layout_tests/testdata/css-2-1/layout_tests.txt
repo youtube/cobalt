@@ -83,6 +83,7 @@
 16-2-text-align-should-not-apply-when-child-boxes-overflow
 8-1-margin-should-be-transparent
 8-3-margin-percentage-should-refer-containing-block-width
+8-3-negative_margins-should-be-allowed-to-produce_negative-box-widths
 8-3-negative-margins-should-be-allowed
 8-3-vertical-margins-should-not-apply-to-non-replaced-inline-elements
 8-4-padding-color-should-be-specified-by-background
