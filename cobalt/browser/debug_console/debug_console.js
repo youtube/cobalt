@@ -227,7 +227,7 @@ function onLogMessage(severity, file, line, messageStart, str) {
 function addLogMessageCallback() {
   var debugHub = window.debugHub;
   if (debugHub) {
-    debugHub.addLogMessageCallback(onLogMessage);
+    debugHub.setLogMessageCallback(onLogMessage);
   }
 }
 

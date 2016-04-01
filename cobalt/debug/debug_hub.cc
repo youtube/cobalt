@@ -28,14 +28,29 @@
 namespace cobalt {
 namespace debug {
 
+namespace {
+class ScopedSetter {
+ public:
+  explicit ScopedSetter(bool* to_set) : to_set_(to_set) {
+    DCHECK(to_set_);
+    *to_set_ = true;
+  }
+  ~ScopedSetter() { *to_set_ = false; }
+
+ private:
+  bool* to_set_;
+};
+}  // namespace
+
 DebugHub::DebugHub(
     const GetHudModeCallback& get_hud_mode_callback,
     const Debugger::GetDebugServerCallback& get_debug_server_callback)
-    : get_hud_mode_callback_(get_hud_mode_callback),
-      next_log_message_callback_id_(0),
-      log_message_callbacks_deleter_(&log_message_callbacks_),
+    : message_loop_(MessageLoop::current()),
+      get_hud_mode_callback_(get_hud_mode_callback),
       debugger_(new Debugger(get_debug_server_callback)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
+      weak_ptr_(weak_ptr_factory_.GetWeakPtr()),
+      is_logging_(false) {
   // Get log output while still making it available elsewhere.
   const base::LogMessageHandler::OnLogMessageCallback on_log_message_callback =
       base::Bind(&DebugHub::OnLogMessage, base::Unretained(this));
@@ -51,54 +66,36 @@ DebugHub::~DebugHub() {
 
 bool DebugHub::OnLogMessage(int severity, const char* file, int line,
                             size_t message_start, const std::string& str) {
-  // Use a lock here and in the other methods, as callbacks may be added by
-  // multiple web modules on different threads, and log messages may be
-  // be generated on other threads.
-  base::AutoLock auto_lock(lock_);
-
-  for (LogMessageCallbacks::const_iterator it = log_message_callbacks_.begin();
-       it != log_message_callbacks_.end(); ++it) {
-    const LogMessageCallbackInfo* callbackInfo = it->second;
-    const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy =
-        callbackInfo->message_loop_proxy;
-    base::WeakPtr<DebugHub> weak_ptr = callbackInfo->debug_hub_weak_ptr;
-
-    message_loop_proxy->PostTask(
-        FROM_HERE, base::Bind(&DebugHub::LogMessageTo, weak_ptr, it->first,
-                              severity, file, line, message_start, str));
+  // Don't run recursively.
+  if (MessageLoop::current() == message_loop_ && is_logging_) {
+    return false;
   }
+
+  message_loop_->PostTask(FROM_HERE,
+                          base::Bind(&DebugHub::OnLogMessageInternal, weak_ptr_,
+                                     severity, file, line, message_start, str));
+
   // Don't suppress the log message.
   return false;
 }
 
-void DebugHub::LogMessageTo(int id, int severity, const char* file, int line,
-                            size_t message_start, const std::string& str) {
+void DebugHub::OnLogMessageInternal(int severity, const char* file, int line,
+                                    size_t message_start,
+                                    const std::string& str) {
   DCHECK(this);
-  base::AutoLock auto_lock(lock_);
-  LogMessageCallbacks::const_iterator it = log_message_callbacks_.find(id);
-  if (it != log_message_callbacks_.end()) {
-    DCHECK_EQ(base::MessageLoopProxy::current(),
-              it->second->message_loop_proxy);
-    it->second->callback.value().Run(severity, file, line, message_start, str);
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  if (log_message_callback_) {
+    ScopedSetter scoped_setter(&is_logging_);
+    log_message_callback_->value().Run(severity, file, line, message_start,
+                                       str);
   }
 }
 
-int DebugHub::AddLogMessageCallback(const LogMessageCallbackArg& callback) {
-  base::AutoLock auto_lock(lock_);
-  const int callback_id = next_log_message_callback_id_++;
-  base::WeakPtr<DebugHub> weak_ptr = weak_ptr_factory_.GetWeakPtr();
-  log_message_callbacks_[callback_id] = new LogMessageCallbackInfo(
-      weak_ptr, callback, base::MessageLoopProxy::current());
-  return callback_id;
-}
-
-void DebugHub::RemoveLogMessageCallback(int callback_id) {
-  base::AutoLock auto_lock(lock_);
-  LogMessageCallbacks::iterator it = log_message_callbacks_.find(callback_id);
-  if (it != log_message_callbacks_.end()) {
-    delete it->second;
-    log_message_callbacks_.erase(it);
-  }
+void DebugHub::SetLogMessageCallback(const LogMessageCallbackArg& callback) {
+  DCHECK(MessageLoop::current() == message_loop_);
+  log_message_callback_.reset(
+      new LogMessageCallbackArg::Reference(this, callback));
 }
 
 // TODO(***REMOVED***) - This function should be modified to return an array of

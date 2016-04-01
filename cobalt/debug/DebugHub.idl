@@ -32,8 +32,7 @@
 
   readonly attribute Debugger debugger;
 
-  long addLogMessageCallback(LogMessageCallback cb);
-  void removeLogMessageCallback(long id);
+  void setLogMessageCallback(LogMessageCallback cb);
 
   DOMString getConsoleValueNames();
   DOMString getConsoleValue(DOMString name);
