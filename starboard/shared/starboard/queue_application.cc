@@ -88,7 +88,7 @@ SbTimeMonotonic QueueApplication::GetNextTimedEventTargetTime() {
   return timed_event_queue_.GetTime();
 }
 
-QueueApplication::TimedEventQueue::TimedEventQueue() : set_(&Compare) {}
+QueueApplication::TimedEventQueue::TimedEventQueue() : set_(&IsLess) {}
 
 bool QueueApplication::TimedEventQueue::Inject(TimedEvent* timed_event) {
   ScopedLock lock(mutex_);
@@ -148,9 +148,16 @@ SbTimeMonotonic QueueApplication::TimedEventQueue::GetTimeLocked() {
 }
 
 // static
-bool QueueApplication::TimedEventQueue::Compare(TimedEvent* lhs,
-                                                TimedEvent* rhs) {
-  return lhs->target_time < rhs->target_time;
+bool QueueApplication::TimedEventQueue::IsLess(const TimedEvent* lhs,
+                                               const TimedEvent* rhs) {
+  SbTimeMonotonic time_difference = lhs->target_time - rhs->target_time;
+  if (time_difference != 0) {
+    return time_difference < 0;
+  }
+
+  // If the time differences are the same, ensure there is a strict and stable
+  // ordering.
+  return reinterpret_cast<uintptr_t>(lhs) < reinterpret_cast<uintptr_t>(rhs);
 }
 
 }  // namespace starboard
