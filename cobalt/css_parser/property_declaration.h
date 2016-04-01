@@ -46,12 +46,16 @@ struct PropertyDeclaration {
   explicit PropertyDeclaration(bool is_important)
       : is_important(is_important) {}
 
-  void Apply(cssom::CSSDeclarationData* declaration_data) const {
+  void Apply(cssom::CSSDeclarationData* declaration_data) {
     for (PropertyKeyValuePairList::const_iterator iter =
              property_values.begin();
          iter != property_values.end(); ++iter) {
-      declaration_data->SetPropertyValueAndImportance(iter->key, iter->value,
-                                                      is_important);
+      if (declaration_data->IsSupportedPropertyKey(iter->key)) {
+        declaration_data->SetPropertyValueAndImportance(iter->key, iter->value,
+                                                        is_important);
+      } else {
+        unsupported_property_keys.push_back(iter->key);
+      }
     }
   }
 
@@ -64,8 +68,11 @@ struct PropertyDeclaration {
     scoped_refptr<cssom::PropertyValue> value;
   };
   typedef std::vector<PropertyKeyValuePair> PropertyKeyValuePairList;
+  typedef std::vector<cssom::PropertyKey> PropertyKeyList;
+
   PropertyKeyValuePairList property_values;
   bool is_important;
+  PropertyKeyList unsupported_property_keys;
 };
 
 }  // namespace css_parser

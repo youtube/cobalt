@@ -44,6 +44,10 @@ const char* CSSDeclaredStyleData::Item(unsigned int index) const {
   return GetPropertyName(property_value_iterator->first);
 }
 
+bool CSSDeclaredStyleData::IsSupportedPropertyKey(PropertyKey key) const {
+  return key >= kNoneProperty && key <= kMaxLonghandPropertyKey;
+}
+
 scoped_refptr<PropertyValue> CSSDeclaredStyleData::GetPropertyValue(
     PropertyKey key) const {
   DCHECK_GT(key, kNoneProperty);
