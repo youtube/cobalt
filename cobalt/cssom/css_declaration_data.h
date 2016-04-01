@@ -31,6 +31,7 @@ namespace cssom {
 class CSSDeclarationData
     : public base::RefCountedThreadSafe<CSSDeclarationData> {
  public:
+  virtual bool IsSupportedPropertyKey(PropertyKey key) const = 0;
   virtual scoped_refptr<PropertyValue> GetPropertyValue(
       PropertyKey key) const = 0;
   virtual void ClearPropertyValueAndImportance(PropertyKey key) = 0;

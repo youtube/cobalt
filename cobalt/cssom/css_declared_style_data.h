@@ -53,6 +53,8 @@ class CSSDeclaredStyleData : public CSSDeclarationData {
 
   // From CSSDeclarationData
   //
+  bool IsSupportedPropertyKey(PropertyKey key) const OVERRIDE;
+
   scoped_refptr<PropertyValue> GetPropertyValue(PropertyKey key) const OVERRIDE;
 
   void SetPropertyValueAndImportance(
