@@ -117,13 +117,20 @@ void FontFaceProvider::VisitFontWeight(cssom::FontWeightValue* font_weight) {
 
 void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
-    case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kSansSerif:
     case cssom::KeywordValue::kSerif:
       font_family_ = keyword->ToString();
+      break;
+    // Inherit and Initial are valid font-family values. However, they are
+    // meaningless in the context of an @font-face rule, as a font-family will
+    // never attempt a lookup with that value. Clear the font-family name if
+    // they are encountered so that the font face rule won't be created.
+    case cssom::KeywordValue::kInherit:
+    case cssom::KeywordValue::kInitial:
+      font_family_.clear();
       break;
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kAlternate:
@@ -139,13 +146,12 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kCurrentColor:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kFixed:
     case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInfinite:
-    case cssom::KeywordValue::kInherit:
-    case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kLeft:
