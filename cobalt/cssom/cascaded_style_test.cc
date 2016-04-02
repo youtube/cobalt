@@ -211,5 +211,64 @@ TEST(CascadedStyleTest,
             "https://www.youtube.com/tv/img");
 }
 
+TEST(CascadedStyleTest,
+     PromoteToCascadedStyleWithHigherBackgroundImagePriorityInFirstRule) {
+  scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
+  scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
+  RulesWithCascadePrecedence rules_with_cascade_precedence;
+  cssom::GURLMap property_key_to_base_url_map;
+
+  // The order of cascade precedence of the following rules:
+  // rule 2 > rule 1.
+
+  scoped_refptr<CSSStyleRule> css_style_rule_1 =
+      css_parser->ParseRule(
+                    "div {"
+                    "  right: 100px;"
+                    "  background-image: url(bar.png) !important;"
+                    "}",
+                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+          ->AsCSSStyleRule();
+  CascadePrecedence cascade_precedence_1(kNormalUserAgent);
+  rules_with_cascade_precedence.push_back(
+      std::make_pair(css_style_rule_1, cascade_precedence_1));
+
+  scoped_refptr<CSSStyleSheet> parent_style_sheet_1(new CSSStyleSheet());
+  parent_style_sheet_1->SetLocationUrl(
+      GURL("https:///www.youtube.com/tv/img1"));
+  css_style_rule_1->set_parent_style_sheet(parent_style_sheet_1.get());
+
+  scoped_refptr<CSSStyleRule> css_style_rule_2 =
+      css_parser->ParseRule(
+                    "div {"
+                    "  right: 200px !important;"
+                    "  background-image: url(foo.png);"
+                    "}",
+                    base::SourceLocation("[object CascadedStyleTest]", 1, 1))
+          ->AsCSSStyleRule();
+  CascadePrecedence cascade_precedence_2(kNormalOverride);
+  rules_with_cascade_precedence.push_back(
+      std::make_pair(css_style_rule_2, cascade_precedence_2));
+
+  scoped_refptr<CSSStyleSheet> parent_style_sheet_2(new CSSStyleSheet());
+  parent_style_sheet_2->SetLocationUrl(
+      GURL("https:///www.youtube.com/tv/img2"));
+  css_style_rule_2->set_parent_style_sheet(parent_style_sheet_2.get());
+
+  scoped_refptr<cssom::CSSComputedStyleData> computed_style =
+      PromoteToCascadedStyle(style, &rules_with_cascade_precedence,
+                             &property_key_to_base_url_map);
+
+  EXPECT_EQ(computed_style->right(),
+            css_style_rule_2->declared_style_data()->GetPropertyValue(
+                cssom::kRightProperty));
+  EXPECT_EQ(computed_style->background_image(),
+            css_style_rule_1->declared_style_data()->GetPropertyValue(
+                cssom::kBackgroundImageProperty));
+  ASSERT_FALSE(property_key_to_base_url_map.empty());
+  EXPECT_EQ(property_key_to_base_url_map[kBackgroundImageProperty].spec(),
+            "https://www.youtube.com/tv/img1");
+}
+
 }  // namespace cssom
 }  // namespace cobalt
