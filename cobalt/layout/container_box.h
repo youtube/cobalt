@@ -84,12 +84,13 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   class ZIndexComparator {
    public:
     bool operator()(const Box* lhs, const Box* rhs) const {
-      return lhs->GetZIndex() < rhs->GetZIndex();
+      int zindex_difference = lhs->GetZIndex() - rhs->GetZIndex();
+      return zindex_difference ? zindex_difference < 0
+                               : reinterpret_cast<uintptr_t>(lhs) <
+                                     reinterpret_cast<uintptr_t>(rhs);
     }
   };
-  // Note: find(Box*) and erase(Box*) on ZIndexSortedList may not work as
-  // expected due to the use of reflexive comparison for equality.
-  typedef std::multiset<Box*, ZIndexComparator> ZIndexSortedList;
+  typedef std::set<Box*, ZIndexComparator> ZIndexSortedList;
 
   void UpdateRectOfPositionedChildBoxes(
       const LayoutParams& relative_child_layout_params,
