@@ -60,22 +60,26 @@ def GypDebugOptions():
 def GetRevinfo():
   """Get absolute state of all git repos from gclient DEPS."""
 
-  revinfo_cmd = ['gclient', 'revinfo', '-a']
+  try:
+    revinfo_cmd = ['gclient', 'revinfo', '-a']
 
-  if sys.platform.startswith('linux'):
-    use_shell = False
-  else:
-    # Windows needs shell to find gclient in the PATH.
-    use_shell = True
-  output = subprocess.check_output(revinfo_cmd, shell=use_shell)
-  revinfo = {}
-  lines = output.splitlines()
-  for line in lines:
-    repo, url = line.split(':', 1)
-    repo = repo.strip().replace('\\', '/')
-    url = url.strip()
-    revinfo[repo] = url
-  return revinfo
+    if sys.platform.startswith('linux'):
+      use_shell = False
+    else:
+      # Windows needs shell to find gclient in the PATH.
+      use_shell = True
+    output = subprocess.check_output(revinfo_cmd, shell=use_shell)
+    revinfo = {}
+    lines = output.splitlines()
+    for line in lines:
+      repo, url = line.split(':', 1)
+      repo = repo.strip().replace('\\', '/')
+      url = url.strip()
+      revinfo[repo] = url
+    return revinfo
+  except subprocess.CalledProcessError as e:
+    logging.warning('Failed to get revision information: %s', e)
+    return {}
 
 
 def GetBuildNumber(version_server=_VERSION_SERVER_URL):
@@ -95,10 +99,10 @@ def GetBuildNumber(version_server=_VERSION_SERVER_URL):
   try:
     response = urllib2.urlopen(request)
   except urllib2.HTTPError as e:
-    logging.error('Failed to retrieve build number: %s', e)
+    logging.warning('Failed to retrieve build number: %s', e)
     return 0
   except urllib2.URLError as e:
-    logging.error('Could not connect to %s: %s', version_server, e)
+    logging.warning('Could not connect to %s: %s', version_server, e)
     return 0
 
   data = response.read()
