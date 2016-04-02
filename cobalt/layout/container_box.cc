@@ -191,22 +191,10 @@ void ContainerBox::MoveStackingContextChild(Box* child_box) {
   if (child_box->stacking_context_ == source_parent) {
     int child_z_index = child_box->GetZIndex();
     if (child_z_index < 0) {
-      ZIndexSortedList::iterator source_child_iterator =
-          std::find(source_parent->negative_z_index_child_.begin(),
-                    source_parent->negative_z_index_child_.end(), child_box);
-      if (source_child_iterator !=
-          source_parent->negative_z_index_child_.end()) {
-        source_parent->negative_z_index_child_.erase(source_child_iterator);
-      }
+      source_parent->negative_z_index_child_.erase(child_box);
       negative_z_index_child_.insert(child_box);
     } else {
-      ZIndexSortedList::iterator source_child_iterator = std::find(
-          source_parent->non_negative_z_index_child_.begin(),
-          source_parent->non_negative_z_index_child_.end(), child_box);
-      if (source_child_iterator !=
-          source_parent->non_negative_z_index_child_.end()) {
-        source_parent->non_negative_z_index_child_.erase(source_child_iterator);
-      }
+      source_parent->non_negative_z_index_child_.erase(child_box);
       non_negative_z_index_child_.insert(child_box);
     }
     child_box->stacking_context_ = this;
