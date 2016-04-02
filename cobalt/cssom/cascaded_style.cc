@@ -34,7 +34,8 @@ void SetPropertyValuesOfHigherPrecedence(
     const CascadePrecedence& precedence_normal,
     const CascadePrecedence& precedence_important,
     base::optional<CascadePrecedence>* cascade_precedences,
-    scoped_refptr<CSSComputedStyleData>* cascaded_style) {
+    scoped_refptr<CSSComputedStyleData>* cascaded_style,
+    bool* background_image_refreshed) {
   const CSSDeclaredStyleData::PropertyValues& property_values =
       style->declared_property_values();
   for (CSSDeclaredStyleData::PropertyValues::const_iterator
@@ -52,6 +53,9 @@ void SetPropertyValuesOfHigherPrecedence(
         *(cascade_precedences[key]) < precedence) {
       cascade_precedences[key] = precedence;
       (*cascaded_style)->SetPropertyValue(key, property_value_iterator->second);
+      if (kBackgroundImageProperty == key) {
+        *background_image_refreshed = true;
+      }
     }
   }
 }
@@ -75,9 +79,10 @@ scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
         CascadePrecedence(kImportantMin);
     const CascadePrecedence precedence_important =
         CascadePrecedence(kImportantMax);
-    SetPropertyValuesOfHigherPrecedence(inline_style, precedence_normal,
-                                        precedence_important,
-                                        cascade_precedences, &cascaded_style);
+    bool background_image_refreshed = false;
+    SetPropertyValuesOfHigherPrecedence(
+        inline_style, precedence_normal, precedence_important,
+        cascade_precedences, &cascaded_style, &background_image_refreshed);
   }
 
   if (!matching_rules->empty()) {
@@ -90,11 +95,12 @@ scoped_refptr<CSSComputedStyleData> PromoteToCascadedStyle(
         const CascadePrecedence& precedence_normal = rule_iterator->second;
         CascadePrecedence precedence_important = rule_iterator->second;
         precedence_important.SetImportant();
+        bool background_image_refreshed = false;
         SetPropertyValuesOfHigherPrecedence(
             declared_style, precedence_normal, precedence_important,
-            cascade_precedences, &cascaded_style);
+            cascade_precedences, &cascaded_style, &background_image_refreshed);
 
-        if (cascaded_style->IsDeclared(kBackgroundImageProperty)) {
+        if (background_image_refreshed) {
           const scoped_refptr<CSSStyleSheet>& parent_style_sheet =
               rule_iterator->first->parent_style_sheet();
           if (parent_style_sheet &&
