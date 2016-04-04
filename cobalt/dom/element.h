@@ -23,9 +23,7 @@
 #include "base/hash_tables.h"
 #include "base/optional.h"
 #include "base/string_piece.h"
-#include "cobalt/base/source_location.h"
 #include "cobalt/base/token.h"
-#include "cobalt/dom/event_listener.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web_animations/animation_set.h"
@@ -183,26 +181,10 @@ class Element : public Node {
 
   HTMLElementContext* html_element_context();
 
-  // Post a task on the current MessageLoop to call DispatchEvent().
-  // Creates a new Event with the given name.
-  void PostToDispatchEvent(const tracked_objects::Location& location,
-                           base::Token event_name);
-
-  // Same as above, but will also run the Closure after the event has been
-  // dispatched.
-  void PostToDispatchEvent(const tracked_objects::Location& location,
-                           base::Token event_name,
-                           const base::Closure& dispatched_callback);
-
  private:
   virtual void OnSetAttribute(const std::string& /* name */,
                               const std::string& /* value */) {}
   virtual void OnRemoveAttribute(const std::string& /* name */) {}
-
-  // Call DispatchEvent for the given event_name, and run dispatched_callback
-  // after DispatchEvent has completed.
-  void DispatchEventAndRunCallback(base::Token event_name,
-                                   const base::Closure& dispatched_callback);
 
   // Callback for error when parsing inner / outer HTML.
   void HTMLParseError(const std::string& error);
