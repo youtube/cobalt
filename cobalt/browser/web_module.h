@@ -161,10 +161,6 @@ class WebModule {
   // Returns the URL of the current Document.
   const GURL& GetUrl() const;
 
-  // Sets the URL of the current Document, but only if the only difference is
-  // the URL's fragment identifier (the stuff after the '#').
-  void SetUrlWithNewFragment(const GURL& url);
-
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that
   // is owned by this WebModule instance.
