@@ -32,21 +32,21 @@ class SmoothedValue {
 
   // Sets the target value that GetCurrentValue() will smoothly converge
   // towards.
-  void SetTarget(double target);
+  void SetTarget(double target, const base::TimeTicks& time);
 
   // Snaps GetCurrentValue() to the last set target value.
   void SnapToTarget();
 
   // Returns the current value, which is always converging slowly towards
   // the last set target value.
-  double GetCurrentValue() const;
+  double GetValueAtTime(const base::TimeTicks& time) const;
 
  private:
   // The following methods return the parameters for the cubic bezier equation.
   //   https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B.C3.A9zier_curves
 
   // Returns the value of t to be used in cubic bezier equations.
-  double t() const;
+  double t(const base::TimeTicks& time) const;
 
   double P0() const { return *previous_value_; }
 
@@ -63,7 +63,7 @@ class SmoothedValue {
   double P3() const { return *target_; }
 
   // Returns the current derivative of GetCurrentValue() over time.
-  double GetCurrentDerivative() const;
+  double GetCurrentDerivative(const base::TimeTicks& time) const;
 
   const base::TimeDelta time_to_converge_;
 
