@@ -672,6 +672,7 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
     const scoped_refptr<const cssom::CSSComputedStyleData>&
         parent_computed_style,
     const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
+    const math::Size& viewport_size,
     const base::TimeDelta& style_change_event_time,
     cssom::TransitionSet* css_transitions,
     const scoped_refptr<const cssom::CSSComputedStyleData>&
@@ -694,7 +695,7 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
   // value. Declarations that cannot be absolutized easily, like "width: auto;",
   // will be resolved during layout.
   cssom::PromoteToComputedStyle(computed_style, parent_computed_style,
-                                root_computed_style,
+                                root_computed_style, viewport_size,
                                 property_key_to_base_url_map);
 
   if (previous_computed_style) {
@@ -779,9 +780,9 @@ void HTMLElement::UpdateComputedStyle(
   scoped_refptr<cssom::CSSComputedStyleData> new_computed_style =
       PromoteMatchingRulesToComputedStyle(
           matching_rules(), &property_key_to_base_url_map, style_->data(),
-          parent_computed_style, root_computed_style, style_change_event_time,
-          &css_transitions_, computed_style(), &css_animations_,
-          document->keyframes_map());
+          parent_computed_style, root_computed_style, document->viewport_size(),
+          style_change_event_time, &css_transitions_, computed_style(),
+          &css_animations_, document->keyframes_map());
 
   // If there is no previous computed style, there should also be no layout
   // boxes, and nothing has to be invalidated.
@@ -806,7 +807,8 @@ void HTMLElement::UpdateComputedStyle(
           PromoteMatchingRulesToComputedStyle(
               pseudo_elements_[pseudo_element_type]->matching_rules(),
               &property_key_to_base_url_map, style_->data(), computed_style(),
-              root_computed_style, style_change_event_time,
+              root_computed_style, document->viewport_size(),
+              style_change_event_time,
               pseudo_elements_[pseudo_element_type]->css_transitions(),
               pseudo_elements_[pseudo_element_type]->computed_style(),
               pseudo_elements_[pseudo_element_type]->css_animations(),

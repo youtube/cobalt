@@ -35,10 +35,10 @@ scoped_refptr<cssom::CSSComputedStyleData> CreateInitialComputedStyle(
       new cssom::RGBAColorValue(0xffffffff));
   initial_containing_block_computed_style->set_display(
       cssom::KeywordValue::GetBlock());
-  initial_containing_block_computed_style->set_height(new cssom::LengthValue(
-      static_cast<float>(viewport_size.height()), cssom::kPixelsUnit));
   initial_containing_block_computed_style->set_width(new cssom::LengthValue(
       static_cast<float>(viewport_size.width()), cssom::kPixelsUnit));
+  initial_containing_block_computed_style->set_height(new cssom::LengthValue(
+      static_cast<float>(viewport_size.height()), cssom::kPixelsUnit));
 
   return initial_containing_block_computed_style;
 }
