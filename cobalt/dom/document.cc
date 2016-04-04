@@ -96,7 +96,7 @@ Document::Document(HTMLElementContext* html_element_context,
           .Pass();
 
   location_ = new Location(
-      options.url, options.navigation_callback,
+      options.url, options.hashchange_callback, options.navigation_callback,
       base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
                  CspDelegate::kLocation));
 

@@ -28,39 +28,30 @@ using ::testing::_;
 namespace cobalt {
 namespace dom {
 
-namespace {
-void DummyNavigateCallback(const GURL& /*url*/) {}
-bool DummySecurityCallback(const GURL& /*url*/, bool /*did_redirect*/) {
-  return true;
-}
-
 // Base class to assist in mocking Location's use of its navigation and
 // security callbacks.
 class LocationCallbackInterface {
  public:
   virtual bool CanLoad(const GURL& /*url*/, bool /*did_redirect*/) = 0;
+  virtual void FireHashChangeEvent() = 0;
   virtual void Navigate(const GURL& /* url*/) = 0;
 };
 
 class MockSecurityCallback : public LocationCallbackInterface {
  public:
   MOCK_METHOD2(CanLoad, bool(const GURL&, bool));
+  MOCK_METHOD0(FireHashChangeEvent, void());
   MOCK_METHOD1(Navigate, void(const GURL&));
-  base::Callback<void(const GURL&)> NavigateCb() {
-    return base::Bind(&MockSecurityCallback::Navigate, base::Unretained(this));
-  }
   csp::SecurityCallback LoadCb() {
     return base::Bind(&MockSecurityCallback::CanLoad, base::Unretained(this));
   }
-};
-
-class LocationTest : public ::testing::Test {
- protected:
-  void Init(const GURL& url) {
-    location_ = new Location(url, base::Bind(&DummyNavigateCallback),
-                             base::Bind(&DummySecurityCallback));
+  base::Closure HashChangeCb() {
+    return base::Bind(&MockSecurityCallback::FireHashChangeEvent,
+                      base::Unretained(this));
   }
-  scoped_refptr<Location> location_;
+  base::Callback<void(const GURL&)> NavigateCb() {
+    return base::Bind(&MockSecurityCallback::Navigate, base::Unretained(this));
+  }
 };
 
 // Tests modifying the location with both a "strict" and a "permissive" policy.
@@ -70,10 +61,11 @@ class LocationTest : public ::testing::Test {
 // navigate callback to be called with our expected new URL.
 class LocationTestWithParams : public testing::TestWithParam<bool> {
  protected:
-  void Init(const GURL& url,
+  void Init(const GURL& url, const base::Closure& hashchange_callback,
             const base::Callback<void(const GURL&)>& navigation_callback,
             const csp::SecurityCallback& security_callback) {
-    location_ = new Location(url, navigation_callback, security_callback);
+    location_ = new Location(url, hashchange_callback, navigation_callback,
+                             security_callback);
   }
 
   scoped_refptr<Location> location_;
@@ -84,11 +76,12 @@ TEST_P(LocationTestWithParams, SetHash) {
   GURL url("https://www.example.com/foo");
   GURL new_url("https://www.example.com/foo#bar");
   bool permissive = GetParam();
-  Init(url, security_mock.NavigateCb(), security_mock.LoadCb());
+  Init(url, security_mock.HashChangeCb(), security_mock.NavigateCb(),
+       security_mock.LoadCb());
 
   EXPECT_CALL(security_mock, CanLoad(new_url, _)).WillOnce(Return(permissive));
   if (permissive) {
-    EXPECT_CALL(security_mock, Navigate(new_url));
+    EXPECT_CALL(security_mock, FireHashChangeEvent());
   }
   location_->set_hash("bar");
 }
@@ -98,7 +91,8 @@ TEST_P(LocationTestWithParams, SetHost) {
   GURL url("https://www.example.com:1234");
   GURL new_url("https://www.google.com:5678");
   bool permissive = GetParam();
-  Init(url, security_mock.NavigateCb(), security_mock.LoadCb());
+  Init(url, security_mock.HashChangeCb(), security_mock.NavigateCb(),
+       security_mock.LoadCb());
 
   EXPECT_CALL(security_mock, CanLoad(new_url, _)).WillOnce(Return(permissive));
   if (permissive) {
@@ -112,7 +106,8 @@ TEST_P(LocationTestWithParams, SetHostname) {
   GURL url("https://www.example.com");
   GURL new_url("https://www.google.com");
   bool permissive = GetParam();
-  Init(url, security_mock.NavigateCb(), security_mock.LoadCb());
+  Init(url, security_mock.HashChangeCb(), security_mock.NavigateCb(),
+       security_mock.LoadCb());
 
   EXPECT_CALL(security_mock, CanLoad(new_url, _)).WillOnce(Return(permissive));
   if (permissive) {
@@ -126,7 +121,8 @@ TEST_P(LocationTestWithParams, SetHref) {
   GURL url("https://www.example.com");
   GURL new_url("http://www.google.com:1234/path");
   bool permissive = GetParam();
-  Init(url, security_mock.NavigateCb(), security_mock.LoadCb());
+  Init(url, security_mock.HashChangeCb(), security_mock.NavigateCb(),
+       security_mock.LoadCb());
 
   EXPECT_CALL(security_mock, CanLoad(new_url, _)).WillOnce(Return(permissive));
   if (permissive) {
@@ -140,7 +136,8 @@ TEST_P(LocationTestWithParams, SetProtocol) {
   GURL url("https://www.example.com");
   GURL new_url("http://www.example.com");
   bool permissive = GetParam();
-  Init(url, security_mock.NavigateCb(), security_mock.LoadCb());
+  Init(url, security_mock.HashChangeCb(), security_mock.NavigateCb(),
+       security_mock.LoadCb());
 
   EXPECT_CALL(security_mock, CanLoad(new_url, _)).WillOnce(Return(permissive));
   if (permissive) {
@@ -151,8 +148,6 @@ TEST_P(LocationTestWithParams, SetProtocol) {
 
 INSTANTIATE_TEST_CASE_P(SecurityTests, LocationTestWithParams,
                         ::testing::Bool());
-
-}  // namespace
 
 }  // namespace dom
 }  // namespace cobalt
