@@ -495,6 +495,14 @@ class CSSComputedStyleData
     SetPropertyValue(kTextAlignProperty, text_align);
   }
 
+  const scoped_refptr<PropertyValue>& text_decoration_line() const {
+    return GetPropertyValueReference(kTextDecorationLineProperty);
+  }
+  void set_text_decoration_line(
+      const scoped_refptr<PropertyValue>& text_decoration_line) {
+    SetPropertyValue(kTextDecorationLineProperty, text_decoration_line);
+  }
+
   const scoped_refptr<PropertyValue>& text_indent() const {
     return GetPropertyValueReference(kTextIndentProperty);
   }

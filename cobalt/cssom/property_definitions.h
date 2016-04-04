@@ -96,6 +96,7 @@ enum PropertyKey {
   kPositionProperty,
   kRightProperty,
   kTextAlignProperty,
+  kTextDecorationLineProperty,
   kTextIndentProperty,
   kTextOverflowProperty,
   kTextShadowProperty,
@@ -136,6 +137,7 @@ enum PropertyKey {
   kFontProperty,
   kMarginProperty,
   kPaddingProperty,
+  kTextDecorationProperty,
   kTransitionProperty,
   kMaxShorthandPropertyKey = kTransitionProperty,
 

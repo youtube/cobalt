@@ -182,6 +182,10 @@ class KeywordValue : public PropertyValue {
     //   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
     kLeft,
 
+    // "line-through" is a value of "text-decoration-line" property that
+    // indicates that the line of text has a line through the middle.
+    kLineThrough,
+
     // "middle" is a value of "vertical-align" property that indicates that the
     // content should be aligned vertically centered.
     //   https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
@@ -327,6 +331,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetInline();
   static const scoped_refptr<KeywordValue>& GetInlineBlock();
   static const scoped_refptr<KeywordValue>& GetLeft();
+  static const scoped_refptr<KeywordValue>& GetLineThrough();
   static const scoped_refptr<KeywordValue>& GetMiddle();
   static const scoped_refptr<KeywordValue>& GetMonospace();
   static const scoped_refptr<KeywordValue>& GetNone();

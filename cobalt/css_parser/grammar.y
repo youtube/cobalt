@@ -143,6 +143,8 @@
 %token kRightToken                            // right
 %token kSrcToken                              // src
 %token kTextAlignToken                        // text-align
+%token kTextDecorationToken                   // text-decoration
+%token kTextDecorationLineToken               // text-decoration-line
 %token kTextIndentToken                       // text-indent
 %token kTextOverflowToken                     // text-overflow
 %token kTextShadowToken                       // text-shadow
@@ -213,6 +215,7 @@
 %token kItalicToken                     // italic
 %token kLimeToken                       // lime
 %token kLinearToken                     // linear
+%token kLineThroughToken                // line-through
 // %token kLeftToken                    // left - also property name token
 %token kMaroonToken                     // maroon
 %token kMiddleToken                     // middle
@@ -555,6 +558,8 @@
                        radial_gradient_params
                        scan_media_feature_keyword_value
                        text_align_property_value
+                       text_decoration_line_property_value
+                       text_decoration_property_value
                        text_indent_property_value
                        text_overflow_property_value
                        text_shadow_property_value
@@ -1479,6 +1484,14 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kTextAlignProperty));
   }
+  | kTextDecorationToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTextDecorationProperty));
+  }
+  | kTextDecorationLineToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTextDecorationLineProperty));
+  }
   | kTextIndentToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kTextIndentProperty));
@@ -1692,6 +1705,9 @@ identifier_token:
   }
   | kLinearToken {
     $$ = TrivialStringPiece::FromCString(cssom::kLinearKeywordName);
+  }
+  | kLineThroughToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kLineThroughKeywordName);
   }
   | kMaroonToken {
     $$ = TrivialStringPiece::FromCString(cssom::kMaroonKeywordName);
@@ -4052,6 +4068,25 @@ text_align_property_value:
   | common_values
   ;
 
+// This property specifies what line decorations.
+//   https://www.w3.org/TR/css-text-decor-3/#text-decoration-line
+text_decoration_line_property_value:
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | kLineThroughToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetLineThrough().get());
+  }
+  | common_values
+  ;
+
+// Text decoration is a shorthand for setting 'text-decoration-line',
+// 'text-decoration-color', and 'text-decoration-style' in one declaration.
+// TODO(***REMOVED***): Redirect text decoration to text decoration line for now and
+// change it when fully implement text decoration.
+//   https://www.w3.org/TR/css-text-decor-3/#text-decoration
+text_decoration_property_value: text_decoration_line_property_value;
+
 // This property specifies the indentation applied to lines of inline content in
 // a block.
 //   https://www.w3.org/TR/css-text-3/#text-indent
@@ -5869,6 +5904,18 @@ maybe_declaration:
   | kTextIndentToken maybe_whitespace colon text_indent_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTextIndentProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTextDecorationToken maybe_whitespace colon text_decoration_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextDecorationLineProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTextDecorationLineToken maybe_whitespace colon
+      text_decoration_line_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextDecorationLineProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
