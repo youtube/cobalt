@@ -31,7 +31,6 @@ TEST(SizeTest, ToSizeF) {
 }
 
 TEST(SizeTest, NegativeSize) {
-  // Check that implicit conversion from integer to float compiles.
   Size a(-10, -20);
   EXPECT_EQ(-10, a.width());
   EXPECT_EQ(-20, a.height());
