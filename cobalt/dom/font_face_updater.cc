@@ -155,6 +155,7 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kLeft:
+    case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:

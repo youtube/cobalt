@@ -5357,6 +5357,60 @@ TEST_F(ParserTest, ParsesRightTextAlign) {
             style->GetPropertyValue(cssom::kTextAlignProperty));
 }
 
+TEST_F(ParserTest, ParsesTextDecorationLineNone) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("text-decoration-line: none;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(),
+            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
+}
+
+TEST_F(ParserTest, ParsesTextDecorationLineLineThrough) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("text-decoration-line: line-through;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetLineThrough(),
+            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
+}
+
+TEST_F(ParserTest, ParsesTextDecorationLineInitial) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("text-decoration-line: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
+}
+
+TEST_F(ParserTest, ParsesTextDecorationShorthandPropertyNone) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("text-decoration: none;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(),
+            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
+}
+
+TEST_F(ParserTest, ParsesTextDecorationShorthandPropertyLineThrough) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("text-decoration: line-through;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetLineThrough(),
+            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
+}
+
+TEST_F(ParserTest, ParsesTextDecorationShorthandPropertyInitial) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("text-decoration: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kTextDecorationLineProperty));
+}
+
 TEST_F(ParserTest, ParseZeroLengthTextIndent) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("text-indent: 0;", source_location_);

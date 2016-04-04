@@ -70,6 +70,7 @@ const char kItalicKeywordName[] = "italic";
 const char kLeftKeywordName[] = "left";
 const char kLimeKeywordName[] = "lime";
 const char kLinearKeywordName[] = "linear";
+const char kLineThroughKeywordName[] = "line-through";
 const char kMaroonKeywordName[] = "maroon";
 const char kMiddleKeywordName[] = "middle";
 const char kMonospaceKeywordName[] = "monospace";

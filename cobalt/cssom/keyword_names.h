@@ -72,6 +72,7 @@ extern const char kItalicKeywordName[];
 extern const char kLeftKeywordName[];
 extern const char kLimeKeywordName[];
 extern const char kLinearKeywordName[];
+extern const char kLineThroughKeywordName[];
 extern const char kMaroonKeywordName[];
 extern const char kMiddleKeywordName[];
 extern const char kMonospaceKeywordName[];
