@@ -412,6 +412,10 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kTextAlignProperty, "text-align", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetLeft());
 
+  //   https://www.w3.org/TR/css-text-decor-3/#text-decoration-line
+  SetPropertyDefinition(kTextDecorationLineProperty, "text-decoration-line",
+                        kInheritedNo, kAnimatableNo, KeywordValue::GetNone());
+
   // https://www.w3.org/TR/CSS21/text.html#propdef-text-indent
   SetPropertyDefinition(kTextIndentProperty, "text-indent", kInheritedYes,
                         kAnimatableNo, new LengthValue(0, kPixelsUnit));
@@ -609,6 +613,12 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   padding_longhand_properties.insert(kPaddingTopProperty);
   SetShorthandPropertyDefinition(kPaddingProperty, "padding",
                                  padding_longhand_properties);
+
+  //   https://www.w3.org/TR/css-text-decor-3/#text-decoration
+  LonghandPropertySet text_decoration_longhand_properties;
+  text_decoration_longhand_properties.insert(kTextDecorationLineProperty);
+  SetShorthandPropertyDefinition(kTextDecorationProperty, "text-decoration",
+                                 text_decoration_longhand_properties);
 
   //   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-shorthand-property
   LonghandPropertySet animation_longhand_properties;

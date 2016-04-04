@@ -328,6 +328,7 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
@@ -417,6 +418,7 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
@@ -513,6 +515,7 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
@@ -623,6 +626,7 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
@@ -735,6 +739,7 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
@@ -846,6 +851,7 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
@@ -952,6 +958,7 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
@@ -1053,6 +1060,7 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
@@ -1456,6 +1464,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
@@ -1711,6 +1720,7 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNone:
@@ -1943,6 +1953,7 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNormal:
@@ -2308,6 +2319,7 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
+    case KeywordValue::kLineThrough:
     case KeywordValue::kMiddle:
     case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
@@ -2747,6 +2759,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kOverflowWrapProperty:
     case kPositionProperty:
     case kTextAlignProperty:
+    case kTextDecorationLineProperty:
     case kTextOverflowProperty:
     case kTextTransformProperty:
     case kTransitionDelayProperty:
@@ -2776,6 +2789,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kMarginProperty:
     case kPaddingProperty:
     case kSrcProperty:
+    case kTextDecorationProperty:
     case kTransitionProperty:
     case kUnicodeRangeProperty:
     default:
@@ -2873,6 +2887,8 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kRightProperty:
     case kSrcProperty:
     case kTextAlignProperty:
+    case kTextDecorationLineProperty:
+    case kTextDecorationProperty:
     case kTextIndentProperty:
     case kTextOverflowProperty:
     case kTextShadowProperty:

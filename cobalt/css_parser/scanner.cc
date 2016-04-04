@@ -1623,6 +1623,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kBackgroundSizeToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kTextDecorationProperty))) {
+        *property_name_token = kTextDecorationToken;
+        return true;
+      }
       return false;
 
     case 16:
@@ -1772,6 +1778,15 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
               name.begin,
               cssom::GetPropertyName(cssom::kTransitionPropertyProperty))) {
         *property_name_token = kTransitionPropertyToken;
+        return true;
+      }
+      return false;
+
+    case 20:
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kTextDecorationLineProperty))) {
+        *property_name_token = kTextDecorationLineToken;
         return true;
       }
       return false;
@@ -2167,6 +2182,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
     case 12:
       if (IsEqualToCssIdentifier(name.begin, cssom::kClosestSideKeywordName)) {
         *property_value_token = kClosestSideToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kLineThroughKeywordName)) {
+        *property_value_token = kLineThroughToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kInlineBlockKeywordName)) {
