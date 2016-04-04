@@ -112,11 +112,11 @@ class SubmissionQueue {
 
   // Pushes a new submission into the submission queue, possibly updating
   // internal timing parameters based on the submission's time offset.
-  void PushSubmission(const Submission& submission);
+  void PushSubmission(const Submission& submission, const base::TimeTicks& now);
 
   // For the current time, returns a submission to be used for rendering, with
-  // timing information already setup.
-  Submission GetCurrentSubmission();
+  // timing information already setup.  Time must be monotonically increasing.
+  Submission GetCurrentSubmission(const base::TimeTicks& now);
 
   // Resets the submission queue.
   void Reset() { submission_queue_.clear(); }
@@ -124,10 +124,13 @@ class SubmissionQueue {
  private:
   typedef std::list<Submission> SubmissionQueueInternal;
 
-  // Returns the current renderer time, from an arbitrary origin.
-  base::TimeDelta render_time() const;
+  // Returns the corresponding renderer time for a given TimeTicks value
+  // (e.g. base::TimeTicks::Now()).
+  base::TimeDelta render_time(const base::TimeTicks& time) const;
 
-  void PurgeStaleSubmissionsFromQueue();
+  void PurgeStaleSubmissionsFromQueue(const base::TimeTicks& time);
+
+  void CheckThatNowIsMonotonicallyIncreasing(const base::TimeTicks& now);
 
   // The maximum size of the queue.  If we go over this, we snap time forward.
   const size_t max_queue_size_;
@@ -146,10 +149,15 @@ class SubmissionQueue {
   // you a time on the source (e.g. the submissions) timeline.  So, for example,
   // to see if an incoming submission time, s, is in the renderer's past, you
   // could check if
+  //   base::TimeTicks now = base::TimeTicks::Now();
   //   s.time_offset <
-  //       to_submission_time_in_ms_.GetCurrentValue() + render_time()
+  //       to_submission_time_in_ms_.GetCurrentValue(now) + render_time(now)
   // is true.
   SmoothedValue to_submission_time_in_ms_;
+
+  // Debug value to help DCHECK that input |now| values are monotonically
+  // increasing.
+  base::optional<base::TimeTicks> last_now_;
 
   base::CVal<float> to_submission_time_in_ms_cval_;
   base::CVal<size_t> queue_size_;

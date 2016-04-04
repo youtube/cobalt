@@ -26,16 +26,20 @@ SmoothedValue::SmoothedValue(base::TimeDelta time_to_converge)
   DCHECK(base::TimeDelta() < time_to_converge_);
 }
 
-void SmoothedValue::SetTarget(double target) {
-  previous_derivative_ = GetCurrentDerivative();
+void SmoothedValue::SetTarget(double target, const base::TimeTicks& time) {
+  // Determine the current derivative and value.
+  double current_derivative = GetCurrentDerivative(time);
+  base::optional<double> current_value;
   if (target_) {
-    previous_value_ = GetCurrentValue();
-  } else {
-    previous_value_ = base::nullopt;
+    current_value = GetValueAtTime(time);
   }
 
+  // Set the previous derivative and value to the current derivative and value.
+  previous_derivative_ = current_derivative;
+  previous_value_ = current_value;
+
   target_ = target;
-  target_set_time_ = base::TimeTicks::HighResNow();
+  target_set_time_ = time;
 }
 
 void SmoothedValue::SnapToTarget() {
@@ -43,14 +47,14 @@ void SmoothedValue::SnapToTarget() {
   previous_derivative_ = 0;
 }
 
-double SmoothedValue::GetCurrentValue() const {
+double SmoothedValue::GetValueAtTime(const base::TimeTicks& time) const {
   if (!previous_value_) {
     // If only one target has ever been set, simply return it.
     return *target_;
   }
 
   // Compute the current value based off of a cubic bezier curve.
-  double t = SmoothedValue::t();
+  double t = SmoothedValue::t(time);
   double one_minus_t = 1 - t;
   double P0 = SmoothedValue::P0();
   double P1 = SmoothedValue::P1();
@@ -62,10 +66,10 @@ double SmoothedValue::GetCurrentValue() const {
          t * t * t * P3;
 }
 
-double SmoothedValue::t() const {
+double SmoothedValue::t(const base::TimeTicks& time) const {
   DCHECK(target_) << "SetTarget() must have been called previously.";
 
-  base::TimeDelta time_diff = base::TimeTicks::HighResNow() - target_set_time_;
+  base::TimeDelta time_diff = time - target_set_time_;
 
   double t = time_diff.InMillisecondsF() / time_to_converge_.InMillisecondsF();
 
@@ -84,13 +88,13 @@ double SmoothedValue::P2() const {
   return P3();
 }
 
-double SmoothedValue::GetCurrentDerivative() const {
+double SmoothedValue::GetCurrentDerivative(const base::TimeTicks& time) const {
   if (!previous_value_) {
     // If only one target has ever been set, return 0 as our derivative.
     return 0;
   }
 
-  double t = SmoothedValue::t();
+  double t = SmoothedValue::t(time);
   double one_minus_t = 1 - t;
   double P0 = SmoothedValue::P0();
   double P1 = SmoothedValue::P1();
