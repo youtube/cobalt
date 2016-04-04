@@ -16,7 +16,10 @@
 
 #include "cobalt/dom/event_target.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/debug/trace_event.h"
+#include "base/message_loop.h"
 #include "cobalt/dom/dom_exception.h"
 
 namespace cobalt {
@@ -84,6 +87,28 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
   FireEventOnListeners(event);
   event->set_event_phase(Event::kNone);
   return !event->default_prevented();
+}
+
+void EventTarget::DispatchEventAndRunCallback(
+    base::Token event_name, const base::Closure& dispatched_callback) {
+  DispatchEvent(make_scoped_refptr(new Event(event_name)));
+  if (!dispatched_callback.is_null()) {
+    dispatched_callback.Run();
+  }
+}
+
+void EventTarget::PostToDispatchEvent(const tracked_objects::Location& location,
+                                      base::Token event_name) {
+  PostToDispatchEventAndRunCallback(location, event_name, base::Closure());
+}
+
+void EventTarget::PostToDispatchEventAndRunCallback(
+    const tracked_objects::Location& location, base::Token event_name,
+    const base::Closure& callback) {
+  MessageLoop::current()->PostTask(
+      location,
+      base::Bind(base::IgnoreResult(&EventTarget::DispatchEventAndRunCallback),
+                 base::AsWeakPtr<EventTarget>(this), event_name, callback));
 }
 
 void EventTarget::SetAttributeEventListener(
