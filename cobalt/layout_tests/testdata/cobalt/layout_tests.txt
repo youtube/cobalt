@@ -9,6 +9,7 @@ font-weight
 inline-box-with-overflow-words
 inline-style-allowed-while-cloning-objects
 onload_event_fired_even_though_link_file_does_not_exist
+positioned-boxes-with-same-z-index-are-processed-in-insertion-order
 relative-font-size
 simple-transform-text
 transform-translate-with-em-units
