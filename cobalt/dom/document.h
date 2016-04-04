@@ -293,6 +293,7 @@ class Document : public Node, public cssom::MutationObserver {
     synchronous_layout_callback_ = synchronous_layout_callback;
   }
 
+  math::Size viewport_size() { return viewport_size_.value_or(math::Size()); }
   void SetViewport(const math::Size& viewport_size);
 
   const scoped_refptr<cssom::CSSComputedStyleData>& initial_computed_style()
@@ -377,6 +378,7 @@ class Document : public Node, public cssom::MutationObserver {
 
   scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
 
+  // Viewport size.
   base::optional<math::Size> viewport_size_;
 
   // Computed style of the initial containing block, width and height come from

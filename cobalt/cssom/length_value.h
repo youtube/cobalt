@@ -35,6 +35,8 @@ enum LengthUnit {
       kPixelsUnit,  // The units above are absolute, the rest are relative.
   kFontSizesAkaEmUnit,
   kRootElementFontSizesAkaRemUnit,
+  kViewportWidthPercentsAkaVwUnit,
+  kViewportHeightPercentsAkaVhUnit,
 };
 
 // Represents distance or size.

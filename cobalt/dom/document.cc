@@ -522,7 +522,7 @@ void Document::UpdateComputedStyles() {
                                 style_change_event_time);
 
       // Then update the computed styles for the other elements.
-      root->UpdateComputedStyleRecursively(initial_computed_style_,
+      root->UpdateComputedStyleRecursively(root->computed_style(),
                                            root->computed_style(),
                                            style_change_event_time, true);
     }
