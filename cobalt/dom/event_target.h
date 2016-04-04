@@ -20,9 +20,11 @@
 #include <string>
 #include <vector>
 
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
+#include "base/tracked_objects.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
@@ -60,6 +62,21 @@ class EventTarget : public script::Wrappable,
   // This version of DispatchEvent is intended to be called inside C++ code.  It
   // won't raise any exception.  Any error will be silently ignored.
   virtual bool DispatchEvent(const scoped_refptr<Event>& event);
+
+  // Creates a new event with the given name and calls DispatchEvent with it,
+  // and runs dispatched_callback after finish.
+  void DispatchEventAndRunCallback(base::Token event_name,
+                                   const base::Closure& dispatched_callback);
+
+  // Posts a task on the current message loop to dispatch event.
+  void PostToDispatchEvent(const tracked_objects::Location& location,
+                           base::Token event_name);
+
+  // Posts a task on the current message loop to dispatch event, and runs
+  // dispatched_callback after finish.
+  void PostToDispatchEventAndRunCallback(
+      const tracked_objects::Location& location, base::Token event_name,
+      const base::Closure& dispatched_callback);
 
   // Web API: GlobalEventHandlers (implements)
   // Many objects can have event handlers specified. These act as non-capture
