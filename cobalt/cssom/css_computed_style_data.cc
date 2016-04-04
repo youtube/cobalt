@@ -172,6 +172,8 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kRightProperty:
     case kSrcProperty:
     case kTextAlignProperty:
+    case kTextDecorationLineProperty:
+    case kTextDecorationProperty:
     case kTextIndentProperty:
     case kTextOverflowProperty:
     case kTextShadowProperty:

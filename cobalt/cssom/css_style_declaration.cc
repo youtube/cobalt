@@ -818,6 +818,34 @@ void CSSStyleDeclaration::set_text_align(
   SetPropertyValueStringByKey(kTextAlignProperty, text_align, exception_state);
 }
 
+std::string CSSStyleDeclaration::text_decoration(
+    script::ExceptionState* /*exception_state*/) const {
+  // TODO(***REMOVED***): Redirect text decoration to text decoration line for now and
+  // change it when fully implement text decoration.
+  return GetDeclaredPropertyValueStringByKey(kTextDecorationLineProperty);
+}
+
+void CSSStyleDeclaration::set_text_decoration(
+    const std::string& text_decoration,
+    script::ExceptionState* exception_state) {
+  // TODO(***REMOVED***): Redirect text decoration to text decoration line for now and
+  // change it when fully implement text decoration.
+  SetPropertyValueStringByKey(kTextDecorationLineProperty, text_decoration,
+                              exception_state);
+}
+
+std::string CSSStyleDeclaration::text_decoration_line(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kTextDecorationLineProperty);
+}
+
+void CSSStyleDeclaration::set_text_decoration_line(
+    const std::string& text_decoration_line,
+    script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kTextDecorationLineProperty, text_decoration_line,
+                              exception_state);
+}
+
 std::string CSSStyleDeclaration::text_indent(
     script::ExceptionState* /*exception_state*/) const {
   return GetDeclaredPropertyValueStringByKey(kTextIndentProperty);

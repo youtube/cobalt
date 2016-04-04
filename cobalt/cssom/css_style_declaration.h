@@ -324,6 +324,15 @@ class CSSStyleDeclaration : public script::Wrappable {
   void set_text_align(const std::string& text_align,
                       script::ExceptionState* exception_state);
 
+  std::string text_decoration(script::ExceptionState* exception_state) const;
+  void set_text_decoration(const std::string& text_decoration,
+                           script::ExceptionState* exception_state);
+
+  std::string text_decoration_line(
+      script::ExceptionState* exception_state) const;
+  void set_text_decoration_line(const std::string& text_decoration,
+                                script::ExceptionState* exception_state);
+
   std::string text_indent(script::ExceptionState* exception_state) const;
   void set_text_indent(const std::string& text_indent,
                        script::ExceptionState* exception_state);
