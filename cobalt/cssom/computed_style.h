@@ -19,6 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_definitions.h"
+#include "cobalt/math/size.h"
 
 namespace cobalt {
 namespace cssom {
@@ -37,6 +38,7 @@ void PromoteToComputedStyle(
     const scoped_refptr<CSSComputedStyleData>& specified_style,
     const scoped_refptr<const CSSComputedStyleData>& parent_computed_style,
     const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
+    const math::Size& viewport_size,
     GURLMap* const property_key_to_base_url_map);
 
 // Creates the computed style of an anonymous box from the given parent style.
