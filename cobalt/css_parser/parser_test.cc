@@ -4192,9 +4192,9 @@ TEST_F(ParserTest, ParsesFontFamilyList) {
             font_family_list->get_item_modulo_size(2));
 }
 
-// TODO(***REMOVED***): Test other length units, including negative ones.
+// TODO(***REMOVED***): Test negative length value.
 
-TEST_F(ParserTest, ParsesFontSize) {
+TEST_F(ParserTest, ParsesLengthPxUnit) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("font-size: 100px;", source_location_);
 
@@ -4204,6 +4204,54 @@ TEST_F(ParserTest, ParsesFontSize) {
   ASSERT_TRUE(font_size);
   EXPECT_FLOAT_EQ(100, font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
+}
+
+TEST_F(ParserTest, ParsesLengthEmUnit) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("font-size: 10em;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFontSizeProperty).get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(10, font_size->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, font_size->unit());
+}
+
+TEST_F(ParserTest, ParsesLengthRemUnit) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("font-size: 10rem;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFontSizeProperty).get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(10, font_size->value());
+  EXPECT_EQ(cssom::kRootElementFontSizesAkaRemUnit, font_size->unit());
+}
+
+TEST_F(ParserTest, ParsesLengthVwUnit) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("font-size: 10vw;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFontSizeProperty).get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(10, font_size->value());
+  EXPECT_EQ(cssom::kViewportWidthPercentsAkaVwUnit, font_size->unit());
+}
+
+TEST_F(ParserTest, ParsesLengthVhUnit) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("font-size: 10vh;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kFontSizeProperty).get());
+  ASSERT_TRUE(font_size);
+  EXPECT_FLOAT_EQ(10, font_size->value());
+  EXPECT_EQ(cssom::kViewportHeightPercentsAkaVhUnit, font_size->unit());
 }
 
 TEST_F(ParserTest, ParsesNormalFontStyle) {

@@ -50,7 +50,8 @@ namespace {
 scoped_refptr<LengthValue> ProvideAbsoluteLength(
     const scoped_refptr<LengthValue>& specified_length,
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size) {
+    const LengthValue* root_computed_font_size,
+    const math::Size& viewport_size) {
   switch (specified_length->unit()) {
     // "px" is an absolute unit.
     //   https://www.w3.org/TR/css3-values/#absolute-lengths
@@ -77,6 +78,22 @@ scoped_refptr<LengthValue> ProvideAbsoluteLength(
           kPixelsUnit);
     }
 
+    // "vw" equal to 1% of the width of the initial containing block.
+    //   https://www.w3.org/TR/css3-values/#viewport-relative-lengths
+    case kViewportWidthPercentsAkaVwUnit: {
+      return new LengthValue(
+          viewport_size.width() * specified_length->value() / 100.0f,
+          kPixelsUnit);
+    }
+
+    // "vh" equal to 1% of the height of the initial containing block.
+    //   https://www.w3.org/TR/css3-values/#viewport-relative-lengths
+    case kViewportHeightPercentsAkaVhUnit: {
+      return new LengthValue(
+          viewport_size.height() * specified_length->value() / 100.0f,
+          kPixelsUnit);
+    }
+
     default:
       NOTREACHED();
       return NULL;
@@ -89,7 +106,8 @@ scoped_refptr<LengthValue> ProvideAbsoluteLength(
 scoped_refptr<PropertyValue> ProvideAbsoluteLengthIfNonNullLength(
     const scoped_refptr<PropertyValue>& specified_value,
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size) {
+    const LengthValue* root_computed_font_size,
+    const math::Size& viewport_size) {
   if (!specified_value) {
     return specified_value;
   }
@@ -99,7 +117,7 @@ scoped_refptr<PropertyValue> ProvideAbsoluteLengthIfNonNullLength(
         base::polymorphic_downcast<LengthValue*>(specified_value.get());
 
     return ProvideAbsoluteLength(value_as_length, computed_font_size,
-                                 root_computed_font_size);
+                                 root_computed_font_size, viewport_size);
   } else {
     return specified_value;
   }
@@ -110,7 +128,8 @@ scoped_refptr<PropertyValue> ProvideAbsoluteLengthIfNonNullLength(
 scoped_refptr<PropertyListValue> ProvideAbsoluteLengthsForNonNullLengthsInList(
     const scoped_refptr<PropertyListValue>& specified_value,
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size) {
+    const LengthValue* root_computed_font_size,
+    const math::Size& viewport_size) {
   scoped_ptr<PropertyListValue::Builder> builder(
       new PropertyListValue::Builder());
   builder->reserve(specified_value->value().size());
@@ -119,7 +138,7 @@ scoped_refptr<PropertyListValue> ProvideAbsoluteLengthsForNonNullLengthsInList(
            specified_value->value().begin();
        iter != specified_value->value().end(); ++iter) {
     builder->push_back(ProvideAbsoluteLengthIfNonNullLength(
-        *iter, computed_font_size, root_computed_font_size));
+        *iter, computed_font_size, root_computed_font_size, viewport_size));
   }
 
   return new PropertyListValue(builder.Pass());
@@ -132,6 +151,7 @@ class ComputedBorderWidthProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedBorderWidthProvider(const LengthValue* computed_font_size,
                               const LengthValue* root_computed_font_size,
+                              const math::Size& viewport_size,
                               const PropertyValue* border_style);
 
   void VisitLength(LengthValue* length) OVERRIDE;
@@ -143,6 +163,7 @@ class ComputedBorderWidthProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
   const PropertyValue* border_style_;
 
   scoped_refptr<PropertyValue> computed_border_width_;
@@ -152,10 +173,11 @@ class ComputedBorderWidthProvider : public NotReachedPropertyValueVisitor {
 
 ComputedBorderWidthProvider::ComputedBorderWidthProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size,
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size,
     const PropertyValue* border_style)
     : computed_font_size_(computed_font_size),
       root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size),
       border_style_(border_style) {}
 
 void ComputedBorderWidthProvider::VisitLength(LengthValue* specified_length) {
@@ -164,8 +186,9 @@ void ComputedBorderWidthProvider::VisitLength(LengthValue* specified_length) {
     computed_border_width_ = new LengthValue(0, kPixelsUnit);
   } else {
     DCHECK_EQ(border_style_, KeywordValue::GetSolid().get());
-    computed_border_width_ = ProvideAbsoluteLength(
-        specified_length, computed_font_size_, root_computed_font_size_);
+    computed_border_width_ =
+        ProvideAbsoluteLength(specified_length, computed_font_size_,
+                              root_computed_font_size_, viewport_size_);
   }
 }
 
@@ -202,7 +225,8 @@ void ComputedFontWeightProvider::VisitFontWeight(
 class ComputedFontSizeProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedFontSizeProvider(const LengthValue* parent_computed_font_size,
-                           const LengthValue* root_computed_font_size);
+                           const LengthValue* root_computed_font_size,
+                           const math::Size& viewport_size);
 
   void VisitLength(LengthValue* length) OVERRIDE;
   void VisitPercentage(PercentageValue* percentage) OVERRIDE;
@@ -214,6 +238,7 @@ class ComputedFontSizeProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* parent_computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<LengthValue> computed_font_size_;
 
@@ -222,16 +247,18 @@ class ComputedFontSizeProvider : public NotReachedPropertyValueVisitor {
 
 ComputedFontSizeProvider::ComputedFontSizeProvider(
     const LengthValue* parent_computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : parent_computed_font_size_(parent_computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedFontSizeProvider::VisitLength(LengthValue* specified_length) {
   // "em" on "font-size" is calculated relatively to the inherited value
   // of "font-size".
   //   https://www.w3.org/TR/css3-values/#font-relative-lengths
-  computed_font_size_ = ProvideAbsoluteLength(
-      specified_length, parent_computed_font_size_, root_computed_font_size_);
+  computed_font_size_ =
+      ProvideAbsoluteLength(specified_length, parent_computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 void ComputedFontSizeProvider::VisitPercentage(
@@ -250,7 +277,8 @@ void ComputedFontSizeProvider::VisitPercentage(
 class ComputedLineHeightProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedLineHeightProvider(const LengthValue* computed_font_size,
-                             const LengthValue* root_computed_font_size);
+                             const LengthValue* root_computed_font_size,
+                             const math::Size& viewport_size);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLength(LengthValue* length) OVERRIDE;
@@ -264,6 +292,7 @@ class ComputedLineHeightProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_line_height_;
 
@@ -272,13 +301,15 @@ class ComputedLineHeightProvider : public NotReachedPropertyValueVisitor {
 
 ComputedLineHeightProvider::ComputedLineHeightProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedLineHeightProvider::VisitLength(LengthValue* specified_length) {
-  computed_line_height_ = ProvideAbsoluteLength(
-      specified_length, computed_font_size_, root_computed_font_size_);
+  computed_line_height_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 void ComputedLineHeightProvider::VisitNumber(NumberValue* specified_number) {
@@ -363,7 +394,8 @@ class ComputedMarginOrPaddingEdgeProvider
  public:
   ComputedMarginOrPaddingEdgeProvider(
       const LengthValue* computed_font_size,
-      const LengthValue* root_computed_font_size);
+      const LengthValue* root_computed_font_size,
+      const math::Size& viewport_size);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLength(LengthValue* length) OVERRIDE;
@@ -376,6 +408,7 @@ class ComputedMarginOrPaddingEdgeProvider
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_margin_or_padding_edge_;
 
@@ -384,9 +417,10 @@ class ComputedMarginOrPaddingEdgeProvider
 
 ComputedMarginOrPaddingEdgeProvider::ComputedMarginOrPaddingEdgeProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
   switch (keyword->value()) {
@@ -450,8 +484,9 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
 
 void ComputedMarginOrPaddingEdgeProvider::VisitLength(
     LengthValue* specified_length) {
-  computed_margin_or_padding_edge_ = ProvideAbsoluteLength(
-      specified_length, computed_font_size_, root_computed_font_size_);
+  computed_margin_or_padding_edge_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 void ComputedMarginOrPaddingEdgeProvider::VisitPercentage(
@@ -462,7 +497,8 @@ void ComputedMarginOrPaddingEdgeProvider::VisitPercentage(
 class ComputedPositionOffsetProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedPositionOffsetProvider(const LengthValue* computed_font_size,
-                                 const LengthValue* root_computed_font_size);
+                                 const LengthValue* root_computed_font_size,
+                                 const math::Size& viewport_size);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLength(LengthValue* length) OVERRIDE;
@@ -475,6 +511,7 @@ class ComputedPositionOffsetProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_position_offset_;
 
@@ -483,8 +520,9 @@ class ComputedPositionOffsetProvider : public NotReachedPropertyValueVisitor {
 
 void ComputedPositionOffsetProvider::VisitLength(
     LengthValue* specified_length) {
-  computed_position_offset_ = ProvideAbsoluteLength(
-      specified_length, computed_font_size_, root_computed_font_size_);
+  computed_position_offset_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
@@ -554,9 +592,10 @@ void ComputedPositionOffsetProvider::VisitPercentage(
 
 ComputedPositionOffsetProvider::ComputedPositionOffsetProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 // Computed value: the percentage or "auto" or the absolute length.
 //   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
@@ -565,7 +604,7 @@ class ComputedHeightProvider : public NotReachedPropertyValueVisitor {
   ComputedHeightProvider(const PropertyValue* parent_computed_height,
                          const LengthValue* computed_font_size,
                          const LengthValue* root_computed_font_size,
-                         bool out_of_flow);
+                         const math::Size& viewport_size, bool out_of_flow);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLength(LengthValue* length) OVERRIDE;
@@ -579,6 +618,7 @@ class ComputedHeightProvider : public NotReachedPropertyValueVisitor {
   const PropertyValue* parent_computed_height_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
   bool out_of_flow_;
 
   scoped_refptr<PropertyValue> computed_height_;
@@ -589,15 +629,18 @@ class ComputedHeightProvider : public NotReachedPropertyValueVisitor {
 ComputedHeightProvider::ComputedHeightProvider(
     const PropertyValue* parent_computed_height,
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size, bool out_of_flow)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size,
+    bool out_of_flow)
     : parent_computed_height_(parent_computed_height),
       computed_font_size_(computed_font_size),
       root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size),
       out_of_flow_(out_of_flow) {}
 
 void ComputedHeightProvider::VisitLength(LengthValue* specified_length) {
-  computed_height_ = ProvideAbsoluteLength(
-      specified_length, computed_font_size_, root_computed_font_size_);
+  computed_height_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
@@ -679,7 +722,7 @@ class ComputedMaxHeightProvider : public NotReachedPropertyValueVisitor {
   ComputedMaxHeightProvider(const PropertyValue* parent_computed_max_height,
                             const LengthValue* computed_font_size,
                             const LengthValue* root_computed_font_size,
-                            bool out_of_flow);
+                            const math::Size& viewport_size, bool out_of_flow);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLength(LengthValue* length) OVERRIDE;
@@ -693,6 +736,7 @@ class ComputedMaxHeightProvider : public NotReachedPropertyValueVisitor {
   const PropertyValue* parent_computed_max_height_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
   bool out_of_flow_;
 
   scoped_refptr<PropertyValue> computed_max_height_;
@@ -703,15 +747,18 @@ class ComputedMaxHeightProvider : public NotReachedPropertyValueVisitor {
 ComputedMaxHeightProvider::ComputedMaxHeightProvider(
     const PropertyValue* parent_computed_max_height,
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size, bool out_of_flow)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size,
+    bool out_of_flow)
     : parent_computed_max_height_(parent_computed_max_height),
       computed_font_size_(computed_font_size),
       root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size),
       out_of_flow_(out_of_flow) {}
 
 void ComputedMaxHeightProvider::VisitLength(LengthValue* specified_length) {
-  computed_max_height_ = ProvideAbsoluteLength(
-      specified_length, computed_font_size_, root_computed_font_size_);
+  computed_max_height_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
@@ -794,7 +841,7 @@ class ComputedMinHeightProvider : public NotReachedPropertyValueVisitor {
   ComputedMinHeightProvider(const PropertyValue* parent_computed_min_max_height,
                             const LengthValue* computed_font_size,
                             const LengthValue* root_computed_font_size,
-                            bool out_of_flow);
+                            const math::Size& viewport_size, bool out_of_flow);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLength(LengthValue* length) OVERRIDE;
@@ -808,6 +855,7 @@ class ComputedMinHeightProvider : public NotReachedPropertyValueVisitor {
   const PropertyValue* parent_computed_min_max_height_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
   bool out_of_flow_;
 
   scoped_refptr<PropertyValue> computed_min_height_;
@@ -818,15 +866,18 @@ class ComputedMinHeightProvider : public NotReachedPropertyValueVisitor {
 ComputedMinHeightProvider::ComputedMinHeightProvider(
     const PropertyValue* parent_computed_min_max_height,
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size, bool out_of_flow)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size,
+    bool out_of_flow)
     : parent_computed_min_max_height_(parent_computed_min_max_height),
       computed_font_size_(computed_font_size),
       root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size),
       out_of_flow_(out_of_flow) {}
 
 void ComputedMinHeightProvider::VisitLength(LengthValue* specified_length) {
-  computed_min_height_ = ProvideAbsoluteLength(
-      specified_length, computed_font_size_, root_computed_font_size_);
+  computed_min_height_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
@@ -908,7 +959,8 @@ void ComputedMinHeightProvider::VisitPercentage(PercentageValue* percentage) {
 class ComputedWidthProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedWidthProvider(const LengthValue* computed_font_size,
-                        const LengthValue* root_computed_font_size);
+                        const LengthValue* root_computed_font_size,
+                        const math::Size& viewport_size);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLength(LengthValue* length) OVERRIDE;
@@ -921,6 +973,7 @@ class ComputedWidthProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_width_;
 
@@ -929,13 +982,15 @@ class ComputedWidthProvider : public NotReachedPropertyValueVisitor {
 
 ComputedWidthProvider::ComputedWidthProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedWidthProvider::VisitLength(LengthValue* specified_length) {
-  computed_width_ = ProvideAbsoluteLength(specified_length, computed_font_size_,
-                                          root_computed_font_size_);
+  computed_width_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
@@ -1008,7 +1063,8 @@ class ComputedMinMaxWidthProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedMinMaxWidthProvider(PropertyValue* parent_computed_min_max_height,
                               const LengthValue* computed_font_size,
-                              const LengthValue* root_computed_font_size);
+                              const LengthValue* root_computed_font_size,
+                              const math::Size& viewport_size);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLength(LengthValue* length) OVERRIDE;
@@ -1022,6 +1078,7 @@ class ComputedMinMaxWidthProvider : public NotReachedPropertyValueVisitor {
   PropertyValue* parent_computed_min_max_width_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_min_max_width_;
 
@@ -1031,14 +1088,16 @@ class ComputedMinMaxWidthProvider : public NotReachedPropertyValueVisitor {
 ComputedMinMaxWidthProvider::ComputedMinMaxWidthProvider(
     PropertyValue* parent_computed_min_max_width,
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : parent_computed_min_max_width_(parent_computed_min_max_width),
       computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedMinMaxWidthProvider::VisitLength(LengthValue* specified_length) {
-  computed_min_max_width_ = ProvideAbsoluteLength(
-      specified_length, computed_font_size_, root_computed_font_size_);
+  computed_min_max_width_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
@@ -1110,6 +1169,8 @@ class ComputedLengthIsNegativeProvider : public DefaultingPropertyValueVisitor {
       case kPixelsUnit:
       case kFontSizesAkaEmUnit:
       case kRootElementFontSizesAkaRemUnit:
+      case kViewportWidthPercentsAkaVwUnit:
+      case kViewportHeightPercentsAkaVhUnit:
         computed_length_is_negative_ = length_value->value() < 0;
         break;
       default:
@@ -1149,7 +1210,8 @@ namespace {
 class ComputedPositionHelper {
  public:
   ComputedPositionHelper(const LengthValue* computed_font_size,
-                         const LengthValue* root_computed_font_size);
+                         const LengthValue* root_computed_font_size,
+                         const math::Size& viewport_size);
 
   // Forwards the call on to the appropriate method depending on the number
   // of parameters in |input_position_builder|.
@@ -1206,15 +1268,17 @@ class ComputedPositionHelper {
 
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   DISALLOW_COPY_AND_ASSIGN(ComputedPositionHelper);
 };
 
 ComputedPositionHelper::ComputedPositionHelper(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedPositionHelper::ComputePosition(
     const PropertyListValue::Builder& input_position_builder,
@@ -1360,7 +1424,7 @@ ComputedPositionHelper::ProvideCalcValueFromOriginAndOffset(
   if (offset->GetTypeId() == base::GetTypeId<LengthValue>()) {
     scoped_refptr<LengthValue> length_provider = ProvideAbsoluteLength(
         base::polymorphic_downcast<LengthValue*>(offset.get()),
-        computed_font_size_, root_computed_font_size_);
+        computed_font_size_, root_computed_font_size_, viewport_size_);
     length_value = new LengthValue(
         origin_info->offset_multiplier * length_provider->value(),
         length_provider->unit());
@@ -1425,10 +1489,12 @@ class ComputedBackgroundImageSingleLayerProvider
  public:
   ComputedBackgroundImageSingleLayerProvider(
       const GURL& base_url, const LengthValue* computed_font_size,
-      const LengthValue* root_computed_font_size)
+      const LengthValue* root_computed_font_size,
+      const math::Size& viewport_size)
       : base_url_(base_url),
         computed_font_size_(computed_font_size),
-        root_computed_font_size_(root_computed_font_size) {}
+        root_computed_font_size_(root_computed_font_size),
+        viewport_size_(viewport_size) {}
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
@@ -1443,6 +1509,7 @@ class ComputedBackgroundImageSingleLayerProvider
   const GURL base_url_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_background_image_;
 };
@@ -1511,7 +1578,8 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
 namespace {
 ColorStopList ComputeColorStopList(const ColorStopList& color_stops,
                                    const LengthValue* computed_font_size,
-                                   const LengthValue* root_computed_font_size) {
+                                   const LengthValue* root_computed_font_size,
+                                   const math::Size& viewport_size) {
   ColorStopList computed_color_stops;
   computed_color_stops.reserve(color_stops.size());
 
@@ -1522,7 +1590,7 @@ ColorStopList ComputeColorStopList(const ColorStopList& color_stops,
     computed_color_stops.push_back(new ColorStop(
         color_stop.rgba(), ProvideAbsoluteLengthIfNonNullLength(
                                color_stop.position(), computed_font_size,
-                               root_computed_font_size)));
+                               root_computed_font_size, viewport_size)));
   }
 
   return computed_color_stops.Pass();
@@ -1533,9 +1601,9 @@ void ComputedBackgroundImageSingleLayerProvider::VisitLinearGradient(
     LinearGradientValue* linear_gradient_value) {
   // We must walk through the list of color stop positions and absolutize the
   // any length values.
-  ColorStopList computed_color_stops =
-      ComputeColorStopList(linear_gradient_value->color_stop_list(),
-                           computed_font_size_, root_computed_font_size_);
+  ColorStopList computed_color_stops = ComputeColorStopList(
+      linear_gradient_value->color_stop_list(), computed_font_size_,
+      root_computed_font_size_, viewport_size_);
 
   if (linear_gradient_value->angle_in_radians()) {
     computed_background_image_ =
@@ -1551,7 +1619,8 @@ namespace {
 scoped_refptr<PropertyListValue> CalculateComputedRadialGradientPosition(
     const scoped_refptr<PropertyListValue>& specified_position,
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size) {
+    const LengthValue* root_computed_font_size,
+    const math::Size& viewport_size) {
   if (!specified_position) {
     // If no position is specified, we default to 'center'.
     scoped_ptr<PropertyListValue::Builder> builder(
@@ -1563,8 +1632,8 @@ scoped_refptr<PropertyListValue> CalculateComputedRadialGradientPosition(
   DCHECK_GE(size, 1u);
   DCHECK_LE(size, 2u);
 
-  ComputedPositionHelper position_helper(computed_font_size,
-                                         root_computed_font_size);
+  ComputedPositionHelper position_helper(
+      computed_font_size, root_computed_font_size, viewport_size);
   scoped_ptr<PropertyListValue::Builder> computed_position_builder(
       new PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
   position_helper.ComputePosition(specified_position->value(),
@@ -1578,15 +1647,15 @@ void ComputedBackgroundImageSingleLayerProvider::VisitRadialGradient(
     RadialGradientValue* radial_gradient_value) {
   // We must walk through the list of color stop positions and absolutize the
   // any length values.
-  ColorStopList computed_color_stops =
-      ComputeColorStopList(radial_gradient_value->color_stop_list(),
-                           computed_font_size_, root_computed_font_size_);
+  ColorStopList computed_color_stops = ComputeColorStopList(
+      radial_gradient_value->color_stop_list(), computed_font_size_,
+      root_computed_font_size_, viewport_size_);
 
   // The center of the gradient must be absolutized if it is a length.
   scoped_refptr<PropertyListValue> computed_position =
-      CalculateComputedRadialGradientPosition(radial_gradient_value->position(),
-                                              computed_font_size_,
-                                              root_computed_font_size_);
+      CalculateComputedRadialGradientPosition(
+          radial_gradient_value->position(), computed_font_size_,
+          root_computed_font_size_, viewport_size_);
 
   // If the radial gradient specifies size values, they must also be absolutized
   // if they are lengths.
@@ -1595,7 +1664,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitRadialGradient(
         radial_gradient_value->shape(),
         ProvideAbsoluteLengthsForNonNullLengthsInList(
             radial_gradient_value->size_value(), computed_font_size_,
-            root_computed_font_size_),
+            root_computed_font_size_, viewport_size_),
         computed_position, computed_color_stops.Pass());
   } else {
     computed_background_image_ = new RadialGradientValue(
@@ -1625,10 +1694,12 @@ class ComputedBackgroundImageProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedBackgroundImageProvider(const GURL& base_url,
                                   const LengthValue* computed_font_size,
-                                  const LengthValue* root_computed_font_size)
+                                  const LengthValue* root_computed_font_size,
+                                  const math::Size& viewport_size)
       : base_url_(base_url),
         computed_font_size_(computed_font_size),
-        root_computed_font_size_(root_computed_font_size) {}
+        root_computed_font_size_(root_computed_font_size),
+        viewport_size_(viewport_size) {}
 
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
 
@@ -1640,6 +1711,7 @@ class ComputedBackgroundImageProvider : public NotReachedPropertyValueVisitor {
   const GURL base_url_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_background_image_;
 };
@@ -1651,7 +1723,7 @@ void ComputedBackgroundImageProvider::VisitPropertyList(
   builder->reserve(property_list_value->value().size());
 
   ComputedBackgroundImageSingleLayerProvider single_layer_provider(
-      base_url_, computed_font_size_, root_computed_font_size_);
+      base_url_, computed_font_size_, root_computed_font_size_, viewport_size_);
   for (size_t i = 0; i < property_list_value->value().size(); ++i) {
     property_list_value->value()[i]->Accept(&single_layer_provider);
     scoped_refptr<PropertyValue> computed_background_image =
@@ -1667,7 +1739,8 @@ class ComputedBackgroundSizeSingleValueProvider
  public:
   ComputedBackgroundSizeSingleValueProvider(
       const LengthValue* computed_font_size,
-      const LengthValue* root_computed_font_size);
+      const LengthValue* root_computed_font_size,
+      const math::Size& viewport_size);
 
   void VisitLength(LengthValue* length) OVERRIDE;
   void VisitPercentage(PercentageValue* percentage) OVERRIDE;
@@ -1680,6 +1753,7 @@ class ComputedBackgroundSizeSingleValueProvider
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_background_size_;
 
@@ -1689,14 +1763,16 @@ class ComputedBackgroundSizeSingleValueProvider
 ComputedBackgroundSizeSingleValueProvider::
     ComputedBackgroundSizeSingleValueProvider(
         const LengthValue* computed_font_size,
-        const LengthValue* root_computed_font_size)
+        const LengthValue* root_computed_font_size,
+        const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedBackgroundSizeSingleValueProvider::VisitLength(
     LengthValue* length) {
-  computed_background_size_ = ProvideAbsoluteLength(length, computed_font_size_,
-                                                    root_computed_font_size_);
+  computed_background_size_ = ProvideAbsoluteLength(
+      length, computed_font_size_, root_computed_font_size_, viewport_size_);
 }
 
 void ComputedBackgroundSizeSingleValueProvider::VisitPercentage(
@@ -1774,9 +1850,9 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
 class ComputedBackgroundPositionProvider
     : public NotReachedPropertyValueVisitor {
  public:
-  ComputedBackgroundPositionProvider(
-      const LengthValue* computed_font_size,
-      const LengthValue* root_computed_font_size);
+  ComputedBackgroundPositionProvider(const LengthValue* computed_font_size,
+                                     const LengthValue* root_computed_font_size,
+                                     const math::Size& viewport_size);
 
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
 
@@ -1787,6 +1863,7 @@ class ComputedBackgroundPositionProvider
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_background_position_;
 
@@ -1795,9 +1872,10 @@ class ComputedBackgroundPositionProvider
 
 ComputedBackgroundPositionProvider::ComputedBackgroundPositionProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedBackgroundPositionProvider::VisitPropertyList(
     PropertyListValue* property_list_value) {
@@ -1805,8 +1883,8 @@ void ComputedBackgroundPositionProvider::VisitPropertyList(
   DCHECK_GE(size, 1u);
   DCHECK_LE(size, 4u);
 
-  ComputedPositionHelper position_helper(computed_font_size_,
-                                         root_computed_font_size_);
+  ComputedPositionHelper position_helper(
+      computed_font_size_, root_computed_font_size_, viewport_size_);
   scoped_ptr<PropertyListValue::Builder> background_position_builder(
       new PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
 
@@ -1820,7 +1898,8 @@ void ComputedBackgroundPositionProvider::VisitPropertyList(
 class ComputedBackgroundSizeProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedBackgroundSizeProvider(const LengthValue* computed_font_size,
-                                 const LengthValue* root_computed_font_size);
+                                 const LengthValue* root_computed_font_size,
+                                 const math::Size& viewport_size);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
@@ -1832,6 +1911,7 @@ class ComputedBackgroundSizeProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_background_size_;
 
@@ -1840,9 +1920,10 @@ class ComputedBackgroundSizeProvider : public NotReachedPropertyValueVisitor {
 
 ComputedBackgroundSizeProvider::ComputedBackgroundSizeProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedBackgroundSizeProvider::VisitKeyword(KeywordValue* keyword) {
   computed_background_size_ = keyword;
@@ -1851,11 +1932,11 @@ void ComputedBackgroundSizeProvider::VisitKeyword(KeywordValue* keyword) {
 void ComputedBackgroundSizeProvider::VisitPropertyList(
     PropertyListValue* property_list_value) {
   ComputedBackgroundSizeSingleValueProvider left_value_provider(
-      computed_font_size_, root_computed_font_size_);
+      computed_font_size_, root_computed_font_size_, viewport_size_);
   property_list_value->value()[0]->Accept(&left_value_provider);
 
   ComputedBackgroundSizeSingleValueProvider right_value_provider(
-      computed_font_size_, root_computed_font_size_);
+      computed_font_size_, root_computed_font_size_, viewport_size_);
   property_list_value->value()[1]->Accept(&right_value_provider);
 
   scoped_ptr<PropertyListValue::Builder> builder(
@@ -1870,7 +1951,8 @@ void ComputedBackgroundSizeProvider::VisitPropertyList(
 class ComputedBorderRadiusProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedBorderRadiusProvider(const LengthValue* computed_font_size,
-                               const LengthValue* root_computed_font_size);
+                               const LengthValue* root_computed_font_size,
+                               const math::Size& viewport_size);
 
   void VisitLength(LengthValue* specified_length);
   void VisitPercentage(PercentageValue* percentage);
@@ -1882,6 +1964,7 @@ class ComputedBorderRadiusProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_border_radius_;
 
@@ -1890,13 +1973,15 @@ class ComputedBorderRadiusProvider : public NotReachedPropertyValueVisitor {
 
 ComputedBorderRadiusProvider::ComputedBorderRadiusProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedBorderRadiusProvider::VisitLength(LengthValue* specified_length) {
-  computed_border_radius_ = ProvideAbsoluteLength(
-      specified_length, computed_font_size_, root_computed_font_size_);
+  computed_border_radius_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 void ComputedBorderRadiusProvider::VisitPercentage(
@@ -1912,6 +1997,7 @@ class ComputedShadowProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedShadowProvider(const LengthValue* computed_font_size,
                          const LengthValue* root_computed_font_size,
+                         const math::Size& viewport_size,
                          const RGBAColorValue* computed_color);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
@@ -1924,6 +2010,7 @@ class ComputedShadowProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
   const RGBAColorValue* computed_color_;
 
   scoped_refptr<PropertyValue> computed_shadow_;
@@ -1933,10 +2020,11 @@ class ComputedShadowProvider : public NotReachedPropertyValueVisitor {
 
 ComputedShadowProvider::ComputedShadowProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size,
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size,
     const RGBAColorValue* computed_color)
     : computed_font_size_(computed_font_size),
       root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size),
       computed_color_(computed_color) {}
 
 void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
@@ -2013,8 +2101,9 @@ void ComputedShadowProvider::VisitPropertyList(
     for (int j = 0; j < ShadowValue::kMaxLengths; ++j) {
       LengthValue* specified_length = shadow_value->lengths()[j].get();
       if (specified_length) {
-        computed_lengths[j] = ProvideAbsoluteLength(
-            specified_length, computed_font_size_, root_computed_font_size_);
+        computed_lengths[j] =
+            ProvideAbsoluteLength(specified_length, computed_font_size_,
+                                  root_computed_font_size_, viewport_size_);
       }
     }
 
@@ -2035,7 +2124,8 @@ void ComputedShadowProvider::VisitPropertyList(
 class ComputedTransformFunctionProvider : public TransformFunctionVisitor {
  public:
   ComputedTransformFunctionProvider(const LengthValue* computed_font_size,
-                                    const LengthValue* root_computed_font_size);
+                                    const LengthValue* root_computed_font_size,
+                                    const math::Size& viewport_size);
 
   void VisitMatrix(const MatrixFunction* matrix_function) OVERRIDE;
   void VisitRotate(const RotateFunction* rotate_function) OVERRIDE;
@@ -2050,13 +2140,15 @@ class ComputedTransformFunctionProvider : public TransformFunctionVisitor {
   scoped_ptr<TransformFunction> computed_transform_function_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 };
 
 ComputedTransformFunctionProvider::ComputedTransformFunctionProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedTransformFunctionProvider::VisitMatrix(
     const MatrixFunction* matrix_function) {
@@ -2080,8 +2172,8 @@ void ComputedTransformFunctionProvider::VisitTranslate(
       computed_transform_function_.reset(new TranslateFunction(
           translate_function->axis(),
           ProvideAbsoluteLength(translate_function->offset_as_length(),
-                                computed_font_size_,
-                                root_computed_font_size_)));
+                                computed_font_size_, root_computed_font_size_,
+                                viewport_size_)));
     } break;
     case TranslateFunction::kPercentage: {
       computed_transform_function_.reset(
@@ -2092,9 +2184,9 @@ void ComputedTransformFunctionProvider::VisitTranslate(
           translate_function->offset_as_calc();
       computed_transform_function_.reset(new TranslateFunction(
           translate_function->axis(),
-          new CalcValue(ProvideAbsoluteLength(calc_value->length_value(),
-                                              computed_font_size_,
-                                              root_computed_font_size_),
+          new CalcValue(ProvideAbsoluteLength(
+                            calc_value->length_value(), computed_font_size_,
+                            root_computed_font_size_, viewport_size_),
                         calc_value->percentage_value())));
     } break;
     default: { NOTREACHED(); }
@@ -2105,7 +2197,8 @@ void ComputedTransformFunctionProvider::VisitTranslate(
 class ComputedTextIndentProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedTextIndentProvider(const LengthValue* computed_font_size,
-                             const LengthValue* root_computed_font_size);
+                             const LengthValue* root_computed_font_size,
+                             const math::Size& viewport_size);
 
   void VisitLength(LengthValue* length) OVERRIDE;
 
@@ -2116,6 +2209,7 @@ class ComputedTextIndentProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<LengthValue> computed_text_indent_;
 
@@ -2124,13 +2218,15 @@ class ComputedTextIndentProvider : public NotReachedPropertyValueVisitor {
 
 ComputedTextIndentProvider::ComputedTextIndentProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedTextIndentProvider::VisitLength(LengthValue* specified_length) {
-  computed_text_indent_ = ProvideAbsoluteLength(
-      specified_length, computed_font_size_, root_computed_font_size_);
+  computed_text_indent_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_,
+                            root_computed_font_size_, viewport_size_);
 }
 
 // ComputedTransformOriginProvider provides a property list which has three
@@ -2142,7 +2238,8 @@ void ComputedTextIndentProvider::VisitLength(LengthValue* specified_length) {
 class ComputedTransformOriginProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedTransformOriginProvider(const LengthValue* computed_font_size,
-                                  const LengthValue* root_computed_font_size);
+                                  const LengthValue* root_computed_font_size,
+                                  const math::Size& viewport_size);
 
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
 
@@ -2153,6 +2250,7 @@ class ComputedTransformOriginProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_transform_origin_;
 
@@ -2161,9 +2259,10 @@ class ComputedTransformOriginProvider : public NotReachedPropertyValueVisitor {
 
 ComputedTransformOriginProvider::ComputedTransformOriginProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedTransformOriginProvider::VisitPropertyList(
     PropertyListValue* property_list_value) {
@@ -2171,8 +2270,8 @@ void ComputedTransformOriginProvider::VisitPropertyList(
   DCHECK_GE(size, 1u);
   DCHECK_LE(size, 3u);
 
-  ComputedPositionHelper position_helper(computed_font_size_,
-                                         root_computed_font_size_);
+  ComputedPositionHelper position_helper(
+      computed_font_size_, root_computed_font_size_, viewport_size_);
   scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
       new PropertyListValue::Builder(3, scoped_refptr<PropertyValue>()));
 
@@ -2188,10 +2287,10 @@ void ComputedTransformOriginProvider::VisitPropertyList(
       position_helper.ComputeTwoValuesPosition(property_list_value->value(),
                                                transform_origin_builder.get());
       // The third value must be LengthValue type.
-      (*transform_origin_builder)[2] =
-          ProvideAbsoluteLength(base::polymorphic_downcast<LengthValue*>(
-                                    property_list_value->value()[2].get()),
-                                computed_font_size_, root_computed_font_size_);
+      (*transform_origin_builder)[2] = ProvideAbsoluteLength(
+          base::polymorphic_downcast<LengthValue*>(
+              property_list_value->value()[2].get()),
+          computed_font_size_, root_computed_font_size_, viewport_size_);
       break;
     default:
       NOTREACHED();
@@ -2254,7 +2353,8 @@ bool TransformListContainsRelativeUnits(
 class ComputedTransformProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedTransformProvider(const LengthValue* computed_font_size,
-                            const LengthValue* root_computed_font_size);
+                            const LengthValue* root_computed_font_size,
+                            const math::Size& viewport_size);
 
   void VisitKeyword(KeywordValue* keyword) OVERRIDE;
   void VisitTransformFunctionList(
@@ -2267,6 +2367,7 @@ class ComputedTransformProvider : public NotReachedPropertyValueVisitor {
  private:
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
+  const math::Size& viewport_size_;
 
   scoped_refptr<PropertyValue> computed_transform_list_;
 
@@ -2275,9 +2376,10 @@ class ComputedTransformProvider : public NotReachedPropertyValueVisitor {
 
 ComputedTransformProvider::ComputedTransformProvider(
     const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size)
+    const LengthValue* root_computed_font_size, const math::Size& viewport_size)
     : computed_font_size_(computed_font_size),
-      root_computed_font_size_(root_computed_font_size) {}
+      root_computed_font_size_(root_computed_font_size),
+      viewport_size_(viewport_size) {}
 
 void ComputedTransformProvider::VisitTransformFunctionList(
     TransformFunctionListValue* transform_function_list) {
@@ -2297,7 +2399,7 @@ void ComputedTransformProvider::VisitTransformFunctionList(
       TransformFunction* transform_function = *iter;
 
       ComputedTransformFunctionProvider computed_transform_function_provider(
-          computed_font_size_, root_computed_font_size_);
+          computed_font_size_, root_computed_font_size_, viewport_size_);
       transform_function->Accept(&computed_transform_function_provider);
 
       computed_list_builder.push_back(
@@ -2384,10 +2486,12 @@ class CalculateComputedStyleContext {
       CSSComputedStyleData* cascaded_style,
       const scoped_refptr<const CSSComputedStyleData>& parent_computed_style,
       const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
+      const math::Size& viewport_size,
       GURLMap* const property_key_to_base_url_map)
       : cascaded_style_(cascaded_style),
         parent_computed_style_(*parent_computed_style),
         root_computed_style_(*root_computed_style),
+        viewport_size_(viewport_size),
         property_key_to_base_url_map_(property_key_to_base_url_map) {
     cascaded_style_->SetParentComputedStyle(parent_computed_style);
   }
@@ -2425,6 +2529,8 @@ class CalculateComputedStyleContext {
   LengthValue* GetFontSize();
   // Helper function to return the computed font size of root element.
   LengthValue* GetRootFontSize();
+  // Helper function to return one percent of the viewport size .
+  const math::Size& GetViewportSizeOnePercent();
 
   // Helper function to return the computed border style for an edge based on
   // border width properties.
@@ -2445,6 +2551,9 @@ class CalculateComputedStyleContext {
   const CSSComputedStyleData& parent_computed_style_;
   // The root computed style.
   const CSSComputedStyleData& root_computed_style_;
+
+  // One percent of width and height of viewport size.
+  const math::Size& viewport_size_;
 
   // Provides a base URL for each property key.  This is used by properties
   // that deal with URLs, such as background-image, to resolve relative URLs
@@ -2500,6 +2609,10 @@ LengthValue* CalculateComputedStyleContext::GetFontSize() {
 LengthValue* CalculateComputedStyleContext::GetRootFontSize() {
   return base::polymorphic_downcast<LengthValue*>(
       root_computed_style_.font_size().get());
+}
+
+const math::Size& CalculateComputedStyleContext::GetViewportSizeOnePercent() {
+  return viewport_size_;
 }
 
 PropertyValue* CalculateComputedStyleContext::GetBorderStyleBasedOnWidth(
@@ -2591,7 +2704,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
   switch (key) {
     case kBackgroundPositionProperty: {
       ComputedBackgroundPositionProvider background_position_provider(
-          GetFontSize(), GetRootFontSize());
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&background_position_provider);
       const scoped_refptr<PropertyValue>& computed_background_position =
           background_position_provider.computed_background_position();
@@ -2615,13 +2728,15 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderRightWidthProperty:
     case kBorderTopWidthProperty: {
       ComputedBorderWidthProvider border_width_provider(
-          GetFontSize(), GetRootFontSize(), GetBorderStyleBasedOnWidth(key));
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent(),
+          GetBorderStyleBasedOnWidth(key));
       (*value)->Accept(&border_width_provider);
       *value = border_width_provider.computed_border_width();
     } break;
     case kBoxShadowProperty:
     case kTextShadowProperty: {
       ComputedShadowProvider shadow_provider(GetFontSize(), GetRootFontSize(),
+                                             GetViewportSizeOnePercent(),
                                              GetColor());
       (*value)->Accept(&shadow_provider);
       *value = shadow_provider.computed_shadow();
@@ -2644,8 +2759,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
         ComputedFontSizeProvider font_size_provider(
             base::polymorphic_downcast<LengthValue*>(
                 parent_computed_style_.font_size().get()),
-            base::polymorphic_downcast<LengthValue*>(
-                root_computed_style_.font_size().get()));
+            GetRootFontSize(), GetViewportSizeOnePercent());
         (*value)->Accept(&font_size_provider);
         if (font_size_provider.computed_font_size()) {
           *value = font_size_provider.computed_font_size();
@@ -2660,13 +2774,14 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kHeightProperty: {
       ComputedHeightProvider height_provider(
           parent_computed_style_.height().get(), GetFontSize(),
-          GetRootFontSize(), IsAbsolutelyPositioned());
+          GetRootFontSize(), GetViewportSizeOnePercent(),
+          IsAbsolutelyPositioned());
       (*value)->Accept(&height_provider);
       *value = height_provider.computed_height();
     } break;
     case kLineHeightProperty: {
-      ComputedLineHeightProvider line_height_provider(GetFontSize(),
-                                                      GetRootFontSize());
+      ComputedLineHeightProvider line_height_provider(
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&line_height_provider);
       *value = line_height_provider.computed_line_height();
     } break;
@@ -2674,8 +2789,8 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kMarginLeftProperty:
     case kMarginRightProperty:
     case kMarginTopProperty: {
-      ComputedMarginOrPaddingEdgeProvider margin_provider(GetFontSize(),
-                                                          GetRootFontSize());
+      ComputedMarginOrPaddingEdgeProvider margin_provider(
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&margin_provider);
       *value = margin_provider.computed_margin_or_padding_edge();
     } break;
@@ -2683,22 +2798,24 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kPaddingLeftProperty:
     case kPaddingRightProperty:
     case kPaddingTopProperty: {
-      ComputedMarginOrPaddingEdgeProvider padding_provider(GetFontSize(),
-                                                           GetRootFontSize());
+      ComputedMarginOrPaddingEdgeProvider padding_provider(
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&padding_provider);
       *value = padding_provider.computed_margin_or_padding_edge();
     } break;
     case kMaxHeightProperty: {
       ComputedMaxHeightProvider max_height_provider(
           parent_computed_style_.height().get(), GetFontSize(),
-          GetRootFontSize(), IsAbsolutelyPositioned());
+          GetRootFontSize(), GetViewportSizeOnePercent(),
+          IsAbsolutelyPositioned());
       (*value)->Accept(&max_height_provider);
       *value = max_height_provider.computed_max_height();
     } break;
     case kMinHeightProperty: {
       ComputedMinHeightProvider min_height_provider(
           parent_computed_style_.height().get(), GetFontSize(),
-          GetRootFontSize(), IsAbsolutelyPositioned());
+          GetRootFontSize(), GetViewportSizeOnePercent(),
+          IsAbsolutelyPositioned());
       (*value)->Accept(&min_height_provider);
       *value = min_height_provider.computed_min_height();
     } break;
@@ -2706,12 +2823,13 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kMinWidthProperty: {
       ComputedMinMaxWidthProvider min_max_width_provider(
           parent_computed_style_.width().get(), GetFontSize(),
-          GetRootFontSize());
+          GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&min_max_width_provider);
       *value = min_max_width_provider.computed_min_max_width();
     } break;
     case kWidthProperty: {
-      ComputedWidthProvider width_provider(GetFontSize(), GetRootFontSize());
+      ComputedWidthProvider width_provider(GetFontSize(), GetRootFontSize(),
+                                           GetViewportSizeOnePercent());
       (*value)->Accept(&width_provider);
       *value = width_provider.computed_width();
     } break;
@@ -2719,38 +2837,38 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       if (property_key_to_base_url_map_) {
         ComputedBackgroundImageProvider background_image_provider(
             (*property_key_to_base_url_map_)[kBackgroundImageProperty],
-            GetFontSize(), GetRootFontSize());
+            GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
         (*value)->Accept(&background_image_provider);
         *value = background_image_provider.computed_background_image();
       }
     } break;
     case kBackgroundSizeProperty: {
       ComputedBackgroundSizeProvider background_size_provider(
-          GetFontSize(), GetRootFontSize());
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&background_size_provider);
       *value = background_size_provider.computed_background_size();
     } break;
     case kBorderRadiusProperty: {
-      ComputedBorderRadiusProvider border_radius_provider(GetFontSize(),
-                                                          GetRootFontSize());
+      ComputedBorderRadiusProvider border_radius_provider(
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&border_radius_provider);
       *value = border_radius_provider.computed_border_radius();
     } break;
     case kTextIndentProperty: {
-      ComputedTextIndentProvider text_indent_provider(GetFontSize(),
-                                                      GetRootFontSize());
+      ComputedTextIndentProvider text_indent_provider(
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&text_indent_provider);
       *value = text_indent_provider.computed_text_indent();
     } break;
     case kTransformOriginProperty: {
       ComputedTransformOriginProvider transform_origin_provider(
-          GetFontSize(), GetRootFontSize());
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&transform_origin_provider);
       *value = transform_origin_provider.computed_transform_origin();
     } break;
     case kTransformProperty: {
-      ComputedTransformProvider transform_provider(GetFontSize(),
-                                                   GetRootFontSize());
+      ComputedTransformProvider transform_provider(
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&transform_provider);
       *value = transform_provider.computed_transform_list();
     } break;
@@ -2759,7 +2877,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kRightProperty:
     case kTopProperty: {
       ComputedPositionOffsetProvider position_offset_provider(
-          GetFontSize(), GetRootFontSize());
+          GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&position_offset_provider);
       *value = position_offset_provider.computed_position_offset();
     } break;
@@ -2945,6 +3063,7 @@ void PromoteToComputedStyle(
     const scoped_refptr<CSSComputedStyleData>& cascaded_style,
     const scoped_refptr<const CSSComputedStyleData>& parent_computed_style,
     const scoped_refptr<const CSSComputedStyleData>& root_computed_style,
+    const math::Size& viewport_size,
     GURLMap* const property_key_to_base_url_map) {
   DCHECK(cascaded_style);
   DCHECK(parent_computed_style);
@@ -2955,7 +3074,7 @@ void PromoteToComputedStyle(
   // properties' computed style calculations.
   CalculateComputedStyleContext calculate_computed_style_context(
       cascaded_style.get(), parent_computed_style, root_computed_style,
-      property_key_to_base_url_map);
+      viewport_size, property_key_to_base_url_map);
 
   // Go through all values declared values and calculate their computed values.
   CSSComputedStyleData::PropertyValues* declared_property_values =
@@ -2974,7 +3093,7 @@ scoped_refptr<CSSComputedStyleData> GetComputedStyleOfAnonymousBox(
   scoped_refptr<CSSComputedStyleData> computed_style =
       new CSSComputedStyleData();
   PromoteToComputedStyle(computed_style, parent_computed_style,
-                         parent_computed_style, NULL);
+                         parent_computed_style, math::Size(), NULL);
   return computed_style;
 }
 

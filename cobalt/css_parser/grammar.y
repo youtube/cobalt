@@ -2229,6 +2229,14 @@ absolute_or_relative_length:
     $$ = AddRef(new cssom::LengthValue($1 * $2,
         cssom::kRootElementFontSizesAkaRemUnit));
   }
+  | maybe_sign_token kViewportWidthPercentsAkaVwToken maybe_whitespace {
+    $$ = AddRef(new cssom::LengthValue($1 * $2,
+        cssom::kViewportWidthPercentsAkaVwUnit));
+  }
+  | maybe_sign_token kViewportHeightPercentsAkaVhToken maybe_whitespace {
+    $$ = AddRef(new cssom::LengthValue($1 * $2,
+        cssom::kViewportHeightPercentsAkaVhUnit));
+  }
   // Absolute lengths.
   //   https://www.w3.org/TR/css3-values/#absolute-lengths
   | maybe_sign_token kPixelsToken maybe_whitespace {
