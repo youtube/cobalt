@@ -43,8 +43,11 @@ SubmissionQueue::SubmissionQueue(
           "The current size of the renderer submission queue.  Each item in "
           "queue contains a render tree and associated animations.") {}
 
-void SubmissionQueue::PushSubmission(const Submission& submission) {
+void SubmissionQueue::PushSubmission(const Submission& submission,
+                                     const base::TimeTicks& now) {
   TRACE_EVENT0("cobalt::renderer", "SubmissionQueue::PushSubmission()");
+
+  CheckThatNowIsMonotonicallyIncreasing(now);
 
   if (submission_queue_.size() >= max_queue_size_) {
     // If we are at capacity, then make room for the new submission by erasing
@@ -54,35 +57,27 @@ void SubmissionQueue::PushSubmission(const Submission& submission) {
     // Ensure that the next oldest item in the queue is older than the current
     // time.  If this is not the case, snap time forward so that it is.
     double to_front_submission_time_in_ms =
-        (submission_queue_.front().time_offset - render_time())
+        (submission_queue_.front().time_offset - render_time(now))
             .InMillisecondsF();
-    if (to_submission_time_in_ms_.GetCurrentValue() <
+    if (to_submission_time_in_ms_.GetValueAtTime(now) <
         to_front_submission_time_in_ms) {
-      to_submission_time_in_ms_.SetTarget(to_front_submission_time_in_ms);
+      to_submission_time_in_ms_.SetTarget(to_front_submission_time_in_ms, now);
       to_submission_time_in_ms_.SnapToTarget();
     }
   }
 
   base::TimeDelta latest_to_submission_time =
-      submission.time_offset - render_time();
+      submission.time_offset - render_time(now);
 
   double latest_to_submission_time_in_ms =
       latest_to_submission_time.InMillisecondsF();
 
-  to_submission_time_in_ms_.SetTarget(latest_to_submission_time_in_ms);
-
-  if (!submission_queue_.empty() &&
-      submission.time_offset < submission_queue_.back().time_offset) {
-    // We don't support non-monotonically increasing submission times.  If
-    // this happens, it is likely due to a source change, so in this case we
-    // just reset our state.
-    Reset();
-    to_submission_time_in_ms_.SnapToTarget();
-  }
+  to_submission_time_in_ms_.SetTarget(latest_to_submission_time_in_ms, now);
 
   // Snap time backwards if the incoming submission is in the past.
   if (latest_to_submission_time_in_ms <
-      to_submission_time_in_ms_.GetCurrentValue()) {
+      to_submission_time_in_ms_.GetValueAtTime(now)) {
+    Reset();
     to_submission_time_in_ms_.SnapToTarget();
   }
 
@@ -90,37 +85,49 @@ void SubmissionQueue::PushSubmission(const Submission& submission) {
   submission_queue_.push_back(submission);
 
   // Possibly purge old stale submissions.
-  PurgeStaleSubmissionsFromQueue();
+  PurgeStaleSubmissionsFromQueue(now);
 }
 
-Submission SubmissionQueue::GetCurrentSubmission() {
+Submission SubmissionQueue::GetCurrentSubmission(const base::TimeTicks& now) {
   TRACE_EVENT0("cobalt::renderer", "SubmissionQueue::GetCurrentSubmission()");
+
+  CheckThatNowIsMonotonicallyIncreasing(now);
 
   DCHECK(!submission_queue_.empty());
 
   // First get rid of any stale submissions from our queue.
-  PurgeStaleSubmissionsFromQueue();
+  PurgeStaleSubmissionsFromQueue(now);
 
   // Create a new submission with an updated time offset to account for the
   // fact that time has passed since it was submitted.
   Submission updated_time_submission(submission_queue_.front());
-  updated_time_submission.time_offset =
+
+  base::TimeDelta updated_time =
       base::TimeDelta::FromMillisecondsD(
-          to_submission_time_in_ms_.GetCurrentValue()) +
-      render_time();
+          to_submission_time_in_ms_.GetValueAtTime(now)) +
+      render_time(now);
+  if (updated_time < updated_time_submission.time_offset) {
+    // Our current clock should always be setup (via PushSubmission()) such
+    // that it is always larger than the front of the queue.
+    NOTREACHED();
+  } else {
+    updated_time_submission.time_offset = updated_time;
+  }
 
   return updated_time_submission;
 }
 
-base::TimeDelta SubmissionQueue::render_time() const {
-  return base::TimeTicks::HighResNow() - renderer_time_origin_;
+base::TimeDelta SubmissionQueue::render_time(
+    const base::TimeTicks& time) const {
+  return time - renderer_time_origin_;
 }
 
-void SubmissionQueue::PurgeStaleSubmissionsFromQueue() {
+void SubmissionQueue::PurgeStaleSubmissionsFromQueue(
+    const base::TimeTicks& time) {
   TRACE_EVENT0("cobalt::renderer",
                "SubmissionQueue::PurgeStaleSubmissionsFromQueue()");
   double current_to_submission_time_in_ms =
-      to_submission_time_in_ms_.GetCurrentValue();
+      to_submission_time_in_ms_.GetValueAtTime(time);
   base::TimeDelta current_to_submission_time =
       base::TimeDelta::FromMillisecondsD(current_to_submission_time_in_ms);
 
@@ -131,7 +138,7 @@ void SubmissionQueue::PurgeStaleSubmissionsFromQueue() {
   if (submission != submission_queue_.begin()) {
     // Skip past the submissions that are in the future.  This means we start
     // from the back because the queue is sorted in ascending order of time.
-    while (current_to_submission_time + render_time() <
+    while (current_to_submission_time + render_time(time) <
            submission->time_offset) {
       if (submission == submission_queue_.begin()) {
         // It is an invariant of this class that the oldest submission in the
@@ -165,8 +172,17 @@ void SubmissionQueue::PurgeStaleSubmissionsFromQueue() {
 
   // Update our CVal tracking the current (smoothed) to_submission_time value
   // and the one tracking submission queue size.
-  to_submission_time_in_ms_cval_ = current_to_submission_time_in_ms;
+  to_submission_time_in_ms_cval_ =
+      to_submission_time_in_ms_.GetValueAtTime(time);
   queue_size_ = submission_queue_.size();
+}
+
+void SubmissionQueue::CheckThatNowIsMonotonicallyIncreasing(
+    const base::TimeTicks& now) {
+  if (last_now_) {
+    DCHECK(now >= *last_now_);
+  }
+  last_now_ = now;
 }
 
 }  // namespace renderer

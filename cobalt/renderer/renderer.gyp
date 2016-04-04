@@ -91,6 +91,8 @@
         'rasterizer_test_fixture.cc',
         'rasterizer_test_fixture.h',
         'resource_provider_test.cc',
+        'smoothed_value_test.cc',
+        'submission_queue_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',

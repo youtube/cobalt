@@ -161,7 +161,8 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
 
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
 
-  submission_queue_->PushSubmission(render_tree_submission);
+  submission_queue_->PushSubmission(render_tree_submission,
+                                    base::TimeTicks::Now());
 
   // Start the rasterization timer if it is not yet started.
   if (!rasterize_timer_) {
@@ -194,8 +195,9 @@ void Pipeline::RasterizeCurrentTree() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
 
   // Rasterize the last submitted render tree.
-  RasterizeSubmissionToRenderTarget(submission_queue_->GetCurrentSubmission(),
-                                    render_target_);
+  RasterizeSubmissionToRenderTarget(
+      submission_queue_->GetCurrentSubmission(base::TimeTicks::Now()),
+      render_target_);
 }
 
 void Pipeline::RasterizeSubmissionToRenderTarget(
