@@ -541,28 +541,6 @@ HTMLElementContext* Element::html_element_context() {
   return document ? document->html_element_context() : NULL;
 }
 
-void Element::PostToDispatchEvent(const tracked_objects::Location& location,
-                                  base::Token event_name) {
-  PostToDispatchEvent(location, event_name, base::Closure());
-}
-
-void Element::PostToDispatchEvent(const tracked_objects::Location& location,
-                                  base::Token event_name,
-                                  const base::Closure& callback) {
-  MessageLoop::current()->PostTask(
-      location,
-      base::Bind(base::IgnoreResult(&Element::DispatchEventAndRunCallback),
-                 base::AsWeakPtr<Element>(this), event_name, callback));
-}
-
-void Element::DispatchEventAndRunCallback(
-    base::Token event_name, const base::Closure& dispatched_callback) {
-  DispatchEvent(make_scoped_refptr(new Event(event_name)));
-  if (!dispatched_callback.is_null()) {
-    dispatched_callback.Run();
-  }
-}
-
 void Element::HTMLParseError(const std::string& error) {
   // TODO(***REMOVED***): Report line / column number.
   LOG(WARNING) << "Error when parsing inner HTML or outer HTML: " << error;
