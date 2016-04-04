@@ -77,8 +77,10 @@ class BrowserModule {
 
   const std::string& GetUserAgent() { return network_module_.GetUserAgent(); }
 
-  // If url is empty, then reload the current url, otherwise load the given url.
+  // Recreates web module with the given URL.
   void Navigate(const GURL& url);
+  // Reloads web module.
+  void Reload();
 
   // Adds/removes a URL handler.
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
@@ -119,13 +121,8 @@ class BrowserModule {
   void SetProxy(const std::string& proxy_rules);
 
  private:
-  // Internal Navigation function and its internal verison. Replaces the current
-  // WebModule with a new one that is displaying the specified URL. After
-  // navigation, calls the callback if it is not null.
-  void NavigateWithCallback(const GURL& url,
-                            const base::Closure& loaded_callback);
-  void NavigateWithCallbackInternal(const GURL& url,
-                                    const base::Closure& loaded_callback);
+  // Recreates web module with the given URL.
+  void NavigateInternal(const GURL& url);
 
   // Called when the WebModule's Window.onload event is fired.
   void OnLoad();
@@ -249,12 +246,6 @@ class BrowserModule {
   scoped_ptr<DebugConsole> debug_console_;
 
   TraceManager trace_manager;
-
-  // Command handler object for navigate command from the debug console.
-  base::ConsoleCommandManager::CommandHandler navigate_command_handler_;
-
-  // Command handler object for reload command from the debug console.
-  base::ConsoleCommandManager::CommandHandler reload_command_handler_;
 
   // Command handler object for toggline the input fuzzer on/off.
   base::ConsoleCommandManager::CommandHandler fuzzer_toggle_command_handler_;

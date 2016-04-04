@@ -234,6 +234,8 @@ class Window : public EventTarget {
 
   ~Window() OVERRIDE;
 
+  void FireHashChangeEvent();
+
   int width_;
   int height_;
 

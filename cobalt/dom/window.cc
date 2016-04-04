@@ -50,14 +50,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
 
   // From DocumentObserver.
   void OnLoad() OVERRIDE {
-    MessageLoop::current()->PostTask(
-        FROM_HERE,
-        base::Bind(
-            base::IgnoreResult(
-                static_cast<bool (Window::*)(const scoped_refptr<Event>&)>(
-                    &Window::DispatchEvent)),
-            base::AsWeakPtr<Window>(window_),
-            make_scoped_refptr(new Event(base::Tokens::load()))));
+    window_->PostToDispatchEvent(FROM_HERE, base::Tokens::load());
   }
   void OnMutation() OVERRIDE {}
 
@@ -92,14 +85,16 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           script_runner, media_source_registry, resource_provider, image_cache,
           remote_font_cache, language)),
       performance_(new Performance(new base::SystemMonotonicClock())),
-      document_(new Document(
+      ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(
-              url, performance_->timing()->GetNavigationStartClock(),
+              url,
+              base::Bind(&Window::FireHashChangeEvent, base::Unretained(this)),
+              performance_->timing()->GetNavigationStartClock(),
               navigation_callback, ParseUserAgentStyleSheet(css_parser),
               math::Size(width_, height_), cookie_jar, post_sender,
               default_security_policy, csp_enforcement_mode,
-              csp_policy_changed_callback))),
+              csp_policy_changed_callback)))),
       document_loader_(new loader::Loader(
           base::Bind(&loader::FetcherFactory::CreateFetcher,
                      base::Unretained(fetcher_factory), url),
@@ -294,16 +289,6 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
     } else {
       document_->DispatchEvent(event);
     }
-  } else if (event->type() == base::Tokens::hashchange()) {
-    // Hashchange event should always trigger asychronous event.
-    // See comment in BrowserModule::NavigateWithCallbackInternal.
-    MessageLoop::current()->PostTask(
-        FROM_HERE,
-        base::Bind(
-            base::IgnoreResult(
-                static_cast<bool (Window::*)(const scoped_refptr<Event>&)>(
-                    &Window::DispatchEvent)),
-            base::AsWeakPtr<Window>(this), event));
   } else {
     NOTREACHED();
   }
@@ -315,6 +300,10 @@ void Window::SetSynchronousLayoutCallback(
 }
 
 Window::~Window() {}
+
+void Window::FireHashChangeEvent() {
+  PostToDispatchEvent(FROM_HERE, base::Tokens::hashchange());
+}
 
 }  // namespace dom
 }  // namespace cobalt
