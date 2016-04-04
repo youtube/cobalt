@@ -23,6 +23,7 @@
 #include "base/path_service.h"
 #include "base/stl_util.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/resource_provider_array_buffer_allocator.h"
 #include "cobalt/browser/screen_shot_writer.h"
@@ -45,24 +46,6 @@ const float kLayoutMaxRefreshFrequencyInHz = 60.0f;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
-// Command to navigate to a URL.
-const char kNavigateCommand[] = "navigate";
-
-// Help strings for the navigate command.
-const char kNavigateCommandShortHelp[] = "Navigates to URL.";
-const char kNavigateCommandLongHelp[] =
-    "Destroys the current document and window and creates a new one in its "
-    "place that displays the specified URL.";
-
-// Command to reload the current URL.
-const char kReloadCommand[] = "reload";
-
-// Help strings for the navigate command.
-const char kReloadCommandShortHelp[] = "Reloads the current URL.";
-const char kReloadCommandLongHelp[] =
-    "Destroys the current document and window and creates a new one in its "
-    "place that displays the current URL.";
-
 const char kFuzzerToggleCommand[] = "fuzzer_toggle";
 const char kFuzzerToggleCommandShortHelp[] = "Toggles the input fuzzer on/off.";
 const char kFuzzerToggleCommandLongHelp[] =
@@ -71,7 +54,7 @@ const char kFuzzerToggleCommandLongHelp[] =
     "generated and passed directly into the main web module.";
 
 #if defined(ENABLE_SCREENSHOT)
-// Command to reload the current URL.
+// Command to take a screenshot.
 const char kScreenshotCommand[] = "screenshot";
 
 // Help strings for the navigate command.
@@ -80,21 +63,6 @@ const char kScreenshotCommandLongHelp[] =
     "Creates a screenshot of the most recent layout tree and writes it "
     "to disk. Logs the filename of the screenshot to the console when done.";
 #endif  // defined(ENABLE_SCREENSHOT)
-
-void OnNavigateMessage(BrowserModule* browser_module,
-                       const std::string& message) {
-  GURL url(message);
-  DLOG_IF(WARNING, !url.is_valid()) << "Invalid URL: " << message;
-  if (url.is_valid()) {
-    browser_module->Navigate(url);
-  }
-}
-
-void OnReloadMessage(BrowserModule* browser_module,
-                     const std::string& message) {
-  UNREFERENCED_PARAMETER(message);
-  browser_module->Navigate(GURL());
-}
 
 #if defined(ENABLE_SCREENSHOT)
 void ScreenshotCompleteCallback(const FilePath& output_path) {
@@ -154,13 +122,6 @@ BrowserModule::BrowserModule(const GURL& url,
       self_message_loop_(MessageLoop::current()),
       web_module_recreated_callback_(options.web_module_recreated_callback),
 #if defined(ENABLE_DEBUG_CONSOLE)
-      ALLOW_THIS_IN_INITIALIZER_LIST(navigate_command_handler_(
-          kNavigateCommand,
-          base::Bind(&OnNavigateMessage, base::Unretained(this)),
-          kNavigateCommandShortHelp, kNavigateCommandLongHelp)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(reload_command_handler_(
-          kReloadCommand, base::Bind(&OnReloadMessage, base::Unretained(this)),
-          kReloadCommandShortHelp, kReloadCommandLongHelp)),
       ALLOW_THIS_IN_INITIALIZER_LIST(fuzzer_toggle_command_handler_(
           kFuzzerToggleCommand,
           base::Bind(&BrowserModule::OnFuzzerToggle, base::Unretained(this)),
@@ -221,110 +182,44 @@ BrowserModule::BrowserModule(const GURL& url,
   // TODO(***REMOVED***) Render tree combiner should probably be refactored.
   render_tree_combiner_.set_render_debug_console(true);
 
-  NavigateWithCallbackInternal(url, base::Closure());
+  Navigate(url);
 }
 
 BrowserModule::~BrowserModule() {}
 
-// Algorithm for Navigate:
-//   https://www.w3.org/TR/html5/browsers.html#navigate
 void BrowserModule::Navigate(const GURL& url) {
-  // Repost to the correct message loop if necessary.
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&BrowserModule::Navigate, base::Unretained(this), url));
-    return;
-  }
-
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-  NavigateWithCallback(url, base::Closure());
+  // Always post this as a task in case this is being called from the WebModule.
+  self_message_loop_->PostTask(FROM_HERE,
+                               base::Bind(&BrowserModule::NavigateInternal,
+                                          base::Unretained(this), url));
 }
 
-void BrowserModule::NavigateWithCallback(const GURL& url,
-                                         const base::Closure& loaded_callback) {
+void BrowserModule::Reload() {
+  DCHECK(web_module_);
+  web_module_->ExecuteJavascript(
+      "location.reload();",
+      base::SourceLocation("[object BrowserModule]", 1, 1));
+}
+
+void BrowserModule::NavigateInternal(const GURL& url) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+
   web_module_loaded_.Reset();
 
-  GURL new_url;
-
-  if (url.is_empty()) {
-    DCHECK(web_module_);
-    new_url = web_module_->GetUrl();
-    DLOG(INFO) << "Reloading " << new_url;
-  } else {
-    new_url = url;
-    if (web_module_) {
-      GURL old_url = web_module_->GetUrl();
-      DLOG(INFO) << "Navigating to " << new_url;
-      // 7. Fragment identifiers: Apply the URL parser algorithm to the absolute
-      // URL of the new resource and the address of the active document of the
-      // browsing context being navigated. If all the components of the
-      // resulting parsed URLs, ignoring any fragment components, are identical,
-      // and the new resource is to be fetched using HTTP GET or equivalent, and
-      // the parsed URL of the new resource has a fragment component that is not
-      // null (even if it is empty), then navigate to that fragment identifier
-      // and abort these steps.
-      // NOTE(***REMOVED***): This means, if the new url doesn't have hash, we should
-      // always navigate to the new url, even if it is the same as the current
-      // one.
-      GURL::Replacements replacements;
-      replacements.ClearRef();
-      if (new_url.ReplaceComponents(replacements) ==
-              old_url.ReplaceComponents(replacements) &&
-          new_url.has_ref()) {
-        // Navigating to a fragment identifier
-        // https://www.w3.org/TR/html5/browsers.html#scroll-to-fragid
-        // 4. Traverse the history to the new entry, with the asynchronous
-        // events flag set. This will scroll to the fragment identifier given in
-        // what is now the document's address.
-        //
-        // Traverse the history
-        // https://www.w3.org/TR/html5/browsers.html#traverse-the-history
-        // 14. If the asynchronous events flag is not set, then run the
-        // following steps synchronously. Otherwise, the asynchronous events
-        // flag is set; queue a task to run the following substeps.
-        //   2. If hash changed is true, then fire a trusted event with the name
-        //   hashchange at the browsing context's Window object, using the
-        //   HashChangeEvent interface, with the oldURL attribute initialized to
-        //   old URL and the newURL attribute initialized to new URL. This event
-        //   must bubble but not be cancelable and has no default action.
-        web_module_->SetUrlWithNewFragment(new_url);
-        return;
-      }
-    }
-  }
-
-  // Always post this as a task in case this is being called from the WebModule.
-  self_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&BrowserModule::NavigateWithCallbackInternal,
-                            base::Unretained(this), new_url, loaded_callback));
-}
-
-void BrowserModule::NavigateWithCallbackInternal(
-    const GURL& new_url, const base::Closure& loaded_callback) {
   // First try the registered handlers (e.g. for h5vcc://). If one of these
   // handles the URL, we don't use the web module.
-  if (TryURLHandlers(new_url)) {
+  if (TryURLHandlers(url)) {
     return;
   }
 
-  // Reset it explicitly first, so we don't get a memory high-watermark after
+  // Destroy old WebModule first, so we don't get a memory high-watermark after
   // the second WebModule's construtor runs, but before scoped_ptr::reset() is
   // run.
   web_module_.reset(NULL);
 
-  WebModule::Options options(web_module_options_);
-
-  options.navigation_callback =
-      base::Bind(&BrowserModule::Navigate, base::Unretained(this));
-  if (!loaded_callback.is_null()) {
-    options.loaded_callbacks.push_back(loaded_callback);
-  }
-
+  // Show a splash screen while we're waiting for the web page to load.
   const math::Size& viewport_size =
       renderer_module_.render_target()->GetSurfaceInfo().size;
-
-  // Show a splash screen while we're waiting for the web page to load.
   DestroySplashScreen();
   splash_screen_.reset(new SplashScreen(
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
@@ -332,6 +227,11 @@ void BrowserModule::NavigateWithCallbackInternal(
       &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz));
+
+  // Create new WebModule.
+  WebModule::Options options(web_module_options_);
+  options.navigation_callback =
+      base::Bind(&BrowserModule::Navigate, base::Unretained(this));
   options.loaded_callbacks.push_back(
       base::Bind(&BrowserModule::OnLoad, base::Unretained(this)));
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
@@ -339,12 +239,11 @@ void BrowserModule::NavigateWithCallbackInternal(
       array_buffer_allocator_.get();
   options.dom_settings_options.array_buffer_cache = array_buffer_cache_.get();
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-
 #if !defined(COBALT_FORCE_CSP)
   dom::CspDelegateFactory::ScopedAllowInsecure allow_insecure;
 #endif
   web_module_.reset(new WebModule(
-      new_url,
+      url,
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,
@@ -504,7 +403,7 @@ void BrowserModule::OnError(const std::string& error) {
     url_string += "?retry-url=" + initial_url_.spec();
   }
 
-  NavigateWithCallbackInternal(GURL(url_string), base::Closure());
+  Navigate(GURL(url_string));
 }
 
 bool BrowserModule::FilterKeyEvent(const dom::KeyboardEvent::Data& event) {

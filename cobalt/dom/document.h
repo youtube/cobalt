@@ -91,7 +91,7 @@ class Document : public Node, public cssom::MutationObserver {
         : url(url_value),
           cookie_jar(NULL),
           csp_enforcement_mode(kCspEnforcementEnable) {}
-    Options(const GURL& url_value,
+    Options(const GURL& url_value, const base::Closure& hashchange_callback,
             const scoped_refptr<base::Clock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
             const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet,
@@ -102,6 +102,7 @@ class Document : public Node, public cssom::MutationObserver {
             CspEnforcementType csp_enforcement_mode,
             const base::Closure& csp_policy_changed_callback)
         : url(url_value),
+          hashchange_callback(hashchange_callback),
           navigation_start_clock(navigation_start_clock_value),
           navigation_callback(navigation_callback),
           user_agent_style_sheet(user_agent_style_sheet),
@@ -113,6 +114,7 @@ class Document : public Node, public cssom::MutationObserver {
           csp_policy_changed_callback(csp_policy_changed_callback) {}
 
     GURL url;
+    base::Closure hashchange_callback;
     scoped_refptr<base::Clock> navigation_start_clock;
     base::Callback<void(const GURL&)> navigation_callback;
     scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet;

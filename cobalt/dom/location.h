@@ -33,11 +33,11 @@ namespace dom {
 // the browsing context's session history to be changed, by adding or replacing
 // entries in the history object.
 //   https://www.w3.org/TR/html5/browsers.html#the-location-interface
-// NOTE(***REMOVED***): The Location object itself will not change its URL. The
-// navigation callback should call set_url() or create new Location object.
 class Location : public script::Wrappable {
  public:
-  Location(const GURL& url,
+  // If any navigation is triggered, all these callbacks should be provided,
+  // otherwise they can be empty.
+  Location(const GURL& url, const base::Closure& hashchange_callback,
            const base::Callback<void(const GURL&)>& navigation_callback,
            const csp::SecurityCallback& security_callback);
 
@@ -49,7 +49,10 @@ class Location : public script::Wrappable {
 
   void Replace(const std::string& url);
 
-  void Reload() { Replace(url().spec()); }
+  void Reload() {
+    DCHECK(!navigation_callback_.is_null());
+    navigation_callback_.Run(url());
+  }
 
   // Web API: URLUtils (implements)
   //
@@ -95,6 +98,7 @@ class Location : public script::Wrappable {
   ~Location() OVERRIDE {}
 
   URLUtils url_utils_;
+  base::Closure hashchange_callback_;
   base::Callback<void(const GURL&)> navigation_callback_;
   csp::SecurityCallback security_callback_;
 
