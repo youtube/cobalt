@@ -231,26 +231,6 @@ const GURL& WebModule::GetUrl() const {
   return window_->location()->url();
 }
 
-void WebModule::SetUrlWithNewFragment(const GURL& url) {
-  if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(FROM_HERE,
-                                 base::Bind(&WebModule::SetUrlWithNewFragment,
-                                            base::Unretained(this), url));
-    return;
-  }
-
-  // Setting the URL only supports fragment identifier changes.
-  GURL::Replacements replacements;
-  replacements.ClearRef();
-  DCHECK(url.ReplaceComponents(replacements) ==
-         window_->location()->url().ReplaceComponents(replacements));
-
-  if (url != window_->location()->url()) {
-    window_->location()->set_url(url);
-    window_->InjectEvent(new dom::Event(base::Tokens::hashchange()));
-  }
-}
-
 void WebModule::OnRenderTreeProduced(const LayoutResults& layout_results) {
 #if defined(ENABLE_REMOTE_DEBUGGING)
   debug_overlay_.OnRenderTreeProduced(layout_results);
