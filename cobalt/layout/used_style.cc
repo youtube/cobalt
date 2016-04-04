@@ -264,6 +264,7 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kLeft:
+    case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNone:
@@ -350,6 +351,7 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kLeft:
+    case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
@@ -1132,6 +1134,7 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kLeft:
+    case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNone:
@@ -1307,6 +1310,7 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kInline:
       case cssom::KeywordValue::kInlineBlock:
       case cssom::KeywordValue::kLeft:
+      case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
       case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNone:
@@ -1374,6 +1378,7 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kInline:
       case cssom::KeywordValue::kInlineBlock:
       case cssom::KeywordValue::kLeft:
+      case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
       case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNoRepeat:

@@ -233,6 +233,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kLeft:
+    case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNoRepeat:
@@ -458,6 +459,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kLeft:
+    case cssom::KeywordValue::kLineThrough:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNoRepeat:
@@ -583,6 +585,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kInline:
       case cssom::KeywordValue::kInlineBlock:
       case cssom::KeywordValue::kLeft:
+      case cssom::KeywordValue::kLineThrough:
       case cssom::KeywordValue::kMiddle:
       case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNoRepeat:

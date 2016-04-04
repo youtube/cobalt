@@ -88,6 +88,8 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString position;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString right;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textAlign;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString textDecoration;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString textDecorationLine;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textIndent;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textOverflow;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textShadow;

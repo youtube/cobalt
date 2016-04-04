@@ -53,6 +53,7 @@ struct KeywordValue::NonTrivialStaticFields {
         inline_block_value(new KeywordValue(KeywordValue::kInlineBlock)),
         inline_value(new KeywordValue(KeywordValue::kInline)),
         left_value(new KeywordValue(KeywordValue::kLeft)),
+        line_through_value(new KeywordValue(KeywordValue::kLineThrough)),
         middle_value(new KeywordValue(KeywordValue::kMiddle)),
         monospace_value(new KeywordValue(KeywordValue::kMonospace)),
         none_value(new KeywordValue(KeywordValue::kNone)),
@@ -101,6 +102,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> inline_block_value;
   const scoped_refptr<KeywordValue> inline_value;
   const scoped_refptr<KeywordValue> left_value;
+  const scoped_refptr<KeywordValue> line_through_value;
   const scoped_refptr<KeywordValue> middle_value;
   const scoped_refptr<KeywordValue> monospace_value;
   const scoped_refptr<KeywordValue> none_value;
@@ -239,6 +241,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetInlineBlock() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetLeft() {
   return non_trivial_static_fields.Get().left_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetLineThrough() {
+  return non_trivial_static_fields.Get().line_through_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetMiddle() {
@@ -381,6 +387,8 @@ std::string KeywordValue::ToString() const {
       return kInlineBlockKeywordName;
     case kLeft:
       return kLeftKeywordName;
+    case kLineThrough:
+      return kLineThroughKeywordName;
     case kMiddle:
       return kMiddleKeywordName;
     case kMonospace:
