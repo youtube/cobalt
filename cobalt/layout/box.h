@@ -193,6 +193,8 @@ class Box : public base::RefCounted<Box> {
   float GetMarginBoxTopEdge() const;
   float GetMarginBoxRightEdgeOffsetFromContainingBlock() const;
   float GetMarginBoxBottomEdgeOffsetFromContainingBlock() const;
+  float margin_top() const { return margin_insets_.top(); }
+  float margin_bottom() const { return margin_insets_.bottom(); }
 
   // Border box.
   float GetBorderBoxWidth() const;
@@ -439,7 +441,6 @@ class Box : public base::RefCounted<Box> {
   void set_margin_left(float margin_left) {
     margin_insets_.set_left(RoundToFixedPointPrecision(margin_left));
   }
-  float margin_top() const { return margin_insets_.top(); }
   void set_margin_top(float margin_top) {
     margin_insets_.set_top(RoundToFixedPointPrecision(margin_top));
   }
@@ -447,7 +448,6 @@ class Box : public base::RefCounted<Box> {
   void set_margin_right(float margin_right) {
     margin_insets_.set_right(RoundToFixedPointPrecision(margin_right));
   }
-  float margin_bottom() const { return margin_insets_.bottom(); }
   void set_margin_bottom(float margin_bottom) {
     margin_insets_.set_bottom(RoundToFixedPointPrecision(margin_bottom));
   }
