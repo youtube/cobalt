@@ -994,6 +994,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
                                GetPropertyName(kBackgroundSizeProperty))) {
         return kBackgroundSizeProperty;
       }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kTextDecorationProperty))) {
+        return kTextDecorationProperty;
+      }
       return kNoneProperty;
 
     case 16:
@@ -1097,6 +1101,13 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTransitionPropertyProperty))) {
         return kTransitionPropertyProperty;
+      }
+      return kNoneProperty;
+
+    case 20:
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kTextDecorationLineProperty))) {
+        return kTextDecorationLineProperty;
       }
       return kNoneProperty;
 
