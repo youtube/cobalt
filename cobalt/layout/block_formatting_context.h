@@ -51,6 +51,7 @@ class BlockFormattingContext : public FormattingContext {
   void UpdatePosition(Box* child_box);
 
   const LayoutParams layout_params_;
+  float collapsing_margin_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockFormattingContext);
 };

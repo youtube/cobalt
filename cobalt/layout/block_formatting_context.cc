@@ -26,15 +26,15 @@ namespace layout {
 
 BlockFormattingContext::BlockFormattingContext(
     const LayoutParams& layout_params)
-    : layout_params_(layout_params) {}
+    : layout_params_(layout_params), collapsing_margin_(0) {}
 
 BlockFormattingContext::~BlockFormattingContext() {}
 
 void BlockFormattingContext::UpdateRect(Box* child_box) {
   DCHECK(!child_box->IsAbsolutelyPositioned());
 
-  UpdatePosition(child_box);
   child_box->UpdateSize(layout_params_);
+  UpdatePosition(child_box);
 
   // Shrink-to-fit width cannot be less than the width of the widest child.
   //   https://www.w3.org/TR/CSS21/visudet.html#float-width
@@ -47,6 +47,7 @@ void BlockFormattingContext::UpdateRect(Box* child_box) {
   // child.
   //   https://www.w3.org/TR/CSS21/visudet.html#normal-block
   set_auto_height(child_box->GetMarginBoxBottomEdgeOffsetFromContainingBlock());
+  collapsing_margin_ = child_box->margin_bottom();
 
   // The baseline of an "inline-block" is the baseline of its last line box
   // in the normal flow, unless it has no in-flow line boxes.
@@ -77,12 +78,33 @@ void BlockFormattingContext::UpdatePosition(Box* child_box) {
   // In a block formatting context, boxes are laid out one after the other,
   // vertically, beginning at the top of a containing block. The vertical
   // distance between two sibling boxes is determined by the "margin"
-  // properties.
+  // properties. Vertical margins between adjacent block-level boxes in a block
+  // formatting context collapse.
   //   https://www.w3.org/TR/CSS21/visuren.html#block-formatting
-  //
-  // TODO(***REMOVED***): Vertical margins between adjacent block-level boxes
-  //               in a block formatting context collapse.
-  child_box->set_top(auto_height());
+
+  // When two or more margins collapse, the resulting margin width is the
+  // maximum of the collapsing margins' widths.
+  //   https://www.w3.org/TR/CSS21/box.html#collapsing-margins
+  const float margin_top = child_box->margin_top();
+  float collapsed_margin;
+  if ((margin_top >= 0.0f) && (collapsing_margin_ >= 0.0f)) {
+    collapsed_margin = std::max(margin_top, collapsing_margin_);
+  } else if ((margin_top < 0.0f) && (collapsing_margin_ < 0.0f)) {
+    // If there are no positive margins, the maximum of the absolute values of
+    // the adjoining margins is deducted from zero.
+    collapsed_margin = 0.0f + std::min(margin_top, collapsing_margin_);
+  } else {
+    // In the case of negative margins, the maximum of the absolute values of
+    // the negative adjoining margins is deducted from the maximum of the
+    // positive adjoining margins.
+    // When there is only one negative and one positive margin, that translates
+    // to: The margins are summed.
+    DCHECK(collapsing_margin_ >= 0.0f || margin_top >= 0.0f);
+    collapsed_margin = collapsing_margin_ + margin_top;
+  }
+
+  float combined_margin = collapsing_margin_ + margin_top;
+  child_box->set_top(auto_height() - combined_margin + collapsed_margin);
 }
 
 }  // namespace layout
