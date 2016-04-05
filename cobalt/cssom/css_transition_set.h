@@ -46,6 +46,7 @@ class TransitionSet {
   // action based on transition start/end events.
   class EventHandler {
    public:
+    virtual ~EventHandler() {}
     // Called when a transition is starting, either freshly introduced or
     // replacing an existing transition.
     virtual void OnTransitionStarted(const Transition& transition) = 0;
