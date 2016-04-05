@@ -114,6 +114,7 @@
 9-3-2-absolute-position-elements-can-be-positioned-with-top-percentage
 9-3-2-absolute-position-elements-with-implicit-width-can-be-positioned-with-bottom-length
 9-3-2-absolute-position-elements-with-implicit-width-can-be-positioned-with-right-length
+9-4-1-vertical-margins-between-adjacent-block-level-boxes-in-a-block-formatting-context-collapse
 9-4-2-collapsed-elements-should-reduce-available-width-of-line-box
 9-4-2-inline-boxes-should-split-at-br-elements
 9-4-2-long-inline-boxes-should-be-split
