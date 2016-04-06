@@ -185,6 +185,19 @@ JSONObject JavaScriptDebuggerComponent::StepOver(const JSONObject& params) {
   return JSONObject(new base::DictionaryValue());
 }
 
+JSONObject JavaScriptDebuggerComponent::CreateRemoteObject(
+    const script::OpaqueHandleHolder* object, const JSONObject& params) {
+  base::optional<std::string> json_result =
+      server()->CreateRemoteObject(object, JSONStringify(params));
+
+  if (json_result) {
+    return JSONParse(json_result.value());
+  } else {
+    DLOG(WARNING) << "Could not create Runtime.RemoteObject";
+    return JSONObject(new base::DictionaryValue());
+  }
+}
+
 void JavaScriptDebuggerComponent::OnScriptDebuggerDetach(
     const std::string& reason) {
   DLOG(INFO) << "JavaScript debugger detached: " << reason;
