@@ -174,6 +174,8 @@ class ParserImpl {
  private:
   bool Parse();
 
+  void LogWarningUnsupportedProperty(const std::string& property_name);
+
   std::string FormatMessage(const std::string& message_type,
                             const std::string& message);
 
@@ -274,6 +276,16 @@ ParserImpl::ParseFontFaceDeclarationList() {
                  : make_scoped_refptr(new cssom::CSSFontFaceDeclarationData());
 }
 
+void ParserImpl::LogWarningUnsupportedProperty(
+    const std::string& property_name) {
+  YYLTYPE source_location;
+  source_location.first_line = 1;
+  source_location.first_column = 1;
+  source_location.line_start = input_.c_str();
+  LogWarning(source_location, "unsupported property '" + property_name +
+                                  "' while parsing property value.");
+}
+
 scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
     const std::string& property_name) {
   Token property_name_token;
@@ -281,12 +293,7 @@ scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
       scanner_.DetectPropertyNameToken(property_name, &property_name_token);
 
   if (!is_property_name_known) {
-    YYLTYPE source_location;
-    source_location.first_line = 1;
-    source_location.first_column = 1;
-    source_location.line_start = input_.c_str();
-    LogWarning(source_location, "unsupported property '" + property_name +
-                                    "' while parsing property value.");
+    LogWarningUnsupportedProperty(property_name);
     return NULL;
   }
 
@@ -308,18 +315,17 @@ void ParserImpl::ParsePropertyIntoDeclarationData(
       scanner_.DetectPropertyNameToken(property_name, &property_name_token);
 
   if (!is_property_name_known) {
-    YYLTYPE source_location;
-    source_location.first_line = 1;
-    source_location.first_column = 1;
-    source_location.line_start = input_.c_str();
-    LogWarning(source_location, "unsupported property '" + property_name +
-                                    "' while parsing property value.");
+    LogWarningUnsupportedProperty(property_name);
     return;
   }
 
   if (input_.empty()) {
-    declaration_data->ClearPropertyValueAndImportance(
-        cssom::GetPropertyKey(property_name));
+    cssom::PropertyKey key = cssom::GetPropertyKey(property_name);
+    if (key != cssom::kNoneProperty) {
+      declaration_data->ClearPropertyValueAndImportance(key);
+    } else {
+      LogWarningUnsupportedProperty(property_name);
+    }
     return;
   }
 
