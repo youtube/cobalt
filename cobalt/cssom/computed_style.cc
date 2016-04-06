@@ -94,9 +94,9 @@ scoped_refptr<PropertyValue> ProvideAbsoluteLengthIfNonNullLength(
     return specified_value;
   }
 
-  if (specified_value->GetTypeId() == base::GetTypeId<cssom::LengthValue>()) {
+  if (specified_value->GetTypeId() == base::GetTypeId<LengthValue>()) {
     LengthValue* value_as_length =
-        base::polymorphic_downcast<cssom::LengthValue*>(specified_value.get());
+        base::polymorphic_downcast<LengthValue*>(specified_value.get());
 
     return ProvideAbsoluteLength(value_as_length, computed_font_size,
                                  root_computed_font_size);
@@ -159,11 +159,11 @@ ComputedBorderWidthProvider::ComputedBorderWidthProvider(
       border_style_(border_style) {}
 
 void ComputedBorderWidthProvider::VisitLength(LengthValue* specified_length) {
-  if (border_style_ == cssom::KeywordValue::GetNone().get() ||
-      border_style_ == cssom::KeywordValue::GetHidden().get()) {
-    computed_border_width_ = new LengthValue(0, cssom::kPixelsUnit);
+  if (border_style_ == KeywordValue::GetNone().get() ||
+      border_style_ == KeywordValue::GetHidden().get()) {
+    computed_border_width_ = new LengthValue(0, kPixelsUnit);
   } else {
-    DCHECK_EQ(border_style_, cssom::KeywordValue::GetSolid().get());
+    DCHECK_EQ(border_style_, KeywordValue::GetSolid().get());
     computed_border_width_ = ProvideAbsoluteLength(
         specified_length, computed_font_size_, root_computed_font_size_);
   }
@@ -1229,7 +1229,7 @@ void ComputedPositionHelper::ComputeOneValuePosition(
 
   PropertyListValue::Builder position_builder;
   position_builder.push_back(input_position_builder[0]);
-  position_builder.push_back(cssom::KeywordValue::GetCenter());
+  position_builder.push_back(KeywordValue::GetCenter());
 
   ComputeTwoValuesPosition(position_builder, output_position_builder);
 }
@@ -1310,13 +1310,13 @@ ComputedPositionHelper::ConvertToOriginInfo(
     const scoped_refptr<PropertyValue>& keyword) const {
   DCHECK(keyword->GetTypeId() == base::GetTypeId<KeywordValue>());
 
-  if (keyword == cssom::KeywordValue::GetLeft()) {
+  if (keyword == KeywordValue::GetLeft()) {
     return OriginInfo(0.0f, 1, kHorizontal);
-  } else if (keyword == cssom::KeywordValue::GetRight()) {
+  } else if (keyword == KeywordValue::GetRight()) {
     return OriginInfo(1.0f, -1, kHorizontal);
-  } else if (keyword == cssom::KeywordValue::GetTop()) {
+  } else if (keyword == KeywordValue::GetTop()) {
     return OriginInfo(0.0f, 1, kVertical);
-  } else if (keyword == cssom::KeywordValue::GetBottom()) {
+  } else if (keyword == KeywordValue::GetBottom()) {
     return OriginInfo(1.0f, -1, kVertical);
   } else {
     return OriginInfo(0.5f, 1, kCenter);
@@ -1491,18 +1491,17 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
 }
 
 namespace {
-cssom::ColorStopList ComputeColorStopList(
-    const cssom::ColorStopList& color_stops,
-    const LengthValue* computed_font_size,
-    const LengthValue* root_computed_font_size) {
-  cssom::ColorStopList computed_color_stops;
+ColorStopList ComputeColorStopList(const ColorStopList& color_stops,
+                                   const LengthValue* computed_font_size,
+                                   const LengthValue* root_computed_font_size) {
+  ColorStopList computed_color_stops;
   computed_color_stops.reserve(color_stops.size());
 
-  for (cssom::ColorStopList::const_iterator iter = color_stops.begin();
+  for (ColorStopList::const_iterator iter = color_stops.begin();
        iter != color_stops.end(); ++iter) {
-    const cssom::ColorStop& color_stop = **iter;
+    const ColorStop& color_stop = **iter;
 
-    computed_color_stops.push_back(new cssom::ColorStop(
+    computed_color_stops.push_back(new ColorStop(
         color_stop.rgba(), ProvideAbsoluteLengthIfNonNullLength(
                                color_stop.position(), computed_font_size,
                                root_computed_font_size)));
@@ -1516,7 +1515,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitLinearGradient(
     LinearGradientValue* linear_gradient_value) {
   // We must walk through the list of color stop positions and absolutize the
   // any length values.
-  cssom::ColorStopList computed_color_stops =
+  ColorStopList computed_color_stops =
       ComputeColorStopList(linear_gradient_value->color_stop_list(),
                            computed_font_size_, root_computed_font_size_);
 
@@ -1533,13 +1532,13 @@ void ComputedBackgroundImageSingleLayerProvider::VisitLinearGradient(
 namespace {
 scoped_refptr<PropertyListValue> CalculateComputedRadialGradientPosition(
     const scoped_refptr<PropertyListValue>& specified_position,
-    const cssom::LengthValue* computed_font_size,
-    const cssom::LengthValue* root_computed_font_size) {
+    const LengthValue* computed_font_size,
+    const LengthValue* root_computed_font_size) {
   if (!specified_position) {
     // If no position is specified, we default to 'center'.
     scoped_ptr<PropertyListValue::Builder> builder(
         new PropertyListValue::Builder(2, new PercentageValue(0.5f)));
-    return new cssom::PropertyListValue(builder.Pass());
+    return new PropertyListValue(builder.Pass());
   }
 
   size_t size = specified_position->value().size();
@@ -1549,11 +1548,11 @@ scoped_refptr<PropertyListValue> CalculateComputedRadialGradientPosition(
   ComputedPositionHelper position_helper(computed_font_size,
                                          root_computed_font_size);
   scoped_ptr<PropertyListValue::Builder> computed_position_builder(
-      new cssom::PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
+      new PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
   position_helper.ComputePosition(specified_position->value(),
                                   computed_position_builder.get());
 
-  return new cssom::PropertyListValue(computed_position_builder.Pass());
+  return new PropertyListValue(computed_position_builder.Pass());
 }
 }  // namespace
 
@@ -1561,7 +1560,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitRadialGradient(
     RadialGradientValue* radial_gradient_value) {
   // We must walk through the list of color stop positions and absolutize the
   // any length values.
-  cssom::ColorStopList computed_color_stops =
+  ColorStopList computed_color_stops =
       ComputeColorStopList(radial_gradient_value->color_stop_list(),
                            computed_font_size_, root_computed_font_size_);
 
@@ -1590,7 +1589,7 @@ void ComputedBackgroundImageSingleLayerProvider::VisitRadialGradient(
 void ComputedBackgroundImageSingleLayerProvider::VisitURL(URLValue* url_value) {
   if (url_value->value().empty()) {
     // No need to convert URLValue into AbsoluteURLValue.
-    computed_background_image_ = cssom::KeywordValue::GetNone();
+    computed_background_image_ = KeywordValue::GetNone();
     return;
   }
 
@@ -1789,13 +1788,13 @@ void ComputedBackgroundPositionProvider::VisitPropertyList(
   ComputedPositionHelper position_helper(computed_font_size_,
                                          root_computed_font_size_);
   scoped_ptr<PropertyListValue::Builder> background_position_builder(
-      new cssom::PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
+      new PropertyListValue::Builder(2, scoped_refptr<PropertyValue>()));
 
   position_helper.ComputePosition(property_list_value->value(),
                                   background_position_builder.get());
 
   computed_background_position_ =
-      new cssom::PropertyListValue(background_position_builder.Pass());
+      new PropertyListValue(background_position_builder.Pass());
 }
 
 class ComputedBackgroundSizeProvider : public NotReachedPropertyValueVisitor {
@@ -2153,7 +2152,7 @@ void ComputedTransformOriginProvider::VisitPropertyList(
   ComputedPositionHelper position_helper(computed_font_size_,
                                          root_computed_font_size_);
   scoped_ptr<PropertyListValue::Builder> transform_origin_builder(
-      new cssom::PropertyListValue::Builder(3, scoped_refptr<PropertyValue>()));
+      new PropertyListValue::Builder(3, scoped_refptr<PropertyValue>()));
 
   // If one or two values are specified, the third value is assumed to be 0px.
   switch (size) {
@@ -2161,8 +2160,7 @@ void ComputedTransformOriginProvider::VisitPropertyList(
     case 2:
       position_helper.ComputePosition(property_list_value->value(),
                                       transform_origin_builder.get());
-      (*transform_origin_builder)[2] =
-          new LengthValue(0.0f, cssom::kPixelsUnit);
+      (*transform_origin_builder)[2] = new LengthValue(0.0f, kPixelsUnit);
       break;
     case 3:
       position_helper.ComputeTwoValuesPosition(property_list_value->value(),
@@ -2178,7 +2176,7 @@ void ComputedTransformOriginProvider::VisitPropertyList(
   }
 
   computed_transform_origin_ =
-      new cssom::PropertyListValue(transform_origin_builder.Pass());
+      new PropertyListValue(transform_origin_builder.Pass());
 }
 
 namespace {
