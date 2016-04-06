@@ -60,7 +60,11 @@
 #define BASE_HASH_SET_INCLUDE <ext/hash_set>
 #define BASE_HASH_USE_HASH_STRUCT
 #endif
-#define BASE_HASH_USE_HASH defined(__LB_LINUX__)
+#if defined(__LB_LINUX__)
+#define BASE_HASH_USE_HASH 1
+#else
+#define BASE_HASH_USE_HASH 0
+#endif
 #else  // COMPILER
 #error define BASE_HASH_NAMESPACE for your compiler
 #endif  // COMPILER
