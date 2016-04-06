@@ -294,9 +294,9 @@ class Document : public Node, public cssom::MutationObserver {
 
   void SetViewport(const math::Size& viewport_size);
 
-  const scoped_refptr<cssom::CSSComputedStyleData>& root_computed_style()
+  const scoped_refptr<cssom::CSSComputedStyleData>& initial_computed_style()
       const {
-    return root_computed_style_;
+    return initial_computed_style_;
   }
 
   void NotifyUrlChanged(const GURL& url);
@@ -377,7 +377,10 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
 
   base::optional<math::Size> viewport_size_;
-  scoped_refptr<cssom::CSSComputedStyleData> root_computed_style_;
+
+  // Computed style of the initial containing block, width and height come from
+  // the viewport size.
+  scoped_refptr<cssom::CSSComputedStyleData> initial_computed_style_;
 };
 
 }  // namespace dom

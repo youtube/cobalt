@@ -66,7 +66,7 @@ void UpdateComputedStylesAndLayoutBoxTree(
 
   // Create initial containing block.
   *initial_containing_block = CreateInitialContainingBlock(
-      document->root_computed_style(), document, used_style_provider);
+      document->initial_computed_style(), document, used_style_provider);
 
   // Generate boxes.
   {

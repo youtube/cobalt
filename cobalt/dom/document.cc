@@ -46,12 +46,12 @@
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/initial_computed_style.h"
 #include "cobalt/dom/keyframes_map_updater.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
-#include "cobalt/dom/root_computed_style.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
@@ -514,9 +514,13 @@ void Document::UpdateComputedStyles() {
 
     scoped_refptr<HTMLElement> root = html();
     if (root) {
-      root->UpdateComputedStyle(root_computed_style_, root_computed_style_,
+      // First update the computed style for root element.
+      root->UpdateComputedStyle(initial_computed_style_,
+                                initial_computed_style_,
                                 style_change_event_time);
-      root->UpdateComputedStyleRecursively(root_computed_style_,
+
+      // Then update the computed styles for the other elements.
+      root->UpdateComputedStyleRecursively(initial_computed_style_,
                                            root->computed_style(),
                                            style_change_event_time, true);
     }
@@ -557,7 +561,7 @@ void Document::SetPartialLayout(const std::string& mode_string) {
 
 void Document::SetViewport(const math::Size& viewport_size) {
   viewport_size_ = viewport_size;
-  root_computed_style_ = CreateRootComputedStyle(*viewport_size_);
+  initial_computed_style_ = CreateInitialComputedStyle(*viewport_size_);
   is_computed_style_dirty_ = true;
   is_selector_tree_dirty_ = true;
 }
