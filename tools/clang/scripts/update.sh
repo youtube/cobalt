@@ -8,7 +8,7 @@
 # Do NOT CHANGE this if you don't know what you're doing -- see
 # https://code.google.com/p/chromium/wiki/UpdatingClang
 # Reverting problematic clang rolls is safe, though.
-CLANG_REVISION=247874-1
+CLANG_REVISION=264915-1
 
 THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
@@ -18,6 +18,7 @@ CLANG_DIR="${LLVM_DIR}/tools/clang"
 COMPILER_RT_DIR="${LLVM_DIR}/projects/compiler-rt"
 ANDROID_NDK_DIR="${LLVM_DIR}/../android_tools/ndk"
 STAMP_FILE="${LLVM_BUILD_DIR}/cr_build_revision"
+OUT_DIR="${THIS_DIR}/../../../out"
 
 # ${A:-a} returns $A if it's set, a else.
 LLVM_REPO_URL=${LLVM_URL:-https://llvm.org/svn/llvm-project}
@@ -196,6 +197,23 @@ if [[ -z "$force_local_build" ]]; then
     echo clang "${CLANG_REVISION}" unpacked
     echo "${CLANG_REVISION}" > "${STAMP_FILE}"
     rm -rf "${CDS_OUT_DIR}"
+
+    # Clobber the out/ folder for configs that use clang.
+    if [ -t 0 -a -t 1 ]; then
+      # Prompt the user, if there's a TTY.
+      # -n is no newline.
+      # -e is enable coloring.
+      echo -ne "\033[32mclang was updated. "
+      echo -ne "Can I (update.sh) clobber your out/ folder?\e[0m [yN] "
+      read
+      if [ "$REPLY" != "y" -a "$REPLY" != "Y" ]; then
+        exit 0
+      fi
+    fi
+    echo "Deleting ${OUT_DIR}"/Linux*
+    rm -rf "${OUT_DIR}"/Linux*
+    echo "Deleting ${OUT_DIR}"/SbLinux*
+    rm -rf "${OUT_DIR}"/SbLinux*
     exit 0
   else
     echo Did not find prebuilt clang at r"${CLANG_REVISION}", building
