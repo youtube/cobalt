@@ -50,11 +50,11 @@ class AnimationSet {
   // method is called.
   void Update(const base::TimeDelta& current_time,
               const CSSComputedStyleData& style,
-              const cssom::CSSKeyframesRule::NameMap& keyframes_map);
+              const CSSKeyframesRule::NameMap& keyframes_map);
 
  private:
   // Our internal collection of animations, mapping 'animation-name' to
-  // a cssom::Animation object.
+  // a Animation object.
   typedef std::map<std::string, Animation> InternalAnimationMap;
 
   EventHandler* event_handler_;
