@@ -24,6 +24,8 @@
 #include "cobalt/debug/json_object.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_debugger_interface.h"
+#include "cobalt/script/opaque_handle.h"
+#include "cobalt/script/script_object.h"
 
 namespace cobalt {
 namespace debug {
@@ -50,6 +52,8 @@ class JavaScriptDebuggerComponent
   JSONObject StepOver(const JSONObject& params);
 
   // JavaScriptDebuggerInterface::Delegate implementation.
+  JSONObject CreateRemoteObject(const script::OpaqueHandleHolder* object,
+                                const JSONObject& params) OVERRIDE;
   void OnScriptDebuggerEvent(const std::string& method,
                              const JSONObject& params) OVERRIDE;
   void OnScriptDebuggerDetach(const std::string& reason) OVERRIDE;

@@ -27,6 +27,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
+#include "cobalt/script/javascriptcore/jsc_object_handle_holder.h"
 
 #include "third_party/WebKit/Source/JavaScriptCore/debugger/DebuggerCallFrame.h"
 #include "third_party/WebKit/Source/JavaScriptCore/heap/MarkedBlock.h"
@@ -37,6 +38,7 @@
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalObject.h"
+#include "third_party/WebKit/Source/JavaScriptCore/runtime/JSScope.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSValue.h"
 
 namespace cobalt {
@@ -53,6 +55,24 @@ JavaScriptDebuggerInterface::CreateDebugger(
 namespace javascriptcore {
 
 namespace {
+// Returns a string indicating the type of a scope object.
+// One of the set of enumerated strings defined here:
+// https://developer.chrome.com/devtools/docs/protocol/1.1/debugger#type-Scope
+std::string GetScopeType(JSC::JSScope* scope) {
+  int type = scope->structure()->typeInfo().type();
+  std::string type_string;
+  switch (type) {
+    case JSC::GlobalObjectType:
+      return "global";
+    case JSC::ActivationObjectType:
+      return "local";
+    default: {
+      DLOG(WARNING) << "Unexpected scope type: " << type;
+      return "local";
+    }
+  }
+}
+
 // Conversions between intptr_t and std::string.
 // Used to interchange sourceIds, callFrameIds, etc. with devtools.
 // Assume we can store an intptr_t as an int64, as string_number_conversions
@@ -72,50 +92,6 @@ intptr_t StringToIntptr(const std::string& input) {
   return static_cast<intptr_t>(input_as_int64);
 }
 
-scoped_ptr<base::DictionaryValue> CreateCallFrameInfo(
-    const JSC::DebuggerCallFrame& call_frame,
-    scoped_ptr<base::DictionaryValue> location,
-    scoped_ptr<base::ListValue> scope_chain) {
-  scoped_ptr<base::DictionaryValue> call_frame_info(
-      new base::DictionaryValue());
-  call_frame_info->SetString(
-      "callFrameId",
-      IntptrToString(reinterpret_cast<intptr_t>(call_frame.callFrame())));
-  call_frame_info->SetString("functionName",
-                             call_frame.functionName().latin1().data());
-  call_frame_info->Set("location", location.release());
-  call_frame_info->Set("scopeChain", scope_chain.release());
-
-  return call_frame_info.Pass();
-}
-
-scoped_ptr<base::DictionaryValue> CreateCallFrameInfo(
-    JSC::CallFrame* call_frame, scoped_ptr<base::DictionaryValue> location,
-    scoped_ptr<base::ListValue> scope_chain) {
-  return CreateCallFrameInfo(JSC::DebuggerCallFrame(call_frame),
-                             location.Pass(), scope_chain.Pass());
-}
-
-scoped_ptr<base::DictionaryValue> CreateLocationInfo(intptr_t source_id,
-                                                     int line_number,
-                                                     int column_number) {
-  scoped_ptr<base::DictionaryValue> location_info(new base::DictionaryValue());
-  location_info->SetString("scriptId", IntptrToString(source_id));
-  location_info->SetInteger("columnNumber", column_number);
-  location_info->SetInteger("lineNumber", line_number);
-  return location_info.Pass();
-}
-
-// Functions to create data objects for reporting to devtools.
-scoped_ptr<base::ListValue> CreateScopeChainInfo(
-    const JSC::CallFrame* call_frame) {
-  // TODO(***REMOVED***): The scope chain should be populated with values.
-  // This requires support for generating Runtime.RemoteObject objects
-  // from JSObjects.
-  scoped_ptr<base::ListValue> scope_chain_info(new base::ListValue());
-  return scope_chain_info.Pass();
-}
-
 // Event "methods" (names) from the set here:
 // https://developer.chrome.com/devtools/docs/protocol/1.1/debugger
 const char kScriptFailedToParse[] = "Debugger.scriptFailedToParse";
@@ -131,7 +107,8 @@ JSCDebugger::JSCDebugger(GlobalObjectProxy* global_object_proxy,
       current_call_frame_(NULL),
       current_source_id_(0),
       current_line_number_(0),
-      current_column_number_(0) {
+      current_column_number_(0),
+      is_paused_(false) {
   attach(GetGlobalObject());
 }
 
@@ -210,7 +187,127 @@ void JSCDebugger::GathererFunctor::operator()(JSC::JSCell* cell) {
   }
 }
 
-JSC::JSGlobalObject* JSCDebugger::GetGlobalObject() const {
+scoped_ptr<base::DictionaryValue> JSCDebugger::CreateCallFrameData(
+    const JSC::DebuggerCallFrame& call_frame,
+    scoped_ptr<base::DictionaryValue> location,
+    scoped_ptr<base::ListValue> scope_chain) {
+  DCHECK(call_frame.callFrame());
+  DCHECK(location);
+  DCHECK(scope_chain);
+
+  scoped_ptr<base::DictionaryValue> call_frame_data(
+      new base::DictionaryValue());
+  call_frame_data->SetString(
+      "callFrameId",
+      IntptrToString(reinterpret_cast<intptr_t>(call_frame.callFrame())));
+  call_frame_data->SetString("functionName",
+                             call_frame.functionName().latin1().data());
+  call_frame_data->Set("location", location.release());
+  call_frame_data->Set("scopeChain", scope_chain.release());
+
+  // Add the "this" object for the call frame.
+  JSC::JSObject* this_object = call_frame.thisObject();
+  scoped_ptr<base::DictionaryValue> this_object_data(
+      CreateRemoteObjectData(this_object));
+  if (this_object_data) {
+    call_frame_data->Set("this", this_object_data.release());
+  }
+
+  return call_frame_data.Pass();
+}
+
+scoped_ptr<base::ListValue> JSCDebugger::CreateCallStackData(
+    JSC::CallFrame* call_frame) {
+  DCHECK(call_frame);
+
+  scoped_ptr<base::ListValue> call_frame_list(new base::ListValue());
+  intptr_t source_id = current_source_id_;
+  int line_number = current_line_number_;
+  int column_number = current_column_number_;
+  String url;
+  JSC::JSValue function;
+
+  // Iterate over the call frames on the stack.
+  while (call_frame && !call_frame->hasHostCallFrameFlag()) {
+    // Create data for the call frame.
+    scoped_ptr<base::DictionaryValue> location_data(
+        CreateLocationData(source_id, line_number, column_number));
+    scoped_ptr<base::ListValue> scope_chain_data(
+        CreateScopeChainData(call_frame));
+    scoped_ptr<base::DictionaryValue> call_frame_data(
+        CreateCallFrameData(JSC::DebuggerCallFrame(call_frame),
+                            location_data.Pass(), scope_chain_data.Pass()));
+
+    // Add the call frame data to the list.
+    DCHECK(call_frame_data);
+    call_frame_list->Append(call_frame_data.release());
+
+    // Move on to the next call frame.
+    call_frame->interpreter()->retrieveLastCaller(call_frame, line_number,
+                                                  source_id, url, function);
+    call_frame = call_frame->callerFrame();
+  }
+
+  return call_frame_list.Pass();
+}
+
+scoped_ptr<base::DictionaryValue> JSCDebugger::CreateLocationData(
+    intptr_t source_id, int line_number, int column_number) {
+  scoped_ptr<base::DictionaryValue> location_data(new base::DictionaryValue());
+  location_data->SetString("scriptId", IntptrToString(source_id));
+  location_data->SetInteger("columnNumber", column_number);
+  location_data->SetInteger("lineNumber", line_number);
+  return location_data.Pass();
+}
+
+scoped_ptr<base::DictionaryValue> JSCDebugger::CreateRemoteObjectData(
+    JSC::JSObject* js_object) {
+  DCHECK(js_object);
+  JSCObjectHandleHolder object_holder(
+      JSCObjectHandle(js_object), GetGlobalObject()->script_object_registry());
+  scoped_ptr<base::DictionaryValue> remote_object_params(
+      new base::DictionaryValue());
+  remote_object_params->SetString("objectGroup", "debugger-api");
+  remote_object_params->SetBoolean("returnByValue", false);
+  return delegate_->CreateRemoteObject(&object_holder, remote_object_params);
+}
+
+scoped_ptr<base::ListValue> JSCDebugger::CreateScopeChainData(
+    const JSC::CallFrame* call_frame) {
+  DCHECK(call_frame);
+  scoped_ptr<base::ListValue> scope_chain_data(new base::ListValue());
+
+  // Iterate over the scope chain for the call frame.
+  for (JSC::JSScope* scope = call_frame->scope(); scope;
+       scope = scope->next()) {
+    scoped_ptr<base::DictionaryValue> scope_data(CreateScopeData(scope));
+    DCHECK(scope_data);
+    scope_chain_data->Append(scope_data.release());
+  }
+
+  return scope_chain_data.Pass();
+}
+
+scoped_ptr<base::DictionaryValue> JSCDebugger::CreateScopeData(
+    JSC::JSScope* scope) {
+  DCHECK(scope);
+  JSC::JSObject* scope_object = JSC::JSScope::objectAtScope(scope);
+  DCHECK(scope_object);
+  scoped_ptr<base::DictionaryValue> scope_object_data(
+      CreateRemoteObjectData(scope));
+
+  if (!scope) {
+    DLOG(WARNING) << "Cannot create Scope data.";
+    return scoped_ptr<base::DictionaryValue>(NULL);
+  }
+
+  scoped_ptr<base::DictionaryValue> scope_data(new base::DictionaryValue());
+  scope_data->Set("object", scope_object_data.release());
+  scope_data->SetString("type", GetScopeType(scope));
+  return scope_data.Pass();
+}
+
+JSCGlobalObject* JSCDebugger::GetGlobalObject() const {
   return base::polymorphic_downcast<JSCGlobalObjectProxy*>(global_object_proxy_)
       ->global_object();
 }
@@ -316,6 +413,13 @@ void JSCDebugger::GatherSourceProviders(JSC::JSGlobalObject* global_object) {
 void JSCDebugger::UpdateAndPauseIfNeeded(
     const JSC::DebuggerCallFrame& call_frame, intptr_t source_id,
     int line_number, int column_number) {
+  // Don't do anything if we're currently paused. We want to remember the call
+  // frame and source location at the point we paused, not override them with
+  // any debugging scripts that get evaluated while paused.
+  if (is_paused_) {
+    return;
+  }
+
   UpdateSourceLocation(source_id, line_number, column_number);
   UpdateCallFrame(call_frame);
   PauseIfNeeded(call_frame);
@@ -342,6 +446,9 @@ void JSCDebugger::PauseIfNeeded(const JSC::DebuggerCallFrame& call_frame) {
     return;
   }
 
+  // Set the |is_paused_| state for the remainder of this function.
+  ScopedPausedState paused(this);
+
   // Notify the clients we're about to pause.
   SendPausedEvent(call_frame);
 
@@ -353,40 +460,12 @@ void JSCDebugger::PauseIfNeeded(const JSC::DebuggerCallFrame& call_frame) {
 }
 
 void JSCDebugger::SendPausedEvent(const JSC::DebuggerCallFrame& call_frame) {
-  DCHECK(call_frame.callFrame());
-
-  // Create a representation of the call stack as an array of Debugger.CallFrame
-  // JSON objects.
-  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
-  scoped_ptr<base::ListValue> call_frame_list(new base::ListValue());
-  JSC::CallFrame* curr_call_frame = call_frame.callFrame();
-  intptr_t source_id = current_source_id_;
-  int line_number = current_line_number_;
-  int column_number = current_column_number_;
-  String url;
-  JSC::JSValue function;
-
-  while (curr_call_frame && !curr_call_frame->hasHostCallFrameFlag()) {
-    // Create info for the next call frame on the stack.
-    scoped_ptr<base::DictionaryValue> location_info(
-        CreateLocationInfo(source_id, line_number, column_number));
-    scoped_ptr<base::ListValue> scope_chain_info(
-        CreateScopeChainInfo(curr_call_frame));
-    scoped_ptr<base::DictionaryValue> call_frame_info(CreateCallFrameInfo(
-        curr_call_frame, location_info.Pass(), scope_chain_info.Pass()));
-
-    // Add the call frame info to the list.
-    call_frame_list->Append(call_frame_info.release());
-
-    // Move on to the next call frame.
-    curr_call_frame->interpreter()->retrieveLastCaller(
-        curr_call_frame, line_number, source_id, url, function);
-    curr_call_frame = curr_call_frame->callerFrame();
-  }
-
-  // Send the event to the clients.
   std::string event_method = "Debugger.paused";
-  event_params->Set("callFrames", call_frame_list.release());
+  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
+  scoped_ptr<base::ListValue> call_stack_data(
+      CreateCallStackData(call_frame.callFrame()));
+  DCHECK(call_stack_data);
+  event_params->Set("callFrames", call_stack_data.release());
   event_params->SetString("reason", "debugCommand");
   delegate_->OnScriptDebuggerEvent(event_method, event_params);
 }

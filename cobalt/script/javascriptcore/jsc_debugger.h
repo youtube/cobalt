@@ -34,6 +34,7 @@ namespace JSC {
 class ExecState;
 class JSGlobalData;
 class JSGlobalObject;
+class JSScope;
 class JSValue;
 class SourceProvider;
 }
@@ -108,19 +109,49 @@ class JSCDebugger : protected JSC::Debugger,
   typedef WTF::HashSet<JSC::SourceProvider*> SourceProviderSet;
 
   // Functor to iterate over the JS cells and gather source providers.
-  struct GathererFunctor : public JSC::MarkedBlock::VoidFunctor {
+  class GathererFunctor : public JSC::MarkedBlock::VoidFunctor {
+   public:
     GathererFunctor(JSC::JSGlobalObject* global_object,
                     SourceProviderSet* source_providers)
         : global_object_(global_object), source_providers_(source_providers) {}
 
     void operator()(JSC::JSCell* cell);
 
+   private:
     SourceProviderSet* source_providers_;
     JSC::JSGlobalObject* global_object_;
   };
 
+  // Sets the |is_paused_| member of the debugger while in scope, unsets it
+  // on destruction.
+  class ScopedPausedState {
+   public:
+    explicit ScopedPausedState(JSCDebugger* debugger) : debugger(debugger) {
+      debugger->is_paused_ = true;
+    }
+    ~ScopedPausedState() { debugger->is_paused_ = false; }
+
+   private:
+    JSCDebugger* debugger;
+  };
+
+  // Functions to create data objects for devtools.
+  scoped_ptr<base::DictionaryValue> CreateCallFrameData(
+      const JSC::DebuggerCallFrame& call_frame,
+      scoped_ptr<base::DictionaryValue> location,
+      scoped_ptr<base::ListValue> scope_chain);
+  scoped_ptr<base::ListValue> CreateCallStackData(JSC::CallFrame* call_frame);
+  scoped_ptr<base::DictionaryValue> CreateLocationData(intptr_t source_id,
+                                                       int line_number,
+                                                       int column_number);
+  scoped_ptr<base::DictionaryValue> CreateRemoteObjectData(
+      JSC::JSObject* object);
+  scoped_ptr<base::ListValue> CreateScopeChainData(
+      const JSC::CallFrame* call_frame);
+  scoped_ptr<base::DictionaryValue> CreateScopeData(JSC::JSScope* scope);
+
   // Convenience function to get the global object pointer from the proxy.
-  JSC::JSGlobalObject* GetGlobalObject() const;
+  JSCGlobalObject* GetGlobalObject() const;
 
   // Populates the set of source providers.
   void GatherSourceProviders(JSC::JSGlobalObject* global_object);
@@ -157,6 +188,9 @@ class JSCDebugger : protected JSC::Debugger,
   intptr_t current_source_id_;
   int current_line_number_;
   int current_column_number_;
+
+  // Whether script execution is currently paused.
+  bool is_paused_;
 
   // Set of source providers (scripts).
   SourceProviderSet source_providers_;
