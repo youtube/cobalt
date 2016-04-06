@@ -192,6 +192,24 @@ class BrowserModule {
   }
 #endif
 
+  // TODO(b/28051376):
+  //     WeakPtr usage here can be avoided if BrowserModule has a thread to
+  //     own where it can ensure that its tasks are all resolved when it is
+  //     destructed.
+  //
+  // BrowserModule provides weak pointers to itself to prevent tasks generated
+  // by its components when attempting to communicate to other components (e.g.
+  // input events being generated and passed into WebModule).  By passing
+  // references to BrowserModule as WeakPtrs, we do not access invalid memory
+  // if they are processed after the BrowserModule is destroyed.
+  base::WeakPtrFactory<BrowserModule> weak_ptr_factory_;
+  // After constructing |weak_ptr_factory_| we immediately construct a WeakPtr
+  // in order to bind the BrowserModule WeakPtr object to its thread.  When we
+  // need a WeakPtr, we copy construct this, which is safe to do from any
+  // thread according to weak_ptr.h (versus calling
+  // |weak_ptr_factory_.GetWeakPtr() which is not).
+  base::WeakPtr<BrowserModule> weak_this_;
+
   // Collection of URL handlers that can potentially handle a URL before
   // using it to initialize a new WebModule.
   URLHandlerCollection url_handlers_;

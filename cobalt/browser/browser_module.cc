@@ -104,7 +104,10 @@ BrowserModule::BrowserModule(const GURL& url,
                              system_window::SystemWindow* system_window,
                              account::AccountManager* account_manager,
                              const Options& options)
-    : storage_manager_(options.storage_manager_options),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          weak_this_(weak_ptr_factory_.GetWeakPtr())),
+      storage_manager_(options.storage_manager_options),
       renderer_module_(system_window, options.renderer_module_options),
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       array_buffer_allocator_(new ResourceProviderArrayBufferAllocator(
@@ -185,13 +188,14 @@ BrowserModule::BrowserModule(const GURL& url,
   Navigate(url);
 }
 
-BrowserModule::~BrowserModule() {}
+BrowserModule::~BrowserModule() {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+}
 
 void BrowserModule::Navigate(const GURL& url) {
   // Always post this as a task in case this is being called from the WebModule.
-  self_message_loop_->PostTask(FROM_HERE,
-                               base::Bind(&BrowserModule::NavigateInternal,
-                                          base::Unretained(this), url));
+  self_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&BrowserModule::NavigateInternal, weak_this_, url));
 }
 
 void BrowserModule::Reload() {
@@ -336,9 +340,9 @@ void BrowserModule::OnRenderTreeProduced(
 #if defined(ENABLE_DEBUG_CONSOLE)
 void BrowserModule::OnFuzzerToggle(const std::string& message) {
   if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(FROM_HERE,
-                                 base::Bind(&BrowserModule::OnFuzzerToggle,
-                                            base::Unretained(this), message));
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&BrowserModule::OnFuzzerToggle, weak_this_, message));
     return;
   }
 
@@ -365,14 +369,13 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
 void BrowserModule::OnKeyEventProduced(const dom::KeyboardEvent::Data& event) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnKeyEventProduced()");
   if (MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->PostTask(FROM_HERE,
-                                 base::Bind(&BrowserModule::OnKeyEventProduced,
-                                            base::Unretained(this), event));
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&BrowserModule::OnKeyEventProduced, weak_this_, event));
     return;
   }
-
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnKeyEventProduced()");
 
   // Filter the key event.
   if (!FilterKeyEvent(event)) {
@@ -388,6 +391,15 @@ void BrowserModule::OnKeyEventProduced(const dom::KeyboardEvent::Data& event) {
 
 void BrowserModule::InjectKeyEventToMainWebModule(
     const dom::KeyboardEvent::Data& event) {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::InjectKeyEventToMainWebModule()");
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::InjectKeyEventToMainWebModule,
+                              weak_this_, event));
+    return;
+  }
+
   web_module_->InjectKeyboardEvent(event);
 }
 
