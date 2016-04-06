@@ -43,6 +43,7 @@ const scoped_refptr<PropertyValue>&
 CSSComputedStyleData::GetPropertyValueReference(PropertyKey key) const {
   DCHECK_GT(key, kNoneProperty);
   DCHECK_LE(key, kMaxLonghandPropertyKey);
+
   if (declared_properties_[key]) {
     return declared_property_values_.find(key)->second;
   }
@@ -50,6 +51,10 @@ CSSComputedStyleData::GetPropertyValueReference(PropertyKey key) const {
       GetPropertyInheritance(key) == kInheritedYes) {
     return ancestor_computed_style_->GetPropertyValueReference(key);
   }
+
+  // For the root element, which has no parent element, the inherited value is
+  // the initial value of the property.
+  //   https://www.w3.org/TR/css-cascade-3/#inheriting
   return GetComputedInitialValue(key);
 }
 
