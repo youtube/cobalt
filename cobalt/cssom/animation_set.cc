@@ -99,9 +99,9 @@ scoped_refptr<TimingFunction> GetTimingFunction(size_t index,
 }
 }  // namespace
 
-void AnimationSet::Update(
-    const base::TimeDelta& current_time, const CSSComputedStyleData& style,
-    const cssom::CSSKeyframesRule::NameMap& keyframes_map) {
+void AnimationSet::Update(const base::TimeDelta& current_time,
+                          const CSSComputedStyleData& style,
+                          const CSSKeyframesRule::NameMap& keyframes_map) {
   const std::vector<scoped_refptr<PropertyValue> >& names =
       base::polymorphic_downcast<PropertyListValue*>(
           style.animation_name().get())
@@ -144,7 +144,7 @@ void AnimationSet::Update(
     // A new animation not previously started is being introduced, start by
     // looking up its keyframes rule (which may not exist).
     scoped_refptr<CSSKeyframesRule> keyframes;
-    cssom::CSSKeyframesRule::NameMap::const_iterator found =
+    CSSKeyframesRule::NameMap::const_iterator found =
         keyframes_map.find(name_string);
     if (found != keyframes_map.end()) {
       keyframes = found->second;

@@ -35,7 +35,7 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
   scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
   RulesWithCascadePrecedence rules_with_cascade_precedence;
-  cssom::GURLMap property_key_to_base_url_map;
+  GURLMap property_key_to_base_url_map;
 
   style->SetPropertyValueAndImportance(kVerticalAlignProperty,
                                        KeywordValue::GetBottom(), true);
@@ -89,34 +89,33 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
   rules_with_cascade_precedence.push_back(
       std::make_pair(css_style_rule_3, cascade_precedence_3));
 
-  scoped_refptr<cssom::CSSComputedStyleData> computed_style =
-      PromoteToCascadedStyle(style, &rules_with_cascade_precedence,
-                             &property_key_to_base_url_map);
+  scoped_refptr<CSSComputedStyleData> computed_style = PromoteToCascadedStyle(
+      style, &rules_with_cascade_precedence, &property_key_to_base_url_map);
 
-  EXPECT_EQ(computed_style->left(),
-            css_style_rule_1->declared_style_data()->GetPropertyValue(
-                cssom::kLeftProperty));
+  EXPECT_EQ(
+      computed_style->left(),
+      css_style_rule_1->declared_style_data()->GetPropertyValue(kLeftProperty));
   EXPECT_EQ(computed_style->right(),
             css_style_rule_2->declared_style_data()->GetPropertyValue(
-                cssom::kRightProperty));
+                kRightProperty));
   EXPECT_EQ(computed_style->width(),
             css_style_rule_3->declared_style_data()->GetPropertyValue(
-                cssom::kWidthProperty));
+                kWidthProperty));
   EXPECT_EQ(computed_style->height(),
             css_style_rule_2->declared_style_data()->GetPropertyValue(
-                cssom::kHeightProperty));
+                kHeightProperty));
   EXPECT_EQ(computed_style->vertical_align(),
-            style->GetPropertyValue(cssom::kVerticalAlignProperty));
+            style->GetPropertyValue(kVerticalAlignProperty));
   EXPECT_EQ(computed_style->text_align(),
             css_style_rule_2->declared_style_data()->GetPropertyValue(
-                cssom::kTextAlignProperty));
+                kTextAlignProperty));
 }
 
 TEST(CascadedStyleTest, PromoteToCascadedStyleWithBackgroundImage) {
   scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
   RulesWithCascadePrecedence rules_with_cascade_precedence;
-  cssom::GURLMap property_key_to_base_url_map;
+  GURLMap property_key_to_base_url_map;
 
   // The order of cascade precedence of the following rules:
   // rule 2 > rule 1.
@@ -150,19 +149,18 @@ TEST(CascadedStyleTest, PromoteToCascadedStyleWithBackgroundImage) {
   parent_style_sheet->SetLocationUrl(GURL("https:///www.youtube.com/tv/img"));
   css_style_rule_2->set_parent_style_sheet(parent_style_sheet.get());
 
-  scoped_refptr<cssom::CSSComputedStyleData> computed_style =
-      PromoteToCascadedStyle(style, &rules_with_cascade_precedence,
-                             &property_key_to_base_url_map);
+  scoped_refptr<CSSComputedStyleData> computed_style = PromoteToCascadedStyle(
+      style, &rules_with_cascade_precedence, &property_key_to_base_url_map);
 
-  EXPECT_EQ(computed_style->left(),
-            css_style_rule_1->declared_style_data()->GetPropertyValue(
-                cssom::kLeftProperty));
+  EXPECT_EQ(
+      computed_style->left(),
+      css_style_rule_1->declared_style_data()->GetPropertyValue(kLeftProperty));
   EXPECT_EQ(computed_style->right(),
             css_style_rule_2->declared_style_data()->GetPropertyValue(
-                cssom::kRightProperty));
+                kRightProperty));
   EXPECT_EQ(computed_style->background_image(),
             css_style_rule_2->declared_style_data()->GetPropertyValue(
-                cssom::kBackgroundImageProperty));
+                kBackgroundImageProperty));
   ASSERT_FALSE(property_key_to_base_url_map.empty());
   EXPECT_EQ(property_key_to_base_url_map[kBackgroundImageProperty].spec(),
             "https://www.youtube.com/tv/img");
@@ -173,7 +171,7 @@ TEST(CascadedStyleTest,
   scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
   RulesWithCascadePrecedence rules_with_cascade_precedence;
-  cssom::GURLMap property_key_to_base_url_map;
+  GURLMap property_key_to_base_url_map;
   property_key_to_base_url_map[kBackgroundImageProperty] =
       GURL("https://www.youtube.com/tv/img");
 
@@ -193,19 +191,18 @@ TEST(CascadedStyleTest,
   scoped_refptr<CSSStyleSheet> parent_style_sheet(new CSSStyleSheet());
   css_style_rule->set_parent_style_sheet(parent_style_sheet.get());
 
-  scoped_refptr<cssom::CSSComputedStyleData> computed_style =
-      PromoteToCascadedStyle(style, &rules_with_cascade_precedence,
-                             &property_key_to_base_url_map);
+  scoped_refptr<CSSComputedStyleData> computed_style = PromoteToCascadedStyle(
+      style, &rules_with_cascade_precedence, &property_key_to_base_url_map);
 
-  EXPECT_EQ(computed_style->left(),
-            css_style_rule->declared_style_data()->GetPropertyValue(
-                cssom::kLeftProperty));
-  EXPECT_EQ(computed_style->right(),
-            css_style_rule->declared_style_data()->GetPropertyValue(
-                cssom::kRightProperty));
+  EXPECT_EQ(
+      computed_style->left(),
+      css_style_rule->declared_style_data()->GetPropertyValue(kLeftProperty));
+  EXPECT_EQ(
+      computed_style->right(),
+      css_style_rule->declared_style_data()->GetPropertyValue(kRightProperty));
   EXPECT_EQ(computed_style->background_image(),
             css_style_rule->declared_style_data()->GetPropertyValue(
-                cssom::kBackgroundImageProperty));
+                kBackgroundImageProperty));
   ASSERT_FALSE(property_key_to_base_url_map.empty());
   EXPECT_EQ(property_key_to_base_url_map[kBackgroundImageProperty].spec(),
             "https://www.youtube.com/tv/img");
@@ -216,7 +213,7 @@ TEST(CascadedStyleTest,
   scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
   RulesWithCascadePrecedence rules_with_cascade_precedence;
-  cssom::GURLMap property_key_to_base_url_map;
+  GURLMap property_key_to_base_url_map;
 
   // The order of cascade precedence of the following rules:
   // rule 2 > rule 1.
@@ -255,16 +252,15 @@ TEST(CascadedStyleTest,
       GURL("https:///www.youtube.com/tv/img2"));
   css_style_rule_2->set_parent_style_sheet(parent_style_sheet_2.get());
 
-  scoped_refptr<cssom::CSSComputedStyleData> computed_style =
-      PromoteToCascadedStyle(style, &rules_with_cascade_precedence,
-                             &property_key_to_base_url_map);
+  scoped_refptr<CSSComputedStyleData> computed_style = PromoteToCascadedStyle(
+      style, &rules_with_cascade_precedence, &property_key_to_base_url_map);
 
   EXPECT_EQ(computed_style->right(),
             css_style_rule_2->declared_style_data()->GetPropertyValue(
-                cssom::kRightProperty));
+                kRightProperty));
   EXPECT_EQ(computed_style->background_image(),
             css_style_rule_1->declared_style_data()->GetPropertyValue(
-                cssom::kBackgroundImageProperty));
+                kBackgroundImageProperty));
   ASSERT_FALSE(property_key_to_base_url_map.empty());
   EXPECT_EQ(property_key_to_base_url_map[kBackgroundImageProperty].spec(),
             "https://www.youtube.com/tv/img1");

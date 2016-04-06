@@ -26,8 +26,7 @@ namespace cssom {
 
 // Uses a given CSSParser to load the user agent style sheet CSS source into
 // a parsed CSSStyleSheet which is then returned.
-scoped_refptr<cssom::CSSStyleSheet> ParseUserAgentStyleSheet(
-    cssom::CSSParser* css_parser);
+scoped_refptr<CSSStyleSheet> ParseUserAgentStyleSheet(CSSParser* css_parser);
 
 }  // namespace cssom
 }  // namespace cobalt
