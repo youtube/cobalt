@@ -62,11 +62,11 @@ CSSComputedStyleData::GetDeclaredPropertyValueReference(PropertyKey key) {
 namespace {
 struct NonTrivialStaticFields {
   NonTrivialStaticFields()
-      : block_keyword_value(cssom::KeywordValue::GetBlock()),
-        zero_length_value(new cssom::LengthValue(0.0f, cssom::kPixelsUnit)) {}
+      : block_keyword_value(KeywordValue::GetBlock()),
+        zero_length_value(new LengthValue(0.0f, kPixelsUnit)) {}
 
-  const scoped_refptr<cssom::PropertyValue> block_keyword_value;
-  const scoped_refptr<cssom::PropertyValue> zero_length_value;
+  const scoped_refptr<PropertyValue> block_keyword_value;
+  const scoped_refptr<PropertyValue> zero_length_value;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
@@ -104,8 +104,8 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
       // The initial value of "display" (inline) become "block" if "position" is
       // "absolute" or "fixed".
       //    https://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo
-      if (position() == cssom::KeywordValue::GetAbsolute() ||
-          position() == cssom::KeywordValue::GetFixed()) {
+      if (position() == KeywordValue::GetAbsolute() ||
+          position() == KeywordValue::GetFixed()) {
         return non_trivial_static_fields.Get().block_keyword_value;
       }
       break;
@@ -213,8 +213,8 @@ bool CSSComputedStyleData::IsBorderStyleNoneOrHiddenForAnEdge(
     border_style = border_left_style();
   }
 
-  if (border_style == cssom::KeywordValue::GetNone() ||
-      border_style == cssom::KeywordValue::GetHidden()) {
+  if (border_style == KeywordValue::GetNone() ||
+      border_style == KeywordValue::GetHidden()) {
     return true;
   }
 
