@@ -30,6 +30,8 @@
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/shadow_value.h"
+#include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/url_value.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -1549,6 +1551,38 @@ TEST(PromoteToComputedStyle, TransformOriginThreeValues) {
       transform_origin_list->value()[2].get());
   EXPECT_FLOAT_EQ(50.0f, third_value->value());
   EXPECT_EQ(kPixelsUnit, third_value->unit());
+}
+
+TEST(PromoteToComputedStyle, TransformRelativeUnitShouldBeConvertedToAbsolute) {
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+
+  // transform: translateX(2em);
+  TransformFunctionListValue::Builder transform_builder;
+  transform_builder.push_back(new TranslateFunction(
+      TranslateFunction::kXAxis, new LengthValue(2.0f, kFontSizesAkaEmUnit)));
+  scoped_refptr<TransformFunctionListValue> transform(
+      new TransformFunctionListValue(transform_builder.Pass()));
+  computed_style->set_transform(transform);
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  parent_computed_style->set_font_size(new LengthValue(100, kPixelsUnit));
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
+
+  scoped_refptr<TransformFunctionListValue> computed_transform =
+      dynamic_cast<TransformFunctionListValue*>(
+          computed_style->transform().get());
+  ASSERT_TRUE(computed_transform);
+  ASSERT_EQ(1, computed_transform->value().size());
+
+  const TranslateFunction* computed_function =
+      base::polymorphic_downcast<const TranslateFunction*>(
+          computed_transform->value()[0]);
+  ASSERT_TRUE(computed_function);
+  EXPECT_FLOAT_EQ(200.0f, computed_function->offset_as_length()->value());
+  EXPECT_EQ(kPixelsUnit, computed_function->offset_as_length()->unit());
 }
 
 }  // namespace cssom
