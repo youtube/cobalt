@@ -14,6 +14,26 @@
  * limitations under the License.
  */
 
+// Top level callback function that can be called by any component to create
+// a Runtime.RemoteObject from a JS object passed in from C++.
+devtoolsBackend.createRemoteObjectCallback = function(object, params) {
+  var remoteObject = null;
+  try {
+    remoteObject = new devtoolsBackend.runtime.RemoteObject(
+        object, params.objectGroup, params.returnByValue);
+  } catch(e) {
+    console.log('Exception creating remote object: ' + e);
+  }
+
+  var json = "";
+  try {
+    json = JSON.stringify(remoteObject);
+  } catch(e) {
+    console.log('Exception stringifying remote object: ' + e)
+  }
+  return json;
+}
+
 // JavaScript functions used by the Chrome debugging protocol Runtime domain:
 // https://developer.chrome.com/devtools/docs/protocol/1.1/runtime
 
@@ -283,15 +303,15 @@ devtoolsBackend.runtime.RemoteObject = function(value, objectGroup,
 
   // Fill in the description field. Devtools will only display arrays
   // correctly if their description follows a particular format. For other
-  // values, try to use the generic string conversion, and fall back to JSON
-  // serialization if that fails.
+  // values, try to use the generic string conversion, and fall back to the
+  // className if that fails.
   if (this.subtype == 'array') {
     this.description = 'Array[' + value.length + ']';
   } else {
     try {
       this.description = value.toString();
     } catch(e) {
-      this.description = JSON.stringify(value);
+      this.description = this.className;
     }
   }
 
