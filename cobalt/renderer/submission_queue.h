@@ -126,7 +126,7 @@ class SubmissionQueue {
 
   // Returns the corresponding renderer time for a given TimeTicks value
   // (e.g. base::TimeTicks::Now()).
-  base::TimeDelta render_time(const base::TimeTicks& time) const;
+  base::TimeDelta render_time(const base::TimeTicks& time);
 
   void PurgeStaleSubmissionsFromQueue(const base::TimeTicks& time);
 
@@ -139,8 +139,12 @@ class SubmissionQueue {
   DisposeSubmissionFunction dispose_function_;
 
   // An arbitrary time chosen upon construction to fully specify the renderer
-  // timeline.
-  base::TimeTicks renderer_time_origin_;
+  // timeline.  The first time |render_time(t)| is called, this will be set
+  // to |t| such that the first time it is called, |render_time(t)| will return
+  // 0.  Theoretically, its actual value doesn't really matter, but this method
+  // keeps the origin on the same order as the current clock values in order
+  // to avoid the chance of floating point error.
+  base::optional<base::TimeTicks> renderer_time_origin_;
 
   // The queue of submissions, sorted in ascending order of times.
   SubmissionQueueInternal submission_queue_;
