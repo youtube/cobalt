@@ -23,8 +23,7 @@
 namespace cobalt {
 namespace cssom {
 
-scoped_refptr<cssom::CSSStyleSheet> ParseUserAgentStyleSheet(
-    cssom::CSSParser* css_parser) {
+scoped_refptr<CSSStyleSheet> ParseUserAgentStyleSheet(CSSParser* css_parser) {
   const char kUserAgentStyleSheetFileName[] = "user_agent_style_sheet.css";
 
   // Parse the user agent style sheet from the given file that was compiled
@@ -38,13 +37,13 @@ scoped_refptr<cssom::CSSStyleSheet> ParseUserAgentStyleSheet(
   FileContents html_css_file_contents =
       resource_map[kUserAgentStyleSheetFileName];
 
-  scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet =
+  scoped_refptr<CSSStyleSheet> user_agent_style_sheet =
       css_parser->ParseStyleSheet(
           std::string(
               reinterpret_cast<const char*>(html_css_file_contents.data),
               static_cast<size_t>(html_css_file_contents.size)),
           base::SourceLocation(kUserAgentStyleSheetFileName, 1, 1));
-  user_agent_style_sheet->set_origin(cssom::kNormalUserAgent);
+  user_agent_style_sheet->set_origin(kNormalUserAgent);
   return user_agent_style_sheet;
 }
 

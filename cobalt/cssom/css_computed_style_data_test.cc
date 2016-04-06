@@ -938,7 +938,7 @@ TEST(CSSComputedStyleDataTest, BorderTopWidthIsZeroWhenStyleIsNoneOrHidden) {
       dynamic_cast<LengthValue*>(style->border_top_width().get());
   ASSERT_TRUE(length_value);
   EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(cssom::kPixelsUnit, length_value->unit());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
   EXPECT_NE(GetPropertyInitialValue(kBorderTopWidthProperty),
             style->border_top_width());
 
@@ -950,7 +950,7 @@ TEST(CSSComputedStyleDataTest, BorderTopWidthIsZeroWhenStyleIsNoneOrHidden) {
   length_value = dynamic_cast<LengthValue*>(style->border_top_width().get());
   ASSERT_TRUE(length_value);
   EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(cssom::kPixelsUnit, length_value->unit());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
   EXPECT_NE(GetPropertyInitialValue(kBorderTopWidthProperty),
             style->border_top_width());
 
@@ -975,7 +975,7 @@ TEST(CSSComputedStyleDataTest, BorderRightWidthIsZeroWhenStyleIsNoneOrHidden) {
       dynamic_cast<LengthValue*>(style->border_right_width().get());
   ASSERT_TRUE(length_value);
   EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(cssom::kPixelsUnit, length_value->unit());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
   EXPECT_NE(GetPropertyInitialValue(kBorderRightWidthProperty),
             style->border_right_width());
 
@@ -987,7 +987,7 @@ TEST(CSSComputedStyleDataTest, BorderRightWidthIsZeroWhenStyleIsNoneOrHidden) {
   length_value = dynamic_cast<LengthValue*>(style->border_right_width().get());
   ASSERT_TRUE(length_value);
   EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(cssom::kPixelsUnit, length_value->unit());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
   EXPECT_NE(GetPropertyInitialValue(kBorderRightWidthProperty),
             style->border_right_width());
 
@@ -1013,7 +1013,7 @@ TEST(CSSComputedStyleDataTest, BorderBottomWidthIsZeroWhenStyleIsNoneOrHidden) {
       dynamic_cast<LengthValue*>(style->border_bottom_width().get());
   ASSERT_TRUE(length_value);
   EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(cssom::kPixelsUnit, length_value->unit());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
   EXPECT_NE(GetPropertyInitialValue(kBorderBottomWidthProperty),
             style->border_bottom_width());
 
@@ -1025,7 +1025,7 @@ TEST(CSSComputedStyleDataTest, BorderBottomWidthIsZeroWhenStyleIsNoneOrHidden) {
   length_value = dynamic_cast<LengthValue*>(style->border_bottom_width().get());
   ASSERT_TRUE(length_value);
   EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(cssom::kPixelsUnit, length_value->unit());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
   EXPECT_NE(GetPropertyInitialValue(kBorderBottomWidthProperty),
             style->border_bottom_width());
 
@@ -1051,7 +1051,7 @@ TEST(CSSComputedStyleDataTest, BorderLeftWidthIsZeroWhenStyleIsNoneOrHidden) {
       dynamic_cast<LengthValue*>(style->border_left_width().get());
   ASSERT_TRUE(length_value);
   EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(cssom::kPixelsUnit, length_value->unit());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
   EXPECT_NE(GetPropertyInitialValue(kBorderLeftWidthProperty),
             style->border_left_width());
 
@@ -1063,7 +1063,7 @@ TEST(CSSComputedStyleDataTest, BorderLeftWidthIsZeroWhenStyleIsNoneOrHidden) {
   length_value = dynamic_cast<LengthValue*>(style->border_left_width().get());
   ASSERT_TRUE(length_value);
   EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(cssom::kPixelsUnit, length_value->unit());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
   EXPECT_NE(GetPropertyInitialValue(kBorderLeftWidthProperty),
             style->border_left_width());
 
