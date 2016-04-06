@@ -30,8 +30,10 @@ namespace cssom {
 // TODO(***REMOVED***): Add more units.
 // When adding a unit, please add the name in kUnitNames im length_value.cc.
 enum LengthUnit {
-  kFontSizesAkaEmUnit,
   kPixelsUnit,
+  kAbsoluteUnitMax =
+      kPixelsUnit,  // The units above are absolute, the rest are relative.
+  kFontSizesAkaEmUnit,
   kRootElementFontSizesAkaRemUnit,
 };
 
@@ -46,6 +48,7 @@ class LengthValue : public PropertyValue {
 
   float value() const { return value_; }
   LengthUnit unit() const { return unit_; }
+  bool IsUnitRelative() const { return unit_ > kAbsoluteUnitMax; }
 
   std::string ToString() const OVERRIDE;
 

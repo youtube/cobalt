@@ -2203,11 +2203,14 @@ void ComputedTransformOriginProvider::VisitPropertyList(
 
 namespace {
 
-// Functionality to check if a transform contains any em units.  If it does not,
-// then we need not modify the transform list here at all.
-class TransformFunctionContainsEmsVisitor : public TransformFunctionVisitor {
+// Functionality to check if a transform contains any relative units, such as
+// "em" or "rem".
+
+class TransformFunctionContainsRelativeUnitVisitor
+    : public TransformFunctionVisitor {
  public:
-  TransformFunctionContainsEmsVisitor() : contains_em_units_(false) {}
+  TransformFunctionContainsRelativeUnitVisitor()
+      : contains_relative_unit_(false) {}
 
   void VisitMatrix(const MatrixFunction* matrix_function) OVERRIDE {
     UNREFERENCED_PARAMETER(matrix_function);
@@ -2219,27 +2222,27 @@ class TransformFunctionContainsEmsVisitor : public TransformFunctionVisitor {
     UNREFERENCED_PARAMETER(scale_function);
   }
   void VisitTranslate(const TranslateFunction* translate_function) OVERRIDE {
-    contains_em_units_ =
-        (translate_function->offset_type() == TranslateFunction::kLength &&
-         translate_function->offset_as_length()->unit() == kFontSizesAkaEmUnit);
+    contains_relative_unit_ =
+        translate_function->offset_type() == TranslateFunction::kLength &&
+        translate_function->offset_as_length()->IsUnitRelative();
   }
 
-  bool contains_em_units() const { return contains_em_units_; }
+  bool contains_relative_unit() const { return contains_relative_unit_; }
 
  private:
-  bool contains_em_units_;
+  bool contains_relative_unit_;
 };
 
-bool TransformListContainsEmUnits(
+bool TransformListContainsRelativeUnits(
     TransformFunctionListValue* transform_function_list) {
   for (TransformFunctionListValue::Builder::const_iterator iter =
            transform_function_list->value().begin();
        iter != transform_function_list->value().end(); ++iter) {
     TransformFunction* transform_function = *iter;
 
-    TransformFunctionContainsEmsVisitor contains_ems_visitor;
+    TransformFunctionContainsRelativeUnitVisitor contains_ems_visitor;
     transform_function->Accept(&contains_ems_visitor);
-    if (contains_ems_visitor.contains_em_units()) {
+    if (contains_ems_visitor.contains_relative_unit()) {
       return true;
     }
   }
@@ -2278,13 +2281,13 @@ ComputedTransformProvider::ComputedTransformProvider(
 
 void ComputedTransformProvider::VisitTransformFunctionList(
     TransformFunctionListValue* transform_function_list) {
-  if (!TransformListContainsEmUnits(transform_function_list)) {
-    // If the transform list contains no transforms that use em units, then
-    // we do not need to do anything and we can pass through the existing
+  if (!TransformListContainsRelativeUnits(transform_function_list)) {
+    // If the transform list contains no transforms that use relative units,
+    // then we do not need to do anything and we can pass through the existing
     // transform.
     computed_transform_list_ = transform_function_list;
   } else {
-    // The transform list contains at least one transform with em units.
+    // The transform list contains at least one transform with relative units.
     // In this case, rebuild the transform list with computed length values.
     TransformFunctionListValue::Builder computed_list_builder;
 
