@@ -30,7 +30,6 @@ SubmissionQueue::SubmissionQueue(
     const DisposeSubmissionFunction& dispose_function)
     : max_queue_size_(max_queue_size),
       dispose_function_(dispose_function),
-      renderer_time_origin_(base::TimeTicks::HighResNow()),
       to_submission_time_in_ms_(time_to_converge),
       to_submission_time_in_ms_cval_(
           "Renderer.ToSubmissionTimeInMS", 0,
@@ -117,9 +116,12 @@ Submission SubmissionQueue::GetCurrentSubmission(const base::TimeTicks& now) {
   return updated_time_submission;
 }
 
-base::TimeDelta SubmissionQueue::render_time(
-    const base::TimeTicks& time) const {
-  return time - renderer_time_origin_;
+base::TimeDelta SubmissionQueue::render_time(const base::TimeTicks& time) {
+  if (!renderer_time_origin_) {
+    renderer_time_origin_ = time;
+  }
+
+  return time - *renderer_time_origin_;
 }
 
 void SubmissionQueue::PurgeStaleSubmissionsFromQueue(
