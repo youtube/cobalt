@@ -36,6 +36,8 @@
 #include "cobalt/debug/json_object.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/opaque_handle.h"
+#include "cobalt/script/script_object.h"
 
 namespace cobalt {
 namespace debug {
@@ -140,6 +142,10 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
   // Adds a client to this object. This object does not own the client, but
   // notify it when debugging events occur, or when this object is destroyed.
   void AddClient(DebugClient* client);
+
+  // Creates a Runtime.RemoteObject corresponding to an opaque JS object.
+  base::optional<std::string> CreateRemoteObject(
+      const script::OpaqueHandleHolder* object, const std::string& params);
 
   // Removes a client from this object.
   void RemoveClient(DebugClient* client);

@@ -129,6 +129,12 @@ void DebugServer::AddComponent(scoped_ptr<DebugServer::Component> component) {
   components_.push_back(component.release());
 }
 
+base::optional<std::string> DebugServer::CreateRemoteObject(
+    const script::OpaqueHandleHolder* object, const std::string& params) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return script_runner_->CreateRemoteObject(object, params);
+}
+
 void DebugServer::SendCommand(const std::string& method,
                               const std::string& json_params,
                               CommandCallback callback) {
