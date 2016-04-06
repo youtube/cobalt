@@ -28,7 +28,7 @@ void LengthValue::Accept(PropertyValueVisitor* visitor) {
 
 std::string LengthValue::ToString() const {
   const char* kUnitNames[] = {
-      "em", "px", "rem",
+      "px", "em", "rem",
   };
   return base::StringPrintf("%.7g%s", value_, kUnitNames[unit_]);
 }
