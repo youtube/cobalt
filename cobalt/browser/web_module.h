@@ -271,8 +271,9 @@ class WebModule {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Allows the debugger to add render components to the web module.
-  // Used for DOM node highlighting.
+  // Used for DOM node highlighting and overlay messages.
   debug::RenderOverlay debug_overlay_;
+  render_tree::ResourceProvider* resource_provider_;
 
   // The core of the debugging system, described here:
   // https://docs.google.com/document/d/1lZhrBTusQZJsacpt21J3kPgnkj7pyQObhFqYktvm40Y
