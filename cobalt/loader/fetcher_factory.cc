@@ -20,6 +20,7 @@
 
 #include "base/bind.h"
 #include "base/file_path.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/loader/about_fetcher.h"
 #include "cobalt/loader/embedded_fetcher.h"
@@ -67,7 +68,7 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     Fetcher::Handler* handler) {
   if (!url.is_valid()) {
-    DLOG(WARNING) << "Invalid url: " << url << ".";
+    LOG(ERROR) << "URL is invalid: " << url;
     return scoped_ptr<Fetcher>(NULL);
   }
 
@@ -83,6 +84,8 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
       options.message_loop_proxy = file_thread_.message_loop_proxy();
       options.extra_search_dir = extra_search_dir_;
       fetcher.reset(new FileFetcher(file_path, handler, options));
+    } else {
+      LOG(ERROR) << "File URL cannot be converted to file path: " << url;
     }
   }
 #if defined(ENABLE_ABOUT_SCHEME)
