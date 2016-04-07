@@ -1048,7 +1048,17 @@ Token Scanner::ScanFromAt(TokenValue* token_value) {
     TrivialStringPiece name;
     bool has_escape;
     ScanIdentifier(&name, &has_escape);
-    --name.begin;  // Include leading @.
+
+    // Include leading "@" in identifier.
+    if (has_escape) {
+      std::string* name_string = string_pool_->AllocateString();
+      name_string->push_back('@');
+      name_string->append(name.ToString());
+      name.begin = name_string->c_str();
+      name.end = name.begin + name_string->size();
+    } else {
+      --name.begin;
+    }
 
     Token at_token;
     if (DetectAtTokenAndMaybeChangeParsingMode(name, has_escape, &at_token)) {
