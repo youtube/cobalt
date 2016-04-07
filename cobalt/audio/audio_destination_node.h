@@ -39,7 +39,6 @@ class AudioDestinationNode : public AudioNode,
 
  public:
   explicit AudioDestinationNode(AudioContext* context);
-  ~AudioDestinationNode();
 
   // Web API: AudioDestinationNode
   //
@@ -58,6 +57,9 @@ class AudioDestinationNode : public AudioNode,
   void FillAudioBus(ShellAudioBus* audio_bus, bool* silence) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(AudioDestinationNode);
+
+ protected:
+  ~AudioDestinationNode() OVERRIDE;
 
  private:
   uint32 max_channel_count_;
