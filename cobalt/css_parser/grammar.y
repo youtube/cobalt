@@ -2634,10 +2634,12 @@ color_stop:
   }
   ;
 
+// Only 2 or more color stops can make a valid color stop list.
 comma_separated_color_stop_list:
-    color_stop {
+    color_stop comma color_stop {
     $$ = new cssom::ColorStopList();
     $$->push_back($1);
+    $$->push_back($3);
   }
   | comma_separated_color_stop_list comma color_stop {
     $$ = $1;
