@@ -154,8 +154,9 @@ class SubmissionQueue {
   // to see if an incoming submission time, s, is in the renderer's past, you
   // could check if
   //   base::TimeTicks now = base::TimeTicks::Now();
-  //   s.time_offset <
-  //       to_submission_time_in_ms_.GetCurrentValue(now) + render_time(now)
+  //   s.time_offset - render_time(now) <
+  //       base::TimeDelta::FromMillisecondsD(
+  //           to_submission_time_in_ms_.GetCurrentValue(now))
   // is true.
   SmoothedValue to_submission_time_in_ms_;
 

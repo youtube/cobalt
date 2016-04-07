@@ -26,14 +26,19 @@ using cobalt::renderer::SubmissionQueue;
 namespace {
 const int kMaxQueueSize = 4;
 
-Submission MakeSubmissionWithUniqueRenderTree(double time_offset_in_seconds) {
+Submission MakeSubmissionWithUniqueRenderTree(
+    const base::TimeDelta& time_offset) {
   // Create a dummy, but unique, render tree.
   Submission submission(new cobalt::render_tree::CompositionNode(
       cobalt::render_tree::CompositionNode::Builder()));
-  submission.time_offset =
-      base::TimeDelta::FromSecondsD(time_offset_in_seconds);
+  submission.time_offset = time_offset;
 
   return submission;
+}
+
+Submission MakeSubmissionWithUniqueRenderTree(double time_offset_in_seconds) {
+  return MakeSubmissionWithUniqueRenderTree(
+      base::TimeDelta::FromSecondsD(time_offset_in_seconds));
 }
 
 base::TimeTicks SecondsToTime(double seconds) {
@@ -184,30 +189,43 @@ TEST(SubmissionQueueTest, PushingOldTimeResetsQueue) {
 // oldest submission to be forcefully removed, and time artifically advanced
 // up to the next oldest submission.
 TEST(SubmissionQueueTest, FullQueueWillEjectOldestSubmission) {
-  // We choose a very long time for the convergence time so that the renderer
-  // time will not skew much during this test.
-  SubmissionQueue queue(4, base::TimeDelta::FromSeconds(1000));
+  // Loop over this with many different values to test that numerical precision
+  // does not cause any problems here.
+  for (int64 i = 0; i < 1000; ++i) {
+    // We choose a very long time for the convergence time so that the renderer
+    // time will not skew much during this test.
+    SubmissionQueue queue(4, base::TimeDelta::FromSeconds(1000));
 
-  Submission first = MakeSubmissionWithUniqueRenderTree(1.0);
-  Submission second = MakeSubmissionWithUniqueRenderTree(2.0);
-  Submission third = MakeSubmissionWithUniqueRenderTree(3.0);
-  Submission fourth = MakeSubmissionWithUniqueRenderTree(4.0);
+    base::TimeDelta start_time =
+        base::TimeDelta::FromMicroseconds(i * i * i * i);
 
-  queue.PushSubmission(first, SecondsToTime(2.0));
-  queue.PushSubmission(second, SecondsToTime(2.1));
-  queue.PushSubmission(third, SecondsToTime(2.2));
-  queue.PushSubmission(fourth, SecondsToTime(2.3));
+    Submission first = MakeSubmissionWithUniqueRenderTree(
+        base::TimeDelta::FromSeconds(1) + start_time);
+    Submission second = MakeSubmissionWithUniqueRenderTree(
+        base::TimeDelta::FromSeconds(2) + start_time);
+    Submission third = MakeSubmissionWithUniqueRenderTree(
+        base::TimeDelta::FromSeconds(3) + start_time);
+    Submission fourth = MakeSubmissionWithUniqueRenderTree(
+        base::TimeDelta::FromSeconds(4) + start_time);
 
-  Submission current = queue.GetCurrentSubmission(SecondsToTime(2.3));
-  EXPECT_EQ(first.render_tree, current.render_tree);
+    queue.PushSubmission(first, SecondsToTime(2.0));
+    queue.PushSubmission(second, SecondsToTime(2.1));
+    queue.PushSubmission(third, SecondsToTime(2.2));
+    queue.PushSubmission(fourth, SecondsToTime(2.3));
 
-  // Since the queue has a maximum size of 4 submissions, pushing this 5th
-  // submission should result in the first submission being ejected, and time
-  // being advanced to that of the second submission.
-  Submission fifth = MakeSubmissionWithUniqueRenderTree(5.0);
-  queue.PushSubmission(fifth, SecondsToTime(2.4));
+    Submission current = queue.GetCurrentSubmission(SecondsToTime(2.3));
+    EXPECT_EQ(first.render_tree, current.render_tree);
 
-  current = queue.GetCurrentSubmission(SecondsToTime(2.4));
-  EXPECT_EQ(second.render_tree, current.render_tree);
-  EXPECT_DOUBLE_EQ(2.0, current.time_offset.InSecondsF());
+    // Since the queue has a maximum size of 4 submissions, pushing this 5th
+    // submission should result in the first submission being ejected, and time
+    // being advanced to that of the second submission.
+    Submission fifth = MakeSubmissionWithUniqueRenderTree(
+        base::TimeDelta::FromSeconds(5) + start_time);
+    queue.PushSubmission(fifth, SecondsToTime(2.4));
+
+    current = queue.GetCurrentSubmission(SecondsToTime(2.4));
+    EXPECT_EQ(second.render_tree, current.render_tree);
+    EXPECT_EQ(base::TimeDelta::FromSeconds(2) + start_time,
+              current.time_offset);
+  }
 }
