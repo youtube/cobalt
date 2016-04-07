@@ -25,8 +25,10 @@
     'actual_target_arch': 'win',
     'posix_emulation_target_type': 'shared_library',
     'webkit_target_type': 'shared_library',
-    'angle_api': 'win32',
+    'angle_api': 'win32',  # TODO: Remove in favor of |gl_type|.
     'enable_remote_debugging': 0,
+
+    'gl_type': 'angle',
 
     # Compile with "PREfast" on by default.
     'static_analysis%': 'true',
