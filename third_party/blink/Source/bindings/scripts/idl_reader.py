@@ -43,8 +43,10 @@ from utilities import idl_filename_to_component
 
 
 class IdlReader(object):
-    def __init__(self, extend_attributes_filename, interfaces_info=None, outputdir=''):
-        self.extended_attribute_validator = IDLExtendedAttributeValidator(extend_attributes_filename)
+    def __init__(self, extend_attributes_filename=None, interfaces_info=None, outputdir=''):
+        self.extended_attribute_validator = None
+        if extend_attributes_filename:
+          self.extended_attribute_validator = IDLExtendedAttributeValidator(extend_attributes_filename)
         self.interfaces_info = interfaces_info
 
         if interfaces_info:
