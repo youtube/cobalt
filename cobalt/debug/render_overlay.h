@@ -36,7 +36,7 @@ class RenderOverlay {
   typedef base::Callback<void(const LayoutResults&)>
       OnRenderTreeProducedCallback;
 
-  RenderOverlay(
+  explicit RenderOverlay(
       const OnRenderTreeProducedCallback& render_tree_produced_callback);
 
   // Called when the input layout changes.

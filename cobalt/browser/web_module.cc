@@ -129,7 +129,8 @@ WebModule::WebModule(
           network_module->preferred_language()))
 #if defined(ENABLE_DEBUG_CONSOLE)
       ,
-      debug_overlay_(render_tree_produced_callback)
+      debug_overlay_(render_tree_produced_callback),
+      resource_provider_(resource_provider)
 #endif  // ENABLE_DEBUG_CONSOLE
 {
   global_object_proxy_->CreateGlobalObject(window_,
@@ -284,10 +285,11 @@ debug::DebugServer* WebModule::GetDebugServer() {
   if (!debug_server_) {
     debug::DebugServerBuilder debug_server_builder;
     debug_server_builder.SetConsole(window_->console())
-        .SetDocument(window_->document())
         .SetGlobalObjectProxy(global_object_proxy_)
         .SetMessageLoop(self_message_loop_)
-        .SetRenderOverlay(&debug_overlay_);
+        .SetRenderOverlay(&debug_overlay_)
+        .SetResourceProvider(resource_provider_)
+        .SetWindow(window_);
     debug_server_ = debug_server_builder.Build();
   }
 
