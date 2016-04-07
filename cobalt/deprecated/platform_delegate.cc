@@ -100,6 +100,10 @@ bool PlatformDelegate::RegisterUserLog(int user_log_index, const char* label,
   return false;
 }
 
+bool PlatformDelegate::DeregisterUserLog(int user_log_index) const {
+  return false;
+}
+
 PlatformDelegate::~PlatformDelegate() {}
 
 }   // namespace deprecated
