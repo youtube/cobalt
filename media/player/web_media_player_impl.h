@@ -212,6 +212,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // to it.
   void WillDestroyCurrentMessageLoop() OVERRIDE;
 
+  bool GetDebugReportDataAddress(void** out_address, size_t* out_size) OVERRIDE;
+
   void OnPipelineSeek(PipelineStatus status);
   void OnPipelineEnded(PipelineStatus status);
   void OnPipelineError(PipelineStatus error);
@@ -297,27 +299,46 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   scoped_ptr<MessageLoopFactory> message_loop_factory_;
 
-  // Playback state.
-  //
-  // TODO(scherkus): we have these because Pipeline favours the simplicity of a
-  // single "playback rate" over worrying about paused/stopped etc...  It forces
-  // all clients to manage the pause+playback rate externally, but is that
-  // really a bad thing?
-  //
-  // TODO(scherkus): since SetPlaybackRate(0) is asynchronous and we don't want
-  // to hang the render thread during pause(), we record the time at the same
-  // time we pause and then return that value in currentTime().  Otherwise our
-  // clock can creep forward a little bit while the asynchronous
-  // SetPlaybackRate(0) is being executed.
-  bool paused_;
-  bool seeking_;
-  float playback_rate_;
-  base::TimeDelta paused_time_;
+  // Internal state of the WebMediaPlayer. Gathered in one struct to support
+  // serialization of this state in debug logs. This should not contain any
+  // sensitive or potentially PII.
+  struct WebMediaPlayerState {
+    WebMediaPlayerState()
+        : paused(true),
+          seeking(false),
+          playback_rate(0.0f),
+          pending_seek(false),
+          pending_seek_seconds(0.0f),
+          starting(false),
+          is_progressive(false),
+          is_media_source(false) {}
+    // Playback state.
+    //
+    // TODO(scherkus): we have these because Pipeline favours the simplicity of
+    // a single "playback rate" over worrying about paused/stopped etc...  It
+    // forces all clients to manage the pause+playback rate externally, but is
+    // that really a bad thing?
+    //
+    // TODO(scherkus): since SetPlaybackRate(0) is asynchronous and we don't
+    // want to hang the render thread during pause(), we record the time at the
+    // same time we pause and then return that value in currentTime().
+    // Otherwise our clock can creep forward a little bit while the asynchronous
+    // SetPlaybackRate(0) is being executed.
+    bool paused;
+    bool seeking;
+    float playback_rate;
+    base::TimeDelta paused_time;
 
-  // Seek gets pending if another seek is in progress. Only last pending seek
-  // will have effect.
-  bool pending_seek_;
-  float pending_seek_seconds_;
+    // Seek gets pending if another seek is in progress. Only last pending seek
+    // will have effect.
+    bool pending_seek;
+    float pending_seek_seconds;
+
+    bool starting;
+
+    bool is_progressive;
+    bool is_media_source;
+  } state_;
 
   WebMediaPlayerClient* client_;
   WebMediaPlayerDelegate* delegate_;
@@ -336,7 +357,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // The decryptor that manages decryption keys and decrypts encrypted frames.
   scoped_ptr<ProxyDecryptor> decryptor_;
 
-  bool starting_;
 
   scoped_refptr<ChunkDemuxer> chunk_demuxer_;
 

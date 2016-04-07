@@ -138,11 +138,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       main_loop_(MessageLoop::current()),
       filter_collection_(collection.Pass()),
       message_loop_factory_(message_loop_factory.Pass()),
-      paused_(true),
-      seeking_(false),
-      playback_rate_(0.0f),
-      pending_seek_(false),
-      pending_seek_seconds_(0.0f),
       client_(client),
       delegate_(delegate),
       proxy_(new WebMediaPlayerProxy(main_loop_->message_loop_proxy(), this)),
@@ -151,7 +146,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       audio_renderer_sink_(audio_renderer_sink),
       is_local_source_(false),
       supports_save_(true),
-      starting_(false),
       suppress_destruction_errors_(false) {
   DCHECK_EQ(filter_collection_->GetAudioDecoders()->size(), 1);
   DCHECK_EQ(filter_collection_->GetVideoDecoders()->size(), 1);
@@ -288,6 +282,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 
   filter_collection_->SetDemuxer(chunk_demuxer_);
   supports_save_ = false;
+  state_.is_media_source = true;
   StartPipeline();
 }
 
@@ -316,6 +311,7 @@ void WebMediaPlayerImpl::LoadProgressive(
   filter_collection_->SetDemuxer(
       new ShellDemuxer(message_loop, proxy_->data_source()));
 
+  state_.is_progressive = true;
   StartPipeline();
 }
 
@@ -329,8 +325,8 @@ void WebMediaPlayerImpl::Play() {
   audio_focus_bridge_.RequestAudioFocus();
 #endif  // defined(__LB_ANDROID__)
 
-  paused_ = false;
-  pipeline_->SetPlaybackRate(playback_rate_);
+  state_.paused = false;
+  pipeline_->SetPlaybackRate(state_.playback_rate);
 
   media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::PLAY));
 }
@@ -341,9 +337,9 @@ void WebMediaPlayerImpl::Pause() {
   audio_focus_bridge_.AbandonAudioFocus();
 #endif  // defined(__LB_ANDROID__)
 
-  paused_ = true;
+  state_.paused = true;
   pipeline_->SetPlaybackRate(0.0f);
-  paused_time_ = pipeline_->GetMediaTime();
+  state_.paused_time = pipeline_->GetMediaTime();
 
   media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::PAUSE));
 }
@@ -371,9 +367,9 @@ void WebMediaPlayerImpl::Seek(float seconds) {
   }
 #endif  // defined(LB_SKIP_SEEK_REQUEST_NEAR_END)
 
-  if (starting_ || seeking_) {
-    pending_seek_ = true;
-    pending_seek_seconds_ = seconds;
+  if (state_.starting || state_.seeking) {
+    state_.pending_seek = true;
+    state_.pending_seek_seconds = seconds;
     if (chunk_demuxer_) {
       chunk_demuxer_->CancelPendingSeek();
       decryptor_->CancelDecrypt(Decryptor::kAudio);
@@ -387,10 +383,10 @@ void WebMediaPlayerImpl::Seek(float seconds) {
   base::TimeDelta seek_time = ConvertSecondsToTimestamp(seconds);
 
   // Update our paused time.
-  if (paused_)
-    paused_time_ = seek_time;
+  if (state_.paused)
+    state_.paused_time = seek_time;
 
-  seeking_ = true;
+  state_.seeking = true;
 
   if (chunk_demuxer_) {
     chunk_demuxer_->StartWaitingForSeek();
@@ -426,8 +422,8 @@ void WebMediaPlayerImpl::SetRate(float rate) {
       rate = kMaxRate;
   }
 
-  playback_rate_ = rate;
-  if (!paused_) {
+  state_.playback_rate = rate;
+  if (!state_.paused) {
     pipeline_->SetPlaybackRate(rate);
   }
 }
@@ -483,7 +479,7 @@ bool WebMediaPlayerImpl::IsSeeking() const {
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing)
     return false;
 
-  return seeking_;
+  return state_.seeking;
 }
 
 float WebMediaPlayerImpl::GetDuration() const {
@@ -504,8 +500,8 @@ float WebMediaPlayerImpl::GetDuration() const {
 
 float WebMediaPlayerImpl::GetCurrentTime() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
-  if (paused_)
-    return static_cast<float>(paused_time_.InSecondsF());
+  if (state_.paused)
+    return static_cast<float>(state_.paused_time.InSecondsF());
   return static_cast<float>(pipeline_->GetMediaTime().InSecondsF());
 }
 
@@ -872,13 +868,20 @@ void WebMediaPlayerImpl::WillDestroyCurrentMessageLoop() {
   main_loop_ = NULL;
 }
 
+bool WebMediaPlayerImpl::GetDebugReportDataAddress(void** out_address,
+                                                   size_t* out_size) {
+  *out_address = &state_;
+  *out_size = sizeof(state_);
+  return true;
+}
+
 void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
-  starting_ = false;
-  seeking_ = false;
-  if (pending_seek_) {
-    pending_seek_ = false;
-    Seek(pending_seek_seconds_);
+  state_.starting = false;
+  state_.seeking = false;
+  if (state_.pending_seek) {
+    state_.pending_seek = false;
+    Seek(state_.pending_seek_seconds);
     return;
   }
 
@@ -888,8 +891,8 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   }
 
   // Update our paused time.
-  if (paused_)
-    paused_time_ = pipeline_->GetMediaTime();
+  if (state_.paused)
+    state_.paused_time = pipeline_->GetMediaTime();
 
   GetClient()->TimeChanged();
 }
@@ -1085,7 +1088,7 @@ void WebMediaPlayerImpl::NotifyDownloading(bool is_downloading) {
 }
 
 void WebMediaPlayerImpl::StartPipeline() {
-  starting_ = true;
+  state_.starting = true;
 
 #if defined(LB_USE_SHELL_PIPELINE)
   SetDecryptorReadyCB set_decryptor_ready_cb;
