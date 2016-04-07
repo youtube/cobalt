@@ -1,4 +1,5 @@
 4-1-2-corner-to-corner-linear-gradient
+4-1-2-linear-gradient-with-same-stop-positions
 4-1-2-linear-gradient-with-transparency
 4-1-2-simple-yellow-to-blue-arbitrary-angle-linear-gradient
 4-1-2-simple-yellow-to-blue-vertical-linear-gradient

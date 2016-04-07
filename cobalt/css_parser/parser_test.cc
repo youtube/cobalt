@@ -1337,6 +1337,34 @@ TEST_F(ParserTest, ParsesBackgroundWithTransparent) {
   EXPECT_EQ(0x00000000, background_color->value());
 }
 
+TEST_F(ParserTest, LinearGradientWithOneColorStopIsError) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:11: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "background: linear-gradient(to right, rgba(0,0,0,0.9));",
+          source_location_);
+
+  EXPECT_EQ(GetPropertyInitialValue(cssom::kBackgroundImageProperty),
+            style->GetPropertyValue(cssom::kBackgroundImageProperty));
+}
+
+TEST_F(ParserTest, RadialGradientWithOneColorStopIsError) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:11: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "background: radial-gradient(closest-corner, rgba(0,0,0,0.9));",
+          source_location_);
+
+  EXPECT_EQ(GetPropertyInitialValue(cssom::kBackgroundImageProperty),
+            style->GetPropertyValue(cssom::kBackgroundImageProperty));
+}
+
 TEST_F(ParserTest, ParsesBackgroundWithLinearGradient) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList(
