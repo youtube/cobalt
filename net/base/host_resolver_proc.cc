@@ -287,6 +287,14 @@ int SystemHostResolverProc(const std::string& host,
     return ERR_NAME_NOT_RESOLVED;
 #endif
 
+#if defined(COBALT)
+  if (ai == NULL) {
+    // In some cases during shutdown it seems that ai can be NULL.
+    DLOG(ERROR) << "unexpected success from getaddrinfo()";
+    return ERR_NAME_NOT_RESOLVED;
+  }
+#endif  // defined(COBALT)
+
   *addrlist = AddressList::CreateFromAddrinfo(ai);
   freeaddrinfo(ai);
   return OK;
