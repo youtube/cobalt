@@ -101,15 +101,19 @@ Submission SubmissionQueue::GetCurrentSubmission(const base::TimeTicks& now) {
   // fact that time has passed since it was submitted.
   Submission updated_time_submission(submission_queue_.front());
 
+  // Our current clock should always be setup (via PushSubmission()) such
+  // that it is always larger than the front of the queue.
+  DCHECK_GE(to_submission_time_in_ms_.GetValueAtTime(now),
+            (submission_queue_.front().time_offset - render_time(now))
+                .InMillisecondsF());
+
   base::TimeDelta updated_time =
       base::TimeDelta::FromMillisecondsD(
           to_submission_time_in_ms_.GetValueAtTime(now)) +
       render_time(now);
-  if (updated_time < updated_time_submission.time_offset) {
-    // Our current clock should always be setup (via PushSubmission()) such
-    // that it is always larger than the front of the queue.
-    NOTREACHED();
-  } else {
+  // This if statement is very similar to the DCHECK above, but not exactly
+  // the same because of rounding issues.
+  if (updated_time > updated_time_submission.time_offset) {
     updated_time_submission.time_offset = updated_time;
   }
 
@@ -130,8 +134,6 @@ void SubmissionQueue::PurgeStaleSubmissionsFromQueue(
                "SubmissionQueue::PurgeStaleSubmissionsFromQueue()");
   double current_to_submission_time_in_ms =
       to_submission_time_in_ms_.GetValueAtTime(time);
-  base::TimeDelta current_to_submission_time =
-      base::TimeDelta::FromMillisecondsD(current_to_submission_time_in_ms);
 
   SubmissionQueueInternal::iterator submission = submission_queue_.end();
   --submission;
@@ -140,8 +142,8 @@ void SubmissionQueue::PurgeStaleSubmissionsFromQueue(
   if (submission != submission_queue_.begin()) {
     // Skip past the submissions that are in the future.  This means we start
     // from the back because the queue is sorted in ascending order of time.
-    while (current_to_submission_time + render_time(time) <
-           submission->time_offset) {
+    while (current_to_submission_time_in_ms <
+           (submission->time_offset - render_time(time)).InMillisecondsF()) {
       if (submission == submission_queue_.begin()) {
         // It is an invariant of this class that the oldest submission in the
         // queue is older than the current render time.  This should be
