@@ -24,6 +24,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/user_log.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -68,11 +69,18 @@ class MediaModule : public WebMediaPlayerFactory,
   void RegisterPlayer(WebMediaPlayer* player) OVERRIDE {
     DCHECK(players_.find(player) == players_.end());
     players_.insert(std::make_pair(player, false));
+    // Track debug state for the most recently added WebMediaPlayer instance.
+    RegisterDebugState(player);
   }
 
   void UnregisterPlayer(WebMediaPlayer* player) OVERRIDE {
     DCHECK(players_.find(player) != players_.end());
     players_.erase(players_.find(player));
+    if (players_.empty()) {
+      DeregisterDebugState();
+    } else {
+      RegisterDebugState(players_.begin()->first);
+    }
   }
 
   // Functions to allow pause/resume of all active players.  Note that the
@@ -111,6 +119,20 @@ class MediaModule : public WebMediaPlayerFactory,
       const Options& options = Options());
 
  private:
+  void RegisterDebugState(WebMediaPlayer* player) {
+    void* debug_state_address = NULL;
+    size_t debug_state_size = 0;
+    if (player->GetDebugReportDataAddress(&debug_state_address,
+                                          &debug_state_size)) {
+      base::UserLog::Register(base::UserLog::kWebMediaPlayerState,
+                              "MediaPlyrState", debug_state_address,
+                              debug_state_size);
+    }
+  }
+  void DeregisterDebugState() {
+    base::UserLog::Deregister(base::UserLog::kWebMediaPlayerState);
+  }
+
   // When the value of a particular player is true, it means the player is
   // paused by us.
   typedef std::map<WebMediaPlayer*, bool> Players;
