@@ -347,6 +347,9 @@ void JSCDebugger::PauseIfNeeded(const JSC::DebuggerCallFrame& call_frame) {
 
   // Delegate handles the actual blocking of the thread to implement Pause.
   delegate_->OnScriptDebuggerPause();
+
+  // Notify the clients we've resumed.
+  SendResumedEvent();
 }
 
 void JSCDebugger::SendPausedEvent(const JSC::DebuggerCallFrame& call_frame) {
@@ -385,6 +388,13 @@ void JSCDebugger::SendPausedEvent(const JSC::DebuggerCallFrame& call_frame) {
   std::string event_method = "Debugger.paused";
   event_params->Set("callFrames", call_frame_list.release());
   event_params->SetString("reason", "debugCommand");
+  delegate_->OnScriptDebuggerEvent(event_method, event_params);
+}
+
+void JSCDebugger::SendResumedEvent() {
+  // Send the event to the clients. No parameters.
+  std::string event_method = "Debugger.resumed";
+  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
   delegate_->OnScriptDebuggerEvent(event_method, event_params);
 }
 
