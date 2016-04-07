@@ -18,10 +18,12 @@
 
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/json_object.h"
-#include "cobalt/debug/render_overlay.h"
+#include "cobalt/debug/render_layer.h"
+#include "cobalt/dom/dom_rect.h"
 
 namespace cobalt {
 namespace debug {
@@ -29,7 +31,7 @@ namespace debug {
 class DOMComponent : public DebugServer::Component {
  public:
   DOMComponent(const base::WeakPtr<DebugServer>& server,
-               RenderOverlay* debug_overlay);
+               scoped_ptr<RenderLayer> render_layer);
 
  private:
   JSONObject Enable(const JSONObject& params);
@@ -62,8 +64,8 @@ class DOMComponent : public DebugServer::Component {
   void RenderHighlight(const scoped_refptr<dom::DOMRect>& bounding_rect,
                        const base::DictionaryValue* highlight_config_value);
 
-  // No ownership.
-  RenderOverlay* debug_overlay_;
+  // Render layer owned by this object.
+  scoped_ptr<RenderLayer> render_layer_;
 };
 
 }  // namespace debug
