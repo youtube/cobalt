@@ -21,7 +21,9 @@
 
 #include "base/basictypes.h"
 #include "base/callback.h"
+#include "base/cancelable_callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher.h"
 
@@ -35,6 +37,8 @@ class Loader {
   // The construction of Loader initiates the loading. It takes the ownership
   // of a Decoder and creates and manages a Fetcher using the given creation
   // method.
+  // The fetcher creator, decoder and error callback shouldn't be NULL.
+  // It is allowed to destroy the loader in the error callback.
   Loader(base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
          scoped_ptr<Decoder> decoder,
          base::Callback<void(const std::string&)> error_callback);
@@ -47,6 +51,9 @@ class Loader {
   scoped_ptr<Decoder> decoder_;
   scoped_ptr<FetcherToDecoderAdapter> fetcher_to_decoder_adaptor_;
   scoped_ptr<Fetcher> fetcher_;
+
+  base::CancelableClosure fetcher_creator_error_closure_;
+  base::ThreadChecker thread_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(Loader);
 };

@@ -16,8 +16,10 @@
 
 #include "cobalt/loader/loader.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
 
 namespace cobalt {
 namespace loader {
@@ -77,10 +79,22 @@ Loader::Loader(
       fetcher_(fetcher_creator.Run(fetcher_to_decoder_adaptor_.get())) {
   DCHECK(decoder_);
   DCHECK(!error_callback.is_null());
-  DCHECK(fetcher_);
+  DCHECK(!fetcher_creator.is_null());
+
+  // Post the error callback on the current message loop in case loader is
+  // destroyed in the callback.
+  if (!fetcher_) {
+    fetcher_creator_error_closure_.Reset(
+        base::Bind(error_callback, "Fetcher was not created."));
+    MessageLoop::current()->PostTask(FROM_HERE,
+                                     fetcher_creator_error_closure_.callback());
+  }
 }
 
-Loader::~Loader() {}
+Loader::~Loader() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  fetcher_creator_error_closure_.Cancel();
+}
 
 }  // namespace loader
 }  // namespace cobalt
