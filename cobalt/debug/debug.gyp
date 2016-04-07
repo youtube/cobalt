@@ -45,6 +45,8 @@
         'json_object.h',
         'page_component.cc',
         'page_component.h',
+        'render_layer.cc',
+        'render_layer.h',
         'render_overlay.cc',
         'render_overlay.h',
         'runtime_component.cc',

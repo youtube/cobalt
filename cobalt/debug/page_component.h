@@ -19,26 +19,35 @@
 
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/json_object.h"
-#include "cobalt/dom/document.h"
+#include "cobalt/debug/render_layer.h"
+#include "cobalt/dom/window.h"
+#include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
 namespace debug {
 
 class PageComponent : public DebugServer::Component {
  public:
-  PageComponent(const base::WeakPtr<DebugServer>& server,
-                dom::Document* document);
+  PageComponent(const base::WeakPtr<DebugServer>& server, dom::Window* window,
+                scoped_ptr<RenderLayer> render_layer,
+                render_tree::ResourceProvider* resource_provider);
 
  private:
   JSONObject Enable(const JSONObject& params);
   JSONObject Disable(const JSONObject& params);
   JSONObject GetResourceTree(const JSONObject& params);
+  JSONObject SetOverlayMessage(const JSONObject& params);
 
   // No ownership.
-  dom::Document* document_;
+  dom::Window* window_;
+  // Owned by this object.
+  scoped_ptr<RenderLayer> render_layer_;
+  // No ownership.
+  render_tree::ResourceProvider* resource_provider_;
 };
 
 }  // namespace debug
