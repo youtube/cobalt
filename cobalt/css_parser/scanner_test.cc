@@ -771,6 +771,16 @@ TEST_F(ScannerTest, ScansAt) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
+TEST_F(ScannerTest, ScansAtWithEscapedIdentifier) {
+  Scanner scanner("@\\e9 motion", &string_pool_);
+
+  ASSERT_EQ(kInvalidAtBlockToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("@émotion", token_value_.string);
+
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
 TEST_F(ScannerTest, ScansEscapedIdentifier) {
   Scanner scanner("\\e9 motion", &string_pool_);
 
