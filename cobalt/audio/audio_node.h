@@ -59,7 +59,6 @@ class AudioNode : public dom::EventTarget {
   };
 
   explicit AudioNode(AudioContext* context);
-  ~AudioNode() OVERRIDE;
 
   // Web API: AudioNode
   //
@@ -119,6 +118,8 @@ class AudioNode : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(AudioNode);
 
  protected:
+  ~AudioNode() OVERRIDE;
+
   void AddInput(const scoped_refptr<AudioNodeInput>& input);
   void AddOutput(const scoped_refptr<AudioNodeOutput>& output);
 
