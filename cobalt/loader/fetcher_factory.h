@@ -35,10 +35,13 @@ class FetcherFactory {
   explicit FetcherFactory(network::NetworkModule* network_module);
   FetcherFactory(network::NetworkModule* network_module,
                  const FilePath& extra_search_dir);
+
+  // Creates a fetcher. Returns NULL if the creation fails.
   scoped_ptr<Fetcher> CreateFetcher(const GURL& url, Fetcher::Handler* handler);
   scoped_ptr<Fetcher> CreateSecureFetcher(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       Fetcher::Handler* handler);
+
   network::NetworkModule* network_module() const { return network_module_; }
 
  private:

@@ -88,10 +88,18 @@ TEST_F(FetcherFactoryTest, InvalidURL) {
   EXPECT_FALSE(stub_fetcher_handler.fetcher());
 }
 
-TEST_F(FetcherFactoryTest, EmptyURL) {
+TEST_F(FetcherFactoryTest, EmptyFileURL) {
   StubFetcherHandler stub_fetcher_handler(NULL);
   fetcher_ =
       fetcher_factory_.CreateFetcher(GURL("file:///"), &stub_fetcher_handler);
+  EXPECT_FALSE(fetcher_.get());
+  EXPECT_FALSE(stub_fetcher_handler.fetcher());
+}
+
+TEST_F(FetcherFactoryTest, FileURLCannotConvertToFilePath) {
+  StubFetcherHandler stub_fetcher_handler(NULL);
+  fetcher_ = fetcher_factory_.CreateFetcher(GURL("file://file.txt"),
+                                            &stub_fetcher_handler);
   EXPECT_FALSE(fetcher_.get());
   EXPECT_FALSE(stub_fetcher_handler.fetcher());
 }
