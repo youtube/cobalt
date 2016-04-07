@@ -93,6 +93,11 @@ std::string PlatformDelegate::GetSystemLanguage() { return "en-US"; }
 
 bool PlatformDelegate::AreKeysReversed() const { return false; }
 
+bool PlatformDelegate::RegisterUserLog(int user_log_index, const char* label,
+                                       const void* address, size_t size) const {
+  return false;
+}
+
 PlatformDelegate::~PlatformDelegate() {}
 
 }   // namespace deprecated

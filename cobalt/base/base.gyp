@@ -60,6 +60,8 @@
         'unicode/character.h',
         'unicode/character_names.h',
         'unused.h',
+        'user_log.cc',
+        'user_log.h',
       ],
       'includes': [
         'copy_i18n_data.gypi',
