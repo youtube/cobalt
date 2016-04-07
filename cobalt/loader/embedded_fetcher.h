@@ -20,6 +20,7 @@
 #include <limits>
 #include <string>
 
+#include "base/memory/weak_ptr.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
 
@@ -57,6 +58,7 @@ class EmbeddedFetcher : public Fetcher {
 
   GURL url_;
   csp::SecurityCallback security_callback_;
+  base::WeakPtrFactory<EmbeddedFetcher> weak_ptr_factory_;
 };
 
 }  // namespace loader
