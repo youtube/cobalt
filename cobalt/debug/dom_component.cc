@@ -19,12 +19,10 @@
 #include <string>
 
 #include "base/bind.h"
-#include "cobalt/dom/dom_rect.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
-#include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/rect_node.h"
 
 namespace cobalt {
@@ -55,9 +53,8 @@ const char kR[] = "r";
 }  // namespace
 
 DOMComponent::DOMComponent(const base::WeakPtr<DebugServer>& server,
-                           RenderOverlay* debug_overlay)
-    : DebugServer::Component(server),
-      debug_overlay_(debug_overlay) {
+                           scoped_ptr<RenderLayer> render_layer)
+    : DebugServer::Component(server), render_layer_(render_layer.Pass()) {
   AddCommand(kDisable,
              base::Bind(&DOMComponent::Disable, base::Unretained(this)));
   AddCommand(kEnable,
@@ -144,7 +141,7 @@ JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
 
 JSONObject DOMComponent::HideHighlight(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  debug_overlay_->SetOverlay(scoped_refptr<render_tree::Node>());
+  render_layer_->SetFrontLayer(scoped_refptr<render_tree::Node>());
 
   // Empty response.
   return JSONObject(new base::DictionaryValue());
@@ -178,7 +175,7 @@ void DOMComponent::RenderHighlight(
       math::RectF(bounding_rect->x(), bounding_rect->y(),
                   bounding_rect->width(), bounding_rect->height()),
       background_brush.Pass());
-  debug_overlay_->SetOverlay(rect);
+  render_layer_->SetFrontLayer(rect);
 }
 
 }  // namespace debug
