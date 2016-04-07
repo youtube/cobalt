@@ -189,6 +189,14 @@ class WebMediaPlayer {
   virtual void ExitFullscreen() {}
   // Returns true if the player can enter fullscreen.
   virtual bool CanEnterFullscreen() const { return false; }
+
+  // Returns the address and size of a chunk of memory to be included in a
+  // debug report. May not be supported on all platforms. The returned address
+  // should remain valid as long as the WebMediaPlayer instance is alive.
+  virtual bool GetDebugReportDataAddress(void** /*out_address*/,
+                                         size_t* /*out_size*/) {
+    return false;
+  }
 };
 
 class WebMediaPlayerClient {
