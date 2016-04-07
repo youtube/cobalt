@@ -135,8 +135,9 @@ class JSCDebugger : protected JSC::Debugger,
   void UpdateCallFrame(const JSC::DebuggerCallFrame& call_frame);
   void PauseIfNeeded(const JSC::DebuggerCallFrame& call_frame);
 
-  // Sends a Debugger.Paused event via |delegate_|.
+  // Sends event notifications via |delegate_|.
   void SendPausedEvent(const JSC::DebuggerCallFrame& call_frame);
+  void SendResumedEvent();
 
   base::ThreadChecker thread_checker_;
   GlobalObjectProxy* global_object_proxy_;
