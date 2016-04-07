@@ -36,7 +36,6 @@ class AudioBufferSourceNode : public AudioNode {
 
  public:
   explicit AudioBufferSourceNode(AudioContext* context);
-  ~AudioBufferSourceNode();
 
   // Web API: AudioBufferSourceNode
   //
@@ -76,6 +75,9 @@ class AudioBufferSourceNode : public AudioNode {
       int32 number_of_frames) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(AudioBufferSourceNode);
+
+ protected:
+  ~AudioBufferSourceNode() OVERRIDE;
 
  private:
   enum State {
