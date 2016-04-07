@@ -60,7 +60,7 @@ void ValidateColorStops(const ColorStopList& color_stops) {
     DCHECK_LE(0.0f, color_stops[i].position);
     DCHECK_GE(1.0f, color_stops[i].position);
     if (i > 0) {
-      DCHECK_GT(color_stops[i].position, color_stops[i - 1].position);
+      DCHECK_GE(color_stops[i].position, color_stops[i - 1].position);
     }
   }
 }
