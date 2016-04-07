@@ -41,4 +41,8 @@ bool UserLog::Register(Index index, const char* label, const void* address,
       index, label, address, size);
 }
 
+bool UserLog::Deregister(Index index) {
+  return cobalt::deprecated::PlatformDelegate::Get()->DeregisterUserLog(index);
+}
+
 }  // namespace base

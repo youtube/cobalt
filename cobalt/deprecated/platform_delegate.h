@@ -59,6 +59,7 @@ class COBALT_EXPORT PlatformDelegate {
   // Returns true if the registration is successful.
   virtual bool RegisterUserLog(int user_log_index, const char* label,
                                const void* address, size_t size) const;
+  virtual bool DeregisterUserLog(int user_log_index) const;
 
   const std::string& dir_source_root() const { return dir_source_root_; }
   const std::string& game_content_path() const { return game_content_path_; }
