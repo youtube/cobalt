@@ -34,6 +34,7 @@ class UserLog {
     kNetworkStatusIndex,
     kNetworkConnectCountIndex,
     kNetworkDisconnectCountIndex,
+	kWebMediaPlayerState,
     // Valid indices are from [0, 127].
     kMaxIndex = 128,
   };
@@ -50,6 +51,9 @@ class UserLog {
   // character.
   static bool Register(Index index, const char* label, const void* address,
                        size_t size);
+
+  // Deregister the given Index so that it is not included in the crash report.
+  static bool Deregister(Index index);
 };
 
 }  // namespace base
