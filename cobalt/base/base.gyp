@@ -63,9 +63,6 @@
         'user_log.cc',
         'user_log.h',
       ],
-      'includes': [
-        'copy_i18n_data.gypi',
-      ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/base/base.gyp:base_i18n',
@@ -78,6 +75,13 @@
       ],
       'export_dependent_settings': [
         '<(DEPTH)/base/base.gyp:base',
+      ],
+      'conditions': [
+        ['OS != "starboard"', {
+          'includes': [
+            'copy_i18n_data.gypi',
+          ],
+        }],
       ],
     },
 

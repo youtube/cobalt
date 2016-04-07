@@ -53,6 +53,18 @@
     # Needed for backwards compatibility with lbshell code.
     'lbshell_root%': '<(DEPTH)/lbshell',
 
+    # The source of EGL and GLES2 headers and libraries.
+    # Valid values (case and everything sensitive!):
+    #   'system' - Use the system implementation of EGL + GLES2. The headers
+    #              and libraries must be on the system include and link paths.
+    #   'glimp'  - Cobalt's own EGL + GLES2 implementation. This requires a
+    #              valid Glimp implementation for the platform.
+    #   'angle'  - A DirectX-to-OpenGL adaptation layer. This requires a valid
+    #              ANGLE implementation for the platform.
+    # Choosing an unsupported value will result in a GYP error:
+    #   "cobalt/renderer/egl_and_gles/egl_and_gles_<gl_type>.gyp not found"
+    'gl_type%': 'system',
+
     # Compiler configuration.
 
     # The following variables are used to specify compiler and linker

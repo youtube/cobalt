@@ -67,7 +67,18 @@
       ],
       'dependencies': [
         'cobalt',
-        '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
+      ],
+      'conditions': [
+        ['OS=="lb_shell"', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
+          ],
+        }],
+        ['OS=="starboard"', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/browser/starboard/platform_browser.gyp:platform_browser',
+          ],
+        }],
       ],
     },
     {
