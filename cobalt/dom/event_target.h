@@ -139,6 +139,9 @@ class EventTarget : public script::Wrappable,
   //
   bool ShouldKeepWrapperAlive() OVERRIDE;
 
+  // Returns a string that represents the target for debug purpose.
+  virtual std::string GetDebugName() { return ""; }
+
   DEFINE_WRAPPABLE_TYPE(EventTarget);
 
  protected:

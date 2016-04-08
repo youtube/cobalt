@@ -234,6 +234,9 @@ class Window : public EventTarget {
 
   ~Window() OVERRIDE;
 
+  // From EventTarget.
+  std::string GetDebugName() OVERRIDE { return "Window"; }
+
   void FireHashChangeEvent();
 
   int width_;
