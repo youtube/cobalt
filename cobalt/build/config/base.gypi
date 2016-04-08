@@ -222,6 +222,7 @@
         'cflags': [ '<@(compiler_flags_devel)' ],
         'ldflags': [ '<@(linker_flags_devel)' ],
         'defines': [
+          '_DEBUG',
           'ALLOCATOR_STATS_TRACKING',
           'COBALT_BUILD_TYPE_DEVEL',
           'ENABLE_COMMAND_LINE_SWITCHES',
@@ -232,7 +233,6 @@
           'ENABLE_TEST_RUNNER',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
           '__LB_SHELL__FORCE_LOGGING__',
-          'NDEBUG',
           'SK_DEVELOPER',
         ],
       }, # end of devel_base
