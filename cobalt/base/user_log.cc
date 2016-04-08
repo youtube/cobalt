@@ -28,6 +28,12 @@ const int kMaxLabelSize = 16;
 }  // namespace
 
 // static
+bool UserLog::IsRegistrationSupported() {
+  return cobalt::deprecated::PlatformDelegate::Get()
+      ->IsUserLogRegistrationSupported();
+}
+
+// static
 bool UserLog::Register(Index index, const char* label, const void* address,
                        size_t size) {
   DCHECK_LT(strlen(label), kMaxLabelSize);
