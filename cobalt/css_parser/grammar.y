@@ -5276,34 +5276,37 @@ maybe_declaration:
   | kBackgroundToken maybe_whitespace colon background_property_value
       maybe_important {
     scoped_ptr<BackgroundShorthandLayer> background($4);
-    DCHECK(background);
-    background->ReplaceNullWithInitialValues();
-    scoped_ptr<PropertyDeclaration> property_declaration(
-        new PropertyDeclaration($5));
+    if (background) {
+      background->ReplaceNullWithInitialValues();
+      scoped_ptr<PropertyDeclaration> property_declaration(
+          new PropertyDeclaration($5));
 
-    // Unpack the background shorthand property values.
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBackgroundColorProperty,
-            background->background_color));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBackgroundImageProperty,
-            background->background_image));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBackgroundPositionProperty,
-            background->background_position));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBackgroundRepeatProperty,
-            background->background_repeat));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBackgroundSizeProperty,
-            background->background_size));
+      // Unpack the background shorthand property values.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBackgroundColorProperty,
+              background->background_color));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBackgroundImageProperty,
+              background->background_image));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBackgroundPositionProperty,
+              background->background_position));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBackgroundRepeatProperty,
+              background->background_repeat));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBackgroundSizeProperty,
+              background->background_size));
 
-    $$ = property_declaration.release();
+      $$ = property_declaration.release();
+    } else {
+      $$ = NULL;
+    }
   }
   | kBackgroundColorToken maybe_whitespace colon background_color_property_value
       maybe_important {
