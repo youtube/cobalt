@@ -50,6 +50,8 @@ class COBALT_EXPORT PlatformDelegate {
 
   virtual std::string GetPlatformName() const = 0;
 
+  virtual bool IsUserLogRegistrationSupported() const;
+
   // Thread-safe registration of a user log index, associating it with the
   // specified label and memory address. This is used by some platforms to
   // provide additional context with crashes.
