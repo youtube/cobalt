@@ -22,9 +22,11 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/guid.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/message_loop_proxy.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/base/user_log.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_exception.h"
@@ -68,6 +70,19 @@ void RaiseMediaKeyException(WebMediaPlayer::MediaKeyException exception,
   }
 }
 
+// This struct manages the user log information for HTMLMediaElement count.
+struct HTMLMediaElementCountLog {
+  HTMLMediaElementCountLog() : count(0) {
+    base::UserLog::Register(base::UserLog::kHTMLMediaElementCountIndex,
+                            "MediaElementCnt", &count, sizeof(count));
+  }
+
+  int count;
+};
+
+base::LazyInstance<HTMLMediaElementCountLog> html_media_element_count_log =
+    LAZY_INSTANCE_INITIALIZER;
+
 }  // namespace
 
 HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
@@ -97,10 +112,13 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
                         base::GenerateGUID()),
       pending_load_(false),
       sent_stalled_event_(false),
-      sent_end_event_(false) {}
+      sent_end_event_(false) {
+  html_media_element_count_log.Get().count++;
+}
 
 HTMLMediaElement::~HTMLMediaElement() {
   SetSourceState(MediaSource::kReadyStateClosed);
+  html_media_element_count_log.Get().count--;
 }
 
 std::string HTMLMediaElement::src() const {

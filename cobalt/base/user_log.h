@@ -37,6 +37,7 @@ class UserLog {
     kWebMediaPlayerState,
     kCurrentEventTypeIndex,
     kCurrentEventTargetIndex,
+    kHTMLMediaElementCountIndex,
     // Valid indices are from [0, 127].
     kMaxIndex = 128,
   };
