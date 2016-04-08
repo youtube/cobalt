@@ -182,6 +182,9 @@ class Element : public Node {
   HTMLElementContext* html_element_context();
 
  private:
+  // From EventTarget.
+  std::string GetDebugName() OVERRIDE;
+
   virtual void OnSetAttribute(const std::string& /* name */,
                               const std::string& /* value */) {}
   virtual void OnRemoveAttribute(const std::string& /* name */) {}

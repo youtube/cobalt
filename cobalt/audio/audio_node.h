@@ -17,6 +17,7 @@
 #ifndef COBALT_AUDIO_AUDIO_NODE_H_
 #define COBALT_AUDIO_AUDIO_NODE_H_
 
+#include <string>
 #include <vector>
 
 #include "cobalt/audio/audio_node_input.h"
@@ -132,6 +133,9 @@ class AudioNode : public dom::EventTarget {
  private:
   typedef std::vector<scoped_refptr<AudioNodeInput> > AudioNodeInputVector;
   typedef std::vector<scoped_refptr<AudioNodeOutput> > AudioNodeOutputVector;
+
+  // From EventTarget.
+  std::string GetDebugName() OVERRIDE { return "AudioNode"; }
 
   AudioNodeInputVector inputs_;
   AudioNodeOutputVector outputs_;
