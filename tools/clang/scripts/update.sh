@@ -203,8 +203,8 @@ if [[ -z "$force_local_build" ]]; then
       # Prompt the user, if there's a TTY.
       # -n is no newline.
       # -e is enable coloring.
-      echo -ne "\033[32mclang was updated. "
-      echo -ne "Can I (update.sh) clobber your out/ folder?\e[0m [yN] "
+      echo -ne "\033[32mclang was updated. You need to do a clean build. "
+      echo -ne "Want me (update.sh) to clean your out/ folder?\e[0m [yN] "
       read
       if [ "$REPLY" != "y" -a "$REPLY" != "Y" ]; then
         exit 0
