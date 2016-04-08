@@ -57,6 +57,9 @@ class SourceBufferList : public EventTarget {
   DEFINE_WRAPPABLE_TYPE(SourceBufferList);
 
  private:
+  // From EventTarget.
+  std::string GetDebugName() OVERRIDE { return "SourceBufferList"; }
+
   // Use vector so we can reserve memory in ctor.
   typedef std::vector<scoped_refptr<SourceBuffer> > SourceBuffers;
   SourceBuffers source_buffers_;

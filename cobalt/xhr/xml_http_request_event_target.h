@@ -17,6 +17,8 @@
 #ifndef COBALT_XHR_XML_HTTP_REQUEST_EVENT_TARGET_H_
 #define COBALT_XHR_XML_HTTP_REQUEST_EVENT_TARGET_H_
 
+#include <string>
+
 #include "base/optional.h"
 #include "cobalt/dom/event_target.h"
 
@@ -57,6 +59,9 @@ class XMLHttpRequestEventTarget : public dom::EventTarget {
   base::optional<EventListenerScriptObject::Reference> ontimeout_listener_;
 
  private:
+  // From EventTarget.
+  std::string GetDebugName() OVERRIDE { return "XMLHttpRequestEventTarget"; }
+
   DISALLOW_COPY_AND_ASSIGN(XMLHttpRequestEventTarget);
 };
 

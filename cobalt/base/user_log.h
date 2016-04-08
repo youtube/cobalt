@@ -34,7 +34,9 @@ class UserLog {
     kNetworkStatusIndex,
     kNetworkConnectCountIndex,
     kNetworkDisconnectCountIndex,
-	kWebMediaPlayerState,
+    kWebMediaPlayerState,
+    kCurrentEventTypeIndex,
+    kCurrentEventTargetIndex,
     // Valid indices are from [0, 127].
     kMaxIndex = 128,
   };
