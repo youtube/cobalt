@@ -1337,6 +1337,21 @@ TEST_F(ParserTest, ParsesBackgroundWithTransparent) {
   EXPECT_EQ(0x00000000, background_color->value());
 }
 
+TEST_F(ParserTest, InvalidBackgroundWithTwoPositions) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:11: error: background-position or "
+                      "background-repeat declared twice in background."));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "background: 0 0 rgba(255,255,255,.1) 100%", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundImageProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundPositionProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundRepeatProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBackgroundSizeProperty));
+}
+
 TEST_F(ParserTest, LinearGradientWithOneColorStopIsError) {
   EXPECT_CALL(
       parser_observer_,
