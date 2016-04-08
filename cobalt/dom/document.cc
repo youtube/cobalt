@@ -354,6 +354,8 @@ void Document::SetActiveElement(Element* active_element) {
 
 void Document::IncreaseLoadingCounter() { ++loading_counter_; }
 
+void Document::DecreaseLoadingCounter() { --loading_counter_; }
+
 void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent() {
   DCHECK_GT(loading_counter_, 0);
   loading_counter_--;

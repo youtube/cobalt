@@ -240,6 +240,7 @@ class Document : public Node, public cssom::MutationObserver {
   // Count all ongoing loadings, including document itself and its dependent
   // resources, and dispatch OnLoad() if necessary.
   void IncreaseLoadingCounter();
+  void DecreaseLoadingCounter();
   void DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
 
   // Utilities related to DocumentObserver.
