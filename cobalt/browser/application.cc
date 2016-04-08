@@ -24,10 +24,12 @@
 #include "base/path_service.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
+#include "base/time.h"
 #include "build/build_config.h"
 #include "cobalt/account/account_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/localized_strings.h"
+#include "cobalt/base/user_log.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/deprecated/platform_delegate.h"
 #include "cobalt/loader/image/image_decoder.h"
@@ -39,6 +41,9 @@
 #include "cobalt/system_window/application_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
+#if defined(__LB_SHELL__)
+#include "lbshell/src/lb_memory_pages.h"
+#endif
 
 namespace cobalt {
 namespace browser {
@@ -179,13 +184,51 @@ dom::CspEnforcementType StringToCspMode(const std::string& mode) {
 }
 #endif  // !defined(COBALT_FORCE_CSP)
 
+struct NonTrivialStaticFields {
+  NonTrivialStaticFields()
+      : system_language(
+            cobalt::deprecated::PlatformDelegate::Get()->GetSystemLanguage()) {}
+
+  const std::string system_language;
+  std::string user_agent;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
+};
+
+// |non_trivial_static_fields| will be lazily created on the first time it's
+// accessed.
+base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
+    LAZY_INSTANCE_INITIALIZER;
+
 }  // namespace
 
+// Static user logs
+ssize_t Application::available_memory_ = 0;
+int64 Application::lifetime_in_milliseconds_ = 0;
+
+Application::AppStatus Application::app_status_ =
+    Application::kUninitializedAppStatus;
+int Application::app_suspend_count_ = 0;
+int Application::app_resume_count_ = 0;
+
+Application::NetworkStatus Application::network_status_ =
+    Application::kDisconnectedNetworkStatus;
+int Application::network_connect_count_ = 0;
+int Application::network_disconnect_count_ = 0;
+
 Application::Application(const base::Closure& quit_closure)
-    : message_loop_(MessageLoop::current())
-    , quit_closure_(quit_closure) {
+    : message_loop_(MessageLoop::current()),
+      quit_closure_(quit_closure),
+      start_time_(base::TimeTicks::Now()),
+      user_log_update_timer_(true, true) {
   DCHECK(MessageLoop::current());
   DCHECK_EQ(MessageLoop::TYPE_UI, MessageLoop::current()->type());
+
+  network_event_thread_checker_.DetachFromThread();
+  application_event_thread_checker_.DetachFromThread();
+
+  RegisterUserLogs();
 
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
@@ -317,7 +360,9 @@ Application::Application(const base::Closure& quit_closure)
   account_manager_ = account::AccountManager::Create(&event_dispatcher_);
   browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),
                                           account_manager_.get(), options));
-  DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
+  UpdateAndMaybeRegisterUserAgent();
+
+  app_status_ = kRunningAppStatus;
 
   // Register event callbacks.
   account_event_callback_ =
@@ -381,6 +426,8 @@ Application::~Application() {
                                         network_event_callback_);
   event_dispatcher_.RemoveEventCallback(
       system_window::ApplicationEvent::TypeId(), application_event_callback_);
+
+  app_status_ = kShutDownAppStatus;
 }
 
 void Application::Quit() {
@@ -394,6 +441,8 @@ void Application::Quit() {
   if (!quit_closure_.is_null()) {
     quit_closure_.Run();
   }
+
+  app_status_ = kQuitAppStatus;
 }
 
 void Application::OnAccountEvent(const base::Event* event) {
@@ -411,29 +460,40 @@ void Application::OnAccountEvent(const base::Event* event) {
 }
 
 void Application::OnNetworkEvent(const base::Event* event) {
+  DCHECK(network_event_thread_checker_.CalledOnValidThread());
   const network::NetworkEvent* network_event =
       base::polymorphic_downcast<const network::NetworkEvent*>(event);
   if (network_event->type() == network::NetworkEvent::kDisconnection) {
+    network_status_ = kDisconnectedNetworkStatus;
+    ++network_disconnect_count_;
     browser_module_->Navigate(GURL("h5vcc://network-failure"));
   } else if (network_event->type() == network::NetworkEvent::kConnection) {
     DLOG(INFO) << "Got network connection event, reloading browser.";
+    network_status_ = kConnectedNetworkStatus;
+    ++network_connect_count_;
     browser_module_->Reload();
   }
 }
 
 void Application::OnApplicationEvent(const base::Event* event) {
+  DCHECK(application_event_thread_checker_.CalledOnValidThread());
   const system_window::ApplicationEvent* app_event =
       base::polymorphic_downcast<const system_window::ApplicationEvent*>(event);
   if (app_event->type() == system_window::ApplicationEvent::kQuit) {
     DLOG(INFO) << "Got quit event.";
+    app_status_ = kWillQuitAppStatus;
     browser_module_->SetWillQuit();
     browser_module_->SetPaused(false);
     Quit();
   } else if (app_event->type() == system_window::ApplicationEvent::kSuspend) {
     DLOG(INFO) << "Got suspend event.";
+    app_status_ = kPausedAppStatus;
+    ++app_suspend_count_;
     browser_module_->SetPaused(true);
   } else if (app_event->type() == system_window::ApplicationEvent::kResume) {
     DLOG(INFO) << "Got resume event.";
+    app_status_ = kRunningAppStatus;
+    ++app_resume_count_;
     browser_module_->SetPaused(false);
   }
 }
@@ -445,5 +505,65 @@ void Application::WebModuleRecreated() {
   }
 #endif
 }
+
+void Application::RegisterUserLogs() {
+  if (base::UserLog::IsRegistrationSupported()) {
+    base::UserLog::Register(
+        base::UserLog::kSystemLanguageStringIndex, "SystemLanguage",
+        non_trivial_static_fields.Get().system_language.c_str(),
+        non_trivial_static_fields.Get().system_language.size());
+
+    base::UserLog::Register(base::UserLog::kAvailableMemoryIndex,
+                            "AvailableMemory", &available_memory_,
+                            sizeof(available_memory_));
+    base::UserLog::Register(base::UserLog::kAppLifetimeIndex, "Lifetime(ms)",
+                            &lifetime_in_milliseconds_,
+                            sizeof(lifetime_in_milliseconds_));
+    base::UserLog::Register(base::UserLog::kAppStatusIndex, "AppStatus",
+                            &app_status_, sizeof(app_status_));
+    base::UserLog::Register(base::UserLog::kAppSuspendCountIndex, "SuspendCnt",
+                            &app_suspend_count_, sizeof(app_suspend_count_));
+    base::UserLog::Register(base::UserLog::kAppResumeCountIndex, "ResumeCnt",
+                            &app_resume_count_, sizeof(app_resume_count_));
+    base::UserLog::Register(base::UserLog::kNetworkStatusIndex,
+                            "NetworkStatus)", &network_status_,
+                            sizeof(network_status_));
+    base::UserLog::Register(base::UserLog::kNetworkConnectCountIndex,
+                            "ConnectCnt)", &network_connect_count_,
+                            sizeof(network_connect_count_));
+    base::UserLog::Register(base::UserLog::kNetworkDisconnectCountIndex,
+                            "DisconnectCnt)", &network_disconnect_count_,
+                            sizeof(network_disconnect_count_));
+
+    user_log_update_timer_.Start(
+        FROM_HERE,
+        base::TimeDelta::FromMilliseconds(1000),
+        base::Bind(&Application::UpdatePeriodicUserLogData,
+                   base::Unretained(this)));
+  }
+}
+
+// NOTE: UserAgent registration is handled separately, as the value is not
+// available when the app is first being constructed. Registration must happen
+// each time the user agent is modified, because the string may be pointing
+// to a new location on the heap.
+void Application::UpdateAndMaybeRegisterUserAgent() {
+  non_trivial_static_fields.Get().user_agent = browser_module_->GetUserAgent();
+  DLOG(INFO) << "User Agent: " << non_trivial_static_fields.Get().user_agent;
+  if (base::UserLog::IsRegistrationSupported()) {
+    base::UserLog::Register(base::UserLog::kUserAgentStringIndex, "UserAgent",
+                            non_trivial_static_fields.Get().user_agent.c_str(),
+                            non_trivial_static_fields.Get().user_agent.size());
+  }
+}
+
+void Application::UpdatePeriodicUserLogData() {
+#if defined(__LB_SHELL__)
+  available_memory_ = lb_get_unallocated_memory();
+#endif
+  lifetime_in_milliseconds_ =
+      (base::TimeTicks::Now() - start_time_).InMilliseconds();
+}
+
 }  // namespace browser
 }  // namespace cobalt
