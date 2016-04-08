@@ -210,6 +210,9 @@ class BrowserModule {
   // |weak_ptr_factory_.GetWeakPtr() which is not).
   base::WeakPtr<BrowserModule> weak_this_;
 
+  // The browser module runs on this message loop.
+  MessageLoop* const self_message_loop_;
+
   // Collection of URL handlers that can potentially handle a URL before
   // using it to initialize a new WebModule.
   URLHandlerCollection url_handlers_;
@@ -243,9 +246,6 @@ class BrowserModule {
 
   // Will be signalled when the WebModule's Window.onload event is fired.
   base::WaitableEvent web_module_loaded_;
-
-  // The browser module runs on this message loop.
-  MessageLoop* const self_message_loop_;
 
   // Wraps input device and produces input events that can be passed into
   // the web module.
