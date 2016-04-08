@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "base/message_loop.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
@@ -88,6 +89,14 @@ class Application {
   base::EventCallback network_event_callback_;
   base::EventCallback application_event_callback_;
 
+  // Thread checkers to ensure that callbacks for network and application events
+  // always occur on the same thread.
+  base::ThreadChecker network_event_thread_checker_;
+  base::ThreadChecker application_event_thread_checker_;
+
+  // Time the application started
+  base::TimeTicks start_time_;
+
 #if defined(ENABLE_WEBDRIVER)
   // WebDriver implementation with embedded HTTP server.
   scoped_ptr<webdriver::WebDriverModule> web_driver_module_;
@@ -98,6 +107,38 @@ class Application {
   // received via a WebSocket and communicated to an embedded DebugServer.
   scoped_ptr<debug::DebugWebServer> debug_web_server_;
 #endif
+
+ private:
+  enum AppStatus {
+    kUninitializedAppStatus,
+    kRunningAppStatus,
+    kPausedAppStatus,
+    kWillQuitAppStatus,
+    kQuitAppStatus,
+    kShutDownAppStatus,
+  };
+  enum NetworkStatus {
+    kDisconnectedNetworkStatus,
+    kConnectedNetworkStatus,
+  };
+
+  // User log related
+  void RegisterUserLogs();
+  void UpdateAndMaybeRegisterUserAgent();
+  void UpdatePeriodicUserLogData();
+
+  static ssize_t available_memory_;
+  static int64 lifetime_in_milliseconds_;
+
+  static AppStatus app_status_;
+  static int app_suspend_count_;
+  static int app_resume_count_;
+
+  static NetworkStatus network_status_;
+  static int network_connect_count_;
+  static int network_disconnect_count_;
+
+  base::Timer user_log_update_timer_;
 };
 
 // Factory method for creating an application.  It should be implemented
