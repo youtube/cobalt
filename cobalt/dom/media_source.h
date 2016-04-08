@@ -114,6 +114,9 @@ class MediaSource : public EventTarget {
   DEFINE_WRAPPABLE_TYPE(MediaSource);
 
  private:
+  // From EventTarget.
+  std::string GetDebugName() OVERRIDE { return "MediaSource"; }
+
   ReadyState ready_state_;
   ::media::WebMediaPlayer* player_;
   EventQueue event_queue_;

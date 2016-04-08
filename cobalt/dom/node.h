@@ -241,6 +241,9 @@ class Node : public EventTarget {
   void UpdateNodeGeneration();
 
  private:
+  // From EventTarget.
+  std::string GetDebugName() OVERRIDE { return node_name().c_str(); }
+
   // Weak reference to the node document.
   base::WeakPtr<Document> node_document_;
   // Whether the node has been inserted into its node document.
