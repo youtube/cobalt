@@ -107,6 +107,7 @@ BrowserModule::BrowserModule(const GURL& url,
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
+      self_message_loop_(MessageLoop::current()),
       storage_manager_(options.storage_manager_options),
       renderer_module_(system_window, options.renderer_module_options),
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
@@ -122,7 +123,6 @@ BrowserModule::BrowserModule(const GURL& url,
       render_tree_combiner_(renderer_module_.pipeline()),
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
-      self_message_loop_(MessageLoop::current()),
       web_module_recreated_callback_(options.web_module_recreated_callback),
 #if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(fuzzer_toggle_command_handler_(
@@ -185,7 +185,9 @@ BrowserModule::BrowserModule(const GURL& url,
   // TODO(***REMOVED***) Render tree combiner should probably be refactored.
   render_tree_combiner_.set_render_debug_console(true);
 
-  Navigate(url);
+  // Synchronously construct our WebModule object.
+  NavigateInternal(url);
+  DCHECK(web_module_);
 }
 
 BrowserModule::~BrowserModule() {
@@ -407,13 +409,8 @@ void BrowserModule::OnError(const std::string& error) {
   LOG(ERROR) << error;
   std::string url_string = "h5vcc://network-failure";
 
-  // Retry the current URL. If there is no web module (this can happen in
-  // certain cases), use the default URL.
-  if (web_module_) {
-    url_string += "?retry-url=" + web_module_->GetUrl().spec();
-  } else {
-    url_string += "?retry-url=" + initial_url_.spec();
-  }
+  // Retry the current URL.
+  url_string += "?retry-url=" + web_module_->GetUrl().spec();
 
   Navigate(GURL(url_string));
 }
