@@ -24,10 +24,21 @@ namespace base {
 class UserLog {
  public:
   enum Index {
-    kVersionStringIndex = 0,
+    kUserAgentStringIndex = 0,
+    kSystemLanguageStringIndex,
+    kAvailableMemoryIndex,
+    kAppLifetimeIndex,
+    kAppStatusIndex,
+    kAppSuspendCountIndex,
+    kAppResumeCountIndex,
+    kNetworkStatusIndex,
+    kNetworkConnectCountIndex,
+    kNetworkDisconnectCountIndex,
     // Valid indices are from [0, 127].
     kMaxIndex = 128,
   };
+
+  static bool IsRegistrationSupported();
 
   // Thread-safe registration of a user log index, associating it with the
   // specified label and memory address. This is used by some platforms to
