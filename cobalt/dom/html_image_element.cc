@@ -76,7 +76,10 @@ void HTMLImageElement::UpdateImageData() {
   // element, then abort that algorithm, discarding any pending tasks generated
   // by that algorithm.
   // 3. Forget the img element's current image data, if any.
-  DCHECK(!cached_image_loaded_callback_handler_);
+  if (cached_image_loaded_callback_handler_) {
+    cached_image_loaded_callback_handler_.reset();
+    node_document()->DecreaseLoadingCounter();
+  }
 
   // 4. If the user agent cannot support images, or its support for images has
   // been disabled, then abort these steps.
