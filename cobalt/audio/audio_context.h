@@ -17,6 +17,8 @@
 #ifndef COBALT_AUDIO_AUDIO_CONTEXT_H_
 #define COBALT_AUDIO_AUDIO_CONTEXT_H_
 
+#include <string>
+
 #include "base/callback.h"
 #include "base/hash_tables.h"
 #include "base/optional.h"
@@ -156,6 +158,9 @@ class AudioContext : public dom::EventTarget {
   };
 
   typedef base::hash_map<int, DecodeCallbackInfo*> DecodeCallbacks;
+
+  // From EventTarget.
+  std::string GetDebugName() OVERRIDE { return "AudioContext"; }
 
   void DecodeAudioDataInternal(scoped_ptr<DecodeCallbackInfo> info);
   void DecodeFinish(int callback_id, float sample_rate, int32 number_of_frames,

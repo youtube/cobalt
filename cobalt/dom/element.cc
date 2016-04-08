@@ -541,6 +541,15 @@ HTMLElementContext* Element::html_element_context() {
   return document ? document->html_element_context() : NULL;
 }
 
+std::string Element::GetDebugName() {
+  std::string name = tag_name_.c_str();
+  if (HasAttribute("id")) {
+    name += "#";
+    name += id_attribute_.c_str();
+  }
+  return name;
+}
+
 void Element::HTMLParseError(const std::string& error) {
   // TODO(***REMOVED***): Report line / column number.
   LOG(WARNING) << "Error when parsing inner HTML or outer HTML: " << error;
