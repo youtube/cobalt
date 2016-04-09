@@ -18,8 +18,10 @@
 
 #include <algorithm>
 
+#include "base/lazy_instance.h"
 #include "base/string_util.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/base/user_log.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/dom/document.h"
@@ -45,12 +47,34 @@ namespace {
 
 const char kStyleAttributeName[] = "style";
 
+// This struct manages the user log information for Node count.
+struct ElementCountLog {
+ public:
+  ElementCountLog() : count(0) {
+    base::UserLog::Register(base::UserLog::kElementCountIndex, "ElementCnt",
+                            &count, sizeof(count));
+  }
+  ~ElementCountLog() {
+    base::UserLog::Deregister(base::UserLog::kElementCountIndex);
+  }
+
+  int count;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ElementCountLog);
+};
+
+base::LazyInstance<ElementCountLog> element_count_log =
+    LAZY_INSTANCE_INITIALIZER;
+
 }  // namespace
 
 Element::Element(Document* document, base::Token tag_name)
     : Node(document),
       tag_name_(tag_name),
-      animations_(new web_animations::AnimationSet()) {}
+      animations_(new web_animations::AnimationSet()) {
+  ++(element_count_log.Get().count);
+}
 
 base::optional<std::string> Element::text_content() const {
   std::string content;
@@ -517,7 +541,7 @@ void Element::RemoveStyleAttribute() {
 
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
-Element::~Element() {}
+Element::~Element() { --(element_count_log.Get().count); }
 
 bool Element::GetBooleanAttribute(const std::string& name) const {
   return HasAttribute(name);
