@@ -628,6 +628,38 @@ bool ApplicationX11::DestroyWindow(SbWindow window) {
   return true;
 }
 
+void ApplicationX11::Paint(int32_t width,
+                           int32_t height,
+                           int32_t pitch,
+                           void* pixels) {
+  SB_CHECK(windows_.size() == 1);
+
+  SbWindowSize window_size;
+  if (!SbWindowGetSize(windows_[0], &window_size)) {
+    return;
+  }
+  Drawable window =
+      reinterpret_cast<Drawable>((SbWindowGetPlatformHandle(windows_[0])));
+  XImage image = {0};
+  image.width = width;
+  image.height = height;
+  image.format = ZPixmap;
+  image.data = reinterpret_cast<char*>(pixels);
+  image.bitmap_pad = 32;
+  image.depth = 32;
+  image.bytes_per_line = pitch * 4;
+  image.bits_per_pixel = 32;
+  Status status = XInitImage(&image);
+  SB_DCHECK(status);
+
+  Pixmap pixmap = XCreatePixmap(display_, window, width, height, 32);
+  SB_DCHECK(pixmap);
+  GC context = XCreateGC(display_, window, 0, NULL);
+  XPutImage(display_, pixmap, context, &image, 0, 0, 0, 0, width, height);
+  XCopyArea(display_, pixmap, window, context, 0, 0, width, height,
+            (window_size.width - width) / 2, (window_size.height - height) / 2);
+}
+
 void ApplicationX11::Initialize() {
   // Mesa is installed on Goobuntu machines and will be selected as the default
   // EGL implementation.  This Mesa environment variable ensures that Mesa

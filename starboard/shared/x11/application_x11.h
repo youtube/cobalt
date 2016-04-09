@@ -43,6 +43,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
+  void Paint(int32_t width, int32_t height, int32_t pitch, void* pixels);
 
  protected:
   // --- Application overrides ---
