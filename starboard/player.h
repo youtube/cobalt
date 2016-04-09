@@ -34,7 +34,10 @@ extern "C" {
 
 // An indicator of whether the decoder can accept more samples.
 typedef enum SbPlayerDecoderState {
-  // The decoder is ready for and eager to receive more samples.
+  // The decoder is ready for and eager to receive more samples.  Note that
+  // once the decoder notifies the user with kSbPlayerDecoderStateNeedsData,
+  // it cannot enter kSbPlayerDecoderStateBufferFull before SbPlayerWriteSample
+  // or SbPlayerWriteEndOfStream is called.
   kSbPlayerDecoderStateNeedsData,
 
   // The decoder is not ready for any more samples, so do not send them.
@@ -46,6 +49,10 @@ typedef enum SbPlayerDecoderState {
 
 // An indicator of the general playback state.
 typedef enum SbPlayerState {
+  // The player has just been initialized.  It is expecting an SbPlayerSeek()
+  // call to enter the prerolling state.
+  kSbPlayerStateInitialized,
+
   // The player is prerolling, collecting enough data to fill the pipeline
   // before presentation starts. After the first preroll is completed, there
   // should always be a video frame to render, even if the player goes back to
@@ -61,17 +68,22 @@ typedef enum SbPlayerState {
 
   // The player has been destroyed, and will send no more callbacks.
   kSbPlayerStateDestroyed,
+
+  // The player encounters an error.  It is expecting an SbPlayerDestroy() call
+  // to tear down the player.  Any call to other functions maybe ignored and
+  // callbacks may not be triggered.
+  kSbPlayerStateError,
 } SbPlayerState;
 
 // Information about the current media playback state.
 typedef struct SbPlayerInfo {
   // The position of the playback head, as precisely as possible, in 90KHz ticks
   // (PTS).
-  int64_t current_media_pts;
+  SbMediaTime current_media_pts;
 
   // The known duration of the currently playing media stream, in 90KHz ticks
   // (PTS).
-  int64_t duration_pts;
+  SbMediaTime duration_pts;
 
   // The width of the currently displayed frame, in pixels, or 0 if not provided
   // by this player.
@@ -111,10 +123,13 @@ typedef void (*SbPlayerDecoderStatusFunc)(SbPlayer player,
 // SbPlayer functions from within this callback.
 typedef void (*SbPlayerStatusFunc)(SbPlayer player,
                                    void* context,
-                                   SbPlayerState state);
+                                   SbPlayerState state,
+                                   int ticket);
 
 // Callback to free the given sample buffer data.
-typedef void (*SbPlayerDeallocateSampleFunc)(void* sampleBuffer);
+typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
+                                             void* context,
+                                             void* sample_buffer);
 
 #if SB_IS(PLAYER_COMPOSITED)
 // A handle that can be used to compose a player's video output with other
@@ -127,7 +142,20 @@ typedef uint32_t SbPlayerCompositionHandle;
 
 // The value to pass into SbPlayerCreate's |duration_ptr| argument for cases
 // where the duration is unknown, such as for live streams.
-#define SB_PLAYER_NO_DURATION -1
+#define SB_PLAYER_NO_DURATION (-1)
+
+// The value of the initial ticket held by the player before the first seek.
+// The player will use this ticket value to make the first call to
+// SbPlayerStatusFunc with kSbPlayerStateInitialized.
+#define SB_PLAYER_INITIAL_TICKET (0)
+
+// Well-defined value for an invalid player.
+#define kSbPlayerInvalid ((SbPlayer)NULL)
+
+// Returns whether the given player handle is valid.
+SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
+  return player != kSbPlayerInvalid;
+}
 
 // --- Functions -------------------------------------------------------------
 
@@ -146,7 +174,7 @@ typedef uint32_t SbPlayerCompositionHandle;
 // not, then |drm| may be SB_DRM_INVALID_SESSION.
 //
 // If |audio_codec| is kSbMediaAudioCodecAac, then the caller must provide a
-// populated |aac_header|. Otherwise, this may be NULL.
+// populated |audio_header|. Otherwise, this may be NULL.
 //
 // If not NULL, the player will call |sample_deallocator_func| on an internal
 // thread to free the sample buffers passed into SbPlayerWriteSample().
@@ -176,10 +204,10 @@ typedef uint32_t SbPlayerCompositionHandle;
 SB_EXPORT SbPlayer
 SbPlayerCreate(SbMediaVideoCodec video_codec,
                SbMediaAudioCodec audio_codec,
-               int64_t duration_pts,
+               SbMediaTime duration_pts,
                SbDrmSession drm,
-               SbMediaAacHeader* aac_header,
-               SbPlayerDeallocateSampleFunc sample_deallocator_func,
+               SbMediaAudioHeader* audio_header,
+               SbPlayerDeallocateSampleFunc sample_deallocate_func,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
                void* context);
@@ -212,7 +240,9 @@ SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 // Seek must also be called before samples are sent when starting playback for
 // the first time, or the client will never receive the
 // kSbPlayerDecoderStateNeedsData signal.
-SB_EXPORT void SbPlayerSeek(SbPlayer player, int64_t seek_to_pts, int ticket);
+SB_EXPORT void SbPlayerSeek(SbPlayer player,
+                            SbMediaTime seek_to_pts,
+                            int ticket);
 
 // Writes a sample of the given media type to |player|'s input stream.
 // |sample_type| is the type of sample, audio or video. |sample_buffer| is a
@@ -229,27 +259,13 @@ SB_EXPORT void SbPlayerSeek(SbPlayer player, int64_t seek_to_pts, int ticket);
 // past the call to SbPlayerWriteSample, so the implementation must copy any
 // information it wants to retain from those structures synchronously, before it
 // returns.
-//
-// The return value is an indicator as to whether more samples should be sent
-// immediately or not. If kSbPlayerDecoderStateBufferFull is returned, the
-// client should write no more samples of that media type until
-// SbPlayerDecoderStatusFunc is called back with kSbPlayerDecoderStateNeedsData.
-// This is just an optimization, a cautious implementation could always return
-// kSbPlayerDecoderStateBufferFull and follow up with an asynchronous
-// SbPlayerDecoderStatusFunc callback, but an aggressive implementation could
-// try to cheaply determine if more data is needed and return that
-// synchronously.
-//
-// kSbPlayerDecoderStateDestroyed should never be returned, as it is not allowed
-// to pass a destroyed SbPlayer into this, or any function.
-SB_EXPORT SbPlayerDecoderState
-SbPlayerWriteSample(SbPlayer player,
-                    SbMediaType sample_type,
-                    void* sample_buffer,
-                    int sample_buffer_size,
-                    int64_t sample_pts,
-                    SbMediaVideoSampleInfo* video_sample_info,
-                    SbDrmSampleInfo* sample_drm_info);
+SB_EXPORT void SbPlayerWriteSample(SbPlayer player,
+                                   SbMediaType sample_type,
+                                   void* sample_buffer,
+                                   int sample_buffer_size,
+                                   SbMediaTime sample_pts,
+                                   SbMediaVideoSampleInfo* video_sample_info,
+                                   SbDrmSampleInfo* sample_drm_info);
 
 // Writes a marker to |player|'s input stream of |stream_type| that there are no
 // more samples for that media type for the remainder of this media stream.
