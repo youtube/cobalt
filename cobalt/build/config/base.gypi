@@ -35,7 +35,13 @@
     # The "real" target_arch that is used to select the correct delegate source.
     # TODO(***REMOVED***): Investigate why adding % will break the build on platforms
     # other than Windows
+    # TODO: Remove after starboard.
     'actual_target_arch': '<(target_arch)',
+
+    # The operating system of the target, separate from the target_arch. In many
+    # cases, an 'unknown' value is fine, but, if set to 'linux', then we can
+    # assume some things, and it'll save us some configuration time.
+    'target_os%': 'unknown',
 
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).
