@@ -40,7 +40,7 @@
             # platform abstraction line.
             [ 'OS == "starboard"', {
               'conditions': [
-                [ 'target_arch == "linux"', {
+                [ 'target_os == "linux"', {
                   'defines': [
                     'SB_LIBEVENT_LINUX',
                   ],
