@@ -76,8 +76,14 @@ struct HTMLMediaElementCountLog {
     base::UserLog::Register(base::UserLog::kHTMLMediaElementCountIndex,
                             "MediaElementCnt", &count, sizeof(count));
   }
+  ~HTMLMediaElementCountLog() {
+    base::UserLog::Deregister(base::UserLog::kHTMLMediaElementCountIndex);
+  }
 
   int count;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(HTMLMediaElementCountLog);
 };
 
 base::LazyInstance<HTMLMediaElementCountLog> html_media_element_count_log =
