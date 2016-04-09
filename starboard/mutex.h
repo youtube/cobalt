@@ -78,6 +78,7 @@ class Mutex {
   ~Mutex() { SbMutexDestroy(&mutex_); }
 
   void Acquire() const { SbMutexAcquire(&mutex_); }
+  bool AcquireTry() { return SbMutexAcquireTry(&mutex_) == kSbMutexAcquired; }
 
   void Release() const { SbMutexRelease(&mutex_); }
 

@@ -28,6 +28,9 @@ extern "C" {
 
 // --- Types -----------------------------------------------------------------
 
+// Time represented in 90KHz ticks.
+typedef int64_t SbMediaTime;
+
 // Types of media component streams.
 typedef enum SbMediaType {
   // Value used for audio streams.
@@ -165,7 +168,11 @@ typedef struct SbMediaAudioHeader {
 
   // The AudioSpecificConfig, as specified in ISO/IEC-14496-3.
   int8_t audio_specific_config[8];
-} SbMediaAacHeader;
+} SbMediaAudioHeader;
+
+// --- Constants -------------------------------------------------------------
+// One second in SbMediaTime (90KHz ticks).
+#define kSbMediaTimeSecond ((SbMediaTime)(90000))
 
 // --- Functions -------------------------------------------------------------
 
