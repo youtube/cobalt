@@ -113,6 +113,7 @@
         'mutex_create_test.cc',
         'mutex_destroy_test.cc',
         'once_test.cc',
+        'player_create_test.cc',
         'random_helpers.cc',
         'socket_accept_test.cc',
         'socket_bind_test.cc',
