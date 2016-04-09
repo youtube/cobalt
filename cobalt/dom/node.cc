@@ -19,6 +19,8 @@
 #include <vector>
 
 #include "base/debug/trace_event.h"
+#include "base/lazy_instance.h"
+#include "cobalt/base/user_log.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/dom/cdata_section.h"
@@ -35,6 +37,27 @@
 
 namespace cobalt {
 namespace dom {
+
+namespace {
+
+// This struct manages the user log information for Node count.
+struct NodeCountLog {
+ public:
+  NodeCountLog() : count(0) {
+    base::UserLog::Register(base::UserLog::kNodeCountIndex, "NodeCnt", &count,
+                            sizeof(count));
+  }
+  ~NodeCountLog() { base::UserLog::Deregister(base::UserLog::kNodeCountIndex); }
+
+  int count;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(NodeCountLog);
+};
+
+base::LazyInstance<NodeCountLog> node_count_log = LAZY_INSTANCE_INITIALIZER;
+
+}  // namespace
 
 // Algorithm for DispatchEvent:
 //   https://www.w3.org/TR/dom/#dispatching-events
@@ -415,7 +438,7 @@ Node::Node(Document* document)
       inserted_into_document_(false),
       node_generation_(kInitialNodeGeneration) {
   DCHECK(node_document_);
-
+  ++(node_count_log.Get().count);
   Stats::GetInstance()->Add(this);
 }
 
@@ -425,6 +448,7 @@ Node::~Node() {
     node->next_sibling_ = NULL;
     node = node->previous_sibling_;
   }
+  --(node_count_log.Get().count);
   Stats::GetInstance()->Remove(this);
 }
 

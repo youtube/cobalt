@@ -18,8 +18,10 @@
 
 #include <map>
 
+#include "base/lazy_instance.h"
 #include "base/string_number_conversions.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/base/user_log.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/cascaded_style.h"
 #include "cobalt/cssom/computed_style.h"
@@ -56,6 +58,30 @@
 
 namespace cobalt {
 namespace dom {
+
+namespace {
+
+// This struct manages the user log information for Node count.
+struct HtmlElementCountLog {
+ public:
+  HtmlElementCountLog() : count(0) {
+    base::UserLog::Register(base::UserLog::kHtmlElementCountIndex,
+                            "HtmlElementCnt", &count, sizeof(count));
+  }
+  ~HtmlElementCountLog() {
+    base::UserLog::Deregister(base::UserLog::kHtmlElementCountIndex);
+  }
+
+  int count;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(HtmlElementCountLog);
+};
+
+base::LazyInstance<HtmlElementCountLog> html_element_count_log =
+    LAZY_INSTANCE_INITIALIZER;
+
+}  // namespace
 
 std::string HTMLElement::dir() const {
   // The dir attribute is limited to only known values. On getting, dir must
@@ -584,9 +610,10 @@ HTMLElement::HTMLElement(Document* document, base::Token tag_name)
       matching_rules_valid_(false) {
   css_computed_style_declaration_->set_animations(animations());
   style_->set_mutation_observer(this);
+  ++(html_element_count_log.Get().count);
 }
 
-HTMLElement::~HTMLElement() {}
+HTMLElement::~HTMLElement() { --(html_element_count_log.Get().count); }
 
 void HTMLElement::CopyDirectionality(const HTMLElement& other) {
   directionality_ = other.directionality_;
