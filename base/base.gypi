@@ -663,7 +663,7 @@
               'threading/thread_checker_impl.cc',
             ],
             'conditions': [
-              ['target_arch!="linux" and target_arch!="android"', {
+              ['target_os!="linux" and target_arch!="android"', {
                 'sources!': [
                   # Since wchar_t is 2-bytes wide, string16 == wstring here.
                   'string16.cc',
