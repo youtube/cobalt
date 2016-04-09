@@ -58,7 +58,7 @@
     },
   ],
   'conditions': [
-    ['target_arch == "linux" or target_arch == "ps3"', {
+    ['target_arch != "xb1"', {
       # This target will build a sandbox application that allows for easy
       # experimentation with the video decoder on any platform.  It simply
       # creates a video decoder and a demuxer without bringing up a whole
