@@ -134,8 +134,11 @@ file like this:
   'includes': [
     '../../third_party/starboard/bobbox/mipseb/starboard_platform.gypi',
   ],
-},
+}
 ```
+
+Note there is no trailing comma on the outer dict, GYP will complain with a very
+strange error if you include it.
 
 #### Forward Your Includes
 
@@ -148,24 +151,25 @@ in `third_party`, for an example with BobBox and configuration_public.h:
 #include "third_party/starboard/bobbox/mipseb/configuration_public.h"
 ```
 
+You might further want to forward these public platform includes to the
+`shared/` directory, if they are common to all binary variants. Thread types
+will probably be common, Atomics may be, and some portion of your configuration
+will almost certainly be specific to the target architecture.
+
 
 ### III. Base Your Port on a Reference Port
 
 If your device runs Linux, you should start off by copying the Linux-specific
-files from `src/starboard/linux/...` to your port's `shared/` location.
+files from `src/starboard/linux/...` to your port's location.
 
-Rename `shared/starboard_platform.gyp` to
-`<binary-variant>/starboard_platform.gypi` so that you can include it from
-`src/starboard/<platform-configuration>/starboard_platform.gyp` as described
-just above.
+Rename the `x86/` directory to `<binary-variant>` (e.g. `mipseb`).
 
-Move `shared/*_public.h` to `<binary-variant>/`. Modify them as appropriate (you
-will probably be coming back to `configuration_public.h` a lot).
+Modify `x86/configuration_public.h` and `shared/configuration_public.h` as
+appropriate (you will probably be coming back to these files a lot).
 
 Update `<binary-variant>/starboard_platform.gypi` to point at all the source
 files that you want to build as your new Starboard implementation. `'<(DEPTH)'`
-should insert enough `../` to take you to the `src/` directory of your source
-tree.
+expands to enough `../` to take you to the `src/` directory of your source tree.
 
 
 ### IV. Add Your Platform Configurations to cobalt_gyp
