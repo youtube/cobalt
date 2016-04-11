@@ -210,10 +210,12 @@ if [[ -z "$force_local_build" ]]; then
         exit 0
       fi
     fi
-    echo "Deleting ${OUT_DIR}"/Linux*
-    rm -rf "${OUT_DIR}"/Linux*
-    echo "Deleting ${OUT_DIR}"/SbLinux*
-    rm -rf "${OUT_DIR}"/SbLinux*
+    for BUILD_FOLDER in "${OUT_DIR}"/{Sb,}Linux*; do
+      if [ -d ${BUILD_FOLDER} -a -f ${BUILD_FOLDER}/build.ninja ]; then
+        echo "Cleaning ${BUILD_FOLDER}"
+        ninja -C ${BUILD_FOLDER} -t clean
+      fi
+    done
     exit 0
   else
     echo Did not find prebuilt clang at r"${CLANG_REVISION}", building
