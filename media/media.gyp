@@ -889,7 +889,7 @@
             },
           },
         }],
-        ['proprietary_codecs==1 or branding=="Chrome" or OS=="lb_shell"', {
+        ['proprietary_codecs==1 or branding=="Chrome" or OS=="lb_shell" or OS=="starboard"', {
           'sources': [
             'mp4/aac.cc',
             'mp4/aac.h',
