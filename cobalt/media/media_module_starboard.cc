@@ -16,15 +16,73 @@
 
 #include "cobalt/media/media_module.h"
 
-#include "cobalt/media/media_module_stub.h"
+#include "base/bind.h"
+#include "cobalt/media/shell_media_platform_starboard.h"
+#include "media/audio/null_audio_streamer.h"
+#include "media/audio/shell_audio_sink.h"
+#include "media/base/filter_collection.h"
+#include "media/base/media_log.h"
+#include "media/base/message_loop_factory.h"
+#include "media/filters/shell_audio_decoder_impl.h"
+#include "media/filters/shell_raw_audio_decoder_stub.h"
+#include "media/filters/shell_raw_video_decoder_stub.h"
+#include "media/filters/shell_video_decoder_impl.h"
+#include "media/player/web_media_player_impl.h"
 
 namespace cobalt {
 namespace media {
 
+namespace {
+
+using ::media::FilterCollection;
+using ::media::MessageLoopFactory;
+
+class MediaModuleStarboard : public MediaModule {
+ public:
+  explicit MediaModuleStarboard(
+      render_tree::ResourceProvider* resource_provider, const Options& options)
+      : options_(options), media_platform_(resource_provider) {}
+
+  scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
+      ::media::WebMediaPlayerClient* client) OVERRIDE {
+    scoped_ptr<MessageLoopFactory> message_loop_factory(new MessageLoopFactory);
+    scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
+        message_loop_factory->GetMessageLoop(MessageLoopFactory::kPipeline);
+    scoped_ptr<FilterCollection> filter_collection(new FilterCollection);
+    filter_collection->GetAudioDecoders()->push_back(
+        new ::media::ShellAudioDecoderImpl(
+            pipeline_message_loop,
+            base::Bind(&::media::CreateShellRawAudioDecoderStub)));
+    filter_collection->GetVideoDecoders()->push_back(
+        new ::media::ShellVideoDecoderImpl(
+            pipeline_message_loop,
+            base::Bind(&::media::CreateShellRawVideoDecoderStub)));
+
+    ::media::ShellAudioStreamer* streamer = NULL;
+    if (options_.use_null_audio_streamer) {
+      DLOG(INFO) << "Use Null audio";
+      streamer = ::media::NullAudioStreamer::GetInstance();
+    } else {
+      DLOG(INFO) << "Use Pulse audio";
+      streamer = ::media::ShellAudioStreamer::Instance();
+    }
+    return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
+        client, this, filter_collection.Pass(),
+        new ::media::ShellAudioSink(streamer), message_loop_factory.Pass(),
+        new ::media::MediaLog));
+  }
+
+ private:
+  const Options options_;
+  ::media::ShellMediaPlatformStarboard media_platform_;
+};
+
+}  // namespace
+
 scoped_ptr<MediaModule> MediaModule::Create(
-    render_tree::ResourceProvider* /*resource_provider*/,
-    const Options& /* options */) {
-  return make_scoped_ptr<MediaModule>(new MediaModuleStub());
+    render_tree::ResourceProvider* resource_provider, const Options& options) {
+  return make_scoped_ptr<MediaModule>(
+      new MediaModuleStarboard(resource_provider, options));
 }
 
 }  // namespace media
