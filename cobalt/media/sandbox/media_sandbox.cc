@@ -16,13 +16,11 @@
 
 #include "cobalt/media/sandbox/media_sandbox.h"
 
-#include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/event_dispatcher.h"
-#include "cobalt/base/init_cobalt.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/network/network_module.h"
@@ -59,7 +57,6 @@ class MediaSandbox::Impl {
                  base::TimeDelta time);
 
   base::Lock lock_;
-  base::AtExitManager at_exit;
   MessageLoop message_loop_;
   MediaSandbox::FrameCB frame_cb_;
 
@@ -75,8 +72,6 @@ class MediaSandbox::Impl {
 
 MediaSandbox::Impl::Impl(int argc, char** argv,
                          const FilePath& trace_log_path) {
-  InitCobalt(argc, argv);
-
   trace_to_file_.reset(new trace_event::ScopedTraceToFile(trace_log_path));
   network::NetworkModule::Options network_options;
   network_options.require_https = false;
