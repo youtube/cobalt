@@ -12,18 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Base functionality ."""
+"""Base platform configuration for GYP."""
 
+import imp
 import importlib
 import logging
 import os
+
+import gyp_utils
 
 
 # Represents all valid build configurations.
 VALID_BUILD_CONFIGS = ['Debug', 'Devel', 'QA', 'Gold']
 
-# Represents all supported platforms.
-VALID_PLATFORMS = ['linux', 'ps3', 'starboard_linux', 'win']
+# Represents all supported platforms, uniquified and sorted.
+VALID_PLATFORMS = sorted(list(set(['linux', 'ps3', 'starboard_linux', 'win'] +
+                                  gyp_utils.GetThirdPartyPlatforms().keys())))
 
 _CURRENT_PATH = os.path.abspath(os.path.dirname(__file__))
 
@@ -58,6 +62,10 @@ class PlatformConfigBase(object):
     Returns:
         A list containing paths to .gypi files.
     """
+    platforms = gyp_utils.GetThirdPartyPlatforms()
+    if self.platform in platforms:
+      return [os.path.join(platforms[self.platform],
+                           'gyp_configuration.gypi')]
     return [os.path.join(self.config_path, self.platform + '.gypi')]
 
   def GetEnvironmentVariables(self):
@@ -96,15 +104,22 @@ def LoadPlatformConfig(platform):
     Instance of a class derived from PlatformConfigBase.
   """
   try:
-    logging.debug('Loading platform config for "%s".', platform)
-    platform_module = importlib.import_module('config.{}'.format(platform))
+    logging.debug('Loading platform configuration for "%s".', platform)
+    platforms = gyp_utils.GetThirdPartyPlatforms()
+    if platform in platforms:
+      platform_path = platforms[platform]
+      module_path = os.path.join(platform_path, 'gyp_configuration.py')
+      platform_module = imp.load_source('platform_module', module_path)
+    else:
+      module_path = 'config/{}.py'.format(platform)
+      platform_module = importlib.import_module('config.{}'.format(platform))
   except ImportError:
-    logging.error('Unable to import "config/%s.py".', platform)
+    logging.error('Unable to import "%s".', module_path)
     return None
 
   if not hasattr(platform_module, 'CreatePlatformConfig'):
-    logging.error('"config/%s.py" does not contain CreatePlatformConfig.',
-                  platform)
+    logging.error('"%s" does not contain CreatePlatformConfig.',
+                  module_path)
     return None
 
   return platform_module.CreatePlatformConfig()
