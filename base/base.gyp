@@ -114,13 +114,6 @@
           ],
         }],
         ['(OS == "android" or ((OS == "lb_shell" or OS == "starboard") and target_arch == "android")) and _toolset == "target"', {
-          'conditions': [
-            ['target_arch == "ia32"', {
-              'sources/': [
-                ['include', '^atomicops_internals_x86_gcc\\.cc$'],
-              ],
-            }],
-          ],
           'dependencies': [
             'base_jni_headers',
             'symbolize',
@@ -142,6 +135,11 @@
             'debug/stack_trace_posix.cc',
           ],
           'conditions' : [
+            ['target_arch == "ia32"', {
+              'sources/': [
+                ['include', '^atomicops_internals_x86_gcc\\.cc$'],
+              ],
+            }],
             ['target_arch != "android"', {
               'includes': [
                 '../build/android/cpufeatures.gypi',
