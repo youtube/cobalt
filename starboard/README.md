@@ -174,36 +174,43 @@ expands to enough `../` to take you to the `src/` directory of your source tree.
 
 ### IV. Add Your Platform Configurations to cobalt_gyp
 
-In order to use a new platform configuration in a build, you will first need to
-add it to the `cobalt_gyp` script, so it will generate ninja files for you.
+In order to use a new platform configuration in a build, you need to ensure that
+you have a `gyp_configuration.py`, `gyp_configuration.gypi`, and
+`starboard_platform.gypi` in their own directory for each binary
+variant. `gyp_cobalt` will scan your directories for these files, and then
+calculate a port name based on the directories between
+`src/third_party/starboard` and your `gyp_configuration.*` files. (e.g. for
+`src/third_party/starboard/bobbox/mipseb/gyp_configuration.py`, it would choose
+the port name `bobbox_mipseb`.)
 
-  #. Add your platform configuration name to the `VALID_PLATFORMS` array in
-     `src/cobalt/build/config/base.py`.
-  #. Set up `<platform-configuration>.py`
-    #. In `src/cobalt/build/config/`, copy `starboard_linux.py` to
-       `<platform-configuration>.py`.
-    #. In `src/cobalt/build/config/<platform-configuration>.py`
+  #. Set up `gyp_configuration.py`
+    #. Copy `src/cobalt/build/config/starboard_linux.py` to
+       `src/third_party/starboard/<family-name>/<binary-variant>/gyp_configuration.py`.
+    #. In `gyp_configuration.py`
       #. In the `_PlatformConfig.__init__()` function, remove checks for Clang
          or GOMA.
       #. Again in the `_PlatformConfig.__init__()` function, pass your
          `<platform-configuration>` into `super.__init__()`, like
          `super.__init__('bobbox_mipseb')`.
-      #. In `GetPlatformFullName`, have it return a name, like `BobBoxMIPSEB`.
-         This name will be used in your output directory,
+      #. (optional) In `GetPlatformFullName`, have it return a name, like
+         `BobBoxMIPSEB`.  This name will be used in your output directory,
          e.g. `BobBoxMIPSEB_Debug`, and must be the name of your build
-         configurations defined in your build configuration GYPI file.
+         configurations defined in your build configuration GYPI file.  By
+         default, it will just capitalize your platform name,
+         e.g. `Bobbox_mipseb`.
       #. In `GetVariables`
         #. Set `'clang': 1` if your toolchain is clang.
         #. Delete other variables in that function that are not needed for your
            platform.
       #. In `GetEnvironmentVariables`, set the dictionary values to point to the
          toolchain analogs for the toolchain for your platform.
-  #. Set up `<platform-configuration>.gypi`
-    #. In `src/cobalt/build/config/`, copy `starboard_linux.gypi` to
-       `<platform-configuration>.gypi`.
+  #. Set up `gyp_configuration.gypi`
+    #. Copy `src/cobalt/build/config/starboard_linux.gypi` to
+       `src/third_party/starboard/<family-name>/<binary-variant>/gyp_configuration.gypi`.
     #. Update your platform variables.
-      #. Set `'target_arch'` to your `<platform-configuration>` name. It's not
-         really named correctly.
+      #. Set `'target_arch'` to your `<platform-configuration>` name. (It's not
+         really named correctly.)
+      #. Set `'target_os': 'linux'` if your platform is Linux-based.
       #. Set `'gl_type': 'system'` if you are using the system EGL + GLES2
          implementation.
       #. set `'in_app_dial'` to `1` or `0`. This enables or disables the DIAL
@@ -213,7 +220,7 @@ add it to the `cobalt_gyp` script, so it will generate ninja files for you.
        don't assume a particular workstation layout, as it is likely to be
        different for someone else.
     #. Update the global defines in `'target_defaults'.'defines'`, if necessary.
-    #. Replace "SbLinux" with the PlatformFullName you chose above.
+    #. Replace "SbLinux" with the PlatformFullName, or default, you chose above.
 
 
 You should now be able to run gyp with your new port. From your `src/` directory:
