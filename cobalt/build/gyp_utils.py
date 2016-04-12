@@ -32,6 +32,20 @@ _SOURCE_TREE_DIR = os.path.abspath(os.path.join(_SCRIPT_DIR, os.pardir,
 _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
 _XSSI_PREFIX = ")]}'\n"
 
+# The list of directories, relative to "src/", to search through for ports.
+_PORT_SEARCH_PATH = [
+    'third_party/starboard',
+    'starboard',
+]
+
+# The list of files that must be present in a directory to allow it to be
+# considered a valid port.
+_PORT_FILES = [
+    'gyp_configuration.gypi',
+    'gyp_configuration.py',
+    'starboard_platform.gypi',
+]
+
 
 def GetGyp():
   if 'gyp' not in sys.modules:
@@ -199,3 +213,73 @@ def GetStackSizeConstant(platform, constant_name):
   # it'll return the default value.
   _, _ = platform, constant_name
   return 0
+
+
+def _IsValidPortFilenameList(filenames):
+  """Determines if |filenames| contains the required files for a valid port."""
+
+  return (set(_PORT_FILES) & set(filenames)) == set(_PORT_FILES)
+
+
+def _GetPortName(root, directory):
+  """Gets the name of a port found at |directory| off of |root|."""
+
+  assert directory.startswith(root)
+  start = len(root) + 1  # Remove the trailing slash from the root.
+
+  assert start < len(directory)
+
+  # Calculate the name based on relative path from search root to port.
+  return re.sub(r'[^a-zA-Z0-9_]', r'_', directory[start:])
+
+
+def _FindValidPorts(root, result):
+  """Adds name->path for all ports under |directory| to |result|."""
+  for current_path, directories, filenames in os.walk(root):
+    if _IsValidPortFilenameList(filenames):
+      if current_path == root:
+        logging.warning('Found port at search path root: %s', current_path)
+      port_name = _GetPortName(root, current_path)
+      if port_name in result:
+        logging.error('Found duplicate port name "%s" at "%s" and "%s"',
+                      port_name, result[port_name], current_path)
+      result[port_name] = current_path
+      del directories[:]  # Don't detect ports inside other ports.
+
+  return result
+
+
+def _FindThirdPartyPlatforms():
+  """Workhorse for GetThirdPartyPlatforms().
+
+  Search through directories listed in _PORT_SEARCH_PATH to find valid ports, so
+  that they can be added to the VALID_PLATFORMS list. This allows gyp_cobalt to
+  register new ports without needing to modify code in src/cobalt/.
+
+  Returns:
+    A dictionary of name->absolute paths to the port directory.
+  """
+
+  result = {}
+  for path_element in _PORT_SEARCH_PATH:
+    root = os.path.join(_SOURCE_TREE_DIR, path_element)
+    if not os.path.isdir(root):
+      logging.warning('Port search path directory not found: %s', path_element)
+      continue
+    root = os.path.realpath(root)
+    _FindValidPorts(root, result)
+
+  return result
+
+
+# Global cache of TPP so the filesystem walk is only done once, and the values
+# are always consistent.
+_THIRD_PARTY_PLATFORMS = None
+
+
+def GetThirdPartyPlatforms():
+  """Return valid platform definitions found by scanning the source tree."""
+  global _THIRD_PARTY_PLATFORMS
+  if _THIRD_PARTY_PLATFORMS is None:
+    _THIRD_PARTY_PLATFORMS = _FindThirdPartyPlatforms()
+  return _THIRD_PARTY_PLATFORMS
