@@ -264,6 +264,7 @@ URLSchemeForHistogram URLScheme(const GURL& url) {
 
 void WebMediaPlayerImpl::LoadMediaSource() {
   DCHECK_EQ(main_loop_, MessageLoop::current());
+  DCHECK(filter_collection_);
 
   // Handle any volume changes that occured before load().
   SetVolume(GetClient()->Volume());
@@ -291,6 +292,7 @@ void WebMediaPlayerImpl::LoadProgressive(
     const scoped_refptr<BufferedDataSource>& data_source,
     CORSMode cors_mode) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
+  DCHECK(filter_collection_);
 
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
 
