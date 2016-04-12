@@ -2602,7 +2602,8 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderBottomColorProperty:
     case kBorderLeftColorProperty:
     case kBorderRightColorProperty:
-    case kBorderTopColorProperty: {
+    case kBorderTopColorProperty:
+    case kTextDecorationColorProperty: {
       if (*value == KeywordValue::GetCurrentColor()) {
         // The computed value of the 'currentColor' keyword is the computed
         // value of the 'color' property.
@@ -2912,6 +2913,7 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kRightProperty:
     case kSrcProperty:
     case kTextAlignProperty:
+    case kTextDecorationColorProperty:
     case kTextDecorationLineProperty:
     case kTextDecorationProperty:
     case kTextIndentProperty:

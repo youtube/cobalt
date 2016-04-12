@@ -5408,6 +5408,18 @@ TEST_F(ParserTest, ParsesRightTextAlign) {
             style->GetPropertyValue(cssom::kTextAlignProperty));
 }
 
+TEST_F(ParserTest, ParsesTextDecorationColor) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "text-decoration-color: rgba(0, 0, 0, .8);", source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> text_decoration_color =
+      dynamic_cast<cssom::RGBAColorValue*>(
+          style->GetPropertyValue(cssom::kTextDecorationColorProperty).get());
+  ASSERT_TRUE(text_decoration_color);
+  EXPECT_EQ(0x000000cc, text_decoration_color->value());
+}
+
 TEST_F(ParserTest, ParsesTextDecorationLineNone) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("text-decoration-line: none;",

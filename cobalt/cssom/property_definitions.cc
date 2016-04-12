@@ -410,6 +410,11 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kTextAlignProperty, "text-align", kInheritedYes,
                         kAnimatableNo, KeywordValue::GetStart());
 
+  //   https://www.w3.org/TR/css-text-decor-3/#text-decoration-color
+  SetPropertyDefinition(kTextDecorationColorProperty, "text-decoration-color",
+                        kInheritedNo, kAnimatableYes,
+                        KeywordValue::GetCurrentColor());
+
   //   https://www.w3.org/TR/css-text-decor-3/#text-decoration-line
   SetPropertyDefinition(kTextDecorationLineProperty, "text-decoration-line",
                         kInheritedNo, kAnimatableNo, KeywordValue::GetNone());
@@ -613,6 +618,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
 
   //   https://www.w3.org/TR/css-text-decor-3/#text-decoration
   LonghandPropertySet text_decoration_longhand_properties;
+  text_decoration_longhand_properties.insert(kTextDecorationColorProperty);
   text_decoration_longhand_properties.insert(kTextDecorationLineProperty);
   SetShorthandPropertyDefinition(kTextDecorationProperty, "text-decoration",
                                  text_decoration_longhand_properties);
@@ -1105,6 +1111,13 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTextDecorationLineProperty))) {
         return kTextDecorationLineProperty;
+      }
+      return kNoneProperty;
+
+    case 21:
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kTextDecorationColorProperty))) {
+        return kTextDecorationColorProperty;
       }
       return kNoneProperty;
 
