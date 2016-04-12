@@ -16,6 +16,8 @@
 
 #include "cobalt/media/shell_media_platform_starboard.h"
 
+#include <limits>
+
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/memory/aligned_memory.h"
@@ -60,7 +62,7 @@ ShellMediaPlatformStarboard::ShellMediaPlatformStarboard(
 
   DCHECK_LE(0, kMainMemoryBufferBudget > 0);
   main_memory_buffer_space_.reset(static_cast<uint8*>(
-      base::AlignedAlloc(kMediaBufferAlignment, kMainMemoryBufferBudget)));
+      base::AlignedAlloc(kMainMemoryBufferBudget, kMediaBufferAlignment)));
   DCHECK(main_memory_buffer_space_);
   main_memory_pool_.reset(new base::MemoryPool("Memory.Media.MediaSource.CPU",
                                                main_memory_buffer_space_.get(),
