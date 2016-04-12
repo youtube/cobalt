@@ -23,6 +23,7 @@ namespace base {
 
 class UserLog {
  public:
+  static const int kEventStackMaxDepth = 10;
   enum Index {
     kUserAgentStringIndex = 0,
     kSystemLanguageStringIndex,
@@ -35,12 +36,14 @@ class UserLog {
     kNetworkConnectCountIndex,
     kNetworkDisconnectCountIndex,
     kWebMediaPlayerState,
-    kCurrentEventTypeIndex,
-    kCurrentEventTargetIndex,
     kNodeCountIndex,
     kElementCountIndex,
     kHtmlElementCountIndex,
     kHTMLMediaElementCountIndex,
+    kEventStackLevelCountIndex,
+    kEventStackMinLevelIndex,
+    kEventStackMaxLevelIndex =
+        kEventStackMinLevelIndex + kEventStackMaxDepth - 1,
     // Valid indices are from [0, 127].
     kMaxIndex = 128,
   };
