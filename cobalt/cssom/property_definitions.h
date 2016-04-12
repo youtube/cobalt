@@ -96,6 +96,7 @@ enum PropertyKey {
   kPositionProperty,
   kRightProperty,
   kTextAlignProperty,
+  kTextDecorationColorProperty,
   kTextDecorationLineProperty,
   kTextIndentProperty,
   kTextOverflowProperty,

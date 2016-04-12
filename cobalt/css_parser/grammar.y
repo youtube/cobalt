@@ -144,6 +144,7 @@
 %token kSrcToken                              // src
 %token kTextAlignToken                        // text-align
 %token kTextDecorationToken                   // text-decoration
+%token kTextDecorationColorToken              // text-decoration-color
 %token kTextDecorationLineToken               // text-decoration-line
 %token kTextIndentToken                       // text-indent
 %token kTextOverflowToken                     // text-overflow
@@ -1487,6 +1488,10 @@ identifier_token:
   | kTextDecorationToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kTextDecorationProperty));
+  }
+  | kTextDecorationColorToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kTextDecorationColorProperty));
   }
   | kTextDecorationLineToken {
     $$ = TrivialStringPiece::FromCString(
@@ -5921,6 +5926,12 @@ maybe_declaration:
   | kTextDecorationToken maybe_whitespace colon text_decoration_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTextDecorationLineProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTextDecorationColorToken maybe_whitespace colon
+      color_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextDecorationColorProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
