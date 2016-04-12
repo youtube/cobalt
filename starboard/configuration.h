@@ -160,6 +160,28 @@ struct CompileAssert {};
 #define SB_STRINGIFY(x) SB_STRINGIFY2(x)
 #define SB_STRINGIFY2(x) #x
 
+// Macro for hinting that an expression is likely to be true.
+#if !defined(SB_LIKELY)
+#if SB_IS(COMPILER_GCC)
+#define SB_LIKELY(x) __builtin_expect(!!(x), 1)
+#elif SB_IS(COMPILER_MSVC)
+#define SB_LIKELY(x) (x)
+#else
+#define SB_LIKELY(x) (x)
+#endif  // SB_IS(COMPILER_MSVC)
+#endif  // !defined(SB_LIKELY)
+
+// Macro for hinting that an expression is likely to be false.
+#if !defined(SB_UNLIKELY)
+#if SB_IS(COMPILER_GCC)
+#define SB_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#elif SB_IS(COMPILER_MSVC)
+#define SB_UNLIKELY(x) (x)
+#else
+#define SB_UNLIKELY(x) (x)
+#endif  // SB_IS(COMPILER_MSVC)
+#endif  // !defined(SB_UNLIKELY)
+
 // --- Platform Configuration ------------------------------------------------
 
 // Include the platform-specific configuration. This macro is set by GYP in

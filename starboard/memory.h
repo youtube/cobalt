@@ -18,6 +18,7 @@
 #define STARBOARD_MEMORY_H_
 
 #include "starboard/export.h"
+#include "starboard/system.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -26,27 +27,62 @@ extern "C" {
 
 #define SB_MEMORY_MAP_FAILED ((void*)-1)  // NOLINT(readability/casting)
 
+#if defined(SB_ABORT_ON_ALLOCATION_FAILURE)
+#define SbMemoryAllocate SbMemoryAllocateChecked
+#define SbMemoryReallocate SbMemoryReallocateChecked
+#define SbMemoryAllocateAligned SbMemoryAllocateAlignedChecked
+#else
+#define SbMemoryAllocate SbMemoryAllocateUnchecked
+#define SbMemoryReallocate SbMemoryReallocateUnchecked
+#define SbMemoryAllocateAligned SbMemoryAllocateAlignedUnchecked
+#endif
+
 // Checks whether |memory| is aligned to |alignment| bytes.
 static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
                                                 size_t alignment) {
   return ((uintptr_t)memory) % alignment == 0;
 }
 
+static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
+                                                        void* address) {
+  if (SB_UNLIKELY(requested_bytes > 0 && address == NULL)) {
+    // Will abort the program if no debugger is attached.
+    SbSystemBreakIntoDebugger();
+  }
+}
+
 // Allocates a chunk of memory of at least |size| bytes, returning it. If unable
 // to allocate the memory, it returns NULL. If |size| is 0, it may return NULL
 // or it may return a unique pointer value that can be passed to
 // SbMemoryFree. Meant to be a drop-in replacement for malloc.
-SB_EXPORT void* SbMemoryAllocate(size_t size);
+SB_EXPORT void* SbMemoryAllocateUnchecked(size_t size);
+
+// Same as SbMemoryAllocateUnchecked, but will abort() in the case of an
+// allocation failure.
+static SB_C_FORCE_INLINE void* SbMemoryAllocateChecked(size_t size) {
+  void* address = SbMemoryAllocateUnchecked(size);
+  SbAbortIfAllocationFailed(size, address);
+  return address;
+}
 
 // Attempts to resize |memory| to be at least |size| bytes, without touching the
 // contents. If it cannot perform the fast resize, it will allocate a new chunk
 // of memory, copy the contents over, and free the previous chunk, returning a
 // pointer to the new chunk. If it cannot perform the slow resize, it will
 // return NULL, leaving the given memory chunk unchanged. |memory| may be NULL,
-// in which case it behaves exactly like SbMemoryAllocate.  If |size| is 0, it
-// may return NULL or it may return a unique pointer value that can be passed to
-// SbMemoryFree. Meant to be a drop-in replacement for realloc.
-SB_EXPORT void* SbMemoryReallocate(void* memory, size_t size);
+// in which case it behaves exactly like SbMemoryAllocateUnchecked.  If |size|
+// is 0, it may return NULL or it may return a unique pointer value that can be
+// passed to SbMemoryFree. Meant to be a drop-in replacement for realloc.
+SB_EXPORT void* SbMemoryReallocateUnchecked(void* memory, size_t size);
+
+// Same as SbMemoryReallocateUnchecked, but will abort() in the case of an
+// allocation failure
+static SB_C_FORCE_INLINE void* SbMemoryReallocateChecked(void* memory,
+                                                         size_t size) {
+  void* address = SbMemoryReallocateUnchecked(memory, size);
+  SbAbortIfAllocationFailed(size, address);
+  return address;
+}
 
 // Frees a previously allocated chunk of memory. If |memory| is NULL, then it
 // does nothing.  Meant to be a drop-in replacement for free.
@@ -58,7 +94,16 @@ SB_EXPORT void SbMemoryFree(void* memory);
 // it may return NULL or it may return a unique aligned pointer value that can
 // be passed to SbMemoryFreeAligned. Meant to be a drop-in replacement for
 // memalign.
-SB_EXPORT void* SbMemoryAllocateAligned(size_t alignment, size_t size);
+SB_EXPORT void* SbMemoryAllocateAlignedUnchecked(size_t alignment, size_t size);
+
+// Same as SbMemoryAllocateAlignedUnchecked, but will abort() in the case of an
+// allocation failure
+static SB_C_FORCE_INLINE void* SbMemoryAllocateAlignedChecked(size_t alignment,
+                                                              size_t size) {
+  void* address = SbMemoryAllocateAlignedUnchecked(alignment, size);
+  SbAbortIfAllocationFailed(size, address);
+  return address;
+}
 
 // Frees a previously allocated chunk of aligned memory. If |memory| is NULL,
 // then it does nothing.  Meant to be a drop-in replacement for _aligned_free.

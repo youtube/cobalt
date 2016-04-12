@@ -30,4 +30,11 @@
     'STARBOARD_CONFIGURATION_INCLUDE="starboard/<(target_arch)/configuration_public.h"',
     'STARBOARD_THREAD_TYPES_INCLUDE="starboard/<(target_arch)/thread_types_public.h"',
   ],
+  'conditions': [
+    ['abort_on_allocation_failure==1', {
+      'defines': [
+        'SB_ABORT_ON_ALLOCATION_FAILURE',
+      ],
+    }],
+  ],
 }
