@@ -948,6 +948,24 @@ TEST(PromoteToComputedStyle, BoxShadowWithNone) {
   EXPECT_EQ(KeywordValue::GetNone(), computed_style->box_shadow());
 }
 
+TEST(PromoteToComputedStyle, TextDecorationWithCurrentColor) {
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_text_decoration_color(KeywordValue::GetCurrentColor());
+  computed_style->set_color(RGBAColorValue::GetAqua());
+
+  scoped_refptr<const CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  PromoteToComputedStyle(computed_style, parent_computed_style,
+                         parent_computed_style, NULL);
+
+  scoped_refptr<RGBAColorValue> text_decoration_color =
+      dynamic_cast<RGBAColorValue*>(
+          computed_style->text_decoration_color().get());
+  ASSERT_TRUE(text_decoration_color);
+  EXPECT_EQ(0x00FFFFFF, text_decoration_color->value());
+}
+
 TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());

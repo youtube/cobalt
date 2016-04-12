@@ -1801,6 +1801,15 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       return false;
 
+    case 21:
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kTextDecorationColorProperty))) {
+        *property_name_token = kTextDecorationColorToken;
+        return true;
+      }
+      return false;
+
     case 25:
       if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(
