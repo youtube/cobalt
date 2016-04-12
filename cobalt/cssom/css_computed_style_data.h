@@ -495,6 +495,14 @@ class CSSComputedStyleData
     SetPropertyValue(kTextAlignProperty, text_align);
   }
 
+  const scoped_refptr<PropertyValue>& text_decoration_color() const {
+    return GetPropertyValueReference(kTextDecorationColorProperty);
+  }
+  void set_text_decoration_color(
+      const scoped_refptr<PropertyValue>& text_decoration_color) {
+    SetPropertyValue(kTextDecorationColorProperty, text_decoration_color);
+  }
+
   const scoped_refptr<PropertyValue>& text_decoration_line() const {
     return GetPropertyValueReference(kTextDecorationLineProperty);
   }

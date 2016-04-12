@@ -979,6 +979,40 @@ TEST(CSSStyleDeclarationTest, TextAlignSetter) {
   style->set_text_align(text_align, NULL);
 }
 
+TEST(CSSStyleDeclarationTest, TextDecorationColorSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string text_decoration_color = "rgba(0, 0, 0, .8)";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser, ParsePropertyIntoDeclarationData(
+                              GetPropertyName(kTextDecorationColorProperty),
+                              text_decoration_color, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_text_decoration_color(text_decoration_color, NULL);
+}
+
+TEST(CSSStyleDeclarationTest, TextDecorationLineSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string text_decoration_line = "line-through";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser, ParsePropertyIntoDeclarationData(
+                              GetPropertyName(kTextDecorationLineProperty),
+                              text_decoration_line, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_text_decoration_line(text_decoration_line, NULL);
+}
+
 TEST(CSSStyleDeclarationTest, TextIndentSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
