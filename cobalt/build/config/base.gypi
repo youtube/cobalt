@@ -56,6 +56,9 @@
     # Set to 1 to compile with SPDY support.
     'enable_spdy%': 0,
 
+    # Halt execution on failure to allocate memory.
+    'abort_on_allocation_failure%': 1,
+
     # Needed for backwards compatibility with lbshell code.
     'lbshell_root%': '<(DEPTH)/lbshell',
 
