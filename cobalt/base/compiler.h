@@ -17,6 +17,12 @@
 #ifndef COBALT_BASE_COMPILER_H_
 #define COBALT_BASE_COMPILER_H_
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#define LIKELY SB_LIKELY
+#define UNLIKELY SB_UNLIKELY
+#else
+
 // Macro for hinting that an expression is likely to be true.
 #if !defined(LIKELY)
   #if defined(__GNUC__)
@@ -38,5 +44,7 @@
     #error unsupported compiler
   #endif  // defined(__GNUC__)
 #endif  // !defined(UNLIKELY)
+
+#endif  // defined(STARBOARD)
 
 #endif  // COBALT_BASE_COMPILER_H_
