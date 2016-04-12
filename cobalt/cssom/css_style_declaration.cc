@@ -834,6 +834,18 @@ void CSSStyleDeclaration::set_text_decoration(
                               exception_state);
 }
 
+std::string CSSStyleDeclaration::text_decoration_color(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kTextDecorationColorProperty);
+}
+
+void CSSStyleDeclaration::set_text_decoration_color(
+    const std::string& text_decoration_color,
+    script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kTextDecorationColorProperty,
+                              text_decoration_color, exception_state);
+}
+
 std::string CSSStyleDeclaration::text_decoration_line(
     script::ExceptionState* /*exception_state*/) const {
   return GetDeclaredPropertyValueStringByKey(kTextDecorationLineProperty);

@@ -88,7 +88,8 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kBorderRightColorProperty:
     case kBorderBottomColorProperty:
     case kBorderLeftColorProperty:
-      // Note that border color is not inherited.
+    case kTextDecorationColorProperty:
+      // Note that border color and text decoration color are not inherited.
       // The initial value of border color is 'currentColor' which means the
       // border color is the same as the value of the 'color' property.
       //    https://www.w3.org/TR/css3-color/#currentcolor

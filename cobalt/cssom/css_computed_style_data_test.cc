@@ -600,6 +600,48 @@ TEST(CSSComputedStyleDataTest, TextAlignSettersAndGettersAreConsistent) {
             style->GetPropertyValue(kTextAlignProperty));
 }
 
+TEST(CSSComputedStyleDataTest,
+     TextDecorationColorSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kTextDecorationColorProperty),
+            KeywordValue::GetCurrentColor());
+  EXPECT_EQ(style->text_decoration_color(),
+            style->GetPropertyValue(kTextDecorationColorProperty));
+
+  style->set_text_decoration_color(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->text_decoration_color());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kTextDecorationColorProperty));
+
+  style->SetPropertyValue(kTextDecorationColorProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->text_decoration_color());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kTextDecorationColorProperty));
+}
+
+TEST(CSSComputedStyleDataTest,
+     TextDecorationLineSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kTextDecorationLineProperty),
+            style->text_decoration_line());
+  EXPECT_EQ(style->text_decoration_line(),
+            style->GetPropertyValue(kTextDecorationLineProperty));
+
+  style->set_text_decoration_line(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->text_decoration_line());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kTextDecorationLineProperty));
+
+  style->SetPropertyValue(kTextDecorationLineProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->text_decoration_line());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kTextDecorationLineProperty));
+}
+
 TEST(CSSComputedStyleDataTest, TextIndentSettersAndGettersAreConsistent) {
   scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
 
