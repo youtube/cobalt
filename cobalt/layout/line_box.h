@@ -121,6 +121,12 @@ class LineBox {
   float baseline_offset_from_top() const { return baseline_offset_from_top_; }
 
  private:
+  enum HorizontalAlignment {
+    kLeftHorizontalAlignment,
+    kCenterHorizontalAlignment,
+    kRightHorizontalAlignment,
+  };
+
   float GetAvailableWidth() const;
   void UpdateSizePreservingTrailingWhiteSpace(Box* child_box);
   bool ShouldCollapseLeadingWhiteSpaceInNextChildBox() const;
@@ -137,6 +143,7 @@ class LineBox {
   void MaybePlaceEllipsis();
 
   float GetHeightAboveMiddleAlignmentPoint(Box* child_box);
+  HorizontalAlignment ComputeHorizontalAlignment() const;
 
   const float top_;
   const bool position_children_relative_to_baseline_;
