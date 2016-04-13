@@ -398,41 +398,29 @@ void LineBox::ReverseChildBoxesMeetingBidiLevelThreshold(int level) {
 }
 
 void LineBox::UpdateChildBoxLeftPositions() {
-  // Determine the horizontal offset to apply to the child boxes from the value
-  // calculated from "text-align", which is vaguely specified by
-  // https://www.w3.org/TR/css-text-3/#text-align
   float horizontal_offset = 0;
-  if (text_align_ == cssom::KeywordValue::GetLeft() ||
-      (text_align_ == cssom::KeywordValue::GetStart() &&
-       base_direction_ != kRightToLeftBaseDirection) ||
-      (text_align_ == cssom::KeywordValue::GetEnd() &&
-       base_direction_ == kRightToLeftBaseDirection) ||
-      layout_params_.containing_block_size.width() < shrink_to_fit_width_) {
-    // When the total width of the inline-level boxes on a line is less than
-    // the width of the line box containing them, their horizontal distribution
-    // within the line box is determined by the "text-align" property.
-    //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-    //
-    // So do not shift child boxes when the inline-level boxes already overflow,
-    // also do not shift if text-alignment is to the left.
-    // TODO(***REMOVED***): Change the logic to left-aligning on overflow if the
-    // direction is LTR and to right-aligning on overflow if the direction is
-    // RTL. Holding off on doing this for now, because RTL ellipsis support
-    // should be added at the same time or the effect will be odd.
-  } else if (text_align_ == cssom::KeywordValue::GetCenter()) {
-    // The text-alignment is to the center, so offset by half of the available
-    // width. This places half of the available width on each side of the boxes.
-    horizontal_offset = GetAvailableWidth() / 2;
-  } else if (text_align_ == cssom::KeywordValue::GetRight() ||
-             (text_align_ == cssom::KeywordValue::GetStart() &&
-              base_direction_ == kRightToLeftBaseDirection) ||
-             (text_align_ == cssom::KeywordValue::GetEnd() &&
-              base_direction_ != kRightToLeftBaseDirection)) {
-    // The text-alignment is to the right, so offset by the full available
-    // width. This places all of the available space to the left of the boxes.
-    horizontal_offset = GetAvailableWidth();
-  } else {
-    NOTREACHED() << "Unknown value of \"text-align\".";
+
+  // Determine the horizontal offset to apply to the child boxes from the
+  // horizontal alignment.
+  HorizontalAlignment horizontal_alignment = ComputeHorizontalAlignment();
+  switch (horizontal_alignment) {
+    case kLeftHorizontalAlignment:
+      // The horizontal alignment is to the left, so no offset needs to be
+      // applied based on the alignment. This places all of the available space
+      // to the right of the boxes.
+      break;
+    case kCenterHorizontalAlignment:
+      // The horizontal alignment is to the center, so offset by half of the
+      // available width. This places half of the available width on each side
+      // of the boxes.
+      horizontal_offset = GetAvailableWidth() / 2;
+      break;
+    case kRightHorizontalAlignment:
+      // The horizontal alignment is to the right, so offset by the full
+      // available width. This places all of the available space to the left of
+      // the boxes.
+      horizontal_offset = GetAvailableWidth();
+      break;
   }
 
   // Determine the horizontal offset to add to the child boxes from the indent
@@ -683,6 +671,54 @@ void LineBox::MaybePlaceEllipsis() {
 float LineBox::GetHeightAboveMiddleAlignmentPoint(Box* child_box) {
   return (child_box->GetInlineLevelBoxHeight() + font_metrics_.x_height()) /
          2.0f;
+}
+
+LineBox::HorizontalAlignment LineBox::ComputeHorizontalAlignment() const {
+  // When the total width of the inline-level boxes on a line is less than
+  // the width of the line box containing them, their horizontal distribution
+  // within the line box is determined by the "text-align" property.
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting.
+  // text-align is vaguely specified by
+  // https://www.w3.org/TR/css-text-3/#text-align.
+
+  HorizontalAlignment horizontal_alignment;
+  if (layout_params_.containing_block_size.width() < shrink_to_fit_width_) {
+    // If the content has overflowed the line, then do not base horizontal
+    // alignment on the value of text-align. Instead, simply rely upon the base
+    // direction of the line, so that inline-level content begins at the
+    // starting edge of the line.
+    horizontal_alignment = base_direction_ == kRightToLeftBaseDirection
+                               ? kRightHorizontalAlignment
+                               : kLeftHorizontalAlignment;
+  } else if (text_align_ == cssom::KeywordValue::GetStart()) {
+    // If the value of text-align is start, then inline-level content is aligned
+    // to the start edge of the line box.
+    horizontal_alignment = base_direction_ == kRightToLeftBaseDirection
+                               ? kRightHorizontalAlignment
+                               : kLeftHorizontalAlignment;
+  } else if (text_align_ == cssom::KeywordValue::GetEnd()) {
+    // If the value of text-align is end, then inline-level content is aligned
+    // to the end edge of the line box.
+    horizontal_alignment = base_direction_ == kRightToLeftBaseDirection
+                               ? kLeftHorizontalAlignment
+                               : kRightHorizontalAlignment;
+  } else if (text_align_ == cssom::KeywordValue::GetLeft()) {
+    // If the value of text-align is left, then inline-level content is aligned
+    // to the left line edge.
+    horizontal_alignment = kLeftHorizontalAlignment;
+  } else if (text_align_ == cssom::KeywordValue::GetRight()) {
+    // If the value of text-align is right, then inline-level content is aligned
+    // to the right line edge.
+    horizontal_alignment = kRightHorizontalAlignment;
+  } else if (text_align_ == cssom::KeywordValue::GetCenter()) {
+    // If the value of text-align is center, then inline-content is centered
+    // within the line box.
+    horizontal_alignment = kCenterHorizontalAlignment;
+  } else {
+    NOTREACHED() << "Unknown value of \"text-align\".";
+    horizontal_alignment = kLeftHorizontalAlignment;
+  }
+  return horizontal_alignment;
 }
 
 }  // namespace layout

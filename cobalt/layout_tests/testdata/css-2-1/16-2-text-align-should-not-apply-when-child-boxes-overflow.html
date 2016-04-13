@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html>
 <!--
- | Do not shift child boxes when the inline-level boxes already overflow.
- |   https://www.w3.org/TR/CSS21/text.html#propdef-text-align
+ | Content alignment should be based on the start edge of the line when the
+ | inline-level boxes overflow.
+ |   https://www.w3.org/TR/css-text/#text-align
  -->
 <head>
   <style>
     body {
-      margin: 0px;
+      margin: 0px 0px 0px 100px;
       font-family: Roboto;
       width: 200px;
       font-size: 15px;
@@ -38,16 +39,28 @@
   </style>
 </head>
 <body>
-  <div class="container left">
-    <div class="bluebg">a loooooong child box</div>
+  <div dir="ltr" class="container left">
+    <div class="bluebg">a loooooong child</div>
   </div>
 
-  <div class="container center">
-    <div class="greybg">a loooooong child box</div>
+  <div dir="ltr" class="container center">
+    <div class="greybg">a loooooong child</div>
   </div>
 
-  <div class="container right">
-    <div class="bluebg">a loooooong child box</div>
+  <div dir="ltr" class="container right">
+    <div class="bluebg">a loooooong child</div>
+  </div>
+
+  <div dir="rtl" class="container left">
+    <div class="bluebg">a loooooong child</div>
+  </div>
+
+  <div dir="rtl" class="container center">
+    <div class="greybg">a loooooong child</div>
+  </div>
+
+  <div dir="rtl" class="container right">
+    <div class="bluebg">a loooooong child</div>
   </div>
 </body>
 </html>
