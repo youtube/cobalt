@@ -15,7 +15,11 @@
 #ifndef WEBP_UTILS_UTILS_H_
 #define WEBP_UTILS_UTILS_H_
 
+#if defined(STARBOARD)
+#include "third_party/libwebp/starboard_private.h"
+#else
 #include <assert.h>
+#endif
 
 #include "../webp/types.h"
 

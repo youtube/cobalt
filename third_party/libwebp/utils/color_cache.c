@@ -11,8 +11,13 @@
 //
 // Author: Jyrki Alakuijala (jyrki@google.com)
 
+#if defined(STARBOARD)
+#include "third_party/libwebp/starboard_private.h"
+#else
 #include <assert.h>
 #include <stdlib.h>
+#endif
+
 #include "./color_cache.h"
 #include "../utils/utils.h"
 

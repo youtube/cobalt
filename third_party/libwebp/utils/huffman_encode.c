@@ -11,9 +11,14 @@
 //
 // Entropy encoding (Huffman) for webp lossless.
 
+#if defined(STARBOARD)
+#include "third_party/libwebp/starboard_private.h"
+#else
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
+
 #include "./huffman_encode.h"
 #include "../utils/utils.h"
 #include "../webp/format_constants.h"
