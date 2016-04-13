@@ -12,9 +12,14 @@
 // Author: Skal (pascal.massimino@gmail.com)
 //         Vikas Arora (vikaas.arora@gmail.com)
 
+#if defined(STARBOARD)
+#include "third_party/libwebp/starboard_private.h"
+#else
 #include <assert.h>
 #include <string.h>   // for memcpy()
 #include <stdlib.h>
+#endif
+
 #include "./bit_writer.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

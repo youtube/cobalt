@@ -12,7 +12,11 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "third_party/libwebp/starboard_private.h"
+#else
 #include <assert.h>
+#endif
 
 #include "./quant_levels.h"
 
