@@ -104,27 +104,27 @@ typedef SbThreadLocalKeyPrivate* SbThreadLocalKey;
 #define kSbThreadLocalKeyInvalid (SbThreadLocalKey) NULL
 
 // Returns whether the given thread handle is valid.
-SB_C_INLINE bool SbThreadIsValid(SbThread thread) {
+static SB_C_INLINE bool SbThreadIsValid(SbThread thread) {
   return thread != kSbThreadInvalid;
 }
 
 // Returns whether the given thread ID is valid.
-SB_C_INLINE bool SbThreadIsValidId(SbThreadId id) {
+static SB_C_INLINE bool SbThreadIsValidId(SbThreadId id) {
   return id != kSbThreadInvalidId;
 }
 
 // Returns whether the given thread priority is valid.
-SB_C_INLINE bool SbThreadIsValidPriority(SbThreadPriority priority) {
+static SB_C_INLINE bool SbThreadIsValidPriority(SbThreadPriority priority) {
   return priority != kSbThreadNoPriority;
 }
 
 // Returns whether the given thread affinity is valid.
-SB_C_INLINE bool SbThreadIsValidAffinity(SbThreadAffinity affinity) {
+static SB_C_INLINE bool SbThreadIsValidAffinity(SbThreadAffinity affinity) {
   return affinity != kSbThreadNoAffinity;
 }
 
 // Returns whether the given thread local variable key is valid.
-SB_C_INLINE bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
+static SB_C_INLINE bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
   return key != kSbThreadLocalKeyInvalid;
 }
 
