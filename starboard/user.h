@@ -55,7 +55,7 @@ typedef enum SbUserPropertyId {
 #define kSbUserInvalid (SbUser) NULL
 
 // Returns whether the given user handle is valid.
-SB_C_INLINE bool SbUserIsValid(SbUser user) {
+static SB_C_INLINE bool SbUserIsValid(SbUser user) {
   return user != kSbUserInvalid;
 }
 
