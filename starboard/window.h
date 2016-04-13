@@ -53,7 +53,7 @@ typedef struct SbWindowOptions {
 const SbWindow kSbWindowInvalid = (SbWindow)NULL;
 
 // Returns whether the given window handle is valid.
-SB_C_INLINE bool SbWindowIsValid(SbWindow window) {
+static SB_C_INLINE bool SbWindowIsValid(SbWindow window) {
   return window != kSbWindowInvalid;
 }
 
