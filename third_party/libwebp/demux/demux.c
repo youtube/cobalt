@@ -14,9 +14,13 @@
 #include "config.h"
 #endif
 
+#if defined(STARBOARD)
+#include "third_party/libwebp/starboard_private.h"
+#else
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 
 #include "../utils/utils.h"
 #include "../webp/decode.h"     // WebPGetFeatures

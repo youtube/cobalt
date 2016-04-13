@@ -15,11 +15,15 @@
 #ifndef WEBP_UTILS_BIT_READER_H_
 #define WEBP_UTILS_BIT_READER_H_
 
+#if defined(STARBOARD)
+#include "third_party/libwebp/starboard_private.h"
+#else
 #include <assert.h>
 #ifdef _MSC_VER
 #include <stdlib.h>  // _byteswap_ulong
 #endif
 #include <string.h>  // For memcpy
+#endif  // defined(STARBOARD)
 #include "../webp/types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

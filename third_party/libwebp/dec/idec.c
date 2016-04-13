@@ -11,9 +11,13 @@
 //
 // Author: somnath@google.com (Somnath Banerjee)
 
+#if defined(STARBOARD)
+#include "third_party/libwebp/starboard_private.h"
+#else
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#endif
 
 #include "./webpi.h"
 #include "./vp8i.h"
