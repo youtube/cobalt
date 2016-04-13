@@ -125,7 +125,7 @@ typedef struct SbSocketResolution {
 #define kSbSocketInvalid ((SbSocket)NULL)
 
 // Returns whether the given socket handle is valid.
-SB_C_INLINE bool SbSocketIsValid(SbSocket socket) {
+static SB_C_INLINE bool SbSocketIsValid(SbSocket socket) {
   return socket != kSbSocketInvalid;
 }
 

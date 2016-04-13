@@ -45,7 +45,7 @@ typedef enum SbConditionVariableResult {
 } SbConditionVariableResult;
 
 // Returns whether the given result is a success.
-SB_C_INLINE bool SbConditionVariableIsSignaled(
+static SB_C_INLINE bool SbConditionVariableIsSignaled(
     SbConditionVariableResult result) {
   return result == kSbConditionVariableSignaled;
 }

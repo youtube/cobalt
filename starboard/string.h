@@ -43,7 +43,8 @@ SB_EXPORT int SbStringCopy(char* out_destination,
 
 // Inline wrapper for an unsafe SbStringCopy that assumes |out_destination| is
 // big enough. Meant to be a drop-in replacement for strcpy.
-SB_C_INLINE int SbStringCopyUnsafe(char* out_destination, const char* source) {
+static SB_C_INLINE int SbStringCopyUnsafe(char* out_destination,
+                                          const char* source) {
   return SbStringCopy(out_destination, source, INT_MAX);
 }
 
