@@ -11,7 +11,11 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "third_party/libwebp/starboard_private.h"
+#else
 #include <stdlib.h>
+#endif
 #include "./utils.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
