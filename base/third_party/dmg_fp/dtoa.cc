@@ -202,8 +202,14 @@ typedef unsigned Long ULong;
 #define Bug(x) {fprintf(stderr, "%s\n", x); exit(1);}
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#define MALLOC SbMemoryAllocate
+#define FREE SbMemoryFree
+#else
 #include "stdlib.h"
 #include "string.h"
+#endif
 
 #ifdef USE_LOCALE
 #include "locale.h"
