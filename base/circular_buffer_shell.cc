@@ -9,6 +9,14 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "build/build_config.h"
+
+#if defined(OS_STARBOARD)
+#include "starboard/memory.h"
+#define malloc SbMemoryAllocate
+#define realloc SbMemoryReallocate
+#define free SbMemoryFree
+#endif
 
 static inline void* add_to_pointer(void* pointer, size_t amount) {
   return static_cast<uint8_t*>(pointer) + amount;
