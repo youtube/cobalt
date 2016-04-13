@@ -123,7 +123,7 @@
         'utils/color_cache.c',
         'utils/filters.c',
         'utils/huffman.c',
-        'utils/huffman_encode.c',
+        #'utils/huffman_encode.c',
         'utils/quant_levels.c',
         'utils/quant_levels_dec.c',
         'utils/rescaler.c',
@@ -137,9 +137,9 @@
       'dependencies' : [
         'libwebp_dec',
         'libwebp_demux',
-        'libwebp_dsp',
-        'libwebp_dsp_neon',
-        'libwebp_enc',
+        #'libwebp_dsp',
+        #'libwebp_dsp_neon',
+        #'libwebp_enc',  # Not needed by Cobalt
         'libwebp_utils',
       ],
       'direct_dependent_settings': {
