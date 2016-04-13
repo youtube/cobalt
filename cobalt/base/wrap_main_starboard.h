@@ -115,6 +115,7 @@ void BaseEventHandler(const SbEvent* event) {
 // terminates once the MessageLoop terminates, calling |stop_function| on the
 // way out.
 #define COBALT_WRAP_BASE_MAIN(start_function, stop_function) \
-  COBALT_WRAP_EVENT_MAIN(start_function, NoopEventFunction, stop_function)
+  COBALT_WRAP_EVENT_MAIN(                                    \
+      start_function, ::cobalt::wrap_main::NoopEventFunction, stop_function)
 
 #endif  // COBALT_BASE_WRAP_MAIN_STARBOARD_H_
