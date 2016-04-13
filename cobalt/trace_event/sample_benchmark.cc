@@ -15,7 +15,13 @@
  */
 
 #include "base/threading/thread.h"
+#include "build/build_config.h"
 #include "cobalt/trace_event/benchmark.h"
+
+#if defined(OS_STARBOARD)
+#include "starboard/thread.h"
+#define usleep(usec) SbThreadSleep(usec)
+#endif
 
 // A sample simple benchmark that tracks only a single event, in this case,
 // "LoopIteration".
