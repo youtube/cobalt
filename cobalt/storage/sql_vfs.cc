@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 #include "cobalt/storage/sql_vfs.h"
 
 #include "base/logging.h"
@@ -231,7 +230,7 @@ int VfsRandomness(sqlite3_vfs* sql_vfs, int bytes, char* out) {
 }  // namespace
 
 SqlVfs::SqlVfs(const std::string& name, VirtualFileSystem* vfs)
-    : sql_vfs_(reinterpret_cast<sqlite3_vfs*>(malloc(sizeof(sqlite3_vfs)))) {
+    : sql_vfs_(new sqlite3_vfs()) {
   memset(sql_vfs_.get(), 0, sizeof(sqlite3_vfs));
   sql_vfs_->iVersion = 1;
   sql_vfs_->szOsFile = sizeof(virtual_file);
