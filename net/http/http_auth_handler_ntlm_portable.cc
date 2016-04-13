@@ -4,7 +4,14 @@
 
 #include "net/http/http_auth_handler_ntlm.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/memory.h"
+#define malloc SbMemoryAllocate
+#define free SbMemoryFree
+#else
 #include <stdlib.h>
+#endif
+
 // For gethostname
 #if defined(OS_POSIX)
 #include <unistd.h>
