@@ -36,7 +36,7 @@ class SqlVfs {
   ~SqlVfs();
 
  private:
-  scoped_ptr_malloc<sqlite3_vfs> sql_vfs_;
+  scoped_ptr<sqlite3_vfs> sql_vfs_;
 };
 
 }  // namespace storage
