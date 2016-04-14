@@ -16,6 +16,9 @@
   'targets': [
     {
       'target_name': 'base',
+      # Override library name, to avoid conflicting with Chromium base when
+      # generating PDBs.
+      'product_name': 'cobalt_base',
       'type': 'static_library',
       'sources': [
         'allocator.h',
