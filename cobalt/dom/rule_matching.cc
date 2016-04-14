@@ -347,7 +347,7 @@ void AddRulesOnNodeToElement(HTMLElement* element,
   for (SelectorTree::Rules::const_iterator rule_iterator =
            node->rules().begin();
        rule_iterator != node->rules().end(); ++rule_iterator) {
-    base::WeakPtr<cssom::CSSStyleRule> rule = *rule_iterator;
+    cssom::CSSStyleRule* rule = *rule_iterator;
     if (!rule) {
       continue;
     }
@@ -357,7 +357,7 @@ void AddRulesOnNodeToElement(HTMLElement* element,
                        : rule->parent_style_sheet()->origin(),
         node->cumulative_specificity(),
         cssom::Appearance(rule->parent_style_sheet()->index(), rule->index()));
-    target_matching_rules->push_back(std::make_pair(rule.get(), precedence));
+    target_matching_rules->push_back(std::make_pair(rule, precedence));
   }
 }
 

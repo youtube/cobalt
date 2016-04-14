@@ -42,9 +42,6 @@ class HTMLBodyElement : public HTMLElement {
 
  private:
   ~HTMLBodyElement() OVERRIDE {}
-
-  void OnInsertedIntoDocument() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
 };
 
 }  // namespace dom

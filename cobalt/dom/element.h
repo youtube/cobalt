@@ -21,6 +21,7 @@
 
 #include "base/containers/small_map.h"
 #include "base/hash_tables.h"
+#include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/base/token.h"
