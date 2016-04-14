@@ -19,15 +19,13 @@
 #include <cstdlib>
 #include <string>
 
-#include "base/basictypes.h"
-#include "base/bind.h"
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/values.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/javascriptcore/jsc_call_frame.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
 #include "cobalt/script/javascriptcore/jsc_object_handle_holder.h"
+#include "cobalt/script/javascriptcore/jsc_source_provider.h"
 
 #include "third_party/WebKit/Source/JavaScriptCore/debugger/DebuggerCallFrame.h"
 #include "third_party/WebKit/Source/JavaScriptCore/heap/MarkedBlock.h"
@@ -45,57 +43,56 @@ namespace cobalt {
 namespace script {
 
 // Static factory method declared in public interface.
-scoped_ptr<JavaScriptDebuggerInterface>
-JavaScriptDebuggerInterface::CreateDebugger(
+scoped_ptr<ScriptDebugger> ScriptDebugger::CreateDebugger(
     GlobalObjectProxy* global_object_proxy, Delegate* delegate) {
-  return scoped_ptr<JavaScriptDebuggerInterface>(
+  return scoped_ptr<ScriptDebugger>(
       new javascriptcore::JSCDebugger(global_object_proxy, delegate));
 }
 
 namespace javascriptcore {
 
 namespace {
-// Returns a string indicating the type of a scope object.
-// One of the set of enumerated strings defined here:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/debugger#type-Scope
-std::string GetScopeType(JSC::JSScope* scope) {
-  int type = scope->structure()->typeInfo().type();
-  std::string type_string;
-  switch (type) {
-    case JSC::GlobalObjectType:
-      return "global";
-    case JSC::ActivationObjectType:
-      return "local";
-    default: {
-      DLOG(WARNING) << "Unexpected scope type: " << type;
-      return "local";
+// Type used to store a set of source providers.
+typedef WTF::HashSet<JSC::SourceProvider*> SourceProviderSet;
+
+// Functor to iterate over the JS cells and gather source providers.
+class GathererFunctor : public JSC::MarkedBlock::VoidFunctor {
+ public:
+  GathererFunctor(JSC::JSGlobalObject* global_object,
+                  SourceProviderSet* source_providers)
+      : global_object_(global_object), source_providers_(source_providers) {}
+
+  void operator()(JSC::JSCell* cell) {
+    JSC::JSFunction* function = JSC::jsDynamicCast<JSC::JSFunction*>(cell);
+    if (function && !function->isHostFunction() &&
+        function->scope()->globalObject() == global_object_ &&
+        function->executable()->isFunctionExecutable()) {
+      source_providers_->add(
+          JSC::jsCast<JSC::FunctionExecutable*>(function->executable())
+              ->source()
+              .provider());
     }
   }
-}
 
-// Conversions between intptr_t and std::string.
-// Used to interchange sourceIds, callFrameIds, etc. with devtools.
-// Assume we can store an intptr_t as an int64, as string_number_conversions
-// does not directly support intptr_t.
-std::string IntptrToString(intptr_t input) {
-  COMPILE_ASSERT(sizeof(int64) >= sizeof(intptr_t),
-                 int64_not_big_enough_to_store_intptr_t);
-  int64 input_as_int64 = static_cast<int64>(input);
-  return base::Int64ToString(input_as_int64);
-}
+ private:
+  SourceProviderSet* source_providers_;
+  JSC::JSGlobalObject* global_object_;
+};
 
-intptr_t StringToIntptr(const std::string& input) {
-  COMPILE_ASSERT(sizeof(int64) >= sizeof(intptr_t),
-                 int64_not_big_enough_to_store_intptr_t);
-  int64 input_as_int64 = 0;
-  base::StringToInt64(input, &input_as_int64);
-  return static_cast<intptr_t>(input_as_int64);
+// Uses the GatherorFunctor defined above to gather all the currently parsed
+// source providers defined in |global_object| and populate |source_providers|.
+// This is called once by the |attach| method; the script debugger is
+// automatically notified of subsequently parsed scripts via the |source_parsed|
+// method.
+void GatherSourceProviders(JSC::JSGlobalObject* global_object,
+                           SourceProviderSet* source_providers) {
+  DCHECK(global_object);
+  DCHECK(source_providers);
+  source_providers->clear();
+  GathererFunctor gatherer_functor(global_object, source_providers);
+  JSC::JSGlobalData& global_data = global_object->globalData();
+  global_data.heap.objectSpace().forEachLiveCell(gatherer_functor);
 }
-
-// Event "methods" (names) from the set here:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/debugger
-const char kScriptFailedToParse[] = "Debugger.scriptFailedToParse";
-const char kScriptParsed[] = "Debugger.scriptParsed";
 }  // namespace
 
 JSCDebugger::JSCDebugger(GlobalObjectProxy* global_object_proxy,
@@ -113,36 +110,6 @@ JSCDebugger::JSCDebugger(GlobalObjectProxy* global_object_proxy,
 }
 
 JSCDebugger::~JSCDebugger() { detach(GetGlobalObject()); }
-
-scoped_ptr<base::DictionaryValue> JSCDebugger::GetScriptSource(
-    const scoped_ptr<base::DictionaryValue>& params) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  scoped_ptr<base::DictionaryValue> response(new base::DictionaryValue);
-
-  // Get the scriptId from the parameters object.
-  std::string script_id_string = "0";
-  params->GetString("scriptId", &script_id_string);
-  intptr_t script_id = StringToIntptr(script_id_string);
-
-  // Search the set of source providers for a matching scriptId.
-  JSC::SourceProvider* source_provider = NULL;
-  for (SourceProviderSet::iterator iter = source_providers_.begin();
-       iter != source_providers_.end(); ++iter) {
-    if ((*iter)->asID() == script_id) {
-      source_provider = *iter;
-      break;
-    }
-  }
-  if (source_provider) {
-    response->SetString("result.scriptSource",
-                        source_provider->source().latin1().data());
-  } else {
-    response->SetString("error.message",
-                        "No source provider found with specified scriptId");
-  }
-
-  return response.Pass();
-}
 
 void JSCDebugger::Pause() {
   pause_on_next_statement_ = true;
@@ -163,148 +130,12 @@ void JSCDebugger::StepOut() {
   pause_on_next_statement_ = false;
   const JSC::CallFrame* call_frame = current_call_frame_.callFrame();
   pause_on_call_frame_ = call_frame ? call_frame->callerFrame() : NULL;
-
-  // If we are already at the top of the call stack, resume normal script
-  // execution.
-  delegate_->OnScriptDebuggerResume();
 }
 
 void JSCDebugger::StepOver() {
   pause_on_next_statement_ = false;
   pause_on_call_frame_ = current_call_frame_.callFrame();
   DCHECK(pause_on_call_frame_);
-}
-
-void JSCDebugger::GathererFunctor::operator()(JSC::JSCell* cell) {
-  JSC::JSFunction* function = JSC::jsDynamicCast<JSC::JSFunction*>(cell);
-  if (function && !function->isHostFunction() &&
-      function->scope()->globalObject() == global_object_ &&
-      function->executable()->isFunctionExecutable()) {
-    source_providers_->add(
-        JSC::jsCast<JSC::FunctionExecutable*>(function->executable())
-            ->source()
-            .provider());
-  }
-}
-
-scoped_ptr<base::DictionaryValue> JSCDebugger::CreateCallFrameData(
-    const JSC::DebuggerCallFrame& call_frame,
-    scoped_ptr<base::DictionaryValue> location,
-    scoped_ptr<base::ListValue> scope_chain) {
-  DCHECK(call_frame.callFrame());
-  DCHECK(location);
-  DCHECK(scope_chain);
-
-  scoped_ptr<base::DictionaryValue> call_frame_data(
-      new base::DictionaryValue());
-  call_frame_data->SetString(
-      "callFrameId",
-      IntptrToString(reinterpret_cast<intptr_t>(call_frame.callFrame())));
-  call_frame_data->SetString("functionName",
-                             call_frame.functionName().latin1().data());
-  call_frame_data->Set("location", location.release());
-  call_frame_data->Set("scopeChain", scope_chain.release());
-
-  // Add the "this" object for the call frame.
-  JSC::JSObject* this_object = call_frame.thisObject();
-  scoped_ptr<base::DictionaryValue> this_object_data(
-      CreateRemoteObjectData(this_object));
-  if (this_object_data) {
-    call_frame_data->Set("this", this_object_data.release());
-  }
-
-  return call_frame_data.Pass();
-}
-
-scoped_ptr<base::ListValue> JSCDebugger::CreateCallStackData(
-    JSC::CallFrame* call_frame) {
-  DCHECK(call_frame);
-
-  scoped_ptr<base::ListValue> call_frame_list(new base::ListValue());
-  intptr_t source_id = current_source_id_;
-  int line_number = current_line_number_;
-  int column_number = current_column_number_;
-  String url;
-  JSC::JSValue function;
-
-  // Iterate over the call frames on the stack.
-  while (call_frame && !call_frame->hasHostCallFrameFlag()) {
-    // Create data for the call frame.
-    scoped_ptr<base::DictionaryValue> location_data(
-        CreateLocationData(source_id, line_number, column_number));
-    scoped_ptr<base::ListValue> scope_chain_data(
-        CreateScopeChainData(call_frame));
-    scoped_ptr<base::DictionaryValue> call_frame_data(
-        CreateCallFrameData(JSC::DebuggerCallFrame(call_frame),
-                            location_data.Pass(), scope_chain_data.Pass()));
-
-    // Add the call frame data to the list.
-    DCHECK(call_frame_data);
-    call_frame_list->Append(call_frame_data.release());
-
-    // Move on to the next call frame.
-    call_frame->interpreter()->retrieveLastCaller(call_frame, line_number,
-                                                  source_id, url, function);
-    call_frame = call_frame->callerFrame();
-  }
-
-  return call_frame_list.Pass();
-}
-
-scoped_ptr<base::DictionaryValue> JSCDebugger::CreateLocationData(
-    intptr_t source_id, int line_number, int column_number) {
-  scoped_ptr<base::DictionaryValue> location_data(new base::DictionaryValue());
-  location_data->SetString("scriptId", IntptrToString(source_id));
-  location_data->SetInteger("columnNumber", column_number);
-  location_data->SetInteger("lineNumber", line_number);
-  return location_data.Pass();
-}
-
-scoped_ptr<base::DictionaryValue> JSCDebugger::CreateRemoteObjectData(
-    JSC::JSObject* js_object) {
-  DCHECK(js_object);
-  JSCObjectHandleHolder object_holder(
-      JSCObjectHandle(js_object), GetGlobalObject()->script_object_registry());
-  scoped_ptr<base::DictionaryValue> remote_object_params(
-      new base::DictionaryValue());
-  remote_object_params->SetString("objectGroup", "debugger-api");
-  remote_object_params->SetBoolean("returnByValue", false);
-  return delegate_->CreateRemoteObject(&object_holder, remote_object_params);
-}
-
-scoped_ptr<base::ListValue> JSCDebugger::CreateScopeChainData(
-    const JSC::CallFrame* call_frame) {
-  DCHECK(call_frame);
-  scoped_ptr<base::ListValue> scope_chain_data(new base::ListValue());
-
-  // Iterate over the scope chain for the call frame.
-  for (JSC::JSScope* scope = call_frame->scope(); scope;
-       scope = scope->next()) {
-    scoped_ptr<base::DictionaryValue> scope_data(CreateScopeData(scope));
-    DCHECK(scope_data);
-    scope_chain_data->Append(scope_data.release());
-  }
-
-  return scope_chain_data.Pass();
-}
-
-scoped_ptr<base::DictionaryValue> JSCDebugger::CreateScopeData(
-    JSC::JSScope* scope) {
-  DCHECK(scope);
-  JSC::JSObject* scope_object = JSC::JSScope::objectAtScope(scope);
-  DCHECK(scope_object);
-  scoped_ptr<base::DictionaryValue> scope_object_data(
-      CreateRemoteObjectData(scope));
-
-  if (!scope) {
-    DLOG(WARNING) << "Cannot create Scope data.";
-    return scoped_ptr<base::DictionaryValue>(NULL);
-  }
-
-  scoped_ptr<base::DictionaryValue> scope_data(new base::DictionaryValue());
-  scope_data->Set("object", scope_object_data.release());
-  scope_data->SetString("type", GetScopeType(scope));
-  return scope_data.Pass();
 }
 
 JSCGlobalObject* JSCDebugger::GetGlobalObject() const {
@@ -316,10 +147,14 @@ void JSCDebugger::attach(JSC::JSGlobalObject* global_object) {
   DCHECK(global_object);
   JSC::Debugger::attach(global_object);
 
-  // Gather the source providers and call sourceParsed() on each one.
-  GatherSourceProviders(global_object);
-  for (SourceProviderSet::iterator iter = source_providers_.begin();
-       iter != source_providers_.end(); ++iter) {
+  // Gather the source providers and call |sourceParsed| on each one.
+  // Any scripts parsed after this point will automatically invoke a call
+  // to |sourceParsed|.
+  SourceProviderSet source_providers;
+  GatherSourceProviders(global_object, &source_providers);
+
+  for (SourceProviderSet::iterator iter = source_providers.begin();
+       iter != source_providers.end(); ++iter) {
     sourceParsed(global_object->globalExec(), *iter, -1, String());
   }
 }
@@ -337,26 +172,15 @@ void JSCDebugger::sourceParsed(JSC::ExecState* exec_state,
   UNREFERENCED_PARAMETER(exec_state);
   DCHECK(source_provider);
 
-  // Build the event parameters.
-  scoped_ptr<base::DictionaryValue> params(new base::DictionaryValue());
-  params->SetString("scriptId", IntptrToString(source_provider->asID()));
-  params->SetString("url", source_provider->url().latin1().data());
-
-  // TODO(***REMOVED***) There are a bunch of other parameters I don't know how
-  // to get from a SourceProvider: start/end line/column for inline scripts,
-  // etc. Need to check whether it is possible to find these somwhere, or if
-  // Chrome Dev Tools can manage without these, dummy values would suffice, etc.
-
-  // If there was an error, add the parameters for that.
-  if (error_line >= 0) {
-    params->SetInteger("errorLine", error_line);
-    params->SetString("errorMessage", error_message.latin1().data());
-  }
-
   if (error_line < 0) {
-    delegate_->OnScriptDebuggerEvent(kScriptParsed, params);
+    // Script was parsed successfully.
+    delegate_->OnScriptParsed(
+        scoped_ptr<SourceProvider>(new JSCSourceProvider(source_provider)));
   } else {
-    delegate_->OnScriptDebuggerEvent(kScriptFailedToParse, params);
+    // Script failed to parse.
+    delegate_->OnScriptFailedToParse(
+        scoped_ptr<SourceProvider>(new JSCSourceProvider(
+            source_provider, error_line, error_message.latin1().data())));
   }
 }
 
@@ -402,14 +226,6 @@ void JSCDebugger::didReachBreakpoint(const JSC::DebuggerCallFrame& call_frame,
   UpdateAndPauseIfNeeded(call_frame, source_id, line_number, column_number);
 }
 
-void JSCDebugger::GatherSourceProviders(JSC::JSGlobalObject* global_object) {
-  DCHECK(global_object);
-  source_providers_.clear();
-  GathererFunctor gatherer_functor(global_object, &source_providers_);
-  JSC::JSGlobalData& global_data = global_object->globalData();
-  global_data.heap.objectSpace().forEachLiveCell(gatherer_functor);
-}
-
 void JSCDebugger::UpdateAndPauseIfNeeded(
     const JSC::DebuggerCallFrame& call_frame, intptr_t source_id,
     int line_number, int column_number) {
@@ -442,6 +258,7 @@ void JSCDebugger::PauseIfNeeded(const JSC::DebuggerCallFrame& call_frame) {
   bool will_pause = pause_on_next_statement_;
   will_pause |=
       pause_on_call_frame_ && pause_on_call_frame_ == call_frame.callFrame();
+
   if (!will_pause) {
     return;
   }
@@ -449,32 +266,10 @@ void JSCDebugger::PauseIfNeeded(const JSC::DebuggerCallFrame& call_frame) {
   // Set the |is_paused_| state for the remainder of this function.
   ScopedPausedState paused(this);
 
-  // Notify the clients we're about to pause.
-  SendPausedEvent(call_frame);
-
   // Delegate handles the actual blocking of the thread to implement Pause.
-  delegate_->OnScriptDebuggerPause();
-
-  // Notify the clients we've resumed.
-  SendResumedEvent();
-}
-
-void JSCDebugger::SendPausedEvent(const JSC::DebuggerCallFrame& call_frame) {
-  std::string event_method = "Debugger.paused";
-  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
-  scoped_ptr<base::ListValue> call_stack_data(
-      CreateCallStackData(call_frame.callFrame()));
-  DCHECK(call_stack_data);
-  event_params->Set("callFrames", call_stack_data.release());
-  event_params->SetString("reason", "debugCommand");
-  delegate_->OnScriptDebuggerEvent(event_method, event_params);
-}
-
-void JSCDebugger::SendResumedEvent() {
-  // Send the event to the clients. No parameters.
-  std::string event_method = "Debugger.resumed";
-  scoped_ptr<base::DictionaryValue> event_params(new base::DictionaryValue());
-  delegate_->OnScriptDebuggerEvent(event_method, event_params);
+  delegate_->OnScriptDebuggerPause(scoped_ptr<CallFrame>(
+      new JSCCallFrame(call_frame, current_source_id_, current_line_number_,
+                       current_column_number_)));
 }
 
 }  // namespace javascriptcore
