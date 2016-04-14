@@ -30,28 +30,3 @@ For example, `SbSocketSendTo` and `SbSocketReceiveFrom` are tested together,
 ensuring that the API is self-consistent on both sides of a connection.
 Therefore, only one set of tests exist to cover those use cases, in
 `socket_receive_from_test.cc`.
-
-## Suggested Implementation Order
-
-When bringing up a new Starboard platform, it is suggested that you try to get
-the tests passing module-by-module. Because of dependencies between modules, you
-will find it easier to get some modules passing sooner than other modules.
-Here's a recommended order in which to get things going:
-
- 1. Configuration
- 1. Memory
- 1. Time
- 1. String
- 1. Log
- 1. File
- 1. Directory
- 1. System
- 1. Atomic
- 1. Thread
- 1. Mutex
- 1. ConditionVariable
- 1. Once
- 1. Socket
- 1. SocketWaiter
- 1. Window
- 1. TimeZone
