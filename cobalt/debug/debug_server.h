@@ -117,6 +117,9 @@ class DebugServer : public base::SupportsWeakPtr<DebugServer> {
     // JavaScript object created by |script_runner_| with commands.
     bool RunScriptFile(const std::string& filename);
 
+    // Creates a Runtime.Remote object from an OpaqueHandleHolder.
+    JSONObject CreateRemoteObject(const script::OpaqueHandleHolder* object);
+
     // Sends an event to the |DebugServer| referenced by this object.
     void SendEvent(const std::string& method, const JSONObject& params);
 

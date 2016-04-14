@@ -18,11 +18,11 @@
 
 #include <string>
 
-#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/script/javascript_debugger_interface.h"
 #include "cobalt/script/javascriptcore/jsc_global_object_proxy.h"
+#include "cobalt/script/script_debugger.h"
+#include "cobalt/script/source_provider.h"
 
 #include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/debugger/Debugger.h"
@@ -45,23 +45,18 @@ namespace javascriptcore {
 
 // JavaScriptCore-specific implementation of a JavaScript debugger.
 // Uses multiple inheritance in accordance with the C++ style guide to extend
-// JSC::Debugger and implement JavaScriptDebuggerInterface.
+// JSC::Debugger and implement ScriptDebugger.
 // https://engdoc.***REMOVED***/eng/doc/devguide/cpp/styleguide.shtml?cl=head#Multiple_Inheritance
-// Only the JavaScriptDebuggerInterface is publicly exposed.
+// Only the ScriptDebugger is publicly exposed.
 // This class is not designed to be thread-safe - it is assumed that all
 // public methods will be run on the same message loop as the JavaScript
 // global object to which this debugger connects.
-class JSCDebugger : protected JSC::Debugger,
-                    public JavaScriptDebuggerInterface {
+class JSCDebugger : protected JSC::Debugger, public ScriptDebugger {
  public:
   JSCDebugger(GlobalObjectProxy* global_object_proxy, Delegate* delegate);
-
   ~JSCDebugger() OVERRIDE;
 
-  // Implementation of JavaScriptDebuggerInterface.
-  scoped_ptr<base::DictionaryValue> GetScriptSource(
-      const scoped_ptr<base::DictionaryValue>& params) OVERRIDE;
-
+  // Implementation of ScriptDebugger.
   void Pause() OVERRIDE;
   void Resume() OVERRIDE;
   void StepInto() OVERRIDE;
@@ -105,23 +100,6 @@ class JSCDebugger : protected JSC::Debugger,
                           int column_number) OVERRIDE;
 
  private:
-  // Type used to store a set of source providers.
-  typedef WTF::HashSet<JSC::SourceProvider*> SourceProviderSet;
-
-  // Functor to iterate over the JS cells and gather source providers.
-  class GathererFunctor : public JSC::MarkedBlock::VoidFunctor {
-   public:
-    GathererFunctor(JSC::JSGlobalObject* global_object,
-                    SourceProviderSet* source_providers)
-        : global_object_(global_object), source_providers_(source_providers) {}
-
-    void operator()(JSC::JSCell* cell);
-
-   private:
-    SourceProviderSet* source_providers_;
-    JSC::JSGlobalObject* global_object_;
-  };
-
   // Sets the |is_paused_| member of the debugger while in scope, unsets it
   // on destruction.
   class ScopedPausedState {
@@ -135,26 +113,8 @@ class JSCDebugger : protected JSC::Debugger,
     JSCDebugger* debugger;
   };
 
-  // Functions to create data objects for devtools.
-  scoped_ptr<base::DictionaryValue> CreateCallFrameData(
-      const JSC::DebuggerCallFrame& call_frame,
-      scoped_ptr<base::DictionaryValue> location,
-      scoped_ptr<base::ListValue> scope_chain);
-  scoped_ptr<base::ListValue> CreateCallStackData(JSC::CallFrame* call_frame);
-  scoped_ptr<base::DictionaryValue> CreateLocationData(intptr_t source_id,
-                                                       int line_number,
-                                                       int column_number);
-  scoped_ptr<base::DictionaryValue> CreateRemoteObjectData(
-      JSC::JSObject* object);
-  scoped_ptr<base::ListValue> CreateScopeChainData(
-      const JSC::CallFrame* call_frame);
-  scoped_ptr<base::DictionaryValue> CreateScopeData(JSC::JSScope* scope);
-
   // Convenience function to get the global object pointer from the proxy.
   JSCGlobalObject* GetGlobalObject() const;
-
-  // Populates the set of source providers.
-  void GatherSourceProviders(JSC::JSGlobalObject* global_object);
 
   // Update functions called by the overridden methods from JSC:Debugger above
   // (e.g. |atStatement|) as script is executed.
@@ -191,9 +151,6 @@ class JSCDebugger : protected JSC::Debugger,
 
   // Whether script execution is currently paused.
   bool is_paused_;
-
-  // Set of source providers (scripts).
-  SourceProviderSet source_providers_;
 };
 
 }  // namespace javascriptcore
