@@ -16,23 +16,11 @@
 
 #include "cobalt/dom/html_head_element.h"
 
-#include "cobalt/dom/document.h"
-
 namespace cobalt {
 namespace dom {
 
 // static
 const char HTMLHeadElement::kTagName[] = "head";
-
-void HTMLHeadElement::OnInsertedIntoDocument() {
-  HTMLElement::OnInsertedIntoDocument();
-  node_document()->SetHead(this);
-}
-
-void HTMLHeadElement::OnRemovedFromDocument() {
-  node_document()->SetHead(NULL);
-  Node::OnRemovedFromDocument();
-}
 
 }  // namespace dom
 }  // namespace cobalt
