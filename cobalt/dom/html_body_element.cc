@@ -16,23 +16,11 @@
 
 #include "cobalt/dom/html_body_element.h"
 
-#include "cobalt/dom/document.h"
-
 namespace cobalt {
 namespace dom {
 
 // static
 const char HTMLBodyElement::kTagName[] = "body";
-
-void HTMLBodyElement::OnInsertedIntoDocument() {
-  HTMLElement::OnInsertedIntoDocument();
-  node_document()->SetBody(this);
-}
-
-void HTMLBodyElement::OnRemovedFromDocument() {
-  node_document()->SetBody(NULL);
-  Node::OnRemovedFromDocument();
-}
 
 }  // namespace dom
 }  // namespace cobalt

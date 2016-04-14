@@ -47,7 +47,6 @@
 namespace cobalt {
 namespace dom {
 
-class Attr;
 class CspDelegate;
 class DOMImplementation;
 class Element;
@@ -140,7 +139,7 @@ class Document : public Node, public cssom::MutationObserver {
   const std::string& url() const { return location_->url().spec(); }
   const std::string& document_uri() const { return location_->url().spec(); }
 
-  scoped_refptr<Element> document_element();
+  scoped_refptr<Element> document_element() const;
   std::string title() const;
 
   scoped_refptr<HTMLCollection> GetElementsByTagName(
@@ -166,7 +165,7 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<Location> location() const;
 
   scoped_refptr<HTMLBodyElement> body() const;
-  void set_body(const scoped_refptr<HTMLBodyElement>& value);
+  void set_body(const scoped_refptr<HTMLBodyElement>& body);
 
   scoped_refptr<HTMLHeadElement> head() const;
 
@@ -230,11 +229,7 @@ class Document : public Node, public cssom::MutationObserver {
     return keyframes_map_;
   }
 
-  // These functions are for setting weak references to certain elements in the
-  // document.
-  void SetBody(HTMLBodyElement* body);
-  void SetHead(HTMLHeadElement* head);
-  void SetHtml(HTMLHtmlElement* html);
+  // Sets the active element of the document.
   void SetActiveElement(Element* active_element);
 
   // Count all ongoing loadings, including document itself and its dependent
@@ -354,10 +349,7 @@ class Document : public Node, public cssom::MutationObserver {
   bool are_font_faces_dirty_;
   bool are_keyframes_dirty_;
 
-  // Weak references to the certain elements in the document.
-  base::WeakPtr<HTMLBodyElement> body_;
-  base::WeakPtr<HTMLHeadElement> head_;
-  base::WeakPtr<HTMLHtmlElement> html_;
+  // Weak reference to the active element.
   base::WeakPtr<Element> active_element_;
   // List of document observers.
   ObserverList<DocumentObserver> observers_;

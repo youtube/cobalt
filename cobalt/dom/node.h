@@ -118,16 +118,14 @@ class Node : public EventTarget {
   virtual base::Token node_name() const = 0;
 
   scoped_refptr<Document> owner_document() const;
-  scoped_refptr<Node> parent_node() const { return parent_.get(); }
+  scoped_refptr<Node> parent_node() const { return parent_; }
   scoped_refptr<Element> parent_element() const;
   bool HasChildNodes() const;
   scoped_refptr<NodeList> child_nodes() const;
   scoped_refptr<Node> first_child() const { return first_child_; }
-  scoped_refptr<Node> last_child() const { return last_child_.get(); }
+  scoped_refptr<Node> last_child() const { return last_child_; }
   scoped_refptr<Node> next_sibling() const { return next_sibling_; }
-  scoped_refptr<Node> previous_sibling() const {
-    return previous_sibling_.get();
-  }
+  scoped_refptr<Node> previous_sibling() const { return previous_sibling_; }
 
   virtual base::optional<std::string> node_value() const {
     return base::nullopt;
@@ -156,17 +154,17 @@ class Node : public EventTarget {
   // The ParentNode interface contains methods that are particular to Node
   // objects that can have children.
   //   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-parentnode
-  scoped_refptr<HTMLCollection> children();
-  scoped_refptr<Element> first_element_child();
-  scoped_refptr<Element> last_element_child();
-  unsigned int child_element_count();
+  scoped_refptr<HTMLCollection> children() const;
+  scoped_refptr<Element> first_element_child() const;
+  scoped_refptr<Element> last_element_child() const;
+  unsigned int child_element_count() const;
 
   // Web API: NonDocumentTypeChildNode (implements)
   // The NonDocumentTypeChildNode interface contains methods that are particular
   // to Node objects that can have a parent.
   //   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-nondocumenttypechildnode
-  scoped_refptr<Element> previous_element_sibling();
-  scoped_refptr<Element> next_element_sibling();
+  scoped_refptr<Element> previous_element_sibling() const;
+  scoped_refptr<Element> next_element_sibling() const;
 
   // Custom, not in any spec.
   //
@@ -246,16 +244,18 @@ class Node : public EventTarget {
 
   // Weak reference to the node document.
   base::WeakPtr<Document> node_document_;
+  // Weak references to parent, previous sibling and last child.
+  Node* parent_;
+  Node* previous_sibling_;
+  Node* last_child_;
   // Whether the node has been inserted into its node document.
   bool inserted_into_document_;
   // Node generation counter.
   uint32_t node_generation_;
 
+  // Strong references to first child and next sibling.
   scoped_refptr<Node> first_child_;
   scoped_refptr<Node> next_sibling_;
-  base::WeakPtr<Node> parent_;
-  base::WeakPtr<Node> previous_sibling_;
-  base::WeakPtr<Node> last_child_;
 
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
