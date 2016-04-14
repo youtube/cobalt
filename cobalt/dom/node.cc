@@ -182,10 +182,10 @@ scoped_refptr<Node> Node::InsertBefore(
   if (new_child->parent_) {
     new_child->parent_->RemoveChild(new_child);
   }
-  new_child->parent_ = StaticAsWeakPtr<Node>(this);
+  new_child->parent_ = this;
 
   scoped_refptr<Node> next_sibling = reference_child;
-  base::WeakPtr<Node> previous_sibling;
+  Node* previous_sibling;
 
   if (next_sibling) {
     previous_sibling = next_sibling->previous_sibling_;
@@ -201,9 +201,9 @@ scoped_refptr<Node> Node::InsertBefore(
   new_child->previous_sibling_ = previous_sibling;
 
   if (next_sibling) {
-    next_sibling->previous_sibling_ = StaticAsWeakPtr<Node>(new_child);
+    next_sibling->previous_sibling_ = new_child;
   } else {
-    last_child_ = StaticAsWeakPtr<Node>(new_child);
+    last_child_ = new_child;
   }
   new_child->next_sibling_ = next_sibling;
 
@@ -323,8 +323,8 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
   } else {
     last_child_ = node->previous_sibling_;
   }
-  node->parent_.reset();
-  node->previous_sibling_.reset();
+  node->parent_ = NULL;
+  node->previous_sibling_ = NULL;
   node->next_sibling_ = NULL;
 
   // Custom, not in any spec.
@@ -339,11 +339,11 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
   return node;
 }
 
-scoped_refptr<HTMLCollection> Node::children() {
+scoped_refptr<HTMLCollection> Node::children() const {
   return HTMLCollection::CreateWithChildElements(this);
 }
 
-scoped_refptr<Element> Node::first_element_child() {
+scoped_refptr<Element> Node::first_element_child() const {
   Node* child = first_child();
   while (child) {
     if (child->IsElement()) {
@@ -354,7 +354,7 @@ scoped_refptr<Element> Node::first_element_child() {
   return NULL;
 }
 
-scoped_refptr<Element> Node::last_element_child() {
+scoped_refptr<Element> Node::last_element_child() const {
   Node* child = last_child();
   while (child) {
     if (child->IsElement()) {
@@ -365,7 +365,7 @@ scoped_refptr<Element> Node::last_element_child() {
   return NULL;
 }
 
-unsigned int Node::child_element_count() {
+unsigned int Node::child_element_count() const {
   unsigned int num_elements = 0;
   const Node* child = first_child();
   while (child) {
@@ -377,7 +377,7 @@ unsigned int Node::child_element_count() {
   return num_elements;
 }
 
-scoped_refptr<Element> Node::previous_element_sibling() {
+scoped_refptr<Element> Node::previous_element_sibling() const {
   Node* sibling = previous_sibling();
   while (sibling) {
     if (sibling->IsElement()) {
@@ -388,7 +388,7 @@ scoped_refptr<Element> Node::previous_element_sibling() {
   return NULL;
 }
 
-scoped_refptr<Element> Node::next_element_sibling() {
+scoped_refptr<Element> Node::next_element_sibling() const {
   Node* sibling = next_sibling();
   while (sibling) {
     if (sibling->IsElement()) {
@@ -435,6 +435,9 @@ void Node::InvalidateLayoutBoxesFromNodeAndDescendants() {
 
 Node::Node(Document* document)
     : node_document_(base::AsWeakPtr(document)),
+      parent_(NULL),
+      previous_sibling_(NULL),
+      last_child_(NULL),
       inserted_into_document_(false),
       node_generation_(kInitialNodeGeneration) {
   DCHECK(node_document_);

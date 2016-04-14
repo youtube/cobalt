@@ -23,7 +23,10 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/html_head_element.h"
+#include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node_list.h"
@@ -267,6 +270,56 @@ TEST_F(DocumentTest, StyleSheets) {
             document->style_sheets()->Item(2));
   EXPECT_NE(document->style_sheets()->Item(1),
             document->style_sheets()->Item(2));
+}
+
+TEST_F(DocumentTest, HtmlElement) {
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+  EXPECT_FALSE(document->html());
+
+  scoped_refptr<Node> div =
+      document->AppendChild(document->CreateElement("div"));
+  EXPECT_FALSE(document->html());
+
+  document->RemoveChild(div);
+  scoped_refptr<Node> html =
+      document->AppendChild(document->CreateElement("html"));
+  EXPECT_EQ(html, document->html());
+}
+
+TEST_F(DocumentTest, HeadElement) {
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+  EXPECT_FALSE(document->head());
+
+  scoped_refptr<Node> html =
+      document->AppendChild(document->CreateElement("html"));
+  EXPECT_FALSE(document->head());
+
+  scoped_refptr<Node> div = html->AppendChild(document->CreateElement("div"));
+  EXPECT_FALSE(document->head());
+
+  scoped_refptr<Node> head1 =
+      html->AppendChild(document->CreateElement("head"));
+  scoped_refptr<Node> head2 =
+      html->AppendChild(document->CreateElement("head"));
+  EXPECT_EQ(head1, document->head());
+}
+
+TEST_F(DocumentTest, BodyElement) {
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+  EXPECT_FALSE(document->body());
+
+  scoped_refptr<Node> html =
+      document->AppendChild(document->CreateElement("html"));
+  EXPECT_FALSE(document->body());
+
+  scoped_refptr<Node> div = html->AppendChild(document->CreateElement("div"));
+  EXPECT_FALSE(document->body());
+
+  scoped_refptr<Node> body1 =
+      html->AppendChild(document->CreateElement("body"));
+  scoped_refptr<Node> body2 =
+      html->AppendChild(document->CreateElement("body"));
+  EXPECT_EQ(body1, document->body());
 }
 
 }  // namespace
