@@ -30,9 +30,7 @@
 #include "cobalt/math/size.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
-#include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/renderer/renderer_module.h"
-#include "cobalt/system_window/system_window.h"
+#include "cobalt/render_tree/resource_provider_stub.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -148,19 +146,10 @@ std::string RunWebPlatformTest(const GURL& url) {
   net_options.require_https = false;
   network::NetworkModule network_module(net_options);
 
-  // Renderer module
-  base::EventDispatcher event_dispatcher;
-  scoped_ptr<system_window::SystemWindow> system_window =
-      system_window::CreateSystemWindow(&event_dispatcher,
-                                        kDefaultViewportSize);
-  renderer::RendererModule renderer_module(system_window.get(),
-                                           renderer::RendererModule::Options());
-
   // Media module
-  render_tree::ResourceProvider* resource_provider =
-      renderer_module.pipeline()->GetResourceProvider();
+  render_tree::ResourceProviderStub resource_provider;
   scoped_ptr<media::MediaModule> media_module(media::MediaModule::Create(
-      resource_provider, media::MediaModule::Options()));
+      &resource_provider, media::MediaModule::Options()));
 
   dom::CspDelegateFactory::GetInstance()->OverrideCreator(
       dom::kCspEnforcementEnable, CspDelegatePermissive::Create);
@@ -177,7 +166,7 @@ std::string RunWebPlatformTest(const GURL& url) {
       url,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop),
       base::Bind(&WebModuleErrorCallback, &run_loop), media_module.get(),
-      &network_module, kDefaultViewportSize, resource_provider, 60.0f,
+      &network_module, kDefaultViewportSize, &resource_provider, 60.0f,
       web_module_options);
   run_loop.Run();
   const std::string extract_results =
