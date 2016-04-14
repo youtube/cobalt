@@ -17,11 +17,14 @@
 #ifndef COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 #define COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 
+#include <malloc.h>
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/font_fallback_list.h"
+#include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -119,6 +122,25 @@ class FontStub : public Font {
   math::RectF glyph_bounds_;
 };
 
+class RawImageMemoryStub : public RawImageMemory {
+ public:
+  RawImageMemoryStub(size_t size_in_bytes, size_t alignment)
+      : size_in_bytes_(size_in_bytes) {
+    memory_ = scoped_ptr_malloc<uint8_t>(
+        static_cast<uint8_t*>(memalign(alignment, size_in_bytes)));
+  }
+
+  size_t GetSizeInBytes() const OVERRIDE { return size_in_bytes_; }
+
+  uint8_t* GetMemory() OVERRIDE { return memory_.get(); }
+
+ private:
+  ~RawImageMemoryStub() OVERRIDE {}
+
+  size_t size_in_bytes_;
+  scoped_ptr_malloc<uint8_t> memory_;
+};
+
 // Return the stub versions defined above for each resource.
 class ResourceProviderStub : public ResourceProvider {
  public:
@@ -139,9 +161,8 @@ class ResourceProviderStub : public ResourceProvider {
 
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                     size_t alignment) OVERRIDE {
-    UNREFERENCED_PARAMETER(size_in_bytes);
-    UNREFERENCED_PARAMETER(alignment);
-    return scoped_ptr<RawImageMemory>();
+    return scoped_ptr<RawImageMemory>(
+        new RawImageMemoryStub(size_in_bytes, alignment));
   }
 
   scoped_refptr<Image> CreateMultiPlaneImageFromRawMemory(
