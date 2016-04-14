@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/string_number_conversions.h"
@@ -526,13 +527,13 @@ void Application::RegisterUserLogs() {
     base::UserLog::Register(base::UserLog::kAppResumeCountIndex, "ResumeCnt",
                             &app_resume_count_, sizeof(app_resume_count_));
     base::UserLog::Register(base::UserLog::kNetworkStatusIndex,
-                            "NetworkStatus)", &network_status_,
+                            "NetworkStatus", &network_status_,
                             sizeof(network_status_));
     base::UserLog::Register(base::UserLog::kNetworkConnectCountIndex,
-                            "ConnectCnt)", &network_connect_count_,
+                            "ConnectCnt", &network_connect_count_,
                             sizeof(network_connect_count_));
     base::UserLog::Register(base::UserLog::kNetworkDisconnectCountIndex,
-                            "DisconnectCnt)", &network_disconnect_count_,
+                            "DisconnectCnt", &network_disconnect_count_,
                             sizeof(network_disconnect_count_));
 
     user_log_update_timer_.Start(
