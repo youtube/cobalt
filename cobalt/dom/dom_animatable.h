@@ -18,7 +18,6 @@
 #define COBALT_DOM_DOM_ANIMATABLE_H_
 
 #include "base/compiler_specific.h"
-#include "base/memory/weak_ptr.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element.h"

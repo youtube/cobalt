@@ -16,26 +16,11 @@
 
 #include "cobalt/dom/html_html_element.h"
 
-#include "cobalt/dom/document.h"
-
 namespace cobalt {
 namespace dom {
 
 // static
 const char HTMLHtmlElement::kTagName[] = "html";
-
-HTMLHtmlElement::HTMLHtmlElement(Document* document)
-    : HTMLElement(document, base::Token(kTagName)) {}
-
-void HTMLHtmlElement::OnInsertedIntoDocument() {
-  HTMLElement::OnInsertedIntoDocument();
-  node_document()->SetHtml(this);
-}
-
-void HTMLHtmlElement::OnRemovedFromDocument() {
-  node_document()->SetHtml(NULL);
-  Node::OnRemovedFromDocument();
-}
 
 }  // namespace dom
 }  // namespace cobalt

@@ -42,9 +42,6 @@ class HTMLHeadElement : public HTMLElement {
 
  private:
   ~HTMLHeadElement() OVERRIDE {}
-
-  void OnInsertedIntoDocument() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
 };
 
 }  // namespace dom

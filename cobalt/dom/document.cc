@@ -30,7 +30,6 @@
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/dom/attr.h"
 #include "cobalt/dom/benchmark_stat_names.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/csp_delegate_factory.h"
@@ -133,7 +132,7 @@ base::Token Document::node_name() const {
   return base::Tokens::document_name();
 }
 
-scoped_refptr<Element> Document::document_element() {
+scoped_refptr<Element> Document::document_element() const {
   return first_element_child();
 }
 
@@ -223,22 +222,46 @@ scoped_refptr<Element> Document::GetElementById(const std::string& id) const {
 
 scoped_refptr<Location> Document::location() const { return location_; }
 
-scoped_refptr<HTMLBodyElement> Document::body() const { return body_.get(); }
+// Algorithm for body:
+//   https://www.w3.org/TR/html5/dom.html#dom-document-body
+scoped_refptr<HTMLBodyElement> Document::body() const {
+  // The body element of a document is the first child of the html element that
+  // is either a body element or a frameset element. If there is no such
+  // element, it is null.
+  //   https://www.w3.org/TR/html5/dom.html#the-body-element-0
+  HTMLHtmlElement* html_element = html();
+  if (!html_element) {
+    return NULL;
+  }
+  for (Element* child = html_element->first_element_child(); child;
+       child = child->next_element_sibling()) {
+    HTMLElement* child_html_element = child->AsHTMLElement();
+    if (child_html_element) {
+      HTMLBodyElement* body_element = child_html_element->AsHTMLBodyElement();
+      if (body_element) {
+        return body_element;
+      }
+    }
+  }
+  return NULL;
+}
 
 // Algorithm for set_body:
 //   https://www.w3.org/TR/html5/dom.html#dom-document-body
-void Document::set_body(const scoped_refptr<HTMLBodyElement>& value) {
+void Document::set_body(const scoped_refptr<HTMLBodyElement>& body) {
   // 1. If the new value is not a body or frameset element, then throw a
   //    HierarchyRequestError exception and abort these steps.
-  if (value->tag_name() != HTMLBodyElement::kTagName) {
+  if (body->tag_name() != HTMLBodyElement::kTagName) {
     // TODO(***REMOVED***): Throw JS HierarchyRequestError.
     return;
   }
 
   // 2. Otherwise, if the new value is the same as the body element, do nothing.
   //    Abort these steps.
-  scoped_refptr<HTMLBodyElement> current_body = body();
-  if (current_body == value) return;
+  scoped_refptr<HTMLBodyElement> current_body = this->body();
+  if (current_body == body) {
+    return;
+  }
 
   // 3. Otherwise, if the body element is not null, then replace that element
   //    with the new value in the DOM, as if the root element's replaceChild()
@@ -254,13 +277,34 @@ void Document::set_body(const scoped_refptr<HTMLBodyElement>& value) {
     return;
   }
   if (current_body) {
-    current_html->ReplaceChild(value, current_body);
+    current_html->ReplaceChild(body, current_body);
   } else {
-    current_html->AppendChild(value);
+    current_html->AppendChild(body);
   }
 }
 
-scoped_refptr<HTMLHeadElement> Document::head() const { return head_.get(); }
+// Algorithm for head:
+//   https://www.w3.org/TR/html5/dom.html#dom-document-head
+scoped_refptr<HTMLHeadElement> Document::head() const {
+  // The head element of a document is the first head element that is a child of
+  // the html element, if there is one, or null otherwise.
+  //   https://www.w3.org/TR/html5/dom.html#the-head-element-0
+  HTMLHtmlElement* html_element = html();
+  if (!html_element) {
+    return NULL;
+  }
+  for (Element* child = html_element->first_element_child(); child;
+       child = child->next_element_sibling()) {
+    HTMLElement* child_html_element = child->AsHTMLElement();
+    if (child_html_element) {
+      HTMLHeadElement* head_element = child_html_element->AsHTMLHeadElement();
+      if (head_element) {
+        return head_element;
+      }
+    }
+  }
+  return NULL;
+}
 
 scoped_refptr<Element> Document::active_element() const {
   if (!active_element_) {
@@ -315,33 +359,16 @@ scoped_refptr<Node> Document::Duplicate() const {
   return NULL;
 }
 
-scoped_refptr<HTMLHtmlElement> Document::html() const { return html_.get(); }
-
-void Document::SetBody(HTMLBodyElement* body) {
-  if (body) {
-    LOG_IF(ERROR, body_) << "Document contains more than one <body> tags.";
-    body_ = base::AsWeakPtr(body);
-  } else {
-    body_.reset();
+scoped_refptr<HTMLHtmlElement> Document::html() const {
+  // The html element of a document is the document's root element, if there is
+  // one and it's an html element, or null otherwise.
+  //   https://www.w3.org/TR/html5/dom.html#the-html-element-0
+  Element* root = document_element();
+  if (!root) {
+    return NULL;
   }
-}
-
-void Document::SetHead(HTMLHeadElement* head) {
-  if (head) {
-    LOG_IF(ERROR, head_) << "Document contains more than one <head> tags.";
-    head_ = base::AsWeakPtr(head);
-  } else {
-    head_.reset();
-  }
-}
-
-void Document::SetHtml(HTMLHtmlElement* html) {
-  if (html) {
-    LOG_IF(ERROR, html_) << "Document contains more than one <html> tags.";
-    html_ = base::AsWeakPtr(html);
-  } else {
-    html_.reset();
-  }
+  HTMLElement* root_html_element = root->AsHTMLElement();
+  return root_html_element ? root_html_element->AsHTMLHtmlElement() : NULL;
 }
 
 void Document::SetActiveElement(Element* active_element) {
@@ -366,15 +393,10 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent() {
     MessageLoop::current()->PostTask(
         FROM_HERE, base::Bind(&Document::DispatchOnLoadEvent,
                               base::AsWeakPtr<Document>(this)));
-    if (body_) {
-      MessageLoop::current()->PostTask(
-          FROM_HERE,
-          base::Bind(base::IgnoreResult(
-                         static_cast<bool
-                             (HTMLBodyElement::*)(const scoped_refptr<Event>&)>(
-                             &HTMLBodyElement::DispatchEvent)),
-                     body_,
-                     make_scoped_refptr(new Event(base::Tokens::load()))));
+
+    HTMLBodyElement* body_element = body();
+    if (body_element) {
+      body_element->PostToDispatchEvent(FROM_HERE, base::Tokens::load());
     }
   }
 }

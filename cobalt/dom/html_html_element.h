@@ -32,7 +32,8 @@ class HTMLHtmlElement : public HTMLElement {
  public:
   static const char kTagName[];
 
-  explicit HTMLHtmlElement(Document* document);
+  explicit HTMLHtmlElement(Document* document)
+      : HTMLElement(document, base::Token(kTagName)) {}
 
   // Custom, not in any spec.
   scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement() OVERRIDE { return this; }
@@ -41,9 +42,6 @@ class HTMLHtmlElement : public HTMLElement {
 
  private:
   ~HTMLHtmlElement() OVERRIDE {}
-
-  void OnInsertedIntoDocument() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
 };
 
 }  // namespace dom
