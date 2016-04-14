@@ -110,6 +110,13 @@
 #endif
 
 #if defined(STARBOARD)
+// This is handled in SbAllocateChecked and friends.
+#define MALLOC_FAILURE_ACTION NULL
+#else
+#define MALLOC_FAILURE_ACTION ABORT
+#endif
+
+#if defined(STARBOARD)
 
 #if SB_HAS(MMAP)
 #define DEFAULT_MMAP_THRESHOLD SB_DEFAULT_MMAP_THRESHOLD
@@ -128,7 +135,6 @@
 #define LACKS_STDLIB_H 1
 #define LACKS_SCHED_H 1
 #define LACKS_TIME_H 1
-#define MALLOC_FAILURE_ACTION NULL
 #define EINVAL 1
 #define ENOMEM 1
 
