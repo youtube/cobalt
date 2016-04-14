@@ -82,6 +82,26 @@ bool DebugServer::Component::RunScriptFile(const std::string& filename) {
   }
 }
 
+JSONObject DebugServer::Component::CreateRemoteObject(
+    const script::OpaqueHandleHolder* object) {
+  // Parameter object for the JavaScript function call uses default values.
+  JSONObject params(new base::DictionaryValue());
+
+  // This will execute a JavaScript function to create a Runtime.Remote object
+  // that describes the opaque JavaScript object.
+  DCHECK(server_);
+  base::optional<std::string> json_result =
+      server()->CreateRemoteObject(object, JSONStringify(params));
+
+  // Parse the serialized JSON result.
+  if (json_result) {
+    return JSONParse(json_result.value());
+  } else {
+    DLOG(WARNING) << "Could not create Runtime.RemoteObject";
+    return JSONObject(new base::DictionaryValue());
+  }
+}
+
 void DebugServer::Component::SendEvent(const std::string& method,
                                        const JSONObject& params) {
   if (server_) {
