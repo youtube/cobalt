@@ -80,17 +80,17 @@ void SystemWindowStarboard::UpdateModifiers(SbKey key, bool pressed) {
   switch (key) {
     case kSbKeyControl:
       control_count_ += adjustment;
-      DCHECK_LT(0, control_count_);
+      DCHECK_LE(0, control_count_);
       break;
     case kSbKeyShift:
     case kSbKeyLshift:
     case kSbKeyRshift:
       shift_count_ += adjustment;
-      DCHECK_LT(0, shift_count_);
+      DCHECK_LE(0, shift_count_);
       break;
     case kSbKeyMenu:
       alt_count_ += adjustment;
-      DCHECK_LT(0, alt_count_);
+      DCHECK_LE(0, alt_count_);
       break;
     default:
       break;
