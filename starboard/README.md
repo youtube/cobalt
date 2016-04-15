@@ -192,11 +192,13 @@ the port name `bobbox_mipseb`.)
       1. In `gyp_configuration.py`
           1. In the `_PlatformConfig.__init__()` function, remove checks for Clang
              or GOMA.
-          1. Again in the `_PlatformConfig.__init__()` function, pass your
-             `<platform-configuration>` into `super.__init__()`, like
-             `super.__init__('bobbox_mipseb')`.
-          1. (optional) In `GetPlatformFullName`, have it return a name, like
-             `BobBoxMIPSEB`.  This name will be used in your output directory,
+          1. In the `CreatePlatformConfig()` function, pass your
+             `<platform-configuration>` as the first parameter to the
+             _PlatformConfig constructor, like
+             `return _PlatformConfig('bobbox_mipseb', ...)`.
+          1. (optional) Adjust the second parameter of the _PlatformConfig
+              constructor to specify a name, like `BobBoxMIPSEB`.  This name will
+              be used in your output directory,
              e.g. `BobBoxMIPSEB_Debug`, and must be the name of your build
              configurations defined in your build configuration GYPI file.  By
              default, it will just capitalize your platform name,
