@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This is a sample sandbox application for experimenting with the Cobalt
+# render tree/renderer interface.
+
 {
   'targets': [
     {
-      'target_name': 'examples',
-      'type': 'none',
+      'target_name': 'starboard_blitter_example',
+      'type': 'executable',
+      'sources': [
+        'main.cc',
+      ],
       'dependencies': [
-        '<(DEPTH)/starboard/examples/blitter/blitter.gyp:starboard_blitter_example',
-        '<(DEPTH)/starboard/examples/window/window.gyp:starboard_window_example',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
     },
   ],
