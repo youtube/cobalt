@@ -19,6 +19,7 @@
 #include <deque>
 
 #include "base/bind.h"
+#include "base/compiler_specific.h"
 #include "base/debug/trace_event.h"
 #include "base/string_util.h"
 #include "cobalt/base/tokens.h"
@@ -28,6 +29,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/sync_loader.h"
 #include "cobalt/loader/text_decoder.h"
+#include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
 
@@ -49,7 +51,8 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
       is_parser_inserted_(false),
       is_ready_(false),
       load_option_(0),
-      inline_script_location_(GetSourceLocationName(), 1, 1) {
+      inline_script_location_(GetSourceLocationName(), 1, 1),
+      prevent_garbage_collection_count_(0) {
   DCHECK(document->html_element_context()->script_runner());
 }
 
@@ -74,18 +77,14 @@ scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
 }
 
 HTMLScriptElement::~HTMLScriptElement() {
-  // Remove the script from the list of scripts that will execute in order as
-  // soon as possible associated with the Document, only if the document still
-  // exists when the script element is destroyed.
   if (node_document()) {
+    // Verify that the script is not being deleted while it is still in the
+    // list of scripts to be executed.
     std::deque<HTMLScriptElement*>* scripts_to_be_executed =
         node_document()->scripts_to_be_executed();
-
-    std::deque<HTMLScriptElement*>::iterator it = std::find(
-        scripts_to_be_executed->begin(), scripts_to_be_executed->end(), this);
-    if (it != scripts_to_be_executed->end()) {
-      scripts_to_be_executed->erase(it);
-    }
+    CHECK(std::find(scripts_to_be_executed->begin(),
+                    scripts_to_be_executed->end(),
+                    this) == scripts_to_be_executed->end());
   }
 }
 
@@ -228,8 +227,8 @@ void HTMLScriptElement::Prepare() {
       is_sync_load_successful_ = false;
 
       loader::LoadSynchronously(
-          html_element_context()->sync_load_thread()->message_loop(),
-          base::Bind(
+        html_element_context()->sync_load_thread()->message_loop(),
+        base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
               csp_callback),
@@ -253,6 +252,10 @@ void HTMLScriptElement::Prepare() {
       }
     } break;
     case 4: {
+      // This is an asynchronous script. Prevent garbage collection until
+      // loading completes and the script potentially executes.
+      PreventGarbageCollection();
+
       // If the element has a src attribute, does not have an async attribute,
       // and does not have the "force-async" flag set.
 
@@ -278,6 +281,10 @@ void HTMLScriptElement::Prepare() {
       document_->IncreaseLoadingCounter();
     } break;
     case 5: {
+      // This is an asynchronous script. Prevent garbage collection until
+      // loading completes and the script potentially executes.
+      PreventGarbageCollection();
+
       // If the element has a src attribute.
 
       // The element must be added to the set of scripts that will execute as
@@ -333,8 +340,10 @@ void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(load_option_ == 4 || load_option_ == 5);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingDone()");
   if (!document_) {
+    AllowGarbageCollection();
     return;
   }
 
@@ -363,15 +372,25 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
         HTMLScriptElement* script = scripts_to_be_executed->front();
         script->ExecuteExternal();
 
+        // NOTE: Must disable warning 6011 on Windows. It mysteriously believes
+        // that a NULL pointer is being dereferenced with this comparison.
+        MSVC_PUSH_DISABLE_WARNING(6011);
+        // If this script isn't the current object, then allow it to be garbage
+        // collected now that it has executed.
+        if (script != this) {
+          script->AllowGarbageCollection();
+        }
+        MSVC_POP_WARNING();
+
+        // 3. Remove the first element from this list of scripts that will
+        // execute in order as soon as possible.
+        scripts_to_be_executed->pop_front();
+
         // Fetching an external script must delay the load event of the
         //  element's document until the task that is queued by the networking
         // task source once the resource has been fetched (defined above)
         // has been run.
         document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
-
-        // 3. Remove the first element from this list of scripts that will
-        // execute in order as soon as possible.
-        scripts_to_be_executed->pop_front();
 
         // 4. If this list of scripts that will execute in order as soon as
         // possible is still not empty and the first entry has already been
@@ -382,6 +401,9 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
           break;
         }
       }
+      // Allow garbage collection on the current script object now that it has
+      // finished executing both itself and other pending scripts.
+      AllowGarbageCollection();
     } break;
     case 5: {
       // If the element has a src attribute.
@@ -392,12 +414,15 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
       // soon as possible.
       ExecuteExternal();
 
+      // Allow garbage collection on the current object now that it has finished
+      // executing.
+      AllowGarbageCollection();
+
       // Fetching an external script must delay the load event of the element's
       // document until the task that is queued by the networking task source
       // once the resource has been fetched (defined above) has been run.
       document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
     } break;
-    default: { NOTREACHED(); }
   }
 }
 
@@ -405,7 +430,13 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingError(const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(load_option_ == 4 || load_option_ == 5);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingError()");
+
+  // Allow garbage collection on the current object. No script will be executed
+  // on it.
+  AllowGarbageCollection();
+
   if (!document_) {
     return;
   }
@@ -432,7 +463,6 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
     case 5: {
       // If the element has a src attribute.
     } break;
-    default: { NOTREACHED(); }
   }
 
   // Fetching an external script must delay the load event of the element's
@@ -471,6 +501,31 @@ void HTMLScriptElement::Execute(const std::string& content,
   } else {
     PostToDispatchEvent(FROM_HERE, base::Tokens::load());
     PostToDispatchEvent(FROM_HERE, base::Tokens::readystatechange());
+  }
+}
+
+void HTMLScriptElement::PreventGarbageCollection() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_GE(prevent_garbage_collection_count_, 0);
+  if (prevent_garbage_collection_count_++ == 0) {
+    DCHECK(html_element_context());
+    DCHECK(html_element_context()->script_runner());
+    DCHECK(html_element_context()->script_runner()->GetGlobalObjectProxy());
+    html_element_context()
+        ->script_runner()
+        ->GetGlobalObjectProxy()
+        ->PreventGarbageCollection(make_scoped_refptr(this));
+  }
+}
+
+void HTMLScriptElement::AllowGarbageCollection() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_GT(prevent_garbage_collection_count_, 0);
+  if (--prevent_garbage_collection_count_ == 0) {
+    html_element_context()
+        ->script_runner()
+        ->GetGlobalObjectProxy()
+        ->AllowGarbageCollection(make_scoped_refptr(this));
   }
 }
 
