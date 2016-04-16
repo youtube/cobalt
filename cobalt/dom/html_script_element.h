@@ -92,6 +92,9 @@ class HTMLScriptElement : public HTMLElement {
   void Execute(const std::string& content,
                const base::SourceLocation& script_location, bool is_external);
 
+  void PreventGarbageCollection();
+  void AllowGarbageCollection();
+
   // Whether the script has been started.
   bool is_already_started_;
   // Whether the script element is inserted by parser.
@@ -116,6 +119,8 @@ class HTMLScriptElement : public HTMLElement {
   GURL url_;
   // Content of the script.
   std::string content_;
+  // Active requests disabling garbage collection.
+  int prevent_garbage_collection_count_;
 };
 
 }  // namespace dom
