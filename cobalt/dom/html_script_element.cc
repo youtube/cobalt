@@ -77,14 +77,20 @@ scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
 }
 
 HTMLScriptElement::~HTMLScriptElement() {
+  // Remove the script from the list of scripts that will execute in order as
+  // soon as possible associated with the Document, only if the document still
+  // exists when the script element is destroyed.
+  // NOTE: While the garbage collection prevention logic will typically protect
+  // from this, it is still possible during shutdown.
   if (node_document()) {
-    // Verify that the script is not being deleted while it is still in the
-    // list of scripts to be executed.
     std::deque<HTMLScriptElement*>* scripts_to_be_executed =
         node_document()->scripts_to_be_executed();
-    CHECK(std::find(scripts_to_be_executed->begin(),
-                    scripts_to_be_executed->end(),
-                    this) == scripts_to_be_executed->end());
+
+    std::deque<HTMLScriptElement*>::iterator it = std::find(
+        scripts_to_be_executed->begin(), scripts_to_be_executed->end(), this);
+    if (it != scripts_to_be_executed->end()) {
+      scripts_to_be_executed->erase(it);
+    }
   }
 }
 
@@ -227,8 +233,8 @@ void HTMLScriptElement::Prepare() {
       is_sync_load_successful_ = false;
 
       loader::LoadSynchronously(
-        html_element_context()->sync_load_thread()->message_loop(),
-        base::Bind(
+          html_element_context()->sync_load_thread()->message_loop(),
+          base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
               csp_callback),
