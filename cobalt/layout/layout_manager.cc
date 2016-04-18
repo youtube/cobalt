@@ -110,11 +110,11 @@ LayoutManager::Impl::Impl(
   UErrorCode status = U_ZERO_ERROR;
   line_break_iterator_ =
       make_scoped_ptr(icu::BreakIterator::createLineInstance(locale_, status));
-  DCHECK(U_SUCCESS(status));
+  CHECK(U_SUCCESS(status));
   status = U_ZERO_ERROR;
   character_break_iterator_ = make_scoped_ptr(
       icu::BreakIterator::createCharacterInstance(locale_, status));
-  DCHECK(U_SUCCESS(status));
+  CHECK(U_SUCCESS(status));
 
 #if defined(ENABLE_TEST_RUNNER)
   if (layout_trigger_ == kTestRunnerMode) {
