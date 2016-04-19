@@ -3481,6 +3481,88 @@ TEST_F(ParserTest, ParsesBorderRight) {
   EXPECT_EQ(0xFFFFFF33, border_right_color->value());
 }
 
+TEST_F(ParserTest, ParsesBorderColorWithInvalidNumberOfValues) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:13: warning: invalid number of "
+                        "border color values"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-color: maroon green transparent #CdC transparent;",
+          source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftColorProperty));
+}
+
+TEST_F(ParserTest, ParsesBorderColorWithZeroValue) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:13: warning: invalid number of "
+                        "border color values"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-color: ;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftColorProperty));
+}
+
+TEST_F(ParserTest, ParsesBorderStyleWithInvalidNumberOfValues) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:13: warning: invalid number of "
+                        "border style values"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-style: solid hidden none solid hidden;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftStyleProperty));
+}
+
+TEST_F(ParserTest, ParsesBorderStyleWithZeroValue) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:13: warning: invalid number of "
+                        "border style values"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-style: ;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftStyleProperty));
+}
+
+TEST_F(ParserTest, ParsesBorderWidthWithInvalidNumberOfValues) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:13: warning: invalid number of "
+                        "border width values"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "border-width: 0.2em 12px 0.8em 10px 0.2em 5px;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftWidthProperty));
+}
+
+TEST_F(ParserTest, ParsesBorderWidthWithZeroValue) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:13: warning: invalid number of "
+                        "border width values"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-width: ;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderTopWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderRightWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderBottomWidthProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftWidthProperty));
+}
+
 TEST_F(ParserTest, ParsesBorderRadiusLength) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("border-radius: 0.2em;",
