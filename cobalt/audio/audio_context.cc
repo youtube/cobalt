@@ -22,7 +22,10 @@ namespace cobalt {
 namespace audio {
 
 AudioContext::AudioContext()
-    : sample_rate_(0.0f),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          weak_this_(weak_ptr_factory_.GetWeakPtr())),
+      sample_rate_(0.0f),
       current_time_(0.0f),
       audio_lock_(new AudioLock()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -85,9 +88,10 @@ void AudioContext::DecodeFinish(int callback_id, float sample_rate,
                                 scoped_array<uint8> channels_data) {
   if (!main_message_loop_->BelongsToCurrentThread()) {
     main_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&AudioContext::DecodeFinish, this, callback_id,
-                              sample_rate, number_of_frames, number_of_channels,
-                              base::Passed(&channels_data)));
+        FROM_HERE,
+        base::Bind(&AudioContext::DecodeFinish, weak_this_, callback_id,
+                   sample_rate, number_of_frames, number_of_channels,
+                   base::Passed(&channels_data)));
     return;
   }
 
