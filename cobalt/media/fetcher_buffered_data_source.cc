@@ -45,7 +45,7 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
     : message_loop_(message_loop),
       url_(url),
       network_module_(network_module),
-      buffer_(kBufferCapacity),
+      buffer_(kBufferCapacity, base::CircularBufferShell::kReserve),
       buffer_offset_(0),
       error_occured_(false),
       last_request_offset_(0),
