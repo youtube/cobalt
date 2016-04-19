@@ -21,6 +21,7 @@
 
 #include "base/callback.h"
 #include "base/hash_tables.h"
+#include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/audio/async_audio_decoder.h"
@@ -167,12 +168,16 @@ class AudioContext : public dom::EventTarget {
                     int32 number_of_channels,
                     scoped_array<uint8> channels_data);
 
+  base::WeakPtrFactory<AudioContext> weak_ptr_factory_;
+  // We construct a WeakPtr upon AudioContext's construction in order to
+  // associate the WeakPtr with the constructing thread.
+  base::WeakPtr<AudioContext> weak_this_;
+
   float sample_rate_;
   double current_time_;
 
   scoped_refptr<AudioLock> audio_lock_;
 
-  AsyncAudioDecoder audio_decoder_;
   scoped_refptr<AudioDestinationNode> destination_;
 
   int next_callback_id_;
@@ -180,6 +185,8 @@ class AudioContext : public dom::EventTarget {
 
   // The main message loop.
   scoped_refptr<base::MessageLoopProxy> const main_message_loop_;
+
+  AsyncAudioDecoder audio_decoder_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioContext);
 };
