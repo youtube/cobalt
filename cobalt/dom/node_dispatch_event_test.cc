@@ -17,9 +17,9 @@
 #include "cobalt/dom/node.h"
 
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/stats.h"
-#include "cobalt/dom/testing/fake_node.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -64,9 +64,9 @@ NodeDispatchEventTest::NodeDispatchEventTest()
 
   document_ = new Document(&html_element_context_);
 
-  grand_parent_ = new FakeNode(document_);
-  parent_ = grand_parent_->AppendChild(new FakeNode(document_));
-  child_ = parent_->AppendChild(new FakeNode(document_));
+  grand_parent_ = new Element(document_);
+  parent_ = grand_parent_->AppendChild(new Element(document_));
+  child_ = parent_->AppendChild(new Element(document_));
   event_listener_capture_ = MockEventListener::Create();
   event_listener_bubbling_ = MockEventListener::Create();
 

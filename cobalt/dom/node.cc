@@ -31,6 +31,7 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/node_list_live.h"
 #include "cobalt/dom/rule_matching.h"
@@ -160,78 +161,34 @@ bool Node::Contains(const scoped_refptr<Node>& other_node) const {
   return false;
 }
 
+// Algorithm for InsertBefore:
+//   https://www.w3.org/TR/dom/#dom-node-insertbefore
 scoped_refptr<Node> Node::InsertBefore(
     const scoped_refptr<Node>& new_child,
     const scoped_refptr<Node>& reference_child) {
-  if (!new_child) {
-    // TODO(***REMOVED***): Throw JS ReferenceError.
-    return NULL;
-  }
-  // Check if this node can accept new_child as a child.
-  if (!CheckAcceptAsChild(new_child)) {
-    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
-    return NULL;
-  }
-  if (reference_child && reference_child->parent_ != this) {
-    // TODO(***REMOVED***): Throw JS NotFoundError.
-    return NULL;
-  }
-  // Inserting before itself doesn't change anything.
-  if (reference_child == new_child) {
-    return new_child;
-  }
-
-  if (new_child->parent_) {
-    new_child->parent_->RemoveChild(new_child);
-  }
-  new_child->parent_ = this;
-
-  scoped_refptr<Node> next_sibling = reference_child;
-  Node* previous_sibling;
-
-  if (next_sibling) {
-    previous_sibling = next_sibling->previous_sibling_;
-  } else {
-    previous_sibling = last_child_;
-  }
-
-  if (previous_sibling) {
-    previous_sibling->next_sibling_ = new_child;
-  } else {
-    first_child_ = new_child;
-  }
-  new_child->previous_sibling_ = previous_sibling;
-
-  if (next_sibling) {
-    next_sibling->previous_sibling_ = new_child;
-  } else {
-    last_child_ = new_child;
-  }
-  new_child->next_sibling_ = next_sibling;
-
-  InvalidateLayoutBoxesFromNodeAndAncestors();
-  new_child->UpdateNodeGeneration();
-
-  if (inserted_into_document_) {
-    new_child->OnInsertedIntoDocument();
-    Document* document = node_document();
-    if (document) {
-      document->OnDOMMutation();
-    }
-  }
-
-  OnInsertBefore(new_child, reference_child);
-  return new_child;
+  // The insertBefore(node, child) method must return the result of
+  // pre-inserting node into the context object before child.
+  return PreInsert(new_child, reference_child);
 }
 
+// Algorithm for AppendChild:
+//   https://www.w3.org/TR/dom/#dom-node-appendchild
 scoped_refptr<Node> Node::AppendChild(const scoped_refptr<Node>& new_child) {
-  return InsertBefore(new_child, NULL);
+  // The appendChild(node) method must return the result of appending node to
+  // the context object.
+  // To append a node to a parent, pre-insert node into parent before null.
+  return PreInsert(new_child, NULL);
 }
 
 // Algorithm for ReplaceChild:
-//   https://www.w3.org/TR/2014/WD-dom-20140710/#concept-node-replace
+//   https://www.w3.org/TR/dom/#dom-node-replacechild
 scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
                                        const scoped_refptr<Node>& child) {
+  // The replaceChild(node, child) method must return the result of replacing
+  // child with node within the context object.
+  // To replace a child with node within a parent, run these steps:
+  //   https://www.w3.org/TR/dom/#concept-node-replace
+
   // Custom, not in any spec.
   if (!node || !child) {
     // TODO(***REMOVED***): Throw JS ReferenceError.
@@ -241,11 +198,22 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
     return node;
   }
 
-  // 1. If parent is not a Document, DocumentFragment, or Element node,
-  //    throw a "HierarchyRequestError".
-  if (!child->parent_->IsDocument() && !child->parent_->IsElement()) {
+  // 1. If parent is not a Document, DocumentFragment, or Element node, throw a
+  // "HierarchyRequestError".
+  if (!IsDocument() && !IsElement()) {
     // TODO(***REMOVED***): Throw JS HierarchyRequestError.
     return NULL;
+  }
+
+  // 2. If node is a host-including inclusive ancestor of parent, throw a
+  // "HierarchyRequestError".
+  Node* ancestor = this;
+  while (ancestor) {
+    if (node == ancestor) {
+      // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+      return NULL;
+    }
+    ancestor = ancestor->parent_;
   }
 
   // 3. If child's parent is not parent, throw a "NotFoundError" exception.
@@ -255,15 +223,18 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
   }
 
   // 4. If node is not a DocumentFragment, DocumentType, Element, Text,
-  //    ProcessingInstruction, or Comment node, throw a "HierarchyRequestError".
-  if (!node->IsElement() && !node->IsText() && !node->IsComment()) {
+  // ProcessingInstruction, or Comment node, throw a "HierarchyRequestError".
+  // Note: Since we support CDATASection, it is also included here, so the only
+  // type that is excluded is document.
+  if (node->IsDocument()) {
     // TODO(***REMOVED***): Throw JS HierarchyRequestError.
     return NULL;
   }
 
   // 5. If either node is a Text node and parent is a document, or node is a
-  //    doctype and parent is not a document, throw a "HierarchyRequestError".
-  if (node->IsText() && node->parent_->IsDocument()) {
+  // doctype and parent is not a document, throw a "HierarchyRequestError".
+  if ((node->IsText() && IsDocument()) ||
+      (node->IsDocumentType() && !IsDocument())) {
     // TODO(***REMOVED***): Throw JS HierarchyRequestError.
     return NULL;
   }
@@ -274,71 +245,29 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
   scoped_refptr<Node> reference_child = child->next_sibling_;
 
   // 8. If reference child is node, set it to node's next sibling.
-  if (reference_child == node) reference_child = node->next_sibling_;
+  if (reference_child == node) {
+    reference_child = node->next_sibling_;
+  }
 
-  // 9. Not needed by Cobalt.
+  // 9. Adopt node into parent's node document.
+  node->AdoptIntoDocument(node_document_);
 
   // 10. Remove child from its parent with the suppress observers flag set.
-  RemoveChild(child);
+  Remove(child);
 
   // 11. Insert node into parent before reference child with the suppress
-  //     observers flag set.
-  InsertBefore(node, reference_child);
+  // observers flag set.
+  Insert(node, reference_child);
 
   return child;
 }
 
 // Algorithm for RemoveChild:
-//   https://www.w3.org/TR/2014/WD-dom-20140710/#concept-node-remove
+//   https://www.w3.org/TR/dom/#dom-node-removechild
 scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
-  // Custom, not in any spec.
-  if (!node) {
-    // TODO(***REMOVED***): Throw JS ReferenceError.
-    return NULL;
-  }
-
-  // Pre-remove 1. If child's parent is not parent, throw a "NotFoundError"
-  //               exception.
-  if (node->parent_ != this) {
-    // TODO(***REMOVED***): Throw JS NotFoundError.
-    return NULL;
-  }
-
-  // Custom, not in any spec.
-  bool was_inserted_to_document = node->inserted_into_document_;
-  if (was_inserted_to_document) {
-    node->OnRemovedFromDocument();
-  }
-  InvalidateLayoutBoxesFromNodeAndAncestors();
-  node->UpdateNodeGeneration();
-
-  // 2. ~ 7. Not needed by Cobalt.
-
-  // 8. Remove node from its parent.
-  if (node->previous_sibling_) {
-    node->previous_sibling_->next_sibling_ = node->next_sibling_;
-  } else {
-    first_child_ = node->next_sibling_;
-  }
-  if (node->next_sibling_) {
-    node->next_sibling_->previous_sibling_ = node->previous_sibling_;
-  } else {
-    last_child_ = node->previous_sibling_;
-  }
-  node->parent_ = NULL;
-  node->previous_sibling_ = NULL;
-  node->next_sibling_ = NULL;
-
-  // Custom, not in any spec.
-  if (was_inserted_to_document) {
-    scoped_refptr<Document> document = node->owner_document();
-    if (document) {
-      document->OnDOMMutation();
-    }
-  }
-
-  OnRemoveChild(node);
-  return node;
+  // The removeChild(child) method must return the result of pre-removing child
+  // from the context object.
+  return PreRemove(node);
 }
 
 scoped_refptr<HTMLCollection> Node::children() const {
@@ -411,6 +340,33 @@ scoped_refptr<Element> Node::next_element_sibling() const {
   return NULL;
 }
 
+// Algorithm for AdoptIntoDocument:
+//   https://www.w3.org/TR/dom/#concept-node-adopt
+void Node::AdoptIntoDocument(Document* document) {
+  DCHECK(!IsDocument());
+  if (!document) {
+    return;
+  }
+
+  // 1, Not needed by Cobalt.
+
+  // 2. If node's parent is not null, remove node from its parent.
+  if (parent_) {
+    parent_->RemoveChild(this);
+  }
+
+  // 3. Set node's inclusive descendants's node document to document.
+  node_document_ = base::AsWeakPtr(document);
+  NodeDescendantsIterator it(this);
+  Node* descendant = it.First();
+  while (descendant) {
+    descendant->node_document_ = base::AsWeakPtr(document);
+    descendant = it.Next();
+  }
+
+  // 4. Not needed by Cobalt.
+}
+
 scoped_refptr<Node> Node::GetRootNode() {
   Node* root = this;
   while (root->parent_node()) {
@@ -430,20 +386,6 @@ scoped_refptr<DocumentType> Node::AsDocumentType() { return NULL; }
 scoped_refptr<Element> Node::AsElement() { return NULL; }
 
 scoped_refptr<Text> Node::AsText() { return NULL; }
-
-void Node::InvalidateLayoutBoxesFromNodeAndAncestors() {
-  if (parent_) {
-    parent_->InvalidateLayoutBoxesFromNodeAndAncestors();
-  }
-}
-
-void Node::InvalidateLayoutBoxesFromNodeAndDescendants() {
-  Node* child = first_child_;
-  while (child) {
-    child->InvalidateLayoutBoxesFromNodeAndDescendants();
-    child = child->next_sibling_;
-  }
-}
 
 Node::Node(Document* document)
     : node_document_(base::AsWeakPtr(document)),
@@ -490,17 +432,207 @@ void Node::OnRemovedFromDocument() {
   }
 }
 
-bool Node::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {
-  UNREFERENCED_PARAMETER(child);
-  return true;
+void Node::InvalidateLayoutBoxesFromNodeAndAncestors() {
+  if (parent_) {
+    parent_->InvalidateLayoutBoxesFromNodeAndAncestors();
+  }
 }
 
-void Node::UpdateNodeGeneration() {
+void Node::InvalidateLayoutBoxesFromNodeAndDescendants() {
+  Node* child = first_child_;
+  while (child) {
+    child->InvalidateLayoutBoxesFromNodeAndDescendants();
+    child = child->next_sibling_;
+  }
+}
+
+void Node::UpdateGenerationForNodeAndAncestors() {
   if (++node_generation_ == kInvalidNodeGeneration) {
     node_generation_ = kInitialNodeGeneration;
   }
   if (parent_) {
-    parent_->UpdateNodeGeneration();
+    parent_->UpdateGenerationForNodeAndAncestors();
+  }
+}
+
+// Algorithm for EnsurePreInsertionValidity:
+//   https://www.w3.org/TR/dom/#concept-node-ensure-pre-insertion-validity
+bool Node::EnsurePreInsertionValidity(const scoped_refptr<Node>& node,
+                                      const scoped_refptr<Node>& child) {
+  if (!node) {
+    return false;
+  }
+
+  // 1. If parent is not a Document, DocumentFragment, or Element node, throw a
+  // "HierarchyRequestError".
+  if (!IsDocument() && !IsElement()) {
+    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    return false;
+  }
+
+  // 2. If node is a host-including inclusive ancestor of parent, throw a
+  // "HierarchyRequestError".
+  Node* ancestor = this;
+  while (ancestor) {
+    if (node == ancestor) {
+      // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+      return false;
+    }
+    ancestor = ancestor->parent_;
+  }
+
+  // 3. If child is not null and its parent is not parent, throw a
+  // "NotFoundError" exception.
+  if (child && child->parent_ != this) {
+    // TODO(***REMOVED***): Throw JS NotFoundError.
+    return false;
+  }
+
+  // 4. If node is not a DocumentFragment, DocumentType, Element, Text,
+  // ProcessingInstruction, or Comment node, throw a "HierarchyRequestError".
+  // Note: Since we support CDATASection, it is also included here, so the only
+  // type that is excluded is document.
+  if (node->IsDocument()) {
+    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    return false;
+  }
+
+  // 5. If either node is a Text node and parent is a document, or node is a
+  // doctype and parent is not a document, throw a "HierarchyRequestError".
+  if ((node->IsText() && IsDocument()) ||
+      (node->IsDocumentType() && !IsDocument())) {
+    // TODO(***REMOVED***): Throw JS HierarchyRequestError.
+    return false;
+  }
+
+  // 6. Not needed by Cobalt.
+
+  return true;
+}
+
+// Algorithm for PreInsert:
+//   https://www.w3.org/TR/dom/#concept-node-pre-insert
+scoped_refptr<Node> Node::PreInsert(const scoped_refptr<Node>& node,
+                                    const scoped_refptr<Node>& child) {
+  // 1. Ensure pre-insertion validity of node into parent before child.
+  if (!EnsurePreInsertionValidity(node, child)) {
+    return NULL;
+  }
+
+  // 2. Let reference child be child.
+  // 3. If reference child is node, set it to node's next sibling.
+  // 4. Adopt node into parent's node document.
+  // 5. Insert node into parent before reference child.
+  node->AdoptIntoDocument(node_document_);
+  Insert(node, child == node ? child->next_sibling_ : child);
+
+  // 6. Return node.
+  return node;
+}
+
+// Algorithm for Insert:
+//   https://www.w3.org/TR/dom/#concept-node-insert
+void Node::Insert(const scoped_refptr<Node>& node,
+                  const scoped_refptr<Node>& child) {
+  // 1. 2. Not needed by Cobalt.
+  // 3. Let nodes be node's children if node is a DocumentFragment node, and a
+  // list containing solely node otherwise.
+  // 4. ~ 6. Not needed by Cobalt.
+  // 7. For each newNode in nodes, in tree order, run these substeps:
+  //   1. Insert newNode into parent before child or at the end of parent if
+  //   child is null.
+  //   2. Run the insertion steps with newNode.
+
+  node->parent_ = this;
+
+  scoped_refptr<Node> next_sibling = child;
+  Node* previous_sibling =
+      next_sibling ? next_sibling->previous_sibling_ : last_child_;
+
+  if (previous_sibling) {
+    previous_sibling->next_sibling_ = node;
+  } else {
+    first_child_ = node;
+  }
+  node->previous_sibling_ = previous_sibling;
+
+  if (next_sibling) {
+    next_sibling->previous_sibling_ = node;
+  } else {
+    last_child_ = node;
+  }
+  node->next_sibling_ = next_sibling;
+
+  // Custom, not in any spec.
+
+  OnMutation();
+  InvalidateLayoutBoxesFromNodeAndAncestors();
+  node->UpdateGenerationForNodeAndAncestors();
+
+  if (inserted_into_document_) {
+    node->OnInsertedIntoDocument();
+    Document* document = node_document();
+    if (document) {
+      document->OnDOMMutation();
+    }
+  }
+}
+
+// Algorithm for PreRemove:
+//   https://www.w3.org/TR/dom/#concept-node-pre-remove
+scoped_refptr<Node> Node::PreRemove(const scoped_refptr<Node>& child) {
+  // 1. If child's parent is not parent, throw a "NotFoundError" exception.
+  if (!child || child->parent_ != this) {
+    // TODO(***REMOVED***): Throw JS NotFoundError.
+    return NULL;
+  }
+
+  // 2. Remove child from parent.
+  Remove(child);
+
+  // 3. Return child.
+  return child;
+}
+
+// Algorithm for Remove:
+//   https://www.w3.org/TR/dom/#concept-node-remove
+void Node::Remove(const scoped_refptr<Node>& node) {
+  DCHECK(node);
+
+  OnMutation();
+  InvalidateLayoutBoxesFromNodeAndAncestors();
+  node->UpdateGenerationForNodeAndAncestors();
+
+  bool was_inserted_to_document = node->inserted_into_document_;
+  if (was_inserted_to_document) {
+    node->OnRemovedFromDocument();
+  }
+
+  // 1. ~ 8. Not needed by Cobalt.
+  // 9. Remove node from its parent.
+  // 10. Run the removing steps with node, parent, and oldPreviousSibling.
+
+  if (node->previous_sibling_) {
+    node->previous_sibling_->next_sibling_ = node->next_sibling_;
+  } else {
+    first_child_ = node->next_sibling_;
+  }
+  if (node->next_sibling_) {
+    node->next_sibling_->previous_sibling_ = node->previous_sibling_;
+  } else {
+    last_child_ = node->previous_sibling_;
+  }
+  node->parent_ = NULL;
+  node->previous_sibling_ = NULL;
+  node->next_sibling_ = NULL;
+
+  // Custom, not in any spec.
+
+  if (was_inserted_to_document) {
+    scoped_refptr<Document> document = node->owner_document();
+    if (document) {
+      document->OnDOMMutation();
+    }
   }
 }
 
