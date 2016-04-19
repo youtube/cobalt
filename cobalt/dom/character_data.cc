@@ -22,11 +22,5 @@ namespace dom {
 CharacterData::CharacterData(Document* document, const base::StringPiece& data)
     : Node(document), data_(data.begin(), data.end()) {}
 
-bool CharacterData::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {
-  UNREFERENCED_PARAMETER(child);
-  // Can't attach children nodes to a character data node (text or comment).
-  return false;
-}
-
 }  // namespace dom
 }  // namespace cobalt

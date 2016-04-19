@@ -256,9 +256,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
  private:
   // From Node.
-  void OnInsertBefore(const scoped_refptr<Node>& new_child,
-                      const scoped_refptr<Node>& reference_child) OVERRIDE;
-  void OnRemoveChild(const scoped_refptr<Node>& node) OVERRIDE;
+  void OnMutation() OVERRIDE;
 
   // From Element.
   void OnSetAttribute(const std::string& name,
