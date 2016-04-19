@@ -67,6 +67,11 @@ base::LazyInstance<ElementCountLog> element_count_log =
 
 }  // namespace
 
+Element::Element(Document* document)
+    : Node(document), animations_(new web_animations::AnimationSet()) {
+  ++(element_count_log.Get().count);
+}
+
 Element::Element(Document* document, base::Token tag_name)
     : Node(document),
       tag_name_(tag_name),
@@ -213,7 +218,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
     case 5:
       if (attr_name == "class") {
         // Changing the class name may affect the contents of proxy objects.
-        UpdateNodeGeneration();
+        UpdateGenerationForNodeAndAncestors();
       }
       break;
   }
@@ -270,7 +275,7 @@ void Element::RemoveAttribute(const std::string& name) {
     case 5:
       if (attr_name == "class") {
         // Changing the class name may affect the contents of proxy objects.
-        UpdateNodeGeneration();
+        UpdateGenerationForNodeAndAncestors();
       }
       break;
   }

@@ -16,14 +16,13 @@
 
 #include "cobalt/dom/node.h"
 
+#include "base/basictypes.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
-#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/stats.h"
-#include "cobalt/dom/testing/fake_node.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/text.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -34,6 +33,32 @@ namespace {
 
 const scoped_refptr<Node> kNullNode;
 const scoped_refptr<HTMLCollection> kNullCollection;
+
+// Helper function that validates that the children of the given node are
+// identical to the provided expected array.
+template <int N>
+void ExpectNodeChildrenEq(scoped_refptr<Node>(&children)[N],
+                          const scoped_refptr<Node>& node) {
+  // Make sure that we have at least one child.
+  COMPILE_ASSERT(N >= 1, expect_node_children_has_no_child);
+
+  EXPECT_EQ(children[0], node->first_child());
+  EXPECT_EQ(children[N - 1], node->last_child());
+  EXPECT_EQ(NULL, children[0]->previous_sibling());
+  EXPECT_EQ(NULL, children[N - 1]->next_sibling());
+
+  for (int i = 0; i < N; ++i) {
+    EXPECT_EQ(node, children[i]->parent_node());
+
+    if (i > 0) {
+      EXPECT_EQ(children[i - 1], children[i]->previous_sibling());
+    }
+
+    if (i < N - 1) {
+      EXPECT_EQ(children[i + 1], children[i]->next_sibling());
+    }
+  }
+}
 
 }  // namespace
 
@@ -46,15 +71,12 @@ class NodeTest : public ::testing::Test {
   NodeTest();
   ~NodeTest() OVERRIDE;
 
-  HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };
 
-NodeTest::NodeTest()
-    : html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            NULL, "") {
+NodeTest::NodeTest() {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
-  document_ = new Document(&html_element_context_);
+  document_ = new Document(NULL);
 }
 
 NodeTest::~NodeTest() {
@@ -67,7 +89,7 @@ NodeTest::~NodeTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(NodeTest, CreateNode) {
-  scoped_refptr<Node> node = new FakeNode(document_);
+  scoped_refptr<Node> node = new Element(document_);
   ASSERT_TRUE(node);
 }
 
@@ -99,11 +121,11 @@ TEST_F(NodeTest, CloneNode) {
 }
 
 TEST_F(NodeTest, AppendChild) {
-  scoped_refptr<Node> root = new FakeNode(document_);
+  scoped_refptr<Node> root = new Element(document_);
 
-  scoped_refptr<Node> child1 = root->AppendChild(new FakeNode(document_));
+  scoped_refptr<Node> child1 = root->AppendChild(new Element(document_));
   ASSERT_TRUE(child1);
-  scoped_refptr<Node> child2 = root->AppendChild(new FakeNode(document_));
+  scoped_refptr<Node> child2 = root->AppendChild(new Element(document_));
   ASSERT_TRUE(child2);
 
   // Properly handle NULL input.
@@ -114,10 +136,10 @@ TEST_F(NodeTest, AppendChild) {
 }
 
 TEST_F(NodeTest, AppendChildTwice) {
-  scoped_refptr<Node> root = new FakeNode(document_);
+  scoped_refptr<Node> root = new Element(document_);
 
-  scoped_refptr<Node> child1 = root->AppendChild(new FakeNode(document_));
-  scoped_refptr<Node> child2 = root->AppendChild(new FakeNode(document_));
+  scoped_refptr<Node> child1 = root->AppendChild(new Element(document_));
+  scoped_refptr<Node> child2 = root->AppendChild(new Element(document_));
 
   // Append child1 for the second time.
   root->AppendChild(child1);
@@ -127,11 +149,11 @@ TEST_F(NodeTest, AppendChildTwice) {
 }
 
 TEST_F(NodeTest, Contains) {
-  scoped_refptr<Node> root = new FakeNode(document_);
-  scoped_refptr<Node> node = new FakeNode(document_);
+  scoped_refptr<Node> root = new Element(document_);
+  scoped_refptr<Node> node = new Element(document_);
 
-  scoped_refptr<Node> child1 = root->AppendChild(new FakeNode(document_));
-  scoped_refptr<Node> child2 = root->AppendChild(new FakeNode(document_));
+  scoped_refptr<Node> child1 = root->AppendChild(new Element(document_));
+  scoped_refptr<Node> child2 = root->AppendChild(new Element(document_));
 
   EXPECT_TRUE(root->Contains(child1));
   EXPECT_TRUE(root->Contains(child2));
@@ -141,10 +163,10 @@ TEST_F(NodeTest, Contains) {
 }
 
 TEST_F(NodeTest, AppendChildWithParent) {
-  scoped_refptr<Node> root1 = new FakeNode(document_);
-  scoped_refptr<Node> root2 = new FakeNode(document_);
+  scoped_refptr<Node> root1 = new Element(document_);
+  scoped_refptr<Node> root2 = new Element(document_);
 
-  scoped_refptr<Node> child = new FakeNode(document_);
+  scoped_refptr<Node> child = new Element(document_);
   root1->AppendChild(child);
   root2->AppendChild(child);
 
@@ -155,35 +177,31 @@ TEST_F(NodeTest, AppendChildWithParent) {
 }
 
 TEST_F(NodeTest, InsertBefore) {
-  scoped_refptr<Node> root = new FakeNode(document_);
+  scoped_refptr<Node> root = new Element(document_);
 
-  scoped_refptr<Node> child1 =
-      root->InsertBefore(new FakeNode(document_), NULL);
+  scoped_refptr<Node> child1 = root->InsertBefore(new Element(document_), NULL);
   ASSERT_TRUE(child1);
-  scoped_refptr<Node> child3 =
-      root->InsertBefore(new FakeNode(document_), NULL);
+  scoped_refptr<Node> child3 = root->InsertBefore(new Element(document_), NULL);
   ASSERT_TRUE(child3);
   scoped_refptr<Node> child2 =
-      root->InsertBefore(new FakeNode(document_), child3);
+      root->InsertBefore(new Element(document_), child3);
   ASSERT_TRUE(child2);
 
   // Properly handle NULL input.
   EXPECT_EQ(NULL, root->InsertBefore(NULL, NULL));
   // Properly handle a reference node that is not a child of root.
-  EXPECT_EQ(NULL, root->InsertBefore(new FakeNode(document_),
-                                     new FakeNode(document_)));
+  EXPECT_EQ(NULL,
+            root->InsertBefore(new Element(document_), new Element(document_)));
 
   scoped_refptr<Node> children[] = {child1, child2, child3};
   ExpectNodeChildrenEq(children, root);
 }
 
 TEST_F(NodeTest, InsertBeforeTwice) {
-  scoped_refptr<Node> root = new FakeNode(document_);
+  scoped_refptr<Node> root = new Element(document_);
 
-  scoped_refptr<Node> child1 =
-      root->InsertBefore(new FakeNode(document_), NULL);
-  scoped_refptr<Node> child2 =
-      root->InsertBefore(new FakeNode(document_), NULL);
+  scoped_refptr<Node> child1 = root->InsertBefore(new Element(document_), NULL);
+  scoped_refptr<Node> child2 = root->InsertBefore(new Element(document_), NULL);
 
   EXPECT_TRUE(root->InsertBefore(child2, child1));
 
@@ -192,12 +210,10 @@ TEST_F(NodeTest, InsertBeforeTwice) {
 }
 
 TEST_F(NodeTest, InsertBeforeSelf) {
-  scoped_refptr<Node> root = new FakeNode(document_);
+  scoped_refptr<Node> root = new Element(document_);
 
-  scoped_refptr<Node> child1 =
-      root->InsertBefore(new FakeNode(document_), NULL);
-  scoped_refptr<Node> child2 =
-      root->InsertBefore(new FakeNode(document_), NULL);
+  scoped_refptr<Node> child1 = root->InsertBefore(new Element(document_), NULL);
+  scoped_refptr<Node> child2 = root->InsertBefore(new Element(document_), NULL);
 
   EXPECT_TRUE(root->InsertBefore(child2, child2));
 
@@ -205,12 +221,21 @@ TEST_F(NodeTest, InsertBeforeSelf) {
   ExpectNodeChildrenEq(children, root);
 }
 
-TEST_F(NodeTest, RemoveChild) {
-  scoped_refptr<Node> root = new FakeNode(document_);
+TEST_F(NodeTest, InsertIntoAnotherDocument) {
+  scoped_refptr<Node> root = new Element(document_);
+  EXPECT_EQ(document_, root->node_document());
 
-  scoped_refptr<Node> child1 = root->AppendChild(new FakeNode(document_));
-  scoped_refptr<Node> child2 = root->AppendChild(new FakeNode(document_));
-  scoped_refptr<Node> child3 = root->AppendChild(new FakeNode(document_));
+  scoped_refptr<Document> new_document = new Document(NULL);
+  new_document->AppendChild(root);
+  EXPECT_EQ(new_document, root->node_document());
+}
+
+TEST_F(NodeTest, RemoveChild) {
+  scoped_refptr<Node> root = new Element(document_);
+
+  scoped_refptr<Node> child1 = root->AppendChild(new Element(document_));
+  scoped_refptr<Node> child2 = root->AppendChild(new Element(document_));
+  scoped_refptr<Node> child3 = root->AppendChild(new Element(document_));
 
   EXPECT_TRUE(root->RemoveChild(child1));
   EXPECT_TRUE(root->RemoveChild(child3));
@@ -225,12 +250,12 @@ TEST_F(NodeTest, RemoveChild) {
 }
 
 TEST_F(NodeTest, ChildNodes) {
-  scoped_refptr<Node> root = new FakeNode(document_);
+  scoped_refptr<Node> root = new Element(document_);
   EXPECT_FALSE(root->HasChildNodes());
   EXPECT_EQ(0, root->child_nodes()->length());
   EXPECT_EQ(kNullNode, root->child_nodes()->Item(0));
 
-  scoped_refptr<Node> child = new FakeNode(document_);
+  scoped_refptr<Node> child = new Element(document_);
   root->AppendChild(child);
   EXPECT_TRUE(root->HasChildNodes());
   EXPECT_EQ(1, root->child_nodes()->length());
@@ -244,22 +269,22 @@ TEST_F(NodeTest, ChildNodes) {
 }
 
 TEST_F(NodeTest, ParentElement) {
-  scoped_refptr<Node> node = new FakeNode(document_);
-  EXPECT_EQ(NULL, node->parent_element());
+  scoped_refptr<Node> root = new Element(document_);
+  EXPECT_EQ(NULL, root->parent_element());
 
-  scoped_refptr<Node> root = new FakeNode(document_);
-  root->AppendChild(node);
-  EXPECT_EQ(NULL, node->parent_element());
+  document_->AppendChild(root);
+  EXPECT_EQ(NULL, root->parent_element());
 
-  root->RemoveChild(node);
-  scoped_refptr<Element> parent_element =
-      new Element(document_, base::Token("parent_element"));
-  parent_element->AppendChild(node);
-  EXPECT_EQ(parent_element, node->parent_element());
+  scoped_refptr<Node> child = new Element(document_);
+  root->AppendChild(child);
+  EXPECT_EQ(root, child->parent_element());
+
+  root->RemoveChild(child);
+  EXPECT_EQ(NULL, child->parent_element());
 }
 
 TEST_F(NodeTest, ParentNode) {
-  scoped_refptr<Node> node = new FakeNode(document_);
+  scoped_refptr<Node> node = new Element(document_);
   node->AppendChild(new Text(document_, "first"));
   scoped_refptr<Element> child1 =
       node->AppendChild(new Element(document_, base::Token("child1")))
@@ -297,7 +322,7 @@ TEST_F(NodeTest, ParentNode) {
 }
 
 TEST_F(NodeTest, NonDocumentTypeChildNode) {
-  scoped_refptr<Node> node = new FakeNode(document_);
+  scoped_refptr<Node> node = new Element(document_);
   node->AppendChild(new Text(document_, "first"));
   scoped_refptr<Element> child1 =
       node->AppendChild(new Element(document_, base::Token("child1")))
@@ -318,6 +343,17 @@ TEST_F(NodeTest, NonDocumentTypeChildNode) {
   EXPECT_EQ(child2, child1->next_element_sibling());
   EXPECT_EQ(child3, child2->next_element_sibling());
   EXPECT_EQ(kNullNode, child3->next_element_sibling());
+}
+
+TEST_F(NodeTest, AdoptIntoDocument) {
+  scoped_refptr<Element> element = new Element(document_);
+  document_->AppendChild(element);
+  EXPECT_EQ(document_, element->node_document());
+
+  scoped_refptr<Document> new_document = new Document(NULL);
+  element->AdoptIntoDocument(new_document);
+  EXPECT_EQ(new_document, element->node_document());
+  EXPECT_EQ(NULL, element->parent_node());
 }
 
 }  // namespace dom
