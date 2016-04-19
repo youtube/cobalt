@@ -3152,7 +3152,13 @@ border_color_property_list:
 border_color_property_value:
     border_color_property_list {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    if (property_value->size() > 0u &&
+        property_value->size() <= 4u) {
+      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    } else {
+      parser_impl->LogWarning(@1, "invalid number of border color values");
+      $$ = NULL;
+    }
   }
   | common_values {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value(
@@ -3196,7 +3202,13 @@ border_style_property_list:
 border_style_property_value:
     border_style_property_list {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    if (property_value->size() > 0u &&
+        property_value->size() <= 4u) {
+      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    } else {
+      parser_impl->LogWarning(@1, "invalid number of border style values");
+      $$ = NULL;
+    }
   }
   | common_values {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value(
@@ -3231,7 +3243,13 @@ border_width_property_list:
 border_width_property_value:
     border_width_property_list  {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
-    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    if (property_value->size() > 0u &&
+        property_value->size() <= 4u) {
+      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    } else {
+      parser_impl->LogWarning(@1, "invalid number of border width values");
+      $$ = NULL;
+    }
   }
   | common_values {
     scoped_ptr<cssom::PropertyListValue::Builder> property_value(
@@ -5446,32 +5464,36 @@ maybe_declaration:
       maybe_important {
     scoped_refptr<cssom::PropertyValue> property_list_value(
         MakeScopedRefPtrAndRelease($4));
-    BorderShorthandToLonghand shorthand_to_longhand;
-    shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
-        property_list_value);
+    if (property_list_value) {
+      BorderShorthandToLonghand shorthand_to_longhand;
+      shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
+            property_list_value);
 
-    scoped_ptr<PropertyDeclaration> property_declaration(
-        new PropertyDeclaration($5));
+      scoped_ptr<PropertyDeclaration> property_declaration(
+          new PropertyDeclaration($5));
 
-    // Unpack border color.
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderTopColorProperty,
-            shorthand_to_longhand.border_top));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderRightColorProperty,
-            shorthand_to_longhand.border_right));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderBottomColorProperty,
-            shorthand_to_longhand.border_bottom));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderLeftColorProperty,
-            shorthand_to_longhand.border_left));
+      // Unpack border color.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderTopColorProperty,
+              shorthand_to_longhand.border_top));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderRightColorProperty,
+              shorthand_to_longhand.border_right));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderBottomColorProperty,
+              shorthand_to_longhand.border_bottom));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderLeftColorProperty,
+              shorthand_to_longhand.border_left));
 
-    $$ = property_declaration.release();
+      $$ = property_declaration.release();
+    } else {
+      $$ = NULL;
+    }
   }
   | kBorderLeftToken maybe_whitespace colon border_property_value
       maybe_important {
@@ -5561,32 +5583,36 @@ maybe_declaration:
       maybe_important {
     scoped_refptr<cssom::PropertyValue> property_list_value(
         MakeScopedRefPtrAndRelease($4));
-    BorderShorthandToLonghand shorthand_to_longhand;
-    shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
-        property_list_value);
+    if (property_list_value) {
+      BorderShorthandToLonghand shorthand_to_longhand;
+      shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
+            property_list_value);
 
-    scoped_ptr<PropertyDeclaration> property_declaration(
-        new PropertyDeclaration($5));
+      scoped_ptr<PropertyDeclaration> property_declaration(
+          new PropertyDeclaration($5));
 
-    // Unpack border style.
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderTopStyleProperty,
-            shorthand_to_longhand.border_top));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderRightStyleProperty,
-            shorthand_to_longhand.border_right));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderBottomStyleProperty,
-            shorthand_to_longhand.border_bottom));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderLeftStyleProperty,
-            shorthand_to_longhand.border_left));
+      // Unpack border style.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderTopStyleProperty,
+              shorthand_to_longhand.border_top));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderRightStyleProperty,
+              shorthand_to_longhand.border_right));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderBottomStyleProperty,
+              shorthand_to_longhand.border_bottom));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderLeftStyleProperty,
+              shorthand_to_longhand.border_left));
 
-    $$ = property_declaration.release();
+      $$ = property_declaration.release();
+    } else {
+      $$ = NULL;
+    }
   }
   | kBorderTopToken maybe_whitespace colon border_property_value
       maybe_important {
@@ -5631,33 +5657,36 @@ maybe_declaration:
       maybe_important {
     scoped_refptr<cssom::PropertyValue> property_list_value(
         MakeScopedRefPtrAndRelease($4));
-    BorderShorthandToLonghand shorthand_to_longhand;
-    shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
-        property_list_value);
+      if (property_list_value) {
+        BorderShorthandToLonghand shorthand_to_longhand;
+        shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
+            property_list_value);
 
-    scoped_ptr<PropertyDeclaration> property_declaration(
-        new PropertyDeclaration($5));
+        scoped_ptr<PropertyDeclaration> property_declaration(
+            new PropertyDeclaration($5));
 
-    // Unpack border width.
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderTopWidthProperty,
-            shorthand_to_longhand.border_top));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderRightWidthProperty,
-            shorthand_to_longhand.border_right));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderBottomWidthProperty,
-            shorthand_to_longhand.border_bottom));
-    property_declaration->property_values.push_back(
-        PropertyDeclaration::PropertyKeyValuePair(
-            cssom::kBorderLeftWidthProperty,
-            shorthand_to_longhand.border_left));
+        // Unpack border width.
+        property_declaration->property_values.push_back(
+            PropertyDeclaration::PropertyKeyValuePair(
+                cssom::kBorderTopWidthProperty,
+                shorthand_to_longhand.border_top));
+        property_declaration->property_values.push_back(
+            PropertyDeclaration::PropertyKeyValuePair(
+                cssom::kBorderRightWidthProperty,
+                shorthand_to_longhand.border_right));
+        property_declaration->property_values.push_back(
+            PropertyDeclaration::PropertyKeyValuePair(
+                cssom::kBorderBottomWidthProperty,
+                shorthand_to_longhand.border_bottom));
+        property_declaration->property_values.push_back(
+            PropertyDeclaration::PropertyKeyValuePair(
+                cssom::kBorderLeftWidthProperty,
+                shorthand_to_longhand.border_left));
 
-    $$ = property_declaration.release();
-
+        $$ = property_declaration.release();
+    } else {
+      $$ = NULL;
+    }
   }
   | kBottomToken maybe_whitespace colon offset_property_value
       maybe_important {
