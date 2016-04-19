@@ -261,7 +261,6 @@
       'target_name': 'dom_testing',
       'type': 'static_library',
       'sources': [
-        'testing/fake_node.h',
         'testing/gtest_workarounds.h',
         'testing/html_collection_testing.h',
         'testing/mock_event_listener.h',

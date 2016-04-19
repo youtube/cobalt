@@ -99,7 +99,6 @@ class Node : public EventTarget {
     kCommentNode = 8,
     kDocumentNode = 9,
     kDocumentTypeNode = 10,
-    kFakeNode = kuint16max,
   };
 
   // Custom, not in any spec.
@@ -171,6 +170,18 @@ class Node : public EventTarget {
   scoped_refptr<Element> previous_element_sibling() const;
   scoped_refptr<Element> next_element_sibling() const;
 
+  // From the spec: Node.
+  //
+  // A node's node document can be changed by the adopt algorithm.
+  //   https://www.w3.org/TR/dom/#concept-node-adopt
+  void AdoptIntoDocument(Document* document);
+
+  // Each node has an associated node document, set upon creation, that is a
+  // document.
+  //   https://www.w3.org/TR/dom/#concept-node-document
+  // Returns the node document if it still exists, NULL if not.
+  Document* node_document() const { return node_document_.get(); }
+
   // Custom, not in any spec.
   //
   virtual bool HasAttributes() const { return false; }
@@ -195,12 +206,6 @@ class Node : public EventTarget {
   virtual scoped_refptr<Element> AsElement();
   virtual scoped_refptr<Text> AsText();
 
-  // Each node has an associated node document, set upon creation, that is a
-  // document.
-  //   https://www.w3.org/TR/2015/WD-dom-20150618/#concept-node-document
-  // Returns the node document if it still exists, NULL if not.
-  Document* node_document() const { return node_document_.get(); }
-
   // Node generation counter that will be modified for every content change
   // that affects the topology of the subtree defined by this node.
   // The returned node generation will be never equal to kInvalidNodeGeneration.
@@ -213,21 +218,11 @@ class Node : public EventTarget {
 
   virtual scoped_refptr<Node> Duplicate() const = 0;
 
-  // Invalidate layout boxes from this node and all parent nodes
-  virtual void InvalidateLayoutBoxesFromNodeAndAncestors();
-  // Invalidate layout boxes from this node and all child nodes
-  virtual void InvalidateLayoutBoxesFromNodeAndDescendants();
-
   DEFINE_WRAPPABLE_TYPE(Node);
 
  protected:
   explicit Node(Document* document);
   virtual ~Node();
-
-  virtual void OnInsertBefore(
-      const scoped_refptr<Node>& /* new_child */,
-      const scoped_refptr<Node>& /* reference_child */) {}
-  virtual void OnRemoveChild(const scoped_refptr<Node>& /* node */) {}
 
   // Called to notify that the node along with all its descendants has been
   // inserted to its owner document.
@@ -236,16 +231,36 @@ class Node : public EventTarget {
   // removed from to its owner document.
   virtual void OnRemovedFromDocument();
 
-  // Derived class can override this method to prevent certain children types
-  // from being appended.
-  virtual bool CheckAcceptAsChild(const scoped_refptr<Node>& child) const;
+  // Invalidate layout boxes from this node and all parent nodes
+  virtual void InvalidateLayoutBoxesFromNodeAndAncestors();
+  // Invalidate layout boxes from this node and all child nodes
+  virtual void InvalidateLayoutBoxesFromNodeAndDescendants();
 
   // Triggers a generation update in this node and all its ancestor nodes.
-  void UpdateNodeGeneration();
+  void UpdateGenerationForNodeAndAncestors();
 
  private:
   // From EventTarget.
   std::string GetDebugName() OVERRIDE { return node_name().c_str(); }
+
+  // From the spec: Node.
+  // Mutation algorithms.
+  //   https://www.w3.org/TR/dom/#mutation-algorithms
+  //
+  bool EnsurePreInsertionValidity(const scoped_refptr<Node>& node,
+                                  const scoped_refptr<Node>& child);
+
+  scoped_refptr<Node> PreInsert(const scoped_refptr<Node>& node,
+                                const scoped_refptr<Node>& child);
+  void Insert(const scoped_refptr<Node>& node,
+              const scoped_refptr<Node>& child);
+
+  scoped_refptr<Node> PreRemove(const scoped_refptr<Node>& child);
+  void Remove(const scoped_refptr<Node>& node);
+
+  // Called everytime mutation happens, i.e. when a child is inserted or removed
+  // from this node.
+  virtual void OnMutation() {}
 
   // Weak reference to the node document.
   base::WeakPtr<Document> node_document_;
