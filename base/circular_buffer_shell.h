@@ -15,7 +15,10 @@ namespace base {
 // value.
 class BASE_EXPORT CircularBufferShell {
  public:
-  explicit CircularBufferShell(size_t max_capacity);
+  enum ReserveType { kDoNotReserve, kReserve };
+
+  CircularBufferShell(size_t max_capacity,
+                      ReserveType reserve_type = kDoNotReserve);
   ~CircularBufferShell();
 
   // Clears out all data in the buffer, releasing any allocated memory.
