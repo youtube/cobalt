@@ -28,12 +28,18 @@ static inline const void* add_to_pointer(const void* pointer, size_t amount) {
 
 namespace base {
 
-CircularBufferShell::CircularBufferShell(size_t max_capacity)
+CircularBufferShell::CircularBufferShell(
+    size_t max_capacity,
+    ReserveType reserve_type /*= kDoNotReserve*/)
     : max_capacity_(max_capacity),
       buffer_(NULL),
       capacity_(0),
       length_(0),
-      read_position_(0) {}
+      read_position_(0) {
+  if (reserve_type == kReserve) {
+    IncreaseCapacityTo(max_capacity_);
+  }
+}
 
 CircularBufferShell::~CircularBufferShell() {
   Clear();
