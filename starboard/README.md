@@ -108,13 +108,13 @@ With subdirectories:
 In the BobCo's BobBox example, we would see something like:
 
   * `src/third_party/starboard/bobbox/`
-    * `shared/`
-    * `mipseb/`
-      * `configuration_public.h`
-      * `starboard_platform.gypi`
-    * `mipsel/`
-      * `configuration_public.h`
-      * `starboard_platform.gypi`
+      * `shared/`
+      * `mipseb/`
+          * `configuration_public.h`
+          * `starboard_platform.gypi`
+      * `mipsel/`
+          * `configuration_public.h`
+          * `starboard_platform.gypi`
 
 And so on.
 
@@ -187,43 +187,46 @@ calculate a port name based on the directories between
 the port name `bobbox_mipseb`.)
 
   1. Set up `gyp_configuration.py`
-    1. Copy `src/cobalt/build/config/starboard_linux.py` to
-       `src/third_party/starboard/<family-name>/<binary-variant>/gyp_configuration.py`.
-    1. In `gyp_configuration.py`
-      1. In the `_PlatformConfig.__init__()` function, remove checks for Clang
-         or GOMA.
-      1. Again in the `_PlatformConfig.__init__()` function, pass your
-         `<platform-configuration>` into `super.__init__()`, like
-         `super.__init__('bobbox_mipseb')`.
-      1. (optional) In `GetPlatformFullName`, have it return a name, like
-         `BobBoxMIPSEB`.  This name will be used in your output directory,
-         e.g. `BobBoxMIPSEB_Debug`, and must be the name of your build
-         configurations defined in your build configuration GYPI file.  By
-         default, it will just capitalize your platform name,
-         e.g. `Bobbox_mipseb`.
-      1. In `GetVariables`
-        1. Set `'clang': 1` if your toolchain is clang.
-        1. Delete other variables in that function that are not needed for your
-           platform.
-      1. In `GetEnvironmentVariables`, set the dictionary values to point to the
-         toolchain analogs for the toolchain for your platform.
+      1. Copy `src/cobalt/build/config/starboard_linux.py` to
+         `src/third_party/starboard/<family-name>/<binary-variant>/gyp_configuration.py`.
+      1. In `gyp_configuration.py`
+          1. In the `_PlatformConfig.__init__()` function, remove checks for Clang
+             or GOMA.
+          1. Again in the `_PlatformConfig.__init__()` function, pass your
+             `<platform-configuration>` into `super.__init__()`, like
+             `super.__init__('bobbox_mipseb')`.
+          1. (optional) In `GetPlatformFullName`, have it return a name, like
+             `BobBoxMIPSEB`.  This name will be used in your output directory,
+             e.g. `BobBoxMIPSEB_Debug`, and must be the name of your build
+             configurations defined in your build configuration GYPI file.  By
+             default, it will just capitalize your platform name,
+             e.g. `Bobbox_mipseb`.
+        1. In `GetVariables`
+            1. Set `'clang': 1` if your toolchain is clang.
+            1. Delete other variables in that function that are not needed for
+               your platform.
+            1. In `GetEnvironmentVariables`, set the dictionary values to point
+               to the toolchain analogs for the toolchain for your platform.
   1. Set up `gyp_configuration.gypi`
-    1. Copy `src/cobalt/build/config/starboard_linux.gypi` to
-       `src/third_party/starboard/<family-name>/<binary-variant>/gyp_configuration.gypi`.
-    1. Update your platform variables.
-      1. Set `'target_arch'` to your `<platform-configuration>` name. (It's not
-         really named correctly.)
-      1. Set `'target_os': 'linux'` if your platform is Linux-based.
-      1. Set `'gl_type': 'system'` if you are using the system EGL + GLES2
-         implementation.
-      1. set `'in_app_dial'` to `1` or `0`. This enables or disables the DIAL
-         server that runs inside Cobalt, only when Coblat is running. You do not
-         want in-app DIAL if you already have system-wide DIAL support.
-    1. Update your toolchain command-line flags and libraries. Make sure you
-       don't assume a particular workstation layout, as it is likely to be
-       different for someone else.
-    1. Update the global defines in `'target_defaults'.'defines'`, if necessary.
-    1. Replace "SbLinux" with the PlatformFullName, or default, you chose above.
+      1. Copy `src/cobalt/build/config/starboard_linux.gypi` to
+         `src/third_party/starboard/<family-name>/<binary-variant>/gyp_configuration.gypi`.
+      1. Update your platform variables.
+          1. Set `'target_arch'` to your `<platform-configuration>` name. (It's
+             not really named correctly.)
+          1. Set `'target_os': 'linux'` if your platform is Linux-based.
+          1. Set `'gl_type': 'system'` if you are using the system EGL + GLES2
+             implementation.
+          1. Set `'in_app_dial'` to `1` or `0`. This enables or disables the
+             DIAL server that runs inside Cobalt, only when Coblat is
+             running. You do not want in-app DIAL if you already have
+             system-wide DIAL support.
+      1. Update your toolchain command-line flags and libraries. Make sure you
+         don't assume a particular workstation layout, as it is likely to be
+         different for someone else.
+      1. Update the global defines in `'target_defaults'.'defines'`, if
+         necessary.
+      1. Replace "SbLinux" with the PlatformFullName, or default, you chose
+         above.
 
 
 You should now be able to run gyp with your new port. From your `src/` directory:
@@ -240,23 +243,25 @@ new Starboard implementation, and you are ready to start porting!
 When bringing up a new Starboard platform, it is suggested that you try to get
 the NPLB tests passing module-by-module. Because of dependencies between
 modules, you will find it easier to get some modules passing sooner than other
-modules.  Here's a recommended module implementation order in which to get
-things going:
+modules.
 
- 1. Configuration
- 1. Memory
- 1. Time
- 1. String
- 1. Log
- 1. File
- 1. Directory
- 1. System
- 1. Atomic
- 1. Thread
- 1. Mutex
- 1. ConditionVariable
- 1. Once
- 1. Socket
- 1. SocketWaiter
- 1. Window
- 1. TimeZone
+Here's a recommended module implementation order in which to get things going
+(still significantly subject to change based on feedback):
+
+  1. Configuration
+  1. Memory
+  1. Time
+  1. String
+  1. Log
+  1. File
+  1. Directory
+  1. System
+  1. Atomic
+  1. Thread
+  1. Mutex
+  1. ConditionVariable
+  1. Once
+  1. Socket
+  1. SocketWaiter
+  1. Window
+  1. TimeZone
