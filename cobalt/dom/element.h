@@ -57,6 +57,7 @@ class Element : public Node {
   typedef base::SmallMap<base::hash_map<std::string, std::string>, 1>
       AttributeMap;
 
+  explicit Element(Document* document);
   Element(Document* document, base::Token tag_name);
 
   // Web API: Node

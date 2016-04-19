@@ -17,6 +17,8 @@
 #ifndef COBALT_DOM_CHARACTER_DATA_H_
 #define COBALT_DOM_CHARACTER_DATA_H_
 
+#include <string>
+
 #include "base/string_piece.h"
 #include "cobalt/dom/node.h"
 
@@ -60,9 +62,6 @@ class CharacterData : public Node {
   ~CharacterData() OVERRIDE {}
 
  private:
-  // From Node.
-  bool CheckAcceptAsChild(const scoped_refptr<Node>& child) const OVERRIDE;
-
   std::string data_;
 };
 

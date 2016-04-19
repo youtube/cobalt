@@ -619,15 +619,7 @@ void HTMLElement::CopyDirectionality(const HTMLElement& other) {
   directionality_ = other.directionality_;
 }
 
-void HTMLElement::OnInsertBefore(
-    const scoped_refptr<Node>& /* new_child */,
-    const scoped_refptr<Node>& /* reference_child */) {
-  InvalidateMatchingRulesRecursively();
-}
-
-void HTMLElement::OnRemoveChild(const scoped_refptr<Node>& /* node */) {
-  InvalidateMatchingRulesRecursively();
-}
+void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
 
 void HTMLElement::OnSetAttribute(const std::string& name,
                                  const std::string& value) {
