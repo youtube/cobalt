@@ -44,6 +44,13 @@ void ThreadRestrictions::AssertIOAllowed() {
   }
 }
 
+#ifdef COBALT
+// static
+bool ThreadRestrictions::GetSingletonAllowed() {
+  return !g_singleton_disallowed.Get().Get();
+}
+#endif  // COBALT
+
 // static
 bool ThreadRestrictions::SetSingletonAllowed(bool allowed) {
   bool previous_disallowed = g_singleton_disallowed.Get().Get();
