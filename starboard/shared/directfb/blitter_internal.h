@@ -58,9 +58,8 @@ struct SbBlitterPixelDataPrivate {
   // The pitch of the pixel data, in bytes.
   int pitch_in_bytes;
 
-  // The dimensions of the pixel data.
-  int width;
-  int height;
+  // Surface information including its dimensions.
+  SbBlitterSurfaceInfo info;
 };
 
 struct SbBlitterSurfacePrivate {
@@ -70,9 +69,8 @@ struct SbBlitterSurfacePrivate {
   // This is where our internal reference to a DirectFB surface lives.
   IDirectFBSurface* surface;
 
-  // Dimensions of the surface.
-  int width;
-  int height;
+  // Surface information including its dimensions.
+  SbBlitterSurfaceInfo info;
 
   // Surfaces may own a render target object that they can setup as context
   // render targets.

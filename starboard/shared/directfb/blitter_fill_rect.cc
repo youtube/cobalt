@@ -18,16 +18,12 @@
 #include "starboard/log.h"
 #include "starboard/shared/directfb/blitter_internal.h"
 
-bool SbBlitterFillRect(SbBlitterContext context,
-                       int x,
-                       int y,
-                       int width,
-                       int height) {
+bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect) {
   if (!SbBlitterIsContextValid(context)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid context.";
     return false;
   }
-  if (width < 0 || height < 0) {
+  if (rect.width < 0 || rect.height < 0) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Width and height must both be "
                    << "greater than or equal to 0.";
     return false;
@@ -60,7 +56,8 @@ bool SbBlitterFillRect(SbBlitterContext context,
   }
 
   // Issued the DirectFB draw call to fill a rectangle with a color.
-  if (surface->FillRectangle(surface, x, y, width, height) != DFB_OK) {
+  if (surface->FillRectangle(surface, rect.x, rect.y, rect.width,
+                             rect.height) != DFB_OK) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling FillRectangle().";
     return false;
   }

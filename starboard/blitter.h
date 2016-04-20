@@ -140,6 +140,23 @@ typedef enum SbBlitterAlphaFormat {
   kSbBlitterAlphaFormatUnpremultiplied,
 } SbBlitterAlphaFormat;
 
+// Defines a rectangle via a point (x, y) and a size, (width, height).
+// This structure is used as a parameter type in various blit calls.
+typedef struct SbBlitterRect {
+  int x;
+  int y;
+  int width;
+  int height;
+} SbBlitterRect;
+
+// SbBlitterSurfaceInfo collects information about surfaces that can be queried
+// from them at any time.
+typedef struct SbBlitterSurfaceInfo {
+  int width;
+  int height;
+  SbBlitterPixelFormat pixel_format;
+} SbBlitterSurfaceInfo;
+
 // A convenience function to create a SbBlitterColor object from separate
 // 8-bit RGBA components.
 static SB_C_FORCE_INLINE SbBlitterColor SbBlitterColorFromRGBA(uint8_t r,
@@ -180,6 +197,19 @@ static SB_C_FORCE_INLINE int SbBlitterBytesPerPixelForFormat(
       return 1;
   }
   return 0;
+}
+
+// Convenience function to setup a rectangle with the specified parameters.
+static SB_C_FORCE_INLINE SbBlitterRect SbBlitterMakeRect(int x,
+                                                         int y,
+                                                         int width,
+                                                         int height) {
+  SbBlitterRect rect;
+  rect.x = x;
+  rect.y = y;
+  rect.width = width;
+  rect.height = height;
+  return rect;
 }
 
 // Helper functions to check whether or not a blitter object is invalid.
@@ -354,6 +384,14 @@ SB_EXPORT bool SbBlitterDestroySurface(SbBlitterSurface surface);
 SB_EXPORT SbBlitterRenderTarget
 SbBlitterGetRenderTargetFromSurface(SbBlitterSurface surface);
 
+// Returns a SbBlitterSurfaceInfo structure describing immutable parameters of
+// |surface|, such as width, height and pixel format.  The results will be
+// set on the output parameter |surface_info| which cannot be NULL.
+// This function is not thread safe.
+// Returns whether the information was retrieved successfully.
+SB_EXPORT bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
+                                       SbBlitterSurfaceInfo* surface_info);
+
 // Flips |swap_chain|, making the buffer that was previously accessible to
 // draw commands via SbBlitterGetRenderTargetFromSwapChain() now visible on the
 // display, while another buffer in an initially undefined state is setup as the
@@ -443,20 +481,15 @@ SB_EXPORT bool SbBlitterSetModulateBlitsWithColor(
     SbBlitterContext context,
     bool modulate_blits_with_color);
 
-// Issues a draw call on |context| that fills a rectangle at position (|x|, |y|)
-// with dimensions (|width|, |height|) with a color specified by |color|.
+// Issues a draw call on |context| that fills a rectangle |rect| with a color
+// specified by |color|.
 // This function is not thread safe.
 // Returns whether the draw call succeeded.
-SB_EXPORT bool SbBlitterFillRect(SbBlitterContext context,
-                                 int x,
-                                 int y,
-                                 int width,
-                                 int height);
+SB_EXPORT bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect);
 
 // Issues a draw call on |context| that blits an area of |source_surface|
-// specified by a rectangle at position (|src_x|, |src_y|) with dimensions
-// (|src_width|, |src_height|) to |context|'s current render target at position
-// (|dst_x|, |dst_y|) with dimensions (|dst_width|, |dst_height|).  The
+// specified by a |src_rect| to |context|'s current render target at |dst_rect|.
+// The source rectangle must lie within the dimensions of |source_surface|.  The
 // |source_surface|'s alpha will be modulated by |opacity| before being drawn.
 // For |opacity|, a value of 0 implies complete invisibility and a value of
 // 255 implies complete opaqueness.
@@ -464,14 +497,32 @@ SB_EXPORT bool SbBlitterFillRect(SbBlitterContext context,
 // Returns whether the draw call succeeded.
 SB_EXPORT bool SbBlitterBlitRectToRect(SbBlitterContext context,
                                        SbBlitterSurface source_surface,
-                                       int src_x,
-                                       int src_y,
-                                       int src_width,
-                                       int src_height,
-                                       int dst_x,
-                                       int dst_y,
-                                       int dst_width,
-                                       int dst_height);
+                                       SbBlitterRect src_rect,
+                                       SbBlitterRect dst_rect);
+
+// This function does the exact same as SbBlitterBlitRectToRect(), except
+// it permits values of |src_rect| outside of the dimensions of
+// |source_surface| and in these regions the pixel data from |source_surface|
+// will be wrapped.  Negative values for |src_rect.x| and |src_rect.y| are
+// allowed.  The output will all be stretched to fit inside of |dst_rect|.
+// This function is not thread safe.
+// Returns whether the draw call succeeded.
+SB_EXPORT bool SbBlitterBlitRectToRectTiled(SbBlitterContext context,
+                                            SbBlitterSurface source_surface,
+                                            SbBlitterRect src_rect,
+                                            SbBlitterRect dst_rect);
+
+// This function achieves the same effect as calling SbBlitterBlitRectToRect()
+// |num_rects| time with each of the |num_rects| values of |src_rects| and
+// |dst_rects|.  Using this function allows for greater efficiency than calling
+// SbBlitterBlitRectToRect() in a loop.
+// This function is not thread safe.
+// Returns whether the draw call succeeded.
+SB_EXPORT bool SbBlitterBlitRectsToRects(SbBlitterContext context,
+                                         SbBlitterSurface source_surface,
+                                         const SbBlitterRect* src_rects,
+                                         const SbBlitterRect* dst_rects,
+                                         int num_rects);
 
 #ifdef __cplusplus
 }  // extern "C"
