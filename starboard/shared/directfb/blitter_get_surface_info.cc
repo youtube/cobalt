@@ -17,19 +17,15 @@
 #include "starboard/blitter.h"
 #include "starboard/log.h"
 #include "starboard/shared/directfb/blitter_internal.h"
-#include "starboard/types.h"
 
-int SbBlitterGetMaxContexts(SbBlitterDevice device) {
-  if (!SbBlitterIsDeviceValid(device)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid device.";
-    return -1;
+bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
+                             SbBlitterSurfaceInfo* surface_info) {
+  if (!SbBlitterIsSurfaceValid(surface)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid surface.";
+    return false;
   }
 
-  // In the case of DirectFB, there is no limit to the number of contexts that
-  // can be made (besides available memory) since contexts in this case are
-  // simply state containers.  In other implementations of the Blitter API,
-  // it is very reasonable to return 1 here to simplify the implementation,
-  // especially threading details.  Most applications, including Cobalt, do not
-  // need more than 1 context anyway.
-  return UINT_MAX;
+  *surface_info = surface->info;
+
+  return true;
 }

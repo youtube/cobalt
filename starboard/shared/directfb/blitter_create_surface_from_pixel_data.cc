@@ -44,8 +44,7 @@ SbBlitterSurface SbBlitterCreateSurfaceFromPixelData(
   // surface formerly owned by the SbBlitterPixelData object.
   SbBlitterSurfacePrivate* surface = new SbBlitterSurfacePrivate();
   surface->device = pixel_data->device;
-  surface->width = pixel_data->width;
-  surface->height = pixel_data->height;
+  surface->info = pixel_data->info;
   surface->surface = pixel_data->surface;
 
   // There is no render target for surfaces initilized from pixel data.

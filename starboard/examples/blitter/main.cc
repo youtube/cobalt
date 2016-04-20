@@ -218,10 +218,11 @@ void Application::RenderScene() {
 
   // We start by clearing our entire surface to a animating shade of red.
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(frame_mod_255, 0, 0, 255));
-  SbBlitterFillRect(context_, 0, 0, kOffscreenWidth, kOffscreenHeight);
+  SbBlitterFillRect(context_,
+                    SbBlitterMakeRect(0, 0, kOffscreenWidth, kOffscreenHeight));
   // We then draw a green rectangle in the top left corner.
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 255, 0, 32));
-  SbBlitterFillRect(context_, 50, 50, 100, 100);
+  SbBlitterFillRect(context_, SbBlitterMakeRect(50, 50, 100, 100));
 
   // Now we disable blending for the next few draw calls, resulting in their
   // alpha channels replacing the alpha channels that already exist in the
@@ -230,45 +231,84 @@ void Application::RenderScene() {
 
   // Punch a blue half-transparent rectangle out in the top right corner.
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 255, 128));
-  SbBlitterFillRect(context_, 250, 50, 100, 100);
+  SbBlitterFillRect(context_, SbBlitterMakeRect(250, 50, 100, 100));
 
   // Render our surface to the offscreen surface as well, stretched
   // horizontally, in two different locations.
   SbBlitterSetModulateBlitsWithColor(context_, false);
-  SbBlitterBlitRectToRect(context_, rgba_image_surface_, 0, 0, kImageWidth,
-                          kImageHeight, frame_mod_255, frame_mod_255,
-                          kImageWidth * 2, kImageHeight);
+  SbBlitterBlitRectToRect(context_, rgba_image_surface_,
+                          SbBlitterMakeRect(0, 0, kImageWidth, kImageHeight),
+                          SbBlitterMakeRect(frame_mod_255, frame_mod_255,
+                                            kImageWidth * 2, kImageHeight));
 
   SbBlitterSetModulateBlitsWithColor(context_, true);
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(255, 255, 255, 128));
-  SbBlitterBlitRectToRect(context_, rgba_image_surface_, 0, 0, kImageWidth,
-                          kImageHeight, frame_mod_255, frame_mod_255 + 100,
-                          kImageWidth * 2, kImageHeight);
+  SbBlitterBlitRectToRect(context_, rgba_image_surface_,
+                          SbBlitterMakeRect(0, 0, kImageWidth, kImageHeight),
+                          SbBlitterMakeRect(frame_mod_255, frame_mod_255 + 100,
+                                            kImageWidth * 2, kImageHeight));
 
   // Blit out our alpha checker surface in the color blue.
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 255, 255));
-  SbBlitterBlitRectToRect(context_, alpha_image_surface_, 0, 0, kImageWidth,
-                          kImageHeight, 50, 200, kImageWidth, kImageHeight);
+  SbBlitterBlitRectToRect(
+      context_, alpha_image_surface_,
+      SbBlitterMakeRect(0, 0, kImageWidth, kImageHeight),
+      SbBlitterMakeRect(50, 200, kImageWidth, kImageHeight));
 
   // Now switch to the primary display render target.
   SbBlitterSetRenderTarget(context_, primary_render_target);
 
   // Clear the display to an animating shade of green.
   SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, frame_mod_255, 0, 255));
-  SbBlitterFillRect(context_, 0, 0, kOutputWidth, kOutputHeight);
+  SbBlitterFillRect(context_,
+                    SbBlitterMakeRect(0, 0, kOutputWidth, kOutputHeight));
 
   // Render our offscreen surface to the display in three different places
   // and sizes.
-  SbBlitterSetModulateBlitsWithColor(context_, false);
-  SbBlitterBlitRectToRect(context_, offscreen_surface_, 0, 0, kOffscreenWidth,
-                          kOffscreenHeight * 2, 10, 10, 200, 200);
-  SbBlitterBlitRectToRect(context_, offscreen_surface_, 0, 0, kOffscreenWidth,
-                          kOffscreenHeight, 300, 10, 400, 400);
-  SbBlitterSetModulateBlitsWithColor(context_, true);
   SbBlitterSetColor(context_,
                     SbBlitterColorFromRGBA(255, 255, 255, frame_mod_255));
-  SbBlitterBlitRectToRect(context_, offscreen_surface_, 0, 0, kOffscreenWidth,
-                          kOffscreenHeight, 10, 500, 800, 200);
+  SbBlitterSetModulateBlitsWithColor(context_, true);
+  SbBlitterBlitRectToRect(
+      context_, offscreen_surface_,
+      SbBlitterMakeRect(0, 0, kOffscreenWidth, kOffscreenHeight),
+      SbBlitterMakeRect(10, 10, 200, 200));
+  SbBlitterBlitRectToRect(
+      context_, offscreen_surface_,
+      SbBlitterMakeRect(0, 0, kOffscreenWidth, kOffscreenHeight),
+      SbBlitterMakeRect(300, 10, 400, 400));
+  SbBlitterBlitRectToRect(
+      context_, offscreen_surface_,
+      SbBlitterMakeRect(0, 0, kOffscreenWidth, kOffscreenHeight),
+      SbBlitterMakeRect(10, 500, 800, 200));
+
+  SbBlitterSetModulateBlitsWithColor(context_, false);
+
+  // Blit an animated tiling of the offscreen surface.
+  SbBlitterBlitRectToRectTiled(
+      context_, offscreen_surface_,
+      SbBlitterMakeRect(
+          frame_mod_255 * 3, frame_mod_255 * 5,
+          1 + static_cast<int>(kOffscreenWidth * (frame_mod_255 / 31.0f)),
+          1 + static_cast<int>(kOffscreenWidth * (frame_mod_255 / 63.0f))),
+      SbBlitterMakeRect(900, 100, 400, 400));
+
+  // Blit a batch of 4 instances of the offscreen surface in one draw call.
+  const int kNumBatchRects = 4;
+  SbBlitterRect src_rects[kNumBatchRects];
+  SbBlitterRect dst_rects[kNumBatchRects];
+  for (int j = 0; j < kNumBatchRects; ++j) {
+    src_rects[j].x = 0;
+    src_rects[j].y = 0;
+    src_rects[j].width = kOffscreenWidth;
+    src_rects[j].height = kOffscreenHeight;
+
+    dst_rects[j].x = 900 + j * 220;
+    dst_rects[j].y = 600;
+    dst_rects[j].width = 200;
+    dst_rects[j].height = 300;
+  }
+  SbBlitterBlitRectsToRects(context_, offscreen_surface_, src_rects, dst_rects,
+                            kNumBatchRects);
 
   // Ensure that all draw commands issued to the context are flushed to
   // the device and guaranteed to eventually be processed.
@@ -308,8 +348,8 @@ void SbEventHandle(const SbEvent* event) {
 void SbEventHandle(const SbEvent* event) {
   switch (event->type) {
     case kSbEventTypeStart: {
-      SB_LOG(ERROR) <<
-          "Starboard Blitter API is not available on this platform.";
+      SB_LOG(ERROR)
+          << "Starboard Blitter API is not available on this platform.";
 
       SbSystemRequestStop(0);
     } break;
