@@ -141,6 +141,11 @@ class BASE_EXPORT ThreadRestrictions {
   // a discussion of where to add these checks.
   static void AssertIOAllowed();
 
+#ifdef COBALT
+  // Get whether the current thread can use singletons.
+  static bool GetSingletonAllowed();
+#endif  // COBALT
+
   // Set whether the current thread can use singletons.  Returns the previous
   // value.
   static bool SetSingletonAllowed(bool allowed);
