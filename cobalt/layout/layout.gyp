@@ -53,6 +53,7 @@
         'inline_level_replaced_box.h',
         'layout.cc',
         'layout.h',
+        'layout_unit.h',
         'layout_boxes.cc',
         'layout_boxes.h',
         'layout_manager.cc',
@@ -96,6 +97,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'create_letterboxed_image_test.cc',
+        'layout_unit_test.cc',
         'used_style_test.cc',
         'white_space_processing_test.cc',
       ],
