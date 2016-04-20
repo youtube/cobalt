@@ -80,8 +80,9 @@ SbBlitterPixelData SbBlitterCreatePixelData(SbBlitterDevice device,
   SbBlitterPixelDataPrivate* surface_pixels = new SbBlitterPixelDataPrivate();
 
   surface_pixels->device = device;
-  surface_pixels->width = width;
-  surface_pixels->height = height;
+  surface_pixels->info.width = width;
+  surface_pixels->info.height = height;
+  surface_pixels->info.pixel_format = pixel_format;
   surface_pixels->surface = surface;
   surface_pixels->data = data;
   surface_pixels->pitch_in_bytes = pitch_in_bytes;
