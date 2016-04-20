@@ -35,6 +35,10 @@ extern "C" {
 #include "min_heap.h"
 #include "evsignal.h"
 
+#if defined(STARBOARD)
+#include "event-starboard-internal.h"
+#endif
+
 struct eventop {
 	const char *name;
 	void *(*init)(struct event_base *);
