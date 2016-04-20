@@ -30,6 +30,11 @@
 #include "event.h"
 #include "evutil.h"
 
+#if defined(STARBOARD)
+#include "event-starboard-internal.h"
+#endif
+
+
 typedef struct min_heap
 {
     struct event** p;
