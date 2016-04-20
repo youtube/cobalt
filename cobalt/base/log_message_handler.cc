@@ -16,7 +16,19 @@
 
 #include "cobalt/base/log_message_handler.h"
 
+#include "base/threading/thread_restrictions.h"
+
 namespace base {
+
+namespace {
+// Checks whether this thread allows Singleton access. Some threads
+// (e.g. detached threads, non-joinable threads) do not allow Singleton
+// access, which means we cannot access our |LogMessageHandler| instance,
+// nor even call |MessageLoop::current|.
+bool DoesThreadAllowSingletons() {
+  return ThreadRestrictions::GetSingletonAllowed();
+}
+}  // namespace
 
 LogMessageHandler* LogMessageHandler::GetInstance() {
   return Singleton<LogMessageHandler,
@@ -24,13 +36,13 @@ LogMessageHandler* LogMessageHandler::GetInstance() {
 }
 
 LogMessageHandler::LogMessageHandler() {
-  AutoLock auto_lock(lock_);
+  // Create the lock used to allow thread-safe checking of the thread.
+  // Set the global log message handler to our static member function.
   old_log_message_handler_ = logging::GetLogMessageHandler();
   logging::SetLogMessageHandler(OnLogMessage);
 }
 
 LogMessageHandler::~LogMessageHandler() {
-  AutoLock auto_lock(lock_);
   logging::SetLogMessageHandler(old_log_message_handler_);
 }
 
@@ -47,9 +59,16 @@ void LogMessageHandler::RemoveCallback(CallbackId callback_id) {
   callbacks_.erase(callback_id);
 }
 
+// static
 bool LogMessageHandler::OnLogMessage(int severity, const char* file, int line,
                                      size_t message_start,
                                      const std::string& str) {
+  // If we are on a thread that doesn't support Singletons, we can't do
+  // anything.
+  if (!DoesThreadAllowSingletons()) {
+    return false;
+  }
+
   LogMessageHandler* instance = GetInstance();
   AutoLock auto_lock(instance->lock_);
 
