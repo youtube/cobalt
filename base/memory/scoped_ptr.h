@@ -99,6 +99,11 @@
 #include "base/compiler_specific.h"
 #include "base/move.h"
 #include "base/template_util.h"
+#include "build/build_config.h"
+
+#if defined(OS_STARBOARD)
+#include "starboard/memory.h"
+#endif
 
 namespace base {
 
@@ -389,7 +394,11 @@ bool operator!=(C* p1, const scoped_array<C>& p2) {
 class ScopedPtrMallocFree {
  public:
   inline void operator()(void* x) const {
+#if defined(OS_STARBOARD)
+    SbMemoryFree(x);
+#else
     free(x);
+#endif
   }
 };
 

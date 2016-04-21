@@ -4,9 +4,17 @@
 
 #include "base/pickle.h"
 
-#include <stdlib.h>
-
 #include <algorithm>  // for max()
+
+// Must come after <algorithm>
+#if defined(OS_STARBOARD)
+#include "starboard/memory.h"
+#define realloc SbMemoryReallocate
+#define free SbMemoryFree
+#define memcpy SbMemoryCopy
+#else
+#include <stdlib.h>
+#endif
 
 //------------------------------------------------------------------------------
 
