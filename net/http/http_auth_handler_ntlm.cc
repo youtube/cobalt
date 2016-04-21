@@ -13,6 +13,11 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/memory.h"
+#define free SbMemoryFree
+#endif
+
 namespace net {
 
 HttpAuth::AuthorizationResult HttpAuthHandlerNTLM::HandleAnotherChallenge(
