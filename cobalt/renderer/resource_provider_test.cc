@@ -212,7 +212,7 @@ TEST(ResourceProviderTest, ManyTexturesCanBeCreatedAndDestroyedQuickly) {
   // Create a thread to create other threads that will create images.
   CreateImagesSpawnerThread spawner_thread(
       rasterizer->GetResourceProvider(), kNumThreads,
-      kNumImagesCreatedPerThread, math::Size(2048, 2048),
+      kNumImagesCreatedPerThread, math::Size(256, 256),
       base::Bind(&MessageLoop::PostTask, base::Unretained(&message_loop),
                  FROM_HERE, run_loop.QuitClosure()));
   spawner_thread.Start();
