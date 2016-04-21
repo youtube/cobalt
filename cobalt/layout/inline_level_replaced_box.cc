@@ -73,8 +73,8 @@ void InlineLevelReplacedBox::DumpClassName(std::ostream* stream) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 void InlineLevelReplacedBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
-    float /*desired_offset*/, bool* is_placement_requirement_met,
-    bool* is_placed, float* placed_offset) {
+    BaseDirection base_direction, float /*desired_offset*/,
+    bool* is_placement_requirement_met, bool* is_placed, float* placed_offset) {
   // If the ellipsis is already placed, then simply mark the box as hidden by
   // the ellipsis: "Implementations must hide characters and atomic inline-level
   // elements at the applicable edge(s) of the line as necessary to fit the
@@ -89,16 +89,17 @@ void InlineLevelReplacedBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
     // The first character or atomic inline-level element on a line must be
     // clipped rather than ellipsed.
     //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
-    // If this requirement has been met, then place the ellipsis to the left of
-    // the atomic inline-level element, as it should be fully hidden.
+    // If this requirement has been met, then place the ellipsis at the start
+    // edge of atomic inline-level element, as it should be fully hidden.
     if (*is_placement_requirement_met) {
-      *placed_offset = left();
+      *placed_offset =
+          GetMarginBoxStartEdgeOffsetFromContainingBlock(base_direction);
       is_hidden_by_ellipsis_ = true;
       // Otherwise, this box is fulfilling the required first inline-level
-      // element and the ellipsis must be added after the box, rather than
-      // before it.
+      // element and the ellipsis must be added at the end edge.
     } else {
-      *placed_offset = GetMarginBoxRightEdgeOffsetFromContainingBlock();
+      *placed_offset =
+          GetMarginBoxEndEdgeOffsetFromContainingBlock(base_direction);
     }
   }
 }
