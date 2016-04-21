@@ -21,6 +21,7 @@
 #ifndef COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
 #define COBALT_SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
 
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
@@ -69,6 +70,7 @@ class JSCCallbackFunction<R(void)>
 
   CallbackResult<R> Run()
       const OVERRIDE {
+    TRACE_EVENT0("cobalt::script::javascriptcore", "JSCCallbackFunction::Run");
     DCHECK(callable_);
     JSCGlobalObject* global_object =
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
@@ -116,6 +118,7 @@ class JSCCallbackFunction<R(A1)>
   CallbackResult<R> Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1)
       const OVERRIDE {
+    TRACE_EVENT0("cobalt::script::javascriptcore", "JSCCallbackFunction::Run");
     DCHECK(callable_);
     JSCGlobalObject* global_object =
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
@@ -165,6 +168,7 @@ class JSCCallbackFunction<R(A1, A2)>
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2)
       const OVERRIDE {
+    TRACE_EVENT0("cobalt::script::javascriptcore", "JSCCallbackFunction::Run");
     DCHECK(callable_);
     JSCGlobalObject* global_object =
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
@@ -216,6 +220,7 @@ class JSCCallbackFunction<R(A1, A2, A3)>
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3)
       const OVERRIDE {
+    TRACE_EVENT0("cobalt::script::javascriptcore", "JSCCallbackFunction::Run");
     DCHECK(callable_);
     JSCGlobalObject* global_object =
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
@@ -269,6 +274,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4)
       const OVERRIDE {
+    TRACE_EVENT0("cobalt::script::javascriptcore", "JSCCallbackFunction::Run");
     DCHECK(callable_);
     JSCGlobalObject* global_object =
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
@@ -325,6 +331,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5)
       const OVERRIDE {
+    TRACE_EVENT0("cobalt::script::javascriptcore", "JSCCallbackFunction::Run");
     DCHECK(callable_);
     JSCGlobalObject* global_object =
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
@@ -383,6 +390,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5,
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6)
       const OVERRIDE {
+    TRACE_EVENT0("cobalt::script::javascriptcore", "JSCCallbackFunction::Run");
     DCHECK(callable_);
     JSCGlobalObject* global_object =
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
@@ -443,6 +451,7 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6,
       typename base::internal::CallbackParamTraits<A7>::ForwardType a7)
       const OVERRIDE {
+    TRACE_EVENT0("cobalt::script::javascriptcore", "JSCCallbackFunction::Run");
     DCHECK(callable_);
     JSCGlobalObject* global_object =
         JSC::jsCast<JSCGlobalObject*>(callable_->globalObject());
