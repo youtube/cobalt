@@ -65,7 +65,8 @@ class InlineLevelReplacedBox : public ReplacedBox {
  private:
   // From |Box|.
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
-      float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+      BaseDirection base_direction, float desired_offset,
+      bool* is_placement_requirement_met, bool* is_placed,
       float* placed_offset) OVERRIDE;
 
   // This flag indicates that the box is fully hidden by the ellipsis and it,

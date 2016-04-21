@@ -91,7 +91,8 @@ class TextBox : public Box {
  private:
   // From |Box|.
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
-      float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+      BaseDirection base_direction, float desired_offset,
+      bool* is_placement_requirement_met, bool* is_placed,
       float* placed_offset) OVERRIDE;
 
   bool WhiteSpaceStyleAllowsCollapsing();
@@ -145,6 +146,11 @@ class TextBox : public Box {
   // the applicable edge(s) of the line as necessary to fit the ellipsis."
   //   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
   int32 truncated_text_end_position_;
+  // The horizontal offset to apply to rendered text as a result of an ellipsis
+  // truncating the text. This value can be non-zero when the text box is in a
+  // line with a right-to-left base direction. In this case, when an ellipsis is
+  // placed, the truncated text is offset to begin to the right of the ellipsis.
+  float truncated_text_offset_from_left_;
 
   // A font used for text width and line height calculations.
   const scoped_refptr<dom::FontList> used_font_;

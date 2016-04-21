@@ -26,6 +26,7 @@
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/math.h"
 #include "cobalt/math/insets_f.h"
 #include "cobalt/math/point_f.h"
@@ -193,6 +194,10 @@ class Box : public base::RefCounted<Box> {
   float GetMarginBoxTopEdge() const;
   float GetMarginBoxRightEdgeOffsetFromContainingBlock() const;
   float GetMarginBoxBottomEdgeOffsetFromContainingBlock() const;
+  float GetMarginBoxStartEdgeOffsetFromContainingBlock(
+      BaseDirection base_direction) const;
+  float GetMarginBoxEndEdgeOffsetFromContainingBlock(
+      BaseDirection base_direction) const;
   float margin_top() const { return margin_insets_.top(); }
   float margin_bottom() const { return margin_insets_.bottom(); }
 
@@ -221,6 +226,10 @@ class Box : public base::RefCounted<Box> {
   float GetContentBoxTopEdgeOffsetFromMarginBox() const;
   float GetContentBoxLeftEdgeOffsetFromContainingBlock() const;
   float GetContentBoxTopEdgeOffsetFromContainingBlock() const;
+  float GetContentBoxStartEdgeOffsetFromContainingBlock(
+      BaseDirection base_direction) const;
+  float GetContentBoxEndEdgeOffsetFromContainingBlock(
+      BaseDirection base_direction) const;
   float GetContentBoxLeftEdge() const;
   float GetContentBoxTopEdge() const;
 
@@ -265,7 +274,8 @@ class Box : public base::RefCounted<Box> {
   // (https://www.w3.org/TR/css3-ui/#propdef-text-overflow), regardless of
   // whether or not the ellipsis can be placed within this specific box.
   void TryPlaceEllipsisOrProcessPlacedEllipsis(
-      float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+      BaseDirection base_direction, float desired_offset,
+      bool* is_placement_requirement_met, bool* is_placed,
       float* placed_offset);
   // Whether or not the box fulfills the ellipsis requirement that it not be
   // be placed until after the "the first character or atomic inline-level
@@ -540,8 +550,9 @@ class Box : public base::RefCounted<Box> {
   // ellipsis-related state of the box, such as whether or not it should be
   // fully or partially hidden.
   virtual void DoPlaceEllipsisOrProcessPlacedEllipsis(
-      float /*desired_offset*/, bool* /*is_placement_requirement_met*/,
-      bool* /*is_placed*/, float* /*placed_offset*/) {}
+      BaseDirection /*base_direction*/, float /*desired_offset*/,
+      bool* /*is_placement_requirement_met*/, bool* /*is_placed*/,
+      float* /*placed_offset*/) {}
 
   // Helper methods used by |RenderAndAnimate|.
   void RenderAndAnimateBorder(

@@ -89,7 +89,8 @@ class InlineContainerBox : public ContainerBox {
  private:
   // From |Box|.
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
-      float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
+      BaseDirection base_direction, float desired_offset,
+      bool* is_placement_requirement_met, bool* is_placed,
       float* placed_offset) OVERRIDE;
 
   scoped_refptr<Box> SplitAtIterator(

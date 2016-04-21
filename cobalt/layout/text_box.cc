@@ -43,6 +43,7 @@ TextBox::TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
       text_start_position_(text_start_position),
       text_end_position_(text_end_position),
       truncated_text_end_position_(text_end_position),
+      truncated_text_offset_from_left_(0),
       used_font_(used_style_provider->GetUsedFontList(
           css_computed_style_declaration->data()->font_family(),
           css_computed_style_declaration->data()->font_size(),
@@ -351,8 +352,10 @@ void TextBox::RenderAndAnimateContent(
               GetVisibleTextLength(), paragraph_->IsRTL(text_start_position));
 
       render_tree::TextNode::Builder text_node_builder(
-          math::Vector2dF(GetLeadingWhiteSpaceWidth(), ascent_), glyph_buffer,
-          used_color);
+          math::Vector2dF(
+              truncated_text_offset_from_left_ + GetLeadingWhiteSpaceWidth(),
+              ascent_),
+          glyph_buffer, used_color);
 
       if (text_shadow != cssom::KeywordValue::GetNone()) {
         cssom::PropertyListValue* shadow_list =
@@ -413,8 +416,8 @@ void TextBox::DumpChildrenWithIndent(std::ostream* stream, int indent) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
-    float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
-    float* placed_offset) {
+    BaseDirection base_direction, float desired_offset,
+    bool* is_placement_requirement_met, bool* is_placed, float* placed_offset) {
   // If the ellipsis has already been placed, then the text is fully truncated
   // by the ellipsis.
   if (*is_placed) {
@@ -425,12 +428,16 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // Otherwise, the ellipsis is being placed somewhere within this text box.
   *is_placed = true;
 
-  // Initially subtract the box's offset from the containing block from the
-  // ellipsis's desired offset. Paragraph::FindBreakPosition() searches for
-  // a break position from the start of the non-collapsed portion of the the
-  // box's text, and not from the start of the containing block.
-  float content_box_offset = GetContentBoxLeftEdgeOffsetFromContainingBlock();
-  desired_offset -= content_box_offset;
+  float content_box_start_offset =
+      GetContentBoxStartEdgeOffsetFromContainingBlock(base_direction);
+
+  // Determine the available width in the content before to the desired offset.
+  // This is the distance from the start edge of the content box to the desired
+  // offset.
+  float desired_content_offset =
+      base_direction == kRightToLeftBaseDirection
+          ? content_box_start_offset - desired_offset
+          : desired_offset - content_box_start_offset;
 
   int32 start_position = GetNonCollapsedTextStartPosition();
   int32 end_position = GetNonCollapsedTextEndPosition();
@@ -443,23 +450,35 @@ void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // text box. Otherwise, it can only appear after the first character
   // (https://www.w3.org/TR/css3-ui/#propdef-text-overflow).
   if (paragraph_->FindBreakPosition(
-          used_font_, start_position, end_position, desired_offset, false,
-          !(*is_placement_requirement_met), Paragraph::kBreakWord,
+          used_font_, start_position, end_position, desired_content_offset,
+          false, !(*is_placement_requirement_met), Paragraph::kBreakWord,
           &found_position, &found_offset)) {
-    *placed_offset = found_offset + content_box_offset;
+    // A usable break position was found. Calculate the placed offset using the
+    // the break position's distance from the content box's start edge. In the
+    // case where the base direction is right-to-left, the truncated text must
+    // be offset to begin after the ellipsis.
+    if (base_direction == kRightToLeftBaseDirection) {
+      *placed_offset = content_box_start_offset - found_offset;
+      truncated_text_offset_from_left_ =
+          *placed_offset - GetContentBoxLeftEdgeOffsetFromContainingBlock();
+    } else {
+      *placed_offset = content_box_start_offset + found_offset;
+    }
     truncated_text_end_position_ = found_position;
     // An acceptable break position was not found. If the placement requirement
-    // was already met prior to this box, then the ellipsis doesn't  require a
+    // was already met prior to this box, then the ellipsis doesn't require a
     // character from this box to appear prior to its position, so simply place
-    // the ellipsis at the left edge of the box and fully truncate the text.
+    // the ellipsis at the start edge of the box and fully truncate the text.
   } else if (is_placement_requirement_met) {
-    *placed_offset = left();
+    *placed_offset =
+        GetMarginBoxStartEdgeOffsetFromContainingBlock(base_direction);
     truncated_text_end_position_ = text_start_position_;
     // The placement requirement has not already been met. Given that an
     // acceptable break position was not found within the text, the ellipsis can
-    // only be placed at the right edge of the box.
+    // only be placed at the end edge of the box.
   } else {
-    *placed_offset = GetMarginBoxRightEdgeOffsetFromContainingBlock();
+    *placed_offset =
+        GetMarginBoxEndEdgeOffsetFromContainingBlock(base_direction);
   }
 }
 
