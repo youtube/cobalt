@@ -399,53 +399,71 @@ void InlineContainerBox::DumpProperties(std::ostream* stream) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
-    float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
-    float* placed_offset) {
-  bool was_previously_placed = *is_placed;
+    BaseDirection base_direction, float desired_offset,
+    bool* is_placement_requirement_met, bool* is_placed, float* placed_offset) {
+  // If the ellipsis hasn't been previously placed, but the placement
+  // requirement is met and its desired offset comes before the content box's
+  // start edge, then place the ellipsis at its desired position. This can occur
+  // when the desired position falls between the start edge of the margin box
+  // and the start edge of its content box.
+  if (!*is_placed && *is_placement_requirement_met) {
+    float content_box_start_edge_offset =
+        GetContentBoxStartEdgeOffsetFromContainingBlock(base_direction);
+    if ((base_direction == kRightToLeftBaseDirection &&
+         desired_offset >= content_box_start_edge_offset) ||
+        (base_direction != kRightToLeftBaseDirection &&
+         desired_offset <= content_box_start_edge_offset)) {
+      *is_placed = true;
+      *placed_offset = desired_offset;
+    }
+  }
 
-  // Subtract the content block offset from the desired offset. This box's
+  bool was_placed_before_children = *is_placed;
+
+  // Subtract the content box offset from the desired offset. This box's
   // children will treat its content box left edge as the base ellipsis offset
-  // position, and the content block offset will be re-added to the placed
-  // offset after the ellipsis is placed. This allows its children to only focus
-  // on their offset from their containing block, and not worry about nested
-  // containing blocks.
+  // position, and the content box offset will be re-added after the ellipsis
+  // is placed. This allows its children to only focus on their offset from
+  // their containing block, and not worry about nested containing blocks.
   float content_box_offset = GetContentBoxLeftEdgeOffsetFromContainingBlock();
   desired_offset -= content_box_offset;
 
-  // If the ellipsis hasn't been previously placed, but the placement
-  // requirement is met and its desired offset comes before the box's content
-  // left edge, then place the ellipsis at its desired position. This can occur
-  // when the desired position falls between the left-most edge of the box and
-  // the left edge of its content.
-  if (!was_previously_placed && *is_placement_requirement_met &&
-      desired_offset <= 0) {
-    *is_placed = true;
-    *placed_offset = desired_offset;
+  // Walk each child box in base direction order attempting to place the
+  // ellipsis and update the box's ellipsis state. Even after the ellipsis is
+  // placed, subsequent boxes must still be processed, as their state my change
+  // as a result of having an ellipsis preceding them on the line.
+  if (base_direction == kRightToLeftBaseDirection) {
+    for (Boxes::const_reverse_iterator child_box_iterator =
+             child_boxes().rbegin();
+         child_box_iterator != child_boxes().rend(); ++child_box_iterator) {
+      Box* child_box = *child_box_iterator;
+      child_box->TryPlaceEllipsisOrProcessPlacedEllipsis(
+          base_direction, desired_offset, is_placement_requirement_met,
+          is_placed, placed_offset);
+    }
+  } else {
+    for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
+         child_box_iterator != child_boxes().end(); ++child_box_iterator) {
+      Box* child_box = *child_box_iterator;
+      child_box->TryPlaceEllipsisOrProcessPlacedEllipsis(
+          base_direction, desired_offset, is_placement_requirement_met,
+          is_placed, placed_offset);
+    }
   }
 
-  // Walk each box within the line in order attempting to place the ellipsis
-  // and update the box's ellipsis state. Even after the ellipsis is placed,
-  // subsequent boxes must still be processed, as their state my change as
-  // a result of having an ellipsis preceding them on the line.
-  for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
-       child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
-    child_box->TryPlaceEllipsisOrProcessPlacedEllipsis(
-        desired_offset, is_placement_requirement_met, is_placed, placed_offset);
-  }
-
-  // If the ellipsis had not previously been placed prior to
-  // DoPlaceEllipsisOrProcessPlacedEllipsis() being called, then it is
-  // guaranteed that the placement is occurring within this box. At the very
-  // least, the box's content block offset needs to be added to the placed
-  // offset, so that the offset again references this box's containing block,
-  // and potentially the ellipsis still needs to be placed.
-  if (!was_previously_placed) {
+  // If the ellipsis was not placed prior to processing the child boxes, then it
+  // is guaranteed that the placement location comes after the start edge of the
+  // content box. The content box's offset needs to be added back to the placed
+  // offset, so that the offset again references this box's containing block.
+  // Additionally, in the event that the ellipsis was not placed within a child
+  // box, it will now be placed.
+  if (!was_placed_before_children) {
     // If the ellipsis hasn't been placed yet, then place the ellipsis at its
     // desired position. This case can occur when the desired position falls
-    // between the right edge of the box's content and its right-most edge. In
-    // this case, |is_placement_requirement_met| does not need to be checked, as
-    // it is guaranteed that one of the child boxes met the requirement.
+    // between the end edge of the box's content and the end edge of the box's
+    // margin. In this case, |is_placement_requirement_met| does not need to be
+    // checked, as it is guaranteed that one of the child boxes met the
+    // requirement.
     if (!(*is_placed)) {
       *is_placed = true;
       *placed_offset = desired_offset;

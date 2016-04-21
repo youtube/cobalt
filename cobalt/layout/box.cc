@@ -153,6 +153,20 @@ float Box::GetMarginBoxBottomEdgeOffsetFromContainingBlock() const {
   return top() + GetMarginBoxHeight();
 }
 
+float Box::GetMarginBoxStartEdgeOffsetFromContainingBlock(
+    BaseDirection base_direction) const {
+  return base_direction == kRightToLeftBaseDirection
+             ? GetMarginBoxRightEdgeOffsetFromContainingBlock()
+             : left();
+}
+
+float Box::GetMarginBoxEndEdgeOffsetFromContainingBlock(
+    BaseDirection base_direction) const {
+  return base_direction == kRightToLeftBaseDirection
+             ? left()
+             : GetMarginBoxRightEdgeOffsetFromContainingBlock();
+}
+
 float Box::GetBorderBoxWidth() const {
   return border_left_width() + GetPaddingBoxWidth() + border_right_width();
 }
@@ -219,6 +233,20 @@ float Box::GetContentBoxTopEdgeOffsetFromContainingBlock() const {
   return top() + GetContentBoxTopEdgeOffsetFromMarginBox();
 }
 
+float Box::GetContentBoxStartEdgeOffsetFromContainingBlock(
+    BaseDirection base_direction) const {
+  return base_direction == kRightToLeftBaseDirection
+             ? GetContentBoxLeftEdgeOffsetFromContainingBlock() + width()
+             : GetContentBoxLeftEdgeOffsetFromContainingBlock();
+}
+
+float Box::GetContentBoxEndEdgeOffsetFromContainingBlock(
+    BaseDirection base_direction) const {
+  return base_direction == kRightToLeftBaseDirection
+             ? GetContentBoxLeftEdgeOffsetFromContainingBlock()
+             : GetContentBoxLeftEdgeOffsetFromContainingBlock() + width();
+}
+
 math::Vector2dF Box::GetContentBoxOffsetFromPaddingBox() const {
   return math::Vector2dF(padding_left(), padding_top());
 }
@@ -236,8 +264,8 @@ float Box::GetInlineLevelBoxHeight() const { return GetMarginBoxHeight(); }
 float Box::GetInlineLevelTopMargin() const { return 0.0f; }
 
 void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
-    float desired_offset, bool* is_placement_requirement_met, bool* is_placed,
-    float* placed_offset) {
+    BaseDirection base_direction, float desired_offset,
+    bool* is_placement_requirement_met, bool* is_placed, float* placed_offset) {
   // Ellipsis placement should only occur in inline level boxes.
   DCHECK(GetLevel() == kInlineLevel);
 
@@ -253,19 +281,34 @@ void Box::TryPlaceEllipsisOrProcessPlacedEllipsis(
       *is_placement_requirement_met ||
       DoesFulfillEllipsisPlacementRequirement();
 
-  // If the box was already placed or meets the placement requirement and
-  // contains the offset desired by the ellipsis, then call
-  // DoPlaceEllipsisOrProcessPlacedEllipsis(), which handles both determining
-  // the actual placement position and updating the  ellipsis-related box state.
-  // While the box meeting the placement requirement is included in the initial
-  // check, it is not included in DoPlaceEllipsisOrProcessPlacedEllipsis(), as
+  // If the box was already placed or meets the placement requirement and the
+  // desired offset comes before the margin box's end edge, then set the flag
+  // indicating that DoPlaceEllipsisOrProcessPlacedEllipsis() should be called.
+  bool should_place_ellipsis_or_process_placed_ellipsis;
+  if (*is_placed) {
+    should_place_ellipsis_or_process_placed_ellipsis = true;
+  } else if (box_meets_placement_requirement) {
+    float end_offset =
+        GetMarginBoxEndEdgeOffsetFromContainingBlock(base_direction);
+    should_place_ellipsis_or_process_placed_ellipsis =
+        base_direction == kRightToLeftBaseDirection
+            ? desired_offset >= end_offset
+            : desired_offset <= end_offset;
+  } else {
+    should_place_ellipsis_or_process_placed_ellipsis = false;
+  }
+
+  // If the flag is set, call DoPlaceEllipsisOrProcessPlacedEllipsis(), which
+  // handles both determining the actual placement position and updating the
+  // ellipsis-related box state. While the box meeting the placement requirement
+  // is included in the initial check, it is not included in
+  // DoPlaceEllipsisOrProcessPlacedEllipsis(), as
   // DoPlaceEllipsisOrProcessPlacedEllipsis() needs to know whether or not the
   // placement requirement was met in a previous box.
-  if (*is_placed ||
-      (desired_offset <= GetMarginBoxRightEdgeOffsetFromContainingBlock() &&
-       box_meets_placement_requirement)) {
-    DoPlaceEllipsisOrProcessPlacedEllipsis(
-        desired_offset, is_placement_requirement_met, is_placed, placed_offset);
+  if (should_place_ellipsis_or_process_placed_ellipsis) {
+    DoPlaceEllipsisOrProcessPlacedEllipsis(base_direction, desired_offset,
+                                           is_placement_requirement_met,
+                                           is_placed, placed_offset);
   }
 
   // Update |is_placement_requirement_met| with whether or not this box met
