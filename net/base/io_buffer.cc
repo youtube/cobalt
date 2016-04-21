@@ -5,6 +5,12 @@
 #include "net/base/io_buffer.h"
 
 #include "base/logging.h"
+#include "build/build_config.h"
+
+#if defined(OS_STARBOARD)
+#include "starboard/memory.h"
+#define realloc SbMemoryReallocate
+#endif
 
 namespace net {
 
