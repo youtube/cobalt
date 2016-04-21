@@ -3,7 +3,7 @@
  | When the "text-overflow" property is set to "ellipsis" an ellipsis
  | character is rendered to represent clipped inline content.
  | "Place the ellipsis... immediately adjacent to the applicable
- | edge(s) of the remaining inline content," meaning the line's right
+ | edge(s) of the remaining inline content," meaning the line's end
  | edge.
  |   https://www.w3.org/TR/css3-ui/#propdef-text-overflow
  -->
@@ -30,9 +30,11 @@
   </style>
 </head>
 <body>
-  <div class="containing-block">
-    <div>This is <span>some long text that will not fit in the box</span></div>
-    <div>This is <span>some <span>long text that will not fit in the box</span></span></div>
+  <div>
+    <div dir="ltr">This is <span>some long text that will not fit in the box</span></div>
+    <div dir="ltr">This is <span>some <span>long text that will not fit in the box</span></span></div>
+    <div dir="rtl">some long text that will not fit in the box<span>This is</span></div>
+    <div dir="rtl">long text that will not fit in the box<span>some <span>This is</span></span></div>
   </div>
 </body>
 </html>

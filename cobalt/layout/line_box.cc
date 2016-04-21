@@ -628,43 +628,84 @@ void LineBox::UpdateChildBoxTopPositions() {
 }
 
 void LineBox::MaybePlaceEllipsis() {
-  // TODO(***REMOVED***): Add RTL ellipses support
+  // Check to see if an ellipsis should be placed, which only occurs when the
+  // ellipsis has a positive width and the content has overflowed the line.
+  if (ellipsis_width_ <= 0 ||
+      shrink_to_fit_width_ <= layout_params_.containing_block_size.width()) {
+    return;
+  }
 
-  // Check to see if an ellipsis should be placed, which is only the case when a
-  // non-zero width ellipsis is available and the line box has overflowed the
-  // containing block.
-  if (ellipsis_width_ > 0 &&
-      shrink_to_fit_width_ > layout_params_.containing_block_size.width()) {
-    // Determine the preferred offset for the ellipsis:
-    // - The preferred offset defaults to the end line box edge minus the width
-    //   of the ellipsis, which ensures that the full ellipsis appears within
-    //   the unclipped portion of the line.
-    // - However, if there is insufficient space for the ellipsis, the preferred
-    //   offset is set to 0, rather than a negative value, thereby ensuring that
-    //   the ellipsis itself is clipped at the end line box edge.
-    // https://www.w3.org/TR/css3-ui/#propdef-text-overflow
-    float preferred_offset = std::max<float>(
-        layout_params_.containing_block_size.width() - ellipsis_width_, 0);
+  // Determine the preferred start edge offset for the ellipsis, which is the
+  // offset at which the ellipsis begins clipping content on the line.
+  // - If the ellipsis fully fits on the line, then the preferred end edge for
+  //   the ellipsis is the line's end edge. Therefore the preferred ellipsis
+  //   start edge is simply the end edge offset by the ellipsis's width.
+  // - However, if there is insufficient space for the ellipsis to fully fit on
+  //   the line, then the ellipsis should overflow the line's end edge, rather
+  //   than its start edge. As a result, the preferred ellipsis start edge
+  //   offset is simply the line's start edge.
+  // https://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  float preferred_start_edge_offset;
+  if (ellipsis_width_ <= layout_params_.containing_block_size.width()) {
+    preferred_start_edge_offset =
+        base_direction_ == kRightToLeftBaseDirection
+            ? ellipsis_width_
+            : layout_params_.containing_block_size.width() - ellipsis_width_;
+  } else {
+    preferred_start_edge_offset =
+        base_direction_ == kRightToLeftBaseDirection
+            ? layout_params_.containing_block_size.width()
+            : 0;
+  }
 
-    // Whether or not a character or atomic inline-level element has been
-    // encountered within the boxes already checked on the line. The ellipsis
-    // cannot be placed at an offset that precedes the first character or atomic
-    // inline-level element on a line.
-    // https://www.w3.org/TR/css3-ui/#propdef-text-overflow
-    bool is_placement_requirement_met = false;
+  // Whether or not a character or atomic inline-level element has been
+  // encountered within the boxes already checked on the line. The ellipsis
+  // cannot be placed at an offset that precedes the first character or atomic
+  // inline-level element on a line.
+  // https://www.w3.org/TR/css3-ui/#propdef-text-overflow
+  bool is_placement_requirement_met = false;
 
-    // Walk each box within the line in order attempting to place the ellipsis
-    // and update the box's ellipsis state. Even after the ellipsis is placed,
-    // subsequent boxes must still be processed, as their state my change as
-    // a result of having an ellipsis preceding them on the line.
-    for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+  // The start edge offset at which the ellipsis was eventually placed. This
+  // will be set by TryPlaceEllipsisOrProcessPlacedEllipsis() within one of the
+  // child boxes.
+  // NOTE: While this is is guaranteed to be set later, initializing it here
+  // keeps compilers from complaining about it being an uninitialized variable
+  // below.
+  float placed_start_edge_offset = 0;
+
+  // Walk each box within the line in base direction order attempting to place
+  // the ellipsis and update the box's ellipsis state. Even after the ellipsis
+  // is placed, subsequent boxes must still be processed, as their state may
+  // change as a result of having an ellipsis preceding them on the line.
+  if (base_direction_ == kRightToLeftBaseDirection) {
+    for (ChildBoxes::reverse_iterator child_box_iterator =
+             child_boxes_.rbegin();
+         child_box_iterator != child_boxes_.rend(); ++child_box_iterator) {
+      Box* child_box = *child_box_iterator;
+      child_box->TryPlaceEllipsisOrProcessPlacedEllipsis(
+          base_direction_, preferred_start_edge_offset,
+          &is_placement_requirement_met, &is_ellipsis_placed_,
+          &placed_start_edge_offset);
+    }
+  } else {
+    for (ChildBoxes::iterator child_box_iterator = child_boxes_.begin();
          child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
       Box* child_box = *child_box_iterator;
       child_box->TryPlaceEllipsisOrProcessPlacedEllipsis(
-          preferred_offset, &is_placement_requirement_met, &is_ellipsis_placed_,
-          &placed_ellipsis_offset_);
+          base_direction_, preferred_start_edge_offset,
+          &is_placement_requirement_met, &is_ellipsis_placed_,
+          &placed_start_edge_offset);
     }
   }
+
+  // Set |placed_ellipsis_offset_|. This is the offset at which an ellipsis will
+  // be rendered and represents the left edge of the placed ellipsis.
+  // In the case where the line's base direction is right-to-left and the start
+  // edge is the right edge of the ellipsis, the width of the ellipsis must be
+  // subtracted to produce the left edge of the ellipsis.
+  placed_ellipsis_offset_ = base_direction_ == kRightToLeftBaseDirection
+                                ? placed_start_edge_offset - ellipsis_width_
+                                : placed_start_edge_offset;
 }
 
 // Returns the height of half the given box above the 'middle' of the line box.
