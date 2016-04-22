@@ -323,16 +323,16 @@ void TextBox::RenderAndAnimateContent(
   DCHECK_EQ(0, border_left_width() + padding_left());
   DCHECK_EQ(0, border_top_width() + padding_top());
 
-  // Only add the text node to the render tree if it actually has content and
-  // a font isn't loading. The font is treated as transparent if a font is
-  // currently being downloaded and hasn't timed out: "In cases where textual
-  // content is loaded before downloadable fonts are available, user agents
-  // may... render text transparently with fallback fonts to avoid a flash of
-  // text using a fallback font. In cases where the font download fails user
-  // agents must display text, simply leaving transparent text is considered
-  // non-conformant behavior."
+  // Only add the text node to the render tree if it actually has visible
+  // content that isn't simply collapsible whitespace and a font isn't loading.
+  // The font is treated as transparent if a font is currently being downloaded
+  // and hasn't timed out: "In cases where textual content is loaded before
+  // downloadable fonts are available, user agents may... render text
+  // transparently with fallback fonts to avoid a flash of text using a fallback
+  // font. In cases where the font download fails user agents must display text,
+  // simply leaving transparent text is considered non-conformant behavior."
   //   https://www.w3.org/TR/css3-fonts/#font-face-loading
-  if (HasVisibleText() && used_font_->IsVisible()) {
+  if (HasNonCollapsibleText() && HasVisibleText() && used_font_->IsVisible()) {
     bool is_color_animated =
         animations()->IsPropertyAnimated(cssom::kColorProperty);
 
@@ -345,16 +345,14 @@ void TextBox::RenderAndAnimateContent(
     // color is animated, in which case it could become non-transparent.
     if (used_color.a() > 0.0f || is_color_animated ||
         text_shadow != cssom::KeywordValue::GetNone()) {
-      int32 text_start_position = GetNonCollapsibleTextStartPosition();
+      int32 text_start_position = GetNonCollapsedTextStartPosition();
       scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
           used_font_->CreateGlyphBuffer(
               paragraph_->GetTextBuffer() + text_start_position,
               GetVisibleTextLength(), paragraph_->IsRTL(text_start_position));
 
       render_tree::TextNode::Builder text_node_builder(
-          math::Vector2dF(
-              truncated_text_offset_from_left_ + GetLeadingWhiteSpaceWidth(),
-              ascent_),
+          math::Vector2dF(truncated_text_offset_from_left_, ascent_),
           glyph_buffer, used_color);
 
       if (text_shadow != cssom::KeywordValue::GetNone()) {
@@ -603,18 +601,18 @@ std::string TextBox::GetNonCollapsibleText() const {
 }
 
 int32 TextBox::GetVisibleTextEndPosition() const {
-  return std::min(GetNonCollapsibleTextEndPosition(),
+  return std::min(GetNonCollapsedTextEndPosition(),
                   truncated_text_end_position_);
 }
 
 int32 TextBox::GetVisibleTextLength() const {
-  return GetVisibleTextEndPosition() - GetNonCollapsibleTextStartPosition();
+  return GetVisibleTextEndPosition() - GetNonCollapsedTextStartPosition();
 }
 
 bool TextBox::HasVisibleText() const { return GetVisibleTextLength() > 0; }
 
 std::string TextBox::GetVisibleText() const {
-  return paragraph_->RetrieveUtf8SubString(GetNonCollapsibleTextStartPosition(),
+  return paragraph_->RetrieveUtf8SubString(GetNonCollapsedTextStartPosition(),
                                            GetVisibleTextEndPosition(),
                                            Paragraph::kVisualTextOrder);
 }
