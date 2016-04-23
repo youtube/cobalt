@@ -270,8 +270,12 @@ evutil_issetugid(void)
 const char *
 evutil_getenv(const char *varname)
 {
+#if defined(STARBOARD)
+  return NULL;
+#else
 	if (evutil_issetugid())
 		return NULL;
 
 	return getenv(varname);
+#endif
 }

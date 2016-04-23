@@ -10,7 +10,14 @@
 #include "base/message_loop.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if defined(OS_STARBOARD)
+#include "starboard/memory.h"
+#define free SbMemoryFree
+#define malloc SbMemoryAllocate
+#endif
 
 namespace base {
 
