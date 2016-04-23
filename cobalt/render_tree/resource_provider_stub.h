@@ -17,9 +17,9 @@
 #ifndef COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 #define COBALT_RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 
-#include <malloc.h>
 #include <string>
 
+#include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/font.h"
@@ -124,10 +124,12 @@ class FontStub : public Font {
 
 class RawImageMemoryStub : public RawImageMemory {
  public:
+  typedef scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> ScopedMemory;
+
   RawImageMemoryStub(size_t size_in_bytes, size_t alignment)
       : size_in_bytes_(size_in_bytes) {
-    memory_ = scoped_ptr_malloc<uint8_t>(
-        static_cast<uint8_t*>(memalign(alignment, size_in_bytes)));
+    memory_ = ScopedMemory(
+        static_cast<uint8_t*>(base::AlignedAlloc(size_in_bytes, alignment)));
   }
 
   size_t GetSizeInBytes() const OVERRIDE { return size_in_bytes_; }
@@ -138,7 +140,7 @@ class RawImageMemoryStub : public RawImageMemory {
   ~RawImageMemoryStub() OVERRIDE {}
 
   size_t size_in_bytes_;
-  scoped_ptr_malloc<uint8_t> memory_;
+  ScopedMemory memory_;
 };
 
 // Return the stub versions defined above for each resource.
