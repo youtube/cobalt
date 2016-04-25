@@ -71,6 +71,100 @@ HTMLDecoderTest::HTMLDecoderTest()
       source_location_(base::SourceLocation("[object HTMLDecoderTest]", 1, 1)) {
 }
 
+TEST_F(HTMLDecoderTest, CanParseEmptyDocument) {
+  const std::string input = "";
+  html_decoder_.reset(new HTMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  html_decoder_->DecodeChunk(input.c_str(), input.length());
+  html_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("html", element->tag_name());
+
+  element = element->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("body", element->tag_name());
+}
+
+// TODO(***REMOVED***): Currently HTMLDecoder is using libxml2 SAX parser. It doesn't
+// correctly add the implied tags according to HTML5. Enable the disabled tests
+// after switching to new parser.
+TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyNulls) {
+  unsigned char temp[] = {0x0, 0x0};
+
+  html_decoder_.reset(new HTMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  html_decoder_->DecodeChunk(reinterpret_cast<char*>(temp), sizeof(temp));
+  html_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("html", element->tag_name());
+
+  element = element->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("body", element->tag_name());
+}
+
+TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlySpaces) {
+  const std::string input = "   ";
+  html_decoder_.reset(new HTMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  html_decoder_->DecodeChunk(input.c_str(), input.length());
+  html_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("html", element->tag_name());
+
+  element = element->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("body", element->tag_name());
+}
+
+TEST_F(HTMLDecoderTest, DISABLED_CanParseDocumentWithOnlyHTML) {
+  const std::string input = "<html>";
+  html_decoder_.reset(new HTMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  html_decoder_->DecodeChunk(input.c_str(), input.length());
+  html_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("html", element->tag_name());
+
+  element = element->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("body", element->tag_name());
+}
+
+TEST_F(HTMLDecoderTest, CanParseDocumentWithOnlyBody) {
+  const std::string input = "<body>";
+  html_decoder_.reset(new HTMLDecoder(
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_))));
+  html_decoder_->DecodeChunk(input.c_str(), input.length());
+  html_decoder_->Finish();
+
+  dom::Element* element = document_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("html", element->tag_name());
+
+  element = element->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("body", element->tag_name());
+}
+
 TEST_F(HTMLDecoderTest, DecodingWholeDocumentShouldAddImpliedTags) {
   const std::string input = "<p></p>";
   html_decoder_.reset(new HTMLDecoder(
@@ -187,6 +281,19 @@ TEST_F(HTMLDecoderTest, CanParseNormalCharacters) {
   dom::Text* text = element->first_child()->AsText();
   ASSERT_TRUE(text);
   EXPECT_EQ("text", text->data());
+}
+
+TEST_F(HTMLDecoderTest, ShouldIgnoreNonUTF8Input) {
+  unsigned char temp[] = {0xff, 0xff};
+
+  html_decoder_.reset(
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_))));
+  html_decoder_->DecodeChunk(reinterpret_cast<char*>(temp), sizeof(temp));
+  html_decoder_->Finish();
+
+  ASSERT_FALSE(root_->first_child());
 }
 
 // Test a decimal and hex escaped supplementary (not in BMP) character.
