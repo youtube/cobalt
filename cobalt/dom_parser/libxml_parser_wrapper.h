@@ -105,7 +105,8 @@ class LibxmlParserWrapper {
                               const std::string& message);
   virtual void OnCDATABlock(const std::string& value);
 
-  // These interfaces are for the decoder that uses the wrapper.
+  // These interfaces are for the decoder that uses the wrapper. The input data
+  // should be UTF8, and will be ignored if not.
   virtual void DecodeChunk(const char* data, size_t size) = 0;
   virtual void Finish() = 0;
 

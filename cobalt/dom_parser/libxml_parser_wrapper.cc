@@ -16,6 +16,7 @@
 
 #include "cobalt/dom_parser/libxml_parser_wrapper.h"
 
+#include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "cobalt/dom/cdata_section.h"
@@ -138,7 +139,14 @@ void CDATABlock(void* context, const xmlChar* value, int len) {
 void LibxmlParserWrapper::OnStartDocument() { node_stack_.push(parent_node_); }
 
 void LibxmlParserWrapper::OnEndDocument() {
-  node_stack_.pop();
+  // Libxml can call OnEndDocument without calling OnStartDocument.
+  if (node_stack_.empty()) {
+    LOG(WARNING) << "OnEndDocument is called without OnStartDocument.";
+  } else {
+    DCHECK_EQ(parent_node_, node_stack_.top());
+    node_stack_.pop();
+  }
+
   if (!node_stack_.empty() && !error_callback_.is_null()) {
     error_callback_.Run("Node stack not empty at end of document.");
   }
@@ -196,8 +204,12 @@ void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
   if (severity > issue_level_) {
     issue_level_ = severity;
   }
-  if (severity == LibxmlParserWrapper::kFatal && !error_callback_.is_null()) {
-    error_callback_.Run(message);
+  if (severity < LibxmlParserWrapper::kFatal) {
+    LOG(WARNING) << message;
+  } else {
+    if (!error_callback_.is_null()) {
+      error_callback_.Run(message);
+    }
   }
 }
 
