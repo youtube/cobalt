@@ -34,8 +34,8 @@ namespace dom_parser {
 class LibxmlHTMLParserWrapper;
 
 // This decoder class is responsible for decoding a piece of HTML source code
-// using libxml2 SAX parser, creating corresponding DOM nodes and inserting them
-// at the given position.
+// and creating corresponding DOM nodes and inserting them at the given
+// position.
 class HTMLDecoder : public loader::Decoder {
  public:
   // New nodes will be inserted under parent_node, before reference_node.

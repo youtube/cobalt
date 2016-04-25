@@ -16,6 +16,8 @@
 
 #include "cobalt/dom_parser/libxml_xml_parser_wrapper.h"
 
+#include "base/string_util.h"
+
 namespace cobalt {
 namespace dom_parser {
 namespace {
@@ -76,9 +78,14 @@ void LibxmlXMLParserWrapper::DecodeChunk(const char* data, size_t size) {
   if (size == 0) {
     return;
   }
+
+  if (!IsStringUTF8(std::string(data, size))) {
+    static const char* kWarningNotUTF8 = "Ignoring non-UTF8 XML input.";
+    OnParsingIssue(kWarning, kWarningNotUTF8);
+    return;
+  }
+
   if (!xml_parser_context_) {
-    // The parser will try to auto-detect the encoding using the provided
-    // data chunk.
     xml_parser_context_ =
         xmlCreatePushParserCtxt(&xml_sax_handler, this, data,
                                 static_cast<int>(size), NULL /*filename*/);

@@ -16,25 +16,15 @@
 
 #include "cobalt/loader/about_fetcher.h"
 
-#include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/message_loop.h"
 
 namespace cobalt {
 namespace loader {
-namespace {
-const char kBlankDocument[] = "<html><head/><body/></html>";
-}
 
 AboutFetcher::AboutFetcher(Handler* handler) : Fetcher(handler) {
   MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(&AboutFetcher::SendBlankDocument, base::Unretained(this)));
-}
-
-void AboutFetcher::SendBlankDocument() {
-  handler()->OnReceived(this, kBlankDocument, arraysize(kBlankDocument));
-  handler()->OnDone(this);
+      FROM_HERE, base::Bind(&Handler::OnDone, base::Unretained(handler), this));
 }
 
 }  // namespace loader
