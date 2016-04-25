@@ -29,9 +29,6 @@ namespace loader {
 class AboutFetcher : public Fetcher {
  public:
   explicit AboutFetcher(Handler* handler);
-
- private:
-  void SendBlankDocument();
 };
 
 }  // namespace loader

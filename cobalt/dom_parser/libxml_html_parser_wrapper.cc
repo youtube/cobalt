@@ -16,6 +16,9 @@
 
 #include "cobalt/dom_parser/libxml_html_parser_wrapper.h"
 
+#include "base/basictypes.h"
+#include "base/string_util.h"
+
 namespace cobalt {
 namespace dom_parser {
 namespace {
@@ -93,18 +96,19 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
   if (size == 0) {
     return;
   }
-  if (!html_parser_context_) {
-    if (IsFullDocument()) {
-      document()->IncreaseLoadingCounter();
-    }
 
+  if (!IsStringUTF8(std::string(data, size))) {
+    static const char* kWarningNotUTF8 = "Ignoring non-UTF8 HTML input.";
+    OnParsingIssue(kWarning, kWarningNotUTF8);
+    return;
+  }
+
+  if (!html_parser_context_) {
     // Suppress emitting a <p> element at the root level. This is needed to
     // prevent a <p> tag being added to text at the root level, for example
     // when used for setting an element's innerHTML.
     htmlEmitImpliedRootLevelParagraph(0);
 
-    // The parser will try to auto-detect the encoding using the provided
-    // data chunk.
     html_parser_context_ = htmlCreatePushParserCtxt(
         &html_sax_handler, this, data, static_cast<int>(size),
         NULL /*filename*/, XML_CHAR_ENCODING_UTF8);
@@ -113,24 +117,35 @@ void LibxmlHTMLParserWrapper::DecodeChunk(const char* data, size_t size) {
       static const char* kErrorUnableCreateParser =
           "Unable to create the libxml2 parser.";
       OnParsingIssue(kFatal, kErrorUnableCreateParser);
+    } else {
+      if (IsFullDocument()) {
+        document()->IncreaseLoadingCounter();
+      }
     }
   } else {
+    DCHECK(html_parser_context_);
     htmlParseChunk(html_parser_context_, data, static_cast<int>(size),
                    0 /*do not terminate*/);
   }
 }
 
 void LibxmlHTMLParserWrapper::Finish() {
-  // TODO(***REMOVED***): The check on issue level is a workaround for the fact that
-  // libxml doesn't recover fully from error related to encoding. See b/27057101
-  // for more detail. If we update to a newer version libxml, we should
-  // investigate again and remove this if possible.
-  if (html_parser_context_ && issue_level() <= kWarning) {
-    htmlParseChunk(html_parser_context_, NULL, 0,
-                   1 /*terminate*/);  // Triggers EndDocument
+  if (!html_parser_context_) {
+    static const char empty_document[] = "<html><body></body></html>";
+    DecodeChunk(empty_document, arraysize(empty_document));
   }
-  if (IsFullDocument()) {
-    document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
+
+  if (html_parser_context_) {
+    // TODO(***REMOVED***): The check on issue level is a workaround for the fact that
+    // libxml doesn't recover fully from error related to encoding. See
+    // b/27057101 for more detail.
+    if (issue_level() <= kWarning) {
+      htmlParseChunk(html_parser_context_, NULL, 0,
+                     1 /*terminate*/);  // Triggers EndDocument
+    }
+    if (IsFullDocument()) {
+      document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
+    }
   }
 }
 
