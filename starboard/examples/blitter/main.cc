@@ -166,7 +166,7 @@ Application::Application() {
 
   // We will also create a (initially blank) surface for use as an offscreen
   // render target.
-  offscreen_surface_ = SbBlitterCreateSurfaceWithRenderTarget(
+  offscreen_surface_ = SbBlitterCreateRenderTargetSurface(
       device_, kOffscreenWidth, kOffscreenHeight, kSbBlitterPixelFormatARGB8);
 
   // Finally, in order to issue draw calls, we need a context that maintains

@@ -116,7 +116,7 @@ typedef uint32_t SbBlitterColor;
 // particular device, so before using these formats in surface creation
 // commands, it should be checked that they are supported first (e.g. via
 // SbBlitterIsPixelFormatSupportedByPixelData() or
-// SbBlitterIsPixelFormatSupportedBySurfaceRenderTarget()).
+// SbBlitterIsPixelFormatSupportedByRenderTargetSurface()).
 typedef enum SbBlitterPixelFormat {
   // 32-bit pixels with 8-bits per channel and the alpha component in the most
   // significant bits.
@@ -127,6 +127,10 @@ typedef enum SbBlitterPixelFormat {
   // 8-bit pixels that contain only a single alpha channel.  When rendered,
   // surfaces in this format will have (R, G, B) values of (255, 255, 255).
   kSbBlitterPixelFormatA8,
+
+  // Constant that indicates how many unique pixel formats Starboard supports.
+  kSbBlitterNumPixelFormats,
+  kSbBlitterInvalidPixelFormat = kSbBlitterNumPixelFormats,
 } SbBlitterPixelFormat;
 
 typedef enum SbBlitterAlphaFormat {
@@ -138,6 +142,10 @@ typedef enum SbBlitterAlphaFormat {
   // Colors are provided in unpremultiplied alpha, where color is specified
   // in the color channels independent of the alpha value.
   kSbBlitterAlphaFormatUnpremultiplied,
+
+  // Constant that indicates how many unique alpha formats Starboard supports.
+  kSbBlitterNumAlphaFormats,
+  kSbBlitterInvalidAlphaFormat = kSbBlitterNumAlphaFormats,
 } SbBlitterAlphaFormat;
 
 // Defines a rectangle via a point (x, y) and a size, (width, height).
@@ -195,8 +203,9 @@ static SB_C_FORCE_INLINE int SbBlitterBytesPerPixelForFormat(
       return 4;
     case kSbBlitterPixelFormatA8:
       return 1;
+    default:
+      return 0;
   }
-  return 0;
 }
 
 // Convenience function to setup a rectangle with the specified parameters.
@@ -352,9 +361,9 @@ SbBlitterCreateSurfaceFromPixelData(SbBlitterDevice device,
                                     SbBlitterPixelData pixel_data);
 
 // Returns whether the |device| supports calls to
-// SbBlitterCreateSurfaceWithRenderTarget() with |pixel_format|.
+// SbBlitterCreateRenderTargetSurface() with |pixel_format|.
 // This function is thread safe.
-SB_EXPORT bool SbBlitterIsPixelFormatSupportedBySurfaceRenderTarget(
+SB_EXPORT bool SbBlitterIsPixelFormatSupportedByRenderTargetSurface(
     SbBlitterDevice device,
     SbBlitterPixelFormat pixel_format);
 
@@ -365,10 +374,10 @@ SB_EXPORT bool SbBlitterIsPixelFormatSupportedBySurfaceRenderTarget(
 // This function is thread safe.
 // Returns kSbBlitterInvalidSurface upon failure.
 SB_EXPORT SbBlitterSurface
-SbBlitterCreateSurfaceWithRenderTarget(SbBlitterDevice device,
-                                       int width,
-                                       int height,
-                                       SbBlitterPixelFormat pixel_format);
+SbBlitterCreateRenderTargetSurface(SbBlitterDevice device,
+                                   int width,
+                                   int height,
+                                   SbBlitterPixelFormat pixel_format);
 
 // Destroys |surface|, cleaning up all resources associated with it.
 // |surface| must have been created through |device|.

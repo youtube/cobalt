@@ -1,0 +1,126 @@
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "starboard/nplb/blitter_helpers.h"
+
+#include "starboard/blitter.h"
+#include "starboard/window.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+#if SB_HAS(BLITTER)
+
+namespace starboard {
+namespace nplb {
+
+PixelAndAlphaFormats GetAllSupportedPixelAndAlphaFormatsForPixelData(
+    SbBlitterDevice device) {
+  PixelAndAlphaFormats ret;
+
+  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
+    for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
+      if (SbBlitterIsPixelFormatSupportedByPixelData(
+              device, static_cast<SbBlitterPixelFormat>(i),
+              static_cast<SbBlitterAlphaFormat>(j))) {
+        PixelAndAlphaFormat format;
+        format.pixel = static_cast<SbBlitterPixelFormat>(i);
+        format.alpha = static_cast<SbBlitterAlphaFormat>(j);
+        ret.push_back(format);
+      }
+    }
+  }
+
+  return ret;
+}
+
+PixelAndAlphaFormats GetAllUnsupportedPixelAndAlphaFormatsForPixelData(
+    SbBlitterDevice device) {
+  PixelAndAlphaFormats ret;
+
+  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
+    for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
+      if (!SbBlitterIsPixelFormatSupportedByPixelData(
+              device, static_cast<SbBlitterPixelFormat>(i),
+              static_cast<SbBlitterAlphaFormat>(j))) {
+        PixelAndAlphaFormat format;
+        format.pixel = static_cast<SbBlitterPixelFormat>(i);
+        format.alpha = static_cast<SbBlitterAlphaFormat>(j);
+        ret.push_back(format);
+      }
+    }
+  }
+
+  return ret;
+}
+
+PixelFormats GetAllSupportedPixelAndAlphaFormatsForRenderTargetSurfaces(
+    SbBlitterDevice device) {
+  PixelFormats ret;
+
+  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
+    if (SbBlitterIsPixelFormatSupportedByRenderTargetSurface(
+            device, static_cast<SbBlitterPixelFormat>(i))) {
+      ret.push_back(static_cast<SbBlitterPixelFormat>(i));
+    }
+  }
+
+  return ret;
+}
+
+PixelFormats GetAllUnsupportedPixelAndAlphaFormatsForRenderTargetSurfaces(
+    SbBlitterDevice device) {
+  PixelFormats ret;
+
+  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
+    if (!SbBlitterIsPixelFormatSupportedByRenderTargetSurface(
+            device, static_cast<SbBlitterPixelFormat>(i))) {
+      ret.push_back(static_cast<SbBlitterPixelFormat>(i));
+    }
+  }
+
+  return ret;
+}
+
+SbBlitterSurface CreateArbitraryRenderTargetSurface(SbBlitterDevice device,
+                                                    int width,
+                                                    int height) {
+  SbBlitterSurface surface = SbBlitterCreateRenderTargetSurface(
+      device, width, height,
+      GetAllSupportedPixelAndAlphaFormatsForRenderTargetSurfaces(device)[0]);
+  EXPECT_TRUE(SbBlitterIsSurfaceValid(surface));
+  return surface;
+}
+
+ContextTestEnvironment::ContextTestEnvironment(int width, int height) {
+  device_ = SbBlitterCreateDefaultDevice();
+  EXPECT_TRUE(SbBlitterIsDeviceValid(device_));
+
+  surface_ = CreateArbitraryRenderTargetSurface(device_, width, height);
+
+  render_target_ = SbBlitterGetRenderTargetFromSurface(surface_);
+  EXPECT_TRUE(SbBlitterIsRenderTargetValid(render_target_));
+
+  context_ = SbBlitterCreateContext(device_);
+  EXPECT_TRUE(SbBlitterIsContextValid(context_));
+}
+
+ContextTestEnvironment::~ContextTestEnvironment() {
+  EXPECT_TRUE(SbBlitterDestroyContext(context_));
+  EXPECT_TRUE(SbBlitterDestroySurface(surface_));
+  EXPECT_TRUE(SbBlitterDestroyDevice(device_));
+}
+
+}  // namespace nplb
+}  // namespace starboard
+
+#endif  // SB_HAS(BLITTER)

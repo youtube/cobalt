@@ -12,22 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <directfb.h>
-
 #include "starboard/blitter.h"
-#include "starboard/log.h"
-#include "starboard/shared/directfb/blitter_internal.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-SbBlitterRenderTarget SbBlitterGetRenderTargetFromSurface(
-    SbBlitterSurface surface) {
-  if (!SbBlitterIsSurfaceValid(surface)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid surface.";
-    return kSbBlitterInvalidRenderTarget;
-  }
+#if SB_HAS(BLITTER)
 
-  if (surface->render_target.surface == NULL) {
-    return kSbBlitterInvalidRenderTarget;
-  }
+namespace starboard {
+namespace nplb {
+namespace {
 
-  return &surface->render_target;
+TEST(SbBlitterDestroyDeviceTest, SunnyDay) {
+  SbBlitterDevice device = SbBlitterCreateDefaultDevice();
+  EXPECT_TRUE(SbBlitterIsDeviceValid(device));
+  EXPECT_TRUE(SbBlitterDestroyDevice(device));
 }
+
+TEST(SbBlitterDestroyDeviceTest, RainyDayInvalid) {
+  EXPECT_FALSE(SbBlitterDestroyDevice(kSbBlitterInvalidDevice));
+}
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard
+
+#endif  // SB_HAS(BLITTER)
