@@ -152,7 +152,7 @@ class BrowserModule {
   void InjectKeyEventToMainWebModule(const dom::KeyboardEvent::Data& event);
 
   // Error callback for any error that stops the program.
-  void OnError(const std::string& error);
+  void OnError(const GURL& url, const std::string& error);
 
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
@@ -279,10 +279,6 @@ class BrowserModule {
 
   // Handler object for h5vcc URLs.
   H5vccURLHandler h5vcc_url_handler_;
-
-  // Store the initial URL in case we need to retry it after a top-level
-  // navigation failure.
-  GURL initial_url_;
 
   // WebModule options.
   WebModule::Options web_module_options_;

@@ -18,6 +18,7 @@
 
 #include "cobalt/browser/debug_console.h"
 
+#include "base/bind.h"
 #include "base/command_line.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
@@ -157,7 +158,6 @@ scoped_refptr<script::Wrappable> CreateDebugHub(
 DebugConsole::DebugConsole(
     const WebModule::OnRenderTreeProducedCallback&
         render_tree_produced_callback,
-    const base::Callback<void(const std::string&)>& error_callback,
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
@@ -180,8 +180,9 @@ DebugConsole::DebugConsole(
                  get_debug_server_callback);
   web_module_.reset(new WebModule(
       GURL(kInitialDebugConsoleUrl), render_tree_produced_callback,
-      error_callback, media_module, network_module, window_dimensions,
-      resource_provider, layout_refresh_rate, web_module_options));
+      base::Bind(&DebugConsole::OnError, base::Unretained(this)), media_module,
+      network_module, window_dimensions, resource_provider, layout_refresh_rate,
+      web_module_options));
 }
 
 DebugConsole::~DebugConsole() {}

@@ -141,7 +141,8 @@ class WebModule {
 
   WebModule(const GURL& initial_url,
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
-            const base::Callback<void(const std::string&)>& error_callback,
+            const base::Callback<void(const GURL&, const std::string&)>&
+                error_callback,
             media::MediaModule* media_module,
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
@@ -157,9 +158,6 @@ class WebModule {
   // are available.
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location);
-
-  // Returns the URL of the current Document.
-  const GURL& GetUrl() const;
 
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that
@@ -207,6 +205,10 @@ class WebModule {
     return global_object_proxy_;
   }
 
+  void OnError(const std::string& error) {
+    error_callback_.Run(window_->location()->url(), error);
+  }
+
   std::string name_;
 
   // Thread checker ensures all calls to the WebModule are made from the same
@@ -216,6 +218,9 @@ class WebModule {
   // The message loop that this WebModule is running on. If a class method
   // is called from a different message loop, repost it to this one.
   MessageLoop* const self_message_loop_;
+
+  // The error callback passed in from constructor.
+  const base::Callback<void(const GURL&, const std::string&)>& error_callback_;
 
   // CSS parser.
   scoped_ptr<css_parser::Parser> css_parser_;
