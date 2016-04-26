@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/media/media_module_stub.h"
@@ -39,13 +40,16 @@ class SplashScreen {
 
   SplashScreen(const WebModule::OnRenderTreeProducedCallback&
                    render_tree_produced_callback,
-               const base::Callback<void(const std::string&)>& error_callback,
                network::NetworkModule* network_module,
                const math::Size& window_dimensions,
                render_tree::ResourceProvider* resource_provider,
                float layout_refresh_rate, const Options& options = Options());
 
  private:
+  void OnError(const GURL& /* url */, const std::string& error) {
+    LOG(ERROR) << error;
+  }
+
   media::MediaModuleStub stub_media_module_;
   scoped_ptr<WebModule> web_module_;
 };

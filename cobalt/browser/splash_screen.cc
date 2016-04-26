@@ -16,6 +16,8 @@
 
 #include "cobalt/browser/splash_screen.h"
 
+#include "base/bind.h"
+
 namespace cobalt {
 namespace browser {
 
@@ -26,7 +28,6 @@ const char SplashScreen::Options::kDefaultSplashScreenURL[] =
 SplashScreen::SplashScreen(
     const WebModule::OnRenderTreeProducedCallback&
         render_tree_produced_callback,
-    const base::Callback<void(const std::string&)>& error_callback,
     network::NetworkModule* network_module, const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const SplashScreen::Options& options) {
@@ -34,7 +35,8 @@ SplashScreen::SplashScreen(
   web_module_options.name = "SplashScreenWebModule";
 
   web_module_.reset(new WebModule(
-      options.url, render_tree_produced_callback, error_callback,
+      options.url, render_tree_produced_callback,
+      base::Bind(&SplashScreen::OnError, base::Unretained(this)),
       &stub_media_module_, network_module, window_dimensions, resource_provider,
       layout_refresh_rate, web_module_options));
 }

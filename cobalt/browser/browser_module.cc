@@ -139,7 +139,6 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           h5vcc_url_handler_(this, system_window, account_manager)),
-      initial_url_(url),
       web_module_options_(options.web_module_options),
       has_resumed_(true, false),
       will_quit_(false) {
@@ -173,7 +172,6 @@ BrowserModule::BrowserModule(const GURL& url,
   debug_console_.reset(new DebugConsole(
       base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
-      base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       media_module_.get(), &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
@@ -229,7 +227,6 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   DestroySplashScreen();
   splash_screen_.reset(new SplashScreen(
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this)),
-      base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       &network_module_, viewport_size,
       renderer_module_.pipeline()->GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz));
@@ -405,12 +402,12 @@ void BrowserModule::InjectKeyEventToMainWebModule(
   web_module_->InjectKeyboardEvent(event);
 }
 
-void BrowserModule::OnError(const std::string& error) {
+void BrowserModule::OnError(const GURL& url, const std::string& error) {
   LOG(ERROR) << error;
   std::string url_string = "h5vcc://network-failure";
 
   // Retry the current URL.
-  url_string += "?retry-url=" + web_module_->GetUrl().spec();
+  url_string += "?retry-url=" + url.spec();
 
   Navigate(GURL(url_string));
 }
