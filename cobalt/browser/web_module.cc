@@ -78,7 +78,7 @@ class WebModule::DocumentLoadedObserver : public dom::DocumentObserver {
 WebModule::WebModule(
     const GURL& initial_url,
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
-    const base::Callback<void(const std::string&)>& error_callback,
+    const base::Callback<void(const GURL&, const std::string&)>& error_callback,
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
@@ -87,8 +87,10 @@ WebModule::WebModule(
       // TODO(***REMOVED***) This assumes the web module runs in the message loop
       // current when it was created. If that changes, we must change this.
       self_message_loop_(MessageLoop::current()),
+      error_callback_(error_callback),
       css_parser_(css_parser::Parser::Create()),
-      dom_parser_(new dom_parser::Parser(error_callback)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(dom_parser_(new dom_parser::Parser(
+          base::Bind(&WebModule::OnError, base::Unretained(this))))),
       fetcher_factory_(new loader::FetcherFactory(network_module,
                                                   options.extra_web_file_dir)),
       image_cache_(loader::image::CreateImageCache(
@@ -112,7 +114,8 @@ WebModule::WebModule(
           &local_storage_database_, media_module, execution_state_.get(),
           script_runner_.get(), &media_source_registry_, initial_url,
           network_module->GetUserAgent(), network_module->preferred_language(),
-          options.navigation_callback, error_callback,
+          options.navigation_callback,
+          base::Bind(&WebModule::OnError, base::Unretained(this)),
           network_module->cookie_jar(), network_module->GetPostSender(),
           options.location_policy, options.csp_enforcement_mode,
           base::Bind(&WebModule::OnCspPolicyChanged, base::Unretained(this))))),
@@ -225,11 +228,6 @@ void WebModule::ExecuteJavascriptInternal(
   DCHECK(thread_checker_.CalledOnValidThread());
   *result = script_runner_->Execute(script_utf8, script_location);
   got_result->Signal();
-}
-
-const GURL& WebModule::GetUrl() const {
-  DCHECK_EQ(self_message_loop_, MessageLoop::current());
-  return window_->location()->url();
 }
 
 void WebModule::OnRenderTreeProduced(const LayoutResults& layout_results) {
