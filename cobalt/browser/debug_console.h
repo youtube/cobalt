@@ -22,9 +22,11 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/logging.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/keyboard_event.h"
+#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace browser {
@@ -36,7 +38,6 @@ class DebugConsole {
   DebugConsole(
       const WebModule::OnRenderTreeProducedCallback&
           render_tree_produced_callback,
-      const base::Callback<void(const std::string&)>& error_callback,
       media::MediaModule* media_module, network::NetworkModule* network_module,
       const math::Size& window_dimensions,
       render_tree::ResourceProvider* resource_provider,
@@ -60,6 +61,10 @@ class DebugConsole {
   int GetMode();
 
  private:
+  void OnError(const GURL& /* url */, const std::string& error) {
+    LOG(ERROR) << error;
+  }
+
   // The current console visibility mode.  The mutex is required since the debug
   // console's visibility mode may be accessed from both the WebModule thread
   // and the DebugConsole's host thread.

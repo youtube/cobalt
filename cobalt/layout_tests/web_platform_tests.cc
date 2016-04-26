@@ -121,8 +121,9 @@ void WebModuleOnRenderTreeProducedCallback(
 
 // This callback, when called, quits a message loop, outputs the error message
 // and sets the success flag to false.
-void WebModuleErrorCallback(base::RunLoop* run_loop, const std::string& error) {
-  LOG(FATAL) << "Error loading document: " << error;
+void WebModuleErrorCallback(base::RunLoop* run_loop, const GURL& url,
+                            const std::string& error) {
+  LOG(FATAL) << "Error loading document: " << error << ". URL: " << url;
   MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
 }
 
