@@ -35,6 +35,11 @@ SbBlitterDevice SbBlitterCreateDefaultDevice() {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling DirectFBInit().";
     return kSbBlitterInvalidDevice;
   }
+
+  DirectFBSetOption("mode", "1920x1080");
+  DirectFBSetOption("bg-none", NULL);
+  DirectFBSetOption("no-cursor", NULL);
+
   if (DirectFBCreate(&dfb) != DFB_OK) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling DirectFBCreate().";
     return kSbBlitterInvalidDevice;

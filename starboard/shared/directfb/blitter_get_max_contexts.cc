@@ -31,5 +31,5 @@ int SbBlitterGetMaxContexts(SbBlitterDevice device) {
   // it is very reasonable to return 1 here to simplify the implementation,
   // especially threading details.  Most applications, including Cobalt, do not
   // need more than 1 context anyway.
-  return UINT_MAX;
+  return INT_MAX;
 }
