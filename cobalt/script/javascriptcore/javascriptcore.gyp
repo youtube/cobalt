@@ -89,6 +89,26 @@
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
         'jsc_engine',
       ]
-    }
+    },
+    {
+      # Standalone executable for JS engine
+      'target_name': 'jsc',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'jsc.cc',
+      ],
+      'defines': [
+        '__DISABLE_WTF_LOGGING__',
+      ],
+      'include_dirs': [
+        '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore',
+        '<(DEPTH)/third_party/WebKit/Source/WTF',
+      ],
+      'dependencies': [
+        ':jsc_engine',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
+      ],
+    },
   ],
 }
