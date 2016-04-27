@@ -24,8 +24,8 @@ not designed for traditional scrolling web content, but was intended to be a
 runtime environment for rich client applications built with the same
 technologies -- HTML, CSS, JavaScript -- and designed from the ground-up to run
 on constrained, embedded, Living Room Consumer Electronics (CE) devices, such as
-Game Consoles, Set-Top Boxes (e.g. Cable, Satellite), OTT boxes (e.g. Roku),
-Blu-ray Disc Players and Smart TVs.
+Game Consoles, Set-Top Boxes (e.g. Cable, Satellite), OTT devices (e.g. Roku,
+Apple TV, Chromecast, Fire TV), Blu-ray Disc Players, and Smart TVs.
 
 These constraints (not intended to be a canonical list) make this device
 spectrum vastly different from the desktop computer environment targeted by
@@ -37,8 +37,8 @@ Chromium, FireFox, and IE:
     memory, as opposed to multiple gigabytes of CPU memory (and more gigabytes
     of GPU memory) in modern desktop computers.
   * **Slow CPUs.** Most CE devices have much slower CPUs than what is available
-    on even a budget desktop computer. To counteract this, Cobalt tries to do as
-    much as possible with as little CPU time as possible.
+    on even a budget desktop computer. Minor performance concerns can be greatly
+    exaggerated, which seriously affects priorities.
   * **Sometimes No GPU.** Not all CE devices have a monster GPU to throw shaders
     at to offload CPU work. A different strategy is required to maximize
     leverage of an accelerated blitter, which is all some older devices
@@ -61,14 +61,20 @@ Chromium, FireFox, and IE:
     go through the HTTP page dance every time you switch screens. It's slow, and
     provides poor user feedback, not to mention a jarring transition. Instead,
     one loads data from an XMLHttpRequest (XHR), and then updates one's DOM to
-    reflect the new data.
-  * **No scrolling.** Well, 10-foot UI SPA apps might scroll, but not like
+    reflect the new data. AJAX! Web 2.0!!
+  * **No scrolling.** Well, full-screen, 10-foot UI SPA apps might scroll, but not like
     traditional web pages, with scroll bars and a mouse wheel. Scrolling is
     generally built into the app very carefully, with support for a Directional
     Pad and a focus cursor.
 
 
 ## Architecture
+
+The Cobalt Authors forked H5VCC, removed most of the Chromium code -- in
+particular WebCore and the Chrome Renderer and Compositor -- and built up from
+scratch an implementation of a simplified subset of HTML, the CSS Box Model for
+layout, and the Web APIs that were really needed to build a full-screen SPA
+browse and play application.
 
 The Cobalt technology stack has these major components, roughly in a high-level
 application to a low-level platform order:
@@ -95,16 +101,18 @@ application to a low-level platform order:
     do not require re-layout. This decouples rendering from Layout and
     JavaScript, allowing for smooth, consistent animations on platforms with a
     variety of capabilities.
-  * **Net/Media** - These are Chromium's Net and Media engines. We are using
-    them directly, as they don't cause any particular problems with the extra
-    constraints listed above.
-  * **Base** - This is chromium's "base" library, which contains a wide variety
+  * **Net / Media** - These are Chromium's Network and Media engines. We are
+    using them directly, as they don't cause any particular problems with the
+    extra constraints listed above.
+  * **Base** - This is Chromium's "Base" library, which contains a wide variety
     of useful things used throughout Cobalt, Net, and Media. Cobalt uses a
-    combination of Standard C++ containers and Base as the foundation libary for
-    all of its code.
+    combination of standard C++ containers (e.g. vector, string) and Base as the
+    foundation library for all of its code.
   * **Other Third-party Libraries** - Most of these are venerable, straight-C,
     open-source libraries that are commonly included in other open-source
-    software. Mostly format decoders and parsers (e.g. libpng, libxml2, zlib).
+    software. Mostly format decoders and parsers (e.g. libpng, libxml2,
+    zlib). We fork these from Chromium, as we want them to be the most
+    battle-tested versions of these libraries.
   * **Starboard/Glimp/ANGLE** - **Starboard** is the Cobalt porting
     interface. One major difference between Cobalt and Chromium is that we have
     created a hard straight-C porting layer, and ported ALL of the compiled
@@ -126,28 +134,34 @@ project.
 
 ## The Cobalt Subset
 
-> Oh, we got both kinds of HTML Tags,<br/>we got `<span>` and `<div>`
+> Oh, we got both kinds of HTML tags,\
+> we got `<span>` and `<div>`!
+
+See the [Cobalt Subset specification](TODO) for more details on which tags,
+properties, and Web APIs are supported in Cobalt.
 
 *More to come.*
+
 
 ## Interesting Source Locations
 
 All source locations are specified relative to `src/` (this directory).
 
-  * `base/` - Chromium's base library. Contains common utilities, and a light
+  * `base/` - Chromium's Base library. Contains common utilities, and a light
     platform abstraction, which has been superceded in Cobalt by Starboard.
-  * `net/` - Chromium's net library. Contains enough infrastructure to support
-    the network needs of an HTTP User-Agent (like Chromium or Cobalt), an HTTP
-    server, a DIAL server, and several abstractions for networking
+  * `net/` - Chromium's Network library. Contains enough infrastructure to
+    support the network needs of an HTTP User-Agent (like Chromium or Cobalt),
+    an HTTP server, a DIAL server, and several abstractions for networking
     primitives. Also contains SPDY and QUIC implementations.
-  * `media/` - Chromium's media library. Contains all the code that parses,
-    processes, and manages buffers of video and audio data.
+  * `media/` - Chromium's Media library. Contains all the code that parses,
+    processes, and manages buffers of video and audio data. Media decoding is
+    passed off to decoding hardware, wherever possible.
   * `cobalt/` - The home of all Cobalt application code. This includes the Web
     Implementation, Layout Engine, Renderer, and some other Cobalt-specific
     features.
-      * `cobalt/build/` - The core build generation system, ggit yp_cobalt, and
-        configurations for supported platforms. NOTE: This should eventually be
-        mostly moved into `starboard/`.
+      * `cobalt/build/` - The core build generation system, `gyp_cobalt`, and
+        configurations for supported platforms. (NOTE: This should eventually be
+        mostly moved into `starboard/`.)
   * `starboard/` - Cobalt's porting layer. Please see Starboard's
     [`README.md`](starboard/README.md) for more detailed information about
     porting Starboard (and Cobalt) to a new platform.
