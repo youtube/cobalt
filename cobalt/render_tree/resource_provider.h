@@ -23,7 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/font.h"
-#include "cobalt/render_tree/font_fallback_list.h"
+#include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/typeface.h"
@@ -115,9 +115,9 @@ class ResourceProvider {
       scoped_ptr<RawTypefaceDataVector> raw_data,
       std::string* error_string) = 0;
 
-  // Given a UTF-16 text buffer, a font fallback list, and other shaping
-  // parameters, this method shapes the text using fonts from the list and
-  // and returns the glyph buffer that will render it.
+  // Given a UTF-16 text buffer, a font provider, and other shaping parameters,
+  // this method shapes the text using fonts from the list and returns the glyph
+  // buffer that will render it.
   // - |language| is an ISO 639-1 code used to enable the shaper to make
   //   more accurate decisions when character combinations that can produce
   //   different outcomes are encountered during shaping.
@@ -126,11 +126,11 @@ class ResourceProvider {
   // - |font_list| is used to provide the shaper with a font-glyph combination
   //   for any requested character. The available fonts and the strategy used in
   //   determining the best font-glyph combination are encapsulated within the
-  //   FontFallbackList object.
+  //   FontProvider object.
   virtual scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
       const char16* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
-      render_tree::FontFallbackList* font_list) = 0;
+      render_tree::FontProvider* font_provider) = 0;
 
   // Given a UTF-8 string and a single font, this method shapes the string
   // using the font and returns the glyph buffer that will render it.
@@ -138,9 +138,9 @@ class ResourceProvider {
       const std::string& text,
       const scoped_refptr<render_tree::Font>& font) = 0;
 
-  // Given a UTF-16 text buffer, a font fallback list, and other shaping
-  // parameters, this method shapes the text using fonts from the list and
-  // returns the width of the shaped text.
+  // Given a UTF-16 text buffer, a font provider, and other shaping parameters,
+  // this method shapes the text using fonts from the list and returns the
+  // width of the shaped text.
   // - |language| is an ISO 639-1 code used to enable the shaper to make
   //   more accurate decisions when character combinations that can produce
   //   different outcomes are encountered during shaping.
@@ -149,7 +149,7 @@ class ResourceProvider {
   // - |font_list| is used to provide the shaper with a font-glyph combination
   //   for any requested character. The available fonts and the strategy used in
   //   determining the best font-glyph combination are encapsulated within the
-  //   FontFallbackList object.
+  //   FontProvider object.
   // - |maybe_used_fonts| is an optional parameter used to collect all fonts
   //   that were used in generating the width for the text.
   // NOTE: While shaping is done on the text in order to produce an accurate
@@ -157,7 +157,7 @@ class ResourceProvider {
   // faster than CreateGlyphBuffer().
   virtual float GetTextWidth(const char16* text_buffer, size_t text_length,
                              const std::string& language, bool is_rtl,
-                             render_tree::FontFallbackList* font_list,
+                             render_tree::FontProvider* font_provider,
                              render_tree::FontVector* maybe_used_fonts) = 0;
 };
 
