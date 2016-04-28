@@ -17,6 +17,8 @@
 #ifndef COBALT_LOADER_IMAGE_IMAGE_CACHE_H_
 #define COBALT_LOADER_IMAGE_IMAGE_CACHE_H_
 
+#include <string>
+
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/loader/resource_cache.h"
 
@@ -34,9 +36,11 @@ struct ImageDecoderProvider {
 
   scoped_ptr<Decoder> CreateDecoder(
       const ImageDecoder::SuccessCallback& success_callback,
+      const ImageDecoder::FailureCallback& failure_callback,
       const ImageDecoder::ErrorCallback& error_callback) const {
     return make_scoped_ptr<Decoder>(
-        new ImageDecoder(resource_provider_, success_callback, error_callback));
+        new ImageDecoder(resource_provider_, success_callback, failure_callback,
+                         error_callback));
   }
 
  private:

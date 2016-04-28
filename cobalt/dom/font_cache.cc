@@ -34,7 +34,7 @@ FontCache::RequestedRemoteTypefaceInfo::RequestedRemoteTypefaceInfo(
     : cached_remote_typeface_reference_(
           new loader::font::CachedRemoteTypefaceReferenceWithCallbacks(
               cached_remote_typeface, typeface_load_event_callback,
-              typeface_load_event_callback)),
+              typeface_load_event_callback, typeface_load_event_callback)),
       request_timer_(new base::Timer(false, false)) {
   request_timer_->Start(FROM_HERE,
                         base::TimeDelta::FromMilliseconds(kRequestTimerDelay),
