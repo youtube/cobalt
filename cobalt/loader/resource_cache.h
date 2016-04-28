@@ -284,7 +284,7 @@ template <typename CacheType>
 void CachedResource<CacheType>::OnLoadingFailure(const std::string& message) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
-  LOG(WARNING) << message;
+  LOG(WARNING) << "Warning while loading '" << url_ << "': " << message;
 
   loader_.reset();
   // To avoid the last reference of this object get deleted in the callbacks.
