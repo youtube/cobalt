@@ -26,7 +26,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/font.h"
-#include "cobalt/render_tree/font_fallback_list.h"
+#include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/glyph.h"
 #include "cobalt/render_tree/glyph_buffer.h"
 
@@ -106,7 +106,7 @@ struct FontListKey {
 // which it lazily requests from the font cache as required. It uses these to
 // determine the font metrics for the font properties, as well as the specific
 // fonts that should be used to render passed in text.
-class FontList : public render_tree::FontFallbackList,
+class FontList : public render_tree::FontProvider,
                  public base::RefCounted<FontList> {
  public:
   typedef base::SmallMap<
@@ -156,7 +156,12 @@ class FontList : public render_tree::FontFallbackList,
   // the width has not already been calculated, it lazily generates it.
   float GetEllipsisWidth();
 
-  // From render_tree::FontFallbackList
+  // Returns the width of the space in the firts font in the font list that
+  // supports the space character. In the case where the width has not already
+  // been calculated, it lazily generates it.
+  float GetSpaceWidth();
+
+  // From render_tree::FontProvider
 
   // Returns the first font in the font list that supports the specified
   // UTF-32 character or a fallback font provided by the font cache if none of
@@ -167,11 +172,6 @@ class FontList : public render_tree::FontFallbackList,
   // requested.
   const scoped_refptr<render_tree::Font>& GetCharacterFont(
       int32 utf32_character, render_tree::GlyphIndex* glyph_index) OVERRIDE;
-
-  // Returns the width of the space in the firts font in the font list that
-  // supports the space character. In the case where the width has not already
-  // been calculated, it lazily generates it.
-  float GetSpaceWidth() OVERRIDE;
 
   render_tree::FontStyle style() const { return style_; }
   float size() const { return size_; }
@@ -238,7 +238,7 @@ class FontList : public render_tree::FontFallbackList,
   FallbackTypefaceToFontMap fallback_typeface_to_font_map_;
 
   // Allow the reference counting system access to our destructor.
-  friend class base::RefCounted<FontFallbackList>;
+  friend class base::RefCounted<FontList>;
 };
 
 }  // namespace dom
