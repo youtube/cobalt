@@ -16,12 +16,12 @@
 
 #include "media/audio/shell_audio_sink.h"
 
-#include <malloc.h>
 #include <limits>
 
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/audio_bus.h"
 #include "media/base/shell_media_statistics.h"
@@ -30,7 +30,7 @@
 
 namespace {
 
-scoped_ptr_malloc<float> s_audio_sink_buffer;
+scoped_ptr_malloc<float, base::ScopedPtrAlignedFree> s_audio_sink_buffer;
 size_t s_audio_sink_buffer_size_in_float;
 
 }  // namespace
@@ -107,8 +107,8 @@ void ShellAudioSink::Initialize(const AudioParameters& params,
     // allocation following.
     s_audio_sink_buffer.reset(NULL);
     s_audio_sink_buffer.reset(static_cast<float*>(
-        memalign(AudioBus::kChannelAlignment,
-                 s_audio_sink_buffer_size_in_float * sizeof(float))));
+        base::AlignedAlloc(s_audio_sink_buffer_size_in_float * sizeof(float),
+                           AudioBus::kChannelAlignment)));
     if (!s_audio_sink_buffer) {
       DLOG(ERROR) << "couldn't reallocate sink buffer";
       render_callback_->OnRenderError();
