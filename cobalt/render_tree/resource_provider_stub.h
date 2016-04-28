@@ -23,7 +23,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/font.h"
-#include "cobalt/render_tree/font_fallback_list.h"
+#include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -220,12 +220,12 @@ class ResourceProviderStub : public ResourceProvider {
 
   float GetTextWidth(const char16* text_buffer, size_t text_length,
                      const std::string& language, bool is_rtl,
-                     FontFallbackList* font_list,
+                     FontProvider* font_provider,
                      FontVector* maybe_used_fonts) OVERRIDE {
     UNREFERENCED_PARAMETER(text_buffer);
     UNREFERENCED_PARAMETER(language);
     UNREFERENCED_PARAMETER(is_rtl);
-    UNREFERENCED_PARAMETER(font_list);
+    UNREFERENCED_PARAMETER(font_provider);
     UNREFERENCED_PARAMETER(maybe_used_fonts);
     return static_cast<float>(text_length);
   }
@@ -235,11 +235,11 @@ class ResourceProviderStub : public ResourceProvider {
   scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
       const char16* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
-      FontFallbackList* font_list) OVERRIDE {
+      FontProvider* font_provider) OVERRIDE {
     UNREFERENCED_PARAMETER(text_buffer);
     UNREFERENCED_PARAMETER(language);
     UNREFERENCED_PARAMETER(is_rtl);
-    UNREFERENCED_PARAMETER(font_list);
+    UNREFERENCED_PARAMETER(font_provider);
     return make_scoped_refptr(
         new GlyphBuffer(math::RectF(0, 0, static_cast<float>(text_length), 1)));
   }
