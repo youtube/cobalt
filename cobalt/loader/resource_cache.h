@@ -63,15 +63,17 @@ class CachedResource
   typedef typename CacheType::ResourceType ResourceType;
   typedef typename CacheType::DecoderProviderType DecoderProviderType;
 
-  // This class can be used to attach callbacks to CachedResource objects that
-  // are executed when the resource is loaded or an error occurs with the load.
+  // This class can be used to attach success, failure, or error callbacks to
+  // CachedResource objects that are executed when the resource finishes
+  // loading.
   // The callbacks are removed when the object is destroyed. If the resource has
   // already been loaded, execute the callback immediately.
   class OnLoadedCallbackHandler {
    public:
     OnLoadedCallbackHandler(
         const scoped_refptr<CachedResource>& cached_resource,
-        const base::Closure& loaded_callback,
+        const base::Closure& success_callback,
+        const base::Closure& failure_callback,
         const base::Closure& error_callback);
     ~OnLoadedCallbackHandler();
 
@@ -79,10 +81,12 @@ class CachedResource
     typedef std::list<base::Closure>::iterator CallbackListIterator;
 
     scoped_refptr<CachedResource> cached_resource_;
-    base::Closure loaded_callback_;
+    base::Closure success_callback_;
+    base::Closure failure_callback_;
     base::Closure error_callback_;
 
-    CallbackListIterator loaded_callback_list_iterator_;
+    CallbackListIterator success_callback_list_iterator_;
+    CallbackListIterator failure_callback_list_iterator_;
     CallbackListIterator error_callback_list_iterator_;
 
     DISALLOW_COPY_AND_ASSIGN(OnLoadedCallbackHandler);
@@ -119,15 +123,21 @@ class CachedResource
   typedef std::list<base::Closure>::iterator CallbackListIterator;
 
   enum CallbackType {
-    kOnLoadingDoneCallbackType,
+    kOnLoadingSuccessCallbackType,
+    kOnLoadingFailureCallbackType,
     kOnLoadingErrorCallbackType,
     kCallbackTypeCount,
   };
 
   ~CachedResource();
 
-  // Callbacks for loader.
-  void OnLoadingDone(const scoped_refptr<ResourceType>& resource);
+  // Callbacks for decoders.
+  //
+  // Notify that the resource is loaded successfully.
+  void OnLoadingSuccess(const scoped_refptr<ResourceType>& resource);
+  // Notify the loading failure and could be treated differently than error.
+  void OnLoadingFailure(const std::string& warning);
+  // Notify the loading error.
   void OnLoadingError(const std::string& error);
 
   // Called by |CachedResourceLoadedCallbackHandler|.
@@ -156,18 +166,25 @@ class CachedResource
 template <typename CacheType>
 CachedResource<CacheType>::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
     const scoped_refptr<CachedResource>& cached_resource,
-    const base::Closure& loaded_callback, const base::Closure& error_callback)
+    const base::Closure& success_callback,
+    const base::Closure& failure_callback, const base::Closure& error_callback)
     : cached_resource_(cached_resource),
-      loaded_callback_(loaded_callback),
+      success_callback_(success_callback),
+      failure_callback_(failure_callback),
       error_callback_(error_callback) {
   DCHECK(cached_resource_);
 
-  if (!loaded_callback_.is_null()) {
-    loaded_callback_list_iterator_ = cached_resource_->AddCallback(
-        kOnLoadingDoneCallbackType, loaded_callback_);
+  if (!success_callback_.is_null()) {
+    success_callback_list_iterator_ = cached_resource_->AddCallback(
+        kOnLoadingSuccessCallbackType, success_callback_);
     if (cached_resource_->TryGetResource()) {
-      loaded_callback_.Run();
+      success_callback_.Run();
     }
+  }
+
+  if (!failure_callback_.is_null()) {
+    failure_callback_list_iterator_ = cached_resource_->AddCallback(
+        kOnLoadingFailureCallbackType, failure_callback_);
   }
 
   if (!error_callback_.is_null()) {
@@ -178,9 +195,14 @@ CachedResource<CacheType>::OnLoadedCallbackHandler::OnLoadedCallbackHandler(
 
 template <typename CacheType>
 CachedResource<CacheType>::OnLoadedCallbackHandler::~OnLoadedCallbackHandler() {
-  if (!loaded_callback_.is_null()) {
-    cached_resource_->RemoveCallback(kOnLoadingDoneCallbackType,
-                                     loaded_callback_list_iterator_);
+  if (!success_callback_.is_null()) {
+    cached_resource_->RemoveCallback(kOnLoadingSuccessCallbackType,
+                                     success_callback_list_iterator_);
+  }
+
+  if (!failure_callback_.is_null()) {
+    cached_resource_->RemoveCallback(kOnLoadingFailureCallbackType,
+                                     failure_callback_list_iterator_);
   }
 
   if (!error_callback_.is_null()) {
@@ -202,7 +224,8 @@ CachedResource<CacheType>::CachedResource(
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Decoder> decoder = decoder_provider->CreateDecoder(
-      base::Bind(&CachedResource::OnLoadingDone, base::Unretained(this)),
+      base::Bind(&CachedResource::OnLoadingSuccess, base::Unretained(this)),
+      base::Bind(&CachedResource::OnLoadingFailure, base::Unretained(this)),
       base::Bind(&CachedResource::OnLoadingError, base::Unretained(this)));
   loader_ = make_scoped_ptr(new Loader(
       base::Bind(&FetcherFactory::CreateSecureFetcher,
@@ -244,17 +267,29 @@ CachedResource<CacheType>::~CachedResource() {
 }
 
 template <typename CacheType>
-void CachedResource<CacheType>::OnLoadingDone(
+void CachedResource<CacheType>::OnLoadingSuccess(
     const scoped_refptr<ResourceType>& resource) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
   resource_ = resource;
 
   loader_.reset();
-  resource_cache_->NotifyResourceLoaded(this);
+  resource_cache_->NotifyResourceSuccessfullyLoaded(this);
   // To avoid the last reference of this object get deleted in the callbacks.
   scoped_refptr<CachedResource<CacheType> > holder(this);
-  RunCallbacks(kOnLoadingDoneCallbackType);
+  RunCallbacks(kOnLoadingSuccessCallbackType);
+}
+
+template <typename CacheType>
+void CachedResource<CacheType>::OnLoadingFailure(const std::string& message) {
+  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+
+  LOG(WARNING) << message;
+
+  loader_.reset();
+  // To avoid the last reference of this object get deleted in the callbacks.
+  scoped_refptr<CachedResource<CacheType> > holder(this);
+  RunCallbacks(kOnLoadingFailureCallbackType);
 }
 
 template <typename CacheType>
@@ -318,11 +353,14 @@ class CachedResourceReferenceWithCallbacks {
 
   CachedResourceReferenceWithCallbacks(
       const scoped_refptr<CachedResourceType>& cached_resource,
-      const base::Closure& loaded_callback, const base::Closure& error_callback)
+      const base::Closure& success_callback,
+      const base::Closure& failure_callback,
+      const base::Closure& error_callback)
       : cached_resource_(cached_resource),
         cached_resource_loaded_callback_handler_(
             new CachedResourceTypeOnLoadedCallbackHandler(
-                cached_resource, loaded_callback, error_callback)) {}
+                cached_resource, success_callback, failure_callback,
+                error_callback)) {}
 
   scoped_refptr<CachedResourceType> cached_resource() {
     return cached_resource_;
@@ -331,7 +369,7 @@ class CachedResourceReferenceWithCallbacks {
  private:
   // A single cached resource.
   scoped_refptr<CachedResourceType> cached_resource_;
-  // This handles adding and removing the resource loaded callback.
+  // This handles adding and removing the resource loaded callbacks.
   scoped_ptr<CachedResourceTypeOnLoadedCallbackHandler>
       cached_resource_loaded_callback_handler_;
 };
@@ -381,8 +419,8 @@ class ResourceCache {
       ResourceMap;
   typedef typename ResourceMap::iterator ResourceMapIterator;
 
-  // Called by the CachedResource when the loading is done.
-  void NotifyResourceLoaded(CachedResourceType* cached_resource);
+  // Called by CachedResource objects after they are successfully loaded.
+  void NotifyResourceSuccessfullyLoaded(CachedResourceType* cached_resource);
 
   // Called by the destructor of CachedResource to remove CachedResource from
   // |cached_resource_map_| and either immediately free the resource from memory
@@ -479,7 +517,7 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url) {
 }
 
 template <typename CacheType>
-void ResourceCache<CacheType>::NotifyResourceLoaded(
+void ResourceCache<CacheType>::NotifyResourceSuccessfullyLoaded(
     CachedResourceType* cached_resource) {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
 

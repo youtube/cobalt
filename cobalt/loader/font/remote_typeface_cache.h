@@ -44,9 +44,11 @@ struct RemoteTypefaceDecoderProvider {
 
   scoped_ptr<Decoder> CreateDecoder(
       const TypefaceDecoder::SuccessCallback& success_callback,
+      const TypefaceDecoder::FailureCallback& failure_callback,
       const TypefaceDecoder::ErrorCallback& error_callback) const {
-    return make_scoped_ptr<Decoder>(new TypefaceDecoder(
-        resource_provider_, success_callback, error_callback));
+    return make_scoped_ptr<Decoder>(
+        new TypefaceDecoder(resource_provider_, success_callback,
+                            failure_callback, error_callback));
   }
 
  private:

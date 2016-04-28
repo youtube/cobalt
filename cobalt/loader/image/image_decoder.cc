@@ -28,6 +28,7 @@
 #include "cobalt/loader/image/png_image_decoder.h"
 #include "cobalt/loader/image/stub_image_decoder.h"
 #include "cobalt/loader/image/webp_image_decoder.h"
+#include "net/base/mime_util.h"
 #include "net/http/http_status_code.h"
 
 namespace cobalt {
@@ -38,18 +39,60 @@ namespace {
 
 bool s_use_stub_image_decoder = false;
 
+void CacheMessage(std::string* result, const std::string& message) {
+  DCHECK(result);
+
+  if (!result->empty()) {
+    result->append(" ");
+  }
+
+  result->append(message);
+}
+
 }  // namespace
 
 ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
                            const SuccessCallback& success_callback,
+                           const FailureCallback& failure_callback,
                            const ErrorCallback& error_callback)
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
+      failure_callback_(failure_callback),
       error_callback_(error_callback),
       state_(kWaitingForHeader) {
   signature_cache_.position = 0;
 
   DCHECK(resource_provider_);
+}
+
+LoadResponseType ImageDecoder::OnResponseStarted(
+    Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
+  UNREFERENCED_PARAMETER(fetcher);
+
+  if (headers->response_code() == net::HTTP_OK &&
+      headers->GetContentLength() == 0) {
+    // The server successfully processed the request and expected some contents,
+    // but it is not returning any content.
+    state_ = kNotApplicable;
+    CacheMessage(&failure_message_, "No content returned, but expected some.");
+  }
+
+  if (headers->response_code() == net::HTTP_NO_CONTENT) {
+    // The server successfully processed the request, but is not returning any
+    // content.
+    state_ = kNotApplicable;
+    CacheMessage(&failure_message_, "No content returned.");
+  }
+
+  std::string mime_style;
+  bool success = headers->GetMimeType(&mime_style);
+  DCHECK(success);
+  if (!net::IsSupportedImageMimeType(mime_style)) {
+    state_ = kNotApplicable;
+    CacheMessage(&failure_message_, "Not an image mime type.");
+  }
+
+  return kLoadResponseContinue;
 }
 
 void ImageDecoder::DecodeChunk(const char* data, size_t size) {
@@ -76,19 +119,23 @@ void ImageDecoder::Finish() {
                        : NULL);
       } else {
         error_callback_.Run(decoder_->GetTypeString() +
-                            " failed to decode image");
+                            " failed to decode image.");
       }
       break;
     case kWaitingForHeader:
       if (signature_cache_.position == 0) {
         // no image is available.
-        success_callback_.Run(NULL);
+        failure_callback_.Run(failure_message_);
       } else {
         error_callback_.Run("No enough image data for header.");
       }
       break;
     case kUnsupportedImageFormat:
-      error_callback_.Run("Unsupported image format");
+      error_callback_.Run("Unsupported image format.");
+      break;
+    case kNotApplicable:
+      // no image is available.
+      failure_callback_.Run(failure_message_);
       break;
   }
 }
@@ -116,6 +163,7 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
       DCHECK(decoder_);
       decoder_->DecodeChunk(input_bytes, size);
     } break;
+    case kNotApplicable:
     case kUnsupportedImageFormat:
     default: {
       // Do not attempt to continue processing data.
