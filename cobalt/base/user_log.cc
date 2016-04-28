@@ -29,23 +29,20 @@ const int kMaxLabelSize = 16;
 
 // static
 bool UserLog::IsRegistrationSupported() {
-  return cobalt::deprecated::PlatformDelegate::Get() &&
-         cobalt::deprecated::PlatformDelegate::Get()
-             ->IsUserLogRegistrationSupported();
+  return cobalt::deprecated::PlatformDelegate::Get()
+      ->IsUserLogRegistrationSupported();
 }
 
 // static
 bool UserLog::Register(Index index, const char* label, const void* address,
                        size_t size) {
   DCHECK_LT(strlen(label), kMaxLabelSize);
-  return cobalt::deprecated::PlatformDelegate::Get() &&
-         cobalt::deprecated::PlatformDelegate::Get()->RegisterUserLog(
-             index, label, address, size);
+  return cobalt::deprecated::PlatformDelegate::Get()->RegisterUserLog(
+      index, label, address, size);
 }
 
 bool UserLog::Deregister(Index index) {
-  return cobalt::deprecated::PlatformDelegate::Get() &&
-         cobalt::deprecated::PlatformDelegate::Get()->DeregisterUserLog(index);
+  return cobalt::deprecated::PlatformDelegate::Get()->DeregisterUserLog(index);
 }
 
 }  // namespace base
