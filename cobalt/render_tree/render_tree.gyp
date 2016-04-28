@@ -36,7 +36,7 @@
         'filter_node.cc',
         'filter_node.h',
         'font.h',
-        'font_fallback_list.h',
+        'font_provider.h',
         'glyph.h',
         'glyph_buffer.h',
         'image_node.cc',

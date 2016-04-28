@@ -168,6 +168,20 @@ float FontList::GetEllipsisWidth() {
   return ellipsis_width_;
 }
 
+float FontList::GetSpaceWidth() {
+  // The space width is lazily generated. If it hasn't been set yet, it's time
+  // to set it.
+  if (!is_space_width_set_) {
+    is_space_width_set_ = true;
+    const scoped_refptr<render_tree::Font>& primary_font = GetPrimaryFont();
+    render_tree::GlyphIndex space_glyph =
+        primary_font->GetGlyphForCharacter(' ');
+    space_width_ = primary_font->GetGlyphWidth(space_glyph);
+  }
+
+  return space_width_;
+}
+
 const scoped_refptr<render_tree::Font>& FontList::GetCharacterFont(
     int32 utf32_character, render_tree::GlyphIndex* glyph_index) {
   // Walk the list of fonts, requesting any encountered that are in an
@@ -190,20 +204,6 @@ const scoped_refptr<render_tree::Font>& FontList::GetCharacterFont(
   }
 
   return GetFallbackCharacterFont(utf32_character, glyph_index);
-}
-
-float FontList::GetSpaceWidth() {
-  // The space width is lazily generated. If it hasn't been set yet, it's time
-  // to set it.
-  if (!is_space_width_set_) {
-    is_space_width_set_ = true;
-    const scoped_refptr<render_tree::Font>& primary_font = GetPrimaryFont();
-    render_tree::GlyphIndex space_glyph =
-        primary_font->GetGlyphForCharacter(' ');
-    space_width_ = primary_font->GetGlyphWidth(space_glyph);
-  }
-
-  return space_width_;
 }
 
 const scoped_refptr<render_tree::Font>& FontList::GetFallbackCharacterFont(
