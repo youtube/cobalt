@@ -4,8 +4,12 @@
 
 #include "base/test/main_hook.h"
 #include "base/test/test_suite.h"
+#include "sql/test_vfs.h"
 
 int main(int argc, char** argv) {
   MainHook hook(main, argc, argv);
-  return base::TestSuite(argc, argv).Run();
+  sql::RegisterTestVfs();
+  int result = base::TestSuite(argc, argv).Run();
+  sql::UnregisterTestVfs();
+  return result;
 }
