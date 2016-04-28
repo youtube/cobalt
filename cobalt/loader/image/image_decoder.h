@@ -38,13 +38,18 @@ class ImageDecoder : public Decoder {
  public:
   typedef base::Callback<void(const scoped_refptr<render_tree::Image>&)>
       SuccessCallback;
+  typedef base::Callback<void(const std::string&)> FailureCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
   ImageDecoder(render_tree::ResourceProvider* resource_provider,
                const SuccessCallback& success_callback,
+               const FailureCallback& failure_callback,
                const ErrorCallback& error_callback);
 
   // From Decoder.
+  LoadResponseType OnResponseStarted(
+      Fetcher* fetcher,
+      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
   void DecodeChunk(const char* data, size_t size) OVERRIDE;
   void Finish() OVERRIDE;
 
@@ -56,6 +61,7 @@ class ImageDecoder : public Decoder {
   enum State {
     kWaitingForHeader,
     kDecoding,
+    kNotApplicable,
     kUnsupportedImageFormat,
   };
 
@@ -73,10 +79,12 @@ class ImageDecoder : public Decoder {
 
   render_tree::ResourceProvider* const resource_provider_;
   const SuccessCallback success_callback_;
+  const FailureCallback failure_callback_;
   const ErrorCallback error_callback_;
   scoped_ptr<ImageDataDecoder> decoder_;
   SignatureCache signature_cache_;
   State state_;
+  std::string failure_message_;
 };
 
 }  // namespace image
