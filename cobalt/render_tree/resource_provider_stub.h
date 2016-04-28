@@ -247,10 +247,11 @@ class ResourceProviderStub : public ResourceProvider {
   // Creates a glyph buffer, which is populated with shaped text, and used to
   // render that text.
   scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
-      const std::string& text, const scoped_refptr<Font>& font) OVERRIDE {
+      const std::string& utf8_string,
+      const scoped_refptr<Font>& font) OVERRIDE {
     UNREFERENCED_PARAMETER(font);
-    return make_scoped_refptr(
-        new GlyphBuffer(math::RectF(0, 0, static_cast<float>(text.size()), 1)));
+    return make_scoped_refptr(new GlyphBuffer(
+        math::RectF(0, 0, static_cast<float>(utf8_string.size()), 1)));
   }
 };
 
