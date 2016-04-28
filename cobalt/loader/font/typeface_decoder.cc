@@ -23,11 +23,14 @@ namespace font {
 TypefaceDecoder::TypefaceDecoder(
     render_tree::ResourceProvider* resource_provider,
     const SuccessCallback& success_callback,
+    const FailureCallback& failure_callback,
     const ErrorCallback& error_callback)
     : resource_provider_(resource_provider),
       success_callback_(success_callback),
       error_callback_(error_callback),
       is_raw_data_too_large_(false) {
+  UNREFERENCED_PARAMETER(failure_callback);
+
   DCHECK(resource_provider_);
   DCHECK(!success_callback_.is_null());
   DCHECK(!error_callback_.is_null());

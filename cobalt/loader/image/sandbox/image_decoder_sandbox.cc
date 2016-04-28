@@ -45,6 +45,10 @@ struct ImageDecoderCallback {
     image = value;
   }
 
+  void FailureCallback(const std::string& failure_message) {
+    LOG(WARNING) << failure_message;
+  }
+
   void ErrorCallback(const std::string& error_message) {
     LOG(ERROR) << error_message;
   }
@@ -103,6 +107,8 @@ void DecodeImages(ResourceProvider* resource_provider, const char* extension) {
     scoped_ptr<Decoder> image_decoder(new ImageDecoder(
         resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
                                       base::Unretained(&image_decoder_result)),
+        base::Bind(&ImageDecoderCallback::FailureCallback,
+                   base::Unretained(&image_decoder_result)),
         base::Bind(&ImageDecoderCallback::ErrorCallback,
                    base::Unretained(&image_decoder_result))));
 
