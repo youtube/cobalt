@@ -26,6 +26,7 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -34,17 +35,74 @@ namespace image {
 
 namespace {
 
-struct ImageDecoderCallback {
+struct MockImageDecoderCallback {
   void SuccessCallback(const scoped_refptr<render_tree::Image>& value) {
     image = value;
   }
 
-  void ErrorCallback(const std::string& error_message) {
-    DLOG(WARNING) << error_message;
-  }
+  MOCK_METHOD1(FailureCallback, void(const std::string& message));
+  MOCK_METHOD1(ErrorCallback, void(const std::string& message));
 
   scoped_refptr<render_tree::Image> image;
 };
+
+class MockImageDecoder : public Decoder {
+ public:
+  MockImageDecoder();
+  ~MockImageDecoder() OVERRIDE {}
+
+  LoadResponseType OnResponseStarted(
+      Fetcher* fetcher,
+      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
+
+  void DecodeChunk(const char* data, size_t size) OVERRIDE;
+
+  void Finish() OVERRIDE;
+
+  scoped_refptr<render_tree::Image> Image();
+
+  void ExpectCallWithFailure(const std::string& message);
+  void ExpectCallWithError(const std::string& message);
+
+ protected:
+  ::testing::StrictMock<MockImageDecoderCallback> image_decoder_callback_;
+  render_tree::ResourceProviderStub resource_provider_;
+  scoped_ptr<Decoder> image_decoder_;
+};
+
+MockImageDecoder::MockImageDecoder() {
+  image_decoder_.reset(
+      new ImageDecoder(&resource_provider_,
+                       base::Bind(&MockImageDecoderCallback::SuccessCallback,
+                                  base::Unretained(&image_decoder_callback_)),
+                       base::Bind(&MockImageDecoderCallback::FailureCallback,
+                                  base::Unretained(&image_decoder_callback_)),
+                       base::Bind(&MockImageDecoderCallback::ErrorCallback,
+                                  base::Unretained(&image_decoder_callback_))));
+}
+
+LoadResponseType MockImageDecoder::OnResponseStarted(
+    Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
+  return image_decoder_->OnResponseStarted(fetcher, headers);
+}
+
+void MockImageDecoder::DecodeChunk(const char* data, size_t size) {
+  image_decoder_->DecodeChunk(data, size);
+}
+
+void MockImageDecoder::Finish() { image_decoder_->Finish(); }
+
+scoped_refptr<render_tree::Image> MockImageDecoder::Image() {
+  return image_decoder_callback_.image;
+}
+
+void MockImageDecoder::ExpectCallWithFailure(const std::string& message) {
+  EXPECT_CALL(image_decoder_callback_, FailureCallback(message));
+}
+
+void MockImageDecoder::ExpectCallWithError(const std::string& message) {
+  EXPECT_CALL(image_decoder_callback_, ErrorCallback(message));
+}
 
 FilePath GetTestImagePath(const char* file_name) {
   FilePath data_directory;
@@ -94,24 +152,149 @@ bool CheckSameColor(const uint8* pixels, int width, int height,
 
 // TODO(***REMOVED***): Test special images like the image has gAMA chunk information,
 // pngs with 16 bit depth, and large pngs.
-// TODO(***REMOVED***): Add layout tests for image decoder.
+
+TEST(ImageDecoderTest, DecodeImageWithContentLength0) {
+  MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithFailure(
+      "No content returned, but expected some.");
+
+  const char kImageWithContentLength0Headers[] = {
+      "HTTP/1.1 200 OK\0"
+      "Content-Length: 0\0"
+      "Content-Type: image/jpeg\0"
+      "Expires: Wed, 20 Apr 2016 19:33:44 GMT\0"
+      "Date: Wed, 20 Apr 2016 18:33:44 GMT\0"
+      "Server: UploadServer\0"
+      "Accept-Ranges: bytes\0"
+      "Cache-Control: public, max-age=3600\0"};
+  scoped_refptr<net::HttpResponseHeaders> headers(new net::HttpResponseHeaders(
+      std::string(kImageWithContentLength0Headers,
+                  kImageWithContentLength0Headers +
+                      sizeof(kImageWithContentLength0Headers))));
+  image_decoder.OnResponseStarted(NULL, headers);
+  image_decoder.Finish();
+
+  EXPECT_FALSE(image_decoder.Image());
+}
+
+TEST(ImageDecoderTest, DecodeNonImageTypeWithContentLength0) {
+  MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithFailure(
+      "No content returned, but expected some. Not an image mime type.");
+
+  const char kHTMLWithContentLength0Headers[] = {
+      "HTTP/1.1 200 OK\0"
+      "Content-Length: 0\0"
+      "Content-Type: text/html\0"
+      "Expires: Wed, 20 Apr 2016 19:33:44 GMT\0"
+      "Date: Wed, 20 Apr 2016 18:33:44 GMT\0"
+      "Server: UploadServer\0"
+      "Accept-Ranges: bytes\0"
+      "Cache-Control: public, max-age=3600\0"};
+  scoped_refptr<net::HttpResponseHeaders> headers(new net::HttpResponseHeaders(
+      std::string(kHTMLWithContentLength0Headers,
+                  kHTMLWithContentLength0Headers +
+                      sizeof(kHTMLWithContentLength0Headers))));
+  image_decoder.OnResponseStarted(NULL, headers);
+  image_decoder.Finish();
+
+  EXPECT_FALSE(image_decoder.Image());
+}
+
+TEST(ImageDecoderTest, DecodeNonImageType) {
+  MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithFailure("Not an image mime type.");
+
+  const char kHTMLHeaders[] = {
+      "HTTP/1.1 200 OK\0"
+      "Content-Type: text/html; charset=UTF-8\0"
+      "Expires: Wed, 20 Apr 2016 19:33:44 GMT\0"
+      "Date: Wed, 20 Apr 2016 18:33:44 GMT\0"
+      "Server: gws\0"
+      "Accept-Ranges: none\0"
+      "Cache-Control: private, max-age=0\0"};
+  scoped_refptr<net::HttpResponseHeaders> headers(new net::HttpResponseHeaders(
+      std::string(kHTMLHeaders, kHTMLHeaders + sizeof(kHTMLHeaders))));
+
+  const char kContent[] = {
+      "<!DOCTYPE html><html><head></head><body></body></html>"};
+
+  image_decoder.OnResponseStarted(NULL, headers);
+  image_decoder.DecodeChunk(kContent, sizeof(kContent));
+  image_decoder.Finish();
+
+  EXPECT_FALSE(image_decoder.Image());
+}
+
+TEST(ImageDecoderTest, DecodeImageWithNoContent) {
+  MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithFailure(
+      "No content returned. Not an image mime type.");
+
+  const char kHTMLWithNoContentHeaders[] = {
+      "HTTP/1.1 204 No Content\0"
+      "Expires: Tue, 27 Apr 1971 19:44:06 EST\0"
+      "Content-Length: 0\0"
+      "Content-Type: text/html; charset=utf-8\0"
+      "Date: Wed, 20 Apr 2016 18:33:44 GMT\0"
+      "Server: Ytfe_Worker\0"
+      "Accept-Ranges: bytes\0"
+      "Cache-Control: no-cache\0"};
+  scoped_refptr<net::HttpResponseHeaders> headers(
+      new net::HttpResponseHeaders(std::string(
+          kHTMLWithNoContentHeaders,
+          kHTMLWithNoContentHeaders + sizeof(kHTMLWithNoContentHeaders))));
+  image_decoder.OnResponseStarted(NULL, headers);
+  image_decoder.Finish();
+
+  EXPECT_FALSE(image_decoder.Image());
+}
+
+TEST(ImageDecoderTest, DecodeImageWithLessThanHeaderBytes) {
+  MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError("No enough image data for header.");
+
+  const char kPartialWebPHeader[] = {"RIFF"};
+  image_decoder.DecodeChunk(kPartialWebPHeader, sizeof(kPartialWebPHeader));
+  image_decoder.Finish();
+
+  EXPECT_FALSE(image_decoder.Image());
+}
+
+TEST(ImageDecoderTest, FailedToDecodeImage) {
+  MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError("PNGImageDecoder failed to decode image.");
+
+  const char kPartialPNGImage[] = {
+      "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A\x00\x00\x00\x0D\x49\x48\x44\x52\x00\x00"
+      "\x02\x6C\x00\x00\x01\x2C"};
+  image_decoder.DecodeChunk(kPartialPNGImage, sizeof(kPartialPNGImage));
+  image_decoder.Finish();
+
+  EXPECT_FALSE(image_decoder.Image());
+}
+
+TEST(ImageDecoderTest, UnsupportedImageFormat) {
+  MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError("Unsupported image format.");
+
+  const char kPartialICOImage[] = {
+      "\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00"};
+  image_decoder.DecodeChunk(kPartialICOImage, sizeof(kPartialICOImage));
+  image_decoder.Finish();
+
+  EXPECT_FALSE(image_decoder.Image());
+}
 
 // Test that we can properly decode the PNG image.
 TEST(ImageDecoderTest, DecodePNGImage) {
-  render_tree::ResourceProviderStub resource_provider;
-
-  ImageDecoderCallback image_decoder_result;
-  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                     base::Unretained(&image_decoder_result)),
-      base::Bind(&ImageDecoderCallback::ErrorCallback,
-                 base::Unretained(&image_decoder_result))));
+  MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("non_interlaced_png.png"));
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
-                             image_data.size());
-  image_decoder->Finish();
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
+                            image_data.size());
+  image_decoder.Finish();
 
   // All pixels in the PNG image should have premultiplied alpha RGBA
   // values of (127, 0, 0, 127).
@@ -122,9 +305,10 @@ TEST(ImageDecoderTest, DecodePNGImage) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
+  ASSERT_TRUE(image_decoder.Image());
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder_result.image.get());
+          image_decoder.Image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -135,24 +319,17 @@ TEST(ImageDecoderTest, DecodePNGImage) {
 
 // Test that we can properly decode the PNG image with multiple chunks.
 TEST(ImageDecoderTest, DecodePNGImageWithMultipleChunks) {
-  render_tree::ResourceProviderStub resource_provider;
-
-  ImageDecoderCallback image_decoder_result;
-  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                     base::Unretained(&image_decoder_result)),
-      base::Bind(&ImageDecoderCallback::ErrorCallback,
-                 base::Unretained(&image_decoder_result))));
+  MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("non_interlaced_png.png"));
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 4);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[4]), 2);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[100]), 100);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[200]),
-                             image_data.size() - 200);
-  image_decoder->Finish();
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 4);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[4]), 2);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[100]), 100);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[200]),
+                            image_data.size() - 200);
+  image_decoder.Finish();
 
   // All pixels in the PNG image should have premultiplied alpha RGBA
   // values of (127, 0, 0, 127).
@@ -163,9 +340,10 @@ TEST(ImageDecoderTest, DecodePNGImageWithMultipleChunks) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
+  ASSERT_TRUE(image_decoder.Image());
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder_result.image.get());
+          image_decoder.Image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -176,20 +354,13 @@ TEST(ImageDecoderTest, DecodePNGImageWithMultipleChunks) {
 
 // Test that we can properly decode the the interlaced PNG.
 TEST(ImageDecoderTest, DecodeInterlacedPNGImage) {
-  render_tree::ResourceProviderStub resource_provider;
-
-  ImageDecoderCallback image_decoder_result;
-  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                     base::Unretained(&image_decoder_result)),
-      base::Bind(&ImageDecoderCallback::ErrorCallback,
-                 base::Unretained(&image_decoder_result))));
+  MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("interlaced_png.png"));
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
-                             image_data.size());
-  image_decoder->Finish();
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
+                            image_data.size());
+  image_decoder.Finish();
 
   // All pixels in the PNG image should have premultiplied alpha RGBA
   // values of (128, 88, 0, 255).
@@ -200,9 +371,10 @@ TEST(ImageDecoderTest, DecodeInterlacedPNGImage) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
+  ASSERT_TRUE(image_decoder.Image());
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder_result.image.get());
+          image_decoder.Image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -213,24 +385,17 @@ TEST(ImageDecoderTest, DecodeInterlacedPNGImage) {
 
 // Test that we can properly decode the interlaced PNG with multiple chunks.
 TEST(ImageDecoderTest, DecodeInterlacedPNGImageWithMultipleChunks) {
-  render_tree::ResourceProviderStub resource_provider;
-
-  ImageDecoderCallback image_decoder_result;
-  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                     base::Unretained(&image_decoder_result)),
-      base::Bind(&ImageDecoderCallback::ErrorCallback,
-                 base::Unretained(&image_decoder_result))));
+  MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("interlaced_png.png"));
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 4);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[4]), 2);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[100]), 100);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[200]),
-                             image_data.size() - 200);
-  image_decoder->Finish();
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 4);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[4]), 2);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[100]), 100);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[200]),
+                            image_data.size() - 200);
+  image_decoder.Finish();
 
   // All pixels in the PNG image should have premultiplied alpha RGBA
   // values of (128, 88, 0, 255).
@@ -241,9 +406,10 @@ TEST(ImageDecoderTest, DecodeInterlacedPNGImageWithMultipleChunks) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
+  ASSERT_TRUE(image_decoder.Image());
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder_result.image.get());
+          image_decoder.Image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -254,20 +420,13 @@ TEST(ImageDecoderTest, DecodeInterlacedPNGImageWithMultipleChunks) {
 
 // Test that we can properly decode the JPEG image.
 TEST(ImageDecoderTest, DecodeJPEGImage) {
-  render_tree::ResourceProviderStub resource_provider;
-
-  ImageDecoderCallback image_decoder_result;
-  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                     base::Unretained(&image_decoder_result)),
-      base::Bind(&ImageDecoderCallback::ErrorCallback,
-                 base::Unretained(&image_decoder_result))));
+  MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("baseline_jpeg.jpg"));
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
-                             image_data.size());
-  image_decoder->Finish();
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
+                            image_data.size());
+  image_decoder.Finish();
 
   // All pixels in the JPEG image should have RGBA values of (128, 88, 0, 255).
   uint8 r = 128;
@@ -277,9 +436,10 @@ TEST(ImageDecoderTest, DecodeJPEGImage) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
+  ASSERT_TRUE(image_decoder.Image());
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder_result.image.get());
+          image_decoder.Image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -290,24 +450,17 @@ TEST(ImageDecoderTest, DecodeJPEGImage) {
 
 // Test that we can properly decode the JPEG image with multiple chunks.
 TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
-  render_tree::ResourceProviderStub resource_provider;
-
-  ImageDecoderCallback image_decoder_result;
-  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                     base::Unretained(&image_decoder_result)),
-      base::Bind(&ImageDecoderCallback::ErrorCallback,
-                 base::Unretained(&image_decoder_result))));
+  MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("baseline_jpeg.jpg"));
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 2);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[2]), 4);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[100]), 200);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[300]),
-                             image_data.size() - 300);
-  image_decoder->Finish();
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 2);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[2]), 4);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[100]), 200);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[300]),
+                            image_data.size() - 300);
+  image_decoder.Finish();
 
   // All pixels in the JPEG image should have RGBA values of (128, 88, 0, 255).
   uint8 r = 128;
@@ -317,9 +470,10 @@ TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
+  ASSERT_TRUE(image_decoder.Image());
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder_result.image.get());
+          image_decoder.Image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -330,20 +484,13 @@ TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
 
 // Test that we can properly decode the progressive JPEG image.
 TEST(ImageDecoderTest, DecodeProgressiveJPEGImage) {
-  render_tree::ResourceProviderStub resource_provider;
-
-  ImageDecoderCallback image_decoder_result;
-  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                     base::Unretained(&image_decoder_result)),
-      base::Bind(&ImageDecoderCallback::ErrorCallback,
-                 base::Unretained(&image_decoder_result))));
+  MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("progressive_jpeg.jpg"));
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
-                             image_data.size());
-  image_decoder->Finish();
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
+                            image_data.size());
+  image_decoder.Finish();
 
   // All pixels in the JPEG image should have RGBA values of (64, 32, 17, 255).
   uint8 r = 64;
@@ -353,9 +500,10 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImage) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
+  ASSERT_TRUE(image_decoder.Image());
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder_result.image.get());
+          image_decoder.Image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -366,24 +514,17 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImage) {
 
 // Test that we can properly decode the progressive JPEG with multiple chunks.
 TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
-  render_tree::ResourceProviderStub resource_provider;
-
-  ImageDecoderCallback image_decoder_result;
-  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                     base::Unretained(&image_decoder_result)),
-      base::Bind(&ImageDecoderCallback::ErrorCallback,
-                 base::Unretained(&image_decoder_result))));
+  MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("progressive_jpeg.jpg"));
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 2);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[2]), 4);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[100]), 200);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[300]),
-                             image_data.size() - 300);
-  image_decoder->Finish();
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 2);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[2]), 4);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[100]), 200);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[300]),
+                            image_data.size() - 300);
+  image_decoder.Finish();
 
   // All pixels in the JPEG image should have RGBA values of (64, 32, 17, 255).
   uint8 r = 64;
@@ -393,9 +534,10 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
+  ASSERT_TRUE(image_decoder.Image());
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder_result.image.get());
+          image_decoder.Image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -406,20 +548,13 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
 
 // Test that we can properly decode the WEBP image.
 TEST(ImageDecoderTest, DecodeWEBPImage) {
-  render_tree::ResourceProviderStub resource_provider;
-
-  ImageDecoderCallback image_decoder_result;
-  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                     base::Unretained(&image_decoder_result)),
-      base::Bind(&ImageDecoderCallback::ErrorCallback,
-                 base::Unretained(&image_decoder_result))));
+  MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("webp_image.webp"));
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
-                             image_data.size());
-  image_decoder->Finish();
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
+                            image_data.size());
+  image_decoder.Finish();
 
   // All pixels in the WEBP image should have RGBA values of (16, 8, 70, 70).
   uint8 r = 16;
@@ -429,9 +564,10 @@ TEST(ImageDecoderTest, DecodeWEBPImage) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
+  ASSERT_TRUE(image_decoder.Image());
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder_result.image.get());
+          image_decoder.Image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
@@ -442,23 +578,16 @@ TEST(ImageDecoderTest, DecodeWEBPImage) {
 
 // Test that we can properly decode the WEBP image with multiple chunks.
 TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
-  render_tree::ResourceProviderStub resource_provider;
-
-  ImageDecoderCallback image_decoder_result;
-  scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-      &resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                     base::Unretained(&image_decoder_result)),
-      base::Bind(&ImageDecoderCallback::ErrorCallback,
-                 base::Unretained(&image_decoder_result))));
+  MockImageDecoder image_decoder;
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("webp_image.webp"));
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 2);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[2]), 4);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
-  image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[100]),
-                             image_data.size() - 100);
-  image_decoder->Finish();
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]), 2);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[2]), 4);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[6]), 94);
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[100]),
+                            image_data.size() - 100);
+  image_decoder.Finish();
 
   // All pixels in the WEBP image should have RGBA values of (16, 8, 70, 70).
   uint8 r = 16;
@@ -468,9 +597,10 @@ TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
   uint32 expected_color =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
 
+  ASSERT_TRUE(image_decoder.Image());
   render_tree::ImageStub* data =
       base::polymorphic_downcast<render_tree::ImageStub*>(
-          image_decoder_result.image.get());
+          image_decoder.Image().get());
 
   math::Size size = data->GetSize();
   uint8* pixels = data->GetImageData()->GetMemory();
