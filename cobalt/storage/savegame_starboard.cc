@@ -20,6 +20,7 @@
 
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
 #include "starboard/storage.h"
 #include "starboard/user.h"
@@ -35,10 +36,15 @@ class SavegameStarboard : public Savegame {
   bool PlatformRead(ByteVector* bytes) OVERRIDE;
   bool PlatformWrite(const ByteVector& bytes) OVERRIDE;
   bool PlatformDelete() OVERRIDE;
+
+ private:
+  scoped_ptr<starboard::StorageRecord> record_;
 };
 
 SavegameStarboard::SavegameStarboard(const Options& options)
-    : Savegame(options) {}
+    : Savegame(options) {
+  record_.reset(new starboard::StorageRecord());
+}
 
 SavegameStarboard::~SavegameStarboard() {
   if (options_.delete_on_destruction) {
@@ -47,14 +53,12 @@ SavegameStarboard::~SavegameStarboard() {
 }
 
 bool SavegameStarboard::PlatformRead(ByteVector* bytes_ptr) {
-  starboard::StorageRecord record;
-
-  if (!record.IsValid()) {
-    DLOG(WARNING) << __FUNCTION__ << ": Invalid StorageRecord: Signed in?";
+  if (!record_->IsValid()) {
+    DLOG(WARNING) << __FUNCTION__ << ": Invalid StorageRecord";
     return false;
   }
 
-  int64_t size = record.GetSize();
+  int64_t size = record_->GetSize();
   if (size < 0) {
     DLOG(WARNING) << "StorageRecord::GetSize failed";
     return false;
@@ -66,30 +70,33 @@ bool SavegameStarboard::PlatformRead(ByteVector* bytes_ptr) {
     return true;
   }
 
-  int64_t bytes_read = record.Read(reinterpret_cast<char*>(&bytes[0]), size);
+  int64_t bytes_read = record_->Read(reinterpret_cast<char*>(&bytes[0]), size);
   bytes.resize(static_cast<size_t>(std::max(0L, bytes_read)));
   return bytes_read == size;
 }
 
 bool SavegameStarboard::PlatformWrite(const ByteVector& bytes) {
-  starboard::StorageRecord record;
-  if (!record.IsValid()) {
+  if (!record_->IsValid()) {
+    // Might have been deleted, so we'll create a new one.
+    record_.reset(new starboard::StorageRecord());
+  }
+
+  if (!record_->IsValid()) {
     DLOG(WARNING) << __FUNCTION__ << ": Invalid StorageRecord: Signed in?";
     return false;
   }
 
   int64_t byte_count = static_cast<int64_t>(bytes.size());
-  return record.Write(reinterpret_cast<const char*>(&bytes[0]), byte_count);
+  return record_->Write(reinterpret_cast<const char*>(&bytes[0]), byte_count);
 }
 
 bool SavegameStarboard::PlatformDelete() {
-  starboard::StorageRecord record;
-  if (!record.IsValid()) {
-    DLOG(WARNING) << __FUNCTION__ << ": Invalid StorageRecord: Signed in?";
+  if (!record_->IsValid()) {
+    DLOG(WARNING) << __FUNCTION__ << ": Invalid StorageRecord";
     return false;
   }
 
-  return record.Delete();
+  return record_->Delete();
 }
 
 // static
