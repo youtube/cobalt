@@ -81,6 +81,7 @@ TEST_F(SQLiteFeaturesTest, NoFTS1) {
       "CREATE VIRTUAL TABLE foo USING fts1(x)"));
 }
 
+#if !defined(COBALT)
 #if !defined(OS_IOS)
 // fts2 is used for older history files, so we're signed on for keeping our
 // version up-to-date.  iOS does not include fts2, so this test does not run on
@@ -96,5 +97,6 @@ TEST_F(SQLiteFeaturesTest, FTS2) {
 TEST_F(SQLiteFeaturesTest, FTS3) {
   ASSERT_TRUE(db().Execute("CREATE VIRTUAL TABLE foo USING fts3(x)"));
 }
+#endif  // !defined(COBALT)
 
 }  // namespace

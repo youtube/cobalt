@@ -55,6 +55,8 @@
         'connection_unittest.cc',
         'sqlite_features_unittest.cc',
         'statement_unittest.cc',
+        'test_vfs.h',
+        'test_vfs.cc',
         'transaction_unittest.cc',
       ],
       'include_dirs': [
