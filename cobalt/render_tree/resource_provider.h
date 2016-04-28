@@ -135,7 +135,7 @@ class ResourceProvider {
   // Given a UTF-8 string and a single font, this method shapes the string
   // using the font and returns the glyph buffer that will render it.
   virtual scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const std::string& text,
+      const std::string& utf8_string,
       const scoped_refptr<render_tree::Font>& font) = 0;
 
   // Given a UTF-16 text buffer, a font provider, and other shaping parameters,
