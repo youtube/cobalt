@@ -34,10 +34,10 @@ TEST(SbBlitterGetRenderTargetFromSurfaceTest, SunnyDay) {
   const int kHeight = 128;
 
   // Test that we can get a render target from all supported pixel formats.
-  PixelFormats supported_formats =
-      GetAllSupportedPixelAndAlphaFormatsForRenderTargetSurfaces(device);
+  SurfaceFormats supported_formats =
+      GetAllSupportedSurfaceFormatsForRenderTargetSurfaces(device);
 
-  for (PixelFormats::const_iterator iter = supported_formats.begin();
+  for (SurfaceFormats::const_iterator iter = supported_formats.begin();
        iter != supported_formats.end(); ++iter) {
     SbBlitterSurface surface =
         SbBlitterCreateRenderTargetSurface(device, kWidth, kHeight, *iter);

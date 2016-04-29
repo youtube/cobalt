@@ -27,13 +27,13 @@ PixelAndAlphaFormats GetAllSupportedPixelAndAlphaFormatsForPixelData(
     SbBlitterDevice device) {
   PixelAndAlphaFormats ret;
 
-  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
+  for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
     for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
       if (SbBlitterIsPixelFormatSupportedByPixelData(
-              device, static_cast<SbBlitterPixelFormat>(i),
+              device, static_cast<SbBlitterPixelDataFormat>(i),
               static_cast<SbBlitterAlphaFormat>(j))) {
         PixelAndAlphaFormat format;
-        format.pixel = static_cast<SbBlitterPixelFormat>(i);
+        format.pixel = static_cast<SbBlitterPixelDataFormat>(i);
         format.alpha = static_cast<SbBlitterAlphaFormat>(j);
         ret.push_back(format);
       }
@@ -47,13 +47,13 @@ PixelAndAlphaFormats GetAllUnsupportedPixelAndAlphaFormatsForPixelData(
     SbBlitterDevice device) {
   PixelAndAlphaFormats ret;
 
-  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
+  for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
     for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
       if (!SbBlitterIsPixelFormatSupportedByPixelData(
-              device, static_cast<SbBlitterPixelFormat>(i),
+              device, static_cast<SbBlitterPixelDataFormat>(i),
               static_cast<SbBlitterAlphaFormat>(j))) {
         PixelAndAlphaFormat format;
-        format.pixel = static_cast<SbBlitterPixelFormat>(i);
+        format.pixel = static_cast<SbBlitterPixelDataFormat>(i);
         format.alpha = static_cast<SbBlitterAlphaFormat>(j);
         ret.push_back(format);
       }
@@ -63,28 +63,28 @@ PixelAndAlphaFormats GetAllUnsupportedPixelAndAlphaFormatsForPixelData(
   return ret;
 }
 
-PixelFormats GetAllSupportedPixelAndAlphaFormatsForRenderTargetSurfaces(
+SurfaceFormats GetAllSupportedSurfaceFormatsForRenderTargetSurfaces(
     SbBlitterDevice device) {
-  PixelFormats ret;
+  SurfaceFormats ret;
 
-  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
-    if (SbBlitterIsPixelFormatSupportedByRenderTargetSurface(
-            device, static_cast<SbBlitterPixelFormat>(i))) {
-      ret.push_back(static_cast<SbBlitterPixelFormat>(i));
+  for (int i = 0; i < kSbBlitterNumSurfaceFormats; ++i) {
+    if (SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
+            device, static_cast<SbBlitterSurfaceFormat>(i))) {
+      ret.push_back(static_cast<SbBlitterSurfaceFormat>(i));
     }
   }
 
   return ret;
 }
 
-PixelFormats GetAllUnsupportedPixelAndAlphaFormatsForRenderTargetSurfaces(
+SurfaceFormats GetAllUnsupportedSurfaceFormatsForRenderTargetSurfaces(
     SbBlitterDevice device) {
-  PixelFormats ret;
+  SurfaceFormats ret;
 
-  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
-    if (!SbBlitterIsPixelFormatSupportedByRenderTargetSurface(
-            device, static_cast<SbBlitterPixelFormat>(i))) {
-      ret.push_back(static_cast<SbBlitterPixelFormat>(i));
+  for (int i = 0; i < kSbBlitterNumSurfaceFormats; ++i) {
+    if (!SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
+            device, static_cast<SbBlitterSurfaceFormat>(i))) {
+      ret.push_back(static_cast<SbBlitterSurfaceFormat>(i));
     }
   }
 
@@ -96,7 +96,7 @@ SbBlitterSurface CreateArbitraryRenderTargetSurface(SbBlitterDevice device,
                                                     int height) {
   SbBlitterSurface surface = SbBlitterCreateRenderTargetSurface(
       device, width, height,
-      GetAllSupportedPixelAndAlphaFormatsForRenderTargetSurfaces(device)[0]);
+      GetAllSupportedSurfaceFormatsForRenderTargetSurfaces(device)[0]);
   EXPECT_TRUE(SbBlitterIsSurfaceValid(surface));
   return surface;
 }
