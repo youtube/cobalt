@@ -78,7 +78,7 @@ int VfsClose(sqlite3_file* file) {
 int VfsRead(sqlite3_file* file, void* out, int bytes, sqlite_int64 offset) {
   virtual_file* vfile = reinterpret_cast<virtual_file*>(file);
   base::AutoLock lock(*vfile->lock);
-  if (offset >= vfile->data->length()) {
+  if (offset >= static_cast<sqlite_int64>(vfile->data->length())) {
     return SQLITE_OK;
   }
 
