@@ -14,9 +14,10 @@
 
 #undef MEDIA_AUDIO_USE_SINK_UNDERFLOW
 #if defined(OS_STARBOARD)
-#if SB_HAS(DECODER) && !SB_HAS(PLAYER)
+#include "starboard/configuration.h"
+#if !SB_IS(UNDERFLOW_DETECTED_BY_AUDIO_RENDERER)
 #define MEDIA_AUDIO_USE_SINK_UNDERFLOW
-#endif
+#endif  // !SB_IS(UNDERFLOW_DETECTED_BY_AUDIO_RENDERER)
 #else  // defined(OS_STARBOARD)
 #if defined(__LB_LINUX__) || defined(__LB_WIIU__) || defined(__LB_PS4__)
 #define MEDIA_AUDIO_USE_SINK_UNDERFLOW
