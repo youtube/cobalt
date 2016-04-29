@@ -80,6 +80,48 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
   SetupBlitToRenderTargetObjects();
 }
 
+bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
+  // Manually create a dummy 1x2 texture and then read it back to check if its
+  // pixels are flipped or not.
+  GLuint test_texture;
+  GL_CALL(glGenTextures(1, &test_texture));
+  GL_CALL(glBindTexture(GL_TEXTURE_2D, test_texture));
+
+  // Create a 1x2 texture with distinct values vertically so that we can test
+  // them.
+  const int kDummyTextureWidth = 1;
+  const int kDummyTextureHeight = 2;
+  uint32_t dummy_data[2];
+  dummy_data[0] = 0x00000000;
+  dummy_data[1] = 0xFFFFFFFF;
+
+  // Create our texture.
+  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kDummyTextureWidth,
+                       kDummyTextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                       dummy_data));
+  GL_CALL(glFinish());
+
+  // Now read back the texture data using glReadPixels().
+  GLuint texture_framebuffer;
+  GL_CALL(glGenFramebuffers(1, &texture_framebuffer));
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, texture_framebuffer));
+
+  GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                 GL_TEXTURE_2D, test_texture, 0));
+
+  uint32_t out_data[2];
+  GL_CALL(glReadPixels(0, 0, kDummyTextureWidth, kDummyTextureHeight, GL_RGBA,
+                       GL_UNSIGNED_BYTE, out_data));
+
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+  GL_CALL(glDeleteFramebuffers(1, &texture_framebuffer));
+
+  GL_CALL(glDeleteTextures(1, &test_texture));
+
+  // Finally check if the data we read back was flipped or not.
+  return out_data[0] == 0xFFFFFFFF;
+}
+
 void GraphicsContextEGL::SetupBlitToRenderTargetObjects() {
   // Setup shaders used when blitting the current texture.
   blit_program_ = glCreateProgram();
@@ -272,12 +314,20 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
   // pixel is at the top-left.  While this is not a fast procedure, this
   // entire function is only intended to be used in debug/test code.
   int pitch_in_bytes = surface_info.size.width() * surface_info.BytesPerPixel();
-#if !defined(__LB_LINUX__)
-  // Flip the pixels so that (0,0) is at the top-left.  The Mesa Gallium
-  // EGL implementation on Linux seems to return already flipped pixels.
-  VerticallyFlipPixels(pixels.get(), pitch_in_bytes,
-                       surface_info.size.height());
-#endif
+
+  if (!read_pixels_needs_vertical_flip_) {
+    // Lazily compute whether we need to vertically flip our read back pixels
+    // or not.
+    read_pixels_needs_vertical_flip_ = ComputeReadPixelsNeedVerticalFlip();
+  }
+
+  if (*read_pixels_needs_vertical_flip_) {
+    // Some platforms, like the Mesa Gallium EGL implementation on Linux, seem
+    // to return already flipped pixels.  So in that case, we flip them again
+    // before returning here.
+    VerticallyFlipPixels(pixels.get(), pitch_in_bytes,
+                         surface_info.size.height());
+  }
 
   return pixels.Pass();
 }
