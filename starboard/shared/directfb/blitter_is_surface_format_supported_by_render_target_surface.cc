@@ -18,18 +18,14 @@
 #include "starboard/log.h"
 #include "starboard/shared/directfb/blitter_internal.h"
 
-bool SbBlitterIsPixelFormatSupportedByPixelData(
+bool SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
     SbBlitterDevice device,
-    SbBlitterPixelDataFormat pixel_format,
-    SbBlitterAlphaFormat alpha_format) {
+    SbBlitterSurfaceFormat surface_format) {
   if (!SbBlitterIsDeviceValid(device)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid device.";
     return false;
   }
 
-  // DirectFB supports ARGB but not RGBA.  This implementation currently only
-  // supports incoming pixel data in unpremultiplied alpha format.
-  return alpha_format == kSbBlitterAlphaFormatUnpremultiplied &&
-         (pixel_format == kSbBlitterPixelDataFormatARGB8 ||
-          pixel_format == kSbBlitterPixelDataFormatA8);
+  // DirectFB supports ARGB but not RGBA.
+  return surface_format == kSbBlitterSurfaceFormatRGBA8;
 }

@@ -49,11 +49,11 @@ TEST(SbBlitterCreatePixelDataTest, RainyDayInvalidDevice) {
   const int kHeight = 128;
 
   // If an invalid device is provided, then false should always be returned.
-  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
+  for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
     for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
       SbBlitterPixelData pixel_data =
           SbBlitterCreatePixelData(kSbBlitterInvalidDevice, kWidth, kHeight,
-                                   static_cast<SbBlitterPixelFormat>(i),
+                                   static_cast<SbBlitterPixelDataFormat>(i),
                                    static_cast<SbBlitterAlphaFormat>(j));
       EXPECT_FALSE(SbBlitterIsPixelDataValid(pixel_data));
     }

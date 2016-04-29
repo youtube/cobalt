@@ -111,27 +111,26 @@ typedef SbBlitterContextPrivate* SbBlitterContext;
 // functions.
 typedef uint32_t SbBlitterColor;
 
-// Defines the set of pixel formats that can be used with the Blitter API.
-// Note that not all of these formats are guaranteed to be supported by a
-// particular device, so before using these formats in surface creation
-// commands, it should be checked that they are supported first (e.g. via
-// SbBlitterIsPixelFormatSupportedByPixelData() or
-// SbBlitterIsPixelFormatSupportedByRenderTargetSurface()).
-typedef enum SbBlitterPixelFormat {
+// Defines the set of pixel formats that can be used with the Blitter API
+// SbBlitterPixelData objects.  Note that not all of these formats are
+// guaranteed to be supported by a particular device, so before using these
+// formats in pixel data creation commands, it should be checked that they are
+// supported first (e.g. via SbBlitterIsPixelFormatSupportedByPixelData()).
+typedef enum SbBlitterPixelDataFormat {
   // 32-bit pixels with 8-bits per channel and the alpha component in the most
   // significant bits.
-  kSbBlitterPixelFormatARGB8,
+  kSbBlitterPixelDataFormatARGB8,
   // 32-bit pixels with 8-bits per channel and the red component in the most
   // significant bits.
-  kSbBlitterPixelFormatRGBA8,
+  kSbBlitterPixelDataFormatRGBA8,
   // 8-bit pixels that contain only a single alpha channel.  When rendered,
   // surfaces in this format will have (R, G, B) values of (255, 255, 255).
-  kSbBlitterPixelFormatA8,
+  kSbBlitterPixelDataFormatA8,
 
   // Constant that indicates how many unique pixel formats Starboard supports.
-  kSbBlitterNumPixelFormats,
-  kSbBlitterInvalidPixelFormat = kSbBlitterNumPixelFormats,
-} SbBlitterPixelFormat;
+  kSbBlitterNumPixelDataFormats,
+  kSbBlitterInvalidPixelDataFormat = kSbBlitterNumPixelDataFormats,
+} SbBlitterPixelDataFormat;
 
 typedef enum SbBlitterAlphaFormat {
   // Colors are provided in premultiplied alpha format, where each color
@@ -148,6 +147,23 @@ typedef enum SbBlitterAlphaFormat {
   kSbBlitterInvalidAlphaFormat = kSbBlitterNumAlphaFormats,
 } SbBlitterAlphaFormat;
 
+// Enumeration that describes the color format of surfaces.  Note that
+// SbBlitterSurfaceFormat does not differentiate between permutations of the
+// color channel ordering (e.g. RGBA vs ARGB) since client code will never be
+// able to access surface pixels directly.  This is the main difference between
+// SbBlitterPixelDataFormat, which does explicitly dictate an ordering.
+typedef enum SbBlitterSurfaceFormat {
+  // 32-bit RGBA color, with 8 bits per channel.
+  kSbBlitterSurfaceFormatRGBA8,
+
+  // 8-bit alpha-only color.
+  kSbBlitterSurfaceFormatA8,
+
+  // Constant that indicates how many unique surface formats Starboard supports.
+  kSbBlitterNumSurfaceFormats,
+  kSbBlitterInvalidSurfaceFormat = kSbBlitterNumSurfaceFormats,
+} SbBlitterSurfaceFormat;
+
 // Defines a rectangle via a point (x, y) and a size, (width, height).
 // This structure is used as a parameter type in various blit calls.
 typedef struct SbBlitterRect {
@@ -162,7 +178,7 @@ typedef struct SbBlitterRect {
 typedef struct SbBlitterSurfaceInfo {
   int width;
   int height;
-  SbBlitterPixelFormat pixel_format;
+  SbBlitterSurfaceFormat format;
 } SbBlitterSurfaceInfo;
 
 // A convenience function to create a SbBlitterColor object from separate
@@ -195,16 +211,36 @@ static SB_C_FORCE_INLINE uint8_t SbBlitterAFromColor(SbBlitterColor color) {
 // A convenience function to return the number of bytes per pixel for a given
 // pixel format.
 static SB_C_FORCE_INLINE int SbBlitterBytesPerPixelForFormat(
-    SbBlitterPixelFormat format) {
+    SbBlitterPixelDataFormat format) {
   switch (format) {
-    case kSbBlitterPixelFormatARGB8:
+    case kSbBlitterPixelDataFormatARGB8:
       return 4;
-    case kSbBlitterPixelFormatRGBA8:
+    case kSbBlitterPixelDataFormatRGBA8:
       return 4;
-    case kSbBlitterPixelFormatA8:
+    case kSbBlitterPixelDataFormatA8:
       return 1;
     default:
       return 0;
+  }
+}
+
+// This function maps SbBlitterPixelDataFormat values to their corresponding
+// SbBlitterSurfaceFormat value.  Note that many SbBlitterPixelDataFormats
+// correspond to the same SbBlitterSurfaceFormat, so this function is not
+// invertible.  When creating a SbBlitterSurface object from a
+// SbBlitterPixelData object, the SbBlitterSurface's format will be computed
+// from the SbBlitterPixelData object by using this function.
+static SB_C_FORCE_INLINE SbBlitterSurfaceFormat
+SbBlitterPixelDataFormatToSurfaceFormat(SbBlitterPixelDataFormat pixel_format) {
+  switch (pixel_format) {
+    case kSbBlitterPixelDataFormatARGB8:
+      return kSbBlitterSurfaceFormatRGBA8;
+    case kSbBlitterPixelDataFormatRGBA8:
+      return kSbBlitterSurfaceFormatRGBA8;
+    case kSbBlitterPixelDataFormatA8:
+      return kSbBlitterSurfaceFormatA8;
+    default:
+      return kSbBlitterInvalidSurfaceFormat;
   }
 }
 
@@ -301,7 +337,7 @@ SbBlitterGetRenderTargetFromSwapChain(SbBlitterSwapChain swap_chain);
 // This function is thread safe.
 SB_EXPORT bool SbBlitterIsPixelFormatSupportedByPixelData(
     SbBlitterDevice device,
-    SbBlitterPixelFormat pixel_format,
+    SbBlitterPixelDataFormat pixel_format,
     SbBlitterAlphaFormat alpha_format);
 
 // Allocates a SbBlitterPixelData object through |device| with |width|, |height|
@@ -318,7 +354,7 @@ SB_EXPORT SbBlitterPixelData
 SbBlitterCreatePixelData(SbBlitterDevice device,
                          int width,
                          int height,
-                         SbBlitterPixelFormat pixel_format,
+                         SbBlitterPixelDataFormat pixel_format,
                          SbBlitterAlphaFormat alpha_format);
 
 // Destroys the |pixel_data| object created through |device|.  Note that
@@ -363,9 +399,9 @@ SbBlitterCreateSurfaceFromPixelData(SbBlitterDevice device,
 // Returns whether the |device| supports calls to
 // SbBlitterCreateRenderTargetSurface() with |pixel_format|.
 // This function is thread safe.
-SB_EXPORT bool SbBlitterIsPixelFormatSupportedByRenderTargetSurface(
+SB_EXPORT bool SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
     SbBlitterDevice device,
-    SbBlitterPixelFormat pixel_format);
+    SbBlitterSurfaceFormat surface_format);
 
 // Creates a new surface with undefined pixel data on |device| with the
 // specified |width|, |height| and |pixel_format|.  One can set the pixel data
@@ -377,7 +413,7 @@ SB_EXPORT SbBlitterSurface
 SbBlitterCreateRenderTargetSurface(SbBlitterDevice device,
                                    int width,
                                    int height,
-                                   SbBlitterPixelFormat pixel_format);
+                                   SbBlitterSurfaceFormat surface_format);
 
 // Destroys |surface|, cleaning up all resources associated with it.
 // |surface| must have been created through |device|.
@@ -400,6 +436,19 @@ SbBlitterGetRenderTargetFromSurface(SbBlitterSurface surface);
 // Returns whether the information was retrieved successfully.
 SB_EXPORT bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
                                        SbBlitterSurfaceInfo* surface_info);
+
+// Downloads |surface| pixel data into CPU memory pointed to by
+// |out_pixel_data|, formatted as RGBA 32-bit with a pitch (in bytes) equal to
+// |surface|'s width multiplied by 4.  Thus, |out_pixel_data| must point to
+// a region of memory with a size of surface_width * surface_height * 4 bytes.
+// When this function is called, it will first wait for all previously flushed
+// graphics commands to be executed by the device before downloading the data.
+// Since this function waits for the pipeline to empty, it is slow, and is
+// expected to only be called in debug or test environments.
+// This function is not thread safe.
+// Returns whether the pixel data was downloaded successfully or not.
+SB_EXPORT bool SbBlitterDownloadSurfacePixelDataAsRGBA(SbBlitterSurface surface,
+                                                       void* out_pixel_data);
 
 // Flips |swap_chain|, making the buffer that was previously accessible to
 // draw commands via SbBlitterGetRenderTargetFromSwapChain() now visible on the
