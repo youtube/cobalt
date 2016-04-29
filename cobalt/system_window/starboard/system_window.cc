@@ -35,7 +35,11 @@ SystemWindowStarboard::SystemWindowStarboard(
       control_count_(0),
       meta_count_(0),
       shift_count_(0) {
-  window_ = SbWindowCreate(NULL);
+  SbWindowOptions options;
+  SbWindowSetDefaultOptions(&options);
+  options.size.width = window_size.width();
+  options.size.height = window_size.height();
+  window_ = SbWindowCreate(&options);
   DCHECK(SbWindowIsValid(window_));
   DCHECK(!g_the_window) << "TODO: Support multiple SystemWindows.";
   g_the_window = this;
