@@ -21,6 +21,7 @@
 #include <GLES2/gl2.h>
 
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/backend/egl/resource_context.h"
@@ -101,6 +102,11 @@ class GraphicsContextEGL : public GraphicsContext {
   void ReleaseCurrentContext() OVERRIDE;
 
  private:
+  // Performs a test to determine if the pixel data returned by glReadPixels
+  // needs to be vertically flipped or not.  This test is expensive and so
+  // it should be only done once and the results cached.
+  bool ComputeReadPixelsNeedVerticalFlip();
+
   // Sets up all structures (like Shaders and vertex buffers) required to
   // support the Frame::BlitToRenderTarget() functionality.
   void SetupBlitToRenderTargetObjects();
@@ -150,6 +156,10 @@ class GraphicsContextEGL : public GraphicsContext {
   static const int kBlitTexcoordAttribute = 1;
   GLuint blit_program_;
   GLuint blit_vertex_buffer_;
+
+  // Lazily evaluate whether we need to do a vertical flip when calling
+  // glReadPixels(), and cache the result here when that question is answered.
+  base::optional<bool> read_pixels_needs_vertical_flip_;
 
   // When creating and destroying textures, OpenGL calls need to be made with
   // a GL context current.  By making TextureEGL a friend class of
