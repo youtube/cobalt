@@ -29,10 +29,10 @@ TEST(SbBlitterIsPixelFormatSupportedByPixelDataTest, SunnyDay) {
   // Check every color and alpha format and verify that at least one of them
   // returns true.
   bool any_format_supported = false;
-  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
+  for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
     for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
       any_format_supported |= SbBlitterIsPixelFormatSupportedByPixelData(
-          device, static_cast<SbBlitterPixelFormat>(i),
+          device, static_cast<SbBlitterPixelDataFormat>(i),
           static_cast<SbBlitterAlphaFormat>(j));
     }
   }
@@ -42,10 +42,10 @@ TEST(SbBlitterIsPixelFormatSupportedByPixelDataTest, SunnyDay) {
 }
 
 TEST(SbBlitterIsPixelFormatSupportedByPixelDataTest, RainyDayInvalidDevice) {
-  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
+  for (int i = 0; i < kSbBlitterNumPixelDataFormats; ++i) {
     for (int j = 0; j < kSbBlitterNumAlphaFormats; ++j) {
       EXPECT_FALSE(SbBlitterIsPixelFormatSupportedByPixelData(
-          kSbBlitterInvalidDevice, static_cast<SbBlitterPixelFormat>(i),
+          kSbBlitterInvalidDevice, static_cast<SbBlitterPixelDataFormat>(i),
           static_cast<SbBlitterAlphaFormat>(j)));
     }
   }

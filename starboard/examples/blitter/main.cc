@@ -137,7 +137,7 @@ Application::Application() {
   // which can be populated with pixel data by the CPU and then passed on to
   // the device for reference within blit calls.
   SbBlitterPixelData image_data = SbBlitterCreatePixelData(
-      device_, kImageWidth, kImageHeight, kSbBlitterPixelFormatARGB8,
+      device_, kImageWidth, kImageHeight, kSbBlitterPixelDataFormatARGB8,
       kSbBlitterAlphaFormatUnpremultiplied);
 
   // Once our pixel data object is created, we can extract from it the image
@@ -155,7 +155,7 @@ Application::Application() {
 
   // Now setup our alpha-only image.
   SbBlitterPixelData alpha_image_data = SbBlitterCreatePixelData(
-      device_, kImageWidth, kImageHeight, kSbBlitterPixelFormatA8,
+      device_, kImageWidth, kImageHeight, kSbBlitterPixelDataFormatA8,
       kSbBlitterAlphaFormatUnpremultiplied);
   int alpha_image_data_pitch =
       SbBlitterGetPixelDataPitchInBytes(alpha_image_data);
@@ -167,7 +167,7 @@ Application::Application() {
   // We will also create a (initially blank) surface for use as an offscreen
   // render target.
   offscreen_surface_ = SbBlitterCreateRenderTargetSurface(
-      device_, kOffscreenWidth, kOffscreenHeight, kSbBlitterPixelFormatARGB8);
+      device_, kOffscreenWidth, kOffscreenHeight, kSbBlitterSurfaceFormatRGBA8);
 
   // Finally, in order to issue draw calls, we need a context that maintains
   // draw state for us.

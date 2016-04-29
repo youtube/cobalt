@@ -22,27 +22,28 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbBlitterIsPixelFormatSupportedByRenderTargetSurfaceTest, SunnyDay) {
+TEST(SbBlitterIsSurfaceFormatSupportedByRenderTargetSurfaceTest, SunnyDay) {
   SbBlitterDevice device = SbBlitterCreateDefaultDevice();
   ASSERT_TRUE(SbBlitterIsDeviceValid(device));
 
-  // Check every pixel format and verify that at least one of them returns true.
+  // Check every surface format and verify that at least one of them returns
+  // true.
   bool any_format_supported = false;
-  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
+  for (int i = 0; i < kSbBlitterNumSurfaceFormats; ++i) {
     any_format_supported |=
-        SbBlitterIsPixelFormatSupportedByRenderTargetSurface(
-            device, static_cast<SbBlitterPixelFormat>(i));
+        SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
+            device, static_cast<SbBlitterSurfaceFormat>(i));
   }
   EXPECT_TRUE(any_format_supported);
 
   EXPECT_TRUE(SbBlitterDestroyDevice(device));
 }
 
-TEST(SbBlitterIsPixelFormatSupportedByRenderTargetSurfaceTest,
+TEST(SbBlitterIsSurfaceFormatSupportedByRenderTargetSurfaceTest,
      RainyDayInvalidDevice) {
-  for (int i = 0; i < kSbBlitterNumPixelFormats; ++i) {
-    EXPECT_FALSE(SbBlitterIsPixelFormatSupportedByRenderTargetSurface(
-        kSbBlitterInvalidDevice, static_cast<SbBlitterPixelFormat>(i)));
+  for (int i = 0; i < kSbBlitterNumSurfaceFormats; ++i) {
+    EXPECT_FALSE(SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
+        kSbBlitterInvalidDevice, static_cast<SbBlitterSurfaceFormat>(i)));
   }
 }
 

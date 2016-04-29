@@ -35,6 +35,7 @@
         'blitter_destroy_pixel_data_test.cc',
         'blitter_destroy_surface_test.cc',
         'blitter_destroy_swap_chain_test.cc',
+        'blitter_download_surface_pixel_data_as_rgba_test.cc',
         'blitter_fill_rect_test.cc',
         'blitter_flip_swap_chain_test.cc',
         'blitter_flush_context_test.cc',
