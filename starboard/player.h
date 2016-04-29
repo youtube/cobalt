@@ -73,10 +73,12 @@ typedef struct SbPlayerInfo {
   // (PTS).
   int64_t duration_pts;
 
-  // The width of the currently displayed frame, in pixels.
+  // The width of the currently displayed frame, in pixels, or 0 if not provided
+  // by this player.
   int frame_width;
 
-  // The height of the currently displayed frame, in pixels.
+  // The height of the currently displayed frame, in pixels, or 0 if not
+  // provided by this player.
   int frame_height;
 
   // Whether playback is currently paused.
@@ -191,12 +193,13 @@ SbPlayerCreate(SbMediaVideoCodec video_codec,
 // SbPlayerDestroy has been called on it.
 SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 
-// Tells the decoder to freeze playback where it is (if it has already started),
+// Tells the player to freeze playback where it is (if it has already started),
 // reset/flush the decoder pipeline, and go back to the Prerolling state. The
-// decoder should restart playback once it can display the frame at
-// |seek_to_pts|. The client should send no more audio or video samples until
-// SbPlayerDecoderStatusFunc is called back with kSbPlayerDecoderStateNeedsData,
-// per media type.
+// player should restart playback once it can display the frame at
+// |seek_to_pts|, or the closest it can get (some players can only seek to
+// I-Frames, for example). The client should send no more audio or video samples
+// until SbPlayerDecoderStatusFunc is called back with
+// kSbPlayerDecoderStateNeedsData, for each required media type.
 //
 // A call to seek may interrupt another seek.
 //
