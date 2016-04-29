@@ -31,6 +31,7 @@
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
+#include "cobalt/script/fake_script_runner.h"
 #include "cobalt/webdriver/algorithms.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -55,8 +56,8 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
             resource_provider_stub_.get(), &fetcher_factory_)),
         html_element_context_(&fetcher_factory_, css_parser_.get(),
                               dom_parser_.get(),
-                              NULL /* web_media_player_factory */, NULL,
-                              NULL /* media_source_registry */,
+                              NULL /* web_media_player_factory */,
+                              &script_runner_, NULL /* media_source_registry */,
                               resource_provider_stub_.get(), image_cache_.get(),
                               NULL /* remote_font_cache */, "" /* language */) {
   }
@@ -84,6 +85,7 @@ class IsDisplayedTest : public ::testing::Test, public dom::DocumentObserver {
   void OnLoad() OVERRIDE { nested_loop_.Quit(); }
   void OnMutation() OVERRIDE {}
 
+  script::FakeScriptRunner script_runner_;
   loader::FetcherFactory fetcher_factory_;
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;
