@@ -76,7 +76,9 @@ void RemapPixelChannels(int source_bytes_per_pixel,
 // added as they are needed.
 ConvertRowFunction SelectConvertRowFunction(PixelFormat destination_format,
                                             PixelFormat source_format) {
-  if (destination_format == kPixelFormatRGBA8 &&
+  if (destination_format == source_format) {
+    return &RemapPixelChannels<0, 1, 2, 3>;
+  } else if (destination_format == kPixelFormatRGBA8 &&
       source_format == kPixelFormatARGB8) {
     return &RemapPixelChannels<1, 2, 3, 0>;
   }
