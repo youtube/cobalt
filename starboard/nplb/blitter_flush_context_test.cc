@@ -49,8 +49,8 @@ TEST(SbBlitterFlushContextTest, SunnyDayWithDrawCalls) {
   // We need a render target in order to issue draw commands.
   const int kRenderTargetWidth = 128;
   const int kRenderTargetHeight = 128;
-  PixelFormats formats =
-      GetAllSupportedPixelAndAlphaFormatsForRenderTargetSurfaces(device);
+  SurfaceFormats formats =
+      GetAllSupportedSurfaceFormatsForRenderTargetSurfaces(device);
   SbBlitterSurface surface = SbBlitterCreateRenderTargetSurface(
       device, kRenderTargetWidth, kRenderTargetHeight, formats[0]);
   ASSERT_TRUE(SbBlitterIsSurfaceValid(surface));

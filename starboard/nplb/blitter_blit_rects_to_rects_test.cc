@@ -72,9 +72,9 @@ TEST(SbBlitterBlitRectsToRectsTest, RainyDayInvalidContext) {
   // Blitter commands will not succeed when the context is invalid.
   Rects rects = GetArbitraryValidRects();
 
-  EXPECT_FALSE(SbBlitterBlitRectsToRects(
-      kSbBlitterInvalidContext, surface, rects.source_rects, rects.dest_rects,
-      kNumRects));
+  EXPECT_FALSE(SbBlitterBlitRectsToRects(kSbBlitterInvalidContext, surface,
+                                         rects.source_rects, rects.dest_rects,
+                                         kNumRects));
 
   EXPECT_TRUE(SbBlitterDestroySurface(surface));
 }
