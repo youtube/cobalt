@@ -18,11 +18,12 @@
 #include "starboard/log.h"
 #include "starboard/shared/directfb/blitter_internal.h"
 
-SbBlitterPixelData SbBlitterCreatePixelData(SbBlitterDevice device,
-                                            int width,
-                                            int height,
-                                            SbBlitterPixelFormat pixel_format,
-                                            SbBlitterAlphaFormat alpha_format) {
+SbBlitterPixelData SbBlitterCreatePixelData(
+    SbBlitterDevice device,
+    int width,
+    int height,
+    SbBlitterPixelDataFormat pixel_format,
+    SbBlitterAlphaFormat alpha_format) {
   if (!SbBlitterIsDeviceValid(device)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid device.";
     return kSbBlitterInvalidPixelData;
@@ -53,10 +54,10 @@ SbBlitterPixelData SbBlitterCreatePixelData(SbBlitterDevice device,
   dsc.caps = static_cast<DFBSurfaceCapabilities>(DSCAPS_VIDEOONLY |
                                                  DSCAPS_STATIC_ALLOC);
   switch (pixel_format) {
-    case kSbBlitterPixelFormatARGB8: {
+    case kSbBlitterPixelDataFormatARGB8: {
       dsc.pixelformat = DSPF_ARGB;
     } break;
-    case kSbBlitterPixelFormatA8: {
+    case kSbBlitterPixelDataFormatA8: {
       dsc.pixelformat = DSPF_A8;
     } break;
     default: { SB_NOTREACHED(); }
@@ -82,7 +83,8 @@ SbBlitterPixelData SbBlitterCreatePixelData(SbBlitterDevice device,
   surface_pixels->device = device;
   surface_pixels->info.width = width;
   surface_pixels->info.height = height;
-  surface_pixels->info.pixel_format = pixel_format;
+  surface_pixels->info.format =
+      SbBlitterPixelDataFormatToSurfaceFormat(pixel_format);
   surface_pixels->surface = surface;
   surface_pixels->data = data;
   surface_pixels->pitch_in_bytes = pitch_in_bytes;

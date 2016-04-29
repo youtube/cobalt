@@ -32,10 +32,10 @@ TEST(SbBlitterCreateRenderTargetSurfaceTest, SunnyDay) {
 
   // Test that we can create a render target surface for all supported pixel
   // formats.
-  PixelFormats supported_formats =
-      GetAllSupportedPixelAndAlphaFormatsForRenderTargetSurfaces(device);
+  SurfaceFormats supported_formats =
+      GetAllSupportedSurfaceFormatsForRenderTargetSurfaces(device);
 
-  for (PixelFormats::const_iterator iter = supported_formats.begin();
+  for (SurfaceFormats::const_iterator iter = supported_formats.begin();
        iter != supported_formats.end(); ++iter) {
     SbBlitterSurface surface =
         SbBlitterCreateRenderTargetSurface(device, kWidth, kHeight, *iter);
@@ -56,10 +56,10 @@ TEST(SbBlitterCreateRenderTargetSurfaceTest, RainyDayUnsupportedFormat) {
 
   // Test that we cannot create a render target surface for all unsupported
   // pixel formats.
-  PixelFormats unsupported_formats =
-      GetAllUnsupportedPixelAndAlphaFormatsForRenderTargetSurfaces(device);
+  SurfaceFormats unsupported_formats =
+      GetAllUnsupportedSurfaceFormatsForRenderTargetSurfaces(device);
 
-  for (PixelFormats::const_iterator iter = unsupported_formats.begin();
+  for (SurfaceFormats::const_iterator iter = unsupported_formats.begin();
        iter != unsupported_formats.end(); ++iter) {
     SbBlitterSurface surface =
         SbBlitterCreateRenderTargetSurface(device, kWidth, kHeight, *iter);
@@ -78,10 +78,10 @@ TEST(SbBlitterCreateRenderTargetSurfaceTest, RainyDayInvalidDevice) {
 
   // Test that we can create a render target surface for all supported pixel
   // formats.
-  PixelFormats supported_formats =
-      GetAllSupportedPixelAndAlphaFormatsForRenderTargetSurfaces(device);
+  SurfaceFormats supported_formats =
+      GetAllSupportedSurfaceFormatsForRenderTargetSurfaces(device);
 
-  for (PixelFormats::const_iterator iter = supported_formats.begin();
+  for (SurfaceFormats::const_iterator iter = supported_formats.begin();
        iter != supported_formats.end(); ++iter) {
     SbBlitterSurface surface = SbBlitterCreateRenderTargetSurface(
         kSbBlitterInvalidDevice, kWidth, kHeight, *iter);

@@ -25,7 +25,7 @@ namespace starboard {
 namespace nplb {
 
 struct PixelAndAlphaFormat {
-  SbBlitterPixelFormat pixel;
+  SbBlitterPixelDataFormat pixel;
   SbBlitterAlphaFormat alpha;
 };
 
@@ -36,11 +36,11 @@ PixelAndAlphaFormats GetAllSupportedPixelAndAlphaFormatsForPixelData(
 PixelAndAlphaFormats GetAllUnsupportedPixelAndAlphaFormatsForPixelData(
     SbBlitterDevice device);
 
-typedef std::vector<SbBlitterPixelFormat> PixelFormats;
-PixelFormats GetAllSupportedPixelAndAlphaFormatsForRenderTargetSurfaces(
+typedef std::vector<SbBlitterSurfaceFormat> SurfaceFormats;
+SurfaceFormats GetAllSupportedSurfaceFormatsForRenderTargetSurfaces(
     SbBlitterDevice device);
 
-PixelFormats GetAllUnsupportedPixelAndAlphaFormatsForRenderTargetSurfaces(
+SurfaceFormats GetAllUnsupportedSurfaceFormatsForRenderTargetSurfaces(
     SbBlitterDevice device);
 
 SbBlitterSurface CreateArbitraryRenderTargetSurface(SbBlitterDevice device,
@@ -57,6 +57,7 @@ class ContextTestEnvironment {
 
   SbBlitterDevice device() { return device_; }
   SbBlitterRenderTarget render_target() { return render_target_; }
+  SbBlitterSurface surface() { return surface_; }
   SbBlitterContext context() { return context_; }
 
  private:

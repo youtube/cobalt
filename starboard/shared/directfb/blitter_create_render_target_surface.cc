@@ -22,13 +22,13 @@ SbBlitterSurface SbBlitterCreateRenderTargetSurface(
     SbBlitterDevice device,
     int width,
     int height,
-    SbBlitterPixelFormat pixel_format) {
+    SbBlitterSurfaceFormat surface_format) {
   if (!SbBlitterIsDeviceValid(device)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid device.";
     return kSbBlitterInvalidSurface;
   }
-  if (!SbBlitterIsPixelFormatSupportedByRenderTargetSurface(device,
-                                                            pixel_format)) {
+  if (!SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(device,
+                                                              surface_format)) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Unsupported pixel format.";
     return kSbBlitterInvalidSurface;
   }
@@ -64,7 +64,7 @@ SbBlitterSurface SbBlitterCreateRenderTargetSurface(
   surface->device = device;
   surface->info.width = width;
   surface->info.height = height;
-  surface->info.pixel_format = pixel_format;
+  surface->info.format = surface_format;
   surface->surface = directfb_surface;
   surface->render_target.surface = directfb_surface;
 

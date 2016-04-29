@@ -31,10 +31,10 @@ TEST(SbBlitterGetSurfaceInfoTest, SunnyDayWithRenderTargetSurfaces) {
   const int kHeight = 128;
 
   // Test that we can get a render target from all supported pixel formats.
-  PixelFormats supported_formats =
-      GetAllSupportedPixelAndAlphaFormatsForRenderTargetSurfaces(device);
+  SurfaceFormats supported_formats =
+      GetAllSupportedSurfaceFormatsForRenderTargetSurfaces(device);
 
-  for (PixelFormats::const_iterator iter = supported_formats.begin();
+  for (SurfaceFormats::const_iterator iter = supported_formats.begin();
        iter != supported_formats.end(); ++iter) {
     SbBlitterSurface surface =
         SbBlitterCreateRenderTargetSurface(device, kWidth, kHeight, *iter);
@@ -44,7 +44,7 @@ TEST(SbBlitterGetSurfaceInfoTest, SunnyDayWithRenderTargetSurfaces) {
     ASSERT_TRUE(SbBlitterGetSurfaceInfo(surface, &surface_info));
     EXPECT_EQ(kWidth, surface_info.width);
     EXPECT_EQ(kHeight, surface_info.height);
-    EXPECT_EQ(*iter, surface_info.pixel_format);
+    EXPECT_EQ(*iter, surface_info.format);
 
     EXPECT_TRUE(SbBlitterDestroySurface(surface));
   }
@@ -77,7 +77,9 @@ TEST(SbBlitterGetSurfaceInfoTest, SunnyDayWithPixelDataSurfaces) {
     ASSERT_TRUE(SbBlitterGetSurfaceInfo(surface, &surface_info));
     EXPECT_EQ(kWidth, surface_info.width);
     EXPECT_EQ(kHeight, surface_info.height);
-    EXPECT_EQ(iter->pixel, surface_info.pixel_format);
+
+    EXPECT_EQ(SbBlitterPixelDataFormatToSurfaceFormat(iter->pixel),
+              surface_info.format);
 
     EXPECT_TRUE(SbBlitterDestroySurface(surface));
   }
