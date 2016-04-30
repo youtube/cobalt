@@ -47,6 +47,10 @@ _PORT_FILES = [
 ]
 
 
+# The path to the build.id file that preserves a build ID.
+BUILD_ID_PATH = os.path.abspath(os.path.join(_SCRIPT_DIR, 'build.id'))
+
+
 def GetGyp():
   if 'gyp' not in sys.modules:
     # Add directory to path to make sure that cygpath can be imported.
@@ -98,6 +102,10 @@ def GetRevinfo():
 
 def GetBuildNumber(version_server=_VERSION_SERVER_URL):
   """Send a request to the build version server for a build number."""
+
+  if os.path.isfile(BUILD_ID_PATH):
+    with open(BUILD_ID_PATH, 'r') as build_id_file:
+      return build_id_file.read().replace('\n', '')
 
   revinfo = GetRevinfo()
   json_deps = json.dumps(revinfo)
