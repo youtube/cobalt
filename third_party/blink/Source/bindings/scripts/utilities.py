@@ -24,6 +24,7 @@ KNOWN_COMPONENTS = frozenset(
         'debug',
         'dom',
         'h5vcc',
+        'speech',
         'testing',
         'web_animations',
         'webdriver',
