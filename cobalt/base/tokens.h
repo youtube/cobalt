@@ -48,6 +48,7 @@ namespace base {
     MacroOpWithNameOnly(loadend)                              \
     MacroOpWithNameOnly(loadstart)                            \
     MacroOpWithNameOnly(needkey)                              \
+    MacroOpWithNameOnly(nomatch)                              \
     MacroOpWithNameOnly(pause)                                \
     MacroOpWithNameOnly(play)                                 \
     MacroOpWithNameOnly(playing)                              \
@@ -55,12 +56,16 @@ namespace base {
     MacroOpWithNameOnly(ratechange)                           \
     MacroOpWithNameOnly(readystatechange)                     \
     MacroOpWithNameOnly(removesourcebuffer)                   \
+    MacroOpWithNameOnly(result)                               \
     MacroOpWithNameOnly(securitypolicyviolation)              \
     MacroOpWithNameOnly(seeked)                               \
     MacroOpWithNameOnly(seeking)                              \
+    MacroOpWithNameOnly(soundend)                             \
+    MacroOpWithNameOnly(soundstart)                           \
     MacroOpWithNameOnly(sourceclose)                          \
     MacroOpWithNameOnly(sourceended)                          \
     MacroOpWithNameOnly(sourceopen)                           \
+    MacroOpWithNameOnly(speech)                               \
     MacroOpWithNameOnly(storage)                              \
     MacroOpWithNameOnly(stalled)                              \
     MacroOpWithNameOnly(suspend)                              \

@@ -60,6 +60,7 @@
         '<(DEPTH)/cobalt/samples/samples.gyp:*',
         '<(DEPTH)/cobalt/script/script.gyp:*',
         '<(DEPTH)/cobalt/script/engine.gyp:*',
+        '<(DEPTH)/cobalt/speech/speech.gyp:*',
         '<(DEPTH)/cobalt/storage/storage.gyp:*',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:*',
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:*',
