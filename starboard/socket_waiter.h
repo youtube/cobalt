@@ -97,8 +97,8 @@ static SB_C_INLINE bool SbSocketWaiterIsValid(SbSocketWaiter watcher) {
 SB_EXPORT SbSocketWaiter SbSocketWaiterCreate();
 
 // Destroys a socket waiter. This will also remove all sockets still registered
-// by way of SbSocketWaiterAdd. This should only be called on the thread that
-// waits on this waiter.
+// by way of SbSocketWaiterAdd. This function may be called on any thread, but
+// only if there is no worry of concurrent access to the waiter.
 SB_EXPORT bool SbSocketWaiterDestroy(SbSocketWaiter waiter);
 
 // Adds a new socket to be waited on by the |waiter| with a bitfield of
