@@ -68,7 +68,6 @@ SbSocketWaiterPrivate::SbSocketWaiterPrivate()
 }
 
 SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
-  SB_DCHECK(SbThreadIsCurrent(thread_));
   WaiteesMap::iterator it = waitees_.begin();
   while (it != waitees_.end()) {
     Waitee* waitee = it->second;
