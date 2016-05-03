@@ -37,8 +37,6 @@ bool SbBlitterDestroyDevice(SbBlitterDevice device) {
     return false;
   }
 
-  device->dfb->Release(device->dfb);
-
   device_registry->default_device = NULL;
   delete device;
 

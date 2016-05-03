@@ -16,6 +16,7 @@
 
 #include "starboard/blitter.h"
 #include "starboard/log.h"
+#include "starboard/shared/directfb/application_directfb.h"
 #include "starboard/shared/directfb/blitter_internal.h"
 
 SbBlitterDevice SbBlitterCreateDefaultDevice() {
@@ -28,30 +29,8 @@ SbBlitterDevice SbBlitterCreateDefaultDevice() {
     return kSbBlitterInvalidDevice;
   }
 
-  // We only support one DirectFB device, so set it up and return it here.
-  IDirectFB* dfb;
-  int argc = 0;
-  if (DirectFBInit(&argc, NULL) != DFB_OK) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling DirectFBInit().";
-    return kSbBlitterInvalidDevice;
-  }
-
-  DirectFBSetOption("mode", "1920x1080");
-  DirectFBSetOption("bg-none", NULL);
-  DirectFBSetOption("no-cursor", NULL);
-
-  if (DirectFBCreate(&dfb) != DFB_OK) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling DirectFBCreate().";
-    return kSbBlitterInvalidDevice;
-  }
-  if (dfb->SetCooperativeLevel(dfb, DFSCL_NORMAL) != DFB_OK) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Error calling SetCooperativeLevel().";
-    dfb->Release(dfb);
-    return kSbBlitterInvalidDevice;
-  }
-
   SbBlitterDevicePrivate* device = new SbBlitterDevicePrivate();
-  device->dfb = dfb;
+  device->dfb = starboard::ApplicationDirectFB::Get()->GetDirectFB();
 
   device_registry->default_device = device;
 
