@@ -45,6 +45,7 @@
         'GetOpaqueRootInterface.idl',
         'GlobalInterfaceParent.idl',
         'IndexedGetterInterface.idl',
+        'InterfaceWithUnsupportedProperties.idl',
         'NamedConstructorInterface.idl',
         'NamedGetterInterface.idl',
         'NamedIndexedGetterInterface.idl',
@@ -71,6 +72,11 @@
     'dependency_idl_files': [
         'ImplementedInterface.idl',
         'PartialInterface.idl',
+        'InterfaceWithUnsupportedProperties_partial.idl',
+    ],
+
+    'unsupported_interface_idl_files': [
+      'UnsupportedInterface.idl',
     ],
 
     # Specify component for generated window IDL.
@@ -149,6 +155,7 @@
         'static_properties_bindings_test.cc',
         'stringifier_bindings_test.cc',
         'union_type_bindings_test.cc',
+        'unsupported_test.cc',
         'variadic_arguments_bindings_test.cc',
       ],
       'dependencies': [
