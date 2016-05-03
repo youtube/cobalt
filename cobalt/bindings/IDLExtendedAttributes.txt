@@ -99,6 +99,11 @@ TreatUndefinedAs=EmptyString
 # to interfaces and individual properties.
 Conditional=*
 
+# Marks an interface or properties of an interface as not supported. Such
+# properties are not visible from JavaScript. Attempts to access them will
+# trigger a notification.
+NotSupported
+
 # Not yet supported
 ArrayClass
 OverrideBuiltins
