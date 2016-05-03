@@ -193,7 +193,8 @@ class InterfaceInfoCollector(object):
                 # [PutForwards].
                 'referenced_interfaces': get_put_forward_interfaces_from_definition(definition),
                 'is_dependency': is_dependency,
-                'conditional': definition.extended_attributes.get('Conditional', None)
+                'conditional': definition.extended_attributes.get('Conditional', None),
+                'unsupported': 'NotSupported' in definition.extended_attributes,
             }
         elif definitions.dictionaries:
             definition = next(definitions.dictionaries.itervalues())
