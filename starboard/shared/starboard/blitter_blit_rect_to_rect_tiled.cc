@@ -27,7 +27,8 @@ int positive_mod(int x, int m) {
   if (x >= 0) {
     return x % m;
   } else {
-    return (1 - (x / m)) * m + x;
+    int mod_out = (1 - (x / m)) * m + x;
+    return mod_out == m ? 0 : mod_out;
   }
 }
 
