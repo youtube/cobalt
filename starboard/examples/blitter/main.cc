@@ -74,9 +74,11 @@ class Application {
 namespace {
 // Populates a region of memory designated as pixel data with a gradient texture
 // that includes transparent alpha.
-void FillGradientImageData(int width, int height, int pitch, void* pixel_data) {
-  uint32_t* pixels = static_cast<uint32_t*>(pixel_data);
-  int pitch_in_pixels = pitch / 4;
+void FillGradientImageData(int width,
+                           int height,
+                           int pitch_in_bytes,
+                           void* pixel_data) {
+  uint8_t* pixels = static_cast<uint8_t*>(pixel_data);
 
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
@@ -87,8 +89,12 @@ void FillGradientImageData(int width, int height, int pitch, void* pixel_data) {
       uint8_t alpha =
           static_cast<uint8_t>((static_cast<float>(y) / height) * 255);
 
-      pixels[x + y * pitch_in_pixels] = (green << 8) | (alpha << 24);
+      // Assuming BGRA color format.
+      pixels[x * 4 + 1] = green;
+      pixels[x * 4 + 3] = alpha;
     }
+
+    pixels += pitch_in_bytes;
   }
 }
 
@@ -137,7 +143,7 @@ Application::Application() {
   // which can be populated with pixel data by the CPU and then passed on to
   // the device for reference within blit calls.
   SbBlitterPixelData image_data = SbBlitterCreatePixelData(
-      device_, kImageWidth, kImageHeight, kSbBlitterPixelDataFormatARGB8,
+      device_, kImageWidth, kImageHeight, kSbBlitterPixelDataFormatBGRA8,
       kSbBlitterAlphaFormatUnpremultiplied);
 
   // Once our pixel data object is created, we can extract from it the image

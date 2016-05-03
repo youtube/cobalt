@@ -54,7 +54,13 @@ SbBlitterPixelData SbBlitterCreatePixelData(
   dsc.caps = static_cast<DFBSurfaceCapabilities>(DSCAPS_VIDEOONLY |
                                                  DSCAPS_STATIC_ALLOC);
   switch (pixel_format) {
+// Conversion from Starboard's byte-order color formats to DirectFB's
+// word-order color formats.
+#if SB_IS_LITTLE_ENDIAN
+    case kSbBlitterPixelDataFormatBGRA8: {
+#else
     case kSbBlitterPixelDataFormatARGB8: {
+#endif
       dsc.pixelformat = DSPF_ARGB;
     } break;
     case kSbBlitterPixelDataFormatA8: {
