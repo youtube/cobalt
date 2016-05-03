@@ -116,12 +116,18 @@ typedef uint32_t SbBlitterColor;
 // guaranteed to be supported by a particular device, so before using these
 // formats in pixel data creation commands, it should be checked that they are
 // supported first (e.g. via SbBlitterIsPixelFormatSupportedByPixelData()).
+// SbBlitterPixelDataFormat specifies specific orderings of the color channels,
+// and when doing so, byte-order is used, e.g. "RGBA" implies that a value for
+// red is stored in the byte with the lowest memory address.
 typedef enum SbBlitterPixelDataFormat {
-  // 32-bit pixels with 8-bits per channel and the alpha component in the most
-  // significant bits.
+  // 32-bit pixels with 8-bits per channel, the alpha component in the byte
+  // with the lowest address and blue in the byte with the highest address.
   kSbBlitterPixelDataFormatARGB8,
-  // 32-bit pixels with 8-bits per channel and the red component in the most
-  // significant bits.
+  // 32-bit pixels with 8-bits per channel, the blue component in the byte
+  // with the lowest address and alpha in the byte with the highest address.
+  kSbBlitterPixelDataFormatBGRA8,
+  // 32-bit pixels with 8-bits per channel, the red component in the byte
+  // with the lowest address and alpha in the byte with the highest address.
   kSbBlitterPixelDataFormatRGBA8,
   // 8-bit pixels that contain only a single alpha channel.  When rendered,
   // surfaces in this format will have (R, G, B) values of (255, 255, 255).
@@ -215,6 +221,8 @@ static SB_C_FORCE_INLINE int SbBlitterBytesPerPixelForFormat(
   switch (format) {
     case kSbBlitterPixelDataFormatARGB8:
       return 4;
+    case kSbBlitterPixelDataFormatBGRA8:
+      return 4;
     case kSbBlitterPixelDataFormatRGBA8:
       return 4;
     case kSbBlitterPixelDataFormatA8:
@@ -234,6 +242,8 @@ static SB_C_FORCE_INLINE SbBlitterSurfaceFormat
 SbBlitterPixelDataFormatToSurfaceFormat(SbBlitterPixelDataFormat pixel_format) {
   switch (pixel_format) {
     case kSbBlitterPixelDataFormatARGB8:
+      return kSbBlitterSurfaceFormatRGBA8;
+    case kSbBlitterPixelDataFormatBGRA8:
       return kSbBlitterSurfaceFormatRGBA8;
     case kSbBlitterPixelDataFormatRGBA8:
       return kSbBlitterSurfaceFormatRGBA8;
@@ -438,13 +448,14 @@ SB_EXPORT bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
                                        SbBlitterSurfaceInfo* surface_info);
 
 // Downloads |surface| pixel data into CPU memory pointed to by
-// |out_pixel_data|, formatted as RGBA 32-bit with a pitch (in bytes) equal to
-// |surface|'s width multiplied by 4.  Thus, |out_pixel_data| must point to
-// a region of memory with a size of surface_width * surface_height * 4 bytes.
-// When this function is called, it will first wait for all previously flushed
-// graphics commands to be executed by the device before downloading the data.
-// Since this function waits for the pipeline to empty, it is slow, and is
-// expected to only be called in debug or test environments.
+// |out_pixel_data|, formatted as byte-ordered RGBA 32-bit with a pitch (in
+// bytes) equal to |surface|'s width multiplied by 4.  Thus, |out_pixel_data|
+// must point to a region of memory with a size of
+// surface_width * surface_height * 4 bytes.  When this function is called, it
+// will first wait for all previously flushed graphics commands to be executed
+// by the device before downloading the data.  Since this function waits for the
+// pipeline to empty, it is slow, and is expected to only be called in debug or
+// test environments.
 // This function is not thread safe.
 // Returns whether the pixel data was downloaded successfully or not.
 SB_EXPORT bool SbBlitterDownloadSurfacePixelDataAsRGBA(SbBlitterSurface surface,
