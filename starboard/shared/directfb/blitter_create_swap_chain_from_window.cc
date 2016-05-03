@@ -17,6 +17,7 @@
 #include "starboard/blitter.h"
 #include "starboard/log.h"
 #include "starboard/shared/directfb/blitter_internal.h"
+#include "starboard/shared/directfb/window_internal.h"
 
 SbBlitterSwapChain SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device,
                                                       SbWindow window) {
@@ -30,6 +31,7 @@ SbBlitterSwapChain SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device,
   }
 
   starboard::ScopedLock lock(device->mutex);
+  SB_DCHECK(device->dfb == window->directfb);
 
   // Setup our swap chain, which in DirectFB is represented by a surface that
   // has the DSCAPS_PRIMARY | DSCAPS_FLIPPING flags set on it.

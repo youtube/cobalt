@@ -44,7 +44,7 @@ class QueueApplication : public Application {
   Event* PollNextEvent();
 
   // Wakes up GetNextEvent, and ensures it recalculates the wait duration.
-  virtual void Wake();
+  void Wake();
 
   // --- Application overrides ---
   Event* GetNextEvent() SB_OVERRIDE;
@@ -53,6 +53,20 @@ class QueueApplication : public Application {
   void CancelTimedEvent(SbEventId event_id) SB_OVERRIDE;
   TimedEvent* GetNextDueTimedEvent() SB_OVERRIDE;
   SbTimeMonotonic GetNextTimedEventTargetTime() SB_OVERRIDE;
+
+  // Returns true if it is valid to poll/query for system events.
+  virtual bool MayHaveSystemEvents() = 0;
+
+  // Returns an event if one exists, otherwise returns NULL.
+  virtual Event* PollNextSystemEvent() = 0;
+
+  // Waits for an event until the timeout |time| runs out.  If an event occurs
+  // in this time, it is returned, otherwise NULL is returned.
+  virtual Event* WaitForSystemEventWithTimeout(SbTime time) = 0;
+
+  // Wakes up any thread waiting within a call to
+  // WaitForSystemEventWithTimeout().
+  virtual void WakeSystemEventWait() = 0;
 
  private:
   class TimedEventQueue {
@@ -77,6 +91,10 @@ class QueueApplication : public Application {
     typedef std::set<TimedEvent*, TimedEventComparator> TimedEventSet;
     TimedEventSet set_;
   };
+
+  // Returns the next non-system event, waiting for it if none are currently
+  // available.  Called from within GetNextEvent().
+  Event* GetNextInjectedEvent();
 
   TimedEventQueue timed_event_queue_;
 
