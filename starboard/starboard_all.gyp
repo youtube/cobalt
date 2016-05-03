@@ -26,6 +26,7 @@
         '<(DEPTH)/starboard/starboard.gyp:*',
         '<(DEPTH)/starboard/examples/examples.gyp:*',
         '<(DEPTH)/starboard/nplb/nplb.gyp:*',
+        '<(DEPTH)/starboard/nplb/blitter_pixel_tests/blitter_pixel_tests.gyp:*',
       ],
     },
   ],
