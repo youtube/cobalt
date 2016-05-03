@@ -43,25 +43,49 @@ void QueueApplication::Wake() {
     return;
   }
 
-  event_queue_.Wake();
+  if (!MayHaveSystemEvents()) {
+    event_queue_.Wake();
+    return;
+  } else {
+    WakeSystemEventWait();
+  }
 }
 
 Application::Event* QueueApplication::GetNextEvent() {
-  for (;;) {
-    Event* event = event_queue_.GetTimed(GetNextTimedEventTargetTime());
-    if (event != NULL) {
-      return event;
+  if (!MayHaveSystemEvents()) {
+    return GetNextInjectedEvent();
+  }
+
+  // The construction of this loop is somewhat deliberate. The main UI message
+  // pump will inject an event every time it needs to do deferred work. If we
+  // don't prioritize system window events, they can get starved by a constant
+  // stream of work.
+  Event* event = NULL;
+  while (!event) {
+    event = PollNextSystemEvent();
+    if (event) {
+      continue;
     }
 
-    TimedEvent* timed_event = GetNextDueTimedEvent();
-    if (timed_event != NULL) {
-      return new Event(timed_event);
+    // Then poll the generic queue.
+    event = PollNextEvent();
+    if (event) {
+      continue;
     }
+
+    // Then we block indefinitely on the Window's DFB queue.
+    event = WaitForSystemEventWithTimeout(GetNextTimedEventTargetTime() -
+                                          SbTimeGetMonotonicNow());
   }
+
+  return event;
 }
 
 void QueueApplication::Inject(Event* event) {
   event_queue_.Put(event);
+  if (MayHaveSystemEvents()) {
+    WakeSystemEventWait();
+  }
 }
 
 void QueueApplication::InjectTimedEvent(TimedEvent* timed_event) {
@@ -158,6 +182,20 @@ bool QueueApplication::TimedEventQueue::IsLess(const TimedEvent* lhs,
   // If the time differences are the same, ensure there is a strict and stable
   // ordering.
   return reinterpret_cast<uintptr_t>(lhs) < reinterpret_cast<uintptr_t>(rhs);
+}
+
+Application::Event* QueueApplication::GetNextInjectedEvent() {
+  for (;;) {
+    Event* event = event_queue_.GetTimed(GetNextTimedEventTargetTime());
+    if (event != NULL) {
+      return event;
+    }
+
+    TimedEvent* timed_event = GetNextDueTimedEvent();
+    if (timed_event != NULL) {
+      return new Event(timed_event);
+    }
+  }
 }
 
 }  // namespace starboard
