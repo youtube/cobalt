@@ -21,6 +21,7 @@
       'target_name': 'nplb',
       'type': '<(gtest_target_type)',
       'sources': [
+        'atomic_test.cc',
         'blitter_blit_rect_to_rect_test.cc',
         'blitter_blit_rect_to_rect_tiled_test.cc',
         'blitter_blit_rects_to_rects_test.cc',
