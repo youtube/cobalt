@@ -53,6 +53,8 @@ SystemWindowStarboard::~SystemWindowStarboard() {
   SbWindowDestroy(window_);
 }
 
+SbWindow SystemWindowStarboard::GetSbWindow() { return window_; }
+
 void* SystemWindowStarboard::GetWindowHandle() {
   return SbWindowGetPlatformHandle(window_);
 }
