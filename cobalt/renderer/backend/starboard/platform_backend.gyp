@@ -18,12 +18,24 @@
       'target_name': 'renderer_platform_backend',
       'type': 'static_library',
 
-      'sources': [
-        'default_graphics_system.cc',
-      ],
+      'conditions': [
+        ['gl_type == "none"', {
+          'sources': [
+            'default_graphics_system_blitter.cc',
+          ],
 
-      'includes': [
-        '../egl/egl_backend.gypi',
+          'includes': [
+            '../blitter/blitter_backend.gypi',
+          ],
+        }, {
+          'sources': [
+            'default_graphics_system_egl.cc',
+          ],
+
+          'includes': [
+            '../egl/egl_backend.gypi',
+          ],
+        }],
       ],
     },
   ],
