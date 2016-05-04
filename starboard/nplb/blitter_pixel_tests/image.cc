@@ -253,7 +253,8 @@ Image Image::GaussianBlur(float sigma) const {
       float distance_sq = diff_x * diff_x + diff_y * diff_y;
       int kernel_index = y * kernel_size + x;
 
-      float kernel_value = exp(-distance_sq / (2 * sigma * sigma));
+      float kernel_value =
+          (sigma == 0 ? 1 : exp(-distance_sq / (2 * sigma * sigma)));
 
       kernel[kernel_index] = kernel_value;
       kernel_total += kernel_value;
