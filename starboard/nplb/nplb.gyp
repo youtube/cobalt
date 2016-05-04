@@ -205,6 +205,7 @@
         'window_create_test.cc',
         'window_destroy_test.cc',
         'window_get_platform_handle_test.cc',
+        'window_get_size_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/testing/gmock.gyp:gmock',
