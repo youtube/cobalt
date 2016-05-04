@@ -182,6 +182,14 @@ struct CompileAssert {};
 #endif  // SB_IS(COMPILER_MSVC)
 #endif  // !defined(SB_UNLIKELY)
 
+// An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
+// variable.  Setting this up properly means avoiding slow color swizzles when
+// passing pixel data from one library to another.  Note that these definitions
+// are in byte-order and so are endianness-independent.
+#define SB_PREFERRED_RGBA_BYTE_ORDER_RGBA 1
+#define SB_PREFERRED_RGBA_BYTE_ORDER_BGRA 2
+#define SB_PREFERRED_RGBA_BYTE_ORDER_ARGB 3
+
 // --- Platform Configuration ------------------------------------------------
 
 // Include the platform-specific configuration. This macro is set by GYP in
@@ -334,6 +342,20 @@ struct CompileAssert {};
 #error "Only one of SB_HAS_{MANY, 2, 4, 6}_CORES can be defined per platform."
 #endif
 
+#if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
+// Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above
+// as SB_PREFERRED_RGBA_BYTE_ORDER_*.
+// If your platform uses GLES, you should set this to
+// SB_PREFERRED_RGBA_BYTE_ORDER_RGBA.
+#error "Your platform must define SB_PREFERRED_RGBA_BYTE_ORDER."
+#endif
+
+#if SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_RGBA && \
+    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_BGRA && \
+    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_ARGB
+#error "SB_PREFERRED_RGBA_BYTE_ORDER has been assigned an invalid value."
+#endif
+
 // --- Derived Configuration -------------------------------------------------
 
 // Whether the current platform is little endian.
@@ -348,6 +370,16 @@ struct CompileAssert {};
 #define SB_HAS_64_BIT_ATOMICS 1
 #else
 #define SB_HAS_64_BIT_ATOMICS 0
+#endif
+
+// --- Gyp Derived Configuration -----------------------------------------------
+
+// Specifies whether this platform has a performant OpenGL ES 2 implementation,
+// which allows client applications to use GL rendering paths.  Derived from
+// the gyp variable 'gl_type' which indicates what kind of GL implementation
+// is available.
+#if !defined(SB_HAS_GLES2)
+#define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE
 #endif
 
 #endif  // STARBOARD_CONFIGURATION_H_

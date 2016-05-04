@@ -201,13 +201,13 @@
 
 // --- Graphics Configuration ------------------------------------------------
 
-// Specifies whether this platform has a performant OpenGL ES 2 implementation,
-// which allows client applications to use GL rendering paths.
-#define SB_HAS_GLES2 1
-
 // Specifies whether this platform supports a performant accelerated blitter
 // API. The basic requirement is a scaled, clipped, alpha-blended blit.
 #define SB_HAS_BLITTER 0
+
+// Linux builds default to using EGL/GLES which assumes a byte order of RGBA,
+// and so we set that to our preferred byte-order here.
+#define SB_PREFERRED_RGBA_BYTE_ORDER SB_PREFERRED_RGBA_BYTE_ORDER_RGBA
 
 // --- Media Configuration ---------------------------------------------------
 
