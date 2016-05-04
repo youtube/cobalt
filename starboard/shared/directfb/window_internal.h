@@ -36,6 +36,9 @@ struct SbWindowPrivate {
 
   // The event buffer which all input devices will feed into.
   IDirectFBEventBuffer* event_buffer;
+
+  int width;
+  int height;
 };
 
 #endif  // STARBOARD_SHARED_DIRECTFB_WINDOW_INTERNAL_H_
