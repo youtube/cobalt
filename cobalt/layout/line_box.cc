@@ -19,9 +19,9 @@
 #include <algorithm>
 #include <limits>
 
+#include "cobalt/base/math.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/box.h"
-#include "cobalt/layout/math.h"
 #include "cobalt/layout/used_style.h"
 
 namespace cobalt {
@@ -29,7 +29,7 @@ namespace layout {
 
 // The left edge of a line box touches the left edge of its containing block.
 //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-LineBox::LineBox(float top, bool position_children_relative_to_baseline,
+LineBox::LineBox(LayoutUnit top, bool position_children_relative_to_baseline,
                  const scoped_refptr<cssom::PropertyValue>& line_height,
                  const render_tree::FontMetrics& font_metrics,
                  bool should_collapse_leading_white_space,
@@ -39,7 +39,7 @@ LineBox::LineBox(float top, bool position_children_relative_to_baseline,
                  const scoped_refptr<cssom::PropertyValue>& text_align,
                  const scoped_refptr<cssom::PropertyValue>& white_space,
                  const scoped_refptr<cssom::PropertyValue>& font_size,
-                 float indent_offset, float ellipsis_width)
+                 LayoutUnit indent_offset, LayoutUnit ellipsis_width)
     : top_(top),
       position_children_relative_to_baseline_(
           position_children_relative_to_baseline),
@@ -88,7 +88,7 @@ bool LineBox::TryBeginUpdateRectAndMaybeSplit(
 
   UpdateSizePreservingTrailingWhiteSpace(child_box);
 
-  float available_width = GetAvailableWidth();
+  LayoutUnit available_width = GetAvailableWidth();
 
   // Horizontal margins, borders, and padding are respected between boxes.
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
@@ -196,13 +196,13 @@ void LineBox::BeginEstimateStaticPosition(Box* child_box) {
       child_box->set_left(shrink_to_fit_width_);
       break;
     case Box::kBlockLevel:
-      child_box->set_left(0);
+      child_box->set_left(LayoutUnit());
       break;
     default:
       NOTREACHED();
       break;
   }
-  child_box->set_top(0);
+  child_box->set_top(LayoutUnit());
 }
 
 void LineBox::EndUpdates() {
@@ -240,13 +240,12 @@ bool LineBox::IsCollapsed() const {
 bool LineBox::IsEllipsisPlaced() const { return is_ellipsis_placed_; }
 
 math::Vector2dF LineBox::GetEllipsisCoordinates() const {
-  return math::Vector2dF(placed_ellipsis_offset_,
-                         top_ + baseline_offset_from_top_);
+  return math::Vector2dF(placed_ellipsis_offset_.toFloat(),
+                         (top_ + baseline_offset_from_top_).toFloat());
 }
 
-float LineBox::GetAvailableWidth() const {
-  return RoundToFixedPointPrecision(
-      layout_params_.containing_block_size.width() - shrink_to_fit_width_);
+LayoutUnit LineBox::GetAvailableWidth() const {
+  return layout_params_.containing_block_size.width() - shrink_to_fit_width_;
 }
 
 void LineBox::UpdateSizePreservingTrailingWhiteSpace(Box* child_box) {
@@ -290,12 +289,13 @@ void LineBox::CollapseTrailingWhiteSpace() {
   //               non-collapsed child into a fully collapsed child.
   Box* last_non_collapsed_child_box =
       child_boxes_[*last_non_collapsed_child_box_index_];
-  float child_box_pre_collapse_width = last_non_collapsed_child_box->width();
+  LayoutUnit child_box_pre_collapse_width =
+      last_non_collapsed_child_box->width();
   last_non_collapsed_child_box->SetShouldCollapseTrailingWhiteSpace(true);
   last_non_collapsed_child_box->UpdateSize(layout_params_);
-  float collapsed_white_space_width =
+  LayoutUnit collapsed_white_space_width =
       child_box_pre_collapse_width - last_non_collapsed_child_box->width();
-  DCHECK_GT(collapsed_white_space_width, 0);
+  DCHECK_GT(collapsed_white_space_width, LayoutUnit());
 
   shrink_to_fit_width_ -= collapsed_white_space_width;
 }
@@ -398,7 +398,7 @@ void LineBox::ReverseChildBoxesMeetingBidiLevelThreshold(int level) {
 }
 
 void LineBox::UpdateChildBoxLeftPositions() {
-  float horizontal_offset = 0;
+  LayoutUnit horizontal_offset;
 
   // Determine the horizontal offset to apply to the child boxes from the
   // horizontal alignment.
@@ -450,7 +450,7 @@ void LineBox::UpdateChildBoxLeftPositions() {
 
   // Set the first child box left position to the horizontal offset. This
   // results in all boxes being shifted by that offset.
-  float child_box_left = horizontal_offset;
+  LayoutUnit child_box_left(horizontal_offset);
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
@@ -473,11 +473,11 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
 
   baseline_offset_from_top_ =
       used_line_height_provider.baseline_offset_from_top();
-  float baseline_offset_from_bottom =
+  LayoutUnit baseline_offset_from_bottom =
       used_line_height_provider.baseline_offset_from_bottom();
 
-  float max_top_aligned_height = 0;
-  float max_bottom_aligned_height = 0;
+  LayoutUnit max_top_aligned_height;
+  LayoutUnit max_bottom_aligned_height;
 
   // During this loop, the line box height above and below the baseline is
   // established.
@@ -490,7 +490,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
     //   https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
     const scoped_refptr<cssom::PropertyValue>& vertical_align =
         child_box->computed_style()->vertical_align();
-    float baseline_offset_from_child_top_margin_edge;
+    LayoutUnit baseline_offset_from_child_top_margin_edge;
     bool update_height = false;
     if (vertical_align == cssom::KeywordValue::GetMiddle()) {
       // Align the vertical midpoint of the box with the baseline of the parent
@@ -504,7 +504,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
       // may affect the height below the baseline if this is the tallest child
       // box. We measure the tallest top-aligned box to implement that after
       // this loop.
-      float child_height = child_box->GetInlineLevelBoxHeight();
+      LayoutUnit child_height = child_box->GetInlineLevelBoxHeight();
       // If there previously was a taller bottom-aligned box, then this box does
       // not influence the line box height or baseline.
       if (child_height > max_bottom_aligned_height) {
@@ -513,7 +513,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
     } else if (vertical_align == cssom::KeywordValue::GetBottom()) {
       // Align the bottom of the aligned subtree with the bottom of the line
       // box.
-      float child_height = child_box->GetInlineLevelBoxHeight();
+      LayoutUnit child_height = child_box->GetInlineLevelBoxHeight();
       // If there previously was a taller top-aligned box, then this box does
       // not influence the line box height or baseline.
       if (child_height > max_top_aligned_height) {
@@ -534,7 +534,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
           std::max(baseline_offset_from_top_,
                    baseline_offset_from_child_top_margin_edge);
 
-      float baseline_offset_from_child_bottom_margin_edge =
+      LayoutUnit baseline_offset_from_child_bottom_margin_edge =
           child_box->GetInlineLevelBoxHeight() -
           baseline_offset_from_child_top_margin_edge;
       baseline_offset_from_bottom =
@@ -584,7 +584,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
 }
 
 void LineBox::UpdateChildBoxTopPositions() {
-  float top_offset = top_;
+  LayoutUnit top_offset = top_;
   if (position_children_relative_to_baseline_) {
     // For InlineContainerBoxes, the children have to be aligned to the baseline
     // so that the vertical positioning can be consistent with the box position
@@ -601,7 +601,7 @@ void LineBox::UpdateChildBoxTopPositions() {
     //   https://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
     const scoped_refptr<cssom::PropertyValue>& vertical_align =
         child_box->computed_style()->vertical_align();
-    float child_top;
+    LayoutUnit child_top;
     if (vertical_align == cssom::KeywordValue::GetMiddle()) {
       // Align the vertical midpoint of the box with the baseline of the parent
       //  box plus half the x-height (height of the 'x' glyph) of the parent.
@@ -609,7 +609,7 @@ void LineBox::UpdateChildBoxTopPositions() {
                   GetHeightAboveMiddleAlignmentPoint(child_box);
     } else if (vertical_align == cssom::KeywordValue::GetTop()) {
       // Align the top of the aligned subtree with the top of the line box.
-      child_top = 0;
+      // Nothing to do child_top is already zero
     } else if (vertical_align == cssom::KeywordValue::GetBottom()) {
       // Align the bottom of the aligned subtree with the bottom of the line
       // box.
@@ -619,7 +619,6 @@ void LineBox::UpdateChildBoxTopPositions() {
       child_top = baseline_offset_from_top_ -
                   child_box->GetBaselineOffsetFromTopMarginEdge();
     } else {
-      child_top = 0;
       NOTREACHED() << "Unsupported vertical_align property value";
     }
     child_box->set_top(top_offset + child_top +
@@ -630,7 +629,7 @@ void LineBox::UpdateChildBoxTopPositions() {
 void LineBox::MaybePlaceEllipsis() {
   // Check to see if an ellipsis should be placed, which only occurs when the
   // ellipsis has a positive width and the content has overflowed the line.
-  if (ellipsis_width_ <= 0 ||
+  if (ellipsis_width_ <= LayoutUnit() ||
       shrink_to_fit_width_ <= layout_params_.containing_block_size.width()) {
     return;
   }
@@ -645,7 +644,7 @@ void LineBox::MaybePlaceEllipsis() {
   //   than its start edge. As a result, the preferred ellipsis start edge
   //   offset is simply the line's start edge.
   // https://www.w3.org/TR/css3-ui/#propdef-text-overflow
-  float preferred_start_edge_offset;
+  LayoutUnit preferred_start_edge_offset;
   if (ellipsis_width_ <= layout_params_.containing_block_size.width()) {
     preferred_start_edge_offset =
         base_direction_ == kRightToLeftBaseDirection
@@ -655,7 +654,7 @@ void LineBox::MaybePlaceEllipsis() {
     preferred_start_edge_offset =
         base_direction_ == kRightToLeftBaseDirection
             ? layout_params_.containing_block_size.width()
-            : 0;
+            : LayoutUnit();
   }
 
   // Whether or not a character or atomic inline-level element has been
@@ -671,7 +670,7 @@ void LineBox::MaybePlaceEllipsis() {
   // NOTE: While this is is guaranteed to be set later, initializing it here
   // keeps compilers from complaining about it being an uninitialized variable
   // below.
-  float placed_start_edge_offset = 0;
+  LayoutUnit placed_start_edge_offset;
 
   // Walk each box within the line in base direction order attempting to place
   // the ellipsis and update the box's ellipsis state. Even after the ellipsis
@@ -709,8 +708,9 @@ void LineBox::MaybePlaceEllipsis() {
 }
 
 // Returns the height of half the given box above the 'middle' of the line box.
-float LineBox::GetHeightAboveMiddleAlignmentPoint(Box* child_box) {
-  return (child_box->GetInlineLevelBoxHeight() + font_metrics_.x_height()) /
+LayoutUnit LineBox::GetHeightAboveMiddleAlignmentPoint(Box* child_box) {
+  return (child_box->GetInlineLevelBoxHeight() +
+          LayoutUnit(font_metrics_.x_height())) /
          2.0f;
 }
 

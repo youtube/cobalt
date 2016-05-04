@@ -120,9 +120,9 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
  private:
   // From |Box|.
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
-      BaseDirection base_direction, float desired_offset,
+      BaseDirection base_direction, LayoutUnit desired_offset,
       bool* is_placement_requirement_met, bool* is_placed,
-      float* placed_offset) OVERRIDE;
+      LayoutUnit* placed_offset) OVERRIDE;
 
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;

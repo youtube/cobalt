@@ -27,6 +27,8 @@
 #include "cobalt/cssom/transform_matrix.h"
 #include "cobalt/dom/font_cache.h"
 #include "cobalt/dom/font_list.h"
+#include "cobalt/layout/layout_unit.h"
+#include "cobalt/layout/size_layout_unit.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
@@ -109,7 +111,8 @@ class UsedStyleProviderLayoutScope {
 render_tree::ColorRGBA GetUsedColor(
     const scoped_refptr<cssom::PropertyValue>& color_refptr);
 
-float GetUsedLength(const scoped_refptr<cssom::PropertyValue>& length_refptr);
+LayoutUnit GetUsedLength(
+    const scoped_refptr<cssom::PropertyValue>& length_refptr);
 
 class UsedBackgroundNodeProvider
     : public cssom::NotReachedPropertyValueVisitor {
@@ -253,18 +256,18 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
   void VisitNumber(cssom::NumberValue* length) OVERRIDE;
 
-  float used_line_height() const { return used_line_height_; }
-  float half_leading() const { return half_leading_; }
+  LayoutUnit used_line_height() const { return used_line_height_; }
+  LayoutUnit half_leading() const { return half_leading_; }
 
   // Half the leading is added above ascent (A) and the other half below
   // descent (D), giving the glyph and its leading (L) a total height above
   // the baseline of A' = A + L/2 and a total depth of D' = D + L/2.
   //   https://www.w3.org/TR/CSS21/visudet.html#leading
-  float baseline_offset_from_top() const {
-    return font_metrics_.ascent() + half_leading_;
+  LayoutUnit baseline_offset_from_top() const {
+    return LayoutUnit(LayoutUnit(font_metrics_.ascent()) + half_leading_);
   }
-  float baseline_offset_from_bottom() const {
-    return font_metrics_.descent() + half_leading_;
+  LayoutUnit baseline_offset_from_bottom() const {
+    return LayoutUnit(LayoutUnit(font_metrics_.descent()) + half_leading_);
   }
 
  private:
@@ -273,8 +276,8 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   const render_tree::FontMetrics font_metrics_;
   const scoped_refptr<cssom::PropertyValue> font_size_;
 
-  float used_line_height_;
-  float half_leading_;
+  LayoutUnit used_line_height_;
+  LayoutUnit half_leading_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedLineHeightProvider);
 };
@@ -285,73 +288,73 @@ math::Vector2dF GetTransformOrigin(const math::RectF& used_rect,
 cssom::TransformMatrix GetTransformMatrix(cssom::PropertyValue* value);
 
 // Functions to calculate used values of box model properties.
-base::optional<float> GetUsedLeftIfNotAuto(
+base::optional<LayoutUnit> GetUsedLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-base::optional<float> GetUsedTopIfNotAuto(
+    const SizeLayoutUnit& containing_block_size);
+base::optional<LayoutUnit> GetUsedTopIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-base::optional<float> GetUsedRightIfNotAuto(
+    const SizeLayoutUnit& containing_block_size);
+base::optional<LayoutUnit> GetUsedRightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-base::optional<float> GetUsedBottomIfNotAuto(
+    const SizeLayoutUnit& containing_block_size);
+base::optional<LayoutUnit> GetUsedBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-base::optional<float> GetUsedWidthIfNotAuto(
+    const SizeLayoutUnit& containing_block_size);
+base::optional<LayoutUnit> GetUsedWidthIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size,
+    const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block);
-base::optional<float> GetUsedMaxHeightIfNotNone(
+base::optional<LayoutUnit> GetUsedMaxHeightIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size,
+    const SizeLayoutUnit& containing_block_size,
     bool* height_depends_on_containing_block);
-base::optional<float> GetUsedMaxWidthIfNotNone(
+base::optional<LayoutUnit> GetUsedMaxWidthIfNotNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size,
+    const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block);
-float GetUsedMinHeight(
+LayoutUnit GetUsedMinHeight(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size,
+    const SizeLayoutUnit& containing_block_size,
     bool* height_depends_on_containing_block);
-float GetUsedMinWidth(
+LayoutUnit GetUsedMinWidth(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size,
+    const SizeLayoutUnit& containing_block_size,
     bool* width_depends_on_containing_block);
-base::optional<float> GetUsedHeightIfNotAuto(
+base::optional<LayoutUnit> GetUsedHeightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-base::optional<float> GetUsedMarginLeftIfNotAuto(
+    const SizeLayoutUnit& containing_block_size);
+base::optional<LayoutUnit> GetUsedMarginLeftIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-base::optional<float> GetUsedMarginTopIfNotAuto(
+    const SizeLayoutUnit& containing_block_size);
+base::optional<LayoutUnit> GetUsedMarginTopIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-base::optional<float> GetUsedMarginRightIfNotAuto(
+    const SizeLayoutUnit& containing_block_size);
+base::optional<LayoutUnit> GetUsedMarginRightIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-base::optional<float> GetUsedMarginBottomIfNotAuto(
+    const SizeLayoutUnit& containing_block_size);
+base::optional<LayoutUnit> GetUsedMarginBottomIfNotAuto(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-float GetUsedBorderLeft(
+    const SizeLayoutUnit& containing_block_size);
+LayoutUnit GetUsedBorderLeft(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style);
-float GetUsedBorderTop(
+LayoutUnit GetUsedBorderTop(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style);
-float GetUsedBorderRight(
+LayoutUnit GetUsedBorderRight(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style);
-float GetUsedBorderBottom(
+LayoutUnit GetUsedBorderBottom(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style);
-float GetUsedPaddingLeft(
+LayoutUnit GetUsedPaddingLeft(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-float GetUsedPaddingTop(
+    const SizeLayoutUnit& containing_block_size);
+LayoutUnit GetUsedPaddingTop(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-float GetUsedPaddingRight(
+    const SizeLayoutUnit& containing_block_size);
+LayoutUnit GetUsedPaddingRight(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
-float GetUsedPaddingBottom(
+    const SizeLayoutUnit& containing_block_size);
+LayoutUnit GetUsedPaddingBottom(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    const math::SizeF& containing_block_size);
+    const SizeLayoutUnit& containing_block_size);
 
 }  // namespace layout
 }  // namespace cobalt

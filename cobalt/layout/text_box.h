@@ -23,6 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/font_list.h"
 #include "cobalt/layout/box.h"
+#include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/paragraph.h"
 #include "cobalt/render_tree/font.h"
 
@@ -45,7 +46,7 @@ class TextBox : public Box {
   Level GetLevel() const OVERRIDE;
 
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-  scoped_refptr<Box> TrySplitAt(float available_width,
+  scoped_refptr<Box> TrySplitAt(LayoutUnit available_width,
                                 bool should_collapse_trailing_white_space,
                                 bool allow_overflow) OVERRIDE;
   Box* GetSplitSibling() const OVERRIDE;
@@ -68,9 +69,9 @@ class TextBox : public Box {
   bool JustifiesLineExistence() const OVERRIDE;
   bool HasTrailingLineBreak() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
-  float GetInlineLevelBoxHeight() const OVERRIDE;
-  float GetInlineLevelTopMargin() const OVERRIDE;
+  LayoutUnit GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
+  LayoutUnit GetInlineLevelBoxHeight() const OVERRIDE;
+  LayoutUnit GetInlineLevelTopMargin() const OVERRIDE;
 
   bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
 
@@ -91,9 +92,9 @@ class TextBox : public Box {
  private:
   // From |Box|.
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
-      BaseDirection base_direction, float desired_offset,
+      BaseDirection base_direction, LayoutUnit desired_offset,
       bool* is_placement_requirement_met, bool* is_placed,
-      float* placed_offset) OVERRIDE;
+      LayoutUnit* placed_offset) OVERRIDE;
 
   bool WhiteSpaceStyleAllowsCollapsing();
   bool WhiteSpaceStyleAllowsWrapping();
@@ -110,10 +111,10 @@ class TextBox : public Box {
 
   // Width of a space character in the used font, if the box has leading white
   // space.
-  float GetLeadingWhiteSpaceWidth() const;
+  LayoutUnit GetLeadingWhiteSpaceWidth() const;
   // Width of a space character in the used font, if the box has trailing white
   // space.
-  float GetTrailingWhiteSpaceWidth() const;
+  LayoutUnit GetTrailingWhiteSpaceWidth() const;
 
   int32 GetNonCollapsedTextStartPosition() const;
   int32 GetNonCollapsedTextEndPosition() const;
@@ -167,10 +168,10 @@ class TextBox : public Box {
 
   // The width of the portion of the text that is unaffected by whitespace
   // collapsing.
-  base::optional<float> non_collapsible_text_width_;
+  base::optional<LayoutUnit> non_collapsible_text_width_;
 
   // A vertical offset of the baseline relatively to the origin of the text box.
-  base::optional<float> baseline_offset_from_top_;
+  base::optional<LayoutUnit> baseline_offset_from_top_;
 
   // A reference to the next text box in a linked list of text boxes produced
   // from splits of the initial text box. This enables HTMLElement to retain
@@ -178,8 +179,8 @@ class TextBox : public Box {
   scoped_refptr<TextBox> split_sibling_;
 
   bool update_size_results_valid_;
-  float line_height_;
-  float inline_top_margin_;
+  LayoutUnit line_height_;
+  LayoutUnit inline_top_margin_;
   float ascent_;
 };
 

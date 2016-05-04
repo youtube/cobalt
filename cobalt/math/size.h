@@ -19,12 +19,13 @@ class Size : public SizeBase<Size, int> {
  public:
   Size() : SizeBase<Size, int>(0, 0) {}
   Size(int width, int height) : SizeBase<Size, int>(width, height) {}
-
   ~Size() {}
 
   operator SizeF() const {
     return SizeF(static_cast<float>(width()), static_cast<float>(height()));
   }
+
+  int GetArea() const { return width() * height(); }
 
   std::string ToString() const;
 };
