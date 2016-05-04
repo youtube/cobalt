@@ -17,6 +17,8 @@
 #include "cobalt/layout/layout_boxes.h"
 
 #include "cobalt/layout/container_box.h"
+#include "cobalt/layout/rect_layout_unit.h"
+#include "cobalt/layout/size_layout_unit.h"
 
 namespace cobalt {
 namespace layout {
@@ -60,11 +62,11 @@ scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
       // block boxes. ***REMOVED*** currently doesn't rely on GetClientRects() to do
       // that. Tracked in b/25983085.
 
-      dom_rect->set_x(box->GetBorderBoxLeftEdge());
-      dom_rect->set_y(box->GetBorderBoxTopEdge());
-      math::SizeF box_size = box->GetBorderBoxSize();
-      dom_rect->set_width(box_size.width());
-      dom_rect->set_height(box_size.height());
+      dom_rect->set_x(box->GetBorderBoxLeftEdge().toFloat());
+      dom_rect->set_y(box->GetBorderBoxTopEdge().toFloat());
+      SizeLayoutUnit box_size = box->GetBorderBoxSize();
+      dom_rect->set_width(box_size.width().toFloat());
+      dom_rect->set_height(box_size.height().toFloat());
       dom_rect_list->AppendDOMRect(dom_rect);
 
       box = box->GetSplitSibling();
@@ -97,42 +99,42 @@ float LayoutBoxes::GetBorderEdgeHeight() const {
 
 float LayoutBoxes::GetBorderLeftWidth() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->border_left_width();
+  return boxes_.front()->border_left_width().toFloat();
 }
 
 float LayoutBoxes::GetBorderTopWidth() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->border_top_width();
+  return boxes_.front()->border_top_width().toFloat();
 }
 
 float LayoutBoxes::GetMarginEdgeWidth() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->GetMarginBoxWidth();
+  return boxes_.front()->GetMarginBoxWidth().toFloat();
 }
 
 float LayoutBoxes::GetMarginEdgeHeight() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->GetMarginBoxHeight();
+  return boxes_.front()->GetMarginBoxHeight().toFloat();
 }
 
 float LayoutBoxes::GetPaddingEdgeLeft() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->GetPaddingBoxLeftEdge();
+  return boxes_.front()->GetPaddingBoxLeftEdge().toFloat();
 }
 
 float LayoutBoxes::GetPaddingEdgeTop() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->GetPaddingBoxTopEdge();
+  return boxes_.front()->GetPaddingBoxTopEdge().toFloat();
 }
 
 float LayoutBoxes::GetPaddingEdgeWidth() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->GetPaddingBoxWidth();
+  return boxes_.front()->GetPaddingBoxWidth().toFloat();
 }
 
 float LayoutBoxes::GetPaddingEdgeHeight() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->GetPaddingBoxHeight();
+  return boxes_.front()->GetPaddingBoxHeight().toFloat();
 }
 
 math::RectF LayoutBoxes::GetBoundingBorderRectangle() const {
@@ -146,7 +148,7 @@ math::RectF LayoutBoxes::GetBoundingBorderRectangle() const {
   // This function calculates the bounding box of the border boxes of the layout
   // boxes, mirroring behavior of most other browsers for the 'first CSS layout
   // box associated with the element'.
-  math::RectF bounding_rectangle;
+  RectLayoutUnit bounding_rectangle;
 
   for (Boxes::const_iterator box_iterator = boxes_.begin();
        box_iterator != boxes_.end(); ++box_iterator) {
@@ -157,7 +159,10 @@ math::RectF LayoutBoxes::GetBoundingBorderRectangle() const {
     } while (box != NULL);
   }
 
-  return bounding_rectangle;
+  return math::RectF(bounding_rectangle.x().toFloat(),
+                     bounding_rectangle.y().toFloat(),
+                     bounding_rectangle.width().toFloat(),
+                     bounding_rectangle.height().toFloat());
 }
 
 }  // namespace layout

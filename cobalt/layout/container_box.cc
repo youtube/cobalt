@@ -197,8 +197,8 @@ void ContainerBox::RemoveStackingContextChild(Box* child_box) {
 
 namespace {
 
-math::Vector2dF GetOffsetFromContainingBlockToParent(Box* child_box) {
-  math::Vector2dF relative_position;
+Vector2dLayoutUnit GetOffsetFromContainingBlockToParent(Box* child_box) {
+  Vector2dLayoutUnit relative_position;
   for (Box *ancestor_box = child_box->parent(),
            *containing_block = child_box->GetContainingBlock();
        ancestor_box != containing_block;
@@ -273,16 +273,16 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
   DCHECK_EQ(child_box->computed_style()->position(),
             cssom::KeywordValue::GetRelative());
 
-  base::optional<float> maybe_left = GetUsedLeftIfNotAuto(
+  base::optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
       child_box->computed_style(), child_layout_params.containing_block_size);
-  base::optional<float> maybe_right = GetUsedRightIfNotAuto(
+  base::optional<LayoutUnit> maybe_right = GetUsedRightIfNotAuto(
       child_box->computed_style(), child_layout_params.containing_block_size);
-  base::optional<float> maybe_top = GetUsedTopIfNotAuto(
+  base::optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
       child_box->computed_style(), child_layout_params.containing_block_size);
-  base::optional<float> maybe_bottom = GetUsedBottomIfNotAuto(
+  base::optional<LayoutUnit> maybe_bottom = GetUsedBottomIfNotAuto(
       child_box->computed_style(), child_layout_params.containing_block_size);
 
-  math::Vector2dF offset;
+  Vector2dLayoutUnit offset;
 
   // The following steps are performed according to the procedure described
   // here: https://www.w3.org/TR/CSS21/visuren.html#relative-positioning
@@ -292,7 +292,7 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
   if (!maybe_left && !maybe_right) {
     // If both 'left' and 'right' are 'auto' (their initial values), the used
     // values are '0' (i.e., the boxes stay in their original position).
-    offset.set_x(0);
+    offset.set_x(LayoutUnit());
   } else if (maybe_left && !maybe_right) {
     // If 'right' is 'auto', its used value is minus the value of 'left'.
     offset.set_x(*maybe_left);
@@ -315,7 +315,7 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
   // or down without changing their size.
   if (!maybe_top && !maybe_bottom) {
     // If both are 'auto', their used values are both '0'.
-    offset.set_y(0);
+    offset.set_y(LayoutUnit());
   } else if (maybe_top && !maybe_bottom) {
     // If one of them is 'auto', it becomes the negative of the other.
     offset.set_y(*maybe_top);
@@ -334,7 +334,7 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
 
 void ContainerBox::UpdateRectOfFixedPositionedChildBox(
     Box* child_box, const LayoutParams& child_layout_params) {
-  math::Vector2dF static_position_offset =
+  Vector2dLayoutUnit static_position_offset =
       GetOffsetFromContainingBlockToParent(child_box);
   child_box->set_left(child_box->left() + static_position_offset.x());
   child_box->set_top(child_box->top() + static_position_offset.y());
@@ -344,7 +344,7 @@ void ContainerBox::UpdateRectOfFixedPositionedChildBox(
 
 void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
     Box* child_box, const LayoutParams& child_layout_params) {
-  math::Vector2dF static_position_offset =
+  Vector2dLayoutUnit static_position_offset =
       GetOffsetFromContainingBlockToParent(child_box);
   // The containing block is formed by the padding box instead of the content
   // box, as described in
@@ -359,13 +359,14 @@ void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
 
 namespace {
 
-math::Vector2dF GetOffsetFromContainingBlockToStackingContext(Box* child_box) {
+Vector2dLayoutUnit GetOffsetFromContainingBlockToStackingContext(
+    Box* child_box) {
   DCHECK((child_box->computed_style()->position() ==
           cssom::KeywordValue::GetFixed()) ||
          (child_box->computed_style()->position() ==
           cssom::KeywordValue::GetAbsolute()));
 
-  math::Vector2dF relative_position;
+  Vector2dLayoutUnit relative_position;
   for (Box *containing_block = child_box->GetContainingBlock(),
            *current_box = child_box->GetStackingContext();
        current_box != containing_block;
@@ -386,7 +387,8 @@ math::Vector2dF GetOffsetFromContainingBlockToStackingContext(Box* child_box) {
   return relative_position;
 }
 
-math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
+Vector2dLayoutUnit GetOffsetFromStackingContextToContainingBlock(
+    Box* child_box) {
   const scoped_refptr<cssom::PropertyValue>& child_box_position =
       child_box->computed_style()->position();
   if (child_box_position == cssom::KeywordValue::GetFixed()) {
@@ -396,7 +398,7 @@ math::Vector2dF GetOffsetFromStackingContextToContainingBlock(Box* child_box) {
     return -GetOffsetFromContainingBlockToStackingContext(child_box);
   }
 
-  math::Vector2dF relative_position;
+  Vector2dLayoutUnit relative_position;
   if (child_box_position == cssom::KeywordValue::GetAbsolute()) {
     // The containing block is formed by the padding box instead of the content
     // box, as described in
@@ -438,14 +440,14 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
     render_tree::CompositionNode::Builder* content_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder,
-    const math::Vector2dF& offset_from_parent_node) const {
+    const Vector2dLayoutUnit& offset_from_parent_node) const {
   // Render all children of the passed in list in sorted order.
   for (ZIndexSortedList::const_iterator iter = z_index_child_list.begin();
        iter != z_index_child_list.end(); ++iter) {
     Box* child_box = *iter;
 
     DCHECK_EQ(this, child_box->GetStackingContext());
-    math::Vector2dF position_offset =
+    Vector2dLayoutUnit position_offset =
         GetOffsetFromStackingContextToContainingBlock(child_box) +
         offset_from_parent_node;
 
@@ -500,8 +502,8 @@ void ContainerBox::RenderAndAnimateContent(
     render_tree::CompositionNode::Builder* border_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
-  math::Vector2dF content_box_offset(border_left_width() + padding_left(),
-                                     border_top_width() + padding_top());
+  Vector2dLayoutUnit content_box_offset(border_left_width() + padding_left(),
+                                        border_top_width() + padding_top());
   // Render all positioned children in our stacking context that have negative
   // z-index values.
   //   https://www.w3.org/TR/CSS21/visuren.html#z-index

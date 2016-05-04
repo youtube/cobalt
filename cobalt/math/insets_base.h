@@ -33,7 +33,8 @@ class InsetsBase {
   }
 
   bool zero() const {
-    return left_ == 0 && top_ == 0 && right_ == 0 && bottom_ == 0;
+    return left_ == Type(0) && top_ == Type(0) && right_ == Type(0) &&
+           bottom_ == Type(0);
   }
 
   bool operator==(const Class& insets) const {
@@ -53,6 +54,7 @@ class InsetsBase {
   Class operator-() const { return Class(-left_, -top_, -right_, -bottom_); }
 
  protected:
+  InsetsBase() {}
   InsetsBase(Type left, Type top, Type right, Type bottom)
       : left_(left), top_(top), right_(right), bottom_(bottom) {}
 

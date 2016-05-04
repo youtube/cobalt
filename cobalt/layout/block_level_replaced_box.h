@@ -31,15 +31,15 @@ namespace layout {
 
 class BlockLevelReplacedBox : public ReplacedBox {
  public:
-  BlockLevelReplacedBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
-                            css_computed_style_declaration,
-                        const ReplaceImageCB& replace_image_cb,
-                        const scoped_refptr<Paragraph>& paragraph,
-                        int32 text_position,
-                        const base::optional<float>& maybe_intrinsic_width,
-                        const base::optional<float>& maybe_intrinsic_height,
-                        const base::optional<float>& maybe_intrinsic_ratio,
-                        UsedStyleProvider* used_style_provider);
+  BlockLevelReplacedBox(
+      const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+          css_computed_style_declaration,
+      const ReplaceImageCB& replace_image_cb,
+      const scoped_refptr<Paragraph>& paragraph, int32 text_position,
+      const base::optional<LayoutUnit>& maybe_intrinsic_width,
+      const base::optional<LayoutUnit>& maybe_intrinsic_height,
+      const base::optional<float>& maybe_intrinsic_ratio,
+      UsedStyleProvider* used_style_provider);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
@@ -52,9 +52,9 @@ class BlockLevelReplacedBox : public ReplacedBox {
 
   // From |ReplacedBox|.
   void UpdateHorizontalMargins(
-      float containing_block_width, float border_box_width,
-      const base::optional<float>& maybe_margin_left,
-      const base::optional<float>& maybe_margin_right) OVERRIDE;
+      LayoutUnit containing_block_width, LayoutUnit border_box_width,
+      const base::optional<LayoutUnit>& maybe_margin_left,
+      const base::optional<LayoutUnit>& maybe_margin_right) OVERRIDE;
 };
 
 }  // namespace layout

@@ -23,16 +23,18 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/base/math.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/layout/base_direction.h"
-#include "cobalt/layout/math.h"
-#include "cobalt/math/insets_f.h"
+#include "cobalt/layout/insets_layout_unit.h"
+#include "cobalt/layout/layout_unit.h"
+#include "cobalt/layout/rect_layout_unit.h"
+#include "cobalt/layout/size_layout_unit.h"
+#include "cobalt/layout/vector2d_layout_unit.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/rect_f.h"
-#include "cobalt/math/size_f.h"
-#include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/web_animations/animation_set.h"
@@ -72,7 +74,7 @@ struct LayoutParams {
   // Many box positions and sizes are calculated with respect to the edges of
   // a rectangular box called a containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#containing-block
-  math::SizeF containing_block_size;
+  SizeLayoutUnit containing_block_size;
 
   bool operator==(const LayoutParams& rhs) const {
     return shrink_to_fit_width_forced == rhs.shrink_to_fit_width_forced &&
@@ -166,16 +168,18 @@ class Box : public base::RefCounted<Box> {
   //               refer to an origin of either a parent's content edge
   //               (for in-flow boxes), or a nearest positioned ancestor's
   //               padding edge (for out-of-flow boxes).
-  void set_left(float left) {
-    margin_box_offset_from_containing_block_.set_x(
-        RoundToFixedPointPrecision(left));
+  void set_left(LayoutUnit left) {
+    margin_box_offset_from_containing_block_.set_x(left);
   }
-  float left() const { return margin_box_offset_from_containing_block_.x(); }
-  void set_top(float top) {
-    margin_box_offset_from_containing_block_.set_y(
-        RoundToFixedPointPrecision(top));
+  LayoutUnit left() const {
+    return margin_box_offset_from_containing_block_.x();
   }
-  float top() const { return margin_box_offset_from_containing_block_.y(); }
+  void set_top(LayoutUnit top) {
+    margin_box_offset_from_containing_block_.set_y(top);
+  }
+  LayoutUnit top() const {
+    return margin_box_offset_from_containing_block_.y();
+  }
 
   // Each box has a content area and optional surrounding padding, border,
   // and margin areas.
@@ -185,61 +189,61 @@ class Box : public base::RefCounted<Box> {
   // border, padding, and content boxes.
 
   // Margin box.
-  float GetMarginBoxWidth() const;
-  float GetMarginBoxHeight() const;
-  const math::Vector2dF& margin_box_offset_from_containing_block() const {
+  LayoutUnit GetMarginBoxWidth() const;
+  LayoutUnit GetMarginBoxHeight() const;
+  const Vector2dLayoutUnit& margin_box_offset_from_containing_block() const {
     return margin_box_offset_from_containing_block_;
   }
-  float GetMarginBoxLeftEdge() const;
-  float GetMarginBoxTopEdge() const;
-  float GetMarginBoxRightEdgeOffsetFromContainingBlock() const;
-  float GetMarginBoxBottomEdgeOffsetFromContainingBlock() const;
-  float GetMarginBoxStartEdgeOffsetFromContainingBlock(
+  LayoutUnit GetMarginBoxLeftEdge() const;
+  LayoutUnit GetMarginBoxTopEdge() const;
+  LayoutUnit GetMarginBoxRightEdgeOffsetFromContainingBlock() const;
+  LayoutUnit GetMarginBoxBottomEdgeOffsetFromContainingBlock() const;
+  LayoutUnit GetMarginBoxStartEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
-  float GetMarginBoxEndEdgeOffsetFromContainingBlock(
+  LayoutUnit GetMarginBoxEndEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
-  float margin_top() const { return margin_insets_.top(); }
-  float margin_bottom() const { return margin_insets_.bottom(); }
+  LayoutUnit margin_top() const { return margin_insets_.top(); }
+  LayoutUnit margin_bottom() const { return margin_insets_.bottom(); }
 
   // Border box.
-  float GetBorderBoxWidth() const;
-  float GetBorderBoxHeight() const;
-  math::RectF GetBorderBox() const;
-  math::SizeF GetBorderBoxSize() const;
-  float GetBorderBoxLeftEdge() const;
-  float GetBorderBoxTopEdge() const;
+  LayoutUnit GetBorderBoxWidth() const;
+  LayoutUnit GetBorderBoxHeight() const;
+  RectLayoutUnit GetBorderBox() const;
+  SizeLayoutUnit GetBorderBoxSize() const;
+  LayoutUnit GetBorderBoxLeftEdge() const;
+  LayoutUnit GetBorderBoxTopEdge() const;
 
   // Padding box.
-  float GetPaddingBoxWidth() const;
-  float GetPaddingBoxHeight() const;
-  math::SizeF GetPaddingBoxSize() const;
-  float GetPaddingBoxLeftEdge() const;
-  float GetPaddingBoxTopEdge() const;
+  LayoutUnit GetPaddingBoxWidth() const;
+  LayoutUnit GetPaddingBoxHeight() const;
+  SizeLayoutUnit GetPaddingBoxSize() const;
+  LayoutUnit GetPaddingBoxLeftEdge() const;
+  LayoutUnit GetPaddingBoxTopEdge() const;
 
   // Content box.
-  float width() const { return content_size_.width(); }
-  float height() const { return content_size_.height(); }
-  const math::SizeF& content_box_size() const { return content_size_; }
-  math::Vector2dF GetContentBoxOffsetFromMarginBox() const;
-  math::Vector2dF GetContentBoxOffsetFromPaddingBox() const;
-  float GetContentBoxLeftEdgeOffsetFromMarginBox() const;
-  float GetContentBoxTopEdgeOffsetFromMarginBox() const;
-  float GetContentBoxLeftEdgeOffsetFromContainingBlock() const;
-  float GetContentBoxTopEdgeOffsetFromContainingBlock() const;
-  float GetContentBoxStartEdgeOffsetFromContainingBlock(
+  LayoutUnit width() const { return content_size_.width(); }
+  LayoutUnit height() const { return content_size_.height(); }
+  const SizeLayoutUnit& content_box_size() const { return content_size_; }
+  Vector2dLayoutUnit GetContentBoxOffsetFromMarginBox() const;
+  Vector2dLayoutUnit GetContentBoxOffsetFromPaddingBox() const;
+  LayoutUnit GetContentBoxLeftEdgeOffsetFromMarginBox() const;
+  LayoutUnit GetContentBoxTopEdgeOffsetFromMarginBox() const;
+  LayoutUnit GetContentBoxLeftEdgeOffsetFromContainingBlock() const;
+  LayoutUnit GetContentBoxTopEdgeOffsetFromContainingBlock() const;
+  LayoutUnit GetContentBoxStartEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
-  float GetContentBoxEndEdgeOffsetFromContainingBlock(
+  LayoutUnit GetContentBoxEndEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
-  float GetContentBoxLeftEdge() const;
-  float GetContentBoxTopEdge() const;
+  LayoutUnit GetContentBoxLeftEdge() const;
+  LayoutUnit GetContentBoxTopEdge() const;
 
   // The height of each inline-level box in the line box is calculated. For
   // replaced elements, inline-block elements, and inline-table elements, this
   // is the height of their margin box; for inline boxes, this is their
   // 'line-height'.
   //   http://www.w3.org/TR/CSS21/visudet.html#line-height
-  virtual float GetInlineLevelBoxHeight() const;
-  virtual float GetInlineLevelTopMargin() const;
+  virtual LayoutUnit GetInlineLevelBoxHeight() const;
+  virtual LayoutUnit GetInlineLevelTopMargin() const;
 
   // Attempts to split the box, so that the part before the split would fit
   // the available width.
@@ -253,7 +257,7 @@ class Box : public base::RefCounted<Box> {
   //
   // Note that only inline boxes are splittable.
   virtual scoped_refptr<Box> TrySplitAt(
-      float available_width, bool should_collapse_trailing_white_space,
+      LayoutUnit available_width, bool should_collapse_trailing_white_space,
       bool allow_overflow) = 0;
 
   // Returns the next box in a linked list of sibling boxes produced from
@@ -274,9 +278,9 @@ class Box : public base::RefCounted<Box> {
   // (https://www.w3.org/TR/css3-ui/#propdef-text-overflow), regardless of
   // whether or not the ellipsis can be placed within this specific box.
   void TryPlaceEllipsisOrProcessPlacedEllipsis(
-      BaseDirection base_direction, float desired_offset,
+      BaseDirection base_direction, LayoutUnit desired_offset,
       bool* is_placement_requirement_met, bool* is_placed,
-      float* placed_offset);
+      LayoutUnit* placed_offset);
   // Whether or not the box fulfills the ellipsis requirement that it not be
   // be placed until after the "the first character or atomic inline-level
   // element on a line."
@@ -343,7 +347,7 @@ class Box : public base::RefCounted<Box> {
   // Returns the vertical offset of the baseline relatively to the top margin
   // edge. If the box does not have a baseline, returns the bottom margin edge,
   // as per https://www.w3.org/TR/CSS21/visudet.html#line-height.
-  virtual float GetBaselineOffsetFromTopMarginEdge() const = 0;
+  virtual LayoutUnit GetBaselineOffsetFromTopMarginEdge() const = 0;
 
   // Marks the current set of UpdateSize parameters (which includes the
   // LayoutParams parameter as well as object member variable state) as valid.
@@ -447,43 +451,39 @@ class Box : public base::RefCounted<Box> {
   //
   // Used values of "margin" properties are set by overriders
   // of |UpdateContentSizeAndMargins| method.
-  float margin_left() const { return margin_insets_.left(); }
-  void set_margin_left(float margin_left) {
-    margin_insets_.set_left(RoundToFixedPointPrecision(margin_left));
+  LayoutUnit margin_left() const { return margin_insets_.left(); }
+  void set_margin_left(LayoutUnit margin_left) {
+    margin_insets_.set_left(margin_left);
   }
-  void set_margin_top(float margin_top) {
-    margin_insets_.set_top(RoundToFixedPointPrecision(margin_top));
+  void set_margin_top(LayoutUnit margin_top) {
+    margin_insets_.set_top(margin_top);
   }
-  float margin_right() const { return margin_insets_.right(); }
-  void set_margin_right(float margin_right) {
-    margin_insets_.set_right(RoundToFixedPointPrecision(margin_right));
+  LayoutUnit margin_right() const { return margin_insets_.right(); }
+  void set_margin_right(LayoutUnit margin_right) {
+    margin_insets_.set_right(margin_right);
   }
-  void set_margin_bottom(float margin_bottom) {
-    margin_insets_.set_bottom(RoundToFixedPointPrecision(margin_bottom));
+  void set_margin_bottom(LayoutUnit margin_bottom) {
+    margin_insets_.set_bottom(margin_bottom);
   }
 
   // Border box read-only accessors.
-  float border_left_width() const { return border_insets_.left(); }
-  float border_top_width() const { return border_insets_.top(); }
-  float border_right_width() const { return border_insets_.right(); }
-  float border_bottom_width() const { return border_insets_.bottom(); }
+  LayoutUnit border_left_width() const { return border_insets_.left(); }
+  LayoutUnit border_top_width() const { return border_insets_.top(); }
+  LayoutUnit border_right_width() const { return border_insets_.right(); }
+  LayoutUnit border_bottom_width() const { return border_insets_.bottom(); }
 
   // Padding box read-only accessors.
-  float padding_left() const { return padding_insets_.left(); }
-  float padding_top() const { return padding_insets_.top(); }
-  float padding_right() const { return padding_insets_.right(); }
-  float padding_bottom() const { return padding_insets_.bottom(); }
+  LayoutUnit padding_left() const { return padding_insets_.left(); }
+  LayoutUnit padding_top() const { return padding_insets_.top(); }
+  LayoutUnit padding_right() const { return padding_insets_.right(); }
+  LayoutUnit padding_bottom() const { return padding_insets_.bottom(); }
 
   // Content box setters.
   //
   // Used values of "width" and "height" properties are set by overriders
   // of |UpdateContentSizeAndMargins| method.
-  void set_width(float width) {
-    content_size_.set_width(RoundToFixedPointPrecision(width));
-  }
-  void set_height(float height) {
-    content_size_.set_height(RoundToFixedPointPrecision(height));
-  }
+  void set_width(LayoutUnit width) { content_size_.set_width(width); }
+  void set_height(LayoutUnit height) { content_size_.set_height(height); }
 
   // Used to determine whether this box justifies the existence of a line,
   // as per:
@@ -526,9 +526,9 @@ class Box : public base::RefCounted<Box> {
   // https://www.w3.org/TR/CSS21/visudet.html#blockwidth and
   // https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width.
   void UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
-      float containing_block_width, float border_box_width,
-      const base::optional<float>& possibly_overconstrained_margin_left,
-      const base::optional<float>& possibly_overconstrained_margin_right);
+      LayoutUnit containing_block_width, LayoutUnit border_box_width,
+      const base::optional<LayoutUnit>& possibly_overconstrained_margin_left,
+      const base::optional<LayoutUnit>& possibly_overconstrained_margin_right);
 
  private:
   // Updates used values of "border" properties.
@@ -550,9 +550,9 @@ class Box : public base::RefCounted<Box> {
   // ellipsis-related state of the box, such as whether or not it should be
   // fully or partially hidden.
   virtual void DoPlaceEllipsisOrProcessPlacedEllipsis(
-      BaseDirection /*base_direction*/, float /*desired_offset*/,
+      BaseDirection /*base_direction*/, LayoutUnit /*desired_offset*/,
       bool* /*is_placement_requirement_met*/, bool* /*is_placed*/,
-      float* /*placed_offset*/) {}
+      LayoutUnit* /*placed_offset*/) {}
 
   // Helper methods used by |RenderAndAnimate|.
   void RenderAndAnimateBorder(
@@ -619,18 +619,18 @@ class Box : public base::RefCounted<Box> {
   ContainerBox* parent_;
 
   // Used values of "left" and "top" properties.
-  math::Vector2dF margin_box_offset_from_containing_block_;
+  Vector2dLayoutUnit margin_box_offset_from_containing_block_;
   // Used values of "margin-left", "margin-top", "margin-right",
   // and "margin-bottom".
-  math::InsetsF margin_insets_;
+  InsetsLayoutUnit margin_insets_;
   // Used values of "border-left-width", "border-top-width",
   // "border-right-width", and "border-bottom-width".
-  math::InsetsF border_insets_;
+  InsetsLayoutUnit border_insets_;
   // Used values of "padding-left", "padding-top", "padding-right",
   // and "padding-bottom".
-  math::InsetsF padding_insets_;
+  InsetsLayoutUnit padding_insets_;
   // Used values of "width" and "height" properties.
-  math::SizeF content_size_;
+  SizeLayoutUnit content_size_;
 
   // Referenced and updated by ValidateUpdateSizeInputs() to memoize the
   // parameters we were passed during in last call to UpdateSizes().

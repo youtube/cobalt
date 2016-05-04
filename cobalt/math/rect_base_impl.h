@@ -114,7 +114,7 @@ template <typename Class, typename PointClass, typename SizeClass,
 void RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
               Type>::Intersect(const Class& rect) {
   if (IsEmpty() || rect.IsEmpty()) {
-    SetRect(0, 0, 0, 0);
+    SetRect(Type(0), Type(0), Type(0), Type(0));
     return;
   }
 
@@ -123,7 +123,7 @@ void RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
   Type rr = std::min(right(), rect.right());
   Type rb = std::min(bottom(), rect.bottom());
 
-  if (rx >= rr || ry >= rb) rx = ry = rr = rb = 0;  // non-intersecting
+  if (rx >= rr || ry >= rb) rx = ry = rr = rb = Type(0);  // non-intersecting
 
   SetRect(rx, ry, rr - rx, rb - ry);
 }
@@ -152,7 +152,7 @@ void RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
               Type>::Subtract(const Class& rect) {
   if (!Intersects(rect)) return;
   if (rect.Contains(*static_cast<const Class*>(this))) {
-    SetRect(0, 0, 0, 0);
+    SetRect(Type(0), Type(0), Type(0), Type(0));
     return;
   }
 
@@ -238,9 +238,9 @@ template <typename Class, typename PointClass, typename SizeClass,
 Type RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
               Type>::ManhattanDistanceToPoint(const PointClass& point) const {
   Type x_distance =
-      std::max<Type>(0, std::max(x() - point.x(), point.x() - right()));
+      std::max<Type>(Type(0), std::max(x() - point.x(), point.x() - right()));
   Type y_distance =
-      std::max<Type>(0, std::max(y() - point.y(), point.y() - bottom()));
+      std::max<Type>(Type(0), std::max(y() - point.y(), point.y() - bottom()));
 
   return x_distance + y_distance;
 }
@@ -252,12 +252,14 @@ Type RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
   Class c(x(), y(), width(), height());
   c.Union(rect);
 
-  static const Type kEpsilon = std::numeric_limits<Type>::is_integer
-                                   ? 1
+  const Type kEpsilon = std::numeric_limits<Type>::is_integer
+                                   ? Type(1)
                                    : std::numeric_limits<Type>::epsilon();
 
-  Type x = std::max<Type>(0, c.width() - width() - rect.width() + kEpsilon);
-  Type y = std::max<Type>(0, c.height() - height() - rect.height() + kEpsilon);
+  Type x =
+      std::max<Type>(Type(0), c.width() - width() - rect.width() + kEpsilon);
+  Type y =
+      std::max<Type>(Type(0), c.height() - height() - rect.height() + kEpsilon);
   return x + y;
 }
 

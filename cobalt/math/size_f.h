@@ -20,6 +20,8 @@ class SizeF : public SizeBase<SizeF, float> {
   SizeF(float width, float height) : SizeBase<SizeF, float>(width, height) {}
   ~SizeF() {}
 
+  float GetArea() const { return width() * height(); }
+
   void Scale(float scale) { Scale(scale, scale); }
 
   void Scale(float x_scale, float y_scale) {

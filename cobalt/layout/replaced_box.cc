@@ -24,6 +24,7 @@
 #include "cobalt/layout/create_letterboxed_image.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
+#include "cobalt/math/vector2d_f.h"
 #include "cobalt/render_tree/color_rgba.h"
 
 namespace cobalt {
@@ -49,8 +50,8 @@ ReplacedBox::ReplacedBox(
         css_computed_style_declaration,
     const ReplaceImageCB& replace_image_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-    const base::optional<float>& maybe_intrinsic_width,
-    const base::optional<float>& maybe_intrinsic_height,
+    const base::optional<LayoutUnit>& maybe_intrinsic_width,
+    const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider)
     : Box(css_computed_style_declaration, used_style_provider),
@@ -67,8 +68,8 @@ ReplacedBox::ReplacedBox(
 }
 
 scoped_refptr<Box> ReplacedBox::TrySplitAt(
-    float /*available_width*/, bool /*should_collapse_trailing_white_space*/,
-    bool /*allow_overflow*/) {
+    LayoutUnit /*available_width*/,
+    bool /*should_collapse_trailing_white_space*/, bool /*allow_overflow*/) {
   return scoped_refptr<Box>();
 }
 
@@ -104,7 +105,7 @@ bool ReplacedBox::AffectsBaselineInBlockFormattingContext() const {
   return false;
 }
 
-float ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
+LayoutUnit ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
   return GetMarginBoxHeight();
 }
 
@@ -143,8 +144,8 @@ void ReplacedBox::RenderAndAnimateContent(
   }
 
   CompositionNode::Builder composition_node_builder(
-      math::Vector2dF(border_left_width() + padding_left(),
-                      border_top_width() + padding_top()));
+      math::Vector2dF((border_left_width() + padding_left()).toFloat(),
+                      (border_top_width() + padding_top()).toFloat()));
 
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
@@ -156,20 +157,20 @@ void ReplacedBox::RenderAndAnimateContent(
 
 void ReplacedBox::UpdateContentSizeAndMargins(
     const LayoutParams& layout_params) {
-  base::optional<float> maybe_width = GetUsedWidthIfNotAuto(
+  base::optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
       computed_style(), layout_params.containing_block_size, NULL);
-  base::optional<float> maybe_height = GetUsedHeightIfNotAuto(
+  base::optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::optional<float> maybe_left = GetUsedLeftIfNotAuto(
+  base::optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::optional<float> maybe_top = GetUsedTopIfNotAuto(
+  base::optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
   if (IsAbsolutelyPositioned()) {
     // TODO(***REMOVED***): Implement CSS section 10.3.8, see
     // https://www.w3.org/TR/CSS21/visudet.html#abs-replaced-width.
-    set_left(maybe_left.value_or(0.0f));
-    set_top(maybe_top.value_or(0.0f));
+    set_left(maybe_left.value_or(LayoutUnit()));
+    set_top(maybe_top.value_or(LayoutUnit()));
   }
   if (!maybe_width) {
     if (!maybe_height) {
@@ -191,7 +192,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
         // the conditions above are met, then the used value of "width" becomes
         // 300px.
         //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
-        set_width(kFallbackWidth);
+        set_width(LayoutUnit(kFallbackWidth));
       }
     } else {
       // If "width" has a computed value of "auto", "height" has some other
@@ -228,13 +229,13 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     // 'height' specified as 'auto', the algorithm is as described in
     // https://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
 
-    base::optional<float> maybe_max_width = GetUsedMaxWidthIfNotNone(
+    base::optional<LayoutUnit> maybe_max_width = GetUsedMaxWidthIfNotNone(
         computed_style(), layout_params.containing_block_size, NULL);
-    float min_width = GetUsedMinWidth(
+    LayoutUnit min_width = GetUsedMinWidth(
         computed_style(), layout_params.containing_block_size, NULL);
-    base::optional<float> maybe_max_height = GetUsedMaxHeightIfNotNone(
+    base::optional<LayoutUnit> maybe_max_height = GetUsedMaxHeightIfNotNone(
         computed_style(), layout_params.containing_block_size, NULL);
-    float min_height = GetUsedMinHeight(
+    LayoutUnit min_height = GetUsedMinHeight(
         computed_style(), layout_params.containing_block_size, NULL);
 
     // The values w and h stand for the results of the width and height
@@ -243,20 +244,20 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     // height, but they may not be in the case of replaced elements with
     // intrinsic ratios.
     //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
-    float w = width();
-    float h = height();
+    LayoutUnit w = width();
+    LayoutUnit h = height();
 
     // Take the max-width and max-height as max(min, max) so that min <= max
     // holds true.
     //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
-    base::optional<float> max_height;
+    base::optional<LayoutUnit> max_height;
     bool h_greater_than_max_height = false;
     if (maybe_max_height) {
       max_height = std::max(min_height, *maybe_max_height);
       h_greater_than_max_height = h > *max_height;
     }
 
-    base::optional<float> max_width;
+    base::optional<LayoutUnit> max_width;
     bool w_greater_than_max_width = false;
     if (maybe_max_width) {
       max_width = std::max(min_width, *maybe_max_width);
@@ -268,18 +269,20 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     // https://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
     if (w_greater_than_max_width) {
       if (h_greater_than_max_height) {
-        float max_width_ratio = *max_width / w;
-        float max_height_ratio = *max_height / h;
+        LayoutUnit max_width_ratio = *max_width / w.toFloat();
+        LayoutUnit max_height_ratio = *max_height / h.toFloat();
         if (max_width_ratio > max_height_ratio) {
           // Constraint: (w > max-width) and (h > max-height), where
           // (max-width/w > max-height/h)
-          set_width(std::max(min_width, *max_height * w / h));
+          set_width(
+              std::max(min_width, *max_height * (w.toFloat() / h.toFloat())));
           set_height(*max_height);
         } else {
           // Constraint: (w > max-width) and (h > max-height), where
           // (max-width/w <= max-height/h)
           set_width(*max_width);
-          set_height(std::max(min_height, *max_width * h / w));
+          set_height(
+              std::max(min_height, *max_width * (h.toFloat() / w.toFloat())));
         }
       } else {  // not h_greater_than_max_height
         if (h < min_height) {
@@ -289,7 +292,8 @@ void ReplacedBox::UpdateContentSizeAndMargins(
         } else {  // not h < min_height
           // Constraint: w > max-width
           set_width(*max_width);
-          set_height(std::max(*max_width * h / w, min_height));
+          set_height(
+              std::max(*max_width * (h.toFloat() / w.toFloat()), min_height));
         }
       }
     } else {  // not w_greater_than_max_width
@@ -300,34 +304,39 @@ void ReplacedBox::UpdateContentSizeAndMargins(
           set_height(*max_height);
         } else {  // not h_greater_than_max_height
           if (h < min_height) {
-            float min_width_ratio = min_width / w;
-            float min_height_ratio = min_height / h;
+            LayoutUnit min_width_ratio = min_width / w.toFloat();
+            LayoutUnit min_height_ratio = min_height / h.toFloat();
             if (min_width_ratio > min_height_ratio) {
               // Constraint: (w < min-width) and (h < min-height), where
               // (min-width/w > min-height/h)
               set_width(min_width);
-              set_height(std::min(*max_height, min_width * h / w));
+              set_height(std::min(*max_height,
+                                  min_width * (h.toFloat() / w.toFloat())));
             } else {
               // Constraint: (w < min-width) and (h < min-height), where
               // (min-width/w <= min-height/h)
-              set_width(std::min(*max_width, min_height * w / h));
+              set_width(std::min(*max_width,
+                                 min_height * (w.toFloat() / h.toFloat())));
               set_height(min_height);
             }
           } else {  // not h < min-height
             // Constraint: w < min-width
             set_width(min_width);
-            set_height(std::min(min_width * h / w, *max_height));
+            set_height(
+                std::min(min_width * (h.toFloat() / w.toFloat()), *max_height));
           }
         }
       } else {  // not w < min_width
         if (h_greater_than_max_height) {
           // Constraint: h > max-height
-          set_width(std::max(*max_height * w / h, min_width));
+          set_width(
+              std::max(*max_height * (w.toFloat() / h.toFloat()), min_width));
           set_height(*max_height);
         } else {  // not h_greater_than_max_height
           if (h < min_height) {
             // Constraint: h < min-height
-            set_width(std::min(min_height * w / h, *max_width));
+            set_width(
+                std::min(min_height * (w.toFloat() / h.toFloat()), *max_width));
             set_height(min_height);
           } else {  // not h < min_height
             // Constraint: none
@@ -342,24 +351,24 @@ void ReplacedBox::UpdateContentSizeAndMargins(
   // versus inline level replaced boxes.
   //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
   //   https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
-  base::optional<float> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+  base::optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::optional<float> maybe_margin_right = GetUsedMarginRightIfNotAuto(
+  base::optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  float border_box_width = GetBorderBoxWidth();
+  LayoutUnit border_box_width = GetBorderBoxWidth();
   UpdateHorizontalMargins(layout_params.containing_block_size.width(),
                           border_box_width, maybe_margin_left,
                           maybe_margin_right);
 
-  base::optional<float> maybe_margin_top = GetUsedMarginTopIfNotAuto(
+  base::optional<LayoutUnit> maybe_margin_top = GetUsedMarginTopIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::optional<float> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
+  base::optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
   // If "margin-top", or "margin-bottom" are "auto", their used value is 0.
   //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
-  set_margin_top(maybe_margin_top.value_or(0.0f));
-  set_margin_bottom(maybe_margin_bottom.value_or(0.0f));
+  set_margin_top(maybe_margin_top.value_or(LayoutUnit()));
+  set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
 }
 
 #ifdef COBALT_BOX_DUMP_ENABLED
