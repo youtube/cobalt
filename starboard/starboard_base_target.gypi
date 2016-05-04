@@ -20,9 +20,17 @@
     # should be defined both when building Starboard itself, and when building
     # any other source file in a Starboard-based project.
     'STARBOARD',
-
   ],
   'conditions': [
+    ['gl_type == "none"', {
+      'defines': [
+        'SB_GYP_GL_TYPE_IS_NONE=1',
+      ],
+    }, {
+      'defines': [
+        'SB_GYP_GL_TYPE_IS_NONE=0',
+      ],
+    }],
     ['abort_on_allocation_failure==1', {
       'defines': [
         'SB_ABORT_ON_ALLOCATION_FAILURE',
