@@ -69,6 +69,7 @@
 
     # The source of EGL and GLES headers and libraries.
     # Valid values (case and everything sensitive!):
+    #   'none'   - No EGL + GLES implementation is available on this platform.
     #   'system_gles3' - Use the system implementation of EGL + GLES3. The
     #                    headers and libraries must be on the system include and
     #                    link paths.

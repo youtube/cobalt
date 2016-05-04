@@ -29,10 +29,12 @@ scoped_ptr<Rasterizer> CreateRasterizer(
   return scoped_ptr<Rasterizer>(
       new rasterizer_skia::SkiaHardwareRasterizer(graphics_context));
 #elif SB_HAS(BLITTER)
-// TODO(***REMOVED***): Use software rasterizer with hardware blitter.
-#else
+  // TODO(***REMOVED***): Use hardware rasterizer with hardware blitter.
   return scoped_ptr<Rasterizer>(
       new rasterizer_skia::SkiaSoftwareRasterizer(graphics_context));
+#else
+#error "Either GLES2 or the Starboard Blitter API must be available."
+  return scoped_ptr<Rasterizer>();
 #endif
 }
 }  // namespace

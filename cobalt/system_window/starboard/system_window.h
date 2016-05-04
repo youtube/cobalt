@@ -34,6 +34,9 @@ class SystemWindowStarboard : public SystemWindow {
                                  const math::Size& window_size);
   ~SystemWindowStarboard() OVERRIDE;
 
+  // Returns a handle to the Starboard window object.
+  SbWindow GetSbWindow();
+
   // Gets the platform-specific window handle as a void*.
   void* GetWindowHandle();
 
