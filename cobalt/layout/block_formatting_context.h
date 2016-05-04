@@ -20,6 +20,7 @@
 #include "base/optional.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/formatting_context.h"
+#include "cobalt/layout/layout_unit.h"
 #include "cobalt/math/point_f.h"
 
 namespace cobalt {
@@ -51,7 +52,7 @@ class BlockFormattingContext : public FormattingContext {
   void UpdatePosition(Box* child_box);
 
   const LayoutParams layout_params_;
-  float collapsing_margin_;
+  LayoutUnit collapsing_margin_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockFormattingContext);
 };

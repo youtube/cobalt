@@ -205,6 +205,10 @@
       # Unsurprisingly, most of the structs become larger because of padding
       # but it's a universally acceptable price for better performance.
       4820,
+      # Disable static analyzer warning for std::min and std::max with
+      # objects.
+      # https://connect.microsoft.com/VisualStudio/feedback/details/783808/static-analyzer-warning-c28285-for-std-min-and-std-max
+      28285,
     ],
     'target_conditions': [
       ['_type=="executable"', {

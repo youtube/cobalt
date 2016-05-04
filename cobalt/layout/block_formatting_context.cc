@@ -73,7 +73,7 @@ void BlockFormattingContext::UpdatePosition(Box* child_box) {
   // In a block formatting context, each box's left outer edge touches
   // the left edge of the containing block.
   //   https://www.w3.org/TR/CSS21/visuren.html#block-formatting
-  child_box->set_left(0);
+  child_box->set_left(LayoutUnit());
 
   // In a block formatting context, boxes are laid out one after the other,
   // vertically, beginning at the top of a containing block. The vertical
@@ -85,25 +85,26 @@ void BlockFormattingContext::UpdatePosition(Box* child_box) {
   // When two or more margins collapse, the resulting margin width is the
   // maximum of the collapsing margins' widths.
   //   https://www.w3.org/TR/CSS21/box.html#collapsing-margins
-  const float margin_top = child_box->margin_top();
-  float collapsed_margin;
-  if ((margin_top >= 0.0f) && (collapsing_margin_ >= 0.0f)) {
+  const LayoutUnit margin_top = child_box->margin_top();
+  LayoutUnit collapsed_margin;
+  if ((margin_top >= LayoutUnit()) && (collapsing_margin_ >= LayoutUnit())) {
     collapsed_margin = std::max(margin_top, collapsing_margin_);
-  } else if ((margin_top < 0.0f) && (collapsing_margin_ < 0.0f)) {
+  } else if ((margin_top < LayoutUnit()) &&
+             (collapsing_margin_ < LayoutUnit())) {
     // If there are no positive margins, the maximum of the absolute values of
     // the adjoining margins is deducted from zero.
-    collapsed_margin = 0.0f + std::min(margin_top, collapsing_margin_);
+    collapsed_margin = LayoutUnit() + std::min(margin_top, collapsing_margin_);
   } else {
     // In the case of negative margins, the maximum of the absolute values of
     // the negative adjoining margins is deducted from the maximum of the
     // positive adjoining margins.
     // When there is only one negative and one positive margin, that translates
     // to: The margins are summed.
-    DCHECK(collapsing_margin_ >= 0.0f || margin_top >= 0.0f);
+    DCHECK(collapsing_margin_ >= LayoutUnit() || margin_top >= LayoutUnit());
     collapsed_margin = collapsing_margin_ + margin_top;
   }
 
-  float combined_margin = collapsing_margin_ + margin_top;
+  LayoutUnit combined_margin = collapsing_margin_ + margin_top;
   child_box->set_top(auto_height() - combined_margin + collapsed_margin);
 }
 

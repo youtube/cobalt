@@ -181,8 +181,9 @@ void InlineLevelBlockContainerBox::DumpProperties(std::ostream* stream) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 void InlineLevelBlockContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
-    BaseDirection base_direction, float /*desired_offset*/,
-    bool* is_placement_requirement_met, bool* is_placed, float* placed_offset) {
+    BaseDirection base_direction, LayoutUnit /*desired_offset*/,
+    bool* is_placement_requirement_met, bool* is_placed,
+    LayoutUnit* placed_offset) {
   // If the ellipsis is already placed, then simply mark the box as hidden by
   // the ellipsis: "Implementations must hide characters and atomic inline-level
   // elements at the applicable edge(s) of the line as necessary to fit the

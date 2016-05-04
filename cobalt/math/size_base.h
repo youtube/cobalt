@@ -15,8 +15,6 @@ class SizeBase {
   Type width() const { return width_; }
   Type height() const { return height_; }
 
-  Type GetArea() const { return width_ * height_; }
-
   void SetSize(Type width, Type height) {
     set_width(width);
     set_height(height);
@@ -40,9 +38,10 @@ class SizeBase {
     height_ = height_ >= other.height_ ? height_ : other.height_;
   }
 
-  bool IsEmpty() const { return (width_ == 0) || (height_ == 0); }
+  bool IsEmpty() const { return (width_ == Type(0)) || (height_ == Type(0)); }
 
  protected:
+  SizeBase() {}
   SizeBase(Type width, Type height) : width_(width), height_(height) {}
 
   // Destructor is intentionally made non virtual and protected.

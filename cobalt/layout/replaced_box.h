@@ -43,13 +43,13 @@ class ReplacedBox : public Box {
                   css_computed_style_declaration,
               const ReplaceImageCB& replace_image_cb,
               const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-              const base::optional<float>& maybe_intrinsic_width,
-              const base::optional<float>& maybe_intrinsic_height,
+              const base::optional<LayoutUnit>& maybe_intrinsic_width,
+              const base::optional<LayoutUnit>& maybe_intrinsic_height,
               const base::optional<float>& maybe_intrinsic_ratio,
               UsedStyleProvider* used_style_provider);
 
   // From |Box|.
-  scoped_refptr<Box> TrySplitAt(float available_width,
+  scoped_refptr<Box> TrySplitAt(LayoutUnit available_width,
                                 bool should_collapse_trailing_white_space,
                                 bool allow_overflow) OVERRIDE;
 
@@ -67,7 +67,7 @@ class ReplacedBox : public Box {
 
   bool JustifiesLineExistence() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
+  LayoutUnit GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
  protected:
   // From |Box|.
@@ -90,13 +90,13 @@ class ReplacedBox : public Box {
   // https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width and
   // https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
   virtual void UpdateHorizontalMargins(
-      float containing_block_width, float border_box_width,
-      const base::optional<float>& maybe_margin_left,
-      const base::optional<float>& maybe_margin_right) = 0;
+      LayoutUnit containing_block_width, LayoutUnit border_box_width,
+      const base::optional<LayoutUnit>& maybe_margin_left,
+      const base::optional<LayoutUnit>& maybe_margin_right) = 0;
 
   // TODO(***REMOVED***): Make private.
-  const base::optional<float> maybe_intrinsic_width_;
-  const base::optional<float> maybe_intrinsic_height_;
+  const base::optional<LayoutUnit> maybe_intrinsic_width_;
+  const base::optional<LayoutUnit> maybe_intrinsic_height_;
   const float intrinsic_ratio_;
 
  private:

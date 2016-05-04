@@ -48,7 +48,7 @@ class InlineContainerBox : public ContainerBox {
 
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
   scoped_refptr<Box> TrySplitAt(
-      float available_width, bool allow_overflow,
+      LayoutUnit available_width, bool allow_overflow,
       bool should_collapse_trailing_white_space) OVERRIDE;
   Box* GetSplitSibling() const OVERRIDE;
 
@@ -69,9 +69,9 @@ class InlineContainerBox : public ContainerBox {
   bool JustifiesLineExistence() const OVERRIDE;
   bool HasTrailingLineBreak() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
-  float GetInlineLevelBoxHeight() const OVERRIDE;
-  float GetInlineLevelTopMargin() const OVERRIDE;
+  LayoutUnit GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
+  LayoutUnit GetInlineLevelBoxHeight() const OVERRIDE;
+  LayoutUnit GetInlineLevelTopMargin() const OVERRIDE;
 
   // From |ContainerBox|.
   bool TryAddChild(const scoped_refptr<Box>& child_box) OVERRIDE;
@@ -89,9 +89,9 @@ class InlineContainerBox : public ContainerBox {
  private:
   // From |Box|.
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
-      BaseDirection base_direction, float desired_offset,
+      BaseDirection base_direction, LayoutUnit desired_offset,
       bool* is_placement_requirement_met, bool* is_placed,
-      float* placed_offset) OVERRIDE;
+      LayoutUnit* placed_offset) OVERRIDE;
 
   scoped_refptr<Box> SplitAtIterator(
       Boxes::const_iterator child_split_iterator);
@@ -103,9 +103,9 @@ class InlineContainerBox : public ContainerBox {
   bool is_collapsed_;
 
   bool justifies_line_existence_;
-  float baseline_offset_from_margin_box_top_;
-  float line_height_;
-  float inline_top_margin_;
+  LayoutUnit baseline_offset_from_margin_box_top_;
+  LayoutUnit line_height_;
+  LayoutUnit inline_top_margin_;
 
   // A font used for text width and line height calculations.
   const scoped_refptr<dom::FontList> used_font_;
