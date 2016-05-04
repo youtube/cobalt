@@ -42,6 +42,9 @@ SbWindowPrivate::SbWindowPrivate(IDirectFB* directfb,
     window_height = options->size.height;
   }
   directfb->SetVideoMode(directfb, window_width, window_height, kBPP);
+
+  width = window_width;
+  height = window_height;
 }
 
 SbWindowPrivate::~SbWindowPrivate() {
