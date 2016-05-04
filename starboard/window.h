@@ -83,6 +83,9 @@ SB_EXPORT void SbWindowSetDefaultOptions(SbWindowOptions* options);
 // Destroys |window|, reclaiming associated resources.
 SB_EXPORT bool SbWindowDestroy(SbWindow window);
 
+// Sets |size| to the dimensions of the window.  Returns true on success.
+SB_EXPORT bool SbWindowGetSize(SbWindow window, SbWindowSize* size);
+
 // Gets the platform-specific handle for |window|, which can be passed as an
 // EGLNativeWindowType to initialize EGL/GLES. This return value is entirely
 // platform specific, so there are no constraints about expected ranges.
