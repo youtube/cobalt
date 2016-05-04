@@ -220,7 +220,7 @@ class WebModule {
   MessageLoop* const self_message_loop_;
 
   // The error callback passed in from constructor.
-  const base::Callback<void(const GURL&, const std::string&)>& error_callback_;
+  base::Callback<void(const GURL&, const std::string&)> error_callback_;
 
   // CSS parser.
   scoped_ptr<css_parser::Parser> css_parser_;
