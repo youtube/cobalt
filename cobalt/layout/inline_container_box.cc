@@ -36,9 +36,6 @@ InlineContainerBox::InlineContainerBox(
       has_trailing_white_space_(false),
       is_collapsed_(false),
       justifies_line_existence_(false),
-      baseline_offset_from_margin_box_top_(0),
-      line_height_(0),
-      inline_top_margin_(0),
       used_font_(used_style_provider->GetUsedFontList(
           css_computed_style_declaration->data()->font_family(),
           css_computed_style_declaration->data()->font_size(),
@@ -86,11 +83,11 @@ scoped_refptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
   return box_after_split;
 }
 
-float InlineContainerBox::GetInlineLevelBoxHeight() const {
+LayoutUnit InlineContainerBox::GetInlineLevelBoxHeight() const {
   return line_height_;
 }
 
-float InlineContainerBox::GetInlineLevelTopMargin() const {
+LayoutUnit InlineContainerBox::GetInlineLevelTopMargin() const {
   return inline_top_margin_;
 }
 
@@ -99,13 +96,13 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   // Lay out child boxes as one line without width constraints and white space
   // trimming.
   const render_tree::FontMetrics& font_metrics = used_font_->GetFontMetrics();
-  float box_top_height = font_metrics.ascent();
+  LayoutUnit box_top_height = LayoutUnit(font_metrics.ascent());
   LineBox line_box(box_top_height, true, computed_style()->line_height(),
                    font_metrics, should_collapse_leading_white_space_,
                    should_collapse_trailing_white_space_, layout_params,
                    kLeftToRightBaseDirection, cssom::KeywordValue::GetLeft(),
                    cssom::KeywordValue::GetNormal(),
-                   computed_style()->font_size(), 0, 0);
+                   computed_style()->font_size(), LayoutUnit(), LayoutUnit());
 
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
@@ -133,16 +130,16 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   set_width(line_box.shrink_to_fit_width());
 
-  base::optional<float> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+  base::optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::optional<float> maybe_margin_right = GetUsedMarginRightIfNotAuto(
+  base::optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
   // A computed value of "auto" for "margin-left" or "margin-right" becomes
   // a used value of "0".
   //   https://www.w3.org/TR/CSS21/visudet.html#inline-width
-  set_margin_left(maybe_margin_left.value_or(0.0f));
-  set_margin_right(maybe_margin_right.value_or(0.0f));
+  set_margin_left(maybe_margin_left.value_or(LayoutUnit()));
+  set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
 
   // The "height" property does not apply. The height of the content area should
   // be based on the font, but this specification does not specify how. [...]
@@ -153,7 +150,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   //
   // Above definition of used height matches the height of hypothetical line box
   // that contains all children.
-  set_height(font_metrics.em_box_height());
+  set_height(LayoutUnit(font_metrics.em_box_height()));
 
   // On a non-replaced inline element, 'line-height' specifies the height that
   // is used in the calculation of the line box height.
@@ -162,8 +159,8 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
 
   // Vertical margins will not have any effect on non-replaced inline elements.
   //   https://www.w3.org/TR/CSS21/box.html#margin-properties
-  set_margin_top(0);
-  set_margin_bottom(0);
+  set_margin_top(LayoutUnit());
+  set_margin_bottom(LayoutUnit());
   inline_top_margin_ = line_box.baseline_offset_from_top() - line_box.top() -
                        border_top_width() - padding_top();
 
@@ -176,12 +173,12 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
 }
 
 scoped_refptr<Box> InlineContainerBox::TrySplitAt(
-    float available_width, bool should_collapse_trailing_white_space,
+    LayoutUnit available_width, bool should_collapse_trailing_white_space,
     bool allow_overflow) {
   DCHECK_GT(GetMarginBoxWidth(), available_width);
 
   available_width -= GetContentBoxLeftEdgeOffsetFromMarginBox();
-  if (!allow_overflow && available_width < 0) {
+  if (!allow_overflow && available_width < LayoutUnit()) {
     return scoped_refptr<Box>();
   }
 
@@ -195,7 +192,7 @@ scoped_refptr<Box> InlineContainerBox::TrySplitAt(
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
 
-    float margin_box_width_of_child_box = child_box->GetMarginBoxWidth();
+    LayoutUnit margin_box_width_of_child_box = child_box->GetMarginBoxWidth();
 
     // Split the first child that overflows the available width.
     // Leave its part before the split in this box.
@@ -372,7 +369,7 @@ bool InlineContainerBox::AffectsBaselineInBlockFormattingContext() const {
   return true;
 }
 
-float InlineContainerBox::GetBaselineOffsetFromTopMarginEdge() const {
+LayoutUnit InlineContainerBox::GetBaselineOffsetFromTopMarginEdge() const {
   return baseline_offset_from_margin_box_top_;
 }
 
@@ -387,8 +384,8 @@ void InlineContainerBox::DumpClassName(std::ostream* stream) const {
 void InlineContainerBox::DumpProperties(std::ostream* stream) const {
   ContainerBox::DumpProperties(stream);
 
-  *stream << std::boolalpha << "line_height=" << line_height_ << " "
-          << "inline_top_margin=" << inline_top_margin_ << " "
+  *stream << std::boolalpha << "line_height=" << line_height_.toFloat() << " "
+          << "inline_top_margin=" << inline_top_margin_.toFloat() << " "
           << "has_leading_white_space=" << has_leading_white_space_ << " "
           << "has_trailing_white_space=" << has_trailing_white_space_ << " "
           << "is_collapsed=" << is_collapsed_ << " "
@@ -399,15 +396,16 @@ void InlineContainerBox::DumpProperties(std::ostream* stream) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
-    BaseDirection base_direction, float desired_offset,
-    bool* is_placement_requirement_met, bool* is_placed, float* placed_offset) {
+    BaseDirection base_direction, LayoutUnit desired_offset,
+    bool* is_placement_requirement_met, bool* is_placed,
+    LayoutUnit* placed_offset) {
   // If the ellipsis hasn't been previously placed, but the placement
   // requirement is met and its desired offset comes before the content box's
   // start edge, then place the ellipsis at its desired position. This can occur
   // when the desired position falls between the start edge of the margin box
   // and the start edge of its content box.
   if (!*is_placed && *is_placement_requirement_met) {
-    float content_box_start_edge_offset =
+    LayoutUnit content_box_start_edge_offset =
         GetContentBoxStartEdgeOffsetFromContainingBlock(base_direction);
     if ((base_direction == kRightToLeftBaseDirection &&
          desired_offset >= content_box_start_edge_offset) ||
@@ -425,7 +423,8 @@ void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
   // position, and the content box offset will be re-added after the ellipsis
   // is placed. This allows its children to only focus on their offset from
   // their containing block, and not worry about nested containing blocks.
-  float content_box_offset = GetContentBoxLeftEdgeOffsetFromContainingBlock();
+  LayoutUnit content_box_offset =
+      GetContentBoxLeftEdgeOffsetFromContainingBlock();
   desired_offset -= content_box_offset;
 
   // Walk each child box in base direction order attempting to place the
@@ -494,13 +493,13 @@ scoped_refptr<Box> InlineContainerBox::SplitAtIterator(
 #ifdef _DEBUG
   // Make sure that the |UpdateContentSizeAndMargins| is called afterwards.
 
-  set_width(std::numeric_limits<float>::quiet_NaN());
-  set_height(std::numeric_limits<float>::quiet_NaN());
+  set_width(LayoutUnit());
+  set_height(LayoutUnit());
 
-  set_margin_left(std::numeric_limits<float>::quiet_NaN());
-  set_margin_top(std::numeric_limits<float>::quiet_NaN());
-  set_margin_right(std::numeric_limits<float>::quiet_NaN());
-  set_margin_bottom(std::numeric_limits<float>::quiet_NaN());
+  set_margin_left(LayoutUnit());
+  set_margin_top(LayoutUnit());
+  set_margin_right(LayoutUnit());
+  set_margin_bottom(LayoutUnit());
 #endif  // _DEBUG
 
   return box_after_split;

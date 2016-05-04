@@ -23,6 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/font_list.h"
 #include "cobalt/layout/base_direction.h"
+#include "cobalt/layout/layout_unit.h"
 #include "cobalt/render_tree/font.h"
 
 #include "third_party/icu/public/common/unicode/brkiter.h"
@@ -107,10 +108,10 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // Returns false if no usable break position was found.
   bool FindBreakPosition(const scoped_refptr<dom::FontList>& used_font,
                          int32 start_position, int32 end_position,
-                         float available_width,
+                         LayoutUnit available_width,
                          bool should_collapse_trailing_white_space,
                          bool allow_overflow, BreakPolicy break_policy,
-                         int32* break_position, float* break_width);
+                         int32* break_position, LayoutUnit* break_width);
 
   std::string RetrieveUtf8SubString(int32 start_position,
                                     int32 end_position) const;
@@ -162,10 +163,10 @@ class Paragraph : public base::RefCounted<Paragraph> {
   void FindIteratorBreakPosition(const scoped_refptr<dom::FontList>& used_font,
                                  icu::BreakIterator* const break_iterator,
                                  int32 start_position, int32 end_position,
-                                 float available_width,
+                                 LayoutUnit available_width,
                                  bool should_collapse_trailing_white_space,
                                  bool allow_overflow, int32* break_position,
-                                 float* break_width);
+                                 LayoutUnit* break_width);
 
   // Attempt to include the specified segment within the available width. If
   // either the segment fits within the width or |allow_overflow| is true, then
@@ -183,9 +184,9 @@ class Paragraph : public base::RefCounted<Paragraph> {
   // that no additional segments can be included.
   bool TryIncludeSegmentWithinAvailableWidth(
       const scoped_refptr<dom::FontList>& used_font, int32 start_position,
-      int32 end_position, float available_width,
+      int32 end_position, LayoutUnit available_width,
       bool should_collapse_trailing_white_space, bool* allow_overflow,
-      int32* break_position, float* break_width);
+      int32* break_position, LayoutUnit* break_width);
 
   void GenerateBidiLevelRuns();
   size_t GetRunIndex(int32 position) const;

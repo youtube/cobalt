@@ -38,8 +38,8 @@ class InlineLevelReplacedBox : public ReplacedBox {
           css_computed_style_declaration,
       const ReplaceImageCB& replace_image_cb,
       const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-      const base::optional<float>& maybe_intrinsic_width,
-      const base::optional<float>& maybe_intrinsic_height,
+      const base::optional<LayoutUnit>& maybe_intrinsic_width,
+      const base::optional<LayoutUnit>& maybe_intrinsic_height,
       const base::optional<float>& maybe_intrinsic_ratio,
       UsedStyleProvider* used_style_provider);
 
@@ -58,16 +58,16 @@ class InlineLevelReplacedBox : public ReplacedBox {
 
   // From |ReplacedBox|.
   void UpdateHorizontalMargins(
-      float containing_block_width, float border_box_width,
-      const base::optional<float>& maybe_margin_left,
-      const base::optional<float>& maybe_margin_right) OVERRIDE;
+      LayoutUnit containing_block_width, LayoutUnit border_box_width,
+      const base::optional<LayoutUnit>& maybe_margin_left,
+      const base::optional<LayoutUnit>& maybe_margin_right) OVERRIDE;
 
  private:
   // From |Box|.
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
-      BaseDirection base_direction, float desired_offset,
+      BaseDirection base_direction, LayoutUnit desired_offset,
       bool* is_placement_requirement_met, bool* is_placed,
-      float* placed_offset) OVERRIDE;
+      LayoutUnit* placed_offset) OVERRIDE;
 
   // This flag indicates that the box is fully hidden by the ellipsis and it,
   // along with its contents will not be visible.
